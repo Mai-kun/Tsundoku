@@ -2,6 +2,7 @@
   import { deleteMedia, getMedia } from './lib/api.js'
   import CreateModal from './lib/components/CreateModal.svelte'
   import MediaCard from './lib/components/MediaCard.svelte'
+  import SearchModal from './lib/components/SearchModal.svelte'
 
   const categories = [
     { id: 'all', label: 'Все' },
@@ -27,6 +28,7 @@
   let loading = $state(true)
   let error = $state('')
   let showCreateModal = $state(false)
+  let showSearchModal = $state(false)
   let requestSequence = 0
 
   let filters = $derived({
@@ -78,7 +80,20 @@
     showCreateModal = false
     loadMedia()
   }
+
+  function handleMediaAdded() {
+    loadMedia()
+  }
+
+  function handleGlobalKeydown(event) {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+      event.preventDefault()
+      showSearchModal = true
+    }
+  }
 </script>
+
+<svelte:window onkeydown={handleGlobalKeydown} />
 
 <svelte:head>
   <title>MediaTracker</title>
@@ -115,6 +130,19 @@
             bind:value={search}
           />
         </label>
+        <button
+          type="button"
+          class="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-700 bg-slate-800 px-4 py-2.5 text-sm font-semibold text-slate-200 transition hover:border-blue-400/60 hover:bg-slate-700 hover:text-white focus:outline-none focus:ring-2 focus:ring-blue-400"
+          title="Поиск тайтлов — Ctrl+K"
+          onclick={() => (showSearchModal = true)}
+        >
+          <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <circle cx="11" cy="11" r="6" />
+            <path d="m16 16 4 4" />
+          </svg>
+          Поиск тайтлов
+          <kbd class="hidden rounded border border-slate-600 bg-slate-900 px-1.5 py-0.5 text-[10px] font-medium text-slate-400 lg:inline">Ctrl K</kbd>
+        </button>
         <button type="button" class="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-950/40 transition hover:bg-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-300" onclick={() => (showCreateModal = true)}>
           <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
             <path d="M12 5v14M5 12h14" />
@@ -181,3 +209,10 @@
 {#if showCreateModal}
   <CreateModal onClose={() => (showCreateModal = false)} onCreated={handleCreated} />
 {/if}
+
+<SearchModal
+  isOpen={showSearchModal}
+  initialType={activeCategory === 'all' ? 'anime' : activeCategory}
+  onClose={() => (showSearchModal = false)}
+  onMediaAdded={handleMediaAdded}
+/>

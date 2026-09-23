@@ -11,6 +11,8 @@ using OpenApiUi;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.WebHost.UseUrls("http://0.0.0.0:5000");
+
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")
         ?? "Data Source=tracker.db"));
@@ -93,4 +95,15 @@ app.MapExternalMediaEndpoints();
 
 app.MapFallbackToFile("index.html");
 
-app.Run();
+var serverTask = app.RunAsync();
+
+var window = new Photino.NET.PhotinoWindow()
+    .SetTitle("MediaTracker")
+    .SetUseOsDefaultSize(false)
+    .SetSize(1300, 850)
+    .Center()
+    .Load("http://localhost:5000");
+
+window.WaitForClose();
+
+await app.StopAsync();

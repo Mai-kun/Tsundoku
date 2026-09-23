@@ -2,6 +2,7 @@ using FluentValidation;
 using MediaTracker.Server.Data;
 using MediaTracker.Server.DTOs;
 using MediaTracker.Server.Models;
+using MediaTracker.Server.Services.Storage;
 using Microsoft.EntityFrameworkCore;
 
 namespace MediaTracker.Server.Endpoints;
@@ -99,6 +100,7 @@ public static class MediaEndpoints
         CreateMediaRequest request,
         AppDbContext db,
         IValidator<CreateMediaRequest> validator,
+        IImageStorageService imageStorage,
         CancellationToken ct)
     {
         var validationResult = await validator.ValidateAsync(request, ct);
@@ -108,6 +110,13 @@ public static class MediaEndpoints
         }
 
         var item = CreateEntity(request);
+        item.Id = Guid.NewGuid();
+
+        if (IsExternalUrl(item.CoverUrl))
+        {
+            item.CoverUrl = await imageStorage.SaveCoverAsync(item.CoverUrl!, item.Id, ct);
+        }
+
         db.Add(item);
         await db.SaveChangesAsync(ct);
 
@@ -236,13 +245,19 @@ public static class MediaEndpoints
         return Results.NoContent();
     }
 
-    private static async Task<IResult> DeleteMediaItem(Guid id, AppDbContext db, CancellationToken ct)
+    private static async Task<IResult> DeleteMediaItem(
+        Guid id,
+        AppDbContext db,
+        IImageStorageService imageStorage,
+        CancellationToken ct)
     {
         var item = await db.MediaItems.SingleOrDefaultAsync(media => media.Id == id, ct);
         if (item is null)
         {
             return Results.NotFound();
         }
+
+        imageStorage.DeleteCover(item.CoverUrl);
 
         db.MediaItems.Remove(item);
         await db.SaveChangesAsync(ct);
@@ -362,6 +377,11 @@ public static class MediaEndpoints
             },
             _ => throw new UnsupportedMediaTypeException(request.Type),
         };
+
+    private static bool IsExternalUrl(string? url) =>
+        url is not null &&
+        (url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+         url.StartsWith("https://", StringComparison.OrdinalIgnoreCase));
 
     private sealed class UnsupportedMediaTypeException(string mediaType)
         : InvalidOperationException($"Unsupported media type '{mediaType}'.");

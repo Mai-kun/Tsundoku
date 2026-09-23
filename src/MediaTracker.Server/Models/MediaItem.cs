@@ -1,0 +1,28 @@
+namespace MediaTracker.Server.Models;
+
+public abstract class MediaItem
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    public required string Title { get; set; }
+
+    public MediaStatus Status { get; set; } = MediaStatus.Planned;
+
+    public int? Score { get; set; }
+
+    public DateTime? StartedAt { get; set; }
+
+    public DateTime? FinishedAt { get; set; }
+
+    public string? Notes { get; set; }
+
+    public string? CoverUrl { get; set; }
+
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    public Guid? FranchiseId { get; set; }
+
+    public Franchise? Franchise { get; set; }
+
+    public int? FranchiseOrder { get; set; }
+}

@@ -18,8 +18,9 @@ async function request(url, options = {}) {
 
 export function getMedia(filters = {}) {
   const params = new URLSearchParams()
+  const queryFilters = { sortBy: 'createdAt', sortOrder: 'desc', ...filters }
 
-  for (const [key, value] of Object.entries(filters)) {
+  for (const [key, value] of Object.entries(queryFilters)) {
     if (value !== undefined && value !== null && value !== '') {
       params.set(key, String(value))
     }
@@ -27,6 +28,10 @@ export function getMedia(filters = {}) {
 
   const query = params.toString()
   return request(`${mediaEndpoint}${query ? `?${query}` : ''}`)
+}
+
+export function getStats() {
+  return request(`${mediaEndpoint}/stats`)
 }
 
 export function searchExternal(type, query) {

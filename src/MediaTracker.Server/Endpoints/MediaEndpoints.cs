@@ -16,6 +16,7 @@ public static class MediaEndpoints
         var group = app.MapGroup("/api/media");
 
         group.MapGet("/", GetMediaItems);
+        group.MapGet("/stats", GetMediaStats);
         group.MapGet("/{id:guid}", GetMediaItem);
         group.MapPost("/", CreateMediaItem);
         group.MapPut("/{id:guid}", UpdateMediaItem);
@@ -41,6 +42,8 @@ public static class MediaEndpoints
         MediaStatus? status = null,
         bool? isAnime = null,
         string? search = null,
+        string? sortBy = "createdAt",
+        string? sortOrder = "desc",
         CancellationToken ct = default)
     {
         IQueryable<MediaItem> query = db.MediaItems.AsNoTracking();
@@ -82,8 +85,42 @@ public static class MediaEndpoints
             query = query.Where(item => EF.Functions.Like(item.Title, $"%{search.Trim()}%"));
         }
 
+        var ascending = string.Equals(sortOrder, "asc", StringComparison.OrdinalIgnoreCase);
+        query = sortBy?.Trim().ToLowerInvariant() switch
+        {
+            "score" => ascending
+                ? query.OrderBy(item => item.Score == null).ThenBy(item => item.Score)
+                : query.OrderBy(item => item.Score == null).ThenByDescending(item => item.Score),
+            "title" => ascending
+                ? query.OrderBy(item => item.Title)
+                : query.OrderByDescending(item => item.Title),
+            _ => ascending
+                ? query.OrderBy(item => item.CreatedAt)
+                : query.OrderByDescending(item => item.CreatedAt),
+        };
+
         var items = await query.ToListAsync(ct);
         return Results.Ok(items);
+    }
+
+    private static async Task<IResult> GetMediaStats(AppDbContext db, CancellationToken ct)
+    {
+        var stats = new MediaStatsDto
+        {
+            TotalItems = await db.MediaItems.CountAsync(ct),
+            CompletedItems = await db.MediaItems.CountAsync(item => item.Status == MediaStatus.Completed, ct),
+            InProgressItems = await db.MediaItems.CountAsync(item => item.Status == MediaStatus.InProgress, ct),
+            PlannedItems = await db.MediaItems.CountAsync(item => item.Status == MediaStatus.Planned, ct),
+            TotalHoursPlayed = await db.Games.SumAsync(game => game.HoursPlayed ?? 0, ct),
+            TotalPagesRead = await db.Books.SumAsync(book => book.CurrentPage, ct),
+            TotalChaptersRead = await db.Manga.SumAsync(manga => manga.CurrentChapter, ct),
+            TotalEpisodesWatched = await db.TvSeasons.SumAsync(season => season.CurrentEpisode, ct),
+            CompletedGamesCount = await db.Games.CountAsync(game => game.Status == MediaStatus.Completed, ct),
+            CompletedBooksCount = await db.Books.CountAsync(book => book.Status == MediaStatus.Completed, ct),
+            CompletedMoviesCount = await db.Movies.CountAsync(movie => movie.Status == MediaStatus.Completed, ct),
+        };
+
+        return Results.Ok(stats);
     }
 
     private static async Task<IResult> GetMediaItem(Guid id, AppDbContext db, CancellationToken ct)

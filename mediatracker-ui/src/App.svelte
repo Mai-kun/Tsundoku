@@ -1,8 +1,10 @@
 <script>
-  import { deleteMedia, getMedia } from './lib/api.js'
+  import { deleteMedia, getMedia, getStats } from './lib/api.js'
   import CreateModal from './lib/components/CreateModal.svelte'
+  import FilterBar from './lib/components/FilterBar.svelte'
   import MediaCard from './lib/components/MediaCard.svelte'
   import SearchModal from './lib/components/SearchModal.svelte'
+  import StatsWidget from './lib/components/StatsWidget.svelte'
 
   const categories = [
     { id: 'all', label: 'Все' },
@@ -14,16 +16,23 @@
     { id: 'manga', label: 'Манга' },
   ]
 
-  const statuses = [
-    { id: 'all', label: 'Все' },
-    { id: 1, label: 'В процессе' },
-    { id: 0, label: 'В планах' },
-    { id: 2, label: 'Пройдено' },
-  ]
-
   let items = $state([])
+  let stats = $state({
+    totalItems: 0,
+    completedItems: 0,
+    inProgressItems: 0,
+    plannedItems: 0,
+    totalHoursPlayed: 0,
+    totalPagesRead: 0,
+    totalChaptersRead: 0,
+    totalEpisodesWatched: 0,
+    completedGamesCount: 0,
+    completedBooksCount: 0,
+    completedMoviesCount: 0,
+  })
   let activeCategory = $state('all')
   let activeStatus = $state('all')
+  let sort = $state('createdAt:desc')
   let search = $state('')
   let loading = $state(true)
   let error = $state('')
@@ -36,6 +45,8 @@
     status: activeStatus === 'all' ? undefined : activeStatus,
     isAnime: activeCategory === 'anime' ? true : undefined,
     search: search.trim() || undefined,
+    sortBy: sort.split(':')[0],
+    sortOrder: sort.split(':')[1],
   })
 
   $effect(() => {
@@ -43,6 +54,10 @@
     const delay = window.setTimeout(() => loadMedia(currentFilters), search ? 250 : 0)
 
     return () => window.clearTimeout(delay)
+  })
+
+  $effect(() => {
+    void loadStats()
   })
 
   async function loadMedia(filtersToLoad = filters) {
@@ -67,22 +82,46 @@
     }
   }
 
+  async function loadStats() {
+    try {
+      stats = await getStats()
+    } catch {
+      stats = {
+        totalItems: 0,
+        completedItems: 0,
+        inProgressItems: 0,
+        plannedItems: 0,
+        totalHoursPlayed: 0,
+        totalPagesRead: 0,
+        totalChaptersRead: 0,
+        totalEpisodesWatched: 0,
+        completedGamesCount: 0,
+        completedBooksCount: 0,
+        completedMoviesCount: 0,
+      }
+    }
+  }
+
   function updateItem(updatedItem) {
     items = items.map((item) => (item.id === updatedItem.id ? updatedItem : item))
+    void loadStats()
   }
 
   async function removeItem(item) {
     await deleteMedia(item.id)
     items = items.filter((currentItem) => currentItem.id !== item.id)
+    void loadStats()
   }
 
   function handleCreated() {
     showCreateModal = false
-    loadMedia()
+    void loadMedia()
+    void loadStats()
   }
 
   function handleMediaAdded() {
-    loadMedia()
+    void loadMedia()
+    void loadStats()
   }
 
   function handleGlobalKeydown(event) {
@@ -152,6 +191,8 @@
       </div>
     </header>
 
+    <StatsWidget {stats} />
+
     <section class="space-y-4 py-6" aria-label="Фильтры библиотеки">
       <nav class="flex gap-2 overflow-x-auto pb-1" aria-label="Категории">
         {#each categories as category}
@@ -165,17 +206,13 @@
         {/each}
       </nav>
 
-      <nav class="flex flex-wrap gap-2" aria-label="Статус">
-        {#each statuses as status}
-          <button
-            type="button"
-            class={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition focus:outline-none focus:ring-2 focus:ring-blue-400 ${activeStatus === status.id ? 'border-blue-400/60 bg-blue-500/15 text-blue-200' : 'border-slate-700 bg-slate-900/40 text-slate-400 hover:border-slate-600 hover:text-slate-200'}`}
-            onclick={() => (activeStatus = status.id)}
-          >
-            {status.label}
-          </button>
-        {/each}
-      </nav>
+      <FilterBar
+        status={activeStatus}
+        {sort}
+        counts={stats}
+        onStatusChange={(status) => (activeStatus = status)}
+        onSortChange={(selectedSort) => (sort = selectedSort)}
+      />
     </section>
 
     {#if loading}

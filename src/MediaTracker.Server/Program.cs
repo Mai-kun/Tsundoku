@@ -95,15 +95,23 @@ app.MapExternalMediaEndpoints();
 
 app.MapFallbackToFile("index.html");
 
-var serverTask = app.RunAsync();
+await app.StartAsync();
 
-var window = new Photino.NET.PhotinoWindow()
-    .SetTitle("MediaTracker")
-    .SetUseOsDefaultSize(false)
-    .SetSize(1300, 850)
-    .Center()
-    .Load("http://localhost:5000");
+var uiThread = new Thread(() =>
+{
+    var window = new Photino.NET.PhotinoWindow()
+        .SetTitle("Tsundoku")
+        .SetUseOsDefaultSize(false)
+        .SetSize(1300, 850)
+        .Center()
+        .SetDevToolsEnabled(true)
+        .Load("http://127.0.0.1:5000");
 
-window.WaitForClose();
+    window.WaitForClose();
+});
+
+uiThread.SetApartmentState(ApartmentState.STA);
+uiThread.Start();
+uiThread.Join();
 
 await app.StopAsync();

@@ -14,14 +14,16 @@
   let updating = $state(false)
   let deleting = $state(false)
   let error = $state('')
-  let failedCoverId = $state(null)
+  let imageError = $state(false)
+  let imageLoaded = $state(false)
 
   let type = $derived(resolveType(item))
   let status = $derived(statusStyles[item.status] ?? statusStyles[0])
   let metadata = $derived(getMetadata(item, type))
   let progress = $derived(getProgress(item, type))
   let increment = $derived(getIncrement(item, type))
-  let hasCover = $derived(Boolean(item.coverUrl?.trim()) && failedCoverId !== item.id)
+  let hasCover = $derived(Boolean(item.coverUrl?.trim()) && !imageError)
+  let coverLetter = $derived(item.title?.trim()?.charAt(0)?.toUpperCase() ?? '')
 
   function resolveType(media) {
     if (media.type) {
@@ -135,15 +137,21 @@
       <img
         src={item.coverUrl}
         alt={item.title}
-        class="h-full w-full object-cover transition duration-300 group-hover:scale-105"
-        onerror={() => (failedCoverId = item.id)}
+        loading="lazy"
+        class="h-full w-full object-cover opacity-0 transition-opacity duration-300 group-hover:scale-105 {imageLoaded ? 'opacity-100' : ''}"
+        onload={() => (imageLoaded = true)}
+        onerror={() => (imageError = true)}
       />
     {:else}
-      <div class="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-700 to-slate-900 text-slate-500">
-        <svg viewBox="0 0 24 24" class="h-12 w-12" fill="none" stroke="currentColor" stroke-width="1.25" aria-hidden="true">
-          <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16.5A1.5 1.5 0 0 1 18.5 21H6a2 2 0 0 1-2-2V5.5Z" />
-          <path d="M8 7h8M8 11h8M8 15h5" />
-        </svg>
+      <div class="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-700 via-slate-800 to-slate-900 text-slate-500">
+        {#if coverLetter}
+          <span class="text-5xl font-bold text-slate-400/80">{coverLetter}</span>
+        {:else}
+          <svg viewBox="0 0 24 24" class="h-12 w-12" fill="none" stroke="currentColor" stroke-width="1.25" aria-hidden="true">
+            <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16.5A1.5 1.5 0 0 1 18.5 21H6a2 2 0 0 1-2-2V5.5Z" />
+            <path d="M8 7h8M8 11h8M8 15h5" />
+          </svg>
+        {/if}
       </div>
     {/if}
 

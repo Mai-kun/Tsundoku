@@ -4,7 +4,9 @@ using MediaTracker.Server.Data;
 using MediaTracker.Server.Endpoints;
 using MediaTracker.Server.Middleware;
 using MediaTracker.Server.Services.External;
+using MediaTracker.Server.Services.Storage;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.FileProviders;
 using OpenApiUi;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -53,6 +55,9 @@ builder.Services.AddKeyedTransient<IMetadataProvider, RawgMetadataProvider>("gam
 
 builder.Services.AddTransient<MetadataAggregatorService>();
 
+builder.Services.AddHttpClient<IImageStorageService, ImageStorageService>(client =>
+    client.Timeout = TimeSpan.FromSeconds(5));
+
 var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
@@ -72,6 +77,15 @@ if (app.Environment.IsDevelopment())
 
 app.UseDefaultFiles();
 app.UseStaticFiles();
+
+var coversPath = Path.Combine(app.Environment.ContentRootPath, "data", "covers");
+Directory.CreateDirectory(coversPath);
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(coversPath),
+    RequestPath = "/covers"
+});
 
 app.MapMediaEndpoints();
 app.MapSeasonEndpoints();

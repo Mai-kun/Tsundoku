@@ -1,4 +1,5 @@
 const mediaEndpoint = '/api/media'
+const externalEndpoint = '/api/external'
 
 async function request(url, options = {}) {
   const response = await fetch(url, options)
@@ -26,6 +27,10 @@ export function getMedia(filters = {}) {
 
   const query = params.toString()
   return request(`${mediaEndpoint}${query ? `?${query}` : ''}`)
+}
+
+export function searchExternal(type, query) {
+  return request(`${externalEndpoint}/search?type=${type}&query=${encodeURIComponent(query)}`)
 }
 
 export function createMedia(payload) {

@@ -6,7 +6,8 @@ import { defineConfig } from 'vite'
 export default defineConfig({
   plugins: [svelte(), tailwindcss()],
   build: {
-    outDir: '../MediaTracker.Server/wwwroot',
+    outDir: '../src/MediaTracker.Server/wwwroot',
+    emptyOutDir: true
   },
   server: {
     proxy: {

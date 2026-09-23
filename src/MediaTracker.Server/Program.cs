@@ -3,6 +3,7 @@ using FluentValidation;
 using MediaTracker.Server.Data;
 using MediaTracker.Server.Endpoints;
 using MediaTracker.Server.Middleware;
+using MediaTracker.Server.Services.External;
 using Microsoft.EntityFrameworkCore;
 using OpenApiUi;
 
@@ -34,6 +35,24 @@ builder.Services.AddCors(options =>
     });
 });
 
+builder.Services.AddMemoryCache();
+
+builder.Services.Configure<ExternalApiOptions>(builder.Configuration.GetSection("ExternalApis"));
+
+builder.Services.AddHttpClient("AniList", client => client.BaseAddress = new Uri("https://graphql.anilist.co/"));
+builder.Services.AddHttpClient("OpenLibrary", client => client.BaseAddress = new Uri("https://openlibrary.org/"));
+builder.Services.AddHttpClient("Tmdb", client => client.BaseAddress = new Uri("https://api.themoviedb.org/3/"));
+builder.Services.AddHttpClient("Rawg", client => client.BaseAddress = new Uri("https://api.rawg.io/api/"));
+
+builder.Services.AddKeyedTransient<IMetadataProvider, AniListMetadataProvider>("anime");
+builder.Services.AddKeyedTransient<IMetadataProvider, AniListMetadataProvider>("manga");
+builder.Services.AddKeyedTransient<IMetadataProvider, OpenLibraryMetadataProvider>("book");
+builder.Services.AddKeyedTransient<IMetadataProvider, TmdbMetadataProvider>("movie");
+builder.Services.AddKeyedTransient<IMetadataProvider, TmdbMetadataProvider>("tvshow");
+builder.Services.AddKeyedTransient<IMetadataProvider, RawgMetadataProvider>("game");
+
+builder.Services.AddTransient<MetadataAggregatorService>();
+
 var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
@@ -56,6 +75,7 @@ app.UseStaticFiles();
 
 app.MapMediaEndpoints();
 app.MapSeasonEndpoints();
+app.MapExternalMediaEndpoints();
 
 app.MapFallbackToFile("index.html");
 

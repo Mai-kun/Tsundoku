@@ -4,3 +4,19 @@ GET {{MediaTracker.Server_HostAddress}}/weatherforecast/
 Accept: application/json
 
 ###
+
+GET {{MediaTracker.Server_HostAddress}}/api/external/search?type=anime&query=naruto
+Accept: application/json
+
+###
+
+GET {{MediaTracker.Server_HostAddress}}/api/external/search?type=book&query=dune
+Accept: application/json
+
+###
+
+GET {{MediaTracker.Server_HostAddress}}/api/external/search?type=game&query=witcher
+Accept: application/json
+
+###
+

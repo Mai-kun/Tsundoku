@@ -1,8 +1,13 @@
-<script>
+<script lang="ts">
   import { onMount } from 'svelte'
   import { i18n } from '$lib/i18n/index.svelte'
+  import type { MediaStats } from '$lib/types'
 
-  let { stats } = $props()
+  interface Props {
+    stats: MediaStats
+  }
+
+  let { stats }: Props = $props()
 
   let collapsed = $state(false)
 

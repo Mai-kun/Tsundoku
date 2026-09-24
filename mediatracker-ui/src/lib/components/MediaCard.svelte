@@ -1,8 +1,29 @@
-<script>
+<script lang="ts">
   import { i18n } from '$lib/i18n/index.svelte'
-  import { incrementProgress, errorMessage } from '../api.js'
+  import { incrementProgress, errorMessage } from '../api'
+  import type { MediaItem, MediaStatus, MediaType } from '$lib/types'
 
-  const statusStyles = {
+  type StatusKey = 'planned' | 'inProgress' | 'completed' | 'paused' | 'dropped'
+  type IncrementKey = 'currentPage' | 'currentChapter' | 'hoursPlayed'
+
+  interface StatusStyle {
+    key: StatusKey
+    className: string
+  }
+
+  interface Increment {
+    key: IncrementKey
+    value: number
+    label: string
+  }
+
+  interface Props {
+    item: MediaItem
+    onUpdate?: (item: MediaItem) => void
+    onDelete?: (item: MediaItem) => void | Promise<void>
+  }
+
+  const statusStyles: Record<MediaStatus, StatusStyle> = {
     0: { key: 'planned', className: 'bg-slate-500/90 text-slate-100' },
     1: { key: 'inProgress', className: 'bg-blue-500/90 text-white' },
     2: { key: 'completed', className: 'bg-emerald-500/90 text-white' },
@@ -10,12 +31,11 @@
     4: { key: 'dropped', className: 'bg-rose-500/90 text-white' },
   }
 
-  let { item, onUpdate = () => {}, onDelete = () => {} } = $props()
+  let { item, onUpdate = () => {}, onDelete = () => {} }: Props = $props()
 
   let updating = $state(false)
   let deleting = $state(false)
-  /** @type {unknown} */
-  let error = $state(null)
+  let error = $state<unknown>(null)
   let imageError = $state(false)
   let imageLoaded = $state(false)
 
@@ -27,9 +47,9 @@
   let hasCover = $derived(Boolean(item.coverUrl?.trim()) && !imageError)
   let coverLetter = $derived(item.title?.trim()?.charAt(0)?.toUpperCase() ?? '')
 
-  function resolveType(media) {
+  function resolveType(media: MediaItem): MediaType {
     if (media.type) {
-      return media.type.toLowerCase()
+      return media.type.toLowerCase() as MediaType
     }
 
     if ('platform' in media) return 'game'
@@ -40,7 +60,7 @@
     return 'media'
   }
 
-  function getMetadata(media, mediaType) {
+  function getMetadata(media: MediaItem, mediaType: MediaType): string {
     const detail =
       mediaType === 'game'
         ? media.platform
@@ -57,7 +77,7 @@
     return [i18n.t.types[mediaType], detail].filter(Boolean).join(' · ')
   }
 
-  function getProgress(media, mediaType) {
+  function getProgress(media: MediaItem, mediaType: MediaType): string | null {
     if (mediaType === 'book') {
       return i18n.t.card.progress.pages(media.currentPage ?? 0, media.totalPages ?? 0)
     }
@@ -77,7 +97,7 @@
     return null
   }
 
-  function getIncrement(media, mediaType) {
+  function getIncrement(media: MediaItem, mediaType: MediaType): Increment | null {
     if (mediaType === 'book') {
       return { key: 'currentPage', value: (media.currentPage ?? 0) + 1, label: i18n.t.card.increment.pages }
     }
@@ -96,12 +116,13 @@
   async function increaseProgress() {
     if (!increment || updating) return
 
+    const currentIncrement = increment
     updating = true
     error = null
 
     try {
-      await incrementProgress(item.id, increment.value)
-      onUpdate({ ...item, [increment.key]: increment.value })
+      await incrementProgress(item.id, currentIncrement.value)
+      onUpdate({ ...item, [currentIncrement.key]: currentIncrement.value })
     } catch (requestError) {
       error = requestError
     } finally {

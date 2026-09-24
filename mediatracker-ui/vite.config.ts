@@ -13,7 +13,7 @@ export default defineConfig({
   },
   build: {
     outDir: '../src/MediaTracker.Server/wwwroot',
-    emptyOutDir: true
+    emptyOutDir: true,
   },
   server: {
     proxy: {

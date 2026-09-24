@@ -1,7 +1,31 @@
-<script>
+<script lang="ts">
   import { i18n } from '$lib/i18n/index.svelte'
+  import type { MediaStats, StatusFilter } from '$lib/types'
 
-  const statusOptions = [
+  type StatusKey = 'all' | 'planned' | 'inProgress' | 'completed' | 'dropped'
+  type SortKey = 'newest' | 'oldest' | 'rating' | 'title'
+
+  interface StatusOption {
+    id: StatusFilter
+    key: StatusKey
+    countKey?: keyof MediaStats
+    activeClass: string
+  }
+
+  interface SortOption {
+    value: string
+    key: SortKey
+  }
+
+  interface Props {
+    status: StatusFilter
+    sort: string
+    counts?: Partial<MediaStats>
+    onStatusChange?: (status: StatusFilter) => void
+    onSortChange?: (sort: string) => void
+  }
+
+  const statusOptions: StatusOption[] = [
     { id: 'all', key: 'all', countKey: 'totalItems', activeClass: 'border-blue-400/60 bg-blue-500/15 text-blue-200' },
     { id: 1, key: 'inProgress', countKey: 'inProgressItems', activeClass: 'border-blue-400/60 bg-blue-500/15 text-blue-200' },
     { id: 0, key: 'planned', countKey: 'plannedItems', activeClass: 'border-slate-500 bg-slate-700 text-slate-100' },
@@ -9,14 +33,14 @@
     { id: 4, key: 'dropped', activeClass: 'border-rose-400/60 bg-rose-500/15 text-rose-200' },
   ]
 
-  const sortOptions = [
+  const sortOptions: SortOption[] = [
     { value: 'createdAt:desc', key: 'newest' },
     { value: 'createdAt:asc', key: 'oldest' },
     { value: 'score:desc', key: 'rating' },
     { value: 'title:asc', key: 'title' },
   ]
 
-  let { status, sort, counts = {}, onStatusChange = () => {}, onSortChange = () => {} } = $props()
+  let { status, sort, counts = {}, onStatusChange = () => {}, onSortChange = () => {} }: Props = $props()
 </script>
 
 <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

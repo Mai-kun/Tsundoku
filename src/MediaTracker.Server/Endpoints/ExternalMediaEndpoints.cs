@@ -22,6 +22,7 @@ public static class ExternalMediaEndpoints
         CancellationToken ct)
     {
         var normalizedType = type?.Trim().ToLowerInvariant() ?? string.Empty;
+        var normalizedQuery = query?.Trim() ?? string.Empty;
 
         var errors = new Dictionary<string, string[]>();
 
@@ -30,7 +31,7 @@ public static class ExternalMediaEndpoints
             errors["type"] = [$"Type must be one of: {string.Join(", ", SupportedTypes)}."];
         }
 
-        if (string.IsNullOrWhiteSpace(query) || query.Trim().Length < 2)
+        if (normalizedQuery.Length < 2)
         {
             errors["query"] = ["Query must contain at least 2 characters."];
         }
@@ -40,7 +41,7 @@ public static class ExternalMediaEndpoints
             return Results.ValidationProblem(errors);
         }
 
-        var results = await aggregator.SearchAsync(normalizedType, query, ct);
+        var results = await aggregator.SearchAsync(normalizedType, normalizedQuery, ct);
         return Results.Ok(results);
     }
 }

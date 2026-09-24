@@ -110,7 +110,10 @@ var uiThread = new Thread(() =>
     window.WaitForClose();
 });
 
+// STA is required by Photino's UI thread; the app is Windows-only.
+#pragma warning disable CA1416
 uiThread.SetApartmentState(ApartmentState.STA);
+#pragma warning restore CA1416
 uiThread.Start();
 uiThread.Join();
 

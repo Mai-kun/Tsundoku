@@ -1,5 +1,6 @@
 <script>
   import { onMount } from 'svelte'
+  import { i18n } from '$lib/i18n/index.svelte'
 
   let { stats } = $props()
 
@@ -15,16 +16,16 @@
   }
 </script>
 
-<section class="mt-6 rounded-xl border border-slate-800/80 bg-slate-900/60 p-3" aria-label="Статистика медиатеки">
+<section class="mt-6 rounded-xl border border-slate-800/80 bg-slate-900/60 p-3" aria-label={i18n.t.stats.ariaLabel}>
   <div class="flex items-center justify-between gap-3">
     <div>
-      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Статистика</p>
-      <p class="mt-0.5 text-sm font-medium text-slate-200">{stats.totalItems} тайтлов в библиотеке</p>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">{i18n.t.stats.title}</p>
+      <p class="mt-0.5 text-sm font-medium text-slate-200">{stats.totalItems} {i18n.t.stats.totalItems}</p>
     </div>
     <button
       type="button"
       class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-800 hover:text-white focus:outline-none focus:ring-2 focus:ring-blue-400"
-      aria-label={collapsed ? 'Развернуть статистику' : 'Свернуть статистику'}
+      aria-label={collapsed ? i18n.t.stats.expand : i18n.t.stats.collapse}
       aria-expanded={!collapsed}
       aria-controls="media-stats"
       onclick={toggle}
@@ -46,9 +47,9 @@
             </svg>
           </div>
           <div>
-            <p class="text-sm font-semibold text-slate-100">Игры</p>
-            <p class="mt-1 text-xs text-slate-300">{stats.completedGamesCount} пройдено</p>
-            <p class="text-xs text-slate-500">{stats.totalHoursPlayed} ч. в игре</p>
+            <p class="text-sm font-semibold text-slate-100">{i18n.t.tabs.game}</p>
+            <p class="mt-1 text-xs text-slate-300">{stats.completedGamesCount} {i18n.t.stats.gamesCompleted}</p>
+            <p class="text-xs text-slate-500">{stats.totalHoursPlayed} {i18n.t.stats.hoursInGame}</p>
           </div>
         </div>
       </article>
@@ -62,9 +63,9 @@
             </svg>
           </div>
           <div>
-            <p class="text-sm font-semibold text-slate-100">Книги</p>
-            <p class="mt-1 text-xs text-slate-300">{stats.completedBooksCount} прочитано</p>
-            <p class="text-xs text-slate-500">{stats.totalPagesRead} стр.</p>
+            <p class="text-sm font-semibold text-slate-100">{i18n.t.tabs.book}</p>
+            <p class="mt-1 text-xs text-slate-300">{stats.completedBooksCount} {i18n.t.stats.booksRead}</p>
+            <p class="text-xs text-slate-500">{stats.totalPagesRead} {i18n.t.stats.pagesRead}</p>
           </div>
         </div>
       </article>
@@ -78,9 +79,9 @@
             </svg>
           </div>
           <div>
-            <p class="text-sm font-semibold text-slate-100">Манга</p>
-            <p class="mt-1 text-xs text-slate-300">{stats.totalChaptersRead} глав</p>
-            <p class="text-xs text-slate-500">Прочитано глав</p>
+            <p class="text-sm font-semibold text-slate-100">{i18n.t.tabs.manga}</p>
+            <p class="mt-1 text-xs text-slate-300">{stats.totalChaptersRead} {i18n.t.stats.chapters}</p>
+            <p class="text-xs text-slate-500">{i18n.t.stats.chaptersRead}</p>
           </div>
         </div>
       </article>
@@ -94,9 +95,9 @@
             </svg>
           </div>
           <div>
-            <p class="text-sm font-semibold text-slate-100">Кино и сериалы</p>
-            <p class="mt-1 text-xs text-slate-300">{stats.completedMoviesCount} фильмов</p>
-            <p class="text-xs text-slate-500">{stats.totalEpisodesWatched} серий</p>
+            <p class="text-sm font-semibold text-slate-100">{i18n.t.stats.cinema}</p>
+            <p class="mt-1 text-xs text-slate-300">{stats.completedMoviesCount} {i18n.t.stats.movies}</p>
+            <p class="text-xs text-slate-500">{stats.totalEpisodesWatched} {i18n.t.stats.episodes}</p>
           </div>
         </div>
       </article>

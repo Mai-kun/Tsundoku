@@ -1,37 +1,26 @@
 <script>
   import { untrack } from 'svelte'
-  import { createMedia, searchExternal } from '../api.js'
+  import { i18n } from '$lib/i18n/index.svelte'
+  import { createMedia, errorMessage, searchExternal } from '../api.js'
 
-  const categories = [
-    { id: 'anime', label: 'Аниме' },
-    { id: 'manga', label: 'Манга' },
-    { id: 'movie', label: 'Фильмы' },
-    { id: 'tvshow', label: 'Сериалы' },
-    { id: 'game', label: 'Игры' },
-    { id: 'book', label: 'Книги' },
-  ]
+  const categories = ['anime', 'manga', 'movie', 'tvshow', 'game', 'book']
 
   const minQueryLength = 2
   const debounceDelay = 300
   const plannedStatus = 0
-  const fallbackAuthor = 'Неизвестный автор'
   const fallbackPlatform = 'PC'
 
-  const countUnits = {
-    anime: 'эп.',
-    manga: 'гл.',
-    book: 'стр.',
-    movie: 'мин.',
-  }
-
+  /** @type {{ isOpen: boolean, initialType?: string, onClose?: () => void, onMediaAdded?: (media: unknown) => void }} */
   let { isOpen, initialType = 'anime', onClose = () => {}, onMediaAdded = () => {} } = $props()
 
   let query = $state('')
   let activeType = $state(untrack(() => initialType))
   let results = $state([])
   let searching = $state(false)
-  let searchError = $state('')
-  let addError = $state('')
+  /** @type {unknown} */
+  let searchError = $state(null)
+  /** @type {unknown} */
+  let addError = $state(null)
   let addingKey = $state('')
   let addedKeys = $state({})
   let searchInput = $state(null)
@@ -39,7 +28,6 @@
 
   let term = $derived(query.trim())
   let canSearch = $derived(term.length >= minQueryLength)
-  let activeCategory = $derived(categories.find((category) => category.id === activeType) ?? categories[0])
 
   $effect(() => {
     if (!isOpen) return
@@ -48,17 +36,17 @@
     const pendingType = activeType
     const sequence = ++requestSequence
 
-    addError = ''
+    addError = null
 
     if (pendingTerm.length < minQueryLength) {
       results = []
       searching = false
-      searchError = ''
+      searchError = null
       return
     }
 
     searching = true
-    searchError = ''
+    searchError = null
 
     const delay = window.setTimeout(() => loadResults(pendingType, pendingTerm, sequence), debounceDelay)
     return () => window.clearTimeout(delay)
@@ -86,7 +74,7 @@
     } catch (requestError) {
       if (sequence === requestSequence) {
         results = []
-        searchError = requestError.message
+        searchError = requestError
       }
     } finally {
       if (sequence === requestSequence) {
@@ -108,7 +96,7 @@
       return null
     }
 
-    const unit = countUnits[activeType]
+    const unit = i18n.t.searchModal.countUnits[activeType]
     return unit ? `${result.totalCount} ${unit}` : String(result.totalCount)
   }
 
@@ -126,7 +114,7 @@
       case 'manga':
         return { ...payload, type: 'Manga', totalChapters: result.totalCount }
       case 'book':
-        return { ...payload, type: 'Book', author: result.author || fallbackAuthor, totalPages: result.totalCount ?? 0 }
+        return { ...payload, type: 'Book', author: result.author || i18n.t.searchModal.unknownAuthor, totalPages: result.totalCount ?? 0 }
       case 'game':
         return { ...payload, type: 'Game', platform: result.platform || fallbackPlatform }
       case 'movie':
@@ -142,14 +130,14 @@
     if (addingKey || addedKeys[key]) return
 
     addingKey = key
-    addError = ''
+    addError = null
 
     try {
       const created = await createMedia(buildPayload(result))
       addedKeys[key] = true
       onMediaAdded(created)
     } catch (requestError) {
-      addError = requestError.message
+      addError = requestError
     } finally {
       addingKey = ''
     }
@@ -175,32 +163,32 @@
     <div class="flex max-h-[85vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-900 text-slate-100 shadow-2xl shadow-slate-950/60" role="dialog" aria-modal="true" aria-labelledby="search-title">
       <div class="flex items-start justify-between gap-4 px-5 pt-5 sm:px-6">
         <div>
-          <p class="text-xs font-semibold uppercase tracking-[0.2em] text-blue-300">Внешние базы</p>
-          <h2 id="search-title" class="mt-1 text-xl font-semibold text-white">Поиск тайтлов</h2>
+          <p class="text-xs font-semibold uppercase tracking-[0.2em] text-blue-300">{i18n.t.searchModal.eyebrow}</p>
+          <h2 id="search-title" class="mt-1 text-xl font-semibold text-white">{i18n.t.searchModal.title}</h2>
         </div>
-        <button type="button" class="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-800 hover:text-white focus:outline-none focus:ring-2 focus:ring-blue-400" aria-label="Закрыть" onclick={onClose}>
+        <button type="button" class="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-800 hover:text-white focus:outline-none focus:ring-2 focus:ring-blue-400" aria-label={i18n.t.common.close} onclick={onClose}>
           <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <path d="m6 6 12 12M18 6 6 18" />
           </svg>
         </button>
       </div>
 
-      <nav class="flex flex-wrap gap-2 px-5 pt-4 sm:px-6" aria-label="Категории поиска">
+      <nav class="flex flex-wrap gap-2 px-5 pt-4 sm:px-6" aria-label={i18n.t.searchModal.categoriesLabel}>
         {#each categories as category}
           <button
             type="button"
-            aria-pressed={activeType === category.id}
-            class={`rounded-full px-3.5 py-1.5 text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-blue-400 ${activeType === category.id ? 'bg-blue-500 text-white shadow-lg shadow-blue-950/30' : 'bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white'}`}
-            onclick={() => (activeType = category.id)}
+            aria-pressed={activeType === category}
+            class={`rounded-full px-3.5 py-1.5 text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-blue-400 ${activeType === category ? 'bg-blue-500 text-white shadow-lg shadow-blue-950/30' : 'bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white'}`}
+            onclick={() => (activeType = category)}
           >
-            {category.label}
+            {i18n.t.tabs[category]}
           </button>
         {/each}
       </nav>
 
       <div class="px-5 pb-5 pt-4 sm:px-6">
         <label class="relative block">
-          <span class="sr-only">Поиск тайтла</span>
+          <span class="sr-only">{i18n.t.searchModal.inputLabel}</span>
           <svg viewBox="0 0 24 24" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <circle cx="11" cy="11" r="6" />
             <path d="m16 16 4 4" />
@@ -210,7 +198,7 @@
             bind:value={query}
             class="w-full rounded-lg border border-slate-700 bg-slate-800 py-2.5 pl-9 pr-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20"
             type="search"
-            placeholder={`Поиск: ${activeCategory.label.toLowerCase()}…`}
+            placeholder={i18n.t.searchModal.placeholder(i18n.t.tabs[activeType])}
             autocomplete="off"
           />
         </label>
@@ -218,7 +206,7 @@
 
       <div class="min-h-72 flex-1 overflow-y-auto border-t border-slate-800 px-5 py-4 sm:px-6">
         {#if addError}
-          <p class="mb-4 rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-200" role="alert">{addError}</p>
+          <p class="mb-4 rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-200" role="alert">{errorMessage(addError)}</p>
         {/if}
 
         {#if !canSearch}
@@ -229,8 +217,8 @@
                 <path d="m16 16 4 4" />
               </svg>
             </div>
-            <p class="text-sm text-slate-400">Введите название для поиска...</p>
-            <p class="text-xs text-slate-500">Минимум 2 символа — результаты подтянутся из внешних баз.</p>
+            <p class="text-sm text-slate-400">{i18n.t.searchModal.emptyQueryTitle}</p>
+            <p class="text-xs text-slate-500">{i18n.t.searchModal.emptyQueryHint}</p>
           </div>
         {:else if searching}
           <div class="space-y-3" aria-hidden="true">
@@ -246,16 +234,16 @@
               </div>
             {/each}
           </div>
-          <p class="sr-only" role="status">Идёт поиск…</p>
+          <p class="sr-only" role="status">{i18n.t.searchModal.searching}</p>
         {:else if searchError}
           <div class="flex min-h-64 flex-col items-center justify-center gap-2 text-center">
-            <p class="text-sm text-rose-200">{searchError}</p>
-            <p class="text-xs text-slate-500">Проверьте соединение и попробуйте другой запрос.</p>
+            <p class="text-sm text-rose-200">{errorMessage(searchError)}</p>
+            <p class="text-xs text-slate-500">{i18n.t.searchModal.errorHint}</p>
           </div>
         {:else if results.length === 0}
           <div class="flex min-h-64 flex-col items-center justify-center gap-2 text-center">
-            <p class="text-sm font-semibold text-slate-200">Ничего не найдено</p>
-            <p class="text-xs text-slate-500">Попробуйте изменить запрос или выбрать другую категорию.</p>
+            <p class="text-sm font-semibold text-slate-200">{i18n.t.searchModal.emptyTitle}</p>
+            <p class="text-xs text-slate-500">{i18n.t.searchModal.emptyHint}</p>
           </div>
         {:else}
           <ul class="space-y-3">
@@ -287,7 +275,7 @@
                     <div class="shrink-0">
                       {#if addedKeys[key]}
                         <span class="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/15 px-3 py-1.5 text-xs font-semibold text-emerald-300">
-                          В библиотеке
+                          {i18n.t.searchModal.inLibrary}
                           <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
                             <path d="m5 13 4 4L19 7" />
                           </svg>
@@ -304,12 +292,12 @@
                               <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-opacity="0.25" stroke-width="4" />
                               <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" stroke-width="4" stroke-linecap="round" />
                             </svg>
-                            Добавление…
+                            {i18n.t.common.adding}
                           {:else}
                             <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
                               <path d="M12 5v14M5 12h14" />
                             </svg>
-                            Добавить
+                            {i18n.t.common.add}
                           {/if}
                         </button>
                       {/if}

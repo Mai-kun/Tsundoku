@@ -1,19 +1,21 @@
 <script>
-  import { incrementProgress } from '../api.js'
+  import { i18n } from '$lib/i18n/index.svelte'
+  import { incrementProgress, errorMessage } from '../api.js'
 
   const statusStyles = {
-    0: { label: 'В планах', className: 'bg-slate-500/90 text-slate-100' },
-    1: { label: 'В процессе', className: 'bg-blue-500/90 text-white' },
-    2: { label: 'Пройдено', className: 'bg-emerald-500/90 text-white' },
-    3: { label: 'На паузе', className: 'bg-amber-500/90 text-slate-950' },
-    4: { label: 'Брошено', className: 'bg-rose-500/90 text-white' },
+    0: { key: 'planned', className: 'bg-slate-500/90 text-slate-100' },
+    1: { key: 'inProgress', className: 'bg-blue-500/90 text-white' },
+    2: { key: 'completed', className: 'bg-emerald-500/90 text-white' },
+    3: { key: 'paused', className: 'bg-amber-500/90 text-slate-950' },
+    4: { key: 'dropped', className: 'bg-rose-500/90 text-white' },
   }
 
   let { item, onUpdate = () => {}, onDelete = () => {} } = $props()
 
   let updating = $state(false)
   let deleting = $state(false)
-  let error = $state('')
+  /** @type {unknown} */
+  let error = $state(null)
   let imageError = $state(false)
   let imageLoaded = $state(false)
 
@@ -39,14 +41,6 @@
   }
 
   function getMetadata(media, mediaType) {
-    const labels = {
-      game: 'Игра',
-      movie: 'Фильм',
-      tvshow: 'Сериал',
-      book: 'Книга',
-      manga: 'Манга',
-      media: 'Медиа',
-    }
     const detail =
       mediaType === 'game'
         ? media.platform
@@ -54,30 +48,30 @@
           ? media.author
           : mediaType === 'manga'
             ? media.currentVolume
-              ? `Том ${media.currentVolume}`
+              ? i18n.t.card.volume(media.currentVolume)
               : null
             : mediaType === 'movie'
               ? media.studio || media.director
               : media.network || media.studio
 
-    return [labels[mediaType], detail].filter(Boolean).join(' · ')
+    return [i18n.t.types[mediaType], detail].filter(Boolean).join(' · ')
   }
 
   function getProgress(media, mediaType) {
     if (mediaType === 'book') {
-      return `${media.currentPage ?? 0} / ${media.totalPages ?? 0} стр.`
+      return i18n.t.card.progress.pages(media.currentPage ?? 0, media.totalPages ?? 0)
     }
 
     if (mediaType === 'manga') {
-      return `гл. ${media.currentChapter ?? 0}${media.totalChapters ? ` / ${media.totalChapters}` : ''}`
+      return i18n.t.card.progress.chapters(media.currentChapter ?? 0, media.totalChapters ?? undefined)
     }
 
     if (mediaType === 'game') {
-      return `${media.hoursPlayed ?? 0} ч.`
+      return i18n.t.card.progress.hours(media.hoursPlayed ?? 0)
     }
 
     if (mediaType === 'movie') {
-      return `${media.durationMinutes ?? 0} мин.`
+      return i18n.t.card.progress.minutes(media.durationMinutes ?? 0)
     }
 
     return null
@@ -85,15 +79,15 @@
 
   function getIncrement(media, mediaType) {
     if (mediaType === 'book') {
-      return { key: 'currentPage', value: (media.currentPage ?? 0) + 1, label: '+1 стр.' }
+      return { key: 'currentPage', value: (media.currentPage ?? 0) + 1, label: i18n.t.card.increment.pages }
     }
 
     if (mediaType === 'manga') {
-      return { key: 'currentChapter', value: (media.currentChapter ?? 0) + 1, label: '+1 гл.' }
+      return { key: 'currentChapter', value: (media.currentChapter ?? 0) + 1, label: i18n.t.card.increment.chapters }
     }
 
     if (mediaType === 'game') {
-      return { key: 'hoursPlayed', value: (media.hoursPlayed ?? 0) + 1, label: '+1 ч.' }
+      return { key: 'hoursPlayed', value: (media.hoursPlayed ?? 0) + 1, label: i18n.t.card.increment.hours }
     }
 
     return null
@@ -103,28 +97,28 @@
     if (!increment || updating) return
 
     updating = true
-    error = ''
+    error = null
 
     try {
       await incrementProgress(item.id, increment.value)
       onUpdate({ ...item, [increment.key]: increment.value })
     } catch (requestError) {
-      error = requestError.message
+      error = requestError
     } finally {
       updating = false
     }
   }
 
   async function removeItem() {
-    if (deleting || !window.confirm(`Удалить «${item.title}»?`)) return
+    if (deleting || !window.confirm(i18n.t.card.confirmDelete(item.title))) return
 
     deleting = true
-    error = ''
+    error = null
 
     try {
       await onDelete(item)
     } catch (requestError) {
-      error = requestError.message
+      error = requestError
     } finally {
       deleting = false
     }
@@ -156,14 +150,14 @@
     {/if}
 
     <span class={`absolute left-2 top-2 rounded-full px-2 py-1 text-[10px] font-semibold shadow-sm ${status.className}`}>
-      {status.label}
+      {i18n.t.status[status.key]}
     </span>
 
     <button
       type="button"
       class="absolute right-2 top-2 inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-950/75 text-slate-200 opacity-0 transition hover:bg-rose-500 hover:text-white focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-rose-300 group-hover:opacity-100 disabled:cursor-wait"
-      aria-label={`Удалить ${item.title}`}
-      title="Удалить"
+      aria-label={i18n.t.card.deleteAria(item.title)}
+      title={i18n.t.common.delete}
       disabled={deleting}
       onclick={removeItem}
     >
@@ -188,12 +182,12 @@
         disabled={updating}
         onclick={increaseProgress}
       >
-        {updating ? 'Сохранение…' : increment.label}
+        {updating ? i18n.t.common.saving : increment.label}
       </button>
     {/if}
 
     {#if error}
-      <p class="text-xs text-rose-300" role="alert">{error}</p>
+      <p class="text-xs text-rose-300" role="alert">{errorMessage(error)}</p>
     {/if}
   </div>
 </article>

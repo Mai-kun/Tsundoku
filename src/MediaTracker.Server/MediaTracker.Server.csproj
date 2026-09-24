@@ -7,7 +7,7 @@
         <ImplicitUsings>enable</ImplicitUsings>
 
         <AssemblyName>Tsundoku</AssemblyName>
-        <RootNamespace>Tsundoku.Server</RootNamespace>
+        <RootNamespace>MediaTracker.Server</RootNamespace>
 
         <GenerateEmbeddedFilesManifest>true</GenerateEmbeddedFilesManifest>
         <IsTransformWebConfigDisabled>true</IsTransformWebConfigDisabled>
@@ -27,23 +27,18 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <EmbeddedResource Include="wwwroot\**\*"
-                          Exclude="wwwroot\**\*.map" />
+        <EmbeddedResource Include="wwwroot\**\*" Exclude="wwwroot\**\*.map" />
         <EmbeddedResource Include="appsettings.json" />
     </ItemGroup>
 
     <ItemGroup>
-        <Content Update="wwwroot\**\*"
-                 CopyToPublishDirectory="Never" />
+        <Content Update="wwwroot\**\*" CopyToPublishDirectory="Never" />
 
-        <Content Update="appsettings.json"
-                 CopyToPublishDirectory="Never" />
+        <Content Update="appsettings.json" CopyToPublishDirectory="Never" />
 
-        <Content Update="web.config"
-                 CopyToPublishDirectory="Never" />
+        <Content Update="web.config" CopyToPublishDirectory="Never" />
 
-        <Content Update="appsettings.Development.json"
-                 CopyToPublishDirectory="Never" />
+        <Content Update="appsettings.Development.json" CopyToPublishDirectory="Never" />
     </ItemGroup>
 
     <ItemGroup>
@@ -57,8 +52,9 @@
         <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.12" />
         <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="10.0.12" />
         <PackageReference Include="Microsoft.Extensions.FileProviders.Embedded" Version="10.0.11" />
-        <PackageReference Include="OpenApiUi" Version="1.1.0"/>
+        <PackageReference Include="OpenApiUi" Version="1.1.0" />
         <PackageReference Include="Photino.NET" Version="3.*" />
+        <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
     </ItemGroup>
 
 </Project>

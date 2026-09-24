@@ -1,4 +1,5 @@
-using Microsoft.Extensions.Logging;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Processing;
 
 namespace MediaTracker.Server.Services.Storage;
 
@@ -8,6 +9,7 @@ public sealed class ImageStorageService(
     ILogger<ImageStorageService> logger) : IImageStorageService
 {
     private const string CoversRoutePrefix = "/covers/";
+    private const int MaxCoverWidth = 400;
 
     public async Task<string?> SaveCoverAsync(string externalUrl, Guid itemId, CancellationToken ct = default)
     {
@@ -21,20 +23,26 @@ public sealed class ImageStorageService(
             using var response = await httpClient.GetAsync(externalUrl, HttpCompletionOption.ResponseHeadersRead, ct);
             response.EnsureSuccessStatusCode();
 
-            var extension = ResolveExtension(response.Content.Headers.ContentType?.MediaType);
             var coversPath = GetCoversPath();
             Directory.CreateDirectory(coversPath);
 
-            var fileName = $"{itemId}{extension}";
+            var fileName = $"{itemId}.webp";
             var filePath = Path.Combine(coversPath, fileName);
 
             await using var source = await response.Content.ReadAsStreamAsync(ct);
-            await using var destination = File.Create(filePath);
-            await source.CopyToAsync(destination, ct);
+            using var image = await Image.LoadAsync(source, ct);
+
+            image.Mutate(context => context.Resize(new ResizeOptions
+            {
+                Mode = ResizeMode.Max,
+                Size = new Size(MaxCoverWidth, image.Height)
+            }));
+
+            await image.SaveAsWebpAsync(filePath, ct);
 
             return $"{CoversRoutePrefix}{fileName}";
         }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException)
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException or ImageFormatException)
         {
             logger.LogWarning(ex, "Failed to download cover from {ExternalUrl}, keeping external URL", externalUrl);
             return externalUrl;
@@ -71,11 +79,4 @@ public sealed class ImageStorageService(
     }
 
     private string GetCoversPath() => appPaths.CoversDirectory;
-
-    private static string ResolveExtension(string? mediaType) => mediaType?.ToLowerInvariant() switch
-    {
-        "image/png" => ".png",
-        "image/webp" => ".webp",
-        _ => ".jpg",
-    };
 }

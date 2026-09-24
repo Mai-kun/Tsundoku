@@ -171,7 +171,7 @@ public static class MediaResponseMapper
         StartedAt = item.StartedAt,
         FinishedAt = item.FinishedAt,
         Notes = item.Notes,
-        CoverUrl = item.CoverUrl,
+        CoverUrl = item.CoverUrl != null ? $"{item.CoverUrl}?v={item.UpdatedAt.Ticks}" : null,
         CreatedAt = item.CreatedAt,
         FranchiseId = item.FranchiseId,
         FranchiseOrder = item.FranchiseOrder,

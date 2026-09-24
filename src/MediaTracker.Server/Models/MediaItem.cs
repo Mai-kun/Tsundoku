@@ -20,6 +20,8 @@ public abstract class MediaItem
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
     public Guid? FranchiseId { get; set; }
 
     public Franchise? Franchise { get; set; }

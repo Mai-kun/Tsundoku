@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using FluentValidation;
 using MediaTracker.Server.Data;
 using MediaTracker.Server.Endpoints;
+using MediaTracker.Server.Infrastructure;
 using MediaTracker.Server.Middleware;
 using MediaTracker.Server.Services.External;
 using MediaTracker.Server.Services.Storage;
@@ -35,7 +36,8 @@ var connectionString = isContainer
     : $"Data Source={appPaths.DatabaseFilePath}";
 
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlite(connectionString));
+    options.UseSqlite(connectionString)
+        .AddInterceptors(new SqliteConnectionInterceptor()));
 
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
@@ -111,7 +113,11 @@ app.UseStaticFiles(new StaticFileOptions
 app.UseStaticFiles(new StaticFileOptions
 {
     FileProvider = new PhysicalFileProvider(appPaths.CoversDirectory),
-    RequestPath = "/covers"
+    RequestPath = "/covers",
+    OnPrepareResponse = context =>
+    {
+        context.Context.Response.Headers.CacheControl = "public, max-age=31536000, immutable";
+    }
 });
 
 app.MapMediaEndpoints();

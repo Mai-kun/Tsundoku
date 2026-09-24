@@ -1,10 +1,38 @@
-<script>
+<script lang="ts">
   import { i18n } from '$lib/i18n/index.svelte'
-  import { createMedia, errorMessage } from '../api.js'
+  import { createMedia, errorMessage } from '../api'
+  import type { CreateMediaPayload, MediaItem } from '$lib/types'
+
+  type FormType = 'Game' | 'Movie' | 'TvShow' | 'Book' | 'Manga'
+  type TypeKey = 'game' | 'movie' | 'tvshow' | 'book' | 'manga'
+  type StatusKey = 'planned' | 'inProgress' | 'completed' | 'paused' | 'dropped'
+
+  interface CreateForm {
+    type: FormType
+    title: string
+    coverUrl: string
+    status: number
+    notes: string
+    platform: string
+    hoursPlayed: number
+    author: string
+    totalPages: number | null
+    totalChapters: number | null
+    currentVolume: number | null
+    isAnime: boolean
+    studio: string
+    durationMinutes: number | null
+    network: string
+  }
+
+  interface Props {
+    onClose: () => void
+    onCreated: (media: MediaItem) => void
+  }
 
   const inputClass = 'w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20'
 
-  const typeOptions = [
+  const typeOptions: Array<{ value: FormType; key: TypeKey }> = [
     { value: 'Game', key: 'game' },
     { value: 'Movie', key: 'movie' },
     { value: 'TvShow', key: 'tvshow' },
@@ -12,7 +40,7 @@
     { value: 'Manga', key: 'manga' },
   ]
 
-  const statusOptions = [
+  const statusOptions: Array<{ value: number; key: StatusKey }> = [
     { value: 0, key: 'planned' },
     { value: 1, key: 'inProgress' },
     { value: 2, key: 'completed' },
@@ -20,17 +48,16 @@
     { value: 4, key: 'dropped' },
   ]
 
-  let { onClose, onCreated } = $props()
+  let { onClose, onCreated }: Props = $props()
 
-  let form = $state(createEmptyForm())
+  let form = $state<CreateForm>(createEmptyForm())
   let submitting = $state(false)
   let validationFailed = $state(false)
-  /** @type {unknown} */
-  let error = $state(null)
+  let error = $state<unknown>(null)
 
   let errorText = $derived(validationFailed ? i18n.t.createModal.validation.titleRequired : error !== null ? errorMessage(error) : '')
 
-  function createEmptyForm() {
+  function createEmptyForm(): CreateForm {
     return {
       type: 'Game',
       title: '',
@@ -50,19 +77,19 @@
     }
   }
 
-  function optionalText(value) {
+  function optionalText(value: string): string | null {
     return value.trim() || null
   }
 
-  function optionalNumber(value) {
+  function optionalNumber(value: number | string | null | undefined): number | null {
     return value === '' || value === null || value === undefined ? null : Number(value)
   }
 
-  function apiType(type) {
+  function apiType(type: FormType): string {
     return type === 'TvShow' ? 'tvshow' : type.toLowerCase()
   }
 
-  function buildPayload() {
+  function buildPayload(): CreateMediaPayload {
     const payload = {
       type: apiType(form.type),
       title: form.title.trim(),
@@ -112,7 +139,7 @@
     }
   }
 
-  async function submit(event) {
+  async function submit(event: SubmitEvent) {
     event.preventDefault()
     error = null
     validationFailed = false
@@ -134,13 +161,13 @@
     }
   }
 
-  function closeOnBackdrop(event) {
+  function closeOnBackdrop(event: MouseEvent) {
     if (event.target === event.currentTarget && !submitting) {
       onClose()
     }
   }
 
-  function handleKeydown(event) {
+  function handleKeydown(event: KeyboardEvent) {
     if (event.key === 'Escape' && !submitting) {
       onClose()
     }

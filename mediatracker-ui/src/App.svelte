@@ -1,16 +1,18 @@
-<script>
-  import { deleteMedia, errorMessage, getMedia, getStats } from './lib/api.js'
+<script lang="ts">
+  import { deleteMedia, errorMessage, getMedia, getStats } from './lib/api'
   import CreateModal from './lib/components/CreateModal.svelte'
   import FilterBar from './lib/components/FilterBar.svelte'
   import MediaCard from './lib/components/MediaCard.svelte'
   import SearchModal from './lib/components/SearchModal.svelte'
   import StatsWidget from './lib/components/StatsWidget.svelte'
   import { i18n, locales } from '$lib/i18n/index.svelte'
+  import type { MediaFilters, MediaItem, MediaStats, StatusFilter } from '$lib/types'
 
-  const categories = ['all', 'game', 'movie', 'tvshow', 'anime', 'book', 'manga']
+  const categories = ['all', 'game', 'movie', 'tvshow', 'anime', 'book', 'manga'] as const
 
-  let items = $state([])
-  let stats = $state({
+  type Category = (typeof categories)[number]
+
+  const emptyStats: MediaStats = {
     totalItems: 0,
     completedItems: 0,
     inProgressItems: 0,
@@ -22,19 +24,21 @@
     completedGamesCount: 0,
     completedBooksCount: 0,
     completedMoviesCount: 0,
-  })
-  let activeCategory = $state('all')
-  let activeStatus = $state('all')
+  }
+
+  let items = $state<MediaItem[]>([])
+  let stats = $state<MediaStats>({ ...emptyStats })
+  let activeCategory = $state<Category>('all')
+  let activeStatus = $state<StatusFilter>('all')
   let sort = $state('createdAt:desc')
   let search = $state('')
   let loading = $state(true)
-  /** @type {unknown} */
-  let error = $state(null)
+  let error = $state<unknown>(null)
   let showCreateModal = $state(false)
   let showSearchModal = $state(false)
   let requestSequence = 0
 
-  let filters = $derived({
+  let filters = $derived<MediaFilters>({
     type: activeCategory === 'all' || activeCategory === 'anime' ? undefined : activeCategory,
     status: activeStatus === 'all' ? undefined : activeStatus,
     isAnime: activeCategory === 'anime' ? true : undefined,
@@ -54,7 +58,7 @@
     void loadStats()
   })
 
-  async function loadMedia(filtersToLoad = filters) {
+  async function loadMedia(filtersToLoad: MediaFilters = filters) {
     const sequence = ++requestSequence
     loading = true
     error = null
@@ -80,28 +84,16 @@
     try {
       stats = await getStats()
     } catch {
-      stats = {
-        totalItems: 0,
-        completedItems: 0,
-        inProgressItems: 0,
-        plannedItems: 0,
-        totalHoursPlayed: 0,
-        totalPagesRead: 0,
-        totalChaptersRead: 0,
-        totalEpisodesWatched: 0,
-        completedGamesCount: 0,
-        completedBooksCount: 0,
-        completedMoviesCount: 0,
-      }
+      stats = { ...emptyStats }
     }
   }
 
-  function updateItem(updatedItem) {
+  function updateItem(updatedItem: MediaItem) {
     items = items.map((item) => (item.id === updatedItem.id ? updatedItem : item))
     void loadStats()
   }
 
-  async function removeItem(item) {
+  async function removeItem(item: MediaItem) {
     await deleteMedia(item.id)
     items = items.filter((currentItem) => currentItem.id !== item.id)
     void loadStats()
@@ -118,7 +110,7 @@
     void loadStats()
   }
 
-  function handleGlobalKeydown(event) {
+  function handleGlobalKeydown(event: KeyboardEvent) {
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
       event.preventDefault()
       showSearchModal = true

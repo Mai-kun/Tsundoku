@@ -1,29 +1,36 @@
-<script>
+<script lang="ts">
   import { untrack } from 'svelte'
   import { i18n } from '$lib/i18n/index.svelte'
-  import { createMedia, errorMessage, searchExternal } from '../api.js'
+  import { createMedia, errorMessage, searchExternal } from '../api'
+  import type { CreateMediaPayload, ExternalMedia, MediaItem } from '$lib/types'
 
-  const categories = ['anime', 'manga', 'movie', 'tvshow', 'game', 'book']
+  const categories = ['anime', 'manga', 'movie', 'tvshow', 'game', 'book'] as const
+
+  type SearchCategory = (typeof categories)[number]
+
+  interface Props {
+    isOpen: boolean
+    initialType?: SearchCategory
+    onClose?: () => void
+    onMediaAdded?: (media: MediaItem) => void
+  }
 
   const minQueryLength = 2
   const debounceDelay = 300
   const plannedStatus = 0
   const fallbackPlatform = 'PC'
 
-  /** @type {{ isOpen: boolean, initialType?: string, onClose?: () => void, onMediaAdded?: (media: unknown) => void }} */
-  let { isOpen, initialType = 'anime', onClose = () => {}, onMediaAdded = () => {} } = $props()
+  let { isOpen, initialType = 'anime', onClose = () => {}, onMediaAdded = () => {} }: Props = $props()
 
   let query = $state('')
-  let activeType = $state(untrack(() => initialType))
-  let results = $state([])
+  let activeType = $state<SearchCategory>(untrack(() => initialType))
+  let results = $state<ExternalMedia[]>([])
   let searching = $state(false)
-  /** @type {unknown} */
-  let searchError = $state(null)
-  /** @type {unknown} */
-  let addError = $state(null)
+  let searchError = $state<unknown>(null)
+  let addError = $state<unknown>(null)
   let addingKey = $state('')
-  let addedKeys = $state({})
-  let searchInput = $state(null)
+  let addedKeys = $state<Record<string, boolean>>({})
+  let searchInput = $state<HTMLInputElement | null>(null)
   let requestSequence = 0
 
   let term = $derived(query.trim())
@@ -64,7 +71,7 @@
     }
   })
 
-  async function loadResults(type, pendingTerm, sequence) {
+  async function loadResults(type: SearchCategory, pendingTerm: string, sequence: number) {
     try {
       const found = await searchExternal(type, pendingTerm)
 
@@ -83,24 +90,25 @@
     }
   }
 
-  function resultKey(result) {
+  function resultKey(result: ExternalMedia): string {
     return `${activeType}:${result.externalId || result.title}`
   }
 
-  function metaLine(result) {
+  function metaLine(result: ExternalMedia): string {
     return [result.releaseYear, result.studio, result.author, result.platform].filter(Boolean).join(' · ')
   }
 
-  function countLabel(result) {
+  function countLabel(result: ExternalMedia): string | null {
     if (result.totalCount === null || result.totalCount === undefined) {
       return null
     }
 
-    const unit = i18n.t.searchModal.countUnits[activeType]
+    const countUnits = i18n.t.searchModal.countUnits as Record<string, string | undefined>
+    const unit = countUnits[activeType]
     return unit ? `${result.totalCount} ${unit}` : String(result.totalCount)
   }
 
-  function buildPayload(result) {
+  function buildPayload(result: ExternalMedia): CreateMediaPayload {
     const payload = {
       title: result.title,
       coverUrl: result.coverUrl,
@@ -124,7 +132,7 @@
     }
   }
 
-  async function addResult(result) {
+  async function addResult(result: ExternalMedia) {
     const key = resultKey(result)
 
     if (addingKey || addedKeys[key]) return
@@ -143,13 +151,13 @@
     }
   }
 
-  function closeOnBackdrop(event) {
+  function closeOnBackdrop(event: MouseEvent) {
     if (event.target === event.currentTarget) {
       onClose()
     }
   }
 
-  function handleKeydown(event) {
+  function handleKeydown(event: KeyboardEvent) {
     if (isOpen && event.key === 'Escape') {
       onClose()
     }

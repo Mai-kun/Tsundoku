@@ -1,0 +1,14 @@
+services:
+  tsundoku:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: tsundoku-tracker
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - ConnectionStrings__DefaultConnection=Data Source=/app/data/tracker.db
+      - HEADLESS=true

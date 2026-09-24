@@ -11,6 +11,11 @@ using OpenApiUi;
 
 var builder = WebApplication.CreateBuilder(args);
 
+var isContainer = Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER") == "true";
+var isHeadless = isContainer
+                 || args.Contains("--headless")
+                 || Environment.GetEnvironmentVariable("HEADLESS") == "true";
+
 builder.WebHost.UseUrls("http://0.0.0.0:5000");
 
 builder.Services.AddDbContext<AppDbContext>(options =>
@@ -95,26 +100,33 @@ app.MapExternalMediaEndpoints();
 
 app.MapFallbackToFile("index.html");
 
-await app.StartAsync();
-
-var uiThread = new Thread(() =>
+if (isHeadless)
 {
-    var window = new Photino.NET.PhotinoWindow()
-        .SetTitle("Tsundoku")
-        .SetUseOsDefaultSize(false)
-        .SetSize(1300, 850)
-        .Center()
-        .SetDevToolsEnabled(true)
-        .Load("http://127.0.0.1:5000");
+    await app.RunAsync();
+}
+else
+{
+    await app.StartAsync();
 
-    window.WaitForClose();
-});
+    var uiThread = new Thread(() =>
+    {
+        var window = new Photino.NET.PhotinoWindow()
+            .SetTitle("Tsundoku")
+            .SetUseOsDefaultSize(false)
+            .SetSize(1300, 850)
+            .Center()
+            .SetDevToolsEnabled(true)
+            .Load("http://127.0.0.1:5000");
 
-// STA is required by Photino's UI thread; the app is Windows-only.
-#pragma warning disable CA1416
-uiThread.SetApartmentState(ApartmentState.STA);
-#pragma warning restore CA1416
-uiThread.Start();
-uiThread.Join();
+        window.WaitForClose();
+    });
 
-await app.StopAsync();
+    // STA is required by Photino's UI thread; the app is Windows-only.
+    #pragma warning disable CA1416
+    uiThread.SetApartmentState(ApartmentState.STA);
+    #pragma warning restore CA1416
+    uiThread.Start();
+    uiThread.Join();
+
+    await app.StopAsync();
+}

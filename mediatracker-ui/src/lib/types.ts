@@ -1,20 +1,74 @@
-/**
- * Shared types for the MediaTracker API.
- *
- * The shapes mirror the ASP.NET Core minimal API contracts: property names are
- * camelCase and enums (`MediaStatus`) are serialized as their numeric values.
- */
+export const MEDIA_STATUS = {
+  planned: 0,
+  inProgress: 1,
+  completed: 2,
+  onHold: 3,
+  dropped: 4,
+} as const
 
-/** Numeric representation of `MediaTracker.Server.Models.MediaStatus`. */
-export type MediaStatus = 0 | 1 | 2 | 3 | 4
-
-/** Library status filter: a concrete status or `all`. */
+export type MediaStatus = (typeof MEDIA_STATUS)[keyof typeof MEDIA_STATUS]
 export type StatusFilter = 'all' | MediaStatus
+export type MediaType = 'game' | 'movie' | 'tvshow' | 'book' | 'manga'
+export type SearchMediaType = MediaType | 'anime'
+export type AppView = 'home' | MediaType | 'anime' | 'stats' | 'lists' | 'calendar' | 'seasons'
+export type SortBy = 'createdAt' | 'score' | 'title'
+export type SortOrder = 'asc' | 'desc'
 
-/** Media kinds the UI knows about. The API returns the discriminator in lowercase. */
-export type MediaType = 'game' | 'movie' | 'tvshow' | 'book' | 'manga' | 'media'
+export interface MediaBase {
+  id: string
+  type: MediaType
+  title: string
+  status: MediaStatus
+  score: number | null
+  startedAt: string | null
+  finishedAt: string | null
+  notes: string | null
+  coverUrl: string | null
+  createdAt: string
+  franchiseId: string | null
+  franchiseOrder: number | null
+}
 
-/** A single season of a TV show (`TvSeason`). */
+export interface GameMedia extends MediaBase {
+  type: 'game'
+  platform: string
+  hoursPlayed: number | null
+}
+
+export interface BookMedia extends MediaBase {
+  type: 'book'
+  author: string
+  currentPage: number
+  totalPages: number
+}
+
+export interface MangaMedia extends MediaBase {
+  type: 'manga'
+  currentChapter: number
+  totalChapters: number | null
+  currentVolume: number
+}
+
+export interface MovieMedia extends MediaBase {
+  type: 'movie'
+  durationMinutes: number
+  director: string | null
+  isAnime: boolean
+  studio: string | null
+  romajiTitle: string | null
+}
+
+export interface TvShowMedia extends MediaBase {
+  type: 'tvshow'
+  isAnime: boolean
+  studio: string | null
+  romajiTitle: string | null
+  network: string | null
+  totalEpisodesCount: number
+  totalEpisodesWatched: number
+  seasonsCount: number
+}
+
 export interface TvSeason {
   id: string
   seasonNumber: number
@@ -29,48 +83,13 @@ export interface TvSeason {
   tvShowId: string
 }
 
-/**
- * A media library item. The API returns the shared `MediaItem` columns plus the
- * columns of the concrete subtype, so subtype fields are optional and are
- * detected at runtime.
- */
-export interface MediaItem {
-  id: string
-  title: string
-  status: MediaStatus
-  score: number | null
-  startedAt: string | null
-  finishedAt: string | null
-  notes: string | null
-  coverUrl: string | null
-  createdAt: string
-  franchiseId: string | null
-  franchiseOrder: number | null
-  /** Optional lowercase discriminator, when the API provides one. */
-  type?: string
-  /** `VideoGame` */
-  platform?: string
-  hoursPlayed?: number | null
-  /** `Book` */
-  author?: string
-  currentPage?: number
-  totalPages?: number
-  /** `Manga` */
-  currentChapter?: number
-  totalChapters?: number | null
-  currentVolume?: number
-  /** `Movie` */
-  durationMinutes?: number
-  director?: string | null
-  isAnime?: boolean
-  studio?: string | null
-  romajiTitle?: string | null
-  /** `TvShow` */
-  network?: string | null
-  seasons?: TvSeason[]
+export interface TvShowDetail extends TvShowMedia {
+  seasons: TvSeason[]
 }
 
-/** Aggregated library statistics (`MediaStatsDto`). */
+export type MediaItem = GameMedia | BookMedia | MangaMedia | MovieMedia | TvShowMedia
+export type MediaDetail = Exclude<MediaItem, TvShowMedia> | TvShowDetail
+
 export interface MediaStats {
   totalItems: number
   completedItems: number
@@ -85,7 +104,6 @@ export interface MediaStats {
   completedMoviesCount: number
 }
 
-/** A search result from an external metadata provider (`ExternalMediaDto`). */
 export interface ExternalMedia {
   externalId: string
   title: string
@@ -93,43 +111,99 @@ export interface ExternalMedia {
   coverUrl: string | null
   description: string | null
   releaseYear: number | null
-  type: string
+  type: SearchMediaType
   author: string | null
   studio: string | null
   totalCount: number | null
   platform: string | null
 }
 
-/** Query parameters accepted by `GET /api/media`. */
 export interface MediaFilters {
-  type?: string
-  status?: string | number
+  type?: MediaType
+  status?: MediaStatus
   isAnime?: boolean
   search?: string
-  sortBy?: string
-  sortOrder?: string
+  sortBy?: SortBy
+  sortOrder?: SortOrder
 }
 
-/** Body of `POST /api/media` (`CreateMediaRequest`). */
-export interface CreateMediaPayload {
-  type: string
+interface CreateMediaBase {
   title: string
-  status: number
+  status: MediaStatus
   score?: number | null
   coverUrl?: string | null
   notes?: string | null
   franchiseId?: string | null
   franchiseOrder?: number | null
-  platform?: string | null
+}
+
+export interface CreateGamePayload extends CreateMediaBase {
+  type: 'game'
+  platform: string
   hoursPlayed?: number | null
-  author?: string | null
+}
+
+export interface CreateBookPayload extends CreateMediaBase {
+  type: 'book'
+  author: string
   totalPages?: number | null
+}
+
+export interface CreateMangaPayload extends CreateMediaBase {
+  type: 'manga'
   totalChapters?: number | null
   currentVolume?: number | null
+}
+
+export interface CreateMoviePayload extends CreateMediaBase {
+  type: 'movie'
   durationMinutes?: number | null
   director?: string | null
   isAnime?: boolean | null
   studio?: string | null
+}
+
+export interface CreateSeasonPayload {
+  seasonNumber: number
+  title: string
+  coverUrl?: string | null
+  totalEpisodes: number
+  status?: MediaStatus
+  score?: number | null
+  notes?: string | null
+  airDate?: string | null
+}
+
+export interface CreateTvShowPayload extends CreateMediaBase {
+  type: 'tvshow'
+  isAnime?: boolean | null
+  studio?: string | null
   network?: string | null
-  seasons?: unknown[]
+  seasons?: CreateSeasonPayload[]
+}
+
+export type CreateMediaPayload =
+  | CreateGamePayload
+  | CreateBookPayload
+  | CreateMangaPayload
+  | CreateMoviePayload
+  | CreateTvShowPayload
+
+export interface UpdateMediaPayload {
+  title?: string
+  score?: number | null
+  status?: MediaStatus
+  notes?: string | null
+  coverUrl?: string | null
+  startedAt?: string | null
+  finishedAt?: string | null
+}
+
+export function clampProgress(current: number, total: number | null | undefined): number {
+  const safeCurrent = Math.max(current, 0)
+  return total !== null && total !== undefined && total > 0 ? Math.min(safeCurrent, total) : safeCurrent
+}
+
+export function isTvShowDetail(item: MediaDetail): item is TvShowDetail {
+  return item.type === 'tvshow' && 'seasons' in item
 }

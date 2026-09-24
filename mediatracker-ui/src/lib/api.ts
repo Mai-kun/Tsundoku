@@ -2,54 +2,108 @@ import { i18n } from '$lib/i18n/index.svelte'
 import type {
   CreateMediaPayload,
   ExternalMedia,
+  MediaDetail,
   MediaFilters,
   MediaItem,
   MediaStats,
+  MediaStatus,
+  SearchMediaType,
+  UpdateMediaPayload,
 } from '$lib/types'
 
 const mediaEndpoint = '/api/media'
 const externalEndpoint = '/api/external'
 
-export class ApiError extends Error {
-  readonly detail: string
+type ValidationErrors = Record<string, string[]>
 
-  constructor(detail?: string) {
+interface ProblemDetails {
+  detail?: string
+  title?: string
+  errors?: ValidationErrors
+}
+
+export class ApiError extends Error {
+  readonly status: number
+  readonly detail: string
+  readonly validationErrors: ValidationErrors
+
+  constructor(status: number, detail = '', validationErrors: ValidationErrors = {}) {
     super(detail || 'API request failed')
-    this.detail = detail ?? ''
+    this.name = 'ApiError'
+    this.status = status
+    this.detail = detail
+    this.validationErrors = validationErrors
   }
 }
 
 export function errorMessage(error: unknown): string {
   if (error instanceof ApiError) {
-    return error.detail || i18n.t.errors.requestFailed
+    const validationMessage = Object.values(error.validationErrors).flat()[0]
+    return validationMessage || error.detail || i18n.t.errors.requestFailed
   }
 
   return i18n.t.errors.unexpected
 }
 
-async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
+}
+
+function readProblemDetails(value: unknown): ProblemDetails {
+  if (!isRecord(value)) return {}
+
+  const errors = isRecord(value.errors)
+    ? Object.fromEntries(
+        Object.entries(value.errors).flatMap(([key, messages]) =>
+          Array.isArray(messages) && messages.every((message) => typeof message === 'string') ? [[key, messages]] : [],
+        ),
+      )
+    : {}
+
+  return {
+    detail: typeof value.detail === 'string' ? value.detail : undefined,
+    title: typeof value.title === 'string' ? value.title : undefined,
+    errors,
+  }
+}
+
+async function throwApiError(response: Response): Promise<never> {
+  const payload: unknown = await response.json().catch(() => null)
+  const problem = readProblemDetails(payload)
+  throw new ApiError(response.status, problem.detail || problem.title || '', problem.errors)
+}
+
+async function requestJson<T>(url: string, options: RequestInit = {}): Promise<T> {
   const response = await fetch(url, options)
 
   if (!response.ok) {
-    const payload = (await response.json().catch(() => null)) as {
-      detail?: string
-      title?: string
-    } | null
-    throw new ApiError(payload?.detail || payload?.title || '')
+    return throwApiError(response)
   }
 
-  if (response.status === 204) {
-    return null as T
-  }
+  return (await response.json()) as unknown as T
+}
 
-  return (await response.json()) as T
+async function requestVoid(url: string, options: RequestInit = {}): Promise<void> {
+  const response = await fetch(url, options)
+
+  if (!response.ok) {
+    return throwApiError(response)
+  }
+}
+
+function jsonOptions(method: 'POST' | 'PUT', payload: object): RequestInit {
+  return {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  }
 }
 
 export function getMedia(filters: MediaFilters = {}): Promise<MediaItem[]> {
   const params = new URLSearchParams()
-  const queryFilters: Record<string, string | number | boolean | undefined> = {
-    sortBy: 'createdAt',
-    sortOrder: 'desc',
+  const queryFilters = {
+    sortBy: 'createdAt' as const,
+    sortOrder: 'desc' as const,
     ...filters,
   }
 
@@ -60,41 +114,42 @@ export function getMedia(filters: MediaFilters = {}): Promise<MediaItem[]> {
   }
 
   const query = params.toString()
-  return request<MediaItem[]>(`${mediaEndpoint}${query ? `?${query}` : ''}`)
+  return requestJson<MediaItem[]>(`${mediaEndpoint}${query ? `?${query}` : ''}`)
+}
+
+export function getMediaItem(id: string): Promise<MediaDetail> {
+  return requestJson<MediaDetail>(`${mediaEndpoint}/${id}`)
 }
 
 export function getStats(): Promise<MediaStats> {
-  return request<MediaStats>(`${mediaEndpoint}/stats`)
+  return requestJson<MediaStats>(`${mediaEndpoint}/stats`)
 }
 
-export function searchExternal(type: string, query: string): Promise<ExternalMedia[]> {
-  return request<ExternalMedia[]>(`${externalEndpoint}/search?type=${type}&query=${encodeURIComponent(query)}`)
+export function searchExternal(type: SearchMediaType, query: string): Promise<ExternalMedia[]> {
+  const params = new URLSearchParams({ type, query })
+  return requestJson<ExternalMedia[]>(`${externalEndpoint}/search?${params}`)
 }
 
-export function createMedia(payload: CreateMediaPayload): Promise<MediaItem> {
-  return request<MediaItem>(mediaEndpoint, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  })
+export function createMedia(payload: CreateMediaPayload): Promise<MediaDetail> {
+  return requestJson<MediaDetail>(mediaEndpoint, jsonOptions('POST', payload))
 }
 
-export function incrementProgress(id: string, currentProgress: number): Promise<MediaItem> {
-  return request<MediaItem>(`${mediaEndpoint}/${id}/progress`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ currentProgress }),
-  })
+export function updateMedia(id: string, payload: UpdateMediaPayload): Promise<MediaDetail> {
+  return requestJson<MediaDetail>(`${mediaEndpoint}/${id}`, jsonOptions('PUT', payload))
 }
 
-export function updateStatus(id: string, status: number): Promise<MediaItem> {
-  return request<MediaItem>(`${mediaEndpoint}/${id}/status`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ status }),
-  })
+export function setProgress(id: string, currentProgress: number): Promise<void> {
+  return requestVoid(`${mediaEndpoint}/${id}/progress`, jsonOptions('PUT', { currentProgress }))
 }
 
-export function deleteMedia(id: string): Promise<null> {
-  return request<null>(`${mediaEndpoint}/${id}`, { method: 'DELETE' })
+export function setSeasonProgress(id: string, currentEpisode: number): Promise<void> {
+  return requestVoid(`/api/seasons/${id}/progress`, jsonOptions('PUT', { currentEpisode }))
+}
+
+export function updateStatus(id: string, status: MediaStatus): Promise<void> {
+  return requestVoid(`${mediaEndpoint}/${id}/status`, jsonOptions('PUT', { status }))
+}
+
+export function deleteMedia(id: string): Promise<void> {
+  return requestVoid(`${mediaEndpoint}/${id}`, { method: 'DELETE' })
 }

@@ -46,7 +46,9 @@ public static class MediaEndpoints
         string? sortOrder = "desc",
         CancellationToken ct = default)
     {
-        IQueryable<MediaItem> query = db.MediaItems.AsNoTracking();
+        IQueryable<MediaItem> query = db.MediaItems
+            .AsNoTracking()
+            .Include(media => ((TvShow)media).Seasons);
 
         if (!string.IsNullOrWhiteSpace(type))
         {
@@ -100,7 +102,7 @@ public static class MediaEndpoints
         };
 
         var items = await query.ToListAsync(ct);
-        return Results.Ok(items);
+        return Results.Ok(items.Select(MediaResponseMapper.ToListDto));
     }
 
     private static async Task<IResult> GetMediaStats(AppDbContext db, CancellationToken ct)
@@ -130,7 +132,7 @@ public static class MediaEndpoints
             .Include(media => ((TvShow)media).Seasons.OrderBy(season => season.SeasonNumber))
             .SingleOrDefaultAsync(media => media.Id == id, ct);
 
-        return item is null ? Results.NotFound() : Results.Ok(item);
+        return item is null ? Results.NotFound() : Results.Ok(MediaResponseMapper.ToDetailDto(item));
     }
 
     private static async Task<IResult> CreateMediaItem(
@@ -157,7 +159,7 @@ public static class MediaEndpoints
         db.Add(item);
         await db.SaveChangesAsync(ct);
 
-        return Results.Created($"/api/media/{item.Id}", item);
+        return Results.Created($"/api/media/{item.Id}", MediaResponseMapper.ToDetailDto(item));
     }
 
     private static async Task<IResult> UpdateMediaItem(
@@ -173,7 +175,9 @@ public static class MediaEndpoints
             return Results.ValidationProblem(validationResult.ToDictionary());
         }
 
-        var item = await db.MediaItems.SingleOrDefaultAsync(media => media.Id == id, ct);
+        var item = await db.MediaItems
+            .Include(media => ((TvShow)media).Seasons)
+            .SingleOrDefaultAsync(media => media.Id == id, ct);
         if (item is null)
         {
             return Results.NotFound();
@@ -209,7 +213,7 @@ public static class MediaEndpoints
 
         await db.SaveChangesAsync(ct);
 
-        return Results.Ok(item);
+        return Results.Ok(MediaResponseMapper.ToDetailDto(item));
     }
 
     private static async Task<IResult> UpdateStatus(
@@ -262,16 +266,18 @@ public static class MediaEndpoints
             return Results.NotFound();
         }
 
+        var currentProgress = Math.Max(request.CurrentProgress, 0);
+
         switch (item)
         {
             case Book book:
-                book.CurrentPage = request.CurrentProgress;
+                book.CurrentPage = ClampToKnownTotal(currentProgress, book.TotalPages);
                 break;
             case Manga manga:
-                manga.CurrentChapter = request.CurrentProgress;
+                manga.CurrentChapter = ClampToKnownTotal(currentProgress, manga.TotalChapters);
                 break;
             case VideoGame game:
-                game.HoursPlayed = request.CurrentProgress;
+                game.HoursPlayed = currentProgress;
                 break;
             default:
                 return Results.BadRequest("Progress is not supported for this media type.");
@@ -321,9 +327,9 @@ public static class MediaEndpoints
             return Results.NotFound();
         }
 
-        season.CurrentEpisode = request.CurrentEpisode;
+        season.CurrentEpisode = ClampToKnownTotal(Math.Max(request.CurrentEpisode, 0), season.TotalEpisodes);
 
-        if (season.CurrentEpisode >= season.TotalEpisodes)
+        if (season.TotalEpisodes > 0 && season.CurrentEpisode >= season.TotalEpisodes)
         {
             season.Status = MediaStatus.Completed;
         }
@@ -414,6 +420,9 @@ public static class MediaEndpoints
             },
             _ => throw new UnsupportedMediaTypeException(request.Type),
         };
+
+    private static int ClampToKnownTotal(int current, int? total) =>
+        total is > 0 ? Math.Min(current, total.Value) : current;
 
     private static bool IsExternalUrl(string? url) =>
         url is not null &&

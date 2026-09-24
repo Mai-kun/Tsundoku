@@ -4,7 +4,7 @@ namespace MediaTracker.Server.Services.Storage;
 
 public sealed class ImageStorageService(
     HttpClient httpClient,
-    IHostEnvironment environment,
+    AppPaths appPaths,
     ILogger<ImageStorageService> logger) : IImageStorageService
 {
     private const string CoversRoutePrefix = "/covers/";
@@ -70,7 +70,7 @@ public sealed class ImageStorageService(
         }
     }
 
-    private string GetCoversPath() => Path.Combine(environment.ContentRootPath, "data", "covers");
+    private string GetCoversPath() => appPaths.CoversDirectory;
 
     private static string ResolveExtension(string? mediaType) => mediaType?.ToLowerInvariant() switch
     {

@@ -211,6 +211,8 @@ public static class MediaEndpoints
             item.FinishedAt = request.FinishedAt;
         }
 
+        item.UpdatedAt = DateTime.UtcNow;
+
         await db.SaveChangesAsync(ct);
 
         return Results.Ok(MediaResponseMapper.ToDetailDto(item));
@@ -229,20 +231,20 @@ public static class MediaEndpoints
             return Results.ValidationProblem(validationResult.ToDictionary());
         }
 
-        var item = await db.MediaItems.SingleOrDefaultAsync(media => media.Id == id, ct);
-        if (item is null)
+        var affected = await db.MediaItems
+            .Where(x => x.Id == id)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(x => x.Status, request.Status)
+                .SetProperty(x => x.FinishedAt, x =>
+                    request.Status == MediaStatus.Completed && x.FinishedAt == null
+                        ? DateTime.UtcNow
+                        : x.FinishedAt),
+                ct);
+
+        if (affected == 0)
         {
             return Results.NotFound();
         }
-
-        item.Status = request.Status;
-
-        if (item.Status == MediaStatus.Completed && item.FinishedAt is null)
-        {
-            item.FinishedAt = DateTime.UtcNow;
-        }
-
-        await db.SaveChangesAsync(ct);
 
         return Results.NoContent();
     }
@@ -260,30 +262,46 @@ public static class MediaEndpoints
             return Results.ValidationProblem(validationResult.ToDictionary());
         }
 
-        var item = await db.MediaItems.SingleOrDefaultAsync(media => media.Id == id, ct);
-        if (item is null)
+        var target = await db.MediaItems
+            .Where(x => x.Id == id)
+            .Select(x => new
+            {
+                IsBook = x is Book,
+                BookTotal = x is Book ? ((Book)x).TotalPages : (int?)null,
+                IsManga = x is Manga,
+                MangaTotal = x is Manga ? ((Manga)x).TotalChapters : (int?)null,
+                IsGame = x is VideoGame
+            })
+            .FirstOrDefaultAsync(ct);
+
+        if (target is null)
         {
             return Results.NotFound();
         }
 
         var currentProgress = Math.Max(request.CurrentProgress, 0);
 
-        switch (item)
+        if (target.IsBook)
         {
-            case Book book:
-                book.CurrentPage = ClampToKnownTotal(currentProgress, book.TotalPages);
-                break;
-            case Manga manga:
-                manga.CurrentChapter = ClampToKnownTotal(currentProgress, manga.TotalChapters);
-                break;
-            case VideoGame game:
-                game.HoursPlayed = currentProgress;
-                break;
-            default:
-                return Results.BadRequest("Progress is not supported for this media type.");
+            var clamped = ClampToKnownTotal(currentProgress, target.BookTotal);
+            await db.Books.Where(x => x.Id == id)
+                .ExecuteUpdateAsync(s => s.SetProperty(x => x.CurrentPage, clamped), ct);
         }
-
-        await db.SaveChangesAsync(ct);
+        else if (target.IsManga)
+        {
+            var clamped = ClampToKnownTotal(currentProgress, target.MangaTotal);
+            await db.Manga.Where(x => x.Id == id)
+                .ExecuteUpdateAsync(s => s.SetProperty(x => x.CurrentChapter, clamped), ct);
+        }
+        else if (target.IsGame)
+        {
+            await db.Games.Where(x => x.Id == id)
+                .ExecuteUpdateAsync(s => s.SetProperty(x => x.HoursPlayed, currentProgress), ct);
+        }
+        else
+        {
+            return Results.BadRequest("Progress is not supported for this media type.");
+        }
 
         return Results.NoContent();
     }

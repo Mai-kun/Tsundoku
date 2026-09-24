@@ -216,7 +216,7 @@
   }
 </script>
 
-<article class="group relative overflow-hidden rounded-2xl border border-border bg-surface shadow-sm transition hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-xl hover:shadow-black/20">
+<article class="group relative overflow-hidden rounded-2xl border border-border bg-surface shadow-sm transition hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-xl hover:shadow-black/20" style="content-visibility: auto; contain-intrinsic-size: auto none;">
   <div class="aspect-[3/4] overflow-hidden bg-elevated">
     {#if item.coverUrl}
       <img src={item.coverUrl} alt={item.title} class="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]" loading="lazy" />

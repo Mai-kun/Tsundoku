@@ -5,6 +5,14 @@
         <TargetFramework>net10.0</TargetFramework>
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
+
+        <AssemblyName>Tsundoku</AssemblyName>
+        <RootNamespace>Tsundoku.Server</RootNamespace>
+
+        <GenerateEmbeddedFilesManifest>true</GenerateEmbeddedFilesManifest>
+        <IsTransformWebConfigDisabled>true</IsTransformWebConfigDisabled>
+        <GenerateStaticWebAssetsManifest>false</GenerateStaticWebAssetsManifest>
+        <StaticWebAssetsEnabled>false</StaticWebAssetsEnabled>
     </PropertyGroup>
 
     <PropertyGroup Condition="'$(Configuration)' == 'Release' and '$(RuntimeIdentifier)' == 'win-x64'">
@@ -12,19 +20,30 @@
         <PublishSingleFile>true</PublishSingleFile>
         <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
         <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+
         <DebugType>None</DebugType>
         <DebugSymbols>false</DebugSymbols>
         <GenerateDocumentationFile>false</GenerateDocumentationFile>
     </PropertyGroup>
 
     <ItemGroup>
-        <Content Update="web.config"
-            CopyToPublishDirectory="Never" />
+        <EmbeddedResource Include="wwwroot\**\*"
+                          Exclude="wwwroot\**\*.map" />
+        <EmbeddedResource Include="appsettings.json" />
     </ItemGroup>
 
-    <ItemGroup Condition="'$(Configuration)' == 'Release'">
+    <ItemGroup>
+        <Content Update="wwwroot\**\*"
+                 CopyToPublishDirectory="Never" />
+
+        <Content Update="appsettings.json"
+                 CopyToPublishDirectory="Never" />
+
+        <Content Update="web.config"
+                 CopyToPublishDirectory="Never" />
+
         <Content Update="appsettings.Development.json"
-            CopyToPublishDirectory="Never" />
+                 CopyToPublishDirectory="Never" />
     </ItemGroup>
 
     <ItemGroup>
@@ -37,8 +56,10 @@
         </PackageReference>
         <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.12" />
         <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="10.0.12" />
-        <PackageReference Include="OpenApiUi" Version="1.1.0" />
+        <PackageReference Include="Microsoft.Extensions.FileProviders.Embedded" Version="10.0.11" />
+        <PackageReference Include="OpenApiUi" Version="1.1.0"/>
         <PackageReference Include="Photino.NET" Version="3.*" />
     </ItemGroup>
 
 </Project>
+

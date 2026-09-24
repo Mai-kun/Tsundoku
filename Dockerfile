@@ -20,4 +20,4 @@ RUN mkdir -p /app/data/covers
 ENV HEADLESS=true
 ENV ASPNETCORE_URLS=http://+:5000
 EXPOSE 5000
-ENTRYPOINT ["dotnet", "MediaTracker.Server.dll"]
+ENTRYPOINT ["dotnet", "Tsundoku.dll"]

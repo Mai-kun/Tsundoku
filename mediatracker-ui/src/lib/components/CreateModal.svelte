@@ -1,13 +1,34 @@
 <script>
-  import { createMedia } from '../api.js'
+  import { i18n } from '$lib/i18n/index.svelte'
+  import { createMedia, errorMessage } from '../api.js'
 
   const inputClass = 'w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20'
+
+  const typeOptions = [
+    { value: 'Game', key: 'game' },
+    { value: 'Movie', key: 'movie' },
+    { value: 'TvShow', key: 'tvshow' },
+    { value: 'Book', key: 'book' },
+    { value: 'Manga', key: 'manga' },
+  ]
+
+  const statusOptions = [
+    { value: 0, key: 'planned' },
+    { value: 1, key: 'inProgress' },
+    { value: 2, key: 'completed' },
+    { value: 3, key: 'paused' },
+    { value: 4, key: 'dropped' },
+  ]
 
   let { onClose, onCreated } = $props()
 
   let form = $state(createEmptyForm())
   let submitting = $state(false)
-  let error = $state('')
+  let validationFailed = $state(false)
+  /** @type {unknown} */
+  let error = $state(null)
+
+  let errorText = $derived(validationFailed ? i18n.t.createModal.validation.titleRequired : error !== null ? errorMessage(error) : '')
 
   function createEmptyForm() {
     return {
@@ -93,10 +114,11 @@
 
   async function submit(event) {
     event.preventDefault()
-    error = ''
+    error = null
+    validationFailed = false
 
     if (!form.title.trim()) {
-      error = 'Укажите название.'
+      validationFailed = true
       return
     }
 
@@ -106,7 +128,7 @@
       const created = await createMedia(buildPayload())
       onCreated(created)
     } catch (requestError) {
-      error = requestError.message
+      error = requestError
     } finally {
       submitting = false
     }
@@ -131,13 +153,13 @@
   <div class="w-full max-w-2xl rounded-2xl border border-slate-700 bg-slate-900 p-5 shadow-2xl shadow-slate-950/60 sm:p-6" role="dialog" aria-modal="true" aria-labelledby="create-title">
     <div class="mb-6 flex items-start justify-between gap-4">
       <div>
-        <p class="text-xs font-semibold uppercase tracking-[0.2em] text-blue-300">Новая запись</p>
-        <h2 id="create-title" class="mt-1 text-xl font-semibold text-white">Добавить медиа</h2>
+        <p class="text-xs font-semibold uppercase tracking-[0.2em] text-blue-300">{i18n.t.createModal.eyebrow}</p>
+        <h2 id="create-title" class="mt-1 text-xl font-semibold text-white">{i18n.t.createModal.title}</h2>
       </div>
       <button
         type="button"
         class="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-800 hover:text-white focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-50"
-        aria-label="Закрыть"
+        aria-label={i18n.t.common.close}
         disabled={submitting}
         onclick={onClose}
       >
@@ -150,36 +172,32 @@
     <form class="space-y-5" onsubmit={submit}>
       <div class="grid gap-4 sm:grid-cols-2">
         <label class="space-y-1.5 text-sm font-medium text-slate-300">
-          <span>Тип</span>
+          <span>{i18n.t.createModal.fields.type}</span>
           <select class={inputClass} bind:value={form.type}>
-            <option>Game</option>
-            <option>Movie</option>
-            <option>TvShow</option>
-            <option>Book</option>
-            <option>Manga</option>
+            {#each typeOptions as option}
+              <option value={option.value}>{i18n.t.types[option.key]}</option>
+            {/each}
           </select>
         </label>
 
         <label class="space-y-1.5 text-sm font-medium text-slate-300">
-          <span>Статус</span>
+          <span>{i18n.t.status.label}</span>
           <select class={inputClass} bind:value={form.status}>
-            <option value={0}>В планах</option>
-            <option value={1}>В процессе</option>
-            <option value={2}>Пройдено</option>
-            <option value={3}>На паузе</option>
-            <option value={4}>Брошено</option>
+            {#each statusOptions as option}
+              <option value={option.value}>{i18n.t.status[option.key]}</option>
+            {/each}
           </select>
         </label>
       </div>
 
       <div class="grid gap-4 sm:grid-cols-2">
         <label class="space-y-1.5 text-sm font-medium text-slate-300">
-          <span>Title</span>
-          <input class={inputClass} type="text" placeholder="Название" required bind:value={form.title} />
+          <span>{i18n.t.createModal.fields.title}</span>
+          <input class={inputClass} type="text" placeholder={i18n.t.createModal.placeholders.title} required bind:value={form.title} />
         </label>
 
         <label class="space-y-1.5 text-sm font-medium text-slate-300">
-          <span>CoverUrl</span>
+          <span>{i18n.t.createModal.fields.coverUrl}</span>
           <input class={inputClass} type="url" placeholder="https://..." bind:value={form.coverUrl} />
         </label>
       </div>
@@ -187,33 +205,33 @@
       {#if form.type === 'Game'}
         <div class="grid gap-4 sm:grid-cols-2">
           <label class="space-y-1.5 text-sm font-medium text-slate-300">
-            <span>Platform</span>
-            <input class={inputClass} type="text" placeholder="PC, PlayStation, Switch" bind:value={form.platform} />
+            <span>{i18n.t.createModal.fields.platform}</span>
+            <input class={inputClass} type="text" placeholder={i18n.t.createModal.placeholders.platform} bind:value={form.platform} />
           </label>
           <label class="space-y-1.5 text-sm font-medium text-slate-300">
-            <span>HoursPlayed</span>
+            <span>{i18n.t.createModal.fields.hoursPlayed}</span>
             <input class={inputClass} type="number" min="0" step="1" bind:value={form.hoursPlayed} />
           </label>
         </div>
       {:else if form.type === 'Book'}
         <div class="grid gap-4 sm:grid-cols-2">
           <label class="space-y-1.5 text-sm font-medium text-slate-300">
-            <span>Author</span>
-            <input class={inputClass} type="text" placeholder="Автор" bind:value={form.author} />
+            <span>{i18n.t.createModal.fields.author}</span>
+            <input class={inputClass} type="text" placeholder={i18n.t.createModal.placeholders.author} bind:value={form.author} />
           </label>
           <label class="space-y-1.5 text-sm font-medium text-slate-300">
-            <span>TotalPages</span>
+            <span>{i18n.t.createModal.fields.totalPages}</span>
             <input class={inputClass} type="number" min="0" step="1" bind:value={form.totalPages} />
           </label>
         </div>
       {:else if form.type === 'Manga'}
         <div class="grid gap-4 sm:grid-cols-2">
           <label class="space-y-1.5 text-sm font-medium text-slate-300">
-            <span>TotalChapters</span>
+            <span>{i18n.t.createModal.fields.totalChapters}</span>
             <input class={inputClass} type="number" min="0" step="1" bind:value={form.totalChapters} />
           </label>
           <label class="space-y-1.5 text-sm font-medium text-slate-300">
-            <span>CurrentVolume</span>
+            <span>{i18n.t.createModal.fields.currentVolume}</span>
             <input class={inputClass} type="number" min="0" step="1" bind:value={form.currentVolume} />
           </label>
         </div>
@@ -221,24 +239,24 @@
         <div class="space-y-4">
           <label class="flex items-center gap-3 rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-2.5 text-sm font-medium text-slate-200">
             <input type="checkbox" class="h-4 w-4 rounded border-slate-600 bg-slate-800 text-blue-500 focus:ring-blue-400" bind:checked={form.isAnime} />
-            Это аниме?
+            {i18n.t.createModal.fields.isAnime}
           </label>
 
           <div class="grid gap-4 sm:grid-cols-2">
             <label class="space-y-1.5 text-sm font-medium text-slate-300">
-              <span>Studio</span>
-              <input class={inputClass} type="text" placeholder="Студия" bind:value={form.studio} />
+              <span>{i18n.t.createModal.fields.studio}</span>
+              <input class={inputClass} type="text" placeholder={i18n.t.createModal.placeholders.studio} bind:value={form.studio} />
             </label>
 
             {#if form.type === 'Movie'}
               <label class="space-y-1.5 text-sm font-medium text-slate-300">
-                <span>DurationMinutes</span>
+                <span>{i18n.t.createModal.fields.durationMinutes}</span>
                 <input class={inputClass} type="number" min="0" step="1" bind:value={form.durationMinutes} />
               </label>
             {:else}
               <label class="space-y-1.5 text-sm font-medium text-slate-300">
-                <span>Network</span>
-                <input class={inputClass} type="text" placeholder="Стриминг или телеканал" bind:value={form.network} />
+                <span>{i18n.t.createModal.fields.network}</span>
+                <input class={inputClass} type="text" placeholder={i18n.t.createModal.placeholders.network} bind:value={form.network} />
               </label>
             {/if}
           </div>
@@ -246,18 +264,18 @@
       {/if}
 
       <label class="block space-y-1.5 text-sm font-medium text-slate-300">
-        <span>Notes</span>
-        <textarea class={inputClass} rows="3" placeholder="Личные заметки" bind:value={form.notes}></textarea>
+        <span>{i18n.t.createModal.fields.notes}</span>
+        <textarea class={inputClass} rows="3" placeholder={i18n.t.createModal.placeholders.notes} bind:value={form.notes}></textarea>
       </label>
 
-      {#if error}
-        <p class="rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-200" role="alert">{error}</p>
+      {#if errorText}
+        <p class="rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-200" role="alert">{errorText}</p>
       {/if}
 
       <div class="flex justify-end gap-3 border-t border-slate-800 pt-5">
-        <button type="button" class="rounded-lg px-4 py-2 text-sm font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white disabled:opacity-50" disabled={submitting} onclick={onClose}>Отмена</button>
+        <button type="button" class="rounded-lg px-4 py-2 text-sm font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white disabled:opacity-50" disabled={submitting} onclick={onClose}>{i18n.t.common.cancel}</button>
         <button type="submit" class="rounded-lg bg-blue-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-950/40 transition hover:bg-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-300 disabled:cursor-wait disabled:opacity-60" disabled={submitting}>
-          {submitting ? 'Добавление…' : 'Добавить'}
+          {submitting ? i18n.t.common.adding : i18n.t.common.add}
         </button>
       </div>
     </form>

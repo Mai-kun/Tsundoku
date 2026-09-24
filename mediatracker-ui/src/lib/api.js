@@ -1,12 +1,31 @@
+import { i18n } from '$lib/i18n/index.svelte'
+
 const mediaEndpoint = '/api/media'
 const externalEndpoint = '/api/external'
+
+export class ApiError extends Error {
+  /** @param {string} [detail] */
+  constructor(detail) {
+    super(detail || 'API request failed')
+    this.detail = detail ?? ''
+  }
+}
+
+/** @param {unknown} error */
+export function errorMessage(error) {
+  if (error instanceof ApiError) {
+    return error.detail || i18n.t.errors.requestFailed
+  }
+
+  return i18n.t.errors.unexpected
+}
 
 async function request(url, options = {}) {
   const response = await fetch(url, options)
 
   if (!response.ok) {
     const payload = await response.json().catch(() => null)
-    throw new Error(payload?.detail || payload?.title || 'Не удалось выполнить запрос.')
+    throw new ApiError(payload?.detail || payload?.title || '')
   }
 
   if (response.status === 204) {

@@ -8,6 +8,17 @@ fs.mkdirSync(shots, { recursive: true })
 const browser = await chromium.launch({ headless: true })
 const context = await browser.newContext({ viewport: { width: 1440, height: 900 } })
 const page = await context.newPage()
+const fetchCalls = []
+await page.addInitScript(() => {
+  const originalFetch = window.fetch
+  window.fetch = (...args) => {
+    const request = args[0]
+    const options = args[1] || {}
+    window.__progressFetchCalls = JSON.parse(localStorage.getItem('progressFetchCalls') || '[]')
+    window.__progressFetchCalls.push({ url: String(request), keepalive: options.keepalive === true, method: options.method || 'GET' }); localStorage.setItem('progressFetchCalls', JSON.stringify(window.__progressFetchCalls))
+    return originalFetch(...args)
+  }
+})
 const api = async (path, options = {}) => page.request.fetch(base + path, options)
 const json = async (path, options = {}) => { const response = await api(path, options); if (!response.ok()) throw new Error(await response.text()); return response.json() }
 const voidRequest = async (path, options = {}) => { const response = await api(path, options); if (!response.ok()) throw new Error(await response.text()) }
@@ -23,11 +34,17 @@ const book = await json('/api/media', { method: 'POST', headers: {'content-type'
 await page.goto(base + '/?view=book'); await page.waitForLoadState('domcontentloaded')
 const bookCard = page.locator('article').filter({ hasText: book.title }).first()
 await bookCard.waitFor({ state: 'visible', timeout: 10000 })
-await bookCard.locator('button:has(svg.lucide-plus)').click()
-await page.waitForTimeout(100)
-await page.reload(); await page.waitForTimeout(500)
+const plusButton = bookCard.locator('button:has(svg.lucide-plus)')
+const reloadStartedAt = Date.now()
+await Promise.all([plusButton.click({ force: true }), plusButton.click({ force: true }), plusButton.click({ force: true })])
+const elapsedBeforeReload = Date.now() - reloadStartedAt
+await page.reload(); await page.waitForTimeout(700)
+const keepaliveCalls = await page.evaluate(() => JSON.parse(localStorage.getItem('progressFetchCalls') || '[]'))
+const bookProgressCall = keepaliveCalls.find((call) => call.url.includes('/api/media/' + book.id + '/progress') && call.method === 'PUT' && call.keepalive)
+assert(elapsedBeforeReload < 375, 'reload happened after debounce window: ' + elapsedBeforeReload + 'ms')
+assert(bookProgressCall, 'keepalive progress request not observed: ' + JSON.stringify(keepaliveCalls))
 const bookAfter = await json(`/api/media/${book.id}`)
-assert(bookAfter.currentPage === 1, `F5 debounce failed: ${bookAfter.currentPage}`)
+assert(bookAfter.currentPage === 3, `F5 debounce failed: ${bookAfter.currentPage}`)
 await page.screenshot({ path: `${shots}/regression_a_f5_debounce.png`, fullPage: true })
 log('a F5 debounce', `saved currentPage=${bookAfter.currentPage}`)
 
@@ -39,7 +56,7 @@ await target.locator('button:has(svg.lucide-plus)').click()
 await page.waitForTimeout(500)
 const bookCheck = await json(`/api/media/${book.id}`)
 const otherCheck = await json(`/api/media/${other.id}`)
-assert(bookCheck.currentPage === 2 && otherCheck.currentPage === 0, `wrong id after rerender: ${bookCheck.currentPage}/${otherCheck.currentPage}`)
+assert(bookCheck.currentPage === 4 && otherCheck.currentPage === 0, `wrong id after rerender: ${bookCheck.currentPage}/${otherCheck.currentPage}`)
 log('stale callback check', `target=${book.id} currentPage=${bookCheck.currentPage}, other=${other.id} currentPage=${otherCheck.currentPage}`)
 
 // (b) all seasons complete
@@ -57,6 +74,7 @@ const season = completedShow.seasons[0]
 await voidRequest(`/api/seasons/${season.id}/progress`, { method:'PUT', headers:{'content-type':'application/json'}, data: JSON.stringify({currentEpisode:1}) })
 const rolledBack = await json(`/api/media/${show.id}`)
 assert(rolledBack.status === 1 && rolledBack.finishedAt === null, `rollback failed: ${rolledBack.status}/${rolledBack.finishedAt}`)
+await page.reload(); await page.waitForTimeout(700)
 await page.screenshot({ path: `${shots}/regression_c_tvshow_rollback.png`, fullPage: true })
 log('c TvShow rollback', `status=${rolledBack.status}, finishedAt=${rolledBack.finishedAt}`)
 
@@ -67,7 +85,7 @@ await card.getByRole('button', { name: 'Edit' }).click()
 const titleInput = page.locator('[role=dialog] input').first()
 const newTitle = `${book.title} edited`
 await titleInput.fill(newTitle)
-await page.locator('[role=dialog] button[type=submit]').click()
+await Promise.all([page.waitForResponse((response) => response.url().includes('/api/media/' + book.id) && response.request().method() === 'PUT'), page.locator('[role=dialog] button[type=submit]').click()])
 await page.waitForLoadState('domcontentloaded')
 const edited = await json(`/api/media/${book.id}`)
 assert(edited.title === newTitle, `DB edit failed: ${edited.title}`)
@@ -78,17 +96,3 @@ log('d edit card', `UI and GET title=${edited.title}`)
 
 await browser.close()
 console.log('ALL 4 REGRESSION SCENARIOS PASSED')
-
-
-
-
-
-
-
-
-
-
-
-
-
-

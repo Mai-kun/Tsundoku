@@ -346,10 +346,29 @@ public static class MediaEndpoints
         }
 
         season.CurrentEpisode = ClampToKnownTotal(Math.Max(request.CurrentEpisode, 0), season.TotalEpisodes);
-
         if (season.TotalEpisodes > 0 && season.CurrentEpisode >= season.TotalEpisodes)
         {
             season.Status = MediaStatus.Completed;
+        }
+        else if (season.Status == MediaStatus.Completed)
+        {
+            season.Status = MediaStatus.InProgress;
+        }
+
+        var show = await db.TvShows.Include(item => item.Seasons).SingleOrDefaultAsync(item => item.Id == season.TvShowId, ct);
+        if (show is not null && show.Seasons.Count > 0)
+        {
+            var allCompleted = show.Seasons.All(item => item.Status == MediaStatus.Completed);
+            if (allCompleted)
+            {
+                show.Status = MediaStatus.Completed;
+                show.FinishedAt ??= DateTime.UtcNow;
+            }
+            else if (show.Status == MediaStatus.Completed)
+            {
+                show.Status = MediaStatus.InProgress;
+                show.FinishedAt = null;
+            }
         }
 
         await db.SaveChangesAsync(ct);

@@ -12,9 +12,10 @@
     refreshKey: number
     onOpenTvShow: (id: string) => void
     onMediaChanged: () => void
+    onEdit?: (item: MediaItem) => void
   }
 
-  let { category, refreshKey, onOpenTvShow, onMediaChanged }: Props = $props()
+  let { category, refreshKey, onOpenTvShow, onMediaChanged, onEdit = () => {} }: Props = $props()
 
   let status = $state<StatusFilter>('all')
   let sort = $state<LibrarySort>('newest')
@@ -112,5 +113,5 @@
 <div class="space-y-6">
   <FilterBar {status} {sort} {search} onStatusChange={updateStatus} onSortChange={(value) => (sort = value)} onSearchChange={(value) => (search = value)} />
   <p class="text-xs font-medium text-muted">{i18n.t.library.resultCount(items.length)}</p>
-  <MediaGrid {items} loading={loading} error={loadError} onRetry={refresh} onOpen={openItem} onProgress={updateProgress} onProgressCommitted={onMediaChanged} onDelete={removeItem} />
+  <MediaGrid {items} loading={loading} error={loadError} onRetry={refresh} onOpen={openItem} onProgress={updateProgress} onProgressCommitted={onMediaChanged} onDelete={removeItem} onEdit={onEdit} />
 </div>

@@ -14,6 +14,7 @@
     onProgress?: (id: string, currentProgress: number) => Promise<void>
     onProgressCommitted?: () => void
     onDelete?: (item: MediaItem) => Promise<void>
+    onEdit?: (item: MediaItem) => void
   }
 
   let {
@@ -25,6 +26,7 @@
     onProgress,
     onProgressCommitted = () => {},
     onDelete,
+    onEdit = () => {},
   }: Props = $props()
 </script>
 
@@ -57,7 +59,7 @@
 {:else}
   <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
     {#each items as item (item.id)}
-      <MediaCard {item} {onOpen} {onProgress} {onProgressCommitted} {onDelete} />
+      <MediaCard {item} {onOpen} {onProgress} {onProgressCommitted} {onDelete} {onEdit} />
     {/each}
   </div>
 {/if}

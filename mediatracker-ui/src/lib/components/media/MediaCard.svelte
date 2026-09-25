@@ -1,9 +1,10 @@
 <script lang="ts">
-  import { Check, Image as ImageIcon, Minus, Plus, Trash2 } from 'lucide-svelte'
+  import { Check, Image as ImageIcon, Minus, Pencil, Plus, Trash2 } from 'lucide-svelte'
   import { untrack } from 'svelte'
   import { errorMessage } from '$lib/api'
   import { i18n } from '$lib/i18n/index.svelte'
   import { clampProgress, type MediaItem, type MediaStatus } from '$lib/types'
+  import { createProgressFlush } from '$lib/utils/progressFlush'
 
   interface Props {
     item: MediaItem
@@ -11,6 +12,7 @@
     onProgress?: (id: string, currentProgress: number) => Promise<void>
     onProgressCommitted?: () => void
     onDelete?: (item: MediaItem) => Promise<void>
+    onEdit?: (item: MediaItem) => void
   }
 
   let {
@@ -19,20 +21,28 @@
     onProgress,
     onProgressCommitted = () => {},
     onDelete,
+    onEdit = () => {},
   }: Props = $props()
 
   let trackedItem = $state(untrack(() => item))
   let currentProgress = $state(untrack(() => readProgress(item)))
   let committedProgress = $state(untrack(() => currentProgress))
   let pendingSnapshot = $state<number | null>(null)
-  let hasScheduledSync = $state(false)
-  let isSending = $state(false)
+
   let progressError = $state<unknown>(null)
   let deleteError = $state<unknown>(null)
-  let progressTimer: ReturnType<typeof setTimeout> | null = null
+  const progressFlush = createProgressFlush(() => onProgress ?? (async () => {}), (value) => {
+        committedProgress = value
+        if (currentProgress === value) onProgressCommitted()
+      }, (error) => {
+        currentProgress = pendingSnapshot ?? committedProgress
+        committedProgress = currentProgress
+        pendingSnapshot = null
+        progressError = error
+      })
 
   $effect(() => {
-    if (item !== trackedItem && !hasScheduledSync && !isSending) {
+    if (item !== trackedItem) {
       trackedItem = item
       currentProgress = readProgress(item)
       committedProgress = currentProgress
@@ -41,11 +51,7 @@
   })
 
   $effect(() => {
-    return () => {
-      if (progressTimer) {
-        clearTimeout(progressTimer)
-      }
-    }
+    return () => progressFlush?.flush()
   })
 
   function readProgress(media: MediaItem): number {
@@ -148,55 +154,7 @@
 
     currentProgress = next
     progressError = null
-    scheduleSync()
-  }
-
-  function scheduleSync() {
-    if (progressTimer) {
-      clearTimeout(progressTimer)
-    }
-
-    hasScheduledSync = true
-    progressTimer = setTimeout(() => {
-      hasScheduledSync = false
-      progressTimer = null
-      void flushProgress()
-    }, 375)
-  }
-
-  async function flushProgress() {
-    if (!onProgress || isSending || currentProgress === committedProgress) return
-
-    const target = currentProgress
-    const snapshot = pendingSnapshot ?? committedProgress
-    pendingSnapshot = null
-    isSending = true
-
-    try {
-      await onProgress(item.id, target)
-      committedProgress = target
-
-      if (currentProgress === target) {
-        onProgressCommitted()
-      }
-    } catch (error) {
-      if (progressTimer) {
-        clearTimeout(progressTimer)
-        progressTimer = null
-      }
-
-      hasScheduledSync = false
-      currentProgress = snapshot
-      committedProgress = snapshot
-      pendingSnapshot = null
-      progressError = error
-    } finally {
-      isSending = false
-
-      if (progressError === null && currentProgress !== committedProgress && !hasScheduledSync) {
-        scheduleSync()
-      }
-    }
+    progressFlush?.schedule(item.id, next)
   }
 
   function supportsStepper(media: MediaItem): boolean {
@@ -228,9 +186,7 @@
 
     <div class="absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-3">
       <span class={`rounded-md px-2 py-1 text-[10px] font-bold uppercase tracking-wide backdrop-blur ${statusClass(item.status)}`}>{statusLabel(item.status)}</span>
-      <button type="button" class="flex h-7 w-7 items-center justify-center rounded-md bg-canvas/70 text-muted opacity-0 transition hover:bg-rose-500/20 hover:text-rose-300 focus:opacity-100 group-hover:opacity-100" aria-label={i18n.t.card.deleteAria(item.title)} onclick={removeItem}>
-        <Trash2 size={15} aria-hidden="true" />
-      </button>
+      <div class="flex gap-1"><button type="button" class="flex h-7 w-7 items-center justify-center rounded-md bg-canvas/70 text-muted opacity-0 transition hover:bg-accent/20 hover:text-accent-soft focus:opacity-100 group-hover:opacity-100" aria-label="Edit" onclick={() => onEdit(item)}><Pencil size={15} aria-hidden="true" /></button><button type="button" class="flex h-7 w-7 items-center justify-center rounded-md bg-canvas/70 text-muted opacity-0 transition hover:bg-rose-500/20 hover:text-rose-300 focus:opacity-100 group-hover:opacity-100" aria-label={i18n.t.card.deleteAria(item.title)} onclick={removeItem}><Trash2 size={15} aria-hidden="true" /></button></div>
     </div>
 
     {#if item.type === 'tvshow'}
@@ -241,18 +197,18 @@
   <div class="relative z-10 min-w-0 space-y-3 p-3.5">
     <div class="min-w-0">
       {#if item.type === 'tvshow'}
-        <button type="button" class="block w-full truncate text-left text-sm font-semibold text-ink transition hover:text-accent-soft" title={item.title} onclick={() => onOpen(item)}>{item.title}</button>
+        <button type="button" class="block w-full truncate break-words text-left text-sm font-semibold text-ink transition hover:text-accent-soft" title={item.title.length > 100 ? item.title.slice(0, 97) + '...' : item.title} onclick={() => onOpen(item)}>{item.title}</button>
       {:else}
-        <h2 class="truncate text-sm font-semibold text-ink" title={item.title}>{item.title}</h2>
+        <h2 class="truncate break-words text-sm font-semibold text-ink" title={item.title.length > 100 ? item.title.slice(0, 97) + '...' : item.title}>{item.title}</h2>
       {/if}
       <p class="mt-1 truncate text-xs text-muted">
         {cardTypeLabel(item)}
         {#if item.type === 'game' && item.platform}
-          · {item.platform}
+          В· {item.platform}
         {:else if item.type === 'book' && item.author}
-          · {item.author}
+          В· {item.author}
         {:else if item.type === 'tvshow' && item.seasonsCount > 0}
-          · {item.seasonsCount}
+          В· {item.seasonsCount}
         {/if}
       </p>
     </div>
@@ -262,7 +218,7 @@
         <div class="flex items-center justify-between gap-2 text-xs text-muted">
           <span>{progressLabel(item)}</span>
           {#if item.score !== null}
-            <span class="font-semibold text-amber-300">★ {format(item.score)}</span>
+            <span class="font-semibold text-amber-300">в… {format(item.score)}</span>
           {/if}
         </div>
         {#if progressRatio(item) !== null}

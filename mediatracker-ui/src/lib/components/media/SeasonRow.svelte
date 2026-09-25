@@ -4,6 +4,7 @@
   import { errorMessage } from '$lib/api'
   import { i18n } from '$lib/i18n/index.svelte'
   import { clampProgress, type TvSeason } from '$lib/types'
+  import { createProgressFlush } from '$lib/utils/progressFlush'
 
   interface Props {
     season: TvSeason
@@ -17,13 +18,20 @@
   let currentEpisode = $state(untrack(() => season.currentEpisode))
   let committedEpisode = $state(untrack(() => season.currentEpisode))
   let pendingSnapshot = $state<number | null>(null)
-  let hasScheduledSync = $state(false)
-  let isSending = $state(false)
+
   let mutationError = $state<unknown>(null)
-  let progressTimer: ReturnType<typeof setTimeout> | null = null
+  const progressFlush = createProgressFlush(() => onProgress, (value) => {
+    committedEpisode = value
+    if (currentEpisode === value) onProgressCommitted()
+  }, (error) => {
+    currentEpisode = pendingSnapshot ?? committedEpisode
+    committedEpisode = currentEpisode
+    pendingSnapshot = null
+    mutationError = error
+  })
 
   $effect(() => {
-    if (season !== trackedSeason && !hasScheduledSync && !isSending) {
+    if (season !== trackedSeason) {
       trackedSeason = season
       currentEpisode = season.currentEpisode
       committedEpisode = season.currentEpisode
@@ -32,11 +40,7 @@
   })
 
   $effect(() => {
-    return () => {
-      if (progressTimer) {
-        clearTimeout(progressTimer)
-      }
-    }
+    return () => void progressFlush.flush()
   })
 
   function format(value: number): string {
@@ -53,56 +57,9 @@
 
     currentEpisode = next
     mutationError = null
-    scheduleSync()
+    progressFlush.schedule(season.id, next)
   }
 
-  function scheduleSync() {
-    if (progressTimer) {
-      clearTimeout(progressTimer)
-    }
-
-    hasScheduledSync = true
-    progressTimer = setTimeout(() => {
-      hasScheduledSync = false
-      progressTimer = null
-      void flushProgress()
-    }, 375)
-  }
-
-  async function flushProgress() {
-    if (isSending || currentEpisode === committedEpisode) return
-
-    const target = currentEpisode
-    const snapshot = pendingSnapshot ?? committedEpisode
-    pendingSnapshot = null
-    isSending = true
-
-    try {
-      await onProgress(season.id, target)
-      committedEpisode = target
-
-      if (currentEpisode === target) {
-        onProgressCommitted()
-      }
-    } catch (error) {
-      if (progressTimer) {
-        clearTimeout(progressTimer)
-        progressTimer = null
-      }
-
-      hasScheduledSync = false
-      currentEpisode = snapshot
-      committedEpisode = snapshot
-      pendingSnapshot = null
-      mutationError = error
-    } finally {
-      isSending = false
-
-      if (mutationError === null && currentEpisode !== committedEpisode && !hasScheduledSync) {
-        scheduleSync()
-      }
-    }
-  }
 </script>
 
 <article class="grid gap-4 rounded-2xl border border-border bg-surface p-3 sm:grid-cols-[5rem_1fr_auto] sm:items-center">

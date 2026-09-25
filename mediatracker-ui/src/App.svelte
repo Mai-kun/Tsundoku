@@ -20,6 +20,7 @@
   let activeView = $state<AppView>(route.view)
   let selectedTvShowId = $state<string | null>(route.mediaId)
   let isCreateOpen = $state(false)
+  let editingItem = $state<MediaItem | null>(null)
   let isSearchOpen = $state(false)
   let initialSearchType = $state<SearchMediaType>('anime')
   let mediaRevision = $state(0)
@@ -113,11 +114,19 @@
 
   function openCreate() {
     rememberTrigger()
+    editingItem = null
+    isCreateOpen = true
+  }
+
+  function openEdit(item: MediaItem) {
+    rememberTrigger()
+    editingItem = item
     isCreateOpen = true
   }
 
   function closeCreate() {
     isCreateOpen = false
+    editingItem = null
     restoreModalFocus()
   }
 
@@ -162,7 +171,7 @@
   {/snippet}
 
   {#if activeView === 'home'}
-    <HomeView refreshKey={mediaRevision} onOpenTvShow={openTvShow} onMediaChanged={mediaChanged} />
+    <HomeView refreshKey={mediaRevision} onOpenTvShow={openTvShow} onMediaChanged={mediaChanged} onEdit={openEdit} />
   {:else if activeView === 'seasons' && selectedTvShowId}
     <ShowSeasonsView mediaId={selectedTvShowId} refreshKey={mediaRevision} onBack={() => navigate('tvshow')} onMediaChanged={mediaChanged} />
   {:else if activeView === 'stats'}
@@ -172,9 +181,9 @@
   {:else if activeView === 'lists'}
     <ListsView />
   {:else if isCategory(activeView)}
-    <CategoryView category={activeView} refreshKey={mediaRevision} onOpenTvShow={openTvShow} onMediaChanged={mediaChanged} />
+    <CategoryView category={activeView} refreshKey={mediaRevision} onOpenTvShow={openTvShow} onMediaChanged={mediaChanged} onEdit={openEdit} />
   {/if}
 </AppShell>
 
-<CreateModal isOpen={isCreateOpen} onClose={closeCreate} onCreated={handleCreated} />
+<CreateModal isOpen={isCreateOpen} editingItem={editingItem ?? undefined} onClose={closeCreate} onCreated={handleCreated} />
 <SearchModal isOpen={isSearchOpen} initialType={initialSearchType} onClose={closeSearch} onMediaAdded={handleCreated} />

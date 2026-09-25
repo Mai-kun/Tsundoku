@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Minus, Plus, X } from 'lucide-svelte'
-  import { createMedia, errorMessage } from '$lib/api'
+  import { createMedia, errorMessage, updateMedia } from '$lib/api'
   import { i18n } from '$lib/i18n/index.svelte'
   import {
     MEDIA_STATUS,
@@ -8,6 +8,7 @@
     type CreateSeasonPayload,
     type MediaItem,
     type MediaType,
+    type UpdateMediaPayload,
   } from '$lib/types'
 
   type CreateType = MediaType
@@ -22,9 +23,10 @@
     isOpen: boolean
     onClose: () => void
     onCreated: (media: MediaItem) => void
+    editingItem?: MediaItem
   }
 
-  let { isOpen, onClose, onCreated }: Props = $props()
+  let { isOpen, onClose, onCreated, editingItem }: Props = $props()
 
   const types: CreateType[] = ['game', 'movie', 'tvshow', 'book', 'manga']
 
@@ -46,12 +48,26 @@
   let submitting = $state(false)
   let submitError = $state<unknown>(null)
   let validationError = $state('')
+  let score = $state('')
+  let startedAt = $state('')
+  let finishedAt = $state('')
+  let status = $state(MEDIA_STATUS.planned)
+  let editingInitialized = $state(false)
   let titleInput = $state<HTMLInputElement | null>(null)
 
   $effect(() => {
-    if (isOpen && titleInput) {
-      titleInput.focus()
+    if (isOpen && editingItem && !editingInitialized) {
+      type = editingItem.type
+      title = editingItem.title
+      coverUrl = editingItem.coverUrl ?? ''
+      notes = editingItem.notes ?? ''
+      score = editingItem.score?.toString() ?? ''
+      startedAt = editingItem.startedAt?.slice(0, 16) ?? ''
+      finishedAt = editingItem.finishedAt?.slice(0, 16) ?? ''
+      status = editingItem.status
+      editingInitialized = true
     }
+    if (isOpen) titleInput?.focus()
   })
 
   function numberOrNull(value: string): number | null {
@@ -131,6 +147,11 @@
     network = ''
     seasons = []
     submitError = null
+    status = MEDIA_STATUS.planned
+    editingInitialized = false
+    score = ''
+    startedAt = ''
+    finishedAt = ''
     validationError = ''
   }
 
@@ -153,9 +174,11 @@
     submitting = true
 
     try {
-      const created = await createMedia(buildPayload())
+    const saved = editingItem
+        ? await updateMedia(editingItem.id, { title: title.trim(), score: numberOrNull(score), notes: optionalText(notes), coverUrl: optionalText(coverUrl), startedAt: startedAt ? new Date(startedAt).toISOString() : null, finishedAt: finishedAt ? new Date(finishedAt).toISOString() : null, status } satisfies UpdateMediaPayload)
+        : await createMedia(buildPayload())
       resetForm()
-      onCreated(created)
+      onCreated(saved)
       onClose()
     } catch (error) {
       submitError = error
@@ -209,6 +232,13 @@
         <div class="grid gap-4 sm:grid-cols-2">
           <label class="space-y-1.5 text-sm font-medium text-ink"><span>{i18n.t.createModal.fields.type}</span><select class="h-10 w-full rounded-lg border border-border bg-elevated px-3 text-sm font-normal outline-none focus:border-accent focus:ring-2 focus:ring-accent/30" bind:value={type}>{#each types as mediaType}<option value={mediaType}>{i18n.t.types[mediaType]}</option>{/each}</select></label>
           <label class="space-y-1.5 text-sm font-medium text-ink"><span>{i18n.t.createModal.fields.title}</span><input bind:this={titleInput} class="h-10 w-full rounded-lg border border-border bg-elevated px-3 text-sm font-normal outline-none placeholder:text-muted focus:border-accent focus:ring-2 focus:ring-accent/30" bind:value={title} placeholder={i18n.t.createModal.placeholders.title} required /></label>
+        </div>
+
+        <div class="grid gap-4 sm:grid-cols-2">
+          <label class="space-y-1.5 text-sm font-medium text-ink"><span>{i18n.t.createModal.fields.score}</span><input class="h-10 w-full rounded-lg border border-border bg-elevated px-3 text-sm font-normal outline-none focus:border-accent focus:ring-2 focus:ring-accent/30" type="number" min="1" max="10" bind:value={score} /></label>
+          <label class="space-y-1.5 text-sm font-medium text-ink"><span>{i18n.t.status.label}</span><select class="h-10 w-full rounded-lg border border-border bg-elevated px-3 text-sm font-normal outline-none focus:border-accent" bind:value={status}>{#each Object.values(MEDIA_STATUS) as value}<option value={value}>{i18n.t.status[value === 0 ? 'planned' : value === 1 ? 'inProgress' : value === 2 ? 'completed' : value === 3 ? 'paused' : 'dropped']}</option>{/each}</select></label>
+          <label class="space-y-1.5 text-sm font-medium text-ink"><span>{i18n.t.createModal.fields.startedAt}</span><input class="h-10 w-full rounded-lg border border-border bg-elevated px-3 text-sm font-normal outline-none focus:border-accent" type="datetime-local" bind:value={startedAt} /></label>
+          <label class="space-y-1.5 text-sm font-medium text-ink"><span>{i18n.t.createModal.fields.finishedAt}</span><input class="h-10 w-full rounded-lg border border-border bg-elevated px-3 text-sm font-normal outline-none focus:border-accent" type="datetime-local" bind:value={finishedAt} /></label>
         </div>
 
         <div class="grid gap-4 sm:grid-cols-2">

@@ -482,3 +482,4 @@ $RECYCLE.BIN/
 *.swp
 src/MediaTracker.Server/appsettings.Development.json
 dist/
+shots/

@@ -57,5 +57,10 @@
         <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
     </ItemGroup>
 
+    <Target Name="BuildFrontendBeforeBuild" BeforeTargets="Build" Condition="'$(Configuration)' == 'Release'">
+        <Message Text="=== Собираем Svelte фронтенд... ===" Importance="high" />
+        <Exec Command="npm run build" WorkingDirectory="../../mediatracker-ui" />
+    </Target>
+
 </Project>
 

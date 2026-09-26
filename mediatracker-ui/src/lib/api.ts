@@ -7,7 +7,7 @@ import type {
   MediaItem,
   MediaStats,
   MediaStatus,
-  SearchMediaType,
+  SearchScope,
   UpdateMediaPayload,
 } from '$lib/types'
 
@@ -125,9 +125,9 @@ export function getStats(): Promise<MediaStats> {
   return requestJson<MediaStats>(`${mediaEndpoint}/stats`)
 }
 
-export function searchExternal(type: SearchMediaType, query: string): Promise<ExternalMedia[]> {
-  const params = new URLSearchParams({ type, query })
-  return requestJson<ExternalMedia[]>(`${externalEndpoint}/search?${params}`)
+export function searchExternal(type: SearchScope, query: string): Promise<ExternalMedia[]> {
+  const url = `${externalEndpoint}/search?type=${encodeURIComponent(type)}&query=${encodeURIComponent(query.trim())}`
+  return requestJson<ExternalMedia[]>(url)
 }
 
 export function createMedia(payload: CreateMediaPayload): Promise<MediaDetail> {

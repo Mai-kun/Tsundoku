@@ -6,12 +6,12 @@
 
   interface Props {
     refreshKey: number
-    onOpenTvShow: (id: string) => void
+    onOpen: (item: MediaItem) => void
     onMediaChanged: () => void
     onEdit?: (item: MediaItem) => void
   }
 
-  let { refreshKey, onOpenTvShow, onMediaChanged, onEdit = () => {} }: Props = $props()
+  let { refreshKey, onOpen, onMediaChanged, onEdit = () => {} }: Props = $props()
 
   let inProgress = $state<MediaItem[]>([])
   let upNext = $state<MediaItem[]>([])
@@ -64,12 +64,6 @@
     await setProgress(id, currentProgress)
   }
 
-  function openItem(item: MediaItem) {
-    if (item.type === 'tvshow') {
-      onOpenTvShow(item.id)
-    }
-  }
-
   async function removeItem(item: MediaItem) {
     await deleteMedia(item.id)
     onMediaChanged()
@@ -84,16 +78,16 @@
         <h2 class="mt-1 text-xl font-bold tracking-tight text-ink">{i18n.t.views.inProgress}</h2>
       </div>
     </div>
-    <MediaGrid items={inProgress} {loading} error={loadError} onRetry={refresh} onOpen={openItem} onProgress={updateProgress} onProgressCommitted={onMediaChanged} onDelete={removeItem} onEdit={onEdit} />
+    <MediaGrid items={inProgress} {loading} error={loadError} onRetry={refresh} onOpen={onOpen} onProgress={updateProgress} onProgressCommitted={onMediaChanged} onDelete={removeItem} onEdit={onEdit} />
   </section>
 
   <section class="space-y-4">
     <h2 class="text-xl font-bold tracking-tight text-ink">{i18n.t.views.upNext}</h2>
-    <MediaGrid items={upNext} {loading} error={loadError} onRetry={refresh} onOpen={openItem} onProgress={updateProgress} onProgressCommitted={onMediaChanged} onDelete={removeItem} onEdit={onEdit} />
+    <MediaGrid items={upNext} {loading} error={loadError} onRetry={refresh} onOpen={onOpen} onProgress={updateProgress} onProgressCommitted={onMediaChanged} onDelete={removeItem} onEdit={onEdit} />
   </section>
 
   <section class="space-y-4">
     <h2 class="text-xl font-bold tracking-tight text-ink">{i18n.t.views.recentlyCompleted}</h2>
-    <MediaGrid items={recentlyCompleted} {loading} error={loadError} onRetry={refresh} onOpen={openItem} onProgress={updateProgress} onProgressCommitted={onMediaChanged} onDelete={removeItem} onEdit={onEdit} />
+    <MediaGrid items={recentlyCompleted} {loading} error={loadError} onRetry={refresh} onOpen={onOpen} onProgress={updateProgress} onProgressCommitted={onMediaChanged} onDelete={removeItem} onEdit={onEdit} />
   </section>
 </div>

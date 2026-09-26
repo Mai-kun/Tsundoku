@@ -1,8 +1,10 @@
 <script lang="ts">
+  import { deleteMedia } from '$lib/api'
   import AppShell from '$lib/components/layout/AppShell.svelte'
   import Header from '$lib/components/layout/Header.svelte'
   import Sidebar from '$lib/components/layout/Sidebar.svelte'
   import CreateModal from '$lib/components/modals/CreateModal.svelte'
+  import MediaDetailModal from '$lib/components/modals/MediaDetailModal.svelte'
   import SearchModal from '$lib/components/modals/SearchModal.svelte'
   import CalendarView from '$lib/components/views/CalendarView.svelte'
   import CategoryView, { type Category } from '$lib/components/views/CategoryView.svelte'
@@ -11,18 +13,20 @@
   import ShowSeasonsView from '$lib/components/views/ShowSeasonsView.svelte'
   import StatsView from '$lib/components/views/StatsView.svelte'
   import { i18n } from '$lib/i18n/index.svelte'
-  import type { AppView, MediaItem, SearchMediaType } from '$lib/types'
+  import type { AppView, MediaItem, SearchScope } from '$lib/types'
 
   const categories: readonly Category[] = ['tvshow', 'movie', 'anime', 'manga', 'game', 'book']
   const views: readonly AppView[] = ['home', ...categories, 'stats', 'lists', 'calendar', 'seasons']
 
   let route = readRoute()
   let activeView = $state<AppView>(route.view)
+  let previousView = $state<AppView>(route.view === 'seasons' ? 'home' : route.view)
   let selectedTvShowId = $state<string | null>(route.mediaId)
   let isCreateOpen = $state(false)
   let editingItem = $state<MediaItem | null>(null)
+  let detailItem = $state<MediaItem | null>(null)
   let isSearchOpen = $state(false)
-  let initialSearchType = $state<SearchMediaType>('anime')
+  let initialSearchType = $state<SearchScope>('all')
   let mediaRevision = $state(0)
   let modalTrigger = $state<HTMLElement | null>(null)
 
@@ -70,9 +74,43 @@
   }
 
   function openTvShow(id: string) {
+    if (activeView !== 'seasons') {
+      previousView = activeView
+    }
+
     activeView = 'seasons'
     selectedTvShowId = id
     writeRoute('seasons', id)
+  }
+
+  function openDetail(item: MediaItem) {
+    previousView = activeView
+    detailItem = item
+  }
+
+  function closeDetail() {
+    detailItem = null
+
+    if (activeView !== previousView) {
+      navigate(previousView)
+    } else {
+      restoreModalFocus()
+    }
+  }
+
+  function openSeasons(id: string) {
+    detailItem = null
+    openTvShow(id)
+  }
+
+  function editFromDetail(item: MediaItem) {
+    detailItem = null
+    openEdit(item)
+  }
+
+  async function deleteFromDetail(item: MediaItem) {
+    await deleteMedia(item.id)
+    mediaChanged()
   }
 
   function titleForView(view: AppView): string {
@@ -98,8 +136,8 @@
     return categories.includes(view as Category)
   }
 
-  function searchTypeForView(view: AppView): SearchMediaType {
-    return isCategory(view) ? view : 'anime'
+  function searchTypeForView(view: AppView): SearchScope {
+    return isCategory(view) ? view : 'all'
   }
 
   function rememberTrigger() {
@@ -170,20 +208,23 @@
     <Header title={titleForView(activeView)} onSearch={openSearch} onCreate={openCreate} />
   {/snippet}
 
-  {#if activeView === 'home'}
-    <HomeView refreshKey={mediaRevision} onOpenTvShow={openTvShow} onMediaChanged={mediaChanged} onEdit={openEdit} />
-  {:else if activeView === 'seasons' && selectedTvShowId}
-    <ShowSeasonsView mediaId={selectedTvShowId} refreshKey={mediaRevision} onBack={() => navigate('tvshow')} onMediaChanged={mediaChanged} />
-  {:else if activeView === 'stats'}
-    <StatsView refreshKey={mediaRevision} />
-  {:else if activeView === 'calendar'}
-    <CalendarView refreshKey={mediaRevision} />
-  {:else if activeView === 'lists'}
-    <ListsView />
-  {:else if isCategory(activeView)}
-    <CategoryView category={activeView} refreshKey={mediaRevision} onOpenTvShow={openTvShow} onMediaChanged={mediaChanged} onEdit={openEdit} />
-  {/if}
+  {#key activeView}
+    {#if activeView === 'home'}
+      <HomeView refreshKey={mediaRevision} onOpen={openDetail} onMediaChanged={mediaChanged} onEdit={openEdit} />
+    {:else if activeView === 'seasons' && selectedTvShowId}
+      <ShowSeasonsView mediaId={selectedTvShowId} refreshKey={mediaRevision} onBack={() => navigate(previousView)} onMediaChanged={mediaChanged} />
+    {:else if activeView === 'stats'}
+      <StatsView refreshKey={mediaRevision} />
+    {:else if activeView === 'calendar'}
+      <CalendarView refreshKey={mediaRevision} />
+    {:else if activeView === 'lists'}
+      <ListsView />
+    {:else if isCategory(activeView)}
+      <CategoryView category={activeView} refreshKey={mediaRevision} onOpen={openDetail} onMediaChanged={mediaChanged} onEdit={openEdit} />
+    {/if}
+  {/key}
 </AppShell>
 
 <CreateModal isOpen={isCreateOpen} editingItem={editingItem ?? undefined} onClose={closeCreate} onCreated={handleCreated} />
 <SearchModal isOpen={isSearchOpen} initialType={initialSearchType} onClose={closeSearch} onMediaAdded={handleCreated} />
+<MediaDetailModal item={detailItem} onClose={closeDetail} onEdit={editFromDetail} onDelete={deleteFromDetail} onOpenSeasons={openSeasons} />

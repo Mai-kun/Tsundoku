@@ -1,7 +1,7 @@
 <script lang="ts">
   import { Search, SlidersHorizontal } from 'lucide-svelte'
   import { i18n } from '$lib/i18n/index.svelte'
-  import { MEDIA_STATUS, type StatusFilter } from '$lib/types'
+  import { MEDIA_STATUS, type MediaStatus, type StatusFilter } from '$lib/types'
 
   export type LibrarySort = 'newest' | 'oldest' | 'rating' | 'title'
 
@@ -40,6 +40,11 @@
     onSortChange((event.currentTarget as HTMLSelectElement).value as LibrarySort)
   }
 
+  function handleStatus(event: Event) {
+    const value = (event.currentTarget as HTMLSelectElement).value
+    onStatusChange(value === 'all' ? 'all' : (Number(value) as MediaStatus))
+  }
+
   function handleSearch(event: Event) {
     onSearchChange((event.currentTarget as HTMLInputElement).value)
   }
@@ -47,21 +52,17 @@
 
 <section class="space-y-3 rounded-2xl border border-border bg-surface p-3 sm:p-4" aria-label={i18n.t.library.filtersLabel}>
   <div class="flex flex-col gap-3 lg:flex-row lg:items-center">
-    <div class="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto pb-1 lg:pb-0">
+    <div class="flex min-w-0 flex-1 items-center gap-2">
       <SlidersHorizontal size={16} class="shrink-0 text-muted" aria-hidden="true" />
-      {#each statuses as option (option)}
-        <button
-          type="button"
-          aria-pressed={status === option}
-          class={`shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition ${status === option ? 'bg-accent text-white' : 'bg-elevated text-muted hover:text-ink'}`}
-          onclick={() => onStatusChange(option)}
-        >
-          {labelForStatus(option)}
-          {#if counts[option] !== undefined}
-            <span class="ml-1 opacity-75">{counts[option]}</span>
-          {/if}
-        </button>
-      {/each}
+      <label class="sr-only" for="library-status">{i18n.t.status.label}</label>
+      <select id="library-status" class="bg-[#161c2a] border border-white/[0.08] text-slate-200 rounded-lg px-3 py-1.5 text-xs outline-none focus:ring-1 focus:ring-indigo-500" value={status === 'all' ? 'all' : String(status)} onchange={handleStatus}>
+        {#each statuses as option (option)}
+          <option value={option === 'all' ? 'all' : String(option)}>{labelForStatus(option)}</option>
+        {/each}
+      </select>
+      {#if counts[status] !== undefined}
+        <span class="rounded-full border border-white/[0.08] bg-[#161c2a] px-2.5 py-1 text-xs font-semibold text-slate-200" aria-live="polite">{counts[status]}</span>
+      {/if}
     </div>
 
     <div class="flex gap-2">

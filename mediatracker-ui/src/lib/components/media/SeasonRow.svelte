@@ -4,7 +4,7 @@
   import { errorMessage } from '$lib/api'
   import { i18n } from '$lib/i18n/index.svelte'
   import { clampProgress, type TvSeason } from '$lib/types'
-  import { createProgressFlush } from '$lib/utils/progressFlush'
+  import { createProgressDebounce } from '$lib/utils/progressDebounce'
 
   interface Props {
     season: TvSeason
@@ -20,14 +20,19 @@
   let pendingSnapshot = $state<number | null>(null)
 
   let mutationError = $state<unknown>(null)
-  const progressFlush = createProgressFlush(() => onProgress, (value) => {
-    committedEpisode = value
-    if (currentEpisode === value) onProgressCommitted()
-  }, (error) => {
-    currentEpisode = pendingSnapshot ?? committedEpisode
-    committedEpisode = currentEpisode
-    pendingSnapshot = null
-    mutationError = error
+  const progressDebounce = createProgressDebounce({
+    send: (id, value) => onProgress(id, value),
+    buildRequest: (id, value) => ({ url: `/api/seasons/${id}/progress`, body: { currentEpisode: value } }),
+    onCommitted: (value) => {
+      committedEpisode = value
+      if (currentEpisode === value) onProgressCommitted()
+    },
+    onError: (error) => {
+      currentEpisode = pendingSnapshot ?? committedEpisode
+      committedEpisode = currentEpisode
+      pendingSnapshot = null
+      mutationError = error
+    },
   })
 
   $effect(() => {
@@ -40,7 +45,7 @@
   })
 
   $effect(() => {
-    return () => void progressFlush.flush()
+    return () => void progressDebounce.flush(true)
   })
 
   function format(value: number): string {
@@ -57,7 +62,7 @@
 
     currentEpisode = next
     mutationError = null
-    progressFlush.schedule(season.id, next)
+    progressDebounce.schedule(season.id, next)
   }
 
 </script>

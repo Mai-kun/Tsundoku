@@ -5,7 +5,7 @@
   import { i18n } from '$lib/i18n/index.svelte'
   import { MEDIA_STATUS, type CreateMediaPayload, type ExternalMedia, type MediaItem, type SearchMediaType } from '$lib/types'
 
-  const categories = ['anime', 'manga', 'movie', 'tvshow', 'game', 'book'] as const
+  const categories = ['all', 'anime', 'manga', 'movie', 'tvshow', 'game', 'book'] as const
   const minQueryLength = 2
   const debounceDelay = 300
   const fallbackPlatform = 'PC'
@@ -19,7 +19,7 @@
     onMediaAdded: (media: MediaItem) => void
   }
 
-  let { isOpen, initialType = 'anime', onClose, onMediaAdded }: Props = $props()
+  let { isOpen, initialType = 'all', onClose, onMediaAdded }: Props = $props()
 
   let query = $state('')
   let activeType = $state<SearchCategory>(untrack(() => initialType))
@@ -82,11 +82,16 @@
   }
 
   function labelForCategory(category: SearchCategory): string {
+    if (category === 'all') return i18n.t.searchModal.allCategories
     return category === 'anime' ? i18n.t.navigation.anime : i18n.t.types[category]
   }
 
+  function effectiveType(result: ExternalMedia): SearchMediaType {
+    return activeType === 'all' ? result.type : activeType
+  }
+
   function resultKey(result: ExternalMedia): string {
-    return `${activeType}:${result.externalId || result.title}`
+    return `${result.type}:${result.externalId || result.title}`
   }
 
   function metaLine(result: ExternalMedia): string {
@@ -96,13 +101,14 @@
   function countLabel(result: ExternalMedia): string | null {
     if (result.totalCount === null || result.totalCount === undefined) return null
 
-    const unit = activeType === 'anime' || activeType === 'tvshow'
+    const type = effectiveType(result)
+    const unit = type === 'anime' || type === 'tvshow'
       ? i18n.t.searchModal.countUnits.tvshow
-      : activeType === 'manga'
+      : type === 'manga'
         ? i18n.t.searchModal.countUnits.manga
-        : activeType === 'movie'
+        : type === 'movie'
           ? i18n.t.searchModal.countUnits.movie
-          : activeType === 'game'
+          : type === 'game'
             ? i18n.t.searchModal.countUnits.game
             : i18n.t.searchModal.countUnits.book
 
@@ -117,7 +123,7 @@
       status: MEDIA_STATUS.planned,
     }
 
-    switch (activeType) {
+    switch (effectiveType(result)) {
       case 'anime':
         return { ...common, type: 'tvshow', isAnime: true, studio: result.studio, network: result.studio }
       case 'tvshow':

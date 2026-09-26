@@ -4,37 +4,38 @@
   import Header from '$lib/components/layout/Header.svelte'
   import Sidebar from '$lib/components/layout/Sidebar.svelte'
   import CreateModal from '$lib/components/modals/CreateModal.svelte'
-  import MediaDetailModal from '$lib/components/modals/MediaDetailModal.svelte'
   import SearchModal from '$lib/components/modals/SearchModal.svelte'
   import CalendarView from '$lib/components/views/CalendarView.svelte'
   import CategoryView, { type Category } from '$lib/components/views/CategoryView.svelte'
   import HomeView from '$lib/components/views/HomeView.svelte'
   import ListsView from '$lib/components/views/ListsView.svelte'
+  import MediaDetailView from '$lib/components/views/MediaDetailView.svelte'
   import ShowSeasonsView from '$lib/components/views/ShowSeasonsView.svelte'
   import StatsView from '$lib/components/views/StatsView.svelte'
   import { i18n } from '$lib/i18n/index.svelte'
   import type { AppView, MediaItem, SearchScope } from '$lib/types'
 
   const categories: readonly Category[] = ['tvshow', 'movie', 'anime', 'manga', 'game', 'book']
-  const views: readonly AppView[] = ['home', ...categories, 'stats', 'lists', 'calendar', 'seasons']
+  const views: readonly AppView[] = ['home', ...categories, 'stats', 'lists', 'calendar', 'seasons', 'detail']
 
   let route = readRoute()
   let activeView = $state<AppView>(route.view)
-  let previousView = $state<AppView>(route.view === 'seasons' ? 'home' : route.view)
-  let selectedTvShowId = $state<string | null>(route.mediaId)
+  let previousView = $state<AppView>(route.view === 'seasons' || route.view === 'detail' ? 'home' : route.view)
+  let selectedMediaId = $state<string | null>(route.mediaId)
   let isCreateOpen = $state(false)
   let editingItem = $state<MediaItem | null>(null)
-  let detailItem = $state<MediaItem | null>(null)
   let isSearchOpen = $state(false)
   let initialSearchType = $state<SearchScope>('all')
   let mediaRevision = $state(0)
   let modalTrigger = $state<HTMLElement | null>(null)
+  let detailDepth = 0
 
   $effect(() => {
     const syncFromHistory = () => {
       const nextRoute = readRoute()
       activeView = nextRoute.view
-      selectedTvShowId = nextRoute.mediaId
+      selectedMediaId = nextRoute.mediaId
+      if (nextRoute.view !== 'detail') detailDepth = 0
     }
 
     window.addEventListener('popstate', syncFromHistory)
@@ -49,16 +50,17 @@
     const parameters = new URLSearchParams(window.location.search)
     const candidate = parameters.get('view')
     const view = candidate && views.includes(candidate as AppView) ? (candidate as AppView) : 'home'
-    const mediaId = view === 'seasons' ? parameters.get('mediaId') : null
+    const requiresMedia = view === 'seasons' || view === 'detail'
+    const mediaId = requiresMedia ? parameters.get('mediaId') : null
 
-    return mediaId || view !== 'seasons' ? { view, mediaId } : { view: 'home', mediaId: null }
+    return mediaId || !requiresMedia ? { view, mediaId } : { view: 'home', mediaId: null }
   }
 
   function writeRoute(view: AppView, mediaId: string | null) {
     const url = new URL(window.location.href)
     url.searchParams.set('view', view)
 
-    if (view === 'seasons' && mediaId) {
+    if ((view === 'seasons' || view === 'detail') && mediaId) {
       url.searchParams.set('mediaId', mediaId)
     } else {
       url.searchParams.delete('mediaId')
@@ -69,47 +71,34 @@
 
   function navigate(view: AppView) {
     activeView = view
-    selectedTvShowId = null
+    selectedMediaId = null
+    detailDepth = 0
     writeRoute(view, null)
   }
 
-  function openTvShow(id: string) {
-    if (activeView !== 'seasons') {
+  function openDetail(item: MediaItem) {
+    if (activeView !== 'detail') {
       previousView = activeView
     }
 
-    activeView = 'seasons'
-    selectedTvShowId = id
-    writeRoute('seasons', id)
-  }
-
-  function openDetail(item: MediaItem) {
-    previousView = activeView
-    detailItem = item
+    activeView = 'detail'
+    selectedMediaId = item.id
+    writeRoute('detail', item.id)
+    detailDepth += 1
   }
 
   function closeDetail() {
-    detailItem = null
-
-    if (activeView !== previousView) {
-      navigate(previousView)
-    } else {
-      restoreModalFocus()
+    if (detailDepth > 0) {
+      detailDepth -= 1
+      window.history.back()
+      return
     }
+
+    navigate(previousView)
   }
 
-  function openSeasons(id: string) {
-    detailItem = null
-    openTvShow(id)
-  }
-
-  function editFromDetail(item: MediaItem) {
-    detailItem = null
-    openEdit(item)
-  }
-
-  async function deleteFromDetail(item: MediaItem) {
-    await deleteMedia(item.id)
+  async function deleteFromDetail(id: string) {
+    await deleteMedia(id)
     mediaChanged()
   }
 
@@ -125,6 +114,8 @@
         return i18n.t.views.calendarTitle
       case 'seasons':
         return i18n.t.navigation.seasons
+      case 'detail':
+        return i18n.t.detail.eyebrow
       case 'anime':
         return i18n.t.navigation.anime
       default:
@@ -193,6 +184,12 @@
       if (!isSearchOpen) {
         openSearch()
       }
+      return
+    }
+
+    if (event.key === 'Escape' && activeView === 'detail' && !isCreateOpen && !isSearchOpen) {
+      event.preventDefault()
+      closeDetail()
     }
   }
 </script>
@@ -211,8 +208,10 @@
   {#key activeView}
     {#if activeView === 'home'}
       <HomeView refreshKey={mediaRevision} onOpen={openDetail} onMediaChanged={mediaChanged} onEdit={openEdit} />
-    {:else if activeView === 'seasons' && selectedTvShowId}
-      <ShowSeasonsView mediaId={selectedTvShowId} refreshKey={mediaRevision} onBack={() => navigate(previousView)} onMediaChanged={mediaChanged} />
+    {:else if activeView === 'detail' && selectedMediaId}
+      <MediaDetailView mediaId={selectedMediaId} refreshKey={mediaRevision} onBack={closeDetail} onUpdate={mediaChanged} onDelete={deleteFromDetail} onEdit={openEdit} onOpenRelated={openDetail} />
+    {:else if activeView === 'seasons' && selectedMediaId}
+      <ShowSeasonsView mediaId={selectedMediaId} refreshKey={mediaRevision} onBack={closeDetail} onMediaChanged={mediaChanged} />
     {:else if activeView === 'stats'}
       <StatsView refreshKey={mediaRevision} />
     {:else if activeView === 'calendar'}
@@ -227,4 +226,3 @@
 
 <CreateModal isOpen={isCreateOpen} editingItem={editingItem ?? undefined} onClose={closeCreate} onCreated={handleCreated} />
 <SearchModal isOpen={isSearchOpen} initialType={initialSearchType} onClose={closeSearch} onMediaAdded={handleCreated} />
-<MediaDetailModal item={detailItem} onClose={closeDetail} onEdit={editFromDetail} onDelete={deleteFromDetail} onOpenSeasons={openSeasons} />

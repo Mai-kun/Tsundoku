@@ -11,11 +11,11 @@
 </script>
 
 <div class="min-h-screen bg-canvas text-ink lg:pl-60">
-  <aside class="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-surface/95 px-2 py-2 backdrop-blur lg:inset-y-0 lg:left-0 lg:right-auto lg:w-60 lg:border-r lg:border-t-0 lg:px-3 lg:py-5">
+  <aside class="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-surface px-2 py-2 lg:inset-y-0 lg:left-0 lg:right-auto lg:w-60 lg:border-r lg:border-t-0 lg:px-3 lg:py-5">
     {@render sidebar()}
   </aside>
 
-  <header class="sticky top-0 z-20 h-14 border-b border-border bg-canvas/90 backdrop-blur">
+  <header class="sticky top-0 z-20 h-14 border-b border-border bg-surface">
     {@render header()}
   </header>
 

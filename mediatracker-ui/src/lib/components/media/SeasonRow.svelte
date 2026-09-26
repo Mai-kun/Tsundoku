@@ -67,8 +67,8 @@
 
 </script>
 
-<article class="grid gap-4 rounded-2xl border border-border bg-surface p-3 sm:grid-cols-[5rem_1fr_auto] sm:items-center">
-  <div class="aspect-[3/4] w-20 overflow-hidden rounded-xl bg-elevated sm:w-full">
+<article class="grid gap-4 rounded-lg bg-card p-3 sm:grid-cols-[5rem_1fr_auto] sm:items-center">
+  <div class="aspect-[3/4] w-20 overflow-hidden rounded-md bg-canvas sm:w-full">
     {#if season.coverUrl}
       <img src={season.coverUrl} alt={season.title} class="h-full w-full object-cover" loading="lazy" />
     {:else}
@@ -87,7 +87,7 @@
         <span>{format(currentEpisode)} / {format(season.totalEpisodes)}</span>
       </div>
       {#if season.totalEpisodes > 0}
-        <div class="h-1.5 overflow-hidden rounded-full bg-panel"><div class="h-full rounded-full bg-accent transition-[width] duration-200" style={`width: ${Math.min(currentEpisode / season.totalEpisodes, 1) * 100}%`}></div></div>
+        <div class="h-1.5 overflow-hidden rounded-full bg-canvas"><div class="h-full rounded-full bg-accent transition-[width] duration-200" style={`width: ${Math.min(currentEpisode / season.totalEpisodes, 1) * 100}%`}></div></div>
       {/if}
     </div>
     {#if mutationError}
@@ -95,9 +95,9 @@
     {/if}
   </div>
 
-  <div class="flex h-9 items-center self-end rounded-lg border border-border bg-elevated sm:self-auto">
-    <button type="button" class="grid h-full w-9 place-items-center rounded-l-lg text-muted transition hover:bg-panel hover:text-ink" aria-label={i18n.t.card.decrement} onclick={() => scheduleProgress(-1)}><Minus size={15} aria-hidden="true" /></button>
+  <div class="flex h-9 items-center self-end rounded-md bg-canvas sm:self-auto">
+    <button type="button" class="grid h-full w-9 place-items-center rounded-l-md text-muted transition hover:bg-panel hover:text-ink" aria-label={i18n.t.card.decrement} onclick={() => scheduleProgress(-1)}><Minus size={15} aria-hidden="true" /></button>
     <span class="min-w-10 px-2 text-center text-xs font-semibold tabular-nums text-ink">{format(currentEpisode)}</span>
-    <button type="button" class="grid h-full w-9 place-items-center rounded-r-lg text-muted transition hover:bg-panel hover:text-ink" aria-label={i18n.t.card.increment} onclick={() => scheduleProgress(1)}><Plus size={15} aria-hidden="true" /></button>
+    <button type="button" class="grid h-full w-9 place-items-center rounded-r-md text-muted transition hover:bg-panel hover:text-ink" aria-label={i18n.t.card.increment} onclick={() => scheduleProgress(1)}><Plus size={15} aria-hidden="true" /></button>
   </div>
 </article>

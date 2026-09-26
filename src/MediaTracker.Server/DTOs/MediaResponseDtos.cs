@@ -140,7 +140,7 @@ public static class MediaResponseMapper
                 Network = show.Network,
                 TotalEpisodesCount = show.TotalEpisodesCount,
                 TotalEpisodesWatched = show.TotalEpisodesWatched,
-                SeasonsCount = show.Seasons.Count,
+                SeasonsCount = show.Seasons?.Count ?? 0,
             },
             _ => throw new InvalidOperationException($"Unsupported media item '{item.GetType().Name}'."),
         };
@@ -153,7 +153,7 @@ public static class MediaResponseMapper
         return item is TvShow show
             ? detail with
             {
-                Seasons = show.Seasons
+                Seasons = (show.Seasons ?? [])
                     .OrderBy(season => season.SeasonNumber)
                     .Select(ToDto)
                     .ToArray(),

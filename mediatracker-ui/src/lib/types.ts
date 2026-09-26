@@ -11,7 +11,7 @@ export type StatusFilter = 'all' | MediaStatus
 export type MediaType = 'game' | 'movie' | 'tvshow' | 'book' | 'manga'
 export type SearchMediaType = MediaType | 'anime'
 export type SearchScope = SearchMediaType | 'all'
-export type AppView = 'home' | MediaType | 'anime' | 'stats' | 'lists' | 'calendar' | 'seasons'
+export type AppView = 'home' | MediaType | 'anime' | 'stats' | 'lists' | 'calendar' | 'seasons' | 'detail'
 export type SortBy = 'createdAt' | 'score' | 'title'
 export type SortOrder = 'asc' | 'desc'
 
@@ -28,6 +28,8 @@ export interface MediaBase {
   createdAt: string
   franchiseId: string | null
   franchiseOrder: number | null
+  externalRating?: number | null
+  externalRatingVotes?: number | null
 }
 
 export interface GameMedia extends MediaBase {

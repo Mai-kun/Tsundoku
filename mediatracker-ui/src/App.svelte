@@ -5,6 +5,7 @@
   import Sidebar from '$lib/components/layout/Sidebar.svelte'
   import CreateModal from '$lib/components/modals/CreateModal.svelte'
   import SearchModal from '$lib/components/modals/SearchModal.svelte'
+  import SettingsModal from '$lib/components/modals/SettingsModal.svelte'
   import CalendarView from '$lib/components/views/CalendarView.svelte'
   import CategoryView, { type Category } from '$lib/components/views/CategoryView.svelte'
   import HomeView from '$lib/components/views/HomeView.svelte'
@@ -25,6 +26,7 @@
   let isCreateOpen = $state(false)
   let editingItem = $state<MediaItem | null>(null)
   let isSearchOpen = $state(false)
+  let isSettingsOpen = $state(false)
   let initialSearchType = $state<SearchScope>('all')
   let mediaRevision = $state(0)
   let modalTrigger = $state<HTMLElement | null>(null)
@@ -170,6 +172,16 @@
     restoreModalFocus()
   }
 
+  function openSettings() {
+    rememberTrigger()
+    isSettingsOpen = true
+  }
+
+  function closeSettings() {
+    isSettingsOpen = false
+    restoreModalFocus()
+  }
+
   function mediaChanged() {
     mediaRevision += 1
   }
@@ -198,11 +210,11 @@
 
 <AppShell>
   {#snippet sidebar()}
-    <Sidebar {activeView} onNavigate={navigate} onCreate={openCreate} />
+    <Sidebar {activeView} onNavigate={navigate} onCreate={openCreate} onOpenSettings={openSettings} />
   {/snippet}
 
   {#snippet header()}
-    <Header title={titleForView(activeView)} onSearch={openSearch} onCreate={openCreate} />
+    <Header title={titleForView(activeView)} onSearch={openSearch} />
   {/snippet}
 
   {#key activeView}
@@ -226,3 +238,4 @@
 
 <CreateModal isOpen={isCreateOpen} editingItem={editingItem ?? undefined} onClose={closeCreate} onCreated={handleCreated} />
 <SearchModal isOpen={isSearchOpen} initialType={initialSearchType} onClose={closeSearch} onMediaAdded={handleCreated} />
+<SettingsModal isOpen={isSettingsOpen} onClose={closeSettings} />

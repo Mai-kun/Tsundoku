@@ -54,13 +54,9 @@
         <PackageReference Include="Microsoft.Extensions.FileProviders.Embedded" Version="10.0.11" />
         <PackageReference Include="OpenApiUi" Version="1.1.0" />
         <PackageReference Include="Photino.NET" Version="3.*" />
+        <PackageReference Include="Serilog.AspNetCore" Version="10.0.0" />
+        <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
         <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
     </ItemGroup>
 
-    <Target Name="BuildFrontendBeforeBuild" BeforeTargets="Build" Condition="'$(Configuration)' == 'Release'">
-        <Message Text="=== Собираем Svelte фронтенд... ===" Importance="high" />
-        <Exec Command="npm run build" WorkingDirectory="../../mediatracker-ui" />
-    </Target>
-
 </Project>
-

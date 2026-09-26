@@ -2,6 +2,7 @@ using FluentValidation;
 using MediaTracker.Server.Data;
 using MediaTracker.Server.DTOs;
 using MediaTracker.Server.Models;
+using MediaTracker.Server.Services.External;
 using MediaTracker.Server.Services.Storage;
 using Microsoft.EntityFrameworkCore;
 
@@ -22,6 +23,7 @@ public static class MediaEndpoints
         group.MapPut("/{id:guid}", UpdateMediaItem);
         group.MapPut("/{id:guid}/status", UpdateStatus);
         group.MapPut("/{id:guid}/progress", UpdateProgress);
+        group.MapPost("/{id:guid}/refresh", RefreshMediaMetadata);
         group.MapDelete("/{id:guid}", DeleteMediaItem);
 
         return app;
@@ -154,6 +156,21 @@ public static class MediaEndpoints
         if (IsExternalUrl(item.CoverUrl))
         {
             item.CoverUrl = await imageStorage.SaveCoverAsync(item.CoverUrl!, item.Id, ct);
+        }
+
+        if (item is TvShow { IsAnime: true } animeShow && animeShow.Seasons.Count == 0)
+        {
+            var epCount = request.DurationMinutes ?? request.TotalPages ?? request.TotalChapters ?? 0;
+            if (epCount > 0)
+            {
+                animeShow.Seasons.Add(new TvSeason
+                {
+                    SeasonNumber = 1,
+                    Title = "Season 1",
+                    TotalEpisodes = epCount,
+                    Status = animeShow.Status
+                });
+            }
         }
 
         db.Add(item);
@@ -306,6 +323,115 @@ public static class MediaEndpoints
         return Results.NoContent();
     }
 
+    private static async Task<IResult> RefreshMediaMetadata(
+        Guid id,
+        AppDbContext db,
+        MetadataAggregatorService metadataAggregator,
+        IImageStorageService imageStorage,
+        CancellationToken ct)
+    {
+        var item = await db.MediaItems
+            .Include(media => ((TvShow)media).Seasons)
+            .SingleOrDefaultAsync(media => media.Id == id, ct);
+        if (item is null)
+        {
+            return Results.NotFound();
+        }
+
+        var type = MediaResponseMapper.GetType(item);
+        if (item is TvShow { IsAnime: true } or Movie { IsAnime: true })
+        {
+            type = "anime";
+        }
+
+        var external = await metadataAggregator.GetDetailsAsync(type, item.ExternalId ?? "", item.Title, ct);
+        if (external is null)
+        {
+            return Results.NotFound(new { message = "Metadata could not be found from external source." });
+        }
+
+        item.Title = external.Title;
+        if (!string.IsNullOrWhiteSpace(external.Description))
+        {
+            item.Notes = external.Description;
+        }
+
+        if (IsExternalUrl(external.CoverUrl))
+        {
+            item.CoverUrl = await imageStorage.SaveCoverAsync(external.CoverUrl!, item.Id, ct);
+        }
+
+        item.ExternalId = external.ExternalId;
+        item.ExternalSource = external.ExternalSource ?? item.ExternalSource;
+        item.ExternalRating = external.Rating;
+        item.ExternalRatingVotes = external.RatingVotes;
+        if (external.Ratings is { Count: > 0 })
+        {
+            item.ExternalRatingsJson = System.Text.Json.JsonSerializer.Serialize(external.Ratings);
+        }
+
+        if (item is TvShow show)
+        {
+            if (!string.IsNullOrWhiteSpace(external.Studio))
+            {
+                show.Studio = external.Studio;
+                show.Network = external.Studio;
+            }
+            if (!string.IsNullOrWhiteSpace(external.OriginalTitle))
+            {
+                show.RomajiTitle = external.OriginalTitle;
+            }
+
+            if (show.IsAnime && external.Episodes is { Count: > 0 } epList)
+            {
+                var season = show.Seasons.FirstOrDefault();
+                if (season is null)
+                {
+                    season = new TvSeason
+                    {
+                        Id = Guid.NewGuid(),
+                        SeasonNumber = 1,
+                        Title = "Season 1",
+                        TvShowId = show.Id,
+                        Status = show.Status,
+                        TotalEpisodes = external.TotalCount ?? epList.Count,
+                        EpisodesData = System.Text.Json.JsonSerializer.Serialize(epList)
+                    };
+                    show.Seasons.Add(season);
+                }
+                else
+                {
+                    season.TotalEpisodes = external.TotalCount ?? epList.Count;
+                    season.EpisodesData = System.Text.Json.JsonSerializer.Serialize(epList);
+                }
+            }
+        }
+        else if (item is Movie movie)
+        {
+            if (external.TotalCount is > 0) movie.DurationMinutes = external.TotalCount.Value;
+            if (!string.IsNullOrWhiteSpace(external.Studio)) movie.Studio = external.Studio;
+            if (!string.IsNullOrWhiteSpace(external.OriginalTitle)) movie.RomajiTitle = external.OriginalTitle;
+        }
+        else if (item is Book book)
+        {
+            if (external.TotalCount is > 0) book.TotalPages = external.TotalCount.Value;
+            if (!string.IsNullOrWhiteSpace(external.Author)) book.Author = external.Author;
+        }
+        else if (item is Manga manga)
+        {
+            if (external.TotalCount is > 0) manga.TotalChapters = external.TotalCount.Value;
+        }
+        else if (item is VideoGame game)
+        {
+            if (!string.IsNullOrWhiteSpace(external.Platform)) game.Platform = external.Platform;
+        }
+
+        item.UpdatedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync(ct);
+
+        return Results.Ok(MediaResponseMapper.ToDetailDto(item));
+    }
+
     private static async Task<IResult> DeleteMediaItem(
         Guid id,
         AppDbContext db,
@@ -376,44 +502,27 @@ public static class MediaEndpoints
         return Results.NoContent();
     }
 
-    private static MediaItem CreateEntity(CreateMediaRequest request) =>
-        request.Type.Trim().ToLowerInvariant() switch
+    private static MediaItem CreateEntity(CreateMediaRequest request)
+    {
+        MediaItem item = request.Type.Trim().ToLowerInvariant() switch
         {
             "game" => new VideoGame
             {
                 Platform = request.Platform ?? string.Empty,
                 HoursPlayed = request.HoursPlayed,
                 Title = request.Title,
-                Status = request.Status,
-                Score = request.Score,
-                CoverUrl = request.CoverUrl,
-                Notes = request.Notes,
-                FranchiseId = request.FranchiseId,
-                FranchiseOrder = request.FranchiseOrder,
             },
             "book" => new Book
             {
                 Author = request.Author ?? string.Empty,
                 TotalPages = request.TotalPages ?? 0,
                 Title = request.Title,
-                Status = request.Status,
-                Score = request.Score,
-                CoverUrl = request.CoverUrl,
-                Notes = request.Notes,
-                FranchiseId = request.FranchiseId,
-                FranchiseOrder = request.FranchiseOrder,
             },
             "manga" => new Manga
             {
                 TotalChapters = request.TotalChapters,
                 CurrentVolume = request.CurrentVolume ?? 0,
                 Title = request.Title,
-                Status = request.Status,
-                Score = request.Score,
-                CoverUrl = request.CoverUrl,
-                Notes = request.Notes,
-                FranchiseId = request.FranchiseId,
-                FranchiseOrder = request.FranchiseOrder,
             },
             "movie" => new Movie
             {
@@ -422,12 +531,6 @@ public static class MediaEndpoints
                 IsAnime = request.IsAnime ?? false,
                 Studio = request.Studio,
                 Title = request.Title,
-                Status = request.Status,
-                Score = request.Score,
-                CoverUrl = request.CoverUrl,
-                Notes = request.Notes,
-                FranchiseId = request.FranchiseId,
-                FranchiseOrder = request.FranchiseOrder,
             },
             "tvshow" => new TvShow
             {
@@ -445,18 +548,28 @@ public static class MediaEndpoints
                         Score = season.Score,
                         Notes = season.Notes,
                         AirDate = season.AirDate,
+                        EpisodesData = season.EpisodesData,
                     })
                     .ToList() ?? [],
                 Title = request.Title,
-                Status = request.Status,
-                Score = request.Score,
-                CoverUrl = request.CoverUrl,
-                Notes = request.Notes,
-                FranchiseId = request.FranchiseId,
-                FranchiseOrder = request.FranchiseOrder,
             },
             _ => throw new UnsupportedMediaTypeException(request.Type),
         };
+
+        item.Status = request.Status;
+        item.Score = request.Score;
+        item.CoverUrl = request.CoverUrl;
+        item.Notes = request.Notes;
+        item.FranchiseId = request.FranchiseId;
+        item.FranchiseOrder = request.FranchiseOrder;
+        item.ExternalId = request.ExternalId;
+        item.ExternalSource = request.ExternalSource;
+        item.ExternalRating = request.ExternalRating;
+        item.ExternalRatingVotes = request.ExternalRatingVotes;
+        item.ExternalRatingsJson = request.ExternalRatingsJson;
+
+        return item;
+    }
 
     private static int ClampToKnownTotal(int current, int? total) =>
         total is > 0 ? Math.Min(current, total.Value) : current;

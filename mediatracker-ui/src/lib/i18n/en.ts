@@ -37,6 +37,7 @@ export const en: Dictionary = {
     seasons: 'Seasons',
     brand: 'Media tracker',
     toolsLabel: 'Tools',
+    settings: 'Settings',
     mainLabel: 'Main navigation',
   },
   library: {
@@ -131,6 +132,8 @@ export const en: Dictionary = {
       game: 'h',
       book: 'pp.',
     },
+    searchMore: 'Search more',
+    preview: 'Details',
   },
 
   createModal: {
@@ -234,6 +237,36 @@ export const en: Dictionary = {
     markWatched: 'Mark as watched',
     episodeTitle: (episode: number) => `Episode ${episode}`,
     watchAction: 'Mark as watched',
+    updateMetadata: 'Update metadata',
+    updatingMetadata: 'Updating…',
+    metadataUpdated: 'Metadata updated successfully.',
+    userScoreLabel: 'Your score',
+  },
+  settingsModal: {
+    title: 'Settings',
+    tabs: {
+      sources: 'Sources',
+      search: 'Search',
+    },
+    sources: {
+      title: 'Supported Sources',
+      description: 'Metadata and rating providers supported by the application.',
+      noKeyRequired: 'No API key needed',
+      keyRequired: 'API key required',
+      keyConfigured: 'API key configured (encrypted in SQLite)',
+      keyMissing: 'API key missing',
+      inputPlaceholder: 'Enter API key...',
+      saveKey: 'Save key',
+      saved: 'API key saved and encrypted successfully',
+      saveError: 'Failed to save API key',
+    },
+    search: {
+      orderTitle: 'Category order in "All" search',
+      orderHint: 'Configure the order of media type sections when searching All.',
+      moveUp: 'Up',
+      moveDown: 'Down',
+      saved: 'Order saved',
+    },
   },
   errors: {
     unexpected: 'Something went wrong. Please try again.',

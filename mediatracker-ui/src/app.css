@@ -1,12 +1,12 @@
 @import "tailwindcss";
 
 @theme {
-  --color-canvas: #13151b;
-  --color-surface: #1a1d26;
-  --color-card: #222634;
-  --color-card-hover: #282d3d;
-  --color-elevated: #222634;
-  --color-panel: #282d3d;
+  --color-canvas: #101114;
+  --color-surface: #15171c;
+  --color-card: #1c1f26;
+  --color-card-hover: #242831;
+  --color-elevated: #1c1f26;
+  --color-panel: #242831;
   --color-border: rgba(255, 255, 255, 0.05);
   --color-accent: #5844e0;
   --color-accent-hover: #4a37d4;

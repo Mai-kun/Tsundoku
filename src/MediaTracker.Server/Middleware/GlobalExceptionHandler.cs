@@ -14,8 +14,9 @@ public sealed class GlobalExceptionHandler(
     {
         logger.LogError(
             exception,
-            "An unhandled exception occurred while processing request {Path}",
-            httpContext.Request.Path);
+            "Unhandled exception on {Path}: {Message}",
+            httpContext.Request.Path,
+            exception.Message);
 
         var problemDetails = new ProblemDetails
         {

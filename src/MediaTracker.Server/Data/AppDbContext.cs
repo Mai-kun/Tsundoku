@@ -21,8 +21,15 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 
     public DbSet<TvShow> TvShows => Set<TvShow>();
 
+    public DbSet<AppSetting> Settings => Set<AppSetting>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<AppSetting>(entity =>
+        {
+            entity.HasKey(s => s.Key);
+        });
+
         modelBuilder.Entity<MediaItem>(entity =>
         {
             entity.UseTphMappingStrategy();

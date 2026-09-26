@@ -1,14 +1,13 @@
 <script lang="ts">
-  import { Plus, Search } from 'lucide-svelte'
+  import { Search } from 'lucide-svelte'
   import { i18n, locales, type Locale } from '$lib/i18n/index.svelte'
 
   interface Props {
     title: string
     onSearch: () => void
-    onCreate: () => void
   }
 
-  let { title, onSearch, onCreate }: Props = $props()
+  let { title, onSearch }: Props = $props()
 
   function changeLocale(event: Event) {
     i18n.setLocale((event.currentTarget as HTMLSelectElement).value as Locale)
@@ -50,12 +49,4 @@
     {/each}
   </select>
 
-  <button
-    type="button"
-    class="inline-flex h-9 items-center gap-1.5 rounded-md bg-accent px-3 text-sm font-semibold text-white transition hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-canvas"
-    onclick={onCreate}
-  >
-    <Plus size={16} aria-hidden="true" />
-    <span class="hidden sm:inline">{i18n.t.header.addButton}</span>
-  </button>
 </div>

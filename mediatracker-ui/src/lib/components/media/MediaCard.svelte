@@ -1,9 +1,9 @@
 <script lang="ts">
-  import { Check, Image as ImageIcon, Minus, Pencil, Plus, Trash2 } from 'lucide-svelte'
+  import { Bookmark, Check, ChevronDown, Image as ImageIcon, Minus, Pause, Play, Plus, Trash2, X } from 'lucide-svelte'
   import { untrack } from 'svelte'
-  import { errorMessage } from '$lib/api'
+  import { errorMessage, updateStatus } from '$lib/api'
   import { i18n } from '$lib/i18n/index.svelte'
-  import { clampProgress, type MediaItem, type MediaStatus } from '$lib/types'
+  import { clampProgress, MEDIA_STATUS, type MediaItem, type MediaStatus } from '$lib/types'
   import { createProgressDebounce } from '$lib/utils/progressDebounce'
 
   interface Props {
@@ -31,6 +31,34 @@
 
   let progressError = $state<unknown>(null)
   let deleteError = $state<unknown>(null)
+
+  let statusMenuOpen = $state(false)
+
+  const statusOptions: readonly MediaStatus[] = [
+    MEDIA_STATUS.planned,
+    MEDIA_STATUS.inProgress,
+    MEDIA_STATUS.completed,
+    MEDIA_STATUS.onHold,
+    MEDIA_STATUS.dropped,
+  ]
+
+  async function changeStatus(newStatus: MediaStatus) {
+    statusMenuOpen = false
+    try {
+      await updateStatus(item.id, newStatus)
+      onProgressCommitted()
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
+  function handleWindowPointerDown(event: PointerEvent) {
+    if (!statusMenuOpen) return
+    const target = event.target as HTMLElement
+    if (!target.closest('[data-status-menu]')) {
+      statusMenuOpen = false
+    }
+  }
   const progressDebounce = createProgressDebounce({
     send: (id, value) => (onProgress ?? (async () => {}))(id, value),
     buildRequest: (id, value) => ({ url: `/api/media/${id}/progress`, body: { currentProgress: value } }),
@@ -188,6 +216,8 @@
   }
 </script>
 
+<svelte:window onpointerdown={handleWindowPointerDown} />
+
 <article class="group relative cursor-pointer overflow-hidden rounded-lg bg-card transition hover:bg-card-hover" style="content-visibility: auto; contain-intrinsic-size: auto none;" role="button" tabindex="0" aria-label={i18n.t.card.openDetails(item.title)} onclick={() => onOpen(item)} onkeydown={handleCardKeydown}>
   <div class="aspect-[3/4] overflow-hidden bg-canvas">
     {#if item.coverUrl}
@@ -199,8 +229,46 @@
     {/if}
 
     <div class="absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-3">
-      <span class={`rounded-md px-2 py-1 text-[10px] font-bold uppercase tracking-wide backdrop-blur ${statusClass(item.status)}`}>{statusLabel(item.status)}</span>
-      <div class="flex gap-1"><button type="button" class="flex h-7 w-7 items-center justify-center rounded-md bg-canvas/70 text-muted opacity-0 transition hover:bg-accent/20 hover:text-accent-soft focus:opacity-100 group-hover:opacity-100" aria-label="Edit" onclick={(event) => { event.stopPropagation(); onEdit(item) }}><Pencil size={15} aria-hidden="true" /></button><button type="button" class="flex h-7 w-7 items-center justify-center rounded-md bg-canvas/70 text-muted opacity-0 transition hover:bg-rose-500/20 hover:text-rose-300 focus:opacity-100 group-hover:opacity-100" aria-label={i18n.t.card.deleteAria(item.title)} onclick={(event) => { event.stopPropagation(); void removeItem() }}><Trash2 size={15} aria-hidden="true" /></button></div>
+      <div class="relative min-w-0 flex-1 mr-2" data-status-menu>
+        <button
+          type="button"
+          class={`inline-flex max-w-full items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider backdrop-blur transition hover:brightness-110 ${statusClass(item.status)}`}
+          onclick={(e) => { e.stopPropagation(); statusMenuOpen = !statusMenuOpen }}
+          title={statusLabel(item.status)}
+        >
+          {#if item.status === 0}
+            <Bookmark size={12} />
+          {:else if item.status === 1}
+            <Play size={12} fill="currentColor" />
+          {:else if item.status === 2}
+            <Check size={12} stroke-width={2.5} />
+          {:else if item.status === 3}
+            <Pause size={12} />
+          {:else if item.status === 4}
+            <X size={12} />
+          {/if}
+          <ChevronDown size={11} class="shrink-0 opacity-70" />
+        </button>
+
+        {#if statusMenuOpen}
+          <!-- svelte-ignore a11y_no_static_element_interactions -->
+          <div class="absolute left-0 top-full mt-1.5 w-36 overflow-hidden rounded-md border border-white/5 bg-[#222634] py-1 shadow-xl" role="listbox" onclick={(e) => e.stopPropagation()} onpointerdown={(e) => e.stopPropagation()}>
+            {#each statusOptions as option}
+              <button
+                type="button"
+                class={`flex w-full items-center justify-between px-3 py-2 text-left text-sm transition hover:bg-white/5 ${option === item.status ? 'text-accent-soft' : 'text-muted'}`}
+                onclick={(e) => { e.stopPropagation(); changeStatus(option) }}
+              >
+                {statusLabel(option)}
+                {#if option === item.status}
+                  <Check size={14} class="text-accent-soft" />
+                {/if}
+              </button>
+            {/each}
+          </div>
+        {/if}
+      </div>
+      <div class="flex gap-1"><button type="button" class="flex h-7 w-7 items-center justify-center rounded-md bg-canvas/70 text-muted opacity-0 transition hover:bg-rose-500/20 hover:text-rose-300 focus:opacity-100 group-hover:opacity-100" aria-label={i18n.t.card.deleteAria(item.title)} onclick={(event) => { event.stopPropagation(); void removeItem() }}><Trash2 size={15} aria-hidden="true" /></button></div>
     </div>
   </div>
 
@@ -243,9 +311,9 @@
       </div>
     {/if}
 
-    {#if item.status === 2}
-      <div class="flex items-center gap-1.5 text-xs font-medium text-emerald-300"><Check size={14} aria-hidden="true" />{i18n.t.status.completed}</div>
-    {/if}
+
+
+
 
     {#if progressError}
       <p class="text-xs leading-4 text-rose-300" role="alert">{errorMessage(progressError)}</p>

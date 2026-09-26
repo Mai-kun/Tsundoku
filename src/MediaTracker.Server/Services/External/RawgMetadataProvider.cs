@@ -29,16 +29,65 @@ public sealed class RawgMetadataProvider(
             return [];
         }
 
-        return results.Select(item => new ExternalMediaDto
+        return results.Select(MapItem).ToList();
+    }
+
+    public async Task<ExternalMediaDto?> GetDetailsAsync(string externalId, string title, CancellationToken ct)
+    {
+        var apiKey = options.Value.RawgApiKey;
+        if (string.IsNullOrWhiteSpace(apiKey))
+        {
+            return null;
+        }
+
+        if (long.TryParse(externalId, out var id))
+        {
+            try
+            {
+                var client = httpClientFactory.CreateClient("Rawg");
+                var item = await client.GetFromJsonAsync<RawgGame>(
+                    $"games/{id}?key={Uri.EscapeDataString(apiKey)}", ct);
+
+                if (item is not null)
+                {
+                    return MapItem(item);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to get RAWG details for {Id}", externalId);
+            }
+        }
+
+        var searchResults = await SearchAsync(title, ct);
+        return searchResults.FirstOrDefault();
+    }
+
+    private ExternalMediaDto MapItem(RawgGame item)
+    {
+        var rating = item.Rating is { } r && r > 0 ? Math.Round(r * 2.0, 1) : (double?)null;
+        var ratings = rating is not null
+            ? new List<ExternalRatingDto>
+            {
+                new() { Source = "RAWG", Rating = rating.Value, Votes = item.RatingsCount }
+            }
+            : null;
+
+        return new ExternalMediaDto
         {
             ExternalId = item.Id.ToString(),
+            ExternalSource = "RAWG",
             Title = item.Name ?? string.Empty,
             OriginalTitle = item.NameOriginal,
             CoverUrl = item.BackgroundImage,
+            Description = item.DescriptionRaw ?? item.Description,
             ReleaseYear = ParseYear(item.Released),
             Type = "game",
             Platform = JoinPlatforms(item.ParentPlatforms),
-        }).ToList();
+            Rating = rating,
+            RatingVotes = item.RatingsCount,
+            Ratings = ratings
+        };
     }
 
     private static int? ParseYear(string? date) =>
@@ -58,6 +107,10 @@ public sealed class RawgMetadataProvider(
         [property: JsonPropertyName("name_original")] string? NameOriginal,
         string? Released,
         [property: JsonPropertyName("background_image")] string? BackgroundImage,
+        [property: JsonPropertyName("description_raw")] string? DescriptionRaw,
+        string? Description,
+        double? Rating,
+        [property: JsonPropertyName("ratings_count")] int? RatingsCount,
         [property: JsonPropertyName("parent_platforms")] List<RawgParentPlatform>? ParentPlatforms);
 
     private sealed record RawgParentPlatform(RawgPlatform? Platform);

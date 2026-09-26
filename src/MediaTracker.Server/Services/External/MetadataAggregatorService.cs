@@ -30,6 +30,18 @@ public sealed class MetadataAggregatorService(
         return results;
     }
 
+    public async Task<ExternalMediaDto?> GetDetailsAsync(string type, string externalId, string title, CancellationToken ct)
+    {
+        var normalizedType = type.Trim().ToLowerInvariant();
+        var provider = serviceProvider.GetKeyedService<IMetadataProvider>(normalizedType);
+        if (provider is null)
+        {
+            return null;
+        }
+
+        return await provider.GetDetailsAsync(externalId, title, ct);
+    }
+
     private async Task<IReadOnlyList<ExternalMediaDto>> SearchProviderAsync(string type, string query, CancellationToken ct)
     {
         var provider = serviceProvider.GetRequiredKeyedService<IMetadataProvider>(type);

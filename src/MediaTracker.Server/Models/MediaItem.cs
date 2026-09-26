@@ -27,4 +27,14 @@ public abstract class MediaItem
     public Franchise? Franchise { get; set; }
 
     public int? FranchiseOrder { get; set; }
+
+    public string? ExternalId { get; set; }
+
+    public string? ExternalSource { get; set; }
+
+    public double? ExternalRating { get; set; }
+
+    public int? ExternalRatingVotes { get; set; }
+
+    public string? ExternalRatingsJson { get; set; }
 }

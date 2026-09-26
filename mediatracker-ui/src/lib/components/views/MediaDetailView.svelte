@@ -1,6 +1,6 @@
 <script lang="ts">
   import { ArrowLeft, CalendarDays, Check, ChevronDown, Eye, Image as ImageIcon, List, Minus, Pencil, Plus, RefreshCw, Star, Trash2 } from 'lucide-svelte'
-  import { errorMessage, getMedia, getMediaItem, setProgress, setSeasonProgress, updateMedia, updateStatus } from '$lib/api'
+  import { errorMessage, getMedia, getMediaItem, refreshMetadata, setProgress, setSeasonProgress, updateMedia, updateStatus } from '$lib/api'
   import { i18n } from '$lib/i18n/index.svelte'
   import { clampProgress, isTvShowDetail, MEDIA_STATUS, type AppView, type MediaDetail, type MediaItem, type MediaStatus, type TvSeason } from '$lib/types'
   import { createProgressDebounce } from '$lib/utils/progressDebounce'
@@ -57,6 +57,9 @@
   let relatedError = $state<unknown>(null)
   let relatedSequence = 0
 
+  let deleteBusy = $state(false)
+  let deleteError = $state<unknown>(null)
+
   let statusValue = $state<MediaStatus>(MEDIA_STATUS.planned)
   let statusBusy = $state(false)
   let statusError = $state<unknown>(null)
@@ -72,6 +75,9 @@
 
   let selectedSeasonId = $state<string | null>(null)
   let episodeBusy = $state('')
+  let refreshBusy = $state(false)
+  let refreshError = $state<unknown>(null)
+  let userRatingPopoverOpen = $state(false)
 
   const progressDebounce = createProgressDebounce({
     send: (id, value) => setProgress(id, value),
@@ -97,10 +103,40 @@
   let originalTitle = $derived(media ? readOriginalTitle(media) : null)
   let synopsisText = $derived(media?.notes?.trim() ?? '')
   let synopsisExpandable = $derived(synopsisText.length > 280)
+  let hasRelatedMedia = $derived(related.length > 0 || relatedLoading || relatedError !== null)
   let progressPercent = $derived.by(() => {
     const info = progressInfo
     if (!info || info.total === null || info.total <= 0) return 0
     return Math.min(progressValue / info.total, 1) * 100
+  })
+  interface RatingBadge {
+    source: string
+    score: number
+    votes?: number | null
+  }
+
+  let externalRatings = $derived.by<RatingBadge[]>(() => {
+    if (!media) return []
+    if (media.externalRatingsJson) {
+      try {
+        const parsed = JSON.parse(media.externalRatingsJson)
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.map((r: any) => ({
+            source: r.source ?? r.Source ?? 'Source',
+            score: typeof r.score === 'number' ? r.score : (typeof r.Score === 'number' ? r.Score : 0),
+            votes: r.votes ?? r.Votes ?? null,
+          }))
+        }
+      } catch {}
+    }
+    if (typeof media.externalRating === 'number') {
+      return [{
+        source: dataSource(media),
+        score: media.externalRating,
+        votes: media.externalRatingVotes,
+      }]
+    }
+    return []
   })
 
   $effect(() => {
@@ -128,6 +164,8 @@
       progressError = null
       statusError = null
       ratingError = null
+      deleteError = null
+      deleteBusy = false
     }
 
     try {
@@ -137,6 +175,7 @@
       syncFrom(loaded)
       void loadRelated(loaded)
     } catch (error) {
+      console.error('[MediaDetailView] Failed to load media', id, error)
       if (sequence === requestSequence) {
         loadError = error
         if (isNew) media = null
@@ -190,18 +229,25 @@
   }
 
   function buildEpisodes(value: TvSeason): EpisodeRow[] {
-    const total = Math.max(value.totalEpisodes ?? 0, 0)
+    let parsed: Array<{ number: number; title?: string; airDate?: string; description?: string }> = []
+    if (value.episodesData) {
+      try {
+        parsed = JSON.parse(value.episodesData)
+      } catch {}
+    }
+    const total = Math.max(value.totalEpisodes ?? 0, parsed.length, 0)
     const watched = Math.max(value.currentEpisode ?? 0, 0)
     const limit = Math.min(total, Math.max(watched, maxEpisodesPerSeason))
 
     return Array.from({ length: limit }, (_, index) => {
       const number = index + 1
+      const found = parsed.find((p) => p.number === number)
       return {
         id: `${value.id}:${number}`,
         number,
-        title: i18n.t.detail.episodeTitle(number),
-        airDate: value.airDate ?? null,
-        description: value.notes ?? null,
+        title: found?.title || i18n.t.detail.episodeTitle(number),
+        airDate: found?.airDate ?? value.airDate ?? null,
+        description: found?.description ?? value.notes ?? null,
         watched: number <= watched,
       }
     })
@@ -303,7 +349,7 @@
         break
     }
 
-    return list
+    return [...new Set(list.filter(Boolean))]
   }
 
   function specRows(item: MediaItem): Array<{ label: string; value: string }> {
@@ -491,11 +537,31 @@
     }
   }
 
+  async function handleRefreshMetadata() {
+    const target = media
+    if (!target || refreshBusy) return
+    refreshBusy = true
+    refreshError = null
+    try {
+      const updated = await refreshMetadata(target.id)
+      media = updated
+      syncFrom(updated)
+      onUpdate()
+    } catch (error) {
+      refreshError = error
+    } finally {
+      refreshBusy = false
+    }
+  }
+
   function handleWindowPointerDown(event: PointerEvent) {
-    if (!statusMenuOpen) return
     const target = event.target
-    if (target instanceof Element && target.closest('[data-status-menu]')) return
-    statusMenuOpen = false
+    if (statusMenuOpen && target instanceof Element && !target.closest('[data-status-menu]')) {
+      statusMenuOpen = false
+    }
+    if (userRatingPopoverOpen && target instanceof Element && !target.closest('[data-rating-popover]')) {
+      userRatingPopoverOpen = false
+    }
   }
 </script>
 
@@ -534,7 +600,7 @@
         </div>
 
         <div class="relative" data-status-menu>
-          <button type="button" class="flex w-full items-center justify-between gap-2 rounded-md bg-[#5844e0] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-[#4a37d4] disabled:cursor-wait disabled:opacity-70" disabled={statusBusy} aria-haspopup="listbox" aria-expanded={statusMenuOpen} onclick={() => (statusMenuOpen = !statusMenuOpen)}>
+          <button type="button" class="flex w-full items-center justify-between gap-2 rounded-md border border-white/10 bg-[#222634] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-[#282d3d] disabled:cursor-wait disabled:opacity-70" disabled={statusBusy} aria-haspopup="listbox" aria-expanded={statusMenuOpen} onclick={() => (statusMenuOpen = !statusMenuOpen)}>
             <span>{statusLabel(statusValue)}</span>
             <ChevronDown size={16} class={`transition ${statusMenuOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
           </button>
@@ -564,6 +630,8 @@
 
         <section class="space-y-1.5">
           <h2 class="text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]">{i18n.t.detail.actionsTitle}</h2>
+          <button type="button" class="flex w-full items-center gap-2.5 rounded-md bg-[#222634] px-3 py-2.5 text-sm font-medium text-[#d1d5db] transition hover:bg-[#282d3d] disabled:cursor-wait disabled:opacity-70" disabled={refreshBusy} onclick={() => void handleRefreshMetadata()}><RefreshCw size={16} class={`text-[#34d399] ${refreshBusy ? 'animate-spin' : ''}`} aria-hidden="true" />{i18n.t.detail.updateMetadata}</button>
+          {#if refreshError}<p class="text-xs text-rose-300" role="alert">{errorMessage(refreshError)}</p>{/if}
           <button type="button" class="flex w-full items-center gap-2.5 rounded-md bg-[#222634] px-3 py-2.5 text-sm font-medium text-[#d1d5db] transition hover:bg-[#282d3d]" onclick={() => onNavigate('lists')}><List size={16} class="text-[#a5b4fc]" aria-hidden="true" />{i18n.t.detail.addToLists}</button>
           <button type="button" class="flex w-full items-center gap-2.5 rounded-md bg-[#222634] px-3 py-2.5 text-sm font-medium text-[#d1d5db] transition hover:bg-[#282d3d]" onclick={() => onNavigate('calendar')}><CalendarDays size={16} class="text-[#f59e0b]" aria-hidden="true" />{i18n.t.detail.activity}</button>
           <button type="button" class="flex w-full items-center gap-2.5 rounded-md bg-[#222634] px-3 py-2.5 text-sm font-medium text-[#d1d5db] transition hover:bg-[#282d3d]" onclick={startEdit}><Pencil size={16} class="text-[#7dd3fc]" aria-hidden="true" />{i18n.t.detailModal.edit}</button>
@@ -574,7 +642,7 @@
         <section class="space-y-2.5 rounded-lg bg-[#222634] p-4">
           <h2 class="text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]">{i18n.t.detail.detailsTitle}</h2>
           <dl class="space-y-2">
-            {#each specRows(media) as row (row.label)}
+            {#each specRows(media) as row, idx (`${row.label}-${idx}`)}
               <div class="flex items-start justify-between gap-3">
                 <dt class="shrink-0 text-[11px] font-medium uppercase tracking-wide text-[#6b7280]">{row.label}</dt>
                 <dd class="text-right text-sm text-white">{row.value}</dd>
@@ -603,7 +671,7 @@
         </header>
 
         <ul class="flex flex-wrap gap-2">
-          {#each tags(media) as tag (tag)}
+          {#each tags(media) as tag, idx (`${tag}-${idx}`)}
             <li class="rounded-full bg-[#5844e0]/20 px-2.5 py-1 text-xs text-[#a5b4fc]">{tag}</li>
           {/each}
         </ul>
@@ -622,40 +690,68 @@
           {/if}
         </section>
 
-        <div class="grid gap-3 sm:grid-cols-2">
-          <div class="rounded-lg bg-[#222634] p-3">
-            <p class="text-[11px] font-medium uppercase tracking-wide text-[#6b7280]">{dataSource(media)} · {i18n.t.detail.externalRating}</p>
-            {#if hasNumber(media.externalRating)}
-              <div class="mt-1.5 flex items-center gap-1.5">
-                <Star size={16} class="text-[#f59e0b]" fill="currentColor" aria-hidden="true" />
-                <span class="text-lg font-bold text-white">{externalRatingText(media.externalRating)}<span class="text-sm font-medium text-muted"> / 10</span></span>
-              </div>
-              {#if hasNumber(media.externalRatingVotes)}
-                <p class="mt-0.5 text-xs text-muted">{externalRatingVotesText(media.externalRatingVotes)}</p>
+        <div class="flex flex-wrap items-center gap-2">
+          {#each externalRatings as rating (rating.source)}
+            <div class="inline-flex items-center gap-1.5 rounded-md border border-white/5 bg-[#222634] px-2.5 py-1 text-xs shadow-sm">
+              <span class="font-medium text-[#9ca3af]">{rating.source}</span>
+              <span class="flex items-center gap-0.5 font-bold text-white">
+                <Star size={12} class="text-[#f59e0b]" fill="currentColor" />
+                {rating.score.toFixed(1)}
+              </span>
+              {#if rating.votes}
+                <span class="text-[10px] text-[#6b7280]">({rating.votes > 1000 ? (rating.votes / 1000).toFixed(1) + 'k' : rating.votes})</span>
               {/if}
-            {:else}
-              <p class="mt-1.5 text-sm text-muted">{i18n.t.detail.externalRatingEmpty}</p>
+            </div>
+          {/each}
+
+          <div class="relative inline-flex" data-rating-popover>
+            <button
+              type="button"
+              class="inline-flex items-center gap-1.5 rounded-md border border-white/5 bg-[#222634] px-2.5 py-1 text-xs font-semibold text-white shadow-sm transition hover:bg-[#282d3d]"
+              onclick={() => (userRatingPopoverOpen = !userRatingPopoverOpen)}
+              title={i18n.t.detail.yourRating}
+              aria-expanded={userRatingPopoverOpen}
+            >
+              <span class="font-medium text-[#9ca3af]">{i18n.t.detail.yourRating}:</span>
+              {#if scoreValue !== null}
+                <span class="flex items-center gap-0.5 font-bold text-white">
+                  <Star size={12} class="text-[#f59e0b]" fill="currentColor" />
+                  {scoreValue}
+                </span>
+              {:else}
+                <span class="flex items-center gap-0.5 text-muted">
+                  <Star size={12} class="text-[#6b7280]" aria-hidden="true" />
+                  —
+                </span>
+              {/if}
+            </button>
+            {#if userRatingPopoverOpen}
+              <div class="absolute left-0 top-full z-30 mt-1.5 flex items-center gap-1 rounded-md border border-white/10 bg-[#1e222d] p-1.5 shadow-xl shadow-black/50">
+                {#each Array(10) as _, index}
+                  {@const val = index + 1}
+                  <button
+                    type="button"
+                    class={`flex h-7 w-7 items-center justify-center rounded text-xs font-bold transition ${val === scoreValue ? 'bg-[#3b82f6] text-white' : 'text-muted hover:bg-white/10 hover:text-white'}`}
+                    onclick={() => { void setScore(val); userRatingPopoverOpen = false }}
+                  >
+                    {val}
+                  </button>
+                {/each}
+                {#if scoreValue !== null}
+                  <button
+                    type="button"
+                    class="ml-1 rounded px-1.5 py-1 text-[11px] font-semibold text-rose-400 hover:bg-rose-500/20"
+                    title={i18n.t.detail.clearRating}
+                    onclick={() => { clearScore(); userRatingPopoverOpen = false }}
+                  >
+                    ✕
+                  </button>
+                {/if}
+              </div>
             {/if}
           </div>
-          <div class="rounded-lg bg-[#222634] p-3">
-            <div class="flex items-center justify-between gap-2">
-              <p class="text-[11px] font-medium uppercase tracking-wide text-[#6b7280]">{i18n.t.detail.yourRating}</p>
-              {#if scoreValue !== null}
-                <button type="button" class="text-xs font-medium text-muted transition hover:text-white disabled:cursor-wait disabled:opacity-60" disabled={ratingBusy} onclick={clearScore}>{i18n.t.detail.clearRating}</button>
-              {/if}
-            </div>
-            <div class="mt-1 flex flex-wrap items-center gap-0.5">
-              {#each Array(10) as _, index (index)}
-                {@const value = index + 1}
-                <button type="button" class="grid h-7 w-7 place-items-center rounded-md transition hover:bg-[#282d3d] disabled:cursor-wait disabled:opacity-60" aria-label={i18n.t.detail.starAria(value)} disabled={ratingBusy} onclick={() => void setScore(value)}>
-                  <Star size={15} class={value <= (scoreValue ?? 0) ? 'text-[#f59e0b]' : 'text-[#6b7280]'} fill={value <= (scoreValue ?? 0) ? 'currentColor' : 'none'} aria-hidden="true" />
-                </button>
-              {/each}
-            </div>
-            <p class="mt-1 text-sm font-semibold text-white">{scoreText(scoreValue)}</p>
-            {#if ratingError}<p class="text-xs text-rose-300" role="alert">{errorMessage(ratingError)}</p>{/if}
-          </div>
         </div>
+        {#if ratingError}<p class="text-xs text-rose-300" role="alert">{errorMessage(ratingError)}</p>{/if}
 
         {#if media.type === 'tvshow'}
           <section class="space-y-2">
@@ -716,10 +812,25 @@
         {#if hasRelatedMedia}
           <section class="space-y-3">
             <h2 class="text-base font-semibold text-white">{i18n.t.detail.relatedTitle}</h2>
-            <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-              {#if media.relations && media.relations.length > 0}
-                {#each media.relations as rel (rel.id)}
-                  <button type="button" class="group flex flex-col items-start text-left" onclick={() => onSelectMedia(rel.id)}>
+            {#if relatedLoading}
+              <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+                {#each Array(5) as _, idx (idx)}
+                  <div class="space-y-1.5">
+                    <div class="aspect-[2/3] w-full animate-pulse rounded-md bg-[#222634]"></div>
+                    <div class="h-3 w-3/4 animate-pulse rounded bg-[#222634]"></div>
+                  </div>
+                {/each}
+              </div>
+              <p class="sr-only" role="status">{i18n.t.common.loading}</p>
+            {:else if relatedError}
+              <div class="flex flex-col items-start gap-2 rounded-lg bg-rose-400/5 p-4">
+                <p class="text-sm text-rose-200" role="alert">{errorMessage(relatedError)}</p>
+                <button type="button" class="inline-flex items-center gap-2 rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-white transition hover:bg-accent-hover" onclick={() => { if (media) void loadRelated(media) }}><RefreshCw size={14} aria-hidden="true" />{i18n.t.common.retry}</button>
+              </div>
+            {:else}
+              <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+                {#each related as rel (rel.id)}
+                  <button type="button" class="group flex flex-col items-start text-left" onclick={() => onOpenRelated(rel)}>
                     <div class="aspect-[2/3] w-full overflow-hidden rounded-md bg-[#222634] transition group-hover:ring-2 group-hover:ring-[#5844e0]">
                       {#if rel.coverUrl}
                         <img src={rel.coverUrl} alt={rel.title} class="h-full w-full object-cover transition duration-200 group-hover:scale-105" />
@@ -728,11 +839,11 @@
                       {/if}
                     </div>
                     <span class="mt-1.5 line-clamp-1 text-xs font-medium text-white transition group-hover:text-[#a5b4fc]">{rel.title}</span>
-                    <span class="text-[11px] text-muted">{rel.relationType || typeLabel(rel)}</span>
+                    <span class="text-[11px] text-muted">{typeLabel(rel)}</span>
                   </button>
                 {/each}
-              {/if}
-            </div>
+              </div>
+            {/if}
           </section>
         {/if}
       </div>

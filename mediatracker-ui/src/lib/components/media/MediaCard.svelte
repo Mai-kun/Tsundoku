@@ -4,7 +4,7 @@
   import { errorMessage } from '$lib/api'
   import { i18n } from '$lib/i18n/index.svelte'
   import { clampProgress, type MediaItem, type MediaStatus } from '$lib/types'
-  import { createProgressFlush } from '$lib/utils/progressFlush'
+  import { createProgressDebounce } from '$lib/utils/progressDebounce'
 
   interface Props {
     item: MediaItem
@@ -31,15 +31,20 @@
 
   let progressError = $state<unknown>(null)
   let deleteError = $state<unknown>(null)
-  const progressFlush = createProgressFlush(() => onProgress ?? (async () => {}), (value) => {
-        committedProgress = value
-        if (currentProgress === value) onProgressCommitted()
-      }, (error) => {
-        currentProgress = pendingSnapshot ?? committedProgress
-        committedProgress = currentProgress
-        pendingSnapshot = null
-        progressError = error
-      })
+  const progressDebounce = createProgressDebounce({
+    send: (id, value) => (onProgress ?? (async () => {}))(id, value),
+    buildRequest: (id, value) => ({ url: `/api/media/${id}/progress`, body: { currentProgress: value } }),
+    onCommitted: (value) => {
+      committedProgress = value
+      if (currentProgress === value) onProgressCommitted()
+    },
+    onError: (error) => {
+      currentProgress = pendingSnapshot ?? committedProgress
+      committedProgress = currentProgress
+      pendingSnapshot = null
+      progressError = error
+    },
+  })
 
   $effect(() => {
     if (item !== trackedItem) {
@@ -51,7 +56,7 @@
   })
 
   $effect(() => {
-    return () => progressFlush?.flush()
+    return () => void progressDebounce.flush(true)
   })
 
   function readProgress(media: MediaItem): number {
@@ -154,7 +159,16 @@
 
     currentProgress = next
     progressError = null
-    progressFlush?.schedule(item.id, next)
+    progressDebounce.schedule(item.id, next)
+  }
+
+  function handleCardKeydown(event: KeyboardEvent) {
+    if (event.target !== event.currentTarget) return
+
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      onOpen(item)
+    }
   }
 
   function supportsStepper(media: MediaItem): boolean {
@@ -174,7 +188,7 @@
   }
 </script>
 
-<article class="group relative overflow-hidden rounded-2xl border border-border bg-surface shadow-sm transition hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-xl hover:shadow-black/20" style="content-visibility: auto; contain-intrinsic-size: auto none;">
+<article class="group relative cursor-pointer overflow-hidden rounded-2xl border border-border bg-surface shadow-sm transition hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-xl hover:shadow-black/20" style="content-visibility: auto; contain-intrinsic-size: auto none;" role="button" tabindex="0" aria-label={i18n.t.card.openDetails(item.title)} onclick={() => onOpen(item)} onkeydown={handleCardKeydown}>
   <div class="aspect-[3/4] overflow-hidden bg-elevated">
     {#if item.coverUrl}
       <img src={item.coverUrl} alt={item.title} class="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]" loading="lazy" />
@@ -186,29 +200,21 @@
 
     <div class="absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-3">
       <span class={`rounded-md px-2 py-1 text-[10px] font-bold uppercase tracking-wide backdrop-blur ${statusClass(item.status)}`}>{statusLabel(item.status)}</span>
-      <div class="flex gap-1"><button type="button" class="flex h-7 w-7 items-center justify-center rounded-md bg-canvas/70 text-muted opacity-0 transition hover:bg-accent/20 hover:text-accent-soft focus:opacity-100 group-hover:opacity-100" aria-label="Edit" onclick={() => onEdit(item)}><Pencil size={15} aria-hidden="true" /></button><button type="button" class="flex h-7 w-7 items-center justify-center rounded-md bg-canvas/70 text-muted opacity-0 transition hover:bg-rose-500/20 hover:text-rose-300 focus:opacity-100 group-hover:opacity-100" aria-label={i18n.t.card.deleteAria(item.title)} onclick={removeItem}><Trash2 size={15} aria-hidden="true" /></button></div>
+      <div class="flex gap-1"><button type="button" class="flex h-7 w-7 items-center justify-center rounded-md bg-canvas/70 text-muted opacity-0 transition hover:bg-accent/20 hover:text-accent-soft focus:opacity-100 group-hover:opacity-100" aria-label="Edit" onclick={(event) => { event.stopPropagation(); onEdit(item) }}><Pencil size={15} aria-hidden="true" /></button><button type="button" class="flex h-7 w-7 items-center justify-center rounded-md bg-canvas/70 text-muted opacity-0 transition hover:bg-rose-500/20 hover:text-rose-300 focus:opacity-100 group-hover:opacity-100" aria-label={i18n.t.card.deleteAria(item.title)} onclick={(event) => { event.stopPropagation(); void removeItem() }}><Trash2 size={15} aria-hidden="true" /></button></div>
     </div>
-
-    {#if item.type === 'tvshow'}
-      <button type="button" class="absolute inset-0 z-0" aria-label={i18n.t.card.openDetails(item.title)} onclick={() => onOpen(item)}></button>
-    {/if}
   </div>
 
   <div class="relative z-10 min-w-0 space-y-3 p-3.5">
     <div class="min-w-0">
-      {#if item.type === 'tvshow'}
-        <button type="button" class="block w-full truncate break-words text-left text-sm font-semibold text-ink transition hover:text-accent-soft" title={item.title.length > 100 ? item.title.slice(0, 97) + '...' : item.title} onclick={() => onOpen(item)}>{item.title}</button>
-      {:else}
-        <h2 class="truncate break-words text-sm font-semibold text-ink" title={item.title.length > 100 ? item.title.slice(0, 97) + '...' : item.title}>{item.title}</h2>
-      {/if}
+      <h2 class="truncate break-words text-sm font-semibold text-ink" title={item.title.length > 100 ? item.title.slice(0, 97) + '...' : item.title}>{item.title}</h2>
       <p class="mt-1 truncate text-xs text-muted">
         {cardTypeLabel(item)}
         {#if item.type === 'game' && item.platform}
-          В· {item.platform}
+          · {item.platform}
         {:else if item.type === 'book' && item.author}
-          В· {item.author}
+          · {item.author}
         {:else if item.type === 'tvshow' && item.seasonsCount > 0}
-          В· {item.seasonsCount}
+          · {item.seasonsCount}
         {/if}
       </p>
     </div>
@@ -218,7 +224,7 @@
         <div class="flex items-center justify-between gap-2 text-xs text-muted">
           <span>{progressLabel(item)}</span>
           {#if item.score !== null}
-            <span class="font-semibold text-amber-300">в… {format(item.score)}</span>
+            <span class="font-semibold text-amber-300">★ {format(item.score)}</span>
           {/if}
         </div>
         {#if progressRatio(item) !== null}
@@ -231,9 +237,9 @@
 
     {#if supportsStepper(item)}
       <div class="flex h-8 items-center rounded-lg border border-border bg-elevated">
-        <button type="button" class="grid h-full w-8 place-items-center rounded-l-lg text-muted transition hover:bg-panel hover:text-ink" aria-label={i18n.t.card.decrement} onclick={() => scheduleProgress(-1)}><Minus size={14} aria-hidden="true" /></button>
+        <button type="button" class="grid h-full w-8 place-items-center rounded-l-lg text-muted transition hover:bg-panel hover:text-ink" aria-label={i18n.t.card.decrement} onclick={(event) => { event.stopPropagation(); scheduleProgress(-1) }}><Minus size={14} aria-hidden="true" /></button>
         <span class="flex-1 text-center text-xs font-semibold tabular-nums text-ink">{format(currentProgress)}</span>
-        <button type="button" class="grid h-full w-8 place-items-center rounded-r-lg text-muted transition hover:bg-panel hover:text-ink" aria-label={i18n.t.card.increment} onclick={() => scheduleProgress(1)}><Plus size={14} aria-hidden="true" /></button>
+        <button type="button" class="grid h-full w-8 place-items-center rounded-r-lg text-muted transition hover:bg-panel hover:text-ink" aria-label={i18n.t.card.increment} onclick={(event) => { event.stopPropagation(); scheduleProgress(1) }}><Plus size={14} aria-hidden="true" /></button>
       </div>
     {/if}
 

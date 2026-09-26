@@ -7,6 +7,7 @@
     type CreateMediaPayload,
     type CreateSeasonPayload,
     type MediaItem,
+    type MediaStatus,
     type MediaType,
     type UpdateMediaPayload,
   } from '$lib/types'
@@ -51,7 +52,7 @@
   let score = $state('')
   let startedAt = $state('')
   let finishedAt = $state('')
-  let status = $state(MEDIA_STATUS.planned)
+  let status = $state<MediaStatus>(MEDIA_STATUS.planned)
   let editingInitialized = $state(false)
   let titleInput = $state<HTMLInputElement | null>(null)
 

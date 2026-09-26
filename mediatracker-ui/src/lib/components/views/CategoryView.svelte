@@ -10,23 +10,29 @@
   interface Props {
     category: Category
     refreshKey: number
-    onOpenTvShow: (id: string) => void
+    onOpen: (item: MediaItem) => void
     onMediaChanged: () => void
     onEdit?: (item: MediaItem) => void
   }
 
-  let { category, refreshKey, onOpenTvShow, onMediaChanged, onEdit = () => {} }: Props = $props()
+  let { category, refreshKey, onOpen, onMediaChanged, onEdit = () => {} }: Props = $props()
 
   let status = $state<StatusFilter>('all')
   let sort = $state<LibrarySort>('newest')
   let search = $state('')
-  let items = $state<MediaItem[]>([])
+  let allItems = $state<MediaItem[]>([])
   let loading = $state(true)
   let loadError = $state<unknown>(null)
   let requestSequence = 0
 
+  let items = $derived(status === 'all' ? allItems : allItems.filter((item) => item.status === status))
+  let statusCounts = $derived(countStatuses(allItems))
+
   $effect(() => {
     void refreshKey
+    void category
+    void search
+    void sort
     const sequence = ++requestSequence
     const delay = search.trim() ? 250 : 0
     const timer = setTimeout(() => void loadItems(sequence), delay)
@@ -37,7 +43,6 @@
   function categoryFilters(): MediaFilters {
     const filters: MediaFilters = {
       search: search.trim() || undefined,
-      status: status === 'all' ? undefined : status,
       ...sortFilters(sort),
     }
 
@@ -73,7 +78,7 @@
     try {
       const found = await getMedia(categoryFilters())
       if (sequence === requestSequence) {
-        items = found
+        allItems = found
       }
     } catch (error) {
       if (sequence === requestSequence) {
@@ -94,10 +99,14 @@
     await setProgress(id, currentProgress)
   }
 
-  function openItem(item: MediaItem) {
-    if (item.type === 'tvshow') {
-      onOpenTvShow(item.id)
+  function countStatuses(list: MediaItem[]): Partial<Record<StatusFilter, number>> {
+    const counts: Partial<Record<StatusFilter, number>> = { all: list.length }
+
+    for (const value of [MEDIA_STATUS.planned, MEDIA_STATUS.inProgress, MEDIA_STATUS.completed, MEDIA_STATUS.onHold, MEDIA_STATUS.dropped]) {
+      counts[value] = list.filter((item) => item.status === value).length
     }
+
+    return counts
   }
 
   async function removeItem(item: MediaItem) {
@@ -111,7 +120,7 @@
 </script>
 
 <div class="space-y-6">
-  <FilterBar {status} {sort} {search} onStatusChange={updateStatus} onSortChange={(value) => (sort = value)} onSearchChange={(value) => (search = value)} />
+  <FilterBar {status} {sort} {search} counts={statusCounts} onStatusChange={updateStatus} onSortChange={(value) => (sort = value)} onSearchChange={(value) => (search = value)} />
   <p class="text-xs font-medium text-muted">{i18n.t.library.resultCount(items.length)}</p>
-  <MediaGrid {items} loading={loading} error={loadError} onRetry={refresh} onOpen={openItem} onProgress={updateProgress} onProgressCommitted={onMediaChanged} onDelete={removeItem} onEdit={onEdit} />
+  <MediaGrid {items} loading={loading} error={loadError} onRetry={refresh} onOpen={onOpen} onProgress={updateProgress} onProgressCommitted={onMediaChanged} onDelete={removeItem} onEdit={onEdit} />
 </div>

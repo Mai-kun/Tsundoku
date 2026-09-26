@@ -10,6 +10,7 @@ export type MediaStatus = (typeof MEDIA_STATUS)[keyof typeof MEDIA_STATUS]
 export type StatusFilter = 'all' | MediaStatus
 export type MediaType = 'game' | 'movie' | 'tvshow' | 'book' | 'manga'
 export type SearchMediaType = MediaType | 'anime'
+export type SearchScope = SearchMediaType | 'all'
 export type AppView = 'home' | MediaType | 'anime' | 'stats' | 'lists' | 'calendar' | 'seasons'
 export type SortBy = 'createdAt' | 'score' | 'title'
 export type SortOrder = 'asc' | 'desc'

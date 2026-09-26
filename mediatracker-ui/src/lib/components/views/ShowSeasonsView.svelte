@@ -59,21 +59,21 @@
 
   {#if loading}
     <div class="space-y-4" aria-hidden="true">
-      <div class="h-7 w-64 animate-pulse rounded bg-elevated"></div>
+      <div class="h-7 w-64 animate-pulse rounded bg-card"></div>
       {#each Array(3) as _, index (index)}
-        <div class="h-32 animate-pulse rounded-2xl border border-border bg-surface"></div>
+        <div class="h-32 animate-pulse rounded-lg bg-card"></div>
       {/each}
     </div>
     <p class="sr-only" role="status">{i18n.t.common.loading}</p>
   {:else if loadError}
-    <div class="flex min-h-72 flex-col items-center justify-center gap-3 rounded-2xl border border-rose-400/25 bg-rose-400/5 p-6 text-center">
+    <div class="flex min-h-72 flex-col items-center justify-center gap-3 rounded-lg bg-rose-400/5 p-6 text-center">
       <p class="text-sm text-rose-200" role="alert">{errorMessage(loadError)}</p>
-      <button type="button" class="inline-flex items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2 text-sm font-semibold text-ink" onclick={retry}><RefreshCw size={15} aria-hidden="true" />{i18n.t.common.retry}</button>
+      <button type="button" class="inline-flex items-center gap-2 rounded-md bg-accent px-4 py-2 text-sm font-medium text-white transition hover:bg-accent-hover" onclick={retry}><RefreshCw size={15} aria-hidden="true" />{i18n.t.common.retry}</button>
     </div>
   {:else if show}
-    <section class="overflow-hidden rounded-2xl border border-border bg-surface">
+    <section class="overflow-hidden rounded-lg bg-surface">
       <div class="flex gap-4 p-5">
-        <div class="h-28 w-20 shrink-0 overflow-hidden rounded-xl bg-elevated">
+        <div class="h-28 w-20 shrink-0 overflow-hidden rounded-md bg-card">
           {#if show.coverUrl}
             <img src={show.coverUrl} alt={show.title} class="h-full w-full object-cover" />
           {/if}
@@ -88,11 +88,11 @@
 
     <section class="space-y-3">
       <h1 class="text-xl font-bold tracking-tight text-ink">{i18n.t.views.seasonsOf(show.title)}</h1>
-      {#if show.seasons.length === 0}
-        <div class="rounded-2xl border border-dashed border-border bg-surface/60 p-8 text-center text-sm text-muted">{i18n.t.views.noSeasons}</div>
+      {#if (show.seasons ?? []).length === 0}
+        <div class="rounded-lg bg-surface p-8 text-center text-sm text-muted">{i18n.t.views.noSeasons}</div>
       {:else}
         <div class="space-y-3">
-          {#each show.seasons as season (season.id)}
+          {#each show.seasons ?? [] as season (season.id)}
             <SeasonRow {season} onProgress={setSeasonProgress} onProgressCommitted={onMediaChanged} />
           {/each}
         </div>

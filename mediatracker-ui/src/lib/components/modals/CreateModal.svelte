@@ -213,7 +213,7 @@
 
 {#if isOpen}
   <div class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-canvas/85 p-4 backdrop-blur-sm sm:items-center" role="presentation" onclick={closeOnBackdrop}>
-    <div class="my-auto w-full max-w-2xl overflow-hidden rounded-2xl border border-border bg-surface shadow-2xl shadow-black/50" role="dialog" aria-modal="true" aria-labelledby="create-media-title">
+    <div class="my-auto w-full max-w-2xl overflow-hidden rounded-lg border border-border bg-surface shadow-2xl shadow-black/50" role="dialog" aria-modal="true" aria-labelledby="create-media-title">
       <header class="flex items-start justify-between gap-4 border-b border-border px-5 py-5 sm:px-6">
         <div>
           <p class="text-xs font-semibold uppercase tracking-[0.18em] text-accent-soft">{i18n.t.createModal.eyebrow}</p>
@@ -267,7 +267,7 @@
           </div>
         {/if}
 
-        <footer class="flex justify-end gap-3 border-t border-border pt-5"><button type="button" class="rounded-lg px-3 py-2 text-sm font-semibold text-muted transition hover:text-ink" onclick={close}>{i18n.t.common.cancel}</button><button type="submit" class="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:bg-accent-soft disabled:cursor-wait disabled:opacity-70" disabled={submitting}>{submitting ? i18n.t.common.saving : i18n.t.common.add}</button></footer>
+        <footer class="flex justify-end gap-3 border-t border-border pt-5"><button type="button" class="rounded-md px-3 py-2 text-sm font-semibold text-muted transition hover:text-ink" onclick={close}>{i18n.t.common.cancel}</button><button type="submit" class="rounded-md bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:bg-accent-hover disabled:cursor-wait disabled:opacity-70" disabled={submitting}>{submitting ? i18n.t.common.saving : i18n.t.common.add}</button></footer>
       </form>
     </div>
   </div>

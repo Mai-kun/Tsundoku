@@ -188,8 +188,8 @@
   }
 </script>
 
-<article class="group relative cursor-pointer overflow-hidden rounded-2xl border border-border bg-surface shadow-sm transition hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-xl hover:shadow-black/20" style="content-visibility: auto; contain-intrinsic-size: auto none;" role="button" tabindex="0" aria-label={i18n.t.card.openDetails(item.title)} onclick={() => onOpen(item)} onkeydown={handleCardKeydown}>
-  <div class="aspect-[3/4] overflow-hidden bg-elevated">
+<article class="group relative cursor-pointer overflow-hidden rounded-lg bg-card transition hover:bg-card-hover" style="content-visibility: auto; contain-intrinsic-size: auto none;" role="button" tabindex="0" aria-label={i18n.t.card.openDetails(item.title)} onclick={() => onOpen(item)} onkeydown={handleCardKeydown}>
+  <div class="aspect-[3/4] overflow-hidden bg-canvas">
     {#if item.coverUrl}
       <img src={item.coverUrl} alt={item.title} class="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]" loading="lazy" />
     {:else}
@@ -224,11 +224,11 @@
         <div class="flex items-center justify-between gap-2 text-xs text-muted">
           <span>{progressLabel(item)}</span>
           {#if item.score !== null}
-            <span class="font-semibold text-amber-300">★ {format(item.score)}</span>
+            <span class="font-semibold text-star">★ {format(item.score)}</span>
           {/if}
         </div>
         {#if progressRatio(item) !== null}
-          <div class="h-1.5 overflow-hidden rounded-full bg-panel">
+          <div class="h-1.5 overflow-hidden rounded-full bg-canvas">
             <div class="h-full rounded-full bg-accent transition-[width] duration-200" style={`width: ${progressRatio(item)! * 100}%`}></div>
           </div>
         {/if}
@@ -236,10 +236,10 @@
     {/if}
 
     {#if supportsStepper(item)}
-      <div class="flex h-8 items-center rounded-lg border border-border bg-elevated">
-        <button type="button" class="grid h-full w-8 place-items-center rounded-l-lg text-muted transition hover:bg-panel hover:text-ink" aria-label={i18n.t.card.decrement} onclick={(event) => { event.stopPropagation(); scheduleProgress(-1) }}><Minus size={14} aria-hidden="true" /></button>
+      <div class="flex h-8 items-center rounded-md bg-canvas">
+        <button type="button" class="grid h-full w-8 place-items-center rounded-l-md text-muted transition hover:bg-panel hover:text-ink" aria-label={i18n.t.card.decrement} onclick={(event) => { event.stopPropagation(); scheduleProgress(-1) }}><Minus size={14} aria-hidden="true" /></button>
         <span class="flex-1 text-center text-xs font-semibold tabular-nums text-ink">{format(currentProgress)}</span>
-        <button type="button" class="grid h-full w-8 place-items-center rounded-r-lg text-muted transition hover:bg-panel hover:text-ink" aria-label={i18n.t.card.increment} onclick={(event) => { event.stopPropagation(); scheduleProgress(1) }}><Plus size={14} aria-hidden="true" /></button>
+        <button type="button" class="grid h-full w-8 place-items-center rounded-r-md text-muted transition hover:bg-panel hover:text-ink" aria-label={i18n.t.card.increment} onclick={(event) => { event.stopPropagation(); scheduleProgress(1) }}><Plus size={14} aria-hidden="true" /></button>
       </div>
     {/if}
 

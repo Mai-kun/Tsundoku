@@ -35,6 +35,7 @@ export const ru = {
     seasons: 'Сезоны',
     brand: 'Медиа-трекер',
     toolsLabel: 'Инструменты',
+    settings: 'Настройки',
     mainLabel: 'Основная навигация',
   },
   library: {
@@ -129,6 +130,8 @@ export const ru = {
       game: 'ч.',
       book: 'стр.',
     },
+    searchMore: 'Искать ещё',
+    preview: 'Подробнее',
   },
 
   createModal: {
@@ -232,6 +235,36 @@ export const ru = {
     markWatched: 'Отметить просмотренной',
     episodeTitle: (episode: number) => `Серия ${episode}`,
     watchAction: 'Отметить как просмотрено',
+    updateMetadata: 'Обновить метаданные',
+    updatingMetadata: 'Обновление…',
+    metadataUpdated: 'Метаданные обновлены.',
+    userScoreLabel: 'Ваша оценка',
+  },
+  settingsModal: {
+    title: 'Настройки',
+    tabs: {
+      sources: 'Источники',
+      search: 'Поиск',
+    },
+    sources: {
+      title: 'Поддерживаемые источники',
+      description: 'Источники данных для поиска и синхронизации метаданных.',
+      noKeyRequired: 'Ключ не требуется',
+      keyRequired: 'Требуется API ключ',
+      keyConfigured: 'Ключ настроен (зашифрован в SQLite)',
+      keyMissing: 'Ключ не задан',
+      inputPlaceholder: 'Введите API ключ...',
+      saveKey: 'Сохранить ключ',
+      saved: 'Ключ успешно сохранён и зашифрован в базе данных',
+      saveError: 'Ошибка при сохранении ключа',
+    },
+    search: {
+      orderTitle: 'Порядок категорий в поиске «Все»',
+      orderHint: 'Настройте порядок отображения групп категорий при общем поиске.',
+      moveUp: 'Вверх',
+      moveDown: 'Вниз',
+      saved: 'Порядок сохранён',
+    },
   },
   errors: {
     unexpected: 'Произошла непредвиденная ошибка.',

@@ -35,17 +35,69 @@ public sealed class TmdbMetadataProvider(
 
         return results
             .Where(item => isMovie ? item.Title is not null : item.Name is not null)
-            .Select(item => new ExternalMediaDto
-            {
-                ExternalId = item.Id.ToString(),
-                Title = isMovie ? item.Title! : item.Name!,
-                OriginalTitle = isMovie ? item.OriginalTitle : item.OriginalName,
-                CoverUrl = item.PosterPath is null ? null : $"https://image.tmdb.org/t/p/w500{item.PosterPath}",
-                Description = item.Overview,
-                ReleaseYear = ParseYear(isMovie ? item.ReleaseDate : item.FirstAirDate),
-                Type = mediaType,
-            })
+            .Select(MapItem)
             .ToList();
+    }
+
+    public async Task<ExternalMediaDto?> GetDetailsAsync(string externalId, string title, CancellationToken ct)
+    {
+        var apiKey = options.Value.TmdbApiKey;
+        if (string.IsNullOrWhiteSpace(apiKey))
+        {
+            return null;
+        }
+
+        if (long.TryParse(externalId, out var id))
+        {
+            try
+            {
+                var client = httpClientFactory.CreateClient("Tmdb");
+                var isMovie = mediaType == "movie";
+                var detailPath = isMovie ? $"movie/{id}" : $"tv/{id}";
+                var item = await client.GetFromJsonAsync<TmdbItem>(
+                    $"{detailPath}?api_key={Uri.EscapeDataString(apiKey)}", ct);
+
+                if (item is not null)
+                {
+                    return MapItem(item);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to get TMDB details for {Id}", externalId);
+            }
+        }
+
+        var searchResults = await SearchAsync(title, ct);
+        return searchResults.FirstOrDefault();
+    }
+
+    private ExternalMediaDto MapItem(TmdbItem item)
+    {
+        var isMovie = mediaType == "movie";
+        var rating = item.VoteAverage is { } va && va > 0 ? Math.Round(va, 1) : (double?)null;
+        var ratings = rating is not null
+            ? new List<ExternalRatingDto>
+            {
+                new() { Source = "TMDB", Rating = rating.Value, Votes = item.VoteCount }
+            }
+            : null;
+
+        return new ExternalMediaDto
+        {
+            ExternalId = item.Id.ToString(),
+            ExternalSource = "TMDB",
+            Title = isMovie ? item.Title ?? string.Empty : item.Name ?? string.Empty,
+            OriginalTitle = isMovie ? item.OriginalTitle : item.OriginalName,
+            CoverUrl = item.PosterPath is null ? null : $"https://image.tmdb.org/t/p/w500{item.PosterPath}",
+            Description = item.Overview,
+            ReleaseYear = ParseYear(isMovie ? item.ReleaseDate : item.FirstAirDate),
+            Type = mediaType,
+            Rating = rating,
+            RatingVotes = item.VoteCount,
+            Ratings = ratings,
+            TotalCount = isMovie ? item.Runtime : item.NumberOfEpisodes
+        };
     }
 
     private static int? ParseYear(string? date) =>
@@ -62,5 +114,9 @@ public sealed class TmdbMetadataProvider(
         string? Overview,
         [property: JsonPropertyName("poster_path")] string? PosterPath,
         [property: JsonPropertyName("release_date")] string? ReleaseDate,
-        [property: JsonPropertyName("first_air_date")] string? FirstAirDate);
+        [property: JsonPropertyName("first_air_date")] string? FirstAirDate,
+        [property: JsonPropertyName("vote_average")] double? VoteAverage,
+        [property: JsonPropertyName("vote_count")] int? VoteCount,
+        [property: JsonPropertyName("runtime")] int? Runtime,
+        [property: JsonPropertyName("number_of_episodes")] int? NumberOfEpisodes);
 }

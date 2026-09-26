@@ -62,6 +62,16 @@ public record MediaListDto
     public int? TotalEpisodesWatched { get; init; }
 
     public int? SeasonsCount { get; init; }
+
+    public string? ExternalId { get; init; }
+
+    public string? ExternalSource { get; init; }
+
+    public double? ExternalRating { get; init; }
+
+    public int? ExternalRatingVotes { get; init; }
+
+    public string? ExternalRatingsJson { get; init; }
 }
 
 public sealed record MediaDetailDto : MediaListDto
@@ -95,6 +105,8 @@ public sealed record TvSeasonDto
     public string? Notes { get; init; }
 
     public DateTime? AirDate { get; init; }
+
+    public string? EpisodesData { get; init; }
 
     public required Guid TvShowId { get; init; }
 }
@@ -175,9 +187,14 @@ public static class MediaResponseMapper
         CreatedAt = item.CreatedAt,
         FranchiseId = item.FranchiseId,
         FranchiseOrder = item.FranchiseOrder,
+        ExternalId = item.ExternalId,
+        ExternalSource = item.ExternalSource,
+        ExternalRating = item.ExternalRating,
+        ExternalRatingVotes = item.ExternalRatingVotes,
+        ExternalRatingsJson = item.ExternalRatingsJson,
     };
 
-    private static string GetType(MediaItem item) => item switch
+    public static string GetType(MediaItem item) => item switch
     {
         VideoGame => "game",
         Book => "book",
@@ -199,6 +216,7 @@ public static class MediaResponseMapper
         Score = season.Score,
         Notes = season.Notes,
         AirDate = season.AirDate,
+        EpisodesData = season.EpisodesData,
         TvShowId = season.TvShowId,
     };
 }

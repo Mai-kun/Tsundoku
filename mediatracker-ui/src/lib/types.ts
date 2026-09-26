@@ -15,6 +15,19 @@ export type AppView = 'home' | MediaType | 'anime' | 'stats' | 'lists' | 'calend
 export type SortBy = 'createdAt' | 'score' | 'title'
 export type SortOrder = 'asc' | 'desc'
 
+export interface ExternalRating {
+  source: string
+  rating: number
+  score?: number
+  votes?: number | null
+}
+
+export interface ExternalEpisode {
+  number: number
+  title: string
+  airDate?: string | null
+}
+
 export interface MediaBase {
   id: string
   type: MediaType
@@ -28,8 +41,11 @@ export interface MediaBase {
   createdAt: string
   franchiseId: string | null
   franchiseOrder: number | null
+  externalId?: string | null
+  externalSource?: string | null
   externalRating?: number | null
   externalRatingVotes?: number | null
+  externalRatingsJson?: string | null
 }
 
 export interface GameMedia extends MediaBase {
@@ -83,6 +99,7 @@ export interface TvSeason {
   score: number | null
   notes: string | null
   airDate: string | null
+  episodesData?: string | null
   tvShowId: string
 }
 
@@ -109,6 +126,7 @@ export interface MediaStats {
 
 export interface ExternalMedia {
   externalId: string
+  externalSource?: string | null
   title: string
   originalTitle: string | null
   coverUrl: string | null
@@ -119,6 +137,10 @@ export interface ExternalMedia {
   studio: string | null
   totalCount: number | null
   platform: string | null
+  rating?: number | null
+  ratingVotes?: number | null
+  ratings?: ExternalRating[] | null
+  episodes?: ExternalEpisode[] | null
 }
 
 export interface MediaFilters {
@@ -138,6 +160,11 @@ interface CreateMediaBase {
   notes?: string | null
   franchiseId?: string | null
   franchiseOrder?: number | null
+  externalId?: string | null
+  externalSource?: string | null
+  externalRating?: number | null
+  externalRatingVotes?: number | null
+  externalRatingsJson?: string | null
 }
 
 export interface CreateGamePayload extends CreateMediaBase {
@@ -175,6 +202,7 @@ export interface CreateSeasonPayload {
   score?: number | null
   notes?: string | null
   airDate?: string | null
+  episodesData?: string | null
 }
 
 export interface CreateTvShowPayload extends CreateMediaBase {
@@ -200,6 +228,17 @@ export interface UpdateMediaPayload {
   coverUrl?: string | null
   startedAt?: string | null
   finishedAt?: string | null
+}
+
+export interface SourceInfo {
+  id: string
+  name: string
+  description: string
+  mediaTypes: string[]
+  requiresApiKey: boolean
+  isConfigured: boolean
+  hasKey: boolean
+  maskedKey: string | null
 }
 
 export function clampProgress(current: number, total: number | null | undefined): number {

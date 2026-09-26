@@ -43,4 +43,14 @@ public sealed record CreateMediaRequest
     public string? Network { get; init; }
 
     public List<CreateSeasonRequest>? Seasons { get; init; }
+
+    public string? ExternalId { get; init; }
+
+    public string? ExternalSource { get; init; }
+
+    public double? ExternalRating { get; init; }
+
+    public int? ExternalRatingVotes { get; init; }
+
+    public string? ExternalRatingsJson { get; init; }
 }

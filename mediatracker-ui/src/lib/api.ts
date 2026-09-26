@@ -153,3 +153,31 @@ export function updateStatus(id: string, status: MediaStatus): Promise<void> {
 export function deleteMedia(id: string): Promise<void> {
   return requestVoid(`${mediaEndpoint}/${id}`, { method: 'DELETE' })
 }
+
+export function refreshMetadata(id: string): Promise<MediaDetail> {
+  return requestJson<MediaDetail>(`${mediaEndpoint}/${id}/refresh`, { method: 'POST' })
+}
+
+export function getSources(): Promise<import('$lib/types').SourceInfo[]> {
+  return requestJson<import('$lib/types').SourceInfo[]>('/api/settings/sources')
+}
+
+export function saveSourceKey(
+  sourceId: string,
+  apiKey: string,
+): Promise<{ success: boolean; hasKey: boolean; maskedKey: string | null }> {
+  return requestJson(`/api/settings/sources/${sourceId}/key`, jsonOptions('PUT', { apiKey }))
+}
+
+export function getCategoryOrder(): Promise<string[]> {
+  return requestJson<string[]>('/api/settings/category-order')
+}
+
+export function saveCategoryOrder(order: string[]): Promise<string[]> {
+  return requestJson<string[]>('/api/settings/category-order', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(order),
+  })
+}
+

@@ -19,4 +19,6 @@ public sealed record CreateSeasonRequest
     public string? Notes { get; init; }
 
     public DateTime? AirDate { get; init; }
+
+    public string? EpisodesData { get; init; }
 }

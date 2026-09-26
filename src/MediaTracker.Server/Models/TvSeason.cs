@@ -22,6 +22,8 @@ public class TvSeason
 
     public DateTime? AirDate { get; set; }
 
+    public string? EpisodesData { get; set; }
+
     public Guid TvShowId { get; set; }
 
     public TvShow TvShow { get; set; } = null!;

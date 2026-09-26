@@ -31,8 +31,8 @@
 </script>
 
 {#if loading}
-  <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6" aria-hidden="true">
-    {#each Array(6) as _, index (index)}
+  <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-7" aria-hidden="true">
+    {#each Array(7) as _, index (index)}
       <div class="overflow-hidden rounded-lg bg-card">
         <div class="aspect-[3/4] animate-pulse bg-card-hover"></div>
         <div class="space-y-2 p-3.5">
@@ -57,7 +57,7 @@
     </div>
   </div>
 {:else}
-  <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
+  <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-7">
     {#each items as item (item.id)}
       <MediaCard {item} {onOpen} {onProgress} {onProgressCommitted} {onDelete} {onEdit} />
     {/each}

@@ -1,7 +1,8 @@
 <script lang="ts">
   import { Check, ChevronDown, ChevronUp, Eye, EyeOff, Key, Layers, Search, Server, ShieldCheck, X } from 'lucide-svelte'
   import { onMount } from 'svelte'
-  import { errorMessage, getCategoryOrder, getSources, saveCategoryOrder, saveSourceKey } from '$lib/api'
+  import { errorMessage, getCategoryOrder, getSources, getSourcePriority, saveCategoryOrder, saveSourceKey, saveSourcePriority } from '$lib/api'
+  import { showToast } from '$lib/stores/toast.svelte'
   import { i18n } from '$lib/i18n/index.svelte'
   import type { SourceInfo } from '$lib/types'
 
@@ -19,6 +20,13 @@
   let sourcesLoading = $state(false)
   let sourcesError = $state<unknown>(null)
 
+  let selectedTypeFilter = $state<string>('all')
+  let filteredSources = $derived(
+    selectedTypeFilter === 'all'
+      ? sources
+      : sources.filter((s) => s.mediaTypes.includes(selectedTypeFilter))
+  )
+
   let inputKeys = $state<Record<string, string>>({})
   let showKeys = $state<Record<string, boolean>>({})
   let savingKey = $state('')
@@ -32,10 +40,24 @@
 
   const defaultCategories = ['anime', 'movie', 'tvshow', 'manga', 'game', 'book']
 
+  const defaultPriority: Record<string, string[]> = {
+    anime: ['anilist', 'jikan'],
+    manga: ['anilist', 'mangaupdates', 'jikan'],
+    movie: ['tmdb'],
+    tvshow: ['tmdb'],
+    game: ['rawg'],
+    book: ['openlibrary'],
+  }
+
+  let sourcePriority = $state<Record<string, string[]>>({ ...defaultPriority })
+  let priorityLoading = $state(false)
+  let prioritySaving = $state(false)
+
   $effect(() => {
     if (isOpen) {
       void loadSources()
       void loadOrder()
+      void loadPriority()
     }
   })
 
@@ -62,6 +84,17 @@
     }
   }
 
+  async function loadPriority() {
+    priorityLoading = true
+    try {
+      sourcePriority = await getSourcePriority()
+    } catch {
+      sourcePriority = { ...defaultPriority }
+    } finally {
+      priorityLoading = false
+    }
+  }
+
   async function handleSaveKey(sourceId: string) {
     const key = inputKeys[sourceId]?.trim() ?? ''
     savingKey = sourceId
@@ -71,6 +104,7 @@
     try {
       const res = await saveSourceKey(sourceId, key)
       keySuccess[sourceId] = i18n.t.settingsModal.sources.saved
+      showToast(i18n.t.settingsModal.sources.saved, 'success')
       // Update local source record
       const s = sources.find((x) => x.id === sourceId)
       if (s) {
@@ -81,6 +115,7 @@
       inputKeys[sourceId] = ''
     } catch (e) {
       keyErrors[sourceId] = e
+      showToast(errorMessage(e), 'error')
     } finally {
       savingKey = ''
     }
@@ -101,17 +136,54 @@
     try {
       await saveCategoryOrder(newOrder)
       orderSuccess = true
+      showToast(i18n.t.settingsModal.search.saved, 'success')
       setTimeout(() => (orderSuccess = false), 2000)
     } catch (e) {
       console.error(e)
+      showToast(errorMessage(e), 'error')
     } finally {
       orderSaving = false
+    }
+  }
+
+  async function moveSourcePriority(type: string, index: number, direction: 'up' | 'down') {
+    const currentList = [...(sourcePriority[type] || defaultPriority[type] || [])]
+    const targetIndex = direction === 'up' ? index - 1 : index + 1
+    if (targetIndex < 0 || targetIndex >= currentList.length) return
+
+    const temp = currentList[index]
+    currentList[index] = currentList[targetIndex]
+    currentList[targetIndex] = temp
+
+    sourcePriority = { ...sourcePriority, [type]: currentList }
+
+    prioritySaving = true
+    try {
+      await saveSourcePriority(sourcePriority)
+      showToast(i18n.t.settingsModal.search.prioritySaved, 'success')
+    } catch (e) {
+      console.error(e)
+      showToast(errorMessage(e), 'error')
+    } finally {
+      prioritySaving = false
     }
   }
 
   function categoryLabel(cat: string): string {
     if (cat === 'anime') return i18n.t.navigation.anime
     return i18n.t.types[cat as keyof typeof i18n.t.types] || cat
+  }
+
+  function getSourceName(id: string): string {
+    const s = sources.find((x) => x.id === id)
+    if (s) return s.name
+    if (id === 'jikan') return 'MyAnimeList (Jikan)'
+    if (id === 'mangaupdates') return 'MangaUpdates'
+    if (id === 'anilist') return 'AniList'
+    if (id === 'tmdb') return 'TMDb'
+    if (id === 'rawg') return 'RAWG'
+    if (id === 'openlibrary') return 'OpenLibrary'
+    return id
   }
 
   function handleKeydown(event: KeyboardEvent) {
@@ -147,7 +219,7 @@
         </div>
         <button
           type="button"
-          class="grid h-8 w-8 place-items-center rounded-lg text-muted transition hover:bg-elevated hover:text-ink"
+          class="grid h-8 w-8 place-items-center rounded-lg text-muted transition hover:bg-elevated hover:text-ink cursor-pointer"
           aria-label={i18n.t.common.close}
           onclick={onClose}
         >
@@ -159,7 +231,7 @@
       <div class="flex border-b border-border bg-card/40 px-6">
         <button
           type="button"
-          class={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition ${
+          class={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition cursor-pointer ${
             activeTab === 'sources'
               ? 'border-accent-soft text-ink'
               : 'border-transparent text-muted hover:text-ink'
@@ -171,7 +243,7 @@
         </button>
         <button
           type="button"
-          class={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition ${
+          class={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition cursor-pointer ${
             activeTab === 'search'
               ? 'border-accent-soft text-ink'
               : 'border-transparent text-muted hover:text-ink'
@@ -187,9 +259,30 @@
       <div class="flex-1 overflow-y-auto p-6">
         {#if activeTab === 'sources'}
           <div class="space-y-4">
-            <div>
-              <h3 class="text-sm font-semibold text-ink">{i18n.t.settingsModal.sources.title}</h3>
-              <p class="mt-0.5 text-xs text-muted">{i18n.t.settingsModal.sources.description}</p>
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h3 class="text-sm font-semibold text-ink">{i18n.t.settingsModal.sources.title}</h3>
+                <p class="mt-0.5 text-xs text-muted">{i18n.t.settingsModal.sources.description}</p>
+              </div>
+
+              <!-- Media Type Filter Dropdown (Item 15) -->
+              <div class="flex items-center gap-2">
+                <label for="source-type-filter" class="text-xs text-muted shrink-0">{i18n.t.settingsModal.sources.filterLabel}:</label>
+                <select
+                  id="source-type-filter"
+                  class="h-8 rounded-md border border-border bg-card px-2.5 text-xs text-ink focus:border-accent-soft focus:outline-none cursor-pointer"
+                  value={selectedTypeFilter}
+                  onchange={(e) => (selectedTypeFilter = (e.currentTarget as HTMLSelectElement).value)}
+                >
+                  <option value="all">{i18n.t.settingsModal.sources.filterAll}</option>
+                  <option value="anime">{i18n.t.navigation.anime}</option>
+                  <option value="manga">{i18n.t.types.manga}</option>
+                  <option value="movie">{i18n.t.types.movie}</option>
+                  <option value="tvshow">{i18n.t.types.tvshow}</option>
+                  <option value="game">{i18n.t.types.game}</option>
+                  <option value="book">{i18n.t.types.book}</option>
+                </select>
+              </div>
             </div>
 
             {#if sourcesLoading}
@@ -202,7 +295,7 @@
               <p class="rounded-lg bg-rose-400/10 p-3 text-xs text-rose-300">{errorMessage(sourcesError)}</p>
             {:else}
               <div class="space-y-3">
-                {#each sources as source (source.id)}
+                {#each filteredSources as source (source.id)}
                   <div class="rounded-lg border border-border bg-card p-4 transition">
                     <div class="flex flex-wrap items-start justify-between gap-2">
                       <div>
@@ -258,7 +351,7 @@
                             />
                             <button
                               type="button"
-                              class="absolute right-2 top-1/2 -translate-y-1/2 text-muted hover:text-ink"
+                              class="absolute right-2 top-1/2 -translate-y-1/2 text-muted hover:text-ink cursor-pointer"
                               aria-label="Toggle key visibility"
                               onclick={() => (showKeys[source.id] = !showKeys[source.id])}
                             >
@@ -270,9 +363,11 @@
                             </button>
                           </div>
 
+                          <!-- Save key button: Item 14 pointer cursor when active, not-allowed when disabled, no cursor-wait -->
                           <button
                             type="button"
-                            class="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-elevated px-3 text-xs font-semibold text-ink transition hover:bg-card hover:border-accent-soft disabled:cursor-wait disabled:opacity-60"
+                            class="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-elevated px-3 text-xs font-semibold text-ink transition hover:bg-card hover:border-accent-soft cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+                            class:cursor-wait={savingKey === source.id}
                             disabled={savingKey === source.id || !inputKeys[source.id]?.trim()}
                             onclick={() => void handleSaveKey(source.id)}
                           >
@@ -295,53 +390,118 @@
             {/if}
           </div>
         {:else if activeTab === 'search'}
-          <div class="space-y-4">
-            <div>
-              <h3 class="text-sm font-semibold text-ink">{i18n.t.settingsModal.search.orderTitle}</h3>
-              <p class="mt-0.5 text-xs text-muted">{i18n.t.settingsModal.search.orderHint}</p>
-            </div>
-
-            {#if orderLoading}
-              <div class="h-32 animate-pulse rounded-lg bg-card"></div>
-            {:else}
-              <div class="space-y-2">
-                {#each categoryOrder as cat, idx (cat)}
-                  <div class="flex items-center justify-between rounded-lg border border-border bg-card px-4 py-2.5">
-                    <div class="flex items-center gap-3">
-                      <span class="grid h-6 w-6 place-items-center rounded bg-canvas text-xs font-bold text-muted">
-                        {idx + 1}
-                      </span>
-                      <span class="text-sm font-medium text-ink">{categoryLabel(cat)}</span>
-                    </div>
-
-                    <div class="flex items-center gap-1">
-                      <button
-                        type="button"
-                        class="grid h-7 w-7 place-items-center rounded-md text-muted transition hover:bg-elevated hover:text-ink disabled:opacity-30"
-                        disabled={idx === 0 || orderSaving}
-                        aria-label={i18n.t.settingsModal.search.moveUp}
-                        onclick={() => void moveCategory(idx, 'up')}
-                      >
-                        <ChevronUp size={16} />
-                      </button>
-                      <button
-                        type="button"
-                        class="grid h-7 w-7 place-items-center rounded-md text-muted transition hover:bg-elevated hover:text-ink disabled:opacity-30"
-                        disabled={idx === categoryOrder.length - 1 || orderSaving}
-                        aria-label={i18n.t.settingsModal.search.moveDown}
-                        onclick={() => void moveCategory(idx, 'down')}
-                      >
-                        <ChevronDown size={16} />
-                      </button>
-                    </div>
-                  </div>
-                {/each}
+          <div class="space-y-6">
+            <!-- Category order in All search -->
+            <div class="space-y-4">
+              <div>
+                <h3 class="text-sm font-semibold text-ink">{i18n.t.settingsModal.search.orderTitle}</h3>
+                <p class="mt-0.5 text-xs text-muted">{i18n.t.settingsModal.search.orderHint}</p>
               </div>
 
-              {#if orderSuccess}
-                <p class="text-xs font-medium text-emerald-400">{i18n.t.settingsModal.search.saved}</p>
+              {#if orderLoading}
+                <div class="h-32 animate-pulse rounded-lg bg-card"></div>
+              {:else}
+                <div class="space-y-2">
+                  {#each categoryOrder as cat, idx (cat)}
+                    <div class="flex items-center justify-between rounded-lg border border-border bg-card px-4 py-2.5">
+                      <div class="flex items-center gap-3">
+                        <span class="grid h-6 w-6 place-items-center rounded bg-canvas text-xs font-bold text-muted">
+                          {idx + 1}
+                        </span>
+                        <span class="text-sm font-medium text-ink">{categoryLabel(cat)}</span>
+                      </div>
+
+                      <div class="flex items-center gap-1">
+                        <button
+                          type="button"
+                          class="grid h-7 w-7 place-items-center rounded-md text-muted transition hover:bg-elevated hover:text-ink cursor-pointer disabled:cursor-not-allowed disabled:opacity-30"
+                          disabled={idx === 0 || orderSaving}
+                          aria-label={i18n.t.settingsModal.search.moveUp}
+                          onclick={() => void moveCategory(idx, 'up')}
+                        >
+                          <ChevronUp size={16} />
+                        </button>
+                        <button
+                          type="button"
+                          class="grid h-7 w-7 place-items-center rounded-md text-muted transition hover:bg-elevated hover:text-ink cursor-pointer disabled:cursor-not-allowed disabled:opacity-30"
+                          disabled={idx === categoryOrder.length - 1 || orderSaving}
+                          aria-label={i18n.t.settingsModal.search.moveDown}
+                          onclick={() => void moveCategory(idx, 'down')}
+                        >
+                          <ChevronDown size={16} />
+                        </button>
+                      </div>
+                    </div>
+                  {/each}
+                </div>
+
+                {#if orderSuccess}
+                  <p class="text-xs font-medium text-emerald-400">{i18n.t.settingsModal.search.saved}</p>
+                {/if}
               {/if}
-            {/if}
+            </div>
+
+            <!-- Source search priority with fallback (Item 16) -->
+            <div class="border-t border-border pt-6 space-y-4">
+              <div>
+                <h3 class="text-sm font-semibold text-ink">{i18n.t.settingsModal.search.sourcePriorityTitle}</h3>
+                <p class="mt-0.5 text-xs text-muted">{i18n.t.settingsModal.search.sourcePriorityHint}</p>
+              </div>
+
+              {#if priorityLoading}
+                <div class="h-28 animate-pulse rounded-lg bg-card"></div>
+              {:else}
+                <div class="space-y-4">
+                  {#each Object.entries(sourcePriority) as [mediaType, providers] (mediaType)}
+                    {#if providers && providers.length > 1}
+                      <div class="rounded-lg border border-border bg-card/60 p-3.5 space-y-2">
+                        <div class="flex items-center justify-between">
+                          <h4 class="text-xs font-bold uppercase tracking-wider text-accent-soft">{categoryLabel(mediaType)}</h4>
+                          <span class="text-[11px] text-muted">{providers.length} источника</span>
+                        </div>
+                        <div class="space-y-1.5">
+                          {#each providers as provId, pIdx (provId)}
+                            <div class="flex items-center justify-between rounded-md border border-border/70 bg-surface px-3 py-2">
+                              <div class="flex items-center gap-2.5">
+                                <span class="grid h-5 w-5 place-items-center rounded bg-canvas text-[11px] font-bold text-muted">
+                                  {pIdx + 1}
+                                </span>
+                                <span class="text-xs font-medium text-ink">{getSourceName(provId)}</span>
+                                {#if pIdx === 0}
+                                  <span class="rounded bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-400">Основной</span>
+                                {:else}
+                                  <span class="rounded bg-canvas px-1.5 py-0.5 text-[10px] text-muted">Резервный ({pIdx + 1})</span>
+                                {/if}
+                              </div>
+                              <div class="flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  class="grid h-6 w-6 place-items-center rounded text-muted transition hover:bg-elevated hover:text-ink cursor-pointer disabled:cursor-not-allowed disabled:opacity-30"
+                                  disabled={pIdx === 0 || prioritySaving}
+                                  aria-label={i18n.t.settingsModal.search.moveUp}
+                                  onclick={() => void moveSourcePriority(mediaType, pIdx, 'up')}
+                                >
+                                  <ChevronUp size={14} />
+                                </button>
+                                <button
+                                  type="button"
+                                  class="grid h-6 w-6 place-items-center rounded text-muted transition hover:bg-elevated hover:text-ink cursor-pointer disabled:cursor-not-allowed disabled:opacity-30"
+                                  disabled={pIdx === providers.length - 1 || prioritySaving}
+                                  aria-label={i18n.t.settingsModal.search.moveDown}
+                                  onclick={() => void moveSourcePriority(mediaType, pIdx, 'down')}
+                                >
+                                  <ChevronDown size={14} />
+                                </button>
+                              </div>
+                            </div>
+                          {/each}
+                        </div>
+                      </div>
+                    {/if}
+                  {/each}
+                </div>
+              {/if}
+            </div>
           </div>
         {/if}
       </div>

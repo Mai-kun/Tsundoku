@@ -122,13 +122,37 @@ try
     builder.Services.AddHttpClient("OpenLibrary", client => client.BaseAddress = new Uri("https://openlibrary.org/"));
     builder.Services.AddHttpClient("Tmdb", client => client.BaseAddress = new Uri("https://api.themoviedb.org/3/"));
     builder.Services.AddHttpClient("Rawg", client => client.BaseAddress = new Uri("https://api.rawg.io/api/"));
+    builder.Services.AddHttpClient("Jikan", client =>
+    {
+        client.BaseAddress = new Uri("https://api.jikan.moe/v4/");
+        client.DefaultRequestHeaders.UserAgent.ParseAdd("TsundokuMediaTracker/1.0");
+    });
+    builder.Services.AddHttpClient("MangaUpdates", client =>
+    {
+        client.BaseAddress = new Uri("https://api.mangaupdates.com/v1/");
+        client.DefaultRequestHeaders.UserAgent.ParseAdd("TsundokuMediaTracker/1.0");
+    });
 
     builder.Services.AddKeyedTransient<IMetadataProvider, AniListMetadataProvider>("anime");
+    builder.Services.AddKeyedTransient<IMetadataProvider, AniListMetadataProvider>("anime:anilist");
+    builder.Services.AddKeyedTransient<IMetadataProvider, JikanMetadataProvider>("anime:jikan");
+
     builder.Services.AddKeyedTransient<IMetadataProvider, AniListMetadataProvider>("manga");
+    builder.Services.AddKeyedTransient<IMetadataProvider, AniListMetadataProvider>("manga:anilist");
+    builder.Services.AddKeyedTransient<IMetadataProvider, MangaUpdatesMetadataProvider>("manga:mangaupdates");
+    builder.Services.AddKeyedTransient<IMetadataProvider, JikanMetadataProvider>("manga:jikan");
+
     builder.Services.AddKeyedTransient<IMetadataProvider, OpenLibraryMetadataProvider>("book");
+    builder.Services.AddKeyedTransient<IMetadataProvider, OpenLibraryMetadataProvider>("book:openlibrary");
+
     builder.Services.AddKeyedTransient<IMetadataProvider, TmdbMetadataProvider>("movie");
+    builder.Services.AddKeyedTransient<IMetadataProvider, TmdbMetadataProvider>("movie:tmdb");
+
     builder.Services.AddKeyedTransient<IMetadataProvider, TmdbMetadataProvider>("tvshow");
+    builder.Services.AddKeyedTransient<IMetadataProvider, TmdbMetadataProvider>("tvshow:tmdb");
+
     builder.Services.AddKeyedTransient<IMetadataProvider, RawgMetadataProvider>("game");
+    builder.Services.AddKeyedTransient<IMetadataProvider, RawgMetadataProvider>("game:rawg");
 
     builder.Services.AddTransient<MetadataAggregatorService>();
 

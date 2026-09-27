@@ -207,9 +207,6 @@ export const en: Dictionary = {
     clearRating: 'Clear',
     ratingValue: (score: number) => `${score} / 10`,
     starAria: (score: number) => `Rate ${score}`,
-    tabOverview: 'Overview and seasons',
-    tabRelated: 'Franchise and related',
-    tabNotes: 'Notes and review',
     relatedTitle: 'Related titles',
     relatedEmpty: 'This title does not belong to a franchise.',
     notesHint: 'Your thoughts, quotes and review for this title.',
@@ -263,6 +260,8 @@ export const en: Dictionary = {
     sources: {
       title: 'Supported Sources',
       description: 'Metadata and rating providers supported by the application.',
+      filterLabel: 'Filter by type',
+      filterAll: 'All types',
       noKeyRequired: 'No API key needed',
       keyRequired: 'API key required',
       keyConfigured: 'API key configured (encrypted in SQLite)',
@@ -275,9 +274,12 @@ export const en: Dictionary = {
     search: {
       orderTitle: 'Category order in "All" search',
       orderHint: 'Configure the order of media type sections when searching All.',
+      sourcePriorityTitle: 'Source priority by media type',
+      sourcePriorityHint: 'If no results are found in the primary source, search automatically falls back to the next one.',
       moveUp: 'Up',
       moveDown: 'Down',
       saved: 'Order saved',
+      prioritySaved: 'Source priority saved',
     },
   },
   errors: {

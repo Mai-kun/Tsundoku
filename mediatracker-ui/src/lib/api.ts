@@ -181,3 +181,15 @@ export function saveCategoryOrder(order: string[]): Promise<string[]> {
   })
 }
 
+export function getSourcePriority(): Promise<Record<string, string[]>> {
+  return requestJson<Record<string, string[]>>('/api/settings/source-priority')
+}
+
+export function saveSourcePriority(priority: Record<string, string[]>): Promise<Record<string, string[]>> {
+  return requestJson<Record<string, string[]>>('/api/settings/source-priority', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(priority),
+  })
+}
+

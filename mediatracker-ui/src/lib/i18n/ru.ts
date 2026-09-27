@@ -205,9 +205,6 @@ export const ru = {
     clearRating: 'Сбросить',
     ratingValue: (score: number) => `${score} / 10`,
     starAria: (score: number) => `Поставить оценку ${score}`,
-    tabOverview: 'Обзор и сезоны',
-    tabRelated: 'Франшиза и связанное',
-    tabNotes: 'Заметки и рецензия',
     relatedTitle: 'Связанные тайтлы',
     relatedEmpty: 'Этот тайтл не входит ни в одну франшизу.',
     notesHint: 'Личные мысли, цитаты и рецензия по этому тайтлу.',
@@ -262,6 +259,8 @@ export const ru = {
     sources: {
       title: 'Поддерживаемые источники',
       description: 'Источники данных для поиска и синхронизации метаданных.',
+      filterLabel: 'Фильтр по типу',
+      filterAll: 'Все типы',
       noKeyRequired: 'Ключ не требуется',
       keyRequired: 'Требуется API ключ',
       keyConfigured: 'Ключ настроен (зашифрован в SQLite)',
@@ -274,9 +273,12 @@ export const ru = {
     search: {
       orderTitle: 'Порядок категорий в поиске «Все»',
       orderHint: 'Настройте порядок отображения групп категорий при общем поиске.',
+      sourcePriorityTitle: 'Приоритет источников по типам',
+      sourcePriorityHint: 'Если в первом источнике ничего не найдено, поиск автоматически переходит к следующему.',
       moveUp: 'Вверх',
       moveDown: 'Вниз',
       saved: 'Порядок сохранён',
+      prioritySaved: 'Приоритет источников сохранён',
     },
   },
   errors: {

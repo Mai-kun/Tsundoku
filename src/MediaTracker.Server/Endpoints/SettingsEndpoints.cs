@@ -18,6 +18,8 @@ public static class SettingsEndpoints
         group.MapPut("/sources/{id}/key", SaveSourceKey);
         group.MapGet("/category-order", GetCategoryOrder);
         group.MapPut("/category-order", SaveCategoryOrder);
+        group.MapGet("/source-priority", GetSourcePriority);
+        group.MapPut("/source-priority", SaveSourcePriority);
 
         return app;
     }
@@ -104,6 +106,26 @@ public static class SettingsEndpoints
                 Name: "OpenLibrary",
                 Description: "Books metadata & ratings provider",
                 MediaTypes: ["book"],
+                RequiresApiKey: false,
+                IsConfigured: true,
+                HasKey: true,
+                MaskedKey: null
+            ),
+            new SourceInfo(
+                Id: "jikan",
+                Name: "MyAnimeList (Jikan)",
+                Description: "Anime and Manga metadata & ratings provider",
+                MediaTypes: ["anime", "manga"],
+                RequiresApiKey: false,
+                IsConfigured: true,
+                HasKey: true,
+                MaskedKey: null
+            ),
+            new SourceInfo(
+                Id: "mangaupdates",
+                Name: "MangaUpdates",
+                Description: "Manga and Manhwa metadata & ratings provider",
+                MediaTypes: ["manga"],
                 RequiresApiKey: false,
                 IsConfigured: true,
                 HasKey: true,
@@ -216,6 +238,59 @@ public static class SettingsEndpoints
 
         await db.SaveChangesAsync(ct);
         return Results.Ok(order);
+    }
+
+    private static async Task<IResult> GetSourcePriority(AppDbContext db, CancellationToken ct)
+    {
+        var setting = await db.Settings.FirstOrDefaultAsync(s => s.Key == "SourcePriority", ct);
+        if (setting is not null && !string.IsNullOrWhiteSpace(setting.Value))
+        {
+            try
+            {
+                var parsed = JsonSerializer.Deserialize<Dictionary<string, string[]>>(setting.Value);
+                if (parsed != null && parsed.Count > 0)
+                {
+                    return Results.Ok(parsed);
+                }
+            }
+            catch
+            {
+            }
+        }
+
+        return Results.Ok(MetadataAggregatorService.DefaultSourcePriority);
+    }
+
+    private static async Task<IResult> SaveSourcePriority(
+        Dictionary<string, string[]> priority,
+        AppDbContext db,
+        CancellationToken ct)
+    {
+        if (priority == null || priority.Count == 0)
+        {
+            return Results.BadRequest();
+        }
+
+        var json = JsonSerializer.Serialize(priority);
+        var setting = await db.Settings.FirstOrDefaultAsync(s => s.Key == "SourcePriority", ct);
+        if (setting is null)
+        {
+            setting = new AppSetting
+            {
+                Key = "SourcePriority",
+                Value = json,
+                UpdatedAt = DateTime.UtcNow
+            };
+            db.Settings.Add(setting);
+        }
+        else
+        {
+            setting.Value = json;
+            setting.UpdatedAt = DateTime.UtcNow;
+        }
+
+        await db.SaveChangesAsync(ct);
+        return Results.Ok(priority);
     }
 
     private static string? MaskKey(string? key)

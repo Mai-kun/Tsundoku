@@ -218,6 +218,7 @@
 
 <svelte:window onpointerdown={handleWindowPointerDown} />
 
+<!-- svelte-ignore a11y_no_noninteractive_element_to_interactive_role -->
 <article class="group relative cursor-pointer overflow-hidden rounded-lg bg-card transition hover:bg-card-hover" style="content-visibility: auto; contain-intrinsic-size: auto none;" role="button" tabindex="0" aria-label={i18n.t.card.openDetails(item.title)} onclick={() => onOpen(item)} onkeydown={handleCardKeydown}>
   <div class="aspect-[3/4] overflow-hidden bg-canvas">
     {#if item.coverUrl}
@@ -251,8 +252,8 @@
         </button>
 
         {#if statusMenuOpen}
-          <!-- svelte-ignore a11y_no_static_element_interactions -->
-          <div class="absolute left-0 top-full mt-1.5 w-36 overflow-hidden rounded-md border border-white/5 bg-[#222634] py-1 shadow-xl" role="listbox" onclick={(e) => e.stopPropagation()} onpointerdown={(e) => e.stopPropagation()}>
+          <!-- svelte-ignore a11y_no_static_element_interactions a11y_interactive_supports_focus a11y_click_events_have_key_events -->
+          <div class="absolute left-0 top-full mt-1.5 w-36 overflow-hidden rounded-md border border-white/5 bg-[#222634] py-1 shadow-xl" role="listbox" tabindex="-1" onclick={(e) => e.stopPropagation()} onpointerdown={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()}>
             {#each statusOptions as option}
               <button
                 type="button"

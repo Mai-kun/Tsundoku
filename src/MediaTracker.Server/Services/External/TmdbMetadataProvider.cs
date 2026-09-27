@@ -7,11 +7,13 @@ using Microsoft.Extensions.Options;
 namespace MediaTracker.Server.Services.External;
 
 public sealed class TmdbMetadataProvider(
-    [ServiceKey] string mediaType,
+    [ServiceKey] string serviceKey,
     IHttpClientFactory httpClientFactory,
     IOptions<ExternalApiOptions> options,
     ILogger<TmdbMetadataProvider> logger) : IMetadataProvider
 {
+    private readonly string mediaType = serviceKey.StartsWith("movie", StringComparison.OrdinalIgnoreCase) ? "movie" : "tvshow";
+
     public async Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string query, CancellationToken ct)
     {
         var apiKey = options.Value.TmdbApiKey;

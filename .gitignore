@@ -483,3 +483,4 @@ $RECYCLE.BIN/
 src/MediaTracker.Server/appsettings.Development.json
 dist/
 shots/
+graphify-out/

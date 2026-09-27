@@ -128,16 +128,16 @@
 
   function statusBadgeClasses(status: MediaStatus): string {
     switch (status) {
-      case 1:
-        return 'border-sky-400/60 bg-[#081b2e]/90 text-sky-300 shadow-sky-950/60'
-      case 2:
-        return 'border-emerald-400/60 bg-[#062417]/90 text-emerald-300 shadow-emerald-950/60'
-      case 3:
-        return 'border-amber-400/60 bg-[#261908]/90 text-amber-300 shadow-amber-950/60'
-      case 4:
-        return 'border-rose-400/60 bg-[#26090e]/90 text-rose-300 shadow-rose-950/60'
-      default:
-        return 'border-slate-500/50 bg-[#12151e]/90 text-slate-200 shadow-black/60'
+      case 2: // Completed (Green circle with lighter green ring like in the image)
+        return 'bg-[#22c55e] text-white border-2 border-[#86efac]/80 ring-2 ring-[#86efac]/30'
+      case 1: // In progress (Blue)
+        return 'bg-[#2563eb] text-white border-2 border-[#93c5fd]/80 ring-2 ring-[#93c5fd]/30'
+      case 3: // On hold (Amber)
+        return 'bg-[#d97706] text-white border-2 border-amber-300/80 ring-2 ring-amber-300/30'
+      case 4: // Dropped (Rose)
+        return 'bg-[#dc2626] text-white border-2 border-rose-300/80 ring-2 ring-rose-300/30'
+      default: // Planned (Slate)
+        return 'bg-[#334155] text-slate-100 border-2 border-slate-400/70 ring-2 ring-slate-400/20'
     }
   }
 
@@ -230,34 +230,45 @@
     {/if}
 
     <div class="absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-3">
-      <div class="relative min-w-0 flex-1 mr-2" data-status-menu>
+      <div class="relative flex items-center" data-status-menu>
+        <!-- Status Button (Left, z-10) -->
         <button
           type="button"
-          class={`flex h-7 w-7 items-center justify-center rounded-full border shadow-lg backdrop-blur transition hover:scale-110 active:scale-95 ${statusBadgeClasses(item.status)}`}
+          class={`relative z-10 flex h-8 w-8 items-center justify-center rounded-full shadow-lg backdrop-blur transition hover:scale-105 active:scale-95 cursor-pointer ${statusBadgeClasses(item.status)}`}
           onclick={(e) => { e.stopPropagation(); statusMenuOpen = !statusMenuOpen }}
           title={statusLabel(item.status)}
           aria-label={statusLabel(item.status)}
         >
           {#if item.status === 0}
-            <Bookmark size={13} stroke-width={2.2} />
+            <Bookmark size={14} stroke-width={2.2} />
           {:else if item.status === 1}
-            <Play size={12} fill="currentColor" class="translate-x-0.5" />
+            <Play size={13} fill="currentColor" class="translate-x-0.5" />
           {:else if item.status === 2}
-            <Check size={14} stroke-width={2.8} />
+            <Check size={16} stroke-width={3} />
           {:else if item.status === 3}
-            <Pause size={12} stroke-width={2.5} />
+            <Pause size={13} stroke-width={2.5} />
           {:else if item.status === 4}
-            <X size={13} stroke-width={2.5} />
+            <X size={14} stroke-width={2.5} />
           {/if}
         </button>
 
+        <!-- Rating Circle (Right, overlaid on top with z-20 and -ml-2.5) -->
+        {#if item.score !== null && item.score > 0}
+          <div
+            class="relative z-20 -ml-2.5 flex h-8 w-8 items-center justify-center rounded-full bg-[#2a3cb8] text-white shadow-lg border-2 border-[#7786ee]/80 ring-2 ring-[#7786ee]/30 font-black text-xs sm:text-sm tracking-tight select-none"
+            title={`Оценка: ${item.score}`}
+          >
+            {format(item.score)}
+          </div>
+        {/if}
+
         {#if statusMenuOpen}
           <!-- svelte-ignore a11y_no_static_element_interactions a11y_interactive_supports_focus a11y_click_events_have_key_events -->
-          <div class="absolute left-0 top-full mt-1.5 w-36 overflow-hidden rounded-md border border-white/5 bg-[#222634] py-1 shadow-xl" role="listbox" tabindex="-1" onclick={(e) => e.stopPropagation()} onpointerdown={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()}>
+          <div class="absolute left-0 top-full mt-2 w-36 overflow-hidden rounded-md border border-white/10 bg-[#222634] py-1 shadow-xl z-30" role="listbox" tabindex="-1" onclick={(e) => e.stopPropagation()} onpointerdown={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()}>
             {#each statusOptions as option}
               <button
                 type="button"
-                class={`flex w-full items-center justify-between px-3 py-2 text-left text-sm transition hover:bg-white/5 ${option === item.status ? 'text-accent-soft' : 'text-muted'}`}
+                class={`flex w-full items-center justify-between px-3 py-2 text-left text-sm transition hover:bg-white/5 cursor-pointer ${option === item.status ? 'text-accent-soft' : 'text-muted'}`}
                 onclick={(e) => { e.stopPropagation(); changeStatus(option) }}
               >
                 {statusLabel(option)}
@@ -269,7 +280,17 @@
           </div>
         {/if}
       </div>
-      <div class="flex gap-1"><button type="button" class="flex h-7 w-7 items-center justify-center rounded-md bg-canvas/70 text-muted opacity-0 transition hover:bg-rose-500/20 hover:text-rose-300 focus:opacity-100 group-hover:opacity-100" aria-label={i18n.t.card.deleteAria(item.title)} onclick={(event) => { event.stopPropagation(); void removeItem() }}><Trash2 size={15} aria-hidden="true" /></button></div>
+
+      <div class="flex gap-1">
+        <button
+          type="button"
+          class="flex h-8 w-8 items-center justify-center rounded-md bg-canvas/70 text-muted opacity-0 transition hover:bg-rose-500/20 hover:text-rose-300 focus:opacity-100 group-hover:opacity-100 cursor-pointer"
+          aria-label={i18n.t.card.deleteAria(item.title)}
+          onclick={(event) => { event.stopPropagation(); void removeItem() }}
+        >
+          <Trash2 size={15} aria-hidden="true" />
+        </button>
+      </div>
     </div>
   </div>
 

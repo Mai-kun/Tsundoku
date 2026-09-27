@@ -19,7 +19,7 @@
     Star,
     Trash2,
   } from 'lucide-svelte'
-  import { errorMessage, getMedia, getMediaItem, refreshMetadata, setProgress, setSeasonProgress, updateMedia, updateStatus } from '$lib/api'
+  import { createMedia, errorMessage, getMedia, getMediaItem, refreshMetadata, setProgress, setSeasonProgress, updateMedia, updateStatus } from '$lib/api'
   import { i18n } from '$lib/i18n/index.svelte'
   import { showToast } from '$lib/stores/toast.svelte'
   import { clampProgress, isTvShowDetail, MEDIA_STATUS, type AppView, type MediaDetail, type MediaItem, type MediaStatus, type TvSeason } from '$lib/types'
@@ -60,6 +60,16 @@
     type: string
   }
 
+  interface RelatedEntry {
+    id: string
+    title: string
+    coverUrl: string | null
+    type: string
+    year?: number | null
+    relationType?: string
+    localItem?: MediaItem
+  }
+
   interface RatingBadge {
     source: string
     score: number
@@ -89,7 +99,7 @@
   let statusMenuOpen = $state(false)
   let userRatingPopoverOpen = $state(false)
 
-  let related = $state<MediaItem[]>([])
+  let related = $state<RelatedEntry[]>([])
   let relatedLoading = $state(false)
   let relatedError = $state<unknown>(null)
   let relatedSequence = 0
@@ -255,24 +265,117 @@
 
   async function loadRelated(item: MediaItem) {
     const sequence = ++relatedSequence
-    const franchiseId = item.franchiseId
-
-    if (!franchiseId) {
-      related = []
-      relatedError = null
-      relatedLoading = false
-      return
-    }
-
     relatedLoading = true
     relatedError = null
 
     try {
       const all = await getMedia()
       if (sequence !== relatedSequence) return
-      related = all
-        .filter((candidate) => candidate.franchiseId === franchiseId && candidate.id !== item.id)
-        .toSorted((left, right) => orderOf(left) - orderOf(right) || left.title.localeCompare(right.title))
+
+      const results: RelatedEntry[] = []
+
+      // 1. Check local items with same franchiseId
+      if (item.franchiseId) {
+        const localMatches = all
+          .filter((candidate) => candidate.franchiseId === item.franchiseId && candidate.id !== item.id)
+          .toSorted((left, right) => orderOf(left) - orderOf(right) || left.title.localeCompare(right.title))
+
+        for (const lm of localMatches) {
+          results.push({
+            id: lm.id,
+            title: lm.title,
+            coverUrl: lm.coverUrl,
+            type: lm.type,
+            localItem: lm,
+          })
+        }
+      }
+
+      // 2. Query external relations (AniList GraphQL for anime/manga)
+      if (isAnime(item) || item.type === 'manga') {
+        const cacheKey = `tsundoku_relations_${item.id}`
+        const cachedStr = localStorage.getItem(cacheKey)
+        let externalNodes: any[] = []
+
+        if (cachedStr) {
+          try {
+            const cached = JSON.parse(cachedStr)
+            if (Date.now() - cached.timestamp < 2592000000 && Array.isArray(cached.items) && cached.items.length > 0) {
+              externalNodes = cached.items
+            }
+          } catch {}
+        }
+
+        if (externalNodes.length === 0) {
+          const query = `
+            query ($id: Int, $search: String) {
+              Media(id: $id, search: $search) {
+                id
+                relations {
+                  edges {
+                    relationType
+                    node {
+                      id
+                      title { romaji english userPreferred }
+                      format
+                      type
+                      coverImage { large medium }
+                      startDate { year }
+                    }
+                  }
+                }
+              }
+            }
+          `
+          const parsedId = item.externalId && /^\d+$/.test(item.externalId) ? parseInt(item.externalId, 10) : null
+          const variables = parsedId ? { id: parsedId } : { search: item.title }
+
+          const res = await fetch('https://graphql.anilist.co/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query, variables }),
+          })
+
+          if (res.ok) {
+            const json = await res.json()
+            const edges = json?.data?.Media?.relations?.edges ?? []
+            externalNodes = edges.map((e: any) => ({
+              id: String(e.node?.id),
+              relationType: formatRelationType(e.relationType),
+              title: e.node?.title?.english || e.node?.title?.romaji || e.node?.title?.userPreferred || 'Title',
+              coverUrl: e.node?.coverImage?.large ?? e.node?.coverImage?.medium ?? null,
+              type: e.node?.type?.toLowerCase() === 'manga' ? 'manga' : 'anime',
+              year: e.node?.startDate?.year ?? null,
+            }))
+            localStorage.setItem(cacheKey, JSON.stringify({ timestamp: Date.now(), items: externalNodes }))
+          }
+        }
+
+        // Merge external nodes avoiding duplicates with local matches
+        for (const ext of externalNodes) {
+          if (ext.title.toLowerCase() === item.title.toLowerCase()) continue
+
+          const matchedLocal = all.find(
+            (m) => (m.externalId && m.externalId === ext.id) || m.title.toLowerCase() === ext.title.toLowerCase()
+          )
+
+          if (!results.some((r) => r.id === ext.id || r.title.toLowerCase() === ext.title.toLowerCase())) {
+            results.push({
+              id: ext.id,
+              title: ext.title,
+              coverUrl: matchedLocal?.coverUrl || ext.coverUrl,
+              type: ext.type,
+              year: ext.year,
+              relationType: ext.relationType,
+              localItem: matchedLocal,
+            })
+          }
+        }
+      }
+
+      if (sequence === relatedSequence) {
+        related = results
+      }
     } catch (error) {
       if (sequence === relatedSequence) {
         related = []
@@ -280,6 +383,51 @@
       }
     } finally {
       if (sequence === relatedSequence) relatedLoading = false
+    }
+  }
+
+  function formatRelationType(relType?: string): string {
+    switch (relType) {
+      case 'SEQUEL':
+        return 'Сиквел'
+      case 'PREQUEL':
+        return 'Приквел'
+      case 'ADAPTATION':
+        return 'Адаптация'
+      case 'SIDE_STORY':
+        return 'Спин-офф'
+      case 'SPIN_OFF':
+        return 'Спин-офф'
+      case 'SUMMARY':
+        return 'Рекап'
+      case 'ALTERNATIVE':
+        return 'Альтернатива'
+      case 'CHARACTER':
+        return 'Спецвыпуск'
+      default:
+        return 'Связанное'
+    }
+  }
+
+  async function handleRelatedClick(rel: RelatedEntry) {
+    if (rel.localItem) {
+      onOpenRelated(rel.localItem)
+      return
+    }
+
+    try {
+      const created = await createMedia({
+        title: rel.title,
+        type: (rel.type === 'manga' ? 'manga' : 'tvshow') as any,
+        externalId: rel.id,
+        coverUrl: rel.coverUrl,
+        status: 0,
+      })
+      showToast(i18n.t.searchModal.inLibrary, 'success')
+      onOpenRelated(created)
+    } catch (e) {
+      console.error(e)
+      showToast(errorMessage(e), 'error')
     }
   }
 
@@ -827,26 +975,36 @@
             </button>
 
             {#if userRatingPopoverOpen}
-              <div class="absolute right-0 top-full z-30 mt-1.5 flex items-center gap-1 rounded-lg border border-white/10 bg-[#1e222d] p-1.5 shadow-2xl shadow-black/80">
-                {#each Array(10) as _, index}
-                  {@const val = index + 1}
-                  <button
-                    type="button"
-                    class={`flex h-7 w-7 items-center justify-center rounded text-xs font-bold transition ${val === scoreValue ? 'bg-[#3b82f6] text-white shadow-md' : 'text-muted hover:bg-white/10 hover:text-white'}`}
-                    onclick={() => { void setScore(val); userRatingPopoverOpen = false }}
-                  >
-                    {val}
-                  </button>
-                {/each}
+              <div class="absolute right-0 top-full z-30 mt-2 w-48 rounded-xl border border-white/15 bg-[#1e222d] p-3 shadow-2xl shadow-black/90">
+                <div class="mb-2 text-center text-xs font-semibold text-slate-300">
+                  {i18n.t.detail.yourRating}
+                </div>
+                <div class="grid grid-cols-5 gap-1.5">
+                  {#each Array(10) as _, index}
+                    {@const val = index + 1}
+                    <button
+                      type="button"
+                      class={`flex h-7 w-7 items-center justify-center rounded-md text-xs font-bold transition cursor-pointer ${
+                        val === scoreValue
+                          ? 'bg-[#3b82f6] text-white shadow-md'
+                          : 'bg-white/5 text-slate-300 hover:bg-white/15 hover:text-white'
+                      }`}
+                      onclick={() => { void setScore(val); userRatingPopoverOpen = false }}
+                    >
+                      {val}
+                    </button>
+                  {/each}
+                </div>
                 {#if scoreValue !== null}
-                  <button
-                    type="button"
-                    class="ml-1 rounded px-1.5 py-1 text-[11px] font-semibold text-rose-400 hover:bg-rose-500/20"
-                    title={i18n.t.detail.clearRating}
-                    onclick={() => { clearScore(); userRatingPopoverOpen = false }}
-                  >
-                    ✕
-                  </button>
+                  <div class="mt-2.5 border-t border-white/10 pt-2 text-center">
+                    <button
+                      type="button"
+                      class="text-xs font-semibold text-rose-400 hover:text-rose-300 transition cursor-pointer"
+                      onclick={() => { clearScore(); userRatingPopoverOpen = false }}
+                    >
+                      {i18n.t.detail.clearRating}
+                    </button>
+                  </div>
                 {/if}
               </div>
             {/if}
@@ -977,31 +1135,42 @@
           {/each}
         </ul>
 
-        <!-- Uniform External Ratings Badges (Item 6) -->
-        <div class="flex flex-wrap items-center gap-2">
+        <!-- Uniform External Ratings Badges (Item 6 & Point 1) -->
+        <div class="flex flex-wrap items-center gap-2.5">
           {#each externalRatings as rating (rating.source)}
             {@const src = rating.source.toLowerCase()}
-            <div class="inline-flex h-7 items-center gap-1.5 rounded-md border border-white/10 bg-[#222634] px-2.5 text-xs shadow-sm" title={`${rating.source}: ${rating.score.toFixed(1)}`}>
-              <span class="flex items-center text-[#9ca3af]">
+            <div
+              class="inline-flex h-9 items-center gap-2 rounded-lg border border-white/15 bg-[#222634] px-3 shadow-sm transition hover:border-white/30 hover:bg-[#282d3d]"
+              title={`${rating.source}: ${rating.score.toFixed(1)}`}
+            >
+              <span class="flex items-center">
                 {#if src.includes('anilist')}
-                  <svg class="h-3.5 w-3.5 fill-[#02A9FF]" viewBox="0 0 24 24"><path d="M24 17.561v4.425H13.678v-4.425zM12.924 2.014l7.157 15.547H14.88l-1.393-3.088H8.847l-1.385 3.088H2.179L9.345 2.014h3.579zm-.897 8.358L10.37 6.452l-1.65 3.92h3.307z"/></svg>
+                  <span class="flex items-center gap-1 font-bold text-[#02a9ff] text-xs">
+                    <svg class="h-4 w-4 fill-[#02a9ff]" viewBox="0 0 24 24"><path d="M24 17.561v4.425H13.678v-4.425zM12.924 2.014l7.157 15.547H14.88l-1.393-3.088H8.847l-1.385 3.088H2.179L9.345 2.014h3.579zm-.897 8.358L10.37 6.452l-1.65 3.92h3.307z"/></svg>
+                    AniList
+                  </span>
                 {:else if src.includes('tmdb')}
-                  <span class="rounded bg-[#01b4e4] px-1 py-0.2 text-[9px] font-black text-black">TMDB</span>
+                  <span class="rounded bg-[#01b4e4] px-1.5 py-0.5 text-[10px] font-black text-[#032541] tracking-wider">TMDB</span>
                 {:else if src.includes('rawg')}
-                  <span class="rounded bg-white px-1 py-0.2 text-[9px] font-black text-black">RAWG</span>
+                  <span class="rounded bg-white px-1.5 py-0.5 text-[10px] font-black text-black tracking-wider">RAWG</span>
                 {:else if src.includes('kitsu')}
-                  <span class="rounded bg-[#FD755C] px-1 py-0.2 text-[9px] font-black text-white">Kitsu</span>
-                {:else if src.includes('mal') || src.includes('myanimelist')}
-                  <span class="rounded bg-[#2e51a2] px-1 py-0.2 text-[9px] font-black text-white">MAL</span>
+                  <span class="rounded bg-[#fd755c] px-1.5 py-0.5 text-[10px] font-black text-white tracking-wider">Kitsu</span>
+                {:else if src.includes('mal') || src.includes('myanimelist') || src.includes('jikan')}
+                  <span class="rounded bg-[#2e51a2] px-1.5 py-0.5 text-[10px] font-black text-white tracking-wider">MAL</span>
                 {:else if src.includes('mangaupdate')}
-                  <span class="rounded bg-[#3b82f6] px-1 py-0.2 text-[9px] font-black text-white">MU</span>
+                  <span class="rounded bg-[#3b82f6] px-1.5 py-0.5 text-[10px] font-black text-white tracking-wider">MangaUpdates</span>
+                {:else if src.includes('openlibrary')}
+                  <span class="rounded bg-[#e1d9cb] px-1.5 py-0.5 text-[10px] font-bold text-[#2c221e]">OpenLibrary</span>
                 {:else}
-                  <Star size={12} class="text-[#f59e0b]" fill="currentColor" />
+                  <span class="flex items-center gap-1 font-bold text-amber-400 text-xs">
+                    <Star size={14} fill="currentColor" />
+                    {rating.source}
+                  </span>
                 {/if}
               </span>
-              <span class="font-bold tabular-nums text-white">{rating.score.toFixed(1)}</span>
+              <span class="font-extrabold text-sm tabular-nums text-white">{rating.score.toFixed(1)}</span>
               {#if rating.votes}
-                <span class="text-[10px] text-muted">({rating.votes > 1000 ? (rating.votes / 1000).toFixed(1) + 'k' : rating.votes})</span>
+                <span class="text-xs text-muted font-normal">({rating.votes > 1000 ? (rating.votes / 1000).toFixed(1) + 'k' : rating.votes})</span>
               {/if}
             </div>
           {/each}
@@ -1321,7 +1490,7 @@
             {:else}
               <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
                 {#each related as rel (rel.id)}
-                  <button type="button" class="group flex flex-col items-start text-left" onclick={() => onOpenRelated(rel)}>
+                  <button type="button" class="group flex flex-col items-start text-left cursor-pointer" onclick={() => handleRelatedClick(rel)}>
                     <div class="aspect-[2/3] w-full overflow-hidden rounded-lg bg-[#222634] transition group-hover:ring-2 group-hover:ring-[#5844e0]">
                       {#if rel.coverUrl}
                         <img src={rel.coverUrl} alt={rel.title} class="h-full w-full object-cover transition duration-300 group-hover:scale-105" />
@@ -1330,7 +1499,16 @@
                       {/if}
                     </div>
                     <span class="mt-1.5 line-clamp-1 text-xs font-semibold text-white transition group-hover:text-[#a5b4fc]">{rel.title}</span>
-                    <span class="text-[11px] text-muted">{typeLabel(rel)}</span>
+                    <div class="flex items-center justify-between w-full mt-0.5 text-[11px] text-muted">
+                      {#if rel.relationType}
+                        <span class="rounded bg-white/10 px-1.5 py-0.5 text-[10px] font-medium text-slate-300">{rel.relationType}</span>
+                      {:else}
+                        <span class="capitalize">{rel.type}</span>
+                      {/if}
+                      {#if rel.year}
+                        <span>{rel.year}</span>
+                      {/if}
+                    </div>
                   </button>
                 {/each}
               </div>

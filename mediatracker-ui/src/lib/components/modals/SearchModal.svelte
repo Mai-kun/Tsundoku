@@ -233,6 +233,18 @@
     }
   }
 
+  function sourceBadgeClass(source?: string | null): string {
+    const s = (source ?? '').toLowerCase()
+    if (s.includes('anilist')) return 'bg-[#02a9ff]/15 text-[#38bdf8] border-[#02a9ff]/30'
+    if (s.includes('mal') || s.includes('myanimelist') || s.includes('jikan')) return 'bg-[#2e51a2]/20 text-[#60a5fa] border-[#2e51a2]/30'
+    if (s.includes('mangaupdate')) return 'bg-[#3b82f6]/20 text-[#93c5fd] border-[#3b82f6]/30'
+    if (s.includes('tmdb')) return 'bg-[#01b4e4]/15 text-[#38bdf8] border-[#01b4e4]/30'
+    if (s.includes('kitsu')) return 'bg-[#fd755c]/15 text-[#fb923c] border-[#fd755c]/30'
+    if (s.includes('rawg')) return 'bg-white/10 text-slate-200 border-white/20'
+    if (s.includes('openlibrary')) return 'bg-amber-500/15 text-amber-300 border-amber-500/30'
+    return 'bg-white/10 text-muted border-white/10'
+  }
+
   function handleKeydown(event: KeyboardEvent) {
     if (isOpen && event.key === 'Escape') {
       if (previewItem) {
@@ -388,6 +400,11 @@
                         </div>
 
                         <div class="flex flex-wrap items-center gap-2 text-xs text-muted">
+                          {#if result.externalSource}
+                            <span class={`rounded px-1.5 py-0.5 text-[10px] font-semibold border ${sourceBadgeClass(result.externalSource)}`}>
+                              {result.externalSource}
+                            </span>
+                          {/if}
                           {#if result.rating}
                             <span class="flex items-center gap-0.5 font-semibold text-star">
                               <Star size={12} fill="currentColor" />
@@ -461,6 +478,11 @@
                   </div>
 
                   <div class="flex flex-wrap items-center gap-2 text-xs text-muted">
+                    {#if result.externalSource}
+                      <span class={`rounded px-1.5 py-0.5 text-[10px] font-semibold border ${sourceBadgeClass(result.externalSource)}`}>
+                        {result.externalSource}
+                      </span>
+                    {/if}
                     {#if result.rating}
                       <span class="flex items-center gap-0.5 font-semibold text-star">
                         <Star size={12} fill="currentColor" />
@@ -520,10 +542,17 @@
           </div>
 
           <div class="min-w-0 flex-1 space-y-3">
-            <div>
+            <div class="flex flex-wrap items-center gap-2">
               <span class="rounded-full bg-elevated px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-accent-soft">
                 {labelForCategory(previewItem.type as SearchCategory)}
               </span>
+              {#if previewItem.externalSource}
+                <span class={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold border ${sourceBadgeClass(previewItem.externalSource)}`}>
+                  {previewItem.externalSource}
+                </span>
+              {/if}
+            </div>
+            <div>
               <h3 class="mt-1 text-lg font-bold text-ink">{previewItem.title}</h3>
               {#if previewItem.originalTitle}
                 <p class="text-xs text-muted">{previewItem.originalTitle}</p>

@@ -18,6 +18,10 @@ public record MediaListDto
     public DateTime? StartedAt { get; init; }
 
     public DateTime? FinishedAt { get; init; }
+ 
+    public DateTime? ReleaseDate { get; init; }
+
+    public DateTime? EndDate { get; init; }
 
     public string? Notes { get; init; }
 
@@ -146,6 +150,7 @@ public static class MediaResponseMapper
             },
             TvShow show => dto with
             {
+                DurationMinutes = show.EpisodeDurationMinutes,
                 IsAnime = show.IsAnime,
                 Studio = show.Studio,
                 RomajiTitle = show.RomajiTitle,
@@ -182,6 +187,8 @@ public static class MediaResponseMapper
         Score = item.Score,
         StartedAt = item.StartedAt,
         FinishedAt = item.FinishedAt,
+        ReleaseDate = item.ReleaseDate,
+        EndDate = item.EndDate,
         Notes = item.Notes,
         CoverUrl = item.CoverUrl != null ? $"{item.CoverUrl}?v={item.UpdatedAt.Ticks}" : null,
         CreatedAt = item.CreatedAt,

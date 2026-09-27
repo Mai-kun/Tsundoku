@@ -177,6 +177,8 @@
       externalRating: result.rating,
       externalRatingVotes: result.ratingVotes,
       externalRatingsJson: result.ratings ? JSON.stringify(result.ratings) : undefined,
+      releaseDate: result.releaseDate ?? (result.releaseYear ? `${result.releaseYear}-01-01` : undefined),
+      endDate: result.endDate,
     }
 
     switch (effectiveType(result)) {
@@ -187,6 +189,8 @@
           isAnime: true,
           studio: result.studio,
           network: result.studio,
+          durationMinutes: result.runtimeMinutes,
+          episodeDurationMinutes: result.runtimeMinutes,
           seasons: [
             {
               seasonNumber: 1,
@@ -197,7 +201,15 @@
           ],
         }
       case 'tvshow':
-        return { ...common, type: 'tvshow', isAnime: false, studio: result.studio, network: result.studio }
+        return {
+          ...common,
+          type: 'tvshow',
+          isAnime: false,
+          studio: result.studio,
+          network: result.studio,
+          durationMinutes: result.runtimeMinutes,
+          episodeDurationMinutes: result.runtimeMinutes,
+        }
       case 'manga':
         return { ...common, type: 'manga', totalChapters: result.totalCount }
       case 'book':
@@ -205,7 +217,7 @@
       case 'game':
         return { ...common, type: 'game', platform: result.platform || fallbackPlatform }
       case 'movie':
-        return { ...common, type: 'movie', durationMinutes: result.totalCount, isAnime: false, studio: result.studio }
+        return { ...common, type: 'movie', durationMinutes: result.runtimeMinutes ?? result.totalCount, isAnime: false, studio: result.studio }
     }
   }
 

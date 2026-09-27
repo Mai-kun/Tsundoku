@@ -46,6 +46,9 @@ export interface MediaBase {
   externalRating?: number | null
   externalRatingVotes?: number | null
   externalRatingsJson?: string | null
+  releaseDate?: string | null
+  endDate?: string | null
+  durationMinutes?: number | null
 }
 
 export interface GameMedia extends MediaBase {
@@ -132,6 +135,9 @@ export interface ExternalMedia {
   coverUrl: string | null
   description: string | null
   releaseYear: number | null
+  releaseDate?: string | null
+  endDate?: string | null
+  runtimeMinutes?: number | null
   type: SearchMediaType
   author: string | null
   studio: string | null
@@ -165,6 +171,8 @@ interface CreateMediaBase {
   externalRating?: number | null
   externalRatingVotes?: number | null
   externalRatingsJson?: string | null
+  releaseDate?: string | null
+  endDate?: string | null
 }
 
 export interface CreateGamePayload extends CreateMediaBase {
@@ -210,6 +218,8 @@ export interface CreateTvShowPayload extends CreateMediaBase {
   isAnime?: boolean | null
   studio?: string | null
   network?: string | null
+  durationMinutes?: number | null
+  episodeDurationMinutes?: number | null
   seasons?: CreateSeasonPayload[]
 }
 

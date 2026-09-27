@@ -204,3 +204,12 @@ export function saveSourcePriority(priority: Record<string, string[]>): Promise<
   })
 }
 
+export function translateText(text: string, targetLanguage = 'ru'): Promise<{ translatedText: string }> {
+  return requestJson<{ translatedText: string }>('/api/external/translate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text, targetLanguage }),
+  })
+}
+
+

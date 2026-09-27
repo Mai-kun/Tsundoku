@@ -48,6 +48,7 @@ export interface MediaBase {
   externalRatingsJson?: string | null
   releaseDate?: string | null
   endDate?: string | null
+  releaseStatus?: string | null
   durationMinutes?: number | null
 }
 
@@ -137,6 +138,7 @@ export interface ExternalMedia {
   releaseYear: number | null
   releaseDate?: string | null
   endDate?: string | null
+  releaseStatus?: string | null
   runtimeMinutes?: number | null
   type: SearchMediaType
   author: string | null
@@ -173,6 +175,7 @@ interface CreateMediaBase {
   externalRatingsJson?: string | null
   releaseDate?: string | null
   endDate?: string | null
+  releaseStatus?: string | null
 }
 
 export interface CreateGamePayload extends CreateMediaBase {

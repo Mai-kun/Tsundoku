@@ -40,6 +40,8 @@ public sealed record CreateMediaRequest
 
     public DateTime? EndDate { get; init; }
 
+    public string? ReleaseStatus { get; init; }
+
     public string? Director { get; init; }
 
     public bool? IsAnime { get; init; }

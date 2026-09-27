@@ -287,6 +287,13 @@ export const ru = {
       oneShot: 'Ваншот',
       music: 'Клип',
     },
+    releaseStatuses: {
+      releasing: 'Онгоинг',
+      finished: 'Завершён',
+      notYetReleased: 'Анонс',
+      cancelled: 'Отменён',
+      hiatus: 'Приостановлен',
+    },
     previewModal: {
       year: 'Год',
       studio: 'Студия / Сеть',

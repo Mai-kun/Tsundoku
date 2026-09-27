@@ -95,6 +95,7 @@ public sealed class TmdbMetadataProvider(
             Description = item.Overview,
             ReleaseYear = ParseYear(isMovie ? item.ReleaseDate : item.FirstAirDate),
             ReleaseDate = isMovie ? item.ReleaseDate : item.FirstAirDate,
+            ReleaseStatus = item.Status,
             RuntimeMinutes = isMovie ? item.Runtime : null,
             Type = mediaType,
             Rating = rating,
@@ -122,5 +123,6 @@ public sealed class TmdbMetadataProvider(
         [property: JsonPropertyName("vote_average")] double? VoteAverage,
         [property: JsonPropertyName("vote_count")] int? VoteCount,
         [property: JsonPropertyName("runtime")] int? Runtime,
-        [property: JsonPropertyName("number_of_episodes")] int? NumberOfEpisodes);
+        [property: JsonPropertyName("number_of_episodes")] int? NumberOfEpisodes,
+        [property: JsonPropertyName("status")] string? Status);
 }

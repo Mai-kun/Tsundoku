@@ -41,4 +41,6 @@ public abstract class MediaItem
     public DateTime? ReleaseDate { get; set; }
 
     public DateTime? EndDate { get; set; }
+
+    public string? ReleaseStatus { get; set; }
 }

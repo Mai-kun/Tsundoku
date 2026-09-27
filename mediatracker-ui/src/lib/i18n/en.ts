@@ -289,6 +289,13 @@ export const en: Dictionary = {
       oneShot: 'One-shot',
       music: 'Music Video',
     },
+    releaseStatuses: {
+      releasing: 'Releasing',
+      finished: 'Finished',
+      notYetReleased: 'Not Yet Released',
+      cancelled: 'Cancelled',
+      hiatus: 'On Hiatus',
+    },
     previewModal: {
       year: 'Year',
       studio: 'Studio / Network',

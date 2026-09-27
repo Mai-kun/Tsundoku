@@ -91,6 +91,7 @@
     duration?: number | null
     releaseDate?: string | null
     endDate?: string | null
+    releaseStatus?: string | null
     externalSource?: string | null
     localItem?: MediaItem
   }
@@ -507,6 +508,7 @@
                 year: node?.startDate?.year ?? null,
                 releaseDate,
                 endDate,
+                releaseStatus: node?.status ?? null,
                 score,
                 ratings: score ? [{ source: 'AniList', rating: score }] : null,
                 description: desc,
@@ -735,6 +737,7 @@
           ratings: details.ratings ?? previewRelatedItem.ratings,
           episodes: details.totalCount ?? previewRelatedItem.episodes,
           duration: details.runtimeMinutes ?? previewRelatedItem.duration,
+          releaseStatus: details.releaseStatus ?? previewRelatedItem.releaseStatus,
         }
       }
     } catch {}
@@ -745,7 +748,7 @@
     try {
       // Ensure we have full details (including Kitsu ratings and exact release date)
       let itemDetails = rel
-      if (!rel.ratings || rel.ratings.length <= 1 || !rel.releaseDate || !rel.duration) {
+      if (!rel.ratings || rel.ratings.length <= 1 || !rel.releaseDate || !rel.duration || !rel.releaseStatus) {
         try {
           const fetched = await getExternalDetails(rel.type, rel.id, rel.title, rel.externalSource || 'AniList')
           if (fetched) {
@@ -758,6 +761,7 @@
               year: fetched.releaseYear ?? rel.year,
               releaseDate: fetched.releaseDate ?? rel.releaseDate,
               endDate: fetched.endDate ?? rel.endDate,
+              releaseStatus: fetched.releaseStatus ?? rel.releaseStatus,
               studio: fetched.studio || rel.studio,
               author: fetched.author || rel.author,
               score: fetched.rating ?? rel.score,
@@ -796,6 +800,7 @@
           externalRatingsJson: ratingsJson,
           releaseDate,
           endDate,
+          releaseStatus: itemDetails.releaseStatus ?? undefined,
         })
       } else if (isManga) {
         created = await createMedia({
@@ -812,6 +817,7 @@
           externalRatingsJson: ratingsJson,
           releaseDate,
           endDate,
+          releaseStatus: itemDetails.releaseStatus ?? undefined,
         })
       } else {
         created = await createMedia({
@@ -832,6 +838,7 @@
           externalRatingsJson: ratingsJson,
           releaseDate,
           endDate,
+          releaseStatus: itemDetails.releaseStatus ?? undefined,
           seasons: [
             {
               seasonNumber: 1,
@@ -1006,6 +1013,39 @@
     }
   }
 
+  function releaseStatusLabel(item: MediaItem): string {
+    const raw = item.releaseStatus?.trim().toUpperCase()
+    const r = i18n.t.detail.releaseStatuses
+    if (raw) {
+      if (raw === 'RELEASING' || raw === 'CURRENT' || raw === 'RETURNING SERIES') return r.releasing
+      if (raw === 'FINISHED' || raw === 'COMPLETED' || raw === 'ENDED') return r.finished
+      if (raw === 'NOT_YET_RELEASED' || raw === 'UPCOMING' || raw === 'IN PRODUCTION') return r.notYetReleased
+      if (raw === 'CANCELLED' || raw === 'CANCELED') return r.cancelled
+      if (raw === 'HIATUS' || raw === 'ON HIATUS') return r.hiatus
+    }
+
+    // Fallback: calculate from dates if no API status
+    const now = new Date()
+    now.setHours(0, 0, 0, 0)
+
+    if (item.endDate) {
+      const end = new Date(item.endDate)
+      if (!Number.isNaN(end.getTime()) && end <= now) {
+        return r.finished
+      }
+    }
+
+    if (item.releaseDate) {
+      const start = new Date(item.releaseDate)
+      if (!Number.isNaN(start.getTime())) {
+        if (start > now) return r.notYetReleased
+        return r.releasing
+      }
+    }
+
+    return i18n.t.detailModal.valueEmpty
+  }
+
   function dataSource(item: MediaItem): string {
     if (item.externalSource) return item.externalSource
     if (isAnime(item) || item.type === 'manga') return 'AniList'
@@ -1063,7 +1103,7 @@
       { label: i18n.t.detail.formatLabel, value: typeLabel(item) },
       { label: i18n.t.detail.startDateLabel, value: formatDate(item.releaseDate ?? null) },
       { label: i18n.t.detail.endDateLabel, value: formatDate(item.endDate ?? null) },
-      { label: i18n.t.status.label, value: statusLabel(item.status) },
+      { label: i18n.t.status.label, value: releaseStatusLabel(item) },
     ]
 
     switch (item.type) {

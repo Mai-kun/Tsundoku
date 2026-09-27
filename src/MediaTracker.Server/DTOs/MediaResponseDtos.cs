@@ -23,6 +23,8 @@ public record MediaListDto
 
     public DateTime? EndDate { get; init; }
 
+    public string? ReleaseStatus { get; init; }
+
     public string? Notes { get; init; }
 
     public string? CoverUrl { get; init; }
@@ -189,6 +191,7 @@ public static class MediaResponseMapper
         FinishedAt = item.FinishedAt,
         ReleaseDate = item.ReleaseDate,
         EndDate = item.EndDate,
+        ReleaseStatus = item.ReleaseStatus,
         Notes = item.Notes,
         CoverUrl = item.CoverUrl != null ? $"{item.CoverUrl}?v={item.UpdatedAt.Ticks}" : null,
         CreatedAt = item.CreatedAt,

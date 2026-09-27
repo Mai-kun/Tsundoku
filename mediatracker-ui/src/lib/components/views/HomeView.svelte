@@ -22,11 +22,14 @@
 
   $effect(() => {
     void refreshKey
-    void loadSections(++requestSequence)
+    const isInitial = inProgress.length === 0 && upNext.length === 0 && recentlyCompleted.length === 0
+    void loadSections(++requestSequence, isInitial)
   })
 
-  async function loadSections(sequence: number) {
-    loading = true
+  async function loadSections(sequence: number, showLoading = true) {
+    if (showLoading) {
+      loading = true
+    }
     loadError = null
 
     try {
@@ -57,7 +60,7 @@
   }
 
   function refresh() {
-    void loadSections(++requestSequence)
+    void loadSections(++requestSequence, false)
   }
 
   async function updateProgress(id: string, currentProgress: number) {
@@ -65,8 +68,21 @@
   }
 
   async function removeItem(item: MediaItem) {
+    const main = document.querySelector('main')
+    const currentScroll = main ? main.scrollTop : (typeof window !== 'undefined' ? window.scrollY : 0)
+
+    inProgress = inProgress.filter((i) => i.id !== item.id)
+    upNext = upNext.filter((i) => i.id !== item.id)
+    recentlyCompleted = recentlyCompleted.filter((i) => i.id !== item.id)
+
     await deleteMedia(item.id)
     onMediaChanged()
+
+    setTimeout(() => {
+      if (main && Math.abs(main.scrollTop - currentScroll) > 5) {
+        main.scrollTop = currentScroll
+      }
+    }, 20)
   }
 </script>
 

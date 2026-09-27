@@ -466,40 +466,42 @@
   }
 
   function formatRelationType(relType?: string): string {
+    const r = i18n.t.detail.relations
     switch (relType) {
       case 'SEQUEL':
-        return 'Сиквел'
+        return r.sequel
       case 'PREQUEL':
-        return 'Приквел'
+        return r.prequel
       case 'ADAPTATION':
-        return 'Адаптация'
+        return r.adaptation
       case 'SIDE_STORY':
-        return 'Спин-офф'
+        return r.sideStory
       case 'SPIN_OFF':
-        return 'Спин-офф'
+        return r.spinOff
       case 'SUMMARY':
-        return 'Рекап'
+        return r.summary
       case 'ALTERNATIVE':
-        return 'Альтернатива'
+        return r.alternative
       case 'CHARACTER':
-        return 'Спецвыпуск'
+        return r.character
       default:
-        return 'Связанное'
+        return r.other
     }
   }
 
   function formatMediaDisplayType(rel: RelatedEntry): string {
     const f = rel.format?.toUpperCase()
-    if (f === 'MOVIE') return 'Фильм'
-    if (f === 'TV' || f === 'TV_SHORT') return 'Сериал'
-    if (f === 'OVA') return 'OVA'
-    if (f === 'ONA') return 'ONA'
-    if (f === 'SPECIAL') return 'Спешл'
-    if (f === 'MANGA') return 'Манга'
-    if (f === 'NOVEL') return 'Ранобэ'
-    if (f === 'ONE_SHOT') return 'Ваншот'
-    if (f === 'MUSIC') return 'Клип'
-    return rel.type === 'manga' ? 'Манга' : 'Сериал'
+    const fmt = i18n.t.detail.formats
+    if (f === 'MOVIE') return fmt.movie
+    if (f === 'TV' || f === 'TV_SHORT') return fmt.tv
+    if (f === 'OVA') return fmt.ova
+    if (f === 'ONA') return fmt.ona
+    if (f === 'SPECIAL') return fmt.special
+    if (f === 'MANGA') return fmt.manga
+    if (f === 'NOVEL') return fmt.novel
+    if (f === 'ONE_SHOT') return fmt.oneShot
+    if (f === 'MUSIC') return fmt.music
+    return rel.type === 'manga' ? fmt.manga : fmt.tv
   }
 
   function statusBadgeClasses(status: MediaStatus): string {
@@ -516,8 +518,6 @@
         return 'bg-[#334155] text-slate-100 border-2 border-slate-400/70 ring-2 ring-slate-400/20'
     }
   }
-
-
 
   interface RelationGroup {
     id: string
@@ -548,16 +548,16 @@
 
     const groups: RelationGroup[] = []
     if (main.length > 0) {
-      groups.push({ id: 'main', title: 'Основные истории (Сиквелы и Приквелы)', items: main })
+      groups.push({ id: 'main', title: i18n.t.detail.groupMain, items: main })
     }
     if (spinoffs.length > 0) {
-      groups.push({ id: 'spinoffs', title: 'Спин-оффы и Истории', items: spinoffs })
+      groups.push({ id: 'spinoffs', title: i18n.t.detail.groupSpinoffs, items: spinoffs })
     }
     if (adaptations.length > 0) {
-      groups.push({ id: 'adaptations', title: 'Адаптации и Манга', items: adaptations })
+      groups.push({ id: 'adaptations', title: i18n.t.detail.groupAdaptations, items: adaptations })
     }
     if (others.length > 0) {
-      groups.push({ id: 'others', title: 'Рекапы и Другое', items: others })
+      groups.push({ id: 'others', title: i18n.t.detail.groupOthers, items: others })
     }
 
     return groups
@@ -579,7 +579,7 @@
     if (!media) return []
 
     const currentYear = media.startedAt ? new Date(media.startedAt).getFullYear() : (media.createdAt ? new Date(media.createdAt).getFullYear() : null)
-    const currentFormat = isTvShowDetail(media) ? 'Сериал' : media.type === 'movie' ? 'Фильм' : media.type === 'manga' ? 'Манга' : media.type
+    const currentFormat = isTvShowDetail(media) ? i18n.t.detail.formats.tv : media.type === 'movie' ? i18n.t.detail.formats.movie : media.type === 'manga' ? i18n.t.detail.formats.manga : media.type
 
     const currentEntry: TimelineEntry = {
       id: media.id,
@@ -587,7 +587,7 @@
       coverUrl: media.coverUrl,
       year: currentYear,
       formatDisplay: currentFormat,
-      relationType: 'Текущий тайтл',
+      relationType: i18n.t.detail.currentTitleBadge,
       isCurrent: true,
       localItem: media,
     }
@@ -601,7 +601,7 @@
         coverUrl: r.coverUrl,
         year: r.year ?? null,
         formatDisplay: formatMediaDisplayType(r),
-        relationType: r.relationType ?? 'Связанное',
+        relationType: r.relationType ?? i18n.t.detail.relations.other,
         isCurrent: false,
         localItem: r.localItem,
         rawItem: r,
@@ -1696,7 +1696,7 @@
                             : 'border-white/10 bg-[#13151b] text-[#9ca3af] hover:bg-[#222634] hover:text-white'
                         }`}
                         aria-label={episode.watched ? i18n.t.detail.markWatched : i18n.t.detail.watchAction}
-                        title={episode.watched ? 'Отменить просмотр' : i18n.t.detail.markWatched}
+                        title={episode.watched ? i18n.t.detail.unwatchAction : i18n.t.detail.markWatched}
                         disabled={Boolean(episodeBusy)}
                         onclick={() => void toggleEpisode(episode.number)}
                       >
@@ -1731,49 +1731,52 @@
             <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h2 class="text-sm font-bold uppercase tracking-wider text-slate-300">{i18n.t.detail.relatedTitle}</h2>
-                <p class="text-xs text-muted">Связанные части франшизы, сиквелы, спин-оффы и адаптации</p>
+                <p class="text-xs text-muted">{i18n.t.detail.relatedSubtitle}</p>
               </div>
 
-              <!-- View Switchers (Items 2, 6) -->
+              <!-- View Switchers (Items 2, 4) - Compact icon-only square buttons with hover tooltip -->
               {#if related.length > 0}
-                <div class="inline-flex items-center rounded-lg border border-white/10 bg-[#171a23] p-1 self-start sm:self-auto">
+                <div class="inline-flex items-center rounded-lg border border-white/10 bg-[#171a23] p-1 self-start sm:self-auto gap-1">
                   <button
                     type="button"
-                    class={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition cursor-pointer ${
+                    class={`grid h-8 w-8 place-items-center rounded-md transition cursor-pointer ${
                       relatedViewMode === 'grouped'
                         ? 'bg-accent text-white shadow'
-                        : 'text-slate-400 hover:text-white'
+                        : 'text-slate-400 hover:bg-white/5 hover:text-white'
                     }`}
+                    title={i18n.t.detail.viewGrouped}
+                    aria-label={i18n.t.detail.viewGrouped}
                     onclick={() => (relatedViewMode = 'grouped')}
                   >
-                    <Layers size={13} />
-                    По группам
+                    <Layers size={17} />
                   </button>
 
                   <button
                     type="button"
-                    class={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition cursor-pointer ${
+                    class={`grid h-8 w-8 place-items-center rounded-md transition cursor-pointer ${
                       relatedViewMode === 'timeline'
                         ? 'bg-accent text-white shadow'
-                        : 'text-slate-400 hover:text-white'
+                        : 'text-slate-400 hover:bg-white/5 hover:text-white'
                     }`}
+                    title={i18n.t.detail.viewTimeline}
+                    aria-label={i18n.t.detail.viewTimeline}
                     onclick={() => (relatedViewMode = 'timeline')}
                   >
-                    <GitBranch size={13} />
-                    Хронология
+                    <GitBranch size={17} />
                   </button>
 
                   <button
                     type="button"
-                    class={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition cursor-pointer ${
+                    class={`grid h-8 w-8 place-items-center rounded-md transition cursor-pointer ${
                       relatedViewMode === 'grid'
                         ? 'bg-accent text-white shadow'
-                        : 'text-slate-400 hover:text-white'
+                        : 'text-slate-400 hover:bg-white/5 hover:text-white'
                     }`}
+                    title={i18n.t.detail.viewGrid}
+                    aria-label={i18n.t.detail.viewGrid}
                     onclick={() => (relatedViewMode = 'grid')}
                   >
-                    <LayoutGrid size={13} />
-                    Сетка
+                    <LayoutGrid size={17} />
                   </button>
                 </div>
               {/if}
@@ -1849,7 +1852,7 @@
                       {#if rel.localItem.score !== null && rel.localItem.score > 0}
                         <div
                           class="relative z-20 -ml-2 flex h-7 w-7 items-center justify-center rounded-full bg-[#2a3cb8] text-white shadow-lg border-2 border-[#7786ee]/80 ring-2 ring-[#7786ee]/30 font-black text-xs select-none"
-                          title={`Оценка: ${rel.localItem.score}`}
+                          title={`${i18n.t.createModal.fields.score}: ${rel.localItem.score}`}
                         >
                           {rel.localItem.score}
                         </div>
@@ -1982,7 +1985,7 @@
                             </span>
                           {:else if !item.localItem && !item.isCurrent}
                             <span class="rounded-md border border-white/10 bg-white/5 px-2.5 py-1 text-xs font-medium text-slate-300 group-hover:border-accent/40 group-hover:text-accent-soft">
-                              Обзор
+                              {i18n.t.detail.overviewBadge}
                             </span>
                           {/if}
                         </div>
@@ -2002,125 +2005,127 @@
             {/if}
           </section>
 
-          <!-- PREVIEW MODAL FOR UNADDED RELATED ITEMS (Items 3, 5) -->
+          <!-- PREVIEW MODAL FOR UNADDED RELATED ITEMS (Items 3, 5 - Identical to SearchModal preview) -->
           {#if previewRelatedItem}
             <div
-              class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm"
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="preview-title"
-              onclick={(e) => { if (e.target === e.currentTarget && !previewAddingBusy) previewRelatedItem = null }}
-              onkeydown={(e) => { if (e.key === 'Escape' && !previewAddingBusy) previewRelatedItem = null }}
-              tabindex="-1"
+              class="fixed inset-0 z-[60] flex items-center justify-center overflow-y-auto bg-black/75 p-4 backdrop-blur-md"
+              role="presentation"
+              onclick={() => (previewRelatedItem = null)}
             >
-              <div class="relative w-full max-w-lg overflow-hidden rounded-2xl border border-white/10 bg-[#1b1e2a] shadow-2xl">
-                <!-- Header / Banner image if any -->
-                {#if previewRelatedItem.bannerUrl}
-                  <div class="h-28 w-full overflow-hidden bg-canvas relative">
-                    <img src={previewRelatedItem.bannerUrl} alt="" class="h-full w-full object-cover opacity-50" />
-                    <div class="absolute inset-0 bg-gradient-to-t from-[#1b1e2a] via-[#1b1e2a]/40 to-transparent"></div>
-                  </div>
-                {/if}
+              <!-- svelte-ignore a11y_click_events_have_key_events -->
+              <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+              <div
+                class="relative flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-border bg-surface p-6 shadow-2xl"
+                role="dialog"
+                aria-modal="true"
+                tabindex="-1"
+                onclick={(e) => e.stopPropagation()}
+              >
+                <button
+                  type="button"
+                  class="absolute right-4 top-4 grid h-8 w-8 place-items-center rounded-lg text-muted transition hover:bg-elevated hover:text-ink cursor-pointer"
+                  title={i18n.t.common.close}
+                  aria-label={i18n.t.common.close}
+                  onclick={() => (previewRelatedItem = null)}
+                >
+                  <X size={18} aria-hidden="true" />
+                </button>
 
-                <div class="p-6">
-                  <div class="flex gap-4">
-                    <!-- Poster -->
-                    <div class="relative aspect-[2/3] w-28 shrink-0 overflow-hidden rounded-xl border border-white/10 bg-[#13151b] shadow-lg">
+                <div class="overflow-y-auto pr-1">
+                  <div class="flex flex-col gap-5 sm:flex-row">
+                    <div class="mx-auto aspect-[2/3] w-40 shrink-0 overflow-hidden rounded-lg bg-canvas sm:mx-0">
                       {#if previewRelatedItem.coverUrl}
                         <img src={previewRelatedItem.coverUrl} alt={previewRelatedItem.title} class="h-full w-full object-cover" />
                       {:else}
-                        <div class="grid h-full place-items-center text-muted"><ImageIcon size={28} /></div>
+                        <div class="grid h-full place-items-center text-muted"><ImageIcon size={32} stroke-width={1.25} aria-hidden="true" /></div>
                       {/if}
                     </div>
 
-                    <!-- Title and badges -->
-                    <div class="flex-1 min-w-0">
-                      <div class="flex flex-wrap items-center gap-1.5">
-                        <span class="rounded bg-accent/20 border border-accent/40 px-2 py-0.5 text-xs font-semibold text-accent-soft">
-                          {previewRelatedItem.relationType}
-                        </span>
-                        <span class="rounded bg-white/10 px-2 py-0.5 text-xs font-medium text-slate-300">
+                    <div class="min-w-0 flex-1 space-y-3">
+                      <div class="flex flex-wrap items-center gap-2">
+                        <span class="rounded-full bg-elevated px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-accent-soft">
                           {formatMediaDisplayType(previewRelatedItem)}
                         </span>
-                        {#if previewRelatedItem.year}
-                          <span class="rounded bg-white/5 px-2 py-0.5 text-xs text-muted">
-                            {previewRelatedItem.year}
+                        {#if previewRelatedItem.relationType}
+                          <span class="rounded-full bg-accent/20 border border-accent/40 px-2.5 py-0.5 text-[11px] font-semibold text-accent-soft">
+                            {previewRelatedItem.relationType}
                           </span>
                         {/if}
-                        {#if previewRelatedItem.score}
-                          <span class="rounded bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 text-xs font-bold text-amber-400">
-                            ★ {previewRelatedItem.score}
-                          </span>
+                        <span class="rounded-full border border-border bg-elevated px-2.5 py-0.5 text-[11px] font-semibold text-muted">
+                          AniList
+                        </span>
+                      </div>
+
+                      <div>
+                        <h3 class="mt-1 text-lg font-bold text-ink">{previewRelatedItem.title}</h3>
+                      </div>
+
+                      <!-- Ratings -->
+                      {#if previewRelatedItem.score}
+                        <div class="flex flex-wrap items-center gap-2">
+                          <div class="inline-flex items-center gap-1 rounded-md border border-border bg-elevated px-2 py-0.5 text-xs">
+                            <span class="font-medium text-muted">AniList:</span>
+                            <span class="flex items-center gap-0.5 font-bold text-star">
+                              <Star size={11} fill="currentColor" />
+                              {previewRelatedItem.score.toFixed(1)}
+                            </span>
+                          </div>
+                        </div>
+                      {/if}
+
+                      <div class="space-y-1 text-xs text-muted">
+                        {#if previewRelatedItem.year}
+                          <div><span class="font-medium text-ink">{i18n.t.detail.previewModal.year}:</span> {previewRelatedItem.year}</div>
+                        {/if}
+                        {#if previewRelatedItem.episodes}
+                          <div><span class="font-medium text-ink">{i18n.t.detail.previewModal.count}:</span> {previewRelatedItem.episodes} {i18n.t.searchModal.countUnits.anime}</div>
+                        {:else if previewRelatedItem.chapters}
+                          <div><span class="font-medium text-ink">{i18n.t.detail.previewModal.count}:</span> {previewRelatedItem.chapters} {i18n.t.searchModal.countUnits.manga}</div>
                         {/if}
                       </div>
 
-                      <h2 id="preview-title" class="mt-2 text-lg font-bold leading-tight text-white line-clamp-2">
-                        {previewRelatedItem.title}
-                      </h2>
+                      <div class="pt-2 flex flex-wrap items-center gap-3">
+                        <div class="flex items-center gap-2">
+                          <label for="preview-status" class="text-xs font-medium text-muted">
+                            {i18n.t.detail.previewModal.initialStatus}:
+                          </label>
+                          <select
+                            id="preview-status"
+                            bind:value={previewStatus}
+                            class="rounded-md border border-border bg-elevated px-2.5 py-1.5 text-xs font-medium text-ink outline-none focus:border-accent"
+                          >
+                            {#each statusOptions as opt}
+                              <option value={opt}>{statusLabel(opt)}</option>
+                            {/each}
+                          </select>
+                        </div>
 
-                      {#if previewRelatedItem.episodes}
-                        <p class="mt-1.5 text-xs text-muted">
-                          Эпизодов: <strong class="text-white">{previewRelatedItem.episodes}</strong>
-                        </p>
-                      {:else if previewRelatedItem.chapters}
-                        <p class="mt-1.5 text-xs text-muted">
-                          Глав: <strong class="text-white">{previewRelatedItem.chapters}</strong>
-                        </p>
-                      {/if}
+                        <button
+                          type="button"
+                          class="inline-flex items-center gap-2 rounded-lg border border-border bg-elevated px-4 py-2 text-xs font-semibold text-ink transition hover:border-accent hover:bg-panel disabled:cursor-wait disabled:opacity-70 cursor-pointer"
+                          disabled={previewAddingBusy}
+                          onclick={() => {
+                            if (previewRelatedItem) void addRelatedToLibrary(previewRelatedItem, previewStatus)
+                          }}
+                        >
+                          {#if previewAddingBusy}
+                            <div class="h-4 w-4 animate-spin rounded-full border-2 border-accent border-t-transparent"></div>
+                            <span>{i18n.t.detail.previewModal.addingToLibrary}</span>
+                          {:else}
+                            <Plus size={16} aria-hidden="true" />
+                            <span>{i18n.t.detail.previewModal.addToLibrary}</span>
+                          {/if}
+                        </button>
+                      </div>
                     </div>
                   </div>
 
-                  <!-- Synopsis -->
                   {#if previewRelatedItem.description}
-                    <div class="mt-4 max-h-36 overflow-y-auto rounded-lg bg-[#13151b] p-3 text-xs leading-relaxed text-slate-300">
-                      {previewRelatedItem.description}
+                    <div class="mt-5 border-t border-border pt-4">
+                      <h4 class="text-xs font-semibold uppercase tracking-wider text-muted">{i18n.t.detail.previewModal.description}</h4>
+                      <p class="mt-1.5 whitespace-pre-line text-xs leading-relaxed text-muted">{previewRelatedItem.description}</p>
                     </div>
                   {/if}
-
-                  <!-- Initial status selector -->
-                  <div class="mt-5 flex items-center justify-between gap-3 rounded-xl border border-white/5 bg-[#13151b] p-3">
-                    <label for="preview-status" class="text-xs font-semibold text-slate-300">
-                      Начальный статус:
-                    </label>
-                    <select
-                      id="preview-status"
-                      bind:value={previewStatus}
-                      class="rounded-lg border border-white/10 bg-[#222634] px-3 py-1.5 text-xs font-medium text-white outline-none focus:border-accent"
-                    >
-                      {#each statusOptions as opt}
-                        <option value={opt}>{statusLabel(opt)}</option>
-                      {/each}
-                    </select>
-                  </div>
-
-                  <!-- Action buttons -->
-                  <div class="mt-5 flex items-center justify-end gap-3">
-                    <button
-                      type="button"
-                      class="rounded-lg border border-white/10 px-4 py-2 text-xs font-medium text-slate-300 transition hover:bg-white/5 cursor-pointer"
-                      disabled={previewAddingBusy}
-                      onclick={() => (previewRelatedItem = null)}
-                    >
-                      Закрыть
-                    </button>
-
-                    <button
-                      type="button"
-                      class="inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-xs font-bold text-white shadow-lg transition hover:bg-accent-hover disabled:opacity-50 cursor-pointer"
-                      disabled={previewAddingBusy}
-                      onclick={() => {
-                        if (previewRelatedItem) void addRelatedToLibrary(previewRelatedItem, previewStatus)
-                      }}
-                    >
-                      {#if previewAddingBusy}
-                        <RefreshCw size={14} class="animate-spin" />
-                        Добавление...
-                      {:else}
-                        <Plus size={15} stroke-width={2.5} />
-                        Добавить в библиотеку
-                      {/if}
-                    </button>
-                  </div>
                 </div>
               </div>
             </div>
@@ -2132,7 +2137,7 @@
           <section class="space-y-4">
             <div class="flex items-center justify-between">
               <h2 class="text-sm font-bold uppercase tracking-wider text-slate-300">{i18n.t.detail.tabRecommendations}</h2>
-              <span class="text-xs text-muted">Кэшируется на 30 дней</span>
+              <span class="text-xs text-muted">{i18n.t.detail.cachedForDays}</span>
             </div>
 
             {#if recommendationsLoading}

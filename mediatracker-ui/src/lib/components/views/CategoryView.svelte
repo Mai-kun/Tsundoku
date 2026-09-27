@@ -35,7 +35,8 @@
     void sort
     const sequence = ++requestSequence
     const delay = search.trim() ? 250 : 0
-    const timer = setTimeout(() => void loadItems(sequence), delay)
+    const isInitial = allItems.length === 0
+    const timer = setTimeout(() => void loadItems(sequence, isInitial), delay)
 
     return () => clearTimeout(timer)
   })
@@ -71,8 +72,10 @@
     }
   }
 
-  async function loadItems(sequence: number) {
-    loading = true
+  async function loadItems(sequence: number, showLoading = true) {
+    if (showLoading) {
+      loading = true
+    }
     loadError = null
 
     try {
@@ -92,7 +95,7 @@
   }
 
   function refresh() {
-    void loadItems(++requestSequence)
+    void loadItems(++requestSequence, false)
   }
 
   async function updateProgress(id: string, currentProgress: number) {
@@ -110,8 +113,18 @@
   }
 
   async function removeItem(item: MediaItem) {
+    const main = document.querySelector('main')
+    const currentScroll = main ? main.scrollTop : (typeof window !== 'undefined' ? window.scrollY : 0)
+
+    allItems = allItems.filter((i) => i.id !== item.id)
     await deleteMedia(item.id)
     onMediaChanged()
+
+    setTimeout(() => {
+      if (main && Math.abs(main.scrollTop - currentScroll) > 5) {
+        main.scrollTop = currentScroll
+      }
+    }, 20)
   }
 
   function updateStatus(value: StatusFilter) {

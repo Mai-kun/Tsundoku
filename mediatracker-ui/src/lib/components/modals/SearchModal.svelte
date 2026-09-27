@@ -200,6 +200,7 @@
       externalRatingsJson: result.ratings ? JSON.stringify(result.ratings) : undefined,
       releaseDate: result.releaseDate ?? (result.releaseYear ? `${result.releaseYear}-01-01` : undefined),
       endDate: result.endDate,
+      releaseStatus: result.releaseStatus,
     }
 
     switch (effectiveType(result)) {

@@ -32,6 +32,8 @@ public sealed record ExternalMediaDto
 
     public string? EndDate { get; init; }
 
+    public string? ReleaseStatus { get; init; }
+
     public int? RuntimeMinutes { get; init; }
 
     public required string Type { get; init; }

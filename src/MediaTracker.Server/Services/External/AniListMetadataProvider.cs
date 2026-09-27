@@ -21,6 +21,7 @@ public sealed partial class AniListMetadataProvider(
               coverImage { extraLarge }
               startDate { year month day }
               endDate { year month day }
+              status
               duration
               episodes
               chapters
@@ -44,6 +45,7 @@ public sealed partial class AniListMetadataProvider(
             coverImage { extraLarge }
             startDate { year month day }
             endDate { year month day }
+            status
             duration
             episodes
             chapters
@@ -173,6 +175,7 @@ public sealed partial class AniListMetadataProvider(
             ReleaseYear = item.StartDate?.Year,
             ReleaseDate = releaseDate,
             EndDate = endDate,
+            ReleaseStatus = item.Status,
             RuntimeMinutes = item.Duration,
             Type = mediaType,
             Author = mediaType == "manga" ? item.Staff?.Edges?.FirstOrDefault()?.Node?.Name?.Full : null,
@@ -250,6 +253,7 @@ public sealed partial class AniListMetadataProvider(
         AniListCoverImage? CoverImage,
         AniListDate? StartDate,
         AniListDate? EndDate,
+        string? Status,
         int? Duration,
         int? Episodes,
         int? Chapters,

@@ -51,9 +51,9 @@
         </PackageReference>
         <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.12" />
         <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="10.0.12" />
-        <PackageReference Include="Microsoft.Extensions.FileProviders.Embedded" Version="10.0.11" />
-        <PackageReference Include="OpenApiUi" Version="1.1.0" />
-        <PackageReference Include="Photino.NET" Version="3.*" />
+        <PackageReference Include="Microsoft.Extensions.FileProviders.Embedded" Version="10.0.12" />
+        <PackageReference Include="OpenApiUi" Version="2.0.5" />
+        <PackageReference Include="Photino.NET" Version="4.0.16" />
         <PackageReference Include="Serilog.AspNetCore" Version="10.0.0" />
         <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
         <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />

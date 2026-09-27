@@ -15,8 +15,6 @@ using OpenApiUi;
 using Serilog;
 using Serilog.Events;
 
-Environment.SetEnvironmentVariable("WEBVIEW2_DEFAULT_BACKGROUND_COLOR", "FF0C0E14");
-
 var logsDirectory = Path.Combine(Directory.GetCurrentDirectory(), "data", "logs");
 Directory.CreateDirectory(logsDirectory);
 

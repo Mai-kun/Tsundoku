@@ -104,6 +104,7 @@ public sealed class JikanMetadataProvider(
             ReleaseYear = item.Year,
             ReleaseDate = item.Aired?.From,
             EndDate = item.Aired?.To,
+            ReleaseStatus = item.Status,
             RuntimeMinutes = runtime,
             Type = type,
             Studio = studio,
@@ -174,6 +175,9 @@ public sealed class JikanMetadataProvider(
 
         [JsonPropertyName("duration")]
         public string? Duration { get; set; }
+
+        [JsonPropertyName("status")]
+        public string? Status { get; set; }
     }
 
     private sealed class JikanAired

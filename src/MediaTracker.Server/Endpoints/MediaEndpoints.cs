@@ -414,6 +414,10 @@ public static class MediaEndpoints
             item.EndDate = parsedEndDate;
         }
 
+        item.ReleaseStatus = !string.IsNullOrWhiteSpace(external.ReleaseStatus)
+            ? external.ReleaseStatus
+            : ComputeReleaseStatusFromDates(item.ReleaseDate, item.EndDate);
+
         if (item is TvShow show)
         {
             if (external.RuntimeMinutes is > 0)
@@ -645,6 +649,9 @@ public static class MediaEndpoints
         item.ExternalRatingsJson = request.ExternalRatingsJson;
         item.ReleaseDate = request.ReleaseDate;
         item.EndDate = request.EndDate;
+        item.ReleaseStatus = !string.IsNullOrWhiteSpace(request.ReleaseStatus)
+            ? request.ReleaseStatus
+            : ComputeReleaseStatusFromDates(request.ReleaseDate, request.EndDate);
 
         return item;
     }
@@ -656,6 +663,24 @@ public static class MediaEndpoints
         url is not null &&
         (url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
          url.StartsWith("https://", StringComparison.OrdinalIgnoreCase));
+
+    private static string? ComputeReleaseStatusFromDates(DateTime? releaseDate, DateTime? endDate)
+    {
+        var now = DateTime.UtcNow.Date;
+        if (endDate is { } end && end <= now)
+        {
+            return "FINISHED";
+        }
+        if (releaseDate is { } start)
+        {
+            if (start > now)
+            {
+                return "NOT_YET_RELEASED";
+            }
+            return "RELEASING";
+        }
+        return null;
+    }
 
     private sealed class UnsupportedMediaTypeException(string mediaType)
         : InvalidOperationException($"Unsupported media type '{mediaType}'.");

@@ -335,7 +335,7 @@
                       <div class="mt-3 border-t border-border/60 pt-3">
                         {#if source.maskedKey}
                           <div class="mb-2 flex items-center gap-2 text-xs text-muted">
-                            <span>Текущий ключ:</span>
+                            <span>{i18n.t.settingsModal.sources.currentKey}</span>
                             <code class="rounded bg-canvas px-2 py-0.5 font-mono text-[11px] text-ink">{source.maskedKey}</code>
                           </div>
                         {/if}
@@ -345,7 +345,7 @@
                             <input
                               type={showKeys[source.id] ? 'text' : 'password'}
                               class="h-9 w-full rounded-md border border-border bg-elevated px-3 pr-9 text-xs text-ink placeholder:text-muted focus:border-accent-soft focus:outline-none focus:ring-1 focus:ring-accent-soft"
-                              placeholder={source.hasKey ? 'Заменить API ключ...' : i18n.t.settingsModal.sources.inputPlaceholder}
+                              placeholder={source.hasKey ? i18n.t.settingsModal.sources.replaceKeyPlaceholder : i18n.t.settingsModal.sources.inputPlaceholder}
                               value={inputKeys[source.id] ?? ''}
                               oninput={(e) => (inputKeys[source.id] = (e.currentTarget as HTMLInputElement).value)}
                             />
@@ -457,7 +457,7 @@
                       <div class="rounded-lg border border-border bg-card/60 p-3.5 space-y-2">
                         <div class="flex items-center justify-between">
                           <h4 class="text-xs font-bold uppercase tracking-wider text-accent-soft">{categoryLabel(mediaType)}</h4>
-                          <span class="text-[11px] text-muted">{providers.length} источника</span>
+                          <span class="text-[11px] text-muted">{i18n.t.settingsModal.sources.providersCount(providers.length)}</span>
                         </div>
                         <div class="space-y-1.5">
                           {#each providers as provId, pIdx (provId)}
@@ -468,9 +468,9 @@
                                 </span>
                                 <span class="text-xs font-medium text-ink">{getSourceName(provId)}</span>
                                 {#if pIdx === 0}
-                                  <span class="rounded bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-400">Основной</span>
+                                  <span class="rounded bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-400">{i18n.t.settingsModal.search.primary}</span>
                                 {:else}
-                                  <span class="rounded bg-canvas px-1.5 py-0.5 text-[10px] text-muted">Резервный ({pIdx + 1})</span>
+                                  <span class="rounded bg-canvas px-1.5 py-0.5 text-[10px] text-muted">{i18n.t.settingsModal.search.fallback(pIdx + 1)}</span>
                                 {/if}
                               </div>
                               <div class="flex items-center gap-1">

@@ -583,11 +583,11 @@
             {/if}
 
             <div class="space-y-1 text-xs text-muted">
-              {#if previewItem.releaseYear}<div><span class="font-medium text-ink">Год:</span> {previewItem.releaseYear}</div>{/if}
-              {#if previewItem.studio}<div><span class="font-medium text-ink">Студия / Сеть:</span> {previewItem.studio}</div>{/if}
-              {#if previewItem.author}<div><span class="font-medium text-ink">Автор:</span> {previewItem.author}</div>{/if}
-              {#if previewItem.platform}<div><span class="font-medium text-ink">Платформа:</span> {previewItem.platform}</div>{/if}
-              {#if countLabel(previewItem)}<div><span class="font-medium text-ink">Количество:</span> {countLabel(previewItem)}</div>{/if}
+              {#if previewItem.releaseYear}<div><span class="font-medium text-ink">{i18n.t.detail.previewModal.year}:</span> {previewItem.releaseYear}</div>{/if}
+              {#if previewItem.studio}<div><span class="font-medium text-ink">{i18n.t.detail.previewModal.studio}:</span> {previewItem.studio}</div>{/if}
+              {#if previewItem.author}<div><span class="font-medium text-ink">{i18n.t.detail.previewModal.author}:</span> {previewItem.author}</div>{/if}
+              {#if previewItem.platform}<div><span class="font-medium text-ink">{i18n.t.detail.previewModal.platform}:</span> {previewItem.platform}</div>{/if}
+              {#if countLabel(previewItem)}<div><span class="font-medium text-ink">{i18n.t.detail.previewModal.count}:</span> {countLabel(previewItem)}</div>{/if}
             </div>
 
             <div class="pt-2">
@@ -618,19 +618,19 @@
 
         {#if previewItem.description}
           <div class="mt-5 border-t border-border pt-4">
-            <h4 class="text-xs font-semibold uppercase tracking-wider text-muted">Описание</h4>
+            <h4 class="text-xs font-semibold uppercase tracking-wider text-muted">{i18n.t.detail.previewModal.description}</h4>
             <p class="mt-1.5 whitespace-pre-line text-xs leading-relaxed text-muted">{previewItem.description}</p>
           </div>
         {/if}
 
         {#if previewItem.episodes && previewItem.episodes.length > 0}
           <div class="mt-5 border-t border-border pt-4">
-            <h4 class="text-xs font-semibold uppercase tracking-wider text-muted">Список эпизодов ({previewItem.episodes.length})</h4>
+            <h4 class="text-xs font-semibold uppercase tracking-wider text-muted">{i18n.t.detail.previewModal.episodesList(previewItem.episodes.length)}</h4>
             <ul class="mt-2 max-h-48 space-y-1.5 overflow-y-auto pr-1">
               {#each previewItem.episodes as ep}
                 <li class="flex items-center justify-between rounded bg-elevated/50 px-2.5 py-1.5 text-xs text-ink">
                   <span class="font-medium text-muted">E{ep.number}</span>
-                  <span class="truncate pl-2 text-right">{ep.title || `Эпизод ${ep.number}`}</span>
+                  <span class="truncate pl-2 text-right">{ep.title || i18n.t.detail.episodeTitle(ep.number)}</span>
                 </li>
               {/each}
             </ul>

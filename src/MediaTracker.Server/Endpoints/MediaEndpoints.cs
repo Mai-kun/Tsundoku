@@ -369,7 +369,7 @@ public static class MediaEndpoints
             type = "anime";
         }
 
-        var external = await metadataAggregator.GetDetailsAsync(type, item.ExternalId ?? "", item.Title, ct);
+        var external = await metadataAggregator.GetDetailsAsync(type, item.ExternalId ?? "", item.Title, ct, item.ExternalSource);
         if (external is null)
         {
             return Results.NotFound(new { message = "Metadata could not be found from external source." });

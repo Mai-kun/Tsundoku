@@ -6,9 +6,11 @@ using Microsoft.Extensions.DependencyInjection;
 namespace MediaTracker.Server.Services.External;
 
 public sealed partial class AniListMetadataProvider(
-    [ServiceKey] string mediaType,
+    [ServiceKey] string serviceKey,
     IHttpClientFactory httpClientFactory) : IMetadataProvider
 {
+    private readonly string mediaType = serviceKey.StartsWith("manga", StringComparison.OrdinalIgnoreCase) ? "manga" : "anime";
+
     private const string GraphQLSearchQuery = """
         query Search($search: String, $type: MediaType) {
           Page(perPage: 10) {

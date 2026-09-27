@@ -126,18 +126,18 @@
     }
   }
 
-  function statusClass(status: MediaStatus): string {
+  function statusBadgeClasses(status: MediaStatus): string {
     switch (status) {
       case 1:
-        return 'bg-accent/15 text-accent-soft'
+        return 'border-sky-400/60 bg-[#081b2e]/90 text-sky-300 shadow-sky-950/60'
       case 2:
-        return 'bg-emerald-400/10 text-emerald-300'
+        return 'border-emerald-400/60 bg-[#062417]/90 text-emerald-300 shadow-emerald-950/60'
       case 3:
-        return 'bg-amber-400/10 text-amber-300'
+        return 'border-amber-400/60 bg-[#261908]/90 text-amber-300 shadow-amber-950/60'
       case 4:
-        return 'bg-rose-400/10 text-rose-300'
+        return 'border-rose-400/60 bg-[#26090e]/90 text-rose-300 shadow-rose-950/60'
       default:
-        return 'bg-elevated text-muted'
+        return 'border-slate-500/50 bg-[#12151e]/90 text-slate-200 shadow-black/60'
     }
   }
 
@@ -232,22 +232,22 @@
       <div class="relative min-w-0 flex-1 mr-2" data-status-menu>
         <button
           type="button"
-          class={`inline-flex max-w-full items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider backdrop-blur transition hover:brightness-110 ${statusClass(item.status)}`}
+          class={`flex h-7 w-7 items-center justify-center rounded-full border shadow-lg backdrop-blur transition hover:scale-110 active:scale-95 ${statusBadgeClasses(item.status)}`}
           onclick={(e) => { e.stopPropagation(); statusMenuOpen = !statusMenuOpen }}
           title={statusLabel(item.status)}
+          aria-label={statusLabel(item.status)}
         >
           {#if item.status === 0}
-            <Bookmark size={12} />
+            <Bookmark size={13} stroke-width={2.2} />
           {:else if item.status === 1}
-            <Play size={12} fill="currentColor" />
+            <Play size={12} fill="currentColor" class="translate-x-0.5" />
           {:else if item.status === 2}
-            <Check size={12} stroke-width={2.5} />
+            <Check size={14} stroke-width={2.8} />
           {:else if item.status === 3}
-            <Pause size={12} />
+            <Pause size={12} stroke-width={2.5} />
           {:else if item.status === 4}
-            <X size={12} />
+            <X size={13} stroke-width={2.5} />
           {/if}
-          <ChevronDown size={11} class="shrink-0 opacity-70" />
         </button>
 
         {#if statusMenuOpen}

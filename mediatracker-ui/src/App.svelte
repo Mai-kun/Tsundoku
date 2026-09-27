@@ -35,6 +35,7 @@
   const savedScrollPositions = new Map<string, number>()
 
   function restoreScroll(view: string) {
+    if (view === 'detail') return
     const saved = savedScrollPositions.get(view)
     if (typeof saved === 'number') {
       setTimeout(() => {
@@ -49,7 +50,10 @@
       const nextRoute = readRoute()
       activeView = nextRoute.view
       selectedMediaId = nextRoute.mediaId
-      if (nextRoute.view !== 'detail') {
+      if (nextRoute.view === 'detail') {
+        if (mainScrollContainer) mainScrollContainer.scrollTop = 0
+        if (typeof window !== 'undefined') window.scrollTo(0, 0)
+      } else {
         detailDepth = 0
         restoreScroll(nextRoute.view)
       }
@@ -104,9 +108,12 @@
     selectedMediaId = item.id
     writeRoute('detail', item.id)
     detailDepth += 1
+    if (mainScrollContainer) mainScrollContainer.scrollTop = 0
+    if (typeof window !== 'undefined') window.scrollTo(0, 0)
   }
 
   function closeDetail() {
+    savedScrollPositions.delete('detail')
     const target = previousView
     if (detailDepth > 0) {
       detailDepth -= 1

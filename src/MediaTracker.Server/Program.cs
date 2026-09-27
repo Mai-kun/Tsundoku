@@ -136,23 +136,29 @@ try
     builder.Services.AddKeyedTransient<IMetadataProvider, AniListMetadataProvider>("anime");
     builder.Services.AddKeyedTransient<IMetadataProvider, AniListMetadataProvider>("anime:anilist");
     builder.Services.AddKeyedTransient<IMetadataProvider, JikanMetadataProvider>("anime:jikan");
+    builder.Services.AddKeyedTransient<IMetadataProvider, AniListMetadataProvider>("anilist");
+    builder.Services.AddKeyedTransient<IMetadataProvider, JikanMetadataProvider>("jikan");
 
     builder.Services.AddKeyedTransient<IMetadataProvider, AniListMetadataProvider>("manga");
     builder.Services.AddKeyedTransient<IMetadataProvider, AniListMetadataProvider>("manga:anilist");
     builder.Services.AddKeyedTransient<IMetadataProvider, MangaUpdatesMetadataProvider>("manga:mangaupdates");
     builder.Services.AddKeyedTransient<IMetadataProvider, JikanMetadataProvider>("manga:jikan");
+    builder.Services.AddKeyedTransient<IMetadataProvider, MangaUpdatesMetadataProvider>("mangaupdates");
 
     builder.Services.AddKeyedTransient<IMetadataProvider, OpenLibraryMetadataProvider>("book");
     builder.Services.AddKeyedTransient<IMetadataProvider, OpenLibraryMetadataProvider>("book:openlibrary");
+    builder.Services.AddKeyedTransient<IMetadataProvider, OpenLibraryMetadataProvider>("openlibrary");
 
     builder.Services.AddKeyedTransient<IMetadataProvider, TmdbMetadataProvider>("movie");
     builder.Services.AddKeyedTransient<IMetadataProvider, TmdbMetadataProvider>("movie:tmdb");
 
     builder.Services.AddKeyedTransient<IMetadataProvider, TmdbMetadataProvider>("tvshow");
     builder.Services.AddKeyedTransient<IMetadataProvider, TmdbMetadataProvider>("tvshow:tmdb");
+    builder.Services.AddKeyedTransient<IMetadataProvider, TmdbMetadataProvider>("tmdb");
 
     builder.Services.AddKeyedTransient<IMetadataProvider, RawgMetadataProvider>("game");
     builder.Services.AddKeyedTransient<IMetadataProvider, RawgMetadataProvider>("game:rawg");
+    builder.Services.AddKeyedTransient<IMetadataProvider, RawgMetadataProvider>("rawg");
 
     builder.Services.AddTransient<MetadataAggregatorService>();
 

@@ -355,12 +355,15 @@ public static class MediaEndpoints
         IImageStorageService imageStorage,
         CancellationToken ct)
     {
-        var item = await db.MediaItems
-            .Include(media => ((TvShow)media).Seasons)
-            .SingleOrDefaultAsync(media => media.Id == id, ct);
+        var item = await db.MediaItems.SingleOrDefaultAsync(media => media.Id == id, ct);
         if (item is null)
         {
             return Results.NotFound();
+        }
+
+        if (item is TvShow tvShow)
+        {
+            await db.Entry(tvShow).Collection(s => s.Seasons).LoadAsync(ct);
         }
 
         var type = MediaResponseMapper.GetType(item);

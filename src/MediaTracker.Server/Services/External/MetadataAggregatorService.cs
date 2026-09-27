@@ -24,9 +24,17 @@ public sealed class MetadataAggregatorService(
         ["book"] = ["openlibrary"]
     };
 
+    public void ClearCache()
+    {
+        if (cache is MemoryCache memoryCache)
+        {
+            memoryCache.Clear();
+        }
+    }
+
     public async Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string type, string query, CancellationToken ct)
     {
-        var normalizedType = type.Trim().ToLowerInvariant();
+        var normalizedType = NormalizeMediaType(type);
         var normalizedQuery = query.Trim();
         var cacheKey = $"{(normalizedType.Length == 0 ? "all" : normalizedType)}:{normalizedQuery.ToLowerInvariant()}";
 
@@ -45,13 +53,14 @@ public sealed class MetadataAggregatorService(
 
     public async Task<ExternalMediaDto?> GetDetailsAsync(string type, string externalId, string title, CancellationToken ct, string? source = null)
     {
-        var normalizedType = type.Trim().ToLowerInvariant();
+        var normalizedType = NormalizeMediaType(type, source);
 
         if (!string.IsNullOrWhiteSpace(source))
         {
             var normalizedSource = NormalizeSourceKey(source);
             var directProvider = serviceProvider.GetKeyedService<IMetadataProvider>($"{normalizedType}:{normalizedSource}")
-                                 ?? serviceProvider.GetKeyedService<IMetadataProvider>(normalizedSource);
+                                 ?? serviceProvider.GetKeyedService<IMetadataProvider>(normalizedSource)
+                                 ?? serviceProvider.GetKeyedService<IMetadataProvider>(normalizedType);
 
             if (directProvider is not null)
             {
@@ -193,6 +202,27 @@ public sealed class MetadataAggregatorService(
         return DefaultSourcePriority.TryGetValue(type, out var defaultList)
             ? defaultList
             : [type];
+    }
+
+    private static string NormalizeMediaType(string type, string? source = null)
+    {
+        var lowerType = type?.Trim().ToLowerInvariant() ?? "";
+        if (!string.IsNullOrWhiteSpace(source))
+        {
+            var lowerSource = source.Trim().ToLowerInvariant();
+            if (lowerSource.Contains("mangaupdates"))
+            {
+                return "manga";
+            }
+            if (lowerSource.Contains("anilist") || lowerSource.Contains("jikan") || lowerSource.Contains("mal") || lowerSource.Contains("shikimori"))
+            {
+                if (lowerType is "tvshow" or "movie" or "all" or "")
+                {
+                    return "anime";
+                }
+            }
+        }
+        return lowerType;
     }
 
     private static string NormalizeSourceKey(string source)

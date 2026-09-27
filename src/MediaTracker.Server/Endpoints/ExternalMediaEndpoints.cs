@@ -11,8 +11,30 @@ public static class ExternalMediaEndpoints
         var group = app.MapGroup("/api/external");
 
         group.MapGet("/search", SearchExternalMedia);
+        group.MapGet("/details", GetExternalMediaDetails);
 
         return app;
+    }
+
+    private static async Task<IResult> GetExternalMediaDetails(
+        string? type,
+        string? id,
+        string? title,
+        string? source,
+        MetadataAggregatorService aggregator,
+        CancellationToken ct)
+    {
+        var normalizedType = string.IsNullOrWhiteSpace(type) ? "anime" : type.Trim().ToLowerInvariant();
+        var normalizedId = id?.Trim() ?? string.Empty;
+        var normalizedTitle = title?.Trim() ?? string.Empty;
+
+        if (string.IsNullOrWhiteSpace(normalizedId) && string.IsNullOrWhiteSpace(normalizedTitle))
+        {
+            return Results.BadRequest(new { message = "Either id or title is required." });
+        }
+
+        var details = await aggregator.GetDetailsAsync(normalizedType, normalizedId, normalizedTitle, ct, source);
+        return details is not null ? Results.Ok(details) : Results.NotFound();
     }
 
     private static async Task<IResult> SearchExternalMedia(

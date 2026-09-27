@@ -580,14 +580,38 @@
                   {previewItem.rating.toFixed(1)}
                 </span>
               </div>
+            {:else}
+              <div class="inline-flex items-center gap-1 rounded-md border border-border bg-elevated px-2 py-0.5 text-xs text-muted">
+                <span>{i18n.t.detail.previewModal.noRatings}</span>
+              </div>
             {/if}
 
             <div class="space-y-1 text-xs text-muted">
-              {#if previewItem.releaseYear}<div><span class="font-medium text-ink">{i18n.t.detail.previewModal.year}:</span> {previewItem.releaseYear}</div>{/if}
-              {#if previewItem.studio}<div><span class="font-medium text-ink">{i18n.t.detail.previewModal.studio}:</span> {previewItem.studio}</div>{/if}
-              {#if previewItem.author}<div><span class="font-medium text-ink">{i18n.t.detail.previewModal.author}:</span> {previewItem.author}</div>{/if}
-              {#if previewItem.platform}<div><span class="font-medium text-ink">{i18n.t.detail.previewModal.platform}:</span> {previewItem.platform}</div>{/if}
-              {#if countLabel(previewItem)}<div><span class="font-medium text-ink">{i18n.t.detail.previewModal.count}:</span> {countLabel(previewItem)}</div>{/if}
+              <div>
+                <span class="font-medium text-ink">{i18n.t.detail.previewModal.year}:</span>
+                {previewItem.releaseYear ?? i18n.t.detail.previewModal.noData}
+              </div>
+              {#if previewItem.type === 'manga' || previewItem.type === 'book'}
+                <div>
+                  <span class="font-medium text-ink">{i18n.t.detail.previewModal.author}:</span>
+                  {previewItem.author ?? i18n.t.detail.previewModal.noData}
+                </div>
+              {:else}
+                <div>
+                  <span class="font-medium text-ink">{i18n.t.detail.previewModal.studio}:</span>
+                  {previewItem.studio ?? i18n.t.detail.previewModal.noData}
+                </div>
+              {/if}
+              {#if previewItem.platform}
+                <div>
+                  <span class="font-medium text-ink">{i18n.t.detail.previewModal.platform}:</span>
+                  {previewItem.platform}
+                </div>
+              {/if}
+              <div>
+                <span class="font-medium text-ink">{i18n.t.detail.previewModal.count}:</span>
+                {countLabel(previewItem) || i18n.t.detail.previewModal.noData}
+              </div>
             </div>
 
             <div class="pt-2">
@@ -616,12 +640,14 @@
           </div>
         </div>
 
-        {#if previewItem.description}
-          <div class="mt-5 border-t border-border pt-4">
-            <h4 class="text-xs font-semibold uppercase tracking-wider text-muted">{i18n.t.detail.previewModal.description}</h4>
+        <div class="mt-5 border-t border-border pt-4">
+          <h4 class="text-xs font-semibold uppercase tracking-wider text-muted">{i18n.t.detail.previewModal.description}</h4>
+          {#if previewItem.description}
             <p class="mt-1.5 whitespace-pre-line text-xs leading-relaxed text-muted">{previewItem.description}</p>
-          </div>
-        {/if}
+          {:else}
+            <p class="mt-1.5 text-xs italic text-muted/70">{i18n.t.detail.previewModal.noDescription}</p>
+          {/if}
+        </div>
 
         {#if previewItem.episodes && previewItem.episodes.length > 0}
           <div class="mt-5 border-t border-border pt-4">

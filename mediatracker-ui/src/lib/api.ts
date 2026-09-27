@@ -130,6 +130,17 @@ export function searchExternal(type: SearchScope, query: string): Promise<Extern
   return requestJson<ExternalMedia[]>(url)
 }
 
+export function getExternalDetails(
+  type: string,
+  id: string,
+  title: string,
+  source?: string,
+): Promise<ExternalMedia | null> {
+  const params = new URLSearchParams({ type, id, title })
+  if (source) params.set('source', source)
+  return requestJson<ExternalMedia>(`${externalEndpoint}/details?${params}`).catch(() => null)
+}
+
 export function createMedia(payload: CreateMediaPayload): Promise<MediaDetail> {
   return requestJson<MediaDetail>(mediaEndpoint, jsonOptions('POST', payload))
 }

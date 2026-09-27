@@ -26,7 +26,7 @@
     Trash2,
     X,
   } from 'lucide-svelte'
-  import { createMedia, errorMessage, getMedia, getMediaItem, refreshMetadata, setProgress, setSeasonProgress, updateMedia, updateStatus } from '$lib/api'
+  import { createMedia, errorMessage, getExternalDetails, getMedia, getMediaItem, refreshMetadata, setProgress, setSeasonProgress, updateMedia, updateStatus } from '$lib/api'
   import { i18n } from '$lib/i18n/index.svelte'
   import { showToast } from '$lib/stores/toast.svelte'
   import { clampProgress, isTvShowDetail, MEDIA_STATUS, type AppView, type MediaDetail, type MediaItem, type MediaStatus, type TvSeason } from '$lib/types'
@@ -70,6 +70,7 @@
   interface RelatedEntry {
     id: string
     title: string
+    originalTitle?: string | null
     coverUrl: string | null
     bannerUrl?: string | null
     type: string
@@ -78,9 +79,14 @@
     relationType?: string
     rawRelationType?: string
     score?: number | null
+    ratings?: { source: string; rating: number }[] | null
     description?: string | null
     episodes?: number | null
     chapters?: number | null
+    volumes?: number | null
+    studio?: string | null
+    author?: string | null
+    externalSource?: string | null
     localItem?: MediaItem
   }
 
@@ -337,7 +343,7 @@
             query ($id: Int, $idMal: Int, $search: String, $type: MediaType) {
               Media(id: $id, idMal: $idMal, search: $search, type: $type) {
                 id
-                title { romaji english userPreferred }
+                title { romaji english userPreferred native }
                 format
                 type
                 status
@@ -345,15 +351,23 @@
                 averageScore
                 episodes
                 chapters
+                volumes
                 coverImage { extraLarge large medium }
                 bannerImage
                 startDate { year }
+                studios(isMain: true) { nodes { name } }
+                staff(perPage: 3) {
+                  edges {
+                    role
+                    node { name { full } }
+                  }
+                }
                 relations {
                   edges {
                     relationType
                     node {
                       id
-                      title { romaji english userPreferred }
+                      title { romaji english userPreferred native }
                       format
                       type
                       status
@@ -361,9 +375,17 @@
                       averageScore
                       episodes
                       chapters
+                      volumes
                       coverImage { extraLarge large medium }
                       bannerImage
                       startDate { year }
+                      studios(isMain: true) { nodes { name } }
+                      staff(perPage: 3) {
+                        edges {
+                          role
+                          node { name { full } }
+                        }
+                      }
                     }
                   }
                 }
@@ -411,20 +433,31 @@
               const node = e.node
               const desc = node?.description ? String(node.description).replace(/<[^>]*>/g, '').trim() : null
               const score = typeof node?.averageScore === 'number' ? parseFloat((node.averageScore / 10).toFixed(1)) : null
+              const studio = node?.studios?.nodes?.[0]?.name ?? null
+              const author = node?.staff?.edges?.find((st: any) => /story|art|original|author/i.test(st?.role ?? ''))?.node?.name?.full
+                ?? node?.staff?.edges?.[0]?.node?.name?.full
+                ?? null
+              const originalTitle = node?.title?.native ?? null
               return {
                 id: String(node?.id),
                 rawRelationType: e.relationType,
                 relationType: formatRelationType(e.relationType),
                 title: node?.title?.english || node?.title?.romaji || node?.title?.userPreferred || 'Title',
+                originalTitle,
                 coverUrl: node?.coverImage?.large ?? node?.coverImage?.medium ?? null,
                 bannerUrl: node?.bannerImage ?? null,
                 format: node?.format ?? null,
                 type: node?.type?.toLowerCase() === 'manga' ? 'manga' : 'anime',
                 year: node?.startDate?.year ?? null,
                 score,
+                ratings: score ? [{ source: 'AniList', rating: score }] : null,
                 description: desc,
                 episodes: node?.episodes ?? null,
                 chapters: node?.chapters ?? null,
+                volumes: node?.volumes ?? null,
+                studio,
+                author,
+                externalSource: 'AniList',
               }
             })
             localStorage.setItem(cacheKey, JSON.stringify({ timestamp: Date.now(), items: externalNodes }))
@@ -616,7 +649,7 @@
     })
   })
 
-  function handleRelatedClick(rel: RelatedEntry) {
+  async function handleRelatedClick(rel: RelatedEntry) {
     if (rel.localItem) {
       onOpenRelated(rel.localItem)
       return
@@ -624,6 +657,25 @@
 
     previewRelatedItem = rel
     previewStatus = MEDIA_STATUS.planned
+
+    if (!rel.description || (!rel.studio && !rel.author)) {
+      try {
+        const details = await getExternalDetails(rel.type, rel.id, rel.title, rel.externalSource || 'AniList')
+        if (details && previewRelatedItem?.id === rel.id) {
+          previewRelatedItem = {
+            ...previewRelatedItem,
+            originalTitle: details.originalTitle || previewRelatedItem.originalTitle,
+            coverUrl: details.coverUrl || previewRelatedItem.coverUrl,
+            description: details.description || previewRelatedItem.description,
+            year: details.releaseYear ?? previewRelatedItem.year,
+            studio: details.studio || previewRelatedItem.studio,
+            author: details.author || previewRelatedItem.author,
+            score: details.rating ?? previewRelatedItem.score,
+            ratings: details.ratings ?? previewRelatedItem.ratings,
+          }
+        }
+      } catch {}
+    }
   }
 
   async function addRelatedToLibrary(rel: RelatedEntry, status: MediaStatus) {
@@ -1144,7 +1196,7 @@
   }
 </script>
 
-<svelte:window onpointerdown={handleWindowPointerDown} />
+<svelte:window onpointerdown={handleWindowPointerDown} onkeydown={(e) => { if (e.key === 'Escape' && previewRelatedItem) previewRelatedItem = null; }} />
 
 <div class="space-y-6">
   <button type="button" class="inline-flex items-center gap-2 text-sm font-medium text-muted transition hover:text-white" onclick={onBack}>
@@ -2058,30 +2110,68 @@
 
                       <div>
                         <h3 class="mt-1 text-lg font-bold text-ink">{previewRelatedItem.title}</h3>
+                        {#if previewRelatedItem.originalTitle}
+                          <p class="text-xs text-muted">{previewRelatedItem.originalTitle}</p>
+                        {/if}
                       </div>
 
                       <!-- Ratings -->
-                      {#if previewRelatedItem.score}
+                      {#if previewRelatedItem.ratings && previewRelatedItem.ratings.length > 0}
+                        <div class="flex flex-wrap items-center gap-2">
+                          {#each previewRelatedItem.ratings as r}
+                            <div class="inline-flex items-center gap-1 rounded-md border border-border bg-elevated px-2 py-0.5 text-xs">
+                              <span class="font-medium text-muted">{r.source}:</span>
+                              <span class="flex items-center gap-0.5 font-bold text-star">
+                                <Star size={11} fill="currentColor" />
+                                {(r.rating ?? 0).toFixed(1)}
+                              </span>
+                            </div>
+                          {/each}
+                        </div>
+                      {:else if previewRelatedItem.score}
                         <div class="flex flex-wrap items-center gap-2">
                           <div class="inline-flex items-center gap-1 rounded-md border border-border bg-elevated px-2 py-0.5 text-xs">
-                            <span class="font-medium text-muted">AniList:</span>
+                            <span class="font-medium text-muted">{previewRelatedItem.externalSource || 'AniList'}:</span>
                             <span class="flex items-center gap-0.5 font-bold text-star">
                               <Star size={11} fill="currentColor" />
                               {previewRelatedItem.score.toFixed(1)}
                             </span>
                           </div>
                         </div>
+                      {:else}
+                        <div class="inline-flex items-center gap-1 rounded-md border border-border bg-elevated px-2 py-0.5 text-xs text-muted">
+                          <span>{i18n.t.detail.previewModal.noRatings}</span>
+                        </div>
                       {/if}
 
                       <div class="space-y-1 text-xs text-muted">
-                        {#if previewRelatedItem.year}
-                          <div><span class="font-medium text-ink">{i18n.t.detail.previewModal.year}:</span> {previewRelatedItem.year}</div>
+                        <div>
+                          <span class="font-medium text-ink">{i18n.t.detail.previewModal.year}:</span>
+                          {previewRelatedItem.year ?? i18n.t.detail.previewModal.noData}
+                        </div>
+                        {#if previewRelatedItem.type === 'manga' || previewRelatedItem.format === 'NOVEL' || previewRelatedItem.format === 'MANGA'}
+                          <div>
+                            <span class="font-medium text-ink">{i18n.t.detail.previewModal.author}:</span>
+                            {previewRelatedItem.author ?? i18n.t.detail.previewModal.noData}
+                          </div>
+                        {:else}
+                          <div>
+                            <span class="font-medium text-ink">{i18n.t.detail.previewModal.studio}:</span>
+                            {previewRelatedItem.studio ?? i18n.t.detail.previewModal.noData}
+                          </div>
                         {/if}
-                        {#if previewRelatedItem.episodes}
-                          <div><span class="font-medium text-ink">{i18n.t.detail.previewModal.count}:</span> {previewRelatedItem.episodes} {i18n.t.searchModal.countUnits.anime}</div>
-                        {:else if previewRelatedItem.chapters}
-                          <div><span class="font-medium text-ink">{i18n.t.detail.previewModal.count}:</span> {previewRelatedItem.chapters} {i18n.t.searchModal.countUnits.manga}</div>
-                        {/if}
+                        <div>
+                          <span class="font-medium text-ink">{i18n.t.detail.previewModal.count}:</span>
+                          {#if previewRelatedItem.episodes}
+                            {previewRelatedItem.episodes} {i18n.t.searchModal.countUnits.anime}
+                          {:else if previewRelatedItem.chapters}
+                            {previewRelatedItem.chapters} {i18n.t.searchModal.countUnits.manga}
+                          {:else if previewRelatedItem.volumes}
+                            {previewRelatedItem.volumes} {i18n.t.searchModal.countUnits.manga}
+                          {:else}
+                            {i18n.t.detail.previewModal.noData}
+                          {/if}
+                        </div>
                       </div>
 
                       <div class="pt-2 flex flex-wrap items-center gap-3">
@@ -2120,12 +2210,14 @@
                     </div>
                   </div>
 
-                  {#if previewRelatedItem.description}
-                    <div class="mt-5 border-t border-border pt-4">
-                      <h4 class="text-xs font-semibold uppercase tracking-wider text-muted">{i18n.t.detail.previewModal.description}</h4>
+                  <div class="mt-5 border-t border-border pt-4">
+                    <h4 class="text-xs font-semibold uppercase tracking-wider text-muted">{i18n.t.detail.previewModal.description}</h4>
+                    {#if previewRelatedItem.description}
                       <p class="mt-1.5 whitespace-pre-line text-xs leading-relaxed text-muted">{previewRelatedItem.description}</p>
-                    </div>
-                  {/if}
+                    {:else}
+                      <p class="mt-1.5 text-xs italic text-muted/70">{i18n.t.detail.previewModal.noDescription}</p>
+                    {/if}
+                  </div>
                 </div>
               </div>
             </div>

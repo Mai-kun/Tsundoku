@@ -142,6 +142,7 @@ public static class SettingsEndpoints
         AppDbContext db,
         IEncryptionService encryption,
         IOptions<ExternalApiOptions> options,
+        MetadataAggregatorService aggregator,
         CancellationToken ct)
     {
         var normalizedId = id.Trim().ToLowerInvariant();
@@ -172,6 +173,7 @@ public static class SettingsEndpoints
         }
 
         await db.SaveChangesAsync(ct);
+        aggregator.ClearCache();
 
         // Update in-memory options immediately
         if (normalizedId == "tmdb")
@@ -211,6 +213,7 @@ public static class SettingsEndpoints
     private static async Task<IResult> SaveCategoryOrder(
         string[] order,
         AppDbContext db,
+        MetadataAggregatorService aggregator,
         CancellationToken ct)
     {
         if (order == null || order.Length == 0)
@@ -237,6 +240,7 @@ public static class SettingsEndpoints
         }
 
         await db.SaveChangesAsync(ct);
+        aggregator.ClearCache();
         return Results.Ok(order);
     }
 
@@ -264,6 +268,7 @@ public static class SettingsEndpoints
     private static async Task<IResult> SaveSourcePriority(
         Dictionary<string, string[]> priority,
         AppDbContext db,
+        MetadataAggregatorService aggregator,
         CancellationToken ct)
     {
         if (priority == null || priority.Count == 0)
@@ -290,6 +295,7 @@ public static class SettingsEndpoints
         }
 
         await db.SaveChangesAsync(ct);
+        aggregator.ClearCache();
         return Results.Ok(priority);
     }
 

@@ -87,6 +87,10 @@
     volumes?: number | null
     studio?: string | null
     author?: string | null
+    romajiTitle?: string | null
+    duration?: number | null
+    releaseDate?: string | null
+    endDate?: string | null
     externalSource?: string | null
     localItem?: MediaItem
   }
@@ -388,12 +392,14 @@
                 status
                 description(asHtml: false)
                 averageScore
+                duration
                 episodes
                 chapters
                 volumes
                 coverImage { extraLarge large medium }
                 bannerImage
-                startDate { year }
+                startDate { year month day }
+                endDate { year month day }
                 studios(isMain: true) { nodes { name } }
                 staff(perPage: 3) {
                   edges {
@@ -412,12 +418,14 @@
                       status
                       description(asHtml: false)
                       averageScore
+                      duration
                       episodes
                       chapters
                       volumes
                       coverImage { extraLarge large medium }
                       bannerImage
-                      startDate { year }
+                      startDate { year month day }
+                      endDate { year month day }
                       studios(isMain: true) { nodes { name } }
                       staff(perPage: 3) {
                         edges {
@@ -477,20 +485,32 @@
                 ?? node?.staff?.edges?.[0]?.node?.name?.full
                 ?? null
               const originalTitle = node?.title?.native ?? null
+              const romajiTitle = node?.title?.romaji ?? null
+              const releaseDate = node?.startDate?.year
+                ? `${String(node.startDate.year).padStart(4, '0')}-${String(node.startDate.month ?? 1).padStart(2, '0')}-${String(node.startDate.day ?? 1).padStart(2, '0')}`
+                : null
+              const endDate = node?.endDate?.year
+                ? `${String(node.endDate.year).padStart(4, '0')}-${String(node.endDate.month ?? 1).padStart(2, '0')}-${String(node.endDate.day ?? 1).padStart(2, '0')}`
+                : null
+
               return {
                 id: String(node?.id),
                 rawRelationType: e.relationType,
                 relationType: formatRelationType(e.relationType),
                 title: node?.title?.english || node?.title?.romaji || node?.title?.userPreferred || 'Title',
                 originalTitle,
+                romajiTitle,
                 coverUrl: node?.coverImage?.large ?? node?.coverImage?.medium ?? null,
                 bannerUrl: node?.bannerImage ?? null,
                 format: node?.format ?? null,
                 type: node?.type?.toLowerCase() === 'manga' ? 'manga' : 'anime',
                 year: node?.startDate?.year ?? null,
+                releaseDate,
+                endDate,
                 score,
                 ratings: score ? [{ source: 'AniList', rating: score }] : null,
                 description: desc,
+                duration: typeof node?.duration === 'number' ? node.duration : null,
                 episodes: node?.episodes ?? null,
                 chapters: node?.chapters ?? null,
                 volumes: node?.volumes ?? null,
@@ -650,7 +670,7 @@
   let timelineEntries = $derived.by<TimelineEntry[]>(() => {
     if (!media) return []
 
-    const currentYear = media.startedAt ? new Date(media.startedAt).getFullYear() : (media.createdAt ? new Date(media.createdAt).getFullYear() : null)
+    const currentYear = media.releaseDate ? new Date(media.releaseDate).getFullYear() : null
     const currentFormat = isTvShowDetail(media) ? i18n.t.detail.formats.tv : media.type === 'movie' ? i18n.t.detail.formats.movie : media.type === 'manga' ? i18n.t.detail.formats.manga : media.type
 
     const currentEntry: TimelineEntry = {
@@ -697,78 +717,126 @@
     previewRelatedItem = rel
     previewStatus = MEDIA_STATUS.planned
 
-    if (!rel.description || (!rel.studio && !rel.author)) {
-      try {
-        const details = await getExternalDetails(rel.type, rel.id, rel.title, rel.externalSource || 'AniList')
-        if (details && previewRelatedItem?.id === rel.id) {
-          previewRelatedItem = {
-            ...previewRelatedItem,
-            originalTitle: details.originalTitle || previewRelatedItem.originalTitle,
-            coverUrl: details.coverUrl || previewRelatedItem.coverUrl,
-            description: details.description || previewRelatedItem.description,
-            year: details.releaseYear ?? previewRelatedItem.year,
-            studio: details.studio || previewRelatedItem.studio,
-            author: details.author || previewRelatedItem.author,
-            score: details.rating ?? previewRelatedItem.score,
-            ratings: details.ratings ?? previewRelatedItem.ratings,
-          }
+    try {
+      const details = await getExternalDetails(rel.type, rel.id, rel.title, rel.externalSource || 'AniList')
+      if (details && previewRelatedItem?.id === rel.id) {
+        previewRelatedItem = {
+          ...previewRelatedItem,
+          originalTitle: details.originalTitle || previewRelatedItem.originalTitle,
+          romajiTitle: (details as any).romajiTitle || details.originalTitle || previewRelatedItem.romajiTitle,
+          coverUrl: details.coverUrl || previewRelatedItem.coverUrl,
+          description: details.description || previewRelatedItem.description,
+          year: details.releaseYear ?? previewRelatedItem.year,
+          releaseDate: details.releaseDate ?? previewRelatedItem.releaseDate,
+          endDate: details.endDate ?? previewRelatedItem.endDate,
+          studio: details.studio || previewRelatedItem.studio,
+          author: details.author || previewRelatedItem.author,
+          score: details.rating ?? previewRelatedItem.score,
+          ratings: details.ratings ?? previewRelatedItem.ratings,
+          episodes: details.totalCount ?? previewRelatedItem.episodes,
+          duration: details.runtimeMinutes ?? previewRelatedItem.duration,
         }
-      } catch {}
-    }
+      }
+    } catch {}
   }
 
   async function addRelatedToLibrary(rel: RelatedEntry, status: MediaStatus) {
     previewAddingBusy = true
     try {
-      const format = rel.format?.toUpperCase() ?? ''
+      // Ensure we have full details (including Kitsu ratings and exact release date)
+      let itemDetails = rel
+      if (!rel.ratings || rel.ratings.length <= 1 || !rel.releaseDate || !rel.duration) {
+        try {
+          const fetched = await getExternalDetails(rel.type, rel.id, rel.title, rel.externalSource || 'AniList')
+          if (fetched) {
+            itemDetails = {
+              ...rel,
+              originalTitle: fetched.originalTitle || rel.originalTitle,
+              romajiTitle: (fetched as any).romajiTitle || fetched.originalTitle || rel.romajiTitle,
+              coverUrl: fetched.coverUrl || rel.coverUrl,
+              description: fetched.description || rel.description,
+              year: fetched.releaseYear ?? rel.year,
+              releaseDate: fetched.releaseDate ?? rel.releaseDate,
+              endDate: fetched.endDate ?? rel.endDate,
+              studio: fetched.studio || rel.studio,
+              author: fetched.author || rel.author,
+              score: fetched.rating ?? rel.score,
+              ratings: fetched.ratings ?? rel.ratings,
+              episodes: fetched.totalCount ?? rel.episodes,
+              duration: fetched.runtimeMinutes ?? rel.duration,
+            }
+          }
+        } catch {}
+      }
+
+      const format = itemDetails.format?.toUpperCase() ?? ''
       const isMovie = format === 'MOVIE'
-      const isManga = rel.type === 'manga' || ['MANGA', 'NOVEL', 'ONE_SHOT'].includes(format)
+      const isManga = itemDetails.type === 'manga' || ['MANGA', 'NOVEL', 'ONE_SHOT'].includes(format)
+
+      const ratingsJson = itemDetails.ratings && itemDetails.ratings.length > 0 ? JSON.stringify(itemDetails.ratings) : undefined
+      const releaseDate = itemDetails.releaseDate ?? (itemDetails.year ? `${itemDetails.year}-01-01` : undefined)
+      const endDate = itemDetails.endDate ?? undefined
 
       let created: MediaItem
       if (isMovie) {
         created = await createMedia({
           type: 'movie',
-          title: rel.title,
+          title: itemDetails.title,
           status,
-          coverUrl: rel.coverUrl,
-          notes: rel.description,
-          durationMinutes: 0,
+          coverUrl: itemDetails.coverUrl,
+          notes: itemDetails.description,
+          durationMinutes: itemDetails.duration ?? 0,
           isAnime: true,
+          studio: itemDetails.studio ?? undefined,
+          romajiTitle: itemDetails.romajiTitle ?? itemDetails.originalTitle ?? undefined,
           franchiseId: media?.franchiseId ?? undefined,
-          externalId: rel.id,
-          externalSource: 'AniList',
-          externalRating: rel.score ?? undefined,
+          externalId: itemDetails.id,
+          externalSource: itemDetails.externalSource ?? 'AniList',
+          externalRating: itemDetails.score ?? undefined,
+          externalRatingsJson: ratingsJson,
+          releaseDate,
+          endDate,
         })
       } else if (isManga) {
         created = await createMedia({
           type: 'manga',
-          title: rel.title,
+          title: itemDetails.title,
           status,
-          coverUrl: rel.coverUrl,
-          notes: rel.description,
-          totalChapters: rel.chapters ?? null,
+          coverUrl: itemDetails.coverUrl,
+          notes: itemDetails.description,
+          totalChapters: itemDetails.chapters ?? null,
           franchiseId: media?.franchiseId ?? undefined,
-          externalId: rel.id,
-          externalSource: 'AniList',
-          externalRating: rel.score ?? undefined,
+          externalId: itemDetails.id,
+          externalSource: itemDetails.externalSource ?? 'AniList',
+          externalRating: itemDetails.score ?? undefined,
+          externalRatingsJson: ratingsJson,
+          releaseDate,
+          endDate,
         })
       } else {
         created = await createMedia({
           type: 'tvshow',
-          title: rel.title,
+          title: itemDetails.title,
           status,
-          coverUrl: rel.coverUrl,
-          notes: rel.description,
+          coverUrl: itemDetails.coverUrl,
+          notes: itemDetails.description,
+          durationMinutes: itemDetails.duration ?? undefined,
+          episodeDurationMinutes: itemDetails.duration ?? undefined,
           isAnime: true,
+          studio: itemDetails.studio ?? undefined,
+          romajiTitle: itemDetails.romajiTitle ?? itemDetails.originalTitle ?? undefined,
           franchiseId: media?.franchiseId ?? undefined,
-          externalId: rel.id,
-          externalSource: 'AniList',
-          externalRating: rel.score ?? undefined,
+          externalId: itemDetails.id,
+          externalSource: itemDetails.externalSource ?? 'AniList',
+          externalRating: itemDetails.score ?? undefined,
+          externalRatingsJson: ratingsJson,
+          releaseDate,
+          endDate,
           seasons: [
             {
               seasonNumber: 1,
               title: 'Season 1',
-              totalEpisodes: rel.episodes ?? 12,
+              totalEpisodes: itemDetails.episodes ?? 12,
               status,
             },
           ],
@@ -776,6 +844,10 @@
       }
 
       showToast(i18n.t.searchModal.inLibrary, 'success')
+      // Update the related grid immediately to show the "added" badge
+      related = related.map((r) =>
+        r.id === rel.id ? { ...r, localItem: created } : r
+      )
       previewRelatedItem = null
       onUpdate()
       onOpenRelated(created)
@@ -1479,10 +1551,12 @@
 
       <!-- Right Column: Header, Badges, Tabs, Tab Content -->
       <div class="min-w-0 flex-1 space-y-6">
-        <!-- Title and Romaji/Type -->
+        <!-- Title and Romaji/Subtitle -->
         <header class="flex flex-wrap items-start justify-between gap-4">
           <div class="min-w-0">
-            <p class="text-sm font-medium text-muted">{originalTitle ?? typeLabel(media)}</p>
+            {#if originalTitle}
+              <p class="text-sm font-medium text-muted">{originalTitle}</p>
+            {/if}
             <h1 class="mt-1 break-words text-3xl font-extrabold tracking-tight text-white">{media.title}</h1>
           </div>
         </header>

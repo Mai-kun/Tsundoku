@@ -199,6 +199,7 @@ export interface CreateMoviePayload extends CreateMediaBase {
   director?: string | null
   isAnime?: boolean | null
   studio?: string | null
+  romajiTitle?: string | null
 }
 
 export interface CreateSeasonPayload {
@@ -217,6 +218,7 @@ export interface CreateTvShowPayload extends CreateMediaBase {
   type: 'tvshow'
   isAnime?: boolean | null
   studio?: string | null
+  romajiTitle?: string | null
   network?: string | null
   durationMinutes?: number | null
   episodeDurationMinutes?: number | null

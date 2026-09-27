@@ -1,7 +1,7 @@
 <script lang="ts">
   import { Check, ChevronRight, Image as ImageIcon, Plus, Search, Star, X } from 'lucide-svelte'
   import { untrack } from 'svelte'
-  import { createMedia, errorMessage, getCategoryOrder, searchExternal } from '$lib/api'
+  import { createMedia, deleteMedia, errorMessage, getCategoryOrder, getMedia, searchExternal } from '$lib/api'
   import { i18n } from '$lib/i18n/index.svelte'
   import { MEDIA_STATUS, type CreateMediaPayload, type ExternalMedia, type MediaItem, type SearchMediaType } from '$lib/types'
 
@@ -17,9 +17,10 @@
     initialType?: SearchCategory
     onClose: () => void
     onMediaAdded: (media: MediaItem) => void
+    onMediaRemoved?: (id: string) => void
   }
 
-  let { isOpen, initialType = 'all', onClose, onMediaAdded }: Props = $props()
+  let { isOpen, initialType = 'all', onClose, onMediaAdded, onMediaRemoved = () => {} }: Props = $props()
 
   let query = $state('')
   let activeType = $state<SearchCategory>(untrack(() => initialType))
@@ -28,7 +29,8 @@
   let searchError = $state<unknown>(null)
   let addError = $state<unknown>(null)
   let addingKey = $state('')
-  let addedKeys = $state<Record<string, boolean>>({})
+  // key → library mediaId (for toggle-removal); truthy means in library
+  let addedKeys = $state<Record<string, string>>({})
   let searchInput = $state<HTMLInputElement | null>(null)
   let previewItem = $state<ExternalMedia | null>(null)
   let categoryOrder = $state<string[]>(['anime', 'manga', 'movie', 'tvshow', 'game', 'book'])
@@ -108,6 +110,25 @@
       void getCategoryOrder()
         .then((order) => {
           if (order && order.length > 0) categoryOrder = order
+        })
+        .catch(() => {})
+      // Pre-populate addedKeys from current library (Bug 4: avoid duplicate add)
+      void getMedia()
+        .then((items) => {
+          const map: Record<string, string> = {}
+          for (const item of items) {
+            if (item.externalId) {
+              // Map by externalId using same type key as resultKey()
+              // For anime tvshows, type field in ExternalMedia is 'anime'
+              const isAnime = (item.type === 'tvshow' || item.type === 'movie') && (item as { isAnime?: boolean }).isAnime
+              const effectiveType = item.type === 'tvshow' && isAnime ? 'anime' : item.type
+              const k = `${effectiveType}:${item.externalId}`
+              map[k] = item.id
+              // Also key by title as fallback for items without externalId type match
+              map[`title:${item.title.toLowerCase()}`] = item.id
+            }
+          }
+          addedKeys = map
         })
         .catch(() => {})
     }
@@ -223,14 +244,32 @@
 
   async function addResult(result: ExternalMedia) {
     const key = resultKey(result)
-    if (addingKey || addedKeys[key]) return
+    if (addingKey) return
+
+    // Bug 5: toggle — if already in library, remove it
+    const existingId = addedKeys[key]
+    if (existingId) {
+      addingKey = key
+      addError = null
+      try {
+        await deleteMedia(existingId)
+        const { [key]: _, ...rest } = addedKeys
+        addedKeys = rest
+        onMediaRemoved(existingId)
+      } catch (error) {
+        addError = error
+      } finally {
+        addingKey = ''
+      }
+      return
+    }
 
     addingKey = key
     addError = null
 
     try {
       const created = await createMedia(buildPayload(result))
-      addedKeys[key] = true
+      addedKeys = { ...addedKeys, [key]: created.id }
       onMediaAdded(created)
     } catch (error) {
       addError = error
@@ -388,9 +427,19 @@
                           </div>
 
                           {#if addedKeys[key]}
-                            <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-emerald-500/20 bg-emerald-500/10 text-emerald-400" title={i18n.t.searchModal.inLibrary}>
-                              <Check size={16} aria-hidden="true" />
-                            </span>
+                            <button
+                              type="button"
+                              class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-emerald-500/20 bg-emerald-500/10 text-emerald-400 transition hover:border-rose-500/30 hover:bg-rose-500/10 hover:text-rose-400"
+                              title={i18n.t.searchModal.inLibrary}
+                              disabled={Boolean(addingKey)}
+                              onclick={(e) => { e.stopPropagation(); void addResult(result) }}
+                            >
+                              {#if addingKey === key}
+                                <div class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-rose-400 border-t-transparent"></div>
+                              {:else}
+                                <Check size={16} aria-hidden="true" />
+                              {/if}
+                            </button>
                           {:else}
                             <button
                               type="button"
@@ -466,9 +515,19 @@
                     </div>
 
                     {#if addedKeys[key]}
-                      <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-emerald-500/20 bg-emerald-500/10 text-emerald-400" title={i18n.t.searchModal.inLibrary}>
-                        <Check size={16} aria-hidden="true" />
-                      </span>
+                      <button
+                        type="button"
+                        class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-emerald-500/20 bg-emerald-500/10 text-emerald-400 transition hover:border-rose-500/30 hover:bg-rose-500/10 hover:text-rose-400"
+                        title={i18n.t.searchModal.inLibrary}
+                        disabled={Boolean(addingKey)}
+                        onclick={(e) => { e.stopPropagation(); void addResult(result) }}
+                      >
+                        {#if addingKey === key}
+                          <div class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-rose-400 border-t-transparent"></div>
+                        {:else}
+                          <Check size={16} aria-hidden="true" />
+                        {/if}
+                      </button>
                     {:else}
                       <button
                         type="button"
@@ -628,10 +687,20 @@
 
             <div class="pt-2">
               {#if addedKeys[prevKey]}
-                <div class="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-4 py-2 text-xs font-semibold text-emerald-400">
-                  <Check size={16} aria-hidden="true" />
-                  {i18n.t.searchModal.inLibrary}
-                </div>
+                <button
+                  type="button"
+                  class="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-4 py-2 text-xs font-semibold text-emerald-400 transition hover:border-rose-500/30 hover:bg-rose-500/10 hover:text-rose-400 disabled:cursor-wait"
+                  disabled={Boolean(addingKey)}
+                  onclick={() => void addResult(previewItem!)}
+                >
+                  {#if addingKey === prevKey}
+                    <div class="h-4 w-4 animate-spin rounded-full border-2 border-rose-400 border-t-transparent"></div>
+                    <span>{i18n.t.common.adding}</span>
+                  {:else}
+                    <Check size={16} aria-hidden="true" />
+                    {i18n.t.searchModal.inLibrary}
+                  {/if}
+                </button>
               {:else}
                 <button
                   type="button"

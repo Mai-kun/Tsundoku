@@ -29,6 +29,7 @@
     onProgressCommitted?: () => void;
     onDelete?: (item: MediaItem) => Promise<void>;
     onEdit?: (item: MediaItem) => void;
+    onEpisodeStep?: (item: MediaItem, delta: number) => Promise<void>;
   }
 
   let {
@@ -38,6 +39,7 @@
     onProgressCommitted = () => {},
     onDelete,
     onEdit = () => {},
+    onEpisodeStep,
   }: Props = $props();
 
   let trackedItem = $state(untrack(() => item));
@@ -226,9 +228,15 @@
   }
 
   function supportsStepper(media: MediaItem): boolean {
+    if (media.status !== MEDIA_STATUS.inProgress) return false;
     return (
       media.type === "game" || media.type === "book" || media.type === "manga"
     );
+  }
+
+  async function stepEpisode(delta: number) {
+    if (!onEpisodeStep || item.type !== "tvshow") return;
+    await onEpisodeStep(item, delta);
   }
 
   async function removeItem() {
@@ -416,6 +424,34 @@
           onclick={(event) => {
             event.stopPropagation();
             scheduleProgress(1);
+          }}><Plus size={14} aria-hidden="true" /></button
+        >
+      </div>
+    {/if}
+
+    {#if item.type === "tvshow" && onEpisodeStep && item.status === MEDIA_STATUS.inProgress && item.totalEpisodesCount !== 1}
+      <div class="flex h-8 items-center rounded-md bg-canvas">
+        <button
+          type="button"
+          class="grid h-full w-8 place-items-center rounded-l-md text-muted transition hover:bg-panel hover:text-ink disabled:opacity-40"
+          aria-label={i18n.t.card.decrement}
+          disabled={item.totalEpisodesWatched <= 0}
+          onclick={(event) => {
+            event.stopPropagation();
+            void stepEpisode(-1);
+          }}><Minus size={14} aria-hidden="true" /></button
+        >
+        <span class="flex-1 text-center text-xs font-semibold tabular-nums text-ink">
+          {item.totalEpisodesWatched}{item.totalEpisodesCount > 0 ? ` / ${item.totalEpisodesCount}` : ''}
+        </span>
+        <button
+          type="button"
+          class="grid h-full w-8 place-items-center rounded-r-md text-muted transition hover:bg-panel hover:text-ink disabled:opacity-40"
+          aria-label={i18n.t.card.increment}
+          disabled={item.totalEpisodesCount > 0 && item.totalEpisodesWatched >= item.totalEpisodesCount}
+          onclick={(event) => {
+            event.stopPropagation();
+            void stepEpisode(1);
           }}><Plus size={14} aria-hidden="true" /></button
         >
       </div>

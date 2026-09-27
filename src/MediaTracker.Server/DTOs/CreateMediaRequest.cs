@@ -45,6 +45,7 @@ public sealed record CreateMediaRequest
     public bool? IsAnime { get; init; }
 
     public string? Studio { get; init; }
+    public string? RomajiTitle { get; init; }
 
     public string? Network { get; init; }
 

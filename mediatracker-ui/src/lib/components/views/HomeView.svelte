@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { deleteMedia, getMedia, setProgress } from '$lib/api'
+  import { deleteMedia, getMedia, getMediaItem, setProgress, setSeasonProgress } from '$lib/api'
   import { i18n } from '$lib/i18n/index.svelte'
-  import { MEDIA_STATUS, type MediaItem } from '$lib/types'
+  import { MEDIA_STATUS, isTvShowDetail, type MediaItem } from '$lib/types'
   import MediaGrid from '../media/MediaGrid.svelte'
 
   interface Props {
@@ -84,6 +84,31 @@
       }
     }, 20)
   }
+
+  // Bug 6: step episode for tvshow cards on Home screen
+  async function stepEpisode(item: MediaItem, delta: number) {
+    if (item.type !== 'tvshow') return
+    // Load full detail to get seasons
+    const detail = await getMediaItem(item.id)
+    if (!isTvShowDetail(detail) || !detail.seasons?.length) return
+
+    // Find the first in-progress season, or the first season if none in progress
+    const activeSeason =
+      detail.seasons.find((s) => s.status === MEDIA_STATUS.inProgress) ??
+      detail.seasons.find((s) => s.status === MEDIA_STATUS.planned) ??
+      detail.seasons[detail.seasons.length - 1]
+
+    if (!activeSeason) return
+
+    const next = Math.max(0, Math.min(
+      (activeSeason.currentEpisode ?? 0) + delta,
+      activeSeason.totalEpisodes > 0 ? activeSeason.totalEpisodes : Infinity
+    ))
+
+    await setSeasonProgress(activeSeason.id, next)
+    onMediaChanged()
+    refresh()
+  }
 </script>
 
 <div class="space-y-10">
@@ -94,7 +119,7 @@
         <h2 class="mt-1 text-xl font-bold tracking-tight text-ink">{i18n.t.views.inProgress}</h2>
       </div>
     </div>
-    <MediaGrid items={inProgress} {loading} error={loadError} onRetry={refresh} onOpen={onOpen} onProgress={updateProgress} onProgressCommitted={onMediaChanged} onDelete={removeItem} onEdit={onEdit} />
+    <MediaGrid items={inProgress} {loading} error={loadError} onRetry={refresh} onOpen={onOpen} onProgress={updateProgress} onProgressCommitted={onMediaChanged} onDelete={removeItem} onEdit={onEdit} onEpisodeStep={stepEpisode} />
   </section>
 
   <section class="space-y-4">
@@ -107,3 +132,4 @@
     <MediaGrid items={recentlyCompleted} {loading} error={loadError} onRetry={refresh} onOpen={onOpen} onProgress={updateProgress} onProgressCommitted={onMediaChanged} onDelete={removeItem} onEdit={onEdit} />
   </section>
 </div>
+

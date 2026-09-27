@@ -395,7 +395,9 @@ public static class MediaEndpoints
         item.ExternalRatingVotes = external.RatingVotes;
         if (external.Ratings is { Count: > 0 })
         {
-            item.ExternalRatingsJson = System.Text.Json.JsonSerializer.Serialize(external.Ratings);
+            item.ExternalRatingsJson = System.Text.Json.JsonSerializer.Serialize(
+                external.Ratings,
+                new System.Text.Json.JsonSerializerOptions { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase });
         }
 
         if (!string.IsNullOrWhiteSpace(external.ReleaseDate) && DateTime.TryParse(external.ReleaseDate, out var parsedRelDate))
@@ -601,6 +603,7 @@ public static class MediaEndpoints
                 Director = request.Director,
                 IsAnime = request.IsAnime ?? false,
                 Studio = request.Studio,
+                RomajiTitle = request.RomajiTitle,
                 Title = request.Title,
             },
             "tvshow" => new TvShow
@@ -608,6 +611,7 @@ public static class MediaEndpoints
                 Network = request.Network,
                 IsAnime = request.IsAnime ?? false,
                 Studio = request.Studio,
+                RomajiTitle = request.RomajiTitle,
                 EpisodeDurationMinutes = request.EpisodeDurationMinutes ?? request.DurationMinutes,
                 Seasons = request.Seasons?
                     .Select(season => new TvSeason

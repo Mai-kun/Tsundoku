@@ -248,20 +248,45 @@ public static class MediaEndpoints
             return Results.ValidationProblem(validationResult.ToDictionary());
         }
 
-        var affected = await db.MediaItems
-            .Where(x => x.Id == id)
-            .ExecuteUpdateAsync(s => s
-                .SetProperty(x => x.Status, request.Status)
-                .SetProperty(x => x.FinishedAt, x =>
-                    request.Status == MediaStatus.Completed && x.FinishedAt == null
-                        ? DateTime.UtcNow
-                        : x.FinishedAt),
-                ct);
+        var item = await db.MediaItems
+            .Include(media => ((TvShow)media).Seasons)
+            .SingleOrDefaultAsync(media => media.Id == id, ct);
 
-        if (affected == 0)
+        if (item is null)
         {
             return Results.NotFound();
         }
+
+        item.Status = request.Status;
+        if (request.Status == MediaStatus.Completed)
+        {
+            item.FinishedAt ??= DateTime.UtcNow;
+            if (item.StartedAt is null) item.StartedAt = DateTime.UtcNow;
+
+            if (item is TvShow show)
+            {
+                foreach (var season in show.Seasons)
+                {
+                    season.CurrentEpisode = season.TotalEpisodes;
+                    season.Status = MediaStatus.Completed;
+                }
+            }
+            else if (item is Book book && book.TotalPages > 0)
+            {
+                book.CurrentPage = book.TotalPages;
+            }
+            else if (item is Manga manga && manga.TotalChapters is > 0)
+            {
+                manga.CurrentChapter = manga.TotalChapters.Value;
+            }
+        }
+        else if (request.Status == MediaStatus.Planned)
+        {
+            item.FinishedAt = null;
+        }
+
+        item.UpdatedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync(ct);
 
         return Results.NoContent();
     }
@@ -476,24 +501,48 @@ public static class MediaEndpoints
         {
             season.Status = MediaStatus.Completed;
         }
-        else if (season.Status == MediaStatus.Completed)
+        else if (season.CurrentEpisode > 0)
         {
             season.Status = MediaStatus.InProgress;
+        }
+        else
+        {
+            season.Status = MediaStatus.Planned;
         }
 
         var show = await db.TvShows.Include(item => item.Seasons).SingleOrDefaultAsync(item => item.Id == season.TvShowId, ct);
         if (show is not null && show.Seasons.Count > 0)
         {
+            var totalWatched = show.Seasons.Sum(item => item.CurrentEpisode);
             var allCompleted = show.Seasons.All(item => item.Status == MediaStatus.Completed);
+
             if (allCompleted)
             {
                 show.Status = MediaStatus.Completed;
                 show.FinishedAt ??= DateTime.UtcNow;
+                if (show.StartedAt is null) show.StartedAt = DateTime.UtcNow;
             }
-            else if (show.Status == MediaStatus.Completed)
+            else if (totalWatched > 0)
             {
-                show.Status = MediaStatus.InProgress;
+                if (show.Status == MediaStatus.Completed || show.Status == MediaStatus.Planned)
+                {
+                    show.Status = MediaStatus.InProgress;
+                }
                 show.FinishedAt = null;
+                if (show.StartedAt is null)
+                {
+                    show.StartedAt = DateTime.UtcNow;
+                }
+            }
+            else
+            {
+                // totalWatched == 0 across all seasons
+                show.StartedAt = null;
+                show.FinishedAt = null;
+                if (show.Status == MediaStatus.InProgress || show.Status == MediaStatus.Completed)
+                {
+                    show.Status = MediaStatus.Planned;
+                }
             }
         }
 

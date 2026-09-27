@@ -24,9 +24,10 @@
     Sparkles,
     Star,
     Trash2,
+    Languages,
     X,
   } from 'lucide-svelte'
-  import { createMedia, errorMessage, getExternalDetails, getMedia, getMediaItem, refreshMetadata, setProgress, setSeasonProgress, updateMedia, updateStatus } from '$lib/api'
+  import { createMedia, errorMessage, getExternalDetails, getMedia, getMediaItem, refreshMetadata, setProgress, setSeasonProgress, translateText, updateMedia, updateStatus } from '$lib/api'
   import { i18n } from '$lib/i18n/index.svelte'
   import { showToast } from '$lib/stores/toast.svelte'
   import { clampProgress, isTvShowDetail, MEDIA_STATUS, type AppView, type MediaDetail, type MediaItem, type MediaStatus, type TvSeason } from '$lib/types'
@@ -181,6 +182,38 @@
   let originalTitle = $derived(media ? readOriginalTitle(media) : null)
   let synopsisText = $derived(media?.notes?.trim() ?? '')
   let synopsisExpandable = $derived(synopsisText.length > 280)
+  let isSynopsisTranslated = $state(false)
+  let translatingSynopsis = $state(false)
+  let translatedSynopsis = $state<string | null>(null)
+
+  async function toggleTranslateSynopsis() {
+    if (!synopsisText || translatingSynopsis) return
+
+    if (isSynopsisTranslated) {
+      isSynopsisTranslated = false
+      return
+    }
+
+    if (translatedSynopsis) {
+      isSynopsisTranslated = true
+      return
+    }
+
+    translatingSynopsis = true
+    try {
+      const targetLang = i18n.current === 'en' ? 'en' : 'ru'
+      const res = await translateText(synopsisText, targetLang)
+      if (res?.translatedText) {
+        translatedSynopsis = res.translatedText
+        isSynopsisTranslated = true
+      }
+    } catch (err) {
+      showToast(errorMessage(err), 'error')
+    } finally {
+      translatingSynopsis = false
+    }
+  }
+
   let hasRelatedMedia = $derived(related.length > 0 || relatedLoading || relatedError !== null)
 
   let nextEpisode = $derived.by(() => {
@@ -208,11 +241,14 @@
       try {
         const parsed = JSON.parse(media.externalRatingsJson)
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed.map((r: any) => ({
-            source: r.source ?? r.Source ?? 'Source',
-            score: typeof r.score === 'number' ? r.score : (typeof r.Score === 'number' ? r.Score : 0),
-            votes: r.votes ?? r.Votes ?? null,
-          }))
+          return parsed.map((r: any) => {
+            const rawScore = typeof r.score === 'number' ? r.score : (typeof r.Score === 'number' ? r.Score : (typeof r.rating === 'number' ? r.rating : (typeof r.Rating === 'number' ? r.Rating : 0)))
+            return {
+              source: r.source ?? r.Source ?? 'Source',
+              score: rawScore > 0 ? rawScore : (typeof media?.externalRating === 'number' ? media.externalRating : 0),
+              votes: r.votes ?? r.Votes ?? null,
+            }
+          })
         }
       } catch {}
     }
@@ -253,6 +289,9 @@
       statusMenuOpen = false
       userRatingPopoverOpen = false
       synopsisExpanded = false
+      isSynopsisTranslated = false
+      translatedSynopsis = null
+      translatingSynopsis = false
       activeSubTab = 'overview'
       related = []
       relatedError = null
@@ -950,8 +989,8 @@
     const empty = i18n.t.detailModal.valueEmpty
     const rows: Array<{ label: string; value: string; isLink?: boolean }> = [
       { label: i18n.t.detail.formatLabel, value: typeLabel(item) },
-      { label: i18n.t.detail.startDateLabel, value: formatDate(item.startedAt) },
-      { label: i18n.t.detail.endDateLabel, value: formatDate(item.finishedAt) },
+      { label: i18n.t.detail.startDateLabel, value: formatDate(item.releaseDate ?? null) },
+      { label: i18n.t.detail.endDateLabel, value: formatDate(item.endDate ?? null) },
       { label: i18n.t.status.label, value: statusLabel(item.status) },
     ]
 
@@ -970,7 +1009,10 @@
         break
     }
 
-    rows.push({ label: i18n.t.detail.durationLabel, value: item.type === 'movie' && item.durationMinutes > 0 ? i18n.t.card.movie(item.durationMinutes) : empty })
+    const duration = item.durationMinutes && item.durationMinutes > 0
+      ? (item.type === 'movie' ? i18n.t.card.movie(item.durationMinutes) : `${item.durationMinutes} ${i18n.t.detail.minPerEp}`)
+      : empty
+    rows.push({ label: i18n.t.detail.durationLabel, value: duration })
 
     switch (item.type) {
       case 'tvshow':
@@ -1560,12 +1602,31 @@
         <!-- TAB 1: OVERVIEW -->
         {#if activeSubTab === 'overview'}
           <div class="space-y-6">
-            <!-- Synopsis with conditional Read More (Item 5) -->
+            <!-- Synopsis with conditional Read More (Item 5) & Translator (Item 4) -->
             <section class="space-y-2 rounded-xl bg-[#222634]/60 p-5 border border-white/5">
-              <h2 class="text-xs font-bold uppercase tracking-wider text-slate-300">{i18n.t.detail.synopsisTitle}</h2>
+              <div class="flex items-center justify-between">
+                <h2 class="text-xs font-bold uppercase tracking-wider text-slate-300">{i18n.t.detail.synopsisTitle}</h2>
+                {#if synopsisText}
+                  <button
+                    type="button"
+                    class="inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium text-[#a5b4fc] transition hover:bg-white/10 hover:text-white cursor-pointer disabled:opacity-50"
+                    disabled={translatingSynopsis}
+                    onclick={() => void toggleTranslateSynopsis()}
+                    title={isSynopsisTranslated ? i18n.t.detail.showOriginal : i18n.t.detail.translate}
+                  >
+                    {#if translatingSynopsis}
+                      <div class="h-3 w-3 animate-spin rounded-full border border-accent border-t-transparent"></div>
+                      <span>{i18n.t.detail.translating}</span>
+                    {:else}
+                      <Languages size={13} aria-hidden="true" />
+                      <span>{isSynopsisTranslated ? i18n.t.detail.showOriginal : i18n.t.detail.translate}</span>
+                    {/if}
+                  </button>
+                {/if}
+              </div>
               {#if synopsisText}
                 <p class={`whitespace-pre-line break-words text-sm leading-relaxed text-[#d1d5db] ${synopsisExpandable && !synopsisExpanded ? 'line-clamp-4' : ''}`}>
-                  {synopsisText}
+                  {isSynopsisTranslated && translatedSynopsis ? translatedSynopsis : synopsisText}
                 </p>
                 {#if synopsisExpandable}
                   <button
@@ -1862,7 +1923,7 @@
               {#snippet relatedCard(rel: RelatedEntry)}
                 <button
                   type="button"
-                  class="group relative flex flex-col aspect-[2/3] sm:aspect-[3/4] w-full overflow-hidden rounded-xl border border-white/5 bg-[#1e2230] text-left transition duration-300 hover:border-accent/50 hover:shadow-xl hover:shadow-accent/10 cursor-pointer"
+                  class="group relative flex flex-col aspect-[2/3] w-full overflow-hidden rounded-xl border border-white/5 bg-[#1e2230] text-left transition duration-300 hover:border-accent/50 hover:shadow-xl hover:shadow-accent/10 cursor-pointer"
                   onclick={() => handleRelatedClick(rel)}
                 >
                   <!-- Poster image -->
@@ -1938,9 +1999,9 @@
                 <div class="space-y-8">
                   {#each relatedGroups as group (group.id)}
                     <div class="space-y-3">
-                      <div class="flex items-center gap-2 border-b border-white/5 pb-2">
-                        <h3 class="text-sm font-bold text-white">{group.title}</h3>
-                        <span class="rounded-full bg-white/10 px-2 py-0.5 text-[11px] font-semibold text-muted">
+                      <div class="flex items-center gap-2.5 border-b border-white/10 pb-2.5">
+                        <h3 class="text-base sm:text-lg font-bold text-white tracking-tight">{group.title}</h3>
+                        <span class="rounded-full bg-white/10 px-2.5 py-0.5 text-xs font-bold text-muted">
                           {group.items.length}
                         </span>
                       </div>

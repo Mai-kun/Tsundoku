@@ -19,7 +19,9 @@ public sealed partial class AniListMetadataProvider(
               title { romaji english native }
               description(asHtml: false)
               coverImage { extraLarge }
-              startDate { year }
+              startDate { year month day }
+              endDate { year month day }
+              duration
               episodes
               chapters
               volumes
@@ -40,7 +42,9 @@ public sealed partial class AniListMetadataProvider(
             title { romaji english native }
             description(asHtml: false)
             coverImage { extraLarge }
-            startDate { year }
+            startDate { year month day }
+            endDate { year month day }
+            duration
             episodes
             chapters
             volumes
@@ -105,11 +109,12 @@ public sealed partial class AniListMetadataProvider(
                 if (result?.Data?.Media is { } item)
                 {
                     var dto = MapItem(item);
+                    var dtoList = new List<ExternalMediaDto> { dto };
                     if (mediaType == "anime")
                     {
-                        await EnrichAnimeRatingsAsync([dto], ct);
+                        await EnrichAnimeRatingsAsync(dtoList, ct);
                     }
-                    return dto;
+                    return dtoList[0];
                 }
             }
         }
@@ -150,6 +155,13 @@ public sealed partial class AniListMetadataProvider(
                 .ToList();
         }
 
+        string? releaseDate = item.StartDate?.Year is { } sy
+            ? $"{sy:D4}-{(item.StartDate.Month ?? 1):D2}-{(item.StartDate.Day ?? 1):D2}"
+            : null;
+        string? endDate = item.EndDate?.Year is { } ey
+            ? $"{ey:D4}-{(item.EndDate.Month ?? 1):D2}-{(item.EndDate.Day ?? 1):D2}"
+            : null;
+
         return new ExternalMediaDto
         {
             ExternalId = item.Id.ToString(),
@@ -159,6 +171,9 @@ public sealed partial class AniListMetadataProvider(
             CoverUrl = item.CoverImage?.ExtraLarge,
             Description = item.Description is null ? null : HtmlTags().Replace(item.Description, string.Empty),
             ReleaseYear = item.StartDate?.Year,
+            ReleaseDate = releaseDate,
+            EndDate = endDate,
+            RuntimeMinutes = item.Duration,
             Type = mediaType,
             Author = mediaType == "manga" ? item.Staff?.Edges?.FirstOrDefault()?.Node?.Name?.Full : null,
             Studio = item.Studios?.Nodes?.FirstOrDefault()?.Name,
@@ -234,6 +249,8 @@ public sealed partial class AniListMetadataProvider(
         string? Description,
         AniListCoverImage? CoverImage,
         AniListDate? StartDate,
+        AniListDate? EndDate,
+        int? Duration,
         int? Episodes,
         int? Chapters,
         int? Volumes,
@@ -246,7 +263,7 @@ public sealed partial class AniListMetadataProvider(
     private sealed record AniListStreamingEpisode(string? Title);
     private sealed record AniListTitle(string? Romaji, string? English, string? Native);
     private sealed record AniListCoverImage(string? ExtraLarge);
-    private sealed record AniListDate(int? Year);
+    private sealed record AniListDate(int? Year, int? Month, int? Day);
     private sealed record AniListStudios(List<AniListStudio>? Nodes);
     private sealed record AniListStudio(string? Name);
     private sealed record AniListStaff(List<AniListStaffEdge>? Edges);

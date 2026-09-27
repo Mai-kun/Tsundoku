@@ -94,6 +94,8 @@ public sealed class TmdbMetadataProvider(
             CoverUrl = item.PosterPath is null ? null : $"https://image.tmdb.org/t/p/w500{item.PosterPath}",
             Description = item.Overview,
             ReleaseYear = ParseYear(isMovie ? item.ReleaseDate : item.FirstAirDate),
+            ReleaseDate = isMovie ? item.ReleaseDate : item.FirstAirDate,
+            RuntimeMinutes = isMovie ? item.Runtime : null,
             Type = mediaType,
             Rating = rating,
             RatingVotes = item.VoteCount,

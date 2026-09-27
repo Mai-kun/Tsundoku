@@ -398,8 +398,26 @@ public static class MediaEndpoints
             item.ExternalRatingsJson = System.Text.Json.JsonSerializer.Serialize(external.Ratings);
         }
 
+        if (!string.IsNullOrWhiteSpace(external.ReleaseDate) && DateTime.TryParse(external.ReleaseDate, out var parsedRelDate))
+        {
+            item.ReleaseDate = parsedRelDate;
+        }
+        else if (external.ReleaseYear is > 0 && item.ReleaseDate is null)
+        {
+            item.ReleaseDate = new DateTime(external.ReleaseYear.Value, 1, 1);
+        }
+
+        if (!string.IsNullOrWhiteSpace(external.EndDate) && DateTime.TryParse(external.EndDate, out var parsedEndDate))
+        {
+            item.EndDate = parsedEndDate;
+        }
+
         if (item is TvShow show)
         {
+            if (external.RuntimeMinutes is > 0)
+            {
+                show.EpisodeDurationMinutes = external.RuntimeMinutes;
+            }
             if (!string.IsNullOrWhiteSpace(external.Studio))
             {
                 show.Studio = external.Studio;
@@ -436,7 +454,8 @@ public static class MediaEndpoints
         }
         else if (item is Movie movie)
         {
-            if (external.TotalCount is > 0) movie.DurationMinutes = external.TotalCount.Value;
+            if (external.RuntimeMinutes is > 0) movie.DurationMinutes = external.RuntimeMinutes.Value;
+            else if (external.TotalCount is > 0) movie.DurationMinutes = external.TotalCount.Value;
             if (!string.IsNullOrWhiteSpace(external.Studio)) movie.Studio = external.Studio;
             if (!string.IsNullOrWhiteSpace(external.OriginalTitle)) movie.RomajiTitle = external.OriginalTitle;
         }
@@ -589,6 +608,7 @@ public static class MediaEndpoints
                 Network = request.Network,
                 IsAnime = request.IsAnime ?? false,
                 Studio = request.Studio,
+                EpisodeDurationMinutes = request.EpisodeDurationMinutes ?? request.DurationMinutes,
                 Seasons = request.Seasons?
                     .Select(season => new TvSeason
                     {
@@ -619,6 +639,8 @@ public static class MediaEndpoints
         item.ExternalRating = request.ExternalRating;
         item.ExternalRatingVotes = request.ExternalRatingVotes;
         item.ExternalRatingsJson = request.ExternalRatingsJson;
+        item.ReleaseDate = request.ReleaseDate;
+        item.EndDate = request.EndDate;
 
         return item;
     }

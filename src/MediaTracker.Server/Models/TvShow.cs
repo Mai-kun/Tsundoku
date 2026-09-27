@@ -9,6 +9,8 @@ public class TvShow : MediaItem
     public string? Studio { get; set; }
 
     public string? RomajiTitle { get; set; }
+ 
+    public int? EpisodeDurationMinutes { get; set; }
 
     public List<TvSeason> Seasons { get; set; } = [];
 

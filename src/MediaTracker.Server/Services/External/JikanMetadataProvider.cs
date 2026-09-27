@@ -87,6 +87,13 @@ public sealed class JikanMetadataProvider(
         var author = item.Authors?.FirstOrDefault()?.Name;
         var total = type == "manga" ? item.Chapters : item.Episodes;
 
+        int? runtime = null;
+        if (!string.IsNullOrWhiteSpace(item.Duration))
+        {
+            var match = System.Text.RegularExpressions.Regex.Match(item.Duration, @"^(\d+)\s*min");
+            if (match.Success && int.TryParse(match.Groups[1].Value, out var m)) runtime = m;
+        }
+
         return new ExternalMediaDto
         {
             ExternalId = item.MalId.ToString(),
@@ -95,6 +102,9 @@ public sealed class JikanMetadataProvider(
             CoverUrl = cover,
             Description = item.Synopsis,
             ReleaseYear = item.Year,
+            ReleaseDate = item.Aired?.From,
+            EndDate = item.Aired?.To,
+            RuntimeMinutes = runtime,
             Type = type,
             Studio = studio,
             Author = author,
@@ -158,6 +168,21 @@ public sealed class JikanMetadataProvider(
 
         [JsonPropertyName("authors")]
         public List<JikanNamedItem>? Authors { get; set; }
+
+        [JsonPropertyName("aired")]
+        public JikanAired? Aired { get; set; }
+
+        [JsonPropertyName("duration")]
+        public string? Duration { get; set; }
+    }
+
+    private sealed class JikanAired
+    {
+        [JsonPropertyName("from")]
+        public string? From { get; set; }
+
+        [JsonPropertyName("to")]
+        public string? To { get; set; }
     }
 
     private sealed class JikanImages

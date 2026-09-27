@@ -59,6 +59,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(show => show.IsAnime).HasColumnName("TvShow_IsAnime");
             entity.Property(show => show.Studio).HasColumnName("TvShow_Studio");
             entity.Property(show => show.RomajiTitle).HasColumnName("TvShow_RomajiTitle");
+            entity.Property(show => show.EpisodeDurationMinutes).HasColumnName("TvShow_EpisodeDurationMinutes");
             entity.HasIndex(show => show.IsAnime);
 
             entity.HasMany(show => show.Seasons)

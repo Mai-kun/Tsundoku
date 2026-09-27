@@ -31,13 +31,28 @@
   let mediaRevision = $state(0)
   let modalTrigger = $state<HTMLElement | null>(null)
   let detailDepth = 0
+  let mainScrollContainer = $state<HTMLElement | null>(null)
+  const savedScrollPositions = new Map<string, number>()
+
+  function restoreScroll(view: string) {
+    const saved = savedScrollPositions.get(view)
+    if (typeof saved === 'number') {
+      setTimeout(() => {
+        if (mainScrollContainer) mainScrollContainer.scrollTop = saved
+        window.scrollTo(0, saved)
+      }, 50)
+    }
+  }
 
   $effect(() => {
     const syncFromHistory = () => {
       const nextRoute = readRoute()
       activeView = nextRoute.view
       selectedMediaId = nextRoute.mediaId
-      if (nextRoute.view !== 'detail') detailDepth = 0
+      if (nextRoute.view !== 'detail') {
+        detailDepth = 0
+        restoreScroll(nextRoute.view)
+      }
     }
 
     window.addEventListener('popstate', syncFromHistory)
@@ -81,6 +96,8 @@
   function openDetail(item: MediaItem) {
     if (activeView !== 'detail') {
       previousView = activeView
+      const currentScroll = mainScrollContainer ? mainScrollContainer.scrollTop : (typeof window !== 'undefined' ? window.scrollY : 0)
+      savedScrollPositions.set(activeView, currentScroll)
     }
 
     activeView = 'detail'
@@ -90,13 +107,14 @@
   }
 
   function closeDetail() {
+    const target = previousView
     if (detailDepth > 0) {
       detailDepth -= 1
       window.history.back()
-      return
+    } else {
+      navigate(target)
     }
-
-    navigate(previousView)
+    restoreScroll(target)
   }
 
   async function deleteFromDetail(id: string) {
@@ -208,7 +226,7 @@
 
 <svelte:window onkeydown={handleKeydown} />
 
-<AppShell>
+<AppShell mainRef={(el) => (mainScrollContainer = el)}>
   {#snippet sidebar()}
     <Sidebar {activeView} onNavigate={navigate} onCreate={openCreate} onOpenSettings={openSettings} />
   {/snippet}

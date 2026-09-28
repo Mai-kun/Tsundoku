@@ -170,6 +170,7 @@ public sealed partial class AniListMetadataProvider(
             ExternalSource = "AniList",
             Title = item.Title?.English ?? item.Title?.Romaji ?? item.Title?.Native ?? string.Empty,
             OriginalTitle = item.Title?.Native ?? item.Title?.Romaji,
+            RomajiTitle = item.Title?.Romaji ?? item.Title?.English,
             CoverUrl = item.CoverImage?.ExtraLarge,
             Description = item.Description is null ? null : HtmlTags().Replace(item.Description, string.Empty),
             ReleaseYear = item.StartDate?.Year,

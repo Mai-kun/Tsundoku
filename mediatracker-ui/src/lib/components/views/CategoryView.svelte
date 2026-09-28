@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { deleteMedia, getMedia, setProgress } from '$lib/api'
+  import { deleteMedia, getMedia, getMediaItem, setProgress, setSeasonProgress } from '$lib/api'
   import { i18n } from '$lib/i18n/index.svelte'
-  import { MEDIA_STATUS, type MediaFilters, type MediaItem, type StatusFilter } from '$lib/types'
-  import FilterBar, { type LibrarySort } from '../media/FilterBar.svelte'
+  import { isTvShowDetail, MEDIA_STATUS, type MediaFilters, type MediaItem, type StatusFilter } from '$lib/types'
+  import FilterBar, { type GroupBy, type LibrarySort } from '../media/FilterBar.svelte'
   import MediaGrid from '../media/MediaGrid.svelte'
 
   export type Category = 'tvshow' | 'movie' | 'anime' | 'manga' | 'game' | 'book'
@@ -19,14 +19,67 @@
 
   let status = $state<StatusFilter>('all')
   let sort = $state<LibrarySort>('newest')
+  let groupBy = $state<GroupBy>('status')
   let search = $state('')
   let allItems = $state<MediaItem[]>([])
   let loading = $state(true)
   let loadError = $state<unknown>(null)
   let requestSequence = 0
 
-  let items = $derived(status === 'all' ? allItems : allItems.filter((item) => item.status === status))
+  let filteredItems = $derived(status === 'all' ? allItems : allItems.filter((item) => item.status === status))
   let statusCounts = $derived(countStatuses(allItems))
+
+  const statusSections = $derived([
+    { status: MEDIA_STATUS.inProgress, title: i18n.t.status.inProgress },
+    { status: MEDIA_STATUS.planned, title: i18n.t.status.planned },
+    { status: MEDIA_STATUS.completed, title: i18n.t.status.completed },
+    { status: MEDIA_STATUS.onHold, title: i18n.t.status.paused },
+    { status: MEDIA_STATUS.dropped, title: i18n.t.status.dropped },
+  ])
+
+  let statusGroups = $derived.by(() => {
+    return statusSections
+      .map((sec) => ({
+        status: sec.status,
+        title: sec.title,
+        items: filteredItems.filter((item) => item.status === sec.status),
+      }))
+      .filter((sec) => (status === 'all' ? sec.items.length > 0 : sec.status === status))
+  })
+
+  interface FranchiseGroup {
+    name: string
+    items: MediaItem[]
+  }
+
+  let franchiseGroups = $derived.by<FranchiseGroup[]>(() => {
+    const map = new Map<string, MediaItem[]>()
+    const noFranchise: MediaItem[] = []
+
+    for (const item of filteredItems) {
+      const name = item.franchiseName?.trim()
+      if (name) {
+        if (!map.has(name)) map.set(name, [])
+        map.get(name)!.push(item)
+      } else {
+        noFranchise.push(item)
+      }
+    }
+
+    const groups: FranchiseGroup[] = Array.from(map.entries()).map(([name, list]) => ({
+      name,
+      items: list,
+    }))
+
+    if (noFranchise.length > 0) {
+      groups.push({
+        name: i18n.t.grouping.noFranchise,
+        items: noFranchise,
+      })
+    }
+
+    return groups
+  })
 
   $effect(() => {
     void refreshKey
@@ -34,9 +87,8 @@
     void search
     void sort
     const sequence = ++requestSequence
-    const delay = search.trim() ? 250 : 0
-    const isInitial = allItems.length === 0
-    const timer = setTimeout(() => void loadItems(sequence, isInitial), delay)
+    const delay = search.trim() ? 500 : 0
+    const timer = setTimeout(() => void loadItems(sequence), delay)
 
     return () => clearTimeout(timer)
   })
@@ -72,8 +124,8 @@
     }
   }
 
-  async function loadItems(sequence: number, showLoading = true) {
-    if (showLoading) {
+  async function loadItems(sequence: number) {
+    if (allItems.length === 0) {
       loading = true
     }
     loadError = null
@@ -95,7 +147,7 @@
   }
 
   function refresh() {
-    void loadItems(++requestSequence, false)
+    void loadItems(++requestSequence)
   }
 
   async function updateProgress(id: string, currentProgress: number) {
@@ -130,10 +182,80 @@
   function updateStatus(value: StatusFilter) {
     status = value
   }
+
+  async function stepEpisode(item: MediaItem, delta: number) {
+    if (item.type !== 'tvshow') return
+    const detail = await getMediaItem(item.id)
+    if (!isTvShowDetail(detail) || !detail.seasons?.length) return
+
+    const activeSeason =
+      detail.seasons.find((s) => s.status === MEDIA_STATUS.inProgress) ??
+      detail.seasons.find((s) => s.status === MEDIA_STATUS.planned) ??
+      detail.seasons[detail.seasons.length - 1]
+
+    if (!activeSeason) return
+
+    const next = Math.max(0, Math.min(
+      (activeSeason.currentEpisode ?? 0) + delta,
+      activeSeason.totalEpisodes > 0 ? activeSeason.totalEpisodes : Infinity
+    ))
+
+    await setSeasonProgress(activeSeason.id, next)
+    onMediaChanged()
+    refresh()
+  }
 </script>
 
 <div class="space-y-6">
-  <FilterBar {status} {sort} {search} counts={statusCounts} onStatusChange={updateStatus} onSortChange={(value) => (sort = value)} onSearchChange={(value) => (search = value)} />
-  <p class="text-xs font-medium text-muted">{i18n.t.library.resultCount(items.length)}</p>
-  <MediaGrid {items} loading={loading} error={loadError} onRetry={refresh} onOpen={onOpen} onProgress={updateProgress} onProgressCommitted={onMediaChanged} onDelete={removeItem} onEdit={onEdit} />
+  <FilterBar
+    {status}
+    {sort}
+    {groupBy}
+    {search}
+    counts={statusCounts}
+    onStatusChange={updateStatus}
+    onSortChange={(value) => (sort = value)}
+    onGroupByChange={(value) => (groupBy = value)}
+    onSearchChange={(value) => (search = value)}
+  />
+
+  <p class="text-xs font-medium text-muted">{i18n.t.library.resultCount(filteredItems.length)}</p>
+
+  {#if loading && allItems.length === 0}
+    <MediaGrid items={[]} loading={true} error={null} onRetry={refresh} onOpen={onOpen} onProgress={updateProgress} onProgressCommitted={onMediaChanged} onEpisodeStep={stepEpisode} onDelete={removeItem} onEdit={onEdit} />
+  {:else if groupBy === 'status'}
+    {#if statusGroups.length === 0 && !loading}
+      <MediaGrid items={[]} {loading} error={loadError} onRetry={refresh} onOpen={onOpen} onProgress={updateProgress} onProgressCommitted={onMediaChanged} onEpisodeStep={stepEpisode} onDelete={removeItem} onEdit={onEdit} />
+    {:else}
+      <div class="space-y-8">
+        {#each statusGroups as group (group.status)}
+          <section class="space-y-3">
+            <div class="flex items-center gap-2">
+              <h2 class="text-base font-bold tracking-tight text-ink">{group.title}</h2>
+              <span class="rounded-full bg-surface px-2.5 py-0.5 text-xs font-semibold text-muted">{group.items.length}</span>
+            </div>
+            <MediaGrid items={group.items} loading={false} error={null} onRetry={refresh} onOpen={onOpen} onProgress={updateProgress} onProgressCommitted={onMediaChanged} onEpisodeStep={stepEpisode} onDelete={removeItem} onEdit={onEdit} />
+          </section>
+        {/each}
+      </div>
+    {/if}
+  {:else if groupBy === 'franchise'}
+    {#if franchiseGroups.length === 0 && !loading}
+      <MediaGrid items={[]} {loading} error={loadError} onRetry={refresh} onOpen={onOpen} onProgress={updateProgress} onProgressCommitted={onMediaChanged} onEpisodeStep={stepEpisode} onDelete={removeItem} onEdit={onEdit} />
+    {:else}
+      <div class="space-y-8">
+        {#each franchiseGroups as group (group.name)}
+          <section class="space-y-3">
+            <div class="flex items-center gap-2">
+              <h2 class="text-base font-bold tracking-tight text-ink">{group.name}</h2>
+              <span class="rounded-full bg-surface px-2.5 py-0.5 text-xs font-semibold text-muted">{group.items.length}</span>
+            </div>
+            <MediaGrid items={group.items} loading={false} error={null} onRetry={refresh} onOpen={onOpen} onProgress={updateProgress} onProgressCommitted={onMediaChanged} onEpisodeStep={stepEpisode} onDelete={removeItem} onEdit={onEdit} />
+          </section>
+        {/each}
+      </div>
+    {/if}
+  {:else}
+    <MediaGrid items={filteredItems} {loading} error={loadError} onRetry={refresh} onOpen={onOpen} onProgress={updateProgress} onProgressCommitted={onMediaChanged} onEpisodeStep={stepEpisode} onDelete={removeItem} onEdit={onEdit} />
+  {/if}
 </div>

@@ -33,6 +33,8 @@ public record MediaListDto
 
     public Guid? FranchiseId { get; init; }
 
+    public string? FranchiseName { get; init; }
+
     public int? FranchiseOrder { get; init; }
 
     public string? Platform { get; init; }
@@ -196,6 +198,7 @@ public static class MediaResponseMapper
         CoverUrl = item.CoverUrl != null ? $"{item.CoverUrl}?v={item.UpdatedAt.Ticks}" : null,
         CreatedAt = item.CreatedAt,
         FranchiseId = item.FranchiseId,
+        FranchiseName = item.Franchise?.Name,
         FranchiseOrder = item.FranchiseOrder,
         ExternalId = item.ExternalId,
         ExternalSource = item.ExternalSource,

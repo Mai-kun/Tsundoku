@@ -46,6 +46,10 @@ public sealed record ExternalMediaDto
 
     public int? TotalCount { get; init; }
 
+    public int? Chapters { get; init; }
+
+    public int? Volumes { get; init; }
+
     public string? Platform { get; init; }
 
     public string? ExternalSource { get; init; }

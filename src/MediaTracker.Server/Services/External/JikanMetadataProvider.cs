@@ -111,6 +111,8 @@ public sealed class JikanMetadataProvider(
             Studio = studio,
             Author = author,
             TotalCount = total,
+            Chapters = type == "manga" ? item.Chapters : null,
+            Volumes = type == "manga" ? item.Volumes : null,
             ExternalSource = "MyAnimeList",
             Rating = rating,
             RatingVotes = votes,
@@ -158,6 +160,9 @@ public sealed class JikanMetadataProvider(
 
         [JsonPropertyName("chapters")]
         public int? Chapters { get; set; }
+
+        [JsonPropertyName("volumes")]
+        public int? Volumes { get; set; }
 
         [JsonPropertyName("score")]
         public double? Score { get; set; }

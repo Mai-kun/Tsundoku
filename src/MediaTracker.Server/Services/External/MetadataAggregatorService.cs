@@ -69,7 +69,7 @@ public sealed class MetadataAggregatorService(
                     var details = await directProvider.GetDetailsAsync(externalId, title, ct);
                     if (details is not null)
                     {
-                        return details;
+                        return await EnrichMultiSourceRatingsAsync(details, normalizedType, ct);
                     }
                 }
                 catch (OperationCanceledException) when (ct.IsCancellationRequested)
@@ -100,7 +100,7 @@ public sealed class MetadataAggregatorService(
                 var details = await provider.GetDetailsAsync(externalId, title, ct);
                 if (details is not null)
                 {
-                    return details;
+                    return await EnrichMultiSourceRatingsAsync(details, normalizedType, ct);
                 }
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
@@ -114,6 +114,91 @@ public sealed class MetadataAggregatorService(
         }
 
         return null;
+    }
+
+    private async Task<ExternalMediaDto> EnrichMultiSourceRatingsAsync(ExternalMediaDto details, string type, CancellationToken ct)
+    {
+        var ratings = details.Ratings is not null ? new List<ExternalRatingDto>(details.Ratings) : [];
+        if (ratings.Count == 0 && details.Rating.HasValue && !string.IsNullOrWhiteSpace(details.ExternalSource))
+        {
+            ratings.Add(new ExternalRatingDto
+            {
+                Source = details.ExternalSource,
+                Rating = details.Rating.Value,
+                Votes = details.RatingVotes
+            });
+        }
+
+        var prioritySources = await GetSourcePriorityForTypeAsync(type, ct);
+        foreach (var source in prioritySources)
+        {
+            var normalizedSource = NormalizeSourceKey(source);
+            if (ratings.Any(r => NormalizeSourceKey(r.Source) == normalizedSource))
+            {
+                continue;
+            }
+
+            var provider = serviceProvider.GetKeyedService<IMetadataProvider>($"{type}:{source}")
+                           ?? serviceProvider.GetKeyedService<IMetadataProvider>(source);
+            if (provider is null) continue;
+
+            try
+            {
+                using var queryCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                queryCts.CancelAfter(TimeSpan.FromSeconds(2.5));
+                var search = await provider.SearchAsync(details.Title, queryCts.Token);
+                var match = search.FirstOrDefault(s => s.Title.Equals(details.Title, StringComparison.OrdinalIgnoreCase)) ?? search.FirstOrDefault();
+                if (match?.Rating.HasValue == true && match.Rating.Value > 0)
+                {
+                    ratings.Add(new ExternalRatingDto
+                    {
+                        Source = match.ExternalSource ?? GetCanonicalSourceName(source),
+                        Rating = match.Rating.Value,
+                        Votes = match.RatingVotes
+                    });
+                }
+                else
+                {
+                    ratings.Add(new ExternalRatingDto
+                    {
+                        Source = match?.ExternalSource ?? GetCanonicalSourceName(source),
+                        Rating = 0,
+                        Votes = null
+                    });
+                }
+            }
+            catch
+            {
+                ratings.Add(new ExternalRatingDto
+                {
+                    Source = GetCanonicalSourceName(source),
+                    Rating = 0,
+                    Votes = null
+                });
+            }
+        }
+
+        return details with { Ratings = ratings };
+    }
+
+    private static string GetCanonicalSourceName(string source)
+    {
+        var lower = source.Trim().ToLowerInvariant();
+        if (lower.Contains("mal") || lower.Contains("jikan") || lower.Contains("myanimelist"))
+            return "MyAnimeList";
+        if (lower.Contains("anilist"))
+            return "AniList";
+        if (lower.Contains("mangaupdates"))
+            return "MangaUpdates";
+        if (lower.Contains("tmdb"))
+            return "TMDB";
+        if (lower.Contains("rawg"))
+            return "RAWG";
+        if (lower.Contains("openlibrary"))
+            return "OpenLibrary";
+        if (lower.Contains("kitsu"))
+            return "Kitsu";
+        return source;
     }
 
     private async Task<IReadOnlyList<ExternalMediaDto>> SearchProviderWithFallbackAsync(string type, string query, CancellationToken ct)
@@ -135,7 +220,9 @@ public sealed class MetadataAggregatorService(
 
             try
             {
-                var results = await provider.SearchAsync(query, ct);
+                using var providerCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                providerCts.CancelAfter(TimeSpan.FromSeconds(3));
+                var results = await provider.SearchAsync(query, providerCts.Token);
                 if (results.Count > 0)
                 {
                     return results;

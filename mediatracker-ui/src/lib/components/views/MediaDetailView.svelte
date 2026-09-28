@@ -27,10 +27,10 @@
     Languages,
     X,
   } from 'lucide-svelte'
-  import { createMedia, errorMessage, getExternalDetails, getMedia, getMediaItem, refreshMetadata, setProgress, setSeasonProgress, translateText, updateMedia, updateStatus } from '$lib/api'
+  import { addVolume, createMedia, deleteVolume, errorMessage, getExternalDetails, getMedia, getMediaItem, refreshMetadata, setProgress, setSeasonProgress, setVolumeProgress, translateText, updateMedia, updateStatus, updateVolume } from '$lib/api'
   import { i18n } from '$lib/i18n/index.svelte'
   import { showToast } from '$lib/stores/toast.svelte'
-  import { clampProgress, isTvShowDetail, MEDIA_STATUS, type AppView, type MediaDetail, type MediaItem, type MediaStatus, type TvSeason } from '$lib/types'
+  import { clampProgress, isMangaDetail, isTvShowDetail, MEDIA_STATUS, type AppView, type MangaVolume, type MediaDetail, type MediaItem, type MediaStatus, type TvSeason } from '$lib/types'
   import { createProgressDebounce } from '$lib/utils/progressDebounce'
 
   interface Props {
@@ -98,8 +98,17 @@
 
   interface RatingBadge {
     source: string
-    score: number
+    score: number | null
     votes?: number | null
+  }
+
+  const CATEGORY_EXPECTED_SOURCES: Record<string, string[]> = {
+    anime: ['AniList', 'MyAnimeList'],
+    manga: ['AniList', 'MangaUpdates', 'MyAnimeList'],
+    movie: ['TMDB'],
+    tvshow: ['TMDB'],
+    game: ['RAWG'],
+    book: ['OpenLibrary'],
   }
 
   let { mediaId, refreshKey, onBack, onUpdate, onDelete, onEdit, onOpenRelated, onNavigate = () => {} }: Props = $props()
@@ -119,7 +128,7 @@
   let requestSequence = 0
   let trackedMediaId: string | null = null
 
-  let activeSubTab = $state<'overview' | 'episodes' | 'related' | 'recommendations'>('overview')
+  let activeSubTab = $state<'overview' | 'episodes' | 'volumes' | 'related' | 'recommendations'>('overview')
   let episodeSortOrder = $state<'asc' | 'desc'>('asc')
   let synopsisExpanded = $state(false)
   let statusMenuOpen = $state(false)
@@ -192,10 +201,18 @@
   let translatedSynopsis = $state<string | null>(null)
 
   async function toggleTranslateSynopsis() {
-    if (!synopsisText || translatingSynopsis) return
+    if (!media || !synopsisText || translatingSynopsis) return
 
     if (isSynopsisTranslated) {
       isSynopsisTranslated = false
+      return
+    }
+
+    // Check if we already have a cached translation in DB matching current language
+    const targetLang = i18n.current === 'en' ? 'en' : 'ru'
+    if (media.translatedSynopsis && media.translationLanguage === targetLang) {
+      translatedSynopsis = media.translatedSynopsis
+      isSynopsisTranslated = true
       return
     }
 
@@ -206,11 +223,12 @@
 
     translatingSynopsis = true
     try {
-      const targetLang = i18n.current === 'en' ? 'en' : 'ru'
       const res = await translateText(synopsisText, targetLang)
       if (res?.translatedText) {
         translatedSynopsis = res.translatedText
         isSynopsisTranslated = true
+        // Persist to DB (fire-and-forget, don't block UI)
+        updateMedia(media.id, { translatedSynopsis: res.translatedText, translationLanguage: targetLang }).catch(() => {})
       }
     } catch (err) {
       showToast(errorMessage(err), 'error')
@@ -242,32 +260,175 @@
 
   let externalRatings = $derived.by<RatingBadge[]>(() => {
     if (!media) return []
+    const results: RatingBadge[] = []
+    const seen = new Set<string>()
+
     if (media.externalRatingsJson) {
       try {
         const parsed = JSON.parse(media.externalRatingsJson)
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed.map((r: any) => {
-            const rawScore = typeof r.score === 'number' ? r.score : (typeof r.Score === 'number' ? r.Score : (typeof r.rating === 'number' ? r.rating : (typeof r.Rating === 'number' ? r.Rating : 0)))
-            return {
-              source: r.source ?? r.Source ?? 'Source',
-              score: rawScore > 0 ? rawScore : (typeof media?.externalRating === 'number' ? media.externalRating : 0),
-              votes: r.votes ?? r.Votes ?? null,
-            }
-          })
+          for (const r of parsed) {
+            const src = (r.source ?? r.Source ?? '').trim()
+            if (!src) continue
+            const rawScore = typeof r.score === 'number' ? r.score : (typeof r.Score === 'number' ? r.Score : (typeof r.rating === 'number' ? r.rating : (typeof r.Rating === 'number' ? r.Rating : null)))
+            const votes = r.votes ?? r.Votes ?? null
+            seen.add(src.toLowerCase())
+            results.push({
+              source: src,
+              score: rawScore !== null && rawScore > 0 ? rawScore : null,
+              votes,
+            })
+          }
         }
       } catch {}
     }
-    if (typeof media.externalRating === 'number') {
-      return [
-        {
-          source: dataSource(media),
-          score: media.externalRating,
-          votes: media.externalRatingVotes,
-        },
-      ]
+
+    if (results.length === 0 && typeof media.externalRating === 'number' && media.externalRating > 0) {
+      const src = dataSource(media)
+      seen.add(src.toLowerCase())
+      results.push({
+        source: src,
+        score: media.externalRating,
+        votes: media.externalRatingVotes,
+      })
     }
-    return []
+
+    const isAnime = 'isAnime' in media ? Boolean((media as any).isAnime) : false
+    const cat = (isAnime || (media as any).type === 'anime') ? 'anime' : media.type
+    const expected = CATEGORY_EXPECTED_SOURCES[cat] ?? []
+    for (const exp of expected) {
+      const expNorm = exp.toLowerCase()
+      const found = Array.from(seen).some((s) => s.includes(expNorm) || expNorm.includes(s))
+      if (!found) {
+        seen.add(expNorm)
+        results.push({
+          source: exp,
+          score: null,
+          votes: null,
+        })
+      }
+    }
+
+    return results
   })
+
+  let mangaVolumes = $derived(media && isMangaDetail(media) ? (media.volumes ?? []) : [])
+  let volumeBusy = $state('')
+  let volumeError = $state<unknown>(null)
+
+  async function stepVolumePage(vol: MangaVolume, delta: number) {
+    if (!media) return
+    const next = Math.max(0, vol.totalPages > 0 ? Math.min(vol.currentPage + delta, vol.totalPages) : vol.currentPage + delta)
+    if (next === vol.currentPage) return
+
+    vol.currentPage = next
+    if (vol.totalPages > 0 && next >= vol.totalPages) {
+      vol.status = MEDIA_STATUS.completed
+    } else if (next > 0) {
+      vol.status = MEDIA_STATUS.inProgress
+    }
+
+    try {
+      volumeBusy = vol.id
+      await setVolumeProgress(vol.id, { currentPage: next })
+      onUpdate()
+    } catch (err) {
+      volumeError = err
+    } finally {
+      volumeBusy = ''
+    }
+  }
+
+  async function markVolumeComplete(vol: MangaVolume) {
+    if (!media || !vol.totalPages) return
+    vol.currentPage = vol.totalPages
+    vol.status = MEDIA_STATUS.completed
+
+    try {
+      volumeBusy = vol.id
+      await setVolumeProgress(vol.id, { currentPage: vol.totalPages })
+      onUpdate()
+    } catch (err) {
+      volumeError = err
+    } finally {
+      volumeBusy = ''
+    }
+  }
+
+  async function unmarkVolumeComplete(vol: MangaVolume) {
+    if (!media) return
+    vol.currentPage = 0
+    vol.status = MEDIA_STATUS.planned
+
+    try {
+      volumeBusy = vol.id
+      await setVolumeProgress(vol.id, { currentPage: 0 })
+      onUpdate()
+    } catch (err) {
+      volumeError = err
+    } finally {
+      volumeBusy = ''
+    }
+  }
+
+  let addVolumeDialogOpen = $state(false)
+  let addVolumeTitle = $state('')
+  let addVolumeChapters = $state(0)
+
+  async function handleAddVolume() {
+    if (!media || media.type !== 'manga') return
+    const volNum = mangaVolumes.length + 1
+    addVolumeTitle = `Volume ${volNum}`
+    addVolumeChapters = 0
+    addVolumeDialogOpen = true
+  }
+
+  async function confirmAddVolume() {
+    if (!media || media.type !== 'manga') return
+    const volNum = mangaVolumes.length + 1
+    addVolumeDialogOpen = false
+    try {
+      volumeBusy = 'add'
+      await addVolume(media.id, {
+        volumeNumber: volNum,
+        title: addVolumeTitle || `Volume ${volNum}`,
+        totalPages: 200,
+        totalChapters: addVolumeChapters,
+        currentPage: 0,
+        currentChapter: 0,
+      })
+      await load(media.id, ++requestSequence, false)
+      onUpdate()
+    } catch (err) {
+      volumeError = err
+    } finally {
+      volumeBusy = ''
+    }
+  }
+
+  async function handleGenerateVolumes() {
+    if (!media || media.type !== 'manga' || !media.totalVolumes) return
+    try {
+      volumeBusy = 'generate'
+      const start = mangaVolumes.length + 1
+      for (let i = start; i <= media.totalVolumes; i++) {
+        await addVolume(media.id, {
+          volumeNumber: i,
+          title: `Volume ${i}`,
+          totalPages: 200,
+          totalChapters: 0,
+          currentPage: 0,
+          currentChapter: 0,
+        })
+      }
+      await load(media.id, ++requestSequence, false)
+      onUpdate()
+    } catch (err) {
+      volumeError = err
+    } finally {
+      volumeBusy = ''
+    }
+  }
 
   $effect(() => {
     void refreshKey
@@ -315,6 +476,12 @@
       if (sequence !== requestSequence) return
       media = loaded
       syncFrom(loaded)
+      // Restore cached translation if available for current language
+      const targetLang = i18n.current === 'en' ? 'en' : 'ru'
+      if (loaded.translatedSynopsis && loaded.translationLanguage === targetLang) {
+        translatedSynopsis = loaded.translatedSynopsis
+        isSynopsisTranslated = true
+      }
       void loadRelated(loaded)
     } catch (error) {
       console.error('[MediaDetailView] Failed to load media', id, error)
@@ -821,7 +988,11 @@
           status,
           coverUrl: itemDetails.coverUrl,
           notes: itemDetails.description,
+          author: itemDetails.author || undefined,
+          romajiTitle: itemDetails.romajiTitle ?? itemDetails.originalTitle ?? undefined,
           totalChapters: itemDetails.chapters ?? null,
+          totalVolumes: itemDetails.volumes ?? 1,
+          currentVolume: 1,
           franchiseId,
           franchiseName,
           externalId: itemDetails.id,
@@ -1098,7 +1269,7 @@
         if (item.author) list.push(item.author)
         break
       case 'manga':
-        list.push(i18n.t.card.volume(item.currentVolume))
+        if (item.author) list.push(item.author)
         break
       case 'movie':
         if (item.studio) list.push(item.studio)
@@ -1129,27 +1300,57 @@
       case 'book':
         rows.push({ label: i18n.t.detail.pagesLabel, value: i18n.t.card.pages(item.currentPage, item.totalPages) })
         break
-      case 'manga':
-        rows.push({ label: i18n.t.detail.chaptersLabel, value: i18n.t.card.chapters(item.currentChapter, item.totalChapters) })
+      case 'manga': {
+        const mangaDetail = isMangaDetail(item) ? item : null
+        const vols = mangaDetail?.volumes ?? []
+        const hasVolChapters = vols.some((v) => (v.totalChapters ?? 0) > 0)
+        const currentCh = hasVolChapters ? vols.reduce((sum, v) => sum + (v.currentChapter ?? 0), 0) : item.currentChapter
+        const totalCh = hasVolChapters ? vols.reduce((sum, v) => sum + (v.totalChapters ?? 0), 0) : item.totalChapters
+        rows.push({
+          label: i18n.t.detail.chaptersLabel,
+          value: totalCh && totalCh > 0
+            ? i18n.t.card.chapters(currentCh, totalCh)
+            : (i18n.current === 'ru' ? `Гл. ${currentCh} / —` : `Ch. ${currentCh} / —`),
+        })
+
+        const totalVols = vols.length > 0 ? vols.length : (item.totalVolumes ?? null)
+        const curVol = item.currentVolume ?? (vols.length > 0 ? 1 : null)
+        rows.push({
+          label: i18n.t.detail.volumesLabel,
+          value: totalVols !== null && totalVols > 0
+            ? (curVol !== null && curVol > 0 ? `${curVol} / ${totalVols}` : `${totalVols}`)
+            : (curVol !== null && curVol > 0 ? `${curVol} / —` : empty),
+        })
         break
+      }
       case 'game':
         rows.push({ label: i18n.t.detail.hoursLabel, value: i18n.t.card.hours(item.hoursPlayed ?? 0) })
         break
     }
 
-    const duration = item.durationMinutes && item.durationMinutes > 0
-      ? (item.type === 'movie' ? i18n.t.card.movie(item.durationMinutes) : `${item.durationMinutes} ${i18n.t.detail.minPerEp}`)
-      : empty
-    rows.push({ label: i18n.t.detail.durationLabel, value: duration })
+    if (item.type === 'movie' || item.type === 'tvshow') {
+      const duration = item.durationMinutes && item.durationMinutes > 0
+        ? (item.type === 'movie' ? i18n.t.card.movie(item.durationMinutes) : `${item.durationMinutes} ${i18n.t.detail.minPerEp}`)
+        : empty
+      rows.push({ label: i18n.t.detail.durationLabel, value: duration })
+    }
 
     switch (item.type) {
       case 'tvshow':
       case 'movie':
         rows.push({ label: i18n.t.detailModal.studio, value: item.studio || empty })
+        if (item.romajiTitle) {
+          rows.push({ label: i18n.t.detail.romajiTitle, value: item.romajiTitle })
+        }
         break
       case 'book':
+        rows.push({ label: i18n.t.detailModal.author, value: item.author || empty })
+        break
       case 'manga':
-        rows.push({ label: i18n.t.detailModal.author, value: item.type === 'book' ? item.author || empty : empty })
+        rows.push({ label: i18n.t.detailModal.author, value: item.author || empty })
+        if (item.romajiTitle) {
+          rows.push({ label: i18n.t.detail.romajiTitle, value: item.romajiTitle })
+        }
         break
       case 'game':
         rows.push({ label: i18n.t.detailModal.platform, value: item.platform || empty })
@@ -1630,7 +1831,7 @@
             {@const src = rating.source.toLowerCase()}
             <div
               class="inline-flex h-9 items-center gap-2 rounded-lg border border-white/15 bg-[#222634] px-3 shadow-sm transition hover:border-white/30 hover:bg-[#282d3d]"
-              title={`${rating.source}: ${rating.score.toFixed(1)}`}
+              title={`${rating.source}: ${rating.score !== null && rating.score > 0 ? rating.score.toFixed(1) : '—'}`}
             >
               <span class="flex items-center">
                 {#if src.includes('anilist')}
@@ -1657,9 +1858,13 @@
                   </span>
                 {/if}
               </span>
-              <span class="font-extrabold text-sm tabular-nums text-white">{rating.score.toFixed(1)}</span>
-              {#if rating.votes}
-                <span class="text-xs text-muted font-normal">({rating.votes > 1000 ? (rating.votes / 1000).toFixed(1) + 'k' : rating.votes})</span>
+              {#if rating.score !== null && rating.score > 0}
+                <span class="font-extrabold text-sm tabular-nums text-white">{rating.score.toFixed(1)}</span>
+                {#if rating.votes}
+                  <span class="text-xs text-muted font-normal">({rating.votes > 1000 ? (rating.votes / 1000).toFixed(1) + 'k' : rating.votes})</span>
+                {/if}
+              {:else}
+                <span class="font-medium text-sm text-muted">—</span>
               {/if}
             </div>
           {/each}
@@ -1693,6 +1898,26 @@
               {#if currentSeason}
                 <span class="rounded-full bg-white/10 px-2 py-0.5 text-xs text-[#a5b4fc]">
                   {currentSeason.currentEpisode}/{currentSeason.totalEpisodes}
+                </span>
+              {/if}
+            </button>
+          {/if}
+
+          {#if media.type === 'manga'}
+            <button
+              type="button"
+              class={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-semibold transition ${
+                activeSubTab === 'volumes'
+                  ? 'border-[#5844e0] text-white'
+                  : 'border-transparent text-muted hover:text-white'
+              }`}
+              onclick={() => (activeSubTab = 'volumes')}
+            >
+              <Layers size={14} class="text-[#a5b4fc]" aria-hidden="true" />
+              {i18n.t.detail.tabVolumes}
+              {#if mangaVolumes.length > 0}
+                <span class="rounded-full bg-white/10 px-2 py-0.5 text-xs text-[#a5b4fc]">
+                  {mangaVolumes.length}
                 </span>
               {/if}
             </button>
@@ -1841,6 +2066,137 @@
                 {#if progressError}<p class="text-xs text-rose-300" role="alert">{errorMessage(progressError)}</p>{/if}
               </section>
             {/if}
+
+            <!-- Manga Volumes Section on Overview (Item 6) -->
+            {#if media.type === 'manga'}
+              {#if mangaVolumes.length > 0}
+                <section class="space-y-3 rounded-xl bg-[#222634] p-5 shadow-sm border border-white/5">
+                  <div class="flex items-center justify-between gap-3">
+                    <div>
+                      <h2 class="text-xs font-bold uppercase tracking-wider text-slate-300">{i18n.t.detail.tabVolumes}</h2>
+                      <p class="text-xs text-muted mt-0.5">{mangaVolumes.length} {i18n.t.detail.volumesLabel.toLowerCase()}</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                      <button
+                        type="button"
+                        class="rounded-lg border border-white/10 bg-surface/50 px-3 py-1.5 text-xs font-medium text-muted transition hover:bg-white/10 hover:text-white"
+                        onclick={() => (activeSubTab = 'volumes')}
+                      >
+                        {i18n.t.detail.tabVolumes} →
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-1">
+                    {#each mangaVolumes as vol (vol.id)}
+                      {@const isDone = vol.totalPages > 0 && vol.currentPage >= vol.totalPages}
+                      {@const percent = vol.totalPages > 0 ? Math.min((vol.currentPage / vol.totalPages) * 100, 100) : 0}
+                      <div class="rounded-lg border border-white/10 bg-[#13151b] p-3.5 space-y-2.5">
+                        <div class="flex items-center justify-between gap-2">
+                          <span class="text-xs font-bold text-white truncate">{vol.title || `Volume ${vol.volumeNumber}`}</span>
+                          {#if isDone}
+                            <span class="inline-flex items-center gap-1 rounded bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-bold text-emerald-300">
+                              <Check size={11} stroke-width={2.5} />
+                              OK
+                            </span>
+                          {:else}
+                            <span class="text-xs font-semibold tabular-nums text-white">
+                              {vol.currentPage} / {vol.totalPages > 0 ? vol.totalPages : 200} pp.
+                            </span>
+                          {/if}
+                        </div>
+
+                        <!-- Progress Bar -->
+                        <div class="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+                          <div class="h-full rounded-full bg-gradient-to-r from-[#5844e0] to-[#7dd3fc] transition-all duration-200" style={`width: ${percent}%`}></div>
+                        </div>
+
+                        <!-- Stepper and Action -->
+                        <div class="flex items-center justify-between gap-2 pt-0.5">
+                          <div class="flex h-7 items-center rounded-md bg-[#222634] border border-white/10">
+                            <button
+                              type="button"
+                              class="grid h-full w-7 place-items-center text-muted transition hover:text-white disabled:opacity-30"
+                              disabled={vol.currentPage <= 0 || Boolean(volumeBusy)}
+                              onclick={() => void stepVolumePage(vol, -1)}
+                            >
+                              <Minus size={12} />
+                            </button>
+                            <span class="px-2 text-xs font-semibold tabular-nums text-white">{vol.currentPage}</span>
+                            <button
+                              type="button"
+                              class="grid h-full w-7 place-items-center text-muted transition hover:text-white disabled:opacity-30"
+                              disabled={(vol.totalPages > 0 && vol.currentPage >= vol.totalPages) || Boolean(volumeBusy)}
+                              onclick={() => void stepVolumePage(vol, 1)}
+                            >
+                              <Plus size={12} />
+                            </button>
+                          </div>
+
+                          {#if !isDone}
+                            <button
+                              type="button"
+                              class="inline-flex h-7 items-center gap-1 rounded-md bg-emerald-500/15 px-2 text-[11px] font-semibold text-emerald-300 transition hover:bg-emerald-500/25 disabled:opacity-50"
+                              disabled={Boolean(volumeBusy)}
+                              onclick={() => void markVolumeComplete(vol)}
+                              title={i18n.t.detail.markVolumeComplete}
+                            >
+                              <Check size={12} />
+                            </button>
+                          {:else}
+                            <button
+                              type="button"
+                              class="inline-flex h-7 items-center gap-1 rounded-md bg-white/5 px-2 text-[11px] font-semibold text-muted transition hover:bg-white/10 hover:text-white disabled:opacity-50"
+                              disabled={Boolean(volumeBusy)}
+                              onclick={() => void unmarkVolumeComplete(vol)}
+                              title="Unmark complete"
+                            >
+                              <X size={12} />
+                            </button>
+                          {/if}
+                        </div>
+                      </div>
+                    {/each}
+                  </div>
+                </section>
+              {:else if media.totalVolumes && media.totalVolumes > 0}
+                <section class="space-y-3 rounded-xl bg-[#222634] p-5 shadow-sm border border-white/5">
+                  <div class="flex items-center justify-between gap-3">
+                    <div>
+                      <h2 class="text-xs font-bold uppercase tracking-wider text-slate-300">{i18n.t.detail.tabVolumes}</h2>
+                      <p class="text-xs text-muted mt-0.5">{media.totalVolumes} {i18n.t.detail.volumesLabel.toLowerCase()}</p>
+                    </div>
+                    <button
+                      type="button"
+                      class="inline-flex items-center gap-1.5 rounded-lg bg-[#5844e0] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#6854f0] disabled:opacity-50"
+                      disabled={Boolean(volumeBusy)}
+                      onclick={() => void handleGenerateVolumes()}
+                    >
+                      <Plus size={13} />
+                      {i18n.t.detail.addVolume} ({media.totalVolumes})
+                    </button>
+                  </div>
+                </section>
+              {:else}
+                <section class="space-y-3 rounded-xl bg-[#222634] p-5 shadow-sm border border-white/5">
+                  <div class="flex items-center justify-between gap-3">
+                    <div>
+                      <h2 class="text-xs font-bold uppercase tracking-wider text-slate-300">{i18n.t.detail.tabVolumes}</h2>
+                      <p class="text-xs text-muted mt-0.5">0 {i18n.t.detail.volumesLabel.toLowerCase()}</p>
+                    </div>
+                    <button
+                      type="button"
+                      class="inline-flex items-center gap-1.5 rounded-lg bg-[#5844e0] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#6854f0] disabled:opacity-50"
+                      disabled={Boolean(volumeBusy)}
+                      onclick={() => void handleAddVolume()}
+                    >
+                      <Plus size={13} />
+                      {i18n.t.detail.addVolume}
+                    </button>
+                  </div>
+                </section>
+              {/if}
+            {/if}
           </div>
         {/if}
 
@@ -1964,6 +2320,145 @@
                 {/each}
               </div>
               {#if progressError}<p class="text-xs text-rose-300" role="alert">{errorMessage(progressError)}</p>{/if}
+            {/if}
+          </section>
+        {/if}
+
+        <!-- TAB: MANGA VOLUMES -->
+        {#if activeSubTab === 'volumes' && media.type === 'manga'}
+          <section class="space-y-4">
+            <div class="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-[#222634] p-3.5">
+              <div class="flex items-center gap-2">
+                <Layers size={16} class="text-[#a5b4fc]" />
+                <h3 class="text-sm font-bold text-white">{i18n.t.detail.tabVolumes}</h3>
+                <span class="rounded-full bg-white/10 px-2.5 py-0.5 text-xs font-semibold text-[#a5b4fc]">
+                  {mangaVolumes.length}
+                </span>
+              </div>
+
+              <div class="flex items-center gap-2">
+                {#if media.totalVolumes && mangaVolumes.length < media.totalVolumes}
+                  <button
+                    type="button"
+                    class="inline-flex h-8 items-center gap-1.5 rounded-md bg-white/10 px-3 text-xs font-semibold text-white transition hover:bg-white/20 disabled:opacity-50"
+                    disabled={Boolean(volumeBusy)}
+                    onclick={() => void handleGenerateVolumes()}
+                  >
+                    <Plus size={13} />
+                    {i18n.t.detail.addVolume} ({media.totalVolumes - mangaVolumes.length})
+                  </button>
+                {/if}
+                <button
+                  type="button"
+                  class="inline-flex h-8 items-center gap-1.5 rounded-md bg-[#5844e0] px-3 text-xs font-semibold text-white transition hover:bg-[#6854f0] disabled:opacity-50"
+                  disabled={Boolean(volumeBusy)}
+                  onclick={() => void handleAddVolume()}
+                >
+                  <Plus size={13} />
+                  {i18n.t.detail.addVolume}
+                </button>
+              </div>
+            </div>
+
+            {#if mangaVolumes.length === 0}
+              <div class="rounded-xl border border-white/10 bg-[#222634]/40 p-8 text-center space-y-3">
+                <Layers size={36} class="mx-auto text-muted/60" />
+                <p class="text-sm text-muted">No volumes tracked yet for this manga.</p>
+                <button
+                  type="button"
+                  class="inline-flex items-center gap-1.5 rounded-lg bg-[#5844e0] px-4 py-2 text-xs font-semibold text-white transition hover:bg-[#6854f0]"
+                  disabled={Boolean(volumeBusy)}
+                  onclick={() => void handleAddVolume()}
+                >
+                  <Plus size={14} />
+                  {i18n.t.detail.addVolume}
+                </button>
+              </div>
+            {:else}
+              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {#each mangaVolumes as vol (vol.id)}
+                  {@const isDone = vol.totalPages > 0 && vol.currentPage >= vol.totalPages}
+                  {@const percent = vol.totalPages > 0 ? Math.min((vol.currentPage / vol.totalPages) * 100, 100) : 0}
+                  <div class="rounded-xl border border-white/10 bg-[#222634] p-4 space-y-3 shadow-sm hover:border-white/20 transition">
+                    <div class="flex items-start justify-between gap-2">
+                      <div class="min-w-0">
+                        <h4 class="text-sm font-bold text-white truncate">{vol.title || `Volume ${vol.volumeNumber}`}</h4>
+                        {#if vol.totalChapters > 0}
+                          <p class="text-xs text-muted mt-0.5">{i18n.t.card.chapters(vol.currentChapter, vol.totalChapters)}</p>
+                        {/if}
+                      </div>
+                      {#if isDone}
+                        <span class="inline-flex items-center gap-1 rounded bg-emerald-500/15 px-2 py-0.5 text-xs font-bold text-emerald-300">
+                          <Check size={12} stroke-width={2.5} />
+                          {i18n.t.status.completed}
+                        </span>
+                      {:else}
+                        <span class="text-xs font-semibold tabular-nums text-white">
+                          {vol.currentPage} / {vol.totalPages > 0 ? vol.totalPages : 200} pp.
+                        </span>
+                      {/if}
+                    </div>
+
+                    <!-- Progress Bar -->
+                    <div class="space-y-1">
+                      <div class="flex justify-between text-[11px] text-muted">
+                        <span>{i18n.t.detail.volumeProgress}</span>
+                        <span>{percent.toFixed(0)}%</span>
+                      </div>
+                      <div class="h-2 w-full overflow-hidden rounded-full bg-black/40">
+                        <div class="h-full rounded-full bg-gradient-to-r from-[#5844e0] to-[#7dd3fc] transition-all duration-300" style={`width: ${percent}%`}></div>
+                      </div>
+                    </div>
+
+                    <!-- Stepper & Actions -->
+                    <div class="flex items-center justify-between gap-2 pt-1 border-t border-white/5">
+                      <div class="flex h-8 items-center rounded-lg bg-[#13151b] border border-white/10">
+                        <button
+                          type="button"
+                          class="grid h-full w-8 place-items-center text-muted transition hover:text-white disabled:opacity-30"
+                          disabled={vol.currentPage <= 0 || Boolean(volumeBusy)}
+                          onclick={() => void stepVolumePage(vol, -1)}
+                        >
+                          <Minus size={13} />
+                        </button>
+                        <span class="px-2.5 text-xs font-semibold tabular-nums text-white">{vol.currentPage}</span>
+                        <button
+                          type="button"
+                          class="grid h-full w-8 place-items-center text-muted transition hover:text-white disabled:opacity-30"
+                          disabled={(vol.totalPages > 0 && vol.currentPage >= vol.totalPages) || Boolean(volumeBusy)}
+                          onclick={() => void stepVolumePage(vol, 1)}
+                        >
+                          <Plus size={13} />
+                        </button>
+                      </div>
+
+                      <div class="flex items-center gap-1.5">
+                        {#if !isDone}
+                          <button
+                            type="button"
+                            class="inline-flex h-8 items-center gap-1 rounded-lg bg-emerald-500/15 border border-emerald-500/25 px-2.5 text-xs font-semibold text-emerald-300 transition hover:bg-emerald-500/25 disabled:opacity-50"
+                            disabled={Boolean(volumeBusy)}
+                            onclick={() => void markVolumeComplete(vol)}
+                          >
+                            <Check size={13} />
+                            {i18n.t.detail.watchAction}
+                          </button>
+                        {:else}
+                          <button
+                            type="button"
+                            class="inline-flex h-8 items-center gap-1 rounded-lg bg-white/5 border border-white/10 px-2.5 text-xs font-semibold text-muted transition hover:bg-white/10 hover:text-white disabled:opacity-50"
+                            disabled={Boolean(volumeBusy)}
+                            onclick={() => void unmarkVolumeComplete(vol)}
+                          >
+                            <X size={13} />
+                            Unmark
+                          </button>
+                        {/if}
+                      </div>
+                    </div>
+                  </div>
+                {/each}
+              </div>
             {/if}
           </section>
         {/if}
@@ -2474,3 +2969,55 @@
     </div>
   {/if}
 </div>
+
+{#if addVolumeDialogOpen}
+  <div
+    class="fixed inset-0 z-50 flex items-center justify-center bg-canvas/80 backdrop-blur-sm p-4"
+    role="presentation"
+    onclick={(e) => { if (e.target === e.currentTarget) addVolumeDialogOpen = false }}
+  >
+    <div class="w-full max-w-sm rounded-xl border border-white/10 bg-[#1a1d27] p-6 shadow-2xl space-y-4">
+      <h3 class="text-sm font-bold text-white">Add Volume</h3>
+      <div class="space-y-3">
+        <div>
+          <label class="block text-xs text-muted mb-1" for="add-vol-title">Title</label>
+          <input
+            id="add-vol-title"
+            type="text"
+            class="h-9 w-full rounded-md border border-white/10 bg-[#13151b] px-3 text-xs text-white outline-none focus:ring-1 focus:ring-[#5844e0]"
+            bind:value={addVolumeTitle}
+            onkeydown={(e) => { if (e.key === 'Enter') void confirmAddVolume() }}
+          />
+        </div>
+        <div>
+          <label class="block text-xs text-muted mb-1" for="add-vol-chapters">Chapters</label>
+          <input
+            id="add-vol-chapters"
+            type="number"
+            min="0"
+            class="h-9 w-full rounded-md border border-white/10 bg-[#13151b] px-3 text-xs text-white outline-none focus:ring-1 focus:ring-[#5844e0]"
+            bind:value={addVolumeChapters}
+          />
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 pt-1">
+        <button
+          type="button"
+          class="inline-flex h-8 items-center rounded-md border border-white/10 px-3 text-xs font-medium text-muted hover:text-white transition"
+          onclick={() => (addVolumeDialogOpen = false)}
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          class="inline-flex h-8 items-center gap-1.5 rounded-md bg-[#5844e0] px-3 text-xs font-semibold text-white transition hover:bg-[#6854f0] disabled:opacity-50"
+          disabled={Boolean(volumeBusy)}
+          onclick={() => void confirmAddVolume()}
+        >
+          <Plus size={13} />
+          Add
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}

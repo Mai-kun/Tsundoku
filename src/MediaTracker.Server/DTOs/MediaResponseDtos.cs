@@ -53,6 +53,8 @@ public record MediaListDto
 
     public int? CurrentVolume { get; init; }
 
+    public int? TotalVolumes { get; init; }
+
     public int? DurationMinutes { get; init; }
 
     public string? Director { get; init; }
@@ -80,6 +82,10 @@ public record MediaListDto
     public int? ExternalRatingVotes { get; init; }
 
     public string? ExternalRatingsJson { get; init; }
+
+    public string? TranslatedSynopsis { get; init; }
+
+    public string? TranslationLanguage { get; init; }
 }
 
 public sealed record MediaDetailDto : MediaListDto
@@ -90,6 +96,37 @@ public sealed record MediaDetailDto : MediaListDto
     }
 
     public IReadOnlyList<TvSeasonDto>? Seasons { get; init; }
+
+    public IReadOnlyList<MangaVolumeDto>? Volumes { get; init; }
+}
+
+public sealed record MangaVolumeDto
+{
+    public required Guid Id { get; init; }
+
+    public required int VolumeNumber { get; init; }
+
+    public required string Title { get; init; }
+
+    public string? CoverUrl { get; init; }
+
+    public required int CurrentPage { get; init; }
+
+    public required int TotalPages { get; init; }
+
+    public required int CurrentChapter { get; init; }
+
+    public required int TotalChapters { get; init; }
+
+    public required MediaStatus Status { get; init; }
+
+    public int? Score { get; init; }
+
+    public string? Notes { get; init; }
+
+    public DateTime? ReleaseDate { get; init; }
+
+    public required Guid MangaId { get; init; }
 }
 
 public sealed record TvSeasonDto
@@ -140,9 +177,13 @@ public static class MediaResponseMapper
             },
             Manga manga => dto with
             {
-                CurrentChapter = manga.CurrentChapter,
-                TotalChapters = manga.TotalChapters,
+                Author = manga.Author,
+                RomajiTitle = manga.RomajiTitle,
                 CurrentVolume = manga.CurrentVolume,
+                TotalVolumes = manga.TotalVolumes ?? (manga.Volumes?.Count > 0 ? manga.Volumes.Count : null),
+                CurrentChapter = manga.CurrentChapter,
+                TotalChapters = manga.TotalChapters ?? (manga.Volumes?.Count > 0 ? manga.Volumes.Sum(v => v.TotalChapters) : null),
+                TotalPages = manga.Volumes?.Count > 0 ? manga.Volumes.Sum(v => v.TotalPages) : null,
             },
             Movie movie => dto with
             {
@@ -171,16 +212,42 @@ public static class MediaResponseMapper
     {
         var detail = new MediaDetailDto(ToListDto(item));
 
-        return item is TvShow show
-            ? detail with
+        return item switch
+        {
+            TvShow show => detail with
             {
                 Seasons = (show.Seasons ?? [])
                     .OrderBy(season => season.SeasonNumber)
                     .Select(ToDto)
                     .ToArray(),
-            }
-            : detail;
+            },
+            Manga manga => detail with
+            {
+                Volumes = (manga.Volumes ?? [])
+                    .OrderBy(volume => volume.VolumeNumber)
+                    .Select(ToDto)
+                    .ToArray(),
+            },
+            _ => detail,
+        };
     }
+
+    public static MangaVolumeDto ToDto(MangaVolume volume) => new()
+    {
+        Id = volume.Id,
+        VolumeNumber = volume.VolumeNumber,
+        Title = volume.Title,
+        CoverUrl = volume.CoverUrl,
+        CurrentPage = volume.CurrentPage,
+        TotalPages = volume.TotalPages,
+        CurrentChapter = volume.CurrentChapter,
+        TotalChapters = volume.TotalChapters,
+        Status = volume.Status,
+        Score = volume.Score,
+        Notes = volume.Notes,
+        ReleaseDate = volume.ReleaseDate,
+        MangaId = volume.MangaId,
+    };
 
     private static MediaListDto CreateBaseDto(MediaItem item, string type) => new()
     {
@@ -205,6 +272,8 @@ public static class MediaResponseMapper
         ExternalRating = item.ExternalRating,
         ExternalRatingVotes = item.ExternalRatingVotes,
         ExternalRatingsJson = item.ExternalRatingsJson,
+        TranslatedSynopsis = item.TranslatedSynopsis,
+        TranslationLanguage = item.TranslationLanguage,
     };
 
     public static string GetType(MediaItem item) => item switch

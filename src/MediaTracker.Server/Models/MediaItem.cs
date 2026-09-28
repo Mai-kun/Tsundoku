@@ -43,4 +43,8 @@ public abstract class MediaItem
     public DateTime? EndDate { get; set; }
 
     public string? ReleaseStatus { get; set; }
+
+    public string? TranslatedSynopsis { get; set; }
+
+    public string? TranslationLanguage { get; set; }
 }

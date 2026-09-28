@@ -42,7 +42,7 @@
     onEpisodeStep,
   }: Props = $props();
 
-  let trackedItem = $state(untrack(() => item));
+  let trackedItem: MediaItem | null = null;
   let currentProgress = $state(untrack(() => readProgress(item)));
   let committedProgress = $state(untrack(() => currentProgress));
   let pendingSnapshot = $state<number | null>(null);

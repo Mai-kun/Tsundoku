@@ -246,7 +246,15 @@
           ] : undefined,
         }
       case 'manga':
-        return { ...common, type: 'manga', totalChapters: result.totalCount }
+        return {
+          ...common,
+          type: 'manga',
+          author: result.author || undefined,
+          romajiTitle: result.romajiTitle ?? result.originalTitle ?? undefined,
+          totalChapters: result.chapters ?? result.totalCount ?? undefined,
+          totalVolumes: result.volumes ?? 1,
+          currentVolume: 1,
+        }
       case 'book':
         return { ...common, type: 'book', author: result.author || i18n.t.searchModal.unknownAuthor, totalPages: result.totalCount }
       case 'game':

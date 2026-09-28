@@ -38,6 +38,18 @@ public static class MediaEndpoints
         return app;
     }
 
+    public static IEndpointRouteBuilder MapVolumeEndpoints(this IEndpointRouteBuilder app)
+    {
+        var group = app.MapGroup("/api/volumes");
+
+        group.MapPut("/{id:guid}/progress", UpdateVolumeProgress);
+        group.MapPost("/", AddVolume);
+        group.MapPut("/{id:guid}", UpdateVolume);
+        group.MapDelete("/{id:guid}", DeleteVolume);
+
+        return app;
+    }
+
     private static async Task<IResult> GetMediaItems(
         AppDbContext db,
         string? type = null,
@@ -51,7 +63,8 @@ public static class MediaEndpoints
         IQueryable<MediaItem> query = db.MediaItems
             .AsNoTracking()
             .Include(media => media.Franchise)
-            .Include(media => ((TvShow)media).Seasons);
+            .Include(media => ((TvShow)media).Seasons)
+            .Include(media => ((Manga)media).Volumes);
 
         if (!string.IsNullOrWhiteSpace(type))
         {
@@ -133,15 +146,71 @@ public static class MediaEndpoints
         return Results.Ok(stats);
     }
 
-    private static async Task<IResult> GetMediaItem(Guid id, AppDbContext db, CancellationToken ct)
+    private static async Task<IResult> GetMediaItem(Guid id, AppDbContext db, MetadataAggregatorService aggregator, CancellationToken ct)
     {
         var item = await db.MediaItems
-            .AsNoTracking()
             .Include(media => media.Franchise)
             .Include(media => ((TvShow)media).Seasons.OrderBy(season => season.SeasonNumber))
+            .Include(media => ((Manga)media).Volumes.OrderBy(volume => volume.VolumeNumber))
             .SingleOrDefaultAsync(media => media.Id == id, ct);
 
-        return item is null ? Results.NotFound() : Results.Ok(MediaResponseMapper.ToDetailDto(item));
+        if (item is null) return Results.NotFound();
+
+        if (item is Manga manga && manga.Volumes.Count == 0)
+        {
+            var vol = new MangaVolume
+            {
+                Id = Guid.NewGuid(),
+                MangaId = manga.Id,
+                VolumeNumber = 1,
+                Title = "Volume 1",
+                TotalPages = 200,
+                TotalChapters = manga.TotalChapters is > 0 ? manga.TotalChapters.Value : 0,
+                CurrentPage = 0,
+                Status = manga.Status
+            };
+            manga.Volumes.Add(vol);
+            if (manga.TotalVolumes is null or 0) manga.TotalVolumes = 1;
+            if (manga.CurrentVolume <= 0) manga.CurrentVolume = 1;
+            await db.SaveChangesAsync(ct);
+        }
+
+        // Enrich ratings from all sources if missing
+        if (!string.IsNullOrEmpty(item.ExternalId) && !string.IsNullOrEmpty(item.ExternalSource))
+        {
+            var itemType = MediaResponseMapper.GetType(item);
+            var expectedSources = MetadataAggregatorService.DefaultSourcePriority.TryGetValue(itemType, out var exp) ? exp : [];
+            int storedCount = 0;
+            if (!string.IsNullOrEmpty(item.ExternalRatingsJson))
+            {
+                try
+                {
+                    using var doc = System.Text.Json.JsonDocument.Parse(item.ExternalRatingsJson);
+                    if (doc.RootElement.ValueKind == System.Text.Json.JsonValueKind.Array)
+                        storedCount = doc.RootElement.GetArrayLength();
+                }
+                catch { }
+            }
+            if (storedCount < expectedSources.Length)
+            {
+                try
+                {
+                    using var enrichCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                    enrichCts.CancelAfter(TimeSpan.FromSeconds(8));
+                    var enriched = await aggregator.GetDetailsAsync(
+                        itemType, item.ExternalId, item.Title, enrichCts.Token, item.ExternalSource);
+                    if (enriched?.Ratings is { Count: > 0 } ratings)
+                    {
+                        item.ExternalRatingsJson = System.Text.Json.JsonSerializer.Serialize(
+                            ratings.Select(r => new { source = r.Source, score = r.Rating, votes = r.Votes }));
+                        await db.SaveChangesAsync(ct);
+                    }
+                }
+                catch { }
+            }
+        }
+
+        return Results.Ok(MediaResponseMapper.ToDetailDto(item));
     }
 
     private static async Task<IResult> CreateMediaItem(
@@ -180,16 +249,67 @@ public static class MediaEndpoints
             }
         }
 
-        if (item.FranchiseId is null && !string.IsNullOrWhiteSpace(request.FranchiseName))
+        if (item is Manga mangaItem && mangaItem.Volumes.Count == 0)
         {
-            var franchise = await db.Franchises.FirstOrDefaultAsync(f => f.Name.ToLower() == request.FranchiseName.Trim().ToLower(), ct);
-            if (franchise is null)
+            var totalVols = request.TotalVolumes is > 0 ? Math.Min(request.TotalVolumes.Value, 200) : 1;
+            for (var i = 1; i <= totalVols; i++)
             {
-                franchise = new Franchise { Id = Guid.NewGuid(), Name = request.FranchiseName.Trim() };
-                db.Franchises.Add(franchise);
+                var chaptersInVol = request.TotalChapters.HasValue && totalVols > 0
+                    ? (int)Math.Ceiling((double)request.TotalChapters.Value / totalVols)
+                    : 0;
+                var pagesInVol = request.TotalPages.HasValue && totalVols > 0
+                    ? (int)Math.Ceiling((double)request.TotalPages.Value / totalVols)
+                    : 200;
+
+                mangaItem.Volumes.Add(new MangaVolume
+                {
+                    VolumeNumber = i,
+                    Title = $"Volume {i}",
+                    TotalChapters = chaptersInVol,
+                    TotalPages = pagesInVol,
+                    Status = mangaItem.Status
+                });
             }
-            item.FranchiseId = franchise.Id;
-            item.Franchise = franchise;
+
+            if (mangaItem.TotalVolumes is null or 0)
+            {
+                mangaItem.TotalVolumes = totalVols;
+            }
+            if (mangaItem.CurrentVolume <= 0)
+            {
+                mangaItem.CurrentVolume = 1;
+            }
+        }
+
+        var franchiseName = !string.IsNullOrWhiteSpace(request.FranchiseName)
+            ? request.FranchiseName.Trim()
+            : InferFranchiseName(item.Title);
+
+        if (item.FranchiseId is null && !string.IsNullOrWhiteSpace(franchiseName))
+        {
+            var franchise = await db.Franchises.FirstOrDefaultAsync(f => f.Name.ToLower() == franchiseName.ToLower(), ct);
+            if (franchise is not null)
+            {
+                item.FranchiseId = franchise.Id;
+                item.Franchise = franchise;
+            }
+            else
+            {
+                var siblingExists = await db.MediaItems.AnyAsync(m => m.Title.ToLower() == franchiseName.ToLower() || (m.Franchise != null && m.Franchise.Name.ToLower() == franchiseName.ToLower()), ct);
+                if (siblingExists || !string.IsNullOrWhiteSpace(request.FranchiseName))
+                {
+                    franchise = new Franchise { Id = Guid.NewGuid(), Name = franchiseName };
+                    db.Franchises.Add(franchise);
+                    item.FranchiseId = franchise.Id;
+                    item.Franchise = franchise;
+
+                    var siblingItem = await db.MediaItems.FirstOrDefaultAsync(m => m.FranchiseId == null && m.Title.ToLower() == franchiseName.ToLower(), ct);
+                    if (siblingItem is not null)
+                    {
+                        siblingItem.FranchiseId = franchise.Id;
+                    }
+                }
+            }
         }
 
         db.Add(item);
@@ -214,6 +334,7 @@ public static class MediaEndpoints
         var item = await db.MediaItems
             .Include(media => media.Franchise)
             .Include(media => ((TvShow)media).Seasons)
+            .Include(media => ((Manga)media).Volumes)
             .SingleOrDefaultAsync(media => media.Id == id, ct);
         if (item is null)
         {
@@ -231,6 +352,12 @@ public static class MediaEndpoints
         if (request.Notes is not null)
         {
             item.Notes = request.Notes;
+        }
+
+        if (request.TranslatedSynopsis is not null)
+        {
+            item.TranslatedSynopsis = request.TranslatedSynopsis;
+            item.TranslationLanguage = request.TranslationLanguage;
         }
 
         if (request.CoverUrl is not null)
@@ -267,6 +394,22 @@ public static class MediaEndpoints
         if (request.FranchiseOrder is not null)
         {
             item.FranchiseOrder = request.FranchiseOrder;
+        }
+
+        if (item is Manga manga)
+        {
+            if (request.Author is not null) manga.Author = request.Author;
+            if (request.RomajiTitle is not null) manga.RomajiTitle = request.RomajiTitle;
+            if (request.TotalVolumes.HasValue) manga.TotalVolumes = request.TotalVolumes.Value;
+            if (request.CurrentVolume.HasValue) manga.CurrentVolume = request.CurrentVolume.Value;
+            if (request.TotalChapters.HasValue) manga.TotalChapters = request.TotalChapters.Value;
+            if (request.CurrentChapter.HasValue) manga.CurrentChapter = request.CurrentChapter.Value;
+        }
+        else if (item is Book book)
+        {
+            if (request.Author is not null) book.Author = request.Author;
+            if (request.TotalPages.HasValue) book.TotalPages = request.TotalPages.Value;
+            if (request.CurrentPage.HasValue) book.CurrentPage = request.CurrentPage.Value;
         }
 
         item.UpdatedAt = DateTime.UtcNow;
@@ -514,6 +657,10 @@ public static class MediaEndpoints
         else if (item is Manga manga)
         {
             if (external.TotalCount is > 0) manga.TotalChapters = external.TotalCount.Value;
+            if (external.Chapters is > 0) manga.TotalChapters = external.Chapters.Value;
+            if (external.Volumes is > 0) manga.TotalVolumes = external.Volumes.Value;
+            if (!string.IsNullOrWhiteSpace(external.Author)) manga.Author = external.Author;
+            if (!string.IsNullOrWhiteSpace(external.RomajiTitle)) manga.RomajiTitle = external.RomajiTitle;
         }
         else if (item is VideoGame game)
         {
@@ -620,6 +767,194 @@ public static class MediaEndpoints
         return Results.NoContent();
     }
 
+    private static async Task<IResult> UpdateVolumeProgress(
+        Guid id,
+        UpdateVolumeProgressRequest request,
+        AppDbContext db,
+        IValidator<UpdateVolumeProgressRequest> validator,
+        CancellationToken ct)
+    {
+        var validationResult = await validator.ValidateAsync(request, ct);
+        if (!validationResult.IsValid)
+        {
+            return Results.ValidationProblem(validationResult.ToDictionary());
+        }
+
+        var volume = await db.MangaVolumes.Include(v => v.Manga).SingleOrDefaultAsync(item => item.Id == id, ct);
+        if (volume is null)
+        {
+            return Results.NotFound();
+        }
+
+        if (request.CurrentPage.HasValue)
+        {
+            volume.CurrentPage = ClampToKnownTotal(Math.Max(request.CurrentPage.Value, 0), volume.TotalPages);
+        }
+        if (request.CurrentChapter.HasValue)
+        {
+            volume.CurrentChapter = ClampToKnownTotal(Math.Max(request.CurrentChapter.Value, 0), volume.TotalChapters);
+        }
+
+        if (volume.TotalPages > 0 && volume.CurrentPage >= volume.TotalPages)
+        {
+            volume.Status = MediaStatus.Completed;
+        }
+        else if (volume.CurrentPage > 0 || volume.CurrentChapter > 0)
+        {
+            volume.Status = MediaStatus.InProgress;
+        }
+        else
+        {
+            volume.Status = MediaStatus.Planned;
+        }
+
+        if (volume.Manga is not null)
+        {
+            volume.Manga.CurrentVolume = volume.VolumeNumber;
+            if (request.CurrentChapter.HasValue)
+            {
+                volume.Manga.CurrentChapter = request.CurrentChapter.Value;
+            }
+        }
+
+        await db.SaveChangesAsync(ct);
+        return Results.NoContent();
+    }
+
+    private static async Task<IResult> AddVolume(
+        CreateVolumeRequest request,
+        Guid mangaId,
+        AppDbContext db,
+        CancellationToken ct)
+    {
+        var manga = await db.Manga.Include(m => m.Volumes).SingleOrDefaultAsync(m => m.Id == mangaId, ct);
+        if (manga is null) return Results.NotFound();
+
+        var volumeNumber = request.VolumeNumber > 0 ? request.VolumeNumber : manga.Volumes.Count + 1;
+        var volume = new MangaVolume
+        {
+            MangaId = mangaId,
+            VolumeNumber = volumeNumber,
+            Title = string.IsNullOrWhiteSpace(request.Title) ? $"Volume {volumeNumber}" : request.Title,
+            CoverUrl = request.CoverUrl,
+            TotalPages = Math.Max(request.TotalPages, 0),
+            CurrentPage = Math.Max(request.CurrentPage, 0),
+            TotalChapters = Math.Max(request.TotalChapters, 0),
+            CurrentChapter = Math.Max(request.CurrentChapter, 0),
+            Status = request.Status,
+            Score = request.Score,
+            Notes = request.Notes,
+            ReleaseDate = request.ReleaseDate,
+        };
+
+        db.MangaVolumes.Add(volume);
+        await db.SaveChangesAsync(ct);
+        return Results.Created($"/api/volumes/{volume.Id}", MediaResponseMapper.ToDto(volume));
+    }
+
+    private static async Task<IResult> UpdateVolume(
+        Guid id,
+        UpdateVolumeRequest request,
+        AppDbContext db,
+        CancellationToken ct)
+    {
+        var volume = await db.MangaVolumes.SingleOrDefaultAsync(v => v.Id == id, ct);
+        if (volume is null) return Results.NotFound();
+
+        if (request.Title is not null) volume.Title = request.Title;
+        if (request.CoverUrl is not null) volume.CoverUrl = request.CoverUrl;
+        if (request.TotalPages.HasValue) volume.TotalPages = Math.Max(request.TotalPages.Value, 0);
+        if (request.CurrentPage.HasValue) volume.CurrentPage = Math.Max(request.CurrentPage.Value, 0);
+        if (request.TotalChapters.HasValue) volume.TotalChapters = Math.Max(request.TotalChapters.Value, 0);
+        if (request.CurrentChapter.HasValue) volume.CurrentChapter = Math.Max(request.CurrentChapter.Value, 0);
+        if (request.Status.HasValue) volume.Status = request.Status.Value;
+        if (request.Score.HasValue) volume.Score = request.Score.Value;
+        if (request.Notes is not null) volume.Notes = request.Notes;
+
+        await db.SaveChangesAsync(ct);
+        return Results.Ok(MediaResponseMapper.ToDto(volume));
+    }
+
+    private static async Task<IResult> DeleteVolume(
+        Guid id,
+        AppDbContext db,
+        CancellationToken ct)
+    {
+        var volume = await db.MangaVolumes.SingleOrDefaultAsync(v => v.Id == id, ct);
+        if (volume is null) return Results.NotFound();
+
+        db.MangaVolumes.Remove(volume);
+        await db.SaveChangesAsync(ct);
+        return Results.NoContent();
+    }
+
+    public static string? InferFranchiseName(string? title)
+    {
+        if (string.IsNullOrWhiteSpace(title)) return null;
+
+        var clean = title.Trim();
+        var colonIdx = clean.IndexOfAny([':', '-', '/']);
+        if (colonIdx > 2)
+        {
+            var prefix = clean[..colonIdx].Trim();
+            if (prefix.Length >= 3)
+            {
+                return prefix;
+            }
+        }
+
+        var seasonRegex = new System.Text.RegularExpressions.Regex(
+            @"\s+(season\s+\d+|\d+(st|nd|rd|th)\s+season|final\s+season|part\s+\d+|[IVXLCDM]+)$",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        var match = seasonRegex.Replace(clean, "").Trim();
+        if (match.Length >= 3 && match != clean)
+        {
+            return match;
+        }
+
+        return null;
+    }
+
+    public static async Task AutoBackfillFranchisesAsync(AppDbContext db)
+    {
+        var unlinked = await db.MediaItems.Where(m => m.FranchiseId == null).ToListAsync();
+        if (unlinked.Count == 0) return;
+
+        var groups = unlinked
+            .Select(m => new { Item = m, FranchiseName = InferFranchiseName(m.Title) })
+            .Where(x => !string.IsNullOrWhiteSpace(x.FranchiseName))
+            .GroupBy(x => x.FranchiseName!.ToLowerInvariant())
+            .ToList();
+
+        foreach (var grp in groups)
+        {
+            var inferredName = grp.First().FranchiseName!;
+            var existingFranchise = await db.Franchises.FirstOrDefaultAsync(f => f.Name.ToLower() == grp.Key);
+            var exactMatchItem = unlinked.FirstOrDefault(m => m.Title.Equals(inferredName, StringComparison.OrdinalIgnoreCase));
+
+            if (existingFranchise is not null || grp.Count() > 1 || exactMatchItem is not null)
+            {
+                if (existingFranchise is null)
+                {
+                    existingFranchise = new Franchise { Id = Guid.NewGuid(), Name = inferredName };
+                    db.Franchises.Add(existingFranchise);
+                }
+
+                foreach (var x in grp)
+                {
+                    x.Item.FranchiseId = existingFranchise.Id;
+                }
+                if (exactMatchItem is not null && exactMatchItem.FranchiseId == null)
+                {
+                    exactMatchItem.FranchiseId = existingFranchise.Id;
+                }
+            }
+        }
+
+        await db.SaveChangesAsync();
+    }
+
     private static MediaItem CreateEntity(CreateMediaRequest request)
     {
         MediaItem item = request.Type.Trim().ToLowerInvariant() switch
@@ -638,8 +973,27 @@ public static class MediaEndpoints
             },
             "manga" => new Manga
             {
+                Author = request.Author,
+                RomajiTitle = request.RomajiTitle,
+                TotalVolumes = request.TotalVolumes,
                 TotalChapters = request.TotalChapters,
                 CurrentVolume = request.CurrentVolume ?? 0,
+                Volumes = request.Volumes?
+                    .Select(volume => new MangaVolume
+                    {
+                        VolumeNumber = volume.VolumeNumber,
+                        Title = volume.Title,
+                        CoverUrl = volume.CoverUrl,
+                        TotalPages = volume.TotalPages,
+                        CurrentPage = volume.CurrentPage,
+                        TotalChapters = volume.TotalChapters,
+                        CurrentChapter = volume.CurrentChapter,
+                        Status = volume.Status,
+                        Score = volume.Score,
+                        Notes = volume.Notes,
+                        ReleaseDate = volume.ReleaseDate,
+                    })
+                    .ToList() ?? [],
                 Title = request.Title,
             },
             "movie" => new Movie

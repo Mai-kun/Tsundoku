@@ -14,7 +14,7 @@
 
   let { season, onProgress, onProgressCommitted }: Props = $props()
 
-  let trackedSeason = $state(untrack(() => season))
+  let trackedSeason: TvSeason | null = null
   let currentEpisode = $state(untrack(() => season.currentEpisode))
   let committedEpisode = $state(untrack(() => season.currentEpisode))
   let pendingSnapshot = $state<number | null>(null)

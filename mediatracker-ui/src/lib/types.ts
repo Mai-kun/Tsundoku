@@ -47,6 +47,8 @@ export interface MediaBase {
   externalRating?: number | null
   externalRatingVotes?: number | null
   externalRatingsJson?: string | null
+  translatedSynopsis?: string | null
+  translationLanguage?: string | null
   releaseDate?: string | null
   endDate?: string | null
   releaseStatus?: string | null
@@ -71,6 +73,30 @@ export interface MangaMedia extends MediaBase {
   currentChapter: number
   totalChapters: number | null
   currentVolume: number
+  totalVolumes?: number | null
+  author?: string | null
+  romajiTitle?: string | null
+  totalPages?: number | null
+}
+
+export interface MangaVolume {
+  id: string
+  volumeNumber: number
+  title: string
+  coverUrl: string | null
+  currentPage: number
+  totalPages: number
+  currentChapter: number
+  totalChapters: number
+  status: MediaStatus
+  score: number | null
+  notes: string | null
+  releaseDate: string | null
+  mangaId: string
+}
+
+export interface MangaDetail extends MangaMedia {
+  volumes: MangaVolume[]
 }
 
 export interface MovieMedia extends MediaBase {
@@ -113,7 +139,7 @@ export interface TvShowDetail extends TvShowMedia {
 }
 
 export type MediaItem = GameMedia | BookMedia | MangaMedia | MovieMedia | TvShowMedia
-export type MediaDetail = Exclude<MediaItem, TvShowMedia> | TvShowDetail
+export type MediaDetail = Exclude<MediaItem, TvShowMedia | MangaMedia> | TvShowDetail | MangaDetail
 
 export interface MediaStats {
   totalItems: number
@@ -146,6 +172,8 @@ export interface ExternalMedia {
   author: string | null
   studio: string | null
   totalCount: number | null
+  chapters?: number | null
+  volumes?: number | null
   platform: string | null
   rating?: number | null
   ratingVotes?: number | null
@@ -193,10 +221,28 @@ export interface CreateBookPayload extends CreateMediaBase {
   totalPages?: number | null
 }
 
+export interface CreateVolumePayload {
+  volumeNumber: number
+  title: string
+  coverUrl?: string | null
+  totalPages?: number
+  currentPage?: number
+  totalChapters?: number
+  currentChapter?: number
+  status?: MediaStatus
+  score?: number | null
+  notes?: string | null
+  releaseDate?: string | null
+}
+
 export interface CreateMangaPayload extends CreateMediaBase {
   type: 'manga'
+  author?: string | null
+  romajiTitle?: string | null
+  totalVolumes?: number | null
   totalChapters?: number | null
   currentVolume?: number | null
+  volumes?: CreateVolumePayload[]
 }
 
 export interface CreateMoviePayload extends CreateMediaBase {
@@ -249,6 +295,16 @@ export interface UpdateMediaPayload {
   franchiseId?: string | null
   franchiseName?: string | null
   franchiseOrder?: number | null
+  author?: string | null
+  romajiTitle?: string | null
+  totalVolumes?: number | null
+  currentVolume?: number | null
+  totalChapters?: number | null
+  currentChapter?: number | null
+  totalPages?: number | null
+  currentPage?: number | null
+  translatedSynopsis?: string | null
+  translationLanguage?: string | null
 }
 
 export interface SourceInfo {
@@ -267,6 +323,10 @@ export function clampProgress(current: number, total: number | null | undefined)
   return total !== null && total !== undefined && total > 0 ? Math.min(safeCurrent, total) : safeCurrent
 }
 
-export function isTvShowDetail(item: MediaDetail): item is TvShowDetail {
+export function isTvShowDetail(item: MediaItem | MediaDetail): item is TvShowDetail {
   return item.type === 'tvshow' && 'seasons' in item
+}
+
+export function isMangaDetail(item: MediaItem | MediaDetail): item is MangaDetail {
+  return item.type === 'manga' && 'volumes' in item
 }

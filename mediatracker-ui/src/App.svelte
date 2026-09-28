@@ -188,7 +188,7 @@
 
   function openSearch() {
     rememberTrigger()
-    initialSearchType = searchTypeForView(activeView)
+    initialSearchType = 'all'
     isSearchOpen = true
   }
 

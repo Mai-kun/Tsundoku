@@ -1,3 +1,9 @@
+<script module lang="ts">
+  import type { LibrarySort } from '../media/FilterBar.svelte'
+
+  let savedHomeSort: LibrarySort = 'newest'
+</script>
+
 <script lang="ts">
   import { deleteMedia, getMedia, getMediaItem, setProgress, setSeasonProgress } from '$lib/api'
   import { i18n } from '$lib/i18n/index.svelte'
@@ -18,13 +24,33 @@
   let recentlyCompleted = $state<MediaItem[]>([])
   let loading = $state(true)
   let loadError = $state<unknown>(null)
+  let sort = $state<LibrarySort>(savedHomeSort)
   let requestSequence = 0
+  let hasLoaded = false
+
+  $effect(() => {
+    savedHomeSort = sort
+  })
 
   $effect(() => {
     void refreshKey
-    const isInitial = inProgress.length === 0 && upNext.length === 0 && recentlyCompleted.length === 0
+    void sort
+    const isInitial = !hasLoaded
     void loadSections(++requestSequence, isInitial)
   })
+
+  function sortFilters(value: LibrarySort) {
+    switch (value) {
+      case 'newest':
+        return { sortBy: 'createdAt' as const, sortOrder: 'desc' as const }
+      case 'oldest':
+        return { sortBy: 'createdAt' as const, sortOrder: 'asc' as const }
+      case 'rating':
+        return { sortBy: 'score' as const, sortOrder: 'desc' as const }
+      case 'title':
+        return { sortBy: 'title' as const, sortOrder: 'asc' as const }
+    }
+  }
 
   async function loadSections(sequence: number, showLoading = true) {
     if (showLoading) {
@@ -33,16 +59,29 @@
     loadError = null
 
     try {
+      const sortParams = sortFilters(sort)
       const [active, planned, completed] = await Promise.all([
-        getMedia({ status: MEDIA_STATUS.inProgress, sortBy: 'createdAt', sortOrder: 'desc' }),
-        getMedia({ status: MEDIA_STATUS.planned, sortBy: 'createdAt', sortOrder: 'desc' }),
-        getMedia({ status: MEDIA_STATUS.completed, sortBy: 'createdAt', sortOrder: 'desc' }),
+        getMedia({ status: MEDIA_STATUS.inProgress, ...sortParams }),
+        getMedia({ status: MEDIA_STATUS.planned, ...sortParams }),
+        getMedia({ status: MEDIA_STATUS.completed, ...sortParams }),
       ])
 
       if (sequence === requestSequence) {
+        hasLoaded = true
         inProgress = active
         upNext = planned
         recentlyCompleted = completed.toSorted((left, right) => {
+          if (sort === 'rating') {
+            return (right.score ?? 0) - (left.score ?? 0)
+          }
+          if (sort === 'title') {
+            return left.title.localeCompare(right.title)
+          }
+          if (sort === 'oldest') {
+            const leftTime = left.finishedAt ? Date.parse(left.finishedAt) : Date.parse(left.createdAt)
+            const rightTime = right.finishedAt ? Date.parse(right.finishedAt) : Date.parse(right.createdAt)
+            return leftTime - rightTime
+          }
           const leftTime = left.finishedAt ? Date.parse(left.finishedAt) : 0
           const rightTime = right.finishedAt ? Date.parse(right.finishedAt) : 0
           return rightTime - leftTime
@@ -117,6 +156,20 @@
       <div>
         <p class="text-xs font-semibold uppercase tracking-[0.18em] text-accent-soft">{i18n.t.library.collectionLabel}</p>
         <h2 class="mt-1 text-xl font-bold tracking-tight text-ink">{i18n.t.views.inProgress}</h2>
+      </div>
+      <div class="flex items-center gap-2">
+        <label class="sr-only" for="home-sort">{i18n.t.sort.label}</label>
+        <select
+          id="home-sort"
+          class="h-8 rounded-md border border-border bg-card px-2.5 text-xs font-medium text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
+          value={sort}
+          onchange={(e) => (sort = (e.currentTarget as HTMLSelectElement).value as LibrarySort)}
+        >
+          <option value="newest">{i18n.t.sort.newest}</option>
+          <option value="oldest">{i18n.t.sort.oldest}</option>
+          <option value="rating">{i18n.t.sort.rating}</option>
+          <option value="title">{i18n.t.sort.title}</option>
+        </select>
       </div>
     </div>
     <MediaGrid items={inProgress} {loading} error={loadError} onRetry={refresh} onOpen={onOpen} onProgress={updateProgress} onProgressCommitted={onMediaChanged} onDelete={removeItem} onEdit={onEdit} onEpisodeStep={stepEpisode} />

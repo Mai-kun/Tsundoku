@@ -11,6 +11,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 
     public DbSet<TvSeason> TvSeasons => Set<TvSeason>();
 
+    public DbSet<MangaVolume> MangaVolumes => Set<MangaVolume>();
+
     public DbSet<VideoGame> Games => Set<VideoGame>();
 
     public DbSet<Book> Books => Set<Book>();
@@ -69,6 +71,18 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 
             entity.Ignore(show => show.TotalEpisodesWatched)
                 .Ignore(show => show.TotalEpisodesCount);
+        });
+
+        modelBuilder.Entity<Manga>(entity =>
+        {
+            entity.Property(manga => manga.Author).HasColumnName("Manga_Author");
+            entity.Property(manga => manga.RomajiTitle).HasColumnName("Manga_RomajiTitle");
+            entity.Property(manga => manga.TotalVolumes).HasColumnName("Manga_TotalVolumes");
+
+            entity.HasMany(manga => manga.Volumes)
+                .WithOne(volume => volume.Manga)
+                .HasForeignKey(volume => volume.MangaId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

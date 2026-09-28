@@ -30,7 +30,7 @@ public sealed partial class AniListMetadataProvider(
               meanScore
               streamingEpisodes { title }
               studios(isMain: true) { nodes { name } }
-              staff(perPage: 1) { edges { node { name { full } } } }
+              staff(perPage: 5) { edges { role node { name { full } } } }
             }
           }
         }
@@ -54,7 +54,7 @@ public sealed partial class AniListMetadataProvider(
             meanScore
             streamingEpisodes { title }
             studios(isMain: true) { nodes { name } }
-            staff(perPage: 1) { edges { node { name { full } } } }
+            staff(perPage: 5) { edges { role node { name { full } } } }
           }
         }
         """;
@@ -179,9 +179,14 @@ public sealed partial class AniListMetadataProvider(
             ReleaseStatus = item.Status,
             RuntimeMinutes = item.Duration,
             Type = mediaType,
-            Author = mediaType == "manga" ? item.Staff?.Edges?.FirstOrDefault()?.Node?.Name?.Full : null,
+            Author = mediaType == "manga"
+                ? (item.Staff?.Edges?.FirstOrDefault(e => e.Role?.Contains("Story", StringComparison.OrdinalIgnoreCase) == true || e.Role?.Contains("Art", StringComparison.OrdinalIgnoreCase) == true)?.Node?.Name?.Full
+                   ?? item.Staff?.Edges?.FirstOrDefault()?.Node?.Name?.Full)
+                : null,
             Studio = item.Studios?.Nodes?.FirstOrDefault()?.Name,
-            TotalCount = mediaType == "anime" ? item.Episodes : item.Chapters ?? item.Volumes,
+            TotalCount = mediaType == "anime" ? item.Episodes : (item.Chapters ?? item.Volumes),
+            Chapters = item.Chapters,
+            Volumes = item.Volumes,
             Rating = primaryRating,
             Ratings = ratings,
             Episodes = episodes
@@ -272,7 +277,7 @@ public sealed partial class AniListMetadataProvider(
     private sealed record AniListStudios(List<AniListStudio>? Nodes);
     private sealed record AniListStudio(string? Name);
     private sealed record AniListStaff(List<AniListStaffEdge>? Edges);
-    private sealed record AniListStaffEdge(AniListStaffNode? Node);
+    private sealed record AniListStaffEdge(string? Role, AniListStaffNode? Node);
     private sealed record AniListStaffNode(AniListName? Name);
     private sealed record AniListName(string? Full);
 

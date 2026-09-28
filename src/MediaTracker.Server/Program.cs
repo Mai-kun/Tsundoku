@@ -115,20 +115,50 @@ try
 
     builder.Services.AddSingleton<IEncryptionService, EncryptionService>();
 
-    builder.Services.AddHttpClient("AniList", client => client.BaseAddress = new Uri("https://graphql.anilist.co/"));
-    builder.Services.AddHttpClient("Kitsu", client => client.BaseAddress = new Uri("https://kitsu.io/api/"));
-    builder.Services.AddHttpClient("OpenLibrary", client => client.BaseAddress = new Uri("https://openlibrary.org/"));
-    builder.Services.AddHttpClient("Tmdb", client => client.BaseAddress = new Uri("https://api.themoviedb.org/3/"));
-    builder.Services.AddHttpClient("Rawg", client => client.BaseAddress = new Uri("https://api.rawg.io/api/"));
+    const string DefaultUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 Tsundoku/1.0";
+    var defaultTimeout = TimeSpan.FromSeconds(4);
+
+    builder.Services.AddHttpClient("AniList", client =>
+    {
+        client.BaseAddress = new Uri("https://graphql.anilist.co/");
+        client.Timeout = defaultTimeout;
+        client.DefaultRequestHeaders.UserAgent.ParseAdd(DefaultUserAgent);
+    });
+    builder.Services.AddHttpClient("Kitsu", client =>
+    {
+        client.BaseAddress = new Uri("https://kitsu.io/api/");
+        client.Timeout = defaultTimeout;
+        client.DefaultRequestHeaders.UserAgent.ParseAdd(DefaultUserAgent);
+    });
+    builder.Services.AddHttpClient("OpenLibrary", client =>
+    {
+        client.BaseAddress = new Uri("https://openlibrary.org/");
+        client.Timeout = defaultTimeout;
+        client.DefaultRequestHeaders.UserAgent.ParseAdd(DefaultUserAgent);
+    });
+    builder.Services.AddHttpClient("Tmdb", client =>
+    {
+        client.BaseAddress = new Uri("https://api.themoviedb.org/3/");
+        client.Timeout = defaultTimeout;
+        client.DefaultRequestHeaders.UserAgent.ParseAdd(DefaultUserAgent);
+    });
+    builder.Services.AddHttpClient("Rawg", client =>
+    {
+        client.BaseAddress = new Uri("https://api.rawg.io/api/");
+        client.Timeout = defaultTimeout;
+        client.DefaultRequestHeaders.UserAgent.ParseAdd(DefaultUserAgent);
+    });
     builder.Services.AddHttpClient("Jikan", client =>
     {
         client.BaseAddress = new Uri("https://api.jikan.moe/v4/");
-        client.DefaultRequestHeaders.UserAgent.ParseAdd("TsundokuMediaTracker/1.0");
+        client.Timeout = defaultTimeout;
+        client.DefaultRequestHeaders.UserAgent.ParseAdd(DefaultUserAgent);
     });
     builder.Services.AddHttpClient("MangaUpdates", client =>
     {
         client.BaseAddress = new Uri("https://api.mangaupdates.com/v1/");
-        client.DefaultRequestHeaders.UserAgent.ParseAdd("TsundokuMediaTracker/1.0");
+        client.Timeout = defaultTimeout;
+        client.DefaultRequestHeaders.UserAgent.ParseAdd(DefaultUserAgent);
     });
 
     builder.Services.AddKeyedTransient<IMetadataProvider, AniListMetadataProvider>("anime");
@@ -172,6 +202,7 @@ try
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         db.Database.Migrate();
         SettingsEndpoints.LoadStoredSettingsAsync(app.Services).GetAwaiter().GetResult();
+        MediaEndpoints.AutoBackfillFranchisesAsync(db).GetAwaiter().GetResult();
     }
 
     app.UseExceptionHandler();
@@ -206,6 +237,7 @@ try
 
     app.MapMediaEndpoints();
     app.MapSeasonEndpoints();
+    app.MapVolumeEndpoints();
     app.MapExternalMediaEndpoints();
     app.MapLogEndpoints();
     app.MapSettingsEndpoints();

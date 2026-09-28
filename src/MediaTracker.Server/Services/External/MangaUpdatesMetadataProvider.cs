@@ -79,14 +79,16 @@ public sealed class MangaUpdatesMetadataProvider(
         var author = record.Authors?.FirstOrDefault()?.Name;
         int? year = int.TryParse(record.Year, out var y) ? y : null;
 
+        var ratingScore = record.Rating?.BayesianRating ?? record.Rating?.Rating ?? record.BayesianRating;
+        var ratingVotes = record.Rating?.Votes ?? record.RatingVotes;
         var ratings = new List<ExternalRatingDto>();
-        if (record.BayesianRating.HasValue && record.BayesianRating.Value > 0)
+        if (ratingScore.HasValue && ratingScore.Value > 0)
         {
             ratings.Add(new ExternalRatingDto
             {
                 Source = "MangaUpdates",
-                Rating = Math.Round(record.BayesianRating.Value, 1),
-                Votes = record.RatingVotes
+                Rating = Math.Round(ratingScore.Value, 1),
+                Votes = ratingVotes
             });
         }
 
@@ -101,7 +103,10 @@ public sealed class MangaUpdatesMetadataProvider(
             Type = "manga",
             Author = author,
             TotalCount = record.LatestChapter,
+            Chapters = record.LatestChapter,
             ExternalSource = "MangaUpdates",
+            Rating = ratingScore.HasValue && ratingScore.Value > 0 ? Math.Round(ratingScore.Value, 1) : null,
+            RatingVotes = ratingVotes,
             Ratings = ratings.Count > 0 ? ratings : null
         };
     }
@@ -116,6 +121,18 @@ public sealed class MangaUpdatesMetadataProvider(
     {
         [JsonPropertyName("record")]
         public MuSeriesRecord? Record { get; set; }
+    }
+
+    private sealed class MuRating
+    {
+        [JsonPropertyName("bayesian_rating")]
+        public double? BayesianRating { get; set; }
+
+        [JsonPropertyName("rating")]
+        public double? Rating { get; set; }
+
+        [JsonPropertyName("votes")]
+        public int? Votes { get; set; }
     }
 
     private sealed class MuSeriesRecord
@@ -137,6 +154,9 @@ public sealed class MangaUpdatesMetadataProvider(
 
         [JsonPropertyName("rating_votes")]
         public int? RatingVotes { get; set; }
+
+        [JsonPropertyName("rating")]
+        public MuRating? Rating { get; set; }
 
         [JsonPropertyName("latest_chapter")]
         public int? LatestChapter { get; set; }

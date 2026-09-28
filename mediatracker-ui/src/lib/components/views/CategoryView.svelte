@@ -1,8 +1,22 @@
+<script module lang="ts">
+  import type { StatusFilter } from '$lib/types'
+  import type { GroupBy, LibrarySort } from '../media/FilterBar.svelte'
+
+  interface SavedCategoryState {
+    status: StatusFilter
+    sort: LibrarySort
+    groupBy: GroupBy
+    search: string
+  }
+
+  const savedCategoryState: Partial<Record<string, SavedCategoryState>> = {}
+</script>
+
 <script lang="ts">
   import { deleteMedia, getMedia, getMediaItem, setProgress, setSeasonProgress } from '$lib/api'
   import { i18n } from '$lib/i18n/index.svelte'
-  import { isTvShowDetail, MEDIA_STATUS, type MediaFilters, type MediaItem, type StatusFilter } from '$lib/types'
-  import FilterBar, { type GroupBy, type LibrarySort } from '../media/FilterBar.svelte'
+  import { isTvShowDetail, MEDIA_STATUS, type MediaFilters, type MediaItem } from '$lib/types'
+  import FilterBar from '../media/FilterBar.svelte'
   import MediaGrid from '../media/MediaGrid.svelte'
 
   export type Category = 'tvshow' | 'movie' | 'anime' | 'manga' | 'game' | 'book'
@@ -17,14 +31,18 @@
 
   let { category, refreshKey, onOpen, onMediaChanged, onEdit = () => {} }: Props = $props()
 
-  let status = $state<StatusFilter>('all')
-  let sort = $state<LibrarySort>('newest')
-  let groupBy = $state<GroupBy>('status')
-  let search = $state('')
+  let status = $state<StatusFilter>(savedCategoryState[category]?.status ?? 'all')
+  let sort = $state<LibrarySort>(savedCategoryState[category]?.sort ?? 'newest')
+  let groupBy = $state<GroupBy>(savedCategoryState[category]?.groupBy ?? 'status')
+  let search = $state(savedCategoryState[category]?.search ?? '')
   let allItems = $state<MediaItem[]>([])
   let loading = $state(true)
   let loadError = $state<unknown>(null)
   let requestSequence = 0
+
+  $effect(() => {
+    savedCategoryState[category] = { status, sort, groupBy, search }
+  })
 
   let filteredItems = $derived(status === 'all' ? allItems : allItems.filter((item) => item.status === status))
   let statusCounts = $derived(countStatuses(allItems))
@@ -57,7 +75,26 @@
     const noFranchise: MediaItem[] = []
 
     for (const item of filteredItems) {
-      const name = item.franchiseName?.trim()
+      let name = item.franchiseName?.trim()
+      if (!name) {
+        const title = item.title.trim()
+        const colonIdx = title.search(/[:\-\/]/)
+        if (colonIdx > 2) {
+          const prefix = title.substring(0, colonIdx).trim()
+          if (prefix.length >= 3) {
+            const hasMatch = filteredItems.some((other) => other.id !== item.id && other.title.trim().toLowerCase().startsWith(prefix.toLowerCase()))
+            if (hasMatch) {
+              name = prefix
+            }
+          }
+        } else if (title.length >= 3) {
+          const hasPrefixedSibling = filteredItems.some((other) => other.id !== item.id && other.title.trim().toLowerCase().startsWith(title.toLowerCase() + ':'))
+          if (hasPrefixedSibling) {
+            name = title
+          }
+        }
+      }
+
       if (name) {
         if (!map.has(name)) map.set(name, [])
         map.get(name)!.push(item)

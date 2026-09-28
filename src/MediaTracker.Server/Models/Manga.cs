@@ -6,5 +6,13 @@ public class Manga : MediaItem
 
     public int? TotalChapters { get; set; }
 
+    public string? Author { get; set; }
+
+    public string? RomajiTitle { get; set; }
+
     public int CurrentVolume { get; set; }
+
+    public int? TotalVolumes { get; set; }
+
+    public List<MangaVolume> Volumes { get; set; } = [];
 }

@@ -23,4 +23,24 @@ public sealed record UpdateMediaRequest
     public string? FranchiseName { get; init; }
 
     public int? FranchiseOrder { get; init; }
+
+    public string? Author { get; init; }
+
+    public string? RomajiTitle { get; init; }
+
+    public int? TotalVolumes { get; init; }
+
+    public int? CurrentVolume { get; init; }
+
+    public int? TotalChapters { get; init; }
+
+    public int? CurrentChapter { get; init; }
+
+    public int? TotalPages { get; init; }
+
+    public int? CurrentPage { get; init; }
+
+    public string? TranslatedSynopsis { get; init; }
+
+    public string? TranslationLanguage { get; init; }
 }

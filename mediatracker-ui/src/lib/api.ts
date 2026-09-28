@@ -157,6 +157,22 @@ export function setSeasonProgress(id: string, currentEpisode: number): Promise<v
   return requestVoid(`/api/seasons/${id}/progress`, jsonOptions('PUT', { currentEpisode }))
 }
 
+export function setVolumeProgress(id: string, progress: { currentPage?: number; currentChapter?: number }): Promise<void> {
+  return requestVoid(`/api/volumes/${id}/progress`, jsonOptions('PUT', progress))
+}
+
+export function addVolume(mangaId: string, payload: any): Promise<any> {
+  return requestJson(`/api/volumes?mangaId=${mangaId}`, jsonOptions('POST', payload))
+}
+
+export function updateVolume(id: string, payload: any): Promise<any> {
+  return requestJson(`/api/volumes/${id}`, jsonOptions('PUT', payload))
+}
+
+export function deleteVolume(id: string): Promise<void> {
+  return requestVoid(`/api/volumes/${id}`, { method: 'DELETE' })
+}
+
 export function updateStatus(id: string, status: MediaStatus): Promise<void> {
   return requestVoid(`${mediaEndpoint}/${id}/status`, jsonOptions('PUT', { status }))
 }

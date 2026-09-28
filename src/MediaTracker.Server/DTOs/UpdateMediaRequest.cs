@@ -17,4 +17,10 @@ public sealed record UpdateMediaRequest
     public DateTime? StartedAt { get; init; }
 
     public DateTime? FinishedAt { get; init; }
+
+    public Guid? FranchiseId { get; init; }
+
+    public string? FranchiseName { get; init; }
+
+    public int? FranchiseOrder { get; init; }
 }

@@ -50,6 +50,7 @@ public static class MediaEndpoints
     {
         IQueryable<MediaItem> query = db.MediaItems
             .AsNoTracking()
+            .Include(media => media.Franchise)
             .Include(media => ((TvShow)media).Seasons);
 
         if (!string.IsNullOrWhiteSpace(type))
@@ -86,7 +87,12 @@ public static class MediaEndpoints
 
         if (!string.IsNullOrWhiteSpace(search))
         {
-            query = query.Where(item => EF.Functions.Like(item.Title, $"%{search.Trim()}%"));
+            var term = search.Trim();
+            query = query.Where(item =>
+                EF.Functions.Like(item.Title, $"%{term}%")
+                || (item.Franchise != null && EF.Functions.Like(item.Franchise.Name, $"%{term}%"))
+                || (EF.Property<string>(item, Discriminator) == "Movie" && ((Movie)item).RomajiTitle != null && EF.Functions.Like(((Movie)item).RomajiTitle!, $"%{term}%"))
+                || (EF.Property<string>(item, Discriminator) == "TvShow" && ((TvShow)item).RomajiTitle != null && EF.Functions.Like(((TvShow)item).RomajiTitle!, $"%{term}%")));
         }
 
         var ascending = string.Equals(sortOrder, "asc", StringComparison.OrdinalIgnoreCase);
@@ -131,6 +137,7 @@ public static class MediaEndpoints
     {
         var item = await db.MediaItems
             .AsNoTracking()
+            .Include(media => media.Franchise)
             .Include(media => ((TvShow)media).Seasons.OrderBy(season => season.SeasonNumber))
             .SingleOrDefaultAsync(media => media.Id == id, ct);
 
@@ -173,6 +180,18 @@ public static class MediaEndpoints
             }
         }
 
+        if (item.FranchiseId is null && !string.IsNullOrWhiteSpace(request.FranchiseName))
+        {
+            var franchise = await db.Franchises.FirstOrDefaultAsync(f => f.Name.ToLower() == request.FranchiseName.Trim().ToLower(), ct);
+            if (franchise is null)
+            {
+                franchise = new Franchise { Id = Guid.NewGuid(), Name = request.FranchiseName.Trim() };
+                db.Franchises.Add(franchise);
+            }
+            item.FranchiseId = franchise.Id;
+            item.Franchise = franchise;
+        }
+
         db.Add(item);
         await db.SaveChangesAsync(ct);
 
@@ -193,6 +212,7 @@ public static class MediaEndpoints
         }
 
         var item = await db.MediaItems
+            .Include(media => media.Franchise)
             .Include(media => ((TvShow)media).Seasons)
             .SingleOrDefaultAsync(media => media.Id == id, ct);
         if (item is null)
@@ -226,6 +246,27 @@ public static class MediaEndpoints
         if (request.FinishedAt is not null)
         {
             item.FinishedAt = request.FinishedAt;
+        }
+
+        if (request.FranchiseId is not null)
+        {
+            item.FranchiseId = request.FranchiseId;
+        }
+        else if (!string.IsNullOrWhiteSpace(request.FranchiseName))
+        {
+            var franchise = await db.Franchises.FirstOrDefaultAsync(f => f.Name.ToLower() == request.FranchiseName.Trim().ToLower(), ct);
+            if (franchise is null)
+            {
+                franchise = new Franchise { Id = Guid.NewGuid(), Name = request.FranchiseName.Trim() };
+                db.Franchises.Add(franchise);
+            }
+            item.FranchiseId = franchise.Id;
+            item.Franchise = franchise;
+        }
+
+        if (request.FranchiseOrder is not null)
+        {
+            item.FranchiseOrder = request.FranchiseOrder;
         }
 
         item.UpdatedAt = DateTime.UtcNow;

@@ -22,6 +22,8 @@ public sealed record ExternalMediaDto
 
     public string? OriginalTitle { get; init; }
 
+    public string? RomajiTitle { get; init; }
+
     public string? CoverUrl { get; init; }
 
     public string? Description { get; init; }

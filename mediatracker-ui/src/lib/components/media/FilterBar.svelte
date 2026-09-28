@@ -4,18 +4,31 @@
   import { MEDIA_STATUS, type MediaStatus, type StatusFilter } from '$lib/types'
 
   export type LibrarySort = 'newest' | 'oldest' | 'rating' | 'title'
+  export type GroupBy = 'status' | 'franchise' | 'all'
 
   interface Props {
     status: StatusFilter
     sort: LibrarySort
+    groupBy?: GroupBy
     search: string
     counts?: Partial<Record<StatusFilter, number>>
     onStatusChange: (status: StatusFilter) => void
     onSortChange: (sort: LibrarySort) => void
+    onGroupByChange?: (groupBy: GroupBy) => void
     onSearchChange: (query: string) => void
   }
 
-  let { status, sort, search, counts = {}, onStatusChange, onSortChange, onSearchChange }: Props = $props()
+  let {
+    status,
+    sort,
+    groupBy = 'status',
+    search,
+    counts = {},
+    onStatusChange,
+    onSortChange,
+    onGroupByChange = () => {},
+    onSearchChange,
+  }: Props = $props()
 
   const statuses: StatusFilter[] = ['all', MEDIA_STATUS.planned, MEDIA_STATUS.inProgress, MEDIA_STATUS.completed, MEDIA_STATUS.onHold, MEDIA_STATUS.dropped]
 
@@ -36,6 +49,10 @@
     }
   }
 
+  function handleGroup(event: Event) {
+    onGroupByChange((event.currentTarget as HTMLSelectElement).value as GroupBy)
+  }
+
   function handleSort(event: Event) {
     onSortChange((event.currentTarget as HTMLSelectElement).value as LibrarySort)
   }
@@ -54,6 +71,18 @@
   <div class="flex flex-col gap-3 lg:flex-row lg:items-center">
     <div class="flex min-w-0 flex-1 items-center gap-2">
       <SlidersHorizontal size={16} class="shrink-0 text-muted" aria-hidden="true" />
+      <label class="sr-only" for="library-group">{i18n.t.grouping.label}</label>
+      <select
+        id="library-group"
+        class="rounded-md border border-border bg-card px-3 py-1.5 text-xs font-semibold text-ink outline-none focus:ring-2 focus:ring-accent/40"
+        value={groupBy}
+        onchange={handleGroup}
+      >
+        <option value="status">{i18n.t.grouping.byStatus}</option>
+        <option value="franchise">{i18n.t.grouping.byFranchise}</option>
+        <option value="all">{i18n.t.grouping.all}</option>
+      </select>
+
       <label class="sr-only" for="library-status">{i18n.t.status.label}</label>
       <select id="library-status" class="rounded-md border border-border bg-card px-3 py-1.5 text-xs text-ink outline-none focus:ring-2 focus:ring-accent/40" value={status === 'all' ? 'all' : String(status)} onchange={handleStatus}>
         {#each statuses as option (option)}

@@ -40,6 +40,7 @@ export interface MediaBase {
   coverUrl: string | null
   createdAt: string
   franchiseId: string | null
+  franchiseName?: string | null
   franchiseOrder: number | null
   externalId?: string | null
   externalSource?: string | null
@@ -133,6 +134,7 @@ export interface ExternalMedia {
   externalSource?: string | null
   title: string
   originalTitle: string | null
+  romajiTitle?: string | null
   coverUrl: string | null
   description: string | null
   releaseYear: number | null
@@ -167,6 +169,7 @@ interface CreateMediaBase {
   coverUrl?: string | null
   notes?: string | null
   franchiseId?: string | null
+  franchiseName?: string | null
   franchiseOrder?: number | null
   externalId?: string | null
   externalSource?: string | null
@@ -243,6 +246,9 @@ export interface UpdateMediaPayload {
   coverUrl?: string | null
   startedAt?: string | null
   finishedAt?: string | null
+  franchiseId?: string | null
+  franchiseName?: string | null
+  franchiseOrder?: number | null
 }
 
 export interface SourceInfo {

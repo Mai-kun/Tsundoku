@@ -7,7 +7,7 @@
 
   const categories = ['all', 'anime', 'manga', 'movie', 'tvshow', 'game', 'book'] as const
   const minQueryLength = 2
-  const debounceDelay = 300
+  const debounceDelay = 500
   const fallbackPlatform = 'PC'
 
   type SearchCategory = (typeof categories)[number]
@@ -104,7 +104,7 @@
 
   $effect(() => {
     if (isOpen) {
-      activeType = initialType
+      activeType = untrack(() => initialType)
       previewItem = null
       searchInput?.focus()
       void getCategoryOrder()
@@ -158,11 +158,12 @@
   }
 
   function effectiveType(result: ExternalMedia): SearchMediaType {
-    return activeType === 'all' ? result.type : activeType
+    return (result.type as SearchMediaType) || (activeType !== 'all' ? activeType : 'tvshow')
   }
 
-  function resultKey(result: ExternalMedia): string {
-    return `${result.type}:${result.externalId || result.title}`
+  function resultKey(result: ExternalMedia, index?: number): string {
+    const base = `${result.type}:${result.externalId || result.title}`
+    return index !== undefined ? `${base}:${index}` : base
   }
 
   function metaLine(result: ExternalMedia): string {
@@ -210,6 +211,7 @@
           type: 'tvshow',
           isAnime: true,
           studio: result.studio,
+          romajiTitle: result.romajiTitle ?? result.originalTitle ?? undefined,
           network: result.studio,
           durationMinutes: result.runtimeMinutes,
           episodeDurationMinutes: result.runtimeMinutes,
@@ -218,6 +220,7 @@
               seasonNumber: 1,
               title: 'Season 1',
               totalEpisodes: result.totalCount ?? result.episodes?.length ?? 0,
+              airDate: result.releaseDate ?? (result.releaseYear ? `${result.releaseYear}-01-01` : undefined),
               episodesData: result.episodes ? JSON.stringify(result.episodes) : undefined,
             },
           ],
@@ -228,9 +231,19 @@
           type: 'tvshow',
           isAnime: false,
           studio: result.studio,
+          romajiTitle: result.romajiTitle ?? result.originalTitle ?? undefined,
           network: result.studio,
           durationMinutes: result.runtimeMinutes,
           episodeDurationMinutes: result.runtimeMinutes,
+          seasons: result.episodes ? [
+            {
+              seasonNumber: 1,
+              title: 'Season 1',
+              totalEpisodes: result.totalCount ?? result.episodes.length,
+              airDate: result.releaseDate ?? (result.releaseYear ? `${result.releaseYear}-01-01` : undefined),
+              episodesData: JSON.stringify(result.episodes),
+            }
+          ] : undefined,
         }
       case 'manga':
         return { ...common, type: 'manga', totalChapters: result.totalCount }
@@ -239,7 +252,14 @@
       case 'game':
         return { ...common, type: 'game', platform: result.platform || fallbackPlatform }
       case 'movie':
-        return { ...common, type: 'movie', durationMinutes: result.runtimeMinutes ?? result.totalCount, isAnime: false, studio: result.studio }
+        return {
+          ...common,
+          type: 'movie',
+          durationMinutes: result.runtimeMinutes ?? result.totalCount,
+          isAnime: result.type === 'anime',
+          studio: result.studio,
+          romajiTitle: result.romajiTitle ?? result.originalTitle ?? undefined,
+        }
     }
   }
 
@@ -402,7 +422,7 @@
                 </div>
 
                 <ul class="space-y-2.5">
-                  {#each group.items as result (resultKey(result))}
+                  {#each group.items as result, idx (resultKey(result, idx))}
                     {@const key = resultKey(result)}
                     <!-- svelte-ignore a11y_click_events_have_key_events -->
                     <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
@@ -490,7 +510,7 @@
         {:else}
           <!-- Single category list -->
           <ul class="space-y-3">
-            {#each results as result (resultKey(result))}
+            {#each results as result, idx (resultKey(result, idx))}
               {@const key = resultKey(result)}
               <!-- svelte-ignore a11y_click_events_have_key_events -->
               <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->

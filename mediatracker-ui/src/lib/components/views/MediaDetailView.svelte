@@ -748,28 +748,39 @@
     try {
       // Ensure we have full details (including Kitsu ratings and exact release date)
       let itemDetails = rel
-      if (!rel.ratings || rel.ratings.length <= 1 || !rel.releaseDate || !rel.duration || !rel.releaseStatus) {
-        try {
-          const fetched = await getExternalDetails(rel.type, rel.id, rel.title, rel.externalSource || 'AniList')
-          if (fetched) {
-            itemDetails = {
-              ...rel,
-              originalTitle: fetched.originalTitle || rel.originalTitle,
-              romajiTitle: (fetched as any).romajiTitle || fetched.originalTitle || rel.romajiTitle,
-              coverUrl: fetched.coverUrl || rel.coverUrl,
-              description: fetched.description || rel.description,
-              year: fetched.releaseYear ?? rel.year,
-              releaseDate: fetched.releaseDate ?? rel.releaseDate,
-              endDate: fetched.endDate ?? rel.endDate,
-              releaseStatus: fetched.releaseStatus ?? rel.releaseStatus,
-              studio: fetched.studio || rel.studio,
-              author: fetched.author || rel.author,
-              score: fetched.rating ?? rel.score,
-              ratings: fetched.ratings ?? rel.ratings,
-              episodes: fetched.totalCount ?? rel.episodes,
-              duration: fetched.runtimeMinutes ?? rel.duration,
-            }
+      let fetchedEpisodes: any = null
+      try {
+        const fetched = await getExternalDetails(rel.type, rel.id, rel.title, rel.externalSource || 'AniList')
+        if (fetched) {
+          fetchedEpisodes = fetched.episodes
+          itemDetails = {
+            ...rel,
+            originalTitle: fetched.originalTitle || rel.originalTitle,
+            romajiTitle: (fetched as any).romajiTitle || fetched.originalTitle || rel.romajiTitle,
+            coverUrl: fetched.coverUrl || rel.coverUrl,
+            description: fetched.description || rel.description,
+            year: fetched.releaseYear ?? rel.year,
+            releaseDate: fetched.releaseDate ?? rel.releaseDate,
+            endDate: fetched.endDate ?? rel.endDate,
+            releaseStatus: fetched.releaseStatus ?? rel.releaseStatus,
+            studio: fetched.studio || rel.studio,
+            author: fetched.author || rel.author,
+            score: fetched.rating ?? rel.score,
+            ratings: fetched.ratings ?? rel.ratings,
+            episodes: fetched.totalCount ?? rel.episodes,
+            duration: fetched.runtimeMinutes ?? rel.duration,
           }
+        }
+      } catch {}
+
+      // Ensure current media has franchiseName or franchiseId so they are grouped together
+      let franchiseName = media?.franchiseName || undefined
+      let franchiseId = media?.franchiseId || undefined
+      if (media && !franchiseId && !franchiseName) {
+        franchiseName = media.title
+        try {
+          await updateMedia(media.id, { franchiseName: media.title })
+          media.franchiseName = media.title
         } catch {}
       }
 
@@ -793,7 +804,8 @@
           isAnime: true,
           studio: itemDetails.studio ?? undefined,
           romajiTitle: itemDetails.romajiTitle ?? itemDetails.originalTitle ?? undefined,
-          franchiseId: media?.franchiseId ?? undefined,
+          franchiseId,
+          franchiseName,
           externalId: itemDetails.id,
           externalSource: itemDetails.externalSource ?? 'AniList',
           externalRating: itemDetails.score ?? undefined,
@@ -810,7 +822,8 @@
           coverUrl: itemDetails.coverUrl,
           notes: itemDetails.description,
           totalChapters: itemDetails.chapters ?? null,
-          franchiseId: media?.franchiseId ?? undefined,
+          franchiseId,
+          franchiseName,
           externalId: itemDetails.id,
           externalSource: itemDetails.externalSource ?? 'AniList',
           externalRating: itemDetails.score ?? undefined,
@@ -831,7 +844,8 @@
           isAnime: true,
           studio: itemDetails.studio ?? undefined,
           romajiTitle: itemDetails.romajiTitle ?? itemDetails.originalTitle ?? undefined,
-          franchiseId: media?.franchiseId ?? undefined,
+          franchiseId,
+          franchiseName,
           externalId: itemDetails.id,
           externalSource: itemDetails.externalSource ?? 'AniList',
           externalRating: itemDetails.score ?? undefined,
@@ -843,7 +857,9 @@
             {
               seasonNumber: 1,
               title: 'Season 1',
-              totalEpisodes: itemDetails.episodes ?? 12,
+              totalEpisodes: itemDetails.episodes ?? (fetchedEpisodes?.length || 12),
+              airDate: releaseDate,
+              episodesData: fetchedEpisodes && fetchedEpisodes.length > 0 ? JSON.stringify(fetchedEpisodes) : undefined,
               status,
             },
           ],

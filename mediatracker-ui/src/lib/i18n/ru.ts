@@ -80,6 +80,13 @@ export const ru = {
     rating: 'По рейтингу',
     title: 'По алфавиту',
   },
+  grouping: {
+    label: 'Группировка',
+    byStatus: 'По статусу',
+    byFranchise: 'По франшизе',
+    all: 'Все',
+    noFranchise: 'Без франшизы',
+  },
   stats: {
     title: 'Статистика',
     totalItems: 'Тайтлов в библиотеке',

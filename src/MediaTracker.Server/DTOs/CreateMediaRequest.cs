@@ -18,6 +18,8 @@ public sealed record CreateMediaRequest
 
     public Guid? FranchiseId { get; init; }
 
+    public string? FranchiseName { get; init; }
+
     public int? FranchiseOrder { get; init; }
 
     public string? Platform { get; init; }

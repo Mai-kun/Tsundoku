@@ -82,6 +82,13 @@ export const en: Dictionary = {
     rating: 'Top rated',
     title: 'Alphabetical',
   },
+  grouping: {
+    label: 'Grouping',
+    byStatus: 'By status',
+    byFranchise: 'By franchise',
+    all: 'All',
+    noFranchise: 'No franchise',
+  },
   stats: {
     title: 'Statistics',
     totalItems: 'Titles in library',

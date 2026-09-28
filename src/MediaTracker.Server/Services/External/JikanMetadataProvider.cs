@@ -99,6 +99,7 @@ public sealed class JikanMetadataProvider(
             ExternalId = item.MalId.ToString(),
             Title = primaryTitle,
             OriginalTitle = originalTitle,
+            RomajiTitle = item.Title,
             CoverUrl = cover,
             Description = item.Synopsis,
             ReleaseYear = item.Year,

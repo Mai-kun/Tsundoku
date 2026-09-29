@@ -355,27 +355,38 @@ public sealed class MetadataAggregatorService(
     private async Task<IReadOnlyList<string>> GetSourcePriorityForTypeAsync(string type, CancellationToken ct)
     {
         var defaultSources = DefaultSourcePriority.TryGetValue(type, out var def) ? def : [type];
+        const string priorityCacheKey = "settings:source_priority";
+
+        if (cache.TryGetValue(priorityCacheKey, out Dictionary<string, string[]>? cachedPriorities) && cachedPriorities is not null)
+        {
+            if (cachedPriorities.TryGetValue(type, out var cachedList) && cachedList.Length > 0)
+            {
+                return MergePriorityLists(cachedList, defaultSources);
+            }
+            return defaultSources;
+        }
+
         try
         {
             using var scope = serviceProvider.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            var setting = await db.Settings.FirstOrDefaultAsync(s => s.Key == "SourcePriority", ct);
+            var setting = await db.Settings.AsNoTracking().FirstOrDefaultAsync(s => s.Key == "SourcePriority", ct);
             if (setting is not null && !string.IsNullOrWhiteSpace(setting.Value))
             {
                 var dict = JsonSerializer.Deserialize<Dictionary<string, string[]>>(setting.Value);
-                if (dict != null && dict.TryGetValue(type, out var list) && list.Length > 0)
+                if (dict is not null)
                 {
-                    var merged = list.Where(s => defaultSources.Contains(s, StringComparer.OrdinalIgnoreCase)).ToList();
-                    foreach (var s in defaultSources)
+                    cache.Set(priorityCacheKey, dict, TimeSpan.FromMinutes(10));
+                    if (dict.TryGetValue(type, out var list) && list.Length > 0)
                     {
-                        if (!merged.Contains(s, StringComparer.OrdinalIgnoreCase))
-                        {
-                            merged.Add(s);
-                        }
+                        return MergePriorityLists(list, defaultSources);
                     }
-                    return merged;
                 }
             }
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
         }
         catch
         {
@@ -383,6 +394,19 @@ public sealed class MetadataAggregatorService(
         }
 
         return defaultSources;
+    }
+
+    private static IReadOnlyList<string> MergePriorityLists(string[] userList, string[] defaultSources)
+    {
+        var merged = userList.Where(s => defaultSources.Contains(s, StringComparer.OrdinalIgnoreCase)).ToList();
+        foreach (var s in defaultSources)
+        {
+            if (!merged.Contains(s, StringComparer.OrdinalIgnoreCase))
+            {
+                merged.Add(s);
+            }
+        }
+        return merged;
     }
 
     private static string NormalizeMediaType(string type, string? source = null)

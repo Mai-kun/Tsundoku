@@ -3,26 +3,38 @@ using System.Text.Json.Serialization;
 
 namespace MediaTracker.Server.Services.External;
 
-public sealed class OpenLibraryMetadataProvider(IHttpClientFactory httpClientFactory = null!) : IMetadataProvider
+public sealed class OpenLibraryMetadataProvider(IHttpClientFactory httpClientFactory) : IMetadataProvider
 {
     public string Id => "openlibrary";
     public string Name => "OpenLibrary";
     public string Description => "Books metadata & ratings provider";
     public IReadOnlyList<string> MediaTypes => ["book"];
     public bool IsDefault => true;
+
     public async Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string query, CancellationToken ct)
     {
         var client = httpClientFactory.CreateClient("OpenLibrary");
 
-        var result = await client.GetFromJsonAsync<OpenLibraryResponse>(
-            $"search.json?q={Uri.EscapeDataString(query)}&limit=10", ct);
+        try
+        {
+            var result = await client.GetFromJsonAsync<OpenLibraryResponse>(
+                $"search.json?q={Uri.EscapeDataString(query)}&limit=10", ct);
 
-        if (result?.Docs is not { Count: > 0 } docs)
+            if (result?.Docs is not { Count: > 0 } docs)
+            {
+                return [];
+            }
+
+            return docs.Select(MapDoc).ToList();
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch
         {
             return [];
         }
-
-        return docs.Select(MapDoc).ToList();
     }
 
     public async Task<ExternalMediaDto?> GetDetailsAsync(string externalId, string title, CancellationToken ct)

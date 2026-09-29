@@ -4,6 +4,7 @@ public static class MetadataServiceExtensions
 {
     private const string DefaultUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 Tsundoku/1.0";
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(4);
+    private static readonly TimeSpan TranslationTimeout = TimeSpan.FromSeconds(8);
 
     public static IServiceCollection AddMetadataHttpClients(this IServiceCollection services)
     {
@@ -63,57 +64,50 @@ public static class MetadataServiceExtensions
             client.DefaultRequestHeaders.UserAgent.ParseAdd(DefaultUserAgent);
         });
 
+        services.AddHttpClient("Translation", client =>
+        {
+            client.Timeout = TranslationTimeout;
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36");
+        });
+
         return services;
     }
 
     public static IServiceCollection AddMetadataProviders(this IServiceCollection services)
     {
-        var providerTypes = typeof(IMetadataProvider).Assembly.GetTypes()
-            .Where(t => t is { IsClass: true, IsAbstract: false } && typeof(IMetadataProvider).IsAssignableFrom(t));
+        RegisterProvider<AniListMetadataProvider>(services, "anilist", ["anime", "manga"], isDefault: true);
+        RegisterProvider<JikanMetadataProvider>(services, "jikan", ["anime", "manga"]);
+        RegisterProvider<KitsuMetadataProvider>(services, "kitsu", ["anime"]);
+        RegisterProvider<MangaDexMetadataProvider>(services, "mangadex", ["manga"]);
+        RegisterProvider<MangaUpdatesMetadataProvider>(services, "mangaupdates", ["manga"]);
+        RegisterProvider<OpenLibraryMetadataProvider>(services, "openlibrary", ["book"], isDefault: true);
+        RegisterProvider<RawgMetadataProvider>(services, "rawg", ["game"], isDefault: true);
+        RegisterProvider<TmdbMetadataProvider>(services, "tmdb", ["movie", "tvshow"], isDefault: true);
 
-        foreach (var type in providerTypes)
-        {
-            var provider = CreatePrototype(type);
-            if (provider is null) continue;
-
-            services.AddTransient(typeof(IMetadataProvider), type);
-            services.AddKeyedTransient(typeof(IMetadataProvider), provider.Id, type);
-
-            foreach (var mediaType in provider.MediaTypes)
-            {
-                services.AddKeyedTransient(typeof(IMetadataProvider), $"{mediaType}:{provider.Id}", type);
-
-                if (provider.IsDefault)
-                {
-                    services.AddKeyedTransient(typeof(IMetadataProvider), mediaType, type);
-                }
-            }
-        }
-
+        services.AddTransient<ITranslationService, TranslationService>();
         services.AddTransient<MetadataAggregatorService>();
 
         return services;
     }
 
-    private static IMetadataProvider? CreatePrototype(Type type)
+    private static void RegisterProvider<TProvider>(
+        IServiceCollection services,
+        string id,
+        string[] mediaTypes,
+        bool isDefault = false)
+        where TProvider : class, IMetadataProvider
     {
-        var ctor = type.GetConstructors().MaxBy(c => c.GetParameters().Length);
-        if (ctor is null) return null;
+        services.AddTransient<IMetadataProvider, TProvider>();
+        services.AddKeyedTransient<IMetadataProvider, TProvider>(id);
 
-        var parameters = ctor.GetParameters();
-        var args = new object?[parameters.Length];
-        for (var i = 0; i < parameters.Length; i++)
+        foreach (var mediaType in mediaTypes)
         {
-            args[i] = parameters[i].DefaultValue;
-        }
+            services.AddKeyedTransient<IMetadataProvider, TProvider>($"{mediaType}:{id}");
 
-        try
-        {
-            return (IMetadataProvider)ctor.Invoke(args);
-        }
-        catch
-        {
-            return null;
+            if (isDefault)
+            {
+                services.AddKeyedTransient<IMetadataProvider, TProvider>(mediaType);
+            }
         }
     }
 }

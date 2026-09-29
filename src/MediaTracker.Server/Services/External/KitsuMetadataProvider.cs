@@ -3,12 +3,13 @@ using System.Text.Json.Serialization;
 
 namespace MediaTracker.Server.Services.External;
 
-public sealed class KitsuMetadataProvider(IHttpClientFactory httpClientFactory = null!) : IMetadataProvider
+public sealed class KitsuMetadataProvider(IHttpClientFactory httpClientFactory) : IMetadataProvider
 {
     public string Id => "kitsu";
     public string Name => "Kitsu";
     public string Description => "Anime ratings provider (community scores)";
     public IReadOnlyList<string> MediaTypes => ["anime"];
+
     public async Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string query, CancellationToken ct)
     {
         var client = httpClientFactory.CreateClient("Kitsu");
@@ -23,6 +24,10 @@ public sealed class KitsuMetadataProvider(IHttpClientFactory httpClientFactory =
             }
 
             return data.Select(MapItem).ToList();
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
         }
         catch
         {
@@ -40,6 +45,10 @@ public sealed class KitsuMetadataProvider(IHttpClientFactory httpClientFactory =
             {
                 return MapItem(res.Data);
             }
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
         }
         catch
         {

@@ -7,10 +7,10 @@ using Microsoft.Extensions.Options;
 namespace MediaTracker.Server.Services.External;
 
 public sealed class TmdbMetadataProvider(
-    [ServiceKey] string? serviceKey = null,
-    IHttpClientFactory httpClientFactory = null!,
-    IOptions<ExternalApiOptions> options = null!,
-    ILogger<TmdbMetadataProvider> logger = null!) : IMetadataProvider
+    IHttpClientFactory httpClientFactory,
+    IOptions<ExternalApiOptions> options,
+    ILogger<TmdbMetadataProvider> logger,
+    [ServiceKey] string? serviceKey = null) : IMetadataProvider
 {
     public string Id => "tmdb";
     public string Name => "The Movie Database (TMDb)";
@@ -34,18 +34,30 @@ public sealed class TmdbMetadataProvider(
         var isMovie = mediaType == "movie";
         var searchPath = isMovie ? "search/movie" : "search/tv";
 
-        var result = await client.GetFromJsonAsync<TmdbResponse>(
-            $"{searchPath}?query={Uri.EscapeDataString(query)}&api_key={Uri.EscapeDataString(apiKey)}", ct);
-
-        if (result?.Results is not { Count: > 0 } results)
+        try
         {
+            var result = await client.GetFromJsonAsync<TmdbResponse>(
+                $"{searchPath}?query={Uri.EscapeDataString(query)}&api_key={Uri.EscapeDataString(apiKey)}", ct);
+
+            if (result?.Results is not { Count: > 0 } results)
+            {
+                return [];
+            }
+
+            return results
+                .Where(item => isMovie ? item.Title is not null : item.Name is not null)
+                .Select(MapItem)
+                .ToList();
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to search TMDB for {Query}", query);
             return [];
         }
-
-        return results
-            .Where(item => isMovie ? item.Title is not null : item.Name is not null)
-            .Select(MapItem)
-            .ToList();
     }
 
     public async Task<ExternalMediaDto?> GetDetailsAsync(string externalId, string title, CancellationToken ct)

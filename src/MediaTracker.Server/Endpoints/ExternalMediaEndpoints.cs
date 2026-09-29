@@ -71,8 +71,7 @@ public static class ExternalMediaEndpoints
 
     private static async Task<IResult> TranslateText(
         TranslateRequest request,
-        IHttpClientFactory httpClientFactory,
-        Microsoft.Extensions.Caching.Memory.IMemoryCache cache,
+        ITranslationService translationService,
         CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(request.Text))
@@ -80,84 +79,8 @@ public static class ExternalMediaEndpoints
             return Results.BadRequest(new { message = "Text is required." });
         }
 
-        var cleanText = System.Text.RegularExpressions.Regex.Replace(request.Text, "<.*?>", " ").Trim();
-        if (string.IsNullOrWhiteSpace(cleanText))
-        {
-            return Results.Ok(new TranslateResponse(request.Text));
-        }
-
-        var target = string.IsNullOrWhiteSpace(request.TargetLanguage) ? "ru" : request.TargetLanguage.Trim().ToLowerInvariant();
-        var cacheKey = $"translate:{target}:{cleanText.GetHashCode()}";
-        if (cache.TryGetValue(cacheKey, out string? cached) && !string.IsNullOrWhiteSpace(cached))
-        {
-            return Results.Ok(new TranslateResponse(cached));
-        }
-
-        var client = httpClientFactory.CreateClient();
-        client.Timeout = TimeSpan.FromSeconds(8);
-        client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36");
-
-        // Strategy 1: Google client=dict-chrome-ex
-        try
-        {
-            var googleUrl = $"https://clients5.google.com/translate_a/t?client=dict-chrome-ex&sl=auto&tl={Uri.EscapeDataString(target)}&q={Uri.EscapeDataString(cleanText)}";
-            using var response = await client.GetAsync(googleUrl, ct);
-            if (response.IsSuccessStatusCode)
-            {
-                using var jsonDoc = await System.Text.Json.JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(ct), cancellationToken: ct);
-                var root = jsonDoc.RootElement;
-                string? translated = null;
-                if (root.ValueKind == System.Text.Json.JsonValueKind.Array && root.GetArrayLength() > 0)
-                {
-                    var first = root[0];
-                    if (first.ValueKind == System.Text.Json.JsonValueKind.Array && first.GetArrayLength() > 0)
-                    {
-                        translated = first[0].GetString();
-                    }
-                    else if (first.ValueKind == System.Text.Json.JsonValueKind.String)
-                    {
-                        translated = first.GetString();
-                    }
-                }
-
-                if (!string.IsNullOrWhiteSpace(translated))
-                {
-                    cache.Set(cacheKey, translated, TimeSpan.FromHours(24));
-                    return Results.Ok(new TranslateResponse(translated));
-                }
-            }
-        }
-        catch
-        {
-            // Fall back to MyMemory
-        }
-
-        // Strategy 2: MyMemory Translate
-        try
-        {
-            var myMemoryUrl = $"https://api.mymemory.translated.net/get?q={Uri.EscapeDataString(cleanText)}&langpair=auto|{Uri.EscapeDataString(target)}";
-            using var response = await client.GetAsync(myMemoryUrl, ct);
-            if (response.IsSuccessStatusCode)
-            {
-                using var jsonDoc = await System.Text.Json.JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(ct), cancellationToken: ct);
-                if (jsonDoc.RootElement.TryGetProperty("responseData", out var respData) &&
-                    respData.TryGetProperty("translatedText", out var transElem))
-                {
-                    var translated = transElem.GetString();
-                    if (!string.IsNullOrWhiteSpace(translated))
-                    {
-                        cache.Set(cacheKey, translated, TimeSpan.FromHours(24));
-                        return Results.Ok(new TranslateResponse(translated));
-                    }
-                }
-            }
-        }
-        catch
-        {
-            // Return original text if translation service unavailable
-        }
-
-        return Results.Ok(new TranslateResponse(cleanText));
+        var translated = await translationService.TranslateAsync(request.Text, request.TargetLanguage ?? "ru", ct);
+        return Results.Ok(new TranslateResponse(translated));
     }
 }
 

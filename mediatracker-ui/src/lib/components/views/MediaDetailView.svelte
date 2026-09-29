@@ -134,6 +134,7 @@
   let episodeSortOrder = $state<'asc' | 'desc'>('asc')
   let synopsisExpanded = $state(false)
   let statusMenuOpen = $state(false)
+  let platformMenuOpen = $state(false)
   let userRatingPopoverOpen = $state(false)
   let availableSources = $state<SourceInfo[]>([])
 
@@ -691,8 +692,6 @@
         if (trimmed) opts.add(trimmed)
       }
     }
-    const common = ['PC', 'PlayStation 5', 'PlayStation 4', 'Xbox Series X/S', 'Xbox One', 'Nintendo Switch', 'Steam Deck', 'iOS', 'Android']
-    for (const c of common) opts.add(c)
     if (media.userPlatform && !opts.has(media.userPlatform)) {
       opts.add(media.userPlatform)
     }
@@ -720,6 +719,7 @@
       loadError = null
       selectedSeasonId = null
       statusMenuOpen = false
+      platformMenuOpen = false
       userRatingPopoverOpen = false
       synopsisExpanded = false
       isSynopsisTranslated = false
@@ -2026,6 +2026,9 @@
     if (statusMenuOpen && target instanceof Element && !target.closest('[data-status-menu]')) {
       statusMenuOpen = false
     }
+    if (platformMenuOpen && target instanceof Element && !target.closest('[data-platform-menu]')) {
+      platformMenuOpen = false
+    }
     if (userRatingPopoverOpen && target instanceof Element && !target.closest('[data-rating-popover]')) {
       userRatingPopoverOpen = false
     }
@@ -2185,17 +2188,47 @@
               {#if media.type === 'game'}
                 <div class="flex items-center justify-between gap-3 pt-3">
                   <dt class="text-muted text-xs">{i18n.current === 'ru' ? 'Платформа' : 'Platform'}</dt>
-                  <dd class="font-medium text-white text-xs">
-                    <select
-                      value={media.userPlatform ?? ''}
-                      class="rounded bg-[#13151b] border border-white/10 px-2 py-1 text-xs text-white focus:border-[#5844e0] focus:outline-none cursor-pointer max-w-[130px] truncate"
-                      onchange={(e) => void updateUserPlatform(e.currentTarget.value)}
-                    >
-                      <option value="">{i18n.current === 'ru' ? 'Не выбрана' : 'Not selected'}</option>
-                      {#each gamePlatformOptions as p}
-                        <option value={p}>{p}</option>
-                      {/each}
-                    </select>
+                  <dd class="relative font-medium text-white text-xs" data-platform-menu>
+                    {#if gamePlatformOptions.length > 0}
+                      <button
+                        type="button"
+                        class="flex items-center justify-between gap-2 rounded-lg border border-white/10 bg-[#13151b] px-2.5 py-1.5 text-xs text-white transition hover:border-[#5844e0]/50 hover:bg-[#181b24] focus:outline-none focus:ring-1 focus:ring-[#5844e0] max-w-[155px]"
+                        onclick={() => (platformMenuOpen = !platformMenuOpen)}
+                        aria-haspopup="listbox"
+                        aria-expanded={platformMenuOpen}
+                      >
+                        <span class="truncate">{media.userPlatform || (i18n.current === 'ru' ? 'Не выбрана' : 'Not selected')}</span>
+                        <ChevronDown size={13} class={`shrink-0 text-muted transition duration-200 ${platformMenuOpen ? 'rotate-180 text-white' : ''}`} aria-hidden="true" />
+                      </button>
+                      {#if platformMenuOpen}
+                        <ul class="absolute right-0 top-full z-30 mt-1 max-h-56 min-w-[150px] overflow-y-auto rounded-lg border border-white/10 bg-[#1e2230] p-1 shadow-2xl shadow-black/80 backdrop-blur-md" role="listbox">
+                          <li>
+                            <button
+                              type="button"
+                              class={`flex w-full items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-left text-xs transition hover:bg-white/10 ${!media.userPlatform ? 'text-[#a5b4fc] font-semibold bg-[#5844e0]/20' : 'text-muted'}`}
+                              onclick={() => { void updateUserPlatform(''); platformMenuOpen = false }}
+                            >
+                              <span>{i18n.current === 'ru' ? 'Не выбрана' : 'Not selected'}</span>
+                              {#if !media.userPlatform}<Check size={13} class="text-[#a5b4fc]" aria-hidden="true" />{/if}
+                            </button>
+                          </li>
+                          {#each gamePlatformOptions as p (p)}
+                            <li>
+                              <button
+                                type="button"
+                                class={`flex w-full items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-left text-xs transition hover:bg-white/10 ${media.userPlatform === p ? 'text-[#a5b4fc] font-semibold bg-[#5844e0]/20' : 'text-slate-200'}`}
+                                onclick={() => { void updateUserPlatform(p); platformMenuOpen = false }}
+                              >
+                                <span class="truncate">{p}</span>
+                                {#if media.userPlatform === p}<Check size={13} class="text-[#a5b4fc]" aria-hidden="true" />{/if}
+                              </button>
+                            </li>
+                          {/each}
+                        </ul>
+                      {/if}
+                    {:else}
+                      <span class="text-xs text-muted">—</span>
+                    {/if}
                   </dd>
                 </div>
               {/if}

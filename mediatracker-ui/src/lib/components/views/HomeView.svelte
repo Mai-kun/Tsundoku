@@ -6,6 +6,7 @@
 
 <script lang="ts">
   import { deleteMedia, getMedia, getMediaItem, setProgress, setSeasonProgress } from '$lib/api'
+  import { showToast } from '$lib/stores/toast.svelte'
   import { i18n } from '$lib/i18n/index.svelte'
   import { MEDIA_STATUS, isTvShowDetail, type MediaItem } from '$lib/types'
   import MediaGrid from '../media/MediaGrid.svelte'
@@ -103,19 +104,42 @@
   }
 
   async function updateProgress(id: string, currentProgress: number) {
+    const updateInList = (list: MediaItem[]) =>
+      list.map((item) => {
+        if (item.id !== id) return item
+        if (item.type === 'game') return { ...item, hoursPlayed: currentProgress }
+        if (item.type === 'book') return { ...item, currentPage: currentProgress }
+        if (item.type === 'manga') return { ...item, currentChapter: currentProgress }
+        return item
+      })
+    inProgress = updateInList(inProgress)
+    upNext = updateInList(upNext)
+    recentlyCompleted = updateInList(recentlyCompleted)
     await setProgress(id, currentProgress)
   }
 
-  async function removeItem(item: MediaItem) {
+  async function removeItem(item: MediaItem): Promise<void> {
     const main = document.querySelector('main')
     const currentScroll = main ? main.scrollTop : (typeof window !== 'undefined' ? window.scrollY : 0)
+
+    const prevInProgress = inProgress
+    const prevUpNext = upNext
+    const prevCompleted = recentlyCompleted
 
     inProgress = inProgress.filter((i) => i.id !== item.id)
     upNext = upNext.filter((i) => i.id !== item.id)
     recentlyCompleted = recentlyCompleted.filter((i) => i.id !== item.id)
 
-    await deleteMedia(item.id)
     onMediaChanged()
+
+    try {
+      await deleteMedia(item.id)
+    } catch {
+      inProgress = prevInProgress
+      upNext = prevUpNext
+      recentlyCompleted = prevCompleted
+      showToast(i18n.t.errors.unexpected, 'error')
+    }
 
     setTimeout(() => {
       if (main && Math.abs(main.scrollTop - currentScroll) > 5) {
@@ -124,29 +148,37 @@
     }, 20)
   }
 
-  // Bug 6: step episode for tvshow cards on Home screen
+  // Bug 6: step episode for tvshow cards on Home screen optimistically
   async function stepEpisode(item: MediaItem, delta: number) {
     if (item.type !== 'tvshow') return
-    // Load full detail to get seasons
-    const detail = await getMediaItem(item.id)
-    if (!isTvShowDetail(detail) || !detail.seasons?.length) return
+    const prevWatched = item.totalEpisodesWatched ?? 0
+    const nextWatched = Math.max(0, prevWatched + delta)
+    item.totalEpisodesWatched = nextWatched
+    inProgress = [...inProgress]
 
-    // Find the first in-progress season, or the first season if none in progress
-    const activeSeason =
-      detail.seasons.find((s) => s.status === MEDIA_STATUS.inProgress) ??
-      detail.seasons.find((s) => s.status === MEDIA_STATUS.planned) ??
-      detail.seasons[detail.seasons.length - 1]
+    try {
+      const detail = await getMediaItem(item.id)
+      if (!isTvShowDetail(detail) || !detail.seasons?.length) return
 
-    if (!activeSeason) return
+      const activeSeason =
+        detail.seasons.find((s) => s.status === MEDIA_STATUS.inProgress) ??
+        detail.seasons.find((s) => s.status === MEDIA_STATUS.planned) ??
+        detail.seasons[detail.seasons.length - 1]
 
-    const next = Math.max(0, Math.min(
-      (activeSeason.currentEpisode ?? 0) + delta,
-      activeSeason.totalEpisodes > 0 ? activeSeason.totalEpisodes : Infinity
-    ))
+      if (!activeSeason) return
 
-    await setSeasonProgress(activeSeason.id, next)
-    onMediaChanged()
-    refresh()
+      const next = Math.max(0, Math.min(
+        (activeSeason.currentEpisode ?? 0) + delta,
+        activeSeason.totalEpisodes > 0 ? activeSeason.totalEpisodes : Infinity
+      ))
+
+      await setSeasonProgress(activeSeason.id, next)
+      onMediaChanged()
+    } catch {
+      item.totalEpisodesWatched = prevWatched
+      inProgress = [...inProgress]
+      showToast(i18n.t.errors.unexpected, 'error')
+    }
   }
 </script>
 

@@ -422,16 +422,20 @@
     try {
       volumeBusy = 'generate'
       const start = mangaVolumes.length + 1
+      const promises = []
       for (let i = start; i <= media.totalVolumes; i++) {
-        await addVolume(media.id, {
-          volumeNumber: i,
-          title: `Volume ${i}`,
-          totalPages: 200,
-          totalChapters: 0,
-          currentPage: 0,
-          currentChapter: 0,
-        })
+        promises.push(
+          addVolume(media.id, {
+            volumeNumber: i,
+            title: `Volume ${i}`,
+            totalPages: 200,
+            totalChapters: 0,
+            currentPage: 0,
+            currentChapter: 0,
+          })
+        )
       }
+      await Promise.all(promises)
       await load(media.id, ++requestSequence, false)
       onUpdate()
     } catch (err) {
@@ -459,18 +463,32 @@
 
   async function confirmEditVolume() {
     if (!editingVolume || !media) return
+    const targetVol = editingVolume
     editVolumeDialogOpen = false
+    const prevTitle = targetVol.title
+    const prevPages = targetVol.totalPages
+    const prevChapters = targetVol.totalChapters
+    const prevCurrentPage = targetVol.currentPage
+
+    targetVol.title = editVolumeTitle
+    targetVol.totalPages = Math.max(editVolumePages, 1)
+    targetVol.totalChapters = Math.max(editVolumeChapters, 0)
+    targetVol.currentPage = Math.min(Math.max(editVolumeCurrentPage, 0), editVolumePages)
+
     try {
-      volumeBusy = editingVolume.id
-      await updateVolume(editingVolume.id, {
+      volumeBusy = targetVol.id
+      await updateVolume(targetVol.id, {
         title: editVolumeTitle,
-        totalPages: Math.max(editVolumePages, 1),
-        totalChapters: Math.max(editVolumeChapters, 0),
-        currentPage: Math.min(Math.max(editVolumeCurrentPage, 0), editVolumePages),
+        totalPages: targetVol.totalPages,
+        totalChapters: targetVol.totalChapters,
+        currentPage: targetVol.currentPage,
       })
-      await load(media.id, ++requestSequence, false)
       onUpdate()
     } catch (err) {
+      targetVol.title = prevTitle
+      targetVol.totalPages = prevPages
+      targetVol.totalChapters = prevChapters
+      targetVol.currentPage = prevCurrentPage
       volumeError = err
     } finally {
       volumeBusy = ''
@@ -482,12 +500,18 @@
     if (!media) return
     const volName = vol.title || `Volume ${vol.volumeNumber}`
     if (!confirm(`Delete ${volName}?`)) return
+    const prevVolumes = isMangaDetail(media) ? [...(media.volumes ?? [])] : []
+    if (isMangaDetail(media) && media.volumes) {
+      media.volumes = media.volumes.filter((v) => v.id !== vol.id)
+    }
     try {
       volumeBusy = vol.id
       await deleteVolume(vol.id)
-      await load(media.id, ++requestSequence, false)
       onUpdate()
     } catch (err) {
+      if (isMangaDetail(media)) {
+        media.volumes = prevVolumes
+      }
       volumeError = err
     } finally {
       volumeBusy = ''
@@ -1559,9 +1583,9 @@
     deleteError = null
 
     try {
-      await onDelete(target.id)
       showToast(i18n.t.detailModal.delete, 'warning')
       onBack()
+      await onDelete(target.id)
     } catch (error) {
       deleteError = error
       showToast(errorMessage(error), 'error')
@@ -1579,14 +1603,16 @@
     // If clicking an unwatched episode: mark watched up to number
     const nextVal = number <= current ? number - 1 : number
 
+    target.currentEpisode = nextVal
     episodeBusy = target.id
     progressError = null
+    onUpdate()
 
     try {
       await setSeasonProgress(target.id, nextVal)
-      target.currentEpisode = nextVal
-      onUpdate()
     } catch (error) {
+      target.currentEpisode = current
+      onUpdate()
       progressError = error
       showToast(errorMessage(error), 'error')
     } finally {
@@ -1600,13 +1626,17 @@
     const total = target.totalEpisodes ?? 0
     if (total <= 0) return
 
+    const previous = target.currentEpisode ?? 0
+    target.currentEpisode = total
     episodeBusy = target.id
+    onUpdate()
+
     try {
       await setSeasonProgress(target.id, total)
-      target.currentEpisode = total
-      onUpdate()
       showToast(i18n.t.detail.markSeasonWatched, 'success')
     } catch (error) {
+      target.currentEpisode = previous
+      onUpdate()
       progressError = error
       showToast(errorMessage(error), 'error')
     } finally {
@@ -1618,13 +1648,17 @@
     const target = currentSeason
     if (!target || episodeBusy) return
 
+    const previous = target.currentEpisode ?? 0
+    target.currentEpisode = 0
     episodeBusy = target.id
+    onUpdate()
+
     try {
       await setSeasonProgress(target.id, 0)
-      target.currentEpisode = 0
-      onUpdate()
       showToast(i18n.t.detail.resetSeason, 'warning')
     } catch (error) {
+      target.currentEpisode = previous
+      onUpdate()
       progressError = error
       showToast(errorMessage(error), 'error')
     } finally {

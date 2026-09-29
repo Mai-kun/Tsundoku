@@ -158,26 +158,28 @@
     const candidates = items.filter(
       (r) => effectiveType(r) === 'manga' && (r.chapters == null || r.volumes == null || !r.author)
     )
-    for (const item of candidates.slice(0, 6)) {
-      if (sequence !== requestSequence) break
-      try {
-        const enriched = await getExternalDetails(
-          effectiveType(item),
-          item.externalId,
-          item.title,
-          item.externalSource ?? undefined
-        )
-        if (sequence === requestSequence && enriched) {
-          if (enriched.chapters != null) item.chapters = enriched.chapters
-          if (enriched.volumes != null) item.volumes = enriched.volumes
-          if (enriched.totalCount != null) item.totalCount = enriched.totalCount
-          if (enriched.author) item.author = enriched.author
-          if (enriched.ratings && enriched.ratings.length > 0) item.ratings = enriched.ratings
-          if (enriched.rating && !item.rating) item.rating = enriched.rating
-          results = [...results]
-        }
-      } catch {}
-    }
+    await Promise.allSettled(
+      candidates.slice(0, 6).map(async (item) => {
+        if (sequence !== requestSequence) return
+        try {
+          const enriched = await getExternalDetails(
+            effectiveType(item),
+            item.externalId,
+            item.title,
+            item.externalSource ?? undefined
+          )
+          if (sequence === requestSequence && enriched) {
+            if (enriched.chapters != null) item.chapters = enriched.chapters
+            if (enriched.volumes != null) item.volumes = enriched.volumes
+            if (enriched.totalCount != null) item.totalCount = enriched.totalCount
+            if (enriched.author) item.author = enriched.author
+            if (enriched.ratings && enriched.ratings.length > 0) item.ratings = enriched.ratings
+            if (enriched.rating && !item.rating) item.rating = enriched.rating
+            results = [...results]
+          }
+        } catch {}
+      })
+    )
   }
 
   function openPreview(result: ExternalMedia) {
@@ -332,18 +334,13 @@
     // Bug 5: toggle — if already in library, remove it
     const existingId = addedKeys[key]
     if (existingId) {
-      addingKey = key
-      addError = null
-      try {
-        await deleteMedia(existingId)
-        const { [key]: _, ...rest } = addedKeys
-        addedKeys = rest
-        onMediaRemoved(existingId)
-      } catch (error) {
+      const { [key]: _, ...rest } = addedKeys
+      addedKeys = rest
+      onMediaRemoved(existingId)
+      deleteMedia(existingId).catch((error) => {
+        addedKeys = { ...addedKeys, [key]: existingId }
         addError = error
-      } finally {
-        addingKey = ''
-      }
+      })
       return
     }
 

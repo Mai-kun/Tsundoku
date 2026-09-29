@@ -62,10 +62,13 @@
 
   async function changeStatus(newStatus: MediaStatus) {
     statusMenuOpen = false;
+    const prevStatus = item.status;
+    item.status = newStatus;
+    onProgressCommitted();
     try {
       await updateStatus(item.id, newStatus);
-      onProgressCommitted();
     } catch (e) {
+      item.status = prevStatus;
       console.error(e);
     }
   }

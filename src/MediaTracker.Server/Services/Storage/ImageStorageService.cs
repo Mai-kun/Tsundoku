@@ -10,6 +10,7 @@ public sealed class ImageStorageService(
 {
     private const string CoversRoutePrefix = "/covers/";
     private const int MaxCoverWidth = 400;
+    private const long MaxCoverSizeBytes = 10 * 1024 * 1024; // 10 MB limit
 
     public async Task<string?> SaveCoverAsync(string externalUrl, Guid itemId, CancellationToken ct = default)
     {
@@ -23,6 +24,12 @@ public sealed class ImageStorageService(
             using var response = await httpClient.GetAsync(externalUrl, HttpCompletionOption.ResponseHeadersRead, ct);
             response.EnsureSuccessStatusCode();
 
+            if (response.Content.Headers.ContentLength > MaxCoverSizeBytes)
+            {
+                logger.LogWarning("Cover image at {ExternalUrl} exceeds size limit of {MaxBytes} bytes", externalUrl, MaxCoverSizeBytes);
+                return externalUrl;
+            }
+
             var coversPath = GetCoversPath();
             Directory.CreateDirectory(coversPath);
 
@@ -32,15 +39,22 @@ public sealed class ImageStorageService(
             await using var source = await response.Content.ReadAsStreamAsync(ct);
             using var image = await Image.LoadAsync(source, ct);
 
-            image.Mutate(context => context.Resize(new ResizeOptions
+            if (image.Width > MaxCoverWidth)
             {
-                Mode = ResizeMode.Max,
-                Size = new Size(MaxCoverWidth, image.Height)
-            }));
+                image.Mutate(context => context.Resize(new ResizeOptions
+                {
+                    Mode = ResizeMode.Max,
+                    Size = new Size(MaxCoverWidth, 0)
+                }));
+            }
 
             await image.SaveAsWebpAsync(filePath, ct);
 
             return $"{CoversRoutePrefix}{fileName}";
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException or ImageFormatException)
         {

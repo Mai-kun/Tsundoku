@@ -2,6 +2,7 @@
   import type { LibrarySort } from '../media/FilterBar.svelte'
 
   let savedHomeSort: LibrarySort = 'newest'
+  let cachedHomeData: { inProgress: MediaItem[]; upNext: MediaItem[]; recentlyCompleted: MediaItem[] } | null = null
 </script>
 
 <script lang="ts">
@@ -20,14 +21,15 @@
 
   let { refreshKey, onOpen, onMediaChanged, onEdit = () => {} }: Props = $props()
 
-  let inProgress = $state<MediaItem[]>([])
-  let upNext = $state<MediaItem[]>([])
-  let recentlyCompleted = $state<MediaItem[]>([])
-  let loading = $state(true)
+  let inProgress = $state<MediaItem[]>(cachedHomeData?.inProgress ?? [])
+  let upNext = $state<MediaItem[]>(cachedHomeData?.upNext ?? [])
+  let recentlyCompleted = $state<MediaItem[]>(cachedHomeData?.recentlyCompleted ?? [])
+  let loading = $state(cachedHomeData === null)
   let loadError = $state<unknown>(null)
   let sort = $state<LibrarySort>(savedHomeSort)
   let requestSequence = 0
-  let hasLoaded = false
+  let hasLoaded = cachedHomeData !== null
+  let skeletonTimer: ReturnType<typeof setTimeout> | null = null
 
   $effect(() => {
     savedHomeSort = sort
@@ -38,6 +40,10 @@
     void sort
     const isInitial = !hasLoaded
     void loadSections(++requestSequence, isInitial)
+
+    return () => {
+      if (skeletonTimer) clearTimeout(skeletonTimer)
+    }
   })
 
   function sortFilters(value: LibrarySort) {
@@ -54,8 +60,13 @@
   }
 
   async function loadSections(sequence: number, showLoading = true) {
-    if (showLoading) {
-      loading = true
+    if (skeletonTimer) clearTimeout(skeletonTimer)
+    if (showLoading && !cachedHomeData) {
+      skeletonTimer = setTimeout(() => {
+        if (sequence === requestSequence && !cachedHomeData) {
+          loading = true
+        }
+      }, 120)
     }
     loadError = null
 
@@ -68,6 +79,7 @@
       ])
 
       if (sequence === requestSequence) {
+        if (skeletonTimer) clearTimeout(skeletonTimer)
         hasLoaded = true
         inProgress = active
         upNext = planned
@@ -87,13 +99,13 @@
           const rightTime = right.finishedAt ? Date.parse(right.finishedAt) : 0
           return rightTime - leftTime
         })
+        cachedHomeData = { inProgress, upNext, recentlyCompleted }
+        loading = false
       }
     } catch (error) {
       if (sequence === requestSequence) {
+        if (skeletonTimer) clearTimeout(skeletonTimer)
         loadError = error
-      }
-    } finally {
-      if (sequence === requestSequence) {
         loading = false
       }
     }
@@ -115,6 +127,7 @@
     inProgress = updateInList(inProgress)
     upNext = updateInList(upNext)
     recentlyCompleted = updateInList(recentlyCompleted)
+    cachedHomeData = { inProgress, upNext, recentlyCompleted }
     await setProgress(id, currentProgress)
   }
 
@@ -129,15 +142,16 @@
     inProgress = inProgress.filter((i) => i.id !== item.id)
     upNext = upNext.filter((i) => i.id !== item.id)
     recentlyCompleted = recentlyCompleted.filter((i) => i.id !== item.id)
-
-    onMediaChanged()
+    cachedHomeData = { inProgress, upNext, recentlyCompleted }
 
     try {
       await deleteMedia(item.id)
+      onMediaChanged()
     } catch {
       inProgress = prevInProgress
       upNext = prevUpNext
       recentlyCompleted = prevCompleted
+      cachedHomeData = { inProgress, upNext, recentlyCompleted }
       showToast(i18n.t.errors.unexpected, 'error')
     }
 

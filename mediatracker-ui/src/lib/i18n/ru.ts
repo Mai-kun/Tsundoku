@@ -31,6 +31,7 @@ export const ru = {
     create: 'Добавить медиа',
     stats: 'Статистика',
     lists: 'Списки',
+    history: 'История',
     calendar: 'Календарь',
     seasons: 'Сезоны',
     brand: 'Медиа-трекер',
@@ -51,8 +52,12 @@ export const ru = {
     upNext: 'Дальше',
     recentlyCompleted: 'Недавно завершено',
     seasonsOf: (title: string) => `Сезоны: ${title}`,
-    calendarTitle: 'Календарь активности',
-    calendarHint: 'Здесь отображаются даты начала и завершения из вашей медиатеки.',
+    historyTitle: 'История активности',
+    historyHint: 'Здесь отображаются даты начала и завершения из вашей медиатеки.',
+    calendarTitle: 'Календарь релизов',
+    calendarHint: 'График предстоящих релизов и выхода новых серий, глав и фильмов.',
+    calendarPlaceholderTitle: 'Скоро здесь появится расписание релизов',
+    calendarPlaceholderHint: 'Здесь будет отображаться график выхода новых серий, глав манги, фильмов и игр из вашей библиотеки.',
     listsTitle: 'Списки',
     listsHint: 'Сохраняемые списки появятся в одном из следующих обновлений.',
     noSeasons: 'У этого сериала пока нет сезонов.',
@@ -370,8 +375,8 @@ export const ru = {
 type Widen<T> = T extends string
   ? string
   : T extends (...args: infer A) => infer R
-    ? (...args: A) => Widen<R>
-    : { [K in keyof T]: Widen<T[K]> }
+  ? (...args: A) => Widen<R>
+  : { [K in keyof T]: Widen<T[K]> }
 
 export type Dictionary = Widen<typeof ru>
 

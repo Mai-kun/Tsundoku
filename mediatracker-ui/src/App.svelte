@@ -8,6 +8,7 @@
   import SettingsModal from '$lib/components/modals/SettingsModal.svelte'
   import CalendarView from '$lib/components/views/CalendarView.svelte'
   import CategoryView, { type Category } from '$lib/components/views/CategoryView.svelte'
+  import HistoryView from '$lib/components/views/HistoryView.svelte'
   import HomeView from '$lib/components/views/HomeView.svelte'
   import ListsView from '$lib/components/views/ListsView.svelte'
   import MediaDetailView from '$lib/components/views/MediaDetailView.svelte'
@@ -17,7 +18,7 @@
   import type { AppView, MediaItem, SearchScope } from '$lib/types'
 
   const categories: readonly Category[] = ['tvshow', 'movie', 'anime', 'manga', 'game', 'book']
-  const views: readonly AppView[] = ['home', ...categories, 'stats', 'lists', 'calendar', 'seasons', 'detail']
+  const views: readonly AppView[] = ['home', ...categories, 'stats', 'lists', 'history', 'calendar', 'seasons', 'detail']
 
   let route = readRoute()
   let activeView = $state<AppView>(route.view)
@@ -137,6 +138,8 @@
         return i18n.t.stats.title
       case 'lists':
         return i18n.t.views.listsTitle
+      case 'history':
+        return i18n.t.views.historyTitle
       case 'calendar':
         return i18n.t.views.calendarTitle
       case 'seasons':
@@ -215,6 +218,10 @@
     mediaChanged()
   }
 
+  function openDetailById(id: string) {
+    openDetail({ id } as MediaItem)
+  }
+
   function handleKeydown(event: KeyboardEvent) {
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
       event.preventDefault()
@@ -242,25 +249,34 @@
     <Header title={titleForView(activeView)} onSearch={openSearch} />
   {/snippet}
 
-  {#key activeView}
-    {#if activeView === 'home'}
-      <HomeView refreshKey={mediaRevision} onOpen={openDetail} onMediaChanged={mediaChanged} onEdit={openEdit} />
-    {:else if activeView === 'detail' && selectedMediaId}
-      <MediaDetailView mediaId={selectedMediaId} refreshKey={mediaRevision} onBack={closeDetail} onUpdate={mediaChanged} onDelete={deleteFromDetail} onEdit={openEdit} onOpenRelated={openDetail} />
-    {:else if activeView === 'seasons' && selectedMediaId}
-      <ShowSeasonsView mediaId={selectedMediaId} refreshKey={mediaRevision} onBack={closeDetail} onMediaChanged={mediaChanged} />
-    {:else if activeView === 'stats'}
-      <StatsView refreshKey={mediaRevision} />
-    {:else if activeView === 'calendar'}
-      <CalendarView refreshKey={mediaRevision} />
-    {:else if activeView === 'lists'}
-      <ListsView />
-    {:else if isCategory(activeView)}
-      <CategoryView category={activeView} refreshKey={mediaRevision} onOpen={openDetail} onMediaChanged={mediaChanged} onEdit={openEdit} />
-    {/if}
-  {/key}
+  {#if activeView === 'home'}
+    <HomeView refreshKey={mediaRevision} onOpen={openDetail} onMediaChanged={mediaChanged} onEdit={openEdit} />
+  {:else if activeView === 'detail' && selectedMediaId}
+    <MediaDetailView mediaId={selectedMediaId} refreshKey={mediaRevision} onBack={closeDetail} onUpdate={mediaChanged} onDelete={deleteFromDetail} onEdit={openEdit} onOpenRelated={openDetail} />
+  {:else if activeView === 'seasons' && selectedMediaId}
+    <ShowSeasonsView mediaId={selectedMediaId} refreshKey={mediaRevision} onBack={closeDetail} onMediaChanged={mediaChanged} />
+  {:else if activeView === 'stats'}
+    <StatsView refreshKey={mediaRevision} />
+  {:else if activeView === 'history'}
+    <HistoryView refreshKey={mediaRevision} />
+  {:else if activeView === 'calendar'}
+    <CalendarView />
+  {:else if activeView === 'lists'}
+    <ListsView />
+  {:else if isCategory(activeView)}
+    <CategoryView category={activeView} refreshKey={mediaRevision} onOpen={openDetail} onMediaChanged={mediaChanged} onEdit={openEdit} />
+  {/if}
 </AppShell>
 
 <CreateModal isOpen={isCreateOpen} editingItem={editingItem ?? undefined} onClose={closeCreate} onCreated={handleCreated} />
-<SearchModal isOpen={isSearchOpen} initialType={initialSearchType} onClose={closeSearch} onMediaAdded={handleCreated} />
+<SearchModal
+  isOpen={isSearchOpen}
+  initialType={initialSearchType}
+  onClose={closeSearch}
+  onMediaAdded={handleCreated}
+  onNavigateToMedia={(id) => {
+    closeSearch()
+    openDetailById(id)
+  }}
+/>
 <SettingsModal isOpen={isSettingsOpen} onClose={closeSettings} />

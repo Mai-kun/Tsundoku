@@ -18,9 +18,17 @@
     onClose: () => void
     onMediaAdded: (media: MediaItem) => void
     onMediaRemoved?: (id: string) => void
+    onNavigateToMedia?: (id: string) => void
   }
 
-  let { isOpen, initialType = 'all', onClose, onMediaAdded, onMediaRemoved = () => {} }: Props = $props()
+  let {
+    isOpen,
+    initialType = 'all',
+    onClose,
+    onMediaAdded,
+    onMediaRemoved = () => {},
+    onNavigateToMedia = () => {},
+  }: Props = $props()
 
   let query = $state('')
   let activeType = $state<SearchCategory>(untrack(() => initialType))
@@ -33,8 +41,68 @@
   let addedKeys = $state<Record<string, string>>({})
   let searchInput = $state<HTMLInputElement | null>(null)
   let previewItem = $state<ExternalMedia | null>(null)
+  let previewLoading = $state(false)
   let categoryOrder = $state<string[]>(['anime', 'manga', 'movie', 'tvshow', 'game', 'book'])
   let requestSequence = 0
+
+  const EXPECTED_SEARCH_SOURCES: Record<string, string[]> = {
+    anime: ['AniList', 'MyAnimeList'],
+    manga: ['AniList', 'MangaDex', 'MangaUpdates', 'MyAnimeList'],
+    movie: ['TMDB'],
+    tvshow: ['TMDB'],
+    game: ['RAWG'],
+    book: ['OpenLibrary'],
+  }
+
+  interface PreviewRatingBadge {
+    source: string
+    score: number | null
+  }
+
+  let previewBadges = $derived.by<PreviewRatingBadge[]>(() => {
+    if (!previewItem) return []
+    const item = previewItem
+    const badgeList: PreviewRatingBadge[] = []
+    const seen = new Set<string>()
+
+    if (item.ratings && item.ratings.length > 0) {
+      for (const r of item.ratings) {
+        const src = (r.source || (r as any).Source || '').trim()
+        if (!src) continue
+        const score = typeof r.rating === 'number' ? r.rating : (typeof (r as any).score === 'number' ? (r as any).score : null)
+        seen.add(src.toLowerCase())
+        badgeList.push({
+          source: src,
+          score: score !== null && score > 0 ? score : null,
+        })
+      }
+    }
+
+    if (item.rating && !seen.has((item.externalSource || '').toLowerCase())) {
+      const src = item.externalSource || (item.type === 'anime' || item.type === 'manga' ? 'AniList' : 'TMDB')
+      seen.add(src.toLowerCase())
+      badgeList.push({
+        source: src,
+        score: item.rating,
+      })
+    }
+
+    const typeKey = effectiveType(item)
+    const expected = EXPECTED_SEARCH_SOURCES[typeKey] ?? []
+    for (const exp of expected) {
+      const expNorm = exp.toLowerCase()
+      const found = Array.from(seen).some((s) => s.includes(expNorm) || expNorm.includes(s))
+      if (!found) {
+        seen.add(expNorm)
+        badgeList.push({
+          source: exp,
+          score: null,
+        })
+      }
+    }
+
+    return badgeList
+  })
 
   let term = $derived(query.trim())
   let canSearch = $derived(term.length >= minQueryLength)
@@ -135,23 +203,62 @@
   })
 
   async function loadResults(type: SearchCategory, pendingTerm: string, sequence: number) {
-    try {
-      const found = await searchExternal(type, pendingTerm)
-      if (sequence === requestSequence) {
-        results = found
-        searching = false
-        void hydrateMissingData(found, sequence)
+    if (type !== 'all') {
+      try {
+        const found = await searchExternal(type, pendingTerm)
+        if (sequence === requestSequence) {
+          results = found
+          searching = false
+          void hydrateMissingData(found, sequence)
+        }
+      } catch (error) {
+        if (sequence === requestSequence) {
+          results = []
+          searchError = error
+        }
+      } finally {
+        if (sequence === requestSequence) {
+          searching = false
+        }
       }
-    } catch (error) {
-      if (sequence === requestSequence) {
-        results = []
-        searchError = error
-      }
-    } finally {
-      if (sequence === requestSequence) {
-        searching = false
-      }
+      return
     }
+
+    const typesToSearch: SearchMediaType[] = ['anime', 'manga', 'movie', 'tvshow', 'game', 'book']
+    const orderedTypes = [
+      ...categoryOrder.filter((c): c is SearchMediaType => typesToSearch.includes(c as SearchMediaType)),
+      ...typesToSearch.filter((c) => !categoryOrder.includes(c)),
+    ]
+
+    results = []
+    searching = true
+    searchError = null
+    let completedCount = 0
+
+    await Promise.allSettled(
+      orderedTypes.map(async (cat) => {
+        try {
+          const found = await searchExternal(cat, pendingTerm)
+          if (sequence === requestSequence && found.length > 0) {
+            const existingKeys = new Set(results.map((r) => resultKey(r)))
+            const fresh = found.filter((r) => !existingKeys.has(resultKey(r)))
+            if (fresh.length > 0) {
+              results = [...results, ...fresh]
+              void hydrateMissingData(fresh, sequence)
+            }
+          }
+        } catch {
+          // Individual category error, ignore so other categories still display
+        } finally {
+          if (sequence === requestSequence) {
+            completedCount++
+            if (completedCount >= orderedTypes.length) {
+              searching = false
+            }
+          }
+        }
+      })
+    )
   }
 
   async function hydrateMissingData(items: ExternalMedia[], sequence: number) {
@@ -185,26 +292,33 @@
   function openPreview(result: ExternalMedia) {
     previewItem = result
     if (result.type === 'manga' || !result.ratings || result.ratings.length === 0 || !result.author) {
+      previewLoading = true
       void getExternalDetails(
         effectiveType(result),
         result.externalId,
         result.title,
         result.externalSource ?? undefined
-      ).then((enriched) => {
-        if (previewItem && previewItem.externalId === result.externalId && enriched) {
-          previewItem = {
-            ...previewItem,
-            chapters: enriched.chapters ?? previewItem.chapters,
-            volumes: enriched.volumes ?? previewItem.volumes,
-            totalCount: enriched.totalCount ?? previewItem.totalCount,
-            author: enriched.author ?? previewItem.author,
-            ratings: enriched.ratings ?? previewItem.ratings,
-            rating: enriched.rating ?? previewItem.rating,
-            ratingVotes: enriched.ratingVotes ?? previewItem.ratingVotes,
-            description: enriched.description || previewItem.description,
+      )
+        .then((enriched) => {
+          if (previewItem && previewItem.externalId === result.externalId && enriched) {
+            previewItem = {
+              ...previewItem,
+              chapters: enriched.chapters ?? previewItem.chapters,
+              volumes: enriched.volumes ?? previewItem.volumes,
+              totalCount: enriched.totalCount ?? previewItem.totalCount,
+              author: enriched.author ?? previewItem.author,
+              ratings: enriched.ratings ?? previewItem.ratings,
+              rating: enriched.rating ?? previewItem.rating,
+              ratingVotes: enriched.ratingVotes ?? previewItem.ratingVotes,
+              description: enriched.description || previewItem.description,
+            }
           }
-        }
-      })
+        })
+        .finally(() => {
+          previewLoading = false
+        })
+    } else {
+      previewLoading = false
     }
   }
 
@@ -508,19 +622,36 @@
                           </div>
 
                           {#if addedKeys[key]}
-                            <button
-                              type="button"
-                              class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-emerald-500/20 bg-emerald-500/10 text-emerald-400 transition hover:border-rose-500/30 hover:bg-rose-500/10 hover:text-rose-400"
-                              title={i18n.t.searchModal.inLibrary}
-                              disabled={Boolean(addingKey)}
-                              onclick={(e) => { e.stopPropagation(); void addResult(result) }}
-                            >
-                              {#if addingKey === key}
-                                <div class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-rose-400 border-t-transparent"></div>
-                              {:else}
-                                <Check size={16} aria-hidden="true" />
-                              {/if}
-                            </button>
+                            <div class="flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-emerald-500/20 bg-emerald-500/10 text-emerald-400 transition hover:border-rose-500/30 hover:bg-rose-500/10 hover:text-rose-400"
+                                title={i18n.t.searchModal.inLibrary}
+                                disabled={Boolean(addingKey)}
+                                onclick={(e) => { e.stopPropagation(); void addResult(result) }}
+                              >
+                                {#if addingKey === key}
+                                  <div class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-rose-400 border-t-transparent"></div>
+                                {:else}
+                                  <Check size={16} aria-hidden="true" />
+                                {/if}
+                              </button>
+                              <button
+                                type="button"
+                                class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border bg-elevated text-muted transition hover:border-accent hover:bg-panel hover:text-accent cursor-pointer"
+                                title={i18n.t.searchModal.preview}
+                                onclick={(e) => {
+                                  e.stopPropagation()
+                                  const targetId = addedKeys[key]
+                                  if (targetId) {
+                                    onClose()
+                                    onNavigateToMedia(targetId)
+                                  }
+                                }}
+                              >
+                                <ChevronRight size={15} aria-hidden="true" />
+                              </button>
+                            </div>
                           {:else}
                             <button
                               type="button"
@@ -596,19 +727,36 @@
                     </div>
 
                     {#if addedKeys[key]}
-                      <button
-                        type="button"
-                        class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-emerald-500/20 bg-emerald-500/10 text-emerald-400 transition hover:border-rose-500/30 hover:bg-rose-500/10 hover:text-rose-400"
-                        title={i18n.t.searchModal.inLibrary}
-                        disabled={Boolean(addingKey)}
-                        onclick={(e) => { e.stopPropagation(); void addResult(result) }}
-                      >
-                        {#if addingKey === key}
-                          <div class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-rose-400 border-t-transparent"></div>
-                        {:else}
-                          <Check size={16} aria-hidden="true" />
-                        {/if}
-                      </button>
+                      <div class="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-emerald-500/20 bg-emerald-500/10 text-emerald-400 transition hover:border-rose-500/30 hover:bg-rose-500/10 hover:text-rose-400"
+                          title={i18n.t.searchModal.inLibrary}
+                          disabled={Boolean(addingKey)}
+                          onclick={(e) => { e.stopPropagation(); void addResult(result) }}
+                        >
+                          {#if addingKey === key}
+                            <div class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-rose-400 border-t-transparent"></div>
+                          {:else}
+                            <Check size={16} aria-hidden="true" />
+                          {/if}
+                        </button>
+                        <button
+                          type="button"
+                          class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border bg-elevated text-muted transition hover:border-accent hover:bg-panel hover:text-accent cursor-pointer"
+                          title={i18n.t.searchModal.preview}
+                          onclick={(e) => {
+                            e.stopPropagation()
+                            const targetId = addedKeys[key]
+                            if (targetId) {
+                              onClose()
+                              onNavigateToMedia(targetId)
+                            }
+                          }}
+                        >
+                          <ChevronRight size={15} aria-hidden="true" />
+                        </button>
+                      </div>
                     {:else}
                       <button
                         type="button"
@@ -712,25 +860,23 @@
             </div>
 
             <!-- Ratings -->
-            {#if previewItem.ratings && previewItem.ratings.length > 0}
+            {#if previewBadges.length > 0}
               <div class="flex flex-wrap items-center gap-2">
-                {#each previewItem.ratings as r}
+                {#each previewBadges as r}
                   <div class="inline-flex items-center gap-1 rounded-md border border-border bg-elevated px-2 py-0.5 text-xs">
                     <span class="font-medium text-muted">{r.source}:</span>
-                    <span class="flex items-center gap-0.5 font-bold text-star">
-                      <Star size={11} fill="currentColor" />
-                      {(r.rating ?? r.score ?? 0).toFixed(1)}
-                    </span>
+                    {#if r.score !== null && r.score > 0}
+                      <span class="flex items-center gap-0.5 font-bold text-star">
+                        <Star size={11} fill="currentColor" />
+                        {r.score.toFixed(1)}
+                      </span>
+                    {:else if previewLoading}
+                      <span class="inline-block h-3 w-5 animate-pulse rounded bg-canvas"></span>
+                    {:else}
+                      <span class="text-xs text-muted">—</span>
+                    {/if}
                   </div>
                 {/each}
-              </div>
-            {:else if previewItem.rating}
-              <div class="inline-flex items-center gap-1 rounded-md border border-border bg-elevated px-2 py-0.5 text-xs">
-                <span class="font-medium text-muted">{previewItem.externalSource || 'Rating'}:</span>
-                <span class="flex items-center gap-0.5 font-bold text-star">
-                  <Star size={11} fill="currentColor" />
-                  {previewItem.rating.toFixed(1)}
-                </span>
               </div>
             {:else}
               <div class="inline-flex items-center gap-1 rounded-md border border-border bg-elevated px-2 py-0.5 text-xs text-muted">
@@ -768,20 +914,37 @@
 
             <div class="pt-2">
               {#if addedKeys[prevKey]}
-                <button
-                  type="button"
-                  class="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-4 py-2 text-xs font-semibold text-emerald-400 transition hover:border-rose-500/30 hover:bg-rose-500/10 hover:text-rose-400 disabled:cursor-wait"
-                  disabled={Boolean(addingKey)}
-                  onclick={() => void addResult(previewItem!)}
-                >
-                  {#if addingKey === prevKey}
-                    <div class="h-4 w-4 animate-spin rounded-full border-2 border-rose-400 border-t-transparent"></div>
-                    <span>{i18n.t.common.adding}</span>
-                  {:else}
-                    <Check size={16} aria-hidden="true" />
-                    {i18n.t.searchModal.inLibrary}
-                  {/if}
-                </button>
+                <div class="flex items-center gap-2">
+                  <button
+                    type="button"
+                    class="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-4 py-2 text-xs font-semibold text-emerald-400 transition hover:border-rose-500/30 hover:bg-rose-500/10 hover:text-rose-400 disabled:cursor-wait"
+                    disabled={Boolean(addingKey)}
+                    onclick={() => void addResult(previewItem!)}
+                  >
+                    {#if addingKey === prevKey}
+                      <div class="h-4 w-4 animate-spin rounded-full border-2 border-rose-400 border-t-transparent"></div>
+                      <span>{i18n.t.common.adding}</span>
+                    {:else}
+                      <Check size={16} aria-hidden="true" />
+                      {i18n.t.searchModal.inLibrary}
+                    {/if}
+                  </button>
+                  <button
+                    type="button"
+                    class="inline-flex items-center gap-1.5 rounded-lg border border-border bg-elevated px-3 py-2 text-xs font-semibold text-ink transition hover:border-accent hover:bg-panel hover:text-accent cursor-pointer"
+                    title={i18n.t.searchModal.preview}
+                    onclick={() => {
+                      const targetId = addedKeys[prevKey]
+                      if (targetId) {
+                        onClose()
+                        onNavigateToMedia(targetId)
+                      }
+                    }}
+                  >
+                    <span>{i18n.t.searchModal.preview}</span>
+                    <ChevronRight size={14} aria-hidden="true" />
+                  </button>
+                </div>
               {:else}
                 <button
                   type="button"

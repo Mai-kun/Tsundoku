@@ -179,6 +179,7 @@
     if (s) return s.name
     if (id === 'jikan') return 'MyAnimeList (Jikan)'
     if (id === 'mangaupdates') return 'MangaUpdates'
+    if (id === 'mangadex') return 'MangaDex'
     if (id === 'anilist') return 'AniList'
     if (id === 'tmdb') return 'TMDb'
     if (id === 'rawg') return 'RAWG'

@@ -130,6 +130,16 @@ public static class SettingsEndpoints
                 IsConfigured: true,
                 HasKey: true,
                 MaskedKey: null
+            ),
+            new SourceInfo(
+                Id: "mangadex",
+                Name: "MangaDex",
+                Description: "Manga and Manhwa metadata, chapters, volumes & ratings provider",
+                MediaTypes: ["manga"],
+                RequiresApiKey: false,
+                IsConfigured: true,
+                HasKey: true,
+                MaskedKey: null
             )
         };
 
@@ -247,22 +257,64 @@ public static class SettingsEndpoints
     private static async Task<IResult> GetSourcePriority(AppDbContext db, CancellationToken ct)
     {
         var setting = await db.Settings.FirstOrDefaultAsync(s => s.Key == "SourcePriority", ct);
+        Dictionary<string, string[]>? parsed = null;
         if (setting is not null && !string.IsNullOrWhiteSpace(setting.Value))
         {
             try
             {
-                var parsed = JsonSerializer.Deserialize<Dictionary<string, string[]>>(setting.Value);
-                if (parsed != null && parsed.Count > 0)
-                {
-                    return Results.Ok(parsed);
-                }
+                parsed = JsonSerializer.Deserialize<Dictionary<string, string[]>>(setting.Value);
             }
             catch
             {
             }
         }
 
-        return Results.Ok(MetadataAggregatorService.DefaultSourcePriority);
+        var merged = MergeWithDefaultPriorities(parsed);
+
+        // If newly added sources were merged into the saved settings, persist to DB
+        var newJson = JsonSerializer.Serialize(merged);
+        if (setting is not null && setting.Value != newJson)
+        {
+            setting.Value = newJson;
+            setting.UpdatedAt = DateTime.UtcNow;
+            await db.SaveChangesAsync(ct);
+        }
+
+        return Results.Ok(merged);
+    }
+
+    private static Dictionary<string, string[]> MergeWithDefaultPriorities(Dictionary<string, string[]>? userPriority)
+    {
+        var result = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var (type, defaultSources) in MetadataAggregatorService.DefaultSourcePriority)
+        {
+            if (userPriority != null && userPriority.TryGetValue(type, out var userSources) && userSources != null && userSources.Length > 0)
+            {
+                var list = new List<string>();
+                foreach (var s in userSources)
+                {
+                    if (defaultSources.Contains(s, StringComparer.OrdinalIgnoreCase) && !list.Contains(s, StringComparer.OrdinalIgnoreCase))
+                    {
+                        list.Add(s);
+                    }
+                }
+                foreach (var s in defaultSources)
+                {
+                    if (!list.Contains(s, StringComparer.OrdinalIgnoreCase))
+                    {
+                        list.Add(s);
+                    }
+                }
+                result[type] = list.ToArray();
+            }
+            else
+            {
+                result[type] = defaultSources;
+            }
+        }
+
+        return result;
     }
 
     private static async Task<IResult> SaveSourcePriority(

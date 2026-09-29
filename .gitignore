@@ -484,3 +484,5 @@ src/MediaTracker.Server/appsettings.Development.json
 dist/
 shots/
 graphify-out/
+.aider*
+AGENTS.md

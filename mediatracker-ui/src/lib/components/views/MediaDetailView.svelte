@@ -327,21 +327,56 @@
   let volumeBusy = $state('')
   let volumeError = $state<unknown>(null)
 
+  function volumeCurrent(vol: MangaVolume): number {
+    return vol.totalChapters > 0 ? vol.currentChapter : vol.currentPage
+  }
+
+  function volumeTotal(vol: MangaVolume): number {
+    return vol.totalChapters > 0 ? vol.totalChapters : (vol.totalPages > 0 ? vol.totalPages : 200)
+  }
+
+  function volumePercent(vol: MangaVolume): number {
+    const total = volumeTotal(vol)
+    return total > 0 ? Math.min((volumeCurrent(vol) / total) * 100, 100) : 0
+  }
+
+  function isVolumeDone(vol: MangaVolume): boolean {
+    const total = volumeTotal(vol)
+    return vol.status === MEDIA_STATUS.completed || (total > 0 && volumeCurrent(vol) >= total)
+  }
+
+  function volumeProgressLabel(vol: MangaVolume): string {
+    if (vol.totalChapters > 0) {
+      return i18n.t.card.chapters(vol.currentChapter, vol.totalChapters)
+    }
+    return `${vol.currentPage} / ${vol.totalPages > 0 ? vol.totalPages : 200} pp.`
+  }
+
   async function stepVolumePage(vol: MangaVolume, delta: number) {
     if (!media) return
-    const next = Math.max(0, vol.totalPages > 0 ? Math.min(vol.currentPage + delta, vol.totalPages) : vol.currentPage + delta)
-    if (next === vol.currentPage) return
+    const isChapters = vol.totalChapters > 0
+    const total = volumeTotal(vol)
+    const current = volumeCurrent(vol)
+    const next = Math.max(0, total > 0 ? Math.min(current + delta, total) : current + delta)
+    if (next === current) return
 
-    vol.currentPage = next
-    if (vol.totalPages > 0 && next >= vol.totalPages) {
+    if (isChapters) {
+      vol.currentChapter = next
+    } else {
+      vol.currentPage = next
+    }
+
+    if (total > 0 && next >= total) {
       vol.status = MEDIA_STATUS.completed
     } else if (next > 0) {
       vol.status = MEDIA_STATUS.inProgress
+    } else {
+      vol.status = MEDIA_STATUS.planned
     }
 
     try {
       volumeBusy = vol.id
-      await setVolumeProgress(vol.id, { currentPage: next })
+      await setVolumeProgress(vol.id, isChapters ? { currentChapter: next } : { currentPage: next })
       onUpdate()
     } catch (err) {
       volumeError = err
@@ -351,13 +386,21 @@
   }
 
   async function markVolumeComplete(vol: MangaVolume) {
-    if (!media || !vol.totalPages) return
-    vol.currentPage = vol.totalPages
+    if (!media) return
+    const isChapters = vol.totalChapters > 0
+    const total = volumeTotal(vol)
+    if (!total) return
+
+    if (isChapters) {
+      vol.currentChapter = total
+    } else {
+      vol.currentPage = total
+    }
     vol.status = MEDIA_STATUS.completed
 
     try {
       volumeBusy = vol.id
-      await setVolumeProgress(vol.id, { currentPage: vol.totalPages })
+      await setVolumeProgress(vol.id, isChapters ? { currentChapter: total } : { currentPage: total })
       onUpdate()
     } catch (err) {
       volumeError = err
@@ -368,12 +411,17 @@
 
   async function unmarkVolumeComplete(vol: MangaVolume) {
     if (!media) return
-    vol.currentPage = 0
+    const isChapters = vol.totalChapters > 0
+    if (isChapters) {
+      vol.currentChapter = 0
+    } else {
+      vol.currentPage = 0
+    }
     vol.status = MEDIA_STATUS.planned
 
     try {
       volumeBusy = vol.id
-      await setVolumeProgress(vol.id, { currentPage: 0 })
+      await setVolumeProgress(vol.id, isChapters ? { currentChapter: 0 } : { currentPage: 0 })
       onUpdate()
     } catch (err) {
       volumeError = err
@@ -451,6 +499,7 @@
   let editVolumePages = $state(200)
   let editVolumeChapters = $state(0)
   let editVolumeCurrentPage = $state(0)
+  let editVolumeCurrentChapter = $state(0)
 
   function openEditVolume(vol: MangaVolume) {
     editingVolume = vol
@@ -458,6 +507,7 @@
     editVolumePages = vol.totalPages > 0 ? vol.totalPages : 200
     editVolumeChapters = vol.totalChapters ?? 0
     editVolumeCurrentPage = vol.currentPage ?? 0
+    editVolumeCurrentChapter = vol.currentChapter ?? 0
     editVolumeDialogOpen = true
   }
 
@@ -469,11 +519,13 @@
     const prevPages = targetVol.totalPages
     const prevChapters = targetVol.totalChapters
     const prevCurrentPage = targetVol.currentPage
+    const prevCurrentChapter = targetVol.currentChapter
 
     targetVol.title = editVolumeTitle
     targetVol.totalPages = Math.max(editVolumePages, 1)
     targetVol.totalChapters = Math.max(editVolumeChapters, 0)
     targetVol.currentPage = Math.min(Math.max(editVolumeCurrentPage, 0), editVolumePages)
+    targetVol.currentChapter = Math.min(Math.max(editVolumeCurrentChapter, 0), targetVol.totalChapters > 0 ? targetVol.totalChapters : 999999)
 
     try {
       volumeBusy = targetVol.id
@@ -482,6 +534,7 @@
         totalPages: targetVol.totalPages,
         totalChapters: targetVol.totalChapters,
         currentPage: targetVol.currentPage,
+        currentChapter: targetVol.currentChapter,
       })
       onUpdate()
     } catch (err) {
@@ -489,6 +542,7 @@
       targetVol.totalPages = prevPages
       targetVol.totalChapters = prevChapters
       targetVol.currentPage = prevCurrentPage
+      targetVol.currentChapter = prevCurrentChapter
       volumeError = err
     } finally {
       volumeBusy = ''
@@ -2218,8 +2272,10 @@
 
                   <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-1">
                     {#each mangaVolumes as vol (vol.id)}
-                      {@const isDone = vol.totalPages > 0 && vol.currentPage >= vol.totalPages}
-                      {@const percent = vol.totalPages > 0 ? Math.min((vol.currentPage / vol.totalPages) * 100, 100) : 0}
+                      {@const isDone = isVolumeDone(vol)}
+                      {@const current = volumeCurrent(vol)}
+                      {@const total = volumeTotal(vol)}
+                      {@const percent = volumePercent(vol)}
                       <div class="rounded-lg border border-white/10 bg-[#13151b] p-3.5 space-y-2.5">
                         <div class="flex items-center justify-between gap-2">
                           <span class="text-xs font-bold text-white truncate">{vol.title || `Volume ${vol.volumeNumber}`}</span>
@@ -2230,7 +2286,7 @@
                             </span>
                           {:else}
                             <span class="text-xs font-semibold tabular-nums text-white">
-                              {vol.currentPage} / {vol.totalPages > 0 ? vol.totalPages : 200} pp.
+                              {volumeProgressLabel(vol)}
                             </span>
                           {/if}
                         </div>
@@ -2246,16 +2302,16 @@
                             <button
                               type="button"
                               class="grid h-full w-7 place-items-center text-muted transition hover:text-white disabled:opacity-30"
-                              disabled={vol.currentPage <= 0 || Boolean(volumeBusy)}
+                              disabled={current <= 0 || Boolean(volumeBusy)}
                               onclick={() => void stepVolumePage(vol, -1)}
                             >
                               <Minus size={12} />
                             </button>
-                            <span class="px-2 text-xs font-semibold tabular-nums text-white">{vol.currentPage}</span>
+                            <span class="px-2 text-xs font-semibold tabular-nums text-white">{current}</span>
                             <button
                               type="button"
                               class="grid h-full w-7 place-items-center text-muted transition hover:text-white disabled:opacity-30"
-                              disabled={(vol.totalPages > 0 && vol.currentPage >= vol.totalPages) || Boolean(volumeBusy)}
+                              disabled={(total > 0 && current >= total) || Boolean(volumeBusy)}
                               onclick={() => void stepVolumePage(vol, 1)}
                             >
                               <Plus size={12} />
@@ -2525,15 +2581,14 @@
             {:else}
               <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {#each mangaVolumes as vol (vol.id)}
-                  {@const isDone = vol.totalPages > 0 && vol.currentPage >= vol.totalPages}
-                  {@const percent = vol.totalPages > 0 ? Math.min((vol.currentPage / vol.totalPages) * 100, 100) : 0}
+                  {@const isDone = isVolumeDone(vol)}
+                  {@const current = volumeCurrent(vol)}
+                  {@const total = volumeTotal(vol)}
+                  {@const percent = volumePercent(vol)}
                   <div class="rounded-xl border border-white/10 bg-[#222634] p-4 space-y-3 shadow-sm hover:border-white/20 transition">
                     <div class="flex items-start justify-between gap-2">
                       <div class="min-w-0">
                         <h4 class="text-sm font-bold text-white truncate">{vol.title || `Volume ${vol.volumeNumber}`}</h4>
-                        {#if vol.totalChapters > 0}
-                          <p class="text-xs text-muted mt-0.5">{i18n.t.card.chapters(vol.currentChapter, vol.totalChapters)}</p>
-                        {/if}
                       </div>
                       {#if isDone}
                         <span class="inline-flex items-center gap-1 rounded bg-emerald-500/15 px-2 py-0.5 text-xs font-bold text-emerald-300">
@@ -2542,7 +2597,7 @@
                         </span>
                       {:else}
                         <span class="text-xs font-semibold tabular-nums text-white">
-                          {vol.currentPage} / {vol.totalPages > 0 ? vol.totalPages : 200} pp.
+                          {volumeProgressLabel(vol)}
                         </span>
                       {/if}
                     </div>
@@ -2564,16 +2619,16 @@
                         <button
                           type="button"
                           class="grid h-full w-8 place-items-center text-muted transition hover:text-white disabled:opacity-30"
-                          disabled={vol.currentPage <= 0 || Boolean(volumeBusy)}
+                          disabled={current <= 0 || Boolean(volumeBusy)}
                           onclick={() => void stepVolumePage(vol, -1)}
                         >
                           <Minus size={13} />
                         </button>
-                        <span class="px-2.5 text-xs font-semibold tabular-nums text-white">{vol.currentPage}</span>
+                        <span class="px-2.5 text-xs font-semibold tabular-nums text-white">{current}</span>
                         <button
                           type="button"
                           class="grid h-full w-8 place-items-center text-muted transition hover:text-white disabled:opacity-30"
-                          disabled={(vol.totalPages > 0 && vol.currentPage >= vol.totalPages) || Boolean(volumeBusy)}
+                          disabled={(total > 0 && current >= total) || Boolean(volumeBusy)}
                           onclick={() => void stepVolumePage(vol, 1)}
                         >
                           <Plus size={13} />
@@ -3208,6 +3263,28 @@
         </div>
         <div class="grid grid-cols-2 gap-2">
           <div>
+            <label class="block text-xs text-muted mb-1" for="edit-vol-current-chapter">Current Chapter</label>
+            <input
+              id="edit-vol-current-chapter"
+              type="number"
+              min="0"
+              class="h-9 w-full rounded-md border border-white/10 bg-[#13151b] px-3 text-xs text-white outline-none focus:ring-1 focus:ring-[#5844e0]"
+              bind:value={editVolumeCurrentChapter}
+            />
+          </div>
+          <div>
+            <label class="block text-xs text-muted mb-1" for="edit-vol-chapters">Total Chapters</label>
+            <input
+              id="edit-vol-chapters"
+              type="number"
+              min="0"
+              class="h-9 w-full rounded-md border border-white/10 bg-[#13151b] px-3 text-xs text-white outline-none focus:ring-1 focus:ring-[#5844e0]"
+              bind:value={editVolumeChapters}
+            />
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
             <label class="block text-xs text-muted mb-1" for="edit-vol-current-page">Current Page</label>
             <input
               id="edit-vol-current-page"
@@ -3227,16 +3304,6 @@
               bind:value={editVolumePages}
             />
           </div>
-        </div>
-        <div>
-          <label class="block text-xs text-muted mb-1" for="edit-vol-chapters">Total Chapters</label>
-          <input
-            id="edit-vol-chapters"
-            type="number"
-            min="0"
-            class="h-9 w-full rounded-md border border-white/10 bg-[#13151b] px-3 text-xs text-white outline-none focus:ring-1 focus:ring-[#5844e0]"
-            bind:value={editVolumeChapters}
-          />
         </div>
       </div>
       <div class="flex justify-end gap-2 pt-1">

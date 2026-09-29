@@ -851,7 +851,8 @@ public static class MediaEndpoints
             volume.CurrentChapter = ClampToKnownTotal(Math.Max(request.CurrentChapter.Value, 0), volume.TotalChapters);
         }
 
-        if (volume.TotalPages > 0 && volume.CurrentPage >= volume.TotalPages)
+        if ((volume.TotalChapters > 0 && volume.CurrentChapter >= volume.TotalChapters) ||
+            (volume.TotalPages > 0 && volume.CurrentPage >= volume.TotalPages))
         {
             volume.Status = MediaStatus.Completed;
         }

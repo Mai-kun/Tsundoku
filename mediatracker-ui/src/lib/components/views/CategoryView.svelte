@@ -14,6 +14,7 @@
 
 <script lang="ts">
   import { deleteMedia, getMedia, getMediaItem, setProgress, setSeasonProgress } from '$lib/api'
+  import { showToast } from '$lib/stores/toast.svelte'
   import { i18n } from '$lib/i18n/index.svelte'
   import { isTvShowDetail, MEDIA_STATUS, type MediaFilters, type MediaItem } from '$lib/types'
   import FilterBar from '../media/FilterBar.svelte'
@@ -188,6 +189,13 @@
   }
 
   async function updateProgress(id: string, currentProgress: number) {
+    allItems = allItems.map((item) => {
+      if (item.id !== id) return item
+      if (item.type === 'game') return { ...item, hoursPlayed: currentProgress }
+      if (item.type === 'book') return { ...item, currentPage: currentProgress }
+      if (item.type === 'manga') return { ...item, currentChapter: currentProgress }
+      return item
+    })
     await setProgress(id, currentProgress)
   }
 
@@ -201,13 +209,20 @@
     return counts
   }
 
-  async function removeItem(item: MediaItem) {
+  async function removeItem(item: MediaItem): Promise<void> {
     const main = document.querySelector('main')
     const currentScroll = main ? main.scrollTop : (typeof window !== 'undefined' ? window.scrollY : 0)
 
+    const prevItems = allItems
     allItems = allItems.filter((i) => i.id !== item.id)
-    await deleteMedia(item.id)
     onMediaChanged()
+
+    try {
+      await deleteMedia(item.id)
+    } catch {
+      allItems = prevItems
+      showToast(i18n.t.errors.unexpected, 'error')
+    }
 
     setTimeout(() => {
       if (main && Math.abs(main.scrollTop - currentScroll) > 5) {
@@ -222,24 +237,34 @@
 
   async function stepEpisode(item: MediaItem, delta: number) {
     if (item.type !== 'tvshow') return
-    const detail = await getMediaItem(item.id)
-    if (!isTvShowDetail(detail) || !detail.seasons?.length) return
+    const prevWatched = item.totalEpisodesWatched ?? 0
+    const nextWatched = Math.max(0, prevWatched + delta)
+    item.totalEpisodesWatched = nextWatched
+    allItems = [...allItems]
 
-    const activeSeason =
-      detail.seasons.find((s) => s.status === MEDIA_STATUS.inProgress) ??
-      detail.seasons.find((s) => s.status === MEDIA_STATUS.planned) ??
-      detail.seasons[detail.seasons.length - 1]
+    try {
+      const detail = await getMediaItem(item.id)
+      if (!isTvShowDetail(detail) || !detail.seasons?.length) return
 
-    if (!activeSeason) return
+      const activeSeason =
+        detail.seasons.find((s) => s.status === MEDIA_STATUS.inProgress) ??
+        detail.seasons.find((s) => s.status === MEDIA_STATUS.planned) ??
+        detail.seasons[detail.seasons.length - 1]
 
-    const next = Math.max(0, Math.min(
-      (activeSeason.currentEpisode ?? 0) + delta,
-      activeSeason.totalEpisodes > 0 ? activeSeason.totalEpisodes : Infinity
-    ))
+      if (!activeSeason) return
 
-    await setSeasonProgress(activeSeason.id, next)
-    onMediaChanged()
-    refresh()
+      const next = Math.max(0, Math.min(
+        (activeSeason.currentEpisode ?? 0) + delta,
+        activeSeason.totalEpisodes > 0 ? activeSeason.totalEpisodes : Infinity
+      ))
+
+      await setSeasonProgress(activeSeason.id, next)
+      onMediaChanged()
+    } catch {
+      item.totalEpisodesWatched = prevWatched
+      allItems = [...allItems]
+      showToast(i18n.t.errors.unexpected, 'error')
+    }
   }
 </script>
 

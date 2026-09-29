@@ -13,6 +13,7 @@
     onOpen?: (item: MediaItem) => void
     onProgress?: (id: string, currentProgress: number) => Promise<void>
     onProgressCommitted?: () => void
+    onStatusChange?: (item: MediaItem, newStatus: import('$lib/types').MediaStatus) => void
     onDelete?: (item: MediaItem) => Promise<void>
     onEdit?: (item: MediaItem) => void
     onEpisodeStep?: (item: MediaItem, delta: number) => Promise<void>
@@ -26,6 +27,7 @@
     onOpen = () => {},
     onProgress,
     onProgressCommitted = () => {},
+    onStatusChange,
     onDelete,
     onEdit = () => {},
     onEpisodeStep,
@@ -61,7 +63,7 @@
 {:else}
   <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-7">
     {#each items as item (item.id)}
-      <MediaCard {item} {onOpen} {onProgress} {onProgressCommitted} {onDelete} {onEdit} {onEpisodeStep} />
+      <MediaCard {item} {onOpen} {onProgress} {onProgressCommitted} {onStatusChange} {onDelete} {onEdit} {onEpisodeStep} />
     {/each}
   </div>
 {/if}

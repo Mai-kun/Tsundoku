@@ -311,6 +311,11 @@
       showToast(i18n.t.errors.unexpected, 'error')
     }
   }
+
+  function handleItemStatusChange(item: MediaItem, newStatus: import('$lib/types').MediaStatus) {
+    allItems = allItems.map((x) => (x.id === item.id ? { ...x, status: newStatus } : x))
+    categoryCache[category] = allItems
+  }
 </script>
 
 <div class="space-y-6">
@@ -329,10 +334,10 @@
   <p class="text-xs font-medium text-muted">{i18n.t.library.resultCount(filteredItems.length)}</p>
 
   {#if loading && allItems.length === 0}
-    <MediaGrid items={[]} loading={true} error={null} onRetry={refresh} onOpen={onOpen} onProgress={updateProgress} onProgressCommitted={onMediaChanged} onEpisodeStep={stepEpisode} onDelete={removeItem} onEdit={onEdit} />
+    <MediaGrid items={[]} loading={true} error={null} onRetry={refresh} onOpen={onOpen} onProgress={updateProgress} onProgressCommitted={onMediaChanged} onStatusChange={handleItemStatusChange} onEpisodeStep={stepEpisode} onDelete={removeItem} onEdit={onEdit} />
   {:else if groupBy === 'status'}
     {#if statusGroups.length === 0 && !loading}
-      <MediaGrid items={[]} {loading} error={loadError} onRetry={refresh} onOpen={onOpen} onProgress={updateProgress} onProgressCommitted={onMediaChanged} onEpisodeStep={stepEpisode} onDelete={removeItem} onEdit={onEdit} />
+      <MediaGrid items={[]} {loading} error={loadError} onRetry={refresh} onOpen={onOpen} onProgress={updateProgress} onProgressCommitted={onMediaChanged} onStatusChange={handleItemStatusChange} onEpisodeStep={stepEpisode} onDelete={removeItem} onEdit={onEdit} />
     {:else}
       <div class="space-y-8">
         {#each statusGroups as group (group.status)}
@@ -341,14 +346,14 @@
               <h2 class="text-base font-bold tracking-tight text-ink">{group.title}</h2>
               <span class="rounded-full bg-surface px-2.5 py-0.5 text-xs font-semibold text-muted">{group.items.length}</span>
             </div>
-            <MediaGrid items={group.items} loading={false} error={null} onRetry={refresh} onOpen={onOpen} onProgress={updateProgress} onProgressCommitted={onMediaChanged} onEpisodeStep={stepEpisode} onDelete={removeItem} onEdit={onEdit} />
+            <MediaGrid items={group.items} loading={false} error={null} onRetry={refresh} onOpen={onOpen} onProgress={updateProgress} onProgressCommitted={onMediaChanged} onStatusChange={handleItemStatusChange} onEpisodeStep={stepEpisode} onDelete={removeItem} onEdit={onEdit} />
           </section>
         {/each}
       </div>
     {/if}
   {:else if groupBy === 'franchise'}
     {#if franchiseGroups.length === 0 && !loading}
-      <MediaGrid items={[]} {loading} error={loadError} onRetry={refresh} onOpen={onOpen} onProgress={updateProgress} onProgressCommitted={onMediaChanged} onEpisodeStep={stepEpisode} onDelete={removeItem} onEdit={onEdit} />
+      <MediaGrid items={[]} {loading} error={loadError} onRetry={refresh} onOpen={onOpen} onProgress={updateProgress} onProgressCommitted={onMediaChanged} onStatusChange={handleItemStatusChange} onEpisodeStep={stepEpisode} onDelete={removeItem} onEdit={onEdit} />
     {:else}
       <div class="space-y-8">
         {#each franchiseGroups as group (group.name)}
@@ -357,12 +362,12 @@
               <h2 class="text-base font-bold tracking-tight text-ink">{group.name}</h2>
               <span class="rounded-full bg-surface px-2.5 py-0.5 text-xs font-semibold text-muted">{group.items.length}</span>
             </div>
-            <MediaGrid items={group.items} loading={false} error={null} onRetry={refresh} onOpen={onOpen} onProgress={updateProgress} onProgressCommitted={onMediaChanged} onEpisodeStep={stepEpisode} onDelete={removeItem} onEdit={onEdit} />
+            <MediaGrid items={group.items} loading={false} error={null} onRetry={refresh} onOpen={onOpen} onProgress={updateProgress} onProgressCommitted={onMediaChanged} onStatusChange={handleItemStatusChange} onEpisodeStep={stepEpisode} onDelete={removeItem} onEdit={onEdit} />
           </section>
         {/each}
       </div>
     {/if}
   {:else}
-    <MediaGrid items={filteredItems} {loading} error={loadError} onRetry={refresh} onOpen={onOpen} onProgress={updateProgress} onProgressCommitted={onMediaChanged} onEpisodeStep={stepEpisode} onDelete={removeItem} onEdit={onEdit} />
+    <MediaGrid items={filteredItems} {loading} error={loadError} onRetry={refresh} onOpen={onOpen} onProgress={updateProgress} onProgressCommitted={onMediaChanged} onStatusChange={handleItemStatusChange} onEpisodeStep={stepEpisode} onDelete={removeItem} onEdit={onEdit} />
   {/if}
 </div>

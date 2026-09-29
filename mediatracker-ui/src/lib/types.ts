@@ -53,6 +53,10 @@ export interface MediaBase {
   endDate?: string | null
   releaseStatus?: string | null
   durationMinutes?: number | null
+  genres?: string[] | string | null
+  tags?: string[] | string | null
+  unlockedAchievements?: string | null
+  userPlatform?: string | null
 }
 
 export interface GameMedia extends MediaBase {
@@ -179,6 +183,8 @@ export interface ExternalMedia {
   ratingVotes?: number | null
   ratings?: ExternalRating[] | null
   episodes?: ExternalEpisode[] | null
+  genres?: string[] | string | null
+  tags?: string[] | string | null
 }
 
 export interface MediaFilters {
@@ -207,6 +213,10 @@ interface CreateMediaBase {
   releaseDate?: string | null
   endDate?: string | null
   releaseStatus?: string | null
+  genres?: string[] | string | null
+  tags?: string[] | string | null
+  unlockedAchievements?: string | null
+  userPlatform?: string | null
 }
 
 export interface CreateGamePayload extends CreateMediaBase {
@@ -317,6 +327,11 @@ export interface UpdateMediaPayload {
   currentPage?: number | null
   translatedSynopsis?: string | null
   translationLanguage?: string | null
+  platform?: string | null
+  userPlatform?: string | null
+  genres?: string | null
+  tags?: string | null
+  unlockedAchievements?: string | null
 }
 
 export interface SourceInfo {
@@ -348,4 +363,39 @@ export function isTvShowDetail(item: MediaItem | MediaDetail): item is TvShowDet
 
 export function isMangaDetail(item: MediaItem | MediaDetail): item is MangaDetail {
   return item.type === 'manga' && 'volumes' in item
+}
+
+export interface RecommendationServiceInfo {
+  id: string
+  name: string
+  description: string
+  requiresApiKey: boolean
+  isConfigured: boolean
+  hasKey: boolean
+  maskedKey: string | null
+}
+
+export interface GameAchievementItem {
+  name: string
+  description?: string | null
+  iconUrl?: string | null
+}
+
+export interface GameAchievementsResponse {
+  totalCount: number
+  achievements: GameAchievementItem[]
+}
+
+export interface GameRelatedItem {
+  id: string
+  title: string
+  coverUrl: string | null
+  releaseDate: string | null
+  score: number | null
+}
+
+export interface GameRecommendationItem {
+  name: string
+  description: string | null
+  url: string | null
 }

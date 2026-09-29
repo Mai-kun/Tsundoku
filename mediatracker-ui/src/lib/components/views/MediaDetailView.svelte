@@ -25,13 +25,15 @@
     Star,
     Trash2,
     Languages,
+    Trophy,
     X,
   } from 'lucide-svelte'
-  import { addVolume, createMedia, deleteVolume, enrichMedia, errorMessage, getExternalDetails, getMedia, getMediaItem, getSources, refreshMetadata, setProgress, setSeasonProgress, setVolumeProgress, translateText, updateMedia, updateStatus, updateVolume } from '$lib/api'
+  import { addVolume, createMedia, deleteVolume, enrichMedia, errorMessage, getExternalDetails, getGameAchievements, getGameRecommendations, getGameRelated, getMedia, getMediaItem, getSources, refreshMetadata, setProgress, setSeasonProgress, setVolumeProgress, translateText, updateMedia, updateStatus, updateVolume } from '$lib/api'
   import { i18n } from '$lib/i18n/index.svelte'
   import { showToast } from '$lib/stores/toast.svelte'
-  import { clampProgress, isMangaDetail, isTvShowDetail, MEDIA_STATUS, type AppView, type MangaVolume, type MediaDetail, type MediaItem, type MediaStatus, type SourceInfo, type TvSeason } from '$lib/types'
+  import { clampProgress, isMangaDetail, isTvShowDetail, MEDIA_STATUS, type AppView, type GameAchievementItem, type MangaVolume, type MediaDetail, type MediaItem, type MediaStatus, type SourceInfo, type TvSeason } from '$lib/types'
   import { createProgressDebounce } from '$lib/utils/progressDebounce'
+  import CircularCounter from '$lib/components/ui/CircularCounter.svelte'
 
   interface Props {
     mediaId: string
@@ -107,8 +109,8 @@
     manga: ['AniList', 'MangaDex', 'MangaUpdates', 'MyAnimeList'],
     movie: ['TMDB'],
     tvshow: ['TMDB'],
-    game: ['RAWG'],
-    book: ['OpenLibrary'],
+    game: ['RAWG', 'Steam', 'IGDB'],
+    book: ['OpenLibrary', 'Google Books'],
   }
 
   let { mediaId, refreshKey, onBack, onUpdate, onDelete, onEdit, onOpenRelated, onNavigate = () => {} }: Props = $props()
@@ -159,10 +161,15 @@
     const item = previewRelatedItem
     const results: RatingBadge[] = []
     const seen = new Set<string>()
+    const disabledSources = new Set(
+      availableSources
+        .filter((s) => !s.isEnabled)
+        .flatMap((s) => [s.name.toLowerCase(), s.id.toLowerCase()])
+    )
 
     if (item.ratings && item.ratings.length > 0) {
       for (const r of item.ratings) {
-        if (!r.source) continue
+        if (!r.source || disabledSources.has(r.source.toLowerCase())) continue
         seen.add(r.source.toLowerCase())
         results.push({
           source: r.source,
@@ -173,16 +180,18 @@
 
     if (item.score && !seen.has((item.externalSource || '').toLowerCase())) {
       const src = item.externalSource || (item.type === 'manga' || item.type === 'anime' ? 'AniList' : 'TMDB')
-      seen.add(src.toLowerCase())
-      results.push({
-        source: src,
-        score: item.score,
-      })
+      if (!disabledSources.has(src.toLowerCase())) {
+        seen.add(src.toLowerCase())
+        results.push({
+          source: src,
+          score: item.score,
+        })
+      }
     }
 
     const cat = item.type === 'anime' || item.type === 'manga' || item.type === 'movie' || item.type === 'tvshow' || item.type === 'game' || item.type === 'book' ? item.type : 'anime'
     const expected = availableSources.length > 0
-      ? availableSources.filter((s) => s.mediaTypes.includes(cat)).map((s) => s.name)
+      ? availableSources.filter((s) => s.isEnabled && s.mediaTypes.includes(cat)).map((s) => s.name)
       : (CATEGORY_EXPECTED_SOURCES[cat] ?? ['AniList'])
 
     for (const exp of expected) {
@@ -230,6 +239,9 @@
     buildRequest: (id, value) => ({ url: `/api/media/${id}/progress`, body: { currentProgress: value } }),
     onCommitted: (value) => {
       committedProgress = value
+      if (media && media.type === 'game') {
+        (media as any).hoursPlayed = value
+      }
       if (progressValue === value) onUpdate()
     },
     onError: (error) => {
@@ -319,6 +331,11 @@
     if (!media) return []
     const results: RatingBadge[] = []
     const seen = new Set<string>()
+    const disabledSources = new Set(
+      availableSources
+        .filter((s) => !s.isEnabled)
+        .flatMap((s) => [s.name.toLowerCase(), s.id.toLowerCase()])
+    )
 
     if (media.externalRatingsJson) {
       try {
@@ -326,7 +343,7 @@
         if (Array.isArray(parsed) && parsed.length > 0) {
           for (const r of parsed) {
             const src = (r.source ?? r.Source ?? '').trim()
-            if (!src) continue
+            if (!src || disabledSources.has(src.toLowerCase())) continue
             const rawScore = typeof r.score === 'number' ? r.score : (typeof r.Score === 'number' ? r.Score : (typeof r.rating === 'number' ? r.rating : (typeof r.Rating === 'number' ? r.Rating : null)))
             const votes = r.votes ?? r.Votes ?? null
             seen.add(src.toLowerCase())
@@ -342,18 +359,20 @@
 
     if (results.length === 0 && typeof media.externalRating === 'number' && media.externalRating > 0) {
       const src = dataSource(media)
-      seen.add(src.toLowerCase())
-      results.push({
-        source: src,
-        score: media.externalRating,
-        votes: media.externalRatingVotes,
-      })
+      if (!disabledSources.has(src.toLowerCase())) {
+        seen.add(src.toLowerCase())
+        results.push({
+          source: src,
+          score: media.externalRating,
+          votes: media.externalRatingVotes,
+        })
+      }
     }
 
     const isAnime = 'isAnime' in media ? Boolean((media as any).isAnime) : false
     const cat = (isAnime || (media as any).type === 'anime') ? 'anime' : media.type
     const expected = availableSources.length > 0
-      ? availableSources.filter((s) => s.mediaTypes.includes(cat)).map((s) => s.name)
+      ? availableSources.filter((s) => s.isEnabled && s.mediaTypes.includes(cat)).map((s) => s.name)
       : (CATEGORY_EXPECTED_SOURCES[cat] ?? [])
     for (const exp of expected) {
       const expNorm = exp.toLowerCase()
@@ -632,7 +651,65 @@
     return () => void progressDebounce.flush(true)
   })
 
-  async function load(id: string, sequence: number, isNew: boolean) {
+  // In-memory caches to prevent progress spinner / jog wheel from re-fetching
+  const achievementsCache = new Map<string, { achievements: GameAchievementItem[]; total: number }>()
+  const enrichedMediaIds = new Set<string>()
+
+  let unlockedAchievementNames = $derived.by<Set<string>>(() => {
+    if (!media || !media.unlockedAchievements) return new Set<string>()
+    try {
+      const parsed = JSON.parse(media.unlockedAchievements)
+      if (Array.isArray(parsed)) return new Set<string>(parsed.map((s: string) => String(s).toLowerCase().trim()))
+    } catch {}
+    return new Set<string>()
+  })
+
+  async function toggleAchievement(name: string) {
+    if (!media) return
+    const key = name.toLowerCase().trim()
+    const nextSet = new Set(unlockedAchievementNames)
+    if (nextSet.has(key)) {
+      nextSet.delete(key)
+    } else {
+      nextSet.add(key)
+    }
+    const jsonStr = JSON.stringify(Array.from(nextSet))
+    media.unlockedAchievements = jsonStr
+    try {
+      await updateMedia(media.id, { unlockedAchievements: jsonStr })
+    } catch (err) {
+      console.error('Failed to update unlocked achievements', err)
+    }
+  }
+
+  let gamePlatformOptions = $derived.by(() => {
+    if (!media || media.type !== 'game') return []
+    const opts = new Set<string>()
+    if ((media as any).platform) {
+      for (const p of ((media as any).platform as string).split(',')) {
+        const trimmed = p.trim()
+        if (trimmed) opts.add(trimmed)
+      }
+    }
+    const common = ['PC', 'PlayStation 5', 'PlayStation 4', 'Xbox Series X/S', 'Xbox One', 'Nintendo Switch', 'Steam Deck', 'iOS', 'Android']
+    for (const c of common) opts.add(c)
+    if (media.userPlatform && !opts.has(media.userPlatform)) {
+      opts.add(media.userPlatform)
+    }
+    return Array.from(opts)
+  })
+
+  async function updateUserPlatform(val: string) {
+    if (!media) return
+    media.userPlatform = val || null
+    try {
+      await updateMedia(media.id, { userPlatform: val || null })
+    } catch (err) {
+      console.error('Failed to update user platform', err)
+    }
+  }
+
+  async function load(id: string, sequence: number, isNew: boolean, forceRefresh = false) {
     if (isNew) {
       if (typeof window !== 'undefined') window.scrollTo(0, 0)
       const main = document.querySelector('main')
@@ -666,14 +743,26 @@
       if (sequence !== requestSequence) return
       media = loaded
       syncFrom(loaded)
-      // Restore cached translation if available for current language
-      const targetLang = i18n.current === 'en' ? 'en' : 'ru'
-      if (loaded.translatedSynopsis && loaded.translationLanguage === targetLang) {
-        translatedSynopsis = loaded.translatedSynopsis
-        isSynopsisTranslated = true
+
+      if (isNew || forceRefresh) {
+        if (loaded.type === 'game') {
+          void loadGameAchievements(loaded, forceRefresh)
+        }
+        // Restore cached translation if available for current language
+        const targetLang = i18n.current === 'en' ? 'en' : 'ru'
+        if (loaded.translatedSynopsis && loaded.translationLanguage === targetLang) {
+          translatedSynopsis = loaded.translatedSynopsis
+          isSynopsisTranslated = true
+        }
+        void loadRelated(loaded, forceRefresh)
+        void triggerBackgroundEnrichment(loaded, sequence, forceRefresh)
+      } else {
+        if (loaded.type === 'game' && achievementsCache.has(loaded.id)) {
+          const cached = achievementsCache.get(loaded.id)!
+          gameAchievements = cached.achievements
+          gameAchievementsTotal = cached.total
+        }
       }
-      void loadRelated(loaded)
-      void triggerBackgroundEnrichment(loaded, sequence)
     } catch (error) {
       console.error('[MediaDetailView] Failed to load media', id, error)
       if (sequence === requestSequence) {
@@ -682,6 +771,40 @@
       }
     } finally {
       if (sequence === requestSequence) isLoading = false
+    }
+  }
+
+  let gameAchievements = $state<GameAchievementItem[]>([])
+  let gameAchievementsTotal = $state(0)
+  let gameAchievementsLoading = $state(false)
+
+  async function loadGameAchievements(item: MediaItem, force = false) {
+    if (item.type !== 'game') return
+    if (!force && achievementsCache.has(item.id)) {
+      const cached = achievementsCache.get(item.id)!
+      gameAchievements = cached.achievements
+      gameAchievementsTotal = cached.total
+      return
+    }
+    gameAchievementsLoading = true
+    try {
+      const res = await getGameAchievements({
+        steamAppId: item.externalSource?.toLowerCase() === 'steam' ? item.externalId : null,
+        rawgId: item.externalSource?.toLowerCase() === 'rawg' ? item.externalId : null,
+        title: item.title,
+        externalSource: item.externalSource,
+        externalId: item.externalId,
+      })
+      const items = res.achievements ?? []
+      const total = res.totalCount ?? 0
+      achievementsCache.set(item.id, { achievements: items, total })
+      gameAchievements = items
+      gameAchievementsTotal = total
+    } catch {
+      gameAchievements = []
+      gameAchievementsTotal = 0
+    } finally {
+      gameAchievementsLoading = false
     }
   }
 
@@ -694,12 +817,13 @@
     pendingSnapshot = null
   }
 
-  async function triggerBackgroundEnrichment(current: MediaDetail, sequence: number) {
+  async function triggerBackgroundEnrichment(current: MediaDetail, sequence: number, force = false) {
     if (!current.externalId && !current.title) return
+    if (!force && enrichedMediaIds.has(current.id)) return
 
     let hasMissingRatings = false
     const expected = availableSources.length > 0
-      ? availableSources.filter((s) => s.mediaTypes.includes(current.type)).map((s) => s.name)
+      ? availableSources.filter((s) => s.isEnabled && s.mediaTypes.includes(current.type)).map((s) => s.name)
       : (CATEGORY_EXPECTED_SOURCES[current.type] ?? [])
     if (expected.length > 0) {
       const badges = externalRatings
@@ -711,11 +835,15 @@
       isMangaMissingData = !current.totalChapters || !current.totalVolumes || !current.author
     }
 
-    if (!hasMissingRatings && !isMangaMissingData) return
+    if (!hasMissingRatings && !isMangaMissingData && !force) {
+      enrichedMediaIds.add(current.id)
+      return
+    }
 
     try {
       isEnriching = true
       const enriched = await enrichMedia(current.id)
+      enrichedMediaIds.add(current.id)
       if (sequence === requestSequence && enriched) {
         media = enriched
         syncFrom(enriched)
@@ -755,7 +883,35 @@
         }
       }
 
-      // 2. Query external relations (AniList GraphQL for anime/manga)
+      // 2. Query external relations for games (RAWG Game Series)
+      if (item.type === 'game') {
+        try {
+          const gameRelated = await getGameRelated({
+            rawgId: item.externalSource?.toLowerCase() === 'rawg' ? item.externalId : null,
+            title: item.title,
+            externalSource: item.externalSource,
+            externalId: item.externalId,
+          })
+          for (const gr of gameRelated) {
+            if (gr.id === item.externalId || gr.title.toLowerCase() === item.title.toLowerCase()) continue
+            if (results.some((r) => r.id === gr.id || r.title.toLowerCase() === gr.title.toLowerCase())) continue
+            results.push({
+              id: gr.id,
+              title: gr.title,
+              coverUrl: gr.coverUrl,
+              type: 'game',
+              score: gr.score,
+              releaseDate: gr.releaseDate,
+              year: gr.releaseDate && gr.releaseDate.length >= 4 ? parseInt(gr.releaseDate.slice(0, 4), 10) : null,
+              ratings: gr.score ? [{ source: 'RAWG', rating: gr.score }] : null,
+              relationType: i18n.current === 'ru' ? 'Игра' : 'Game',
+              rawRelationType: 'OTHER',
+            })
+          }
+        } catch {}
+      }
+
+      // 3. Query external relations (AniList GraphQL for anime/manga)
       if (isAnime(item) || item.type === 'manga') {
         const cacheKey = `tsundoku_relations_${item.id}`
         if (forceRefresh) {
@@ -975,6 +1131,8 @@
   }
 
   function formatMediaDisplayType(rel: RelatedEntry): string {
+    if (rel.type === 'game') return i18n.current === 'ru' ? 'Игра' : 'Game'
+    if (rel.type === 'book') return i18n.current === 'ru' ? 'Книга' : 'Book'
     const f = rel.format?.toUpperCase()
     const fmt = i18n.t.detail.formats
     if (f === 'MOVIE') return fmt.movie
@@ -986,7 +1144,7 @@
     if (f === 'NOVEL') return fmt.novel
     if (f === 'ONE_SHOT') return fmt.oneShot
     if (f === 'MUSIC') return fmt.music
-    return rel.type === 'manga' ? fmt.manga : fmt.tv
+    return rel.type === 'manga' ? fmt.manga : (rel.type === 'movie' ? fmt.movie : fmt.tv)
   }
 
   function statusBadgeClasses(status: MediaStatus): string {
@@ -1280,19 +1438,23 @@
     }
   }
 
-  async function loadRecommendations() {
+  async function loadRecommendations(force = false) {
     if (!media) return
     const cacheKey = `tsundoku_recs_${media.id}`
-    const cachedStr = localStorage.getItem(cacheKey)
-    if (cachedStr) {
-      try {
-        const cached = JSON.parse(cachedStr)
-        // 30 days = 30 * 24 * 60 * 60 * 1000 = 2592000000 ms
-        if (Date.now() - cached.timestamp < 2592000000 && Array.isArray(cached.items) && cached.items.length > 0) {
-          recommendations = cached.items
-          return
-        }
-      } catch {}
+    if (force) {
+      localStorage.removeItem(cacheKey)
+    } else {
+      const cachedStr = localStorage.getItem(cacheKey)
+      if (cachedStr) {
+        try {
+          const cached = JSON.parse(cachedStr)
+          // 30 days = 30 * 24 * 60 * 60 * 1000 = 2592000000 ms
+          if (Date.now() - cached.timestamp < 2592000000 && Array.isArray(cached.items) && cached.items.length > 0) {
+            recommendations = cached.items
+            return
+          }
+        } catch {}
+      }
     }
 
     recommendationsLoading = true
@@ -1300,7 +1462,18 @@
 
     try {
       let items: RecommendationItem[] = []
-      if (isAnime(media) || media.type === 'manga') {
+      if (media.type === 'game') {
+        try {
+          const gameRecs = await getGameRecommendations(media.title)
+          items = gameRecs.map((r, idx) => ({
+            id: `rec-game-${idx}`,
+            title: r.name,
+            coverUrl: null,
+            score: null,
+            type: 'game',
+          }))
+        } catch {}
+      } else if (isAnime(media) || media.type === 'manga') {
         const query = `
           query ($search: String) {
             Media(search: $search) {
@@ -1430,6 +1603,25 @@
   function releaseStatusLabel(item: MediaItem): string {
     const raw = item.releaseStatus?.trim().toUpperCase()
     const r = i18n.t.detail.releaseStatuses
+
+    if (item.type === 'game') {
+      const isRu = i18n.current === 'ru'
+      const comingSoon = isRu ? 'Скоро выйдет' : 'Coming Soon'
+      const earlyAccess = isRu ? 'Ранний доступ' : 'Early Access'
+      const fullRelease = isRu ? 'Релиз' : 'Full Release'
+
+      if (raw) {
+        if (raw.includes('COMING') || raw.includes('NOT_YET') || raw.includes('UPCOMING') || raw.includes('СКОРО')) return comingSoon
+        if (raw.includes('EARLY') || raw.includes('РАННИЙ')) return earlyAccess
+        if (raw.includes('FULL') || raw.includes('RELEASE') || raw.includes('FINISHED') || raw.includes('COMPLETED') || raw.includes('РЕЛИЗ')) return fullRelease
+      }
+      if (item.releaseDate) {
+        const start = new Date(item.releaseDate)
+        if (!Number.isNaN(start.getTime()) && start > new Date()) return comingSoon
+      }
+      return fullRelease
+    }
+
     if (raw) {
       if (raw === 'RELEASING' || raw === 'CURRENT' || raw === 'RETURNING SERIES') return r.releasing
       if (raw === 'FINISHED' || raw === 'COMPLETED' || raw === 'ENDED') return r.finished
@@ -1515,10 +1707,39 @@
     const empty = i18n.t.detailModal.valueEmpty
     const rows: Array<{ label: string; value: string; isLink?: boolean }> = [
       { label: i18n.t.detail.formatLabel, value: typeLabel(item) },
-      { label: i18n.t.detail.startDateLabel, value: formatDate(item.releaseDate ?? null) },
-      { label: i18n.t.detail.endDateLabel, value: formatDate(item.endDate ?? null) },
-      { label: i18n.t.status.label, value: releaseStatusLabel(item) },
     ]
+
+    if (item.type === 'game') {
+      rows.push({
+        label: i18n.current === 'ru' ? 'Дата релиза' : 'Release date',
+        value: formatDate(item.releaseDate ?? null),
+      })
+      rows.push({
+        label: i18n.t.status.label,
+        value: releaseStatusLabel(item),
+      })
+      if (item.platform) {
+        rows.push({
+          label: i18n.current === 'ru' ? 'Платформы' : 'Platforms',
+          value: item.platform,
+        })
+      }
+      if (item.genres) {
+        const g = Array.isArray(item.genres) ? item.genres.join(', ') : item.genres
+        if (g && g.trim()) {
+          rows.push({ label: i18n.current === 'ru' ? 'Жанры' : 'Genres', value: g.trim() })
+        }
+      }
+      const t = item.tags ? (Array.isArray(item.tags) ? item.tags.join(', ') : item.tags).trim() : ''
+      rows.push({
+        label: i18n.current === 'ru' ? 'Теги' : 'Tags',
+        value: t || '—',
+      })
+    } else {
+      rows.push({ label: i18n.t.detail.startDateLabel, value: formatDate(item.releaseDate ?? null) })
+      rows.push({ label: i18n.t.detail.endDateLabel, value: formatDate(item.endDate ?? null) })
+      rows.push({ label: i18n.t.status.label, value: releaseStatusLabel(item) })
+    }
 
     switch (item.type) {
       case 'tvshow':
@@ -1551,7 +1772,7 @@
         break
       }
       case 'game':
-        rows.push({ label: i18n.t.detail.hoursLabel, value: i18n.t.card.hours(item.hoursPlayed ?? 0) })
+        // Hours played removed from specRows, stays only in "Ваша история"
         break
     }
 
@@ -1783,6 +2004,13 @@
       const updated = await refreshMetadata(target.id)
       media = updated
       syncFrom(updated)
+      achievementsCache.delete(target.id)
+      enrichedMediaIds.delete(target.id)
+      if (updated.type === 'game') {
+        void loadGameAchievements(updated, true)
+      }
+      void loadRelated(updated, true)
+      void triggerBackgroundEnrichment(updated, ++requestSequence, true)
       showToast(i18n.t.detail.metadataUpdated, 'success')
       onUpdate()
     } catch (error) {
@@ -1954,6 +2182,23 @@
                 <dt class="text-muted text-xs">{i18n.t.detail.progressShort}</dt>
                 <dd class="font-medium tabular-nums text-white text-xs">{historyProgressText()}</dd>
               </div>
+              {#if media.type === 'game'}
+                <div class="flex items-center justify-between gap-3 pt-3">
+                  <dt class="text-muted text-xs">{i18n.current === 'ru' ? 'Платформа' : 'Platform'}</dt>
+                  <dd class="font-medium text-white text-xs">
+                    <select
+                      value={media.userPlatform ?? ''}
+                      class="rounded bg-[#13151b] border border-white/10 px-2 py-1 text-xs text-white focus:border-[#5844e0] focus:outline-none cursor-pointer max-w-[130px] truncate"
+                      onchange={(e) => void updateUserPlatform(e.currentTarget.value)}
+                    >
+                      <option value="">{i18n.current === 'ru' ? 'Не выбрана' : 'Not selected'}</option>
+                      {#each gamePlatformOptions as p}
+                        <option value={p}>{p}</option>
+                      {/each}
+                    </select>
+                  </dd>
+                </div>
+              {/if}
             </dl>
           </div>
         </div>
@@ -2080,10 +2325,24 @@
                   <span class="rounded bg-[#01b4e4] px-1.5 py-0.5 text-[10px] font-black text-[#032541] tracking-wider">TMDB</span>
                 {:else if src.includes('rawg')}
                   <span class="rounded bg-white px-1.5 py-0.5 text-[10px] font-black text-black tracking-wider">RAWG</span>
+                {:else if src.includes('steam')}
+                  <span class="rounded bg-[#171a21] border border-[#66c0f4]/40 px-1.5 py-0.5 text-[10px] font-bold text-[#66c0f4] tracking-wider">Steam</span>
+                {:else if src.includes('igdb')}
+                  <span class="rounded bg-[#9146ff] px-1.5 py-0.5 text-[10px] font-black text-white tracking-wider">IGDB</span>
                 {:else if src.includes('kitsu')}
                   <span class="rounded bg-[#fd755c] px-1.5 py-0.5 text-[10px] font-black text-white tracking-wider">Kitsu</span>
                 {:else if src.includes('mal') || src.includes('myanimelist') || src.includes('jikan')}
                   <span class="rounded bg-[#2e51a2] px-1.5 py-0.5 text-[10px] font-black text-white tracking-wider">MAL</span>
+                {:else if src.includes('shikimori')}
+                  <span class="rounded bg-[#1c2438] border border-[#4a85f6]/40 px-1.5 py-0.5 text-[10px] font-bold text-[#4a85f6] tracking-wider">Shikimori</span>
+                {:else if src.includes('simkl')}
+                  <span class="rounded bg-black border border-white/20 px-1.5 py-0.5 text-[10px] font-bold text-white tracking-wider">Simkl</span>
+                {:else if src.includes('kinopoisk')}
+                  <span class="rounded bg-[#f60] px-1.5 py-0.5 text-[10px] font-black text-white tracking-wider">Кинопоиск</span>
+                {:else if src.includes('imdb')}
+                  <span class="rounded bg-[#f5c518] px-1.5 py-0.5 text-[10px] font-black text-black tracking-wider">IMDb</span>
+                {:else if src.includes('thetvdb') || src.includes('tvdb')}
+                  <span class="rounded bg-[#42b883] px-1.5 py-0.5 text-[10px] font-black text-white tracking-wider">TVDB</span>
                 {:else if src.includes('mangaupdate')}
                   <span class="rounded bg-[#3b82f6] px-1.5 py-0.5 text-[10px] font-black text-white tracking-wider">MangaUpdates</span>
                 {:else if src.includes('openlibrary')}
@@ -2285,8 +2544,102 @@
               </div>
             {/if}
 
-            <!-- Book / Manga / Game Stepper Progress -->
-            {#if support && support.editable}
+            <!-- Game Circular Counter / Book & Manga Stepper Progress -->
+            {#if media.type === 'game'}
+              <section class="rounded-xl bg-[#222634] p-5 shadow-sm border border-white/5 flex flex-col items-center">
+                <CircularCounter
+                  value={progressValue}
+                  label={support?.label ?? i18n.t.detail.hoursLabel}
+                  unit={i18n.current === 'ru' ? 'ч' : 'h'}
+                  onChange={(val) => {
+                    if (!media) return
+                    const next = Math.max(val, 0)
+                    if (pendingSnapshot === null) pendingSnapshot = committedProgress
+                    progressValue = next
+                    progressError = null
+                    progressDebounce.schedule(media.id, next)
+                  }}
+                />
+                {#if progressError}<p class="mt-2 text-center text-xs text-rose-300" role="alert">{errorMessage(progressError)}</p>{/if}
+              </section>
+
+              <!-- Game Achievements on Overview -->
+              <section class="space-y-3 rounded-xl bg-[#222634] p-5 shadow-sm border border-white/5">
+                <div class="flex items-center justify-between gap-3">
+                  <div class="flex items-center gap-2">
+                    <Trophy size={16} class="text-amber-400" />
+                    <h2 class="text-xs font-bold uppercase tracking-wider text-slate-300">
+                      {i18n.current === 'ru' ? 'Достижения' : 'Achievements'}
+                    </h2>
+                  </div>
+                  <span class="rounded-full bg-amber-400/10 border border-amber-400/20 px-2 py-0.5 text-xs font-semibold text-amber-300">
+                    {#if gameAchievementsLoading}
+                      ...
+                    {:else if unlockedAchievementNames.size > 0}
+                      {unlockedAchievementNames.size} / {gameAchievementsTotal} {i18n.current === 'ru' ? 'получено' : 'unlocked'}
+                    {:else}
+                      {gameAchievementsTotal} {i18n.current === 'ru' ? 'достижений' : 'achievements'}
+                    {/if}
+                  </span>
+                </div>
+
+                {#if gameAchievementsLoading}
+                  <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 pt-1">
+                    {#each Array(4) as _, i (i)}
+                      <div class="h-14 animate-pulse rounded-lg bg-[#13151b]"></div>
+                    {/each}
+                  </div>
+                {:else if gameAchievements.length > 0}
+                  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 pt-1 max-h-72 overflow-y-auto pr-1">
+                    {#each gameAchievements as ach (ach.name)}
+                      {@const isUnlocked = unlockedAchievementNames.has(ach.name.toLowerCase().trim())}
+                      <button
+                        type="button"
+                        class={`flex items-center gap-3 rounded-lg border p-2.5 text-left transition cursor-pointer ${
+                          isUnlocked
+                            ? 'border-emerald-500/40 bg-[#13231b] hover:border-emerald-500/60'
+                            : 'border-white/5 bg-[#13151b] hover:border-white/15 opacity-75 hover:opacity-100'
+                        }`}
+                        onclick={() => void toggleAchievement(ach.name)}
+                        title={isUnlocked ? (i18n.current === 'ru' ? 'Получено (нажмите, чтобы снять)' : 'Unlocked (click to lock)') : (i18n.current === 'ru' ? 'Не получено (нажмите, чтобы отметить)' : 'Locked (click to unlock)')}
+                      >
+                        <div class="relative h-10 w-10 flex-shrink-0">
+                          {#if ach.iconUrl}
+                            <img
+                              src={ach.iconUrl}
+                              alt={ach.name}
+                              class={`h-10 w-10 rounded-md object-cover bg-black/40 border transition ${
+                                isUnlocked ? 'border-emerald-400/50' : 'border-white/10 grayscale contrast-75'
+                              }`}
+                              loading="lazy"
+                            />
+                          {:else}
+                            <div class={`grid h-10 w-10 place-items-center rounded-md ${isUnlocked ? 'bg-emerald-950/60 text-emerald-400' : 'bg-[#222634] text-amber-400'}`}>
+                              <Trophy size={16} />
+                            </div>
+                          {/if}
+                          {#if isUnlocked}
+                            <div class="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 text-black shadow ring-1 ring-[#13231b]">
+                              <Check size={10} stroke-width={3} />
+                            </div>
+                          {/if}
+                        </div>
+                        <div class="min-w-0 flex-1">
+                          <p class={`truncate text-xs font-semibold ${isUnlocked ? 'text-emerald-300' : 'text-white'}`}>{ach.name}</p>
+                          {#if ach.description}
+                            <p class="line-clamp-1 text-[11px] text-muted">{ach.description}</p>
+                          {/if}
+                        </div>
+                      </button>
+                    {/each}
+                  </div>
+                {:else}
+                  <p class="text-xs text-muted">
+                    {i18n.current === 'ru' ? 'Достижения не найдены или отсутствуют в источнике' : 'No achievements found'}
+                  </p>
+                {/if}
+              </section>
+            {:else if support && support.editable}
               <section class="space-y-3 rounded-xl bg-[#222634] p-5 shadow-sm border border-white/5">
                 <div class="flex items-center justify-between gap-3">
                   <h2 class="text-xs font-bold uppercase tracking-wider text-slate-300">{support.label}</h2>
@@ -2887,9 +3240,11 @@
                       {:else}
                         <span class="text-[11px] text-slate-300">{formatMediaDisplayType(rel)}</span>
                       {/if}
-                      <span class="font-medium text-slate-300 text-[11px]">
-                        {[rel.year, formatMediaDisplayType(rel)].filter(Boolean).join(' · ')}
-                      </span>
+                      {#if rel.year}
+                        <span class="font-medium text-slate-300 text-[11px]">
+                          {rel.year}
+                        </span>
+                      {/if}
                     </div>
                   </div>
                 </button>
@@ -3187,7 +3542,19 @@
         {#if activeSubTab === 'recommendations'}
           <section class="space-y-4">
             <div class="flex items-center justify-between">
-              <h2 class="text-sm font-bold uppercase tracking-wider text-slate-300">{i18n.t.detail.tabRecommendations}</h2>
+              <div class="flex items-center gap-3">
+                <h2 class="text-sm font-bold uppercase tracking-wider text-slate-300">{i18n.t.detail.tabRecommendations}</h2>
+                <button
+                  type="button"
+                  class="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-surface/50 px-2.5 py-1 text-xs font-medium text-slate-300 transition hover:bg-white/10 hover:text-white disabled:opacity-50 cursor-pointer"
+                  disabled={recommendationsLoading}
+                  onclick={() => void loadRecommendations(true)}
+                  title={i18n.current === 'ru' ? 'Перезагрузить рекомендации' : 'Reload recommendations'}
+                >
+                  <RefreshCw size={13} class={recommendationsLoading ? 'animate-spin text-[#34d399]' : 'text-[#34d399]'} />
+                  <span>{i18n.current === 'ru' ? 'Перезагрузить' : 'Reload'}</span>
+                </button>
+              </div>
               <span class="text-xs text-muted">{i18n.t.detail.cachedForDays}</span>
             </div>
 

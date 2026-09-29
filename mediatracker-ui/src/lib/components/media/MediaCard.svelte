@@ -27,6 +27,7 @@
     onOpen?: (item: MediaItem) => void;
     onProgress?: (id: string, currentProgress: number) => Promise<void>;
     onProgressCommitted?: () => void;
+    onStatusChange?: (item: MediaItem, newStatus: MediaStatus) => void;
     onDelete?: (item: MediaItem) => Promise<void>;
     onEdit?: (item: MediaItem) => void;
     onEpisodeStep?: (item: MediaItem, delta: number) => Promise<void>;
@@ -37,6 +38,7 @@
     onOpen = () => {},
     onProgress,
     onProgressCommitted = () => {},
+    onStatusChange,
     onDelete,
     onEdit = () => {},
     onEpisodeStep,
@@ -64,11 +66,17 @@
     statusMenuOpen = false;
     const prevStatus = item.status;
     item.status = newStatus;
-    onProgressCommitted();
+    if (onStatusChange) {
+      onStatusChange(item, newStatus);
+    }
     try {
       await updateStatus(item.id, newStatus);
+      onProgressCommitted();
     } catch (e) {
       item.status = prevStatus;
+      if (onStatusChange) {
+        onStatusChange(item, prevStatus);
+      }
       console.error(e);
     }
   }
@@ -401,6 +409,8 @@
               style={`width: ${progressRatio(item)! * 100}%`}
             ></div>
           </div>
+        {:else if supportsStepper(item)}
+          <div class="h-1.5" aria-hidden="true"></div>
         {/if}
       </div>
     {/if}

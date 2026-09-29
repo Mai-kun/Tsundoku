@@ -2,14 +2,16 @@
   import type { LibrarySort } from '../media/FilterBar.svelte'
 
   let savedHomeSort: LibrarySort = 'newest'
+  let savedHomeGroupByType = true
   let cachedHomeData: { inProgress: MediaItem[]; upNext: MediaItem[]; recentlyCompleted: MediaItem[] } | null = null
 </script>
 
 <script lang="ts">
+  import { Layers } from 'lucide-svelte'
   import { deleteMedia, getMedia, getMediaItem, setProgress, setSeasonProgress } from '$lib/api'
   import { showToast } from '$lib/stores/toast.svelte'
   import { i18n } from '$lib/i18n/index.svelte'
-  import { MEDIA_STATUS, isTvShowDetail, type MediaItem } from '$lib/types'
+  import { MEDIA_STATUS, isTvShowDetail, type MediaItem, type MediaStatus } from '$lib/types'
   import MediaGrid from '../media/MediaGrid.svelte'
 
   interface Props {
@@ -27,6 +29,7 @@
   let loading = $state(cachedHomeData === null)
   let loadError = $state<unknown>(null)
   let sort = $state<LibrarySort>(savedHomeSort)
+  let groupByType = $state<boolean>(savedHomeGroupByType)
   let requestSequence = 0
   let hasLoaded = cachedHomeData !== null
   let skeletonTimer: ReturnType<typeof setTimeout> | null = null
@@ -34,6 +37,63 @@
   $effect(() => {
     savedHomeSort = sort
   })
+
+  $effect(() => {
+    savedHomeGroupByType = groupByType
+  })
+
+  const TYPE_ORDER: Record<string, number> = {
+    game: 1,
+    anime: 2,
+    manga: 3,
+    movie: 4,
+    tvshow: 5,
+    book: 6,
+  }
+
+  function sortItems(list: MediaItem[], byType: boolean, currentSort: LibrarySort): MediaItem[] {
+    return [...list].sort((a, b) => {
+      if (byType) {
+        const typeA = TYPE_ORDER[a.type] ?? 99
+        const typeB = TYPE_ORDER[b.type] ?? 99
+        if (typeA !== typeB) return typeA - typeB
+      }
+      if (currentSort === 'rating') {
+        return (b.score ?? 0) - (a.score ?? 0)
+      }
+      if (currentSort === 'title') {
+        return a.title.localeCompare(b.title)
+      }
+      if (currentSort === 'oldest') {
+        const aTime = a.finishedAt ? Date.parse(a.finishedAt) : Date.parse(a.createdAt)
+        const bTime = b.finishedAt ? Date.parse(b.finishedAt) : Date.parse(b.createdAt)
+        return aTime - bTime
+      }
+      const aTime = a.finishedAt ? Date.parse(a.finishedAt) : Date.parse(a.createdAt)
+      const bTime = b.finishedAt ? Date.parse(b.finishedAt) : Date.parse(b.createdAt)
+      return bTime - aTime
+    })
+  }
+
+  let displayInProgress = $derived(sortItems(inProgress, groupByType, sort))
+  let displayUpNext = $derived(sortItems(upNext, groupByType, sort))
+  let displayRecentlyCompleted = $derived(sortItems(recentlyCompleted, groupByType, sort))
+
+  function handleStatusChange(item: MediaItem, newStatus: MediaStatus) {
+    inProgress = inProgress.filter((x) => x.id !== item.id)
+    upNext = upNext.filter((x) => x.id !== item.id)
+    recentlyCompleted = recentlyCompleted.filter((x) => x.id !== item.id)
+
+    const updated = { ...item, status: newStatus }
+    if (newStatus === MEDIA_STATUS.inProgress) {
+      inProgress = [updated, ...inProgress]
+    } else if (newStatus === MEDIA_STATUS.planned) {
+      upNext = [updated, ...upNext]
+    } else if (newStatus === MEDIA_STATUS.completed) {
+      recentlyCompleted = [updated, ...recentlyCompleted]
+    }
+    cachedHomeData = { inProgress, upNext, recentlyCompleted }
+  }
 
   $effect(() => {
     void refreshKey
@@ -204,10 +264,26 @@
         <h2 class="mt-1 text-xl font-bold tracking-tight text-ink">{i18n.t.views.inProgress}</h2>
       </div>
       <div class="flex items-center gap-2">
+        <button
+          type="button"
+          role="switch"
+          aria-checked={groupByType}
+          class={`inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition cursor-pointer ${
+            groupByType
+              ? 'border-accent/40 bg-accent/15 text-accent-soft'
+              : 'border-border bg-card text-muted hover:text-ink'
+          }`}
+          onclick={() => (groupByType = !groupByType)}
+          title={i18n.t.views.groupByType}
+        >
+          <Layers size={13} />
+          <span>{i18n.t.views.groupByType}</span>
+        </button>
+
         <label class="sr-only" for="home-sort">{i18n.t.sort.label}</label>
         <select
           id="home-sort"
-          class="h-8 rounded-md border border-border bg-card px-2.5 text-xs font-medium text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
+          class="h-8 rounded-md border border-border bg-card px-2.5 text-xs font-medium text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent/30 cursor-pointer"
           value={sort}
           onchange={(e) => (sort = (e.currentTarget as HTMLSelectElement).value as LibrarySort)}
         >
@@ -218,17 +294,17 @@
         </select>
       </div>
     </div>
-    <MediaGrid items={inProgress} {loading} error={loadError} onRetry={refresh} onOpen={onOpen} onProgress={updateProgress} onProgressCommitted={onMediaChanged} onDelete={removeItem} onEdit={onEdit} onEpisodeStep={stepEpisode} />
+    <MediaGrid items={displayInProgress} {loading} error={loadError} onRetry={refresh} onOpen={onOpen} onProgress={updateProgress} onProgressCommitted={onMediaChanged} onStatusChange={handleStatusChange} onDelete={removeItem} onEdit={onEdit} onEpisodeStep={stepEpisode} />
   </section>
 
   <section class="space-y-4">
     <h2 class="text-xl font-bold tracking-tight text-ink">{i18n.t.views.upNext}</h2>
-    <MediaGrid items={upNext} {loading} error={loadError} onRetry={refresh} onOpen={onOpen} onProgress={updateProgress} onProgressCommitted={onMediaChanged} onDelete={removeItem} onEdit={onEdit} />
+    <MediaGrid items={displayUpNext} {loading} error={loadError} onRetry={refresh} onOpen={onOpen} onProgress={updateProgress} onProgressCommitted={onMediaChanged} onStatusChange={handleStatusChange} onDelete={removeItem} onEdit={onEdit} />
   </section>
 
   <section class="space-y-4">
     <h2 class="text-xl font-bold tracking-tight text-ink">{i18n.t.views.recentlyCompleted}</h2>
-    <MediaGrid items={recentlyCompleted} {loading} error={loadError} onRetry={refresh} onOpen={onOpen} onProgress={updateProgress} onProgressCommitted={onMediaChanged} onDelete={removeItem} onEdit={onEdit} />
+    <MediaGrid items={displayRecentlyCompleted} {loading} error={loadError} onRetry={refresh} onOpen={onOpen} onProgress={updateProgress} onProgressCommitted={onMediaChanged} onStatusChange={handleStatusChange} onDelete={removeItem} onEdit={onEdit} />
   </section>
 </div>
 

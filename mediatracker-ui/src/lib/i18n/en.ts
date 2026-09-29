@@ -63,6 +63,12 @@ export const en: Dictionary = {
     listsTitle: 'Lists',
     listsHint: 'Saved lists will arrive in a future update.',
     noSeasons: 'This TV show has no seasons yet.',
+    groupByType: 'Group by type',
+    clearHistory: 'Clear history',
+    confirmClearHistory: 'Are you sure you want to clear all history?',
+    confirmDeleteHistoryEntry: 'Delete this history entry?',
+    historyCleared: 'History cleared',
+    historyEntryDeleted: 'History entry deleted',
   },
   types: {
     game: 'Game',
@@ -337,6 +343,11 @@ export const en: Dictionary = {
     tabs: {
       sources: 'Sources',
       search: 'Search',
+    },
+    recommendations: {
+      title: 'Recommendation Services',
+      description: 'Services for recommendations and similar titles (not used for metadata enrichment).',
+      badge: 'Recommendations',
     },
     sources: {
       title: 'Supported Sources',

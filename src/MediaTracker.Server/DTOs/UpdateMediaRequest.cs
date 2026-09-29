@@ -43,4 +43,14 @@ public sealed record UpdateMediaRequest
     public string? TranslatedSynopsis { get; init; }
 
     public string? TranslationLanguage { get; init; }
+
+    public string? Genres { get; init; }
+
+    public string? Tags { get; init; }
+
+    public string? UnlockedAchievements { get; init; }
+
+    public string? UserPlatform { get; init; }
+
+    public string? Platform { get; init; }
 }

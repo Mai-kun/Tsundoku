@@ -86,6 +86,14 @@ public record MediaListDto
     public string? TranslatedSynopsis { get; init; }
 
     public string? TranslationLanguage { get; init; }
+
+    public string? Genres { get; init; }
+
+    public string? Tags { get; init; }
+
+    public string? UnlockedAchievements { get; init; }
+
+    public string? UserPlatform { get; init; }
 }
 
 public sealed record MediaDetailDto : MediaListDto
@@ -274,6 +282,10 @@ public static class MediaResponseMapper
         ExternalRatingsJson = item.ExternalRatingsJson,
         TranslatedSynopsis = item.TranslatedSynopsis,
         TranslationLanguage = item.TranslationLanguage,
+        Genres = item.Genres,
+        Tags = item.Tags,
+        UnlockedAchievements = item.UnlockedAchievements,
+        UserPlatform = item.UserPlatform,
     };
 
     public static string GetType(MediaItem item) => item switch

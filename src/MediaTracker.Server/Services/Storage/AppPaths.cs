@@ -15,7 +15,6 @@ public sealed class AppPaths
 
     public string CoversDirectory { get; }
 
-    public string SettingsFilePath => Path.Combine(DataDirectory, "settings.json");
 
     public string DatabaseFilePath => Path.Combine(DataDirectory, "tracker.db");
 }

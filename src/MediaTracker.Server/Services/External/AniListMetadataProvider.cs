@@ -158,9 +158,8 @@ public sealed partial class AniListMetadataProvider(
         // If no streaming episodes returned, but episodes count > 0, generate placeholders
         if ((episodes == null || episodes.Count == 0) && item.Episodes is > 0)
         {
-            episodes = Enumerable.Range(1, item.Episodes.Value)
-                .Select(n => new ExternalEpisodeDto { Number = n, Title = $"Episode {n}" })
-                .ToList();
+            episodes = [.. Enumerable.Range(1, item.Episodes.Value)
+                .Select(n => new ExternalEpisodeDto { Number = n, Title = $"Episode {n}" })];
         }
 
         string? releaseDate = item.StartDate?.Year is { } sy
@@ -186,7 +185,7 @@ public sealed partial class AniListMetadataProvider(
             RuntimeMinutes = item.Duration,
             Type = mediaType,
             Author = mediaType == "manga"
-                ? (item.Staff?.Edges?.FirstOrDefault(e => e.Role?.Contains("Story", StringComparison.OrdinalIgnoreCase) == true || e.Role?.Contains("Art", StringComparison.OrdinalIgnoreCase) == true)?.Node?.Name?.Full
+                ? (item.Staff?.Edges?.FirstOrDefault(e => e.Role?.Contains("Story", StringComparison.OrdinalIgnoreCase) is true || e.Role?.Contains("Art", StringComparison.OrdinalIgnoreCase) is true)?.Node?.Name?.Full
                    ?? item.Staff?.Edges?.FirstOrDefault()?.Node?.Name?.Full)
                 : null,
             Studio = item.Studios?.Nodes?.FirstOrDefault()?.Name,

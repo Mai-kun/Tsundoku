@@ -36,10 +36,9 @@ public sealed class MangaUpdatesMetadataProvider(
                 return [];
             }
 
-            return response.Results
+            return [.. response.Results
                 .Where(r => r.Record is not null)
-                .Select(r => MapItem(r.Record!))
-                .ToList();
+                .Select(r => MapItem(r.Record!))];
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {

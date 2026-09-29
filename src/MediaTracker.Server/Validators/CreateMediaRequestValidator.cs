@@ -55,6 +55,9 @@ public sealed class CreateMediaRequestValidator : AbstractValidator<CreateMediaR
 
         RuleForEach(x => x.Seasons)
             .SetValidator(new CreateSeasonRequestValidator());
+
+        RuleForEach(x => x.Volumes)
+            .SetValidator(new CreateVolumeRequestValidator());
     }
 
     private static bool IsType(CreateMediaRequest request, string type) =>

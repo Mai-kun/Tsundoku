@@ -3,6 +3,8 @@ using MediaTracker.Server.Data;
 using MediaTracker.Server.DTOs;
 using MediaTracker.Server.Models;
 using MediaTracker.Server.Services.External;
+using MediaTracker.Server.Services.Franchises;
+using MediaTracker.Server.Services.Media;
 using MediaTracker.Server.Services.Storage;
 using Microsoft.EntityFrameworkCore;
 
@@ -30,27 +32,6 @@ public static class MediaEndpoints
         return app;
     }
 
-    public static IEndpointRouteBuilder MapSeasonEndpoints(this IEndpointRouteBuilder app)
-    {
-        var group = app.MapGroup("/api/seasons");
-
-        group.MapPut("/{id:guid}/progress", UpdateSeasonProgress);
-
-        return app;
-    }
-
-    public static IEndpointRouteBuilder MapVolumeEndpoints(this IEndpointRouteBuilder app)
-    {
-        var group = app.MapGroup("/api/volumes");
-
-        group.MapPut("/{id:guid}/progress", UpdateVolumeProgress);
-        group.MapPost("/", AddVolume);
-        group.MapPut("/{id:guid}", UpdateVolume);
-        group.MapDelete("/{id:guid}", DeleteVolume);
-
-        return app;
-    }
-
     private static async Task<IResult> GetMediaItems(
         AppDbContext db,
         string? type = null,
@@ -61,15 +42,27 @@ public static class MediaEndpoints
         string? sortOrder = "desc",
         CancellationToken ct = default)
     {
+        var normalizedType = type?.Trim().ToLowerInvariant();
+        var includeSeasons = string.IsNullOrWhiteSpace(normalizedType) || normalizedType is "tvshow" or "anime";
+        var includeVolumes = string.IsNullOrWhiteSpace(normalizedType) || normalizedType is "manga";
+
         IQueryable<MediaItem> query = db.MediaItems
             .AsNoTracking()
-            .Include(media => media.Franchise)
-            .Include(media => ((TvShow)media).Seasons)
-            .Include(media => ((Manga)media).Volumes);
+            .Include(media => media.Franchise);
 
-        if (!string.IsNullOrWhiteSpace(type))
+        if (includeSeasons)
         {
-            var discriminator = type.Trim().ToLowerInvariant() switch
+            query = query.Include(media => ((TvShow)media).Seasons);
+        }
+
+        if (includeVolumes)
+        {
+            query = query.Include(media => ((Manga)media).Volumes);
+        }
+
+        if (!string.IsNullOrWhiteSpace(normalizedType))
+        {
+            var discriminator = normalizedType switch
             {
                 "game" => "Game",
                 "book" => "Book",
@@ -129,19 +122,34 @@ public static class MediaEndpoints
 
     private static async Task<IResult> GetMediaStats(AppDbContext db, CancellationToken ct)
     {
+        var counts = await db.MediaItems
+            .AsNoTracking()
+            .GroupBy(_ => 1)
+            .Select(g => new
+            {
+                Total = g.Count(),
+                Completed = g.Sum(x => x.Status == MediaStatus.Completed ? 1 : 0),
+                InProgress = g.Sum(x => x.Status == MediaStatus.InProgress ? 1 : 0),
+                Planned = g.Sum(x => x.Status == MediaStatus.Planned ? 1 : 0),
+                CompletedGames = g.Sum(x => x.Status == MediaStatus.Completed && EF.Property<string>(x, Discriminator) == "Game" ? 1 : 0),
+                CompletedBooks = g.Sum(x => x.Status == MediaStatus.Completed && EF.Property<string>(x, Discriminator) == "Book" ? 1 : 0),
+                CompletedMovies = g.Sum(x => x.Status == MediaStatus.Completed && EF.Property<string>(x, Discriminator) == "Movie" ? 1 : 0),
+            })
+            .FirstOrDefaultAsync(ct);
+
         var stats = new MediaStatsDto
         {
-            TotalItems = await db.MediaItems.CountAsync(ct),
-            CompletedItems = await db.MediaItems.CountAsync(item => item.Status == MediaStatus.Completed, ct),
-            InProgressItems = await db.MediaItems.CountAsync(item => item.Status == MediaStatus.InProgress, ct),
-            PlannedItems = await db.MediaItems.CountAsync(item => item.Status == MediaStatus.Planned, ct),
+            TotalItems = counts?.Total ?? 0,
+            CompletedItems = counts?.Completed ?? 0,
+            InProgressItems = counts?.InProgress ?? 0,
+            PlannedItems = counts?.Planned ?? 0,
+            CompletedGamesCount = counts?.CompletedGames ?? 0,
+            CompletedBooksCount = counts?.CompletedBooks ?? 0,
+            CompletedMoviesCount = counts?.CompletedMovies ?? 0,
             TotalHoursPlayed = await db.Games.SumAsync(game => game.HoursPlayed ?? 0, ct),
             TotalPagesRead = await db.Books.SumAsync(book => book.CurrentPage, ct),
             TotalChaptersRead = await db.Manga.SumAsync(manga => manga.CurrentChapter, ct),
             TotalEpisodesWatched = await db.TvSeasons.SumAsync(season => season.CurrentEpisode, ct),
-            CompletedGamesCount = await db.Games.CountAsync(game => game.Status == MediaStatus.Completed, ct),
-            CompletedBooksCount = await db.Books.CountAsync(book => book.Status == MediaStatus.Completed, ct),
-            CompletedMoviesCount = await db.Movies.CountAsync(movie => movie.Status == MediaStatus.Completed, ct),
         };
 
         return Results.Ok(stats);
@@ -208,7 +216,7 @@ public static class MediaEndpoints
 
             if (enriched is not null)
             {
-                bool modified = false;
+                var modified = false;
 
                 if (enriched.Ratings is { Count: > 0 } ratings)
                 {
@@ -264,7 +272,14 @@ public static class MediaEndpoints
                 }
             }
         }
-        catch { }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch
+        {
+            // Fallback gracefully on metadata enrichment failure
+        }
 
         return Results.Ok(MediaResponseMapper.ToDetailDto(item));
     }
@@ -274,6 +289,7 @@ public static class MediaEndpoints
         AppDbContext db,
         IValidator<CreateMediaRequest> validator,
         IImageStorageService imageStorage,
+        IFranchiseService franchiseService,
         CancellationToken ct)
     {
         var validationResult = await validator.ValidateAsync(request, ct);
@@ -282,7 +298,7 @@ public static class MediaEndpoints
             return Results.ValidationProblem(validationResult.ToDictionary());
         }
 
-        var item = CreateEntity(request);
+        var item = MediaItemFactory.CreateEntity(request);
         item.Id = Guid.NewGuid();
 
         if (IsExternalUrl(item.CoverUrl))
@@ -337,36 +353,7 @@ public static class MediaEndpoints
             }
         }
 
-        var franchiseName = !string.IsNullOrWhiteSpace(request.FranchiseName)
-            ? request.FranchiseName.Trim()
-            : InferFranchiseName(item.Title);
-
-        if (item.FranchiseId is null && !string.IsNullOrWhiteSpace(franchiseName))
-        {
-            var franchise = await db.Franchises.FirstOrDefaultAsync(f => f.Name.ToLower() == franchiseName.ToLower(), ct);
-            if (franchise is not null)
-            {
-                item.FranchiseId = franchise.Id;
-                item.Franchise = franchise;
-            }
-            else
-            {
-                var siblingExists = await db.MediaItems.AnyAsync(m => m.Title.ToLower() == franchiseName.ToLower() || (m.Franchise != null && m.Franchise.Name.ToLower() == franchiseName.ToLower()), ct);
-                if (siblingExists || !string.IsNullOrWhiteSpace(request.FranchiseName))
-                {
-                    franchise = new Franchise { Id = Guid.NewGuid(), Name = franchiseName };
-                    db.Franchises.Add(franchise);
-                    item.FranchiseId = franchise.Id;
-                    item.Franchise = franchise;
-
-                    var siblingItem = await db.MediaItems.FirstOrDefaultAsync(m => m.FranchiseId == null && m.Title.ToLower() == franchiseName.ToLower(), ct);
-                    if (siblingItem is not null)
-                    {
-                        siblingItem.FranchiseId = franchise.Id;
-                    }
-                }
-            }
-        }
+        await franchiseService.LinkFranchiseOnCreateAsync(db, item, request.FranchiseName, ct);
 
         db.Add(item);
         await db.SaveChangesAsync(ct);
@@ -379,6 +366,7 @@ public static class MediaEndpoints
         UpdateMediaRequest request,
         AppDbContext db,
         IValidator<UpdateMediaRequest> validator,
+        IFranchiseService franchiseService,
         CancellationToken ct)
     {
         var validationResult = await validator.ValidateAsync(request, ct);
@@ -431,45 +419,30 @@ public static class MediaEndpoints
             item.FinishedAt = request.FinishedAt;
         }
 
-        if (request.FranchiseId is not null)
-        {
-            item.FranchiseId = request.FranchiseId;
-        }
-        else if (!string.IsNullOrWhiteSpace(request.FranchiseName))
-        {
-            var franchise = await db.Franchises.FirstOrDefaultAsync(f => f.Name.ToLower() == request.FranchiseName.Trim().ToLower(), ct);
-            if (franchise is null)
-            {
-                franchise = new Franchise { Id = Guid.NewGuid(), Name = request.FranchiseName.Trim() };
-                db.Franchises.Add(franchise);
-            }
-            item.FranchiseId = franchise.Id;
-            item.Franchise = franchise;
-        }
+        await franchiseService.LinkFranchiseOnUpdateAsync(db, item, request.FranchiseId, request.FranchiseName, ct);
 
         if (request.FranchiseOrder is not null)
         {
             item.FranchiseOrder = request.FranchiseOrder;
         }
 
-        if (item is Manga manga)
-        {
-            if (request.Author is not null) manga.Author = request.Author;
-            if (request.RomajiTitle is not null) manga.RomajiTitle = request.RomajiTitle;
-            if (request.TotalVolumes.HasValue) manga.TotalVolumes = request.TotalVolumes.Value;
-            if (request.CurrentVolume.HasValue) manga.CurrentVolume = request.CurrentVolume.Value;
-            if (request.TotalChapters.HasValue) manga.TotalChapters = request.TotalChapters.Value;
-            if (request.CurrentChapter.HasValue) manga.CurrentChapter = request.CurrentChapter.Value;
-        }
-        else if (item is Book book)
+        if (item is Book book)
         {
             if (request.Author is not null) book.Author = request.Author;
             if (request.TotalPages.HasValue) book.TotalPages = request.TotalPages.Value;
             if (request.CurrentPage.HasValue) book.CurrentPage = request.CurrentPage.Value;
         }
+        else if (item is Manga manga)
+        {
+            if (request.Author is not null) manga.Author = request.Author;
+            if (request.RomajiTitle is not null) manga.RomajiTitle = request.RomajiTitle;
+            if (request.TotalVolumes.HasValue) manga.TotalVolumes = request.TotalVolumes;
+            if (request.CurrentVolume.HasValue) manga.CurrentVolume = request.CurrentVolume.Value;
+            if (request.TotalChapters.HasValue) manga.TotalChapters = request.TotalChapters;
+            if (request.CurrentChapter.HasValue) manga.CurrentChapter = request.CurrentChapter.Value;
+        }
 
         item.UpdatedAt = DateTime.UtcNow;
-
         await db.SaveChangesAsync(ct);
 
         return Results.Ok(MediaResponseMapper.ToDetailDto(item));
@@ -491,7 +464,6 @@ public static class MediaEndpoints
         var item = await db.MediaItems
             .Include(media => ((TvShow)media).Seasons)
             .SingleOrDefaultAsync(media => media.Id == id, ct);
-
         if (item is null)
         {
             return Results.NotFound();
@@ -656,7 +628,7 @@ public static class MediaEndpoints
 
         item.ReleaseStatus = !string.IsNullOrWhiteSpace(external.ReleaseStatus)
             ? external.ReleaseStatus
-            : ComputeReleaseStatusFromDates(item.ReleaseDate, item.EndDate);
+            : MediaItemFactory.ComputeReleaseStatusFromDates(item.ReleaseDate, item.EndDate);
 
         if (item is TvShow show)
         {
@@ -749,362 +721,6 @@ public static class MediaEndpoints
         return Results.NoContent();
     }
 
-    private static async Task<IResult> UpdateSeasonProgress(
-        Guid id,
-        UpdateSeasonProgressRequest request,
-        AppDbContext db,
-        IValidator<UpdateSeasonProgressRequest> validator,
-        CancellationToken ct)
-    {
-        var validationResult = await validator.ValidateAsync(request, ct);
-        if (!validationResult.IsValid)
-        {
-            return Results.ValidationProblem(validationResult.ToDictionary());
-        }
-
-        var season = await db.TvSeasons.SingleOrDefaultAsync(item => item.Id == id, ct);
-        if (season is null)
-        {
-            return Results.NotFound();
-        }
-
-        season.CurrentEpisode = ClampToKnownTotal(Math.Max(request.CurrentEpisode, 0), season.TotalEpisodes);
-        if (season.TotalEpisodes > 0 && season.CurrentEpisode >= season.TotalEpisodes)
-        {
-            season.Status = MediaStatus.Completed;
-        }
-        else if (season.CurrentEpisode > 0)
-        {
-            season.Status = MediaStatus.InProgress;
-        }
-        else
-        {
-            season.Status = MediaStatus.Planned;
-        }
-
-        var show = await db.TvShows.Include(item => item.Seasons).SingleOrDefaultAsync(item => item.Id == season.TvShowId, ct);
-        if (show?.Seasons.Count > 0)
-        {
-            var totalWatched = show.Seasons.Sum(item => item.CurrentEpisode);
-            var allCompleted = show.Seasons.All(item => item.Status == MediaStatus.Completed);
-
-            if (allCompleted)
-            {
-                show.Status = MediaStatus.Completed;
-                show.FinishedAt ??= DateTime.UtcNow;
-                show.StartedAt ??= DateTime.UtcNow;
-            }
-            else if (totalWatched > 0)
-            {
-                if (show.Status == MediaStatus.Completed || show.Status == MediaStatus.Planned)
-                {
-                    show.Status = MediaStatus.InProgress;
-                }
-                show.FinishedAt = null;
-                show.StartedAt ??= DateTime.UtcNow;
-            }
-            else
-            {
-                // totalWatched == 0 across all seasons
-                show.StartedAt = null;
-                show.FinishedAt = null;
-                if (show.Status == MediaStatus.InProgress || show.Status == MediaStatus.Completed)
-                {
-                    show.Status = MediaStatus.Planned;
-                }
-            }
-        }
-
-        await db.SaveChangesAsync(ct);
-
-        return Results.NoContent();
-    }
-
-    private static async Task<IResult> UpdateVolumeProgress(
-        Guid id,
-        UpdateVolumeProgressRequest request,
-        AppDbContext db,
-        IValidator<UpdateVolumeProgressRequest> validator,
-        CancellationToken ct)
-    {
-        var validationResult = await validator.ValidateAsync(request, ct);
-        if (!validationResult.IsValid)
-        {
-            return Results.ValidationProblem(validationResult.ToDictionary());
-        }
-
-        var volume = await db.MangaVolumes.Include(v => v.Manga).SingleOrDefaultAsync(item => item.Id == id, ct);
-        if (volume is null)
-        {
-            return Results.NotFound();
-        }
-
-        if (request.CurrentPage.HasValue)
-        {
-            volume.CurrentPage = ClampToKnownTotal(Math.Max(request.CurrentPage.Value, 0), volume.TotalPages);
-        }
-        if (request.CurrentChapter.HasValue)
-        {
-            volume.CurrentChapter = ClampToKnownTotal(Math.Max(request.CurrentChapter.Value, 0), volume.TotalChapters);
-        }
-
-        if ((volume.TotalChapters > 0 && volume.CurrentChapter >= volume.TotalChapters) ||
-            (volume.TotalPages > 0 && volume.CurrentPage >= volume.TotalPages))
-        {
-            volume.Status = MediaStatus.Completed;
-        }
-        else if (volume.CurrentPage > 0 || volume.CurrentChapter > 0)
-        {
-            volume.Status = MediaStatus.InProgress;
-        }
-        else
-        {
-            volume.Status = MediaStatus.Planned;
-        }
-
-        if (volume.Manga is not null)
-        {
-            volume.Manga.CurrentVolume = volume.VolumeNumber;
-            if (request.CurrentChapter.HasValue)
-            {
-                volume.Manga.CurrentChapter = request.CurrentChapter.Value;
-            }
-        }
-
-        await db.SaveChangesAsync(ct);
-        return Results.NoContent();
-    }
-
-    private static async Task<IResult> AddVolume(
-        CreateVolumeRequest request,
-        Guid mangaId,
-        AppDbContext db,
-        CancellationToken ct)
-    {
-        var manga = await db.Manga.Include(m => m.Volumes).SingleOrDefaultAsync(m => m.Id == mangaId, ct);
-        if (manga is null) return Results.NotFound();
-
-        var volumeNumber = request.VolumeNumber > 0 ? request.VolumeNumber : manga.Volumes.Count + 1;
-        var volume = new MangaVolume
-        {
-            MangaId = mangaId,
-            VolumeNumber = volumeNumber,
-            Title = string.IsNullOrWhiteSpace(request.Title) ? $"Volume {volumeNumber}" : request.Title,
-            CoverUrl = request.CoverUrl,
-            TotalPages = Math.Max(request.TotalPages, 0),
-            CurrentPage = Math.Max(request.CurrentPage, 0),
-            TotalChapters = Math.Max(request.TotalChapters, 0),
-            CurrentChapter = Math.Max(request.CurrentChapter, 0),
-            Status = request.Status,
-            Score = request.Score,
-            Notes = request.Notes,
-            ReleaseDate = request.ReleaseDate,
-        };
-
-        db.MangaVolumes.Add(volume);
-        await db.SaveChangesAsync(ct);
-        return Results.Created($"/api/volumes/{volume.Id}", MediaResponseMapper.ToDto(volume));
-    }
-
-    private static async Task<IResult> UpdateVolume(
-        Guid id,
-        UpdateVolumeRequest request,
-        AppDbContext db,
-        CancellationToken ct)
-    {
-        var volume = await db.MangaVolumes.SingleOrDefaultAsync(v => v.Id == id, ct);
-        if (volume is null) return Results.NotFound();
-
-        if (request.Title is not null) volume.Title = request.Title;
-        if (request.CoverUrl is not null) volume.CoverUrl = request.CoverUrl;
-        if (request.TotalPages.HasValue) volume.TotalPages = Math.Max(request.TotalPages.Value, 0);
-        if (request.CurrentPage.HasValue) volume.CurrentPage = Math.Max(request.CurrentPage.Value, 0);
-        if (request.TotalChapters.HasValue) volume.TotalChapters = Math.Max(request.TotalChapters.Value, 0);
-        if (request.CurrentChapter.HasValue) volume.CurrentChapter = Math.Max(request.CurrentChapter.Value, 0);
-        if (request.Status.HasValue) volume.Status = request.Status.Value;
-        if (request.Score.HasValue) volume.Score = request.Score.Value;
-        if (request.Notes is not null) volume.Notes = request.Notes;
-
-        await db.SaveChangesAsync(ct);
-        return Results.Ok(MediaResponseMapper.ToDto(volume));
-    }
-
-    private static async Task<IResult> DeleteVolume(
-        Guid id,
-        AppDbContext db,
-        CancellationToken ct)
-    {
-        var volume = await db.MangaVolumes.SingleOrDefaultAsync(v => v.Id == id, ct);
-        if (volume is null) return Results.NotFound();
-
-        db.MangaVolumes.Remove(volume);
-        await db.SaveChangesAsync(ct);
-        return Results.NoContent();
-    }
-
-    public static string? InferFranchiseName(string? title)
-    {
-        if (string.IsNullOrWhiteSpace(title)) return null;
-
-        var clean = title.Trim();
-        var colonIdx = clean.IndexOfAny([':', '-', '/']);
-        if (colonIdx > 2)
-        {
-            var prefix = clean[..colonIdx].Trim();
-            if (prefix.Length >= 3)
-            {
-                return prefix;
-            }
-        }
-
-        var seasonRegex = new System.Text.RegularExpressions.Regex(
-            @"\s+(season\s+\d+|\d+(st|nd|rd|th)\s+season|final\s+season|part\s+\d+|[IVXLCDM]+)$",
-            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-
-        var match = seasonRegex.Replace(clean, "").Trim();
-        if (match.Length >= 3 && match != clean)
-        {
-            return match;
-        }
-
-        return null;
-    }
-
-    public static async Task AutoBackfillFranchisesAsync(AppDbContext db)
-    {
-        var unlinked = await db.MediaItems.Where(m => m.FranchiseId == null).ToListAsync();
-        if (unlinked.Count == 0) return;
-
-        var groups = unlinked
-            .Select(m => new { Item = m, FranchiseName = InferFranchiseName(m.Title) })
-            .Where(x => !string.IsNullOrWhiteSpace(x.FranchiseName))
-            .GroupBy(x => x.FranchiseName!.ToLowerInvariant())
-            .ToList();
-
-        foreach (var grp in groups)
-        {
-            var inferredName = grp.First().FranchiseName!;
-            var existingFranchise = await db.Franchises.FirstOrDefaultAsync(f => f.Name.ToLower() == grp.Key);
-            var exactMatchItem = unlinked.FirstOrDefault(m => m.Title.Equals(inferredName, StringComparison.OrdinalIgnoreCase));
-
-            if (existingFranchise is not null || grp.Count() > 1 || exactMatchItem is not null)
-            {
-                if (existingFranchise is null)
-                {
-                    existingFranchise = new Franchise { Id = Guid.NewGuid(), Name = inferredName };
-                    db.Franchises.Add(existingFranchise);
-                }
-
-                foreach (var x in grp)
-                {
-                    x.Item.FranchiseId = existingFranchise.Id;
-                }
-                if (exactMatchItem is not null && exactMatchItem.FranchiseId == null)
-                {
-                    exactMatchItem.FranchiseId = existingFranchise.Id;
-                }
-            }
-        }
-
-        await db.SaveChangesAsync();
-    }
-
-    private static MediaItem CreateEntity(CreateMediaRequest request)
-    {
-        MediaItem item = request.Type.Trim().ToLowerInvariant() switch
-        {
-            "game" => new VideoGame
-            {
-                Platform = request.Platform ?? string.Empty,
-                HoursPlayed = request.HoursPlayed,
-                Title = request.Title,
-            },
-            "book" => new Book
-            {
-                Author = request.Author ?? string.Empty,
-                TotalPages = request.TotalPages ?? 0,
-                Title = request.Title,
-            },
-            "manga" => new Manga
-            {
-                Author = request.Author,
-                RomajiTitle = request.RomajiTitle,
-                TotalVolumes = request.TotalVolumes,
-                TotalChapters = request.TotalChapters,
-                CurrentVolume = request.CurrentVolume ?? 0,
-                Volumes = request.Volumes?
-                    .Select(volume => new MangaVolume
-                    {
-                        VolumeNumber = volume.VolumeNumber,
-                        Title = volume.Title,
-                        CoverUrl = volume.CoverUrl,
-                        TotalPages = volume.TotalPages,
-                        CurrentPage = volume.CurrentPage,
-                        TotalChapters = volume.TotalChapters,
-                        CurrentChapter = volume.CurrentChapter,
-                        Status = volume.Status,
-                        Score = volume.Score,
-                        Notes = volume.Notes,
-                        ReleaseDate = volume.ReleaseDate,
-                    })
-                    .ToList() ?? [],
-                Title = request.Title,
-            },
-            "movie" => new Movie
-            {
-                DurationMinutes = request.DurationMinutes ?? 0,
-                Director = request.Director,
-                IsAnime = request.IsAnime ?? false,
-                Studio = request.Studio,
-                RomajiTitle = request.RomajiTitle,
-                Title = request.Title,
-            },
-            "tvshow" => new TvShow
-            {
-                Network = request.Network,
-                IsAnime = request.IsAnime ?? false,
-                Studio = request.Studio,
-                RomajiTitle = request.RomajiTitle,
-                EpisodeDurationMinutes = request.EpisodeDurationMinutes ?? request.DurationMinutes,
-                Seasons = request.Seasons?
-                    .Select(season => new TvSeason
-                    {
-                        SeasonNumber = season.SeasonNumber,
-                        Title = season.Title,
-                        CoverUrl = season.CoverUrl,
-                        TotalEpisodes = season.TotalEpisodes,
-                        Status = season.Status,
-                        Score = season.Score,
-                        Notes = season.Notes,
-                        AirDate = season.AirDate,
-                        EpisodesData = season.EpisodesData,
-                    })
-                    .ToList() ?? [],
-                Title = request.Title,
-            },
-            _ => throw new UnsupportedMediaTypeException(request.Type),
-        };
-
-        item.Status = request.Status;
-        item.Score = request.Score;
-        item.CoverUrl = request.CoverUrl;
-        item.Notes = request.Notes;
-        item.FranchiseId = request.FranchiseId;
-        item.FranchiseOrder = request.FranchiseOrder;
-        item.ExternalId = request.ExternalId;
-        item.ExternalSource = request.ExternalSource;
-        item.ExternalRating = request.ExternalRating;
-        item.ExternalRatingVotes = request.ExternalRatingVotes;
-        item.ExternalRatingsJson = request.ExternalRatingsJson;
-        item.ReleaseDate = request.ReleaseDate;
-        item.EndDate = request.EndDate;
-        item.ReleaseStatus = !string.IsNullOrWhiteSpace(request.ReleaseStatus)
-            ? request.ReleaseStatus
-            : ComputeReleaseStatusFromDates(request.ReleaseDate, request.EndDate);
-
-        return item;
-    }
-
     private static int ClampToKnownTotal(int current, int? total) =>
         total is > 0 ? Math.Min(current, total.Value) : current;
 
@@ -1112,25 +728,4 @@ public static class MediaEndpoints
         url is not null &&
         (url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
          url.StartsWith("https://", StringComparison.OrdinalIgnoreCase));
-
-    private static string? ComputeReleaseStatusFromDates(DateTime? releaseDate, DateTime? endDate)
-    {
-        var now = DateTime.UtcNow.Date;
-        if (endDate is { } end && end <= now)
-        {
-            return "FINISHED";
-        }
-        if (releaseDate is { } start)
-        {
-            if (start > now)
-            {
-                return "NOT_YET_RELEASED";
-            }
-            return "RELEASING";
-        }
-        return null;
-    }
-
-    private sealed class UnsupportedMediaTypeException(string mediaType)
-        : InvalidOperationException($"Unsupported media type '{mediaType}'.");
 }

@@ -151,6 +151,54 @@
   let previewRelatedItem = $state<RelatedEntry | null>(null)
   let previewStatus = $state<MediaStatus>(MEDIA_STATUS.planned)
   let previewAddingBusy = $state(false)
+  let previewRelatedLoading = $state(false)
+  let isEnriching = $state(false)
+
+  let previewRelatedBadges = $derived.by<RatingBadge[]>(() => {
+    if (!previewRelatedItem) return []
+    const item = previewRelatedItem
+    const results: RatingBadge[] = []
+    const seen = new Set<string>()
+
+    if (item.ratings && item.ratings.length > 0) {
+      for (const r of item.ratings) {
+        if (!r.source) continue
+        seen.add(r.source.toLowerCase())
+        results.push({
+          source: r.source,
+          score: r.rating > 0 ? r.rating : null,
+        })
+      }
+    }
+
+    if (item.score && !seen.has((item.externalSource || '').toLowerCase())) {
+      const src = item.externalSource || (item.type === 'manga' || item.type === 'anime' ? 'AniList' : 'TMDB')
+      seen.add(src.toLowerCase())
+      results.push({
+        source: src,
+        score: item.score,
+      })
+    }
+
+    const cat = item.type === 'anime' || item.type === 'manga' || item.type === 'movie' || item.type === 'tvshow' || item.type === 'game' || item.type === 'book' ? item.type : 'anime'
+    const expected = availableSources.length > 0
+      ? availableSources.filter((s) => s.mediaTypes.includes(cat)).map((s) => s.name)
+      : (CATEGORY_EXPECTED_SOURCES[cat] ?? ['AniList'])
+
+    for (const exp of expected) {
+      const expNorm = exp.toLowerCase()
+      const found = Array.from(seen).some((s) => s.includes(expNorm) || expNorm.includes(s))
+      if (!found) {
+        seen.add(expNorm)
+        results.push({
+          source: exp,
+          score: null,
+        })
+      }
+    }
+
+    return results
+  })
 
   let recommendations = $state<RecommendationItem[]>([])
   let recommendationsLoading = $state(false)
@@ -666,6 +714,7 @@
     if (!hasMissingRatings && !isMangaMissingData) return
 
     try {
+      isEnriching = true
       const enriched = await enrichMedia(current.id)
       if (sequence === requestSequence && enriched) {
         media = enriched
@@ -673,6 +722,8 @@
       }
     } catch {
       // Background enrichment silently completes
+    } finally {
+      isEnriching = false
     }
   }
 
@@ -1058,6 +1109,7 @@
 
     previewRelatedItem = rel
     previewStatus = MEDIA_STATUS.planned
+    previewRelatedLoading = true
 
     try {
       const details = await getExternalDetails(rel.type, rel.id, rel.title, rel.externalSource || 'AniList')
@@ -1080,7 +1132,9 @@
           releaseStatus: details.releaseStatus ?? previewRelatedItem.releaseStatus,
         }
       }
-    } catch {}
+    } catch {} finally {
+      previewRelatedLoading = false
+    }
   }
 
   async function addRelatedToLibrary(rel: RelatedEntry, status: MediaStatus) {
@@ -1638,8 +1692,8 @@
 
     try {
       showToast(i18n.t.detailModal.delete, 'warning')
-      onBack()
       await onDelete(target.id)
+      onBack()
     } catch (error) {
       deleteError = error
       showToast(errorMessage(error), 'error')
@@ -2046,6 +2100,8 @@
                 {#if rating.votes}
                   <span class="text-xs text-muted font-normal">({rating.votes > 1000 ? (rating.votes / 1000).toFixed(1) + 'k' : rating.votes})</span>
                 {/if}
+              {:else if isEnriching}
+                <span class="inline-block h-4 w-6 animate-pulse rounded bg-white/20"></span>
               {:else}
                 <span class="font-medium text-sm text-muted">—</span>
               {/if}
@@ -3022,30 +3078,27 @@
                       </div>
 
                       <!-- Ratings -->
-                      {#if previewRelatedItem.ratings && previewRelatedItem.ratings.length > 0}
+                      {#if previewRelatedBadges.length > 0}
                         <div class="flex flex-wrap items-center gap-2">
-                          {#each previewRelatedItem.ratings as r}
+                          {#each previewRelatedBadges as r}
                             <div class="inline-flex items-center gap-1 rounded-md border border-border bg-elevated px-2 py-0.5 text-xs">
                               <span class="font-medium text-muted">{r.source}:</span>
-                              <span class="flex items-center gap-0.5 font-bold text-star">
-                                <Star size={11} fill="currentColor" />
-                                {(r.rating ?? 0).toFixed(1)}
-                              </span>
+                              {#if r.score !== null && r.score > 0}
+                                <span class="flex items-center gap-0.5 font-bold text-star">
+                                  <Star size={11} fill="currentColor" />
+                                  {r.score.toFixed(1)}
+                                </span>
+                              {:else if previewRelatedLoading}
+                                <span class="inline-block h-3 w-5 animate-pulse rounded bg-border"></span>
+                              {:else}
+                                <span class="text-xs text-muted">—</span>
+                              {/if}
                             </div>
                           {/each}
                         </div>
-                      {:else if previewRelatedItem.score}
-                        <div class="flex flex-wrap items-center gap-2">
-                          <div class="inline-flex items-center gap-1 rounded-md border border-border bg-elevated px-2 py-0.5 text-xs">
-                            <span class="font-medium text-muted">{previewRelatedItem.externalSource || 'AniList'}:</span>
-                            <span class="flex items-center gap-0.5 font-bold text-star">
-                              <Star size={11} fill="currentColor" />
-                              {previewRelatedItem.score.toFixed(1)}
-                            </span>
-                          </div>
-                        </div>
                       {:else}
                         <div class="inline-flex items-center gap-1 rounded-md border border-border bg-elevated px-2 py-0.5 text-xs text-muted">
+                          <Star size={11} />
                           <span>{i18n.t.detail.previewModal.noRatings}</span>
                         </div>
                       {/if}

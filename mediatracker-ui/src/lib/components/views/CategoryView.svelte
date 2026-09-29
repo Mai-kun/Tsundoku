@@ -10,9 +10,11 @@
   }
 
   const savedCategoryState: Partial<Record<string, SavedCategoryState>> = {}
+  const categoryCache: Partial<Record<string, MediaItem[]>> = {}
 </script>
 
 <script lang="ts">
+  import { untrack } from 'svelte'
   import { deleteMedia, getMedia, getMediaItem, setProgress, setSeasonProgress } from '$lib/api'
   import { showToast } from '$lib/stores/toast.svelte'
   import { i18n } from '$lib/i18n/index.svelte'
@@ -36,10 +38,11 @@
   let sort = $state<LibrarySort>('newest')
   let groupBy = $state<GroupBy>('status')
   let search = $state('')
-  let allItems = $state<MediaItem[]>([])
-  let loading = $state(true)
+  let allItems = $state<MediaItem[]>(untrack(() => categoryCache[category] ?? []))
+  let loading = $state(false)
   let loadError = $state<unknown>(null)
   let requestSequence = 0
+  let skeletonTimer: ReturnType<typeof setTimeout> | null = null
 
   $effect(() => {
     const saved = savedCategoryState[category]
@@ -47,6 +50,14 @@
     sort = saved?.sort ?? 'newest'
     groupBy = saved?.groupBy ?? 'status'
     search = saved?.search ?? ''
+    const cached = categoryCache[category]
+    if (cached) {
+      allItems = cached
+      loading = false
+    } else {
+      allItems = []
+      loading = false
+    }
   })
 
 
@@ -134,7 +145,10 @@
     const delay = search.trim() ? 500 : 0
     const timer = setTimeout(() => void loadItems(sequence), delay)
 
-    return () => clearTimeout(timer)
+    return () => {
+      clearTimeout(timer)
+      if (skeletonTimer) clearTimeout(skeletonTimer)
+    }
   })
 
   function categoryFilters(): MediaFilters {
@@ -169,22 +183,28 @@
   }
 
   async function loadItems(sequence: number) {
+    if (skeletonTimer) clearTimeout(skeletonTimer)
     if (allItems.length === 0) {
-      loading = true
+      skeletonTimer = setTimeout(() => {
+        if (sequence === requestSequence && allItems.length === 0) {
+          loading = true
+        }
+      }, 120)
     }
     loadError = null
 
     try {
       const found = await getMedia(categoryFilters())
       if (sequence === requestSequence) {
+        if (skeletonTimer) clearTimeout(skeletonTimer)
         allItems = found
+        categoryCache[category] = found
+        loading = false
       }
     } catch (error) {
       if (sequence === requestSequence) {
+        if (skeletonTimer) clearTimeout(skeletonTimer)
         loadError = error
-      }
-    } finally {
-      if (sequence === requestSequence) {
         loading = false
       }
     }
@@ -202,6 +222,7 @@
       if (item.type === 'manga') return { ...item, currentChapter: currentProgress }
       return item
     })
+    categoryCache[category] = allItems
     await setProgress(id, currentProgress)
   }
 
@@ -221,12 +242,14 @@
 
     const prevItems = allItems
     allItems = allItems.filter((i) => i.id !== item.id)
-    onMediaChanged()
+    categoryCache[category] = allItems
 
     try {
       await deleteMedia(item.id)
+      onMediaChanged()
     } catch {
       allItems = prevItems
+      categoryCache[category] = prevItems
       showToast(i18n.t.errors.unexpected, 'error')
     }
 

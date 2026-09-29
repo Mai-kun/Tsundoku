@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { BarChart3, BookOpen, CalendarDays, Film, Gamepad2, Home, Library, List, Menu, Plus, Settings, Tv } from 'lucide-svelte'
+  import { BarChart3, BookOpen, CalendarDays, Film, Gamepad2, History, Home, Library, List, Menu, Plus, Settings, Tv } from 'lucide-svelte'
   import { i18n } from '$lib/i18n/index.svelte'
   import type { AppView } from '$lib/types'
 
@@ -62,6 +62,7 @@
       <button type="button" class="inline-flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-muted transition hover:bg-card hover:text-ink" onclick={() => { toolsOpen = false; onCreate() }}><Plus size={18} aria-hidden="true" />{i18n.t.navigation.create}</button>
       <button type="button" class={`inline-flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition ${itemClass('stats')}`} onclick={() => navigate('stats')}><BarChart3 size={18} aria-hidden="true" />{i18n.t.navigation.stats}</button>
       <button type="button" class={`inline-flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition ${itemClass('lists')}`} onclick={() => navigate('lists')}><List size={18} aria-hidden="true" />{i18n.t.navigation.lists}</button>
+      <button type="button" class={`inline-flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition ${itemClass('history')}`} onclick={() => navigate('history')}><History size={18} aria-hidden="true" />{i18n.t.navigation.history}</button>
       <button type="button" class={`inline-flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition ${itemClass('calendar')}`} onclick={() => navigate('calendar')}><CalendarDays size={18} aria-hidden="true" />{i18n.t.navigation.calendar}</button>
       <button type="button" class="inline-flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-muted transition hover:bg-card hover:text-ink" onclick={() => { toolsOpen = false; onOpenSettings() }}><Settings size={18} aria-hidden="true" />{i18n.t.navigation.settings}</button>
     </div>
@@ -73,6 +74,7 @@
       <button type="button" class="inline-flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted transition hover:bg-card hover:text-ink" onclick={onCreate}><Plus size={17} />{i18n.t.navigation.create}</button>
       <button type="button" class={`inline-flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition ${itemClass('stats')}`} onclick={() => navigate('stats')}><BarChart3 size={17} />{i18n.t.navigation.stats}</button>
       <button type="button" class={`inline-flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition ${itemClass('lists')}`} onclick={() => navigate('lists')}><List size={17} />{i18n.t.navigation.lists}</button>
+      <button type="button" class={`inline-flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition ${itemClass('history')}`} onclick={() => navigate('history')}><History size={17} />{i18n.t.navigation.history}</button>
       <button type="button" class={`inline-flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition ${itemClass('calendar')}`} onclick={() => navigate('calendar')}><CalendarDays size={17} />{i18n.t.navigation.calendar}</button>
       <button type="button" class="inline-flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted transition hover:bg-card hover:text-ink" onclick={onOpenSettings}><Settings size={17} />{i18n.t.navigation.settings}</button>
     </div>

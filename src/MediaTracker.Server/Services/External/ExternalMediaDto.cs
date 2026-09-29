@@ -61,4 +61,8 @@ public sealed record ExternalMediaDto
     public IReadOnlyList<ExternalRatingDto>? Ratings { get; init; }
 
     public IReadOnlyList<ExternalEpisodeDto>? Episodes { get; init; }
+
+    public IReadOnlyList<string>? Genres { get; init; }
+
+    public IReadOnlyList<string>? Tags { get; init; }
 }

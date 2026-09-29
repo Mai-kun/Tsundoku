@@ -85,7 +85,7 @@ public sealed class IgdbMetadataProvider(
 
             var cleanQuery = query.Replace("\"", "\\\"");
             req.Content = new StringContent(
-                $"search \"{cleanQuery}\"; fields name,summary,cover.url,first_release_date,rating,total_rating; limit 10;",
+                $"search \"{cleanQuery}\"; fields name,summary,cover.url,first_release_date,rating,total_rating,genres.name,status; limit 10;",
                 System.Text.Encoding.UTF8,
                 "text/plain");
 
@@ -178,10 +178,15 @@ public sealed class IgdbMetadataProvider(
         }
 
         int? year = null;
+        string? releaseDate = null;
         if (item.FirstReleaseDate.HasValue)
         {
-            year = DateTimeOffset.FromUnixTimeSeconds(item.FirstReleaseDate.Value).Year;
+            var dto = DateTimeOffset.FromUnixTimeSeconds(item.FirstReleaseDate.Value);
+            year = dto.Year;
+            releaseDate = dto.ToString("yyyy-MM-dd");
         }
+
+        var genres = item.Genres?.Select(g => g.Name).Where(n => !string.IsNullOrWhiteSpace(n)).Select(n => n!).ToList();
 
         return new ExternalMediaDto
         {
@@ -191,11 +196,23 @@ public sealed class IgdbMetadataProvider(
             CoverUrl = cover,
             Description = item.Summary,
             ReleaseYear = year,
+            ReleaseDate = releaseDate,
+            ReleaseStatus = DetermineStatus(item.FirstReleaseDate, item.Status),
+            Genres = genres,
             Platform = "Multiplatform",
             Type = "game",
             Rating = score,
             Ratings = ratings
         };
+    }
+
+    private static string DetermineStatus(long? firstReleaseDate, int? status)
+    {
+        if (firstReleaseDate.HasValue && DateTimeOffset.FromUnixTimeSeconds(firstReleaseDate.Value) > DateTimeOffset.UtcNow)
+            return "Coming Soon";
+        if (status == 4)
+            return "Early Access";
+        return "Full Release";
     }
 
     private sealed class TwitchTokenResponse
@@ -227,8 +244,20 @@ public sealed class IgdbMetadataProvider(
         [JsonPropertyName("total_rating")]
         public double? TotalRating { get; set; }
 
+        [JsonPropertyName("status")]
+        public int? Status { get; set; }
+
         [JsonPropertyName("cover")]
         public IgdbCover? Cover { get; set; }
+
+        [JsonPropertyName("genres")]
+        public List<IgdbNamedItem>? Genres { get; set; }
+    }
+
+    private sealed class IgdbNamedItem
+    {
+        [JsonPropertyName("name")]
+        public string? Name { get; set; }
     }
 
     private sealed class IgdbCover

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { Check, ChevronRight, Image as ImageIcon, Plus, Search, Star, X } from 'lucide-svelte'
   import { untrack } from 'svelte'
-  import { createMedia, deleteMedia, errorMessage, getCategoryOrder, getMedia, searchExternal } from '$lib/api'
+  import { createMedia, deleteMedia, errorMessage, getCategoryOrder, getExternalDetails, getMedia, searchExternal } from '$lib/api'
   import { i18n } from '$lib/i18n/index.svelte'
   import { MEDIA_STATUS, type CreateMediaPayload, type ExternalMedia, type MediaItem, type SearchMediaType } from '$lib/types'
 
@@ -139,6 +139,8 @@
       const found = await searchExternal(type, pendingTerm)
       if (sequence === requestSequence) {
         results = found
+        searching = false
+        void hydrateMissingData(found, sequence)
       }
     } catch (error) {
       if (sequence === requestSequence) {
@@ -149,6 +151,58 @@
       if (sequence === requestSequence) {
         searching = false
       }
+    }
+  }
+
+  async function hydrateMissingData(items: ExternalMedia[], sequence: number) {
+    const candidates = items.filter(
+      (r) => effectiveType(r) === 'manga' && (r.chapters == null || r.volumes == null || !r.author)
+    )
+    for (const item of candidates.slice(0, 6)) {
+      if (sequence !== requestSequence) break
+      try {
+        const enriched = await getExternalDetails(
+          effectiveType(item),
+          item.externalId,
+          item.title,
+          item.externalSource ?? undefined
+        )
+        if (sequence === requestSequence && enriched) {
+          if (enriched.chapters != null) item.chapters = enriched.chapters
+          if (enriched.volumes != null) item.volumes = enriched.volumes
+          if (enriched.totalCount != null) item.totalCount = enriched.totalCount
+          if (enriched.author) item.author = enriched.author
+          if (enriched.ratings && enriched.ratings.length > 0) item.ratings = enriched.ratings
+          if (enriched.rating && !item.rating) item.rating = enriched.rating
+          results = [...results]
+        }
+      } catch {}
+    }
+  }
+
+  function openPreview(result: ExternalMedia) {
+    previewItem = result
+    if (result.type === 'manga' || !result.ratings || result.ratings.length === 0 || !result.author) {
+      void getExternalDetails(
+        effectiveType(result),
+        result.externalId,
+        result.title,
+        result.externalSource ?? undefined
+      ).then((enriched) => {
+        if (previewItem && previewItem.externalId === result.externalId && enriched) {
+          previewItem = {
+            ...previewItem,
+            chapters: enriched.chapters ?? previewItem.chapters,
+            volumes: enriched.volumes ?? previewItem.volumes,
+            totalCount: enriched.totalCount ?? previewItem.totalCount,
+            author: enriched.author ?? previewItem.author,
+            ratings: enriched.ratings ?? previewItem.ratings,
+            rating: enriched.rating ?? previewItem.rating,
+            ratingVotes: enriched.ratingVotes ?? previewItem.ratingVotes,
+            description: enriched.description || previewItem.description,
+          }
+        }
+      })
     }
   }
 
@@ -316,6 +370,7 @@
   function sourceBadgeClass(source?: string | null): string {
     const s = (source ?? '').toLowerCase()
     if (s.includes('anilist')) return 'bg-[#02a9ff]/15 text-[#38bdf8] border-[#02a9ff]/30'
+    if (s.includes('mangadex')) return 'bg-[#ff6740]/15 text-[#ff6740] border-[#ff6740]/30'
     if (s.includes('mal') || s.includes('myanimelist') || s.includes('jikan')) return 'bg-[#2e51a2]/20 text-[#60a5fa] border-[#2e51a2]/30'
     if (s.includes('mangaupdate')) return 'bg-[#3b82f6]/20 text-[#93c5fd] border-[#3b82f6]/30'
     if (s.includes('tmdb')) return 'bg-[#01b4e4]/15 text-[#38bdf8] border-[#01b4e4]/30'
@@ -436,7 +491,7 @@
                     <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
                     <li
                       class="flex cursor-pointer gap-4 rounded-lg bg-card p-3 transition hover:bg-elevated/70"
-                      onclick={() => (previewItem = result)}
+                      onclick={() => openPreview(result)}
                     >
                       <div class="h-24 w-16 shrink-0 overflow-hidden rounded-md bg-canvas">
                         {#if result.coverUrl}
@@ -524,7 +579,7 @@
               <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
               <li
                 class="flex cursor-pointer gap-4 rounded-lg bg-card p-3 transition hover:bg-elevated/70"
-                onclick={() => (previewItem = result)}
+                onclick={() => openPreview(result)}
               >
                 <div class="h-28 w-20 shrink-0 overflow-hidden rounded-md bg-canvas">
                   {#if result.coverUrl}

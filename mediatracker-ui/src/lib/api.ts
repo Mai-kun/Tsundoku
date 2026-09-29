@@ -149,6 +149,10 @@ export function updateMedia(id: string, payload: UpdateMediaPayload): Promise<Me
   return requestJson<MediaDetail>(`${mediaEndpoint}/${id}`, jsonOptions('PUT', payload))
 }
 
+export function enrichMedia(id: string): Promise<MediaDetail> {
+  return requestJson<MediaDetail>(`${mediaEndpoint}/${id}/enrich`, { method: 'POST' })
+}
+
 export function setProgress(id: string, currentProgress: number): Promise<void> {
   return requestVoid(`${mediaEndpoint}/${id}/progress`, jsonOptions('PUT', { currentProgress }))
 }

@@ -160,6 +160,12 @@ try
         client.Timeout = defaultTimeout;
         client.DefaultRequestHeaders.UserAgent.ParseAdd(DefaultUserAgent);
     });
+    builder.Services.AddHttpClient("MangaDex", client =>
+    {
+        client.BaseAddress = new Uri("https://api.mangadex.org/");
+        client.Timeout = defaultTimeout;
+        client.DefaultRequestHeaders.UserAgent.ParseAdd(DefaultUserAgent);
+    });
 
     builder.Services.AddKeyedTransient<IMetadataProvider, AniListMetadataProvider>("anime");
     builder.Services.AddKeyedTransient<IMetadataProvider, AniListMetadataProvider>("anime:anilist");
@@ -169,8 +175,10 @@ try
 
     builder.Services.AddKeyedTransient<IMetadataProvider, AniListMetadataProvider>("manga");
     builder.Services.AddKeyedTransient<IMetadataProvider, AniListMetadataProvider>("manga:anilist");
+    builder.Services.AddKeyedTransient<IMetadataProvider, MangaDexMetadataProvider>("manga:mangadex");
     builder.Services.AddKeyedTransient<IMetadataProvider, MangaUpdatesMetadataProvider>("manga:mangaupdates");
     builder.Services.AddKeyedTransient<IMetadataProvider, JikanMetadataProvider>("manga:jikan");
+    builder.Services.AddKeyedTransient<IMetadataProvider, MangaDexMetadataProvider>("mangadex");
     builder.Services.AddKeyedTransient<IMetadataProvider, MangaUpdatesMetadataProvider>("mangaupdates");
 
     builder.Services.AddKeyedTransient<IMetadataProvider, OpenLibraryMetadataProvider>("book");

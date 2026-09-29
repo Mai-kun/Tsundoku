@@ -24,6 +24,7 @@ public static class MediaEndpoints
         group.MapPut("/{id:guid}/status", UpdateStatus);
         group.MapPut("/{id:guid}/progress", UpdateProgress);
         group.MapPost("/{id:guid}/refresh", RefreshMediaMetadata);
+        group.MapPost("/{id:guid}/enrich", EnrichMediaItem);
         group.MapDelete("/{id:guid}", DeleteMediaItem);
 
         return app;
@@ -146,7 +147,7 @@ public static class MediaEndpoints
         return Results.Ok(stats);
     }
 
-    private static async Task<IResult> GetMediaItem(Guid id, AppDbContext db, MetadataAggregatorService aggregator, CancellationToken ct)
+    private static async Task<IResult> GetMediaItem(Guid id, AppDbContext db, CancellationToken ct)
     {
         var item = await db.MediaItems
             .Include(media => media.Franchise)
@@ -175,40 +176,95 @@ public static class MediaEndpoints
             await db.SaveChangesAsync(ct);
         }
 
-        // Enrich ratings from all sources if missing
-        if (!string.IsNullOrEmpty(item.ExternalId) && !string.IsNullOrEmpty(item.ExternalSource))
+        return Results.Ok(MediaResponseMapper.ToDetailDto(item));
+    }
+
+    private static async Task<IResult> EnrichMediaItem(
+        Guid id,
+        AppDbContext db,
+        MetadataAggregatorService aggregator,
+        CancellationToken ct)
+    {
+        var item = await db.MediaItems
+            .Include(media => media.Franchise)
+            .Include(media => ((TvShow)media).Seasons.OrderBy(season => season.SeasonNumber))
+            .Include(media => ((Manga)media).Volumes.OrderBy(volume => volume.VolumeNumber))
+            .SingleOrDefaultAsync(media => media.Id == id, ct);
+
+        if (item is null) return Results.NotFound();
+
+        var itemType = MediaResponseMapper.GetType(item);
+        if (item is TvShow { IsAnime: true } or Movie { IsAnime: true })
         {
-            var itemType = MediaResponseMapper.GetType(item);
-            var expectedSources = MetadataAggregatorService.DefaultSourcePriority.TryGetValue(itemType, out var exp) ? exp : [];
-            int storedCount = 0;
-            if (!string.IsNullOrEmpty(item.ExternalRatingsJson))
+            itemType = "anime";
+        }
+
+        try
+        {
+            using var enrichCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            enrichCts.CancelAfter(TimeSpan.FromSeconds(8));
+            var enriched = await aggregator.GetDetailsAsync(
+                itemType, item.ExternalId ?? "", item.Title, enrichCts.Token, item.ExternalSource);
+
+            if (enriched is not null)
             {
-                try
+                bool modified = false;
+
+                if (enriched.Ratings is { Count: > 0 } ratings)
                 {
-                    using var doc = System.Text.Json.JsonDocument.Parse(item.ExternalRatingsJson);
-                    if (doc.RootElement.ValueKind == System.Text.Json.JsonValueKind.Array)
-                        storedCount = doc.RootElement.GetArrayLength();
-                }
-                catch { }
-            }
-            if (storedCount < expectedSources.Length)
-            {
-                try
-                {
-                    using var enrichCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                    enrichCts.CancelAfter(TimeSpan.FromSeconds(8));
-                    var enriched = await aggregator.GetDetailsAsync(
-                        itemType, item.ExternalId, item.Title, enrichCts.Token, item.ExternalSource);
-                    if (enriched?.Ratings is { Count: > 0 } ratings)
+                    item.ExternalRatingsJson = System.Text.Json.JsonSerializer.Serialize(
+                        ratings.Select(r => new { source = r.Source, score = r.Rating, votes = r.Votes }));
+                    if (enriched.Rating.HasValue && enriched.Rating.Value > 0)
                     {
-                        item.ExternalRatingsJson = System.Text.Json.JsonSerializer.Serialize(
-                            ratings.Select(r => new { source = r.Source, score = r.Rating, votes = r.Votes }));
-                        await db.SaveChangesAsync(ct);
+                        item.ExternalRating = enriched.Rating.Value;
+                        item.ExternalRatingVotes = enriched.RatingVotes;
+                    }
+                    modified = true;
+                }
+
+                if (item is Manga manga)
+                {
+                    if (enriched.Chapters.HasValue && (!manga.TotalChapters.HasValue || manga.TotalChapters.Value <= 0))
+                    {
+                        manga.TotalChapters = enriched.Chapters.Value;
+                        modified = true;
+                    }
+                    if (enriched.Volumes.HasValue && (!manga.TotalVolumes.HasValue || manga.TotalVolumes.Value <= 0))
+                    {
+                        manga.TotalVolumes = enriched.Volumes.Value;
+                        modified = true;
+                    }
+                    if (string.IsNullOrWhiteSpace(manga.Author) && !string.IsNullOrWhiteSpace(enriched.Author))
+                    {
+                        manga.Author = enriched.Author;
+                        modified = true;
+                    }
+                    if (string.IsNullOrWhiteSpace(manga.RomajiTitle) && !string.IsNullOrWhiteSpace(enriched.RomajiTitle))
+                    {
+                        manga.RomajiTitle = enriched.RomajiTitle;
+                        modified = true;
+                    }
+                    if (manga.Volumes.Count == 1 && manga.Volumes[0].TotalChapters == 0 && manga.TotalChapters is > 0)
+                    {
+                        manga.Volumes[0].TotalChapters = manga.TotalChapters.Value;
+                        modified = true;
                     }
                 }
-                catch { }
+
+                if (string.IsNullOrWhiteSpace(item.Notes) && !string.IsNullOrWhiteSpace(enriched.Description))
+                {
+                    item.Notes = enriched.Description;
+                    modified = true;
+                }
+
+                if (modified)
+                {
+                    item.UpdatedAt = DateTime.UtcNow;
+                    await db.SaveChangesAsync(ct);
+                }
             }
         }
+        catch { }
 
         return Results.Ok(MediaResponseMapper.ToDetailDto(item));
     }

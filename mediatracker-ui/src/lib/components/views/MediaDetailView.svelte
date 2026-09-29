@@ -27,10 +27,10 @@
     Languages,
     X,
   } from 'lucide-svelte'
-  import { addVolume, createMedia, deleteVolume, errorMessage, getExternalDetails, getMedia, getMediaItem, refreshMetadata, setProgress, setSeasonProgress, setVolumeProgress, translateText, updateMedia, updateStatus, updateVolume } from '$lib/api'
+  import { addVolume, createMedia, deleteVolume, enrichMedia, errorMessage, getExternalDetails, getMedia, getMediaItem, getSources, refreshMetadata, setProgress, setSeasonProgress, setVolumeProgress, translateText, updateMedia, updateStatus, updateVolume } from '$lib/api'
   import { i18n } from '$lib/i18n/index.svelte'
   import { showToast } from '$lib/stores/toast.svelte'
-  import { clampProgress, isMangaDetail, isTvShowDetail, MEDIA_STATUS, type AppView, type MangaVolume, type MediaDetail, type MediaItem, type MediaStatus, type TvSeason } from '$lib/types'
+  import { clampProgress, isMangaDetail, isTvShowDetail, MEDIA_STATUS, type AppView, type MangaVolume, type MediaDetail, type MediaItem, type MediaStatus, type SourceInfo, type TvSeason } from '$lib/types'
   import { createProgressDebounce } from '$lib/utils/progressDebounce'
 
   interface Props {
@@ -104,7 +104,7 @@
 
   const CATEGORY_EXPECTED_SOURCES: Record<string, string[]> = {
     anime: ['AniList', 'MyAnimeList'],
-    manga: ['AniList', 'MangaUpdates', 'MyAnimeList'],
+    manga: ['AniList', 'MangaDex', 'MangaUpdates', 'MyAnimeList'],
     movie: ['TMDB'],
     tvshow: ['TMDB'],
     game: ['RAWG'],
@@ -133,6 +133,15 @@
   let synopsisExpanded = $state(false)
   let statusMenuOpen = $state(false)
   let userRatingPopoverOpen = $state(false)
+  let availableSources = $state<SourceInfo[]>([])
+
+  $effect(() => {
+    void getSources()
+      .then((res) => {
+        if (res && res.length > 0) availableSources = res
+      })
+      .catch(() => {})
+  })
 
   let related = $state<RelatedEntry[]>([])
   let relatedLoading = $state(false)
@@ -295,7 +304,9 @@
 
     const isAnime = 'isAnime' in media ? Boolean((media as any).isAnime) : false
     const cat = (isAnime || (media as any).type === 'anime') ? 'anime' : media.type
-    const expected = CATEGORY_EXPECTED_SOURCES[cat] ?? []
+    const expected = availableSources.length > 0
+      ? availableSources.filter((s) => s.mediaTypes.includes(cat)).map((s) => s.name)
+      : (CATEGORY_EXPECTED_SOURCES[cat] ?? [])
     for (const exp of expected) {
       const expNorm = exp.toLowerCase()
       const found = Array.from(seen).some((s) => s.includes(expNorm) || expNorm.includes(s))
@@ -430,6 +441,59 @@
     }
   }
 
+  let editVolumeDialogOpen = $state(false)
+  let editingVolume = $state<MangaVolume | null>(null)
+  let editVolumeTitle = $state('')
+  let editVolumePages = $state(200)
+  let editVolumeChapters = $state(0)
+  let editVolumeCurrentPage = $state(0)
+
+  function openEditVolume(vol: MangaVolume) {
+    editingVolume = vol
+    editVolumeTitle = vol.title || `Volume ${vol.volumeNumber}`
+    editVolumePages = vol.totalPages > 0 ? vol.totalPages : 200
+    editVolumeChapters = vol.totalChapters ?? 0
+    editVolumeCurrentPage = vol.currentPage ?? 0
+    editVolumeDialogOpen = true
+  }
+
+  async function confirmEditVolume() {
+    if (!editingVolume || !media) return
+    editVolumeDialogOpen = false
+    try {
+      volumeBusy = editingVolume.id
+      await updateVolume(editingVolume.id, {
+        title: editVolumeTitle,
+        totalPages: Math.max(editVolumePages, 1),
+        totalChapters: Math.max(editVolumeChapters, 0),
+        currentPage: Math.min(Math.max(editVolumeCurrentPage, 0), editVolumePages),
+      })
+      await load(media.id, ++requestSequence, false)
+      onUpdate()
+    } catch (err) {
+      volumeError = err
+    } finally {
+      volumeBusy = ''
+      editingVolume = null
+    }
+  }
+
+  async function handleDeleteVolume(vol: MangaVolume) {
+    if (!media) return
+    const volName = vol.title || `Volume ${vol.volumeNumber}`
+    if (!confirm(`Delete ${volName}?`)) return
+    try {
+      volumeBusy = vol.id
+      await deleteVolume(vol.id)
+      await load(media.id, ++requestSequence, false)
+      onUpdate()
+    } catch (err) {
+      volumeError = err
+    } finally {
+      volumeBusy = ''
+    }
+  }
+
   $effect(() => {
     void refreshKey
     const id = mediaId
@@ -483,6 +547,7 @@
         isSynopsisTranslated = true
       }
       void loadRelated(loaded)
+      void triggerBackgroundEnrichment(loaded, sequence)
     } catch (error) {
       console.error('[MediaDetailView] Failed to load media', id, error)
       if (sequence === requestSequence) {
@@ -501,6 +566,36 @@
     progressValue = info?.current ?? 0
     committedProgress = progressValue
     pendingSnapshot = null
+  }
+
+  async function triggerBackgroundEnrichment(current: MediaDetail, sequence: number) {
+    if (!current.externalId && !current.title) return
+
+    let hasMissingRatings = false
+    const expected = availableSources.length > 0
+      ? availableSources.filter((s) => s.mediaTypes.includes(current.type)).map((s) => s.name)
+      : (CATEGORY_EXPECTED_SOURCES[current.type] ?? [])
+    if (expected.length > 0) {
+      const badges = externalRatings
+      hasMissingRatings = badges.some((b) => b.score === null)
+    }
+
+    let isMangaMissingData = false
+    if (current.type === 'manga') {
+      isMangaMissingData = !current.totalChapters || !current.totalVolumes || !current.author
+    }
+
+    if (!hasMissingRatings && !isMangaMissingData) return
+
+    try {
+      const enriched = await enrichMedia(current.id)
+      if (sequence === requestSequence && enriched) {
+        media = enriched
+        syncFrom(enriched)
+      }
+    } catch {
+      // Background enrichment silently completes
+    }
   }
 
   async function loadRelated(item: MediaItem, forceRefresh = false) {
@@ -2133,27 +2228,46 @@
                             </button>
                           </div>
 
-                          {#if !isDone}
+                          <div class="flex items-center gap-1">
                             <button
                               type="button"
-                              class="inline-flex h-7 items-center gap-1 rounded-md bg-emerald-500/15 px-2 text-[11px] font-semibold text-emerald-300 transition hover:bg-emerald-500/25 disabled:opacity-50"
-                              disabled={Boolean(volumeBusy)}
-                              onclick={() => void markVolumeComplete(vol)}
-                              title={i18n.t.detail.markVolumeComplete}
+                              class="grid h-7 w-7 place-items-center rounded-md bg-white/5 text-muted transition hover:bg-white/10 hover:text-white"
+                              onclick={() => openEditVolume(vol)}
+                              title="Edit volume"
                             >
-                              <Check size={12} />
+                              <Pencil size={11} />
                             </button>
-                          {:else}
                             <button
                               type="button"
-                              class="inline-flex h-7 items-center gap-1 rounded-md bg-white/5 px-2 text-[11px] font-semibold text-muted transition hover:bg-white/10 hover:text-white disabled:opacity-50"
-                              disabled={Boolean(volumeBusy)}
-                              onclick={() => void unmarkVolumeComplete(vol)}
-                              title="Unmark complete"
+                              class="grid h-7 w-7 place-items-center rounded-md bg-white/5 text-muted transition hover:bg-rose-500/20 hover:text-rose-400"
+                              onclick={() => void handleDeleteVolume(vol)}
+                              title="Delete volume"
                             >
-                              <X size={12} />
+                              <Trash2 size={11} />
                             </button>
-                          {/if}
+
+                            {#if !isDone}
+                              <button
+                                type="button"
+                                class="inline-flex h-7 items-center gap-1 rounded-md bg-emerald-500/15 px-2 text-[11px] font-semibold text-emerald-300 transition hover:bg-emerald-500/25 disabled:opacity-50"
+                                disabled={Boolean(volumeBusy)}
+                                onclick={() => void markVolumeComplete(vol)}
+                                title={i18n.t.detail.markVolumeComplete}
+                              >
+                                <Check size={12} />
+                              </button>
+                            {:else}
+                              <button
+                                type="button"
+                                class="inline-flex h-7 items-center gap-1 rounded-md bg-white/5 px-2 text-[11px] font-semibold text-muted transition hover:bg-white/10 hover:text-white disabled:opacity-50"
+                                disabled={Boolean(volumeBusy)}
+                                onclick={() => void unmarkVolumeComplete(vol)}
+                                title="Unmark complete"
+                              >
+                                <X size={12} />
+                              </button>
+                            {/if}
+                          </div>
                         </div>
                       </div>
                     {/each}
@@ -2433,6 +2547,23 @@
                       </div>
 
                       <div class="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          class="inline-flex h-8 items-center gap-1 rounded-lg bg-white/5 border border-white/10 px-2 text-xs font-semibold text-muted hover:bg-white/10 hover:text-white transition"
+                          onclick={() => openEditVolume(vol)}
+                          title="Edit volume"
+                        >
+                          <Pencil size={12} />
+                        </button>
+                        <button
+                          type="button"
+                          class="inline-flex h-8 items-center gap-1 rounded-lg bg-white/5 border border-white/10 px-2 text-xs font-semibold text-muted hover:bg-rose-500/20 hover:text-rose-400 transition"
+                          onclick={() => void handleDeleteVolume(vol)}
+                          title="Delete volume"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+
                         {#if !isDone}
                           <button
                             type="button"
@@ -3016,6 +3147,80 @@
         >
           <Plus size={13} />
           Add
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
+
+{#if editVolumeDialogOpen}
+  <div
+    class="fixed inset-0 z-50 flex items-center justify-center bg-canvas/80 backdrop-blur-sm p-4"
+    role="presentation"
+    onclick={(e) => { if (e.target === e.currentTarget) editVolumeDialogOpen = false }}
+  >
+    <div class="w-full max-w-sm rounded-xl border border-white/10 bg-[#1a1d27] p-6 shadow-2xl space-y-4">
+      <h3 class="text-sm font-bold text-white">Edit Volume</h3>
+      <div class="space-y-3">
+        <div>
+          <label class="block text-xs text-muted mb-1" for="edit-vol-title">Title</label>
+          <input
+            id="edit-vol-title"
+            type="text"
+            class="h-9 w-full rounded-md border border-white/10 bg-[#13151b] px-3 text-xs text-white outline-none focus:ring-1 focus:ring-[#5844e0]"
+            bind:value={editVolumeTitle}
+            onkeydown={(e) => { if (e.key === 'Enter') void confirmEditVolume() }}
+          />
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-xs text-muted mb-1" for="edit-vol-current-page">Current Page</label>
+            <input
+              id="edit-vol-current-page"
+              type="number"
+              min="0"
+              class="h-9 w-full rounded-md border border-white/10 bg-[#13151b] px-3 text-xs text-white outline-none focus:ring-1 focus:ring-[#5844e0]"
+              bind:value={editVolumeCurrentPage}
+            />
+          </div>
+          <div>
+            <label class="block text-xs text-muted mb-1" for="edit-vol-pages">Total Pages</label>
+            <input
+              id="edit-vol-pages"
+              type="number"
+              min="1"
+              class="h-9 w-full rounded-md border border-white/10 bg-[#13151b] px-3 text-xs text-white outline-none focus:ring-1 focus:ring-[#5844e0]"
+              bind:value={editVolumePages}
+            />
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs text-muted mb-1" for="edit-vol-chapters">Total Chapters</label>
+          <input
+            id="edit-vol-chapters"
+            type="number"
+            min="0"
+            class="h-9 w-full rounded-md border border-white/10 bg-[#13151b] px-3 text-xs text-white outline-none focus:ring-1 focus:ring-[#5844e0]"
+            bind:value={editVolumeChapters}
+          />
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 pt-1">
+        <button
+          type="button"
+          class="inline-flex h-8 items-center rounded-md border border-white/10 px-3 text-xs font-medium text-muted hover:text-white transition"
+          onclick={() => (editVolumeDialogOpen = false)}
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          class="inline-flex h-8 items-center gap-1.5 rounded-md bg-[#5844e0] px-3 text-xs font-semibold text-white transition hover:bg-[#6854f0] disabled:opacity-50"
+          disabled={Boolean(volumeBusy)}
+          onclick={() => void confirmEditVolume()}
+        >
+          <Check size={13} />
+          Save
         </button>
       </div>
     </div>

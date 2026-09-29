@@ -6,10 +6,16 @@ using Microsoft.Extensions.Options;
 namespace MediaTracker.Server.Services.External;
 
 public sealed class RawgMetadataProvider(
-    IHttpClientFactory httpClientFactory,
-    IOptions<ExternalApiOptions> options,
-    ILogger<RawgMetadataProvider> logger) : IMetadataProvider
+    IHttpClientFactory httpClientFactory = null!,
+    IOptions<ExternalApiOptions> options = null!,
+    ILogger<RawgMetadataProvider> logger = null!) : IMetadataProvider
 {
+    public string Id => "rawg";
+    public string Name => "RAWG Video Games Database";
+    public string Description => "Video games metadata & ratings provider";
+    public IReadOnlyList<string> MediaTypes => ["game"];
+    public bool RequiresApiKey => true;
+    public bool IsDefault => true;
     public async Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string query, CancellationToken ct)
     {
         var apiKey = options.Value.RawgApiKey;

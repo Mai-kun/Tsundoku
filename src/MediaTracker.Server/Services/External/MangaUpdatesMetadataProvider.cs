@@ -5,9 +5,14 @@ using Microsoft.Extensions.DependencyInjection;
 namespace MediaTracker.Server.Services.External;
 
 public sealed class MangaUpdatesMetadataProvider(
-    [ServiceKey] string? mediaType,
-    IHttpClientFactory httpClientFactory) : IMetadataProvider
+    [ServiceKey] string? mediaType = null,
+    IHttpClientFactory httpClientFactory = null!) : IMetadataProvider
 {
+    public string Id => "mangaupdates";
+    public string Name => "MangaUpdates";
+    public string Description => "Manga and Manhwa metadata & ratings provider";
+    public IReadOnlyList<string> MediaTypes => ["manga"];
+
     private readonly string _mediaType = mediaType ?? "manga";
 
     public async Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string query, CancellationToken ct)

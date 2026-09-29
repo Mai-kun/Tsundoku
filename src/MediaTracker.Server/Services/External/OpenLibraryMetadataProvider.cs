@@ -3,8 +3,13 @@ using System.Text.Json.Serialization;
 
 namespace MediaTracker.Server.Services.External;
 
-public sealed class OpenLibraryMetadataProvider(IHttpClientFactory httpClientFactory) : IMetadataProvider
+public sealed class OpenLibraryMetadataProvider(IHttpClientFactory httpClientFactory = null!) : IMetadataProvider
 {
+    public string Id => "openlibrary";
+    public string Name => "OpenLibrary";
+    public string Description => "Books metadata & ratings provider";
+    public IReadOnlyList<string> MediaTypes => ["book"];
+    public bool IsDefault => true;
     public async Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string query, CancellationToken ct)
     {
         var client = httpClientFactory.CreateClient("OpenLibrary");

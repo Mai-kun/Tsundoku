@@ -1,14 +1,17 @@
-using System.Net.Http.Json;
 using System.Text.Json.Serialization;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace MediaTracker.Server.Services.External;
 
 public sealed class JikanMetadataProvider(
-    [ServiceKey] string serviceKey,
-    IHttpClientFactory httpClientFactory) : IMetadataProvider
+    [ServiceKey] string? serviceKey = null,
+    IHttpClientFactory httpClientFactory = null!) : IMetadataProvider
 {
-    private readonly string _mediaType = serviceKey.StartsWith("manga", StringComparison.OrdinalIgnoreCase) ? "manga" : "anime";
+    public string Id => "jikan";
+    public string Name => "MyAnimeList (Jikan)";
+    public string Description => "Anime and Manga metadata & ratings provider";
+    public IReadOnlyList<string> MediaTypes => ["anime", "manga"];
+
+    private readonly string _mediaType = serviceKey?.StartsWith("manga", StringComparison.OrdinalIgnoreCase) == true ? "manga" : "anime";
 
     public async Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string query, CancellationToken ct)
     {

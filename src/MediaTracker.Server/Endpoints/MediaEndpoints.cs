@@ -501,7 +501,7 @@ public static class MediaEndpoints
         if (request.Status == MediaStatus.Completed)
         {
             item.FinishedAt ??= DateTime.UtcNow;
-            if (item.StartedAt is null) item.StartedAt = DateTime.UtcNow;
+            item.StartedAt ??= DateTime.UtcNow;
 
             if (item is TvShow show)
             {
@@ -783,7 +783,7 @@ public static class MediaEndpoints
         }
 
         var show = await db.TvShows.Include(item => item.Seasons).SingleOrDefaultAsync(item => item.Id == season.TvShowId, ct);
-        if (show is not null && show.Seasons.Count > 0)
+        if (show?.Seasons.Count > 0)
         {
             var totalWatched = show.Seasons.Sum(item => item.CurrentEpisode);
             var allCompleted = show.Seasons.All(item => item.Status == MediaStatus.Completed);
@@ -792,7 +792,7 @@ public static class MediaEndpoints
             {
                 show.Status = MediaStatus.Completed;
                 show.FinishedAt ??= DateTime.UtcNow;
-                if (show.StartedAt is null) show.StartedAt = DateTime.UtcNow;
+                show.StartedAt ??= DateTime.UtcNow;
             }
             else if (totalWatched > 0)
             {
@@ -801,10 +801,7 @@ public static class MediaEndpoints
                     show.Status = MediaStatus.InProgress;
                 }
                 show.FinishedAt = null;
-                if (show.StartedAt is null)
-                {
-                    show.StartedAt = DateTime.UtcNow;
-                }
+                show.StartedAt ??= DateTime.UtcNow;
             }
             else
             {

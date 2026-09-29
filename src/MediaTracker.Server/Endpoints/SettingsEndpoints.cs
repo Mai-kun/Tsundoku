@@ -30,118 +30,45 @@ public static class SettingsEndpoints
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var encryption = scope.ServiceProvider.GetRequiredService<IEncryptionService>();
         var options = scope.ServiceProvider.GetRequiredService<IOptions<ExternalApiOptions>>().Value;
+        var providers = scope.ServiceProvider.GetRequiredService<IEnumerable<IMetadataProvider>>();
 
-        var tmdbSetting = await db.Settings.FirstOrDefaultAsync(s => s.Key == "ApiKey_tmdb", ct);
-        if (tmdbSetting is not null && !string.IsNullOrWhiteSpace(tmdbSetting.Value))
+        foreach (var provider in providers.Where(p => p.RequiresApiKey).DistinctBy(p => p.Id))
         {
-            var decrypted = encryption.Decrypt(tmdbSetting.Value);
-            if (!string.IsNullOrWhiteSpace(decrypted))
+            var setting = await db.Settings.FirstOrDefaultAsync(s => s.Key == $"ApiKey_{provider.Id}", ct);
+            if (setting is not null && !string.IsNullOrWhiteSpace(setting.Value))
             {
-                options.TmdbApiKey = decrypted;
-            }
-        }
-
-        var rawgSetting = await db.Settings.FirstOrDefaultAsync(s => s.Key == "ApiKey_rawg", ct);
-        if (rawgSetting is not null && !string.IsNullOrWhiteSpace(rawgSetting.Value))
-        {
-            var decrypted = encryption.Decrypt(rawgSetting.Value);
-            if (!string.IsNullOrWhiteSpace(decrypted))
-            {
-                options.RawgApiKey = decrypted;
+                var decrypted = encryption.Decrypt(setting.Value);
+                if (!string.IsNullOrWhiteSpace(decrypted))
+                {
+                    options.SetKey(provider.Id, decrypted);
+                }
             }
         }
     }
 
     private static IResult GetSources(
-        IOptions<ExternalApiOptions> options,
-        AppDbContext db)
+        IEnumerable<IMetadataProvider> providers,
+        IOptions<ExternalApiOptions> options)
     {
-        var tmdbKey = options.Value.TmdbApiKey;
-        var rawgKey = options.Value.RawgApiKey;
+        var sources = providers
+            .DistinctBy(p => p.Id)
+            .Select(p =>
+            {
+                var key = options.Value.GetKey(p.Id);
+                var hasKey = !p.RequiresApiKey || !string.IsNullOrWhiteSpace(key);
 
-        var sources = new[]
-        {
-            new SourceInfo(
-                Id: "anilist",
-                Name: "AniList",
-                Description: "Anime and Manga metadata & ratings provider",
-                MediaTypes: ["anime", "manga"],
-                RequiresApiKey: false,
-                IsConfigured: true,
-                HasKey: true,
-                MaskedKey: null
-            ),
-            new SourceInfo(
-                Id: "kitsu",
-                Name: "Kitsu",
-                Description: "Anime ratings provider (community scores)",
-                MediaTypes: ["anime"],
-                RequiresApiKey: false,
-                IsConfigured: true,
-                HasKey: true,
-                MaskedKey: null
-            ),
-            new SourceInfo(
-                Id: "tmdb",
-                Name: "The Movie Database (TMDb)",
-                Description: "Movies and TV Shows metadata & ratings provider",
-                MediaTypes: ["movie", "tvshow"],
-                RequiresApiKey: true,
-                IsConfigured: !string.IsNullOrWhiteSpace(tmdbKey),
-                HasKey: !string.IsNullOrWhiteSpace(tmdbKey),
-                MaskedKey: MaskKey(tmdbKey)
-            ),
-            new SourceInfo(
-                Id: "rawg",
-                Name: "RAWG Video Games Database",
-                Description: "Video games metadata & ratings provider",
-                MediaTypes: ["game"],
-                RequiresApiKey: true,
-                IsConfigured: !string.IsNullOrWhiteSpace(rawgKey),
-                HasKey: !string.IsNullOrWhiteSpace(rawgKey),
-                MaskedKey: MaskKey(rawgKey)
-            ),
-            new SourceInfo(
-                Id: "openlibrary",
-                Name: "OpenLibrary",
-                Description: "Books metadata & ratings provider",
-                MediaTypes: ["book"],
-                RequiresApiKey: false,
-                IsConfigured: true,
-                HasKey: true,
-                MaskedKey: null
-            ),
-            new SourceInfo(
-                Id: "jikan",
-                Name: "MyAnimeList (Jikan)",
-                Description: "Anime and Manga metadata & ratings provider",
-                MediaTypes: ["anime", "manga"],
-                RequiresApiKey: false,
-                IsConfigured: true,
-                HasKey: true,
-                MaskedKey: null
-            ),
-            new SourceInfo(
-                Id: "mangaupdates",
-                Name: "MangaUpdates",
-                Description: "Manga and Manhwa metadata & ratings provider",
-                MediaTypes: ["manga"],
-                RequiresApiKey: false,
-                IsConfigured: true,
-                HasKey: true,
-                MaskedKey: null
-            ),
-            new SourceInfo(
-                Id: "mangadex",
-                Name: "MangaDex",
-                Description: "Manga and Manhwa metadata, chapters, volumes & ratings provider",
-                MediaTypes: ["manga"],
-                RequiresApiKey: false,
-                IsConfigured: true,
-                HasKey: true,
-                MaskedKey: null
-            )
-        };
+                return new SourceInfo(
+                    Id: p.Id,
+                    Name: p.Name,
+                    Description: p.Description,
+                    MediaTypes: p.MediaTypes.ToArray(),
+                    RequiresApiKey: p.RequiresApiKey,
+                    IsConfigured: hasKey,
+                    HasKey: hasKey,
+                    MaskedKey: MaskKey(key)
+                );
+            })
+            .ToList();
 
         return Results.Ok(sources);
     }
@@ -153,10 +80,12 @@ public static class SettingsEndpoints
         IEncryptionService encryption,
         IOptions<ExternalApiOptions> options,
         MetadataAggregatorService aggregator,
+        IEnumerable<IMetadataProvider> providers,
         CancellationToken ct)
     {
         var normalizedId = id.Trim().ToLowerInvariant();
-        if (normalizedId is not ("tmdb" or "rawg"))
+        var provider = providers.FirstOrDefault(p => p.Id.Equals(normalizedId, StringComparison.OrdinalIgnoreCase));
+        if (provider?.RequiresApiKey is false)
         {
             return Results.BadRequest(new { message = $"Source '{id}' does not require an API key." });
         }
@@ -185,15 +114,7 @@ public static class SettingsEndpoints
         await db.SaveChangesAsync(ct);
         aggregator.ClearCache();
 
-        // Update in-memory options immediately
-        if (normalizedId == "tmdb")
-        {
-            options.Value.TmdbApiKey = key;
-        }
-        else if (normalizedId == "rawg")
-        {
-            options.Value.RawgApiKey = key;
-        }
+        options.Value.SetKey(normalizedId, key);
 
         return Results.Ok(new { success = true, hasKey = !string.IsNullOrEmpty(key), maskedKey = MaskKey(key) });
     }
@@ -211,9 +132,7 @@ public static class SettingsEndpoints
                     return Results.Ok(parsed);
                 }
             }
-            catch
-            {
-            }
+            catch { }
         }
 
         string[] defaultOrder = ["anime", "movie", "tvshow", "manga", "game", "book"];
@@ -264,9 +183,7 @@ public static class SettingsEndpoints
             {
                 parsed = JsonSerializer.Deserialize<Dictionary<string, string[]>>(setting.Value);
             }
-            catch
-            {
-            }
+            catch { }
         }
 
         var merged = MergeWithDefaultPriorities(parsed);

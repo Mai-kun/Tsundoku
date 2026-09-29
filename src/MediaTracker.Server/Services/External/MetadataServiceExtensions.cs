@@ -1,5 +1,3 @@
-using MediaTracker.Server.Services.External;
-
 namespace MediaTracker.Server.Services.External;
 
 public static class MetadataServiceExtensions
@@ -70,39 +68,52 @@ public static class MetadataServiceExtensions
 
     public static IServiceCollection AddMetadataProviders(this IServiceCollection services)
     {
-        services.AddKeyedTransient<IMetadataProvider, AniListMetadataProvider>("anime");
-        services.AddKeyedTransient<IMetadataProvider, AniListMetadataProvider>("manga");
-        services.AddKeyedTransient<IMetadataProvider, OpenLibraryMetadataProvider>("book");
-        services.AddKeyedTransient<IMetadataProvider, TmdbMetadataProvider>("movie");
-        services.AddKeyedTransient<IMetadataProvider, TmdbMetadataProvider>("tvshow");
-        services.AddKeyedTransient<IMetadataProvider, RawgMetadataProvider>("game");
+        var providerTypes = typeof(IMetadataProvider).Assembly.GetTypes()
+            .Where(t => t is { IsClass: true, IsAbstract: false } && typeof(IMetadataProvider).IsAssignableFrom(t));
 
-        services.AddKeyedTransient<IMetadataProvider, AniListMetadataProvider>("anime:anilist");
-        services.AddKeyedTransient<IMetadataProvider, JikanMetadataProvider>("anime:jikan");
+        foreach (var type in providerTypes)
+        {
+            var provider = CreatePrototype(type);
+            if (provider is null) continue;
 
-        services.AddKeyedTransient<IMetadataProvider, AniListMetadataProvider>("manga:anilist");
-        services.AddKeyedTransient<IMetadataProvider, MangaDexMetadataProvider>("manga:mangadex");
-        services.AddKeyedTransient<IMetadataProvider, MangaUpdatesMetadataProvider>("manga:mangaupdates");
-        services.AddKeyedTransient<IMetadataProvider, JikanMetadataProvider>("manga:jikan");
+            services.AddTransient(typeof(IMetadataProvider), type);
+            services.AddKeyedTransient(typeof(IMetadataProvider), provider.Id, type);
 
-        services.AddKeyedTransient<IMetadataProvider, OpenLibraryMetadataProvider>("book:openlibrary");
+            foreach (var mediaType in provider.MediaTypes)
+            {
+                services.AddKeyedTransient(typeof(IMetadataProvider), $"{mediaType}:{provider.Id}", type);
 
-        services.AddKeyedTransient<IMetadataProvider, TmdbMetadataProvider>("movie:tmdb");
-
-        services.AddKeyedTransient<IMetadataProvider, TmdbMetadataProvider>("tvshow:tmdb");
-
-        services.AddKeyedTransient<IMetadataProvider, RawgMetadataProvider>("gme:rawg");
-
-        services.AddKeyedTransient<IMetadataProvider, AniListMetadataProvider>("anilist");
-        services.AddKeyedTransient<IMetadataProvider, JikanMetadataProvider>("jikan");
-        services.AddKeyedTransient<IMetadataProvider, MangaDexMetadataProvider>("mangadex");
-        services.AddKeyedTransient<IMetadataProvider, MangaUpdatesMetadataProvider>("mangaupdates");
-        services.AddKeyedTransient<IMetadataProvider, OpenLibraryMetadataProvider>("openlibrary");
-        services.AddKeyedTransient<IMetadataProvider, TmdbMetadataProvider>("tmdb");
-        services.AddKeyedTransient<IMetadataProvider, RawgMetadataProvider>("rawg");
+                if (provider.IsDefault)
+                {
+                    services.AddKeyedTransient(typeof(IMetadataProvider), mediaType, type);
+                }
+            }
+        }
 
         services.AddTransient<MetadataAggregatorService>();
 
         return services;
+    }
+
+    private static IMetadataProvider? CreatePrototype(Type type)
+    {
+        var ctor = type.GetConstructors().MaxBy(c => c.GetParameters().Length);
+        if (ctor is null) return null;
+
+        var parameters = ctor.GetParameters();
+        var args = new object?[parameters.Length];
+        for (var i = 0; i < parameters.Length; i++)
+        {
+            args[i] = parameters[i].DefaultValue;
+        }
+
+        try
+        {
+            return (IMetadataProvider)ctor.Invoke(args);
+        }
+        catch
+        {
+            return null;
+        }
     }
 }

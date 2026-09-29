@@ -344,11 +344,6 @@ export const en: Dictionary = {
       sources: 'Sources',
       search: 'Search',
     },
-    recommendations: {
-      title: 'Recommendation Services',
-      description: 'Services for recommendations and similar titles (not used for metadata enrichment).',
-      badge: 'Recommendations',
-    },
     sources: {
       title: 'Supported Sources',
       description: 'Metadata and rating providers supported by the application.',

@@ -365,16 +365,6 @@ export function isMangaDetail(item: MediaItem | MediaDetail): item is MangaDetai
   return item.type === 'manga' && 'volumes' in item
 }
 
-export interface RecommendationServiceInfo {
-  id: string
-  name: string
-  description: string
-  requiresApiKey: boolean
-  isConfigured: boolean
-  hasKey: boolean
-  maskedKey: string | null
-}
-
 export interface GameAchievementItem {
   name: string
   description?: string | null
@@ -392,10 +382,4 @@ export interface GameRelatedItem {
   coverUrl: string | null
   releaseDate: string | null
   score: number | null
-}
-
-export interface GameRecommendationItem {
-  name: string
-  description: string | null
-  url: string | null
 }

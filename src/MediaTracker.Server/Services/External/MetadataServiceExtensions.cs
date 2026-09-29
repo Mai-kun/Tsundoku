@@ -64,6 +64,62 @@ public static class MetadataServiceExtensions
             client.DefaultRequestHeaders.UserAgent.ParseAdd(DefaultUserAgent);
         });
 
+        services.AddHttpClient("Shikimori", client =>
+        {
+            client.BaseAddress = new Uri("https://shikimori.io/api/");
+            client.Timeout = DefaultTimeout;
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("MediaTracker/1.0 (Tsundoku)");
+        });
+
+        services.AddHttpClient("GoogleBooks", client =>
+        {
+            client.BaseAddress = new Uri("https://www.googleapis.com/books/v1/");
+            client.Timeout = DefaultTimeout;
+            client.DefaultRequestHeaders.UserAgent.ParseAdd(DefaultUserAgent);
+        });
+
+        services.AddHttpClient("Steam", client =>
+        {
+            client.BaseAddress = new Uri("https://store.steampowered.com/api/");
+            client.Timeout = DefaultTimeout;
+            client.DefaultRequestHeaders.UserAgent.ParseAdd(DefaultUserAgent);
+        });
+
+        services.AddHttpClient("Imdb", client =>
+        {
+            client.BaseAddress = new Uri("https://v2.sg.media-imdb.com/suggestion/");
+            client.Timeout = DefaultTimeout;
+            client.DefaultRequestHeaders.UserAgent.ParseAdd(DefaultUserAgent);
+        });
+
+        services.AddHttpClient("Simkl", client =>
+        {
+            client.BaseAddress = new Uri("https://api.simkl.com/");
+            client.Timeout = DefaultTimeout;
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("MediaTracker/1.0");
+        });
+
+        services.AddHttpClient("TheTVDB", client =>
+        {
+            client.BaseAddress = new Uri("https://api4.thetvdb.com/");
+            client.Timeout = DefaultTimeout;
+            client.DefaultRequestHeaders.UserAgent.ParseAdd(DefaultUserAgent);
+        });
+
+        services.AddHttpClient("Kinopoisk", client =>
+        {
+            client.BaseAddress = new Uri("https://kinopoiskapiunofficial.tech/api/");
+            client.Timeout = DefaultTimeout;
+            client.DefaultRequestHeaders.UserAgent.ParseAdd(DefaultUserAgent);
+        });
+
+        services.AddHttpClient("IGDB", client =>
+        {
+            client.BaseAddress = new Uri("https://api.igdb.com/");
+            client.Timeout = DefaultTimeout;
+            client.DefaultRequestHeaders.UserAgent.ParseAdd(DefaultUserAgent);
+        });
+
         services.AddHttpClient("Translation", client =>
         {
             client.Timeout = TranslationTimeout;
@@ -75,6 +131,9 @@ public static class MetadataServiceExtensions
 
     public static IServiceCollection AddMetadataProviders(this IServiceCollection services)
     {
+        services.AddSingleton<IMetadataProviderResolver, MetadataProviderResolver>();
+        services.AddSingleton<ISourcePriorityService, SourcePriorityService>();
+
         RegisterProvider<AniListMetadataProvider>(services, "anilist", ["anime", "manga"], isDefault: true);
         RegisterProvider<JikanMetadataProvider>(services, "jikan", ["anime", "manga"]);
         RegisterProvider<KitsuMetadataProvider>(services, "kitsu", ["anime"]);
@@ -83,6 +142,15 @@ public static class MetadataServiceExtensions
         RegisterProvider<OpenLibraryMetadataProvider>(services, "openlibrary", ["book"], isDefault: true);
         RegisterProvider<RawgMetadataProvider>(services, "rawg", ["game"], isDefault: true);
         RegisterProvider<TmdbMetadataProvider>(services, "tmdb", ["movie", "tvshow"], isDefault: true);
+
+        RegisterProvider<ShikimoriMetadataProvider>(services, "shikimori", ["anime", "manga"]);
+        RegisterProvider<GoogleBooksMetadataProvider>(services, "googlebooks", ["book"]);
+        RegisterProvider<SteamMetadataProvider>(services, "steam", ["game"]);
+        RegisterProvider<ImdbMetadataProvider>(services, "imdb", ["movie", "tvshow"]);
+        RegisterProvider<SimklMetadataProvider>(services, "simkl", ["anime", "movie", "tvshow"]);
+        RegisterProvider<TvdbMetadataProvider>(services, "thetvdb", ["tvshow", "movie"]);
+        RegisterProvider<KinopoiskMetadataProvider>(services, "kinopoisk", ["movie", "tvshow"]);
+        RegisterProvider<IgdbMetadataProvider>(services, "igdb", ["game"]);
 
         services.AddTransient<ITranslationService, TranslationService>();
         services.AddTransient<MetadataAggregatorService>();

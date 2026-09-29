@@ -1464,12 +1464,17 @@
       let items: RecommendationItem[] = []
       if (media.type === 'game') {
         try {
-          const gameRecs = await getGameRecommendations(media.title)
+          const gameRecs = await getGameRecommendations({
+            rawgId: media.externalSource?.toLowerCase() === 'rawg' ? media.externalId : null,
+            title: media.title,
+            externalSource: media.externalSource,
+            externalId: media.externalId,
+          })
           items = gameRecs.map((r, idx) => ({
-            id: `rec-game-${idx}`,
-            title: r.name,
-            coverUrl: null,
-            score: null,
+            id: r.id || `rec-game-${idx}`,
+            title: r.title,
+            coverUrl: r.coverUrl,
+            score: r.score,
             type: 'game',
           }))
         } catch {}

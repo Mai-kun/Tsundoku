@@ -1,10 +1,10 @@
 <script lang="ts">
   import { AlertCircle, Check, ChevronDown, ChevronUp, Eye, EyeOff, Key, Layers, RefreshCw, Search, Server, ShieldCheck, X } from 'lucide-svelte'
   import { onMount } from 'svelte'
-  import { errorMessage, getCategoryOrder, getRecommendationServices, getSources, getSourcePriority, saveCategoryOrder, saveRecommendationServiceKey, saveSourceKey, saveSourcePriority, testRecommendationService, testSourceConnection, toggleSourceEnabled } from '$lib/api'
+  import { errorMessage, getCategoryOrder, getSources, getSourcePriority, saveCategoryOrder, saveSourceKey, saveSourcePriority, testSourceConnection, toggleSourceEnabled } from '$lib/api'
   import { showToast } from '$lib/stores/toast.svelte'
   import { i18n } from '$lib/i18n/index.svelte'
-  import type { ConnectionTestResult, RecommendationServiceInfo, SourceInfo } from '$lib/types'
+  import type { ConnectionTestResult, SourceInfo } from '$lib/types'
 
   interface Props {
     isOpen: boolean
@@ -59,79 +59,13 @@
   let priorityLoading = $state(false)
   let prioritySaving = $state(false)
 
-  let recServices = $state<RecommendationServiceInfo[]>([])
-  let recLoading = $state(false)
-  let recInputKeys = $state<Record<string, string>>({})
-  let recShowKeys = $state<Record<string, boolean>>({})
-  let recSavingKey = $state('')
-  let recKeySuccess = $state<Record<string, string>>({})
-  let recKeyErrors = $state<Record<string, unknown>>({})
-  let recTesting = $state<string>('')
-  let recTestResults = $state<Record<string, ConnectionTestResult>>({})
-
   $effect(() => {
     if (isOpen) {
       void loadSources()
-      void loadRecServices()
       void loadOrder()
       void loadPriority()
     }
   })
-
-  async function loadRecServices() {
-    recLoading = true
-    try {
-      recServices = await getRecommendationServices()
-    } catch {
-      recServices = []
-    } finally {
-      recLoading = false
-    }
-  }
-
-  async function handleSaveRecKey(id: string) {
-    const key = recInputKeys[id]?.trim() ?? ''
-    recSavingKey = id
-    recKeyErrors[id] = null
-    recKeySuccess[id] = ''
-
-    try {
-      const res = await saveRecommendationServiceKey(id, key)
-      recKeySuccess[id] = i18n.t.settingsModal.sources.saved
-      showToast(i18n.t.settingsModal.sources.saved, 'success')
-      const s = recServices.find((x) => x.id === id)
-      if (s) {
-        s.hasKey = res.hasKey
-        s.maskedKey = res.maskedKey
-      }
-      recInputKeys[id] = ''
-    } catch (e) {
-      recKeyErrors[id] = e
-      showToast(errorMessage(e), 'error')
-    } finally {
-      recSavingKey = ''
-    }
-  }
-
-  async function handleTestRecService(id: string) {
-    recTesting = id
-    try {
-      const res = await testRecommendationService(id)
-      recTestResults[id] = res
-      if (!res.success) {
-        showToast(res.message || i18n.t.settingsModal.sources.testFailed, 'error')
-      }
-    } catch (e) {
-      recTestResults[id] = {
-        success: false,
-        latencyMs: 0,
-        message: errorMessage(e),
-      }
-      showToast(errorMessage(e), 'error')
-    } finally {
-      recTesting = ''
-    }
-  }
 
   async function loadSources() {
     sourcesLoading = true
@@ -575,135 +509,6 @@
                 {/each}
               </div>
             {/if}
-
-            <!-- Recommendation Services (Separated from metadata providers) -->
-            <div class="border-t border-border pt-6 space-y-4">
-              <div>
-                <h3 class="text-sm font-semibold text-ink">{i18n.t.settingsModal.recommendations.title}</h3>
-                <p class="mt-0.5 text-xs text-muted">{i18n.t.settingsModal.recommendations.description}</p>
-              </div>
-
-              {#if recLoading}
-                <div class="h-24 animate-pulse rounded-lg bg-card"></div>
-              {:else if recServices.length === 0}
-                <div class="rounded-lg border border-border bg-card p-4 text-xs text-muted">
-                  {i18n.t.settingsModal.recommendations.description}
-                </div>
-              {:else}
-                <div class="space-y-3">
-                  {#each recServices as service (service.id)}
-                    <div class="rounded-lg border border-border bg-card p-4 transition">
-                      <div class="flex flex-wrap items-start justify-between gap-3">
-                        <div class="flex-1 min-w-[200px]">
-                          <div class="flex items-center gap-2 flex-wrap">
-                            <h4 class="text-sm font-bold text-ink">{service.name}</h4>
-                            <span class="rounded bg-accent/20 border border-accent/40 px-2 py-0.5 text-[11px] font-semibold text-accent-soft">
-                              {i18n.t.settingsModal.recommendations.badge}
-                            </span>
-                            {#if service.requiresApiKey}
-                              {#if service.hasKey}
-                                <span class="inline-flex items-center gap-1 rounded bg-emerald-500/15 px-2 py-0.5 text-[11px] font-semibold text-emerald-400">
-                                  <Check size={12} />
-                                  {i18n.t.settingsModal.sources.keyConfigured}
-                                </span>
-                              {:else}
-                                <span class="inline-flex items-center gap-1 rounded bg-amber-500/15 px-2 py-0.5 text-[11px] font-semibold text-amber-400">
-                                  <Key size={12} />
-                                  {i18n.t.settingsModal.sources.keyRequired}
-                                </span>
-                              {/if}
-                            {/if}
-                          </div>
-                          <p class="mt-1 text-xs text-muted">{service.description}</p>
-                        </div>
-
-                        <div class="flex items-center gap-2.5 shrink-0">
-                          <button
-                            type="button"
-                            class="inline-flex h-7 items-center gap-1.5 rounded-md border border-border bg-elevated px-2.5 text-xs font-medium text-ink transition hover:bg-card hover:border-accent-soft cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
-                            disabled={recTesting === service.id}
-                            title={i18n.t.settingsModal.sources.testConnection}
-                            onclick={() => void handleTestRecService(service.id)}
-                          >
-                            <RefreshCw size={12} class={recTesting === service.id ? 'animate-spin text-accent-soft' : 'text-muted'} />
-                            <span>{recTesting === service.id ? i18n.t.settingsModal.sources.testing : i18n.t.settingsModal.sources.testConnection}</span>
-                          </button>
-                        </div>
-                      </div>
-
-                      {#if recTestResults[service.id]}
-                        <div class="mt-2.5 flex items-center gap-1.5 text-xs">
-                          {#if recTestResults[service.id].success}
-                            <span class="inline-flex items-center gap-1 rounded bg-emerald-500/15 px-2 py-0.5 font-medium text-emerald-400">
-                              <Check size={12} />
-                              {i18n.t.settingsModal.sources.testSuccess(recTestResults[service.id].latencyMs)}
-                            </span>
-                          {:else}
-                            <span class="inline-flex items-center gap-1 rounded bg-rose-500/15 px-2 py-0.5 font-medium text-rose-400" title={recTestResults[service.id].message}>
-                              <AlertCircle size={12} />
-                              {recTestResults[service.id].message || i18n.t.settingsModal.sources.testFailed}
-                            </span>
-                          {/if}
-                        </div>
-                      {/if}
-
-                      {#if service.requiresApiKey}
-                        <div class="mt-3 border-t border-border/60 pt-3">
-                          {#if service.maskedKey}
-                            <div class="mb-2 flex items-center gap-2 text-xs text-muted">
-                              <span>{i18n.t.settingsModal.sources.currentKey}</span>
-                              <code class="rounded bg-canvas px-2 py-0.5 font-mono text-[11px] text-ink">{service.maskedKey}</code>
-                            </div>
-                          {/if}
-
-                          <div class="flex flex-wrap items-center gap-2">
-                            <div class="relative flex-1 min-w-[200px]">
-                              <input
-                                type={recShowKeys[service.id] ? 'text' : 'password'}
-                                class="h-9 w-full rounded-md border border-border bg-elevated px-3 pr-9 text-xs text-ink placeholder:text-muted focus:border-accent-soft focus:outline-none focus:ring-1 focus:ring-accent-soft"
-                                placeholder={service.hasKey ? i18n.t.settingsModal.sources.replaceKeyPlaceholder : i18n.t.settingsModal.sources.inputPlaceholder}
-                                value={recInputKeys[service.id] ?? ''}
-                                oninput={(e) => (recInputKeys[service.id] = (e.currentTarget as HTMLInputElement).value)}
-                              />
-                              <button
-                                type="button"
-                                class="absolute right-2 top-1/2 -translate-y-1/2 text-muted hover:text-ink cursor-pointer"
-                                aria-label="Toggle key visibility"
-                                onclick={() => (recShowKeys[service.id] = !recShowKeys[service.id])}
-                              >
-                                {#if recShowKeys[service.id]}
-                                  <EyeOff size={14} />
-                                {:else}
-                                  <Eye size={14} />
-                                {/if}
-                              </button>
-                            </div>
-
-                            <button
-                              type="button"
-                              class="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-elevated px-3 text-xs font-semibold text-ink transition hover:bg-card hover:border-accent-soft cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
-                              class:cursor-wait={recSavingKey === service.id}
-                              disabled={recSavingKey === service.id || !recInputKeys[service.id]?.trim()}
-                              onclick={() => void handleSaveRecKey(service.id)}
-                            >
-                              <ShieldCheck size={14} />
-                              {recSavingKey === service.id ? i18n.t.common.saving : i18n.t.settingsModal.sources.saveKey}
-                            </button>
-                          </div>
-
-                          {#if recKeySuccess[service.id]}
-                            <p class="mt-2 text-xs font-medium text-emerald-400">{recKeySuccess[service.id]}</p>
-                          {/if}
-                          {#if recKeyErrors[service.id]}
-                            <p class="mt-2 text-xs text-rose-300">{errorMessage(recKeyErrors[service.id])}</p>
-                          {/if}
-                        </div>
-                      {/if}
-                    </div>
-                  {/each}
-                </div>
-              {/if}
-            </div>
           </div>
         {:else if activeTab === 'search'}
           <div class="space-y-6">

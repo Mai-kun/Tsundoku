@@ -170,7 +170,9 @@ public sealed class MetadataAggregatorService(
             if (match is not null)
             {
                 var fullMatch = match;
-                if (needsData && (match.Chapters == null || match.Volumes == null) && !string.IsNullOrWhiteSpace(match.ExternalId))
+                bool shouldFetchDetails = !string.IsNullOrWhiteSpace(match.ExternalId) &&
+                    (needsData || (!hasRatingFromSource && (match.Rating == null || match.Rating <= 0)));
+                if (shouldFetchDetails)
                 {
                     try
                     {
@@ -186,14 +188,17 @@ public sealed class MetadataAggregatorService(
                 ExternalRatingDto? ratingDto = null;
                 if (!hasRatingFromSource)
                 {
-                    var ratingVal = fullMatch.Rating ?? match.Rating;
+                    var sourceRating = fullMatch.Ratings?.FirstOrDefault(r => MediaMerger.NormalizeSourceKey(r.Source) == normalizedSource);
+                    var ratingVal = sourceRating?.Rating ?? fullMatch.Rating ?? match.Rating;
+                    var ratingVotes = sourceRating?.Votes ?? fullMatch.RatingVotes ?? match.RatingVotes;
+
                     if (ratingVal is > 0)
                     {
                         ratingDto = new ExternalRatingDto
                         {
-                            Source = fullMatch.ExternalSource ?? match.ExternalSource ?? MediaMerger.GetCanonicalSourceName(source),
+                            Source = sourceRating?.Source ?? fullMatch.ExternalSource ?? match.ExternalSource ?? MediaMerger.GetCanonicalSourceName(source),
                             Rating = ratingVal.Value,
-                            Votes = fullMatch.RatingVotes ?? match.RatingVotes
+                            Votes = ratingVotes
                         };
                     }
                     else

@@ -53,9 +53,9 @@ public sealed class SteamMetadataProvider(IHttpClientFactory httpClientFactory) 
             try
             {
                 using var reviewsCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                reviewsCts.CancelAfter(TimeSpan.FromSeconds(2));
+                reviewsCts.CancelAfter(TimeSpan.FromSeconds(5));
                 var reviewsRes = await client.GetFromJsonAsync<SteamReviewsResponse>(
-                    $"https://store.steampowered.com/appreviews/{externalId}?json=1", reviewsCts.Token);
+                    $"https://store.steampowered.com/appreviews/{externalId}?json=1&purchase_type=all&language=all", reviewsCts.Token);
 
                 if (reviewsRes?.QuerySummary is { TotalReviews: > 0 } summary)
                 {
@@ -152,12 +152,26 @@ public sealed class SteamMetadataProvider(IHttpClientFactory httpClientFactory) 
         }
 
         int? releaseYear = null;
-        if (!string.IsNullOrWhiteSpace(data.ReleaseDate?.Date) && DateTime.TryParse(data.ReleaseDate.Date, out var relDate))
+        string? formattedDate = null;
+        if (!string.IsNullOrWhiteSpace(data.ReleaseDate?.Date))
         {
-            releaseYear = relDate.Year;
+            var raw = data.ReleaseDate.Date.Trim();
+            if (DateTime.TryParse(raw, CultureInfo.InvariantCulture, DateTimeStyles.None, out var relDate) ||
+                DateTime.TryParse(raw, CultureInfo.CurrentCulture, DateTimeStyles.None, out relDate) ||
+                DateTime.TryParse(raw, out relDate))
+            {
+                releaseYear = relDate.Year;
+                formattedDate = relDate.ToString("yyyy-MM-dd");
+            }
+            else if (raw.Length >= 4 && int.TryParse(raw[..4], out var yr))
+            {
+                releaseYear = yr;
+                formattedDate = $"{yr}-01-01";
+            }
         }
 
         var studio = data.Developers is { Count: > 0 } ? string.Join(", ", data.Developers) : null;
+        var genres = data.Genres?.Select(g => g.Description).Where(d => !string.IsNullOrWhiteSpace(d)).Select(d => d!).ToList();
 
         return new ExternalMediaDto
         {
@@ -166,14 +180,26 @@ public sealed class SteamMetadataProvider(IHttpClientFactory httpClientFactory) 
             Title = data.Name ?? "Unknown Game",
             CoverUrl = data.HeaderImage,
             Description = !string.IsNullOrWhiteSpace(data.ShortDescription) ? data.ShortDescription : data.DetailedDescription,
-            ReleaseDate = data.ReleaseDate?.Date,
+            ReleaseDate = formattedDate,
             ReleaseYear = releaseYear,
+            ReleaseStatus = DetermineStatus(data.ReleaseDate, data.Genres),
+            Genres = genres,
             Studio = studio,
             Platform = "PC",
             Type = "game",
             Rating = score,
             Ratings = ratings
         };
+    }
+
+    private static string DetermineStatus(SteamReleaseDate? releaseDate, List<SteamGenre>? genres)
+    {
+        if (releaseDate?.ComingSoon == true) return "Coming Soon";
+        if (!string.IsNullOrWhiteSpace(releaseDate?.Date) && DateTime.TryParse(releaseDate.Date, out var dt) && dt > DateTime.UtcNow)
+            return "Coming Soon";
+        if (genres?.Any(g => g.Id == "73" || g.Description?.Contains("Early Access", StringComparison.OrdinalIgnoreCase) == true) == true)
+            return "Early Access";
+        return "Full Release";
     }
 
     private sealed class SteamStoreSearchResponse
@@ -226,14 +252,29 @@ public sealed class SteamMetadataProvider(IHttpClientFactory httpClientFactory) 
         [JsonPropertyName("release_date")]
         public SteamReleaseDate? ReleaseDate { get; set; }
 
+        [JsonPropertyName("genres")]
+        public List<SteamGenre>? Genres { get; set; }
+
         [JsonPropertyName("metacritic")]
         public SteamMetacritic? Metacritic { get; set; }
+    }
+
+    private sealed class SteamGenre
+    {
+        [JsonPropertyName("id")]
+        public string? Id { get; set; }
+
+        [JsonPropertyName("description")]
+        public string? Description { get; set; }
     }
 
     private sealed class SteamReleaseDate
     {
         [JsonPropertyName("date")]
         public string? Date { get; set; }
+
+        [JsonPropertyName("coming_soon")]
+        public bool ComingSoon { get; set; }
     }
 
     private sealed class SteamMetacritic

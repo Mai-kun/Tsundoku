@@ -101,12 +101,24 @@ public sealed class RawgMetadataProvider(
             CoverUrl = item.BackgroundImage,
             Description = item.DescriptionRaw ?? item.Description,
             ReleaseYear = ParseYear(item.Released),
+            ReleaseDate = item.Released,
+            ReleaseStatus = DetermineStatus(item.Tba, item.Released, item.Genres),
+            Genres = item.Genres?.Select(g => g.Name).Where(n => !string.IsNullOrWhiteSpace(n)).Select(n => n!).ToList(),
             Type = "game",
             Platform = JoinPlatforms(item.ParentPlatforms),
             Rating = rating,
             RatingVotes = item.RatingsCount,
             Ratings = ratings
         };
+    }
+
+    private static string DetermineStatus(bool? tba, string? released, List<RawgGenre>? genres)
+    {
+        if (tba == true) return "Coming Soon";
+        if (DateTime.TryParse(released, out var parsedDate) && parsedDate > DateTime.UtcNow) return "Coming Soon";
+        if (genres?.Any(g => g.Name?.Contains("Early Access", StringComparison.OrdinalIgnoreCase) == true) == true)
+            return "Early Access";
+        return "Full Release";
     }
 
     private static int? ParseYear(string? date) =>
@@ -125,12 +137,16 @@ public sealed class RawgMetadataProvider(
         string? Name,
         [property: JsonPropertyName("name_original")] string? NameOriginal,
         string? Released,
+        bool? Tba,
         [property: JsonPropertyName("background_image")] string? BackgroundImage,
         [property: JsonPropertyName("description_raw")] string? DescriptionRaw,
         string? Description,
         double? Rating,
         [property: JsonPropertyName("ratings_count")] int? RatingsCount,
-        [property: JsonPropertyName("parent_platforms")] List<RawgParentPlatform>? ParentPlatforms);
+        [property: JsonPropertyName("parent_platforms")] List<RawgParentPlatform>? ParentPlatforms,
+        [property: JsonPropertyName("genres")] List<RawgGenre>? Genres);
+
+    private sealed record RawgGenre(string? Name);
 
     private sealed record RawgParentPlatform(RawgPlatform? Platform);
 

@@ -35,7 +35,7 @@ public sealed record CreateMediaRequest
     public int? CurrentVolume { get; init; }
 
     public int? DurationMinutes { get; init; }
- 
+
     public int? EpisodeDurationMinutes { get; init; }
 
     public DateTime? ReleaseDate { get; init; }

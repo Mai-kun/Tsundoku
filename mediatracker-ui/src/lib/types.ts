@@ -328,6 +328,13 @@ export interface SourceInfo {
   isConfigured: boolean
   hasKey: boolean
   maskedKey: string | null
+  isEnabled: boolean
+}
+
+export interface ConnectionTestResult {
+  success: boolean
+  latencyMs: number
+  message: string
 }
 
 export function clampProgress(current: number, total: number | null | undefined): number {

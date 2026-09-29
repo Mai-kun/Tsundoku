@@ -1,10 +1,10 @@
 <script lang="ts">
-  import { Check, ChevronDown, ChevronUp, Eye, EyeOff, Key, Layers, Search, Server, ShieldCheck, X } from 'lucide-svelte'
+  import { AlertCircle, Check, ChevronDown, ChevronUp, Eye, EyeOff, Key, Layers, RefreshCw, Search, Server, ShieldCheck, X } from 'lucide-svelte'
   import { onMount } from 'svelte'
-  import { errorMessage, getCategoryOrder, getSources, getSourcePriority, saveCategoryOrder, saveSourceKey, saveSourcePriority } from '$lib/api'
+  import { errorMessage, getCategoryOrder, getSources, getSourcePriority, saveCategoryOrder, saveSourceKey, saveSourcePriority, testSourceConnection, toggleSourceEnabled } from '$lib/api'
   import { showToast } from '$lib/stores/toast.svelte'
   import { i18n } from '$lib/i18n/index.svelte'
-  import type { SourceInfo } from '$lib/types'
+  import type { ConnectionTestResult, SourceInfo } from '$lib/types'
 
   interface Props {
     isOpen: boolean
@@ -22,9 +22,12 @@
 
   let selectedTypeFilter = $state<string>('all')
   let filteredSources = $derived(
-    selectedTypeFilter === 'all'
+    (selectedTypeFilter === 'all'
       ? sources
       : sources.filter((s) => s.mediaTypes.includes(selectedTypeFilter))
+    )
+      .slice()
+      .sort((a, b) => Number(b.isEnabled) - Number(a.isEnabled))
   )
 
   let inputKeys = $state<Record<string, string>>({})
@@ -32,6 +35,9 @@
   let savingKey = $state('')
   let keySuccess = $state<Record<string, string>>({})
   let keyErrors = $state<Record<string, unknown>>({})
+  let togglingSource = $state<string>('')
+  let testingSource = $state<string>('')
+  let testResults = $state<Record<string, ConnectionTestResult>>({})
 
   let categoryOrder = $state<string[]>([])
   let orderLoading = $state(false)
@@ -41,12 +47,12 @@
   const defaultCategories = ['anime', 'movie', 'tvshow', 'manga', 'game', 'book']
 
   const defaultPriority: Record<string, string[]> = {
-    anime: ['anilist', 'jikan'],
-    manga: ['anilist', 'mangaupdates', 'jikan'],
-    movie: ['tmdb'],
-    tvshow: ['tmdb'],
-    game: ['rawg'],
-    book: ['openlibrary'],
+    anime: ['anilist', 'shikimori', 'kitsu', 'simkl', 'jikan'],
+    manga: ['anilist', 'shikimori', 'mangadex', 'mangaupdates', 'jikan'],
+    movie: ['tmdb', 'imdb', 'kinopoisk', 'simkl', 'thetvdb'],
+    tvshow: ['tmdb', 'imdb', 'kinopoisk', 'simkl', 'thetvdb'],
+    game: ['rawg', 'steam', 'igdb'],
+    book: ['openlibrary', 'googlebooks'],
   }
 
   let sourcePriority = $state<Record<string, string[]>>({ ...defaultPriority })
@@ -121,6 +127,46 @@
     }
   }
 
+  async function handleToggleSource(source: SourceInfo) {
+    togglingSource = source.id
+    try {
+      const nextState = !source.isEnabled
+      const res = await toggleSourceEnabled(source.id, nextState)
+      source.isEnabled = res.isEnabled
+      sources = [...sources]
+      showToast(
+        res.isEnabled
+          ? `${source.name}: ${i18n.t.settingsModal.sources.enabledBadge}`
+          : `${source.name}: ${i18n.t.settingsModal.sources.disabledBadge}`,
+        'success',
+      )
+    } catch (e) {
+      showToast(errorMessage(e), 'error')
+    } finally {
+      togglingSource = ''
+    }
+  }
+
+  async function handleTestSource(sourceId: string) {
+    testingSource = sourceId
+    try {
+      const res = await testSourceConnection(sourceId)
+      testResults[sourceId] = res
+      if (!res.success) {
+        showToast(res.message || i18n.t.settingsModal.sources.testFailed, 'error')
+      }
+    } catch (e) {
+      testResults[sourceId] = {
+        success: false,
+        latencyMs: 0,
+        message: errorMessage(e),
+      }
+      showToast(errorMessage(e), 'error')
+    } finally {
+      testingSource = ''
+    }
+  }
+
   async function moveCategory(index: number, direction: 'up' | 'down') {
     const newOrder = [...categoryOrder]
     const targetIndex = direction === 'up' ? index - 1 : index + 1
@@ -184,7 +230,28 @@
     if (id === 'tmdb') return 'TMDb'
     if (id === 'rawg') return 'RAWG'
     if (id === 'openlibrary') return 'OpenLibrary'
+    if (id === 'shikimori') return 'Shikimori'
+    if (id === 'googlebooks') return 'Google Books'
+    if (id === 'steam') return 'Steam'
+    if (id === 'imdb') return 'IMDb'
+    if (id === 'simkl') return 'Simkl'
+    if (id === 'tvdb') return 'TheTVDB'
+    if (id === 'kinopoisk') return 'Кинопоиск'
+    if (id === 'igdb') return 'IGDB'
     return id
+  }
+
+  function isSourceDisabled(id: string): boolean {
+    const norm = id.toLowerCase().trim()
+    const s = sources.find((x) => {
+      const xId = x.id.toLowerCase().trim()
+      if (xId === norm) return true
+      if ((xId === 'thetvdb' || xId === 'tvdb') && (norm === 'thetvdb' || norm === 'tvdb')) return true
+      if ((xId === 'jikan' || xId === 'myanimelist' || xId === 'mal') && (norm === 'jikan' || norm === 'myanimelist' || norm === 'mal')) return true
+      if ((xId === 'googlebooks' || xId === 'google') && (norm === 'googlebooks' || norm === 'google')) return true
+      return false
+    })
+    return s ? s.isEnabled === false : false
   }
 
   function handleKeydown(event: KeyboardEvent) {
@@ -297,11 +364,16 @@
             {:else}
               <div class="space-y-3">
                 {#each filteredSources as source (source.id)}
-                  <div class="rounded-lg border border-border bg-card p-4 transition">
-                    <div class="flex flex-wrap items-start justify-between gap-2">
-                      <div>
-                        <div class="flex items-center gap-2">
+                  <div class="rounded-lg border border-border bg-card p-4 transition {source.isEnabled === false ? 'opacity-65' : ''}">
+                    <div class="flex flex-wrap items-start justify-between gap-3">
+                      <div class="flex-1 min-w-[200px]">
+                        <div class="flex items-center gap-2 flex-wrap">
                           <h4 class="text-sm font-bold text-ink">{source.name}</h4>
+                          {#if !source.isEnabled}
+                            <span class="inline-flex items-center rounded bg-zinc-500/15 px-2 py-0.5 text-[11px] font-semibold text-zinc-400">
+                              {i18n.t.settingsModal.sources.disabledBadge}
+                            </span>
+                          {/if}
                           {#if source.requiresApiKey}
                             {#if source.hasKey}
                               <span class="inline-flex items-center gap-1 rounded bg-emerald-500/15 px-2 py-0.5 text-[11px] font-semibold text-emerald-400">
@@ -330,7 +402,55 @@
                           {/each}
                         </div>
                       </div>
+
+                      <div class="flex items-center gap-2.5 shrink-0">
+                        <button
+                          type="button"
+                          class="inline-flex h-7 items-center gap-1.5 rounded-md border border-border bg-elevated px-2.5 text-xs font-medium text-ink transition hover:bg-card hover:border-accent-soft cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+                          disabled={testingSource === source.id}
+                          title={i18n.t.settingsModal.sources.testConnection}
+                          onclick={() => void handleTestSource(source.id)}
+                        >
+                          <RefreshCw size={12} class={testingSource === source.id ? 'animate-spin text-accent-soft' : 'text-muted'} />
+                          <span>{testingSource === source.id ? i18n.t.settingsModal.sources.testing : i18n.t.settingsModal.sources.testConnection}</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={source.isEnabled}
+                          class={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-accent-soft focus:ring-offset-2 focus:ring-offset-surface disabled:cursor-not-allowed disabled:opacity-50 ${
+                            source.isEnabled ? 'bg-accent-soft' : 'bg-canvas'
+                          }`}
+                          onclick={() => void handleToggleSource(source)}
+                          disabled={togglingSource === source.id}
+                          title={source.isEnabled ? i18n.t.settingsModal.sources.disable : i18n.t.settingsModal.sources.enable}
+                        >
+                          <span
+                            aria-hidden="true"
+                            class={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                              source.isEnabled ? 'translate-x-5' : 'translate-x-0'
+                            }`}
+                          ></span>
+                        </button>
+                      </div>
                     </div>
+
+                    {#if testResults[source.id]}
+                      <div class="mt-2.5 flex items-center gap-1.5 text-xs">
+                        {#if testResults[source.id].success}
+                          <span class="inline-flex items-center gap-1 rounded bg-emerald-500/15 px-2 py-0.5 font-medium text-emerald-400">
+                            <Check size={12} />
+                            {i18n.t.settingsModal.sources.testSuccess(testResults[source.id].latencyMs)}
+                          </span>
+                        {:else}
+                          <span class="inline-flex items-center gap-1 rounded bg-rose-500/15 px-2 py-0.5 font-medium text-rose-400" title={testResults[source.id].message}>
+                            <AlertCircle size={12} />
+                            {testResults[source.id].message || i18n.t.settingsModal.sources.testFailed}
+                          </span>
+                        {/if}
+                      </div>
+                    {/if}
 
                     {#if source.requiresApiKey}
                       <div class="mt-3 border-t border-border/60 pt-3">
@@ -462,12 +582,17 @@
                         </div>
                         <div class="space-y-1.5">
                           {#each providers as provId, pIdx (provId)}
-                            <div class="flex items-center justify-between rounded-md border border-border/70 bg-surface px-3 py-2">
+                            <div class="flex items-center justify-between rounded-md border border-border/70 bg-surface px-3 py-2 {isSourceDisabled(provId) ? 'opacity-60 bg-surface/50' : ''}">
                               <div class="flex items-center gap-2.5">
                                 <span class="grid h-5 w-5 place-items-center rounded bg-canvas text-[11px] font-bold text-muted">
                                   {pIdx + 1}
                                 </span>
                                 <span class="text-xs font-medium text-ink">{getSourceName(provId)}</span>
+                                {#if isSourceDisabled(provId)}
+                                  <span class="rounded bg-zinc-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-400">
+                                    {i18n.t.settingsModal.sources.disabledBadge}
+                                  </span>
+                                {/if}
                                 {#if pIdx === 0}
                                   <span class="rounded bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-400">{i18n.t.settingsModal.search.primary}</span>
                                 {:else}

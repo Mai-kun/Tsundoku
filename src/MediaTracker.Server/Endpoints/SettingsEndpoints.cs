@@ -16,6 +16,8 @@ public static class SettingsEndpoints
 
         group.MapGet("/sources", GetSources);
         group.MapPut("/sources/{id}/key", SaveSourceKey);
+        group.MapPut("/sources/{id}/toggle", ToggleSource);
+        group.MapPost("/sources/{id}/test", TestSource);
         group.MapGet("/category-order", GetCategoryOrder);
         group.MapPut("/category-order", SaveCategoryOrder);
         group.MapGet("/source-priority", GetSourcePriority);
@@ -46,10 +48,13 @@ public static class SettingsEndpoints
         }
     }
 
-    private static IResult GetSources(
+    private static async Task<IResult> GetSources(
         IEnumerable<IMetadataProvider> providers,
-        IOptions<ExternalApiOptions> options)
+        IOptions<ExternalApiOptions> options,
+        ISourcePriorityService priorityService,
+        CancellationToken ct)
     {
+        var disabled = await priorityService.GetDisabledSourcesAsync(ct);
         var sources = providers
             .DistinctBy(p => p.Id)
             .Select(p =>
@@ -65,9 +70,11 @@ public static class SettingsEndpoints
                     RequiresApiKey: p.RequiresApiKey,
                     IsConfigured: hasKey,
                     HasKey: hasKey,
-                    MaskedKey: MaskKey(key)
+                    MaskedKey: MaskKey(key),
+                    IsEnabled: !disabled.Contains(p.Id.ToLowerInvariant()) && !disabled.Contains(MediaMerger.NormalizeSourceKey(p.Id))
                 );
             })
+            .OrderByDescending(s => s.IsEnabled)
             .ToList();
 
         return Results.Ok(sources);
@@ -79,7 +86,6 @@ public static class SettingsEndpoints
         AppDbContext db,
         IEncryptionService encryption,
         IOptions<ExternalApiOptions> options,
-        MetadataAggregatorService aggregator,
         IEnumerable<IMetadataProvider> providers,
         CancellationToken ct)
     {
@@ -112,8 +118,6 @@ public static class SettingsEndpoints
         }
 
         await db.SaveChangesAsync(ct);
-        aggregator.ClearCache();
-
         options.Value.SetKey(normalizedId, key);
 
         return Results.Ok(new { success = true, hasKey = !string.IsNullOrEmpty(key), maskedKey = MaskKey(key) });
@@ -142,7 +146,6 @@ public static class SettingsEndpoints
     private static async Task<IResult> SaveCategoryOrder(
         string[] order,
         AppDbContext db,
-        MetadataAggregatorService aggregator,
         CancellationToken ct)
     {
         if (order == null || order.Length == 0)
@@ -169,7 +172,6 @@ public static class SettingsEndpoints
         }
 
         await db.SaveChangesAsync(ct);
-        aggregator.ClearCache();
         return Results.Ok(order);
     }
 
@@ -204,7 +206,7 @@ public static class SettingsEndpoints
     {
         var result = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var (type, defaultSources) in MetadataAggregatorService.DefaultSourcePriority)
+        foreach (var (type, defaultSources) in SourcePriorityService.DefaultPriorities)
         {
             if (userPriority != null && userPriority.TryGetValue(type, out var userSources) && userSources?.Length > 0)
             {
@@ -237,7 +239,7 @@ public static class SettingsEndpoints
     private static async Task<IResult> SaveSourcePriority(
         Dictionary<string, string[]> priority,
         AppDbContext db,
-        MetadataAggregatorService aggregator,
+        ISourcePriorityService priorityService,
         CancellationToken ct)
     {
         if (priority == null || priority.Count == 0)
@@ -264,7 +266,7 @@ public static class SettingsEndpoints
         }
 
         await db.SaveChangesAsync(ct);
-        aggregator.ClearCache();
+        priorityService.InvalidateCache();
         return Results.Ok(priority);
     }
 
@@ -283,6 +285,37 @@ public static class SettingsEndpoints
         return $"{key[..4]}••••••••{key[^4..]}";
     }
 
+    private static async Task<IResult> ToggleSource(
+        string id,
+        ToggleSourceRequest request,
+        ISourcePriorityService priorityService,
+        CancellationToken ct)
+    {
+        await priorityService.SetSourceEnabledAsync(id, request.Enabled, ct);
+        return Results.Ok(new { success = true, isEnabled = request.Enabled });
+    }
+
+    private static async Task<IResult> TestSource(
+        string id,
+        IEnumerable<IMetadataProvider> providers,
+        CancellationToken ct)
+    {
+        var normalizedId = id.Trim().ToLowerInvariant();
+        var provider = providers.FirstOrDefault(p =>
+            p.Id.Equals(normalizedId, StringComparison.OrdinalIgnoreCase)
+            || MediaMerger.NormalizeSourceKey(p.Id) == MediaMerger.NormalizeSourceKey(normalizedId));
+
+        if (provider is null)
+        {
+            return Results.NotFound(new { message = $"Source '{id}' not found." });
+        }
+
+        var result = await provider.TestConnectionAsync(ct);
+        return Results.Ok(result);
+    }
+
+    public sealed record ToggleSourceRequest(bool Enabled);
+
     public sealed record UpdateKeyRequest(string? ApiKey);
 
     public sealed record SourceInfo(
@@ -293,5 +326,6 @@ public static class SettingsEndpoints
         bool RequiresApiKey,
         bool IsConfigured,
         bool HasKey,
-        string? MaskedKey);
+        string? MaskedKey,
+        bool IsEnabled);
 }

@@ -1,5 +1,6 @@
 import { i18n } from '$lib/i18n/index.svelte'
 import type {
+  ConnectionTestResult,
   CreateMediaPayload,
   CreateVolumePayload,
   ExternalMedia,
@@ -10,6 +11,7 @@ import type {
   MediaStats,
   MediaStatus,
   SearchScope,
+  SourceInfo,
   UpdateMediaPayload,
   UpdateVolumePayload,
 } from '$lib/types'
@@ -192,8 +194,19 @@ export function refreshMetadata(id: string): Promise<MediaDetail> {
   return requestJson<MediaDetail>(`${mediaEndpoint}/${id}/refresh`, { method: 'POST' })
 }
 
-export function getSources(): Promise<import('$lib/types').SourceInfo[]> {
-  return requestJson<import('$lib/types').SourceInfo[]>('/api/settings/sources')
+export function getSources(): Promise<SourceInfo[]> {
+  return requestJson<SourceInfo[]>('/api/settings/sources')
+}
+
+export function toggleSourceEnabled(
+  sourceId: string,
+  enabled: boolean,
+): Promise<{ success: boolean; isEnabled: boolean }> {
+  return requestJson(`/api/settings/sources/${sourceId}/toggle`, jsonOptions('PUT', { enabled }))
+}
+
+export function testSourceConnection(sourceId: string): Promise<ConnectionTestResult> {
+  return requestJson<ConnectionTestResult>(`/api/settings/sources/${sourceId}/test`, { method: 'POST' })
 }
 
 export function saveSourceKey(

@@ -6,6 +6,7 @@ using MediaTracker.Server.Endpoints;
 using MediaTracker.Server.Infrastructure;
 using MediaTracker.Server.Middleware;
 using MediaTracker.Server.Services.External;
+using MediaTracker.Server.Services.Franchises;
 using MediaTracker.Server.Services.Security;
 using MediaTracker.Server.Services.Storage;
 using Microsoft.EntityFrameworkCore;
@@ -14,23 +15,23 @@ using OpenApiUi;
 using Serilog;
 using Serilog.Events;
 
-ConfigureLogging();
+var isContainer = Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER") == "true";
+var isHeadless = isContainer
+                 || args.Contains("--headless")
+                 || Environment.GetEnvironmentVariable("HEADLESS") == "true";
+
+var appPaths = new AppPaths(isContainer
+    ? Directory.GetCurrentDirectory()
+    : Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "Tsundoku"));
+
+ConfigureLogging(appPaths.LogsDirectory);
 
 try
 {
     var builder = WebApplication.CreateBuilder(args);
     builder.Host.UseSerilog();
-
-    var isContainer = Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER") == "true";
-    var isHeadless = isContainer
-                     || args.Contains("--headless")
-                     || Environment.GetEnvironmentVariable("HEADLESS") == "true";
-
-    var appPaths = new AppPaths(isContainer
-        ? builder.Environment.ContentRootPath
-        : Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "Tsundoku"));
 
     builder.WebHost.UseUrls("http://0.0.0.0:5000");
 
@@ -69,6 +70,7 @@ try
     builder.Services.AddMemoryCache();
     builder.Services.AddOptions<ExternalApiOptions>();
     builder.Services.AddSingleton<IEncryptionService, EncryptionService>();
+    builder.Services.AddSingleton<IFranchiseService, FranchiseService>();
 
     builder.Services.AddMetadataHttpClients();
     builder.Services.AddMetadataProviders();
@@ -162,9 +164,8 @@ finally
     Log.CloseAndFlush();
 }
 
-static void ConfigureLogging()
+static void ConfigureLogging(string logsDirectory)
 {
-    var logsDirectory = Path.Combine(Directory.GetCurrentDirectory(), "data", "logs");
     Directory.CreateDirectory(logsDirectory);
 
     var existingLogs = Directory.GetFiles(logsDirectory, "session_*.log")
@@ -206,7 +207,9 @@ static async Task InitializeDatabaseAsync(WebApplication app)
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     await db.Database.MigrateAsync();
     await SettingsEndpoints.LoadStoredSettingsAsync(app.Services);
-    await MediaEndpoints.AutoBackfillFranchisesAsync(db);
+
+    var franchiseService = scope.ServiceProvider.GetRequiredService<IFranchiseService>();
+    await franchiseService.AutoBackfillFranchisesAsync(db);
 }
 
 static void RunPhotinoWindow()

@@ -153,7 +153,7 @@ public sealed class MetadataAggregatorService(
 
                 var search = await provider.SearchAsync(current.Title, queryCts.Token);
                 var match = search.FirstOrDefault(s => s.Title.Equals(current.Title, StringComparison.OrdinalIgnoreCase))
-                            ?? search.FirstOrDefault();
+                            ?? (search.Count > 0 ? search[0] : null);
 
                 if (match is not null)
                 {
@@ -176,7 +176,7 @@ public sealed class MetadataAggregatorService(
                     if (!hasRatingFromSource)
                     {
                         var ratingVal = fullMatch.Rating ?? match.Rating;
-                        if (ratingVal.HasValue && ratingVal.Value > 0)
+                        if (ratingVal is > 0)
                         {
                             ratings.Add(new ExternalRatingDto
                             {
@@ -396,7 +396,7 @@ public sealed class MetadataAggregatorService(
         return defaultSources;
     }
 
-    private static IReadOnlyList<string> MergePriorityLists(string[] userList, string[] defaultSources)
+    private static List<string> MergePriorityLists(string[] userList, string[] defaultSources)
     {
         var merged = userList.Where(s => defaultSources.Contains(s, StringComparer.OrdinalIgnoreCase)).ToList();
         foreach (var s in defaultSources)

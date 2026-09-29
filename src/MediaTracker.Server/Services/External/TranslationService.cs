@@ -17,7 +17,7 @@ public sealed partial class TranslationService(
     ILogger<TranslationService> logger) : ITranslationService
 {
     private static readonly TimeSpan CacheDuration = TimeSpan.FromHours(24);
-    private static readonly Regex HtmlTagRegex = new("<.*?>", RegexOptions.Compiled);
+    private static readonly Regex HtmlTagRegex = GetHttpTagRegex();
 
     public async Task<string> TranslateAsync(string text, string targetLanguage, CancellationToken ct = default)
     {
@@ -121,4 +121,8 @@ public sealed partial class TranslationService(
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes(text));
         return $"translate:{targetLanguage}:{Convert.ToHexString(hash)[..16]}";
     }
+
+    [GeneratedRegex("<.*?>", RegexOptions.Compiled)]
+    private static partial Regex GetHttpTagRegex();
+
 }

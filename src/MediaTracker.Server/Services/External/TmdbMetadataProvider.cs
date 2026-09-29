@@ -90,7 +90,7 @@ public sealed class TmdbMetadataProvider(
         }
 
         var searchResults = await SearchAsync(title, ct);
-        return searchResults.FirstOrDefault();
+        return searchResults.Count > 0 ? searchResults[0] : null;
     }
 
     private ExternalMediaDto MapItem(TmdbItem item)

@@ -206,7 +206,7 @@ public static class SettingsEndpoints
 
         foreach (var (type, defaultSources) in MetadataAggregatorService.DefaultSourcePriority)
         {
-            if (userPriority != null && userPriority.TryGetValue(type, out var userSources) && userSources != null && userSources.Length > 0)
+            if (userPriority != null && userPriority.TryGetValue(type, out var userSources) && userSources?.Length > 0)
             {
                 var list = new List<string>();
                 foreach (var s in userSources)

@@ -2,7 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace MediaTracker.Server.Services.External;
 
-public sealed class JikanMetadataProvider(
+public sealed partial class JikanMetadataProvider(
     IHttpClientFactory httpClientFactory,
     [ServiceKey] string? serviceKey = null) : IMetadataProvider
 {
@@ -28,7 +28,7 @@ public sealed class JikanMetadataProvider(
                 return [];
             }
 
-            return response.Data.Select(item => MapItem(item, _mediaType)).ToList();
+            return response.Data.ConvertAll(item => MapItem(item, _mediaType));
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
@@ -76,7 +76,7 @@ public sealed class JikanMetadataProvider(
         var votes = item.ScoredBy;
 
         var ratings = new List<ExternalRatingDto>();
-        if (rating.HasValue && rating.Value > 0)
+        if (rating is > 0)
         {
             ratings.Add(new ExternalRatingDto
             {
@@ -93,7 +93,7 @@ public sealed class JikanMetadataProvider(
         int? runtime = null;
         if (!string.IsNullOrWhiteSpace(item.Duration))
         {
-            var match = System.Text.RegularExpressions.Regex.Match(item.Duration, @"^(\d+)\s*min");
+            var match = DurationRegex().Match(item.Duration);
             if (match.Success && int.TryParse(match.Groups[1].Value, out var m)) runtime = m;
         }
 
@@ -221,4 +221,7 @@ public sealed class JikanMetadataProvider(
         [JsonPropertyName("name")]
         public string? Name { get; set; }
     }
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"^(\d+)\s*min")]
+    private static partial System.Text.RegularExpressions.Regex DurationRegex();
 }

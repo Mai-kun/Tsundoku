@@ -38,7 +38,7 @@ public sealed class RawgMetadataProvider(
                 return [];
             }
 
-            return results.Select(MapItem).ToList();
+            return results.ConvertAll(MapItem);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
@@ -79,7 +79,7 @@ public sealed class RawgMetadataProvider(
         }
 
         var searchResults = await SearchAsync(title, ct);
-        return searchResults.FirstOrDefault();
+        return searchResults.Count > 0 ? searchResults[0] : null;
     }
 
     private ExternalMediaDto MapItem(RawgGame item)

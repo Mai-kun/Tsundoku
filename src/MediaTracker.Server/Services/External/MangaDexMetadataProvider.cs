@@ -6,15 +6,12 @@ using Microsoft.Extensions.DependencyInjection;
 namespace MediaTracker.Server.Services.External;
 
 public sealed class MangaDexMetadataProvider(
-    IHttpClientFactory httpClientFactory,
-    [ServiceKey] string? mediaType = null) : IMetadataProvider
+    IHttpClientFactory httpClientFactory) : IMetadataProvider
 {
     public string Id => "mangadex";
     public string Name => "MangaDex";
     public string Description => "Manga and Manhwa metadata, chapters, volumes & ratings provider";
     public IReadOnlyList<string> MediaTypes => ["manga"];
-
-    private readonly string _mediaType = mediaType ?? "manga";
 
     public async Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string query, CancellationToken ct)
     {
@@ -31,12 +28,10 @@ public sealed class MangaDexMetadataProvider(
             }
 
             // Fetch statistics (ratings) in batch
-            var ids = res.Data.Select(d => d.Id).ToList();
+            var ids = res.Data.ConvertAll(d => d.Id);
             var stats = await GetBatchStatisticsAsync(client, ids, ct);
 
-            return res.Data
-                .Select(d => MapItem(d, stats.GetValueOrDefault(d.Id)))
-                .ToList();
+            return res.Data.ConvertAll(d => MapItem(d, stats.GetValueOrDefault(d.Id)));
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
@@ -65,7 +60,7 @@ public sealed class MangaDexMetadataProvider(
             {
                 var searchList = await SearchAsync(title, ct);
                 var match = searchList.FirstOrDefault(s => s.Title.Equals(title, StringComparison.OrdinalIgnoreCase))
-                            ?? searchList.FirstOrDefault();
+                            ?? (searchList.Count > 0 ? searchList[0] : null);
                 if (match is not null && Guid.TryParse(match.ExternalId, out _))
                 {
                     var res = await client.GetFromJsonAsync<MdMangaSingleResponse>($"manga/{match.ExternalId}?includes[]=cover_art&includes[]=author&includes[]=artist", ct);
@@ -109,7 +104,7 @@ public sealed class MangaDexMetadataProvider(
 
     private static async Task<Dictionary<string, MdMangaStatistics>> GetBatchStatisticsAsync(
         HttpClient client,
-        IReadOnlyList<string> ids,
+        List<string> ids,
         CancellationToken ct)
     {
         if (ids.Count == 0) return [];
@@ -277,7 +272,7 @@ public sealed class MangaDexMetadataProvider(
         if (stat?.Rating is not null)
         {
             var raw = stat.Rating.Bayesian ?? stat.Rating.Average;
-            if (raw.HasValue && raw.Value > 0)
+            if (raw is > 0)
             {
                 ratingScore = Math.Round(raw.Value, 1);
                 if (stat.Rating.Distribution != null)

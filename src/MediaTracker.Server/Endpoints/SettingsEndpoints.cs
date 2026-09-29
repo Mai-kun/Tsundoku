@@ -22,9 +22,6 @@ public static class SettingsEndpoints
         group.MapPut("/category-order", SaveCategoryOrder);
         group.MapGet("/source-priority", GetSourcePriority);
         group.MapPut("/source-priority", SaveSourcePriority);
-        group.MapGet("/recommendation-services", GetRecommendationServices);
-        group.MapPut("/recommendation-services/{id}/key", SaveRecommendationServiceKey);
-        group.MapPost("/recommendation-services/{id}/test", TestRecommendationService);
 
         return app;
     }
@@ -47,16 +44,6 @@ public static class SettingsEndpoints
                 {
                     options.SetKey(provider.Id, decrypted);
                 }
-            }
-        }
-
-        var tdSetting = await db.Settings.FirstOrDefaultAsync(s => s.Key == "ApiKey_tastedive", ct);
-        if (tdSetting is not null && !string.IsNullOrWhiteSpace(tdSetting.Value))
-        {
-            var decrypted = encryption.Decrypt(tdSetting.Value);
-            if (!string.IsNullOrWhiteSpace(decrypted))
-            {
-                options.SetKey("tastedive", decrypted);
             }
         }
     }
@@ -327,102 +314,6 @@ public static class SettingsEndpoints
         return Results.Ok(result);
     }
 
-    private static IResult GetRecommendationServices(IOptions<ExternalApiOptions> options)
-    {
-        var key = options.Value.TasteDiveApiKey;
-        var list = new[]
-        {
-            new RecommendationServiceInfo(
-                Id: "tastedive",
-                Name: "TasteDive",
-                Description: "Сервис рекомендаций похожих игр на основе вкусов и предпочтений",
-                RequiresApiKey: true,
-                IsConfigured: !string.IsNullOrWhiteSpace(key),
-                HasKey: !string.IsNullOrWhiteSpace(key),
-                MaskedKey: MaskKey(key)
-            )
-        };
-        return Results.Ok(list);
-    }
-
-    private static async Task<IResult> SaveRecommendationServiceKey(
-        string id,
-        UpdateKeyRequest request,
-        AppDbContext db,
-        IEncryptionService encryption,
-        IOptions<ExternalApiOptions> options,
-        CancellationToken ct)
-    {
-        var normalizedId = id.Trim().ToLowerInvariant();
-        if (normalizedId != "tastedive")
-        {
-            return Results.NotFound(new { message = $"Recommendation service '{id}' not found." });
-        }
-
-        var key = request.ApiKey?.Trim() ?? string.Empty;
-        var encrypted = string.IsNullOrEmpty(key) ? string.Empty : encryption.Encrypt(key);
-
-        var setting = await db.Settings.FirstOrDefaultAsync(s => s.Key == "ApiKey_tastedive", ct);
-        if (setting is null)
-        {
-            db.Settings.Add(new AppSetting
-            {
-                Key = "ApiKey_tastedive",
-                Value = encrypted,
-                UpdatedAt = DateTime.UtcNow
-            });
-        }
-        else
-        {
-            setting.Value = encrypted;
-            setting.UpdatedAt = DateTime.UtcNow;
-        }
-
-        await db.SaveChangesAsync(ct);
-        options.Value.SetKey("tastedive", key);
-
-        var masked = MaskKey(key);
-        return Results.Ok(new { success = true, hasKey = !string.IsNullOrWhiteSpace(key), maskedKey = masked });
-    }
-
-    private static async Task<IResult> TestRecommendationService(
-        string id,
-        IHttpClientFactory httpClientFactory,
-        IOptions<ExternalApiOptions> options,
-        CancellationToken ct)
-    {
-        var normalizedId = id.Trim().ToLowerInvariant();
-        if (normalizedId != "tastedive")
-        {
-            return Results.NotFound(new { message = $"Recommendation service '{id}' not found." });
-        }
-
-        var key = options.Value.TasteDiveApiKey;
-        if (string.IsNullOrWhiteSpace(key))
-        {
-            return Results.Ok(new ConnectionTestResult(false, 0, "API key is required"));
-        }
-
-        var client = httpClientFactory.CreateClient();
-        var sw = System.Diagnostics.Stopwatch.StartNew();
-        try
-        {
-            using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            cts.CancelAfter(TimeSpan.FromSeconds(5));
-            var res = await client.GetAsync($"https://tastedive.com/api/similar?q=portal&type=game&k={Uri.EscapeDataString(key)}", cts.Token);
-            sw.Stop();
-            if (res.IsSuccessStatusCode)
-            {
-                return Results.Ok(new ConnectionTestResult(true, (int)sw.ElapsedMilliseconds, "OK"));
-            }
-            return Results.Ok(new ConnectionTestResult(false, (int)sw.ElapsedMilliseconds, $"HTTP {(int)res.StatusCode}: {res.ReasonPhrase}"));
-        }
-        catch (Exception ex)
-        {
-            sw.Stop();
-            return Results.Ok(new ConnectionTestResult(false, (int)sw.ElapsedMilliseconds, ex.Message));
-        }
-    }
 
     public sealed record ToggleSourceRequest(bool Enabled);
 
@@ -438,13 +329,4 @@ public static class SettingsEndpoints
         bool HasKey,
         string? MaskedKey,
         bool IsEnabled);
-
-    public sealed record RecommendationServiceInfo(
-        string Id,
-        string Name,
-        string Description,
-        bool RequiresApiKey,
-        bool IsConfigured,
-        bool HasKey,
-        string? MaskedKey);
 }

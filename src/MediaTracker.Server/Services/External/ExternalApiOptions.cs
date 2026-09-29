@@ -9,7 +9,6 @@ public sealed class ExternalApiOptions
     public string TvdbApiKey { get; set; } = string.Empty;
     public string KinopoiskApiKey { get; set; } = string.Empty;
     public string IgdbApiKey { get; set; } = string.Empty;
-    public string TasteDiveApiKey { get; set; } = string.Empty;
 
     private readonly Dictionary<string, string> _customKeys = new(StringComparer.OrdinalIgnoreCase);
 
@@ -25,7 +24,6 @@ public sealed class ExternalApiOptions
             "tvdb" or "thetvdb" => TvdbApiKey,
             "kinopoisk" => KinopoiskApiKey,
             "igdb" => IgdbApiKey,
-            "tastedive" => TasteDiveApiKey,
             _ => _customKeys.TryGetValue(id, out var key) ? key : null
         };
     }
@@ -55,9 +53,6 @@ public sealed class ExternalApiOptions
                 break;
             case "igdb":
                 IgdbApiKey = key;
-                break;
-            case "tastedive":
-                TasteDiveApiKey = key;
                 break;
             default:
                 _customKeys[id] = key;

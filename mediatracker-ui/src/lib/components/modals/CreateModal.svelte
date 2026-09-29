@@ -219,7 +219,9 @@
       <header class="flex items-start justify-between gap-4 border-b border-border px-5 py-5 sm:px-6">
         <div>
           <p class="text-xs font-semibold uppercase tracking-[0.18em] text-accent-soft">{i18n.t.createModal.eyebrow}</p>
-          <h2 id="create-media-title" class="mt-1 text-xl font-bold tracking-tight text-ink">{i18n.t.createModal.title}</h2>
+          <h2 id="create-media-title" class="mt-1 text-xl font-bold tracking-tight text-ink">
+            {editingItem ? (i18n.current === 'ru' ? 'Редактировать медиа' : 'Edit Media') : i18n.t.createModal.title}
+          </h2>
         </div>
         <button type="button" class="grid h-9 w-9 place-items-center rounded-lg text-muted transition hover:bg-elevated hover:text-ink" aria-label={i18n.t.common.close} onclick={close}><X size={18} aria-hidden="true" /></button>
       </header>
@@ -244,9 +246,23 @@
           <label class="space-y-1.5 text-sm font-medium text-ink"><span>{i18n.t.createModal.fields.finishedAt}</span><input class="h-10 w-full rounded-lg border border-border bg-elevated px-3 text-sm font-normal outline-none focus:border-accent" type="datetime-local" bind:value={finishedAt} /></label>
         </div>
 
-        <div class="grid gap-4 sm:grid-cols-2">
-          <label class="space-y-1.5 text-sm font-medium text-ink"><span>{i18n.t.createModal.fields.coverUrl}</span><input class="h-10 w-full rounded-lg border border-border bg-elevated px-3 text-sm font-normal outline-none placeholder:text-muted focus:border-accent focus:ring-2 focus:ring-accent/30" type="url" bind:value={coverUrl} /></label>
-          <label class="space-y-1.5 text-sm font-medium text-ink"><span>{i18n.t.createModal.fields.notes}</span><input class="h-10 w-full rounded-lg border border-border bg-elevated px-3 text-sm font-normal outline-none placeholder:text-muted focus:border-accent focus:ring-2 focus:ring-accent/30" bind:value={notes} placeholder={i18n.t.createModal.placeholders.notes} /></label>
+        <div>
+          <label class="block space-y-1.5 text-sm font-medium text-ink">
+            <span>{i18n.t.createModal.fields.coverUrl}</span>
+            <input class="h-10 w-full rounded-lg border border-border bg-elevated px-3 text-sm font-normal outline-none placeholder:text-muted focus:border-accent focus:ring-2 focus:ring-accent/30" type="url" bind:value={coverUrl} />
+          </label>
+        </div>
+
+        <div>
+          <label class="block space-y-1.5 text-sm font-medium text-ink">
+            <span>{i18n.t.createModal.fields.notes}</span>
+            <textarea
+              class="min-h-[140px] w-full resize-y rounded-lg border border-border bg-elevated p-3 text-sm font-normal outline-none placeholder:text-muted focus:border-accent focus:ring-2 focus:ring-accent/30"
+              rows={5}
+              bind:value={notes}
+              placeholder={i18n.t.createModal.placeholders.notes}
+            ></textarea>
+          </label>
         </div>
 
         {#if type === 'game'}
@@ -270,7 +286,12 @@
           </div>
         {/if}
 
-        <footer class="flex justify-end gap-3 border-t border-border pt-5"><button type="button" class="rounded-md px-3 py-2 text-sm font-semibold text-muted transition hover:text-ink" onclick={close}>{i18n.t.common.cancel}</button><button type="submit" class="rounded-md bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:bg-accent-hover disabled:cursor-wait disabled:opacity-70" disabled={submitting}>{submitting ? i18n.t.common.saving : i18n.t.common.add}</button></footer>
+        <footer class="flex justify-end gap-3 border-t border-border pt-5">
+          <button type="button" class="rounded-md px-3 py-2 text-sm font-semibold text-muted transition hover:text-ink" onclick={close}>{i18n.t.common.cancel}</button>
+          <button type="submit" class="rounded-md bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:bg-accent-hover disabled:cursor-wait disabled:opacity-70" disabled={submitting}>
+            {submitting ? i18n.t.common.saving : (editingItem ? i18n.t.common.save : i18n.t.common.add)}
+          </button>
+        </footer>
       </form>
     </div>
   </div>

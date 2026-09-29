@@ -1,9 +1,9 @@
 <script lang="ts">
   import { Check, ChevronRight, Image as ImageIcon, Plus, Search, Star, X } from 'lucide-svelte'
   import { untrack } from 'svelte'
-  import { createMedia, deleteMedia, errorMessage, getCategoryOrder, getExternalDetails, getMedia, searchExternal } from '$lib/api'
+  import { createMedia, deleteMedia, errorMessage, getCategoryOrder, getExternalDetails, getMedia, getSources, searchExternal } from '$lib/api'
   import { i18n } from '$lib/i18n/index.svelte'
-  import { MEDIA_STATUS, type CreateMediaPayload, type ExternalMedia, type MediaItem, type SearchMediaType } from '$lib/types'
+  import { MEDIA_STATUS, type CreateMediaPayload, type ExternalMedia, type MediaItem, type SearchMediaType, type SourceInfo } from '$lib/types'
 
   const categories = ['all', 'anime', 'manga', 'movie', 'tvshow', 'game', 'book'] as const
   const minQueryLength = 2
@@ -44,6 +44,25 @@
   let previewLoading = $state(false)
   let categoryOrder = $state<string[]>(['anime', 'manga', 'movie', 'tvshow', 'game', 'book'])
   let requestSequence = 0
+  let availableSources = $state<SourceInfo[]>([])
+
+  $effect(() => {
+    if (isOpen) {
+      void getSources()
+        .then((res) => {
+          if (res && res.length > 0) availableSources = res
+        })
+        .catch(() => {})
+    }
+  })
+
+  let disabledSources = $derived(
+    new Set(
+      availableSources
+        .filter((s) => !s.isEnabled)
+        .flatMap((s) => [s.name.toLowerCase(), s.id.toLowerCase()])
+    )
+  )
 
   const EXPECTED_SEARCH_SOURCES: Record<string, string[]> = {
     anime: ['AniList', 'MyAnimeList'],
@@ -68,7 +87,7 @@
     if (item.ratings && item.ratings.length > 0) {
       for (const r of item.ratings) {
         const src = (r.source || (r as any).Source || '').trim()
-        if (!src) continue
+        if (!src || disabledSources.has(src.toLowerCase())) continue
         const score = typeof r.rating === 'number' ? r.rating : (typeof (r as any).score === 'number' ? (r as any).score : null)
         seen.add(src.toLowerCase())
         badgeList.push({
@@ -80,15 +99,19 @@
 
     if (item.rating && !seen.has((item.externalSource || '').toLowerCase())) {
       const src = item.externalSource || (item.type === 'anime' || item.type === 'manga' ? 'AniList' : 'TMDB')
-      seen.add(src.toLowerCase())
-      badgeList.push({
-        source: src,
-        score: item.rating,
-      })
+      if (!disabledSources.has(src.toLowerCase())) {
+        seen.add(src.toLowerCase())
+        badgeList.push({
+          source: src,
+          score: item.rating,
+        })
+      }
     }
 
     const typeKey = effectiveType(item)
-    const expected = EXPECTED_SEARCH_SOURCES[typeKey] ?? []
+    const expected = availableSources.length > 0
+      ? availableSources.filter((s) => s.isEnabled && s.mediaTypes.includes(typeKey)).map((s) => s.name)
+      : (EXPECTED_SEARCH_SOURCES[typeKey] ?? [])
     for (const exp of expected) {
       const expNorm = exp.toLowerCase()
       const found = Array.from(seen).some((s) => s.includes(expNorm) || expNorm.includes(s))
@@ -291,7 +314,7 @@
 
   function openPreview(result: ExternalMedia) {
     previewItem = result
-    if (result.type === 'manga' || !result.ratings || result.ratings.length === 0 || !result.author) {
+    if (result.type === 'manga' || result.type === 'game' || !result.ratings || result.ratings.length === 0 || !result.author) {
       previewLoading = true
       void getExternalDetails(
         effectiveType(result),
@@ -311,6 +334,11 @@
               rating: enriched.rating ?? previewItem.rating,
               ratingVotes: enriched.ratingVotes ?? previewItem.ratingVotes,
               description: enriched.description || previewItem.description,
+              releaseDate: enriched.releaseDate ?? previewItem.releaseDate,
+              releaseYear: enriched.releaseYear ?? previewItem.releaseYear,
+              releaseStatus: enriched.releaseStatus ?? previewItem.releaseStatus,
+              genres: enriched.genres ?? previewItem.genres,
+              platform: enriched.platform ?? previewItem.platform,
             }
           }
         })
@@ -462,6 +490,18 @@
     addError = null
 
     try {
+      if (result.type === 'game' && !result.releaseDate && result.externalId) {
+        try {
+          const details = await getExternalDetails('game', result.externalId, result.title, result.externalSource ?? undefined)
+          if (details) {
+            result.releaseDate = details.releaseDate ?? result.releaseDate
+            result.releaseYear = details.releaseYear ?? result.releaseYear
+            result.releaseStatus = details.releaseStatus ?? result.releaseStatus
+            result.genres = details.genres ?? result.genres
+            result.platform = details.platform ?? result.platform
+          }
+        } catch {}
+      }
       const created = await createMedia(buildPayload(result))
       addedKeys = { ...addedKeys, [key]: created.id }
       onMediaAdded(created)
@@ -487,6 +527,8 @@
     if (s.includes('tmdb')) return 'bg-[#01b4e4]/15 text-[#38bdf8] border-[#01b4e4]/30'
     if (s.includes('kitsu')) return 'bg-[#fd755c]/15 text-[#fb923c] border-[#fd755c]/30'
     if (s.includes('rawg')) return 'bg-white/10 text-slate-200 border-white/20'
+    if (s.includes('steam')) return 'bg-[#171a21] text-[#66c0f4] border-[#66c0f4]/40'
+    if (s.includes('igdb')) return 'bg-[#9146ff]/20 text-[#a855f7] border-[#9146ff]/40'
     if (s.includes('openlibrary')) return 'bg-amber-500/15 text-amber-300 border-amber-500/30'
     return 'bg-white/10 text-muted border-white/10'
   }
@@ -678,7 +720,7 @@
                               {result.externalSource}
                             </span>
                           {/if}
-                          {#if result.rating}
+                          {#if result.rating && (!result.externalSource || !disabledSources.has(result.externalSource.toLowerCase()))}
                             <span class="flex items-center gap-0.5 font-semibold text-star">
                               <Star size={12} fill="currentColor" />
                               {result.rating.toFixed(1)}
@@ -783,7 +825,7 @@
                         {result.externalSource}
                       </span>
                     {/if}
-                    {#if result.rating}
+                    {#if result.rating && (!result.externalSource || !disabledSources.has(result.externalSource.toLowerCase()))}
                       <span class="flex items-center gap-0.5 font-semibold text-star">
                         <Star size={12} fill="currentColor" />
                         {result.rating.toFixed(1)}

@@ -48,9 +48,9 @@ export const ru = {
   },
   views: {
     homeTitle: 'Моя медиатека',
-    inProgress: 'В процессе',
-    upNext: 'Дальше',
-    recentlyCompleted: 'Недавно завершено',
+    inProgress: 'В Процессе',
+    upNext: 'В Планах',
+    recentlyCompleted: 'Завершено',
     seasonsOf: (title: string) => `Сезоны: ${title}`,
     historyTitle: 'История активности',
     historyHint: 'Здесь отображаются даты начала и завершения из вашей медиатеки.',
@@ -61,6 +61,12 @@ export const ru = {
     listsTitle: 'Списки',
     listsHint: 'Сохраняемые списки появятся в одном из следующих обновлений.',
     noSeasons: 'У этого сериала пока нет сезонов.',
+    groupByType: 'Группировать по типу',
+    clearHistory: 'Очистить историю',
+    confirmClearHistory: 'Вы уверены, что хотите полностью очистить историю?',
+    confirmDeleteHistoryEntry: 'Удалить эту запись из истории?',
+    historyCleared: 'История очищена',
+    historyEntryDeleted: 'Запись удалена из истории',
   },
   types: {
     game: 'Игра',
@@ -335,6 +341,11 @@ export const ru = {
     tabs: {
       sources: 'Источники',
       search: 'Поиск',
+    },
+    recommendations: {
+      title: 'Рекомендательные сервисы',
+      description: 'Сервисы для рекомендаций и похожих тайтлов (не используются для обогащения метаданных).',
+      badge: 'Рекомендации',
     },
     sources: {
       title: 'Поддерживаемые источники',

@@ -12,6 +12,10 @@ import type {
   MediaStatus,
   SearchScope,
   SourceInfo,
+  RecommendationServiceInfo,
+  GameAchievementsResponse,
+  GameRelatedItem,
+  GameRecommendationItem,
   UpdateMediaPayload,
   UpdateVolumePayload,
 } from '$lib/types'
@@ -247,5 +251,63 @@ export function translateText(text: string, targetLanguage = 'ru'): Promise<{ tr
     body: JSON.stringify({ text, targetLanguage }),
   })
 }
+
+export function getRecommendationServices(): Promise<RecommendationServiceInfo[]> {
+  return requestJson<RecommendationServiceInfo[]>('/api/settings/recommendation-services')
+}
+
+export function saveRecommendationServiceKey(
+  id: string,
+  apiKey: string,
+): Promise<{ success: boolean; hasKey: boolean; maskedKey: string | null }> {
+  return requestJson(`/api/settings/recommendation-services/${id}/key`, jsonOptions('PUT', { apiKey }))
+}
+
+export function testRecommendationService(id: string): Promise<ConnectionTestResult> {
+  return requestJson<ConnectionTestResult>(`/api/settings/recommendation-services/${id}/test`, { method: 'POST' })
+}
+
+export function getGameAchievements(params: {
+  steamAppId?: string | null
+  rawgId?: string | null
+  title?: string | null
+  externalSource?: string | null
+  externalId?: string | null
+}): Promise<GameAchievementsResponse> {
+  const query = new URLSearchParams()
+  if (params.steamAppId) query.set('steamAppId', params.steamAppId)
+  if (params.rawgId) query.set('rawgId', params.rawgId)
+  if (params.title) query.set('title', params.title)
+  if (params.externalSource) query.set('externalSource', params.externalSource)
+  if (params.externalId) query.set('externalId', params.externalId)
+  return requestJson<GameAchievementsResponse>(`/api/external/games/achievements?${query.toString()}`)
+}
+
+export function getGameRelated(params: {
+  rawgId?: string | null
+  title?: string | null
+  externalSource?: string | null
+  externalId?: string | null
+}): Promise<GameRelatedItem[]> {
+  const query = new URLSearchParams()
+  if (params.rawgId) query.set('rawgId', params.rawgId)
+  if (params.title) query.set('title', params.title)
+  if (params.externalSource) query.set('externalSource', params.externalSource)
+  if (params.externalId) query.set('externalId', params.externalId)
+  return requestJson<GameRelatedItem[]>(`/api/external/games/related?${query.toString()}`)
+}
+
+export function getGameRecommendations(query: string): Promise<GameRecommendationItem[]> {
+  return requestJson<GameRecommendationItem[]>(`/api/external/games/recommendations?query=${encodeURIComponent(query)}`)
+}
+
+export function clearAllHistory(): Promise<void> {
+  return requestVoid('/api/history', { method: 'DELETE' })
+}
+
+export function deleteHistoryEntry(id: string, kind: 'started' | 'finished'): Promise<void> {
+  return requestVoid(`/api/history/${id}/${kind}`, { method: 'DELETE' })
+}
+
 
 

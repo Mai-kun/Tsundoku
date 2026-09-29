@@ -120,7 +120,7 @@
             if (item.externalId) {
               // Map by externalId using same type key as resultKey()
               // For anime tvshows, type field in ExternalMedia is 'anime'
-              const isAnime = (item.type === 'tvshow' || item.type === 'movie') && (item as { isAnime?: boolean }).isAnime
+              const isAnime = (item.type === 'tvshow' || item.type === 'movie') && item.isAnime
               const effectiveType = item.type === 'tvshow' && isAnime ? 'anime' : item.type
               const k = `${effectiveType}:${item.externalId}`
               map[k] = item.id

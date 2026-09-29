@@ -32,18 +32,24 @@
 
   let { category, refreshKey, onOpen, onMediaChanged, onEdit = () => {} }: Props = $props()
 
-  let status = $state<StatusFilter>(savedCategoryState[category]?.status ?? 'all')
-  let sort = $state<LibrarySort>(savedCategoryState[category]?.sort ?? 'newest')
-  let groupBy = $state<GroupBy>(savedCategoryState[category]?.groupBy ?? 'status')
-  let search = $state(savedCategoryState[category]?.search ?? '')
+  let status = $state<StatusFilter>('all')
+  let sort = $state<LibrarySort>('newest')
+  let groupBy = $state<GroupBy>('status')
+  let search = $state('')
   let allItems = $state<MediaItem[]>([])
   let loading = $state(true)
   let loadError = $state<unknown>(null)
   let requestSequence = 0
 
   $effect(() => {
-    savedCategoryState[category] = { status, sort, groupBy, search }
+    const saved = savedCategoryState[category]
+    status = saved?.status ?? 'all'
+    sort = saved?.sort ?? 'newest'
+    groupBy = saved?.groupBy ?? 'status'
+    search = saved?.search ?? ''
   })
+
+
 
   let filteredItems = $derived(status === 'all' ? allItems : allItems.filter((item) => item.status === status))
   let statusCounts = $derived(countStatuses(allItems))
@@ -233,6 +239,22 @@
 
   function updateStatus(value: StatusFilter) {
     status = value
+    savedCategoryState[category] = { status: value, sort, groupBy, search }
+  }
+
+  function updateSort(value: LibrarySort) {
+    sort = value
+    savedCategoryState[category] = { status, sort: value, groupBy, search }
+  }
+
+  function updateGroupBy(value: GroupBy) {
+    groupBy = value
+    savedCategoryState[category] = { status, sort, groupBy: value, search }
+  }
+
+  function updateSearch(value: string) {
+    search = value
+    savedCategoryState[category] = { status, sort, groupBy, search: value }
   }
 
   async function stepEpisode(item: MediaItem, delta: number) {
@@ -276,9 +298,9 @@
     {search}
     counts={statusCounts}
     onStatusChange={updateStatus}
-    onSortChange={(value) => (sort = value)}
-    onGroupByChange={(value) => (groupBy = value)}
-    onSearchChange={(value) => (search = value)}
+    onSortChange={updateSort}
+    onGroupByChange={updateGroupBy}
+    onSearchChange={updateSearch}
   />
 
   <p class="text-xs font-medium text-muted">{i18n.t.library.resultCount(filteredItems.length)}</p>

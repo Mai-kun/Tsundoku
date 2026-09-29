@@ -235,6 +235,18 @@ export interface CreateVolumePayload {
   releaseDate?: string | null
 }
 
+export interface UpdateVolumePayload {
+  title?: string | null
+  coverUrl?: string | null
+  totalPages?: number | null
+  currentPage?: number | null
+  totalChapters?: number | null
+  currentChapter?: number | null
+  status?: MediaStatus | null
+  score?: number | null
+  notes?: string | null
+}
+
 export interface CreateMangaPayload extends CreateMediaBase {
   type: 'manga'
   author?: string | null

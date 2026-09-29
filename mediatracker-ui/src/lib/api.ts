@@ -1,7 +1,9 @@
 import { i18n } from '$lib/i18n/index.svelte'
 import type {
   CreateMediaPayload,
+  CreateVolumePayload,
   ExternalMedia,
+  MangaVolume,
   MediaDetail,
   MediaFilters,
   MediaItem,
@@ -9,6 +11,7 @@ import type {
   MediaStatus,
   SearchScope,
   UpdateMediaPayload,
+  UpdateVolumePayload,
 } from '$lib/types'
 
 const mediaEndpoint = '/api/media'
@@ -165,12 +168,12 @@ export function setVolumeProgress(id: string, progress: { currentPage?: number; 
   return requestVoid(`/api/volumes/${id}/progress`, jsonOptions('PUT', progress))
 }
 
-export function addVolume(mangaId: string, payload: any): Promise<any> {
-  return requestJson(`/api/volumes?mangaId=${mangaId}`, jsonOptions('POST', payload))
+export function addVolume(mangaId: string, payload: CreateVolumePayload): Promise<MangaVolume> {
+  return requestJson<MangaVolume>(`/api/volumes?mangaId=${mangaId}`, jsonOptions('POST', payload))
 }
 
-export function updateVolume(id: string, payload: any): Promise<any> {
-  return requestJson(`/api/volumes/${id}`, jsonOptions('PUT', payload))
+export function updateVolume(id: string, payload: UpdateVolumePayload): Promise<MangaVolume> {
+  return requestJson<MangaVolume>(`/api/volumes/${id}`, jsonOptions('PUT', payload))
 }
 
 export function deleteVolume(id: string): Promise<void> {

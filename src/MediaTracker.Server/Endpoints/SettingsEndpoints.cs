@@ -61,7 +61,7 @@ public static class SettingsEndpoints
                     Id: p.Id,
                     Name: p.Name,
                     Description: p.Description,
-                    MediaTypes: p.MediaTypes.ToArray(),
+                    MediaTypes: [.. p.MediaTypes],
                     RequiresApiKey: p.RequiresApiKey,
                     IsConfigured: hasKey,
                     HasKey: hasKey,
@@ -223,7 +223,7 @@ public static class SettingsEndpoints
                         list.Add(s);
                     }
                 }
-                result[type] = list.ToArray();
+                result[type] = [.. list];
             }
             else
             {

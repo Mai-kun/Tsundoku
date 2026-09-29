@@ -19,7 +19,7 @@ public sealed class TmdbMetadataProvider(
     public bool RequiresApiKey => true;
     public bool IsDefault => true;
 
-    private readonly string mediaType = serviceKey?.StartsWith("movie", StringComparison.OrdinalIgnoreCase) == true ? "movie" : "tvshow";
+    private readonly string mediaType = serviceKey?.StartsWith("movie", StringComparison.OrdinalIgnoreCase) is true ? "movie" : "tvshow";
 
     public async Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string query, CancellationToken ct)
     {
@@ -44,10 +44,9 @@ public sealed class TmdbMetadataProvider(
                 return [];
             }
 
-            return results
+            return [.. results
                 .Where(item => isMovie ? item.Title is not null : item.Name is not null)
-                .Select(MapItem)
-                .ToList();
+                .Select(MapItem)];
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {

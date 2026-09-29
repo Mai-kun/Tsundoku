@@ -333,7 +333,7 @@ public sealed class MetadataAggregatorService(
         var tasks = AllTypes.Select(type => SearchProviderSafeAsync(type, query, ct));
         var groups = await Task.WhenAll(tasks);
 
-        return groups.SelectMany(group => group).ToList();
+        return [.. groups.SelectMany(group => group)];
     }
 
     private async Task<IReadOnlyList<ExternalMediaDto>> SearchProviderSafeAsync(string type, string query, CancellationToken ct)

@@ -33,6 +33,10 @@ public static class MediaEndpoints
         group.MapPost("/{id:guid}/enrich", EnrichMediaItem);
         group.MapDelete("/{id:guid}", DeleteMediaItem);
 
+        var historyGroup = app.MapGroup("/api/history");
+        historyGroup.MapDelete("/", ClearAllHistory);
+        historyGroup.MapDelete("/{id:guid}/{kind}", DeleteHistoryEntry);
+
         return app;
     }
 
@@ -269,6 +273,18 @@ public static class MediaEndpoints
                     modified = true;
                 }
 
+                if (string.IsNullOrWhiteSpace(item.Genres) && enriched.Genres is { Count: > 0 })
+                {
+                    item.Genres = string.Join(", ", enriched.Genres);
+                    modified = true;
+                }
+
+                if (string.IsNullOrWhiteSpace(item.ReleaseStatus) && !string.IsNullOrWhiteSpace(enriched.ReleaseStatus))
+                {
+                    item.ReleaseStatus = enriched.ReleaseStatus;
+                    modified = true;
+                }
+
                 if (modified)
                 {
                     item.UpdatedAt = DateTime.UtcNow;
@@ -408,6 +424,26 @@ public static class MediaEndpoints
             item.TranslationLanguage = request.TranslationLanguage;
         }
 
+        if (request.Genres is not null)
+        {
+            item.Genres = request.Genres;
+        }
+
+        if (request.Tags is not null)
+        {
+            item.Tags = request.Tags;
+        }
+
+        if (request.UnlockedAchievements is not null)
+        {
+            item.UnlockedAchievements = request.UnlockedAchievements;
+        }
+
+        if (request.UserPlatform is not null)
+        {
+            item.UserPlatform = request.UserPlatform;
+        }
+
         if (request.CoverUrl is not null)
         {
             item.CoverUrl = request.CoverUrl;
@@ -430,7 +466,12 @@ public static class MediaEndpoints
             item.FranchiseOrder = request.FranchiseOrder;
         }
 
-        if (item is Book book)
+        if (item is VideoGame game)
+        {
+            if (request.Platform is not null) game.Platform = request.Platform;
+            if (request.UserPlatform is not null) game.UserPlatform = request.UserPlatform;
+        }
+        else if (item is Book book)
         {
             if (request.Author is not null) book.Author = request.Author;
             if (request.TotalPages.HasValue) book.TotalPages = request.TotalPages.Value;
@@ -477,7 +518,6 @@ public static class MediaEndpoints
         if (request.Status == MediaStatus.Completed)
         {
             item.FinishedAt ??= DateTime.UtcNow;
-            item.StartedAt ??= DateTime.UtcNow;
 
             if (item is TvShow show)
             {
@@ -496,14 +536,67 @@ public static class MediaEndpoints
                 manga.CurrentChapter = manga.TotalChapters.Value;
             }
         }
+        else if (request.Status == MediaStatus.InProgress)
+        {
+            item.StartedAt ??= DateTime.UtcNow;
+            item.FinishedAt = null;
+        }
         else if (request.Status == MediaStatus.Planned)
         {
             item.FinishedAt = null;
+            item.StartedAt = null;
+        }
+        else if (request.Status == MediaStatus.OnHold)
+        {
+            item.FinishedAt = null;
+        }
+        else if (request.Status == MediaStatus.Dropped)
+        {
+            item.FinishedAt ??= DateTime.UtcNow;
         }
 
         item.UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync(ct);
 
+        return Results.NoContent();
+    }
+
+    private static async Task<IResult> ClearAllHistory(AppDbContext db, CancellationToken ct)
+    {
+        await db.MediaItems.ExecuteUpdateAsync(s => s
+            .SetProperty(m => m.StartedAt, (DateTime?)null)
+            .SetProperty(m => m.FinishedAt, (DateTime?)null), ct);
+        return Results.NoContent();
+    }
+
+    private static async Task<IResult> DeleteHistoryEntry(
+        Guid id,
+        string kind,
+        AppDbContext db,
+        CancellationToken ct)
+    {
+        var item = await db.MediaItems.FindAsync([id], ct);
+        if (item is null)
+        {
+            return Results.NotFound();
+        }
+
+        var normalized = kind.Trim().ToLowerInvariant();
+        if (normalized == "started")
+        {
+            item.StartedAt = null;
+        }
+        else if (normalized == "finished")
+        {
+            item.FinishedAt = null;
+        }
+        else
+        {
+            return Results.BadRequest(new { message = "Kind must be 'started' or 'finished'." });
+        }
+
+        item.UpdatedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync(ct);
         return Results.NoContent();
     }
 
@@ -633,6 +726,11 @@ public static class MediaEndpoints
         item.ReleaseStatus = !string.IsNullOrWhiteSpace(external.ReleaseStatus)
             ? external.ReleaseStatus
             : MediaItemFactory.ComputeReleaseStatusFromDates(item.ReleaseDate, item.EndDate);
+
+        if (external.Genres is { Count: > 0 })
+        {
+            item.Genres = string.Join(", ", external.Genres);
+        }
 
         if (item is TvShow show)
         {

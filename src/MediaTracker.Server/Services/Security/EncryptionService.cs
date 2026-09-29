@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Security.Cryptography;
 using System.Text;
 using MediaTracker.Server.Services.Storage;
@@ -16,7 +17,9 @@ public sealed class EncryptionService : IEncryptionService
 
     public EncryptionService(AppPaths appPaths)
     {
+        Directory.CreateDirectory(appPaths.DataDirectory);
         var keyFilePath = Path.Combine(appPaths.DataDirectory, ".secret.key");
+
         if (File.Exists(keyFilePath))
         {
             try
@@ -28,8 +31,9 @@ public sealed class EncryptionService : IEncryptionService
                     return;
                 }
             }
-            catch
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
+                // Fallback to regenerating key if existing key is unreadable
             }
         }
 
@@ -43,8 +47,9 @@ public sealed class EncryptionService : IEncryptionService
                 File.SetAttributes(keyFilePath, FileAttributes.Hidden);
             }
         }
-        catch
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
+            // If filesystem write fails, key remains in memory for the process lifetime
         }
     }
 
@@ -55,22 +60,38 @@ public sealed class EncryptionService : IEncryptionService
             return string.Empty;
         }
 
-        var nonce = new byte[AesGcm.NonceByteSizes.MaxSize];
-        RandomNumberGenerator.Fill(nonce);
+        var plainByteCount = Encoding.UTF8.GetByteCount(plainText);
+        var nonceSize = AesGcm.NonceByteSizes.MaxSize;
+        var tagSize = AesGcm.TagByteSizes.MaxSize;
+        var totalLength = nonceSize + tagSize + plainByteCount;
 
-        var plainBytes = Encoding.UTF8.GetBytes(plainText);
-        var cipherBytes = new byte[plainBytes.Length];
-        var tag = new byte[AesGcm.TagByteSizes.MaxSize];
+        var result = new byte[totalLength];
+        var nonceSpan = result.AsSpan(0, nonceSize);
+        var tagSpan = result.AsSpan(nonceSize, tagSize);
+        var cipherSpan = result.AsSpan(nonceSize + tagSize, plainByteCount);
 
-        using var aesGcm = new AesGcm(_key, AesGcm.TagByteSizes.MaxSize);
-        aesGcm.Encrypt(nonce, plainBytes, cipherBytes, tag);
+        RandomNumberGenerator.Fill(nonceSpan);
 
-        var result = new byte[nonce.Length + tag.Length + cipherBytes.Length];
-        Buffer.BlockCopy(nonce, 0, result, 0, nonce.Length);
-        Buffer.BlockCopy(tag, 0, result, nonce.Length, tag.Length);
-        Buffer.BlockCopy(cipherBytes, 0, result, nonce.Length + tag.Length, cipherBytes.Length);
+        byte[]? rentedPlain = null;
+        Span<byte> plainSpan = plainByteCount <= 512
+            ? stackalloc byte[plainByteCount]
+            : (rentedPlain = ArrayPool<byte>.Shared.Rent(plainByteCount)).AsSpan(0, plainByteCount);
 
-        return Convert.ToBase64String(result);
+        try
+        {
+            Encoding.UTF8.GetBytes(plainText, plainSpan);
+            using var aesGcm = new AesGcm(_key, tagSize);
+            aesGcm.Encrypt(nonceSpan, plainSpan, cipherSpan, tagSpan);
+
+            return Convert.ToBase64String(result);
+        }
+        finally
+        {
+            if (rentedPlain is not null)
+            {
+                ArrayPool<byte>.Shared.Return(rentedPlain);
+            }
+        }
     }
 
     public string? Decrypt(string cipherText)
@@ -91,21 +112,34 @@ public sealed class EncryptionService : IEncryptionService
                 return null;
             }
 
-            var nonce = new byte[nonceSize];
-            var tag = new byte[tagSize];
-            var cipherBytes = new byte[data.Length - nonceSize - tagSize];
+            var nonce = data.AsSpan(0, nonceSize);
+            var tag = data.AsSpan(nonceSize, tagSize);
+            var cipherBytes = data.AsSpan(nonceSize + tagSize);
 
-            Buffer.BlockCopy(data, 0, nonce, 0, nonceSize);
-            Buffer.BlockCopy(data, nonceSize, tag, 0, tagSize);
-            Buffer.BlockCopy(data, nonceSize + tagSize, cipherBytes, 0, cipherBytes.Length);
+            byte[]? rentedPlain = null;
+            Span<byte> plainSpan = cipherBytes.Length <= 512
+                ? stackalloc byte[cipherBytes.Length]
+                : (rentedPlain = ArrayPool<byte>.Shared.Rent(cipherBytes.Length)).AsSpan(0, cipherBytes.Length);
 
-            var plainBytes = new byte[cipherBytes.Length];
-            using var aesGcm = new AesGcm(_key, tagSize);
-            aesGcm.Decrypt(nonce, cipherBytes, tag, plainBytes);
-
-            return Encoding.UTF8.GetString(plainBytes);
+            try
+            {
+                using var aesGcm = new AesGcm(_key, tagSize);
+                aesGcm.Decrypt(nonce, cipherBytes, tag, plainSpan);
+                return Encoding.UTF8.GetString(plainSpan);
+            }
+            finally
+            {
+                if (rentedPlain is not null)
+                {
+                    ArrayPool<byte>.Shared.Return(rentedPlain);
+                }
+            }
         }
-        catch
+        catch (CryptographicException)
+        {
+            return null;
+        }
+        catch (FormatException)
         {
             return null;
         }

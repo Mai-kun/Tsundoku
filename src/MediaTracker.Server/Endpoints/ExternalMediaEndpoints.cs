@@ -247,32 +247,84 @@ public static class ExternalMediaEndpoints
     }
 
     private static async Task<IResult> GetGameRecommendations(
-        string? query,
+        string? rawgId,
+        string? title,
+        string? externalSource,
+        string? externalId,
         IHttpClientFactory httpClientFactory,
         Microsoft.Extensions.Options.IOptions<ExternalApiOptions> options,
+        ILoggerFactory loggerFactory,
         CancellationToken ct)
     {
-        var client = httpClientFactory.CreateClient();
-        var key = options.Value.TasteDiveApiKey;
-
-        if (!string.IsNullOrWhiteSpace(key) && !string.IsNullOrWhiteSpace(query))
+        var logger = loggerFactory.CreateLogger("ExternalMedia");
+        var rawgKey = options.Value.RawgApiKey;
+        if (string.IsNullOrWhiteSpace(rawgKey))
         {
-            try
-            {
-                var res = await client.GetFromJsonAsync<TasteDiveRoot>($"https://tastedive.com/api/similar?q={Uri.EscapeDataString(query)}&type=game&k={Uri.EscapeDataString(key)}&info=1", ct);
-                if (res?.Similar?.Results is { Count: > 0 } recs)
-                {
-                    var items = recs.Select(r => new GameRecommendationItem(r.Name, r.WTeaser, r.YUrl)).ToList();
-                    return Results.Ok(items);
-                }
-            }
-            catch
-            {
-                // TasteDive failed
-            }
+            return Results.Ok(Array.Empty<GameRelatedItem>());
         }
 
-        return Results.Ok(Array.Empty<GameRecommendationItem>());
+        var client = httpClientFactory.CreateClient();
+        var key = Uri.EscapeDataString(rawgKey);
+
+        try
+        {
+            var rId = rawgId;
+            if (string.IsNullOrWhiteSpace(rId) && string.Equals(externalSource, "rawg", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(externalId))
+            {
+                rId = externalId;
+            }
+
+            if (string.IsNullOrWhiteSpace(rId) && !string.IsNullOrWhiteSpace(title))
+            {
+                var rawgSearch = await client.GetFromJsonAsync<RawgSearchRoot>($"https://api.rawg.io/api/games?search={Uri.EscapeDataString(title)}&key={key}&page_size=1", ct);
+                if (rawgSearch?.Results is { Count: > 0 })
+                {
+                    rId = rawgSearch.Results[0].Id.ToString();
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(rId))
+            {
+                logger.LogWarning("RAWG recommendations: could not resolve a game id for '{Title}'", title);
+                return Results.Ok(Array.Empty<GameRelatedItem>());
+            }
+
+            // ponytail: genre-based similarity, not real ML recommendations.
+            // Ceiling: same-genre, popularity-ordered. Upgrade path: intersect RAWG tags with the current game.
+            var detail = await client.GetFromJsonAsync<RawgDetailRoot>($"https://api.rawg.io/api/games/{rId}?key={key}", ct);
+            var genreIds = detail?.Genres?.Select(g => g.Id).Where(id => id > 0).ToList() ?? [];
+            if (genreIds.Count == 0)
+            {
+                logger.LogWarning("RAWG recommendations: game {Id} has no genres", rId);
+                return Results.Ok(Array.Empty<GameRelatedItem>());
+            }
+
+            var genresParam = Uri.EscapeDataString(string.Join(',', genreIds.Select(g => g.ToString())));
+            var url = $"https://api.rawg.io/api/games?genres={genresParam}&exclude={Uri.EscapeDataString(rId)}&ordering=-rating&page_size=12&key={key}";
+            var similar = await client.GetFromJsonAsync<RawgSearchRoot>(url, ct);
+            if (similar?.Results is not { Count: > 0 })
+            {
+                return Results.Ok(Array.Empty<GameRelatedItem>());
+            }
+
+            var results = similar.Results
+                .Where(g => !string.IsNullOrWhiteSpace(g.Name))
+                .Select(g => new GameRelatedItem(
+                    g.Id.ToString(),
+                    g.Name!,
+                    g.BackgroundImage,
+                    g.Released,
+                    g.Rating is > 0 ? Math.Round(g.Rating.Value * 2.0, 1) : null))
+                .ToList();
+
+            return Results.Ok(results);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "RAWG recommendations failed for '{Title}'", title);
+        }
+
+        return Results.Ok(Array.Empty<GameRelatedItem>());
     }
 }
 
@@ -283,7 +335,6 @@ public sealed record GameAchievementItem(string Name, string? Description, strin
 public sealed record GameAchievementsResponse(int TotalCount, IReadOnlyList<GameAchievementItem> Achievements);
 
 public sealed record GameRelatedItem(string Id, string Title, string? CoverUrl, string? ReleaseDate, double? Score);
-public sealed record GameRecommendationItem(string Name, string? Description, string? Url);
 
 file sealed class SteamSearchRoot
 {
@@ -340,6 +391,30 @@ file sealed class RawgSearchResultItem
 {
     [System.Text.Json.Serialization.JsonPropertyName("id")]
     public long Id { get; set; }
+
+    [System.Text.Json.Serialization.JsonPropertyName("name")]
+    public string? Name { get; set; }
+
+    [System.Text.Json.Serialization.JsonPropertyName("background_image")]
+    public string? BackgroundImage { get; set; }
+
+    [System.Text.Json.Serialization.JsonPropertyName("released")]
+    public string? Released { get; set; }
+
+    [System.Text.Json.Serialization.JsonPropertyName("rating")]
+    public double? Rating { get; set; }
+}
+
+file sealed class RawgDetailRoot
+{
+    [System.Text.Json.Serialization.JsonPropertyName("genres")]
+    public List<RawgDetailGenre>? Genres { get; set; }
+}
+
+file sealed class RawgDetailGenre
+{
+    [System.Text.Json.Serialization.JsonPropertyName("id")]
+    public long Id { get; set; }
 }
 
 file sealed class RawgAchievementsRoot
@@ -385,29 +460,5 @@ file sealed class RawgSeriesItem
 
     [System.Text.Json.Serialization.JsonPropertyName("rating")]
     public double? Rating { get; set; }
-}
-
-file sealed class TasteDiveRoot
-{
-    [System.Text.Json.Serialization.JsonPropertyName("Similar")]
-    public TasteDiveSimilar? Similar { get; set; }
-}
-
-file sealed class TasteDiveSimilar
-{
-    [System.Text.Json.Serialization.JsonPropertyName("Results")]
-    public List<TasteDiveItem>? Results { get; set; }
-}
-
-file sealed class TasteDiveItem
-{
-    [System.Text.Json.Serialization.JsonPropertyName("Name")]
-    public string Name { get; set; } = string.Empty;
-
-    [System.Text.Json.Serialization.JsonPropertyName("wTeaser")]
-    public string? WTeaser { get; set; }
-
-    [System.Text.Json.Serialization.JsonPropertyName("yUrl")]
-    public string? YUrl { get; set; }
 }
 

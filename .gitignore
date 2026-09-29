@@ -486,3 +486,4 @@ shots/
 graphify-out/
 .aider*
 AGENTS.md
+*.db

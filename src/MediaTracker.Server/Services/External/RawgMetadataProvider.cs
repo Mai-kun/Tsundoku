@@ -6,9 +6,9 @@ using Microsoft.Extensions.Options;
 namespace MediaTracker.Server.Services.External;
 
 public sealed class RawgMetadataProvider(
-    IHttpClientFactory httpClientFactory = null!,
-    IOptions<ExternalApiOptions> options = null!,
-    ILogger<RawgMetadataProvider> logger = null!) : IMetadataProvider
+    IHttpClientFactory httpClientFactory,
+    IOptions<ExternalApiOptions> options,
+    ILogger<RawgMetadataProvider> logger) : IMetadataProvider
 {
     public string Id => "rawg";
     public string Name => "RAWG Video Games Database";
@@ -16,6 +16,7 @@ public sealed class RawgMetadataProvider(
     public IReadOnlyList<string> MediaTypes => ["game"];
     public bool RequiresApiKey => true;
     public bool IsDefault => true;
+
     public async Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string query, CancellationToken ct)
     {
         var apiKey = options.Value.RawgApiKey;
@@ -27,15 +28,27 @@ public sealed class RawgMetadataProvider(
 
         var client = httpClientFactory.CreateClient("Rawg");
 
-        var result = await client.GetFromJsonAsync<RawgResponse>(
-            $"games?search={Uri.EscapeDataString(query)}&key={Uri.EscapeDataString(apiKey)}&page_size=10", ct);
-
-        if (result?.Results is not { Count: > 0 } results)
+        try
         {
+            var result = await client.GetFromJsonAsync<RawgResponse>(
+                $"games?search={Uri.EscapeDataString(query)}&key={Uri.EscapeDataString(apiKey)}&page_size=10", ct);
+
+            if (result?.Results is not { Count: > 0 } results)
+            {
+                return [];
+            }
+
+            return results.Select(MapItem).ToList();
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to search RAWG for {Query}", query);
             return [];
         }
-
-        return results.Select(MapItem).ToList();
     }
 
     public async Task<ExternalMediaDto?> GetDetailsAsync(string externalId, string title, CancellationToken ct)

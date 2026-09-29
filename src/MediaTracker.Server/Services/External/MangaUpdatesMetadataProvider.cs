@@ -5,8 +5,8 @@ using Microsoft.Extensions.DependencyInjection;
 namespace MediaTracker.Server.Services.External;
 
 public sealed class MangaUpdatesMetadataProvider(
-    [ServiceKey] string? mediaType = null,
-    IHttpClientFactory httpClientFactory = null!) : IMetadataProvider
+    IHttpClientFactory httpClientFactory,
+    [ServiceKey] string? mediaType = null) : IMetadataProvider
 {
     public string Id => "mangaupdates";
     public string Name => "MangaUpdates";

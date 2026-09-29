@@ -3,8 +3,8 @@ using System.Text.Json.Serialization;
 namespace MediaTracker.Server.Services.External;
 
 public sealed class JikanMetadataProvider(
-    [ServiceKey] string? serviceKey = null,
-    IHttpClientFactory httpClientFactory = null!) : IMetadataProvider
+    IHttpClientFactory httpClientFactory,
+    [ServiceKey] string? serviceKey = null) : IMetadataProvider
 {
     public string Id => "jikan";
     public string Name => "MyAnimeList (Jikan)";

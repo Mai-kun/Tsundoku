@@ -6,8 +6,8 @@ using Microsoft.Extensions.DependencyInjection;
 namespace MediaTracker.Server.Services.External;
 
 public sealed partial class AniListMetadataProvider(
-    [ServiceKey] string? serviceKey = null,
-    IHttpClientFactory httpClientFactory = null!) : IMetadataProvider
+    IHttpClientFactory httpClientFactory,
+    [ServiceKey] string? serviceKey = null) : IMetadataProvider
 {
     public string Id => "anilist";
     public string Name => "AniList";

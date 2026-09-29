@@ -47,4 +47,12 @@ public abstract class MediaItem
     public string? TranslatedSynopsis { get; set; }
 
     public string? TranslationLanguage { get; set; }
+
+    public string? Genres { get; set; }
+
+    public string? Tags { get; set; }
+
+    public string? UnlockedAchievements { get; set; }
+
+    public string? UserPlatform { get; set; }
 }

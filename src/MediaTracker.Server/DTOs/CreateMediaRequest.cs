@@ -68,4 +68,12 @@ public sealed record CreateMediaRequest
     public int? ExternalRatingVotes { get; init; }
 
     public string? ExternalRatingsJson { get; init; }
+
+    public string? Genres { get; init; }
+
+    public string? Tags { get; init; }
+
+    public string? UnlockedAchievements { get; init; }
+
+    public string? UserPlatform { get; init; }
 }

@@ -4,14 +4,15 @@ namespace MediaTracker.Server.Services.External;
 
 public sealed partial class JikanMetadataProvider(
     IHttpClientFactory httpClientFactory,
-    [ServiceKey] string? serviceKey = null) : IMetadataProvider
+    [ServiceKey] string? serviceKey = null,
+    ILogger<JikanMetadataProvider>? logger = null) : IMetadataProvider
 {
     public string Id => "jikan";
     public string Name => "MyAnimeList (Jikan)";
     public string Description => "Anime and Manga metadata & ratings provider";
     public IReadOnlyList<string> MediaTypes => ["anime", "manga"];
 
-    private readonly string _mediaType = serviceKey?.StartsWith("manga", StringComparison.OrdinalIgnoreCase) == true ? "manga" : "anime";
+    private readonly string _mediaType = serviceKey?.StartsWith("manga", StringComparison.OrdinalIgnoreCase) is true ? "manga" : "anime";
 
     public async Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string query, CancellationToken ct)
     {
@@ -22,20 +23,25 @@ public sealed partial class JikanMetadataProvider(
 
         try
         {
+            logger?.LogInformation("[Jikan] Requesting search: {BaseAddress}{Endpoint}", client.BaseAddress, endpoint);
             var response = await client.GetFromJsonAsync<JikanSearchResponse>(endpoint, ct);
             if (response?.Data is null || response.Data.Count == 0)
             {
+                logger?.LogInformation("[Jikan] Search returned 0 results for '{Query}'", query);
                 return [];
             }
 
+            logger?.LogInformation("[Jikan] Search returned {Count} results for '{Query}'", response.Data.Count, query);
             return response.Data.ConvertAll(item => MapItem(item, _mediaType));
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
+            logger?.LogWarning("[Jikan] Request canceled or timed out for search '{Query}' ({Endpoint})", query, endpoint);
             throw;
         }
-        catch
+        catch (Exception ex)
         {
+            logger?.LogWarning(ex, "[Jikan] Search failed for '{Query}' ({Endpoint}): {Message}", query, endpoint, ex.Message);
             return [];
         }
     }
@@ -49,20 +55,25 @@ public sealed partial class JikanMetadataProvider(
 
         try
         {
+            logger?.LogInformation("[Jikan] Requesting details: {BaseAddress}{Endpoint}", client.BaseAddress, endpoint);
             var response = await client.GetFromJsonAsync<JikanDetailResponse>(endpoint, ct);
             if (response?.Data is null)
             {
+                logger?.LogInformation("[Jikan] Details not found for ID {ExternalId}", externalId);
                 return null;
             }
 
+            logger?.LogInformation("[Jikan] Details fetched successfully for ID {ExternalId} ({Title})", externalId, title);
             return MapItem(response.Data, _mediaType);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
+            logger?.LogWarning("[Jikan] Details request canceled or timed out for ID {ExternalId}", externalId);
             throw;
         }
-        catch
+        catch (Exception ex)
         {
+            logger?.LogWarning(ex, "[Jikan] Failed fetching details for ID {ExternalId}: {Message}", externalId, ex.Message);
             return null;
         }
     }

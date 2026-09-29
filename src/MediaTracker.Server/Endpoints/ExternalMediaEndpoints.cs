@@ -290,7 +290,9 @@ public static class ExternalMediaEndpoints
             }
 
             // ponytail: genre-based similarity, not real ML recommendations.
-            // Ceiling: same-genre, popularity-ordered. Upgrade path: intersect RAWG tags with the current game.
+            // Ceiling: same-genre, popularity-ordered.
+            // Note: RAWG /games/{id}/suggested (their CV-based "similar games") answers 401 on the
+            // free plan — it is a paid Business feature. Revisit if the account is upgraded.
             var detail = await client.GetFromJsonAsync<RawgDetailRoot>($"https://api.rawg.io/api/games/{rId}?key={key}", ct);
             var genreIds = detail?.Genres?.Select(g => g.Id).Where(id => id > 0).ToList() ?? [];
             if (genreIds.Count == 0)

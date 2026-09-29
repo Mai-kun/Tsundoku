@@ -5,15 +5,12 @@ using Microsoft.Extensions.DependencyInjection;
 namespace MediaTracker.Server.Services.External;
 
 public sealed class MangaUpdatesMetadataProvider(
-    IHttpClientFactory httpClientFactory,
-    [ServiceKey] string? mediaType = null) : IMetadataProvider
+    IHttpClientFactory httpClientFactory) : IMetadataProvider
 {
     public string Id => "mangaupdates";
     public string Name => "MangaUpdates";
     public string Description => "Manga and Manhwa metadata & ratings provider";
     public IReadOnlyList<string> MediaTypes => ["manga"];
-
-    private readonly string _mediaType = mediaType ?? "manga";
 
     public async Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string query, CancellationToken ct)
     {
@@ -87,7 +84,7 @@ public sealed class MangaUpdatesMetadataProvider(
         var ratingScore = record.Rating?.BayesianRating ?? record.Rating?.Rating ?? record.BayesianRating;
         var ratingVotes = record.Rating?.Votes ?? record.RatingVotes;
         var ratings = new List<ExternalRatingDto>();
-        if (ratingScore.HasValue && ratingScore.Value > 0)
+        if (ratingScore is > 0)
         {
             ratings.Add(new ExternalRatingDto
             {
@@ -110,7 +107,7 @@ public sealed class MangaUpdatesMetadataProvider(
             TotalCount = record.LatestChapter,
             Chapters = record.LatestChapter,
             ExternalSource = "MangaUpdates",
-            Rating = ratingScore.HasValue && ratingScore.Value > 0 ? Math.Round(ratingScore.Value, 1) : null,
+            Rating = ratingScore is > 0 ? Math.Round(ratingScore.Value, 1) : null,
             RatingVotes = ratingVotes,
             Ratings = ratings.Count > 0 ? ratings : null
         };

@@ -13,6 +13,10 @@ namespace MediaTracker.Server.Endpoints;
 public static class MediaEndpoints
 {
     private const string Discriminator = "MediaType";
+    private static readonly System.Text.Json.JsonSerializerOptions CamelCaseJsonOptions = new()
+    {
+        PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase
+    };
 
     public static IEndpointRouteBuilder MapMediaEndpoints(this IEndpointRouteBuilder app)
     {
@@ -98,8 +102,8 @@ public static class MediaEndpoints
             query = query.Where(item =>
                 EF.Functions.Like(item.Title, $"%{term}%")
                 || (item.Franchise != null && EF.Functions.Like(item.Franchise.Name, $"%{term}%"))
-                || (EF.Property<string>(item, Discriminator) == "Movie" && ((Movie)item).RomajiTitle != null && EF.Functions.Like(((Movie)item).RomajiTitle!, $"%{term}%"))
-                || (EF.Property<string>(item, Discriminator) == "TvShow" && ((TvShow)item).RomajiTitle != null && EF.Functions.Like(((TvShow)item).RomajiTitle!, $"%{term}%")));
+                || (EF.Property<string>(item, Discriminator) == "Movie" && ((Movie)item).RomajiTitle != null && EF.Functions.Like(((Movie)item).RomajiTitle, $"%{term}%"))
+                || (EF.Property<string>(item, Discriminator) == "TvShow" && ((TvShow)item).RomajiTitle != null && EF.Functions.Like(((TvShow)item).RomajiTitle, $"%{term}%")));
         }
 
         var ascending = string.Equals(sortOrder, "asc", StringComparison.OrdinalIgnoreCase);
@@ -222,7 +226,7 @@ public static class MediaEndpoints
                 {
                     item.ExternalRatingsJson = System.Text.Json.JsonSerializer.Serialize(
                         ratings.Select(r => new { source = r.Source, score = r.Rating, votes = r.Votes }));
-                    if (enriched.Rating.HasValue && enriched.Rating.Value > 0)
+                    if (enriched.Rating > 0)
                     {
                         item.ExternalRating = enriched.Rating.Value;
                         item.ExternalRatingVotes = enriched.RatingVotes;
@@ -609,7 +613,7 @@ public static class MediaEndpoints
         {
             item.ExternalRatingsJson = System.Text.Json.JsonSerializer.Serialize(
                 external.Ratings,
-                new System.Text.Json.JsonSerializerOptions { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase });
+                CamelCaseJsonOptions);
         }
 
         if (!string.IsNullOrWhiteSpace(external.ReleaseDate) && DateTime.TryParse(external.ReleaseDate, out var parsedRelDate))

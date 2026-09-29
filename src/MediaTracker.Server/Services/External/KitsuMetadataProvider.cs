@@ -23,7 +23,7 @@ public sealed class KitsuMetadataProvider(IHttpClientFactory httpClientFactory) 
                 return [];
             }
 
-            return data.Select(MapItem).ToList();
+            return data.ConvertAll(MapItem);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
@@ -56,7 +56,7 @@ public sealed class KitsuMetadataProvider(IHttpClientFactory httpClientFactory) 
         }
 
         var results = await SearchAsync(title, ct);
-        return results.FirstOrDefault(r => r.ExternalId == externalId) ?? results.FirstOrDefault();
+        return results.FirstOrDefault(r => r.ExternalId == externalId) ?? (results.Count > 0 ? results[0] : null);
     }
 
     private static ExternalMediaDto MapItem(KitsuData item)

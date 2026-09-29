@@ -25,7 +25,7 @@ public sealed class OpenLibraryMetadataProvider(IHttpClientFactory httpClientFac
                 return [];
             }
 
-            return docs.Select(MapDoc).ToList();
+            return docs.ConvertAll(MapDoc);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
@@ -40,7 +40,7 @@ public sealed class OpenLibraryMetadataProvider(IHttpClientFactory httpClientFac
     public async Task<ExternalMediaDto?> GetDetailsAsync(string externalId, string title, CancellationToken ct)
     {
         var searchResults = await SearchAsync(title, ct);
-        return searchResults.FirstOrDefault(d => d.ExternalId == externalId) ?? searchResults.FirstOrDefault();
+        return searchResults.FirstOrDefault(d => d.ExternalId == externalId) ?? (searchResults.Count > 0 ? searchResults[0] : null);
     }
 
     private static ExternalMediaDto MapDoc(OpenLibraryDoc doc)

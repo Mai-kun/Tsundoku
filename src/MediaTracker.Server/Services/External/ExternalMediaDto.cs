@@ -29,7 +29,7 @@ public sealed record ExternalMediaDto
     public string? Description { get; init; }
 
     public int? ReleaseYear { get; init; }
- 
+
     public string? ReleaseDate { get; init; }
 
     public string? EndDate { get; init; }

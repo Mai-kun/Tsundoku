@@ -18,7 +18,7 @@ public record MediaListDto
     public DateTime? StartedAt { get; init; }
 
     public DateTime? FinishedAt { get; init; }
- 
+
     public DateTime? ReleaseDate { get; init; }
 
     public DateTime? EndDate { get; init; }

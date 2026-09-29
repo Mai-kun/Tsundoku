@@ -37,7 +37,7 @@ public abstract class MediaItem
     public int? ExternalRatingVotes { get; set; }
 
     public string? ExternalRatingsJson { get; set; }
- 
+
     public DateTime? ReleaseDate { get; set; }
 
     public DateTime? EndDate { get; set; }

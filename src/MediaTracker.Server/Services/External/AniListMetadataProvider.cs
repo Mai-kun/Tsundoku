@@ -15,7 +15,7 @@ public sealed partial class AniListMetadataProvider(
     public IReadOnlyList<string> MediaTypes => ["anime", "manga"];
     public bool IsDefault => true;
 
-    private readonly string mediaType = serviceKey?.StartsWith("manga", StringComparison.OrdinalIgnoreCase) == true ? "manga" : "anime";
+    private readonly string mediaType = serviceKey?.StartsWith("manga", StringComparison.OrdinalIgnoreCase) is true ? "manga" : "anime";
 
     private const string GraphQLSearchQuery = """
         query Search($search: String, $type: MediaType) {
@@ -128,7 +128,7 @@ public sealed partial class AniListMetadataProvider(
         }
 
         var searchResults = await SearchAsync(title, ct);
-        return searchResults.FirstOrDefault();
+        return searchResults.Count > 0 ? searchResults[0] : null;
     }
 
     private ExternalMediaDto MapItem(AniListMedia item)
@@ -164,10 +164,10 @@ public sealed partial class AniListMetadataProvider(
         }
 
         string? releaseDate = item.StartDate?.Year is { } sy
-            ? $"{sy:D4}-{(item.StartDate.Month ?? 1):D2}-{(item.StartDate.Day ?? 1):D2}"
+            ? $"{sy:D4}-{item.StartDate.Month ?? 1:D2}-{item.StartDate.Day ?? 1:D2}"
             : null;
         string? endDate = item.EndDate?.Year is { } ey
-            ? $"{ey:D4}-{(item.EndDate.Month ?? 1):D2}-{(item.EndDate.Day ?? 1):D2}"
+            ? $"{ey:D4}-{item.EndDate.Month ?? 1:D2}-{item.EndDate.Day ?? 1:D2}"
             : null;
 
         return new ExternalMediaDto

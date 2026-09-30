@@ -1,38 +1,44 @@
 <script lang="ts">
-  import {
-    ArrowLeft,
-    ArrowUpDown,
-    Bookmark,
-    CalendarDays,
-    Check,
-    CheckCircle2,
-    ChevronDown,
-    ExternalLink,
-    Eye,
-    GitBranch,
-    Image as ImageIcon,
-    Layers,
-    LayoutGrid,
-    List,
-    Minus,
-    Pause,
-    Pencil,
-    Play,
-    Plus,
-    RefreshCw,
-    RotateCcw,
-    Sparkles,
-    Star,
-    Trash2,
-    Languages,
-    Trophy,
-    X,
-  } from 'lucide-svelte'
-  import { addVolume, createMedia, deleteVolume, enrichMedia, errorMessage, getExternalDetails, getGameAchievements, getGameRecommendations, getGameRelated, getMedia, getMediaItem, getSources, refreshMetadata, setProgress, setSeasonProgress, setVolumeProgress, translateText, updateMedia, updateStatus, updateVolume } from '$lib/api'
+  import ArrowLeft from 'lucide-svelte/icons/arrow-left'
+  import ArrowUpDown from 'lucide-svelte/icons/arrow-up-down'
+  import Bookmark from 'lucide-svelte/icons/bookmark'
+  import CalendarDays from 'lucide-svelte/icons/calendar-days'
+  import Check from 'lucide-svelte/icons/check'
+  import CheckCircle2 from 'lucide-svelte/icons/check-circle-2'
+  import ChevronDown from 'lucide-svelte/icons/chevron-down'
+  import ExternalLink from 'lucide-svelte/icons/external-link'
+  import Eye from 'lucide-svelte/icons/eye'
+  import GitBranch from 'lucide-svelte/icons/git-branch'
+  import ImageIcon from 'lucide-svelte/icons/image'
+  import Languages from 'lucide-svelte/icons/languages'
+  import Layers from 'lucide-svelte/icons/layers'
+  import LayoutGrid from 'lucide-svelte/icons/layout-grid'
+  import List from 'lucide-svelte/icons/list'
+  import Minus from 'lucide-svelte/icons/minus'
+  import Pause from 'lucide-svelte/icons/pause'
+  import Pencil from 'lucide-svelte/icons/pencil'
+  import Play from 'lucide-svelte/icons/play'
+  import Plus from 'lucide-svelte/icons/plus'
+  import RefreshCw from 'lucide-svelte/icons/refresh-cw'
+  import RotateCcw from 'lucide-svelte/icons/rotate-ccw'
+  import Sparkles from 'lucide-svelte/icons/sparkles'
+  import Star from 'lucide-svelte/icons/star'
+  import Trash2 from 'lucide-svelte/icons/trash-2'
+  import Trophy from 'lucide-svelte/icons/trophy'
+  import X from 'lucide-svelte/icons/x'
+  import { addVolume, createMedia, deleteVolume, enrichMedia, errorMessage, getExternalDetails, getGameAchievements, getGameRecommendations, getGameRelated, getMedia, getSources, refreshMetadata, setProgress, setSeasonProgress, setVolumeProgress, translateText, updateMedia, updateStatus, updateVolume } from '$lib/api'
   import { i18n } from '$lib/i18n/index.svelte'
   import { showToast } from '$lib/stores/toast.svelte'
   import { clampProgress, isMangaDetail, isTvShowDetail, MEDIA_STATUS, type AppView, type GameAchievementItem, type MangaVolume, type MediaDetail, type MediaItem, type MediaStatus, type SourceInfo, type TvSeason } from '$lib/types'
   import { createProgressDebounce } from '$lib/utils/progressDebounce'
+  import { loadMediaDetail, mediaDetailCache } from '$lib/utils/mediaDetailPrefetch'
+  import { createPrefetchCache } from '$lib/utils/prefetchCache'
+
+  /** Обновление после мутации: кэш заведомо устарел, поэтому идём в сеть и перезаписываем его. */
+  async function refreshMediaDetail(id: string) {
+    mediaDetailCache.invalidate(id)
+    return loadMediaDetail(id)
+  }
   import CircularCounter from '$lib/components/ui/CircularCounter.svelte'
 
   interface Props {
@@ -653,7 +659,7 @@
   })
 
   // In-memory caches to prevent progress spinner / jog wheel from re-fetching
-  const achievementsCache = new Map<string, { achievements: GameAchievementItem[]; total: number }>()
+  const achievementsCache = createPrefetchCache<{ achievements: GameAchievementItem[]; total: number }>(5 * 60 * 1000)
   const enrichedMediaIds = new Set<string>()
 
   let unlockedAchievementNames = $derived.by<Set<string>>(() => {
@@ -739,7 +745,11 @@
     }
 
     try {
-      const loaded = await getMediaItem(id)
+      // Префетч по наведению отдаёт готовый объект; после мутаций кэш протух — берём сеть.
+      const loaded =
+        isNew && !forceRefresh
+          ? await loadMediaDetail(id)
+          : await refreshMediaDetail(id)
       if (sequence !== requestSequence) return
       media = loaded
       syncFrom(loaded)
@@ -757,10 +767,12 @@
         void loadRelated(loaded, forceRefresh)
         void triggerBackgroundEnrichment(loaded, sequence, forceRefresh)
       } else {
-        if (loaded.type === 'game' && achievementsCache.has(loaded.id)) {
-          const cached = achievementsCache.get(loaded.id)!
-          gameAchievements = cached.achievements
-          gameAchievementsTotal = cached.total
+        if (loaded.type === 'game') {
+          const cached = achievementsCache.peek(loaded.id)
+          if (cached) {
+            gameAchievements = cached.achievements
+            gameAchievementsTotal = cached.total
+          }
         }
       }
     } catch (error) {
@@ -780,26 +792,29 @@
 
   async function loadGameAchievements(item: MediaItem, force = false) {
     if (item.type !== 'game') return
-    if (!force && achievementsCache.has(item.id)) {
-      const cached = achievementsCache.get(item.id)!
+    if (force) achievementsCache.invalidate(item.id)
+    const cached = achievementsCache.peek(item.id)
+    if (cached) {
       gameAchievements = cached.achievements
       gameAchievementsTotal = cached.total
       return
     }
     gameAchievementsLoading = true
     try {
-      const res = await getGameAchievements({
-        steamAppId: item.externalSource?.toLowerCase() === 'steam' ? item.externalId : null,
-        rawgId: item.externalSource?.toLowerCase() === 'rawg' ? item.externalId : null,
-        title: item.title,
-        externalSource: item.externalSource,
-        externalId: item.externalId,
+      // load() отдаёт тот же промис, если запрос по этому id уже в полёте:
+      // повторное открытие той же игры не создаёт второй запрос.
+      const result = await achievementsCache.load(item.id, async () => {
+        const res = await getGameAchievements({
+          steamAppId: item.externalSource?.toLowerCase() === 'steam' ? item.externalId : null,
+          rawgId: item.externalSource?.toLowerCase() === 'rawg' ? item.externalId : null,
+          title: item.title,
+          externalSource: item.externalSource,
+          externalId: item.externalId,
+        })
+        return { achievements: res.achievements ?? [], total: res.totalCount ?? 0 }
       })
-      const items = res.achievements ?? []
-      const total = res.totalCount ?? 0
-      achievementsCache.set(item.id, { achievements: items, total })
-      gameAchievements = items
-      gameAchievementsTotal = total
+      gameAchievements = result.achievements
+      gameAchievementsTotal = result.total
     } catch {
       gameAchievements = []
       gameAchievementsTotal = 0
@@ -1900,7 +1915,8 @@
   }
 
   function retry() {
-    void load(mediaId, ++requestSequence, true)
+    // Повтор после ошибки = пользователь просит свежие данные, а не запись из кэша.
+    void load(mediaId, ++requestSequence, true, true)
   }
 
   function startEdit() {
@@ -2009,7 +2025,8 @@
       const updated = await refreshMetadata(target.id)
       media = updated
       syncFrom(updated)
-      achievementsCache.delete(target.id)
+      mediaDetailCache.invalidate(target.id)
+      achievementsCache.invalidate(target.id)
       enrichedMediaIds.delete(target.id)
       if (updated.type === 'game') {
         void loadGameAchievements(updated, true)

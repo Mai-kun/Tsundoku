@@ -1,16 +1,14 @@
 <script lang="ts">
-  import {
-    Bookmark,
-    Check,
-    ChevronDown,
-    Image as ImageIcon,
-    Minus,
-    Pause,
-    Play,
-    Plus,
-    Trash2,
-    X,
-  } from "lucide-svelte";
+  import Bookmark from 'lucide-svelte/icons/bookmark'
+  import Check from 'lucide-svelte/icons/check'
+  import ChevronDown from 'lucide-svelte/icons/chevron-down'
+  import ImageIcon from 'lucide-svelte/icons/image'
+  import Minus from 'lucide-svelte/icons/minus'
+  import Pause from 'lucide-svelte/icons/pause'
+  import Play from 'lucide-svelte/icons/play'
+  import Plus from 'lucide-svelte/icons/plus'
+  import Trash2 from 'lucide-svelte/icons/trash-2'
+  import X from 'lucide-svelte/icons/x'
   import { untrack } from "svelte";
   import { errorMessage, updateStatus } from "$lib/api";
   import { i18n } from "$lib/i18n/index.svelte";
@@ -21,6 +19,7 @@
     type MediaStatus,
   } from "$lib/types";
   import { createProgressDebounce } from "$lib/utils/progressDebounce";
+  import { schedulePrefetchMediaDetail } from "$lib/utils/mediaDetailPrefetch";
 
   interface Props {
     item: MediaItem;
@@ -117,6 +116,16 @@
 
   $effect(() => {
     return () => void progressDebounce.flush(true);
+  });
+
+  // A <svelte:window> listener per card means one global pointerdown handler per grid cell. With a
+  // few hundred cards every click anywhere on the page walks hundreds of closures, so the listener
+  // is attached only while this card's status menu is actually open.
+  $effect(() => {
+    if (!statusMenuOpen) return;
+
+    window.addEventListener('pointerdown', handleWindowPointerDown, true);
+    return () => window.removeEventListener('pointerdown', handleWindowPointerDown, true);
   });
 
   function readProgress(media: MediaItem): number {
@@ -264,16 +273,16 @@
   }
 </script>
 
-<svelte:window onpointerdown={handleWindowPointerDown} />
-
 <!-- svelte-ignore a11y_no_noninteractive_element_to_interactive_role -->
 <article
   class="group relative cursor-pointer overflow-hidden rounded-lg bg-card transition hover:bg-card-hover"
-  style="content-visibility: auto; contain-intrinsic-size: auto none;"
+  style="content-visibility: auto; contain-intrinsic-size: auto 280px;"
   role="button"
   tabindex="0"
   aria-label={i18n.t.card.openDetails(item.title)}
   onclick={() => onOpen(item)}
+  onpointerenter={() => schedulePrefetchMediaDetail(item.id)}
+  onfocus={() => schedulePrefetchMediaDetail(item.id)}
   onkeydown={handleCardKeydown}
 >
   <div class="aspect-[3/4] overflow-hidden bg-canvas">
@@ -283,6 +292,7 @@
         alt={item.title}
         class="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
         loading="lazy"
+        decoding="async"
       />
     {:else}
       <div

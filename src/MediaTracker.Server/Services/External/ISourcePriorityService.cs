@@ -38,7 +38,9 @@ public sealed class SourcePriorityService(
 
     public async Task<IReadOnlyList<string>> GetPrioritiesAsync(string type, CancellationToken ct)
     {
-        var normalizedType = type?.Trim().ToLowerInvariant() ?? string.Empty;
+        // DefaultPriorities, the cached dict and the disabled set are all OrdinalIgnoreCase, so the type
+        // needs no normalisation copy on what is a per-search path.
+        var normalizedType = type?.Trim() ?? string.Empty;
         var defaultSources = DefaultPriorities.TryGetValue(normalizedType, out var def) ? def : [normalizedType];
         IReadOnlyList<string> basePriorities = defaultSources;
 
@@ -86,7 +88,7 @@ public sealed class SourcePriorityService(
         }
 
         return basePriorities
-            .Where(s => !disabled.Contains(MediaMerger.NormalizeSourceKey(s)) && !disabled.Contains(s.ToLowerInvariant()))
+            .Where(s => !disabled.Contains(MediaMerger.NormalizeSourceKey(s)) && !disabled.Contains(s))
             .ToList();
     }
 
@@ -107,7 +109,9 @@ public sealed class SourcePriorityService(
                 var list = JsonSerializer.Deserialize<List<string>>(setting.Value);
                 if (list is not null)
                 {
-                    var set = new HashSet<string>(list.Select(s => s.Trim().ToLowerInvariant()), StringComparer.OrdinalIgnoreCase);
+                    // The set below compares OrdinalIgnoreCase, so the entries keep their original casing and no
+                    // per-source lowercase copy is allocated while the settings are parsed.
+                    var set = new HashSet<string>(list.Select(s => s.Trim()), StringComparer.OrdinalIgnoreCase);
                     cache.Set(DisabledSourcesCacheKey, set, CacheDuration);
                     return set;
                 }

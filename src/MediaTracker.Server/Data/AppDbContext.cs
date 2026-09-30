@@ -43,6 +43,14 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
                 .WithMany(franchise => franchise.Items)
                 .HasForeignKey(item => item.FranchiseId)
                 .OnDelete(DeleteBehavior.SetNull);
+
+            // The library screens filter and sort on these columns on every request; without the
+            // indexes SQLite falls back to a full scan and a temp b-tree for the ORDER BY.
+            entity.HasIndex(item => item.Status);
+            entity.HasIndex(item => item.CreatedAt);
+            entity.HasIndex("MediaType");
+            entity.HasIndex(item => new { item.Status, item.CreatedAt });
+            entity.HasIndex("MediaType", nameof(MediaItem.Status), nameof(MediaItem.CreatedAt));
         });
 
         modelBuilder.Entity<Movie>(entity =>
@@ -68,6 +76,18 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 
             entity.Ignore(show => show.TotalEpisodesWatched)
                 .Ignore(show => show.TotalEpisodesCount);
+        });
+
+        modelBuilder.Entity<TvSeason>(entity =>
+        {
+            entity.HasIndex(season => season.TvShowId);
+            entity.HasIndex(season => new { season.TvShowId, season.SeasonNumber });
+        });
+
+        modelBuilder.Entity<MangaVolume>(entity =>
+        {
+            entity.HasIndex(volume => volume.MangaId);
+            entity.HasIndex(volume => new { volume.MangaId, volume.VolumeNumber });
         });
 
         modelBuilder.Entity<Manga>(entity =>

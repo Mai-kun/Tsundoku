@@ -187,6 +187,50 @@ public sealed class SourcePriorityService(
         cache.Remove(DisabledSourcesCacheKey);
     }
 
+    /// <summary>
+    /// Folds the user order into the shipped defaults: unknown or duplicate sources are dropped and
+    /// any default the user has not mentioned is appended, so a new provider can never be lost by
+    /// an old saved list.
+    /// </summary>
+    public static Dictionary<string, string[]> MergeWithDefaults(Dictionary<string, string[]>? userPriority)
+    {
+        var result = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var (type, defaultSources) in DefaultPriorities)
+        {
+            var userSources = userPriority is not null && userPriority.TryGetValue(type, out var stored) && stored.Length > 0
+                ? stored
+                : null;
+
+            if (userSources is null)
+            {
+                result[type] = defaultSources;
+                continue;
+            }
+
+            var merged = new List<string>();
+            foreach (var source in userSources.Where(s => defaultSources.Contains(s, StringComparer.OrdinalIgnoreCase)))
+            {
+                if (!merged.Contains(source, StringComparer.OrdinalIgnoreCase))
+                {
+                    merged.Add(source);
+                }
+            }
+
+            foreach (var source in defaultSources)
+            {
+                if (!merged.Contains(source, StringComparer.OrdinalIgnoreCase))
+                {
+                    merged.Add(source);
+                }
+            }
+
+            result[type] = [.. merged];
+        }
+
+        return result;
+    }
+
     private static List<string> MergePriorityLists(string[] userList, string[] defaultSources)
     {
         var merged = userList.Where(s => defaultSources.Contains(s, StringComparer.OrdinalIgnoreCase)).ToList();

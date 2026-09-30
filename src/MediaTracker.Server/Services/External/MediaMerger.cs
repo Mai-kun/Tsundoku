@@ -28,6 +28,44 @@ public static class MediaMerger
         ["igdb"] = "IGDB"
     }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>Same mapping, ordered longest-alias-first so substring matching is deterministic.</summary>
+    private static readonly (string Alias, string Canonical)[] CanonicalNamesByLength =
+        [.. CanonicalNames.OrderByDescending(entry => entry.Key.Length).Select(entry => (entry.Key, entry.Value))];
+
+    /// <summary>
+    /// Maps any source spelling the UI may send (canonical name, provider id, free text) onto the
+    /// canonical id used as the settings key. Data-driven so a new provider is one table entry.
+    /// </summary>
+    private static readonly FrozenDictionary<string, string> SourceKeyAliases =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["mal"] = "jikan",
+            ["myanimelist"] = "jikan",
+            ["jikan"] = "jikan",
+            ["anilist"] = "anilist",
+            ["shikimori"] = "shikimori",
+            ["kitsu"] = "kitsu",
+            ["mangaupdates"] = "mangaupdates",
+            ["mangadex"] = "mangadex",
+            ["googlebooks"] = "googlebooks",
+            ["google"] = "googlebooks",
+            ["steam"] = "steam",
+            ["rawg"] = "rawg",
+            ["igdb"] = "igdb",
+            ["imdb"] = "imdb",
+            ["simkl"] = "simkl",
+            ["thetvdb"] = "thetvdb",
+            ["tvdb"] = "thetvdb",
+            ["kinopoisk"] = "kinopoisk",
+            ["tmdb"] = "tmdb",
+            ["movie database"] = "tmdb",
+            ["openlibrary"] = "openlibrary",
+        }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Alias table ordered longest-first so substring matching resolves deterministically.</summary>
+    private static readonly (string Alias, string Canonical)[] SourceKeyAliasesByLength =
+        [.. SourceKeyAliases.OrderByDescending(entry => entry.Key.Length).Select(entry => (entry.Key, entry.Value))];
+
     public static string GetCanonicalSourceName(string source)
     {
         if (string.IsNullOrWhiteSpace(source))
@@ -41,8 +79,11 @@ public static class MediaMerger
             return exactMatch;
         }
 
+        // Longest alias first: "thetvdb" must not be matched by the shorter "tvdb" of another entry,
+        // and enumerating the dictionary directly gave a non-deterministic winner between aliases
+        // that both appear in the input (e.g. "tvdb" is a substring of "thetvdb").
         var lower = trimmed.ToLowerInvariant();
-        foreach (var (key, canonical) in CanonicalNames)
+        foreach (var (key, canonical) in CanonicalNamesByLength)
         {
             if (lower.Contains(key))
             {
@@ -52,7 +93,6 @@ public static class MediaMerger
 
         return source;
     }
-
     public static bool HasMissingMetadata(ExternalMediaDto d, string type)
     {
         if (type == "manga")
@@ -141,70 +181,17 @@ public static class MediaMerger
     public static string NormalizeSourceKey(string source)
     {
         var lower = source.Trim().ToLowerInvariant();
-        if (lower.Contains("mal") || lower.Contains("myanimelist") || lower.Contains("jikan"))
+
+        // Longest alias first keeps the original cascade semantics ("myanimelist" before "mal"
+        // would not matter, but "movie database" must beat a bare "tmdb" prefix match).
+        foreach (var (alias, canonical) in SourceKeyAliasesByLength)
         {
-            return "jikan";
+            if (lower.Contains(alias))
+            {
+                return canonical;
+            }
         }
-        if (lower.Contains("shikimori"))
-        {
-            return "shikimori";
-        }
-        if (lower.Contains("mangaupdates"))
-        {
-            return "mangaupdates";
-        }
-        if (lower.Contains("mangadex"))
-        {
-            return "mangadex";
-        }
-        if (lower.Contains("anilist"))
-        {
-            return "anilist";
-        }
-        if (lower.Contains("kitsu"))
-        {
-            return "kitsu";
-        }
-        if (lower.Contains("google"))
-        {
-            return "googlebooks";
-        }
-        if (lower.Contains("steam"))
-        {
-            return "steam";
-        }
-        if (lower.Contains("imdb"))
-        {
-            return "imdb";
-        }
-        if (lower.Contains("simkl"))
-        {
-            return "simkl";
-        }
-        if (lower.Contains("tvdb") || lower.Contains("thetvdb"))
-        {
-            return "thetvdb";
-        }
-        if (lower.Contains("kinopoisk"))
-        {
-            return "kinopoisk";
-        }
-        if (lower.Contains("igdb"))
-        {
-            return "igdb";
-        }
-        if (lower.Contains("tmdb") || lower.Contains("movie database"))
-        {
-            return "tmdb";
-        }
-        if (lower.Contains("rawg"))
-        {
-            return "rawg";
-        }
-        if (lower.Contains("openlibrary"))
-        {
-            return "openlibrary";
-        }
+
         return lower;
     }
 

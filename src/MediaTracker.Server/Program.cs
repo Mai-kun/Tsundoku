@@ -5,6 +5,7 @@ using MediaTracker.Server.Data;
 using MediaTracker.Server.Endpoints;
 using MediaTracker.Server.Infrastructure;
 using MediaTracker.Server.Middleware;
+using MediaTracker.Server.SelfChecks;
 using MediaTracker.Server.Services.External;
 using MediaTracker.Server.Services.Franchises;
 using MediaTracker.Server.Services.Security;
@@ -19,6 +20,12 @@ var isContainer = Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINE
 var isHeadless = isContainer
                  || args.Contains("--headless")
                  || Environment.GetEnvironmentVariable("HEADLESS") == "true";
+
+// Self-check runs before any host/DB setup so it stays a pure, fast logic check.
+if (args.Contains("--selfcheck"))
+{
+    return RefactorSelfCheck.Run() == 0 ? 0 : 1;
+}
 
 var appPaths = new AppPaths(isContainer
     ? Directory.GetCurrentDirectory()
@@ -163,6 +170,8 @@ finally
 {
     Log.CloseAndFlush();
 }
+
+return 0;
 
 static void ConfigureLogging(string logsDirectory)
 {

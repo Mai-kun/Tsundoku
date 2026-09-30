@@ -24,7 +24,7 @@ public sealed class ImageStorageService(
             using var response = await httpClient.GetAsync(externalUrl, HttpCompletionOption.ResponseHeadersRead, ct);
             response.EnsureSuccessStatusCode();
 
-            if (response.Content.Headers.ContentLength > MaxCoverSizeBytes)
+            if (IsOversized(response))
             {
                 logger.LogWarning("Cover image at {ExternalUrl} exceeds size limit of {MaxBytes} bytes", externalUrl, MaxCoverSizeBytes);
                 return externalUrl;
@@ -37,7 +37,7 @@ public sealed class ImageStorageService(
             var filePath = Path.Combine(coversPath, fileName);
 
             await using var source = await response.Content.ReadAsStreamAsync(ct);
-            using var image = await Image.LoadAsync(source, ct);
+            using var image = await Image.LoadAsync(LimitStream(source), ct);
 
             if (image.Width > MaxCoverWidth)
             {
@@ -56,12 +56,22 @@ public sealed class ImageStorageService(
         {
             throw;
         }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException or ImageFormatException)
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException or ImageFormatException or OversizedCoverException)
         {
             logger.LogWarning(ex, "Failed to download cover from {ExternalUrl}, keeping external URL", externalUrl);
             return externalUrl;
         }
     }
+
+    /// <summary>
+    /// A chunked response reports no Content-Length, so the header check alone let an unbounded
+    /// body through. This caps the bytes actually read regardless of what the server declares.
+    /// </summary>
+    private bool IsOversized(HttpResponseMessage response) =>
+        response.Content.Headers.ContentLength is { } declared && declared > MaxCoverSizeBytes;
+
+    private static Stream LimitStream(Stream source) =>
+        new SizeLimitedStream(source, MaxCoverSizeBytes);
 
     public void DeleteCover(string? localCoverUrl)
     {

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Search } from 'lucide-svelte'
+  import Search from 'lucide-svelte/icons/search'
   import { i18n, locales, type Locale } from '$lib/i18n/index.svelte'
 
   interface Props {

@@ -1,5 +1,7 @@
 <script lang="ts">
-  import { Minus, Plus, X } from 'lucide-svelte'
+  import Minus from 'lucide-svelte/icons/minus'
+  import Plus from 'lucide-svelte/icons/plus'
+  import X from 'lucide-svelte/icons/x'
   import { createMedia, errorMessage, updateMedia } from '$lib/api'
   import { i18n } from '$lib/i18n/index.svelte'
   import {

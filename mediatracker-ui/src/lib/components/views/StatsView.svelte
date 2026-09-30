@@ -1,5 +1,12 @@
 <script lang="ts">
-  import { BookOpen, CheckCircle2, Clock3, Film, Gamepad2, Library, RefreshCw, Tv } from 'lucide-svelte'
+  import BookOpen from 'lucide-svelte/icons/book-open'
+  import CheckCircle2 from 'lucide-svelte/icons/check-circle-2'
+  import Clock3 from 'lucide-svelte/icons/clock-3'
+  import Film from 'lucide-svelte/icons/film'
+  import Gamepad2 from 'lucide-svelte/icons/gamepad-2'
+  import Library from 'lucide-svelte/icons/library'
+  import RefreshCw from 'lucide-svelte/icons/refresh-cw'
+  import Tv from 'lucide-svelte/icons/tv'
   import { errorMessage, getStats } from '$lib/api'
   import { i18n } from '$lib/i18n/index.svelte'
   import type { MediaStats } from '$lib/types'

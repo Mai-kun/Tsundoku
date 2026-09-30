@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { Inbox, RefreshCw } from 'lucide-svelte'
+  import Inbox from 'lucide-svelte/icons/inbox'
+  import RefreshCw from 'lucide-svelte/icons/refresh-cw'
   import { errorMessage } from '$lib/api'
   import { i18n } from '$lib/i18n/index.svelte'
   import type { MediaItem } from '$lib/types'

@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { Search, SlidersHorizontal } from 'lucide-svelte'
+  import Search from 'lucide-svelte/icons/search'
+  import SlidersHorizontal from 'lucide-svelte/icons/sliders-horizontal'
   import { i18n } from '$lib/i18n/index.svelte'
   import { MEDIA_STATUS, type MediaStatus, type StatusFilter } from '$lib/types'
 

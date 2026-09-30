@@ -1,5 +1,8 @@
 <script lang="ts">
-  import { Flag, History, RefreshCw, Trash2 } from 'lucide-svelte'
+  import Flag from 'lucide-svelte/icons/flag'
+  import History from 'lucide-svelte/icons/history'
+  import RefreshCw from 'lucide-svelte/icons/refresh-cw'
+  import Trash2 from 'lucide-svelte/icons/trash-2'
   import { clearAllHistory, deleteHistoryEntry, errorMessage, getMedia } from '$lib/api'
   import { showToast } from '$lib/stores/toast.svelte'
   import { i18n } from '$lib/i18n/index.svelte'

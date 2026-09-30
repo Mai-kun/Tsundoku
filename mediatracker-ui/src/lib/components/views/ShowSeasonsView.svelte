@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { ArrowLeft, RefreshCw } from 'lucide-svelte'
+  import ArrowLeft from 'lucide-svelte/icons/arrow-left'
+  import RefreshCw from 'lucide-svelte/icons/refresh-cw'
   import { errorMessage, getMediaItem, setSeasonProgress } from '$lib/api'
   import { i18n } from '$lib/i18n/index.svelte'
   import { isTvShowDetail, type TvShowDetail } from '$lib/types'

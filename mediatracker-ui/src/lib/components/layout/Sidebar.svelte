@@ -1,5 +1,17 @@
 <script lang="ts">
-  import { BarChart3, BookOpen, CalendarDays, Film, Gamepad2, History, Home, Library, List, Menu, Plus, Settings, Tv } from 'lucide-svelte'
+  import BarChart3 from 'lucide-svelte/icons/bar-chart-3'
+  import BookOpen from 'lucide-svelte/icons/book-open'
+  import CalendarDays from 'lucide-svelte/icons/calendar-days'
+  import Film from 'lucide-svelte/icons/film'
+  import Gamepad2 from 'lucide-svelte/icons/gamepad-2'
+  import History from 'lucide-svelte/icons/history'
+  import Home from 'lucide-svelte/icons/home'
+  import Library from 'lucide-svelte/icons/library'
+  import List from 'lucide-svelte/icons/list'
+  import Menu from 'lucide-svelte/icons/menu'
+  import Plus from 'lucide-svelte/icons/plus'
+  import Settings from 'lucide-svelte/icons/settings'
+  import Tv from 'lucide-svelte/icons/tv'
   import { i18n } from '$lib/i18n/index.svelte'
   import type { AppView } from '$lib/types'
 

@@ -1,5 +1,7 @@
 <script lang="ts">
-  import { Image as ImageIcon, Minus, Plus } from 'lucide-svelte'
+  import ImageIcon from 'lucide-svelte/icons/image'
+  import Minus from 'lucide-svelte/icons/minus'
+  import Plus from 'lucide-svelte/icons/plus'
   import { untrack } from 'svelte'
   import { errorMessage } from '$lib/api'
   import { i18n } from '$lib/i18n/index.svelte'
@@ -70,7 +72,7 @@
 <article class="grid gap-4 rounded-lg bg-card p-3 sm:grid-cols-[5rem_1fr_auto] sm:items-center">
   <div class="aspect-[3/4] w-20 overflow-hidden rounded-md bg-canvas sm:w-full">
     {#if season.coverUrl}
-      <img src={season.coverUrl} alt={season.title} class="h-full w-full object-cover" loading="lazy" />
+      <img src={season.coverUrl} alt={season.title} class="h-full w-full object-cover" loading="lazy" decoding="async" />
     {:else}
       <div class="grid h-full place-items-center bg-gradient-to-br from-panel to-elevated text-muted"><ImageIcon size={24} stroke-width={1.25} aria-hidden="true" /></div>
     {/if}

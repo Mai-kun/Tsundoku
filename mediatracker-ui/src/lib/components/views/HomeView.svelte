@@ -7,7 +7,7 @@
 </script>
 
 <script lang="ts">
-  import { Layers } from 'lucide-svelte'
+  import Layers from 'lucide-svelte/icons/layers'
   import { deleteMedia, getMedia, getMediaItem, setProgress, setSeasonProgress } from '$lib/api'
   import { showToast } from '$lib/stores/toast.svelte'
   import { i18n } from '$lib/i18n/index.svelte'

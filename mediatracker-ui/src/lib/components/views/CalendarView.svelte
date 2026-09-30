@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { CalendarDays, Sparkles } from 'lucide-svelte'
+  import CalendarDays from 'lucide-svelte/icons/calendar-days'
+  import Sparkles from 'lucide-svelte/icons/sparkles'
   import { i18n } from '$lib/i18n/index.svelte'
 </script>
 

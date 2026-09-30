@@ -1,5 +1,11 @@
 <script lang="ts">
-  import { Check, ChevronRight, Image as ImageIcon, Plus, Search, Star, X } from 'lucide-svelte'
+  import Check from 'lucide-svelte/icons/check'
+  import ChevronRight from 'lucide-svelte/icons/chevron-right'
+  import ImageIcon from 'lucide-svelte/icons/image'
+  import Plus from 'lucide-svelte/icons/plus'
+  import Search from 'lucide-svelte/icons/search'
+  import Star from 'lucide-svelte/icons/star'
+  import X from 'lucide-svelte/icons/x'
   import { untrack } from 'svelte'
   import { createMedia, deleteMedia, errorMessage, getCategoryOrder, getExternalDetails, getMedia, getSources, searchExternal } from '$lib/api'
   import { i18n } from '$lib/i18n/index.svelte'
@@ -44,6 +50,7 @@
   let previewLoading = $state(false)
   let categoryOrder = $state<string[]>(['anime', 'manga', 'movie', 'tvshow', 'game', 'book'])
   let requestSequence = 0
+  let searchController: AbortController | null = null
   let availableSources = $state<SourceInfo[]>([])
 
   $effect(() => {
@@ -189,8 +196,23 @@
 
     searching = true
     searchError = null
-    const delay = setTimeout(() => void loadResults(pendingType, pendingTerm, sequence), debounceDelay)
-    return () => clearTimeout(delay)
+
+    // Typing must not leave stale requests running: the previous keystroke's queries are aborted so
+    // the server stops working on results nobody will read and a slow earlier response can never
+    // overwrite a newer one.
+    searchController?.abort()
+    const controller = new AbortController()
+    searchController = controller
+
+    const delay = setTimeout(
+      () => void loadResults(pendingType, pendingTerm, sequence, controller.signal),
+      debounceDelay,
+    )
+
+    return () => {
+      clearTimeout(delay)
+      controller.abort()
+    }
   })
 
   $effect(() => {
@@ -225,16 +247,24 @@
     }
   })
 
-  async function loadResults(type: SearchCategory, pendingTerm: string, sequence: number) {
+  async function loadResults(
+    type: SearchCategory,
+    pendingTerm: string,
+    sequence: number,
+    signal: AbortSignal,
+  ) {
+    if (signal.aborted) return
+
     if (type !== 'all') {
       try {
-        const found = await searchExternal(type, pendingTerm)
+        const found = await searchExternal(type, pendingTerm, signal)
         if (sequence === requestSequence) {
           results = found
           searching = false
-          void hydrateMissingData(found, sequence)
+          void hydrateMissingData(found, sequence, signal)
         }
       } catch (error) {
+        if (signal.aborted) return
         if (sequence === requestSequence) {
           results = []
           searchError = error
@@ -261,13 +291,13 @@
     await Promise.allSettled(
       orderedTypes.map(async (cat) => {
         try {
-          const found = await searchExternal(cat, pendingTerm)
+          const found = await searchExternal(cat, pendingTerm, signal)
           if (sequence === requestSequence && found.length > 0) {
             const existingKeys = new Set(results.map((r) => resultKey(r)))
             const fresh = found.filter((r) => !existingKeys.has(resultKey(r)))
             if (fresh.length > 0) {
               results = [...results, ...fresh]
-              void hydrateMissingData(fresh, sequence)
+              void hydrateMissingData(fresh, sequence, signal)
             }
           }
         } catch {
@@ -284,19 +314,20 @@
     )
   }
 
-  async function hydrateMissingData(items: ExternalMedia[], sequence: number) {
+  async function hydrateMissingData(items: ExternalMedia[], sequence: number, signal: AbortSignal) {
     const candidates = items.filter(
       (r) => effectiveType(r) === 'manga' && (r.chapters == null || r.volumes == null || !r.author)
     )
     await Promise.allSettled(
       candidates.slice(0, 6).map(async (item) => {
-        if (sequence !== requestSequence) return
+        if (sequence !== requestSequence || signal.aborted) return
         try {
           const enriched = await getExternalDetails(
             effectiveType(item),
             item.externalId,
             item.title,
-            item.externalSource ?? undefined
+            item.externalSource ?? undefined,
+            signal
           )
           if (sequence === requestSequence && enriched) {
             if (enriched.chapters != null) item.chapters = enriched.chapters
@@ -648,7 +679,7 @@
                     >
                       <div class="h-24 w-16 shrink-0 overflow-hidden rounded-md bg-canvas">
                         {#if result.coverUrl}
-                          <img src={result.coverUrl} alt={result.title} class="h-full w-full object-cover" loading="lazy" />
+                          <img src={result.coverUrl} alt={result.title} class="h-full w-full object-cover" loading="lazy" decoding="async" />
                         {:else}
                           <div class="grid h-full place-items-center text-muted"><ImageIcon size={22} stroke-width={1.25} aria-hidden="true" /></div>
                         {/if}
@@ -753,7 +784,7 @@
               >
                 <div class="h-28 w-20 shrink-0 overflow-hidden rounded-md bg-canvas">
                   {#if result.coverUrl}
-                    <img src={result.coverUrl} alt={result.title} class="h-full w-full object-cover" loading="lazy" />
+                    <img src={result.coverUrl} alt={result.title} class="h-full w-full object-cover" loading="lazy" decoding="async" />
                   {:else}
                     <div class="grid h-full place-items-center text-muted"><ImageIcon size={27} stroke-width={1.25} aria-hidden="true" /></div>
                   {/if}
@@ -877,7 +908,7 @@
         <div class="flex flex-col gap-5 sm:flex-row">
           <div class="mx-auto aspect-[2/3] w-40 shrink-0 overflow-hidden rounded-lg bg-canvas sm:mx-0">
             {#if previewItem.coverUrl}
-              <img src={previewItem.coverUrl} alt={previewItem.title} class="h-full w-full object-cover" />
+              <img src={previewItem.coverUrl} alt={previewItem.title} class="h-full w-full object-cover" decoding="async" />
             {:else}
               <div class="grid h-full place-items-center text-muted"><ImageIcon size={32} stroke-width={1.25} aria-hidden="true" /></div>
             {/if}

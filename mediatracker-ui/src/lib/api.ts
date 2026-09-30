@@ -132,9 +132,13 @@ export function getStats(): Promise<MediaStats> {
   return requestJson<MediaStats>(`${mediaEndpoint}/stats`)
 }
 
-export function searchExternal(type: SearchScope, query: string): Promise<ExternalMedia[]> {
+export function searchExternal(
+  type: SearchScope,
+  query: string,
+  signal?: AbortSignal,
+): Promise<ExternalMedia[]> {
   const url = `${externalEndpoint}/search?type=${encodeURIComponent(type)}&query=${encodeURIComponent(query.trim())}`
-  return requestJson<ExternalMedia[]>(url)
+  return requestJson<ExternalMedia[]>(url, { signal })
 }
 
 export function getExternalDetails(
@@ -142,10 +146,11 @@ export function getExternalDetails(
   id: string,
   title: string,
   source?: string,
+  signal?: AbortSignal,
 ): Promise<ExternalMedia | null> {
   const params = new URLSearchParams({ type, id, title })
   if (source) params.set('source', source)
-  return requestJson<ExternalMedia>(`${externalEndpoint}/details?${params}`).catch(() => null)
+  return requestJson<ExternalMedia>(`${externalEndpoint}/details?${params}`, { signal }).catch(() => null)
 }
 
 export function createMedia(payload: CreateMediaPayload): Promise<MediaDetail> {

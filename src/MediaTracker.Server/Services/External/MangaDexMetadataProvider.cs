@@ -37,10 +37,6 @@ public sealed class MangaDexMetadataProvider(
         {
             throw;
         }
-        catch
-        {
-            return [];
-        }
     }
 
     public async Task<ExternalMediaDto?> GetDetailsAsync(string externalId, string title, CancellationToken ct)
@@ -95,10 +91,6 @@ public sealed class MangaDexMetadataProvider(
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
             throw;
-        }
-        catch
-        {
-            return null;
         }
     }
 

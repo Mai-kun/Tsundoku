@@ -25,6 +25,12 @@ public interface IMetadataProvider
             sw.Stop();
             return new ConnectionTestResult(true, (int)sw.ElapsedMilliseconds, "OK");
         }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            sw.Stop();
+            return new ConnectionTestResult(false, (int)sw.ElapsedMilliseconds,
+                "Таймаут — сервис не отвечает (проверьте доступность из своей сети)");
+        }
         catch (Exception ex)
         {
             sw.Stop();

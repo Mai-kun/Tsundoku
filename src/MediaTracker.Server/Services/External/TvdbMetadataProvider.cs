@@ -80,10 +80,6 @@ public sealed class TvdbMetadataProvider(
         {
             throw;
         }
-        catch
-        {
-            return [];
-        }
     }
 
     public async Task<ExternalMediaDto?> GetDetailsAsync(string externalId, string title, CancellationToken ct)

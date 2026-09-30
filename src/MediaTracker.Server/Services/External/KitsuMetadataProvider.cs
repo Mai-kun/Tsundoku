@@ -16,7 +16,7 @@ public sealed class KitsuMetadataProvider(IHttpClientFactory httpClientFactory) 
         try
         {
             var res = await client.GetFromJsonAsync<KitsuSearchResponse>(
-                $"edge/anime?filter[text]={Uri.EscapeDataString(query)}&page[limit]=10", ct);
+                $"edge/anime?filter%5Btext%5D={Uri.EscapeDataString(query)}&page%5Blimit%5D=10", ct);
 
             if (res?.Data is not { Count: > 0 } data)
             {
@@ -28,10 +28,6 @@ public sealed class KitsuMetadataProvider(IHttpClientFactory httpClientFactory) 
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
             throw;
-        }
-        catch
-        {
-            return [];
         }
     }
 

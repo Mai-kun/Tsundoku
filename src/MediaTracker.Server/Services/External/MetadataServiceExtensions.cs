@@ -1,5 +1,16 @@
 namespace MediaTracker.Server.Services.External;
 
+/// <summary>
+/// A metadata source was explicitly requested but could not be reached. Distinct from a
+/// generic failure so the API can answer 502 instead of 500 — the client did nothing wrong,
+/// the upstream provider is unavailable.
+/// </summary>
+public sealed class SourceUnavailableException(string source, string reason, Exception? innerException = null)
+    : Exception($"Source '{source}' is unavailable: {reason}", innerException)
+{
+    public string SourceId { get; } = source;
+}
+
 public static class MetadataServiceExtensions
 {
     private const string DefaultUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 Tsundoku/1.0";

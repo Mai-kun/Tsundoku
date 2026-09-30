@@ -52,13 +52,29 @@ public static class MediaEndpoints
             return Results.Ok(Array.Empty<MediaListDto>());
         }
 
-        var items = await query.ToListAsync(ct);
-        return Results.Ok(items.Select(MediaResponseMapper.ToListDto));
+        var rows = await query.ToListAsync(ct);
+        var items = new List<MediaListDto>(rows.Count);
+
+        foreach (var row in rows)
+        {
+            items.Add(WithCoverVersion(row.Item, row.UpdatedAt));
+        }
+
+        return Results.Ok(items);
     }
+
+    /// <summary>
+    /// Covers are served as immutable for a year, so the cache-buster is part of the URL. The tick
+    /// count cannot be produced in SQL, so it is stamped here on the already-projected DTO.
+    /// </summary>
+    private static MediaListDto WithCoverVersion(MediaListDto dto, DateTime updatedAt) =>
+        dto.CoverUrl is null ? dto : dto with { CoverUrl = $"{dto.CoverUrl}?v={updatedAt.Ticks}" };
 
     private static async Task<IResult> GetMediaStats(AppDbContext db, CancellationToken ct)
     {
-        var counts = await db.MediaItems
+        // One grouped scan over MediaItems yields every per-type count and sum the dashboard shows,
+        // instead of the five separate round-trips this endpoint used to issue.
+        var totals = await db.MediaItems
             .AsNoTracking()
             .GroupBy(_ => 1)
             .Select(g => new
@@ -70,22 +86,29 @@ public static class MediaEndpoints
                 CompletedGames = g.Sum(x => x.Status == MediaStatus.Completed && EF.Property<string>(x, Discriminator) == "Game" ? 1 : 0),
                 CompletedBooks = g.Sum(x => x.Status == MediaStatus.Completed && EF.Property<string>(x, Discriminator) == "Book" ? 1 : 0),
                 CompletedMovies = g.Sum(x => x.Status == MediaStatus.Completed && EF.Property<string>(x, Discriminator) == "Movie" ? 1 : 0),
+                TotalHoursPlayed = g.Sum(x => x is VideoGame ? ((VideoGame)x).HoursPlayed ?? 0 : 0),
+                TotalPagesRead = g.Sum(x => x is Book ? ((Book)x).CurrentPage : 0),
+                TotalChaptersRead = g.Sum(x => x is Manga ? ((Manga)x).CurrentChapter : 0),
             })
             .FirstOrDefaultAsync(ct);
 
+        var totalEpisodesWatched = await db.TvSeasons
+            .AsNoTracking()
+            .SumAsync(season => season.CurrentEpisode, ct);
+
         var stats = new MediaStatsDto
         {
-            TotalItems = counts?.Total ?? 0,
-            CompletedItems = counts?.Completed ?? 0,
-            InProgressItems = counts?.InProgress ?? 0,
-            PlannedItems = counts?.Planned ?? 0,
-            CompletedGamesCount = counts?.CompletedGames ?? 0,
-            CompletedBooksCount = counts?.CompletedBooks ?? 0,
-            CompletedMoviesCount = counts?.CompletedMovies ?? 0,
-            TotalHoursPlayed = await db.Games.SumAsync(game => game.HoursPlayed ?? 0, ct),
-            TotalPagesRead = await db.Books.SumAsync(book => book.CurrentPage, ct),
-            TotalChaptersRead = await db.Manga.SumAsync(manga => manga.CurrentChapter, ct),
-            TotalEpisodesWatched = await db.TvSeasons.SumAsync(season => season.CurrentEpisode, ct),
+            TotalItems = totals?.Total ?? 0,
+            CompletedItems = totals?.Completed ?? 0,
+            InProgressItems = totals?.InProgress ?? 0,
+            PlannedItems = totals?.Planned ?? 0,
+            CompletedGamesCount = totals?.CompletedGames ?? 0,
+            CompletedBooksCount = totals?.CompletedBooks ?? 0,
+            CompletedMoviesCount = totals?.CompletedMovies ?? 0,
+            TotalHoursPlayed = totals?.TotalHoursPlayed ?? 0,
+            TotalPagesRead = totals?.TotalPagesRead ?? 0,
+            TotalChaptersRead = totals?.TotalChaptersRead ?? 0,
+            TotalEpisodesWatched = totalEpisodesWatched,
         };
 
         return Results.Ok(stats);
@@ -308,22 +331,26 @@ public static class MediaEndpoints
             return Results.NotFound();
         }
 
-        switch (kind.Trim().ToLowerInvariant())
+        if (IsHistoryKind(kind, "started"))
         {
-            case "started":
-                item.StartedAt = null;
-                break;
-            case "finished":
-                item.FinishedAt = null;
-                break;
-            default:
-                return Results.BadRequest(new { message = "Kind must be 'started' or 'finished'." });
+            item.StartedAt = null;
+        }
+        else if (IsHistoryKind(kind, "finished"))
+        {
+            item.FinishedAt = null;
+        }
+        else
+        {
+            return Results.BadRequest(new { message = "Kind must be 'started' or 'finished'." });
         }
 
         item.UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync(ct);
         return Results.NoContent();
     }
+
+    private static bool IsHistoryKind(string kind, string expected) =>
+        string.Equals(kind.Trim(), expected, StringComparison.OrdinalIgnoreCase);
 
     private static async Task<IResult> UpdateProgress(
         Guid id,
@@ -338,48 +365,43 @@ public static class MediaEndpoints
             return Results.ValidationProblem(validationResult.ToDictionary());
         }
 
-        var target = await db.MediaItems
-            .Where(x => x.Id == id)
-            .Select(x => new
-            {
-                IsBook = x is Book,
-                BookTotal = x is Book ? ((Book)x).TotalPages : (int?)null,
-                IsManga = x is Manga,
-                MangaTotal = x is Manga ? ((Manga)x).TotalChapters : (int?)null,
-                IsGame = x is VideoGame
-            })
-            .FirstOrDefaultAsync(ct);
-
-        if (target is null)
-        {
-            return Results.NotFound();
-        }
-
         var progress = Math.Max(request.CurrentProgress, 0);
 
-        if (target.IsBook)
+        // The clamping total and the row type live in the same table, so the whole stepper write is a
+        // single UPDATE: no SELECT, no entity materialization, no change tracker entry.
+        var bookRows = await db.Books
+            .Where(x => x.Id == id)
+            .ExecuteUpdateAsync(
+                s => s.SetProperty(
+                    x => x.CurrentPage,
+                    x => x.TotalPages > 0 && progress > x.TotalPages ? x.TotalPages : progress),
+                ct);
+
+        if (bookRows > 0)
         {
-            var clamped = ClampToKnownTotal(progress, target.BookTotal);
-            await db.Books.Where(x => x.Id == id)
-                .ExecuteUpdateAsync(s => s.SetProperty(x => x.CurrentPage, clamped), ct);
-        }
-        else if (target.IsManga)
-        {
-            var clamped = ClampToKnownTotal(progress, target.MangaTotal);
-            await db.Manga.Where(x => x.Id == id)
-                .ExecuteUpdateAsync(s => s.SetProperty(x => x.CurrentChapter, clamped), ct);
-        }
-        else if (target.IsGame)
-        {
-            await db.Games.Where(x => x.Id == id)
-                .ExecuteUpdateAsync(s => s.SetProperty(x => x.HoursPlayed, progress), ct);
-        }
-        else
-        {
-            return Results.BadRequest("Progress is not supported for this media type.");
+            return Results.NoContent();
         }
 
-        return Results.NoContent();
+        var mangaRows = await db.Manga
+            .Where(x => x.Id == id)
+            .ExecuteUpdateAsync(
+                s => s.SetProperty(
+                    x => x.CurrentChapter,
+                    x => x.TotalChapters != null && progress > x.TotalChapters ? x.TotalChapters : progress),
+                ct);
+
+        if (mangaRows > 0)
+        {
+            return Results.NoContent();
+        }
+
+        var gameRows = await db.Games
+            .Where(x => x.Id == id)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.HoursPlayed, progress), ct);
+
+        return gameRows > 0
+            ? Results.NoContent()
+            : Results.BadRequest("Progress is not supported for this media type.");
     }
 
     private static async Task<IResult> RefreshMediaMetadata(

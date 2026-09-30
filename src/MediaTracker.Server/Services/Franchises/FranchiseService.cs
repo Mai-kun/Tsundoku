@@ -48,6 +48,10 @@ public sealed partial class FranchiseService : IFranchiseService
         var unlinked = await db.MediaItems.Where(m => m.FranchiseId == null).ToListAsync(ct);
         if (unlinked.Count == 0) return;
 
+        // Load the whole franchise table once: the loop below runs per inferred name, and a
+        // FirstOrDefaultAsync per group turned startup backfill into an N+1 query storm.
+        var knownFranchises = await db.Franchises.ToDictionaryAsync(f => f.Name.ToLower(), StringComparer.Ordinal, ct);
+
         var groups = unlinked
             .Select(m => new { Item = m, FranchiseName = InferFranchiseName(m.Title) })
             .Where(x => !string.IsNullOrWhiteSpace(x.FranchiseName))
@@ -57,25 +61,29 @@ public sealed partial class FranchiseService : IFranchiseService
         foreach (var grp in groups)
         {
             var inferredName = grp.First().FranchiseName!;
-            var existingFranchise = await db.Franchises.FirstOrDefaultAsync(f => f.Name.ToLower() == grp.Key, ct);
             var exactMatchItem = unlinked.FirstOrDefault(m => m.Title.Equals(inferredName, StringComparison.OrdinalIgnoreCase));
 
-            if (existingFranchise is not null || grp.Count() > 1 || exactMatchItem is not null)
+            // A lone title with no sibling sharing the prefix is not evidence of a franchise.
+            if (grp.Count() <= 1 && exactMatchItem is null)
             {
-                if (existingFranchise is null)
-                {
-                    existingFranchise = new Franchise { Id = Guid.NewGuid(), Name = inferredName };
-                    db.Franchises.Add(existingFranchise);
-                }
+                continue;
+            }
 
-                foreach (var x in grp)
-                {
-                    x.Item.FranchiseId = existingFranchise.Id;
-                }
-                if (exactMatchItem is not null && exactMatchItem.FranchiseId == null)
-                {
-                    exactMatchItem.FranchiseId = existingFranchise.Id;
-                }
+            if (!knownFranchises.TryGetValue(grp.Key, out var franchise))
+            {
+                franchise = new Franchise { Id = Guid.NewGuid(), Name = inferredName };
+                knownFranchises[grp.Key] = franchise;
+                db.Franchises.Add(franchise);
+            }
+
+            foreach (var x in grp)
+            {
+                x.Item.FranchiseId = franchise.Id;
+            }
+
+            if (exactMatchItem is not null && exactMatchItem.FranchiseId is null)
+            {
+                exactMatchItem.FranchiseId = franchise.Id;
             }
         }
 

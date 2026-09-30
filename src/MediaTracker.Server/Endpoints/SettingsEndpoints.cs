@@ -3,6 +3,7 @@ using MediaTracker.Server.Data;
 using MediaTracker.Server.Models;
 using MediaTracker.Server.Services.External;
 using MediaTracker.Server.Services.Security;
+using MediaTracker.Server.Services.Settings;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
@@ -10,6 +11,11 @@ namespace MediaTracker.Server.Endpoints;
 
 public static class SettingsEndpoints
 {
+    private const string CategoryOrderSettingKey = "SearchCategoryOrder";
+    private const string SourcePrioritySettingKey = "SourcePriority";
+
+    private static readonly string[] DefaultCategoryOrder = ["anime", "movie", "tvshow", "manga", "game", "book"];
+
     public static IEndpointRouteBuilder MapSettingsEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/settings");
@@ -98,26 +104,9 @@ public static class SettingsEndpoints
 
         var key = request.ApiKey?.Trim() ?? string.Empty;
         var encrypted = string.IsNullOrEmpty(key) ? string.Empty : encryption.Encrypt(key);
-        var settingKey = $"ApiKey_{normalizedId}";
 
-        var setting = await db.Settings.FirstOrDefaultAsync(s => s.Key == settingKey, ct);
-        if (setting is null)
-        {
-            setting = new AppSetting
-            {
-                Key = settingKey,
-                Value = encrypted,
-                UpdatedAt = DateTime.UtcNow
-            };
-            db.Settings.Add(setting);
-        }
-        else
-        {
-            setting.Value = encrypted;
-            setting.UpdatedAt = DateTime.UtcNow;
-        }
+        await AppSettingStore.SetAsync(db, $"ApiKey_{normalizedId}", encrypted, ct);
 
-        await db.SaveChangesAsync(ct);
         options.Value.SetKey(normalizedId, key);
 
         return Results.Ok(new { success = true, hasKey = !string.IsNullOrEmpty(key), maskedKey = MaskKey(key) });
@@ -125,22 +114,9 @@ public static class SettingsEndpoints
 
     private static async Task<IResult> GetCategoryOrder(AppDbContext db, CancellationToken ct)
     {
-        var setting = await db.Settings.FirstOrDefaultAsync(s => s.Key == "SearchCategoryOrder", ct);
-        if (setting is not null && !string.IsNullOrWhiteSpace(setting.Value))
-        {
-            try
-            {
-                var parsed = JsonSerializer.Deserialize<string[]>(setting.Value);
-                if (parsed is { Length: > 0 })
-                {
-                    return Results.Ok(parsed);
-                }
-            }
-            catch { }
-        }
-
-        string[] defaultOrder = ["anime", "movie", "tvshow", "manga", "game", "book"];
-        return Results.Ok(defaultOrder);
+        var stored = await AppSettingStore.ReadAsync(db, CategoryOrderSettingKey, ct);
+        var parsed = TryDeserialize<string[]>(stored);
+        return Results.Ok(parsed is { Length: > 0 } ? parsed : DefaultCategoryOrder);
     }
 
     private static async Task<IResult> SaveCategoryOrder(
@@ -153,87 +129,23 @@ public static class SettingsEndpoints
             return Results.BadRequest();
         }
 
-        var json = JsonSerializer.Serialize(order);
-        var setting = await db.Settings.FirstOrDefaultAsync(s => s.Key == "SearchCategoryOrder", ct);
-        if (setting is null)
-        {
-            setting = new AppSetting
-            {
-                Key = "SearchCategoryOrder",
-                Value = json,
-                UpdatedAt = DateTime.UtcNow
-            };
-            db.Settings.Add(setting);
-        }
-        else
-        {
-            setting.Value = json;
-            setting.UpdatedAt = DateTime.UtcNow;
-        }
-
-        await db.SaveChangesAsync(ct);
+        await AppSettingStore.SetAsync(db, CategoryOrderSettingKey, JsonSerializer.Serialize(order), ct);
         return Results.Ok(order);
     }
 
     private static async Task<IResult> GetSourcePriority(AppDbContext db, CancellationToken ct)
     {
-        var setting = await db.Settings.FirstOrDefaultAsync(s => s.Key == "SourcePriority", ct);
-        Dictionary<string, string[]>? parsed = null;
-        if (setting is not null && !string.IsNullOrWhiteSpace(setting.Value))
-        {
-            try
-            {
-                parsed = JsonSerializer.Deserialize<Dictionary<string, string[]>>(setting.Value);
-            }
-            catch { }
-        }
+        var stored = await AppSettingStore.ReadAsync(db, SourcePrioritySettingKey, ct);
+        var merged = SourcePriorityService.MergeWithDefaults(TryDeserialize<Dictionary<string, string[]>>(stored));
 
-        var merged = MergeWithDefaultPriorities(parsed);
-
-        // If newly added sources were merged into the saved settings, persist to DB
-        var newJson = JsonSerializer.Serialize(merged);
-        if (setting is not null && setting.Value != newJson)
+        // Newly shipped sources get folded into the saved order on first read, so persist the result.
+        var json = JsonSerializer.Serialize(merged);
+        if (stored is not null && stored != json)
         {
-            setting.Value = newJson;
-            setting.UpdatedAt = DateTime.UtcNow;
-            await db.SaveChangesAsync(ct);
+            await AppSettingStore.SetAsync(db, SourcePrioritySettingKey, json, ct);
         }
 
         return Results.Ok(merged);
-    }
-
-    private static Dictionary<string, string[]> MergeWithDefaultPriorities(Dictionary<string, string[]>? userPriority)
-    {
-        var result = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var (type, defaultSources) in SourcePriorityService.DefaultPriorities)
-        {
-            if (userPriority != null && userPriority.TryGetValue(type, out var userSources) && userSources?.Length > 0)
-            {
-                var list = new List<string>();
-                foreach (var s in userSources)
-                {
-                    if (defaultSources.Contains(s, StringComparer.OrdinalIgnoreCase) && !list.Contains(s, StringComparer.OrdinalIgnoreCase))
-                    {
-                        list.Add(s);
-                    }
-                }
-                foreach (var s in defaultSources)
-                {
-                    if (!list.Contains(s, StringComparer.OrdinalIgnoreCase))
-                    {
-                        list.Add(s);
-                    }
-                }
-                result[type] = [.. list];
-            }
-            else
-            {
-                result[type] = defaultSources;
-            }
-        }
-
-        return result;
     }
 
     private static async Task<IResult> SaveSourcePriority(
@@ -247,27 +159,27 @@ public static class SettingsEndpoints
             return Results.BadRequest();
         }
 
-        var json = JsonSerializer.Serialize(priority);
-        var setting = await db.Settings.FirstOrDefaultAsync(s => s.Key == "SourcePriority", ct);
-        if (setting is null)
-        {
-            setting = new AppSetting
-            {
-                Key = "SourcePriority",
-                Value = json,
-                UpdatedAt = DateTime.UtcNow
-            };
-            db.Settings.Add(setting);
-        }
-        else
-        {
-            setting.Value = json;
-            setting.UpdatedAt = DateTime.UtcNow;
-        }
-
-        await db.SaveChangesAsync(ct);
+        await AppSettingStore.SetAsync(db, SourcePrioritySettingKey, JsonSerializer.Serialize(priority), ct);
         priorityService.InvalidateCache();
         return Results.Ok(priority);
+    }
+
+    /// <summary>Returns null for absent, blank or corrupt values so a bad row falls back to defaults.</summary>
+    private static T? TryDeserialize<T>(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return default;
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize<T>(json);
+        }
+        catch (JsonException)
+        {
+            return default;
+        }
     }
 
     private static string? MaskKey(string? key)

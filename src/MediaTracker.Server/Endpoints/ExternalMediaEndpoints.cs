@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using MediaTracker.Server.Services.External;
 using Microsoft.Extensions.Caching.Memory;
 
@@ -5,7 +6,8 @@ namespace MediaTracker.Server.Endpoints;
 
 public static class ExternalMediaEndpoints
 {
-    private static readonly string[] SupportedTypes = ["all", "game", "movie", "tvshow", "anime", "manga", "book"];
+    private static readonly FrozenSet<string> SupportedTypes = new[] { "all", "game", "movie", "tvshow", "anime", "manga", "book" }
+        .ToFrozenSet(StringComparer.OrdinalIgnoreCase);
 
     public static IEndpointRouteBuilder MapExternalMediaEndpoints(this IEndpointRouteBuilder app)
     {
@@ -29,7 +31,7 @@ public static class ExternalMediaEndpoints
         MetadataAggregatorService aggregator,
         CancellationToken ct)
     {
-        var normalizedType = string.IsNullOrWhiteSpace(type) ? "anime" : type.Trim().ToLowerInvariant();
+        var normalizedType = string.IsNullOrWhiteSpace(type) ? "anime" : type.Trim();
         var normalizedId = id?.Trim() ?? string.Empty;
         var normalizedTitle = title?.Trim() ?? string.Empty;
 
@@ -48,7 +50,7 @@ public static class ExternalMediaEndpoints
         MetadataAggregatorService aggregator,
         CancellationToken ct)
     {
-        var normalizedType = string.IsNullOrWhiteSpace(type) ? "all" : type.Trim().ToLowerInvariant();
+        var normalizedType = string.IsNullOrWhiteSpace(type) ? "all" : type.Trim();
         var normalizedQuery = query?.Trim() ?? string.Empty;
 
         var errors = new Dictionary<string, string[]>();

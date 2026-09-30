@@ -148,7 +148,7 @@ export const ru = {
       game: 'ч.',
       book: 'стр.',
     },
-    searchMore: 'Искать ещё',
+    showMoreCount: (count: number) => `Показать больше (${count})`,
     preview: 'Подробнее',
   },
 

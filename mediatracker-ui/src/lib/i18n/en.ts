@@ -150,7 +150,7 @@ export const en: Dictionary = {
       game: 'h',
       book: 'pp.',
     },
-    searchMore: 'Search more',
+    showMoreCount: (count: number) => `Show more (${count})`,
     preview: 'Details',
   },
 

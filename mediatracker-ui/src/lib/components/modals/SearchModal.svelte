@@ -49,6 +49,8 @@
   let previewItem = $state<ExternalMedia | null>(null)
   let previewLoading = $state(false)
   let categoryOrder = $state<string[]>(['anime', 'manga', 'movie', 'tvshow', 'game', 'book'])
+  let resultsByCategory = $state<Record<string, ExternalMedia[]>>({})
+  let loadingByCategory = $state<Record<string, boolean>>({})
   let requestSequence = 0
   let searchController: AbortController | null = null
   let availableSources = $state<SourceInfo[]>([])
@@ -142,42 +144,39 @@
     title: string
     items: ExternalMedia[]
     totalInGroup: number
+    loading: boolean
   }
+
+  let orderedSearchTypes = $derived.by<SearchMediaType[]>(() => {
+    const typesToSearch: SearchMediaType[] = ['anime', 'manga', 'movie', 'tvshow', 'game', 'book']
+    return [
+      ...categoryOrder.filter((c): c is SearchMediaType => typesToSearch.includes(c as SearchMediaType)),
+      ...typesToSearch.filter((c) => !categoryOrder.includes(c)),
+    ]
+  })
 
   let groupedResults = $derived.by<GroupedResult[]>(() => {
     if (activeType !== 'all') return []
     const groups: GroupedResult[] = []
 
-    for (const cat of categoryOrder) {
-      const matching = results.filter((r) => r.type === cat)
-      if (matching.length > 0) {
-        groups.push({
-          category: cat as SearchMediaType,
-          title: labelForCategory(cat as SearchCategory),
-          items: matching.slice(0, 5),
-          totalInGroup: matching.length,
-        })
-      }
-    }
-
-    const handledTypes = new Set(categoryOrder)
-    for (const r of results) {
-      if (!handledTypes.has(r.type)) {
-        handledTypes.add(r.type)
-        const matching = results.filter((item) => item.type === r.type)
-        if (matching.length > 0) {
-          groups.push({
-            category: r.type,
-            title: labelForCategory(r.type as SearchCategory),
-            items: matching.slice(0, 5),
-            totalInGroup: matching.length,
-          })
-        }
-      }
+    for (const cat of orderedSearchTypes) {
+      const items = resultsByCategory[cat] ?? []
+      const loading = loadingByCategory[cat] === true
+      if (items.length === 0 && !loading) continue
+      groups.push({
+        category: cat,
+        title: labelForCategory(cat),
+        items: items.slice(0, 5),
+        totalInGroup: items.length,
+        loading,
+      })
     }
 
     return groups
   })
+
+  let allSectionsSettled = $derived(groupedResults.every((g) => !g.loading))
+  let hasAnyResults = $derived(Object.values(resultsByCategory).some((items) => items.length > 0))
 
   $effect(() => {
     if (!isOpen) return
@@ -189,6 +188,8 @@
 
     if (pendingTerm.length < minQueryLength) {
       results = []
+      resultsByCategory = {}
+      loadingByCategory = {}
       searching = false
       searchError = null
       return
@@ -260,6 +261,8 @@
         const found = await searchExternal(type, pendingTerm, signal)
         if (sequence === requestSequence) {
           results = found
+          resultsByCategory = { [type]: found }
+          loadingByCategory = { [type]: false }
           searching = false
           void hydrateMissingData(found, sequence, signal)
         }
@@ -267,6 +270,8 @@
         if (signal.aborted) return
         if (sequence === requestSequence) {
           results = []
+          resultsByCategory = {}
+          loadingByCategory = { [type]: false }
           searchError = error
         }
       } finally {
@@ -277,38 +282,34 @@
       return
     }
 
-    const typesToSearch: SearchMediaType[] = ['anime', 'manga', 'movie', 'tvshow', 'game', 'book']
-    const orderedTypes = [
-      ...categoryOrder.filter((c): c is SearchMediaType => typesToSearch.includes(c as SearchMediaType)),
-      ...typesToSearch.filter((c) => !categoryOrder.includes(c)),
-    ]
+    const orderedTypes = orderedSearchTypes
 
     results = []
+    resultsByCategory = {}
+    loadingByCategory = Object.fromEntries(orderedTypes.map((cat) => [cat, true]))
     searching = true
     searchError = null
     let completedCount = 0
 
     await Promise.allSettled(
       orderedTypes.map(async (cat) => {
+        let found: ExternalMedia[] = []
         try {
-          const found = await searchExternal(cat, pendingTerm, signal)
-          if (sequence === requestSequence && found.length > 0) {
-            const existingKeys = new Set(results.map((r) => resultKey(r)))
-            const fresh = found.filter((r) => !existingKeys.has(resultKey(r)))
-            if (fresh.length > 0) {
-              results = [...results, ...fresh]
-              void hydrateMissingData(fresh, sequence, signal)
-            }
-          }
+          found = await searchExternal(cat, pendingTerm, signal)
         } catch {
-          // Individual category error, ignore so other categories still display
-        } finally {
-          if (sequence === requestSequence) {
-            completedCount++
-            if (completedCount >= orderedTypes.length) {
-              searching = false
-            }
-          }
+          found = []
+        }
+        if (sequence !== requestSequence) return
+
+        resultsByCategory = { ...resultsByCategory, [cat]: found }
+        loadingByCategory = { ...loadingByCategory, [cat]: false }
+        results = orderedTypes.flatMap((c) => resultsByCategory[c] ?? [])
+        completedCount++
+        if (completedCount >= orderedTypes.length) {
+          searching = false
+        }
+        if (found.length > 0) {
+          void hydrateMissingData(found, sequence, signal)
         }
       })
     )
@@ -627,7 +628,7 @@
             <p class="text-sm text-muted">{i18n.t.searchModal.emptyQueryTitle}</p>
             <p class="text-xs text-muted">{i18n.t.searchModal.emptyQueryHint}</p>
           </div>
-        {:else if searching}
+        {:else if searching && activeType !== 'all'}
           <div class="space-y-3" aria-hidden="true">
             {#each Array(3) as _, index (index)}
               <div class="flex gap-4 rounded-lg bg-card p-3">
@@ -646,28 +647,48 @@
             <p class="text-sm text-rose-200" role="alert">{errorMessage(searchError)}</p>
             <p class="text-xs text-muted">{i18n.t.searchModal.errorHint}</p>
           </div>
-        {:else if results.length === 0}
+        {:else if results.length === 0 && !searching}
           <div class="flex min-h-64 flex-col items-center justify-center gap-2 text-center">
             <p class="text-sm font-semibold text-ink">{i18n.t.searchModal.emptyTitle}</p>
             <p class="text-xs text-muted">{i18n.t.searchModal.emptyHint}</p>
           </div>
-        {:else if activeType === 'all'}
+        {:else if activeType === 'all' && (hasAnyResults || !allSectionsSettled)}
           <!-- Grouped by category -->
           <div class="space-y-6">
             {#each groupedResults as group (group.category)}
               <section class="space-y-3">
                 <div class="flex items-center justify-between border-b border-border/50 pb-2">
-                  <h3 class="text-sm font-bold uppercase tracking-wider text-accent-soft">{group.title}</h3>
-                  <button
-                    type="button"
-                    class="inline-flex items-center gap-1 text-xs font-medium text-muted transition hover:text-ink"
-                    onclick={() => (activeType = group.category as SearchCategory)}
-                  >
-                    <span>{i18n.t.searchModal.searchMore}</span>
-                    <ChevronRight size={14} aria-hidden="true" />
-                  </button>
+                  <div class="flex items-center gap-2">
+                    <h3 class="text-sm font-bold uppercase tracking-wider text-accent-soft">{group.title}</h3>
+                    {#if group.loading}
+                      <span class="h-3 w-3 animate-spin rounded-full border-2 border-accent border-t-transparent" role="status" aria-label={i18n.t.searchModal.searching}></span>
+                    {/if}
+                  </div>
+                  {#if !group.loading}
+                    <button
+                      type="button"
+                      class="inline-flex items-center gap-1 text-xs font-medium text-muted transition hover:text-ink"
+                      onclick={() => (activeType = group.category as SearchCategory)}
+                    >
+                      <span>{i18n.t.searchModal.showMoreCount(group.totalInGroup)}</span>
+                      <ChevronRight size={14} aria-hidden="true" />
+                    </button>
+                  {/if}
                 </div>
 
+                {#if group.loading}
+                  <ul class="space-y-2.5" aria-hidden="true">
+                    {#each Array(2) as _, index (index)}
+                      <li class="flex gap-4 rounded-lg bg-card p-3">
+                        <div class="h-24 w-16 shrink-0 animate-pulse rounded-md bg-canvas"></div>
+                        <div class="flex-1 space-y-2 py-1">
+                          <div class="h-4 w-1/2 animate-pulse rounded bg-canvas"></div>
+                          <div class="h-3 w-3/4 animate-pulse rounded bg-canvas"></div>
+                        </div>
+                      </li>
+                    {/each}
+                  </ul>
+                {:else}
                 <ul class="space-y-2.5">
                   {#each group.items as result, idx (resultKey(result, idx))}
                     {@const key = resultKey(result)}
@@ -768,6 +789,7 @@
                     </li>
                   {/each}
                 </ul>
+                {/if}
               </section>
             {/each}
           </div>

@@ -10,6 +10,7 @@ using MediaTracker.Server.Services.External;
 using MediaTracker.Server.Services.Franchises;
 using MediaTracker.Server.Services.Security;
 using MediaTracker.Server.Services.Storage;
+using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 using OpenApiUi;
@@ -64,6 +65,17 @@ try
     builder.Services.AddProblemDetails();
     builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
+    builder.Services.AddResponseCompression(options =>
+    {
+        // JSON lists dominate the payload on a phone over Wi-Fi; Brotli/Gzip cuts them roughly 5-8x.
+        options.EnableForHttps = true;
+        options.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat([
+            "application/json",
+            "application/problem+json",
+            "image/svg+xml",
+        ]);
+    });
+
     builder.Services.AddCors(options =>
     {
         options.AddPolicy("DevCorsPolicy", policy =>
@@ -89,6 +101,8 @@ try
 
     app.UseSerilogRequestLogging();
 
+    app.UseResponseCompression();
+
     await InitializeDatabaseAsync(app);
 
     app.UseExceptionHandler();
@@ -108,7 +122,20 @@ try
 
     app.UseStaticFiles(new StaticFileOptions
     {
-        FileProvider = embeddedProvider
+        FileProvider = embeddedProvider,
+        OnPrepareResponse = context =>
+        {
+            // Vite emits content-hashed filenames under /assets, so those are immutable exactly like
+            // the covers. index.html and diag.html must stay revalidated or a deploy never lands.
+            if (context.File.Name.EndsWith(".html", StringComparison.OrdinalIgnoreCase))
+            {
+                context.Context.Response.Headers.CacheControl = "no-cache";
+            }
+            else
+            {
+                context.Context.Response.Headers.CacheControl = "public, max-age=31536000, immutable";
+            }
+        }
     });
 
     app.UseStaticFiles(new StaticFileOptions
@@ -143,6 +170,7 @@ try
 
         context.Response.StatusCode = StatusCodes.Status200OK;
         context.Response.ContentType = "text/html; charset=utf-8";
+        context.Response.Headers.CacheControl = "no-cache";
         await using var stream = indexFile.CreateReadStream();
         await stream.CopyToAsync(context.Response.Body);
     });

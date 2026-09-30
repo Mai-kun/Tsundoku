@@ -5,14 +5,23 @@ namespace MediaTracker.Server.Infrastructure;
 
 public sealed class SqliteConnectionInterceptor : DbConnectionInterceptor
 {
-    private const string Pragmas = "PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA busy_timeout = 5000;";
+    // journal_mode is a persistent property of the database file, not of a connection, so re-running
+    // it on every open is pure overhead. The other two are per-connection and must be reapplied.
+    private const string ConnectionPragmas = "PRAGMA synchronous = NORMAL; PRAGMA busy_timeout = 5000;";
+    private const string JournalPragma = "PRAGMA journal_mode = WAL;";
+
+    private static int journalModeApplied;
 
     public override void ConnectionOpened(
         DbConnection connection,
         ConnectionEndEventData eventData)
     {
+        var pragmas = Interlocked.Exchange(ref journalModeApplied, 1) == 0
+            ? JournalPragma + ConnectionPragmas
+            : ConnectionPragmas;
+
         using var command = connection.CreateCommand();
-        command.CommandText = Pragmas;
+        command.CommandText = pragmas;
         command.ExecuteNonQuery();
     }
 
@@ -21,8 +30,12 @@ public sealed class SqliteConnectionInterceptor : DbConnectionInterceptor
         ConnectionEndEventData eventData,
         CancellationToken cancellationToken = default)
     {
+        var pragmas = Interlocked.Exchange(ref journalModeApplied, 1) == 0
+            ? JournalPragma + ConnectionPragmas
+            : ConnectionPragmas;
+
         using var command = connection.CreateCommand();
-        command.CommandText = Pragmas;
+        command.CommandText = pragmas;
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 }

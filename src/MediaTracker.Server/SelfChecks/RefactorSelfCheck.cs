@@ -1,5 +1,6 @@
 using System.Text.Json;
 using MediaTracker.Server.DTOs;
+using MediaTracker.Server.Endpoints;
 using MediaTracker.Server.Models;
 using MediaTracker.Server.Services.External;
 using MediaTracker.Server.Services.Media;
@@ -24,8 +25,11 @@ public static class RefactorSelfCheck
         CheckMangaGapEnrichmentDoesNotOverwrite(failures);
         CheckOverwriteRefresh(failures);
         CheckStatusTransitions(failures);
+        CheckSeasonProgressStepper(failures);
+        CheckVolumeProgressStepper(failures);
         CheckPlaceholderVolumes(failures);
         CheckReleaseStatusComputation(failures);
+        CheckApiKeyLookup(failures);
         CheckCoverSizeLimit(failures);
 
         if (failures.Count == 0)
@@ -145,6 +149,68 @@ public static class RefactorSelfCheck
         AssertEqual(failures, 321, book.TotalPages, "refresh overwrites the page count");
         AssertEqual(failures, "Someone Else", book.Author, "refresh overwrites the author");
     }
+    /// <summary>
+    /// The season and volume steppers now write through ExecuteUpdateAsync with no tracked entity,
+    /// so their status rules moved out of the endpoints. These assertions pin that behaviour.
+    /// </summary>
+    private static void CheckSeasonProgressStepper(List<string> failures)
+    {
+        AssertEqual(failures, 12, ProgressStepperRules.Clamp(12, 12), "episode clamps to the total");
+        AssertEqual(failures, 0, ProgressStepperRules.Clamp(-5, 12), "negative progress floors at zero");
+        AssertEqual(failures, 999, ProgressStepperRules.Clamp(999, 0), "an unknown total does not clamp");
+
+        AssertEqual(failures, MediaStatus.Completed, ProgressStepperRules.ResolveEpisodeStatus(12, 12), "last episode completes");
+        AssertEqual(failures, MediaStatus.InProgress, ProgressStepperRules.ResolveEpisodeStatus(5, 12), "partial episode is in progress");
+        AssertEqual(failures, MediaStatus.Planned, ProgressStepperRules.ResolveEpisodeStatus(0, 12), "no episodes is planned");
+
+        var started = new DateTime(2026, 1, 1);
+        var now = new DateTime(2026, 2, 2);
+
+        var allDone = ProgressStepperRules.ResolveShowStatus(
+            MediaStatus.InProgress, started, null, allCompleted: true, anyWatched: true, now);
+        AssertEqual(failures, MediaStatus.Completed, allDone.Status, "all seasons done completes the show");
+        AssertEqual(failures, started, allDone.StartedAt, "existing start date is kept");
+        AssertEqual(failures, now, allDone.FinishedAt, "completing stamps a finish date");
+
+        var partly = ProgressStepperRules.ResolveShowStatus(
+            MediaStatus.Planned, null, null, allCompleted: false, anyWatched: true, now);
+        AssertEqual(failures, MediaStatus.InProgress, partly.Status, "a watched season moves a planned show to in progress");
+        AssertEqual(failures, now, partly.StartedAt, "starting stamps the start date");
+
+        var rewound = ProgressStepperRules.ResolveShowStatus(
+            MediaStatus.Completed, started, now, allCompleted: false, anyWatched: false, now);
+        AssertEqual(failures, MediaStatus.Planned, rewound.Status, "rewinding to zero returns the show to planned");
+        AssertEqual(failures, null, rewound.StartedAt, "rewinding clears the start date");
+        AssertEqual(failures, null, rewound.FinishedAt, "rewinding clears the finish date");
+    }
+
+    private static void CheckVolumeProgressStepper(List<string> failures)
+    {
+        AssertEqual(
+            failures,
+            MediaStatus.Completed,
+            ProgressStepperRules.ResolveVolumeStatus(currentPage: 0, totalPages: 0, currentChapter: 40, totalChapters: 40),
+            "finishing the chapters completes the volume");
+
+        AssertEqual(
+            failures,
+            MediaStatus.Completed,
+            ProgressStepperRules.ResolveVolumeStatus(currentPage: 200, totalPages: 200, currentChapter: 0, totalChapters: 0),
+            "finishing the pages completes the volume");
+
+        AssertEqual(
+            failures,
+            MediaStatus.InProgress,
+            ProgressStepperRules.ResolveVolumeStatus(currentPage: 3, totalPages: 200, currentChapter: 0, totalChapters: 0),
+            "a partial read is in progress");
+
+        AssertEqual(
+            failures,
+            MediaStatus.Planned,
+            ProgressStepperRules.ResolveVolumeStatus(currentPage: 0, totalPages: 200, currentChapter: 0, totalChapters: 0),
+            "an untouched volume stays planned");
+    }
+
     private static void CheckStatusTransitions(List<string> failures)
     {
         var show = new TvShow { Title = "Frieren" };
@@ -204,6 +270,28 @@ public static class RefactorSelfCheck
         }
 
         AssertTrue(failures, threw, "stream rejects a body past the limit");
+    }
+
+    /// <summary>
+    /// The built-in provider keys resolve without lowercasing the id first, so the case-insensitive
+    /// comparison is the only thing keeping "TMDB" working.
+    /// </summary>
+    private static void CheckApiKeyLookup(List<string> failures)
+    {
+        var options = new ExternalApiOptions();
+
+        options.SetKey("TMDB", "tmdb-secret");
+        options.SetKey("TheTVDB", "tvdb-secret");
+        options.SetKey("SomeCustomProvider", "custom-secret");
+
+        AssertEqual(failures, "tmdb-secret", options.GetKey("tmdb"), "built-in key stored");
+        AssertEqual(failures, "tmdb-secret", options.GetKey("TMDB"), "built-in key resolves regardless of case");
+        AssertEqual(failures, "tvdb-secret", options.GetKey("thetvdb"), "alias resolves to the same slot");
+        AssertEqual(failures, "custom-secret", options.GetKey("SomeCustomProvider"), "custom key resolves regardless of case");
+        AssertEqual(failures, null, options.GetKey("unknown"), "unknown provider has no key");
+
+        options.SetKey(" igdb ", "igdb-secret");
+        AssertEqual(failures, "igdb-secret", options.GetKey("igdb"), "surrounding whitespace is trimmed");
     }
 
     private static void AssertTrue(List<string> failures, bool condition, string label)

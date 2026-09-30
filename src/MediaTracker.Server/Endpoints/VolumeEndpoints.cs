@@ -33,48 +33,62 @@ public static class VolumeEndpoints
             return Results.ValidationProblem(validationResult.ToDictionary());
         }
 
-        var volume = await db.MangaVolumes.Include(v => v.Manga).SingleOrDefaultAsync(item => item.Id == id, ct);
+        // Stepper hot path: project the four scalars the decision needs and UPDATE directly, instead of
+        // tracking the volume plus its parent manga and flushing the whole graph through SaveChanges.
+        var volume = await db.MangaVolumes
+            .AsNoTracking()
+            .Where(item => item.Id == id)
+            .Select(item => new
+            {
+                item.TotalPages,
+                item.TotalChapters,
+                item.MangaId,
+                item.VolumeNumber,
+                item.CurrentPage,
+                item.CurrentChapter,
+            })
+            .FirstOrDefaultAsync(ct);
+
         if (volume is null)
         {
             return Results.NotFound();
         }
 
-        if (request.CurrentPage.HasValue)
+        var currentPage = request.CurrentPage is { } requestedPage
+            ? ProgressStepperRules.Clamp(requestedPage, volume.TotalPages)
+            : (int?)null;
+
+        var currentChapter = request.CurrentChapter is { } requestedChapter
+            ? ProgressStepperRules.Clamp(requestedChapter, volume.TotalChapters)
+            : (int?)null;
+
+        var nextPage = currentPage ?? volume.CurrentPage;
+        var nextChapter = currentChapter ?? volume.CurrentChapter;
+
+        // nextPage/nextChapter fall back to the stored value, so writing both is a no-op for the
+        // counter the caller did not touch and keeps the whole stepper write to a single UPDATE.
+        var newStatus = ProgressStepperRules.ResolveVolumeStatus(
+            nextPage, volume.TotalPages, nextChapter, volume.TotalChapters);
+
+        await db.MangaVolumes
+            .Where(item => item.Id == id)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(item => item.CurrentPage, nextPage)
+                .SetProperty(item => item.CurrentChapter, nextChapter)
+                .SetProperty(item => item.Status, newStatus), ct);
+
+        if (volume.MangaId != Guid.Empty)
         {
-            var page = Math.Max(request.CurrentPage.Value, 0);
-            volume.CurrentPage = volume.TotalPages > 0 ? Math.Min(page, volume.TotalPages) : page;
+            await db.Manga
+                .Where(item => item.Id == volume.MangaId)
+                .ExecuteUpdateAsync(
+                    s => (currentChapter is { } chapter
+                        ? s.SetProperty(item => item.CurrentChapter, chapter)
+                        : s)
+                    .SetProperty(item => item.CurrentVolume, volume.VolumeNumber),
+                    ct);
         }
 
-        if (request.CurrentChapter.HasValue)
-        {
-            var chapter = Math.Max(request.CurrentChapter.Value, 0);
-            volume.CurrentChapter = volume.TotalChapters > 0 ? Math.Min(chapter, volume.TotalChapters) : chapter;
-        }
-
-        if ((volume.TotalChapters > 0 && volume.CurrentChapter >= volume.TotalChapters) ||
-            (volume.TotalPages > 0 && volume.CurrentPage >= volume.TotalPages))
-        {
-            volume.Status = MediaStatus.Completed;
-        }
-        else if (volume.CurrentPage > 0 || volume.CurrentChapter > 0)
-        {
-            volume.Status = MediaStatus.InProgress;
-        }
-        else
-        {
-            volume.Status = MediaStatus.Planned;
-        }
-
-        if (volume.Manga is not null)
-        {
-            volume.Manga.CurrentVolume = volume.VolumeNumber;
-            if (request.CurrentChapter.HasValue)
-            {
-                volume.Manga.CurrentChapter = request.CurrentChapter.Value;
-            }
-        }
-
-        await db.SaveChangesAsync(ct);
         return Results.NoContent();
     }
 

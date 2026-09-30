@@ -55,7 +55,7 @@ public sealed class TmdbMetadataProvider(
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Failed to search TMDB for {Query}", query);
-            return [];
+            throw;
         }
     }
 
@@ -85,6 +85,7 @@ public sealed class TmdbMetadataProvider(
             catch (Exception ex)
             {
                 logger.LogWarning(ex, "Failed to get TMDB details for {Id}", externalId);
+                throw;
             }
         }
 

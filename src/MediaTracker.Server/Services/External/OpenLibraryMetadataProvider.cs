@@ -31,10 +31,6 @@ public sealed class OpenLibraryMetadataProvider(IHttpClientFactory httpClientFac
         {
             throw;
         }
-        catch
-        {
-            return [];
-        }
     }
 
     public async Task<ExternalMediaDto?> GetDetailsAsync(string externalId, string title, CancellationToken ct)

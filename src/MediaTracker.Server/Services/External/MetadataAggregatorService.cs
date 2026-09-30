@@ -38,45 +38,55 @@ public sealed class MetadataAggregatorService(
 
         if (!string.IsNullOrWhiteSpace(source))
         {
+            // An explicit source is a hard request: never silently substitute a different
+            // provider's entity for it, the caller's id only means something to that source.
             var directProvider = providerResolver.Resolve(normalizedType, source);
-            if (directProvider is not null)
+            if (directProvider is null)
             {
-                try
-                {
-                    initialDetails = await directProvider.GetDetailsAsync(externalId, title, ct);
-                }
-                catch (OperationCanceledException) when (ct.IsCancellationRequested)
-                {
-                    throw;
-                }
-                catch (Exception ex)
-                {
-                    logger.LogDebug(ex, "[Aggregator] Direct provider '{Source}' GetDetailsAsync failed: {Message}", source, ex.Message);
-                }
+                logger.LogWarning("[Aggregator] Source '{Source}' is not registered for type '{Type}'", source, normalizedType);
+                return null;
             }
+
+            try
+            {
+                initialDetails = await directProvider.GetDetailsAsync(externalId, title, ct);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "[Aggregator] Direct provider '{Source}' GetDetailsAsync failed: {Message}", source, ex.Message);
+                throw new SourceUnavailableException(source, ex.Message, ex);
+            }
+
+            if (initialDetails is null)
+            {
+                return null;
+            }
+
+            return await EnrichAsync(initialDetails, normalizedType, ct);
         }
 
-        if (initialDetails is null)
+        var prioritySources = await priorityService.GetPrioritiesAsync(normalizedType, ct);
+        foreach (var src in prioritySources)
         {
-            var prioritySources = await priorityService.GetPrioritiesAsync(normalizedType, ct);
-            foreach (var src in prioritySources)
-            {
-                var provider = providerResolver.Resolve(normalizedType, src);
-                if (provider is null) continue;
+            var provider = providerResolver.Resolve(normalizedType, src);
+            if (provider is null) continue;
 
-                try
-                {
-                    initialDetails = await provider.GetDetailsAsync(externalId, title, ct);
-                    if (initialDetails is not null) break;
-                }
-                catch (OperationCanceledException) when (ct.IsCancellationRequested)
-                {
-                    throw;
-                }
-                catch (Exception ex)
-                {
-                    logger.LogDebug(ex, "[Aggregator] Priority provider '{Source}' GetDetailsAsync failed: {Message}", src, ex.Message);
-                }
+            try
+            {
+                initialDetails = await provider.GetDetailsAsync(externalId, title, ct);
+                if (initialDetails is not null) break;
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                logger.LogDebug(ex, "[Aggregator] Priority provider '{Source}' GetDetailsAsync failed: {Message}", src, ex.Message);
             }
         }
 

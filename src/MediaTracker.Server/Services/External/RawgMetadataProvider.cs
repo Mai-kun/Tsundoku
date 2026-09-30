@@ -47,7 +47,7 @@ public sealed class RawgMetadataProvider(
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Failed to search RAWG for {Query}", query);
-            return [];
+            throw;
         }
     }
 
@@ -75,6 +75,7 @@ public sealed class RawgMetadataProvider(
             catch (Exception ex)
             {
                 logger.LogWarning(ex, "Failed to get RAWG details for {Id}", externalId);
+                throw;
             }
         }
 

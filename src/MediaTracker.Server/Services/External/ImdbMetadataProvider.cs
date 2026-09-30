@@ -35,10 +35,6 @@ public sealed class ImdbMetadataProvider(IHttpClientFactory httpClientFactory) :
         {
             throw;
         }
-        catch
-        {
-            return [];
-        }
     }
 
     public async Task<ExternalMediaDto?> GetDetailsAsync(string externalId, string title, CancellationToken ct)

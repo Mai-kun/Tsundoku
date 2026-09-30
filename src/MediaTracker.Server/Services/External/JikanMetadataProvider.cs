@@ -42,7 +42,7 @@ public sealed partial class JikanMetadataProvider(
         catch (Exception ex)
         {
             logger?.LogWarning(ex, "[Jikan] Search failed for '{Query}' ({Endpoint}): {Message}", query, endpoint, ex.Message);
-            return [];
+            throw;
         }
     }
 
@@ -74,7 +74,7 @@ public sealed partial class JikanMetadataProvider(
         catch (Exception ex)
         {
             logger?.LogWarning(ex, "[Jikan] Failed fetching details for ID {ExternalId}: {Message}", externalId, ex.Message);
-            return null;
+            throw;
         }
     }
 

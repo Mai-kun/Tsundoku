@@ -29,10 +29,6 @@ public sealed class SteamMetadataProvider(IHttpClientFactory httpClientFactory) 
         {
             throw;
         }
-        catch
-        {
-            return [];
-        }
     }
 
     public async Task<ExternalMediaDto?> GetDetailsAsync(string externalId, string title, CancellationToken ct)
@@ -87,10 +83,6 @@ public sealed class SteamMetadataProvider(IHttpClientFactory httpClientFactory) 
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
             throw;
-        }
-        catch
-        {
-            return null;
         }
     }
 

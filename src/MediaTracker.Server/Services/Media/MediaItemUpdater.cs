@@ -23,7 +23,8 @@ public static class MediaItemUpdater
         item.Genres = request.Genres ?? item.Genres;
         item.Tags = request.Tags ?? item.Tags;
         item.UnlockedAchievements = request.UnlockedAchievements ?? item.UnlockedAchievements;
-        item.UserPlatform = request.UserPlatform ?? item.UserPlatform;
+        item.WatchedOn = request.ClearWatchedOn ? null : request.WatchedOn ?? item.WatchedOn;
+        item.UserPlatform = request.ClearUserPlatform ? null : request.UserPlatform ?? item.UserPlatform;
         item.FranchiseOrder = request.FranchiseOrder ?? item.FranchiseOrder;
 
         if (request.Status is { } status)

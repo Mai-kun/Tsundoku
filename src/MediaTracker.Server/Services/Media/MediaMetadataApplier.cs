@@ -83,6 +83,77 @@ public static class MediaMetadataApplier
             modified = true;
         }
 
+        modified |= ApplyDisplayGaps(item, external);
+
+        return modified;
+    }
+
+    /// <summary>
+    /// Enrich only fills what the user has not filled. Runtime and studio were missing from this
+    /// path entirely, so background enrichment never produced them and only an explicit refresh did.
+    /// </summary>
+    private static bool ApplyDisplayGaps(MediaItem item, ExternalMediaDto external)
+    {
+        var modified = false;
+
+        switch (item)
+        {
+            case Movie movie:
+                if (movie.DurationMinutes <= 0 && (external.RuntimeMinutes is > 0 || external.TotalCount is > 0))
+                {
+                    movie.DurationMinutes = external.RuntimeMinutes ?? external.TotalCount!.Value;
+                    modified = true;
+                }
+
+                if (string.IsNullOrWhiteSpace(movie.Studio) && !string.IsNullOrWhiteSpace(external.Studio))
+                {
+                    movie.Studio = external.Studio;
+                    modified = true;
+                }
+
+                if (string.IsNullOrWhiteSpace(movie.Director) && !string.IsNullOrWhiteSpace(external.Author))
+                {
+                    movie.Director = external.Author;
+                    modified = true;
+                }
+
+                if (string.IsNullOrWhiteSpace(movie.RomajiTitle) && !string.IsNullOrWhiteSpace(external.OriginalTitle))
+                {
+                    movie.RomajiTitle = external.OriginalTitle;
+                    modified = true;
+                }
+
+                break;
+
+            case TvShow show:
+                if (show.EpisodeDurationMinutes <= 0 && external.RuntimeMinutes is > 0)
+                {
+                    show.EpisodeDurationMinutes = external.RuntimeMinutes.Value;
+                    modified = true;
+                }
+
+                if (string.IsNullOrWhiteSpace(show.Studio) && !string.IsNullOrWhiteSpace(external.Studio))
+                {
+                    show.Studio = external.Studio;
+                    show.Network = external.Studio;
+                    modified = true;
+                }
+
+                break;
+        }
+
+        if (item.ReleaseYear is null && external.ReleaseYear is > 0)
+        {
+            item.ReleaseYear = external.ReleaseYear;
+            modified = true;
+        }
+
+        if (item.ReleaseDate is null && DateTime.TryParse(external.ReleaseDate, out var releaseDate))
+        {
+            item.ReleaseDate = releaseDate;
+            modified = true;
+        }
+
         return modified;
     }
 
@@ -148,18 +219,33 @@ public static class MediaMetadataApplier
 
     private static void ApplyDates(MediaItem item, ExternalMediaDto external)
     {
+        // "2021" / "2021-03" mean the source only knows that much; inventing Jan 1 for the missing
+        // part is the lie behind "1 January 2021", so the date stays unset and the year is stored raw.
         if (DateTime.TryParse(external.ReleaseDate, out var releaseDate))
         {
             item.ReleaseDate = releaseDate;
         }
-        else if (external.ReleaseYear is > 0 && item.ReleaseDate is null)
+        else
         {
-            item.ReleaseDate = new DateTime(external.ReleaseYear.Value, 1, 1);
+            item.ReleaseDate = null;
         }
 
         if (DateTime.TryParse(external.EndDate, out var endDate))
         {
             item.EndDate = endDate;
+        }
+        else
+        {
+            item.EndDate = null;
+        }
+
+        if (external.ReleaseYear is > 0)
+        {
+            item.ReleaseYear = external.ReleaseYear;
+        }
+        else if (item.ReleaseDate is { } derived)
+        {
+            item.ReleaseYear = derived.Year;
         }
 
         item.ReleaseStatus = !string.IsNullOrWhiteSpace(external.ReleaseStatus)

@@ -93,6 +93,8 @@ public static class MediaItemFactory
         item.ExternalRatingVotes = request.ExternalRatingVotes;
         item.ExternalRatingsJson = request.ExternalRatingsJson;
         item.ReleaseDate = request.ReleaseDate;
+        item.ReleaseYear = request.ReleaseYear ?? request.ReleaseDate?.Year;
+        item.WatchedOn = request.WatchedOn;
         item.EndDate = request.EndDate;
         item.ReleaseStatus = !string.IsNullOrWhiteSpace(request.ReleaseStatus)
             ? request.ReleaseStatus

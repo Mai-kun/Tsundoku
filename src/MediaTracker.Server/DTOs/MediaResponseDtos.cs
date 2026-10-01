@@ -21,6 +21,11 @@ public record MediaListDto
 
     public DateTime? ReleaseDate { get; init; }
 
+    public int? ReleaseYear { get; init; }
+
+    /// <summary>Where the user watched/read it. Free text or one of the known sites.</summary>
+    public string? WatchedOn { get; init; }
+
     public DateTime? EndDate { get; init; }
 
     public string? ReleaseStatus { get; init; }
@@ -267,6 +272,8 @@ public static class MediaResponseMapper
         StartedAt = item.StartedAt,
         FinishedAt = item.FinishedAt,
         ReleaseDate = item.ReleaseDate,
+        ReleaseYear = item.ReleaseYear,
+        WatchedOn = item.WatchedOn,
         EndDate = item.EndDate,
         ReleaseStatus = item.ReleaseStatus,
         Notes = item.Notes,

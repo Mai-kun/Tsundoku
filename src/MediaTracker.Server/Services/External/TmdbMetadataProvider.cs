@@ -115,7 +115,13 @@ public sealed class TmdbMetadataProvider(
             ReleaseYear = ParseYear(isMovie ? item.ReleaseDate : item.FirstAirDate),
             ReleaseDate = isMovie ? item.ReleaseDate : item.FirstAirDate,
             ReleaseStatus = item.Status,
-            RuntimeMinutes = isMovie ? item.Runtime : null,
+            // Movies carry a runtime, series only an average per-episode one; both live in `runtime`.
+            RuntimeMinutes = item.Runtime,
+            // TMDb returns the production companies but the provider never mapped them, so the studio
+            // field stayed empty even though the source had the data all along.
+            Studio = isMovie
+                ? item.ProductionCompanies?.FirstOrDefault(c => !string.IsNullOrWhiteSpace(c.Name))?.Name
+                : item.Networks?.FirstOrDefault(n => !string.IsNullOrWhiteSpace(n.Name))?.Name,
             Type = mediaType,
             Rating = rating,
             RatingVotes = item.VoteCount,
@@ -143,5 +149,11 @@ public sealed class TmdbMetadataProvider(
         [property: JsonPropertyName("vote_count")] int? VoteCount,
         [property: JsonPropertyName("runtime")] int? Runtime,
         [property: JsonPropertyName("number_of_episodes")] int? NumberOfEpisodes,
-        [property: JsonPropertyName("status")] string? Status);
+        [property: JsonPropertyName("status")] string? Status,
+        [property: JsonPropertyName("production_companies")] List<TmdbNamedItem>? ProductionCompanies,
+        [property: JsonPropertyName("networks")] List<TmdbNamedItem>? Networks);
+
+    private sealed record TmdbNamedItem(
+        [property: JsonPropertyName("id")] long Id,
+        [property: JsonPropertyName("name")] string? Name);
 }

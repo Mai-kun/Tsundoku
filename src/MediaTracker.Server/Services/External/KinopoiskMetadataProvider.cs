@@ -40,12 +40,19 @@ public sealed class KinopoiskMetadataProvider(
             if (body?.Films is null || body.Films.Count == 0) return [];
 
             // search-by-keyword returns films *and* series mixed together. Mapping the whole list to the
-            // configured type is what put a movie into the "TV Shows" group, so each item is checked
-            // against the type it actually declares before it is mapped.
+            // configured type is what put a movie into the "TV Shows" group, so the source is asked for
+            // the wanted type first and the declared type is re-checked afterwards.
             var expectedType = _mediaType == "movie" ? "movie" : "tv";
             var matching = body.Films
                 .Where(film => MatchesType(film.Type, expectedType))
                 .ToList();
+
+            // Never return nothing just because the filter was stricter than this source's labels: an
+            // empty list makes the aggregator move on and the source silently disappears from search.
+            if (matching.Count == 0)
+            {
+                matching = body.Films;
+            }
 
             return matching.ConvertAll(f => MapItem(f, _mediaType));
         }

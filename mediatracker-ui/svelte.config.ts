@@ -1,5 +1,5 @@
-import type { SvelteConfig } from '@sveltejs/vite-plugin-svelte'
+import type { SvelteConfig } from "@sveltejs/vite-plugin-svelte";
 
-const config: SvelteConfig = {}
+const config: SvelteConfig = {};
 
-export default config
+export default config;

@@ -1,978 +1,1224 @@
 <script lang="ts">
-  import ArrowLeft from 'lucide-svelte/icons/arrow-left'
-  import ArrowUpDown from 'lucide-svelte/icons/arrow-up-down'
-  import Bookmark from 'lucide-svelte/icons/bookmark'
-  import CalendarDays from 'lucide-svelte/icons/calendar-days'
-  import Check from 'lucide-svelte/icons/check'
-  import CheckCircle2 from 'lucide-svelte/icons/check-circle-2'
-  import ChevronDown from 'lucide-svelte/icons/chevron-down'
-  import ExternalLink from 'lucide-svelte/icons/external-link'
-  import Eye from 'lucide-svelte/icons/eye'
-  import GitBranch from 'lucide-svelte/icons/git-branch'
-  import ImageIcon from 'lucide-svelte/icons/image'
-  import Languages from 'lucide-svelte/icons/languages'
-  import Layers from 'lucide-svelte/icons/layers'
-  import LayoutGrid from 'lucide-svelte/icons/layout-grid'
-  import List from 'lucide-svelte/icons/list'
-  import Minus from 'lucide-svelte/icons/minus'
-  import Pause from 'lucide-svelte/icons/pause'
-  import Pencil from 'lucide-svelte/icons/pencil'
-  import Play from 'lucide-svelte/icons/play'
-  import Plus from 'lucide-svelte/icons/plus'
-  import RefreshCw from 'lucide-svelte/icons/refresh-cw'
-  import RotateCcw from 'lucide-svelte/icons/rotate-ccw'
-  import Sparkles from 'lucide-svelte/icons/sparkles'
-  import Star from 'lucide-svelte/icons/star'
-  import Trash2 from 'lucide-svelte/icons/trash-2'
-  import Trophy from 'lucide-svelte/icons/trophy'
-  import X from 'lucide-svelte/icons/x'
-  import { addVolume, createMedia, deleteVolume, enrichMedia, errorMessage, getExternalDetails, getGameAchievements, getGameRecommendations, getGameRelated, getMedia, getSources, refreshMetadata, setProgress, setSeasonProgress, setVolumeProgress, translateText, updateMedia, updateStatus, updateVolume } from '$lib/api'
-  import { i18n } from '$lib/i18n/index.svelte'
-  import { showToast } from '$lib/stores/toast.svelte'
-  import { clampProgress, isMangaDetail, isTvShowDetail, MEDIA_STATUS, type AppView, type GameAchievementItem, type MangaVolume, type MediaDetail, type MediaItem, type MediaStatus, type SourceInfo, type TvSeason } from '$lib/types'
-  import { createProgressDebounce } from '$lib/utils/progressDebounce'
-  import { loadMediaDetail, mediaDetailCache } from '$lib/utils/mediaDetailPrefetch'
-  import { createPrefetchCache } from '$lib/utils/prefetchCache'
+    import ArrowLeft from "lucide-svelte/icons/arrow-left";
+    import ArrowUpDown from "lucide-svelte/icons/arrow-up-down";
+    import Bookmark from "lucide-svelte/icons/bookmark";
+    import CalendarDays from "lucide-svelte/icons/calendar-days";
+    import Check from "lucide-svelte/icons/check";
+    import CheckCircle2 from "lucide-svelte/icons/check-circle-2";
+    import ChevronDown from "lucide-svelte/icons/chevron-down";
+    import ExternalLink from "lucide-svelte/icons/external-link";
+    import Eye from "lucide-svelte/icons/eye";
+    import GitBranch from "lucide-svelte/icons/git-branch";
+    import ImageIcon from "lucide-svelte/icons/image";
+    import Languages from "lucide-svelte/icons/languages";
+    import Layers from "lucide-svelte/icons/layers";
+    import LayoutGrid from "lucide-svelte/icons/layout-grid";
+    import List from "lucide-svelte/icons/list";
+    import Minus from "lucide-svelte/icons/minus";
+    import Pause from "lucide-svelte/icons/pause";
+    import Pencil from "lucide-svelte/icons/pencil";
+    import Play from "lucide-svelte/icons/play";
+    import Plus from "lucide-svelte/icons/plus";
+    import RefreshCw from "lucide-svelte/icons/refresh-cw";
+    import RotateCcw from "lucide-svelte/icons/rotate-ccw";
+    import Sparkles from "lucide-svelte/icons/sparkles";
+    import Star from "lucide-svelte/icons/star";
+    import Trash2 from "lucide-svelte/icons/trash-2";
+    import Trophy from "lucide-svelte/icons/trophy";
+    import X from "lucide-svelte/icons/x";
+    import {
+        addVolume,
+        createMedia,
+        deleteVolume,
+        enrichMedia,
+        errorMessage,
+        getExternalDetails,
+        getGameAchievements,
+        getGameRecommendations,
+        getGameRelated,
+        getMedia,
+        getSources,
+        refreshMetadata,
+        setProgress,
+        setSeasonProgress,
+        setVolumeProgress,
+        translateText,
+        updateMedia,
+        updateStatus,
+        updateVolume,
+    } from "$lib/api";
+    import { i18n } from "$lib/i18n/index.svelte";
+    import { showToast } from "$lib/stores/toast.svelte";
+    import {
+        clampProgress,
+        isMangaDetail,
+        isTvShowDetail,
+        MEDIA_STATUS,
+        type AppView,
+        type GameAchievementItem,
+        type MangaVolume,
+        type MediaDetail,
+        type MediaItem,
+        type MediaStatus,
+        type SourceInfo,
+        type TvSeason,
+    } from "$lib/types";
+    import { createProgressDebounce } from "$lib/utils/progressDebounce";
+    import {
+        loadMediaDetail,
+        mediaDetailCache,
+    } from "$lib/utils/mediaDetailPrefetch";
+    import { createPrefetchCache } from "$lib/utils/prefetchCache";
 
-  /** Обновление после мутации: кэш заведомо устарел, поэтому идём в сеть и перезаписываем его. */
-  async function refreshMediaDetail(id: string) {
-    mediaDetailCache.invalidate(id)
-    return loadMediaDetail(id)
-  }
-  import CircularCounter from '$lib/components/ui/CircularCounter.svelte'
-  import PopoverMenu from '$lib/components/ui/PopoverMenu.svelte'
-  import Modal from '$lib/components/ui/Modal.svelte'
+    /** Обновление после мутации: кэш заведомо устарел, поэтому идём в сеть и перезаписываем его. */
+    async function refreshMediaDetail(id: string) {
+        mediaDetailCache.invalidate(id);
+        return loadMediaDetail(id);
+    }
+    import CircularCounter from "$lib/components/ui/CircularCounter.svelte";
+    import PopoverMenu from "$lib/components/ui/PopoverMenu.svelte";
+    import Modal from "$lib/components/ui/Modal.svelte";
 
-  interface Props {
-    mediaId: string
-    refreshKey: number
-    onBack: () => void
-    onUpdate: () => void
-    onDelete: (id: string) => Promise<void>
-    onEdit: (item: MediaItem) => void
-    onOpenRelated: (item: MediaItem) => void
-    onNavigate?: (view: AppView) => void
-  }
-
-  interface ProgressInfo {
-    current: number
-    total: number | null
-    editable: boolean
-    label: string
-  }
-
-  interface EpisodeRow {
-    id: string
-    number: number
-    title: string
-    airDate: string | null
-    description: string | null
-    watched: boolean
-  }
-
-  interface RecommendationItem {
-    id: string
-    title: string
-    coverUrl: string | null
-    score: number | null
-    type: string
-  }
-
-  interface RelatedEntry {
-    id: string
-    title: string
-    originalTitle?: string | null
-    coverUrl: string | null
-    bannerUrl?: string | null
-    type: string
-    format?: string | null
-    year?: number | null
-    relationType?: string
-    rawRelationType?: string
-    score?: number | null
-    ratings?: { source: string; rating: number }[] | null
-    description?: string | null
-    episodes?: number | null
-    chapters?: number | null
-    volumes?: number | null
-    studio?: string | null
-    author?: string | null
-    romajiTitle?: string | null
-    duration?: number | null
-    releaseDate?: string | null
-    endDate?: string | null
-    releaseStatus?: string | null
-    externalSource?: string | null
-    localItem?: MediaItem
-  }
-
-  interface RatingBadge {
-    source: string
-    score: number | null
-    votes?: number | null
-  }
-
-  const CATEGORY_EXPECTED_SOURCES: Record<string, string[]> = {
-    anime: ['AniList', 'MyAnimeList'],
-    manga: ['AniList', 'MangaDex', 'MangaUpdates', 'MyAnimeList'],
-    movie: ['TMDB'],
-    tvshow: ['TMDB'],
-    game: ['RAWG', 'Steam', 'IGDB'],
-    book: ['OpenLibrary', 'Google Books'],
-  }
-
-  let { mediaId, refreshKey, onBack, onUpdate, onDelete, onEdit, onOpenRelated, onNavigate = () => {} }: Props = $props()
-
-  const statusOptions: readonly MediaStatus[] = [
-    MEDIA_STATUS.planned,
-    MEDIA_STATUS.inProgress,
-    MEDIA_STATUS.completed,
-    MEDIA_STATUS.onHold,
-    MEDIA_STATUS.dropped,
-  ]
-  const maxEpisodesPerSeason = 200
-
-  let media = $state<MediaDetail | null>(null)
-  let isLoading = $state(true)
-  let loadError = $state<unknown>(null)
-  let requestSequence = 0
-  let trackedMediaId: string | null = null
-
-  let activeSubTab = $state<'overview' | 'episodes' | 'volumes' | 'related' | 'recommendations'>('overview')
-  let episodeSortOrder = $state<'asc' | 'desc'>('asc')
-  let synopsisExpanded = $state(false)
-  let userRatingPopoverOpen = $state(false)
-  let availableSources = $state<SourceInfo[]>([])
-
-  $effect(() => {
-    void getSources()
-      .then((res) => {
-        if (res && res.length > 0) availableSources = res
-      })
-      .catch(() => {})
-  })
-
-  let related = $state<RelatedEntry[]>([])
-  let relatedLoading = $state(false)
-  let relatedError = $state<unknown>(null)
-  let relatedSequence = 0
-  let relatedViewMode = $state<'grouped' | 'timeline' | 'grid'>('grouped')
-  let previewRelatedItem = $state<RelatedEntry | null>(null)
-  let previewStatus = $state<MediaStatus>(MEDIA_STATUS.planned)
-  let previewAddingBusy = $state(false)
-  let previewRelatedLoading = $state(false)
-  let isEnriching = $state(false)
-
-  let previewRelatedBadges = $derived.by<RatingBadge[]>(() => {
-    if (!previewRelatedItem) return []
-    const item = previewRelatedItem
-    const results: RatingBadge[] = []
-    const seen = new Set<string>()
-    const disabledSources = new Set(
-      availableSources
-        .filter((s) => !s.isEnabled)
-        .flatMap((s) => [s.name.toLowerCase(), s.id.toLowerCase()])
-    )
-
-    if (item.ratings && item.ratings.length > 0) {
-      for (const r of item.ratings) {
-        if (!r.source || disabledSources.has(r.source.toLowerCase())) continue
-        seen.add(r.source.toLowerCase())
-        results.push({
-          source: r.source,
-          score: r.rating > 0 ? r.rating : null,
-        })
-      }
+    interface Props {
+        mediaId: string;
+        refreshKey: number;
+        onBack: () => void;
+        onUpdate: () => void;
+        onDelete: (id: string) => Promise<void>;
+        onEdit: (item: MediaItem) => void;
+        onOpenRelated: (item: MediaItem) => void;
+        onNavigate?: (view: AppView) => void;
     }
 
-    if (item.score && !seen.has((item.externalSource || '').toLowerCase())) {
-      const src = item.externalSource || (item.type === 'manga' || item.type === 'anime' ? 'AniList' : 'TMDB')
-      if (!disabledSources.has(src.toLowerCase())) {
-        seen.add(src.toLowerCase())
-        results.push({
-          source: src,
-          score: item.score,
-        })
-      }
+    interface ProgressInfo {
+        current: number;
+        total: number | null;
+        editable: boolean;
+        label: string;
     }
 
-    const cat = item.type === 'anime' || item.type === 'manga' || item.type === 'movie' || item.type === 'tvshow' || item.type === 'game' || item.type === 'book' ? item.type : 'anime'
-    const expected = availableSources.length > 0
-      ? availableSources.filter((s) => s.isEnabled && s.mediaTypes.includes(cat)).map((s) => s.name)
-      : (CATEGORY_EXPECTED_SOURCES[cat] ?? ['AniList'])
-
-    for (const exp of expected) {
-      const expNorm = exp.toLowerCase()
-      const found = Array.from(seen).some((s) => s.includes(expNorm) || expNorm.includes(s))
-      if (!found) {
-        seen.add(expNorm)
-        results.push({
-          source: exp,
-          score: null,
-        })
-      }
+    interface EpisodeRow {
+        id: string;
+        number: number;
+        title: string;
+        airDate: string | null;
+        description: string | null;
+        watched: boolean;
     }
 
-    return results
-  })
-
-  let recommendations = $state<RecommendationItem[]>([])
-  let recommendationsLoading = $state(false)
-  let recommendationsError = $state<unknown>(null)
-
-  let deleteBusy = $state(false)
-  let deleteError = $state<unknown>(null)
-
-  let statusValue = $state<MediaStatus>(MEDIA_STATUS.planned)
-  let statusBusy = $state(false)
-  let statusError = $state<unknown>(null)
-
-  function sourceBadgeClasses(src: string): string {
-    if (src.includes('anilist')) return 'border-[#02a9ff]/30 bg-[#02a9ff]/15 text-[#02a9ff]';
-    if (src.includes('shikimori')) return 'border-[#2e51a2]/40 bg-[#2e51a2]/20 text-[#688ce4]';
-    if (src.includes('mangadex')) return 'border-[#ff6740]/30 bg-[#ff6740]/15 text-[#ff6740]';
-    if (src.includes('myanimelist') || src.includes('jikan') || src.includes('mal'))
-      return 'border-[#2e51a2]/40 bg-[#2e51a2]/20 text-[#7d9bf0]';
-    if (src.includes('tmdb')) return 'border-[#01b4e4]/30 bg-[#01b4e4]/15 text-[#31c3ef]';
-    if (src.includes('rawg')) return 'border-[#f65e22]/30 bg-[#f65e22]/15 text-[#f79069]';
-    if (src.includes('steam')) return 'border-[#1b2838]/60 bg-[#1b2838]/70 text-[#66c0f4]';
-    if (src.includes('igdb')) return 'border-[#9146ff]/30 bg-[#9146ff]/15 text-[#b18cff]';
-    if (src.includes('kitsu')) return 'border-[#fd755c]/30 bg-[#fd755c]/15 text-[#ff9a86]';
-    if (src.includes('simkl')) return 'border-white/[0.14] bg-black/50 text-white';
-    if (src.includes('imdb')) return 'border-[#f5c518]/30 bg-[#f5c518]/15 text-[#f5c518]';
-    if (src.includes('thetvdb') || src.includes('tvdb'))
-      return 'border-[#42b883]/30 bg-[#42b883]/15 text-[#5cc79a]';
-    if (src.includes('mangaupdate')) return 'border-[#3b82f6]/30 bg-[#3b82f6]/15 text-[#60a5fa]';
-    if (src.includes('openlibrary')) return 'border-[#e1d9cb]/25 bg-[#e1d9cb]/10 text-[#e1d9cb]';
-    return 'border-white/[0.12] bg-[var(--color-panel-line)] text-amber-400';
-  }
-
-  let scoreValue = $state<number | null>(null)
-  let ratingBusy = $state(false)
-  let ratingError = $state<unknown>(null)
-
-  let progressValue = $state(0)
-  let committedProgress = $state(0)
-  let pendingSnapshot = $state<number | null>(null)
-  let progressError = $state<unknown>(null)
-
-  let selectedSeasonId = $state<string | null>(null)
-  let episodeBusy = $state('')
-  let refreshBusy = $state(false)
-  let refreshError = $state<unknown>(null)
-
-  const progressDebounce = createProgressDebounce({
-    send: (id, value) => setProgress(id, value),
-    buildRequest: (id, value) => ({ url: `/api/media/${id}/progress`, body: { currentProgress: value } }),
-    onCommitted: (value) => {
-      committedProgress = value
-      if (media && media.type === 'game') {
-        (media as any).hoursPlayed = value
-      }
-      if (progressValue === value) onUpdate()
-    },
-    onError: (error) => {
-      progressValue = pendingSnapshot ?? committedProgress
-      committedProgress = progressValue
-      pendingSnapshot = null
-      progressError = error
-    },
-  })
-
-  let progressInfo = $derived(media ? readProgress(media) : null)
-  let seasons = $derived(media && isTvShowDetail(media) ? media.seasons ?? [] : [])
-  let seasonViews = $derived(seasons.map((season) => ({ season, episodes: buildEpisodes(season) })))
-  let season = $derived(seasonViews.find((view) => view.season.id === selectedSeasonId) ?? seasonViews[0] ?? null)
-  let episodes = $derived(season?.episodes ?? [])
-  let sortedEpisodes = $derived.by(() => {
-    const list = [...episodes]
-    return episodeSortOrder === 'asc' ? list : list.reverse()
-  })
-  let currentSeason = $derived(season?.season ?? null)
-  let originalTitle = $derived(media ? readOriginalTitle(media) : null)
-  let synopsisText = $derived(media?.notes?.trim() ?? '')
-  let synopsisExpandable = $derived(synopsisText.length > 280)
-  let isSynopsisTranslated = $state(false)
-  let translatingSynopsis = $state(false)
-  let translatedSynopsis = $state<string | null>(null)
-
-  async function toggleTranslateSynopsis() {
-    if (!media || !synopsisText || translatingSynopsis) return
-
-    if (isSynopsisTranslated) {
-      isSynopsisTranslated = false
-      return
+    interface RecommendationItem {
+        id: string;
+        title: string;
+        coverUrl: string | null;
+        score: number | null;
+        type: string;
     }
 
-    // Check if we already have a cached translation in DB matching current language
-    const targetLang = i18n.current === 'en' ? 'en' : 'ru'
-    if (media.translatedSynopsis && media.translationLanguage === targetLang) {
-      translatedSynopsis = media.translatedSynopsis
-      isSynopsisTranslated = true
-      return
+    interface RelatedEntry {
+        id: string;
+        title: string;
+        originalTitle?: string | null;
+        coverUrl: string | null;
+        bannerUrl?: string | null;
+        type: string;
+        format?: string | null;
+        year?: number | null;
+        relationType?: string;
+        rawRelationType?: string;
+        score?: number | null;
+        ratings?: { source: string; rating: number }[] | null;
+        description?: string | null;
+        episodes?: number | null;
+        chapters?: number | null;
+        volumes?: number | null;
+        studio?: string | null;
+        author?: string | null;
+        romajiTitle?: string | null;
+        duration?: number | null;
+        releaseDate?: string | null;
+        endDate?: string | null;
+        releaseStatus?: string | null;
+        externalSource?: string | null;
+        localItem?: MediaItem;
     }
 
-    if (translatedSynopsis) {
-      isSynopsisTranslated = true
-      return
+    interface RatingBadge {
+        source: string;
+        score: number | null;
+        votes?: number | null;
     }
 
-    translatingSynopsis = true
-    try {
-      const res = await translateText(synopsisText, targetLang)
-      if (res?.translatedText) {
-        translatedSynopsis = res.translatedText
-        isSynopsisTranslated = true
-        // Persist to DB (fire-and-forget, don't block UI)
-        updateMedia(media.id, { translatedSynopsis: res.translatedText, translationLanguage: targetLang }).catch(() => {})
-      }
-    } catch (err) {
-      showToast(errorMessage(err), 'error')
-    } finally {
-      translatingSynopsis = false
-    }
-  }
+    const CATEGORY_EXPECTED_SOURCES: Record<string, string[]> = {
+        anime: ["AniList", "MyAnimeList"],
+        manga: ["AniList", "MangaDex", "MangaUpdates", "MyAnimeList"],
+        movie: ["TMDB"],
+        tvshow: ["TMDB"],
+        game: ["RAWG", "Steam", "IGDB"],
+        book: ["OpenLibrary", "Google Books"],
+    };
 
-  let hasRelatedMedia = $derived(related.length > 0 || relatedLoading || relatedError !== null)
+    let {
+        mediaId,
+        refreshKey,
+        onBack,
+        onUpdate,
+        onDelete,
+        onEdit,
+        onOpenRelated,
+        onNavigate = () => {},
+    }: Props = $props();
 
-  let nextEpisode = $derived.by(() => {
-    if (!currentSeason) return null
-    const watched = currentSeason.currentEpisode ?? 0
-    const total = currentSeason.totalEpisodes ?? 0
-    if (watched >= total) return null
-    return episodes.find((e) => e.number === watched + 1) ?? null
-  })
+    const statusOptions: readonly MediaStatus[] = [
+        MEDIA_STATUS.planned,
+        MEDIA_STATUS.inProgress,
+        MEDIA_STATUS.completed,
+        MEDIA_STATUS.onHold,
+        MEDIA_STATUS.dropped,
+    ];
+    const maxEpisodesPerSeason = 200;
 
-  let progressPercent = $derived.by(() => {
-    const info = progressInfo
-    if (!info || info.total === null || info.total <= 0) return 0
-    return Math.min(progressValue / info.total, 1) * 100
-  })
+    let media = $state<MediaDetail | null>(null);
+    let isLoading = $state(true);
+    let loadError = $state<unknown>(null);
+    let requestSequence = 0;
+    let trackedMediaId: string | null = null;
 
-  let seasonProgressPercent = $derived.by(() => {
-    if (!currentSeason || !currentSeason.totalEpisodes || currentSeason.totalEpisodes <= 0) return 0
-    return Math.min((currentSeason.currentEpisode ?? 0) / currentSeason.totalEpisodes, 1) * 100
-  })
+    let activeSubTab = $state<
+        "overview" | "episodes" | "volumes" | "related" | "recommendations"
+    >("overview");
+    let episodeSortOrder = $state<"asc" | "desc">("asc");
+    let synopsisExpanded = $state(false);
+    let userRatingPopoverOpen = $state(false);
+    let availableSources = $state<SourceInfo[]>([]);
 
-  let externalRatings = $derived.by<RatingBadge[]>(() => {
-    if (!media) return []
-    const results: RatingBadge[] = []
-    const seen = new Set<string>()
-    const disabledSources = new Set(
-      availableSources
-        .filter((s) => !s.isEnabled)
-        .flatMap((s) => [s.name.toLowerCase(), s.id.toLowerCase()])
-    )
-
-    if (media.externalRatingsJson) {
-      try {
-        const parsed = JSON.parse(media.externalRatingsJson)
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          for (const r of parsed) {
-            const src = (r.source ?? r.Source ?? '').trim()
-            if (!src || disabledSources.has(src.toLowerCase())) continue
-            const rawScore = typeof r.score === 'number' ? r.score : (typeof r.Score === 'number' ? r.Score : (typeof r.rating === 'number' ? r.rating : (typeof r.Rating === 'number' ? r.Rating : null)))
-            const votes = r.votes ?? r.Votes ?? null
-            seen.add(src.toLowerCase())
-            results.push({
-              source: src,
-              score: rawScore !== null && rawScore > 0 ? rawScore : null,
-              votes,
+    $effect(() => {
+        void getSources()
+            .then((res) => {
+                if (res && res.length > 0) availableSources = res;
             })
-          }
-        }
-      } catch {}
-    }
+            .catch(() => {});
+    });
 
-    if (results.length === 0 && typeof media.externalRating === 'number' && media.externalRating > 0) {
-      const src = dataSource(media)
-      if (!disabledSources.has(src.toLowerCase())) {
-        seen.add(src.toLowerCase())
-        results.push({
-          source: src,
-          score: media.externalRating,
-          votes: media.externalRatingVotes,
-        })
-      }
-    }
+    let related = $state<RelatedEntry[]>([]);
+    let relatedLoading = $state(false);
+    let relatedError = $state<unknown>(null);
+    let relatedSequence = 0;
+    let relatedViewMode = $state<"grouped" | "timeline" | "grid">("grouped");
+    let previewRelatedItem = $state<RelatedEntry | null>(null);
+    let previewStatus = $state<MediaStatus>(MEDIA_STATUS.planned);
+    let previewAddingBusy = $state(false);
+    let previewRelatedLoading = $state(false);
+    let isEnriching = $state(false);
 
-    const isAnime = 'isAnime' in media ? Boolean((media as any).isAnime) : false
-    const cat = (isAnime || (media as any).type === 'anime') ? 'anime' : media.type
-    const expected = availableSources.length > 0
-      ? availableSources.filter((s) => s.isEnabled && s.mediaTypes.includes(cat)).map((s) => s.name)
-      : (CATEGORY_EXPECTED_SOURCES[cat] ?? [])
-    for (const exp of expected) {
-      const expNorm = exp.toLowerCase()
-      const found = Array.from(seen).some((s) => s.includes(expNorm) || expNorm.includes(s))
-      if (!found) {
-        seen.add(expNorm)
-        results.push({
-          source: exp,
-          score: null,
-          votes: null,
-        })
-      }
-    }
+    let previewRelatedBadges = $derived.by<RatingBadge[]>(() => {
+        if (!previewRelatedItem) return [];
+        const item = previewRelatedItem;
+        const results: RatingBadge[] = [];
+        const seen = new Set<string>();
+        const disabledSources = new Set(
+            availableSources
+                .filter((s) => !s.isEnabled)
+                .flatMap((s) => [s.name.toLowerCase(), s.id.toLowerCase()]),
+        );
 
-    return results
-  })
-
-  let mangaVolumes = $derived(media && isMangaDetail(media) ? (media.volumes ?? []) : [])
-  let volumeBusy = $state('')
-  let volumeError = $state<unknown>(null)
-
-  function volumeCurrent(vol: MangaVolume): number {
-    return vol.totalChapters > 0 ? vol.currentChapter : vol.currentPage
-  }
-
-  function volumeTotal(vol: MangaVolume): number {
-    return vol.totalChapters > 0 ? vol.totalChapters : (vol.totalPages > 0 ? vol.totalPages : 200)
-  }
-
-  function volumePercent(vol: MangaVolume): number {
-    const total = volumeTotal(vol)
-    return total > 0 ? Math.min((volumeCurrent(vol) / total) * 100, 100) : 0
-  }
-
-  function isVolumeDone(vol: MangaVolume): boolean {
-    const total = volumeTotal(vol)
-    return vol.status === MEDIA_STATUS.completed || (total > 0 && volumeCurrent(vol) >= total)
-  }
-
-  function volumeProgressLabel(vol: MangaVolume): string {
-    if (vol.totalChapters > 0) {
-      return i18n.t.card.chapters(vol.currentChapter, vol.totalChapters)
-    }
-    return `${vol.currentPage} / ${vol.totalPages > 0 ? vol.totalPages : 200} pp.`
-  }
-
-  async function stepVolumePage(vol: MangaVolume, delta: number) {
-    if (!media) return
-    const isChapters = vol.totalChapters > 0
-    const total = volumeTotal(vol)
-    const current = volumeCurrent(vol)
-    const next = Math.max(0, total > 0 ? Math.min(current + delta, total) : current + delta)
-    if (next === current) return
-
-    if (isChapters) {
-      vol.currentChapter = next
-    } else {
-      vol.currentPage = next
-    }
-
-    if (total > 0 && next >= total) {
-      vol.status = MEDIA_STATUS.completed
-    } else if (next > 0) {
-      vol.status = MEDIA_STATUS.inProgress
-    } else {
-      vol.status = MEDIA_STATUS.planned
-    }
-
-    try {
-      volumeBusy = vol.id
-      await setVolumeProgress(vol.id, isChapters ? { currentChapter: next } : { currentPage: next })
-      onUpdate()
-    } catch (err) {
-      volumeError = err
-    } finally {
-      volumeBusy = ''
-    }
-  }
-
-  async function markVolumeComplete(vol: MangaVolume) {
-    if (!media) return
-    const isChapters = vol.totalChapters > 0
-    const total = volumeTotal(vol)
-    if (!total) return
-
-    if (isChapters) {
-      vol.currentChapter = total
-    } else {
-      vol.currentPage = total
-    }
-    vol.status = MEDIA_STATUS.completed
-
-    try {
-      volumeBusy = vol.id
-      await setVolumeProgress(vol.id, isChapters ? { currentChapter: total } : { currentPage: total })
-      onUpdate()
-    } catch (err) {
-      volumeError = err
-    } finally {
-      volumeBusy = ''
-    }
-  }
-
-  async function unmarkVolumeComplete(vol: MangaVolume) {
-    if (!media) return
-    const isChapters = vol.totalChapters > 0
-    if (isChapters) {
-      vol.currentChapter = 0
-    } else {
-      vol.currentPage = 0
-    }
-    vol.status = MEDIA_STATUS.planned
-
-    try {
-      volumeBusy = vol.id
-      await setVolumeProgress(vol.id, isChapters ? { currentChapter: 0 } : { currentPage: 0 })
-      onUpdate()
-    } catch (err) {
-      volumeError = err
-    } finally {
-      volumeBusy = ''
-    }
-  }
-
-  let addVolumeDialogOpen = $state(false)
-  let addVolumeTitle = $state('')
-  let addVolumeChapters = $state(0)
-
-  async function handleAddVolume() {
-    if (!media || media.type !== 'manga') return
-    const volNum = mangaVolumes.length + 1
-    addVolumeTitle = `Volume ${volNum}`
-    addVolumeChapters = 0
-    addVolumeDialogOpen = true
-  }
-
-  async function confirmAddVolume() {
-    if (!media || media.type !== 'manga') return
-    const volNum = mangaVolumes.length + 1
-    addVolumeDialogOpen = false
-    try {
-      volumeBusy = 'add'
-      await addVolume(media.id, {
-        volumeNumber: volNum,
-        title: addVolumeTitle || `Volume ${volNum}`,
-        totalPages: 200,
-        totalChapters: addVolumeChapters,
-        currentPage: 0,
-        currentChapter: 0,
-      })
-      await load(media.id, ++requestSequence, false)
-      onUpdate()
-    } catch (err) {
-      volumeError = err
-    } finally {
-      volumeBusy = ''
-    }
-  }
-
-  async function handleGenerateVolumes() {
-    if (!media || media.type !== 'manga' || !media.totalVolumes) return
-    try {
-      volumeBusy = 'generate'
-      const start = mangaVolumes.length + 1
-      const promises = []
-      for (let i = start; i <= media.totalVolumes; i++) {
-        promises.push(
-          addVolume(media.id, {
-            volumeNumber: i,
-            title: `Volume ${i}`,
-            totalPages: 200,
-            totalChapters: 0,
-            currentPage: 0,
-            currentChapter: 0,
-          })
-        )
-      }
-      await Promise.all(promises)
-      await load(media.id, ++requestSequence, false)
-      onUpdate()
-    } catch (err) {
-      volumeError = err
-    } finally {
-      volumeBusy = ''
-    }
-  }
-
-  let editVolumeDialogOpen = $state(false)
-  let editingVolume = $state<MangaVolume | null>(null)
-  let editVolumeTitle = $state('')
-  let editVolumePages = $state(200)
-  let editVolumeChapters = $state(0)
-  let editVolumeCurrentPage = $state(0)
-  let editVolumeCurrentChapter = $state(0)
-
-  function openEditVolume(vol: MangaVolume) {
-    editingVolume = vol
-    editVolumeTitle = vol.title || `Volume ${vol.volumeNumber}`
-    editVolumePages = vol.totalPages > 0 ? vol.totalPages : 200
-    editVolumeChapters = vol.totalChapters ?? 0
-    editVolumeCurrentPage = vol.currentPage ?? 0
-    editVolumeCurrentChapter = vol.currentChapter ?? 0
-    editVolumeDialogOpen = true
-  }
-
-  async function confirmEditVolume() {
-    if (!editingVolume || !media) return
-    const targetVol = editingVolume
-    editVolumeDialogOpen = false
-    const prevTitle = targetVol.title
-    const prevPages = targetVol.totalPages
-    const prevChapters = targetVol.totalChapters
-    const prevCurrentPage = targetVol.currentPage
-    const prevCurrentChapter = targetVol.currentChapter
-
-    targetVol.title = editVolumeTitle
-    targetVol.totalPages = Math.max(editVolumePages, 1)
-    targetVol.totalChapters = Math.max(editVolumeChapters, 0)
-    targetVol.currentPage = Math.min(Math.max(editVolumeCurrentPage, 0), editVolumePages)
-    targetVol.currentChapter = Math.min(Math.max(editVolumeCurrentChapter, 0), targetVol.totalChapters > 0 ? targetVol.totalChapters : 999999)
-
-    try {
-      volumeBusy = targetVol.id
-      await updateVolume(targetVol.id, {
-        title: editVolumeTitle,
-        totalPages: targetVol.totalPages,
-        totalChapters: targetVol.totalChapters,
-        currentPage: targetVol.currentPage,
-        currentChapter: targetVol.currentChapter,
-      })
-      onUpdate()
-    } catch (err) {
-      targetVol.title = prevTitle
-      targetVol.totalPages = prevPages
-      targetVol.totalChapters = prevChapters
-      targetVol.currentPage = prevCurrentPage
-      targetVol.currentChapter = prevCurrentChapter
-      volumeError = err
-    } finally {
-      volumeBusy = ''
-      editingVolume = null
-    }
-  }
-
-  async function handleDeleteVolume(vol: MangaVolume) {
-    if (!media) return
-    const volName = vol.title || `Volume ${vol.volumeNumber}`
-    if (!confirm(`Delete ${volName}?`)) return
-    const prevVolumes = isMangaDetail(media) ? [...(media.volumes ?? [])] : []
-    if (isMangaDetail(media) && media.volumes) {
-      media.volumes = media.volumes.filter((v) => v.id !== vol.id)
-    }
-    try {
-      volumeBusy = vol.id
-      await deleteVolume(vol.id)
-      onUpdate()
-    } catch (err) {
-      if (isMangaDetail(media)) {
-        media.volumes = prevVolumes
-      }
-      volumeError = err
-    } finally {
-      volumeBusy = ''
-    }
-  }
-
-  $effect(() => {
-    void refreshKey
-    const id = mediaId
-    const isNew = trackedMediaId !== id
-    trackedMediaId = id
-    void load(id, ++requestSequence, isNew)
-  })
-
-  $effect(() => {
-    return () => void progressDebounce.flush(true)
-  })
-
-  // In-memory caches to prevent progress spinner / jog wheel from re-fetching
-  const achievementsCache = createPrefetchCache<{ achievements: GameAchievementItem[]; total: number }>(5 * 60 * 1000)
-  const enrichedMediaIds = new Set<string>()
-
-  let unlockedAchievementNames = $derived.by<Set<string>>(() => {
-    if (!media || !media.unlockedAchievements) return new Set<string>()
-    try {
-      const parsed = JSON.parse(media.unlockedAchievements)
-      if (Array.isArray(parsed)) return new Set<string>(parsed.map((s: string) => String(s).toLowerCase().trim()))
-    } catch {}
-    return new Set<string>()
-  })
-
-  async function toggleAchievement(name: string) {
-    if (!media) return
-    const key = name.toLowerCase().trim()
-    const nextSet = new Set(unlockedAchievementNames)
-    if (nextSet.has(key)) {
-      nextSet.delete(key)
-    } else {
-      nextSet.add(key)
-    }
-    const jsonStr = JSON.stringify(Array.from(nextSet))
-    media.unlockedAchievements = jsonStr
-    try {
-      await updateMedia(media.id, { unlockedAchievements: jsonStr })
-    } catch (err) {
-      console.error('Failed to update unlocked achievements', err)
-    }
-  }
-
-  let gamePlatformOptions = $derived.by(() => {
-    if (!media || media.type !== 'game') return []
-    const opts = new Set<string>()
-    if ((media as any).platform) {
-      for (const p of ((media as any).platform as string).split(',')) {
-        const trimmed = p.trim()
-        if (trimmed) opts.add(trimmed)
-      }
-    }
-    if (media.userPlatform && !opts.has(media.userPlatform)) {
-      opts.add(media.userPlatform)
-    }
-    return Array.from(opts)
-  })
-
-  let statusMenuItems = $derived(
-    statusOptions.map((value) => ({ value, label: statusLabel(value) }))
-  )
-
-  let platformMenuItems = $derived([
-    { value: '', label: i18n.current === 'ru' ? 'Не выбрана' : 'Not selected' },
-    ...gamePlatformOptions.map((p) => ({ value: p, label: p })),
-  ])
-
-  async function updateUserPlatform(val: string) {
-    if (!media) return
-    media.userPlatform = val || null
-    try {
-      await updateMedia(media.id, { userPlatform: val || null })
-    } catch (err) {
-      console.error('Failed to update user platform', err)
-    }
-  }
-
-  async function load(id: string, sequence: number, isNew: boolean, forceRefresh = false) {
-    if (isNew) {
-      if (typeof window !== 'undefined') window.scrollTo(0, 0)
-      const main = document.querySelector('main')
-      if (main) main.scrollTop = 0
-
-      media = null
-      isLoading = true
-      loadError = null
-      selectedSeasonId = null
-            userRatingPopoverOpen = false
-      synopsisExpanded = false
-      isSynopsisTranslated = false
-      translatedSynopsis = null
-      translatingSynopsis = false
-      activeSubTab = 'overview'
-      related = []
-      relatedError = null
-      previewRelatedItem = null
-      recommendations = []
-      recommendationsError = null
-      progressError = null
-      statusError = null
-      ratingError = null
-      deleteError = null
-      deleteBusy = false
-    }
-
-    try {
-      // Префетч по наведению отдаёт готовый объект; после мутаций кэш протух — берём сеть.
-      const loaded =
-        isNew && !forceRefresh
-          ? await loadMediaDetail(id)
-          : await refreshMediaDetail(id)
-      if (sequence !== requestSequence) return
-      media = loaded
-      syncFrom(loaded)
-
-      if (isNew || forceRefresh) {
-        if (loaded.type === 'game') {
-          void loadGameAchievements(loaded, forceRefresh)
-        }
-        // Restore cached translation if available for current language
-        const targetLang = i18n.current === 'en' ? 'en' : 'ru'
-        if (loaded.translatedSynopsis && loaded.translationLanguage === targetLang) {
-          translatedSynopsis = loaded.translatedSynopsis
-          isSynopsisTranslated = true
-        }
-        void loadRelated(loaded, forceRefresh)
-        void triggerBackgroundEnrichment(loaded, sequence, forceRefresh)
-      } else {
-        if (loaded.type === 'game') {
-          const cached = achievementsCache.peek(loaded.id)
-          if (cached) {
-            gameAchievements = cached.achievements
-            gameAchievementsTotal = cached.total
-          }
-        }
-      }
-    } catch (error) {
-      console.error('[MediaDetailView] Failed to load media', id, error)
-      if (sequence === requestSequence) {
-        loadError = error
-        if (isNew) media = null
-      }
-    } finally {
-      if (sequence === requestSequence) isLoading = false
-    }
-  }
-
-  let gameAchievements = $state<GameAchievementItem[]>([])
-  let gameAchievementsTotal = $state(0)
-  let gameAchievementsLoading = $state(false)
-
-  async function loadGameAchievements(item: MediaItem, force = false) {
-    if (item.type !== 'game') return
-    if (force) achievementsCache.invalidate(item.id)
-    const cached = achievementsCache.peek(item.id)
-    if (cached) {
-      gameAchievements = cached.achievements
-      gameAchievementsTotal = cached.total
-      return
-    }
-    gameAchievementsLoading = true
-    try {
-      // load() отдаёт тот же промис, если запрос по этому id уже в полёте:
-      // повторное открытие той же игры не создаёт второй запрос.
-      const result = await achievementsCache.load(item.id, async () => {
-        const res = await getGameAchievements({
-          steamAppId: item.externalSource?.toLowerCase() === 'steam' ? item.externalId : null,
-          rawgId: item.externalSource?.toLowerCase() === 'rawg' ? item.externalId : null,
-          title: item.title,
-          externalSource: item.externalSource,
-          externalId: item.externalId,
-        })
-        return { achievements: res.achievements ?? [], total: res.totalCount ?? 0 }
-      })
-      gameAchievements = result.achievements
-      gameAchievementsTotal = result.total
-    } catch {
-      gameAchievements = []
-      gameAchievementsTotal = 0
-    } finally {
-      gameAchievementsLoading = false
-    }
-  }
-
-  function syncFrom(item: MediaDetail) {
-    statusValue = item.status
-    scoreValue = item.score
-    const info = readProgress(item)
-    progressValue = info?.current ?? 0
-    committedProgress = progressValue
-    pendingSnapshot = null
-  }
-
-  async function triggerBackgroundEnrichment(current: MediaDetail, sequence: number, force = false) {
-    if (!current.externalId && !current.title) return
-    if (!force && enrichedMediaIds.has(current.id)) return
-
-    let hasMissingRatings = false
-    const expected = availableSources.length > 0
-      ? availableSources.filter((s) => s.isEnabled && s.mediaTypes.includes(current.type)).map((s) => s.name)
-      : (CATEGORY_EXPECTED_SOURCES[current.type] ?? [])
-    if (expected.length > 0) {
-      const badges = externalRatings
-      hasMissingRatings = badges.some((b) => b.score === null)
-    }
-
-    let isMangaMissingData = false
-    if (current.type === 'manga') {
-      isMangaMissingData = !current.totalChapters || !current.totalVolumes || !current.author
-    }
-
-    if (!hasMissingRatings && !isMangaMissingData && !force) {
-      enrichedMediaIds.add(current.id)
-      return
-    }
-
-    try {
-      isEnriching = true
-      const enriched = await enrichMedia(current.id)
-      enrichedMediaIds.add(current.id)
-      if (sequence === requestSequence && enriched) {
-        media = enriched
-        syncFrom(enriched)
-      }
-    } catch {
-      // Background enrichment silently completes
-    } finally {
-      isEnriching = false
-    }
-  }
-
-  async function loadRelated(item: MediaItem, forceRefresh = false) {
-    const sequence = ++relatedSequence
-    relatedLoading = true
-    relatedError = null
-
-    try {
-      const all = await getMedia()
-      if (sequence !== relatedSequence) return
-
-      const results: RelatedEntry[] = []
-
-      // 1. Check local items with same franchiseId
-      if (item.franchiseId) {
-        const localMatches = all
-          .filter((candidate) => candidate.franchiseId === item.franchiseId && candidate.id !== item.id)
-          .toSorted((left, right) => orderOf(left) - orderOf(right) || left.title.localeCompare(right.title))
-
-        for (const lm of localMatches) {
-          results.push({
-            id: lm.id,
-            title: lm.title,
-            coverUrl: lm.coverUrl,
-            type: lm.type,
-            localItem: lm,
-          })
-        }
-      }
-
-      // 2. Query external relations for games (RAWG Game Series)
-      if (item.type === 'game') {
-        try {
-          const gameRelated = await getGameRelated({
-            rawgId: item.externalSource?.toLowerCase() === 'rawg' ? item.externalId : null,
-            title: item.title,
-            externalSource: item.externalSource,
-            externalId: item.externalId,
-          })
-          for (const gr of gameRelated) {
-            if (gr.id === item.externalId || gr.title.toLowerCase() === item.title.toLowerCase()) continue
-            if (results.some((r) => r.id === gr.id || r.title.toLowerCase() === gr.title.toLowerCase())) continue
-            results.push({
-              id: gr.id,
-              title: gr.title,
-              coverUrl: gr.coverUrl,
-              type: 'game',
-              score: gr.score,
-              releaseDate: gr.releaseDate,
-              year: gr.releaseDate && gr.releaseDate.length >= 4 ? parseInt(gr.releaseDate.slice(0, 4), 10) : null,
-              ratings: gr.score ? [{ source: 'RAWG', rating: gr.score }] : null,
-              relationType: i18n.current === 'ru' ? 'Игра' : 'Game',
-              rawRelationType: 'OTHER',
-            })
-          }
-        } catch {}
-      }
-
-      // 3. Query external relations (AniList GraphQL for anime/manga)
-      if (isAnime(item) || item.type === 'manga') {
-        const cacheKey = `tsundoku_relations_${item.id}`
-        if (forceRefresh) {
-          localStorage.removeItem(cacheKey)
-        }
-        const cachedStr = localStorage.getItem(cacheKey)
-        let externalNodes: any[] = []
-
-        if (cachedStr) {
-          try {
-            const cached = JSON.parse(cachedStr)
-            if (Date.now() - cached.timestamp < 2592000000 && Array.isArray(cached.items) && cached.items.length > 0) {
-              externalNodes = cached.items
+        if (item.ratings && item.ratings.length > 0) {
+            for (const r of item.ratings) {
+                if (!r.source || disabledSources.has(r.source.toLowerCase()))
+                    continue;
+                seen.add(r.source.toLowerCase());
+                results.push({
+                    source: r.source,
+                    score: r.rating > 0 ? r.rating : null,
+                });
             }
-          } catch {}
         }
 
-        if (externalNodes.length === 0) {
-          const query = `
+        if (
+            item.score &&
+            !seen.has((item.externalSource || "").toLowerCase())
+        ) {
+            const src =
+                item.externalSource ||
+                (item.type === "manga" || item.type === "anime"
+                    ? "AniList"
+                    : "TMDB");
+            if (!disabledSources.has(src.toLowerCase())) {
+                seen.add(src.toLowerCase());
+                results.push({
+                    source: src,
+                    score: item.score,
+                });
+            }
+        }
+
+        const cat =
+            item.type === "anime" ||
+            item.type === "manga" ||
+            item.type === "movie" ||
+            item.type === "tvshow" ||
+            item.type === "game" ||
+            item.type === "book"
+                ? item.type
+                : "anime";
+        const expected =
+            availableSources.length > 0
+                ? availableSources
+                      .filter((s) => s.isEnabled && s.mediaTypes.includes(cat))
+                      .map((s) => s.name)
+                : (CATEGORY_EXPECTED_SOURCES[cat] ?? ["AniList"]);
+
+        for (const exp of expected) {
+            const expNorm = exp.toLowerCase();
+            const found = Array.from(seen).some(
+                (s) => s.includes(expNorm) || expNorm.includes(s),
+            );
+            if (!found) {
+                seen.add(expNorm);
+                results.push({
+                    source: exp,
+                    score: null,
+                });
+            }
+        }
+
+        return results;
+    });
+
+    let recommendations = $state<RecommendationItem[]>([]);
+    let recommendationsLoading = $state(false);
+    let recommendationsError = $state<unknown>(null);
+
+    let deleteBusy = $state(false);
+    let deleteError = $state<unknown>(null);
+
+    let statusValue = $state<MediaStatus>(MEDIA_STATUS.planned);
+    let statusBusy = $state(false);
+    let statusError = $state<unknown>(null);
+
+    function sourceBadgeClasses(src: string): string {
+        if (src.includes("anilist"))
+            return "border-[#02a9ff]/30 bg-[#02a9ff]/15 text-[#02a9ff]";
+        if (src.includes("shikimori"))
+            return "border-[#2e51a2]/40 bg-[#2e51a2]/20 text-[#688ce4]";
+        if (src.includes("mangadex"))
+            return "border-[#ff6740]/30 bg-[#ff6740]/15 text-[#ff6740]";
+        if (
+            src.includes("myanimelist") ||
+            src.includes("jikan") ||
+            src.includes("mal")
+        )
+            return "border-[#2e51a2]/40 bg-[#2e51a2]/20 text-[#7d9bf0]";
+        if (src.includes("tmdb"))
+            return "border-[#01b4e4]/30 bg-[#01b4e4]/15 text-[#31c3ef]";
+        if (src.includes("rawg"))
+            return "border-[#f65e22]/30 bg-[#f65e22]/15 text-[#f79069]";
+        if (src.includes("steam"))
+            return "border-[#1b2838]/60 bg-[#1b2838]/70 text-[#66c0f4]";
+        if (src.includes("igdb"))
+            return "border-[#9146ff]/30 bg-[#9146ff]/15 text-[#b18cff]";
+        if (src.includes("kitsu"))
+            return "border-[#fd755c]/30 bg-[#fd755c]/15 text-[#ff9a86]";
+        if (src.includes("simkl"))
+            return "border-white/[0.14] bg-black/50 text-white";
+        if (src.includes("imdb"))
+            return "border-[#f5c518]/30 bg-[#f5c518]/15 text-[#f5c518]";
+        if (src.includes("thetvdb") || src.includes("tvdb"))
+            return "border-[#42b883]/30 bg-[#42b883]/15 text-[#5cc79a]";
+        if (src.includes("mangaupdate"))
+            return "border-[#3b82f6]/30 bg-[#3b82f6]/15 text-[#60a5fa]";
+        if (src.includes("openlibrary"))
+            return "border-[#e1d9cb]/25 bg-[#e1d9cb]/10 text-[#e1d9cb]";
+        return "border-white/[0.12] bg-[var(--color-panel-line)] text-amber-400";
+    }
+
+    let scoreValue = $state<number | null>(null);
+    let ratingBusy = $state(false);
+    let ratingError = $state<unknown>(null);
+
+    let progressValue = $state(0);
+    let committedProgress = $state(0);
+    let pendingSnapshot = $state<number | null>(null);
+    let progressError = $state<unknown>(null);
+
+    let selectedSeasonId = $state<string | null>(null);
+    let episodeBusy = $state("");
+    let refreshBusy = $state(false);
+    let refreshError = $state<unknown>(null);
+
+    const progressDebounce = createProgressDebounce({
+        send: (id, value) => setProgress(id, value),
+        buildRequest: (id, value) => ({
+            url: `/api/media/${id}/progress`,
+            body: { currentProgress: value },
+        }),
+        onCommitted: (value) => {
+            committedProgress = value;
+            if (media && media.type === "game") {
+                (media as any).hoursPlayed = value;
+            }
+            if (progressValue === value) onUpdate();
+        },
+        onError: (error) => {
+            progressValue = pendingSnapshot ?? committedProgress;
+            committedProgress = progressValue;
+            pendingSnapshot = null;
+            progressError = error;
+        },
+    });
+
+    let progressInfo = $derived(media ? readProgress(media) : null);
+    let seasons = $derived(
+        media && isTvShowDetail(media) ? (media.seasons ?? []) : [],
+    );
+    let seasonViews = $derived(
+        seasons.map((season) => ({ season, episodes: buildEpisodes(season) })),
+    );
+    let season = $derived(
+        seasonViews.find((view) => view.season.id === selectedSeasonId) ??
+            seasonViews[0] ??
+            null,
+    );
+    let episodes = $derived(season?.episodes ?? []);
+    let sortedEpisodes = $derived.by(() => {
+        const list = [...episodes];
+        return episodeSortOrder === "asc" ? list : list.reverse();
+    });
+    let currentSeason = $derived(season?.season ?? null);
+    let originalTitle = $derived(media ? readOriginalTitle(media) : null);
+    let synopsisText = $derived(media?.notes?.trim() ?? "");
+    let synopsisExpandable = $derived(synopsisText.length > 280);
+    let isSynopsisTranslated = $state(false);
+    let translatingSynopsis = $state(false);
+    let translatedSynopsis = $state<string | null>(null);
+
+    async function toggleTranslateSynopsis() {
+        if (!media || !synopsisText || translatingSynopsis) return;
+
+        if (isSynopsisTranslated) {
+            isSynopsisTranslated = false;
+            return;
+        }
+
+        // Check if we already have a cached translation in DB matching current language
+        const targetLang = i18n.current === "en" ? "en" : "ru";
+        if (
+            media.translatedSynopsis &&
+            media.translationLanguage === targetLang
+        ) {
+            translatedSynopsis = media.translatedSynopsis;
+            isSynopsisTranslated = true;
+            return;
+        }
+
+        if (translatedSynopsis) {
+            isSynopsisTranslated = true;
+            return;
+        }
+
+        translatingSynopsis = true;
+        try {
+            const res = await translateText(synopsisText, targetLang);
+            if (res?.translatedText) {
+                translatedSynopsis = res.translatedText;
+                isSynopsisTranslated = true;
+                // Persist to DB (fire-and-forget, don't block UI)
+                updateMedia(media.id, {
+                    translatedSynopsis: res.translatedText,
+                    translationLanguage: targetLang,
+                }).catch(() => {});
+            }
+        } catch (err) {
+            showToast(errorMessage(err), "error");
+        } finally {
+            translatingSynopsis = false;
+        }
+    }
+
+    let hasRelatedMedia = $derived(
+        related.length > 0 || relatedLoading || relatedError !== null,
+    );
+
+    let nextEpisode = $derived.by(() => {
+        if (!currentSeason) return null;
+        const watched = currentSeason.currentEpisode ?? 0;
+        const total = currentSeason.totalEpisodes ?? 0;
+        if (watched >= total) return null;
+        return episodes.find((e) => e.number === watched + 1) ?? null;
+    });
+
+    let progressPercent = $derived.by(() => {
+        const info = progressInfo;
+        if (!info || info.total === null || info.total <= 0) return 0;
+        return Math.min(progressValue / info.total, 1) * 100;
+    });
+
+    let seasonProgressPercent = $derived.by(() => {
+        if (
+            !currentSeason ||
+            !currentSeason.totalEpisodes ||
+            currentSeason.totalEpisodes <= 0
+        )
+            return 0;
+        return (
+            Math.min(
+                (currentSeason.currentEpisode ?? 0) /
+                    currentSeason.totalEpisodes,
+                1,
+            ) * 100
+        );
+    });
+
+    let externalRatings = $derived.by<RatingBadge[]>(() => {
+        if (!media) return [];
+        const results: RatingBadge[] = [];
+        const seen = new Set<string>();
+        const disabledSources = new Set(
+            availableSources
+                .filter((s) => !s.isEnabled)
+                .flatMap((s) => [s.name.toLowerCase(), s.id.toLowerCase()]),
+        );
+
+        if (media.externalRatingsJson) {
+            try {
+                const parsed = JSON.parse(media.externalRatingsJson);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    for (const r of parsed) {
+                        const src = (r.source ?? r.Source ?? "").trim();
+                        if (!src || disabledSources.has(src.toLowerCase()))
+                            continue;
+                        const rawScore =
+                            typeof r.score === "number"
+                                ? r.score
+                                : typeof r.Score === "number"
+                                  ? r.Score
+                                  : typeof r.rating === "number"
+                                    ? r.rating
+                                    : typeof r.Rating === "number"
+                                      ? r.Rating
+                                      : null;
+                        const votes = r.votes ?? r.Votes ?? null;
+                        seen.add(src.toLowerCase());
+                        results.push({
+                            source: src,
+                            score:
+                                rawScore !== null && rawScore > 0
+                                    ? rawScore
+                                    : null,
+                            votes,
+                        });
+                    }
+                }
+            } catch {}
+        }
+
+        if (
+            results.length === 0 &&
+            typeof media.externalRating === "number" &&
+            media.externalRating > 0
+        ) {
+            const src = dataSource(media);
+            if (!disabledSources.has(src.toLowerCase())) {
+                seen.add(src.toLowerCase());
+                results.push({
+                    source: src,
+                    score: media.externalRating,
+                    votes: media.externalRatingVotes,
+                });
+            }
+        }
+
+        const isAnime =
+            "isAnime" in media ? Boolean((media as any).isAnime) : false;
+        const cat =
+            isAnime || (media as any).type === "anime" ? "anime" : media.type;
+        const expected =
+            availableSources.length > 0
+                ? availableSources
+                      .filter((s) => s.isEnabled && s.mediaTypes.includes(cat))
+                      .map((s) => s.name)
+                : (CATEGORY_EXPECTED_SOURCES[cat] ?? []);
+        for (const exp of expected) {
+            const expNorm = exp.toLowerCase();
+            const found = Array.from(seen).some(
+                (s) => s.includes(expNorm) || expNorm.includes(s),
+            );
+            if (!found) {
+                seen.add(expNorm);
+                results.push({
+                    source: exp,
+                    score: null,
+                    votes: null,
+                });
+            }
+        }
+
+        return results;
+    });
+
+    let mangaVolumes = $derived(
+        media && isMangaDetail(media) ? (media.volumes ?? []) : [],
+    );
+    let volumeBusy = $state("");
+    let volumeError = $state<unknown>(null);
+
+    function volumeCurrent(vol: MangaVolume): number {
+        return vol.totalChapters > 0 ? vol.currentChapter : vol.currentPage;
+    }
+
+    function volumeTotal(vol: MangaVolume): number {
+        return vol.totalChapters > 0
+            ? vol.totalChapters
+            : vol.totalPages > 0
+              ? vol.totalPages
+              : 200;
+    }
+
+    function volumePercent(vol: MangaVolume): number {
+        const total = volumeTotal(vol);
+        return total > 0
+            ? Math.min((volumeCurrent(vol) / total) * 100, 100)
+            : 0;
+    }
+
+    function isVolumeDone(vol: MangaVolume): boolean {
+        const total = volumeTotal(vol);
+        return (
+            vol.status === MEDIA_STATUS.completed ||
+            (total > 0 && volumeCurrent(vol) >= total)
+        );
+    }
+
+    function volumeProgressLabel(vol: MangaVolume): string {
+        if (vol.totalChapters > 0) {
+            return i18n.t.card.chapters(vol.currentChapter, vol.totalChapters);
+        }
+        return `${vol.currentPage} / ${vol.totalPages > 0 ? vol.totalPages : 200} pp.`;
+    }
+
+    async function stepVolumePage(vol: MangaVolume, delta: number) {
+        if (!media) return;
+        const isChapters = vol.totalChapters > 0;
+        const total = volumeTotal(vol);
+        const current = volumeCurrent(vol);
+        const next = Math.max(
+            0,
+            total > 0 ? Math.min(current + delta, total) : current + delta,
+        );
+        if (next === current) return;
+
+        if (isChapters) {
+            vol.currentChapter = next;
+        } else {
+            vol.currentPage = next;
+        }
+
+        if (total > 0 && next >= total) {
+            vol.status = MEDIA_STATUS.completed;
+        } else if (next > 0) {
+            vol.status = MEDIA_STATUS.inProgress;
+        } else {
+            vol.status = MEDIA_STATUS.planned;
+        }
+
+        try {
+            volumeBusy = vol.id;
+            await setVolumeProgress(
+                vol.id,
+                isChapters ? { currentChapter: next } : { currentPage: next },
+            );
+            onUpdate();
+        } catch (err) {
+            volumeError = err;
+        } finally {
+            volumeBusy = "";
+        }
+    }
+
+    async function markVolumeComplete(vol: MangaVolume) {
+        if (!media) return;
+        const isChapters = vol.totalChapters > 0;
+        const total = volumeTotal(vol);
+        if (!total) return;
+
+        if (isChapters) {
+            vol.currentChapter = total;
+        } else {
+            vol.currentPage = total;
+        }
+        vol.status = MEDIA_STATUS.completed;
+
+        try {
+            volumeBusy = vol.id;
+            await setVolumeProgress(
+                vol.id,
+                isChapters ? { currentChapter: total } : { currentPage: total },
+            );
+            onUpdate();
+        } catch (err) {
+            volumeError = err;
+        } finally {
+            volumeBusy = "";
+        }
+    }
+
+    async function unmarkVolumeComplete(vol: MangaVolume) {
+        if (!media) return;
+        const isChapters = vol.totalChapters > 0;
+        if (isChapters) {
+            vol.currentChapter = 0;
+        } else {
+            vol.currentPage = 0;
+        }
+        vol.status = MEDIA_STATUS.planned;
+
+        try {
+            volumeBusy = vol.id;
+            await setVolumeProgress(
+                vol.id,
+                isChapters ? { currentChapter: 0 } : { currentPage: 0 },
+            );
+            onUpdate();
+        } catch (err) {
+            volumeError = err;
+        } finally {
+            volumeBusy = "";
+        }
+    }
+
+    let addVolumeDialogOpen = $state(false);
+    let addVolumeTitle = $state("");
+    let addVolumeChapters = $state(0);
+
+    async function handleAddVolume() {
+        if (!media || media.type !== "manga") return;
+        const volNum = mangaVolumes.length + 1;
+        addVolumeTitle = `Volume ${volNum}`;
+        addVolumeChapters = 0;
+        addVolumeDialogOpen = true;
+    }
+
+    async function confirmAddVolume() {
+        if (!media || media.type !== "manga") return;
+        const volNum = mangaVolumes.length + 1;
+        addVolumeDialogOpen = false;
+        try {
+            volumeBusy = "add";
+            await addVolume(media.id, {
+                volumeNumber: volNum,
+                title: addVolumeTitle || `Volume ${volNum}`,
+                totalPages: 200,
+                totalChapters: addVolumeChapters,
+                currentPage: 0,
+                currentChapter: 0,
+            });
+            await load(media.id, ++requestSequence, false);
+            onUpdate();
+        } catch (err) {
+            volumeError = err;
+        } finally {
+            volumeBusy = "";
+        }
+    }
+
+    async function handleGenerateVolumes() {
+        if (!media || media.type !== "manga" || !media.totalVolumes) return;
+        try {
+            volumeBusy = "generate";
+            const start = mangaVolumes.length + 1;
+            const promises = [];
+            for (let i = start; i <= media.totalVolumes; i++) {
+                promises.push(
+                    addVolume(media.id, {
+                        volumeNumber: i,
+                        title: `Volume ${i}`,
+                        totalPages: 200,
+                        totalChapters: 0,
+                        currentPage: 0,
+                        currentChapter: 0,
+                    }),
+                );
+            }
+            await Promise.all(promises);
+            await load(media.id, ++requestSequence, false);
+            onUpdate();
+        } catch (err) {
+            volumeError = err;
+        } finally {
+            volumeBusy = "";
+        }
+    }
+
+    let editVolumeDialogOpen = $state(false);
+    let editingVolume = $state<MangaVolume | null>(null);
+    let editVolumeTitle = $state("");
+    let editVolumePages = $state(200);
+    let editVolumeChapters = $state(0);
+    let editVolumeCurrentPage = $state(0);
+    let editVolumeCurrentChapter = $state(0);
+
+    function openEditVolume(vol: MangaVolume) {
+        editingVolume = vol;
+        editVolumeTitle = vol.title || `Volume ${vol.volumeNumber}`;
+        editVolumePages = vol.totalPages > 0 ? vol.totalPages : 200;
+        editVolumeChapters = vol.totalChapters ?? 0;
+        editVolumeCurrentPage = vol.currentPage ?? 0;
+        editVolumeCurrentChapter = vol.currentChapter ?? 0;
+        editVolumeDialogOpen = true;
+    }
+
+    async function confirmEditVolume() {
+        if (!editingVolume || !media) return;
+        const targetVol = editingVolume;
+        editVolumeDialogOpen = false;
+        const prevTitle = targetVol.title;
+        const prevPages = targetVol.totalPages;
+        const prevChapters = targetVol.totalChapters;
+        const prevCurrentPage = targetVol.currentPage;
+        const prevCurrentChapter = targetVol.currentChapter;
+
+        targetVol.title = editVolumeTitle;
+        targetVol.totalPages = Math.max(editVolumePages, 1);
+        targetVol.totalChapters = Math.max(editVolumeChapters, 0);
+        targetVol.currentPage = Math.min(
+            Math.max(editVolumeCurrentPage, 0),
+            editVolumePages,
+        );
+        targetVol.currentChapter = Math.min(
+            Math.max(editVolumeCurrentChapter, 0),
+            targetVol.totalChapters > 0 ? targetVol.totalChapters : 999999,
+        );
+
+        try {
+            volumeBusy = targetVol.id;
+            await updateVolume(targetVol.id, {
+                title: editVolumeTitle,
+                totalPages: targetVol.totalPages,
+                totalChapters: targetVol.totalChapters,
+                currentPage: targetVol.currentPage,
+                currentChapter: targetVol.currentChapter,
+            });
+            onUpdate();
+        } catch (err) {
+            targetVol.title = prevTitle;
+            targetVol.totalPages = prevPages;
+            targetVol.totalChapters = prevChapters;
+            targetVol.currentPage = prevCurrentPage;
+            targetVol.currentChapter = prevCurrentChapter;
+            volumeError = err;
+        } finally {
+            volumeBusy = "";
+            editingVolume = null;
+        }
+    }
+
+    async function handleDeleteVolume(vol: MangaVolume) {
+        if (!media) return;
+        const volName = vol.title || `Volume ${vol.volumeNumber}`;
+        if (!confirm(`Delete ${volName}?`)) return;
+        const prevVolumes = isMangaDetail(media)
+            ? [...(media.volumes ?? [])]
+            : [];
+        if (isMangaDetail(media) && media.volumes) {
+            media.volumes = media.volumes.filter((v) => v.id !== vol.id);
+        }
+        try {
+            volumeBusy = vol.id;
+            await deleteVolume(vol.id);
+            onUpdate();
+        } catch (err) {
+            if (isMangaDetail(media)) {
+                media.volumes = prevVolumes;
+            }
+            volumeError = err;
+        } finally {
+            volumeBusy = "";
+        }
+    }
+
+    $effect(() => {
+        void refreshKey;
+        const id = mediaId;
+        const isNew = trackedMediaId !== id;
+        trackedMediaId = id;
+        void load(id, ++requestSequence, isNew);
+    });
+
+    $effect(() => {
+        return () => void progressDebounce.flush(true);
+    });
+
+    // In-memory caches to prevent progress spinner / jog wheel from re-fetching
+    const achievementsCache = createPrefetchCache<{
+        achievements: GameAchievementItem[];
+        total: number;
+    }>(5 * 60 * 1000);
+    const enrichedMediaIds = new Set<string>();
+
+    let unlockedAchievementNames = $derived.by<Set<string>>(() => {
+        if (!media || !media.unlockedAchievements) return new Set<string>();
+        try {
+            const parsed = JSON.parse(media.unlockedAchievements);
+            if (Array.isArray(parsed))
+                return new Set<string>(
+                    parsed.map((s: string) => String(s).toLowerCase().trim()),
+                );
+        } catch {}
+        return new Set<string>();
+    });
+
+    async function toggleAchievement(name: string) {
+        if (!media) return;
+        const key = name.toLowerCase().trim();
+        const nextSet = new Set(unlockedAchievementNames);
+        if (nextSet.has(key)) {
+            nextSet.delete(key);
+        } else {
+            nextSet.add(key);
+        }
+        const jsonStr = JSON.stringify(Array.from(nextSet));
+        media.unlockedAchievements = jsonStr;
+        try {
+            await updateMedia(media.id, { unlockedAchievements: jsonStr });
+        } catch (err) {
+            console.error("Failed to update unlocked achievements", err);
+        }
+    }
+
+    let gamePlatformOptions = $derived.by(() => {
+        if (!media || media.type !== "game") return [];
+        const opts = new Set<string>();
+        if ((media as any).platform) {
+            for (const p of ((media as any).platform as string).split(",")) {
+                const trimmed = p.trim();
+                if (trimmed) opts.add(trimmed);
+            }
+        }
+        if (media.userPlatform && !opts.has(media.userPlatform)) {
+            opts.add(media.userPlatform);
+        }
+        return Array.from(opts);
+    });
+
+    let statusMenuItems = $derived(
+        statusOptions.map((value) => ({ value, label: statusLabel(value) })),
+    );
+
+    let platformMenuItems = $derived([
+        {
+            value: "",
+            label: i18n.current === "ru" ? "Не выбрана" : "Not selected",
+        },
+        ...gamePlatformOptions.map((p) => ({ value: p, label: p })),
+    ]);
+
+    async function updateUserPlatform(val: string) {
+        if (!media) return;
+        media.userPlatform = val || null;
+        try {
+            await updateMedia(media.id, { userPlatform: val || null });
+        } catch (err) {
+            console.error("Failed to update user platform", err);
+        }
+    }
+
+    async function load(
+        id: string,
+        sequence: number,
+        isNew: boolean,
+        forceRefresh = false,
+    ) {
+        if (isNew) {
+            if (typeof window !== "undefined") window.scrollTo(0, 0);
+            const main = document.querySelector("main");
+            if (main) main.scrollTop = 0;
+
+            media = null;
+            isLoading = true;
+            loadError = null;
+            selectedSeasonId = null;
+            userRatingPopoverOpen = false;
+            synopsisExpanded = false;
+            isSynopsisTranslated = false;
+            translatedSynopsis = null;
+            translatingSynopsis = false;
+            activeSubTab = "overview";
+            related = [];
+            relatedError = null;
+            previewRelatedItem = null;
+            recommendations = [];
+            recommendationsError = null;
+            progressError = null;
+            statusError = null;
+            ratingError = null;
+            deleteError = null;
+            deleteBusy = false;
+        }
+
+        try {
+            // Префетч по наведению отдаёт готовый объект; после мутаций кэш протух — берём сеть.
+            const loaded =
+                isNew && !forceRefresh
+                    ? await loadMediaDetail(id)
+                    : await refreshMediaDetail(id);
+            if (sequence !== requestSequence) return;
+            media = loaded;
+            syncFrom(loaded);
+
+            if (isNew || forceRefresh) {
+                if (loaded.type === "game") {
+                    void loadGameAchievements(loaded, forceRefresh);
+                }
+                // Restore cached translation if available for current language
+                const targetLang = i18n.current === "en" ? "en" : "ru";
+                if (
+                    loaded.translatedSynopsis &&
+                    loaded.translationLanguage === targetLang
+                ) {
+                    translatedSynopsis = loaded.translatedSynopsis;
+                    isSynopsisTranslated = true;
+                }
+                void loadRelated(loaded, forceRefresh);
+                void triggerBackgroundEnrichment(
+                    loaded,
+                    sequence,
+                    forceRefresh,
+                );
+            } else {
+                if (loaded.type === "game") {
+                    const cached = achievementsCache.peek(loaded.id);
+                    if (cached) {
+                        gameAchievements = cached.achievements;
+                        gameAchievementsTotal = cached.total;
+                    }
+                }
+            }
+        } catch (error) {
+            console.error("[MediaDetailView] Failed to load media", id, error);
+            if (sequence === requestSequence) {
+                loadError = error;
+                if (isNew) media = null;
+            }
+        } finally {
+            if (sequence === requestSequence) isLoading = false;
+        }
+    }
+
+    let gameAchievements = $state<GameAchievementItem[]>([]);
+    let gameAchievementsTotal = $state(0);
+    let gameAchievementsLoading = $state(false);
+
+    async function loadGameAchievements(item: MediaItem, force = false) {
+        if (item.type !== "game") return;
+        if (force) achievementsCache.invalidate(item.id);
+        const cached = achievementsCache.peek(item.id);
+        if (cached) {
+            gameAchievements = cached.achievements;
+            gameAchievementsTotal = cached.total;
+            return;
+        }
+        gameAchievementsLoading = true;
+        try {
+            // load() отдаёт тот же промис, если запрос по этому id уже в полёте:
+            // повторное открытие той же игры не создаёт второй запрос.
+            const result = await achievementsCache.load(item.id, async () => {
+                const res = await getGameAchievements({
+                    steamAppId:
+                        item.externalSource?.toLowerCase() === "steam"
+                            ? item.externalId
+                            : null,
+                    rawgId:
+                        item.externalSource?.toLowerCase() === "rawg"
+                            ? item.externalId
+                            : null,
+                    title: item.title,
+                    externalSource: item.externalSource,
+                    externalId: item.externalId,
+                });
+                return {
+                    achievements: res.achievements ?? [],
+                    total: res.totalCount ?? 0,
+                };
+            });
+            gameAchievements = result.achievements;
+            gameAchievementsTotal = result.total;
+        } catch {
+            gameAchievements = [];
+            gameAchievementsTotal = 0;
+        } finally {
+            gameAchievementsLoading = false;
+        }
+    }
+
+    function syncFrom(item: MediaDetail) {
+        statusValue = item.status;
+        scoreValue = item.score;
+        const info = readProgress(item);
+        progressValue = info?.current ?? 0;
+        committedProgress = progressValue;
+        pendingSnapshot = null;
+    }
+
+    async function triggerBackgroundEnrichment(
+        current: MediaDetail,
+        sequence: number,
+        force = false,
+    ) {
+        if (!current.externalId && !current.title) return;
+        if (!force && enrichedMediaIds.has(current.id)) return;
+
+        let hasMissingRatings = false;
+        const expected =
+            availableSources.length > 0
+                ? availableSources
+                      .filter(
+                          (s) =>
+                              s.isEnabled &&
+                              s.mediaTypes.includes(current.type),
+                      )
+                      .map((s) => s.name)
+                : (CATEGORY_EXPECTED_SOURCES[current.type] ?? []);
+        if (expected.length > 0) {
+            const badges = externalRatings;
+            hasMissingRatings = badges.some((b) => b.score === null);
+        }
+
+        let isMangaMissingData = false;
+        if (current.type === "manga") {
+            isMangaMissingData =
+                !current.totalChapters ||
+                !current.totalVolumes ||
+                !current.author;
+        }
+
+        if (!hasMissingRatings && !isMangaMissingData && !force) {
+            enrichedMediaIds.add(current.id);
+            return;
+        }
+
+        try {
+            isEnriching = true;
+            const enriched = await enrichMedia(current.id);
+            enrichedMediaIds.add(current.id);
+            if (sequence === requestSequence && enriched) {
+                media = enriched;
+                syncFrom(enriched);
+            }
+        } catch {
+            // Background enrichment silently completes
+        } finally {
+            isEnriching = false;
+        }
+    }
+
+    async function loadRelated(item: MediaItem, forceRefresh = false) {
+        const sequence = ++relatedSequence;
+        relatedLoading = true;
+        relatedError = null;
+
+        try {
+            const all = await getMedia();
+            if (sequence !== relatedSequence) return;
+
+            const results: RelatedEntry[] = [];
+
+            // 1. Check local items with same franchiseId
+            if (item.franchiseId) {
+                const localMatches = all
+                    .filter(
+                        (candidate) =>
+                            candidate.franchiseId === item.franchiseId &&
+                            candidate.id !== item.id,
+                    )
+                    .toSorted(
+                        (left, right) =>
+                            orderOf(left) - orderOf(right) ||
+                            left.title.localeCompare(right.title),
+                    );
+
+                for (const lm of localMatches) {
+                    results.push({
+                        id: lm.id,
+                        title: lm.title,
+                        coverUrl: lm.coverUrl,
+                        type: lm.type,
+                        localItem: lm,
+                    });
+                }
+            }
+
+            // 2. Query external relations for games (RAWG Game Series)
+            if (item.type === "game") {
+                try {
+                    const gameRelated = await getGameRelated({
+                        rawgId:
+                            item.externalSource?.toLowerCase() === "rawg"
+                                ? item.externalId
+                                : null,
+                        title: item.title,
+                        externalSource: item.externalSource,
+                        externalId: item.externalId,
+                    });
+                    for (const gr of gameRelated) {
+                        if (
+                            gr.id === item.externalId ||
+                            gr.title.toLowerCase() === item.title.toLowerCase()
+                        )
+                            continue;
+                        if (
+                            results.some(
+                                (r) =>
+                                    r.id === gr.id ||
+                                    r.title.toLowerCase() ===
+                                        gr.title.toLowerCase(),
+                            )
+                        )
+                            continue;
+                        results.push({
+                            id: gr.id,
+                            title: gr.title,
+                            coverUrl: gr.coverUrl,
+                            type: "game",
+                            score: gr.score,
+                            releaseDate: gr.releaseDate,
+                            year:
+                                gr.releaseDate && gr.releaseDate.length >= 4
+                                    ? parseInt(gr.releaseDate.slice(0, 4), 10)
+                                    : null,
+                            ratings: gr.score
+                                ? [{ source: "RAWG", rating: gr.score }]
+                                : null,
+                            relationType:
+                                i18n.current === "ru" ? "Игра" : "Game",
+                            rawRelationType: "OTHER",
+                        });
+                    }
+                } catch {}
+            }
+
+            // 3. Query external relations (AniList GraphQL for anime/manga)
+            if (isAnime(item) || item.type === "manga") {
+                const cacheKey = `tsundoku_relations_${item.id}`;
+                if (forceRefresh) {
+                    localStorage.removeItem(cacheKey);
+                }
+                const cachedStr = localStorage.getItem(cacheKey);
+                let externalNodes: any[] = [];
+
+                if (cachedStr) {
+                    try {
+                        const cached = JSON.parse(cachedStr);
+                        if (
+                            Date.now() - cached.timestamp < 2592000000 &&
+                            Array.isArray(cached.items) &&
+                            cached.items.length > 0
+                        ) {
+                            externalNodes = cached.items;
+                        }
+                    } catch {}
+                }
+
+                if (externalNodes.length === 0) {
+                    const query = `
             query ($id: Int, $idMal: Int, $search: String, $type: MediaType) {
               Media(id: $id, idMal: $idMal, search: $search, type: $type) {
                 id
@@ -1028,500 +1274,660 @@
                 }
               }
             }
-          `
-          const source = (item.externalSource ?? '').toLowerCase()
-          const isAniList = source.includes('anilist')
-          const isMalOrShikimori = source.includes('shikimori') || source.includes('mal') || source.includes('jikan')
-          const parsedId = item.externalId && /^\d+$/.test(item.externalId) ? parseInt(item.externalId, 10) : null
-          const mediaType = item.type === 'manga' ? 'MANGA' : 'ANIME'
+          `;
+                    const source = (item.externalSource ?? "").toLowerCase();
+                    const isAniList = source.includes("anilist");
+                    const isMalOrShikimori =
+                        source.includes("shikimori") ||
+                        source.includes("mal") ||
+                        source.includes("jikan");
+                    const parsedId =
+                        item.externalId && /^\d+$/.test(item.externalId)
+                            ? parseInt(item.externalId, 10)
+                            : null;
+                    const mediaType = item.type === "manga" ? "MANGA" : "ANIME";
 
-          let variables: Record<string, any> = { type: mediaType }
-          if (isAniList && parsedId) {
-            variables.id = parsedId
-          } else if (isMalOrShikimori && parsedId) {
-            variables.idMal = parsedId
-          } else {
-            variables.search = (item as any).romajiTitle?.trim() || item.title.trim()
-          }
+                    let variables: Record<string, any> = { type: mediaType };
+                    if (isAniList && parsedId) {
+                        variables.id = parsedId;
+                    } else if (isMalOrShikimori && parsedId) {
+                        variables.idMal = parsedId;
+                    } else {
+                        variables.search =
+                            (item as any).romajiTitle?.trim() ||
+                            item.title.trim();
+                    }
 
-          let res = await fetch('https://graphql.anilist.co/', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ query, variables }),
-          })
+                    let res = await fetch("https://graphql.anilist.co/", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ query, variables }),
+                    });
 
-          // Fallback if id / idMal failed to match on AniList
-          if (!res.ok && (variables.id || variables.idMal)) {
-            const fallbackSearch = (item as any).romajiTitle?.trim() || item.title.trim()
-            const fallbackRes = await fetch('https://graphql.anilist.co/', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ query, variables: { search: fallbackSearch, type: mediaType } }),
-            })
-            if (fallbackRes.ok) {
-              res = fallbackRes
+                    // Fallback if id / idMal failed to match on AniList
+                    if (!res.ok && (variables.id || variables.idMal)) {
+                        const fallbackSearch =
+                            (item as any).romajiTitle?.trim() ||
+                            item.title.trim();
+                        const fallbackRes = await fetch(
+                            "https://graphql.anilist.co/",
+                            {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
+                                    query,
+                                    variables: {
+                                        search: fallbackSearch,
+                                        type: mediaType,
+                                    },
+                                }),
+                            },
+                        );
+                        if (fallbackRes.ok) {
+                            res = fallbackRes;
+                        }
+                    }
+
+                    if (res.ok) {
+                        const json = await res.json();
+                        const edges = json?.data?.Media?.relations?.edges ?? [];
+                        externalNodes = edges.map((e: any) => {
+                            const node = e.node;
+                            const desc = node?.description
+                                ? String(node.description)
+                                      .replace(/<[^>]*>/g, "")
+                                      .trim()
+                                : null;
+                            const score =
+                                typeof node?.averageScore === "number"
+                                    ? parseFloat(
+                                          (node.averageScore / 10).toFixed(1),
+                                      )
+                                    : null;
+                            const studio =
+                                node?.studios?.nodes?.[0]?.name ?? null;
+                            const author =
+                                node?.staff?.edges?.find((st: any) =>
+                                    /story|art|original|author/i.test(
+                                        st?.role ?? "",
+                                    ),
+                                )?.node?.name?.full ??
+                                node?.staff?.edges?.[0]?.node?.name?.full ??
+                                null;
+                            const originalTitle = node?.title?.native ?? null;
+                            const romajiTitle = node?.title?.romaji ?? null;
+                            const releaseDate = node?.startDate?.year
+                                ? `${String(node.startDate.year).padStart(4, "0")}-${String(node.startDate.month ?? 1).padStart(2, "0")}-${String(node.startDate.day ?? 1).padStart(2, "0")}`
+                                : null;
+                            const endDate = node?.endDate?.year
+                                ? `${String(node.endDate.year).padStart(4, "0")}-${String(node.endDate.month ?? 1).padStart(2, "0")}-${String(node.endDate.day ?? 1).padStart(2, "0")}`
+                                : null;
+
+                            return {
+                                id: String(node?.id),
+                                rawRelationType: e.relationType,
+                                relationType: formatRelationType(
+                                    e.relationType,
+                                ),
+                                title:
+                                    node?.title?.english ||
+                                    node?.title?.romaji ||
+                                    node?.title?.userPreferred ||
+                                    "Title",
+                                originalTitle,
+                                romajiTitle,
+                                coverUrl:
+                                    node?.coverImage?.large ??
+                                    node?.coverImage?.medium ??
+                                    null,
+                                bannerUrl: node?.bannerImage ?? null,
+                                format: node?.format ?? null,
+                                type:
+                                    node?.type?.toLowerCase() === "manga"
+                                        ? "manga"
+                                        : "anime",
+                                year: node?.startDate?.year ?? null,
+                                releaseDate,
+                                endDate,
+                                releaseStatus: node?.status ?? null,
+                                score,
+                                ratings: score
+                                    ? [{ source: "AniList", rating: score }]
+                                    : null,
+                                description: desc,
+                                duration:
+                                    typeof node?.duration === "number"
+                                        ? node.duration
+                                        : null,
+                                episodes: node?.episodes ?? null,
+                                chapters: node?.chapters ?? null,
+                                volumes: node?.volumes ?? null,
+                                studio,
+                                author,
+                                externalSource: "AniList",
+                            };
+                        });
+                        localStorage.setItem(
+                            cacheKey,
+                            JSON.stringify({
+                                timestamp: Date.now(),
+                                items: externalNodes,
+                            }),
+                        );
+                    }
+                }
+
+                // Merge external nodes avoiding duplicates with local matches
+                for (const ext of externalNodes) {
+                    if (ext.title.toLowerCase() === item.title.toLowerCase())
+                        continue;
+
+                    const matchedLocal = all.find(
+                        (m) =>
+                            (m.externalId && m.externalId === ext.id) ||
+                            m.title.toLowerCase() === ext.title.toLowerCase() ||
+                            ((m as any).romajiTitle &&
+                                (m as any).romajiTitle.toLowerCase() ===
+                                    ext.title.toLowerCase()),
+                    );
+
+                    if (
+                        !results.some(
+                            (r) =>
+                                r.id === ext.id ||
+                                r.title.toLowerCase() ===
+                                    ext.title.toLowerCase(),
+                        )
+                    ) {
+                        results.push({
+                            ...ext,
+                            coverUrl: matchedLocal?.coverUrl || ext.coverUrl,
+                            localItem: matchedLocal,
+                        });
+                    }
+                }
             }
-          }
 
-          if (res.ok) {
-            const json = await res.json()
-            const edges = json?.data?.Media?.relations?.edges ?? []
-            externalNodes = edges.map((e: any) => {
-              const node = e.node
-              const desc = node?.description ? String(node.description).replace(/<[^>]*>/g, '').trim() : null
-              const score = typeof node?.averageScore === 'number' ? parseFloat((node.averageScore / 10).toFixed(1)) : null
-              const studio = node?.studios?.nodes?.[0]?.name ?? null
-              const author = node?.staff?.edges?.find((st: any) => /story|art|original|author/i.test(st?.role ?? ''))?.node?.name?.full
-                ?? node?.staff?.edges?.[0]?.node?.name?.full
-                ?? null
-              const originalTitle = node?.title?.native ?? null
-              const romajiTitle = node?.title?.romaji ?? null
-              const releaseDate = node?.startDate?.year
-                ? `${String(node.startDate.year).padStart(4, '0')}-${String(node.startDate.month ?? 1).padStart(2, '0')}-${String(node.startDate.day ?? 1).padStart(2, '0')}`
-                : null
-              const endDate = node?.endDate?.year
-                ? `${String(node.endDate.year).padStart(4, '0')}-${String(node.endDate.month ?? 1).padStart(2, '0')}-${String(node.endDate.day ?? 1).padStart(2, '0')}`
-                : null
+            if (sequence === relatedSequence) {
+                related = results;
+            }
+        } catch (error) {
+            if (sequence === relatedSequence) {
+                related = [];
+                relatedError = error;
+            }
+        } finally {
+            if (sequence === relatedSequence) relatedLoading = false;
+        }
+    }
 
-              return {
-                id: String(node?.id),
-                rawRelationType: e.relationType,
-                relationType: formatRelationType(e.relationType),
-                title: node?.title?.english || node?.title?.romaji || node?.title?.userPreferred || 'Title',
-                originalTitle,
-                romajiTitle,
-                coverUrl: node?.coverImage?.large ?? node?.coverImage?.medium ?? null,
-                bannerUrl: node?.bannerImage ?? null,
-                format: node?.format ?? null,
-                type: node?.type?.toLowerCase() === 'manga' ? 'manga' : 'anime',
-                year: node?.startDate?.year ?? null,
-                releaseDate,
-                endDate,
-                releaseStatus: node?.status ?? null,
-                score,
-                ratings: score ? [{ source: 'AniList', rating: score }] : null,
-                description: desc,
-                duration: typeof node?.duration === 'number' ? node.duration : null,
-                episodes: node?.episodes ?? null,
-                chapters: node?.chapters ?? null,
-                volumes: node?.volumes ?? null,
-                studio,
-                author,
-                externalSource: 'AniList',
-              }
-            })
-            localStorage.setItem(cacheKey, JSON.stringify({ timestamp: Date.now(), items: externalNodes }))
-          }
+    function formatRelationType(relType?: string): string {
+        const r = i18n.t.detail.relations;
+        switch (relType) {
+            case "SEQUEL":
+                return r.sequel;
+            case "PREQUEL":
+                return r.prequel;
+            case "ADAPTATION":
+                return r.adaptation;
+            case "SIDE_STORY":
+                return r.sideStory;
+            case "SPIN_OFF":
+                return r.spinOff;
+            case "SUMMARY":
+                return r.summary;
+            case "ALTERNATIVE":
+                return r.alternative;
+            case "CHARACTER":
+                return r.character;
+            default:
+                return r.other;
+        }
+    }
+
+    function formatMediaDisplayType(rel: RelatedEntry): string {
+        if (rel.type === "game") return i18n.current === "ru" ? "Игра" : "Game";
+        if (rel.type === "book")
+            return i18n.current === "ru" ? "Книга" : "Book";
+        const f = rel.format?.toUpperCase();
+        const fmt = i18n.t.detail.formats;
+        if (f === "MOVIE") return fmt.movie;
+        if (f === "TV" || f === "TV_SHORT") return fmt.tv;
+        if (f === "OVA") return fmt.ova;
+        if (f === "ONA") return fmt.ona;
+        if (f === "SPECIAL") return fmt.special;
+        if (f === "MANGA") return fmt.manga;
+        if (f === "NOVEL") return fmt.novel;
+        if (f === "ONE_SHOT") return fmt.oneShot;
+        if (f === "MUSIC") return fmt.music;
+        return rel.type === "manga"
+            ? fmt.manga
+            : rel.type === "movie"
+              ? fmt.movie
+              : fmt.tv;
+    }
+
+    function statusBadgeClasses(status: MediaStatus): string {
+        switch (status) {
+            case 2:
+                return "bg-[var(--color-brand-green)] text-white border-2 border-[color-mix(in_oklab,var(--color-success-soft)_80%,transparent)] ring-2 ring-[color-mix(in_oklab,var(--color-success-soft)_30%,transparent)]";
+            case 1:
+                return "bg-[var(--color-brand-blue)] text-white border-2 border-[color-mix(in_oklab,var(--color-ink-faint)_80%,transparent)] ring-2 ring-[color-mix(in_oklab,var(--color-ink-faint)_30%,transparent)]";
+            case 3:
+                return "bg-[var(--color-warning-line)] text-white border-2 border-amber-300/80 ring-2 ring-amber-300/30";
+            case 4:
+                return "bg-[var(--color-danger-line)] text-white border-2 border-rose-300/80 ring-2 ring-rose-300/30";
+            default:
+                return "bg-[var(--color-track)] text-slate-100 border-2 border-slate-400/70 ring-2 ring-slate-400/20";
+        }
+    }
+
+    interface RelationGroup {
+        id: string;
+        title: string;
+        items: RelatedEntry[];
+    }
+
+    let relatedGroups = $derived.by<RelationGroup[]>(() => {
+        if (related.length === 0) return [];
+
+        const main: RelatedEntry[] = [];
+        const spinoffs: RelatedEntry[] = [];
+        const adaptations: RelatedEntry[] = [];
+        const others: RelatedEntry[] = [];
+
+        for (const item of related) {
+            const raw = (item.rawRelationType ?? "").toUpperCase();
+            if (raw === "SEQUEL" || raw === "PREQUEL") {
+                main.push(item);
+            } else if (
+                raw === "SIDE_STORY" ||
+                raw === "SPIN_OFF" ||
+                raw === "CHARACTER"
+            ) {
+                spinoffs.push(item);
+            } else if (
+                raw === "ADAPTATION" ||
+                item.type === "manga" ||
+                ["MANGA", "NOVEL", "ONE_SHOT"].includes(
+                    item.format?.toUpperCase() ?? "",
+                )
+            ) {
+                adaptations.push(item);
+            } else {
+                others.push(item);
+            }
         }
 
-        // Merge external nodes avoiding duplicates with local matches
-        for (const ext of externalNodes) {
-          if (ext.title.toLowerCase() === item.title.toLowerCase()) continue
-
-          const matchedLocal = all.find(
-            (m) =>
-              (m.externalId && m.externalId === ext.id) ||
-              m.title.toLowerCase() === ext.title.toLowerCase() ||
-              ((m as any).romajiTitle && (m as any).romajiTitle.toLowerCase() === ext.title.toLowerCase())
-          )
-
-          if (!results.some((r) => r.id === ext.id || r.title.toLowerCase() === ext.title.toLowerCase())) {
-            results.push({
-              ...ext,
-              coverUrl: matchedLocal?.coverUrl || ext.coverUrl,
-              localItem: matchedLocal,
-            })
-          }
+        const groups: RelationGroup[] = [];
+        if (main.length > 0) {
+            groups.push({
+                id: "main",
+                title: i18n.t.detail.groupMain,
+                items: main,
+            });
         }
-      }
-
-      if (sequence === relatedSequence) {
-        related = results
-      }
-    } catch (error) {
-      if (sequence === relatedSequence) {
-        related = []
-        relatedError = error
-      }
-    } finally {
-      if (sequence === relatedSequence) relatedLoading = false
-    }
-  }
-
-  function formatRelationType(relType?: string): string {
-    const r = i18n.t.detail.relations
-    switch (relType) {
-      case 'SEQUEL':
-        return r.sequel
-      case 'PREQUEL':
-        return r.prequel
-      case 'ADAPTATION':
-        return r.adaptation
-      case 'SIDE_STORY':
-        return r.sideStory
-      case 'SPIN_OFF':
-        return r.spinOff
-      case 'SUMMARY':
-        return r.summary
-      case 'ALTERNATIVE':
-        return r.alternative
-      case 'CHARACTER':
-        return r.character
-      default:
-        return r.other
-    }
-  }
-
-  function formatMediaDisplayType(rel: RelatedEntry): string {
-    if (rel.type === 'game') return i18n.current === 'ru' ? 'Игра' : 'Game'
-    if (rel.type === 'book') return i18n.current === 'ru' ? 'Книга' : 'Book'
-    const f = rel.format?.toUpperCase()
-    const fmt = i18n.t.detail.formats
-    if (f === 'MOVIE') return fmt.movie
-    if (f === 'TV' || f === 'TV_SHORT') return fmt.tv
-    if (f === 'OVA') return fmt.ova
-    if (f === 'ONA') return fmt.ona
-    if (f === 'SPECIAL') return fmt.special
-    if (f === 'MANGA') return fmt.manga
-    if (f === 'NOVEL') return fmt.novel
-    if (f === 'ONE_SHOT') return fmt.oneShot
-    if (f === 'MUSIC') return fmt.music
-    return rel.type === 'manga' ? fmt.manga : (rel.type === 'movie' ? fmt.movie : fmt.tv)
-  }
-
-  function statusBadgeClasses(status: MediaStatus): string {
-    switch (status) {
-      case 2:
-        return 'bg-[var(--color-brand-green)] text-white border-2 border-[color-mix(in_oklab,var(--color-success-soft)_80%,transparent)] ring-2 ring-[color-mix(in_oklab,var(--color-success-soft)_30%,transparent)]'
-      case 1:
-        return 'bg-[var(--color-brand-blue)] text-white border-2 border-[color-mix(in_oklab,var(--color-ink-faint)_80%,transparent)] ring-2 ring-[color-mix(in_oklab,var(--color-ink-faint)_30%,transparent)]'
-      case 3:
-        return 'bg-[var(--color-warning-line)] text-white border-2 border-amber-300/80 ring-2 ring-amber-300/30'
-      case 4:
-        return 'bg-[var(--color-danger-line)] text-white border-2 border-rose-300/80 ring-2 ring-rose-300/30'
-      default:
-        return 'bg-[var(--color-track)] text-slate-100 border-2 border-slate-400/70 ring-2 ring-slate-400/20'
-    }
-  }
-
-  interface RelationGroup {
-    id: string
-    title: string
-    items: RelatedEntry[]
-  }
-
-  let relatedGroups = $derived.by<RelationGroup[]>(() => {
-    if (related.length === 0) return []
-
-    const main: RelatedEntry[] = []
-    const spinoffs: RelatedEntry[] = []
-    const adaptations: RelatedEntry[] = []
-    const others: RelatedEntry[] = []
-
-    for (const item of related) {
-      const raw = (item.rawRelationType ?? '').toUpperCase()
-      if (raw === 'SEQUEL' || raw === 'PREQUEL') {
-        main.push(item)
-      } else if (raw === 'SIDE_STORY' || raw === 'SPIN_OFF' || raw === 'CHARACTER') {
-        spinoffs.push(item)
-      } else if (raw === 'ADAPTATION' || item.type === 'manga' || ['MANGA', 'NOVEL', 'ONE_SHOT'].includes(item.format?.toUpperCase() ?? '')) {
-        adaptations.push(item)
-      } else {
-        others.push(item)
-      }
-    }
-
-    const groups: RelationGroup[] = []
-    if (main.length > 0) {
-      groups.push({ id: 'main', title: i18n.t.detail.groupMain, items: main })
-    }
-    if (spinoffs.length > 0) {
-      groups.push({ id: 'spinoffs', title: i18n.t.detail.groupSpinoffs, items: spinoffs })
-    }
-    if (adaptations.length > 0) {
-      groups.push({ id: 'adaptations', title: i18n.t.detail.groupAdaptations, items: adaptations })
-    }
-    if (others.length > 0) {
-      groups.push({ id: 'others', title: i18n.t.detail.groupOthers, items: others })
-    }
-
-    return groups
-  })
-
-  interface TimelineEntry {
-    id: string
-    title: string
-    coverUrl: string | null
-    year: number | null
-    formatDisplay: string
-    relationType: string
-    isCurrent: boolean
-    localItem?: MediaItem
-    rawItem?: RelatedEntry
-  }
-
-  let timelineEntries = $derived.by<TimelineEntry[]>(() => {
-    if (!media) return []
-
-    const currentYear = media.releaseDate ? new Date(media.releaseDate).getFullYear() : null
-    const currentFormat = isTvShowDetail(media) ? i18n.t.detail.formats.tv : media.type === 'movie' ? i18n.t.detail.formats.movie : media.type === 'manga' ? i18n.t.detail.formats.manga : media.type
-
-    const currentEntry: TimelineEntry = {
-      id: media.id,
-      title: media.title,
-      coverUrl: media.coverUrl,
-      year: currentYear,
-      formatDisplay: currentFormat,
-      relationType: i18n.t.detail.currentTitleBadge,
-      isCurrent: true,
-      localItem: media,
-    }
-
-    const items: TimelineEntry[] = [currentEntry]
-
-    for (const r of related) {
-      items.push({
-        id: r.id,
-        title: r.title,
-        coverUrl: r.coverUrl,
-        year: r.year ?? null,
-        formatDisplay: formatMediaDisplayType(r),
-        relationType: r.relationType ?? i18n.t.detail.relations.other,
-        isCurrent: false,
-        localItem: r.localItem,
-        rawItem: r,
-      })
-    }
-
-    return items.sort((a, b) => {
-      if (a.year !== null && b.year !== null) return a.year - b.year
-      if (a.year !== null) return -1
-      if (b.year !== null) return 1
-      return 0
-    })
-  })
-
-  async function handleRelatedClick(rel: RelatedEntry) {
-    if (rel.localItem) {
-      onOpenRelated(rel.localItem)
-      return
-    }
-
-    previewRelatedItem = rel
-    previewStatus = MEDIA_STATUS.planned
-    previewRelatedLoading = true
-
-    try {
-      const details = await getExternalDetails(rel.type, rel.id, rel.title, rel.externalSource || 'AniList')
-      if (details && previewRelatedItem?.id === rel.id) {
-        previewRelatedItem = {
-          ...previewRelatedItem,
-          originalTitle: details.originalTitle || previewRelatedItem.originalTitle,
-          romajiTitle: (details as any).romajiTitle || details.originalTitle || previewRelatedItem.romajiTitle,
-          coverUrl: details.coverUrl || previewRelatedItem.coverUrl,
-          description: details.description || previewRelatedItem.description,
-          year: details.releaseYear ?? previewRelatedItem.year,
-          releaseDate: details.releaseDate ?? previewRelatedItem.releaseDate,
-          endDate: details.endDate ?? previewRelatedItem.endDate,
-          studio: details.studio || previewRelatedItem.studio,
-          author: details.author || previewRelatedItem.author,
-          score: details.rating ?? previewRelatedItem.score,
-          ratings: details.ratings ?? previewRelatedItem.ratings,
-          episodes: details.totalCount ?? previewRelatedItem.episodes,
-          duration: details.runtimeMinutes ?? previewRelatedItem.duration,
-          releaseStatus: details.releaseStatus ?? previewRelatedItem.releaseStatus,
+        if (spinoffs.length > 0) {
+            groups.push({
+                id: "spinoffs",
+                title: i18n.t.detail.groupSpinoffs,
+                items: spinoffs,
+            });
         }
-      }
-    } catch {} finally {
-      previewRelatedLoading = false
-    }
-  }
-
-  async function addRelatedToLibrary(rel: RelatedEntry, status: MediaStatus) {
-    previewAddingBusy = true
-    try {
-      // Ensure we have full details (including Kitsu ratings and exact release date)
-      let itemDetails = rel
-      let fetchedEpisodes: any = null
-      try {
-        const fetched = await getExternalDetails(rel.type, rel.id, rel.title, rel.externalSource || 'AniList')
-        if (fetched) {
-          fetchedEpisodes = fetched.episodes
-          itemDetails = {
-            ...rel,
-            originalTitle: fetched.originalTitle || rel.originalTitle,
-            romajiTitle: (fetched as any).romajiTitle || fetched.originalTitle || rel.romajiTitle,
-            coverUrl: fetched.coverUrl || rel.coverUrl,
-            description: fetched.description || rel.description,
-            year: fetched.releaseYear ?? rel.year,
-            releaseDate: fetched.releaseDate ?? rel.releaseDate,
-            endDate: fetched.endDate ?? rel.endDate,
-            releaseStatus: fetched.releaseStatus ?? rel.releaseStatus,
-            studio: fetched.studio || rel.studio,
-            author: fetched.author || rel.author,
-            score: fetched.rating ?? rel.score,
-            ratings: fetched.ratings ?? rel.ratings,
-            episodes: fetched.totalCount ?? rel.episodes,
-            duration: fetched.runtimeMinutes ?? rel.duration,
-          }
+        if (adaptations.length > 0) {
+            groups.push({
+                id: "adaptations",
+                title: i18n.t.detail.groupAdaptations,
+                items: adaptations,
+            });
         }
-      } catch {}
+        if (others.length > 0) {
+            groups.push({
+                id: "others",
+                title: i18n.t.detail.groupOthers,
+                items: others,
+            });
+        }
 
-      // Ensure current media has franchiseName or franchiseId so they are grouped together
-      let franchiseName = media?.franchiseName || undefined
-      let franchiseId = media?.franchiseId || undefined
-      if (media && !franchiseId && !franchiseName) {
-        franchiseName = media.title
-        try {
-          await updateMedia(media.id, { franchiseName: media.title })
-          media.franchiseName = media.title
-        } catch {}
-      }
+        return groups;
+    });
 
-      const format = itemDetails.format?.toUpperCase() ?? ''
-      const isMovie = format === 'MOVIE'
-      const isManga = itemDetails.type === 'manga' || ['MANGA', 'NOVEL', 'ONE_SHOT'].includes(format)
-
-      const ratingsJson = itemDetails.ratings && itemDetails.ratings.length > 0 ? JSON.stringify(itemDetails.ratings) : undefined
-      const releaseDate = itemDetails.releaseDate ?? (itemDetails.year ? `${itemDetails.year}-01-01` : undefined)
-      const endDate = itemDetails.endDate ?? undefined
-
-      let created: MediaItem
-      if (isMovie) {
-        created = await createMedia({
-          type: 'movie',
-          title: itemDetails.title,
-          status,
-          coverUrl: itemDetails.coverUrl,
-          notes: itemDetails.description,
-          durationMinutes: itemDetails.duration ?? 0,
-          isAnime: true,
-          studio: itemDetails.studio ?? undefined,
-          romajiTitle: itemDetails.romajiTitle ?? itemDetails.originalTitle ?? undefined,
-          franchiseId,
-          franchiseName,
-          externalId: itemDetails.id,
-          externalSource: itemDetails.externalSource ?? 'AniList',
-          externalRating: itemDetails.score ?? undefined,
-          externalRatingsJson: ratingsJson,
-          releaseDate,
-          endDate,
-          releaseStatus: itemDetails.releaseStatus ?? undefined,
-        })
-      } else if (isManga) {
-        created = await createMedia({
-          type: 'manga',
-          title: itemDetails.title,
-          status,
-          coverUrl: itemDetails.coverUrl,
-          notes: itemDetails.description,
-          author: itemDetails.author || undefined,
-          romajiTitle: itemDetails.romajiTitle ?? itemDetails.originalTitle ?? undefined,
-          totalChapters: itemDetails.chapters ?? null,
-          totalVolumes: itemDetails.volumes ?? 1,
-          currentVolume: 1,
-          franchiseId,
-          franchiseName,
-          externalId: itemDetails.id,
-          externalSource: itemDetails.externalSource ?? 'AniList',
-          externalRating: itemDetails.score ?? undefined,
-          externalRatingsJson: ratingsJson,
-          releaseDate,
-          endDate,
-          releaseStatus: itemDetails.releaseStatus ?? undefined,
-        })
-      } else {
-        created = await createMedia({
-          type: 'tvshow',
-          title: itemDetails.title,
-          status,
-          coverUrl: itemDetails.coverUrl,
-          notes: itemDetails.description,
-          durationMinutes: itemDetails.duration ?? undefined,
-          episodeDurationMinutes: itemDetails.duration ?? undefined,
-          isAnime: true,
-          studio: itemDetails.studio ?? undefined,
-          romajiTitle: itemDetails.romajiTitle ?? itemDetails.originalTitle ?? undefined,
-          franchiseId,
-          franchiseName,
-          externalId: itemDetails.id,
-          externalSource: itemDetails.externalSource ?? 'AniList',
-          externalRating: itemDetails.score ?? undefined,
-          externalRatingsJson: ratingsJson,
-          releaseDate,
-          endDate,
-          releaseStatus: itemDetails.releaseStatus ?? undefined,
-          seasons: [
-            {
-              seasonNumber: 1,
-              title: 'Season 1',
-              totalEpisodes: itemDetails.episodes ?? (fetchedEpisodes?.length || 12),
-              airDate: releaseDate,
-              episodesData: fetchedEpisodes && fetchedEpisodes.length > 0 ? JSON.stringify(fetchedEpisodes) : undefined,
-              status,
-            },
-          ],
-        })
-      }
-
-      showToast(i18n.t.searchModal.inLibrary, 'success')
-      // Update the related grid immediately to show the "added" badge
-      related = related.map((r) =>
-        r.id === rel.id ? { ...r, localItem: created } : r
-      )
-      previewRelatedItem = null
-      onUpdate()
-      onOpenRelated(created)
-    } catch (e) {
-      console.error(e)
-      showToast(errorMessage(e), 'error')
-    } finally {
-      previewAddingBusy = false
-    }
-  }
-
-  async function loadRecommendations(force = false) {
-    if (!media) return
-    const cacheKey = `tsundoku_recs_${media.id}`
-    if (force) {
-      localStorage.removeItem(cacheKey)
-    } else {
-      const cachedStr = localStorage.getItem(cacheKey)
-      if (cachedStr) {
-        try {
-          const cached = JSON.parse(cachedStr)
-          // 30 days = 30 * 24 * 60 * 60 * 1000 = 2592000000 ms
-          if (Date.now() - cached.timestamp < 2592000000 && Array.isArray(cached.items) && cached.items.length > 0) {
-            recommendations = cached.items
-            return
-          }
-        } catch {}
-      }
+    interface TimelineEntry {
+        id: string;
+        title: string;
+        coverUrl: string | null;
+        year: number | null;
+        formatDisplay: string;
+        relationType: string;
+        isCurrent: boolean;
+        localItem?: MediaItem;
+        rawItem?: RelatedEntry;
     }
 
-    recommendationsLoading = true
-    recommendationsError = null
+    let timelineEntries = $derived.by<TimelineEntry[]>(() => {
+        if (!media) return [];
 
-    try {
-      let items: RecommendationItem[] = []
-      if (media.type === 'game') {
-        try {
-          const gameRecs = await getGameRecommendations({
-            rawgId: media.externalSource?.toLowerCase() === 'rawg' ? media.externalId : null,
+        const currentYear = media.releaseDate
+            ? new Date(media.releaseDate).getFullYear()
+            : null;
+        const currentFormat = isTvShowDetail(media)
+            ? i18n.t.detail.formats.tv
+            : media.type === "movie"
+              ? i18n.t.detail.formats.movie
+              : media.type === "manga"
+                ? i18n.t.detail.formats.manga
+                : media.type;
+
+        const currentEntry: TimelineEntry = {
+            id: media.id,
             title: media.title,
-            externalSource: media.externalSource,
-            externalId: media.externalId,
-          })
-          items = gameRecs.map((r, idx) => ({
-            id: r.id || `rec-game-${idx}`,
-            title: r.title,
-            coverUrl: r.coverUrl,
-            score: r.score,
-            type: 'game',
-          }))
-        } catch {}
-      } else if (isAnime(media) || media.type === 'manga') {
-        const query = `
+            coverUrl: media.coverUrl,
+            year: currentYear,
+            formatDisplay: currentFormat,
+            relationType: i18n.t.detail.currentTitleBadge,
+            isCurrent: true,
+            localItem: media,
+        };
+
+        const items: TimelineEntry[] = [currentEntry];
+
+        for (const r of related) {
+            items.push({
+                id: r.id,
+                title: r.title,
+                coverUrl: r.coverUrl,
+                year: r.year ?? null,
+                formatDisplay: formatMediaDisplayType(r),
+                relationType: r.relationType ?? i18n.t.detail.relations.other,
+                isCurrent: false,
+                localItem: r.localItem,
+                rawItem: r,
+            });
+        }
+
+        return items.sort((a, b) => {
+            if (a.year !== null && b.year !== null) return a.year - b.year;
+            if (a.year !== null) return -1;
+            if (b.year !== null) return 1;
+            return 0;
+        });
+    });
+
+    async function handleRelatedClick(rel: RelatedEntry) {
+        if (rel.localItem) {
+            onOpenRelated(rel.localItem);
+            return;
+        }
+
+        previewRelatedItem = rel;
+        previewStatus = MEDIA_STATUS.planned;
+        previewRelatedLoading = true;
+
+        try {
+            const details = await getExternalDetails(
+                rel.type,
+                rel.id,
+                rel.title,
+                rel.externalSource || "AniList",
+            );
+            if (details && previewRelatedItem?.id === rel.id) {
+                previewRelatedItem = {
+                    ...previewRelatedItem,
+                    originalTitle:
+                        details.originalTitle ||
+                        previewRelatedItem.originalTitle,
+                    romajiTitle:
+                        (details as any).romajiTitle ||
+                        details.originalTitle ||
+                        previewRelatedItem.romajiTitle,
+                    coverUrl: details.coverUrl || previewRelatedItem.coverUrl,
+                    description:
+                        details.description || previewRelatedItem.description,
+                    year: details.releaseYear ?? previewRelatedItem.year,
+                    releaseDate:
+                        details.releaseDate ?? previewRelatedItem.releaseDate,
+                    endDate: details.endDate ?? previewRelatedItem.endDate,
+                    studio: details.studio || previewRelatedItem.studio,
+                    author: details.author || previewRelatedItem.author,
+                    score: details.rating ?? previewRelatedItem.score,
+                    ratings: details.ratings ?? previewRelatedItem.ratings,
+                    episodes: details.totalCount ?? previewRelatedItem.episodes,
+                    duration:
+                        details.runtimeMinutes ?? previewRelatedItem.duration,
+                    releaseStatus:
+                        details.releaseStatus ??
+                        previewRelatedItem.releaseStatus,
+                };
+            }
+        } catch {
+        } finally {
+            previewRelatedLoading = false;
+        }
+    }
+
+    async function addRelatedToLibrary(rel: RelatedEntry, status: MediaStatus) {
+        previewAddingBusy = true;
+        try {
+            // Ensure we have full details (including Kitsu ratings and exact release date)
+            let itemDetails = rel;
+            let fetchedEpisodes: any = null;
+            try {
+                const fetched = await getExternalDetails(
+                    rel.type,
+                    rel.id,
+                    rel.title,
+                    rel.externalSource || "AniList",
+                );
+                if (fetched) {
+                    fetchedEpisodes = fetched.episodes;
+                    itemDetails = {
+                        ...rel,
+                        originalTitle:
+                            fetched.originalTitle || rel.originalTitle,
+                        romajiTitle:
+                            (fetched as any).romajiTitle ||
+                            fetched.originalTitle ||
+                            rel.romajiTitle,
+                        coverUrl: fetched.coverUrl || rel.coverUrl,
+                        description: fetched.description || rel.description,
+                        year: fetched.releaseYear ?? rel.year,
+                        releaseDate: fetched.releaseDate ?? rel.releaseDate,
+                        endDate: fetched.endDate ?? rel.endDate,
+                        releaseStatus:
+                            fetched.releaseStatus ?? rel.releaseStatus,
+                        studio: fetched.studio || rel.studio,
+                        author: fetched.author || rel.author,
+                        score: fetched.rating ?? rel.score,
+                        ratings: fetched.ratings ?? rel.ratings,
+                        episodes: fetched.totalCount ?? rel.episodes,
+                        duration: fetched.runtimeMinutes ?? rel.duration,
+                    };
+                }
+            } catch {}
+
+            // Ensure current media has franchiseName or franchiseId so they are grouped together
+            let franchiseName = media?.franchiseName || undefined;
+            let franchiseId = media?.franchiseId || undefined;
+            if (media && !franchiseId && !franchiseName) {
+                franchiseName = media.title;
+                try {
+                    await updateMedia(media.id, { franchiseName: media.title });
+                    media.franchiseName = media.title;
+                } catch {}
+            }
+
+            const format = itemDetails.format?.toUpperCase() ?? "";
+            const isMovie = format === "MOVIE";
+            const isManga =
+                itemDetails.type === "manga" ||
+                ["MANGA", "NOVEL", "ONE_SHOT"].includes(format);
+
+            const ratingsJson =
+                itemDetails.ratings && itemDetails.ratings.length > 0
+                    ? JSON.stringify(itemDetails.ratings)
+                    : undefined;
+            const releaseDate =
+                itemDetails.releaseDate ??
+                (itemDetails.year ? `${itemDetails.year}-01-01` : undefined);
+            const endDate = itemDetails.endDate ?? undefined;
+
+            let created: MediaItem;
+            if (isMovie) {
+                created = await createMedia({
+                    type: "movie",
+                    title: itemDetails.title,
+                    status,
+                    coverUrl: itemDetails.coverUrl,
+                    notes: itemDetails.description,
+                    durationMinutes: itemDetails.duration ?? 0,
+                    isAnime: true,
+                    studio: itemDetails.studio ?? undefined,
+                    romajiTitle:
+                        itemDetails.romajiTitle ??
+                        itemDetails.originalTitle ??
+                        undefined,
+                    franchiseId,
+                    franchiseName,
+                    externalId: itemDetails.id,
+                    externalSource: itemDetails.externalSource ?? "AniList",
+                    externalRating: itemDetails.score ?? undefined,
+                    externalRatingsJson: ratingsJson,
+                    releaseDate,
+                    endDate,
+                    releaseStatus: itemDetails.releaseStatus ?? undefined,
+                });
+            } else if (isManga) {
+                created = await createMedia({
+                    type: "manga",
+                    title: itemDetails.title,
+                    status,
+                    coverUrl: itemDetails.coverUrl,
+                    notes: itemDetails.description,
+                    author: itemDetails.author || undefined,
+                    romajiTitle:
+                        itemDetails.romajiTitle ??
+                        itemDetails.originalTitle ??
+                        undefined,
+                    totalChapters: itemDetails.chapters ?? null,
+                    totalVolumes: itemDetails.volumes ?? 1,
+                    currentVolume: 1,
+                    franchiseId,
+                    franchiseName,
+                    externalId: itemDetails.id,
+                    externalSource: itemDetails.externalSource ?? "AniList",
+                    externalRating: itemDetails.score ?? undefined,
+                    externalRatingsJson: ratingsJson,
+                    releaseDate,
+                    endDate,
+                    releaseStatus: itemDetails.releaseStatus ?? undefined,
+                });
+            } else {
+                created = await createMedia({
+                    type: "tvshow",
+                    title: itemDetails.title,
+                    status,
+                    coverUrl: itemDetails.coverUrl,
+                    notes: itemDetails.description,
+                    durationMinutes: itemDetails.duration ?? undefined,
+                    episodeDurationMinutes: itemDetails.duration ?? undefined,
+                    isAnime: true,
+                    studio: itemDetails.studio ?? undefined,
+                    romajiTitle:
+                        itemDetails.romajiTitle ??
+                        itemDetails.originalTitle ??
+                        undefined,
+                    franchiseId,
+                    franchiseName,
+                    externalId: itemDetails.id,
+                    externalSource: itemDetails.externalSource ?? "AniList",
+                    externalRating: itemDetails.score ?? undefined,
+                    externalRatingsJson: ratingsJson,
+                    releaseDate,
+                    endDate,
+                    releaseStatus: itemDetails.releaseStatus ?? undefined,
+                    seasons: [
+                        {
+                            seasonNumber: 1,
+                            title: "Season 1",
+                            totalEpisodes:
+                                itemDetails.episodes ??
+                                (fetchedEpisodes?.length || 12),
+                            airDate: releaseDate,
+                            episodesData:
+                                fetchedEpisodes && fetchedEpisodes.length > 0
+                                    ? JSON.stringify(fetchedEpisodes)
+                                    : undefined,
+                            status,
+                        },
+                    ],
+                });
+            }
+
+            showToast(i18n.t.searchModal.inLibrary, "success");
+            // Update the related grid immediately to show the "added" badge
+            related = related.map((r) =>
+                r.id === rel.id ? { ...r, localItem: created } : r,
+            );
+            previewRelatedItem = null;
+            onUpdate();
+            onOpenRelated(created);
+        } catch (e) {
+            console.error(e);
+            showToast(errorMessage(e), "error");
+        } finally {
+            previewAddingBusy = false;
+        }
+    }
+
+    async function loadRecommendations(force = false) {
+        if (!media) return;
+        const cacheKey = `tsundoku_recs_${media.id}`;
+        if (force) {
+            localStorage.removeItem(cacheKey);
+        } else {
+            const cachedStr = localStorage.getItem(cacheKey);
+            if (cachedStr) {
+                try {
+                    const cached = JSON.parse(cachedStr);
+                    // 30 days = 30 * 24 * 60 * 60 * 1000 = 2592000000 ms
+                    if (
+                        Date.now() - cached.timestamp < 2592000000 &&
+                        Array.isArray(cached.items) &&
+                        cached.items.length > 0
+                    ) {
+                        recommendations = cached.items;
+                        return;
+                    }
+                } catch {}
+            }
+        }
+
+        recommendationsLoading = true;
+        recommendationsError = null;
+
+        try {
+            let items: RecommendationItem[] = [];
+            if (media.type === "game") {
+                try {
+                    const gameRecs = await getGameRecommendations({
+                        rawgId:
+                            media.externalSource?.toLowerCase() === "rawg"
+                                ? media.externalId
+                                : null,
+                        title: media.title,
+                        externalSource: media.externalSource,
+                        externalId: media.externalId,
+                    });
+                    items = gameRecs.map((r, idx) => ({
+                        id: r.id || `rec-game-${idx}`,
+                        title: r.title,
+                        coverUrl: r.coverUrl,
+                        score: r.score,
+                        type: "game",
+                    }));
+                } catch {}
+            } else if (isAnime(media) || media.type === "manga") {
+                const query = `
           query ($search: String) {
             Media(search: $search) {
               recommendations(page: 1, perPage: 10, sort: RATING_DESC) {
@@ -1537,2267 +1943,3502 @@
               }
             }
           }
-        `
-        const res = await fetch('https://graphql.anilist.co/', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ query, variables: { search: media.title } }),
-        })
-        if (res.ok) {
-          const json = await res.json()
-          const nodes = json?.data?.Media?.recommendations?.nodes ?? []
-          items = nodes
-            .filter((n: any) => n?.mediaRecommendation)
-            .map((n: any) => ({
-              id: String(n.mediaRecommendation.id),
-              title:
-                n.mediaRecommendation.title.english ||
-                n.mediaRecommendation.title.romaji ||
-                n.mediaRecommendation.title.userPreferred ||
-                'Title',
-              coverUrl: n.mediaRecommendation.coverImage?.large ?? null,
-              score: typeof n.mediaRecommendation.averageScore === 'number' ? n.mediaRecommendation.averageScore / 10 : null,
-              type: n.mediaRecommendation.type?.toLowerCase() === 'manga' ? 'manga' : 'anime',
-            }))
+        `;
+                const res = await fetch("https://graphql.anilist.co/", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        query,
+                        variables: { search: media.title },
+                    }),
+                });
+                if (res.ok) {
+                    const json = await res.json();
+                    const nodes =
+                        json?.data?.Media?.recommendations?.nodes ?? [];
+                    items = nodes
+                        .filter((n: any) => n?.mediaRecommendation)
+                        .map((n: any) => ({
+                            id: String(n.mediaRecommendation.id),
+                            title:
+                                n.mediaRecommendation.title.english ||
+                                n.mediaRecommendation.title.romaji ||
+                                n.mediaRecommendation.title.userPreferred ||
+                                "Title",
+                            coverUrl:
+                                n.mediaRecommendation.coverImage?.large ?? null,
+                            score:
+                                typeof n.mediaRecommendation.averageScore ===
+                                "number"
+                                    ? n.mediaRecommendation.averageScore / 10
+                                    : null,
+                            type:
+                                n.mediaRecommendation.type?.toLowerCase() ===
+                                "manga"
+                                    ? "manga"
+                                    : "anime",
+                        }));
+                }
+            }
+
+            recommendations = items;
+            localStorage.setItem(
+                cacheKey,
+                JSON.stringify({ timestamp: Date.now(), items }),
+            );
+        } catch (e) {
+            recommendationsError = e;
+        } finally {
+            recommendationsLoading = false;
         }
-      }
-
-      recommendations = items
-      localStorage.setItem(cacheKey, JSON.stringify({ timestamp: Date.now(), items }))
-    } catch (e) {
-      recommendationsError = e
-    } finally {
-      recommendationsLoading = false
-    }
-  }
-
-  function orderOf(item: MediaItem): number {
-    return item.franchiseOrder ?? Number.MAX_SAFE_INTEGER
-  }
-
-  function buildEpisodes(value: TvSeason): EpisodeRow[] {
-    let parsed: Array<{ number: number; title?: string; airDate?: string; description?: string }> = []
-    if (value.episodesData) {
-      try {
-        parsed = JSON.parse(value.episodesData)
-      } catch {}
-    }
-    const total = Math.max(value.totalEpisodes ?? 0, parsed.length, 0)
-    const watched = Math.max(value.currentEpisode ?? 0, 0)
-    const limit = Math.min(total, Math.max(watched, maxEpisodesPerSeason))
-
-    return Array.from({ length: limit }, (_, index) => {
-      const number = index + 1
-      const found = parsed.find((p) => p.number === number)
-      return {
-        id: `${value.id}:${number}`,
-        number,
-        title: found?.title || i18n.t.detail.episodeTitle(number),
-        airDate: found?.airDate ?? value.airDate ?? null,
-        description: found?.description ?? value.notes ?? null,
-        watched: number <= watched,
-      }
-    })
-  }
-
-  /**
-   * Volumes are the granular source when they carry chapter counts, but a volume seeded from
-   * provider metadata can lag behind the manga's own counter. Taking the larger of the two keeps
-   * "Характеристики" from reporting 0/386 right next to the 386/386 in "Ваша история".
-   */
-  function mangaChapterProgress(item: MediaItem): { current: number; total: number | null } {
-    if (item.type !== 'manga') return { current: 0, total: null }
-    const volumes = isMangaDetail(item) ? item.volumes ?? [] : []
-    const hasVolumeChapters = volumes.some((volume) => (volume.totalChapters ?? 0) > 0)
-    if (!hasVolumeChapters) {
-      return { current: item.currentChapter, total: item.totalChapters }
-    }
-    return {
-      current: Math.max(
-        item.currentChapter,
-        volumes.reduce((sum, volume) => sum + (volume.currentChapter ?? 0), 0),
-      ),
-      total: volumes.reduce((sum, volume) => sum + (volume.totalChapters ?? 0), 0) || item.totalChapters,
-    }
-  }
-
-  function readProgress(item: MediaItem): ProgressInfo | null {
-    switch (item.type) {
-      case 'game':
-        return { current: item.hoursPlayed ?? 0, total: null, editable: true, label: i18n.t.detail.hoursLabel }
-      case 'book':
-        return { current: item.currentPage, total: item.totalPages, editable: true, label: i18n.t.detail.pagesLabel }
-      case 'manga': {
-        const chapters = mangaChapterProgress(item)
-        return { current: chapters.current, total: chapters.total, editable: true, label: i18n.t.detail.chaptersLabel }
-      }
-      case 'tvshow':
-        return { current: item.totalEpisodesWatched, total: item.totalEpisodesCount, editable: false, label: i18n.t.detail.episodesLabel }
-      default:
-        return null
-    }
-  }
-
-  function readOriginalTitle(item: MediaItem): string | null {
-    if (item.type === 'tvshow' || item.type === 'movie') {
-      const value = item.romajiTitle?.trim()
-      return value ? value : null
     }
 
-    return null
-  }
-
-  function isAnime(item: MediaItem): boolean {
-    return (item.type === 'tvshow' || item.type === 'movie') && item.isAnime
-  }
-
-  function typeLabel(item: MediaItem): string {
-    return isAnime(item) ? i18n.t.navigation.anime : i18n.t.types[item.type]
-  }
-
-  function statusLabel(status: MediaStatus): string {
-    switch (status) {
-      case 0:
-        return i18n.t.status.planned
-      case 1:
-        return i18n.t.status.inProgress
-      case 2:
-        return i18n.t.status.completed
-      case 3:
-        return i18n.t.status.paused
-      case 4:
-        return i18n.t.status.dropped
-    }
-  }
-
-  function releaseStatusLabel(item: MediaItem): string {
-    const raw = item.releaseStatus?.trim().toUpperCase()
-    const r = i18n.t.detail.releaseStatuses
-
-    if (item.type === 'game') {
-      const isRu = i18n.current === 'ru'
-      const comingSoon = isRu ? 'Скоро выйдет' : 'Coming Soon'
-      const earlyAccess = isRu ? 'Ранний доступ' : 'Early Access'
-      const fullRelease = isRu ? 'Релиз' : 'Full Release'
-
-      if (raw) {
-        if (raw.includes('COMING') || raw.includes('NOT_YET') || raw.includes('UPCOMING') || raw.includes('СКОРО')) return comingSoon
-        if (raw.includes('EARLY') || raw.includes('РАННИЙ')) return earlyAccess
-        if (raw.includes('FULL') || raw.includes('RELEASE') || raw.includes('FINISHED') || raw.includes('COMPLETED') || raw.includes('РЕЛИЗ')) return fullRelease
-      }
-      if (item.releaseDate) {
-        const start = new Date(item.releaseDate)
-        if (!Number.isNaN(start.getTime()) && start > new Date()) return comingSoon
-      }
-      return fullRelease
+    function orderOf(item: MediaItem): number {
+        return item.franchiseOrder ?? Number.MAX_SAFE_INTEGER;
     }
 
-    if (raw) {
-      if (raw === 'RELEASING' || raw === 'CURRENT' || raw === 'RETURNING SERIES') return r.releasing
-      if (raw === 'FINISHED' || raw === 'COMPLETED' || raw === 'ENDED') return r.finished
-      if (raw === 'NOT_YET_RELEASED' || raw === 'UPCOMING' || raw === 'IN PRODUCTION') return r.notYetReleased
-      if (raw === 'CANCELLED' || raw === 'CANCELED') return r.cancelled
-      if (raw === 'HIATUS' || raw === 'ON HIATUS') return r.hiatus
-    }
-
-    // Fallback: calculate from dates if no API status
-    const now = new Date()
-    now.setHours(0, 0, 0, 0)
-
-    if (item.endDate) {
-      const end = new Date(item.endDate)
-      if (!Number.isNaN(end.getTime()) && end <= now) {
-        return r.finished
-      }
-    }
-
-    if (item.releaseDate) {
-      const start = new Date(item.releaseDate)
-      if (!Number.isNaN(start.getTime())) {
-        if (start > now) return r.notYetReleased
-        return r.releasing
-      }
-    }
-
-    return i18n.t.detailModal.valueEmpty
-  }
-
-  function dataSource(item: MediaItem): string {
-    if (item.externalSource) return item.externalSource
-    if (isAnime(item) || item.type === 'manga') return 'AniList'
-
-    switch (item.type) {
-      case 'game':
-        return 'RAWG'
-      case 'book':
-        return 'OpenLibrary'
-      default:
-        return 'TMDB'
-    }
-  }
-
-  function providerDomain(item: MediaItem): string {
-    const src = (item.externalSource || dataSource(item)).toLowerCase()
-    if (src.includes('anilist')) return 'anilist.co'
-    if (src.includes('mal') || src.includes('jikan') || src.includes('myanimelist')) return 'myanimelist.net'
-    if (src.includes('mangaupdate')) return 'mangaupdates.com'
-    if (src.includes('tmdb')) return 'themoviedb.org'
-    if (src.includes('rawg')) return 'rawg.io'
-    if (src.includes('openlibrary')) return 'openlibrary.org'
-    return 'anilist.co'
-  }
-
-  function tags(item: MediaItem): string[] {
-    const list: string[] = [typeLabel(item)]
-
-    switch (item.type) {
-      case 'game':
-        if (item.platform) list.push(item.platform)
-        break
-      case 'book':
-        if (item.author) list.push(item.author)
-        break
-      case 'manga':
-        if (item.author) list.push(item.author)
-        break
-      case 'movie':
-        if (item.studio) list.push(item.studio)
-        if (item.director) list.push(item.director)
-        break
-      case 'tvshow':
-        if (item.studio) list.push(item.studio)
-        if (item.network) list.push(item.network)
-        break
-    }
-
-    return [...new Set(list.filter(Boolean))]
-  }
-
-  function specRows(item: MediaItem): Array<{ label: string; value: string; isLink?: boolean }> {
-    const empty = i18n.t.detailModal.valueEmpty
-    const rows: Array<{ label: string; value: string; isLink?: boolean }> = [
-      { label: i18n.t.detail.formatLabel, value: typeLabel(item) },
-    ]
-
-    if (item.type === 'game') {
-      rows.push({
-        label: i18n.current === 'ru' ? 'Дата релиза' : 'Release date',
-        value: formatDate(item.releaseDate ?? null),
-      })
-      rows.push({
-        label: i18n.t.status.label,
-        value: releaseStatusLabel(item),
-      })
-      if (item.genres) {
-        const g = Array.isArray(item.genres) ? item.genres.join(', ') : item.genres
-        if (g && g.trim()) {
-          rows.push({ label: i18n.current === 'ru' ? 'Жанры' : 'Genres', value: g.trim() })
+    function buildEpisodes(value: TvSeason): EpisodeRow[] {
+        let parsed: Array<{
+            number: number;
+            title?: string;
+            airDate?: string;
+            description?: string;
+        }> = [];
+        if (value.episodesData) {
+            try {
+                parsed = JSON.parse(value.episodesData);
+            } catch {}
         }
-      }
-      const t = item.tags ? (Array.isArray(item.tags) ? item.tags.join(', ') : item.tags).trim() : ''
-      rows.push({
-        label: i18n.current === 'ru' ? 'Теги' : 'Tags',
-        value: t || '—',
-      })
-    } else {
-      rows.push({ label: i18n.t.detail.startDateLabel, value: formatDate(item.releaseDate ?? null) })
-      rows.push({ label: i18n.t.detail.endDateLabel, value: formatDate(item.endDate ?? null) })
-      rows.push({ label: i18n.t.status.label, value: releaseStatusLabel(item) })
+        const total = Math.max(value.totalEpisodes ?? 0, parsed.length, 0);
+        const watched = Math.max(value.currentEpisode ?? 0, 0);
+        const limit = Math.min(total, Math.max(watched, maxEpisodesPerSeason));
+
+        return Array.from({ length: limit }, (_, index) => {
+            const number = index + 1;
+            const found = parsed.find((p) => p.number === number);
+            return {
+                id: `${value.id}:${number}`,
+                number,
+                title: found?.title || i18n.t.detail.episodeTitle(number),
+                airDate: found?.airDate ?? value.airDate ?? null,
+                description: found?.description ?? value.notes ?? null,
+                watched: number <= watched,
+            };
+        });
     }
 
-    switch (item.type) {
-      case 'tvshow':
-        rows.push({ label: i18n.t.detail.episodesLabel, value: i18n.t.card.episodes(item.totalEpisodesWatched, item.totalEpisodesCount) })
-        break
-      case 'book':
-        rows.push({ label: i18n.t.detail.pagesLabel, value: i18n.t.card.pages(item.currentPage, item.totalPages) })
-        break
-      case 'manga': {
-        const chapters = mangaChapterProgress(item)
+    /**
+     * Volumes are the granular source when they carry chapter counts, but a volume seeded from
+     * provider metadata can lag behind the manga's own counter. Taking the larger of the two keeps
+     * "Характеристики" from reporting 0/386 right next to the 386/386 in "Ваша история".
+     */
+    function mangaChapterProgress(item: MediaItem): {
+        current: number;
+        total: number | null;
+    } {
+        if (item.type !== "manga") return { current: 0, total: null };
+        const volumes = isMangaDetail(item) ? (item.volumes ?? []) : [];
+        const hasVolumeChapters = volumes.some(
+            (volume) => (volume.totalChapters ?? 0) > 0,
+        );
+        if (!hasVolumeChapters) {
+            return { current: item.currentChapter, total: item.totalChapters };
+        }
+        return {
+            current: Math.max(
+                item.currentChapter,
+                volumes.reduce(
+                    (sum, volume) => sum + (volume.currentChapter ?? 0),
+                    0,
+                ),
+            ),
+            total:
+                volumes.reduce(
+                    (sum, volume) => sum + (volume.totalChapters ?? 0),
+                    0,
+                ) || item.totalChapters,
+        };
+    }
+
+    function readProgress(item: MediaItem): ProgressInfo | null {
+        switch (item.type) {
+            case "game":
+                return {
+                    current: item.hoursPlayed ?? 0,
+                    total: null,
+                    editable: true,
+                    label: i18n.t.detail.hoursLabel,
+                };
+            case "book":
+                return {
+                    current: item.currentPage,
+                    total: item.totalPages,
+                    editable: true,
+                    label: i18n.t.detail.pagesLabel,
+                };
+            case "manga": {
+                const chapters = mangaChapterProgress(item);
+                return {
+                    current: chapters.current,
+                    total: chapters.total,
+                    editable: true,
+                    label: i18n.t.detail.chaptersLabel,
+                };
+            }
+            case "tvshow":
+                return {
+                    current: item.totalEpisodesWatched,
+                    total: item.totalEpisodesCount,
+                    editable: false,
+                    label: i18n.t.detail.episodesLabel,
+                };
+            default:
+                return null;
+        }
+    }
+
+    function readOriginalTitle(item: MediaItem): string | null {
+        if (item.type === "tvshow" || item.type === "movie") {
+            const value = item.romajiTitle?.trim();
+            return value ? value : null;
+        }
+
+        return null;
+    }
+
+    function isAnime(item: MediaItem): boolean {
+        return (
+            (item.type === "tvshow" || item.type === "movie") && item.isAnime
+        );
+    }
+
+    function typeLabel(item: MediaItem): string {
+        return isAnime(item)
+            ? i18n.t.navigation.anime
+            : i18n.t.types[item.type];
+    }
+
+    function statusLabel(status: MediaStatus): string {
+        switch (status) {
+            case 0:
+                return i18n.t.status.planned;
+            case 1:
+                return i18n.t.status.inProgress;
+            case 2:
+                return i18n.t.status.completed;
+            case 3:
+                return i18n.t.status.paused;
+            case 4:
+                return i18n.t.status.dropped;
+        }
+    }
+
+    function releaseStatusLabel(item: MediaItem): string {
+        const raw = item.releaseStatus?.trim().toUpperCase();
+        const r = i18n.t.detail.releaseStatuses;
+
+        if (item.type === "game") {
+            const isRu = i18n.current === "ru";
+            const comingSoon = isRu ? "Скоро выйдет" : "Coming Soon";
+            const earlyAccess = isRu ? "Ранний доступ" : "Early Access";
+            const fullRelease = isRu ? "Релиз" : "Full Release";
+
+            if (raw) {
+                if (
+                    raw.includes("COMING") ||
+                    raw.includes("NOT_YET") ||
+                    raw.includes("UPCOMING") ||
+                    raw.includes("СКОРО")
+                )
+                    return comingSoon;
+                if (raw.includes("EARLY") || raw.includes("РАННИЙ"))
+                    return earlyAccess;
+                if (
+                    raw.includes("FULL") ||
+                    raw.includes("RELEASE") ||
+                    raw.includes("FINISHED") ||
+                    raw.includes("COMPLETED") ||
+                    raw.includes("РЕЛИЗ")
+                )
+                    return fullRelease;
+            }
+            if (item.releaseDate) {
+                const start = new Date(item.releaseDate);
+                if (!Number.isNaN(start.getTime()) && start > new Date())
+                    return comingSoon;
+            }
+            return fullRelease;
+        }
+
+        if (raw) {
+            if (
+                raw === "RELEASING" ||
+                raw === "CURRENT" ||
+                raw === "RETURNING SERIES"
+            )
+                return r.releasing;
+            if (raw === "FINISHED" || raw === "COMPLETED" || raw === "ENDED")
+                return r.finished;
+            if (
+                raw === "NOT_YET_RELEASED" ||
+                raw === "UPCOMING" ||
+                raw === "IN PRODUCTION"
+            )
+                return r.notYetReleased;
+            if (raw === "CANCELLED" || raw === "CANCELED") return r.cancelled;
+            if (raw === "HIATUS" || raw === "ON HIATUS") return r.hiatus;
+        }
+
+        // Fallback: calculate from dates if no API status
+        const now = new Date();
+        now.setHours(0, 0, 0, 0);
+
+        if (item.endDate) {
+            const end = new Date(item.endDate);
+            if (!Number.isNaN(end.getTime()) && end <= now) {
+                return r.finished;
+            }
+        }
+
+        if (item.releaseDate) {
+            const start = new Date(item.releaseDate);
+            if (!Number.isNaN(start.getTime())) {
+                if (start > now) return r.notYetReleased;
+                return r.releasing;
+            }
+        }
+
+        return i18n.t.detailModal.valueEmpty;
+    }
+
+    function dataSource(item: MediaItem): string {
+        if (item.externalSource) return item.externalSource;
+        if (isAnime(item) || item.type === "manga") return "AniList";
+
+        switch (item.type) {
+            case "game":
+                return "RAWG";
+            case "book":
+                return "OpenLibrary";
+            default:
+                return "TMDB";
+        }
+    }
+
+    function providerDomain(item: MediaItem): string {
+        const src = (item.externalSource || dataSource(item)).toLowerCase();
+        if (src.includes("anilist")) return "anilist.co";
+        if (
+            src.includes("mal") ||
+            src.includes("jikan") ||
+            src.includes("myanimelist")
+        )
+            return "myanimelist.net";
+        if (src.includes("mangaupdate")) return "mangaupdates.com";
+        if (src.includes("tmdb")) return "themoviedb.org";
+        if (src.includes("rawg")) return "rawg.io";
+        if (src.includes("openlibrary")) return "openlibrary.org";
+        return "anilist.co";
+    }
+
+    function tags(item: MediaItem): string[] {
+        const list: string[] = [typeLabel(item)];
+
+        switch (item.type) {
+            case "game":
+                if (item.platform) list.push(item.platform);
+                break;
+            case "book":
+                if (item.author) list.push(item.author);
+                break;
+            case "manga":
+                if (item.author) list.push(item.author);
+                break;
+            case "movie":
+                if (item.studio) list.push(item.studio);
+                if (item.director) list.push(item.director);
+                break;
+            case "tvshow":
+                if (item.studio) list.push(item.studio);
+                if (item.network) list.push(item.network);
+                break;
+        }
+
+        return [...new Set(list.filter(Boolean))];
+    }
+
+    function specRows(
+        item: MediaItem,
+    ): Array<{ label: string; value: string; isLink?: boolean }> {
+        const empty = i18n.t.detailModal.valueEmpty;
+        const rows: Array<{ label: string; value: string; isLink?: boolean }> =
+            [{ label: i18n.t.detail.formatLabel, value: typeLabel(item) }];
+
+        if (item.type === "game") {
+            rows.push({
+                label: i18n.current === "ru" ? "Дата релиза" : "Release date",
+                value: formatDate(item.releaseDate ?? null),
+            });
+            rows.push({
+                label: i18n.t.status.label,
+                value: releaseStatusLabel(item),
+            });
+            if (item.genres) {
+                const g = Array.isArray(item.genres)
+                    ? item.genres.join(", ")
+                    : item.genres;
+                if (g && g.trim()) {
+                    rows.push({
+                        label: i18n.current === "ru" ? "Жанры" : "Genres",
+                        value: g.trim(),
+                    });
+                }
+            }
+            const t = item.tags
+                ? (Array.isArray(item.tags)
+                      ? item.tags.join(", ")
+                      : item.tags
+                  ).trim()
+                : "";
+            rows.push({
+                label: i18n.current === "ru" ? "Теги" : "Tags",
+                value: t || "—",
+            });
+        } else {
+            rows.push({
+                label: i18n.t.detail.startDateLabel,
+                value: formatDate(item.releaseDate ?? null),
+            });
+            rows.push({
+                label: i18n.t.detail.endDateLabel,
+                value: formatDate(item.endDate ?? null),
+            });
+            rows.push({
+                label: i18n.t.status.label,
+                value: releaseStatusLabel(item),
+            });
+        }
+
+        switch (item.type) {
+            case "tvshow":
+                rows.push({
+                    label: i18n.t.detail.episodesLabel,
+                    value: i18n.t.card.episodes(
+                        item.totalEpisodesWatched,
+                        item.totalEpisodesCount,
+                    ),
+                });
+                break;
+            case "book":
+                rows.push({
+                    label: i18n.t.detail.pagesLabel,
+                    value: i18n.t.card.pages(item.currentPage, item.totalPages),
+                });
+                break;
+            case "manga": {
+                const chapters = mangaChapterProgress(item);
+                rows.push({
+                    label: i18n.t.detail.chaptersLabel,
+                    value:
+                        chapters.total !== null && chapters.total > 0
+                            ? i18n.t.card.chapters(
+                                  chapters.current,
+                                  chapters.total,
+                              )
+                            : i18n.current === "ru"
+                              ? `Гл. ${chapters.current} / —`
+                              : `Ch. ${chapters.current} / —`,
+                });
+
+                const vols = isMangaDetail(item) ? (item.volumes ?? []) : [];
+                const totalVols =
+                    vols.length > 0 ? vols.length : (item.totalVolumes ?? null);
+                const curVol =
+                    item.currentVolume ?? (vols.length > 0 ? 1 : null);
+                rows.push({
+                    label: i18n.t.detail.volumesLabel,
+                    value:
+                        totalVols !== null && totalVols > 0
+                            ? curVol !== null && curVol > 0
+                                ? `${curVol} / ${totalVols}`
+                                : `${totalVols}`
+                            : curVol !== null && curVol > 0
+                              ? `${curVol} / —`
+                              : empty,
+                });
+                break;
+            }
+            case "game":
+                // Hours played removed from specRows, stays only in "Ваша история"
+                break;
+        }
+
+        if (item.type === "movie" || item.type === "tvshow") {
+            const duration =
+                item.durationMinutes && item.durationMinutes > 0
+                    ? item.type === "movie"
+                        ? i18n.t.card.movie(item.durationMinutes)
+                        : `${item.durationMinutes} ${i18n.t.detail.minPerEp}`
+                    : empty;
+            rows.push({ label: i18n.t.detail.durationLabel, value: duration });
+        }
+
+        switch (item.type) {
+            case "tvshow":
+            case "movie":
+                rows.push({
+                    label: i18n.t.detailModal.studio,
+                    value: item.studio || empty,
+                });
+                if (item.romajiTitle) {
+                    rows.push({
+                        label: i18n.t.detail.romajiTitle,
+                        value: item.romajiTitle,
+                    });
+                }
+                break;
+            case "book":
+                rows.push({
+                    label: i18n.t.detailModal.author,
+                    value: item.author || empty,
+                });
+                break;
+            case "manga":
+                rows.push({
+                    label: i18n.t.detailModal.author,
+                    value: item.author || empty,
+                });
+                if (item.romajiTitle) {
+                    rows.push({
+                        label: i18n.t.detail.romajiTitle,
+                        value: item.romajiTitle,
+                    });
+                }
+                break;
+            case "game":
+                rows.push({
+                    label: i18n.t.detailModal.platform,
+                    value: item.platform || empty,
+                });
+                break;
+        }
+
+        rows.push({ label: i18n.t.detail.source, value: dataSource(item) });
         rows.push({
-          label: i18n.t.detail.chaptersLabel,
-          value: chapters.total !== null && chapters.total > 0
-            ? i18n.t.card.chapters(chapters.current, chapters.total)
-            : (i18n.current === 'ru' ? `Гл. ${chapters.current} / —` : `Ch. ${chapters.current} / —`),
-        })
+            label: i18n.t.detail.providerLabel,
+            value: providerDomain(item),
+            isLink: true,
+        });
 
-        const vols = isMangaDetail(item) ? item.volumes ?? [] : []
-        const totalVols = vols.length > 0 ? vols.length : (item.totalVolumes ?? null)
-        const curVol = item.currentVolume ?? (vols.length > 0 ? 1 : null)
-        rows.push({
-          label: i18n.t.detail.volumesLabel,
-          value: totalVols !== null && totalVols > 0
-            ? (curVol !== null && curVol > 0 ? `${curVol} / ${totalVols}` : `${totalVols}`)
-            : (curVol !== null && curVol > 0 ? `${curVol} / —` : empty),
-        })
-        break
-      }
-      case 'game':
-        // Hours played removed from specRows, stays only in "Ваша история"
-        break
+        return rows;
     }
 
-    if (item.type === 'movie' || item.type === 'tvshow') {
-      const duration = item.durationMinutes && item.durationMinutes > 0
-        ? (item.type === 'movie' ? i18n.t.card.movie(item.durationMinutes) : `${item.durationMinutes} ${i18n.t.detail.minPerEp}`)
-        : empty
-      rows.push({ label: i18n.t.detail.durationLabel, value: duration })
+    function historyProgressText(): string {
+        const info = progressInfo;
+        if (!info) return i18n.t.detailModal.valueEmpty;
+        return info.total !== null
+            ? `${format(progressValue)} / ${format(info.total)}`
+            : format(progressValue);
     }
 
-    switch (item.type) {
-      case 'tvshow':
-      case 'movie':
-        rows.push({ label: i18n.t.detailModal.studio, value: item.studio || empty })
-        if (item.romajiTitle) {
-          rows.push({ label: i18n.t.detail.romajiTitle, value: item.romajiTitle })
+    function formatDate(value: string | null): string {
+        if (!value) return i18n.t.detailModal.dateEmpty;
+        const parsed = new Date(value);
+        return Number.isNaN(parsed.getTime())
+            ? i18n.t.detailModal.dateEmpty
+            : new Intl.DateTimeFormat(i18n.current, {
+                  dateStyle: "medium",
+              }).format(parsed);
+    }
+
+    function format(value: number): string {
+        return new Intl.NumberFormat(i18n.current).format(value);
+    }
+
+    function stepProgress(delta: number) {
+        const info = progressInfo;
+        const target = media;
+        if (!info || !info.editable || !target) return;
+
+        const next = clampProgress(progressValue + delta, info.total);
+        if (next === progressValue) return;
+
+        if (pendingSnapshot === null) pendingSnapshot = committedProgress;
+        progressValue = next;
+        progressError = null;
+        progressDebounce.schedule(target.id, next);
+    }
+
+    async function changeStatus(value: MediaStatus) {
+        const target = media;
+        if (!target || statusBusy) return;
+        if (value === statusValue) return;
+
+        const previous = statusValue;
+        statusValue = value;
+        statusBusy = true;
+        statusError = null;
+
+        try {
+            await updateStatus(target.id, value);
+            showToast(
+                i18n.t.status.label + ": " + statusLabel(value),
+                "success",
+            );
+            onUpdate();
+        } catch (error) {
+            statusValue = previous;
+            statusError = error;
+            showToast(errorMessage(error), "error");
+        } finally {
+            statusBusy = false;
         }
-        break
-      case 'book':
-        rows.push({ label: i18n.t.detailModal.author, value: item.author || empty })
-        break
-      case 'manga':
-        rows.push({ label: i18n.t.detailModal.author, value: item.author || empty })
-        if (item.romajiTitle) {
-          rows.push({ label: i18n.t.detail.romajiTitle, value: item.romajiTitle })
+    }
+
+    async function setScore(score: number) {
+        const target = media;
+        if (!target || ratingBusy) return;
+
+        const next = scoreValue === score ? null : score;
+        const previous = scoreValue;
+        scoreValue = next;
+        ratingBusy = true;
+        ratingError = null;
+
+        try {
+            await updateMedia(target.id, { score: next });
+            showToast(
+                next ? `${next} ★` : i18n.t.detail.clearRating,
+                "success",
+            );
+            onUpdate();
+        } catch (error) {
+            scoreValue = previous;
+            ratingError = error;
+            showToast(errorMessage(error), "error");
+        } finally {
+            ratingBusy = false;
         }
-        break
-      case 'game':
-        rows.push({ label: i18n.t.detailModal.platform, value: item.platform || empty })
-        break
     }
 
-    rows.push({ label: i18n.t.detail.source, value: dataSource(item) })
-    rows.push({ label: i18n.t.detail.providerLabel, value: providerDomain(item), isLink: true })
-
-    return rows
-  }
-
-  function historyProgressText(): string {
-    const info = progressInfo
-    if (!info) return i18n.t.detailModal.valueEmpty
-    return info.total !== null ? `${format(progressValue)} / ${format(info.total)}` : format(progressValue)
-  }
-
-  function formatDate(value: string | null): string {
-    if (!value) return i18n.t.detailModal.dateEmpty
-    const parsed = new Date(value)
-    return Number.isNaN(parsed.getTime())
-      ? i18n.t.detailModal.dateEmpty
-      : new Intl.DateTimeFormat(i18n.current, { dateStyle: 'medium' }).format(parsed)
-  }
-
-  function format(value: number): string {
-    return new Intl.NumberFormat(i18n.current).format(value)
-  }
-
-  function stepProgress(delta: number) {
-    const info = progressInfo
-    const target = media
-    if (!info || !info.editable || !target) return
-
-    const next = clampProgress(progressValue + delta, info.total)
-    if (next === progressValue) return
-
-    if (pendingSnapshot === null) pendingSnapshot = committedProgress
-    progressValue = next
-    progressError = null
-    progressDebounce.schedule(target.id, next)
-  }
-
-  async function changeStatus(value: MediaStatus) {
-    const target = media
-    if (!target || statusBusy) return
-    if (value === statusValue) return
-
-    const previous = statusValue
-    statusValue = value
-    statusBusy = true
-    statusError = null
-
-    try {
-      await updateStatus(target.id, value)
-      showToast(i18n.t.status.label + ': ' + statusLabel(value), 'success')
-      onUpdate()
-    } catch (error) {
-      statusValue = previous
-      statusError = error
-      showToast(errorMessage(error), 'error')
-    } finally {
-      statusBusy = false
+    function clearScore() {
+        void setScore(scoreValue ?? 0);
     }
-  }
 
-  async function setScore(score: number) {
-    const target = media
-    if (!target || ratingBusy) return
-
-    const next = scoreValue === score ? null : score
-    const previous = scoreValue
-    scoreValue = next
-    ratingBusy = true
-    ratingError = null
-
-    try {
-      await updateMedia(target.id, { score: next })
-      showToast(next ? `${next} ★` : i18n.t.detail.clearRating, 'success')
-      onUpdate()
-    } catch (error) {
-      scoreValue = previous
-      ratingError = error
-      showToast(errorMessage(error), 'error')
-    } finally {
-      ratingBusy = false
+    function retry() {
+        // Повтор после ошибки = пользователь просит свежие данные, а не запись из кэша.
+        void load(mediaId, ++requestSequence, true, true);
     }
-  }
 
-  function clearScore() {
-    void setScore(scoreValue ?? 0)
-  }
-
-  function retry() {
-    // Повтор после ошибки = пользователь просит свежие данные, а не запись из кэша.
-    void load(mediaId, ++requestSequence, true, true)
-  }
-
-  function startEdit() {
-    const target = media
-    if (target) onEdit(target)
-  }
-
-  async function removeMedia() {
-    const target = media
-    if (!target || deleteBusy) return
-    if (!window.confirm(i18n.t.card.confirmDelete(target.title))) return
-
-    deleteBusy = true
-    deleteError = null
-
-    try {
-      showToast(i18n.t.detailModal.delete, 'warning')
-      await onDelete(target.id)
-      onBack()
-    } catch (error) {
-      deleteError = error
-      showToast(errorMessage(error), 'error')
-    } finally {
-      deleteBusy = false
+    function startEdit() {
+        const target = media;
+        if (target) onEdit(target);
     }
-  }
 
-  async function toggleEpisode(number: number) {
-    const target = currentSeason
-    if (!target || episodeBusy) return
+    async function removeMedia() {
+        const target = media;
+        if (!target || deleteBusy) return;
+        if (!window.confirm(i18n.t.card.confirmDelete(target.title))) return;
 
-    const current = target.currentEpisode ?? 0
-    // If clicking an already watched episode: unwatch it to number - 1
-    // If clicking an unwatched episode: mark watched up to number
-    const nextVal = number <= current ? number - 1 : number
+        deleteBusy = true;
+        deleteError = null;
 
-    target.currentEpisode = nextVal
-    episodeBusy = target.id
-    progressError = null
-    onUpdate()
-
-    try {
-      await setSeasonProgress(target.id, nextVal)
-    } catch (error) {
-      target.currentEpisode = current
-      onUpdate()
-      progressError = error
-      showToast(errorMessage(error), 'error')
-    } finally {
-      episodeBusy = ''
+        try {
+            showToast(i18n.t.detailModal.delete, "warning");
+            await onDelete(target.id);
+            onBack();
+        } catch (error) {
+            deleteError = error;
+            showToast(errorMessage(error), "error");
+        } finally {
+            deleteBusy = false;
+        }
     }
-  }
 
-  async function markSeasonComplete() {
-    const target = currentSeason
-    if (!target || episodeBusy) return
-    const total = target.totalEpisodes ?? 0
-    if (total <= 0) return
+    async function toggleEpisode(number: number) {
+        const target = currentSeason;
+        if (!target || episodeBusy) return;
 
-    const previous = target.currentEpisode ?? 0
-    target.currentEpisode = total
-    episodeBusy = target.id
-    onUpdate()
+        const current = target.currentEpisode ?? 0;
+        // If clicking an already watched episode: unwatch it to number - 1
+        // If clicking an unwatched episode: mark watched up to number
+        const nextVal = number <= current ? number - 1 : number;
 
-    try {
-      await setSeasonProgress(target.id, total)
-      showToast(i18n.t.detail.markSeasonWatched, 'success')
-    } catch (error) {
-      target.currentEpisode = previous
-      onUpdate()
-      progressError = error
-      showToast(errorMessage(error), 'error')
-    } finally {
-      episodeBusy = ''
+        target.currentEpisode = nextVal;
+        episodeBusy = target.id;
+        progressError = null;
+        onUpdate();
+
+        try {
+            await setSeasonProgress(target.id, nextVal);
+        } catch (error) {
+            target.currentEpisode = current;
+            onUpdate();
+            progressError = error;
+            showToast(errorMessage(error), "error");
+        } finally {
+            episodeBusy = "";
+        }
     }
-  }
 
-  async function resetSeasonProgress() {
-    const target = currentSeason
-    if (!target || episodeBusy) return
+    async function markSeasonComplete() {
+        const target = currentSeason;
+        if (!target || episodeBusy) return;
+        const total = target.totalEpisodes ?? 0;
+        if (total <= 0) return;
 
-    const previous = target.currentEpisode ?? 0
-    target.currentEpisode = 0
-    episodeBusy = target.id
-    onUpdate()
+        const previous = target.currentEpisode ?? 0;
+        target.currentEpisode = total;
+        episodeBusy = target.id;
+        onUpdate();
 
-    try {
-      await setSeasonProgress(target.id, 0)
-      showToast(i18n.t.detail.resetSeason, 'warning')
-    } catch (error) {
-      target.currentEpisode = previous
-      onUpdate()
-      progressError = error
-      showToast(errorMessage(error), 'error')
-    } finally {
-      episodeBusy = ''
+        try {
+            await setSeasonProgress(target.id, total);
+            showToast(i18n.t.detail.markSeasonWatched, "success");
+        } catch (error) {
+            target.currentEpisode = previous;
+            onUpdate();
+            progressError = error;
+            showToast(errorMessage(error), "error");
+        } finally {
+            episodeBusy = "";
+        }
     }
-  }
 
-  async function handleRefreshMetadata() {
-    const target = media
-    if (!target || refreshBusy) return
-    refreshBusy = true
-    refreshError = null
-    try {
-      const updated = await refreshMetadata(target.id)
-      media = updated
-      syncFrom(updated)
-      mediaDetailCache.invalidate(target.id)
-      achievementsCache.invalidate(target.id)
-      enrichedMediaIds.delete(target.id)
-      if (updated.type === 'game') {
-        void loadGameAchievements(updated, true)
-      }
-      void loadRelated(updated, true)
-      void triggerBackgroundEnrichment(updated, ++requestSequence, true)
-      showToast(i18n.t.detail.metadataUpdated, 'success')
-      onUpdate()
-    } catch (error) {
-      refreshError = error
-      showToast(errorMessage(error), 'error')
-    } finally {
-      refreshBusy = false
+    async function resetSeasonProgress() {
+        const target = currentSeason;
+        if (!target || episodeBusy) return;
+
+        const previous = target.currentEpisode ?? 0;
+        target.currentEpisode = 0;
+        episodeBusy = target.id;
+        onUpdate();
+
+        try {
+            await setSeasonProgress(target.id, 0);
+            showToast(i18n.t.detail.resetSeason, "warning");
+        } catch (error) {
+            target.currentEpisode = previous;
+            onUpdate();
+            progressError = error;
+            showToast(errorMessage(error), "error");
+        } finally {
+            episodeBusy = "";
+        }
     }
-  }
+
+    async function handleRefreshMetadata() {
+        const target = media;
+        if (!target || refreshBusy) return;
+        refreshBusy = true;
+        refreshError = null;
+        try {
+            const updated = await refreshMetadata(target.id);
+            media = updated;
+            syncFrom(updated);
+            mediaDetailCache.invalidate(target.id);
+            achievementsCache.invalidate(target.id);
+            enrichedMediaIds.delete(target.id);
+            if (updated.type === "game") {
+                void loadGameAchievements(updated, true);
+            }
+            void loadRelated(updated, true);
+            void triggerBackgroundEnrichment(updated, ++requestSequence, true);
+            showToast(i18n.t.detail.metadataUpdated, "success");
+            onUpdate();
+        } catch (error) {
+            refreshError = error;
+            showToast(errorMessage(error), "error");
+        } finally {
+            refreshBusy = false;
+        }
+    }
 </script>
-<svelte:window onkeydown={(e) => { if (e.key === 'Escape' && previewRelatedItem) previewRelatedItem = null; }} />
+
+<svelte:window
+    onkeydown={(e) => {
+        if (e.key === "Escape" && previewRelatedItem) previewRelatedItem = null;
+    }}
+/>
 
 <div class="isolate space-y-6">
-  <button type="button" class="tap inline-flex items-center gap-2 text-sm font-medium text-muted transition hover:text-white" onclick={onBack}>
-    <ArrowLeft size={16} aria-hidden="true" />
-    {i18n.t.common.back}
-  </button>
+    <button
+        type="button"
+        class="tap inline-flex items-center gap-2 text-sm font-medium text-muted transition hover:text-white"
+        onclick={onBack}
+    >
+        <ArrowLeft size={16} aria-hidden="true" />
+        {i18n.t.common.back}
+    </button>
 
-  {#if !media && isLoading}
-    <div class="grid gap-6 lg:grid-cols-[20rem_minmax(0,1fr)]" aria-hidden="true">
-      <div class="aspect-[2/3] w-full animate-pulse rounded-xl bg-card"></div>
-      <div class="space-y-4">
-        <div class="h-9 w-3/4 animate-pulse rounded bg-card"></div>
-        <div class="h-4 w-1/2 animate-pulse rounded bg-card"></div>
-        <div class="h-40 animate-pulse rounded-xl bg-card"></div>
-      </div>
-    </div>
-    <p class="sr-only" role="status">{i18n.t.common.loading}</p>
-  {:else if !media}
-    <div class="flex min-h-72 flex-col items-center justify-center gap-3 rounded-xl bg-rose-400/5 p-6 text-center">
-      <p class="text-sm text-rose-200" role="alert">{loadError ? errorMessage(loadError) : i18n.t.detail.notFound}</p>
-      {#if loadError}
-        <button type="button" class="inline-flex items-center gap-2 rounded-md bg-accent px-4 py-2 text-sm font-medium text-white transition hover:bg-accent-hover" onclick={retry}>
-          <RefreshCw size={15} aria-hidden="true" />
-          {i18n.t.common.retry}
-        </button>
-      {/if}
-    </div>
-  {:else}
-    {@const support = progressInfo}
-    <div class="flex flex-col gap-8 lg:flex-row">
-      <!-- Left Column: Poster, Status + Rating, History, Actions, Details -->
-      <aside class="w-full space-y-6 lg:sticky lg:top-4 lg:self-start lg:w-80 lg:shrink-0">
-        <div class="aspect-[2/3] w-full overflow-hidden rounded-xl border border-white/[0.06] bg-[var(--color-panel-line)] shadow-lg">
-          {#if media.coverUrl}
-            <img src={media.coverUrl} alt={media.title} class="h-full w-full object-cover object-top" />
-          {:else}
-            <div class="grid h-full place-items-center text-muted"><ImageIcon size={40} stroke-width={1.25} aria-hidden="true" /></div>
-          {/if}
+    {#if !media && isLoading}
+        <div
+            class="grid gap-6 lg:grid-cols-[20rem_minmax(0,1fr)]"
+            aria-hidden="true"
+        >
+            <div
+                class="aspect-[2/3] w-full animate-pulse rounded-xl bg-card"
+            ></div>
+            <div class="space-y-4">
+                <div class="h-9 w-3/4 animate-pulse rounded bg-card"></div>
+                <div class="h-4 w-1/2 animate-pulse rounded bg-card"></div>
+                <div class="h-40 animate-pulse rounded-xl bg-card"></div>
+            </div>
         </div>
-
-        <!-- Status selector and User Rating in a unified row (Item 7) -->
-        <div class="flex items-center gap-2">
-          <div class="relative flex-1">
-            <PopoverMenu
-              id={`detail-status-${media.id}`}
-              options={statusMenuItems}
-              selected={statusValue}
-              onSelect={(value) => void changeStatus(value as MediaStatus)}
-              label={i18n.t.status.label}
-              matchTriggerWidth
-              class="min-w-40"
-              optionClass="hover:bg-[var(--color-panel-raised)]"
-            >
-              {#snippet trigger({ popoverTargetId, anchorName })}
+        <p class="sr-only" role="status">{i18n.t.common.loading}</p>
+    {:else if !media}
+        <div
+            class="flex min-h-72 flex-col items-center justify-center gap-3 rounded-xl bg-rose-400/5 p-6 text-center"
+        >
+            <p class="text-sm text-rose-200" role="alert">
+                {loadError ? errorMessage(loadError) : i18n.t.detail.notFound}
+            </p>
+            {#if loadError}
                 <button
-                  type="button"
-                  popovertarget={popoverTargetId}
-                  popovertargetaction="toggle"
-                  style="anchor-name: {anchorName}"
-                  disabled={statusBusy}
-                  class="tap flex w-full items-center justify-between gap-2 rounded-lg border border-white/[0.08] bg-[var(--color-panel-line)] px-3.5 py-2.5 text-sm font-medium text-white transition hover:bg-[var(--color-panel-raised)] has-[:popover-open]:ring-2 has-[:popover-open]:ring-accent-soft disabled:cursor-not-allowed disabled:opacity-70"
-                  aria-haspopup="listbox"
+                    type="button"
+                    class="inline-flex items-center gap-2 rounded-md bg-accent px-4 py-2 text-sm font-medium text-white transition hover:bg-accent-hover"
+                    onclick={retry}
                 >
-                  <span class="truncate">{statusLabel(statusValue)}</span>
-                  <ChevronDown size={15} class="shrink-0 transition group-[:popover-open]:rotate-180 has-[:popover-open]:rotate-180" aria-hidden="true" />
+                    <RefreshCw size={15} aria-hidden="true" />
+                    {i18n.t.common.retry}
                 </button>
-              {/snippet}
-            </PopoverMenu>
-          </div>
-
-          <!-- User Rating Button (Item 7) -->
-          <div class="relative shrink-0" data-rating-popover>
-            <button
-              type="button"
-              class={`flex h-10 items-center justify-center gap-1.5 rounded-lg border px-3.5 text-sm font-semibold transition hover:scale-105 active:scale-95 ${
-                scoreValue !== null
-                  ? 'border-amber-400/40 bg-amber-400/10 text-amber-300'
-                  : 'border-white/[0.08] bg-[var(--color-panel-line)] text-white/80 hover:bg-[var(--color-panel-raised)] hover:text-white'
-              }`}
-              onclick={() => (userRatingPopoverOpen = !userRatingPopoverOpen)}
-              title={i18n.t.detail.yourRating}
-              aria-expanded={userRatingPopoverOpen}
-            >
-              {#if scoreValue !== null}
-                <span class="font-bold tabular-nums">{scoreValue}</span>
-                <Star size={14} class="text-amber-400" fill="currentColor" />
-              {:else}
-                <span class="text-xs">{i18n.t.detail.rateButton}</span>
-                <Star size={13} class="text-muted" />
-              {/if}
-            </button>
-
-            {#if userRatingPopoverOpen}
-              <div class="absolute right-0 top-full z-30 mt-2 w-48 rounded-xl border border-white/[0.12] bg-[var(--color-overlay)] p-3 shadow-2xl shadow-black/90">
-                <div class="mb-2 text-center text-xs font-semibold text-slate-300">
-                  {i18n.t.detail.yourRating}
-                </div>
-                <div class="grid grid-cols-5 gap-1.5">
-                  {#each Array(10) as _, index}
-                    {@const val = index + 1}
-                    <button
-                      type="button"
-                      class={`flex h-7 w-7 items-center justify-center rounded-md text-xs font-bold transition cursor-pointer ${
-                        val === scoreValue
-                          ? 'bg-[#3b82f6] text-white shadow-md'
-                          : 'bg-white/5 text-slate-300 hover:bg-white/15 hover:text-white'
-                      }`}
-                      onclick={() => { void setScore(val); userRatingPopoverOpen = false }}
-                    >
-                      {val}
-                    </button>
-                  {/each}
-                </div>
-                {#if scoreValue !== null}
-                  <div class="mt-2.5 border-t border-white/[0.08] pt-2 text-center">
-                    <button
-                      type="button"
-                      class="text-xs font-semibold text-rose-400 hover:text-rose-300 transition cursor-pointer"
-                      onclick={() => { clearScore(); userRatingPopoverOpen = false }}
-                    >
-                      {i18n.t.detail.clearRating}
-                    </button>
-                  </div>
-                {/if}
-              </div>
             {/if}
-          </div>
         </div>
-        {#if statusError}<p class="text-xs text-rose-300" role="alert">{errorMessage(statusError)}</p>{/if}
+    {:else}
+        {@const support = progressInfo}
+        <div class="flex flex-col gap-8 lg:flex-row">
+            <!-- Left Column: Poster, Status + Rating, History, Actions, Details -->
+            <aside
+                class="w-full space-y-6 lg:sticky lg:top-4 lg:self-start lg:w-80 lg:shrink-0"
+            >
+                <div
+                    class="aspect-[2/3] w-full overflow-hidden rounded-xl border border-white/[0.06] bg-[var(--color-panel-line)] shadow-lg"
+                >
+                    {#if media.coverUrl}
+                        <img
+                            src={media.coverUrl}
+                            alt={media.title}
+                            class="h-full w-full object-cover object-top"
+                        />
+                    {:else}
+                        <div class="grid h-full place-items-center text-muted">
+                            <ImageIcon
+                                size={40}
+                                stroke-width={1.25}
+                                aria-hidden="true"
+                            />
+                        </div>
+                    {/if}
+                </div>
 
-        <!-- Panel 1: Your History (Items 8, 9) -->
-        <div>
-          <h2 class="mb-2 text-xs font-bold uppercase tracking-wider text-slate-200">{i18n.t.detail.historyTitle}</h2>
-          <div class="panel">
-            <dl class="divide-y divide-white/5 text-sm">
-              <div class="flex items-center justify-between gap-3 pb-3">
-                <dt class="text-muted text-xs">{i18n.t.detail.startedLabel}</dt>
-                <dd class="font-medium text-white text-xs">{formatDate(media.startedAt)}</dd>
-              </div>
-              <div class="flex items-center justify-between gap-3 py-3">
-                <dt class="text-muted text-xs">{i18n.t.detail.endedLabel}</dt>
-                <dd class="font-medium text-white text-xs">{formatDate(media.finishedAt)}</dd>
-              </div>
-              <div class="flex items-center justify-between gap-3 pt-3">
-                <dt class="text-muted text-xs">{i18n.t.detail.progressShort}</dt>
-                <dd class="font-medium tabular-nums text-white text-xs">{historyProgressText()}</dd>
-              </div>
-              {#if media.type === 'game'}
-                <div class="flex items-center justify-between gap-3 pt-3">
-                  <dt class="text-muted text-xs">{i18n.current === 'ru' ? 'Платформа' : 'Platform'}</dt>
-                  <dd class="relative font-medium text-white text-xs">
-                    {#if gamePlatformOptions.length > 0}
-                      <PopoverMenu
-                        id={`platform-${media.id}`}
-                        options={platformMenuItems}
-                        selected={media.userPlatform ?? ''}
-                        onSelect={(value) => void updateUserPlatform(String(value))}
-                        label={i18n.t.detailModal.platform}
-                        placement="bottom-end"
-                        class="max-h-56 min-w-[150px] overflow-y-auto"
-                        optionClass="text-xs"
-                      >
-                        {#snippet trigger({ popoverTargetId, anchorName })}
-                          <button
+                <!-- Status selector and User Rating in a unified row (Item 7) -->
+                <div class="flex items-center gap-2">
+                    <div class="relative flex-1">
+                        <PopoverMenu
+                            id={`detail-status-${media.id}`}
+                            options={statusMenuItems}
+                            selected={statusValue}
+                            onSelect={(value) =>
+                                void changeStatus(value as MediaStatus)}
+                            label={i18n.t.status.label}
+                            matchTriggerWidth
+                            class="min-w-40"
+                            optionClass="hover:bg-[var(--color-panel-raised)]"
+                        >
+                            {#snippet trigger({ popoverTargetId, anchorName })}
+                                <button
+                                    type="button"
+                                    popovertarget={popoverTargetId}
+                                    popovertargetaction="toggle"
+                                    style="anchor-name: {anchorName}"
+                                    disabled={statusBusy}
+                                    class="tap flex w-full items-center justify-between gap-2 rounded-lg border border-white/[0.08] bg-[var(--color-panel-line)] px-3.5 py-2.5 text-sm font-medium text-white transition hover:bg-[var(--color-panel-raised)] has-[:popover-open]:ring-2 has-[:popover-open]:ring-accent-soft disabled:cursor-not-allowed disabled:opacity-70"
+                                    aria-haspopup="listbox"
+                                >
+                                    <span class="truncate"
+                                        >{statusLabel(statusValue)}</span
+                                    >
+                                    <ChevronDown
+                                        size={15}
+                                        class="shrink-0 transition group-[:popover-open]:rotate-180 has-[:popover-open]:rotate-180"
+                                        aria-hidden="true"
+                                    />
+                                </button>
+                            {/snippet}
+                        </PopoverMenu>
+                    </div>
+
+                    <!-- User Rating Button (Item 7) -->
+                    <div class="relative shrink-0" data-rating-popover>
+                        <button
                             type="button"
-                            popovertarget={popoverTargetId}
-                            popovertargetaction="toggle"
-                            style="anchor-name: {anchorName}"
-                            class="tap flex max-w-[155px] items-center justify-between gap-2 rounded-lg border border-white/[0.08] bg-[var(--color-field)] px-2.5 py-1.5 text-xs text-white transition hover:border-[color-mix(in_oklab,var(--color-accent)_50%,transparent)] hover:bg-[var(--color-track-faint)] has-[:popover-open]:ring-1 has-[:popover-open]:ring-[var(--color-accent)]"
-                            aria-haspopup="listbox"
-                          >
-                            <span class="truncate">{media?.userPlatform || (i18n.current === 'ru' ? 'Не выбрана' : 'Not selected')}</span>
-                            <ChevronDown size={13} class="shrink-0 text-muted transition duration-200 has-[:popover-open]:rotate-180 has-[:popover-open]:text-white" aria-hidden="true" />
-                          </button>
-                        {/snippet}
-                      </PopoverMenu>
-                    {:else}
-                      <span class="text-xs text-muted">—</span>
-                    {/if}
-                  </dd>
+                            class={`flex h-10 items-center justify-center gap-1.5 rounded-lg border px-3.5 text-sm font-semibold transition hover:scale-105 active:scale-95 ${
+                                scoreValue !== null
+                                    ? "border-amber-400/40 bg-amber-400/10 text-amber-300"
+                                    : "border-white/[0.08] bg-[var(--color-panel-line)] text-white/80 hover:bg-[var(--color-panel-raised)] hover:text-white"
+                            }`}
+                            onclick={() =>
+                                (userRatingPopoverOpen =
+                                    !userRatingPopoverOpen)}
+                            title={i18n.t.detail.yourRating}
+                            aria-expanded={userRatingPopoverOpen}
+                        >
+                            {#if scoreValue !== null}
+                                <span class="font-bold tabular-nums"
+                                    >{scoreValue}</span
+                                >
+                                <Star
+                                    size={14}
+                                    class="text-amber-400"
+                                    fill="currentColor"
+                                />
+                            {:else}
+                                <span class="text-xs"
+                                    >{i18n.t.detail.rateButton}</span
+                                >
+                                <Star size={13} class="text-muted" />
+                            {/if}
+                        </button>
+
+                        {#if userRatingPopoverOpen}
+                            <div
+                                class="absolute right-0 top-full z-30 mt-2 w-48 rounded-xl border border-white/[0.12] bg-[var(--color-overlay)] p-3 shadow-2xl shadow-black/90"
+                            >
+                                <div
+                                    class="mb-2 text-center text-xs font-semibold text-slate-300"
+                                >
+                                    {i18n.t.detail.yourRating}
+                                </div>
+                                <div class="grid grid-cols-5 gap-1.5">
+                                    {#each Array(10) as _, index}
+                                        {@const val = index + 1}
+                                        <button
+                                            type="button"
+                                            class={`flex h-7 w-7 items-center justify-center rounded-md text-xs font-bold transition cursor-pointer ${
+                                                val === scoreValue
+                                                    ? "bg-[#3b82f6] text-white shadow-md"
+                                                    : "bg-white/5 text-slate-300 hover:bg-white/15 hover:text-white"
+                                            }`}
+                                            onclick={() => {
+                                                void setScore(val);
+                                                userRatingPopoverOpen = false;
+                                            }}
+                                        >
+                                            {val}
+                                        </button>
+                                    {/each}
+                                </div>
+                                {#if scoreValue !== null}
+                                    <div
+                                        class="mt-2.5 border-t border-white/[0.08] pt-2 text-center"
+                                    >
+                                        <button
+                                            type="button"
+                                            class="text-xs font-semibold text-rose-400 hover:text-rose-300 transition cursor-pointer"
+                                            onclick={() => {
+                                                clearScore();
+                                                userRatingPopoverOpen = false;
+                                            }}
+                                        >
+                                            {i18n.t.detail.clearRating}
+                                        </button>
+                                    </div>
+                                {/if}
+                            </div>
+                        {/if}
+                    </div>
                 </div>
-              {/if}
-            </dl>
-          </div>
-        </div>
+                {#if statusError}<p class="text-xs text-rose-300" role="alert">
+                        {errorMessage(statusError)}
+                    </p>{/if}
 
-        <!-- Panel 2: Actions (Item 9) -->
-        <div>
-          <h2 class="mb-2 text-xs font-bold uppercase tracking-wider text-slate-200">{i18n.t.detail.actionsTitle}</h2>
-          <div class="panel space-y-2">
-            <button
-              type="button"
-              class="flex w-full items-center gap-2.5 rounded-lg bg-surface/50 px-3 py-2.5 text-xs font-medium text-[var(--color-ink-dim)] transition hover:bg-[var(--color-panel-raised)] hover:text-white disabled:cursor-not-allowed disabled:opacity-70"
-              disabled={refreshBusy}
-              onclick={() => void handleRefreshMetadata()}
-            >
-              <RefreshCw size={15} class={`text-[var(--color-success-line)] ${refreshBusy ? 'animate-spin' : ''}`} aria-hidden="true" />
-              {i18n.t.detail.updateMetadata}
-            </button>
-            {#if refreshError}<p class="text-xs text-rose-300" role="alert">{errorMessage(refreshError)}</p>{/if}
-
-            <button
-              type="button"
-              class="flex w-full items-center gap-2.5 rounded-lg bg-surface/50 px-3 py-2.5 text-xs font-medium text-[var(--color-ink-dim)] transition hover:bg-[var(--color-panel-raised)] hover:text-white"
-              onclick={() => onNavigate('lists')}
-            >
-              <List size={15} class="text-[var(--color-accent-soft)]" aria-hidden="true" />
-              {i18n.t.detail.addToLists}
-            </button>
-
-            <button
-              type="button"
-              class="flex w-full items-center gap-2.5 rounded-lg bg-surface/50 px-3 py-2.5 text-xs font-medium text-[var(--color-ink-dim)] transition hover:bg-[var(--color-panel-raised)] hover:text-white"
-              onclick={() => onNavigate('calendar')}
-            >
-              <CalendarDays size={15} class="text-[var(--color-star)]" aria-hidden="true" />
-              {i18n.t.detail.activity}
-            </button>
-
-            <button
-              type="button"
-              class="flex w-full items-center gap-2.5 rounded-lg bg-surface/50 px-3 py-2.5 text-xs font-medium text-[var(--color-ink-dim)] transition hover:bg-[var(--color-panel-raised)] hover:text-white"
-              onclick={startEdit}
-            >
-              <Pencil size={15} class="text-[var(--color-info-soft)]" aria-hidden="true" />
-              {i18n.t.detailModal.edit}
-            </button>
-
-            <button
-              type="button"
-              class="tap flex w-full items-center gap-2.5 rounded-lg bg-surface/50 px-3 py-2.5 text-xs font-medium text-rose-300 transition hover:bg-[var(--color-panel-raised)] disabled:cursor-not-allowed disabled:opacity-70"
-              disabled={deleteBusy}
-              onclick={() => void removeMedia()}
-            >
-              <Trash2 size={15} class="text-rose-400" aria-hidden="true" />
-              {i18n.t.detailModal.delete}
-            </button>
-            {#if deleteError}<p class="text-xs text-rose-300" role="alert">{errorMessage(deleteError)}</p>{/if}
-          </div>
-        </div>
-
-        <!-- Panel 3: Details (Items 8, 9, 11) -->
-        <div>
-          <h2 class="mb-2 text-xs font-bold uppercase tracking-wider text-slate-200">{i18n.t.detail.detailsTitle}</h2>
-          <div class="panel">
-            <dl class="divide-y divide-white/5 text-sm">
-              {#each specRows(media) as row, idx (`${row.label}-${idx}`)}
-                <div class="flex items-start justify-between gap-3 py-3 first:pt-0 last:pb-0">
-                  <dt class="shrink-0 text-xs font-medium text-muted">{row.label}</dt>
-                  <dd class="text-right text-xs font-medium text-white">
-                    {#if row.isLink}
-                      <a
-                        href={`https://${row.value}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        class="inline-flex items-center gap-1 text-accent-soft hover:underline"
-                      >
-                        {row.value}
-                        <ExternalLink size={11} aria-hidden="true" />
-                      </a>
-                    {:else}
-                      {row.value}
-                    {/if}
-                  </dd>
+                <!-- Panel 1: Your History (Items 8, 9) -->
+                <div>
+                    <h2
+                        class="mb-2 text-xs font-bold uppercase tracking-wider text-slate-200"
+                    >
+                        {i18n.t.detail.historyTitle}
+                    </h2>
+                    <div class="panel">
+                        <dl class="divide-y divide-white/5 text-sm">
+                            <div
+                                class="flex items-center justify-between gap-3 pb-3"
+                            >
+                                <dt class="text-muted text-xs">
+                                    {i18n.t.detail.startedLabel}
+                                </dt>
+                                <dd class="font-medium text-white text-xs">
+                                    {formatDate(media.startedAt)}
+                                </dd>
+                            </div>
+                            <div
+                                class="flex items-center justify-between gap-3 py-3"
+                            >
+                                <dt class="text-muted text-xs">
+                                    {i18n.t.detail.endedLabel}
+                                </dt>
+                                <dd class="font-medium text-white text-xs">
+                                    {formatDate(media.finishedAt)}
+                                </dd>
+                            </div>
+                            <div
+                                class="flex items-center justify-between gap-3 pt-3"
+                            >
+                                <dt class="text-muted text-xs">
+                                    {i18n.t.detail.progressShort}
+                                </dt>
+                                <dd
+                                    class="font-medium tabular-nums text-white text-xs"
+                                >
+                                    {historyProgressText()}
+                                </dd>
+                            </div>
+                            {#if media.type === "game"}
+                                <div
+                                    class="flex items-center justify-between gap-3 pt-3"
+                                >
+                                    <dt class="text-muted text-xs">
+                                        {i18n.current === "ru"
+                                            ? "Платформа"
+                                            : "Platform"}
+                                    </dt>
+                                    <dd
+                                        class="relative font-medium text-white text-xs"
+                                    >
+                                        {#if gamePlatformOptions.length > 0}
+                                            <PopoverMenu
+                                                id={`platform-${media.id}`}
+                                                options={platformMenuItems}
+                                                selected={media.userPlatform ??
+                                                    ""}
+                                                onSelect={(value) =>
+                                                    void updateUserPlatform(
+                                                        String(value),
+                                                    )}
+                                                label={i18n.t.detailModal
+                                                    .platform}
+                                                placement="bottom-end"
+                                                class="max-h-56 min-w-[150px] overflow-y-auto"
+                                                optionClass="text-xs"
+                                            >
+                                                {#snippet trigger({
+                                                    popoverTargetId,
+                                                    anchorName,
+                                                })}
+                                                    <button
+                                                        type="button"
+                                                        popovertarget={popoverTargetId}
+                                                        popovertargetaction="toggle"
+                                                        style="anchor-name: {anchorName}"
+                                                        class="tap flex max-w-[155px] items-center justify-between gap-2 rounded-lg border border-white/[0.08] bg-[var(--color-field)] px-2.5 py-1.5 text-xs text-white transition hover:border-[color-mix(in_oklab,var(--color-accent)_50%,transparent)] hover:bg-[var(--color-track-faint)] has-[:popover-open]:ring-1 has-[:popover-open]:ring-[var(--color-accent)]"
+                                                        aria-haspopup="listbox"
+                                                    >
+                                                        <span class="truncate"
+                                                            >{media?.userPlatform ||
+                                                                (i18n.current ===
+                                                                "ru"
+                                                                    ? "Не выбрана"
+                                                                    : "Not selected")}</span
+                                                        >
+                                                        <ChevronDown
+                                                            size={13}
+                                                            class="shrink-0 text-muted transition duration-200 has-[:popover-open]:rotate-180 has-[:popover-open]:text-white"
+                                                            aria-hidden="true"
+                                                        />
+                                                    </button>
+                                                {/snippet}
+                                            </PopoverMenu>
+                                        {:else}
+                                            <span class="text-xs text-muted"
+                                                >—</span
+                                            >
+                                        {/if}
+                                    </dd>
+                                </div>
+                            {/if}
+                        </dl>
+                    </div>
                 </div>
-              {/each}
-            </dl>
-          </div>
-        </div>
-      </aside>
 
-      <!-- Right Column: Header, Badges, Tabs, Tab Content -->
-      <div class="min-w-0 flex-1 space-y-6">
-        <!-- Title and Romaji/Subtitle -->
-        <header class="flex flex-wrap items-start justify-between gap-4">
-          <div class="min-w-0">
-            {#if originalTitle}
-              <p class="text-sm font-medium text-muted">{originalTitle}</p>
-            {/if}
-            <h1 class="mt-1 break-words text-3xl font-extrabold tracking-tight text-white">{media.title}</h1>
-          </div>
-        </header>
+                <!-- Panel 2: Actions (Item 9) -->
+                <div>
+                    <h2
+                        class="mb-2 text-xs font-bold uppercase tracking-wider text-slate-200"
+                    >
+                        {i18n.t.detail.actionsTitle}
+                    </h2>
+                    <div class="panel space-y-2">
+                        <button
+                            type="button"
+                            class="flex w-full items-center gap-2.5 rounded-lg bg-surface/50 px-3 py-2.5 text-xs font-medium text-[var(--color-ink-dim)] transition hover:bg-[var(--color-panel-raised)] hover:text-white disabled:cursor-not-allowed disabled:opacity-70"
+                            disabled={refreshBusy}
+                            onclick={() => void handleRefreshMetadata()}
+                        >
+                            <RefreshCw
+                                size={15}
+                                class={`text-[var(--color-success-line)] ${refreshBusy ? "animate-spin" : ""}`}
+                                aria-hidden="true"
+                            />
+                            {i18n.t.detail.updateMetadata}
+                        </button>
+                        {#if refreshError}<p
+                                class="text-xs text-rose-300"
+                                role="alert"
+                            >
+                                {errorMessage(refreshError)}
+                            </p>{/if}
 
-        <!-- Category/Type Tags -->
-        <ul class="flex flex-wrap gap-2">
-          {#each tags(media) as tag, idx (`${tag}-${idx}`)}
-            <li class="rounded-full bg-[color-mix(in_oklab,var(--color-accent)_20%,transparent)] px-3 py-1 text-xs font-medium text-[var(--color-accent-soft)]">{tag}</li>
-          {/each}
-        </ul>
+                        <button
+                            type="button"
+                            class="flex w-full items-center gap-2.5 rounded-lg bg-surface/50 px-3 py-2.5 text-xs font-medium text-[var(--color-ink-dim)] transition hover:bg-[var(--color-panel-raised)] hover:text-white"
+                            onclick={() => onNavigate("lists")}
+                        >
+                            <List
+                                size={15}
+                                class="text-[var(--color-accent-soft)]"
+                                aria-hidden="true"
+                            />
+                            {i18n.t.detail.addToLists}
+                        </button>
+
+                        <button
+                            type="button"
+                            class="flex w-full items-center gap-2.5 rounded-lg bg-surface/50 px-3 py-2.5 text-xs font-medium text-[var(--color-ink-dim)] transition hover:bg-[var(--color-panel-raised)] hover:text-white"
+                            onclick={() => onNavigate("calendar")}
+                        >
+                            <CalendarDays
+                                size={15}
+                                class="text-[var(--color-star)]"
+                                aria-hidden="true"
+                            />
+                            {i18n.t.detail.activity}
+                        </button>
+
+                        <button
+                            type="button"
+                            class="flex w-full items-center gap-2.5 rounded-lg bg-surface/50 px-3 py-2.5 text-xs font-medium text-[var(--color-ink-dim)] transition hover:bg-[var(--color-panel-raised)] hover:text-white"
+                            onclick={startEdit}
+                        >
+                            <Pencil
+                                size={15}
+                                class="text-[var(--color-info-soft)]"
+                                aria-hidden="true"
+                            />
+                            {i18n.t.detailModal.edit}
+                        </button>
+
+                        <button
+                            type="button"
+                            class="tap flex w-full items-center gap-2.5 rounded-lg bg-surface/50 px-3 py-2.5 text-xs font-medium text-rose-300 transition hover:bg-[var(--color-panel-raised)] disabled:cursor-not-allowed disabled:opacity-70"
+                            disabled={deleteBusy}
+                            onclick={() => void removeMedia()}
+                        >
+                            <Trash2
+                                size={15}
+                                class="text-rose-400"
+                                aria-hidden="true"
+                            />
+                            {i18n.t.detailModal.delete}
+                        </button>
+                        {#if deleteError}<p
+                                class="text-xs text-rose-300"
+                                role="alert"
+                            >
+                                {errorMessage(deleteError)}
+                            </p>{/if}
+                    </div>
+                </div>
+
+                <!-- Panel 3: Details (Items 8, 9, 11) -->
+                <div>
+                    <h2
+                        class="mb-2 text-xs font-bold uppercase tracking-wider text-slate-200"
+                    >
+                        {i18n.t.detail.detailsTitle}
+                    </h2>
+                    <div class="panel">
+                        <dl class="divide-y divide-white/5 text-sm">
+                            {#each specRows(media) as row, idx (`${row.label}-${idx}`)}
+                                <div
+                                    class="flex items-start justify-between gap-3 py-3 first:pt-0 last:pb-0"
+                                >
+                                    <dt
+                                        class="shrink-0 text-xs font-medium text-muted"
+                                    >
+                                        {row.label}
+                                    </dt>
+                                    <dd
+                                        class="text-right text-xs font-medium text-white"
+                                    >
+                                        {#if row.isLink}
+                                            <a
+                                                href={`https://${row.value}`}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                class="inline-flex items-center gap-1 text-accent-soft hover:underline"
+                                            >
+                                                {row.value}
+                                                <ExternalLink
+                                                    size={11}
+                                                    aria-hidden="true"
+                                                />
+                                            </a>
+                                        {:else}
+                                            {row.value}
+                                        {/if}
+                                    </dd>
+                                </div>
+                            {/each}
+                        </dl>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Right Column: Header, Badges, Tabs, Tab Content -->
+            <div class="min-w-0 flex-1 space-y-6">
+                <!-- Title and Romaji/Subtitle -->
+                <header
+                    class="flex flex-wrap items-start justify-between gap-4"
+                >
+                    <div class="min-w-0">
+                        {#if originalTitle}
+                            <p class="text-sm font-medium text-muted">
+                                {originalTitle}
+                            </p>
+                        {/if}
+                        <h1
+                            class="mt-1 break-words text-3xl font-extrabold tracking-tight text-white"
+                        >
+                            {media.title}
+                        </h1>
+                    </div>
+                </header>
+
+                <!-- Category/Type Tags -->
+                <ul class="flex flex-wrap gap-2">
+                    {#each tags(media) as tag, idx (`${tag}-${idx}`)}
+                        <li
+                            class="rounded-full bg-[color-mix(in_oklab,var(--color-accent)_20%,transparent)] px-3 py-1 text-xs font-medium text-[var(--color-accent-soft)]"
+                        >
+                            {tag}
+                        </li>
+                    {/each}
+                </ul>
 
                 <!-- Uniform External Ratings Badges (Item 6 & Point 1) -->
-        <div class="flex flex-wrap items-center gap-2.5">
-          {#each externalRatings as rating (rating.source)}
-            {@const src = rating.source.toLowerCase()}
-            <div
-              class="inline-flex h-9 items-center gap-2 rounded-lg border px-3 shadow-sm transition hover:brightness-125 {sourceBadgeClasses(src)}"
-              title={`${rating.source}: ${rating.score !== null && rating.score > 0 ? rating.score.toFixed(1) : '—'}`}
-            >
-              <span class="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider">
-                {#if src.includes('anilist')}
-                  <svg class="h-3.5 w-3.5 fill-current" viewBox="0 0 24 24" aria-hidden="true"><path d="M24 17.561v4.425H13.678v-4.425zM12.924 2.014l7.157 15.547H14.88l-1.393-3.088H8.847l-1.385 3.088H2.179L9.345 2.014h3.579zm-.897 8.358L10.37 6.452l-1.65 3.92h3.307z"/></svg>
-                  AniList
-                {:else if src.includes('shikimori')}
-                  Shikimori
-                {:else if src.includes('mangadex')}
-                  MangaDex
-                {:else if src.includes('myanimelist') || src.includes('jikan') || src.includes('mal')}
-                  MAL
-                {:else if src.includes('tmdb')}
-                  TMDB
-                {:else if src.includes('rawg')}
-                  RAWG
-                {:else if src.includes('steam')}
-                  Steam
-                {:else if src.includes('igdb')}
-                  IGDB
-                {:else if src.includes('kitsu')}
-                  Kitsu
-                {:else if src.includes('simkl')}
-                  Simkl
-                {:else if src.includes('kinopoisk')}
-                  Кинопоиск
-                {:else if src.includes('imdb')}
-                  IMDb
-                {:else if src.includes('thetvdb') || src.includes('tvdb')}
-                  TVDB
-                {:else if src.includes('mangaupdate')}
-                  MangaUpdates
-                {:else if src.includes('openlibrary')}
-                  OpenLibrary
-                {:else}
-                  <Star size={13} fill="currentColor" aria-hidden="true" />
-                  {rating.source}
-                {/if}
-              </span>
-              {#if rating.score !== null && rating.score > 0}
-                <span class="text-sm font-extrabold tabular-nums text-white">{rating.score.toFixed(1)}</span>
-                {#if rating.votes}
-                  <span class="text-[11px] font-normal text-white/50">({rating.votes > 1000 ? (rating.votes / 1000).toFixed(1) + 'k' : rating.votes})</span>
-                {/if}
-              {:else if isEnriching}
-                <span class="inline-block h-4 w-6 animate-pulse rounded bg-white/20"></span>
-              {:else}
-                <span class="text-sm font-medium text-white/40">—</span>
-              {/if}
-            </div>
-          {/each}
-        </div>
-
-<!-- Sub-navigation Tabs (Item 19) -->
-        <nav class="flex items-center gap-1 border-b border-white/[0.08] pb-px" aria-label="Sections">
-          <button
-            type="button"
-            class={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-semibold transition ${
-              activeSubTab === 'overview'
-                ? 'border-[var(--color-accent)] text-white'
-                : 'border-transparent text-muted hover:text-white'
-            }`}
-            onclick={() => (activeSubTab = 'overview')}
-          >
-            {i18n.t.detail.tabOverview}
-          </button>
-
-          {#if media.type === 'tvshow'}
-            <button
-              type="button"
-              class={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-semibold transition ${
-                activeSubTab === 'episodes'
-                  ? 'border-[var(--color-accent)] text-white'
-                  : 'border-transparent text-muted hover:text-white'
-              }`}
-              onclick={() => (activeSubTab = 'episodes')}
-            >
-              {i18n.t.detail.tabEpisodes}
-              {#if currentSeason}
-                <span class="rounded-full bg-white/10 px-2 py-0.5 text-xs text-[var(--color-accent-soft)]">
-                  {currentSeason.currentEpisode}/{currentSeason.totalEpisodes}
-                </span>
-              {/if}
-            </button>
-          {/if}
-
-          {#if media.type === 'manga'}
-            <button
-              type="button"
-              class={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-semibold transition ${
-                activeSubTab === 'volumes'
-                  ? 'border-[var(--color-accent)] text-white'
-                  : 'border-transparent text-muted hover:text-white'
-              }`}
-              onclick={() => (activeSubTab = 'volumes')}
-            >
-              <Layers size={14} class="text-[var(--color-accent-soft)]" aria-hidden="true" />
-              {i18n.t.detail.tabVolumes}
-              {#if mangaVolumes.length > 0}
-                <span class="rounded-full bg-white/10 px-2 py-0.5 text-xs text-[var(--color-accent-soft)]">
-                  {mangaVolumes.length}
-                </span>
-              {/if}
-            </button>
-          {/if}
-
-          <button
-            type="button"
-            class={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-semibold transition ${
-              activeSubTab === 'related'
-                ? 'border-[var(--color-accent)] text-white'
-                : 'border-transparent text-muted hover:text-white'
-            }`}
-            onclick={() => (activeSubTab = 'related')}
-          >
-            {i18n.t.detail.tabRelatedMedia}
-            {#if related.length > 0}
-              <span class="rounded-full bg-white/10 px-2 py-0.5 text-xs text-muted">
-                {related.length}
-              </span>
-            {/if}
-          </button>
-
-          <button
-            type="button"
-            class={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-semibold transition ${
-              activeSubTab === 'recommendations'
-                ? 'border-[var(--color-accent)] text-white'
-                : 'border-transparent text-muted hover:text-white'
-            }`}
-            onclick={() => { activeSubTab = 'recommendations'; void loadRecommendations() }}
-          >
-            <Sparkles size={14} class="text-[var(--color-accent-soft)]" aria-hidden="true" />
-            {i18n.t.detail.tabRecommendations}
-          </button>
-        </nav>
-
-        <!-- TAB 1: OVERVIEW -->
-        {#if activeSubTab === 'overview'}
-          <div class="space-y-6">
-            <!-- Synopsis with conditional Read More (Item 5) & Translator (Item 4) -->
-            <section class="space-y-2 rounded-xl bg-[color-mix(in_oklab,var(--color-panel-line)_60%,transparent)] p-5 border border-white/[0.06]">
-              <div class="flex items-center justify-between">
-                <h2 class="text-xs font-bold uppercase tracking-wider text-slate-300">{i18n.t.detail.synopsisTitle}</h2>
-                {#if synopsisText}
-                  <button
-                    type="button"
-                    class="inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium text-[var(--color-accent-soft)] transition hover:bg-white/10 hover:text-white cursor-pointer disabled:opacity-50"
-                    disabled={translatingSynopsis}
-                    onclick={() => void toggleTranslateSynopsis()}
-                    title={isSynopsisTranslated ? i18n.t.detail.showOriginal : i18n.t.detail.translate}
-                  >
-                    {#if translatingSynopsis}
-                      <div class="h-3 w-3 animate-spin rounded-full border border-accent border-t-transparent"></div>
-                      <span>{i18n.t.detail.translating}</span>
-                    {:else}
-                      <Languages size={13} aria-hidden="true" />
-                      <span>{isSynopsisTranslated ? i18n.t.detail.showOriginal : i18n.t.detail.translate}</span>
-                    {/if}
-                  </button>
-                {/if}
-              </div>
-              {#if synopsisText}
-                <p class={`whitespace-pre-line break-words text-sm leading-relaxed text-[var(--color-ink-dim)] ${synopsisExpandable && !synopsisExpanded ? 'line-clamp-4' : ''}`}>
-                  {isSynopsisTranslated && translatedSynopsis ? translatedSynopsis : synopsisText}
-                </p>
-                {#if synopsisExpandable}
-                  <button
-                    type="button"
-                    class="inline-flex items-center gap-1 pt-1 text-xs font-semibold text-[var(--color-accent-soft)] transition hover:text-white"
-                    onclick={() => (synopsisExpanded = !synopsisExpanded)}
-                  >
-                    {synopsisExpanded ? i18n.t.detail.collapse : i18n.t.detail.readMore}
-                    <ChevronDown size={14} class={`transition ${synopsisExpanded ? 'rotate-180' : ''}`} aria-hidden="true" />
-                  </button>
-                {/if}
-              {:else}
-                <p class="text-sm text-muted">{i18n.t.detail.noSynopsis}</p>
-              {/if}
-            </section>
-
-            <!-- TV / Anime Compact Episode Progress Banner (Item 19) -->
-            {#if media.type === 'tvshow' && currentSeason}
-              <div class="relative overflow-hidden rounded-xl border border-white/[0.08] bg-gradient-to-r from-[var(--color-overlay-strong)] via-[var(--color-panel-line)] to-[var(--color-overlay-strong)] p-5 shadow-lg">
-                <div class="flex flex-wrap items-center justify-between gap-4">
-                  <div class="min-w-0">
-                    <p class="text-xs font-semibold uppercase tracking-wider text-[var(--color-accent-soft)]">
-                      {currentSeason.title}
-                    </p>
-                    <p class="mt-1 text-lg font-bold text-white">
-                      {i18n.t.card.episodes(currentSeason.currentEpisode, currentSeason.totalEpisodes)}
-                      <span class="ml-2 text-xs font-medium text-muted">({Math.round(seasonProgressPercent)}%)</span>
-                    </p>
-                  </div>
-
-                  <div class="flex items-center gap-2">
-                    {#if nextEpisode}
-                      <button
-                        type="button"
-                        class="inline-flex items-center gap-2 rounded-lg bg-[var(--color-accent)] px-4 py-2 text-xs font-semibold text-white shadow-md transition hover:bg-[var(--color-accent-deep)] active:scale-95 disabled:opacity-50"
-                        disabled={Boolean(episodeBusy)}
-                        onclick={() => void toggleEpisode(nextEpisode!.number)}
-                      >
-                        <Check size={14} stroke-width={2.5} />
-                        {i18n.t.detail.bannerNextEpisode}: E{nextEpisode.number}
-                      </button>
-                    {:else if currentSeason.totalEpisodes && currentSeason.currentEpisode >= currentSeason.totalEpisodes}
-                      <span class="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500/15 px-3 py-1.5 text-xs font-semibold text-emerald-300">
-                        <CheckCircle2 size={15} />
-                        {i18n.t.detail.bannerCompleted}
-                      </span>
-                    {/if}
-
-                    <button
-                      type="button"
-                      class="rounded-lg border border-white/[0.08] bg-surface/50 px-3 py-2 text-xs font-medium text-muted transition hover:bg-white/10 hover:text-white"
-                      onclick={() => (activeSubTab = 'episodes')}
-                    >
-                      {i18n.t.detail.tabEpisodes} →
-                    </button>
-                  </div>
-                </div>
-
-                <div class="mt-4 h-2 w-full max-w-2xl overflow-hidden rounded-full bg-black/40">
-                  <div class="h-full rounded-full bg-gradient-to-r from-[var(--color-accent)] to-[var(--color-info-soft)] transition-all duration-300" style={`width: ${seasonProgressPercent}%`}></div>
-                </div>
-              </div>
-            {/if}
-
-            <!-- Game Circular Counter / Book & Manga Stepper Progress -->
-            {#if media.type === 'game'}
-              <section class="rounded-xl bg-[var(--color-panel-line)] p-5 shadow-sm border border-white/[0.06] flex flex-col items-center">
-                <CircularCounter
-                  value={progressValue}
-                  label={support?.label ?? i18n.t.detail.hoursLabel}
-                  unit={i18n.current === 'ru' ? 'ч' : 'h'}
-                  onChange={(val) => {
-                    if (!media) return
-                    const next = Math.max(val, 0)
-                    if (pendingSnapshot === null) pendingSnapshot = committedProgress
-                    progressValue = next
-                    progressError = null
-                    progressDebounce.schedule(media.id, next)
-                  }}
-                />
-                {#if progressError}<p class="mt-2 text-center text-xs text-rose-300" role="alert">{errorMessage(progressError)}</p>{/if}
-              </section>
-
-              <!-- Game Achievements on Overview -->
-              <section class="space-y-3 rounded-xl bg-[var(--color-panel-line)] p-5 shadow-sm border border-white/[0.06]">
-                <div class="flex items-center justify-between gap-3">
-                  <div class="flex items-center gap-2">
-                    <Trophy size={16} class="text-amber-400" />
-                    <h2 class="text-xs font-bold uppercase tracking-wider text-slate-300">
-                      {i18n.current === 'ru' ? 'Достижения' : 'Achievements'}
-                    </h2>
-                  </div>
-                  <span class="rounded-full bg-amber-400/10 border border-amber-400/20 px-2 py-0.5 text-xs font-semibold text-amber-300">
-                    {#if gameAchievementsLoading}
-                      ...
-                    {:else if unlockedAchievementNames.size > 0}
-                      {unlockedAchievementNames.size} / {gameAchievementsTotal} {i18n.current === 'ru' ? 'получено' : 'unlocked'}
-                    {:else}
-                      {gameAchievementsTotal} {i18n.current === 'ru' ? 'достижений' : 'achievements'}
-                    {/if}
-                  </span>
-                </div>
-
-                {#if gameAchievementsLoading}
-                  <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 pt-1">
-                    {#each Array(4) as _, i (i)}
-                      <div class="h-14 animate-pulse rounded-lg bg-[var(--color-field)]"></div>
-                    {/each}
-                  </div>
-                {:else if gameAchievements.length > 0}
-                  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 pt-1 max-h-72 overflow-y-auto pr-1">
-                    {#each gameAchievements as ach (ach.name)}
-                      {@const isUnlocked = unlockedAchievementNames.has(ach.name.toLowerCase().trim())}
-                      <button
-                        type="button"
-                        class={`flex items-center gap-3 rounded-lg border p-2.5 text-left transition cursor-pointer ${
-                          isUnlocked
-                            ? 'border-emerald-500/40 bg-[var(--color-success-deep)] hover:border-emerald-500/60'
-                            : 'border-white/[0.06] bg-[var(--color-field)] hover:border-white/[0.12] opacity-75 hover:opacity-100'
-                        }`}
-                        onclick={() => void toggleAchievement(ach.name)}
-                        title={isUnlocked ? (i18n.current === 'ru' ? 'Получено (нажмите, чтобы снять)' : 'Unlocked (click to lock)') : (i18n.current === 'ru' ? 'Не получено (нажмите, чтобы отметить)' : 'Locked (click to unlock)')}
-                      >
-                        <div class="relative h-10 w-10 flex-shrink-0">
-                          {#if ach.iconUrl}
-                            <img
-                              src={ach.iconUrl}
-                              alt={ach.name}
-                              class={`h-10 w-10 rounded-md object-cover bg-black/40 border transition ${
-                                isUnlocked ? 'border-emerald-400/50' : 'border-white/[0.08] grayscale contrast-75'
-                              }`}
-                              loading="lazy"
-                            />
-                          {:else}
-                            <div class={`grid h-10 w-10 place-items-center rounded-md ${isUnlocked ? 'bg-emerald-950/60 text-emerald-400' : 'bg-[var(--color-panel-line)] text-amber-400'}`}>
-                              <Trophy size={16} />
-                            </div>
-                          {/if}
-                          {#if isUnlocked}
-                            <div class="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 text-black shadow ring-1 ring-[var(--color-success-deep)]">
-                              <Check size={10} stroke-width={3} />
-                            </div>
-                          {/if}
-                        </div>
-                        <div class="min-w-0 flex-1">
-                          <p class={`truncate text-xs font-semibold ${isUnlocked ? 'text-emerald-300' : 'text-white'}`}>{ach.name}</p>
-                          {#if ach.description}
-                            <p class="line-clamp-1 text-[11px] text-muted">{ach.description}</p>
-                          {/if}
-                        </div>
-                      </button>
-                    {/each}
-                  </div>
-                {:else}
-                  <p class="text-xs text-muted">
-                    {i18n.current === 'ru' ? 'Достижения не найдены или отсутствуют в источнике' : 'No achievements found'}
-                  </p>
-                {/if}
-              </section>
-            {:else if support && support.editable}
-              <section class="space-y-3 rounded-xl bg-[var(--color-panel-line)] p-5 shadow-sm border border-white/[0.06]">
-                <div class="flex items-center justify-between gap-3">
-                  <h2 class="text-xs font-bold uppercase tracking-wider text-slate-300">{support.label}</h2>
-                  <span class="text-sm font-semibold tabular-nums text-white">
-                    {support.total !== null ? `${format(progressValue)} / ${format(support.total)}` : format(progressValue)}
-                  </span>
-                </div>
-                <div class="flex h-10 items-center rounded-lg bg-[var(--color-field)]">
-                  <button type="button" class="grid h-full w-10 place-items-center rounded-l-lg text-[var(--color-muted)] transition hover:bg-[var(--color-panel-raised)] hover:text-white disabled:cursor-not-allowed disabled:opacity-40" aria-label={i18n.t.card.decrement} disabled={progressValue <= 0} onclick={() => stepProgress(-1)}><Minus size={15} aria-hidden="true" /></button>
-                  <span class="flex-1 text-center text-sm font-semibold tabular-nums text-white">{format(progressValue)}</span>
-                  <button type="button" class="grid h-full w-10 place-items-center rounded-r-lg text-[var(--color-muted)] transition hover:bg-[var(--color-panel-raised)] hover:text-white" aria-label={i18n.t.card.increment} onclick={() => stepProgress(1)}><Plus size={15} aria-hidden="true" /></button>
-                </div>
-                {#if support.total !== null && support.total > 0}
-                  <div class="h-1.5 w-full max-w-2xl overflow-hidden rounded-full bg-[var(--color-field)]"><div class="h-full rounded-full bg-[var(--color-accent)] transition-[width] duration-200" style={`width: ${progressPercent}%`}></div></div>
-                {/if}
-                {#if progressError}<p class="text-xs text-rose-300" role="alert">{errorMessage(progressError)}</p>{/if}
-              </section>
-            {/if}
-
-            <!-- Manga Volumes Section on Overview (Item 6) -->
-            {#if media.type === 'manga'}
-              {#if mangaVolumes.length > 0}
-                <section class="space-y-3 rounded-xl bg-[var(--color-panel-line)] p-5 shadow-sm border border-white/[0.06]">
-                  <div class="flex items-center justify-between gap-3">
-                    <div>
-                      <h2 class="text-xs font-bold uppercase tracking-wider text-slate-300">{i18n.t.detail.tabVolumes}</h2>
-                      <p class="text-xs text-muted mt-0.5">{mangaVolumes.length} {i18n.t.detail.volumesLabel.toLowerCase()}</p>
-                    </div>
-                    <div class="flex items-center gap-2">
-                      <button
-                        type="button"
-                        class="rounded-lg border border-white/[0.08] bg-surface/50 px-3 py-1.5 text-xs font-medium text-muted transition hover:bg-white/10 hover:text-white"
-                        onclick={() => (activeSubTab = 'volumes')}
-                      >
-                        {i18n.t.detail.tabVolumes} →
-                      </button>
-                    </div>
-                  </div>
-
-                  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-1">
-                    {#each mangaVolumes as vol (vol.id)}
-                      {@const isDone = isVolumeDone(vol)}
-                      {@const current = volumeCurrent(vol)}
-                      {@const total = volumeTotal(vol)}
-                      {@const percent = volumePercent(vol)}
-                      <div class="rounded-lg border border-white/[0.08] bg-[var(--color-field)] p-3.5 space-y-2.5">
-                        <div class="flex items-center justify-between gap-2">
-                          <span class="text-xs font-bold text-white truncate">{vol.title || `Volume ${vol.volumeNumber}`}</span>
-                          {#if isDone}
-                            <span class="inline-flex items-center gap-1 rounded bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-bold text-emerald-300">
-                              <Check size={11} stroke-width={2.5} />
-                              OK
-                            </span>
-                          {:else}
-                            <span class="text-xs font-semibold tabular-nums text-white">
-                              {volumeProgressLabel(vol)}
-                            </span>
-                          {/if}
-                        </div>
-
-                        <!-- Progress Bar -->
-                        <div class="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
-                          <div class="h-full rounded-full bg-gradient-to-r from-[var(--color-accent)] to-[var(--color-info-soft)] transition-all duration-200" style={`width: ${percent}%`}></div>
-                        </div>
-
-                        <!-- Stepper and Action -->
-                        <div class="flex items-center justify-between gap-2 pt-0.5">
-                          <div class="flex h-7 items-center rounded-md bg-[var(--color-panel-line)] border border-white/[0.08]">
-                            <button
-                              type="button"
-                              class="grid h-full w-7 place-items-center text-muted transition hover:text-white disabled:opacity-30"
-                              disabled={current <= 0 || Boolean(volumeBusy)}
-                              onclick={() => void stepVolumePage(vol, -1)}
-                            >
-                              <Minus size={12} />
-                            </button>
-                            <span class="px-2 text-xs font-semibold tabular-nums text-white">{current}</span>
-                            <button
-                              type="button"
-                              class="grid h-full w-7 place-items-center text-muted transition hover:text-white disabled:opacity-30"
-                              disabled={(total > 0 && current >= total) || Boolean(volumeBusy)}
-                              onclick={() => void stepVolumePage(vol, 1)}
-                            >
-                              <Plus size={12} />
-                            </button>
-                          </div>
-
-                          <div class="flex items-center gap-1">
-                            <button
-                              type="button"
-                              class="grid h-7 w-7 place-items-center rounded-md bg-white/5 text-muted transition hover:bg-white/10 hover:text-white"
-                              onclick={() => openEditVolume(vol)}
-                              title="Edit volume"
-                            >
-                              <Pencil size={11} />
-                            </button>
-                            <button
-                              type="button"
-                              class="grid h-7 w-7 place-items-center rounded-md bg-white/5 text-muted transition hover:bg-rose-500/20 hover:text-rose-400"
-                              onclick={() => void handleDeleteVolume(vol)}
-                              title="Delete volume"
-                            >
-                              <Trash2 size={11} />
-                            </button>
-
-                            {#if !isDone}
-                              <button
-                                type="button"
-                                class="inline-flex h-7 items-center gap-1 rounded-md bg-emerald-500/15 px-2 text-[11px] font-semibold text-emerald-300 transition hover:bg-emerald-500/25 disabled:opacity-50"
-                                disabled={Boolean(volumeBusy)}
-                                onclick={() => void markVolumeComplete(vol)}
-                                title={i18n.t.detail.markVolumeComplete}
-                              >
-                                <Check size={12} />
-                              </button>
-                            {:else}
-                              <button
-                                type="button"
-                                class="inline-flex h-7 items-center gap-1 rounded-md bg-white/5 px-2 text-[11px] font-semibold text-muted transition hover:bg-white/10 hover:text-white disabled:opacity-50"
-                                disabled={Boolean(volumeBusy)}
-                                onclick={() => void unmarkVolumeComplete(vol)}
-                                title="Unmark complete"
-                              >
-                                <X size={12} />
-                              </button>
-                            {/if}
-                          </div>
-                        </div>
-                      </div>
-                    {/each}
-                  </div>
-                </section>
-              {:else if media.totalVolumes && media.totalVolumes > 0}
-                <section class="space-y-3 rounded-xl bg-[var(--color-panel-line)] p-5 shadow-sm border border-white/[0.06]">
-                  <div class="flex items-center justify-between gap-3">
-                    <div>
-                      <h2 class="text-xs font-bold uppercase tracking-wider text-slate-300">{i18n.t.detail.tabVolumes}</h2>
-                      <p class="text-xs text-muted mt-0.5">{media.totalVolumes} {i18n.t.detail.volumesLabel.toLowerCase()}</p>
-                    </div>
-                    <button
-                      type="button"
-                      class="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-accent)] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[var(--color-accent-bright)] disabled:opacity-50"
-                      disabled={Boolean(volumeBusy)}
-                      onclick={() => void handleGenerateVolumes()}
-                    >
-                      <Plus size={13} />
-                      {i18n.t.detail.addVolume} ({media.totalVolumes})
-                    </button>
-                  </div>
-                </section>
-              {:else}
-                <section class="space-y-3 rounded-xl bg-[var(--color-panel-line)] p-5 shadow-sm border border-white/[0.06]">
-                  <div class="flex items-center justify-between gap-3">
-                    <div>
-                      <h2 class="text-xs font-bold uppercase tracking-wider text-slate-300">{i18n.t.detail.tabVolumes}</h2>
-                      <p class="text-xs text-muted mt-0.5">0 {i18n.t.detail.volumesLabel.toLowerCase()}</p>
-                    </div>
-                    <button
-                      type="button"
-                      class="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-accent)] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[var(--color-accent-bright)] disabled:opacity-50"
-                      disabled={Boolean(volumeBusy)}
-                      onclick={() => void handleAddVolume()}
-                    >
-                      <Plus size={13} />
-                      {i18n.t.detail.addVolume}
-                    </button>
-                  </div>
-                </section>
-              {/if}
-            {/if}
-          </div>
-        {/if}
-
-        <!-- TAB 2: EPISODES (Items 1, 3, 4, 12) -->
-        {#if activeSubTab === 'episodes' && media.type === 'tvshow'}
-          <section class="space-y-4">
-            <!-- Controls bar: Season select, Sort order (Item 3), Batch buttons (Item 1) -->
-            <div class="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-[var(--color-panel-line)] p-3.5">
-              <div class="flex items-center gap-3">
-                {#if seasons.length > 1}
-                  <select
-                    class="h-9 rounded-md border border-white/[0.08] bg-[var(--color-field)] px-3 text-xs font-semibold text-white outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
-                    value={currentSeason?.id ?? ''}
-                    onchange={(event) => (selectedSeasonId = (event.currentTarget as HTMLSelectElement).value)}
-                  >
-                    {#each seasons as value (value.id)}
-                      <option value={value.id}>{value.title || `Season ${value.seasonNumber}`}</option>
-                    {/each}
-                  </select>
-                {:else if currentSeason}
-                  <span class="text-xs font-semibold text-white">{currentSeason.title}</span>
-                {/if}
-
-                {#if currentSeason}
-                  <span class="text-xs text-muted">
-                    {i18n.t.card.episodes(currentSeason.currentEpisode, currentSeason.totalEpisodes)}
-                  </span>
-                {/if}
-              </div>
-
-              <div class="flex items-center gap-2">
-                <!-- Episode Sorting Toggle (Item 3) -->
-                <button
-                  type="button"
-                  class="inline-flex h-8 items-center gap-1.5 rounded-md border border-white/[0.08] bg-surface/50 px-2.5 text-xs font-medium text-white transition hover:bg-white/10"
-                  onclick={() => (episodeSortOrder = episodeSortOrder === 'asc' ? 'desc' : 'asc')}
-                  title="Toggle episode sort order"
-                >
-                  <ArrowUpDown size={13} class="text-[var(--color-accent-soft)]" aria-hidden="true" />
-                  {episodeSortOrder === 'asc' ? i18n.t.detail.sortAsc : i18n.t.detail.sortDesc}
-                </button>
-
-                <!-- Mark Season Watched (Item 1) -->
-                <button
-                  type="button"
-                  class="inline-flex h-8 items-center gap-1.5 rounded-md bg-emerald-500/20 border border-emerald-500/30 px-2.5 text-xs font-semibold text-emerald-300 transition hover:bg-emerald-500/30 disabled:opacity-50"
-                  disabled={Boolean(episodeBusy)}
-                  onclick={() => void markSeasonComplete()}
-                >
-                  <Check size={13} stroke-width={2.5} />
-                  {i18n.t.detail.markSeasonWatched}
-                </button>
-
-                <!-- Reset Season (Item 1) -->
-                <button
-                  type="button"
-                  class="inline-flex h-8 items-center gap-1.5 rounded-md bg-rose-500/10 border border-rose-500/20 px-2.5 text-xs font-semibold text-rose-300 transition hover:bg-rose-500/20 disabled:opacity-50"
-                  disabled={Boolean(episodeBusy)}
-                  onclick={() => void resetSeasonProgress()}
-                >
-                  <RotateCcw size={13} />
-                  {i18n.t.detail.resetSeason}
-                </button>
-              </div>
-            </div>
-
-            <!-- Episodes List -->
-            {#if seasons.length === 0}
-              <p class="rounded-xl bg-[var(--color-panel-line)] p-5 text-sm text-muted">{i18n.t.views.noSeasons}</p>
-            {:else if episodes.length === 0}
-              <p class="rounded-xl bg-[var(--color-panel-line)] p-5 text-sm text-muted">{i18n.t.common.noData}</p>
-            {:else}
-              <div class="space-y-2">
-                {#each sortedEpisodes as episode (episode.id)}
-                  <article class="flex items-center gap-3.5 rounded-xl border border-white/[0.06] bg-[var(--color-panel-line)] p-3.5 transition hover:bg-[var(--color-panel-raised)]">
-                    <span class="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[var(--color-field)] text-xs font-bold text-[var(--color-muted)]">
-                      E{episode.number}
-                    </span>
-                    <div class="min-w-0 flex-1">
-                      <p class="truncate text-sm font-semibold text-white">{episode.title}</p>
-                      {#if episode.airDate}
-                        <p class="mt-0.5 text-xs text-muted">{formatDate(episode.airDate)}</p>
-                      {/if}
-                      {#if episode.description}
-                        <p class="mt-1 line-clamp-2 text-xs leading-relaxed text-[var(--color-muted)]">{episode.description}</p>
-                      {/if}
-                    </div>
-
-                    <div class="flex shrink-0 items-center gap-2">
-                      <!-- Watched Checkmark / Eye toggle (Items 4, 12) -->
-                      <button
-                        type="button"
-                        class={`grid h-8 w-8 place-items-center rounded-full border transition active:scale-95 disabled:cursor-wait disabled:opacity-60 ${
-                          episode.watched
-                            ? 'border-emerald-500/40 bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30'
-                            : 'border-white/[0.08] bg-[var(--color-field)] text-[var(--color-muted)] hover:bg-[var(--color-panel-line)] hover:text-white'
-                        }`}
-                        aria-label={episode.watched ? i18n.t.detail.markWatched : i18n.t.detail.watchAction}
-                        title={episode.watched ? i18n.t.detail.unwatchAction : i18n.t.detail.markWatched}
-                        disabled={Boolean(episodeBusy)}
-                        onclick={() => void toggleEpisode(episode.number)}
-                      >
-                        {#if episode.watched}
-                          <Check size={16} stroke-width={2.8} aria-hidden="true" />
-                        {:else}
-                          <Eye size={15} aria-hidden="true" />
-                        {/if}
-                      </button>
-
-                      <button
-                        type="button"
-                        class="grid h-8 w-8 place-items-center rounded-full text-muted transition hover:bg-[var(--color-field)] hover:text-white"
-                        aria-label={i18n.t.views.listsTitle}
-                        title={i18n.t.views.listsTitle}
-                        onclick={() => onNavigate('lists')}
-                      >
-                        <List size={15} aria-hidden="true" />
-                      </button>
-                    </div>
-                  </article>
-                {/each}
-              </div>
-              {#if progressError}<p class="text-xs text-rose-300" role="alert">{errorMessage(progressError)}</p>{/if}
-            {/if}
-          </section>
-        {/if}
-
-        <!-- TAB: MANGA VOLUMES -->
-        {#if activeSubTab === 'volumes' && media.type === 'manga'}
-          <section class="space-y-4">
-            <div class="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-[var(--color-panel-line)] p-3.5">
-              <div class="flex items-center gap-2">
-                <Layers size={16} class="text-[var(--color-accent-soft)]" />
-                <h3 class="text-sm font-bold text-white">{i18n.t.detail.tabVolumes}</h3>
-                <span class="rounded-full bg-white/10 px-2.5 py-0.5 text-xs font-semibold text-[var(--color-accent-soft)]">
-                  {mangaVolumes.length}
-                </span>
-              </div>
-
-              <div class="flex items-center gap-2">
-                {#if media.totalVolumes && mangaVolumes.length < media.totalVolumes}
-                  <button
-                    type="button"
-                    class="inline-flex h-8 items-center gap-1.5 rounded-md bg-white/10 px-3 text-xs font-semibold text-white transition hover:bg-white/20 disabled:opacity-50"
-                    disabled={Boolean(volumeBusy)}
-                    onclick={() => void handleGenerateVolumes()}
-                  >
-                    <Plus size={13} />
-                    {i18n.t.detail.addVolume} ({media.totalVolumes - mangaVolumes.length})
-                  </button>
-                {/if}
-                <button
-                  type="button"
-                  class="inline-flex h-8 items-center gap-1.5 rounded-md bg-[var(--color-accent)] px-3 text-xs font-semibold text-white transition hover:bg-[var(--color-accent-bright)] disabled:opacity-50"
-                  disabled={Boolean(volumeBusy)}
-                  onclick={() => void handleAddVolume()}
-                >
-                  <Plus size={13} />
-                  {i18n.t.detail.addVolume}
-                </button>
-              </div>
-            </div>
-
-            {#if mangaVolumes.length === 0}
-              <div class="rounded-xl border border-white/[0.08] bg-[color-mix(in_oklab,var(--color-panel-line)_40%,transparent)] p-8 text-center space-y-3">
-                <Layers size={36} class="mx-auto text-muted/60" />
-                <p class="text-sm text-muted">No volumes tracked yet for this manga.</p>
-                <button
-                  type="button"
-                  class="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-accent)] px-4 py-2 text-xs font-semibold text-white transition hover:bg-[var(--color-accent-bright)]"
-                  disabled={Boolean(volumeBusy)}
-                  onclick={() => void handleAddVolume()}
-                >
-                  <Plus size={14} />
-                  {i18n.t.detail.addVolume}
-                </button>
-              </div>
-            {:else}
-              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {#each mangaVolumes as vol (vol.id)}
-                  {@const isDone = isVolumeDone(vol)}
-                  {@const current = volumeCurrent(vol)}
-                  {@const total = volumeTotal(vol)}
-                  {@const percent = volumePercent(vol)}
-                  <div class="rounded-xl border border-white/[0.08] bg-[var(--color-panel-line)] p-4 space-y-3 shadow-sm hover:border-white/[0.14] transition">
-                    <div class="flex items-start justify-between gap-2">
-                      <div class="min-w-0">
-                        <h4 class="text-sm font-bold text-white truncate">{vol.title || `Volume ${vol.volumeNumber}`}</h4>
-                      </div>
-                      {#if isDone}
-                        <span class="inline-flex items-center gap-1 rounded bg-emerald-500/15 px-2 py-0.5 text-xs font-bold text-emerald-300">
-                          <Check size={12} stroke-width={2.5} />
-                          {i18n.t.status.completed}
-                        </span>
-                      {:else}
-                        <span class="text-xs font-semibold tabular-nums text-white">
-                          {volumeProgressLabel(vol)}
-                        </span>
-                      {/if}
-                    </div>
-
-                    <!-- Progress Bar -->
-                    <div class="space-y-1">
-                      <div class="flex justify-between text-[11px] text-muted">
-                        <span>{i18n.t.detail.volumeProgress}</span>
-                        <span>{percent.toFixed(0)}%</span>
-                      </div>
-                      <div class="h-2 w-full overflow-hidden rounded-full bg-black/40">
-                        <div class="h-full rounded-full bg-gradient-to-r from-[var(--color-accent)] to-[var(--color-info-soft)] transition-all duration-300" style={`width: ${percent}%`}></div>
-                      </div>
-                    </div>
-
-                    <!-- Stepper & Actions -->
-                    <div class="flex items-center justify-between gap-2 pt-1 border-t border-white/[0.06]">
-                      <div class="flex h-8 items-center rounded-lg bg-[var(--color-field)] border border-white/[0.08]">
-                        <button
-                          type="button"
-                          class="grid h-full w-8 place-items-center text-muted transition hover:text-white disabled:opacity-30"
-                          disabled={current <= 0 || Boolean(volumeBusy)}
-                          onclick={() => void stepVolumePage(vol, -1)}
-                        >
-                          <Minus size={13} />
-                        </button>
-                        <span class="px-2.5 text-xs font-semibold tabular-nums text-white">{current}</span>
-                        <button
-                          type="button"
-                          class="grid h-full w-8 place-items-center text-muted transition hover:text-white disabled:opacity-30"
-                          disabled={(total > 0 && current >= total) || Boolean(volumeBusy)}
-                          onclick={() => void stepVolumePage(vol, 1)}
-                        >
-                          <Plus size={13} />
-                        </button>
-                      </div>
-
-                      <div class="flex items-center gap-1.5">
-                        <button
-                          type="button"
-                          class="inline-flex h-8 items-center gap-1 rounded-lg bg-white/5 border border-white/[0.08] px-2 text-xs font-semibold text-muted hover:bg-white/10 hover:text-white transition"
-                          onclick={() => openEditVolume(vol)}
-                          title="Edit volume"
-                        >
-                          <Pencil size={12} />
-                        </button>
-                        <button
-                          type="button"
-                          class="inline-flex h-8 items-center gap-1 rounded-lg bg-white/5 border border-white/[0.08] px-2 text-xs font-semibold text-muted hover:bg-rose-500/20 hover:text-rose-400 transition"
-                          onclick={() => void handleDeleteVolume(vol)}
-                          title="Delete volume"
-                        >
-                          <Trash2 size={12} />
-                        </button>
-
-                        {#if !isDone}
-                          <button
-                            type="button"
-                            class="inline-flex h-8 items-center gap-1 rounded-lg bg-emerald-500/15 border border-emerald-500/25 px-2.5 text-xs font-semibold text-emerald-300 transition hover:bg-emerald-500/25 disabled:opacity-50"
-                            disabled={Boolean(volumeBusy)}
-                            onclick={() => void markVolumeComplete(vol)}
-                          >
-                            <Check size={13} />
-                            {i18n.t.detail.markRead}
-                          </button>
-                        {:else}
-                          <button
-                            type="button"
-                            class="inline-flex h-8 items-center gap-1 rounded-lg bg-white/5 border border-white/[0.08] px-2.5 text-xs font-semibold text-muted transition hover:bg-white/10 hover:text-white disabled:opacity-50"
-                            disabled={Boolean(volumeBusy)}
-                            onclick={() => void unmarkVolumeComplete(vol)}
-                          >
-                            <X size={13} />
-                            {i18n.t.detail.unmarkRead}
-                          </button>
-                        {/if}
-                      </div>
-                    </div>
-                  </div>
-                {/each}
-              </div>
-            {/if}
-          </section>
-        {/if}
-
-        <!-- TAB 3: RELATED MEDIA -->
-        {#if activeSubTab === 'related'}
-          <section class="space-y-6">
-            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h2 class="text-sm font-bold uppercase tracking-wider text-slate-300">{i18n.t.detail.relatedTitle}</h2>
-                <p class="text-xs text-muted">{i18n.t.detail.relatedSubtitle}</p>
-              </div>
-
-              <!-- View Switchers (Items 2, 4) - Compact icon-only square buttons with hover tooltip -->
-              {#if related.length > 0}
-                <div class="inline-flex items-center rounded-lg border border-white/[0.08] bg-[var(--color-track-alt)] p-1 self-start sm:self-auto gap-1">
-                  <button
-                    type="button"
-                    class={`grid h-8 w-8 place-items-center rounded-md transition cursor-pointer ${
-                      relatedViewMode === 'grouped'
-                        ? 'bg-accent text-white shadow'
-                        : 'text-slate-400 hover:bg-white/5 hover:text-white'
-                    }`}
-                    title={i18n.t.detail.viewGrouped}
-                    aria-label={i18n.t.detail.viewGrouped}
-                    onclick={() => (relatedViewMode = 'grouped')}
-                  >
-                    <Layers size={17} />
-                  </button>
-
-                  <button
-                    type="button"
-                    class={`grid h-8 w-8 place-items-center rounded-md transition cursor-pointer ${
-                      relatedViewMode === 'timeline'
-                        ? 'bg-accent text-white shadow'
-                        : 'text-slate-400 hover:bg-white/5 hover:text-white'
-                    }`}
-                    title={i18n.t.detail.viewTimeline}
-                    aria-label={i18n.t.detail.viewTimeline}
-                    onclick={() => (relatedViewMode = 'timeline')}
-                  >
-                    <GitBranch size={17} />
-                  </button>
-
-                  <button
-                    type="button"
-                    class={`grid h-8 w-8 place-items-center rounded-md transition cursor-pointer ${
-                      relatedViewMode === 'grid'
-                        ? 'bg-accent text-white shadow'
-                        : 'text-slate-400 hover:bg-white/5 hover:text-white'
-                    }`}
-                    title={i18n.t.detail.viewGrid}
-                    aria-label={i18n.t.detail.viewGrid}
-                    onclick={() => (relatedViewMode = 'grid')}
-                  >
-                    <LayoutGrid size={17} />
-                  </button>
-                </div>
-              {/if}
-            </div>
-
-            {#if relatedLoading}
-              <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-                {#each Array(5) as _, idx (idx)}
-                  <div class="space-y-2">
-                    <div class="aspect-[2/3] w-full animate-pulse rounded-xl bg-[var(--color-panel-line)]"></div>
-                    <div class="h-3 w-3/4 animate-pulse rounded bg-[var(--color-panel-line)]"></div>
-                  </div>
-                {/each}
-              </div>
-            {:else if relatedError}
-              <div class="flex flex-col items-start gap-2 rounded-xl bg-rose-400/5 p-4">
-                <p class="text-sm text-rose-200" role="alert">{errorMessage(relatedError)}</p>
-                <button
-                  type="button"
-                  class="inline-flex items-center gap-2 rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-white transition hover:bg-accent-hover cursor-pointer"
-                  onclick={() => { if (media) void loadRelated(media, true) }}
-                >
-                  <RefreshCw size={14} aria-hidden="true" />
-                  {i18n.t.common.retry}
-                </button>
-              </div>
-            {:else if related.length === 0}
-              <p class="rounded-xl bg-[var(--color-panel-line)] p-5 text-sm text-muted">{i18n.t.detail.relatedEmpty}</p>
-            {:else}
-              <!-- Snippet for related card with bottom gradient & status/rating badges -->
-              {#snippet relatedCard(rel: RelatedEntry)}
-                <button
-                  type="button"
-                  class="group relative flex flex-col aspect-[2/3] w-full overflow-hidden rounded-xl border border-white/[0.06] bg-[var(--color-overlay-strong)] text-left transition duration-300 hover:border-accent/50 hover:shadow-xl hover:shadow-accent/10 cursor-pointer"
-                  onclick={() => handleRelatedClick(rel)}
-                >
-                  <!-- Poster image -->
-                  {#if rel.coverUrl}
-                    <img
-                      src={rel.coverUrl}
-                      alt={rel.title}
-                      class="h-full w-full object-cover transition duration-500 group-hover:scale-105"
-                      loading="lazy"
-                    />
-                  {:else}
-                    <div class="grid h-full w-full place-items-center bg-[var(--color-field)] text-muted">
-                      <ImageIcon size={32} stroke-width={1.25} aria-hidden="true" />
-                    </div>
-                  {/if}
-
-                  <!-- Top-left Status & Rating overlay (matching main window) -->
-                  {#if rel.localItem}
-                    <div class="absolute left-2.5 top-2.5 z-20 flex items-center">
-                      <!-- Status circle -->
-                      <div
-                        class={`relative z-10 flex h-7 w-7 items-center justify-center rounded-full shadow-lg backdrop-blur ${statusBadgeClasses(rel.localItem.status)}`}
-                        title={statusLabel(rel.localItem.status)}
-                      >
-                        {#if rel.localItem.status === 0}
-                          <Bookmark size={13} stroke-width={2.2} />
-                        {:else if rel.localItem.status === 1}
-                          <Play size={12} fill="currentColor" class="translate-x-0.5" />
-                        {:else if rel.localItem.status === 2}
-                          <Check size={14} stroke-width={3} />
-                        {:else if rel.localItem.status === 3}
-                          <Pause size={12} stroke-width={2.5} />
-                        {:else if rel.localItem.status === 4}
-                          <X size={13} stroke-width={2.5} />
-                        {/if}
-                      </div>
-
-                      <!-- Rating circle -->
-                      {#if rel.localItem.score !== null && rel.localItem.score > 0}
+                <div class="flex flex-wrap items-center gap-2.5">
+                    {#each externalRatings as rating (rating.source)}
+                        {@const src = rating.source.toLowerCase()}
                         <div
-                          class="relative z-20 -ml-2 flex h-7 w-7 items-center justify-center rounded-full bg-[var(--color-score-bg)] text-white shadow-lg border-2 border-[color-mix(in_oklab,var(--color-accent-line)_80%,transparent)] ring-2 ring-[color-mix(in_oklab,var(--color-accent-line)_30%,transparent)] font-black text-xs select-none"
-                          title={`${i18n.t.createModal.fields.score}: ${rel.localItem.score}`}
+                            class="inline-flex h-9 items-center gap-2 rounded-lg border px-3 shadow-sm transition hover:brightness-125 {sourceBadgeClasses(
+                                src,
+                            )}"
+                            title={`${rating.source}: ${rating.score !== null && rating.score > 0 ? rating.score.toFixed(1) : "—"}`}
                         >
-                          {rel.localItem.score}
+                            <span
+                                class="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider"
+                            >
+                                {#if src.includes("anilist")}
+                                    <svg
+                                        class="h-3.5 w-3.5 fill-current"
+                                        viewBox="0 0 24 24"
+                                        aria-hidden="true"
+                                        ><path
+                                            d="M24 17.561v4.425H13.678v-4.425zM12.924 2.014l7.157 15.547H14.88l-1.393-3.088H8.847l-1.385 3.088H2.179L9.345 2.014h3.579zm-.897 8.358L10.37 6.452l-1.65 3.92h3.307z"
+                                        /></svg
+                                    >
+                                    AniList
+                                {:else if src.includes("shikimori")}
+                                    Shikimori
+                                {:else if src.includes("mangadex")}
+                                    MangaDex
+                                {:else if src.includes("myanimelist") || src.includes("jikan") || src.includes("mal")}
+                                    MAL
+                                {:else if src.includes("tmdb")}
+                                    TMDB
+                                {:else if src.includes("rawg")}
+                                    RAWG
+                                {:else if src.includes("steam")}
+                                    Steam
+                                {:else if src.includes("igdb")}
+                                    IGDB
+                                {:else if src.includes("kitsu")}
+                                    Kitsu
+                                {:else if src.includes("simkl")}
+                                    Simkl
+                                {:else if src.includes("kinopoisk")}
+                                    Кинопоиск
+                                {:else if src.includes("imdb")}
+                                    IMDb
+                                {:else if src.includes("thetvdb") || src.includes("tvdb")}
+                                    TVDB
+                                {:else if src.includes("mangaupdate")}
+                                    MangaUpdates
+                                {:else if src.includes("openlibrary")}
+                                    OpenLibrary
+                                {:else}
+                                    <Star
+                                        size={13}
+                                        fill="currentColor"
+                                        aria-hidden="true"
+                                    />
+                                    {rating.source}
+                                {/if}
+                            </span>
+                            {#if rating.score !== null && rating.score > 0}
+                                <span
+                                    class="text-sm font-extrabold tabular-nums text-white"
+                                    >{rating.score.toFixed(1)}</span
+                                >
+                                {#if rating.votes}
+                                    <span
+                                        class="text-[11px] font-normal text-white/50"
+                                        >({rating.votes > 1000
+                                            ? (rating.votes / 1000).toFixed(1) +
+                                              "k"
+                                            : rating.votes})</span
+                                    >
+                                {/if}
+                            {:else if isEnriching}
+                                <span
+                                    class="inline-block h-4 w-6 animate-pulse rounded bg-white/20"
+                                ></span>
+                            {:else}
+                                <span class="text-sm font-medium text-white/40"
+                                    >—</span
+                                >
+                            {/if}
                         </div>
-                      {/if}
-                    </div>
-                  {/if}
-
-                  <!-- Bottom overlay with strong dark gradient and readable typography -->
-                  <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/95 via-black/85 to-transparent p-3 pt-12 flex flex-col justify-end pointer-events-none">
-                    <span class="line-clamp-2 text-sm font-bold leading-snug text-white transition group-hover:text-accent-soft drop-shadow-md">
-                      {rel.title}
-                    </span>
-                    <div class="mt-1.5 flex items-center justify-between gap-1 text-xs">
-                      {#if rel.relationType}
-                        <span class="rounded bg-accent/25 border border-accent/40 px-2 py-0.5 text-[11px] font-semibold text-accent-soft backdrop-blur-sm">
-                          {rel.relationType}
-                        </span>
-                      {:else}
-                        <span class="text-[11px] text-slate-300">{formatMediaDisplayType(rel)}</span>
-                      {/if}
-                      {#if rel.year}
-                        <span class="font-medium text-slate-300 text-[11px]">
-                          {rel.year}
-                        </span>
-                      {/if}
-                    </div>
-                  </div>
-                </button>
-              {/snippet}
-
-              <!-- 1. GROUPED VIEW -->
-              {#if relatedViewMode === 'grouped'}
-                <div class="space-y-8">
-                  {#each relatedGroups as group (group.id)}
-                    <div class="space-y-3">
-                      <div class="flex items-center gap-2.5 border-b border-white/[0.08] pb-2.5">
-                        <h3 class="text-base sm:text-lg font-bold text-white tracking-tight">{group.title}</h3>
-                        <span class="rounded-full bg-white/10 px-2.5 py-0.5 text-xs font-bold text-muted">
-                          {group.items.length}
-                        </span>
-                      </div>
-                      <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-                        {#each group.items as rel (rel.id)}
-                          {@render relatedCard(rel)}
-                        {/each}
-                      </div>
-                    </div>
-                  {/each}
+                    {/each}
                 </div>
 
-              <!-- 2. TIMELINE / CHRONOLOGY VIEW -->
-              {:else if relatedViewMode === 'timeline'}
-                <div class="relative pl-6 sm:pl-8 space-y-4 before:absolute before:bottom-3 before:left-[11px] sm:before:left-[15px] before:top-3 before:w-0.5 before:bg-gradient-to-b before:from-accent before:via-accent/40 before:to-transparent">
-                  {#each timelineEntries as item (item.id)}
-                    <div class="relative flex items-center gap-4 group">
-                      <!-- Node circle marker on the timeline line -->
-                      <div class={`absolute -left-6 sm:-left-8 flex h-6 w-6 items-center justify-center rounded-full border-2 transition-transform duration-300 group-hover:scale-110 ${
-                        item.isCurrent
-                          ? 'border-accent bg-accent text-white shadow-lg shadow-accent/50 ring-4 ring-accent/20'
-                          : item.localItem
-                            ? 'border-emerald-500 bg-[var(--color-field)] text-emerald-400'
-                            : 'border-white/[0.14] bg-[var(--color-field)] text-slate-400'
-                      }`}>
-                        {#if item.isCurrent}
-                          <div class="h-2 w-2 rounded-full bg-white"></div>
-                        {:else if item.localItem}
-                          <Check size={12} stroke-width={3} />
-                        {:else}
-                          <div class="h-1.5 w-1.5 rounded-full bg-white/40"></div>
-                        {/if}
-                      </div>
-
-                      <!-- Timeline row card -->
-                      <button
+                <!-- Sub-navigation Tabs (Item 19) -->
+                <nav
+                    class="flex items-center gap-1 border-b border-white/[0.08] pb-px"
+                    aria-label="Sections"
+                >
+                    <button
                         type="button"
-                        class={`flex flex-1 items-center gap-3.5 rounded-xl border p-2.5 transition text-left cursor-pointer ${
-                          item.isCurrent
-                            ? 'border-accent/60 bg-accent/10 shadow-md ring-1 ring-accent/30'
-                            : 'border-white/[0.06] bg-[var(--color-panel-line)] hover:border-white/[0.14] hover:bg-[var(--color-panel-raised)]'
+                        class={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-semibold transition ${
+                            activeSubTab === "overview"
+                                ? "border-[var(--color-accent)] text-white"
+                                : "border-transparent text-muted hover:text-white"
+                        }`}
+                        onclick={() => (activeSubTab = "overview")}
+                    >
+                        {i18n.t.detail.tabOverview}
+                    </button>
+
+                    {#if media.type === "tvshow"}
+                        <button
+                            type="button"
+                            class={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-semibold transition ${
+                                activeSubTab === "episodes"
+                                    ? "border-[var(--color-accent)] text-white"
+                                    : "border-transparent text-muted hover:text-white"
+                            }`}
+                            onclick={() => (activeSubTab = "episodes")}
+                        >
+                            {i18n.t.detail.tabEpisodes}
+                            {#if currentSeason}
+                                <span
+                                    class="rounded-full bg-white/10 px-2 py-0.5 text-xs text-[var(--color-accent-soft)]"
+                                >
+                                    {currentSeason.currentEpisode}/{currentSeason.totalEpisodes}
+                                </span>
+                            {/if}
+                        </button>
+                    {/if}
+
+                    {#if media.type === "manga"}
+                        <button
+                            type="button"
+                            class={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-semibold transition ${
+                                activeSubTab === "volumes"
+                                    ? "border-[var(--color-accent)] text-white"
+                                    : "border-transparent text-muted hover:text-white"
+                            }`}
+                            onclick={() => (activeSubTab = "volumes")}
+                        >
+                            <Layers
+                                size={14}
+                                class="text-[var(--color-accent-soft)]"
+                                aria-hidden="true"
+                            />
+                            {i18n.t.detail.tabVolumes}
+                            {#if mangaVolumes.length > 0}
+                                <span
+                                    class="rounded-full bg-white/10 px-2 py-0.5 text-xs text-[var(--color-accent-soft)]"
+                                >
+                                    {mangaVolumes.length}
+                                </span>
+                            {/if}
+                        </button>
+                    {/if}
+
+                    <button
+                        type="button"
+                        class={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-semibold transition ${
+                            activeSubTab === "related"
+                                ? "border-[var(--color-accent)] text-white"
+                                : "border-transparent text-muted hover:text-white"
+                        }`}
+                        onclick={() => (activeSubTab = "related")}
+                    >
+                        {i18n.t.detail.tabRelatedMedia}
+                        {#if related.length > 0}
+                            <span
+                                class="rounded-full bg-white/10 px-2 py-0.5 text-xs text-muted"
+                            >
+                                {related.length}
+                            </span>
+                        {/if}
+                    </button>
+
+                    <button
+                        type="button"
+                        class={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-semibold transition ${
+                            activeSubTab === "recommendations"
+                                ? "border-[var(--color-accent)] text-white"
+                                : "border-transparent text-muted hover:text-white"
                         }`}
                         onclick={() => {
-                          if (item.isCurrent) return
-                          if (item.rawItem) handleRelatedClick(item.rawItem)
+                            activeSubTab = "recommendations";
+                            void loadRecommendations();
                         }}
-                      >
-                        <!-- Mini poster -->
-                        <div class="relative aspect-[2/3] h-16 shrink-0 overflow-hidden rounded-lg bg-[var(--color-field)]">
-                          {#if item.coverUrl}
-                            <img src={item.coverUrl} alt={item.title} class="h-full w-full object-cover" />
-                          {:else}
-                            <div class="grid h-full place-items-center text-muted"><ImageIcon size={18} /></div>
-                          {/if}
+                    >
+                        <Sparkles
+                            size={14}
+                            class="text-[var(--color-accent-soft)]"
+                            aria-hidden="true"
+                        />
+                        {i18n.t.detail.tabRecommendations}
+                    </button>
+                </nav>
 
-                          {#if item.localItem}
-                            <div class="absolute left-1 top-1 flex items-center">
-                              <div class={`h-4 w-4 rounded-full flex items-center justify-center ${statusBadgeClasses(item.localItem.status)}`}>
-                                {#if item.localItem.status === 2}
-                                  <Check size={8} stroke-width={3} />
-                                {/if}
-                              </div>
-                            </div>
-                          {/if}
-                        </div>
-
-                        <div class="min-w-0 flex-1">
-                          <div class="flex flex-wrap items-center gap-2">
-                            {#if item.year}
-                              <span class="rounded bg-white/10 px-1.5 py-0.5 text-[11px] font-bold text-accent-soft">
-                                {item.year}
-                              </span>
-                            {/if}
-                            <span class={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${
-                              item.isCurrent
-                                ? 'bg-accent text-white'
-                                : 'bg-white/5 text-slate-300 border border-white/[0.08]'
-                            }`}>
-                              {item.relationType}
-                            </span>
-                            <span class="text-[11px] text-muted">{item.formatDisplay}</span>
-                          </div>
-
-                          <h3 class={`mt-1 truncate text-sm font-bold ${item.isCurrent ? 'text-accent-soft' : 'text-white group-hover:text-accent-soft'}`}>
-                            {item.title}
-                          </h3>
-                        </div>
-
-                        <!-- Rating / Action on right -->
-                        <div class="shrink-0 pr-2">
-                          {#if item.localItem?.score}
-                            <span class="rounded-full bg-[var(--color-score-bg)] border border-[color-mix(in_oklab,var(--color-accent-line)_80%,transparent)] px-2.5 py-0.5 text-xs font-black text-white">
-                              {item.localItem.score}
-                            </span>
-                          {:else if !item.localItem && !item.isCurrent}
-                            <span class="rounded-md border border-white/[0.08] bg-white/5 px-2.5 py-1 text-xs font-medium text-slate-300 group-hover:border-accent/40 group-hover:text-accent-soft">
-                              {i18n.t.detail.overviewBadge}
-                            </span>
-                          {/if}
-                        </div>
-                      </button>
-                    </div>
-                  {/each}
-                </div>
-
-              <!-- 3. FLAT GRID VIEW -->
-              {:else}
-                <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-                  {#each related as rel (rel.id)}
-                    {@render relatedCard(rel)}
-                  {/each}
-                </div>
-              {/if}
-            {/if}
-          </section>
-
-          <!-- PREVIEW MODAL FOR UNADDED RELATED ITEMS (Items 3, 5 - Identical to SearchModal preview) -->
-          {#if previewRelatedItem}
-            <Modal isOpen={Boolean(previewRelatedItem)} onClose={() => (previewRelatedItem = null)} labelledBy="related-preview-title">
-              <div class="flex max-h-[85vh] flex-col p-6">
-                <h2 id="related-preview-title" class="sr-only">{previewRelatedItem.title}</h2>
-                <button
-                  type="button"
-                  class="tap absolute right-4 top-4 z-10 grid h-8 w-8 place-items-center rounded-lg text-muted transition hover:bg-elevated hover:text-ink cursor-pointer"
-                  title={i18n.t.common.close}
-                  aria-label={i18n.t.common.close}
-                  onclick={() => (previewRelatedItem = null)}
-                >
-                  <X size={18} aria-hidden="true" />
-                </button>
-
-                <div class="overflow-y-auto pr-1">
-                  <div class="flex flex-col gap-5 sm:flex-row">
-                    <div class="mx-auto aspect-[2/3] w-40 shrink-0 overflow-hidden rounded-lg bg-canvas sm:mx-0">
-                      {#if previewRelatedItem.coverUrl}
-                        <img src={previewRelatedItem.coverUrl} alt={previewRelatedItem.title} class="h-full w-full object-cover" />
-                      {:else}
-                        <div class="grid h-full place-items-center text-muted"><ImageIcon size={32} stroke-width={1.25} aria-hidden="true" /></div>
-                      {/if}
-                    </div>
-
-                    <div class="min-w-0 flex-1 space-y-3">
-                      <div class="flex flex-wrap items-center gap-2">
-                        <span class="rounded-full bg-elevated px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-accent-soft">
-                          {formatMediaDisplayType(previewRelatedItem)}
-                        </span>
-                        {#if previewRelatedItem.relationType}
-                          <span class="rounded-full bg-accent/20 border border-accent/40 px-2.5 py-0.5 text-[11px] font-semibold text-accent-soft">
-                            {previewRelatedItem.relationType}
-                          </span>
-                        {/if}
-                        <span class="rounded-full border border-white/10 bg-field px-2.5 py-0.5 text-[11px] font-semibold text-muted">
-                          AniList
-                        </span>
-                      </div>
-
-                      <div>
-                        <h3 class="mt-1 text-lg font-bold text-ink">{previewRelatedItem.title}</h3>
-                        {#if previewRelatedItem.originalTitle}
-                          <p class="text-xs text-muted">{previewRelatedItem.originalTitle}</p>
-                        {/if}
-                      </div>
-
-                      <!-- Ratings -->
-                      {#if previewRelatedBadges.length > 0}
-                        <div class="flex flex-wrap items-center gap-2">
-                          {#each previewRelatedBadges as r}
-                            <div class="inline-flex items-center gap-1 rounded-md border border-white/10 bg-field px-2 py-0.5 text-xs">
-                              <span class="font-medium text-muted">{r.source}:</span>
-                              {#if r.score !== null && r.score > 0}
-                                <span class="flex items-center gap-0.5 font-bold text-star">
-                                  <Star size={11} fill="currentColor" />
-                                  {r.score.toFixed(1)}
-                                </span>
-                              {:else if previewRelatedLoading}
-                                <span class="inline-block h-3 w-5 animate-pulse rounded bg-border"></span>
-                              {:else}
-                                <span class="text-xs text-muted">—</span>
-                              {/if}
-                            </div>
-                          {/each}
-                        </div>
-                      {:else}
-                        <div class="inline-flex items-center gap-1 rounded-md border border-white/10 bg-field px-2 py-0.5 text-xs text-muted">
-                          <Star size={11} />
-                          <span>{i18n.t.detail.previewModal.noRatings}</span>
-                        </div>
-                      {/if}
-
-                      <div class="space-y-1 text-xs text-muted">
-                        <div>
-                          <span class="font-medium text-ink">{i18n.t.detail.previewModal.year}:</span>
-                          {previewRelatedItem.year ?? i18n.t.detail.previewModal.noData}
-                        </div>
-                        {#if previewRelatedItem.type === 'manga' || previewRelatedItem.format === 'NOVEL' || previewRelatedItem.format === 'MANGA'}
-                          <div>
-                            <span class="font-medium text-ink">{i18n.t.detail.previewModal.author}:</span>
-                            {previewRelatedItem.author ?? i18n.t.detail.previewModal.noData}
-                          </div>
-                        {:else}
-                          <div>
-                            <span class="font-medium text-ink">{i18n.t.detail.previewModal.studio}:</span>
-                            {previewRelatedItem.studio ?? i18n.t.detail.previewModal.noData}
-                          </div>
-                        {/if}
-                        <div>
-                          <span class="font-medium text-ink">{i18n.t.detail.previewModal.count}:</span>
-                          {#if previewRelatedItem.episodes}
-                            {previewRelatedItem.episodes} {i18n.t.searchModal.countUnits.anime}
-                          {:else if previewRelatedItem.chapters}
-                            {previewRelatedItem.chapters} {i18n.t.searchModal.countUnits.manga}
-                          {:else if previewRelatedItem.volumes}
-                            {previewRelatedItem.volumes} {i18n.t.searchModal.countUnits.manga}
-                          {:else}
-                            {i18n.t.detail.previewModal.noData}
-                          {/if}
-                        </div>
-                      </div>
-
-                      <div class="pt-2 flex flex-wrap items-center gap-3">
-                        <div class="flex items-center gap-2">
-                          <label for="preview-status" class="text-xs font-medium text-muted">
-                            {i18n.t.detail.previewModal.initialStatus}:
-                          </label>
-                          <select
-                            id="preview-status"
-                            bind:value={previewStatus}
-                            class="rounded-md border border-white/10 bg-field px-2.5 py-1.5 text-xs font-medium text-ink outline-none focus:border-accent"
-                          >
-                            {#each statusOptions as opt}
-                              <option value={opt}>{statusLabel(opt)}</option>
-                            {/each}
-                          </select>
-                        </div>
-
-                        <button
-                          type="button"
-                          class="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-field px-4 py-2 text-xs font-semibold text-ink transition hover:border-accent hover:bg-panel disabled:cursor-wait disabled:opacity-70 cursor-pointer"
-                          disabled={previewAddingBusy}
-                          onclick={() => {
-                            if (previewRelatedItem) void addRelatedToLibrary(previewRelatedItem, previewStatus)
-                          }}
+                <!-- TAB 1: OVERVIEW -->
+                {#if activeSubTab === "overview"}
+                    <div class="space-y-6">
+                        <!-- Synopsis with conditional Read More (Item 5) & Translator (Item 4) -->
+                        <section
+                            class="space-y-2 rounded-xl bg-[color-mix(in_oklab,var(--color-panel-line)_60%,transparent)] p-5 border border-white/[0.06]"
                         >
-                          {#if previewAddingBusy}
-                            <div class="h-4 w-4 animate-spin rounded-full border-2 border-accent border-t-transparent"></div>
-                            <span>{i18n.t.detail.previewModal.addingToLibrary}</span>
-                          {:else}
-                            <Plus size={16} aria-hidden="true" />
-                            <span>{i18n.t.detail.previewModal.addToLibrary}</span>
-                          {/if}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
+                            <div class="flex items-center justify-between">
+                                <h2
+                                    class="text-xs font-bold uppercase tracking-wider text-slate-300"
+                                >
+                                    {i18n.t.detail.synopsisTitle}
+                                </h2>
+                                {#if synopsisText}
+                                    <button
+                                        type="button"
+                                        class="inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium text-[var(--color-accent-soft)] transition hover:bg-white/10 hover:text-white cursor-pointer disabled:opacity-50"
+                                        disabled={translatingSynopsis}
+                                        onclick={() =>
+                                            void toggleTranslateSynopsis()}
+                                        title={isSynopsisTranslated
+                                            ? i18n.t.detail.showOriginal
+                                            : i18n.t.detail.translate}
+                                    >
+                                        {#if translatingSynopsis}
+                                            <div
+                                                class="h-3 w-3 animate-spin rounded-full border border-accent border-t-transparent"
+                                            ></div>
+                                            <span
+                                                >{i18n.t.detail
+                                                    .translating}</span
+                                            >
+                                        {:else}
+                                            <Languages
+                                                size={13}
+                                                aria-hidden="true"
+                                            />
+                                            <span
+                                                >{isSynopsisTranslated
+                                                    ? i18n.t.detail.showOriginal
+                                                    : i18n.t.detail
+                                                          .translate}</span
+                                            >
+                                        {/if}
+                                    </button>
+                                {/if}
+                            </div>
+                            {#if synopsisText}
+                                <p
+                                    class={`whitespace-pre-line break-words text-sm leading-relaxed text-[var(--color-ink-dim)] ${synopsisExpandable && !synopsisExpanded ? "line-clamp-4" : ""}`}
+                                >
+                                    {isSynopsisTranslated && translatedSynopsis
+                                        ? translatedSynopsis
+                                        : synopsisText}
+                                </p>
+                                {#if synopsisExpandable}
+                                    <button
+                                        type="button"
+                                        class="inline-flex items-center gap-1 pt-1 text-xs font-semibold text-[var(--color-accent-soft)] transition hover:text-white"
+                                        onclick={() =>
+                                            (synopsisExpanded =
+                                                !synopsisExpanded)}
+                                    >
+                                        {synopsisExpanded
+                                            ? i18n.t.detail.collapse
+                                            : i18n.t.detail.readMore}
+                                        <ChevronDown
+                                            size={14}
+                                            class={`transition ${synopsisExpanded ? "rotate-180" : ""}`}
+                                            aria-hidden="true"
+                                        />
+                                    </button>
+                                {/if}
+                            {:else}
+                                <p class="text-sm text-muted">
+                                    {i18n.t.detail.noSynopsis}
+                                </p>
+                            {/if}
+                        </section>
 
-                  <div class="mt-5 border-t border-border pt-4">
-                    <h4 class="text-xs font-semibold uppercase tracking-wider text-muted">{i18n.t.detail.previewModal.description}</h4>
-                    {#if previewRelatedItem.description}
-                      <p class="mt-1.5 whitespace-pre-line text-xs leading-relaxed text-muted">{previewRelatedItem.description}</p>
-                    {:else}
-                      <p class="mt-1.5 text-xs italic text-muted/70">{i18n.t.detail.previewModal.noDescription}</p>
+                        <!-- TV / Anime Compact Episode Progress Banner (Item 19) -->
+                        {#if media.type === "tvshow" && currentSeason}
+                            <div
+                                class="relative overflow-hidden rounded-xl border border-white/[0.08] bg-gradient-to-r from-[var(--color-overlay-strong)] via-[var(--color-panel-line)] to-[var(--color-overlay-strong)] p-5 shadow-lg"
+                            >
+                                <div
+                                    class="flex flex-wrap items-center justify-between gap-4"
+                                >
+                                    <div class="min-w-0">
+                                        <p
+                                            class="text-xs font-semibold uppercase tracking-wider text-[var(--color-accent-soft)]"
+                                        >
+                                            {currentSeason.title}
+                                        </p>
+                                        <p
+                                            class="mt-1 text-lg font-bold text-white"
+                                        >
+                                            {i18n.t.card.episodes(
+                                                currentSeason.currentEpisode,
+                                                currentSeason.totalEpisodes,
+                                            )}
+                                            <span
+                                                class="ml-2 text-xs font-medium text-muted"
+                                                >({Math.round(
+                                                    seasonProgressPercent,
+                                                )}%)</span
+                                            >
+                                        </p>
+                                    </div>
+
+                                    <div class="flex items-center gap-2">
+                                        {#if nextEpisode}
+                                            <button
+                                                type="button"
+                                                class="inline-flex items-center gap-2 rounded-lg bg-[var(--color-accent)] px-4 py-2 text-xs font-semibold text-white shadow-md transition hover:bg-[var(--color-accent-deep)] active:scale-95 disabled:opacity-50"
+                                                disabled={Boolean(episodeBusy)}
+                                                onclick={() =>
+                                                    void toggleEpisode(
+                                                        nextEpisode!.number,
+                                                    )}
+                                            >
+                                                <Check
+                                                    size={14}
+                                                    stroke-width={2.5}
+                                                />
+                                                {i18n.t.detail
+                                                    .bannerNextEpisode}: E{nextEpisode.number}
+                                            </button>
+                                        {:else if currentSeason.totalEpisodes && currentSeason.currentEpisode >= currentSeason.totalEpisodes}
+                                            <span
+                                                class="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500/15 px-3 py-1.5 text-xs font-semibold text-emerald-300"
+                                            >
+                                                <CheckCircle2 size={15} />
+                                                {i18n.t.detail.bannerCompleted}
+                                            </span>
+                                        {/if}
+
+                                        <button
+                                            type="button"
+                                            class="rounded-lg border border-white/[0.08] bg-surface/50 px-3 py-2 text-xs font-medium text-muted transition hover:bg-white/10 hover:text-white"
+                                            onclick={() =>
+                                                (activeSubTab = "episodes")}
+                                        >
+                                            {i18n.t.detail.tabEpisodes} →
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div
+                                    class="mt-4 h-2 w-full max-w-2xl overflow-hidden rounded-full bg-black/40"
+                                >
+                                    <div
+                                        class="h-full rounded-full bg-gradient-to-r from-[var(--color-accent)] to-[var(--color-info-soft)] transition-all duration-300"
+                                        style={`width: ${seasonProgressPercent}%`}
+                                    ></div>
+                                </div>
+                            </div>
+                        {/if}
+
+                        <!-- Game Circular Counter / Book & Manga Stepper Progress -->
+                        {#if media.type === "game"}
+                            <section
+                                class="rounded-xl bg-[var(--color-panel-line)] p-5 shadow-sm border border-white/[0.06] flex flex-col items-center"
+                            >
+                                <CircularCounter
+                                    value={progressValue}
+                                    label={support?.label ??
+                                        i18n.t.detail.hoursLabel}
+                                    unit={i18n.current === "ru" ? "ч" : "h"}
+                                    onChange={(val) => {
+                                        if (!media) return;
+                                        const next = Math.max(val, 0);
+                                        if (pendingSnapshot === null)
+                                            pendingSnapshot = committedProgress;
+                                        progressValue = next;
+                                        progressError = null;
+                                        progressDebounce.schedule(
+                                            media.id,
+                                            next,
+                                        );
+                                    }}
+                                />
+                                {#if progressError}<p
+                                        class="mt-2 text-center text-xs text-rose-300"
+                                        role="alert"
+                                    >
+                                        {errorMessage(progressError)}
+                                    </p>{/if}
+                            </section>
+
+                            <!-- Game Achievements on Overview -->
+                            <section
+                                class="space-y-3 rounded-xl bg-[var(--color-panel-line)] p-5 shadow-sm border border-white/[0.06]"
+                            >
+                                <div
+                                    class="flex items-center justify-between gap-3"
+                                >
+                                    <div class="flex items-center gap-2">
+                                        <Trophy
+                                            size={16}
+                                            class="text-amber-400"
+                                        />
+                                        <h2
+                                            class="text-xs font-bold uppercase tracking-wider text-slate-300"
+                                        >
+                                            {i18n.current === "ru"
+                                                ? "Достижения"
+                                                : "Achievements"}
+                                        </h2>
+                                    </div>
+                                    <span
+                                        class="rounded-full bg-amber-400/10 border border-amber-400/20 px-2 py-0.5 text-xs font-semibold text-amber-300"
+                                    >
+                                        {#if gameAchievementsLoading}
+                                            ...
+                                        {:else if unlockedAchievementNames.size > 0}
+                                            {unlockedAchievementNames.size} / {gameAchievementsTotal}
+                                            {i18n.current === "ru"
+                                                ? "получено"
+                                                : "unlocked"}
+                                        {:else}
+                                            {gameAchievementsTotal}
+                                            {i18n.current === "ru"
+                                                ? "достижений"
+                                                : "achievements"}
+                                        {/if}
+                                    </span>
+                                </div>
+
+                                {#if gameAchievementsLoading}
+                                    <div
+                                        class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 pt-1"
+                                    >
+                                        {#each Array(4) as _, i (i)}
+                                            <div
+                                                class="h-14 animate-pulse rounded-lg bg-[var(--color-field)]"
+                                            ></div>
+                                        {/each}
+                                    </div>
+                                {:else if gameAchievements.length > 0}
+                                    <div
+                                        class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 pt-1 max-h-72 overflow-y-auto pr-1"
+                                    >
+                                        {#each gameAchievements as ach (ach.name)}
+                                            {@const isUnlocked =
+                                                unlockedAchievementNames.has(
+                                                    ach.name
+                                                        .toLowerCase()
+                                                        .trim(),
+                                                )}
+                                            <button
+                                                type="button"
+                                                class={`flex items-center gap-3 rounded-lg border p-2.5 text-left transition cursor-pointer ${
+                                                    isUnlocked
+                                                        ? "border-emerald-500/40 bg-[var(--color-success-deep)] hover:border-emerald-500/60"
+                                                        : "border-white/[0.06] bg-[var(--color-field)] hover:border-white/[0.12] opacity-75 hover:opacity-100"
+                                                }`}
+                                                onclick={() =>
+                                                    void toggleAchievement(
+                                                        ach.name,
+                                                    )}
+                                                title={isUnlocked
+                                                    ? i18n.current === "ru"
+                                                        ? "Получено (нажмите, чтобы снять)"
+                                                        : "Unlocked (click to lock)"
+                                                    : i18n.current === "ru"
+                                                      ? "Не получено (нажмите, чтобы отметить)"
+                                                      : "Locked (click to unlock)"}
+                                            >
+                                                <div
+                                                    class="relative h-10 w-10 flex-shrink-0"
+                                                >
+                                                    {#if ach.iconUrl}
+                                                        <img
+                                                            src={ach.iconUrl}
+                                                            alt={ach.name}
+                                                            class={`h-10 w-10 rounded-md object-cover bg-black/40 border transition ${
+                                                                isUnlocked
+                                                                    ? "border-emerald-400/50"
+                                                                    : "border-white/[0.08] grayscale contrast-75"
+                                                            }`}
+                                                            loading="lazy"
+                                                        />
+                                                    {:else}
+                                                        <div
+                                                            class={`grid h-10 w-10 place-items-center rounded-md ${isUnlocked ? "bg-emerald-950/60 text-emerald-400" : "bg-[var(--color-panel-line)] text-amber-400"}`}
+                                                        >
+                                                            <Trophy size={16} />
+                                                        </div>
+                                                    {/if}
+                                                    {#if isUnlocked}
+                                                        <div
+                                                            class="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 text-black shadow ring-1 ring-[var(--color-success-deep)]"
+                                                        >
+                                                            <Check
+                                                                size={10}
+                                                                stroke-width={3}
+                                                            />
+                                                        </div>
+                                                    {/if}
+                                                </div>
+                                                <div class="min-w-0 flex-1">
+                                                    <p
+                                                        class={`truncate text-xs font-semibold ${isUnlocked ? "text-emerald-300" : "text-white"}`}
+                                                    >
+                                                        {ach.name}
+                                                    </p>
+                                                    {#if ach.description}
+                                                        <p
+                                                            class="line-clamp-1 text-[11px] text-muted"
+                                                        >
+                                                            {ach.description}
+                                                        </p>
+                                                    {/if}
+                                                </div>
+                                            </button>
+                                        {/each}
+                                    </div>
+                                {:else}
+                                    <p class="text-xs text-muted">
+                                        {i18n.current === "ru"
+                                            ? "Достижения не найдены или отсутствуют в источнике"
+                                            : "No achievements found"}
+                                    </p>
+                                {/if}
+                            </section>
+                        {:else if support && support.editable}
+                            <section
+                                class="space-y-3 rounded-xl bg-[var(--color-panel-line)] p-5 shadow-sm border border-white/[0.06]"
+                            >
+                                <div
+                                    class="flex items-center justify-between gap-3"
+                                >
+                                    <h2
+                                        class="text-xs font-bold uppercase tracking-wider text-slate-300"
+                                    >
+                                        {support.label}
+                                    </h2>
+                                    <span
+                                        class="text-sm font-semibold tabular-nums text-white"
+                                    >
+                                        {support.total !== null
+                                            ? `${format(progressValue)} / ${format(support.total)}`
+                                            : format(progressValue)}
+                                    </span>
+                                </div>
+                                <div
+                                    class="flex h-10 items-center rounded-lg bg-[var(--color-field)]"
+                                >
+                                    <button
+                                        type="button"
+                                        class="grid h-full w-10 place-items-center rounded-l-lg text-[var(--color-muted)] transition hover:bg-[var(--color-panel-raised)] hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                                        aria-label={i18n.t.card.decrement}
+                                        disabled={progressValue <= 0}
+                                        onclick={() => stepProgress(-1)}
+                                        ><Minus
+                                            size={15}
+                                            aria-hidden="true"
+                                        /></button
+                                    >
+                                    <span
+                                        class="flex-1 text-center text-sm font-semibold tabular-nums text-white"
+                                        >{format(progressValue)}</span
+                                    >
+                                    <button
+                                        type="button"
+                                        class="grid h-full w-10 place-items-center rounded-r-lg text-[var(--color-muted)] transition hover:bg-[var(--color-panel-raised)] hover:text-white"
+                                        aria-label={i18n.t.card.increment}
+                                        onclick={() => stepProgress(1)}
+                                        ><Plus
+                                            size={15}
+                                            aria-hidden="true"
+                                        /></button
+                                    >
+                                </div>
+                                {#if support.total !== null && support.total > 0}
+                                    <div
+                                        class="h-1.5 w-full max-w-2xl overflow-hidden rounded-full bg-[var(--color-field)]"
+                                    >
+                                        <div
+                                            class="h-full rounded-full bg-[var(--color-accent)] transition-[width] duration-200"
+                                            style={`width: ${progressPercent}%`}
+                                        ></div>
+                                    </div>
+                                {/if}
+                                {#if progressError}<p
+                                        class="text-xs text-rose-300"
+                                        role="alert"
+                                    >
+                                        {errorMessage(progressError)}
+                                    </p>{/if}
+                            </section>
+                        {/if}
+
+                        <!-- Manga Volumes Section on Overview (Item 6) -->
+                        {#if media.type === "manga"}
+                            {#if mangaVolumes.length > 0}
+                                <section
+                                    class="space-y-3 rounded-xl bg-[var(--color-panel-line)] p-5 shadow-sm border border-white/[0.06]"
+                                >
+                                    <div
+                                        class="flex items-center justify-between gap-3"
+                                    >
+                                        <div>
+                                            <h2
+                                                class="text-xs font-bold uppercase tracking-wider text-slate-300"
+                                            >
+                                                {i18n.t.detail.tabVolumes}
+                                            </h2>
+                                            <p
+                                                class="text-xs text-muted mt-0.5"
+                                            >
+                                                {mangaVolumes.length}
+                                                {i18n.t.detail.volumesLabel.toLowerCase()}
+                                            </p>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <button
+                                                type="button"
+                                                class="rounded-lg border border-white/[0.08] bg-surface/50 px-3 py-1.5 text-xs font-medium text-muted transition hover:bg-white/10 hover:text-white"
+                                                onclick={() =>
+                                                    (activeSubTab = "volumes")}
+                                            >
+                                                {i18n.t.detail.tabVolumes} →
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div
+                                        class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-1"
+                                    >
+                                        {#each mangaVolumes as vol (vol.id)}
+                                            {@const isDone = isVolumeDone(vol)}
+                                            {@const current =
+                                                volumeCurrent(vol)}
+                                            {@const total = volumeTotal(vol)}
+                                            {@const percent =
+                                                volumePercent(vol)}
+                                            <div
+                                                class="rounded-lg border border-white/[0.08] bg-[var(--color-field)] p-3.5 space-y-2.5"
+                                            >
+                                                <div
+                                                    class="flex items-center justify-between gap-2"
+                                                >
+                                                    <span
+                                                        class="text-xs font-bold text-white truncate"
+                                                        >{vol.title ||
+                                                            `Volume ${vol.volumeNumber}`}</span
+                                                    >
+                                                    {#if isDone}
+                                                        <span
+                                                            class="inline-flex items-center gap-1 rounded bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-bold text-emerald-300"
+                                                        >
+                                                            <Check
+                                                                size={11}
+                                                                stroke-width={2.5}
+                                                            />
+                                                            OK
+                                                        </span>
+                                                    {:else}
+                                                        <span
+                                                            class="text-xs font-semibold tabular-nums text-white"
+                                                        >
+                                                            {volumeProgressLabel(
+                                                                vol,
+                                                            )}
+                                                        </span>
+                                                    {/if}
+                                                </div>
+
+                                                <!-- Progress Bar -->
+                                                <div
+                                                    class="h-1.5 w-full overflow-hidden rounded-full bg-white/10"
+                                                >
+                                                    <div
+                                                        class="h-full rounded-full bg-gradient-to-r from-[var(--color-accent)] to-[var(--color-info-soft)] transition-all duration-200"
+                                                        style={`width: ${percent}%`}
+                                                    ></div>
+                                                </div>
+
+                                                <!-- Stepper and Action -->
+                                                <div
+                                                    class="flex items-center justify-between gap-2 pt-0.5"
+                                                >
+                                                    <div
+                                                        class="flex h-7 items-center rounded-md bg-[var(--color-panel-line)] border border-white/[0.08]"
+                                                    >
+                                                        <button
+                                                            type="button"
+                                                            class="grid h-full w-7 place-items-center text-muted transition hover:text-white disabled:opacity-30"
+                                                            disabled={current <=
+                                                                0 ||
+                                                                Boolean(
+                                                                    volumeBusy,
+                                                                )}
+                                                            onclick={() =>
+                                                                void stepVolumePage(
+                                                                    vol,
+                                                                    -1,
+                                                                )}
+                                                        >
+                                                            <Minus size={12} />
+                                                        </button>
+                                                        <span
+                                                            class="px-2 text-xs font-semibold tabular-nums text-white"
+                                                            >{current}</span
+                                                        >
+                                                        <button
+                                                            type="button"
+                                                            class="grid h-full w-7 place-items-center text-muted transition hover:text-white disabled:opacity-30"
+                                                            disabled={(total >
+                                                                0 &&
+                                                                current >=
+                                                                    total) ||
+                                                                Boolean(
+                                                                    volumeBusy,
+                                                                )}
+                                                            onclick={() =>
+                                                                void stepVolumePage(
+                                                                    vol,
+                                                                    1,
+                                                                )}
+                                                        >
+                                                            <Plus size={12} />
+                                                        </button>
+                                                    </div>
+
+                                                    <div
+                                                        class="flex items-center gap-1"
+                                                    >
+                                                        <button
+                                                            type="button"
+                                                            class="grid h-7 w-7 place-items-center rounded-md bg-white/5 text-muted transition hover:bg-white/10 hover:text-white"
+                                                            onclick={() =>
+                                                                openEditVolume(
+                                                                    vol,
+                                                                )}
+                                                            title="Edit volume"
+                                                        >
+                                                            <Pencil size={11} />
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            class="grid h-7 w-7 place-items-center rounded-md bg-white/5 text-muted transition hover:bg-rose-500/20 hover:text-rose-400"
+                                                            onclick={() =>
+                                                                void handleDeleteVolume(
+                                                                    vol,
+                                                                )}
+                                                            title="Delete volume"
+                                                        >
+                                                            <Trash2 size={11} />
+                                                        </button>
+
+                                                        {#if !isDone}
+                                                            <button
+                                                                type="button"
+                                                                class="inline-flex h-7 items-center gap-1 rounded-md bg-emerald-500/15 px-2 text-[11px] font-semibold text-emerald-300 transition hover:bg-emerald-500/25 disabled:opacity-50"
+                                                                disabled={Boolean(
+                                                                    volumeBusy,
+                                                                )}
+                                                                onclick={() =>
+                                                                    void markVolumeComplete(
+                                                                        vol,
+                                                                    )}
+                                                                title={i18n.t
+                                                                    .detail
+                                                                    .markVolumeComplete}
+                                                            >
+                                                                <Check
+                                                                    size={12}
+                                                                />
+                                                            </button>
+                                                        {:else}
+                                                            <button
+                                                                type="button"
+                                                                class="inline-flex h-7 items-center gap-1 rounded-md bg-white/5 px-2 text-[11px] font-semibold text-muted transition hover:bg-white/10 hover:text-white disabled:opacity-50"
+                                                                disabled={Boolean(
+                                                                    volumeBusy,
+                                                                )}
+                                                                onclick={() =>
+                                                                    void unmarkVolumeComplete(
+                                                                        vol,
+                                                                    )}
+                                                                title="Unmark complete"
+                                                            >
+                                                                <X size={12} />
+                                                            </button>
+                                                        {/if}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        {/each}
+                                    </div>
+                                </section>
+                            {:else if media.totalVolumes && media.totalVolumes > 0}
+                                <section
+                                    class="space-y-3 rounded-xl bg-[var(--color-panel-line)] p-5 shadow-sm border border-white/[0.06]"
+                                >
+                                    <div
+                                        class="flex items-center justify-between gap-3"
+                                    >
+                                        <div>
+                                            <h2
+                                                class="text-xs font-bold uppercase tracking-wider text-slate-300"
+                                            >
+                                                {i18n.t.detail.tabVolumes}
+                                            </h2>
+                                            <p
+                                                class="text-xs text-muted mt-0.5"
+                                            >
+                                                {media.totalVolumes}
+                                                {i18n.t.detail.volumesLabel.toLowerCase()}
+                                            </p>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            class="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-accent)] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[var(--color-accent-bright)] disabled:opacity-50"
+                                            disabled={Boolean(volumeBusy)}
+                                            onclick={() =>
+                                                void handleGenerateVolumes()}
+                                        >
+                                            <Plus size={13} />
+                                            {i18n.t.detail.addVolume} ({media.totalVolumes})
+                                        </button>
+                                    </div>
+                                </section>
+                            {:else}
+                                <section
+                                    class="space-y-3 rounded-xl bg-[var(--color-panel-line)] p-5 shadow-sm border border-white/[0.06]"
+                                >
+                                    <div
+                                        class="flex items-center justify-between gap-3"
+                                    >
+                                        <div>
+                                            <h2
+                                                class="text-xs font-bold uppercase tracking-wider text-slate-300"
+                                            >
+                                                {i18n.t.detail.tabVolumes}
+                                            </h2>
+                                            <p
+                                                class="text-xs text-muted mt-0.5"
+                                            >
+                                                0 {i18n.t.detail.volumesLabel.toLowerCase()}
+                                            </p>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            class="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-accent)] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[var(--color-accent-bright)] disabled:opacity-50"
+                                            disabled={Boolean(volumeBusy)}
+                                            onclick={() =>
+                                                void handleAddVolume()}
+                                        >
+                                            <Plus size={13} />
+                                            {i18n.t.detail.addVolume}
+                                        </button>
+                                    </div>
+                                </section>
+                            {/if}
+                        {/if}
+                    </div>
+                {/if}
+
+                <!-- TAB 2: EPISODES (Items 1, 3, 4, 12) -->
+                {#if activeSubTab === "episodes" && media.type === "tvshow"}
+                    <section class="space-y-4">
+                        <!-- Controls bar: Season select, Sort order (Item 3), Batch buttons (Item 1) -->
+                        <div
+                            class="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-[var(--color-panel-line)] p-3.5"
+                        >
+                            <div class="flex items-center gap-3">
+                                {#if seasons.length > 1}
+                                    <select
+                                        class="h-9 rounded-md border border-white/[0.08] bg-[var(--color-field)] px-3 text-xs font-semibold text-white outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
+                                        value={currentSeason?.id ?? ""}
+                                        onchange={(event) =>
+                                            (selectedSeasonId = (
+                                                event.currentTarget as HTMLSelectElement
+                                            ).value)}
+                                    >
+                                        {#each seasons as value (value.id)}
+                                            <option value={value.id}
+                                                >{value.title ||
+                                                    `Season ${value.seasonNumber}`}</option
+                                            >
+                                        {/each}
+                                    </select>
+                                {:else if currentSeason}
+                                    <span
+                                        class="text-xs font-semibold text-white"
+                                        >{currentSeason.title}</span
+                                    >
+                                {/if}
+
+                                {#if currentSeason}
+                                    <span class="text-xs text-muted">
+                                        {i18n.t.card.episodes(
+                                            currentSeason.currentEpisode,
+                                            currentSeason.totalEpisodes,
+                                        )}
+                                    </span>
+                                {/if}
+                            </div>
+
+                            <div class="flex items-center gap-2">
+                                <!-- Episode Sorting Toggle (Item 3) -->
+                                <button
+                                    type="button"
+                                    class="inline-flex h-8 items-center gap-1.5 rounded-md border border-white/[0.08] bg-surface/50 px-2.5 text-xs font-medium text-white transition hover:bg-white/10"
+                                    onclick={() =>
+                                        (episodeSortOrder =
+                                            episodeSortOrder === "asc"
+                                                ? "desc"
+                                                : "asc")}
+                                    title="Toggle episode sort order"
+                                >
+                                    <ArrowUpDown
+                                        size={13}
+                                        class="text-[var(--color-accent-soft)]"
+                                        aria-hidden="true"
+                                    />
+                                    {episodeSortOrder === "asc"
+                                        ? i18n.t.detail.sortAsc
+                                        : i18n.t.detail.sortDesc}
+                                </button>
+
+                                <!-- Mark Season Watched (Item 1) -->
+                                <button
+                                    type="button"
+                                    class="inline-flex h-8 items-center gap-1.5 rounded-md bg-emerald-500/20 border border-emerald-500/30 px-2.5 text-xs font-semibold text-emerald-300 transition hover:bg-emerald-500/30 disabled:opacity-50"
+                                    disabled={Boolean(episodeBusy)}
+                                    onclick={() => void markSeasonComplete()}
+                                >
+                                    <Check size={13} stroke-width={2.5} />
+                                    {i18n.t.detail.markSeasonWatched}
+                                </button>
+
+                                <!-- Reset Season (Item 1) -->
+                                <button
+                                    type="button"
+                                    class="inline-flex h-8 items-center gap-1.5 rounded-md bg-rose-500/10 border border-rose-500/20 px-2.5 text-xs font-semibold text-rose-300 transition hover:bg-rose-500/20 disabled:opacity-50"
+                                    disabled={Boolean(episodeBusy)}
+                                    onclick={() => void resetSeasonProgress()}
+                                >
+                                    <RotateCcw size={13} />
+                                    {i18n.t.detail.resetSeason}
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Episodes List -->
+                        {#if seasons.length === 0}
+                            <p
+                                class="rounded-xl bg-[var(--color-panel-line)] p-5 text-sm text-muted"
+                            >
+                                {i18n.t.views.noSeasons}
+                            </p>
+                        {:else if episodes.length === 0}
+                            <p
+                                class="rounded-xl bg-[var(--color-panel-line)] p-5 text-sm text-muted"
+                            >
+                                {i18n.t.common.noData}
+                            </p>
+                        {:else}
+                            <div class="space-y-2">
+                                {#each sortedEpisodes as episode (episode.id)}
+                                    <article
+                                        class="flex items-center gap-3.5 rounded-xl border border-white/[0.06] bg-[var(--color-panel-line)] p-3.5 transition hover:bg-[var(--color-panel-raised)]"
+                                    >
+                                        <span
+                                            class="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[var(--color-field)] text-xs font-bold text-[var(--color-muted)]"
+                                        >
+                                            E{episode.number}
+                                        </span>
+                                        <div class="min-w-0 flex-1">
+                                            <p
+                                                class="truncate text-sm font-semibold text-white"
+                                            >
+                                                {episode.title}
+                                            </p>
+                                            {#if episode.airDate}
+                                                <p
+                                                    class="mt-0.5 text-xs text-muted"
+                                                >
+                                                    {formatDate(
+                                                        episode.airDate,
+                                                    )}
+                                                </p>
+                                            {/if}
+                                            {#if episode.description}
+                                                <p
+                                                    class="mt-1 line-clamp-2 text-xs leading-relaxed text-[var(--color-muted)]"
+                                                >
+                                                    {episode.description}
+                                                </p>
+                                            {/if}
+                                        </div>
+
+                                        <div
+                                            class="flex shrink-0 items-center gap-2"
+                                        >
+                                            <!-- Watched Checkmark / Eye toggle (Items 4, 12) -->
+                                            <button
+                                                type="button"
+                                                class={`grid h-8 w-8 place-items-center rounded-full border transition active:scale-95 disabled:cursor-wait disabled:opacity-60 ${
+                                                    episode.watched
+                                                        ? "border-emerald-500/40 bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30"
+                                                        : "border-white/[0.08] bg-[var(--color-field)] text-[var(--color-muted)] hover:bg-[var(--color-panel-line)] hover:text-white"
+                                                }`}
+                                                aria-label={episode.watched
+                                                    ? i18n.t.detail.markWatched
+                                                    : i18n.t.detail.watchAction}
+                                                title={episode.watched
+                                                    ? i18n.t.detail
+                                                          .unwatchAction
+                                                    : i18n.t.detail.markWatched}
+                                                disabled={Boolean(episodeBusy)}
+                                                onclick={() =>
+                                                    void toggleEpisode(
+                                                        episode.number,
+                                                    )}
+                                            >
+                                                {#if episode.watched}
+                                                    <Check
+                                                        size={16}
+                                                        stroke-width={2.8}
+                                                        aria-hidden="true"
+                                                    />
+                                                {:else}
+                                                    <Eye
+                                                        size={15}
+                                                        aria-hidden="true"
+                                                    />
+                                                {/if}
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                class="grid h-8 w-8 place-items-center rounded-full text-muted transition hover:bg-[var(--color-field)] hover:text-white"
+                                                aria-label={i18n.t.views
+                                                    .listsTitle}
+                                                title={i18n.t.views.listsTitle}
+                                                onclick={() =>
+                                                    onNavigate("lists")}
+                                            >
+                                                <List
+                                                    size={15}
+                                                    aria-hidden="true"
+                                                />
+                                            </button>
+                                        </div>
+                                    </article>
+                                {/each}
+                            </div>
+                            {#if progressError}<p
+                                    class="text-xs text-rose-300"
+                                    role="alert"
+                                >
+                                    {errorMessage(progressError)}
+                                </p>{/if}
+                        {/if}
+                    </section>
+                {/if}
+
+                <!-- TAB: MANGA VOLUMES -->
+                {#if activeSubTab === "volumes" && media.type === "manga"}
+                    <section class="space-y-4">
+                        <div
+                            class="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-[var(--color-panel-line)] p-3.5"
+                        >
+                            <div class="flex items-center gap-2">
+                                <Layers
+                                    size={16}
+                                    class="text-[var(--color-accent-soft)]"
+                                />
+                                <h3 class="text-sm font-bold text-white">
+                                    {i18n.t.detail.tabVolumes}
+                                </h3>
+                                <span
+                                    class="rounded-full bg-white/10 px-2.5 py-0.5 text-xs font-semibold text-[var(--color-accent-soft)]"
+                                >
+                                    {mangaVolumes.length}
+                                </span>
+                            </div>
+
+                            <div class="flex items-center gap-2">
+                                {#if media.totalVolumes && mangaVolumes.length < media.totalVolumes}
+                                    <button
+                                        type="button"
+                                        class="inline-flex h-8 items-center gap-1.5 rounded-md bg-white/10 px-3 text-xs font-semibold text-white transition hover:bg-white/20 disabled:opacity-50"
+                                        disabled={Boolean(volumeBusy)}
+                                        onclick={() =>
+                                            void handleGenerateVolumes()}
+                                    >
+                                        <Plus size={13} />
+                                        {i18n.t.detail.addVolume} ({media.totalVolumes -
+                                            mangaVolumes.length})
+                                    </button>
+                                {/if}
+                                <button
+                                    type="button"
+                                    class="inline-flex h-8 items-center gap-1.5 rounded-md bg-[var(--color-accent)] px-3 text-xs font-semibold text-white transition hover:bg-[var(--color-accent-bright)] disabled:opacity-50"
+                                    disabled={Boolean(volumeBusy)}
+                                    onclick={() => void handleAddVolume()}
+                                >
+                                    <Plus size={13} />
+                                    {i18n.t.detail.addVolume}
+                                </button>
+                            </div>
+                        </div>
+
+                        {#if mangaVolumes.length === 0}
+                            <div
+                                class="rounded-xl border border-white/[0.08] bg-[color-mix(in_oklab,var(--color-panel-line)_40%,transparent)] p-8 text-center space-y-3"
+                            >
+                                <Layers
+                                    size={36}
+                                    class="mx-auto text-muted/60"
+                                />
+                                <p class="text-sm text-muted">
+                                    No volumes tracked yet for this manga.
+                                </p>
+                                <button
+                                    type="button"
+                                    class="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-accent)] px-4 py-2 text-xs font-semibold text-white transition hover:bg-[var(--color-accent-bright)]"
+                                    disabled={Boolean(volumeBusy)}
+                                    onclick={() => void handleAddVolume()}
+                                >
+                                    <Plus size={14} />
+                                    {i18n.t.detail.addVolume}
+                                </button>
+                            </div>
+                        {:else}
+                            <div
+                                class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
+                            >
+                                {#each mangaVolumes as vol (vol.id)}
+                                    {@const isDone = isVolumeDone(vol)}
+                                    {@const current = volumeCurrent(vol)}
+                                    {@const total = volumeTotal(vol)}
+                                    {@const percent = volumePercent(vol)}
+                                    <div
+                                        class="rounded-xl border border-white/[0.08] bg-[var(--color-panel-line)] p-4 space-y-3 shadow-sm hover:border-white/[0.14] transition"
+                                    >
+                                        <div
+                                            class="flex items-start justify-between gap-2"
+                                        >
+                                            <div class="min-w-0">
+                                                <h4
+                                                    class="text-sm font-bold text-white truncate"
+                                                >
+                                                    {vol.title ||
+                                                        `Volume ${vol.volumeNumber}`}
+                                                </h4>
+                                            </div>
+                                            {#if isDone}
+                                                <span
+                                                    class="inline-flex items-center gap-1 rounded bg-emerald-500/15 px-2 py-0.5 text-xs font-bold text-emerald-300"
+                                                >
+                                                    <Check
+                                                        size={12}
+                                                        stroke-width={2.5}
+                                                    />
+                                                    {i18n.t.status.completed}
+                                                </span>
+                                            {:else}
+                                                <span
+                                                    class="text-xs font-semibold tabular-nums text-white"
+                                                >
+                                                    {volumeProgressLabel(vol)}
+                                                </span>
+                                            {/if}
+                                        </div>
+
+                                        <!-- Progress Bar -->
+                                        <div class="space-y-1">
+                                            <div
+                                                class="flex justify-between text-[11px] text-muted"
+                                            >
+                                                <span
+                                                    >{i18n.t.detail
+                                                        .volumeProgress}</span
+                                                >
+                                                <span
+                                                    >{percent.toFixed(0)}%</span
+                                                >
+                                            </div>
+                                            <div
+                                                class="h-2 w-full overflow-hidden rounded-full bg-black/40"
+                                            >
+                                                <div
+                                                    class="h-full rounded-full bg-gradient-to-r from-[var(--color-accent)] to-[var(--color-info-soft)] transition-all duration-300"
+                                                    style={`width: ${percent}%`}
+                                                ></div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Stepper & Actions -->
+                                        <div
+                                            class="flex items-center justify-between gap-2 pt-1 border-t border-white/[0.06]"
+                                        >
+                                            <div
+                                                class="flex h-8 items-center rounded-lg bg-[var(--color-field)] border border-white/[0.08]"
+                                            >
+                                                <button
+                                                    type="button"
+                                                    class="grid h-full w-8 place-items-center text-muted transition hover:text-white disabled:opacity-30"
+                                                    disabled={current <= 0 ||
+                                                        Boolean(volumeBusy)}
+                                                    onclick={() =>
+                                                        void stepVolumePage(
+                                                            vol,
+                                                            -1,
+                                                        )}
+                                                >
+                                                    <Minus size={13} />
+                                                </button>
+                                                <span
+                                                    class="px-2.5 text-xs font-semibold tabular-nums text-white"
+                                                    >{current}</span
+                                                >
+                                                <button
+                                                    type="button"
+                                                    class="grid h-full w-8 place-items-center text-muted transition hover:text-white disabled:opacity-30"
+                                                    disabled={(total > 0 &&
+                                                        current >= total) ||
+                                                        Boolean(volumeBusy)}
+                                                    onclick={() =>
+                                                        void stepVolumePage(
+                                                            vol,
+                                                            1,
+                                                        )}
+                                                >
+                                                    <Plus size={13} />
+                                                </button>
+                                            </div>
+
+                                            <div
+                                                class="flex items-center gap-1.5"
+                                            >
+                                                <button
+                                                    type="button"
+                                                    class="inline-flex h-8 items-center gap-1 rounded-lg bg-white/5 border border-white/[0.08] px-2 text-xs font-semibold text-muted hover:bg-white/10 hover:text-white transition"
+                                                    onclick={() =>
+                                                        openEditVolume(vol)}
+                                                    title="Edit volume"
+                                                >
+                                                    <Pencil size={12} />
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    class="inline-flex h-8 items-center gap-1 rounded-lg bg-white/5 border border-white/[0.08] px-2 text-xs font-semibold text-muted hover:bg-rose-500/20 hover:text-rose-400 transition"
+                                                    onclick={() =>
+                                                        void handleDeleteVolume(
+                                                            vol,
+                                                        )}
+                                                    title="Delete volume"
+                                                >
+                                                    <Trash2 size={12} />
+                                                </button>
+
+                                                {#if !isDone}
+                                                    <button
+                                                        type="button"
+                                                        class="inline-flex h-8 items-center gap-1 rounded-lg bg-emerald-500/15 border border-emerald-500/25 px-2.5 text-xs font-semibold text-emerald-300 transition hover:bg-emerald-500/25 disabled:opacity-50"
+                                                        disabled={Boolean(
+                                                            volumeBusy,
+                                                        )}
+                                                        onclick={() =>
+                                                            void markVolumeComplete(
+                                                                vol,
+                                                            )}
+                                                    >
+                                                        <Check size={13} />
+                                                        {i18n.t.detail.markRead}
+                                                    </button>
+                                                {:else}
+                                                    <button
+                                                        type="button"
+                                                        class="inline-flex h-8 items-center gap-1 rounded-lg bg-white/5 border border-white/[0.08] px-2.5 text-xs font-semibold text-muted transition hover:bg-white/10 hover:text-white disabled:opacity-50"
+                                                        disabled={Boolean(
+                                                            volumeBusy,
+                                                        )}
+                                                        onclick={() =>
+                                                            void unmarkVolumeComplete(
+                                                                vol,
+                                                            )}
+                                                    >
+                                                        <X size={13} />
+                                                        {i18n.t.detail
+                                                            .unmarkRead}
+                                                    </button>
+                                                {/if}
+                                            </div>
+                                        </div>
+                                    </div>
+                                {/each}
+                            </div>
+                        {/if}
+                    </section>
+                {/if}
+
+                <!-- TAB 3: RELATED MEDIA -->
+                {#if activeSubTab === "related"}
+                    <section class="space-y-6">
+                        <div
+                            class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+                        >
+                            <div>
+                                <h2
+                                    class="text-sm font-bold uppercase tracking-wider text-slate-300"
+                                >
+                                    {i18n.t.detail.relatedTitle}
+                                </h2>
+                                <p class="text-xs text-muted">
+                                    {i18n.t.detail.relatedSubtitle}
+                                </p>
+                            </div>
+
+                            <!-- View Switchers (Items 2, 4) - Compact icon-only square buttons with hover tooltip -->
+                            {#if related.length > 0}
+                                <div
+                                    class="inline-flex items-center rounded-lg border border-white/[0.08] bg-[var(--color-track-alt)] p-1 self-start sm:self-auto gap-1"
+                                >
+                                    <button
+                                        type="button"
+                                        class={`grid h-8 w-8 place-items-center rounded-md transition cursor-pointer ${
+                                            relatedViewMode === "grouped"
+                                                ? "bg-accent text-white shadow"
+                                                : "text-slate-400 hover:bg-white/5 hover:text-white"
+                                        }`}
+                                        title={i18n.t.detail.viewGrouped}
+                                        aria-label={i18n.t.detail.viewGrouped}
+                                        onclick={() =>
+                                            (relatedViewMode = "grouped")}
+                                    >
+                                        <Layers size={17} />
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        class={`grid h-8 w-8 place-items-center rounded-md transition cursor-pointer ${
+                                            relatedViewMode === "timeline"
+                                                ? "bg-accent text-white shadow"
+                                                : "text-slate-400 hover:bg-white/5 hover:text-white"
+                                        }`}
+                                        title={i18n.t.detail.viewTimeline}
+                                        aria-label={i18n.t.detail.viewTimeline}
+                                        onclick={() =>
+                                            (relatedViewMode = "timeline")}
+                                    >
+                                        <GitBranch size={17} />
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        class={`grid h-8 w-8 place-items-center rounded-md transition cursor-pointer ${
+                                            relatedViewMode === "grid"
+                                                ? "bg-accent text-white shadow"
+                                                : "text-slate-400 hover:bg-white/5 hover:text-white"
+                                        }`}
+                                        title={i18n.t.detail.viewGrid}
+                                        aria-label={i18n.t.detail.viewGrid}
+                                        onclick={() =>
+                                            (relatedViewMode = "grid")}
+                                    >
+                                        <LayoutGrid size={17} />
+                                    </button>
+                                </div>
+                            {/if}
+                        </div>
+
+                        {#if relatedLoading}
+                            <div
+                                class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5"
+                            >
+                                {#each Array(5) as _, idx (idx)}
+                                    <div class="space-y-2">
+                                        <div
+                                            class="aspect-[2/3] w-full animate-pulse rounded-xl bg-[var(--color-panel-line)]"
+                                        ></div>
+                                        <div
+                                            class="h-3 w-3/4 animate-pulse rounded bg-[var(--color-panel-line)]"
+                                        ></div>
+                                    </div>
+                                {/each}
+                            </div>
+                        {:else if relatedError}
+                            <div
+                                class="flex flex-col items-start gap-2 rounded-xl bg-rose-400/5 p-4"
+                            >
+                                <p class="text-sm text-rose-200" role="alert">
+                                    {errorMessage(relatedError)}
+                                </p>
+                                <button
+                                    type="button"
+                                    class="inline-flex items-center gap-2 rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-white transition hover:bg-accent-hover cursor-pointer"
+                                    onclick={() => {
+                                        if (media)
+                                            void loadRelated(media, true);
+                                    }}
+                                >
+                                    <RefreshCw size={14} aria-hidden="true" />
+                                    {i18n.t.common.retry}
+                                </button>
+                            </div>
+                        {:else if related.length === 0}
+                            <p
+                                class="rounded-xl bg-[var(--color-panel-line)] p-5 text-sm text-muted"
+                            >
+                                {i18n.t.detail.relatedEmpty}
+                            </p>
+                        {:else}
+                            <!-- Snippet for related card with bottom gradient & status/rating badges -->
+                            {#snippet relatedCard(rel: RelatedEntry)}
+                                <button
+                                    type="button"
+                                    class="group relative flex flex-col aspect-[2/3] w-full overflow-hidden rounded-xl border border-white/[0.06] bg-[var(--color-overlay-strong)] text-left transition duration-300 hover:border-accent/50 hover:shadow-xl hover:shadow-accent/10 cursor-pointer"
+                                    onclick={() => handleRelatedClick(rel)}
+                                >
+                                    <!-- Poster image -->
+                                    {#if rel.coverUrl}
+                                        <img
+                                            src={rel.coverUrl}
+                                            alt={rel.title}
+                                            class="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                                            loading="lazy"
+                                        />
+                                    {:else}
+                                        <div
+                                            class="grid h-full w-full place-items-center bg-[var(--color-field)] text-muted"
+                                        >
+                                            <ImageIcon
+                                                size={32}
+                                                stroke-width={1.25}
+                                                aria-hidden="true"
+                                            />
+                                        </div>
+                                    {/if}
+
+                                    <!-- Top-left Status & Rating overlay (matching main window) -->
+                                    {#if rel.localItem}
+                                        <div
+                                            class="absolute left-2.5 top-2.5 z-20 flex items-center"
+                                        >
+                                            <!-- Status circle -->
+                                            <div
+                                                class={`relative z-10 flex h-7 w-7 items-center justify-center rounded-full shadow-lg backdrop-blur ${statusBadgeClasses(rel.localItem.status)}`}
+                                                title={statusLabel(
+                                                    rel.localItem.status,
+                                                )}
+                                            >
+                                                {#if rel.localItem.status === 0}
+                                                    <Bookmark
+                                                        size={13}
+                                                        stroke-width={2.2}
+                                                    />
+                                                {:else if rel.localItem.status === 1}
+                                                    <Play
+                                                        size={12}
+                                                        fill="currentColor"
+                                                        class="translate-x-0.5"
+                                                    />
+                                                {:else if rel.localItem.status === 2}
+                                                    <Check
+                                                        size={14}
+                                                        stroke-width={3}
+                                                    />
+                                                {:else if rel.localItem.status === 3}
+                                                    <Pause
+                                                        size={12}
+                                                        stroke-width={2.5}
+                                                    />
+                                                {:else if rel.localItem.status === 4}
+                                                    <X
+                                                        size={13}
+                                                        stroke-width={2.5}
+                                                    />
+                                                {/if}
+                                            </div>
+
+                                            <!-- Rating circle -->
+                                            {#if rel.localItem.score !== null && rel.localItem.score > 0}
+                                                <div
+                                                    class="relative z-20 -ml-2 flex h-7 w-7 items-center justify-center rounded-full bg-[var(--color-score-bg)] text-white shadow-lg border-2 border-[color-mix(in_oklab,var(--color-accent-line)_80%,transparent)] ring-2 ring-[color-mix(in_oklab,var(--color-accent-line)_30%,transparent)] font-black text-xs select-none"
+                                                    title={`${i18n.t.createModal.fields.score}: ${rel.localItem.score}`}
+                                                >
+                                                    {rel.localItem.score}
+                                                </div>
+                                            {/if}
+                                        </div>
+                                    {/if}
+
+                                    <!-- Bottom overlay with strong dark gradient and readable typography -->
+                                    <div
+                                        class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/95 via-black/85 to-transparent p-3 pt-12 flex flex-col justify-end pointer-events-none"
+                                    >
+                                        <span
+                                            class="line-clamp-2 text-sm font-bold leading-snug text-white transition group-hover:text-accent-soft drop-shadow-md"
+                                        >
+                                            {rel.title}
+                                        </span>
+                                        <div
+                                            class="mt-1.5 flex items-center justify-between gap-1 text-xs"
+                                        >
+                                            {#if rel.relationType}
+                                                <span
+                                                    class="rounded bg-accent/25 border border-accent/40 px-2 py-0.5 text-[11px] font-semibold text-accent-soft backdrop-blur-sm"
+                                                >
+                                                    {rel.relationType}
+                                                </span>
+                                            {:else}
+                                                <span
+                                                    class="text-[11px] text-slate-300"
+                                                    >{formatMediaDisplayType(
+                                                        rel,
+                                                    )}</span
+                                                >
+                                            {/if}
+                                            {#if rel.year}
+                                                <span
+                                                    class="font-medium text-slate-300 text-[11px]"
+                                                >
+                                                    {rel.year}
+                                                </span>
+                                            {/if}
+                                        </div>
+                                    </div>
+                                </button>
+                            {/snippet}
+
+                            <!-- 1. GROUPED VIEW -->
+                            {#if relatedViewMode === "grouped"}
+                                <div class="space-y-8">
+                                    {#each relatedGroups as group (group.id)}
+                                        <div class="space-y-3">
+                                            <div
+                                                class="flex items-center gap-2.5 border-b border-white/[0.08] pb-2.5"
+                                            >
+                                                <h3
+                                                    class="text-base sm:text-lg font-bold text-white tracking-tight"
+                                                >
+                                                    {group.title}
+                                                </h3>
+                                                <span
+                                                    class="rounded-full bg-white/10 px-2.5 py-0.5 text-xs font-bold text-muted"
+                                                >
+                                                    {group.items.length}
+                                                </span>
+                                            </div>
+                                            <div
+                                                class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5"
+                                            >
+                                                {#each group.items as rel (rel.id)}
+                                                    {@render relatedCard(rel)}
+                                                {/each}
+                                            </div>
+                                        </div>
+                                    {/each}
+                                </div>
+
+                                <!-- 2. TIMELINE / CHRONOLOGY VIEW -->
+                            {:else if relatedViewMode === "timeline"}
+                                <div
+                                    class="relative pl-6 sm:pl-8 space-y-4 before:absolute before:bottom-3 before:left-[11px] sm:before:left-[15px] before:top-3 before:w-0.5 before:bg-gradient-to-b before:from-accent before:via-accent/40 before:to-transparent"
+                                >
+                                    {#each timelineEntries as item (item.id)}
+                                        <div
+                                            class="relative flex items-center gap-4 group"
+                                        >
+                                            <!-- Node circle marker on the timeline line -->
+                                            <div
+                                                class={`absolute -left-6 sm:-left-8 flex h-6 w-6 items-center justify-center rounded-full border-2 transition-transform duration-300 group-hover:scale-110 ${
+                                                    item.isCurrent
+                                                        ? "border-accent bg-accent text-white shadow-lg shadow-accent/50 ring-4 ring-accent/20"
+                                                        : item.localItem
+                                                          ? "border-emerald-500 bg-[var(--color-field)] text-emerald-400"
+                                                          : "border-white/[0.14] bg-[var(--color-field)] text-slate-400"
+                                                }`}
+                                            >
+                                                {#if item.isCurrent}
+                                                    <div
+                                                        class="h-2 w-2 rounded-full bg-white"
+                                                    ></div>
+                                                {:else if item.localItem}
+                                                    <Check
+                                                        size={12}
+                                                        stroke-width={3}
+                                                    />
+                                                {:else}
+                                                    <div
+                                                        class="h-1.5 w-1.5 rounded-full bg-white/40"
+                                                    ></div>
+                                                {/if}
+                                            </div>
+
+                                            <!-- Timeline row card -->
+                                            <button
+                                                type="button"
+                                                class={`flex flex-1 items-center gap-3.5 rounded-xl border p-2.5 transition text-left cursor-pointer ${
+                                                    item.isCurrent
+                                                        ? "border-accent/60 bg-accent/10 shadow-md ring-1 ring-accent/30"
+                                                        : "border-white/[0.06] bg-[var(--color-panel-line)] hover:border-white/[0.14] hover:bg-[var(--color-panel-raised)]"
+                                                }`}
+                                                onclick={() => {
+                                                    if (item.isCurrent) return;
+                                                    if (item.rawItem)
+                                                        handleRelatedClick(
+                                                            item.rawItem,
+                                                        );
+                                                }}
+                                            >
+                                                <!-- Mini poster -->
+                                                <div
+                                                    class="relative aspect-[2/3] h-16 shrink-0 overflow-hidden rounded-lg bg-[var(--color-field)]"
+                                                >
+                                                    {#if item.coverUrl}
+                                                        <img
+                                                            src={item.coverUrl}
+                                                            alt={item.title}
+                                                            class="h-full w-full object-cover"
+                                                        />
+                                                    {:else}
+                                                        <div
+                                                            class="grid h-full place-items-center text-muted"
+                                                        >
+                                                            <ImageIcon
+                                                                size={18}
+                                                            />
+                                                        </div>
+                                                    {/if}
+
+                                                    {#if item.localItem}
+                                                        <div
+                                                            class="absolute left-1 top-1 flex items-center"
+                                                        >
+                                                            <div
+                                                                class={`h-4 w-4 rounded-full flex items-center justify-center ${statusBadgeClasses(item.localItem.status)}`}
+                                                            >
+                                                                {#if item.localItem.status === 2}
+                                                                    <Check
+                                                                        size={8}
+                                                                        stroke-width={3}
+                                                                    />
+                                                                {/if}
+                                                            </div>
+                                                        </div>
+                                                    {/if}
+                                                </div>
+
+                                                <div class="min-w-0 flex-1">
+                                                    <div
+                                                        class="flex flex-wrap items-center gap-2"
+                                                    >
+                                                        {#if item.year}
+                                                            <span
+                                                                class="rounded bg-white/10 px-1.5 py-0.5 text-[11px] font-bold text-accent-soft"
+                                                            >
+                                                                {item.year}
+                                                            </span>
+                                                        {/if}
+                                                        <span
+                                                            class={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${
+                                                                item.isCurrent
+                                                                    ? "bg-accent text-white"
+                                                                    : "bg-white/5 text-slate-300 border border-white/[0.08]"
+                                                            }`}
+                                                        >
+                                                            {item.relationType}
+                                                        </span>
+                                                        <span
+                                                            class="text-[11px] text-muted"
+                                                            >{item.formatDisplay}</span
+                                                        >
+                                                    </div>
+
+                                                    <h3
+                                                        class={`mt-1 truncate text-sm font-bold ${item.isCurrent ? "text-accent-soft" : "text-white group-hover:text-accent-soft"}`}
+                                                    >
+                                                        {item.title}
+                                                    </h3>
+                                                </div>
+
+                                                <!-- Rating / Action on right -->
+                                                <div class="shrink-0 pr-2">
+                                                    {#if item.localItem?.score}
+                                                        <span
+                                                            class="rounded-full bg-[var(--color-score-bg)] border border-[color-mix(in_oklab,var(--color-accent-line)_80%,transparent)] px-2.5 py-0.5 text-xs font-black text-white"
+                                                        >
+                                                            {item.localItem
+                                                                .score}
+                                                        </span>
+                                                    {:else if !item.localItem && !item.isCurrent}
+                                                        <span
+                                                            class="rounded-md border border-white/[0.08] bg-white/5 px-2.5 py-1 text-xs font-medium text-slate-300 group-hover:border-accent/40 group-hover:text-accent-soft"
+                                                        >
+                                                            {i18n.t.detail
+                                                                .overviewBadge}
+                                                        </span>
+                                                    {/if}
+                                                </div>
+                                            </button>
+                                        </div>
+                                    {/each}
+                                </div>
+
+                                <!-- 3. FLAT GRID VIEW -->
+                            {:else}
+                                <div
+                                    class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5"
+                                >
+                                    {#each related as rel (rel.id)}
+                                        {@render relatedCard(rel)}
+                                    {/each}
+                                </div>
+                            {/if}
+                        {/if}
+                    </section>
+
+                    <!-- PREVIEW MODAL FOR UNADDED RELATED ITEMS (Items 3, 5 - Identical to SearchModal preview) -->
+                    {#if previewRelatedItem}
+                        <Modal
+                            isOpen={Boolean(previewRelatedItem)}
+                            onClose={() => (previewRelatedItem = null)}
+                            labelledBy="related-preview-title"
+                        >
+                            <div class="flex max-h-[85vh] flex-col p-6">
+                                <h2 id="related-preview-title" class="sr-only">
+                                    {previewRelatedItem.title}
+                                </h2>
+                                <button
+                                    type="button"
+                                    class="tap absolute right-4 top-4 z-10 grid h-8 w-8 place-items-center rounded-lg text-muted transition hover:bg-elevated hover:text-ink cursor-pointer"
+                                    title={i18n.t.common.close}
+                                    aria-label={i18n.t.common.close}
+                                    onclick={() => (previewRelatedItem = null)}
+                                >
+                                    <X size={18} aria-hidden="true" />
+                                </button>
+
+                                <div class="overflow-y-auto pr-1">
+                                    <div
+                                        class="flex flex-col gap-5 sm:flex-row"
+                                    >
+                                        <div
+                                            class="mx-auto aspect-[2/3] w-40 shrink-0 overflow-hidden rounded-lg bg-canvas sm:mx-0"
+                                        >
+                                            {#if previewRelatedItem.coverUrl}
+                                                <img
+                                                    src={previewRelatedItem.coverUrl}
+                                                    alt={previewRelatedItem.title}
+                                                    class="h-full w-full object-cover"
+                                                />
+                                            {:else}
+                                                <div
+                                                    class="grid h-full place-items-center text-muted"
+                                                >
+                                                    <ImageIcon
+                                                        size={32}
+                                                        stroke-width={1.25}
+                                                        aria-hidden="true"
+                                                    />
+                                                </div>
+                                            {/if}
+                                        </div>
+
+                                        <div class="min-w-0 flex-1 space-y-3">
+                                            <div
+                                                class="flex flex-wrap items-center gap-2"
+                                            >
+                                                <span
+                                                    class="rounded-full bg-elevated px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-accent-soft"
+                                                >
+                                                    {formatMediaDisplayType(
+                                                        previewRelatedItem,
+                                                    )}
+                                                </span>
+                                                {#if previewRelatedItem.relationType}
+                                                    <span
+                                                        class="rounded-full bg-accent/20 border border-accent/40 px-2.5 py-0.5 text-[11px] font-semibold text-accent-soft"
+                                                    >
+                                                        {previewRelatedItem.relationType}
+                                                    </span>
+                                                {/if}
+                                                <span
+                                                    class="rounded-full border border-white/10 bg-field px-2.5 py-0.5 text-[11px] font-semibold text-muted"
+                                                >
+                                                    AniList
+                                                </span>
+                                            </div>
+
+                                            <div>
+                                                <h3
+                                                    class="mt-1 text-lg font-bold text-ink"
+                                                >
+                                                    {previewRelatedItem.title}
+                                                </h3>
+                                                {#if previewRelatedItem.originalTitle}
+                                                    <p
+                                                        class="text-xs text-muted"
+                                                    >
+                                                        {previewRelatedItem.originalTitle}
+                                                    </p>
+                                                {/if}
+                                            </div>
+
+                                            <!-- Ratings -->
+                                            {#if previewRelatedBadges.length > 0}
+                                                <div
+                                                    class="flex flex-wrap items-center gap-2"
+                                                >
+                                                    {#each previewRelatedBadges as r}
+                                                        <div
+                                                            class="inline-flex items-center gap-1 rounded-md border border-white/10 bg-field px-2 py-0.5 text-xs"
+                                                        >
+                                                            <span
+                                                                class="font-medium text-muted"
+                                                                >{r.source}:</span
+                                                            >
+                                                            {#if r.score !== null && r.score > 0}
+                                                                <span
+                                                                    class="flex items-center gap-0.5 font-bold text-star"
+                                                                >
+                                                                    <Star
+                                                                        size={11}
+                                                                        fill="currentColor"
+                                                                    />
+                                                                    {r.score.toFixed(
+                                                                        1,
+                                                                    )}
+                                                                </span>
+                                                            {:else if previewRelatedLoading}
+                                                                <span
+                                                                    class="inline-block h-3 w-5 animate-pulse rounded bg-border"
+                                                                ></span>
+                                                            {:else}
+                                                                <span
+                                                                    class="text-xs text-muted"
+                                                                    >—</span
+                                                                >
+                                                            {/if}
+                                                        </div>
+                                                    {/each}
+                                                </div>
+                                            {:else}
+                                                <div
+                                                    class="inline-flex items-center gap-1 rounded-md border border-white/10 bg-field px-2 py-0.5 text-xs text-muted"
+                                                >
+                                                    <Star size={11} />
+                                                    <span
+                                                        >{i18n.t.detail
+                                                            .previewModal
+                                                            .noRatings}</span
+                                                    >
+                                                </div>
+                                            {/if}
+
+                                            <div
+                                                class="space-y-1 text-xs text-muted"
+                                            >
+                                                <div>
+                                                    <span
+                                                        class="font-medium text-ink"
+                                                        >{i18n.t.detail
+                                                            .previewModal
+                                                            .year}:</span
+                                                    >
+                                                    {previewRelatedItem.year ??
+                                                        i18n.t.detail
+                                                            .previewModal
+                                                            .noData}
+                                                </div>
+                                                {#if previewRelatedItem.type === "manga" || previewRelatedItem.format === "NOVEL" || previewRelatedItem.format === "MANGA"}
+                                                    <div>
+                                                        <span
+                                                            class="font-medium text-ink"
+                                                            >{i18n.t.detail
+                                                                .previewModal
+                                                                .author}:</span
+                                                        >
+                                                        {previewRelatedItem.author ??
+                                                            i18n.t.detail
+                                                                .previewModal
+                                                                .noData}
+                                                    </div>
+                                                {:else}
+                                                    <div>
+                                                        <span
+                                                            class="font-medium text-ink"
+                                                            >{i18n.t.detail
+                                                                .previewModal
+                                                                .studio}:</span
+                                                        >
+                                                        {previewRelatedItem.studio ??
+                                                            i18n.t.detail
+                                                                .previewModal
+                                                                .noData}
+                                                    </div>
+                                                {/if}
+                                                <div>
+                                                    <span
+                                                        class="font-medium text-ink"
+                                                        >{i18n.t.detail
+                                                            .previewModal
+                                                            .count}:</span
+                                                    >
+                                                    {#if previewRelatedItem.episodes}
+                                                        {previewRelatedItem.episodes}
+                                                        {i18n.t.searchModal
+                                                            .countUnits.anime}
+                                                    {:else if previewRelatedItem.chapters}
+                                                        {previewRelatedItem.chapters}
+                                                        {i18n.t.searchModal
+                                                            .countUnits.manga}
+                                                    {:else if previewRelatedItem.volumes}
+                                                        {previewRelatedItem.volumes}
+                                                        {i18n.t.searchModal
+                                                            .countUnits.manga}
+                                                    {:else}
+                                                        {i18n.t.detail
+                                                            .previewModal
+                                                            .noData}
+                                                    {/if}
+                                                </div>
+                                            </div>
+
+                                            <div
+                                                class="pt-2 flex flex-wrap items-center gap-3"
+                                            >
+                                                <div
+                                                    class="flex items-center gap-2"
+                                                >
+                                                    <label
+                                                        for="preview-status"
+                                                        class="text-xs font-medium text-muted"
+                                                    >
+                                                        {i18n.t.detail
+                                                            .previewModal
+                                                            .initialStatus}:
+                                                    </label>
+                                                    <select
+                                                        id="preview-status"
+                                                        bind:value={
+                                                            previewStatus
+                                                        }
+                                                        class="rounded-md border border-white/10 bg-field px-2.5 py-1.5 text-xs font-medium text-ink outline-none focus:border-accent"
+                                                    >
+                                                        {#each statusOptions as opt}
+                                                            <option value={opt}
+                                                                >{statusLabel(
+                                                                    opt,
+                                                                )}</option
+                                                            >
+                                                        {/each}
+                                                    </select>
+                                                </div>
+
+                                                <button
+                                                    type="button"
+                                                    class="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-field px-4 py-2 text-xs font-semibold text-ink transition hover:border-accent hover:bg-panel disabled:cursor-wait disabled:opacity-70 cursor-pointer"
+                                                    disabled={previewAddingBusy}
+                                                    onclick={() => {
+                                                        if (previewRelatedItem)
+                                                            void addRelatedToLibrary(
+                                                                previewRelatedItem,
+                                                                previewStatus,
+                                                            );
+                                                    }}
+                                                >
+                                                    {#if previewAddingBusy}
+                                                        <div
+                                                            class="h-4 w-4 animate-spin rounded-full border-2 border-accent border-t-transparent"
+                                                        ></div>
+                                                        <span
+                                                            >{i18n.t.detail
+                                                                .previewModal
+                                                                .addingToLibrary}</span
+                                                        >
+                                                    {:else}
+                                                        <Plus
+                                                            size={16}
+                                                            aria-hidden="true"
+                                                        />
+                                                        <span
+                                                            >{i18n.t.detail
+                                                                .previewModal
+                                                                .addToLibrary}</span
+                                                        >
+                                                    {/if}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div
+                                        class="mt-5 border-t border-border pt-4"
+                                    >
+                                        <h4
+                                            class="text-xs font-semibold uppercase tracking-wider text-muted"
+                                        >
+                                            {i18n.t.detail.previewModal
+                                                .description}
+                                        </h4>
+                                        {#if previewRelatedItem.description}
+                                            <p
+                                                class="mt-1.5 whitespace-pre-line text-xs leading-relaxed text-muted"
+                                            >
+                                                {previewRelatedItem.description}
+                                            </p>
+                                        {:else}
+                                            <p
+                                                class="mt-1.5 text-xs italic text-muted/70"
+                                            >
+                                                {i18n.t.detail.previewModal
+                                                    .noDescription}
+                                            </p>
+                                        {/if}
+                                    </div>
+                                </div>
+                            </div>
+                        </Modal>
                     {/if}
-                  </div>
-                </div>
-              </div>
-</Modal>
-            {/if}
-          {/if}
+                {/if}
 
-        <!-- TAB 4: RECOMMENDATIONS (Item 19) -->
-        {#if activeSubTab === 'recommendations'}
-          <section class="space-y-4">
-            <div class="flex items-center justify-between">
-              <div class="flex items-center gap-3">
-                <h2 class="text-sm font-bold uppercase tracking-wider text-slate-300">{i18n.t.detail.tabRecommendations}</h2>
-                <button
-                  type="button"
-                  class="inline-flex items-center gap-1.5 rounded-lg border border-white/[0.08] bg-surface/50 px-2.5 py-1 text-xs font-medium text-slate-300 transition hover:bg-white/10 hover:text-white disabled:opacity-50 cursor-pointer"
-                  disabled={recommendationsLoading}
-                  onclick={() => void loadRecommendations(true)}
-                  title={i18n.current === 'ru' ? 'Перезагрузить рекомендации' : 'Reload recommendations'}
-                >
-                  <RefreshCw size={13} class={recommendationsLoading ? 'animate-spin text-[var(--color-success-line)]' : 'text-[var(--color-success-line)]'} />
-                  <span>{i18n.current === 'ru' ? 'Перезагрузить' : 'Reload'}</span>
-                </button>
-              </div>
-              <span class="text-xs text-muted">{i18n.t.detail.cachedForDays}</span>
+                <!-- TAB 4: RECOMMENDATIONS (Item 19) -->
+                {#if activeSubTab === "recommendations"}
+                    <section class="space-y-4">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <h2
+                                    class="text-sm font-bold uppercase tracking-wider text-slate-300"
+                                >
+                                    {i18n.t.detail.tabRecommendations}
+                                </h2>
+                                <button
+                                    type="button"
+                                    class="inline-flex items-center gap-1.5 rounded-lg border border-white/[0.08] bg-surface/50 px-2.5 py-1 text-xs font-medium text-slate-300 transition hover:bg-white/10 hover:text-white disabled:opacity-50 cursor-pointer"
+                                    disabled={recommendationsLoading}
+                                    onclick={() =>
+                                        void loadRecommendations(true)}
+                                    title={i18n.current === "ru"
+                                        ? "Перезагрузить рекомендации"
+                                        : "Reload recommendations"}
+                                >
+                                    <RefreshCw
+                                        size={13}
+                                        class={recommendationsLoading
+                                            ? "animate-spin text-[var(--color-success-line)]"
+                                            : "text-[var(--color-success-line)]"}
+                                    />
+                                    <span
+                                        >{i18n.current === "ru"
+                                            ? "Перезагрузить"
+                                            : "Reload"}</span
+                                    >
+                                </button>
+                            </div>
+                            <span class="text-xs text-muted"
+                                >{i18n.t.detail.cachedForDays}</span
+                            >
+                        </div>
+
+                        {#if recommendationsLoading}
+                            <div
+                                class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5"
+                            >
+                                {#each Array(5) as _, idx (idx)}
+                                    <div class="space-y-2">
+                                        <div
+                                            class="aspect-[2/3] w-full animate-pulse rounded-lg bg-[var(--color-panel-line)]"
+                                        ></div>
+                                        <div
+                                            class="h-3 w-3/4 animate-pulse rounded bg-[var(--color-panel-line)]"
+                                        ></div>
+                                    </div>
+                                {/each}
+                            </div>
+                        {:else if recommendationsError}
+                            <div
+                                class="flex flex-col items-start gap-2 rounded-xl bg-rose-400/5 p-4"
+                            >
+                                <p class="text-sm text-rose-200" role="alert">
+                                    {errorMessage(recommendationsError)}
+                                </p>
+                                <button
+                                    type="button"
+                                    class="inline-flex items-center gap-2 rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-white transition hover:bg-accent-hover"
+                                    onclick={() => void loadRecommendations()}
+                                >
+                                    <RefreshCw size={14} aria-hidden="true" />
+                                    {i18n.t.common.retry}
+                                </button>
+                            </div>
+                        {:else if recommendations.length === 0}
+                            <p
+                                class="rounded-xl bg-[var(--color-panel-line)] p-5 text-sm text-muted"
+                            >
+                                {i18n.t.detail.noRecommendations}
+                            </p>
+                        {:else}
+                            <div
+                                class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5"
+                            >
+                                {#each recommendations as rec (rec.id)}
+                                    <div
+                                        class="group flex flex-col items-start text-left"
+                                    >
+                                        <div
+                                            class="aspect-[2/3] w-full overflow-hidden rounded-lg bg-[var(--color-panel-line)] transition group-hover:ring-2 group-hover:ring-[var(--color-accent)]"
+                                        >
+                                            {#if rec.coverUrl}
+                                                <img
+                                                    src={rec.coverUrl}
+                                                    alt={rec.title}
+                                                    class="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                                                />
+                                            {:else}
+                                                <div
+                                                    class="grid h-full place-items-center text-muted"
+                                                >
+                                                    <ImageIcon
+                                                        size={24}
+                                                        stroke-width={1.25}
+                                                        aria-hidden="true"
+                                                    />
+                                                </div>
+                                            {/if}
+                                        </div>
+                                        <span
+                                            class="mt-1.5 line-clamp-1 text-xs font-semibold text-white group-hover:text-[var(--color-accent-soft)]"
+                                            >{rec.title}</span
+                                        >
+                                        <div
+                                            class="flex items-center justify-between w-full mt-0.5 text-[11px] text-muted"
+                                        >
+                                            <span>{rec.type}</span>
+                                            {#if rec.score}
+                                                <span
+                                                    class="font-bold text-amber-400"
+                                                    >★ {rec.score.toFixed(
+                                                        1,
+                                                    )}</span
+                                                >
+                                            {/if}
+                                        </div>
+                                    </div>
+                                {/each}
+                            </div>
+                        {/if}
+                    </section>
+                {/if}
             </div>
-
-            {#if recommendationsLoading}
-              <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-                {#each Array(5) as _, idx (idx)}
-                  <div class="space-y-2">
-                    <div class="aspect-[2/3] w-full animate-pulse rounded-lg bg-[var(--color-panel-line)]"></div>
-                    <div class="h-3 w-3/4 animate-pulse rounded bg-[var(--color-panel-line)]"></div>
-                  </div>
-                {/each}
-              </div>
-            {:else if recommendationsError}
-              <div class="flex flex-col items-start gap-2 rounded-xl bg-rose-400/5 p-4">
-                <p class="text-sm text-rose-200" role="alert">{errorMessage(recommendationsError)}</p>
-                <button
-                  type="button"
-                  class="inline-flex items-center gap-2 rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-white transition hover:bg-accent-hover"
-                  onclick={() => void loadRecommendations()}
-                >
-                  <RefreshCw size={14} aria-hidden="true" />
-                  {i18n.t.common.retry}
-                </button>
-              </div>
-            {:else if recommendations.length === 0}
-              <p class="rounded-xl bg-[var(--color-panel-line)] p-5 text-sm text-muted">{i18n.t.detail.noRecommendations}</p>
-            {:else}
-              <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-                {#each recommendations as rec (rec.id)}
-                  <div class="group flex flex-col items-start text-left">
-                    <div class="aspect-[2/3] w-full overflow-hidden rounded-lg bg-[var(--color-panel-line)] transition group-hover:ring-2 group-hover:ring-[var(--color-accent)]">
-                      {#if rec.coverUrl}
-                        <img src={rec.coverUrl} alt={rec.title} class="h-full w-full object-cover transition duration-300 group-hover:scale-105" />
-                      {:else}
-                        <div class="grid h-full place-items-center text-muted"><ImageIcon size={24} stroke-width={1.25} aria-hidden="true" /></div>
-                      {/if}
-                    </div>
-                    <span class="mt-1.5 line-clamp-1 text-xs font-semibold text-white group-hover:text-[var(--color-accent-soft)]">{rec.title}</span>
-                    <div class="flex items-center justify-between w-full mt-0.5 text-[11px] text-muted">
-                      <span>{rec.type}</span>
-                      {#if rec.score}
-                        <span class="font-bold text-amber-400">★ {rec.score.toFixed(1)}</span>
-                      {/if}
-                    </div>
-                  </div>
-                {/each}
-              </div>
-            {/if}
-          </section>
-        {/if}
-      </div>
-    </div>
-  {/if}
+        </div>
+    {/if}
 </div>
 
 {#if addVolumeDialogOpen}
-  <div
-    class="fixed inset-0 z-50 flex items-center justify-center bg-canvas/80 backdrop-blur-sm p-4"
-    role="presentation"
-    onclick={(e) => { if (e.target === e.currentTarget) addVolumeDialogOpen = false }}
-  >
-    <div class="w-full max-w-sm rounded-xl border border-white/[0.08] bg-[var(--color-track-mid)] p-6 shadow-2xl space-y-4">
-      <h3 class="text-sm font-bold text-white">Add Volume</h3>
-      <div class="space-y-3">
-        <div>
-          <label class="block text-xs text-muted mb-1" for="add-vol-title">Title</label>
-          <input
-            id="add-vol-title"
-            type="text"
-            class="h-9 w-full rounded-md border border-white/[0.08] bg-[var(--color-field)] px-3 text-xs text-white outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
-            bind:value={addVolumeTitle}
-            onkeydown={(e) => { if (e.key === 'Enter') void confirmAddVolume() }}
-          />
-        </div>
-        <div>
-          <label class="block text-xs text-muted mb-1" for="add-vol-chapters">Chapters</label>
-          <input
-            id="add-vol-chapters"
-            type="number"
-            min="0"
-            class="h-9 w-full rounded-md border border-white/[0.08] bg-[var(--color-field)] px-3 text-xs text-white outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
-            bind:value={addVolumeChapters}
-          />
-        </div>
-      </div>
-      <div class="flex justify-end gap-2 pt-1">
-        <button
-          type="button"
-          class="inline-flex h-8 items-center rounded-md border border-white/[0.08] px-3 text-xs font-medium text-muted hover:text-white transition"
-          onclick={() => (addVolumeDialogOpen = false)}
+    <div
+        class="fixed inset-0 z-50 flex items-center justify-center bg-canvas/80 backdrop-blur-sm p-4"
+        role="presentation"
+        onclick={(e) => {
+            if (e.target === e.currentTarget) addVolumeDialogOpen = false;
+        }}
+    >
+        <div
+            class="w-full max-w-sm rounded-xl border border-white/[0.08] bg-[var(--color-track-mid)] p-6 shadow-2xl space-y-4"
         >
-          Cancel
-        </button>
-        <button
-          type="button"
-          class="inline-flex h-8 items-center gap-1.5 rounded-md bg-[var(--color-accent)] px-3 text-xs font-semibold text-white transition hover:bg-[var(--color-accent-bright)] disabled:opacity-50"
-          disabled={Boolean(volumeBusy)}
-          onclick={() => void confirmAddVolume()}
-        >
-          <Plus size={13} />
-          Add
-        </button>
-      </div>
+            <h3 class="text-sm font-bold text-white">Add Volume</h3>
+            <div class="space-y-3">
+                <div>
+                    <label
+                        class="block text-xs text-muted mb-1"
+                        for="add-vol-title">Title</label
+                    >
+                    <input
+                        id="add-vol-title"
+                        type="text"
+                        class="h-9 w-full rounded-md border border-white/[0.08] bg-[var(--color-field)] px-3 text-xs text-white outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
+                        bind:value={addVolumeTitle}
+                        onkeydown={(e) => {
+                            if (e.key === "Enter") void confirmAddVolume();
+                        }}
+                    />
+                </div>
+                <div>
+                    <label
+                        class="block text-xs text-muted mb-1"
+                        for="add-vol-chapters">Chapters</label
+                    >
+                    <input
+                        id="add-vol-chapters"
+                        type="number"
+                        min="0"
+                        class="h-9 w-full rounded-md border border-white/[0.08] bg-[var(--color-field)] px-3 text-xs text-white outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
+                        bind:value={addVolumeChapters}
+                    />
+                </div>
+            </div>
+            <div class="flex justify-end gap-2 pt-1">
+                <button
+                    type="button"
+                    class="inline-flex h-8 items-center rounded-md border border-white/[0.08] px-3 text-xs font-medium text-muted hover:text-white transition"
+                    onclick={() => (addVolumeDialogOpen = false)}
+                >
+                    Cancel
+                </button>
+                <button
+                    type="button"
+                    class="inline-flex h-8 items-center gap-1.5 rounded-md bg-[var(--color-accent)] px-3 text-xs font-semibold text-white transition hover:bg-[var(--color-accent-bright)] disabled:opacity-50"
+                    disabled={Boolean(volumeBusy)}
+                    onclick={() => void confirmAddVolume()}
+                >
+                    <Plus size={13} />
+                    Add
+                </button>
+            </div>
+        </div>
     </div>
-  </div>
 {/if}
 
 {#if editVolumeDialogOpen}
-  <div
-    class="fixed inset-0 z-50 flex items-center justify-center bg-canvas/80 backdrop-blur-sm p-4"
-    role="presentation"
-    onclick={(e) => { if (e.target === e.currentTarget) editVolumeDialogOpen = false }}
-  >
-    <div class="w-full max-w-sm rounded-xl border border-white/[0.08] bg-[var(--color-track-mid)] p-6 shadow-2xl space-y-4">
-      <h3 class="text-sm font-bold text-white">Edit Volume</h3>
-      <div class="space-y-3">
-        <div>
-          <label class="block text-xs text-muted mb-1" for="edit-vol-title">Title</label>
-          <input
-            id="edit-vol-title"
-            type="text"
-            class="h-9 w-full rounded-md border border-white/[0.08] bg-[var(--color-field)] px-3 text-xs text-white outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
-            bind:value={editVolumeTitle}
-            onkeydown={(e) => { if (e.key === 'Enter') void confirmEditVolume() }}
-          />
-        </div>
-        <div class="grid grid-cols-2 gap-2">
-          <div>
-            <label class="block text-xs text-muted mb-1" for="edit-vol-current-chapter">Current Chapter</label>
-            <input
-              id="edit-vol-current-chapter"
-              type="number"
-              min="0"
-              class="h-9 w-full rounded-md border border-white/[0.08] bg-[var(--color-field)] px-3 text-xs text-white outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
-              bind:value={editVolumeCurrentChapter}
-            />
-          </div>
-          <div>
-            <label class="block text-xs text-muted mb-1" for="edit-vol-chapters">Total Chapters</label>
-            <input
-              id="edit-vol-chapters"
-              type="number"
-              min="0"
-              class="h-9 w-full rounded-md border border-white/[0.08] bg-[var(--color-field)] px-3 text-xs text-white outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
-              bind:value={editVolumeChapters}
-            />
-          </div>
-        </div>
-        <div class="grid grid-cols-2 gap-2">
-          <div>
-            <label class="block text-xs text-muted mb-1" for="edit-vol-current-page">Current Page</label>
-            <input
-              id="edit-vol-current-page"
-              type="number"
-              min="0"
-              class="h-9 w-full rounded-md border border-white/[0.08] bg-[var(--color-field)] px-3 text-xs text-white outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
-              bind:value={editVolumeCurrentPage}
-            />
-          </div>
-          <div>
-            <label class="block text-xs text-muted mb-1" for="edit-vol-pages">Total Pages</label>
-            <input
-              id="edit-vol-pages"
-              type="number"
-              min="1"
-              class="h-9 w-full rounded-md border border-white/[0.08] bg-[var(--color-field)] px-3 text-xs text-white outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
-              bind:value={editVolumePages}
-            />
-          </div>
-        </div>
-      </div>
-      <div class="flex justify-end gap-2 pt-1">
-        <button
-          type="button"
-          class="inline-flex h-8 items-center rounded-md border border-white/[0.08] px-3 text-xs font-medium text-muted hover:text-white transition"
-          onclick={() => (editVolumeDialogOpen = false)}
+    <div
+        class="fixed inset-0 z-50 flex items-center justify-center bg-canvas/80 backdrop-blur-sm p-4"
+        role="presentation"
+        onclick={(e) => {
+            if (e.target === e.currentTarget) editVolumeDialogOpen = false;
+        }}
+    >
+        <div
+            class="w-full max-w-sm rounded-xl border border-white/[0.08] bg-[var(--color-track-mid)] p-6 shadow-2xl space-y-4"
         >
-          Cancel
-        </button>
-        <button
-          type="button"
-          class="inline-flex h-8 items-center gap-1.5 rounded-md bg-[var(--color-accent)] px-3 text-xs font-semibold text-white transition hover:bg-[var(--color-accent-bright)] disabled:opacity-50"
-          disabled={Boolean(volumeBusy)}
-          onclick={() => void confirmEditVolume()}
-        >
-          <Check size={13} />
-          Save
-        </button>
-      </div>
+            <h3 class="text-sm font-bold text-white">Edit Volume</h3>
+            <div class="space-y-3">
+                <div>
+                    <label
+                        class="block text-xs text-muted mb-1"
+                        for="edit-vol-title">Title</label
+                    >
+                    <input
+                        id="edit-vol-title"
+                        type="text"
+                        class="h-9 w-full rounded-md border border-white/[0.08] bg-[var(--color-field)] px-3 text-xs text-white outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
+                        bind:value={editVolumeTitle}
+                        onkeydown={(e) => {
+                            if (e.key === "Enter") void confirmEditVolume();
+                        }}
+                    />
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label
+                            class="block text-xs text-muted mb-1"
+                            for="edit-vol-current-chapter"
+                            >Current Chapter</label
+                        >
+                        <input
+                            id="edit-vol-current-chapter"
+                            type="number"
+                            min="0"
+                            class="h-9 w-full rounded-md border border-white/[0.08] bg-[var(--color-field)] px-3 text-xs text-white outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
+                            bind:value={editVolumeCurrentChapter}
+                        />
+                    </div>
+                    <div>
+                        <label
+                            class="block text-xs text-muted mb-1"
+                            for="edit-vol-chapters">Total Chapters</label
+                        >
+                        <input
+                            id="edit-vol-chapters"
+                            type="number"
+                            min="0"
+                            class="h-9 w-full rounded-md border border-white/[0.08] bg-[var(--color-field)] px-3 text-xs text-white outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
+                            bind:value={editVolumeChapters}
+                        />
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label
+                            class="block text-xs text-muted mb-1"
+                            for="edit-vol-current-page">Current Page</label
+                        >
+                        <input
+                            id="edit-vol-current-page"
+                            type="number"
+                            min="0"
+                            class="h-9 w-full rounded-md border border-white/[0.08] bg-[var(--color-field)] px-3 text-xs text-white outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
+                            bind:value={editVolumeCurrentPage}
+                        />
+                    </div>
+                    <div>
+                        <label
+                            class="block text-xs text-muted mb-1"
+                            for="edit-vol-pages">Total Pages</label
+                        >
+                        <input
+                            id="edit-vol-pages"
+                            type="number"
+                            min="1"
+                            class="h-9 w-full rounded-md border border-white/[0.08] bg-[var(--color-field)] px-3 text-xs text-white outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
+                            bind:value={editVolumePages}
+                        />
+                    </div>
+                </div>
+            </div>
+            <div class="flex justify-end gap-2 pt-1">
+                <button
+                    type="button"
+                    class="inline-flex h-8 items-center rounded-md border border-white/[0.08] px-3 text-xs font-medium text-muted hover:text-white transition"
+                    onclick={() => (editVolumeDialogOpen = false)}
+                >
+                    Cancel
+                </button>
+                <button
+                    type="button"
+                    class="inline-flex h-8 items-center gap-1.5 rounded-md bg-[var(--color-accent)] px-3 text-xs font-semibold text-white transition hover:bg-[var(--color-accent-bright)] disabled:opacity-50"
+                    disabled={Boolean(volumeBusy)}
+                    onclick={() => void confirmEditVolume()}
+                >
+                    <Check size={13} />
+                    Save
+                </button>
+            </div>
+        </div>
     </div>
-  </div>
 {/if}

@@ -8,6 +8,11 @@
     "build": "vite build",
     "check": "svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json",
     "check:prefetch": "node --experimental-strip-types checks/prefetchCache.check.ts",
+    "check:leading-chars": "node checks/leadingChars.check.cjs",
+    "check:visual-qa": "node checks/visualQa.check.cjs",
+    "check:nav-overlap": "node checks/navOverlap.check.cjs",
+    "check:popover": "node checks/popover.check.cjs",
+    "check:tokens": "node checks/tokens.check.cjs",
     "preview": "vite preview"
   },
   "devDependencies": {
@@ -15,6 +20,7 @@
     "@tailwindcss/vite": "^4.3.3",
     "@tsconfig/svelte": "^5.0.8",
     "@types/node": "^26.6.2",
+    "daisyui": "^5.7.47",
     "svelte": "^5.57.0",
     "svelte-check": "^4.7.6",
     "tailwindcss": "^4.3.3",

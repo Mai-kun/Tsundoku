@@ -343,7 +343,7 @@
         {#each statusGroups as group (group.status)}
           <section class="space-y-3">
             <div class="flex items-center gap-2">
-              <h2 class="text-base font-bold tracking-tight text-ink">{group.title}</h2>
+              <h2 class="text-lg font-bold tracking-wide text-white">{group.title}</h2>
               <span class="rounded-full bg-surface px-2.5 py-0.5 text-xs font-semibold text-muted">{group.items.length}</span>
             </div>
             <MediaGrid items={group.items} loading={false} error={null} onRetry={refresh} onOpen={onOpen} onProgress={updateProgress} onProgressCommitted={onMediaChanged} onStatusChange={handleItemStatusChange} onEpisodeStep={stepEpisode} onDelete={removeItem} onEdit={onEdit} />
@@ -359,7 +359,7 @@
         {#each franchiseGroups as group (group.name)}
           <section class="space-y-3">
             <div class="flex items-center gap-2">
-              <h2 class="text-base font-bold tracking-tight text-ink">{group.name}</h2>
+              <h2 class="text-lg font-bold tracking-wide text-white">{group.name}</h2>
               <span class="rounded-full bg-surface px-2.5 py-0.5 text-xs font-semibold text-muted">{group.items.length}</span>
             </div>
             <MediaGrid items={group.items} loading={false} error={null} onRetry={refresh} onOpen={onOpen} onProgress={updateProgress} onProgressCommitted={onMediaChanged} onStatusChange={handleItemStatusChange} onEpisodeStep={stepEpisode} onDelete={removeItem} onEdit={onEdit} />

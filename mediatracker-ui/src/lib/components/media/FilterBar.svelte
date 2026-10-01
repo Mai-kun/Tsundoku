@@ -75,7 +75,7 @@
       <label class="sr-only" for="library-group">{i18n.t.grouping.label}</label>
       <select
         id="library-group"
-        class="rounded-md border border-border bg-card px-3 py-1.5 text-xs font-semibold text-ink outline-none focus:ring-2 focus:ring-accent/40"
+        class="shrink-0 whitespace-nowrap rounded-md border border-white/10 bg-field px-3 py-1.5 text-xs font-semibold text-ink outline-none focus:ring-2 focus:ring-accent/40"
         value={groupBy}
         onchange={handleGroup}
       >
@@ -85,7 +85,7 @@
       </select>
 
       <label class="sr-only" for="library-status">{i18n.t.status.label}</label>
-      <select id="library-status" class="rounded-md border border-border bg-card px-3 py-1.5 text-xs text-ink outline-none focus:ring-2 focus:ring-accent/40" value={status === 'all' ? 'all' : String(status)} onchange={handleStatus}>
+      <select id="library-status" class="rounded-md border border-white/10 bg-field px-3 py-1.5 text-xs text-ink outline-none focus:ring-2 focus:ring-accent/40" value={status === 'all' ? 'all' : String(status)} onchange={handleStatus}>
         {#each statuses as option (option)}
           <option value={option === 'all' ? 'all' : String(option)}>{labelForStatus(option)}</option>
         {/each}
@@ -99,10 +99,10 @@
       <label class="relative min-w-0 flex-1 lg:w-52 lg:flex-none">
         <span class="sr-only">{i18n.t.header.searchButton}</span>
         <Search size={15} class="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted" aria-hidden="true" />
-        <input class="h-8 w-full rounded-md border border-border bg-card pl-8 pr-2.5 text-xs text-ink outline-none placeholder:text-muted focus:border-accent focus:ring-2 focus:ring-accent/30" value={search} placeholder={i18n.t.header.searchButton} oninput={handleSearch} />
+        <input class="h-8 w-full rounded-md border border-white/10 bg-field pl-8 pr-2.5 text-xs text-ink outline-none placeholder:text-muted focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/30" value={search} placeholder={i18n.t.header.searchButton} oninput={handleSearch} />
       </label>
       <label class="sr-only" for="library-sort">{i18n.t.sort.label}</label>
-      <select id="library-sort" class="h-8 rounded-md border border-border bg-card px-2 text-xs font-medium text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent/30" value={sort} onchange={handleSort}>
+      <select id="library-sort" class="h-8 rounded-md border border-white/10 bg-field px-2 text-xs font-medium text-ink outline-none focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/30" value={sort} onchange={handleSort}>
         <option value="newest">{i18n.t.sort.newest}</option>
         <option value="oldest">{i18n.t.sort.oldest}</option>
         <option value="rating">{i18n.t.sort.rating}</option>

@@ -35,14 +35,15 @@
   let mainScrollContainer = $state<HTMLElement | null>(null)
   const savedScrollPositions = new Map<string, number>()
 
+  function setScroll(value: number) {
+    if (mainScrollContainer) mainScrollContainer.scrollTop = value
+  }
+
   function restoreScroll(view: string) {
     if (view === 'detail') return
     const saved = savedScrollPositions.get(view)
     if (typeof saved === 'number') {
-      setTimeout(() => {
-        if (mainScrollContainer) mainScrollContainer.scrollTop = saved
-        window.scrollTo(0, saved)
-      }, 50)
+      requestAnimationFrame(() => setScroll(saved))
     }
   }
 
@@ -52,8 +53,7 @@
       activeView = nextRoute.view
       selectedMediaId = nextRoute.mediaId
       if (nextRoute.view === 'detail') {
-        if (mainScrollContainer) mainScrollContainer.scrollTop = 0
-        if (typeof window !== 'undefined') window.scrollTo(0, 0)
+        setScroll(0)
       } else {
         detailDepth = 0
         restoreScroll(nextRoute.view)
@@ -101,16 +101,14 @@
   function openDetail(item: MediaItem) {
     if (activeView !== 'detail') {
       previousView = activeView
-      const currentScroll = mainScrollContainer ? mainScrollContainer.scrollTop : (typeof window !== 'undefined' ? window.scrollY : 0)
-      savedScrollPositions.set(activeView, currentScroll)
+      savedScrollPositions.set(activeView, mainScrollContainer?.scrollTop ?? 0)
     }
 
     activeView = 'detail'
     selectedMediaId = item.id
     writeRoute('detail', item.id)
     detailDepth += 1
-    if (mainScrollContainer) mainScrollContainer.scrollTop = 0
-    if (typeof window !== 'undefined') window.scrollTo(0, 0)
+    setScroll(0)
   }
 
   function closeDetail() {

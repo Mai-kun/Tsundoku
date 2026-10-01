@@ -1,5 +1,6 @@
-<script lang="ts">
+﻿<script lang="ts">
   import BookOpen from 'lucide-svelte/icons/book-open'
+  import Bookmark from 'lucide-svelte/icons/bookmark'
   import CheckCircle2 from 'lucide-svelte/icons/check-circle-2'
   import Clock3 from 'lucide-svelte/icons/clock-3'
   import Film from 'lucide-svelte/icons/film'
@@ -56,6 +57,16 @@
   }
 </script>
 
+{#snippet metric(value: number, label: string, Icon: typeof Library, tone: string)}
+  <article class="rounded-lg border border-white/[0.06] bg-card p-5 transition hover:border-white/[0.08]">
+    <div class="flex items-center gap-2">
+      <Icon size={16} class={tone} aria-hidden="true" />
+      <p class="truncate text-xs font-medium text-muted">{label}</p>
+    </div>
+    <p class="mt-3 text-2xl font-bold tabular-nums text-ink">{format(value)}</p>
+  </article>
+{/snippet}
+
 <div class="mx-auto max-w-6xl space-y-6">
   <div>
     <p class="text-xs font-semibold uppercase tracking-[0.18em] text-accent-soft">{i18n.t.library.collectionLabel}</p>
@@ -63,9 +74,9 @@
   </div>
 
   {#if loading}
-    <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-hidden="true">
+    <div class="grid grid-cols-2 gap-4 md:grid-cols-4" aria-hidden="true">
       {#each Array(8) as _, index (index)}
-        <div class="h-28 animate-pulse rounded-lg bg-card"></div>
+        <div class="h-28 animate-pulse rounded-lg border border-white/[0.06] bg-card"></div>
       {/each}
     </div>
     <p class="sr-only" role="status">{i18n.t.common.loading}</p>
@@ -75,18 +86,18 @@
       <button type="button" class="inline-flex items-center gap-2 rounded-md bg-accent px-4 py-2 text-sm font-medium text-white transition hover:bg-accent-hover" onclick={retry}><RefreshCw size={15} aria-hidden="true" />{i18n.t.common.retry}</button>
     </div>
   {:else if stats}
-    <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      <article class="rounded-lg bg-card p-5"><Library size={19} class="text-accent-soft" aria-hidden="true" /><p class="mt-6 text-2xl font-bold text-ink">{format(stats.totalItems)}</p><p class="mt-1 text-sm text-muted">{i18n.t.stats.totalItems}</p></article>
-      <article class="rounded-lg bg-card p-5"><CheckCircle2 size={19} class="text-accent-soft" aria-hidden="true" /><p class="mt-6 text-2xl font-bold text-ink">{format(stats.completedItems)}</p><p class="mt-1 text-sm text-muted">{i18n.t.stats.completedItems}</p></article>
-      <article class="rounded-lg bg-card p-5"><Clock3 size={19} class="text-star" aria-hidden="true" /><p class="mt-6 text-2xl font-bold text-ink">{format(stats.inProgressItems)}</p><p class="mt-1 text-sm text-muted">{i18n.t.stats.inProgressItems}</p></article>
-      <article class="rounded-lg bg-card p-5"><Library size={19} class="text-muted" aria-hidden="true" /><p class="mt-6 text-2xl font-bold text-ink">{format(stats.plannedItems)}</p><p class="mt-1 text-sm text-muted">{i18n.t.stats.plannedItems}</p></article>
-      <article class="rounded-lg bg-card p-5"><Gamepad2 size={19} class="text-star" aria-hidden="true" /><p class="mt-6 text-2xl font-bold text-ink">{format(stats.totalHoursPlayed)}</p><p class="mt-1 text-sm text-muted">{i18n.t.stats.hours}</p></article>
-      <article class="rounded-lg bg-card p-5"><BookOpen size={19} class="text-star" aria-hidden="true" /><p class="mt-6 text-2xl font-bold text-ink">{format(stats.totalPagesRead)}</p><p class="mt-1 text-sm text-muted">{i18n.t.stats.pages}</p></article>
-      <article class="rounded-lg bg-card p-5"><BookOpen size={19} class="text-star" aria-hidden="true" /><p class="mt-6 text-2xl font-bold text-ink">{format(stats.totalChaptersRead)}</p><p class="mt-1 text-sm text-muted">{i18n.t.stats.chapters}</p></article>
-      <article class="rounded-lg bg-card p-5"><Tv size={19} class="text-star" aria-hidden="true" /><p class="mt-6 text-2xl font-bold text-ink">{format(stats.totalEpisodesWatched)}</p><p class="mt-1 text-sm text-muted">{i18n.t.stats.episodes}</p></article>
-      <article class="rounded-lg bg-card p-5"><Gamepad2 size={19} class="text-accent-soft" aria-hidden="true" /><p class="mt-6 text-2xl font-bold text-ink">{format(stats.completedGamesCount)}</p><p class="mt-1 text-sm text-muted">{i18n.t.stats.gamesCompleted}</p></article>
-      <article class="rounded-lg bg-card p-5"><BookOpen size={19} class="text-accent-soft" aria-hidden="true" /><p class="mt-6 text-2xl font-bold text-ink">{format(stats.completedBooksCount)}</p><p class="mt-1 text-sm text-muted">{i18n.t.stats.booksCompleted}</p></article>
-      <article class="rounded-lg bg-card p-5"><Film size={19} class="text-accent-soft" aria-hidden="true" /><p class="mt-6 text-2xl font-bold text-ink">{format(stats.completedMoviesCount)}</p><p class="mt-1 text-sm text-muted">{i18n.t.stats.moviesCompleted}</p></article>
+    <div class="grid grid-cols-2 gap-4 md:grid-cols-4">
+      {@render metric(stats.totalItems, i18n.t.stats.totalItems, Library, 'text-accent-soft')}
+      {@render metric(stats.completedItems, i18n.t.stats.completedItems, CheckCircle2, 'text-emerald-400')}
+      {@render metric(stats.inProgressItems, i18n.t.stats.inProgressItems, Clock3, 'text-[#a5b4fc]')}
+      {@render metric(stats.plannedItems, i18n.t.stats.plannedItems, Bookmark, 'text-zinc-300')}
+      {@render metric(stats.totalHoursPlayed, i18n.t.stats.hours, Gamepad2, 'text-sky-400')}
+      {@render metric(stats.totalPagesRead, i18n.t.stats.pages, BookOpen, 'text-amber-300')}
+      {@render metric(stats.totalChaptersRead, i18n.t.stats.chapters, BookOpen, 'text-amber-300')}
+      {@render metric(stats.totalEpisodesWatched, i18n.t.stats.episodes, Tv, 'text-violet-300')}
+      {@render metric(stats.completedGamesCount, i18n.t.stats.gamesCompleted, Gamepad2, 'text-sky-400')}
+      {@render metric(stats.completedBooksCount, i18n.t.stats.booksCompleted, BookOpen, 'text-amber-300')}
+      {@render metric(stats.completedMoviesCount, i18n.t.stats.moviesCompleted, Film, 'text-accent-soft')}
     </div>
   {/if}
 </div>

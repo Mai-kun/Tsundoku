@@ -98,8 +98,8 @@
   </div>
 
   <div class="flex h-9 items-center self-end rounded-md bg-canvas sm:self-auto">
-    <button type="button" class="grid h-full w-9 place-items-center rounded-l-md text-muted transition hover:bg-panel hover:text-ink" aria-label={i18n.t.card.decrement} onclick={() => scheduleProgress(-1)}><Minus size={15} aria-hidden="true" /></button>
+    <button type="button" class="tap grid h-full w-9 place-items-center rounded-l-md text-muted transition hover:bg-panel hover:text-ink" aria-label={i18n.t.card.decrement} onclick={() => scheduleProgress(-1)}><Minus size={15} aria-hidden="true" /></button>
     <span class="min-w-10 px-2 text-center text-xs font-semibold tabular-nums text-ink">{format(currentEpisode)}</span>
-    <button type="button" class="grid h-full w-9 place-items-center rounded-r-md text-muted transition hover:bg-panel hover:text-ink" aria-label={i18n.t.card.increment} onclick={() => scheduleProgress(1)}><Plus size={15} aria-hidden="true" /></button>
+    <button type="button" class="tap grid h-full w-9 place-items-center rounded-r-md text-muted transition hover:bg-panel hover:text-ink" aria-label={i18n.t.card.increment} onclick={() => scheduleProgress(1)}><Plus size={15} aria-hidden="true" /></button>
   </div>
 </article>

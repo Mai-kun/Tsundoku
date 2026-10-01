@@ -79,6 +79,44 @@
   let displayUpNext = $derived(sortItems(upNext, groupByType, sort))
   let displayRecentlyCompleted = $derived(sortItems(recentlyCompleted, groupByType, sort))
 
+  function typeKey(media: MediaItem): string {
+    return media.type === 'tvshow' && media.isAnime ? 'anime' : media.type
+  }
+
+  function typeLabel(key: string): string {
+    switch (key) {
+      case 'game':
+        return i18n.t.navigation.game
+      case 'anime':
+        return i18n.t.navigation.anime
+      case 'manga':
+        return i18n.t.navigation.manga
+      case 'movie':
+        return i18n.t.navigation.movie
+      case 'tvshow':
+        return i18n.t.navigation.tvshow
+      default:
+        return i18n.t.navigation.book
+    }
+  }
+
+  function groupByMediaType(
+    list: MediaItem[]
+  ): { key: string; label: string; items: MediaItem[] }[] {
+    const buckets = new Map<string, MediaItem[]>()
+    for (const item of list) {
+      const key = typeKey(item)
+      const bucket = buckets.get(key)
+      if (bucket) bucket.push(item)
+      else buckets.set(key, [item])
+    }
+    return [...buckets.entries()]
+      .map(([key, items]) => ({ key, label: typeLabel(key), items }))
+      .sort((a, b) => (TYPE_ORDER[a.key] ?? 99) - (TYPE_ORDER[b.key] ?? 99))
+  }
+
+  let totalItems = $derived(inProgress.length + upNext.length + recentlyCompleted.length)
+
   function handleStatusChange(item: MediaItem, newStatus: MediaStatus) {
     inProgress = inProgress.filter((x) => x.id !== item.id)
     upNext = upNext.filter((x) => x.id !== item.id)
@@ -256,22 +294,40 @@
   }
 </script>
 
-<div class="space-y-10">
+{#snippet section(items: MediaItem[], title: string)}
   <section class="space-y-4">
-    <div class="flex items-end justify-between gap-4">
-      <div>
-        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-accent-soft">{i18n.t.library.collectionLabel}</p>
-        <h2 class="mt-1 text-xl font-bold tracking-tight text-ink">{i18n.t.views.inProgress}</h2>
-      </div>
-      <div class="flex items-center gap-2">
+    <h2 class="text-lg font-bold tracking-wide text-white">{title}</h2>
+    {#if groupByType}
+      {#each groupByMediaType(items) as group (group.key)}
+        <div class="space-y-3">
+          <div class="flex items-center gap-2">
+            <h3 class="text-sm font-semibold text-ink">{group.label}</h3>
+            <span class="rounded-full bg-card-hover px-2 py-0.5 text-[11px] font-semibold tabular-nums text-muted">
+              {group.items.length}
+            </span>
+          </div>
+          <MediaGrid items={group.items} onOpen={onOpen} onProgress={updateProgress} onProgressCommitted={onMediaChanged} onStatusChange={handleStatusChange} onDelete={removeItem} onEdit={onEdit} onEpisodeStep={stepEpisode} />
+        </div>
+      {/each}
+    {:else}
+      <MediaGrid {items} onOpen={onOpen} onProgress={updateProgress} onProgressCommitted={onMediaChanged} onStatusChange={handleStatusChange} onDelete={removeItem} onEdit={onEdit} onEpisodeStep={stepEpisode} />
+    {/if}
+  </section>
+{/snippet}
+
+<div class="space-y-8">
+  <header class="flex flex-wrap items-end justify-between gap-4">
+    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-accent-soft">{i18n.t.library.collectionLabel}</p>
+    {#if !loading && !loadError}
+      <div class="flex flex-wrap items-center gap-2">
         <button
           type="button"
           role="switch"
           aria-checked={groupByType}
-          class={`inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition cursor-pointer ${
+          class={`inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md border px-2.5 text-xs font-medium transition cursor-pointer ${
             groupByType
               ? 'border-accent/40 bg-accent/15 text-accent-soft'
-              : 'border-border bg-card text-muted hover:text-ink'
+              : 'border-white/10 bg-field text-muted hover:text-ink'
           }`}
           onclick={() => (groupByType = !groupByType)}
           title={i18n.t.views.groupByType}
@@ -283,7 +339,7 @@
         <label class="sr-only" for="home-sort">{i18n.t.sort.label}</label>
         <select
           id="home-sort"
-          class="h-8 rounded-md border border-border bg-card px-2.5 text-xs font-medium text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent/30 cursor-pointer"
+          class="h-8 shrink-0 rounded-md border border-white/10 bg-field px-2.5 text-xs font-medium text-ink outline-none focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/30 cursor-pointer"
           value={sort}
           onchange={(e) => (sort = (e.currentTarget as HTMLSelectElement).value as LibrarySort)}
         >
@@ -293,18 +349,24 @@
           <option value="title">{i18n.t.sort.title}</option>
         </select>
       </div>
-    </div>
-    <MediaGrid items={displayInProgress} {loading} error={loadError} onRetry={refresh} onOpen={onOpen} onProgress={updateProgress} onProgressCommitted={onMediaChanged} onStatusChange={handleStatusChange} onDelete={removeItem} onEdit={onEdit} onEpisodeStep={stepEpisode} />
-  </section>
+    {/if}
+  </header>
 
-  <section class="space-y-4">
-    <h2 class="text-xl font-bold tracking-tight text-ink">{i18n.t.views.upNext}</h2>
-    <MediaGrid items={displayUpNext} {loading} error={loadError} onRetry={refresh} onOpen={onOpen} onProgress={updateProgress} onProgressCommitted={onMediaChanged} onStatusChange={handleStatusChange} onDelete={removeItem} onEdit={onEdit} />
-  </section>
-
-  <section class="space-y-4">
-    <h2 class="text-xl font-bold tracking-tight text-ink">{i18n.t.views.recentlyCompleted}</h2>
-    <MediaGrid items={displayRecentlyCompleted} {loading} error={loadError} onRetry={refresh} onOpen={onOpen} onProgress={updateProgress} onProgressCommitted={onMediaChanged} onStatusChange={handleStatusChange} onDelete={removeItem} onEdit={onEdit} />
-  </section>
+  {#if loading}
+    <MediaGrid items={[]} {loading} />
+  {:else if loadError}
+    <MediaGrid items={[]} error={loadError} onRetry={refresh} />
+  {:else if totalItems === 0}
+    <MediaGrid items={[]} />
+  {:else}
+    {#if displayInProgress.length > 0}
+      {@render section(displayInProgress, i18n.t.views.inProgress)}
+    {/if}
+    {#if displayUpNext.length > 0}
+      {@render section(displayUpNext, i18n.t.views.upNext)}
+    {/if}
+    {#if displayRecentlyCompleted.length > 0}
+      {@render section(displayRecentlyCompleted, i18n.t.views.recentlyCompleted)}
+    {/if}
+  {/if}
 </div>
-

@@ -16,6 +16,7 @@
   import { errorMessage, getCategoryOrder, getSources, getSourcePriority, saveCategoryOrder, saveSourceKey, saveSourcePriority, testSourceConnection, toggleSourceEnabled } from '$lib/api'
   import { showToast } from '$lib/stores/toast.svelte'
   import { i18n } from '$lib/i18n/index.svelte'
+  import Modal from '$lib/components/ui/Modal.svelte'
   import type { ConnectionTestResult, SourceInfo } from '$lib/types'
 
   interface Props {
@@ -265,30 +266,12 @@
     })
     return s ? s.isEnabled === false : false
   }
-
-  function handleKeydown(event: KeyboardEvent) {
-    if (isOpen && event.key === 'Escape') {
-      onClose()
-    }
-  }
 </script>
 
-<svelte:window onkeydown={handleKeydown} />
-
-{#if isOpen}
-  <div
-    class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-canvas/85 p-4 backdrop-blur-sm sm:items-center"
-    role="presentation"
-    onclick={(e) => { if (e.target === e.currentTarget) onClose() }}
-  >
-    <div
-      class="my-auto flex min-h-[500px] max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-2xl shadow-black/60"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="settings-title"
-    >
+<Modal isOpen={isOpen} onClose={onClose} labelledBy="settings-title">
+  <div class="flex max-h-[85vh] min-h-[500px] flex-col">
       <!-- Header -->
-      <header class="flex items-center justify-between border-b border-border px-6 py-4">
+      <header class="flex shrink-0 items-center justify-between border-b border-white/[0.07] px-6 py-4">
         <div class="flex items-center gap-3">
           <div class="grid h-8 w-8 place-items-center rounded-lg bg-card text-accent-soft">
             <Server size={18} />
@@ -308,7 +291,7 @@
       </header>
 
       <!-- Tabs Navigation -->
-      <div class="flex border-b border-border bg-card/40 px-6">
+      <div class="flex border-b border-white/[0.07] bg-card/40 px-6">
         <button
           type="button"
           class={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition cursor-pointer ${
@@ -350,7 +333,7 @@
                 <label for="source-type-filter" class="text-xs text-muted shrink-0">{i18n.t.settingsModal.sources.filterLabel}:</label>
                 <select
                   id="source-type-filter"
-                  class="h-8 rounded-md border border-border bg-card px-2.5 text-xs text-ink focus:border-accent-soft focus:outline-none cursor-pointer"
+                  class="h-8 rounded-md border border-white/10 bg-field px-2.5 text-xs text-ink focus:border-accent-soft focus:outline-none cursor-pointer"
                   value={selectedTypeFilter}
                   onchange={(e) => (selectedTypeFilter = (e.currentTarget as HTMLSelectElement).value)}
                 >
@@ -376,7 +359,7 @@
             {:else}
               <div class="space-y-3">
                 {#each filteredSources as source (source.id)}
-                  <div class="rounded-lg border border-border bg-card p-4 transition {source.isEnabled === false ? 'opacity-65' : ''}">
+                  <div class="rounded-lg border border-white/10 bg-field p-4 transition {source.isEnabled === false ? 'opacity-65' : ''}">
                     <div class="flex flex-wrap items-start justify-between gap-3">
                       <div class="flex-1 min-w-[200px]">
                         <div class="flex items-center gap-2 flex-wrap">
@@ -418,7 +401,7 @@
                       <div class="flex items-center gap-2.5 shrink-0">
                         <button
                           type="button"
-                          class="inline-flex h-7 items-center gap-1.5 rounded-md border border-border bg-elevated px-2.5 text-xs font-medium text-ink transition hover:bg-card hover:border-accent-soft cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+                          class="inline-flex h-7 items-center gap-1.5 rounded-md border border-white/10 bg-field px-2.5 text-xs font-medium text-ink transition hover:bg-card hover:border-accent-soft cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
                           disabled={testingSource === source.id}
                           title={i18n.t.settingsModal.sources.testConnection}
                           onclick={() => void handleTestSource(source.id)}
@@ -465,7 +448,7 @@
                     {/if}
 
                     {#if source.requiresApiKey}
-                      <div class="mt-3 border-t border-border/60 pt-3">
+                      <div class="mt-3 border-t border-white/[0.07]/60 pt-3">
                         {#if source.maskedKey}
                           <div class="mb-2 flex items-center gap-2 text-xs text-muted">
                             <span>{i18n.t.settingsModal.sources.currentKey}</span>
@@ -477,7 +460,7 @@
                           <div class="relative flex-1 min-w-[200px]">
                             <input
                               type={showKeys[source.id] ? 'text' : 'password'}
-                              class="h-9 w-full rounded-md border border-border bg-elevated px-3 pr-9 text-xs text-ink placeholder:text-muted focus:border-accent-soft focus:outline-none focus:ring-1 focus:ring-accent-soft"
+                              class="h-9 w-full rounded-md border border-white/10 bg-field px-3 pr-9 text-xs text-ink placeholder:text-muted focus:border-accent-soft focus:outline-none focus:ring-1 focus:ring-accent-soft"
                               placeholder={source.hasKey ? i18n.t.settingsModal.sources.replaceKeyPlaceholder : i18n.t.settingsModal.sources.inputPlaceholder}
                               value={inputKeys[source.id] ?? ''}
                               oninput={(e) => (inputKeys[source.id] = (e.currentTarget as HTMLInputElement).value)}
@@ -499,7 +482,7 @@
                           <!-- Save key button: Item 14 pointer cursor when active, not-allowed when disabled, no cursor-wait -->
                           <button
                             type="button"
-                            class="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-elevated px-3 text-xs font-semibold text-ink transition hover:bg-card hover:border-accent-soft cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+                            class="inline-flex h-9 items-center gap-1.5 rounded-md border border-white/10 bg-field px-3 text-xs font-semibold text-ink transition hover:bg-card hover:border-accent-soft cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
                             class:cursor-wait={savingKey === source.id}
                             disabled={savingKey === source.id || !inputKeys[source.id]?.trim()}
                             onclick={() => void handleSaveKey(source.id)}
@@ -536,7 +519,7 @@
               {:else}
                 <div class="space-y-2">
                   {#each categoryOrder as cat, idx (cat)}
-                    <div class="flex items-center justify-between rounded-lg border border-border bg-card px-4 py-2.5">
+                    <div class="flex items-center justify-between rounded-lg border border-white/10 bg-field px-4 py-2.5">
                       <div class="flex items-center gap-3">
                         <span class="grid h-6 w-6 place-items-center rounded bg-canvas text-xs font-bold text-muted">
                           {idx + 1}
@@ -575,7 +558,7 @@
             </div>
 
             <!-- Source search priority with fallback (Item 16) -->
-            <div class="border-t border-border pt-6 space-y-4">
+            <div class="border-t border-white/[0.07] pt-6 space-y-4">
               <div>
                 <h3 class="text-sm font-semibold text-ink">{i18n.t.settingsModal.search.sourcePriorityTitle}</h3>
                 <p class="mt-0.5 text-xs text-muted">{i18n.t.settingsModal.search.sourcePriorityHint}</p>
@@ -587,7 +570,7 @@
                 <div class="space-y-4">
                   {#each Object.entries(sourcePriority) as [mediaType, providers] (mediaType)}
                     {#if providers && providers.length > 1}
-                      <div class="rounded-lg border border-border bg-card/60 p-3.5 space-y-2">
+                      <div class="rounded-lg border border-white/10 bg-field/60 p-3.5 space-y-2">
                         <div class="flex items-center justify-between">
                           <h4 class="text-xs font-bold uppercase tracking-wider text-accent-soft">{categoryLabel(mediaType)}</h4>
                           <span class="text-[11px] text-muted">{i18n.t.settingsModal.sources.providersCount(providers.length)}</span>
@@ -644,5 +627,4 @@
         {/if}
       </div>
     </div>
-  </div>
-{/if}
+</Modal>

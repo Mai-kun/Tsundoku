@@ -18,6 +18,10 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': 'http://localhost:5000',
+      // Covers are served by the API from its data directory, not from public/.
+      // Without this the SPA fallback returns index.html with a 200 and every
+      // poster silently renders as broken.
+      '/covers': 'http://localhost:5000',
     },
   },
 })

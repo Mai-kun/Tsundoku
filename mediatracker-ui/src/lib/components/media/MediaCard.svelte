@@ -7,6 +7,7 @@
     import Pause from "lucide-svelte/icons/pause";
     import Play from "lucide-svelte/icons/play";
     import Plus from "lucide-svelte/icons/plus";
+    import Star from "lucide-svelte/icons/star";
     import Trash2 from "lucide-svelte/icons/trash-2";
     import X from "lucide-svelte/icons/x";
     import { untrack } from "svelte";
@@ -312,8 +313,8 @@
             class="absolute inset-x-0 top-0 z-10 flex items-start justify-between gap-2 p-2.5"
         >
             <!-- Status + rating as one overlapping cluster in the poster's top-left corner.
-           The score circle pulls left (-ml-2) and carries a ring in the card colour,
-           so the pair reads as a single unit instead of two unrelated chips. -->
+           The score circle pulls left (-ml-2) so the pair reads as a single unit and
+           sits on the same level as the status badge; it mirrors the badge's shape. -->
             <div class="relative flex items-center">
                 <PopoverMenu
                     id={`status-${item.id}`}
@@ -322,7 +323,6 @@
                     onSelect={(value) =>
                         void changeStatus(value as MediaStatus)}
                     label={i18n.t.status.label}
-                    openOnHover
                 >
                     {#snippet trigger({ popoverTargetId, anchorName })}
                         <button
@@ -330,7 +330,7 @@
                             popovertarget={popoverTargetId}
                             popovertargetaction="toggle"
                             style="anchor-name: {anchorName}"
-                            class="tap flex h-7 w-7 shrink-0 items-center justify-center p-0 rounded-full border shadow-lg backdrop-blur transition hover:brightness-125 has-[:popover-open]:ring-2 has-[:popover-open]:ring-indigo-400/70 {statusBadgeClasses(
+                            class="tap grid h-[2.33rem] w-[2.33rem] shrink-0 place-items-center p-0 rounded-full border shadow-lg backdrop-blur transition hover:brightness-125 has-[:popover-open]:ring-2 has-[:popover-open]:ring-indigo-400/70 {statusBadgeClasses(
                                 item.status,
                             )}"
                             title={statusLabel(item.status)}
@@ -338,31 +338,31 @@
                         >
                             {#if item.status === MEDIA_STATUS.planned}
                                 <Bookmark
-                                    size={15}
+                                    size={20}
                                     stroke-width={2.5}
                                     aria-hidden="true"
                                 />
                             {:else if item.status === MEDIA_STATUS.inProgress}
                                 <Play
-                                    size={15}
+                                    size={20}
                                     fill="currentColor"
                                     aria-hidden="true"
                                 />
                             {:else if item.status === MEDIA_STATUS.completed}
                                 <Check
-                                    size={16}
+                                    size={21}
                                     stroke-width={3}
                                     aria-hidden="true"
                                 />
                             {:else if item.status === MEDIA_STATUS.onHold}
                                 <Pause
-                                    size={16}
+                                    size={21}
                                     stroke-width={2.5}
                                     aria-hidden="true"
                                 />
                             {:else if item.status === MEDIA_STATUS.dropped}
                                 <X
-                                    size={18}
+                                    size={24}
                                     stroke-width={4}
                                     aria-hidden="true"
                                 />
@@ -371,14 +371,22 @@
                     {/snippet}
                 </PopoverMenu>
 
-                {#if item.score !== null && item.score > 0}
-                    <div
-                        class="-ml-2 grid h-7 w-7 place-items-center rounded-full bg-score-bg text-[17px] font-black tabular-nums tracking-tight text-white ring-2 ring-card shadow-lg select-none"
-                        title={`${i18n.t.createModal.fields.score}: ${item.score}`}
-                    >
+                <!-- The rating bubble is always there: it shows a star until the user rates the
+           title, then switches to the number so the value is readable at a glance. -->
+                <div
+                    class="-ml-2 grid h-[2.33rem] w-[2.33rem] place-items-center rounded-full border border-white/10 shadow-lg backdrop-blur ring-2 ring-card select-none {item.score !==
+                    null &&
+                    item.score > 0
+                        ? 'bg-score-bg text-[17px] font-black tabular-nums tracking-tight text-white'
+                        : 'border-dashed border-white/25 bg-black/45 text-white/45'}"
+                    title={`${i18n.t.createModal.fields.score}: ${item.score ?? '—'}`}
+                >
+                    {#if item.score !== null && item.score > 0}
                         {format(item.score)}
-                    </div>
-                {/if}
+                    {:else}
+                        <Star size={15} aria-hidden="true" />
+                    {/if}
+                </div>
             </div>
 
             <div class="flex items-center gap-1.5">

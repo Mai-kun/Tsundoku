@@ -149,7 +149,7 @@
   <div class="relative flex items-center justify-center gap-4">
     <button
       type="button"
-      class="grid h-8 w-8 place-items-center rounded-lg border border-white/10 bg-[#13151b] text-muted transition hover:bg-[#282d3d] hover:text-white disabled:opacity-40 cursor-pointer"
+      class="grid h-8 w-8 place-items-center rounded-lg border border-white/[0.08] bg-[var(--color-field)] text-muted transition hover:bg-[var(--color-panel-raised)] hover:text-white disabled:opacity-40 cursor-pointer"
       disabled={disabled || value <= min}
       onclick={() => stepDelta(-1)}
       aria-label="Decrease"
@@ -166,8 +166,8 @@
       aria-valuemin={min}
       aria-valuemax={max}
       aria-label={label}
-      class={`relative h-28 w-28 select-none rounded-full border-2 border-white/10 bg-gradient-to-b from-[#1e2230] to-[#13151b] shadow-xl touch-none flex items-center justify-center cursor-grab active:cursor-grabbing transition-colors ${
-        isDragging ? 'ring-2 ring-[#5844e0]/60 border-[#5844e0]' : 'hover:border-white/20'
+      class={`relative h-28 w-28 select-none rounded-full border-2 border-white/[0.08] bg-gradient-to-b from-[var(--color-overlay-strong)] to-[var(--color-field)] shadow-xl touch-none flex items-center justify-center cursor-grab active:cursor-grabbing transition-colors ${
+        isDragging ? 'ring-2 ring-[color-mix(in_oklab,var(--color-accent)_60%,transparent)] border-[var(--color-accent)]' : 'hover:border-white/[0.14]'
       }`}
       onpointerdown={handlePointerDown}
       onpointermove={handlePointerMove}
@@ -204,11 +204,11 @@
 
       <!-- Rotating Dial Surface with Indicator Notch -->
       <div
-        class="absolute inset-3 rounded-full bg-[#1b1f2b] shadow-inner flex items-center justify-center pointer-events-none transition-transform duration-75 ease-out"
+        class="absolute inset-3 rounded-full bg-[var(--color-track-soft)] shadow-inner flex items-center justify-center pointer-events-none transition-transform duration-75 ease-out"
         style={`transform: rotate(${rotationDeg}deg);`}
       >
         <!-- Indicator notch at top of knob -->
-        <div class="absolute top-1.5 h-2.5 w-1 rounded-full bg-[#5844e0] shadow-[0_0_8px_#5844e0]"></div>
+        <div class="absolute top-1.5 h-2.5 w-1 rounded-full bg-[var(--color-accent)] shadow-[0_0_8px_#5844e0]"></div>
       </div>
 
       <!-- Center Direct Input Container -->
@@ -222,7 +222,7 @@
           value={inputValue}
           onchange={handleInputCommit}
           onblur={handleInputCommit}
-          class="w-16 bg-transparent text-center text-lg font-bold tabular-nums text-white focus:outline-none focus:ring-1 focus:ring-[#5844e0] rounded py-0.5"
+          class="w-16 bg-transparent text-center text-lg font-bold tabular-nums text-white focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)] rounded py-0.5"
           title="Нажмите, чтобы ввести число вручную"
         />
         {#if unit}
@@ -233,7 +233,7 @@
 
     <button
       type="button"
-      class="grid h-8 w-8 place-items-center rounded-lg border border-white/10 bg-[#13151b] text-muted transition hover:bg-[#282d3d] hover:text-white disabled:opacity-40 cursor-pointer"
+      class="grid h-8 w-8 place-items-center rounded-lg border border-white/[0.08] bg-[var(--color-field)] text-muted transition hover:bg-[var(--color-panel-raised)] hover:text-white disabled:opacity-40 cursor-pointer"
       disabled={disabled || value >= max}
       onclick={() => stepDelta(1)}
       aria-label="Increase"

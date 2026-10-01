@@ -40,6 +40,8 @@
     return loadMediaDetail(id)
   }
   import CircularCounter from '$lib/components/ui/CircularCounter.svelte'
+  import PopoverMenu from '$lib/components/ui/PopoverMenu.svelte'
+  import Modal from '$lib/components/ui/Modal.svelte'
 
   interface Props {
     mediaId: string
@@ -139,8 +141,6 @@
   let activeSubTab = $state<'overview' | 'episodes' | 'volumes' | 'related' | 'recommendations'>('overview')
   let episodeSortOrder = $state<'asc' | 'desc'>('asc')
   let synopsisExpanded = $state(false)
-  let statusMenuOpen = $state(false)
-  let platformMenuOpen = $state(false)
   let userRatingPopoverOpen = $state(false)
   let availableSources = $state<SourceInfo[]>([])
 
@@ -226,6 +226,26 @@
   let statusValue = $state<MediaStatus>(MEDIA_STATUS.planned)
   let statusBusy = $state(false)
   let statusError = $state<unknown>(null)
+
+  function sourceBadgeClasses(src: string): string {
+    if (src.includes('anilist')) return 'border-[#02a9ff]/30 bg-[#02a9ff]/15 text-[#02a9ff]';
+    if (src.includes('shikimori')) return 'border-[#2e51a2]/40 bg-[#2e51a2]/20 text-[#688ce4]';
+    if (src.includes('mangadex')) return 'border-[#ff6740]/30 bg-[#ff6740]/15 text-[#ff6740]';
+    if (src.includes('myanimelist') || src.includes('jikan') || src.includes('mal'))
+      return 'border-[#2e51a2]/40 bg-[#2e51a2]/20 text-[#7d9bf0]';
+    if (src.includes('tmdb')) return 'border-[#01b4e4]/30 bg-[#01b4e4]/15 text-[#31c3ef]';
+    if (src.includes('rawg')) return 'border-[#f65e22]/30 bg-[#f65e22]/15 text-[#f79069]';
+    if (src.includes('steam')) return 'border-[#1b2838]/60 bg-[#1b2838]/70 text-[#66c0f4]';
+    if (src.includes('igdb')) return 'border-[#9146ff]/30 bg-[#9146ff]/15 text-[#b18cff]';
+    if (src.includes('kitsu')) return 'border-[#fd755c]/30 bg-[#fd755c]/15 text-[#ff9a86]';
+    if (src.includes('simkl')) return 'border-white/[0.14] bg-black/50 text-white';
+    if (src.includes('imdb')) return 'border-[#f5c518]/30 bg-[#f5c518]/15 text-[#f5c518]';
+    if (src.includes('thetvdb') || src.includes('tvdb'))
+      return 'border-[#42b883]/30 bg-[#42b883]/15 text-[#5cc79a]';
+    if (src.includes('mangaupdate')) return 'border-[#3b82f6]/30 bg-[#3b82f6]/15 text-[#60a5fa]';
+    if (src.includes('openlibrary')) return 'border-[#e1d9cb]/25 bg-[#e1d9cb]/10 text-[#e1d9cb]';
+    return 'border-white/[0.12] bg-[var(--color-panel-line)] text-amber-400';
+  }
 
   let scoreValue = $state<number | null>(null)
   let ratingBusy = $state(false)
@@ -704,6 +724,15 @@
     return Array.from(opts)
   })
 
+  let statusMenuItems = $derived(
+    statusOptions.map((value) => ({ value, label: statusLabel(value) }))
+  )
+
+  let platformMenuItems = $derived([
+    { value: '', label: i18n.current === 'ru' ? 'Не выбрана' : 'Not selected' },
+    ...gamePlatformOptions.map((p) => ({ value: p, label: p })),
+  ])
+
   async function updateUserPlatform(val: string) {
     if (!media) return
     media.userPlatform = val || null
@@ -724,9 +753,7 @@
       isLoading = true
       loadError = null
       selectedSeasonId = null
-      statusMenuOpen = false
-      platformMenuOpen = false
-      userRatingPopoverOpen = false
+            userRatingPopoverOpen = false
       synopsisExpanded = false
       isSynopsisTranslated = false
       translatedSynopsis = null
@@ -1165,15 +1192,15 @@
   function statusBadgeClasses(status: MediaStatus): string {
     switch (status) {
       case 2:
-        return 'bg-[#22c55e] text-white border-2 border-[#86efac]/80 ring-2 ring-[#86efac]/30'
+        return 'bg-[var(--color-brand-green)] text-white border-2 border-[color-mix(in_oklab,var(--color-success-soft)_80%,transparent)] ring-2 ring-[color-mix(in_oklab,var(--color-success-soft)_30%,transparent)]'
       case 1:
-        return 'bg-[#2563eb] text-white border-2 border-[#93c5fd]/80 ring-2 ring-[#93c5fd]/30'
+        return 'bg-[var(--color-brand-blue)] text-white border-2 border-[color-mix(in_oklab,var(--color-ink-faint)_80%,transparent)] ring-2 ring-[color-mix(in_oklab,var(--color-ink-faint)_30%,transparent)]'
       case 3:
-        return 'bg-[#d97706] text-white border-2 border-amber-300/80 ring-2 ring-amber-300/30'
+        return 'bg-[var(--color-warning-line)] text-white border-2 border-amber-300/80 ring-2 ring-amber-300/30'
       case 4:
-        return 'bg-[#dc2626] text-white border-2 border-rose-300/80 ring-2 ring-rose-300/30'
+        return 'bg-[var(--color-danger-line)] text-white border-2 border-rose-300/80 ring-2 ring-rose-300/30'
       default:
-        return 'bg-[#334155] text-slate-100 border-2 border-slate-400/70 ring-2 ring-slate-400/20'
+        return 'bg-[var(--color-track)] text-slate-100 border-2 border-slate-400/70 ring-2 ring-slate-400/20'
     }
   }
 
@@ -1573,14 +1600,37 @@
     })
   }
 
+  /**
+   * Volumes are the granular source when they carry chapter counts, but a volume seeded from
+   * provider metadata can lag behind the manga's own counter. Taking the larger of the two keeps
+   * "Характеристики" from reporting 0/386 right next to the 386/386 in "Ваша история".
+   */
+  function mangaChapterProgress(item: MediaItem): { current: number; total: number | null } {
+    if (item.type !== 'manga') return { current: 0, total: null }
+    const volumes = isMangaDetail(item) ? item.volumes ?? [] : []
+    const hasVolumeChapters = volumes.some((volume) => (volume.totalChapters ?? 0) > 0)
+    if (!hasVolumeChapters) {
+      return { current: item.currentChapter, total: item.totalChapters }
+    }
+    return {
+      current: Math.max(
+        item.currentChapter,
+        volumes.reduce((sum, volume) => sum + (volume.currentChapter ?? 0), 0),
+      ),
+      total: volumes.reduce((sum, volume) => sum + (volume.totalChapters ?? 0), 0) || item.totalChapters,
+    }
+  }
+
   function readProgress(item: MediaItem): ProgressInfo | null {
     switch (item.type) {
       case 'game':
         return { current: item.hoursPlayed ?? 0, total: null, editable: true, label: i18n.t.detail.hoursLabel }
       case 'book':
         return { current: item.currentPage, total: item.totalPages, editable: true, label: i18n.t.detail.pagesLabel }
-      case 'manga':
-        return { current: item.currentChapter, total: item.totalChapters, editable: true, label: i18n.t.detail.chaptersLabel }
+      case 'manga': {
+        const chapters = mangaChapterProgress(item)
+        return { current: chapters.current, total: chapters.total, editable: true, label: i18n.t.detail.chaptersLabel }
+      }
       case 'tvshow':
         return { current: item.totalEpisodesWatched, total: item.totalEpisodesCount, editable: false, label: i18n.t.detail.episodesLabel }
       default:
@@ -1738,12 +1788,6 @@
         label: i18n.t.status.label,
         value: releaseStatusLabel(item),
       })
-      if (item.platform) {
-        rows.push({
-          label: i18n.current === 'ru' ? 'Платформы' : 'Platforms',
-          value: item.platform,
-        })
-      }
       if (item.genres) {
         const g = Array.isArray(item.genres) ? item.genres.join(', ') : item.genres
         if (g && g.trim()) {
@@ -1769,18 +1813,15 @@
         rows.push({ label: i18n.t.detail.pagesLabel, value: i18n.t.card.pages(item.currentPage, item.totalPages) })
         break
       case 'manga': {
-        const mangaDetail = isMangaDetail(item) ? item : null
-        const vols = mangaDetail?.volumes ?? []
-        const hasVolChapters = vols.some((v) => (v.totalChapters ?? 0) > 0)
-        const currentCh = hasVolChapters ? vols.reduce((sum, v) => sum + (v.currentChapter ?? 0), 0) : item.currentChapter
-        const totalCh = hasVolChapters ? vols.reduce((sum, v) => sum + (v.totalChapters ?? 0), 0) : item.totalChapters
+        const chapters = mangaChapterProgress(item)
         rows.push({
           label: i18n.t.detail.chaptersLabel,
-          value: totalCh && totalCh > 0
-            ? i18n.t.card.chapters(currentCh, totalCh)
-            : (i18n.current === 'ru' ? `Гл. ${currentCh} / —` : `Ch. ${currentCh} / —`),
+          value: chapters.total !== null && chapters.total > 0
+            ? i18n.t.card.chapters(chapters.current, chapters.total)
+            : (i18n.current === 'ru' ? `Гл. ${chapters.current} / —` : `Ch. ${chapters.current} / —`),
         })
 
+        const vols = isMangaDetail(item) ? item.volumes ?? [] : []
         const totalVols = vols.length > 0 ? vols.length : (item.totalVolumes ?? null)
         const curVol = item.currentVolume ?? (vols.length > 0 ? 1 : null)
         rows.push({
@@ -1865,7 +1906,6 @@
 
   async function changeStatus(value: MediaStatus) {
     const target = media
-    statusMenuOpen = false
     if (!target || statusBusy) return
     if (value === statusValue) return
 
@@ -2042,25 +2082,11 @@
       refreshBusy = false
     }
   }
-
-  function handleWindowPointerDown(event: PointerEvent) {
-    const target = event.target
-    if (statusMenuOpen && target instanceof Element && !target.closest('[data-status-menu]')) {
-      statusMenuOpen = false
-    }
-    if (platformMenuOpen && target instanceof Element && !target.closest('[data-platform-menu]')) {
-      platformMenuOpen = false
-    }
-    if (userRatingPopoverOpen && target instanceof Element && !target.closest('[data-rating-popover]')) {
-      userRatingPopoverOpen = false
-    }
-  }
 </script>
+<svelte:window onkeydown={(e) => { if (e.key === 'Escape' && previewRelatedItem) previewRelatedItem = null; }} />
 
-<svelte:window onpointerdown={handleWindowPointerDown} onkeydown={(e) => { if (e.key === 'Escape' && previewRelatedItem) previewRelatedItem = null; }} />
-
-<div class="space-y-6">
-  <button type="button" class="inline-flex items-center gap-2 text-sm font-medium text-muted transition hover:text-white" onclick={onBack}>
+<div class="isolate space-y-6">
+  <button type="button" class="tap inline-flex items-center gap-2 text-sm font-medium text-muted transition hover:text-white" onclick={onBack}>
     <ArrowLeft size={16} aria-hidden="true" />
     {i18n.t.common.back}
   </button>
@@ -2089,10 +2115,10 @@
     {@const support = progressInfo}
     <div class="flex flex-col gap-8 lg:flex-row">
       <!-- Left Column: Poster, Status + Rating, History, Actions, Details -->
-      <aside class="w-full space-y-6 lg:w-80 lg:shrink-0">
-        <div class="aspect-[2/3] w-full overflow-hidden rounded-xl bg-[#222634] shadow-lg">
+      <aside class="w-full space-y-6 lg:sticky lg:top-4 lg:self-start lg:w-80 lg:shrink-0">
+        <div class="aspect-[2/3] w-full overflow-hidden rounded-xl border border-white/[0.06] bg-[var(--color-panel-line)] shadow-lg">
           {#if media.coverUrl}
-            <img src={media.coverUrl} alt={media.title} class="h-full w-full object-cover" />
+            <img src={media.coverUrl} alt={media.title} class="h-full w-full object-cover object-top" />
           {:else}
             <div class="grid h-full place-items-center text-muted"><ImageIcon size={40} stroke-width={1.25} aria-hidden="true" /></div>
           {/if}
@@ -2100,34 +2126,32 @@
 
         <!-- Status selector and User Rating in a unified row (Item 7) -->
         <div class="flex items-center gap-2">
-          <div class="relative flex-1" data-status-menu>
-            <button
-              type="button"
-              class="flex w-full items-center justify-between gap-2 rounded-lg border border-white/10 bg-[#222634] px-3.5 py-2.5 text-sm font-medium text-white transition hover:bg-[#282d3d] disabled:cursor-not-allowed disabled:opacity-70"
-              disabled={statusBusy}
-              aria-haspopup="listbox"
-              aria-expanded={statusMenuOpen}
-              onclick={() => (statusMenuOpen = !statusMenuOpen)}
+          <div class="relative flex-1">
+            <PopoverMenu
+              id={`detail-status-${media.id}`}
+              options={statusMenuItems}
+              selected={statusValue}
+              onSelect={(value) => void changeStatus(value as MediaStatus)}
+              label={i18n.t.status.label}
+              matchTriggerWidth
+              class="min-w-40"
+              optionClass="hover:bg-[var(--color-panel-raised)]"
             >
-              <span class="truncate">{statusLabel(statusValue)}</span>
-              <ChevronDown size={15} class={`shrink-0 transition ${statusMenuOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
-            </button>
-            {#if statusMenuOpen}
-              <ul class="absolute inset-x-0 top-full z-20 mt-1 overflow-hidden rounded-md border border-white/5 bg-[#222634] py-1 shadow-xl shadow-black/50" role="listbox">
-                {#each statusOptions as option (option)}
-                  <li>
-                    <button
-                      type="button"
-                      class={`flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm transition hover:bg-[#282d3d] ${option === statusValue ? 'text-[#a5b4fc]' : 'text-[#f3f4f6]'}`}
-                      onclick={() => void changeStatus(option)}
-                    >
-                      {statusLabel(option)}
-                      {#if option === statusValue}<Check size={14} aria-hidden="true" />{/if}
-                    </button>
-                  </li>
-                {/each}
-              </ul>
-            {/if}
+              {#snippet trigger({ popoverTargetId, anchorName })}
+                <button
+                  type="button"
+                  popovertarget={popoverTargetId}
+                  popovertargetaction="toggle"
+                  style="anchor-name: {anchorName}"
+                  disabled={statusBusy}
+                  class="tap flex w-full items-center justify-between gap-2 rounded-lg border border-white/[0.08] bg-[var(--color-panel-line)] px-3.5 py-2.5 text-sm font-medium text-white transition hover:bg-[var(--color-panel-raised)] has-[:popover-open]:ring-2 has-[:popover-open]:ring-accent-soft disabled:cursor-not-allowed disabled:opacity-70"
+                  aria-haspopup="listbox"
+                >
+                  <span class="truncate">{statusLabel(statusValue)}</span>
+                  <ChevronDown size={15} class="shrink-0 transition group-[:popover-open]:rotate-180 has-[:popover-open]:rotate-180" aria-hidden="true" />
+                </button>
+              {/snippet}
+            </PopoverMenu>
           </div>
 
           <!-- User Rating Button (Item 7) -->
@@ -2137,7 +2161,7 @@
               class={`flex h-10 items-center justify-center gap-1.5 rounded-lg border px-3.5 text-sm font-semibold transition hover:scale-105 active:scale-95 ${
                 scoreValue !== null
                   ? 'border-amber-400/40 bg-amber-400/10 text-amber-300'
-                  : 'border-white/10 bg-[#222634] text-white/80 hover:bg-[#282d3d] hover:text-white'
+                  : 'border-white/[0.08] bg-[var(--color-panel-line)] text-white/80 hover:bg-[var(--color-panel-raised)] hover:text-white'
               }`}
               onclick={() => (userRatingPopoverOpen = !userRatingPopoverOpen)}
               title={i18n.t.detail.yourRating}
@@ -2153,7 +2177,7 @@
             </button>
 
             {#if userRatingPopoverOpen}
-              <div class="absolute right-0 top-full z-30 mt-2 w-48 rounded-xl border border-white/15 bg-[#1e222d] p-3 shadow-2xl shadow-black/90">
+              <div class="absolute right-0 top-full z-30 mt-2 w-48 rounded-xl border border-white/[0.12] bg-[var(--color-overlay)] p-3 shadow-2xl shadow-black/90">
                 <div class="mb-2 text-center text-xs font-semibold text-slate-300">
                   {i18n.t.detail.yourRating}
                 </div>
@@ -2174,7 +2198,7 @@
                   {/each}
                 </div>
                 {#if scoreValue !== null}
-                  <div class="mt-2.5 border-t border-white/10 pt-2 text-center">
+                  <div class="mt-2.5 border-t border-white/[0.08] pt-2 text-center">
                     <button
                       type="button"
                       class="text-xs font-semibold text-rose-400 hover:text-rose-300 transition cursor-pointer"
@@ -2193,7 +2217,7 @@
         <!-- Panel 1: Your History (Items 8, 9) -->
         <div>
           <h2 class="mb-2 text-xs font-bold uppercase tracking-wider text-slate-200">{i18n.t.detail.historyTitle}</h2>
-          <div class="rounded-xl bg-[#222634] p-5 shadow-sm">
+          <div class="panel">
             <dl class="divide-y divide-white/5 text-sm">
               <div class="flex items-center justify-between gap-3 pb-3">
                 <dt class="text-muted text-xs">{i18n.t.detail.startedLabel}</dt>
@@ -2210,44 +2234,32 @@
               {#if media.type === 'game'}
                 <div class="flex items-center justify-between gap-3 pt-3">
                   <dt class="text-muted text-xs">{i18n.current === 'ru' ? 'Платформа' : 'Platform'}</dt>
-                  <dd class="relative font-medium text-white text-xs" data-platform-menu>
+                  <dd class="relative font-medium text-white text-xs">
                     {#if gamePlatformOptions.length > 0}
-                      <button
-                        type="button"
-                        class="flex items-center justify-between gap-2 rounded-lg border border-white/10 bg-[#13151b] px-2.5 py-1.5 text-xs text-white transition hover:border-[#5844e0]/50 hover:bg-[#181b24] focus:outline-none focus:ring-1 focus:ring-[#5844e0] max-w-[155px]"
-                        onclick={() => (platformMenuOpen = !platformMenuOpen)}
-                        aria-haspopup="listbox"
-                        aria-expanded={platformMenuOpen}
+                      <PopoverMenu
+                        id={`platform-${media.id}`}
+                        options={platformMenuItems}
+                        selected={media.userPlatform ?? ''}
+                        onSelect={(value) => void updateUserPlatform(String(value))}
+                        label={i18n.t.detailModal.platform}
+                        placement="bottom-end"
+                        class="max-h-56 min-w-[150px] overflow-y-auto"
+                        optionClass="text-xs"
                       >
-                        <span class="truncate">{media.userPlatform || (i18n.current === 'ru' ? 'Не выбрана' : 'Not selected')}</span>
-                        <ChevronDown size={13} class={`shrink-0 text-muted transition duration-200 ${platformMenuOpen ? 'rotate-180 text-white' : ''}`} aria-hidden="true" />
-                      </button>
-                      {#if platformMenuOpen}
-                        <ul class="absolute right-0 top-full z-30 mt-1 max-h-56 min-w-[150px] overflow-y-auto rounded-lg border border-white/10 bg-[#1e2230] p-1 shadow-2xl shadow-black/80 backdrop-blur-md" role="listbox">
-                          <li>
-                            <button
-                              type="button"
-                              class={`flex w-full items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-left text-xs transition hover:bg-white/10 ${!media.userPlatform ? 'text-[#a5b4fc] font-semibold bg-[#5844e0]/20' : 'text-muted'}`}
-                              onclick={() => { void updateUserPlatform(''); platformMenuOpen = false }}
-                            >
-                              <span>{i18n.current === 'ru' ? 'Не выбрана' : 'Not selected'}</span>
-                              {#if !media.userPlatform}<Check size={13} class="text-[#a5b4fc]" aria-hidden="true" />{/if}
-                            </button>
-                          </li>
-                          {#each gamePlatformOptions as p (p)}
-                            <li>
-                              <button
-                                type="button"
-                                class={`flex w-full items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-left text-xs transition hover:bg-white/10 ${media.userPlatform === p ? 'text-[#a5b4fc] font-semibold bg-[#5844e0]/20' : 'text-slate-200'}`}
-                                onclick={() => { void updateUserPlatform(p); platformMenuOpen = false }}
-                              >
-                                <span class="truncate">{p}</span>
-                                {#if media.userPlatform === p}<Check size={13} class="text-[#a5b4fc]" aria-hidden="true" />{/if}
-                              </button>
-                            </li>
-                          {/each}
-                        </ul>
-                      {/if}
+                        {#snippet trigger({ popoverTargetId, anchorName })}
+                          <button
+                            type="button"
+                            popovertarget={popoverTargetId}
+                            popovertargetaction="toggle"
+                            style="anchor-name: {anchorName}"
+                            class="tap flex max-w-[155px] items-center justify-between gap-2 rounded-lg border border-white/[0.08] bg-[var(--color-field)] px-2.5 py-1.5 text-xs text-white transition hover:border-[color-mix(in_oklab,var(--color-accent)_50%,transparent)] hover:bg-[var(--color-track-faint)] has-[:popover-open]:ring-1 has-[:popover-open]:ring-[var(--color-accent)]"
+                            aria-haspopup="listbox"
+                          >
+                            <span class="truncate">{media?.userPlatform || (i18n.current === 'ru' ? 'Не выбрана' : 'Not selected')}</span>
+                            <ChevronDown size={13} class="shrink-0 text-muted transition duration-200 has-[:popover-open]:rotate-180 has-[:popover-open]:text-white" aria-hidden="true" />
+                          </button>
+                        {/snippet}
+                      </PopoverMenu>
                     {:else}
                       <span class="text-xs text-muted">—</span>
                     {/if}
@@ -2261,48 +2273,48 @@
         <!-- Panel 2: Actions (Item 9) -->
         <div>
           <h2 class="mb-2 text-xs font-bold uppercase tracking-wider text-slate-200">{i18n.t.detail.actionsTitle}</h2>
-          <div class="space-y-2 rounded-xl bg-[#222634] p-3.5 shadow-sm">
+          <div class="panel space-y-2">
             <button
               type="button"
-              class="flex w-full items-center gap-2.5 rounded-lg bg-surface/50 px-3 py-2.5 text-xs font-medium text-[#d1d5db] transition hover:bg-[#282d3d] hover:text-white disabled:cursor-not-allowed disabled:opacity-70"
+              class="flex w-full items-center gap-2.5 rounded-lg bg-surface/50 px-3 py-2.5 text-xs font-medium text-[var(--color-ink-dim)] transition hover:bg-[var(--color-panel-raised)] hover:text-white disabled:cursor-not-allowed disabled:opacity-70"
               disabled={refreshBusy}
               onclick={() => void handleRefreshMetadata()}
             >
-              <RefreshCw size={15} class={`text-[#34d399] ${refreshBusy ? 'animate-spin' : ''}`} aria-hidden="true" />
+              <RefreshCw size={15} class={`text-[var(--color-success-line)] ${refreshBusy ? 'animate-spin' : ''}`} aria-hidden="true" />
               {i18n.t.detail.updateMetadata}
             </button>
             {#if refreshError}<p class="text-xs text-rose-300" role="alert">{errorMessage(refreshError)}</p>{/if}
 
             <button
               type="button"
-              class="flex w-full items-center gap-2.5 rounded-lg bg-surface/50 px-3 py-2.5 text-xs font-medium text-[#d1d5db] transition hover:bg-[#282d3d] hover:text-white"
+              class="flex w-full items-center gap-2.5 rounded-lg bg-surface/50 px-3 py-2.5 text-xs font-medium text-[var(--color-ink-dim)] transition hover:bg-[var(--color-panel-raised)] hover:text-white"
               onclick={() => onNavigate('lists')}
             >
-              <List size={15} class="text-[#a5b4fc]" aria-hidden="true" />
+              <List size={15} class="text-[var(--color-accent-soft)]" aria-hidden="true" />
               {i18n.t.detail.addToLists}
             </button>
 
             <button
               type="button"
-              class="flex w-full items-center gap-2.5 rounded-lg bg-surface/50 px-3 py-2.5 text-xs font-medium text-[#d1d5db] transition hover:bg-[#282d3d] hover:text-white"
+              class="flex w-full items-center gap-2.5 rounded-lg bg-surface/50 px-3 py-2.5 text-xs font-medium text-[var(--color-ink-dim)] transition hover:bg-[var(--color-panel-raised)] hover:text-white"
               onclick={() => onNavigate('calendar')}
             >
-              <CalendarDays size={15} class="text-[#f59e0b]" aria-hidden="true" />
+              <CalendarDays size={15} class="text-[var(--color-star)]" aria-hidden="true" />
               {i18n.t.detail.activity}
             </button>
 
             <button
               type="button"
-              class="flex w-full items-center gap-2.5 rounded-lg bg-surface/50 px-3 py-2.5 text-xs font-medium text-[#d1d5db] transition hover:bg-[#282d3d] hover:text-white"
+              class="flex w-full items-center gap-2.5 rounded-lg bg-surface/50 px-3 py-2.5 text-xs font-medium text-[var(--color-ink-dim)] transition hover:bg-[var(--color-panel-raised)] hover:text-white"
               onclick={startEdit}
             >
-              <Pencil size={15} class="text-[#7dd3fc]" aria-hidden="true" />
+              <Pencil size={15} class="text-[var(--color-info-soft)]" aria-hidden="true" />
               {i18n.t.detailModal.edit}
             </button>
 
             <button
               type="button"
-              class="flex w-full items-center gap-2.5 rounded-lg bg-surface/50 px-3 py-2.5 text-xs font-medium text-rose-300 transition hover:bg-[#282d3d] disabled:cursor-not-allowed disabled:opacity-70"
+              class="tap flex w-full items-center gap-2.5 rounded-lg bg-surface/50 px-3 py-2.5 text-xs font-medium text-rose-300 transition hover:bg-[var(--color-panel-raised)] disabled:cursor-not-allowed disabled:opacity-70"
               disabled={deleteBusy}
               onclick={() => void removeMedia()}
             >
@@ -2316,7 +2328,7 @@
         <!-- Panel 3: Details (Items 8, 9, 11) -->
         <div>
           <h2 class="mb-2 text-xs font-bold uppercase tracking-wider text-slate-200">{i18n.t.detail.detailsTitle}</h2>
-          <div class="rounded-xl bg-[#222634] p-5 shadow-sm">
+          <div class="panel">
             <dl class="divide-y divide-white/5 text-sm">
               {#each specRows(media) as row, idx (`${row.label}-${idx}`)}
                 <div class="flex items-start justify-between gap-3 py-3 first:pt-0 last:pb-0">
@@ -2358,78 +2370,76 @@
         <!-- Category/Type Tags -->
         <ul class="flex flex-wrap gap-2">
           {#each tags(media) as tag, idx (`${tag}-${idx}`)}
-            <li class="rounded-full bg-[#5844e0]/20 px-3 py-1 text-xs font-medium text-[#a5b4fc]">{tag}</li>
+            <li class="rounded-full bg-[color-mix(in_oklab,var(--color-accent)_20%,transparent)] px-3 py-1 text-xs font-medium text-[var(--color-accent-soft)]">{tag}</li>
           {/each}
         </ul>
 
-        <!-- Uniform External Ratings Badges (Item 6 & Point 1) -->
+                <!-- Uniform External Ratings Badges (Item 6 & Point 1) -->
         <div class="flex flex-wrap items-center gap-2.5">
           {#each externalRatings as rating (rating.source)}
             {@const src = rating.source.toLowerCase()}
             <div
-              class="inline-flex h-9 items-center gap-2 rounded-lg border border-white/15 bg-[#222634] px-3 shadow-sm transition hover:border-white/30 hover:bg-[#282d3d]"
+              class="inline-flex h-9 items-center gap-2 rounded-lg border px-3 shadow-sm transition hover:brightness-125 {sourceBadgeClasses(src)}"
               title={`${rating.source}: ${rating.score !== null && rating.score > 0 ? rating.score.toFixed(1) : '—'}`}
             >
-              <span class="flex items-center">
+              <span class="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider">
                 {#if src.includes('anilist')}
-                  <span class="flex items-center gap-1 font-bold text-[#02a9ff] text-xs">
-                    <svg class="h-4 w-4 fill-[#02a9ff]" viewBox="0 0 24 24"><path d="M24 17.561v4.425H13.678v-4.425zM12.924 2.014l7.157 15.547H14.88l-1.393-3.088H8.847l-1.385 3.088H2.179L9.345 2.014h3.579zm-.897 8.358L10.37 6.452l-1.65 3.92h3.307z"/></svg>
-                    AniList
-                  </span>
-                {:else if src.includes('tmdb')}
-                  <span class="rounded bg-[#01b4e4] px-1.5 py-0.5 text-[10px] font-black text-[#032541] tracking-wider">TMDB</span>
-                {:else if src.includes('rawg')}
-                  <span class="rounded bg-white px-1.5 py-0.5 text-[10px] font-black text-black tracking-wider">RAWG</span>
-                {:else if src.includes('steam')}
-                  <span class="rounded bg-[#171a21] border border-[#66c0f4]/40 px-1.5 py-0.5 text-[10px] font-bold text-[#66c0f4] tracking-wider">Steam</span>
-                {:else if src.includes('igdb')}
-                  <span class="rounded bg-[#9146ff] px-1.5 py-0.5 text-[10px] font-black text-white tracking-wider">IGDB</span>
-                {:else if src.includes('kitsu')}
-                  <span class="rounded bg-[#fd755c] px-1.5 py-0.5 text-[10px] font-black text-white tracking-wider">Kitsu</span>
-                {:else if src.includes('mal') || src.includes('myanimelist') || src.includes('jikan')}
-                  <span class="rounded bg-[#2e51a2] px-1.5 py-0.5 text-[10px] font-black text-white tracking-wider">MAL</span>
+                  <svg class="h-3.5 w-3.5 fill-current" viewBox="0 0 24 24" aria-hidden="true"><path d="M24 17.561v4.425H13.678v-4.425zM12.924 2.014l7.157 15.547H14.88l-1.393-3.088H8.847l-1.385 3.088H2.179L9.345 2.014h3.579zm-.897 8.358L10.37 6.452l-1.65 3.92h3.307z"/></svg>
+                  AniList
                 {:else if src.includes('shikimori')}
-                  <span class="rounded bg-[#1c2438] border border-[#4a85f6]/40 px-1.5 py-0.5 text-[10px] font-bold text-[#4a85f6] tracking-wider">Shikimori</span>
+                  Shikimori
+                {:else if src.includes('mangadex')}
+                  MangaDex
+                {:else if src.includes('myanimelist') || src.includes('jikan') || src.includes('mal')}
+                  MAL
+                {:else if src.includes('tmdb')}
+                  TMDB
+                {:else if src.includes('rawg')}
+                  RAWG
+                {:else if src.includes('steam')}
+                  Steam
+                {:else if src.includes('igdb')}
+                  IGDB
+                {:else if src.includes('kitsu')}
+                  Kitsu
                 {:else if src.includes('simkl')}
-                  <span class="rounded bg-black border border-white/20 px-1.5 py-0.5 text-[10px] font-bold text-white tracking-wider">Simkl</span>
+                  Simkl
                 {:else if src.includes('kinopoisk')}
-                  <span class="rounded bg-[#f60] px-1.5 py-0.5 text-[10px] font-black text-white tracking-wider">Кинопоиск</span>
+                  Кинопоиск
                 {:else if src.includes('imdb')}
-                  <span class="rounded bg-[#f5c518] px-1.5 py-0.5 text-[10px] font-black text-black tracking-wider">IMDb</span>
+                  IMDb
                 {:else if src.includes('thetvdb') || src.includes('tvdb')}
-                  <span class="rounded bg-[#42b883] px-1.5 py-0.5 text-[10px] font-black text-white tracking-wider">TVDB</span>
+                  TVDB
                 {:else if src.includes('mangaupdate')}
-                  <span class="rounded bg-[#3b82f6] px-1.5 py-0.5 text-[10px] font-black text-white tracking-wider">MangaUpdates</span>
+                  MangaUpdates
                 {:else if src.includes('openlibrary')}
-                  <span class="rounded bg-[#e1d9cb] px-1.5 py-0.5 text-[10px] font-bold text-[#2c221e]">OpenLibrary</span>
+                  OpenLibrary
                 {:else}
-                  <span class="flex items-center gap-1 font-bold text-amber-400 text-xs">
-                    <Star size={14} fill="currentColor" />
-                    {rating.source}
-                  </span>
+                  <Star size={13} fill="currentColor" aria-hidden="true" />
+                  {rating.source}
                 {/if}
               </span>
               {#if rating.score !== null && rating.score > 0}
-                <span class="font-extrabold text-sm tabular-nums text-white">{rating.score.toFixed(1)}</span>
+                <span class="text-sm font-extrabold tabular-nums text-white">{rating.score.toFixed(1)}</span>
                 {#if rating.votes}
-                  <span class="text-xs text-muted font-normal">({rating.votes > 1000 ? (rating.votes / 1000).toFixed(1) + 'k' : rating.votes})</span>
+                  <span class="text-[11px] font-normal text-white/50">({rating.votes > 1000 ? (rating.votes / 1000).toFixed(1) + 'k' : rating.votes})</span>
                 {/if}
               {:else if isEnriching}
                 <span class="inline-block h-4 w-6 animate-pulse rounded bg-white/20"></span>
               {:else}
-                <span class="font-medium text-sm text-muted">—</span>
+                <span class="text-sm font-medium text-white/40">—</span>
               {/if}
             </div>
           {/each}
         </div>
 
-        <!-- Sub-navigation Tabs (Item 19) -->
-        <nav class="flex items-center gap-1 border-b border-white/10 pb-px" aria-label="Sections">
+<!-- Sub-navigation Tabs (Item 19) -->
+        <nav class="flex items-center gap-1 border-b border-white/[0.08] pb-px" aria-label="Sections">
           <button
             type="button"
             class={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-semibold transition ${
               activeSubTab === 'overview'
-                ? 'border-[#5844e0] text-white'
+                ? 'border-[var(--color-accent)] text-white'
                 : 'border-transparent text-muted hover:text-white'
             }`}
             onclick={() => (activeSubTab = 'overview')}
@@ -2442,14 +2452,14 @@
               type="button"
               class={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-semibold transition ${
                 activeSubTab === 'episodes'
-                  ? 'border-[#5844e0] text-white'
+                  ? 'border-[var(--color-accent)] text-white'
                   : 'border-transparent text-muted hover:text-white'
               }`}
               onclick={() => (activeSubTab = 'episodes')}
             >
               {i18n.t.detail.tabEpisodes}
               {#if currentSeason}
-                <span class="rounded-full bg-white/10 px-2 py-0.5 text-xs text-[#a5b4fc]">
+                <span class="rounded-full bg-white/10 px-2 py-0.5 text-xs text-[var(--color-accent-soft)]">
                   {currentSeason.currentEpisode}/{currentSeason.totalEpisodes}
                 </span>
               {/if}
@@ -2461,15 +2471,15 @@
               type="button"
               class={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-semibold transition ${
                 activeSubTab === 'volumes'
-                  ? 'border-[#5844e0] text-white'
+                  ? 'border-[var(--color-accent)] text-white'
                   : 'border-transparent text-muted hover:text-white'
               }`}
               onclick={() => (activeSubTab = 'volumes')}
             >
-              <Layers size={14} class="text-[#a5b4fc]" aria-hidden="true" />
+              <Layers size={14} class="text-[var(--color-accent-soft)]" aria-hidden="true" />
               {i18n.t.detail.tabVolumes}
               {#if mangaVolumes.length > 0}
-                <span class="rounded-full bg-white/10 px-2 py-0.5 text-xs text-[#a5b4fc]">
+                <span class="rounded-full bg-white/10 px-2 py-0.5 text-xs text-[var(--color-accent-soft)]">
                   {mangaVolumes.length}
                 </span>
               {/if}
@@ -2480,7 +2490,7 @@
             type="button"
             class={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-semibold transition ${
               activeSubTab === 'related'
-                ? 'border-[#5844e0] text-white'
+                ? 'border-[var(--color-accent)] text-white'
                 : 'border-transparent text-muted hover:text-white'
             }`}
             onclick={() => (activeSubTab = 'related')}
@@ -2497,12 +2507,12 @@
             type="button"
             class={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-semibold transition ${
               activeSubTab === 'recommendations'
-                ? 'border-[#5844e0] text-white'
+                ? 'border-[var(--color-accent)] text-white'
                 : 'border-transparent text-muted hover:text-white'
             }`}
             onclick={() => { activeSubTab = 'recommendations'; void loadRecommendations() }}
           >
-            <Sparkles size={14} class="text-[#a5b4fc]" aria-hidden="true" />
+            <Sparkles size={14} class="text-[var(--color-accent-soft)]" aria-hidden="true" />
             {i18n.t.detail.tabRecommendations}
           </button>
         </nav>
@@ -2511,13 +2521,13 @@
         {#if activeSubTab === 'overview'}
           <div class="space-y-6">
             <!-- Synopsis with conditional Read More (Item 5) & Translator (Item 4) -->
-            <section class="space-y-2 rounded-xl bg-[#222634]/60 p-5 border border-white/5">
+            <section class="space-y-2 rounded-xl bg-[color-mix(in_oklab,var(--color-panel-line)_60%,transparent)] p-5 border border-white/[0.06]">
               <div class="flex items-center justify-between">
                 <h2 class="text-xs font-bold uppercase tracking-wider text-slate-300">{i18n.t.detail.synopsisTitle}</h2>
                 {#if synopsisText}
                   <button
                     type="button"
-                    class="inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium text-[#a5b4fc] transition hover:bg-white/10 hover:text-white cursor-pointer disabled:opacity-50"
+                    class="inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium text-[var(--color-accent-soft)] transition hover:bg-white/10 hover:text-white cursor-pointer disabled:opacity-50"
                     disabled={translatingSynopsis}
                     onclick={() => void toggleTranslateSynopsis()}
                     title={isSynopsisTranslated ? i18n.t.detail.showOriginal : i18n.t.detail.translate}
@@ -2533,13 +2543,13 @@
                 {/if}
               </div>
               {#if synopsisText}
-                <p class={`whitespace-pre-line break-words text-sm leading-relaxed text-[#d1d5db] ${synopsisExpandable && !synopsisExpanded ? 'line-clamp-4' : ''}`}>
+                <p class={`whitespace-pre-line break-words text-sm leading-relaxed text-[var(--color-ink-dim)] ${synopsisExpandable && !synopsisExpanded ? 'line-clamp-4' : ''}`}>
                   {isSynopsisTranslated && translatedSynopsis ? translatedSynopsis : synopsisText}
                 </p>
                 {#if synopsisExpandable}
                   <button
                     type="button"
-                    class="inline-flex items-center gap-1 pt-1 text-xs font-semibold text-[#a5b4fc] transition hover:text-white"
+                    class="inline-flex items-center gap-1 pt-1 text-xs font-semibold text-[var(--color-accent-soft)] transition hover:text-white"
                     onclick={() => (synopsisExpanded = !synopsisExpanded)}
                   >
                     {synopsisExpanded ? i18n.t.detail.collapse : i18n.t.detail.readMore}
@@ -2553,10 +2563,10 @@
 
             <!-- TV / Anime Compact Episode Progress Banner (Item 19) -->
             {#if media.type === 'tvshow' && currentSeason}
-              <div class="relative overflow-hidden rounded-xl border border-white/10 bg-gradient-to-r from-[#1e2230] via-[#222634] to-[#1e2230] p-5 shadow-lg">
+              <div class="relative overflow-hidden rounded-xl border border-white/[0.08] bg-gradient-to-r from-[var(--color-overlay-strong)] via-[var(--color-panel-line)] to-[var(--color-overlay-strong)] p-5 shadow-lg">
                 <div class="flex flex-wrap items-center justify-between gap-4">
                   <div class="min-w-0">
-                    <p class="text-xs font-semibold uppercase tracking-wider text-[#a5b4fc]">
+                    <p class="text-xs font-semibold uppercase tracking-wider text-[var(--color-accent-soft)]">
                       {currentSeason.title}
                     </p>
                     <p class="mt-1 text-lg font-bold text-white">
@@ -2569,7 +2579,7 @@
                     {#if nextEpisode}
                       <button
                         type="button"
-                        class="inline-flex items-center gap-2 rounded-lg bg-[#5844e0] px-4 py-2 text-xs font-semibold text-white shadow-md transition hover:bg-[#6b58eb] active:scale-95 disabled:opacity-50"
+                        class="inline-flex items-center gap-2 rounded-lg bg-[var(--color-accent)] px-4 py-2 text-xs font-semibold text-white shadow-md transition hover:bg-[var(--color-accent-deep)] active:scale-95 disabled:opacity-50"
                         disabled={Boolean(episodeBusy)}
                         onclick={() => void toggleEpisode(nextEpisode!.number)}
                       >
@@ -2585,7 +2595,7 @@
 
                     <button
                       type="button"
-                      class="rounded-lg border border-white/10 bg-surface/50 px-3 py-2 text-xs font-medium text-muted transition hover:bg-white/10 hover:text-white"
+                      class="rounded-lg border border-white/[0.08] bg-surface/50 px-3 py-2 text-xs font-medium text-muted transition hover:bg-white/10 hover:text-white"
                       onclick={() => (activeSubTab = 'episodes')}
                     >
                       {i18n.t.detail.tabEpisodes} →
@@ -2593,15 +2603,15 @@
                   </div>
                 </div>
 
-                <div class="mt-4 h-2 w-full overflow-hidden rounded-full bg-black/40">
-                  <div class="h-full rounded-full bg-gradient-to-r from-[#5844e0] to-[#7dd3fc] transition-all duration-300" style={`width: ${seasonProgressPercent}%`}></div>
+                <div class="mt-4 h-2 w-full max-w-2xl overflow-hidden rounded-full bg-black/40">
+                  <div class="h-full rounded-full bg-gradient-to-r from-[var(--color-accent)] to-[var(--color-info-soft)] transition-all duration-300" style={`width: ${seasonProgressPercent}%`}></div>
                 </div>
               </div>
             {/if}
 
             <!-- Game Circular Counter / Book & Manga Stepper Progress -->
             {#if media.type === 'game'}
-              <section class="rounded-xl bg-[#222634] p-5 shadow-sm border border-white/5 flex flex-col items-center">
+              <section class="rounded-xl bg-[var(--color-panel-line)] p-5 shadow-sm border border-white/[0.06] flex flex-col items-center">
                 <CircularCounter
                   value={progressValue}
                   label={support?.label ?? i18n.t.detail.hoursLabel}
@@ -2619,7 +2629,7 @@
               </section>
 
               <!-- Game Achievements on Overview -->
-              <section class="space-y-3 rounded-xl bg-[#222634] p-5 shadow-sm border border-white/5">
+              <section class="space-y-3 rounded-xl bg-[var(--color-panel-line)] p-5 shadow-sm border border-white/[0.06]">
                 <div class="flex items-center justify-between gap-3">
                   <div class="flex items-center gap-2">
                     <Trophy size={16} class="text-amber-400" />
@@ -2641,7 +2651,7 @@
                 {#if gameAchievementsLoading}
                   <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 pt-1">
                     {#each Array(4) as _, i (i)}
-                      <div class="h-14 animate-pulse rounded-lg bg-[#13151b]"></div>
+                      <div class="h-14 animate-pulse rounded-lg bg-[var(--color-field)]"></div>
                     {/each}
                   </div>
                 {:else if gameAchievements.length > 0}
@@ -2652,8 +2662,8 @@
                         type="button"
                         class={`flex items-center gap-3 rounded-lg border p-2.5 text-left transition cursor-pointer ${
                           isUnlocked
-                            ? 'border-emerald-500/40 bg-[#13231b] hover:border-emerald-500/60'
-                            : 'border-white/5 bg-[#13151b] hover:border-white/15 opacity-75 hover:opacity-100'
+                            ? 'border-emerald-500/40 bg-[var(--color-success-deep)] hover:border-emerald-500/60'
+                            : 'border-white/[0.06] bg-[var(--color-field)] hover:border-white/[0.12] opacity-75 hover:opacity-100'
                         }`}
                         onclick={() => void toggleAchievement(ach.name)}
                         title={isUnlocked ? (i18n.current === 'ru' ? 'Получено (нажмите, чтобы снять)' : 'Unlocked (click to lock)') : (i18n.current === 'ru' ? 'Не получено (нажмите, чтобы отметить)' : 'Locked (click to unlock)')}
@@ -2664,17 +2674,17 @@
                               src={ach.iconUrl}
                               alt={ach.name}
                               class={`h-10 w-10 rounded-md object-cover bg-black/40 border transition ${
-                                isUnlocked ? 'border-emerald-400/50' : 'border-white/10 grayscale contrast-75'
+                                isUnlocked ? 'border-emerald-400/50' : 'border-white/[0.08] grayscale contrast-75'
                               }`}
                               loading="lazy"
                             />
                           {:else}
-                            <div class={`grid h-10 w-10 place-items-center rounded-md ${isUnlocked ? 'bg-emerald-950/60 text-emerald-400' : 'bg-[#222634] text-amber-400'}`}>
+                            <div class={`grid h-10 w-10 place-items-center rounded-md ${isUnlocked ? 'bg-emerald-950/60 text-emerald-400' : 'bg-[var(--color-panel-line)] text-amber-400'}`}>
                               <Trophy size={16} />
                             </div>
                           {/if}
                           {#if isUnlocked}
-                            <div class="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 text-black shadow ring-1 ring-[#13231b]">
+                            <div class="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 text-black shadow ring-1 ring-[var(--color-success-deep)]">
                               <Check size={10} stroke-width={3} />
                             </div>
                           {/if}
@@ -2695,20 +2705,20 @@
                 {/if}
               </section>
             {:else if support && support.editable}
-              <section class="space-y-3 rounded-xl bg-[#222634] p-5 shadow-sm border border-white/5">
+              <section class="space-y-3 rounded-xl bg-[var(--color-panel-line)] p-5 shadow-sm border border-white/[0.06]">
                 <div class="flex items-center justify-between gap-3">
                   <h2 class="text-xs font-bold uppercase tracking-wider text-slate-300">{support.label}</h2>
                   <span class="text-sm font-semibold tabular-nums text-white">
                     {support.total !== null ? `${format(progressValue)} / ${format(support.total)}` : format(progressValue)}
                   </span>
                 </div>
-                <div class="flex h-10 items-center rounded-lg bg-[#13151b]">
-                  <button type="button" class="grid h-full w-10 place-items-center rounded-l-lg text-[#9ca3af] transition hover:bg-[#282d3d] hover:text-white disabled:cursor-not-allowed disabled:opacity-40" aria-label={i18n.t.card.decrement} disabled={progressValue <= 0} onclick={() => stepProgress(-1)}><Minus size={15} aria-hidden="true" /></button>
+                <div class="flex h-10 items-center rounded-lg bg-[var(--color-field)]">
+                  <button type="button" class="grid h-full w-10 place-items-center rounded-l-lg text-[var(--color-muted)] transition hover:bg-[var(--color-panel-raised)] hover:text-white disabled:cursor-not-allowed disabled:opacity-40" aria-label={i18n.t.card.decrement} disabled={progressValue <= 0} onclick={() => stepProgress(-1)}><Minus size={15} aria-hidden="true" /></button>
                   <span class="flex-1 text-center text-sm font-semibold tabular-nums text-white">{format(progressValue)}</span>
-                  <button type="button" class="grid h-full w-10 place-items-center rounded-r-lg text-[#9ca3af] transition hover:bg-[#282d3d] hover:text-white" aria-label={i18n.t.card.increment} onclick={() => stepProgress(1)}><Plus size={15} aria-hidden="true" /></button>
+                  <button type="button" class="grid h-full w-10 place-items-center rounded-r-lg text-[var(--color-muted)] transition hover:bg-[var(--color-panel-raised)] hover:text-white" aria-label={i18n.t.card.increment} onclick={() => stepProgress(1)}><Plus size={15} aria-hidden="true" /></button>
                 </div>
                 {#if support.total !== null && support.total > 0}
-                  <div class="h-1.5 overflow-hidden rounded-full bg-[#13151b]"><div class="h-full rounded-full bg-[#5844e0] transition-[width] duration-200" style={`width: ${progressPercent}%`}></div></div>
+                  <div class="h-1.5 w-full max-w-2xl overflow-hidden rounded-full bg-[var(--color-field)]"><div class="h-full rounded-full bg-[var(--color-accent)] transition-[width] duration-200" style={`width: ${progressPercent}%`}></div></div>
                 {/if}
                 {#if progressError}<p class="text-xs text-rose-300" role="alert">{errorMessage(progressError)}</p>{/if}
               </section>
@@ -2717,7 +2727,7 @@
             <!-- Manga Volumes Section on Overview (Item 6) -->
             {#if media.type === 'manga'}
               {#if mangaVolumes.length > 0}
-                <section class="space-y-3 rounded-xl bg-[#222634] p-5 shadow-sm border border-white/5">
+                <section class="space-y-3 rounded-xl bg-[var(--color-panel-line)] p-5 shadow-sm border border-white/[0.06]">
                   <div class="flex items-center justify-between gap-3">
                     <div>
                       <h2 class="text-xs font-bold uppercase tracking-wider text-slate-300">{i18n.t.detail.tabVolumes}</h2>
@@ -2726,7 +2736,7 @@
                     <div class="flex items-center gap-2">
                       <button
                         type="button"
-                        class="rounded-lg border border-white/10 bg-surface/50 px-3 py-1.5 text-xs font-medium text-muted transition hover:bg-white/10 hover:text-white"
+                        class="rounded-lg border border-white/[0.08] bg-surface/50 px-3 py-1.5 text-xs font-medium text-muted transition hover:bg-white/10 hover:text-white"
                         onclick={() => (activeSubTab = 'volumes')}
                       >
                         {i18n.t.detail.tabVolumes} →
@@ -2740,7 +2750,7 @@
                       {@const current = volumeCurrent(vol)}
                       {@const total = volumeTotal(vol)}
                       {@const percent = volumePercent(vol)}
-                      <div class="rounded-lg border border-white/10 bg-[#13151b] p-3.5 space-y-2.5">
+                      <div class="rounded-lg border border-white/[0.08] bg-[var(--color-field)] p-3.5 space-y-2.5">
                         <div class="flex items-center justify-between gap-2">
                           <span class="text-xs font-bold text-white truncate">{vol.title || `Volume ${vol.volumeNumber}`}</span>
                           {#if isDone}
@@ -2757,12 +2767,12 @@
 
                         <!-- Progress Bar -->
                         <div class="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
-                          <div class="h-full rounded-full bg-gradient-to-r from-[#5844e0] to-[#7dd3fc] transition-all duration-200" style={`width: ${percent}%`}></div>
+                          <div class="h-full rounded-full bg-gradient-to-r from-[var(--color-accent)] to-[var(--color-info-soft)] transition-all duration-200" style={`width: ${percent}%`}></div>
                         </div>
 
                         <!-- Stepper and Action -->
                         <div class="flex items-center justify-between gap-2 pt-0.5">
-                          <div class="flex h-7 items-center rounded-md bg-[#222634] border border-white/10">
+                          <div class="flex h-7 items-center rounded-md bg-[var(--color-panel-line)] border border-white/[0.08]">
                             <button
                               type="button"
                               class="grid h-full w-7 place-items-center text-muted transition hover:text-white disabled:opacity-30"
@@ -2828,7 +2838,7 @@
                   </div>
                 </section>
               {:else if media.totalVolumes && media.totalVolumes > 0}
-                <section class="space-y-3 rounded-xl bg-[#222634] p-5 shadow-sm border border-white/5">
+                <section class="space-y-3 rounded-xl bg-[var(--color-panel-line)] p-5 shadow-sm border border-white/[0.06]">
                   <div class="flex items-center justify-between gap-3">
                     <div>
                       <h2 class="text-xs font-bold uppercase tracking-wider text-slate-300">{i18n.t.detail.tabVolumes}</h2>
@@ -2836,7 +2846,7 @@
                     </div>
                     <button
                       type="button"
-                      class="inline-flex items-center gap-1.5 rounded-lg bg-[#5844e0] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#6854f0] disabled:opacity-50"
+                      class="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-accent)] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[var(--color-accent-bright)] disabled:opacity-50"
                       disabled={Boolean(volumeBusy)}
                       onclick={() => void handleGenerateVolumes()}
                     >
@@ -2846,7 +2856,7 @@
                   </div>
                 </section>
               {:else}
-                <section class="space-y-3 rounded-xl bg-[#222634] p-5 shadow-sm border border-white/5">
+                <section class="space-y-3 rounded-xl bg-[var(--color-panel-line)] p-5 shadow-sm border border-white/[0.06]">
                   <div class="flex items-center justify-between gap-3">
                     <div>
                       <h2 class="text-xs font-bold uppercase tracking-wider text-slate-300">{i18n.t.detail.tabVolumes}</h2>
@@ -2854,7 +2864,7 @@
                     </div>
                     <button
                       type="button"
-                      class="inline-flex items-center gap-1.5 rounded-lg bg-[#5844e0] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#6854f0] disabled:opacity-50"
+                      class="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-accent)] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[var(--color-accent-bright)] disabled:opacity-50"
                       disabled={Boolean(volumeBusy)}
                       onclick={() => void handleAddVolume()}
                     >
@@ -2872,11 +2882,11 @@
         {#if activeSubTab === 'episodes' && media.type === 'tvshow'}
           <section class="space-y-4">
             <!-- Controls bar: Season select, Sort order (Item 3), Batch buttons (Item 1) -->
-            <div class="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-[#222634] p-3.5">
+            <div class="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-[var(--color-panel-line)] p-3.5">
               <div class="flex items-center gap-3">
                 {#if seasons.length > 1}
                   <select
-                    class="h-9 rounded-md border border-white/10 bg-[#13151b] px-3 text-xs font-semibold text-white outline-none focus:ring-1 focus:ring-[#5844e0]"
+                    class="h-9 rounded-md border border-white/[0.08] bg-[var(--color-field)] px-3 text-xs font-semibold text-white outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
                     value={currentSeason?.id ?? ''}
                     onchange={(event) => (selectedSeasonId = (event.currentTarget as HTMLSelectElement).value)}
                   >
@@ -2899,11 +2909,11 @@
                 <!-- Episode Sorting Toggle (Item 3) -->
                 <button
                   type="button"
-                  class="inline-flex h-8 items-center gap-1.5 rounded-md border border-white/10 bg-surface/50 px-2.5 text-xs font-medium text-white transition hover:bg-white/10"
+                  class="inline-flex h-8 items-center gap-1.5 rounded-md border border-white/[0.08] bg-surface/50 px-2.5 text-xs font-medium text-white transition hover:bg-white/10"
                   onclick={() => (episodeSortOrder = episodeSortOrder === 'asc' ? 'desc' : 'asc')}
                   title="Toggle episode sort order"
                 >
-                  <ArrowUpDown size={13} class="text-[#a5b4fc]" aria-hidden="true" />
+                  <ArrowUpDown size={13} class="text-[var(--color-accent-soft)]" aria-hidden="true" />
                   {episodeSortOrder === 'asc' ? i18n.t.detail.sortAsc : i18n.t.detail.sortDesc}
                 </button>
 
@@ -2933,14 +2943,14 @@
 
             <!-- Episodes List -->
             {#if seasons.length === 0}
-              <p class="rounded-xl bg-[#222634] p-5 text-sm text-muted">{i18n.t.views.noSeasons}</p>
+              <p class="rounded-xl bg-[var(--color-panel-line)] p-5 text-sm text-muted">{i18n.t.views.noSeasons}</p>
             {:else if episodes.length === 0}
-              <p class="rounded-xl bg-[#222634] p-5 text-sm text-muted">{i18n.t.common.noData}</p>
+              <p class="rounded-xl bg-[var(--color-panel-line)] p-5 text-sm text-muted">{i18n.t.common.noData}</p>
             {:else}
               <div class="space-y-2">
                 {#each sortedEpisodes as episode (episode.id)}
-                  <article class="flex items-center gap-3.5 rounded-xl border border-white/5 bg-[#222634] p-3.5 transition hover:bg-[#282d3d]">
-                    <span class="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#13151b] text-xs font-bold text-[#9ca3af]">
+                  <article class="flex items-center gap-3.5 rounded-xl border border-white/[0.06] bg-[var(--color-panel-line)] p-3.5 transition hover:bg-[var(--color-panel-raised)]">
+                    <span class="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[var(--color-field)] text-xs font-bold text-[var(--color-muted)]">
                       E{episode.number}
                     </span>
                     <div class="min-w-0 flex-1">
@@ -2949,7 +2959,7 @@
                         <p class="mt-0.5 text-xs text-muted">{formatDate(episode.airDate)}</p>
                       {/if}
                       {#if episode.description}
-                        <p class="mt-1 line-clamp-2 text-xs leading-relaxed text-[#9ca3af]">{episode.description}</p>
+                        <p class="mt-1 line-clamp-2 text-xs leading-relaxed text-[var(--color-muted)]">{episode.description}</p>
                       {/if}
                     </div>
 
@@ -2960,7 +2970,7 @@
                         class={`grid h-8 w-8 place-items-center rounded-full border transition active:scale-95 disabled:cursor-wait disabled:opacity-60 ${
                           episode.watched
                             ? 'border-emerald-500/40 bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30'
-                            : 'border-white/10 bg-[#13151b] text-[#9ca3af] hover:bg-[#222634] hover:text-white'
+                            : 'border-white/[0.08] bg-[var(--color-field)] text-[var(--color-muted)] hover:bg-[var(--color-panel-line)] hover:text-white'
                         }`}
                         aria-label={episode.watched ? i18n.t.detail.markWatched : i18n.t.detail.watchAction}
                         title={episode.watched ? i18n.t.detail.unwatchAction : i18n.t.detail.markWatched}
@@ -2976,7 +2986,7 @@
 
                       <button
                         type="button"
-                        class="grid h-8 w-8 place-items-center rounded-full text-muted transition hover:bg-[#13151b] hover:text-white"
+                        class="grid h-8 w-8 place-items-center rounded-full text-muted transition hover:bg-[var(--color-field)] hover:text-white"
                         aria-label={i18n.t.views.listsTitle}
                         title={i18n.t.views.listsTitle}
                         onclick={() => onNavigate('lists')}
@@ -2995,11 +3005,11 @@
         <!-- TAB: MANGA VOLUMES -->
         {#if activeSubTab === 'volumes' && media.type === 'manga'}
           <section class="space-y-4">
-            <div class="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-[#222634] p-3.5">
+            <div class="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-[var(--color-panel-line)] p-3.5">
               <div class="flex items-center gap-2">
-                <Layers size={16} class="text-[#a5b4fc]" />
+                <Layers size={16} class="text-[var(--color-accent-soft)]" />
                 <h3 class="text-sm font-bold text-white">{i18n.t.detail.tabVolumes}</h3>
-                <span class="rounded-full bg-white/10 px-2.5 py-0.5 text-xs font-semibold text-[#a5b4fc]">
+                <span class="rounded-full bg-white/10 px-2.5 py-0.5 text-xs font-semibold text-[var(--color-accent-soft)]">
                   {mangaVolumes.length}
                 </span>
               </div>
@@ -3018,7 +3028,7 @@
                 {/if}
                 <button
                   type="button"
-                  class="inline-flex h-8 items-center gap-1.5 rounded-md bg-[#5844e0] px-3 text-xs font-semibold text-white transition hover:bg-[#6854f0] disabled:opacity-50"
+                  class="inline-flex h-8 items-center gap-1.5 rounded-md bg-[var(--color-accent)] px-3 text-xs font-semibold text-white transition hover:bg-[var(--color-accent-bright)] disabled:opacity-50"
                   disabled={Boolean(volumeBusy)}
                   onclick={() => void handleAddVolume()}
                 >
@@ -3029,12 +3039,12 @@
             </div>
 
             {#if mangaVolumes.length === 0}
-              <div class="rounded-xl border border-white/10 bg-[#222634]/40 p-8 text-center space-y-3">
+              <div class="rounded-xl border border-white/[0.08] bg-[color-mix(in_oklab,var(--color-panel-line)_40%,transparent)] p-8 text-center space-y-3">
                 <Layers size={36} class="mx-auto text-muted/60" />
                 <p class="text-sm text-muted">No volumes tracked yet for this manga.</p>
                 <button
                   type="button"
-                  class="inline-flex items-center gap-1.5 rounded-lg bg-[#5844e0] px-4 py-2 text-xs font-semibold text-white transition hover:bg-[#6854f0]"
+                  class="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-accent)] px-4 py-2 text-xs font-semibold text-white transition hover:bg-[var(--color-accent-bright)]"
                   disabled={Boolean(volumeBusy)}
                   onclick={() => void handleAddVolume()}
                 >
@@ -3049,7 +3059,7 @@
                   {@const current = volumeCurrent(vol)}
                   {@const total = volumeTotal(vol)}
                   {@const percent = volumePercent(vol)}
-                  <div class="rounded-xl border border-white/10 bg-[#222634] p-4 space-y-3 shadow-sm hover:border-white/20 transition">
+                  <div class="rounded-xl border border-white/[0.08] bg-[var(--color-panel-line)] p-4 space-y-3 shadow-sm hover:border-white/[0.14] transition">
                     <div class="flex items-start justify-between gap-2">
                       <div class="min-w-0">
                         <h4 class="text-sm font-bold text-white truncate">{vol.title || `Volume ${vol.volumeNumber}`}</h4>
@@ -3073,13 +3083,13 @@
                         <span>{percent.toFixed(0)}%</span>
                       </div>
                       <div class="h-2 w-full overflow-hidden rounded-full bg-black/40">
-                        <div class="h-full rounded-full bg-gradient-to-r from-[#5844e0] to-[#7dd3fc] transition-all duration-300" style={`width: ${percent}%`}></div>
+                        <div class="h-full rounded-full bg-gradient-to-r from-[var(--color-accent)] to-[var(--color-info-soft)] transition-all duration-300" style={`width: ${percent}%`}></div>
                       </div>
                     </div>
 
                     <!-- Stepper & Actions -->
-                    <div class="flex items-center justify-between gap-2 pt-1 border-t border-white/5">
-                      <div class="flex h-8 items-center rounded-lg bg-[#13151b] border border-white/10">
+                    <div class="flex items-center justify-between gap-2 pt-1 border-t border-white/[0.06]">
+                      <div class="flex h-8 items-center rounded-lg bg-[var(--color-field)] border border-white/[0.08]">
                         <button
                           type="button"
                           class="grid h-full w-8 place-items-center text-muted transition hover:text-white disabled:opacity-30"
@@ -3102,7 +3112,7 @@
                       <div class="flex items-center gap-1.5">
                         <button
                           type="button"
-                          class="inline-flex h-8 items-center gap-1 rounded-lg bg-white/5 border border-white/10 px-2 text-xs font-semibold text-muted hover:bg-white/10 hover:text-white transition"
+                          class="inline-flex h-8 items-center gap-1 rounded-lg bg-white/5 border border-white/[0.08] px-2 text-xs font-semibold text-muted hover:bg-white/10 hover:text-white transition"
                           onclick={() => openEditVolume(vol)}
                           title="Edit volume"
                         >
@@ -3110,7 +3120,7 @@
                         </button>
                         <button
                           type="button"
-                          class="inline-flex h-8 items-center gap-1 rounded-lg bg-white/5 border border-white/10 px-2 text-xs font-semibold text-muted hover:bg-rose-500/20 hover:text-rose-400 transition"
+                          class="inline-flex h-8 items-center gap-1 rounded-lg bg-white/5 border border-white/[0.08] px-2 text-xs font-semibold text-muted hover:bg-rose-500/20 hover:text-rose-400 transition"
                           onclick={() => void handleDeleteVolume(vol)}
                           title="Delete volume"
                         >
@@ -3125,17 +3135,17 @@
                             onclick={() => void markVolumeComplete(vol)}
                           >
                             <Check size={13} />
-                            {i18n.t.detail.watchAction}
+                            {i18n.t.detail.markRead}
                           </button>
                         {:else}
                           <button
                             type="button"
-                            class="inline-flex h-8 items-center gap-1 rounded-lg bg-white/5 border border-white/10 px-2.5 text-xs font-semibold text-muted transition hover:bg-white/10 hover:text-white disabled:opacity-50"
+                            class="inline-flex h-8 items-center gap-1 rounded-lg bg-white/5 border border-white/[0.08] px-2.5 text-xs font-semibold text-muted transition hover:bg-white/10 hover:text-white disabled:opacity-50"
                             disabled={Boolean(volumeBusy)}
                             onclick={() => void unmarkVolumeComplete(vol)}
                           >
                             <X size={13} />
-                            Unmark
+                            {i18n.t.detail.unmarkRead}
                           </button>
                         {/if}
                       </div>
@@ -3158,7 +3168,7 @@
 
               <!-- View Switchers (Items 2, 4) - Compact icon-only square buttons with hover tooltip -->
               {#if related.length > 0}
-                <div class="inline-flex items-center rounded-lg border border-white/10 bg-[#171a23] p-1 self-start sm:self-auto gap-1">
+                <div class="inline-flex items-center rounded-lg border border-white/[0.08] bg-[var(--color-track-alt)] p-1 self-start sm:self-auto gap-1">
                   <button
                     type="button"
                     class={`grid h-8 w-8 place-items-center rounded-md transition cursor-pointer ${
@@ -3208,8 +3218,8 @@
               <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
                 {#each Array(5) as _, idx (idx)}
                   <div class="space-y-2">
-                    <div class="aspect-[2/3] w-full animate-pulse rounded-xl bg-[#222634]"></div>
-                    <div class="h-3 w-3/4 animate-pulse rounded bg-[#222634]"></div>
+                    <div class="aspect-[2/3] w-full animate-pulse rounded-xl bg-[var(--color-panel-line)]"></div>
+                    <div class="h-3 w-3/4 animate-pulse rounded bg-[var(--color-panel-line)]"></div>
                   </div>
                 {/each}
               </div>
@@ -3226,13 +3236,13 @@
                 </button>
               </div>
             {:else if related.length === 0}
-              <p class="rounded-xl bg-[#222634] p-5 text-sm text-muted">{i18n.t.detail.relatedEmpty}</p>
+              <p class="rounded-xl bg-[var(--color-panel-line)] p-5 text-sm text-muted">{i18n.t.detail.relatedEmpty}</p>
             {:else}
               <!-- Snippet for related card with bottom gradient & status/rating badges -->
               {#snippet relatedCard(rel: RelatedEntry)}
                 <button
                   type="button"
-                  class="group relative flex flex-col aspect-[2/3] w-full overflow-hidden rounded-xl border border-white/5 bg-[#1e2230] text-left transition duration-300 hover:border-accent/50 hover:shadow-xl hover:shadow-accent/10 cursor-pointer"
+                  class="group relative flex flex-col aspect-[2/3] w-full overflow-hidden rounded-xl border border-white/[0.06] bg-[var(--color-overlay-strong)] text-left transition duration-300 hover:border-accent/50 hover:shadow-xl hover:shadow-accent/10 cursor-pointer"
                   onclick={() => handleRelatedClick(rel)}
                 >
                   <!-- Poster image -->
@@ -3244,7 +3254,7 @@
                       loading="lazy"
                     />
                   {:else}
-                    <div class="grid h-full w-full place-items-center bg-[#13151b] text-muted">
+                    <div class="grid h-full w-full place-items-center bg-[var(--color-field)] text-muted">
                       <ImageIcon size={32} stroke-width={1.25} aria-hidden="true" />
                     </div>
                   {/if}
@@ -3273,7 +3283,7 @@
                       <!-- Rating circle -->
                       {#if rel.localItem.score !== null && rel.localItem.score > 0}
                         <div
-                          class="relative z-20 -ml-2 flex h-7 w-7 items-center justify-center rounded-full bg-[#2a3cb8] text-white shadow-lg border-2 border-[#7786ee]/80 ring-2 ring-[#7786ee]/30 font-black text-xs select-none"
+                          class="relative z-20 -ml-2 flex h-7 w-7 items-center justify-center rounded-full bg-[var(--color-score-bg)] text-white shadow-lg border-2 border-[color-mix(in_oklab,var(--color-accent-line)_80%,transparent)] ring-2 ring-[color-mix(in_oklab,var(--color-accent-line)_30%,transparent)] font-black text-xs select-none"
                           title={`${i18n.t.createModal.fields.score}: ${rel.localItem.score}`}
                         >
                           {rel.localItem.score}
@@ -3310,7 +3320,7 @@
                 <div class="space-y-8">
                   {#each relatedGroups as group (group.id)}
                     <div class="space-y-3">
-                      <div class="flex items-center gap-2.5 border-b border-white/10 pb-2.5">
+                      <div class="flex items-center gap-2.5 border-b border-white/[0.08] pb-2.5">
                         <h3 class="text-base sm:text-lg font-bold text-white tracking-tight">{group.title}</h3>
                         <span class="rounded-full bg-white/10 px-2.5 py-0.5 text-xs font-bold text-muted">
                           {group.items.length}
@@ -3335,8 +3345,8 @@
                         item.isCurrent
                           ? 'border-accent bg-accent text-white shadow-lg shadow-accent/50 ring-4 ring-accent/20'
                           : item.localItem
-                            ? 'border-emerald-500 bg-[#13151b] text-emerald-400'
-                            : 'border-white/20 bg-[#13151b] text-slate-400'
+                            ? 'border-emerald-500 bg-[var(--color-field)] text-emerald-400'
+                            : 'border-white/[0.14] bg-[var(--color-field)] text-slate-400'
                       }`}>
                         {#if item.isCurrent}
                           <div class="h-2 w-2 rounded-full bg-white"></div>
@@ -3353,7 +3363,7 @@
                         class={`flex flex-1 items-center gap-3.5 rounded-xl border p-2.5 transition text-left cursor-pointer ${
                           item.isCurrent
                             ? 'border-accent/60 bg-accent/10 shadow-md ring-1 ring-accent/30'
-                            : 'border-white/5 bg-[#222634] hover:border-white/20 hover:bg-[#282d3d]'
+                            : 'border-white/[0.06] bg-[var(--color-panel-line)] hover:border-white/[0.14] hover:bg-[var(--color-panel-raised)]'
                         }`}
                         onclick={() => {
                           if (item.isCurrent) return
@@ -3361,7 +3371,7 @@
                         }}
                       >
                         <!-- Mini poster -->
-                        <div class="relative aspect-[2/3] h-16 shrink-0 overflow-hidden rounded-lg bg-[#13151b]">
+                        <div class="relative aspect-[2/3] h-16 shrink-0 overflow-hidden rounded-lg bg-[var(--color-field)]">
                           {#if item.coverUrl}
                             <img src={item.coverUrl} alt={item.title} class="h-full w-full object-cover" />
                           {:else}
@@ -3389,7 +3399,7 @@
                             <span class={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${
                               item.isCurrent
                                 ? 'bg-accent text-white'
-                                : 'bg-white/5 text-slate-300 border border-white/10'
+                                : 'bg-white/5 text-slate-300 border border-white/[0.08]'
                             }`}>
                               {item.relationType}
                             </span>
@@ -3404,11 +3414,11 @@
                         <!-- Rating / Action on right -->
                         <div class="shrink-0 pr-2">
                           {#if item.localItem?.score}
-                            <span class="rounded-full bg-[#2a3cb8] border border-[#7786ee]/80 px-2.5 py-0.5 text-xs font-black text-white">
+                            <span class="rounded-full bg-[var(--color-score-bg)] border border-[color-mix(in_oklab,var(--color-accent-line)_80%,transparent)] px-2.5 py-0.5 text-xs font-black text-white">
                               {item.localItem.score}
                             </span>
                           {:else if !item.localItem && !item.isCurrent}
-                            <span class="rounded-md border border-white/10 bg-white/5 px-2.5 py-1 text-xs font-medium text-slate-300 group-hover:border-accent/40 group-hover:text-accent-soft">
+                            <span class="rounded-md border border-white/[0.08] bg-white/5 px-2.5 py-1 text-xs font-medium text-slate-300 group-hover:border-accent/40 group-hover:text-accent-soft">
                               {i18n.t.detail.overviewBadge}
                             </span>
                           {/if}
@@ -3431,23 +3441,12 @@
 
           <!-- PREVIEW MODAL FOR UNADDED RELATED ITEMS (Items 3, 5 - Identical to SearchModal preview) -->
           {#if previewRelatedItem}
-            <div
-              class="fixed inset-0 z-[60] flex items-center justify-center overflow-y-auto bg-black/75 p-4 backdrop-blur-md"
-              role="presentation"
-              onclick={() => (previewRelatedItem = null)}
-            >
-              <!-- svelte-ignore a11y_click_events_have_key_events -->
-              <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-              <div
-                class="relative flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-border bg-surface p-6 shadow-2xl"
-                role="dialog"
-                aria-modal="true"
-                tabindex="-1"
-                onclick={(e) => e.stopPropagation()}
-              >
+            <Modal isOpen={Boolean(previewRelatedItem)} onClose={() => (previewRelatedItem = null)} labelledBy="related-preview-title">
+              <div class="flex max-h-[85vh] flex-col p-6">
+                <h2 id="related-preview-title" class="sr-only">{previewRelatedItem.title}</h2>
                 <button
                   type="button"
-                  class="absolute right-4 top-4 grid h-8 w-8 place-items-center rounded-lg text-muted transition hover:bg-elevated hover:text-ink cursor-pointer"
+                  class="tap absolute right-4 top-4 z-10 grid h-8 w-8 place-items-center rounded-lg text-muted transition hover:bg-elevated hover:text-ink cursor-pointer"
                   title={i18n.t.common.close}
                   aria-label={i18n.t.common.close}
                   onclick={() => (previewRelatedItem = null)}
@@ -3475,7 +3474,7 @@
                             {previewRelatedItem.relationType}
                           </span>
                         {/if}
-                        <span class="rounded-full border border-border bg-elevated px-2.5 py-0.5 text-[11px] font-semibold text-muted">
+                        <span class="rounded-full border border-white/10 bg-field px-2.5 py-0.5 text-[11px] font-semibold text-muted">
                           AniList
                         </span>
                       </div>
@@ -3491,7 +3490,7 @@
                       {#if previewRelatedBadges.length > 0}
                         <div class="flex flex-wrap items-center gap-2">
                           {#each previewRelatedBadges as r}
-                            <div class="inline-flex items-center gap-1 rounded-md border border-border bg-elevated px-2 py-0.5 text-xs">
+                            <div class="inline-flex items-center gap-1 rounded-md border border-white/10 bg-field px-2 py-0.5 text-xs">
                               <span class="font-medium text-muted">{r.source}:</span>
                               {#if r.score !== null && r.score > 0}
                                 <span class="flex items-center gap-0.5 font-bold text-star">
@@ -3507,7 +3506,7 @@
                           {/each}
                         </div>
                       {:else}
-                        <div class="inline-flex items-center gap-1 rounded-md border border-border bg-elevated px-2 py-0.5 text-xs text-muted">
+                        <div class="inline-flex items-center gap-1 rounded-md border border-white/10 bg-field px-2 py-0.5 text-xs text-muted">
                           <Star size={11} />
                           <span>{i18n.t.detail.previewModal.noRatings}</span>
                         </div>
@@ -3551,7 +3550,7 @@
                           <select
                             id="preview-status"
                             bind:value={previewStatus}
-                            class="rounded-md border border-border bg-elevated px-2.5 py-1.5 text-xs font-medium text-ink outline-none focus:border-accent"
+                            class="rounded-md border border-white/10 bg-field px-2.5 py-1.5 text-xs font-medium text-ink outline-none focus:border-accent"
                           >
                             {#each statusOptions as opt}
                               <option value={opt}>{statusLabel(opt)}</option>
@@ -3561,7 +3560,7 @@
 
                         <button
                           type="button"
-                          class="inline-flex items-center gap-2 rounded-lg border border-border bg-elevated px-4 py-2 text-xs font-semibold text-ink transition hover:border-accent hover:bg-panel disabled:cursor-wait disabled:opacity-70 cursor-pointer"
+                          class="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-field px-4 py-2 text-xs font-semibold text-ink transition hover:border-accent hover:bg-panel disabled:cursor-wait disabled:opacity-70 cursor-pointer"
                           disabled={previewAddingBusy}
                           onclick={() => {
                             if (previewRelatedItem) void addRelatedToLibrary(previewRelatedItem, previewStatus)
@@ -3589,9 +3588,9 @@
                   </div>
                 </div>
               </div>
-            </div>
+</Modal>
+            {/if}
           {/if}
-        {/if}
 
         <!-- TAB 4: RECOMMENDATIONS (Item 19) -->
         {#if activeSubTab === 'recommendations'}
@@ -3601,12 +3600,12 @@
                 <h2 class="text-sm font-bold uppercase tracking-wider text-slate-300">{i18n.t.detail.tabRecommendations}</h2>
                 <button
                   type="button"
-                  class="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-surface/50 px-2.5 py-1 text-xs font-medium text-slate-300 transition hover:bg-white/10 hover:text-white disabled:opacity-50 cursor-pointer"
+                  class="inline-flex items-center gap-1.5 rounded-lg border border-white/[0.08] bg-surface/50 px-2.5 py-1 text-xs font-medium text-slate-300 transition hover:bg-white/10 hover:text-white disabled:opacity-50 cursor-pointer"
                   disabled={recommendationsLoading}
                   onclick={() => void loadRecommendations(true)}
                   title={i18n.current === 'ru' ? 'Перезагрузить рекомендации' : 'Reload recommendations'}
                 >
-                  <RefreshCw size={13} class={recommendationsLoading ? 'animate-spin text-[#34d399]' : 'text-[#34d399]'} />
+                  <RefreshCw size={13} class={recommendationsLoading ? 'animate-spin text-[var(--color-success-line)]' : 'text-[var(--color-success-line)]'} />
                   <span>{i18n.current === 'ru' ? 'Перезагрузить' : 'Reload'}</span>
                 </button>
               </div>
@@ -3617,8 +3616,8 @@
               <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
                 {#each Array(5) as _, idx (idx)}
                   <div class="space-y-2">
-                    <div class="aspect-[2/3] w-full animate-pulse rounded-lg bg-[#222634]"></div>
-                    <div class="h-3 w-3/4 animate-pulse rounded bg-[#222634]"></div>
+                    <div class="aspect-[2/3] w-full animate-pulse rounded-lg bg-[var(--color-panel-line)]"></div>
+                    <div class="h-3 w-3/4 animate-pulse rounded bg-[var(--color-panel-line)]"></div>
                   </div>
                 {/each}
               </div>
@@ -3635,19 +3634,19 @@
                 </button>
               </div>
             {:else if recommendations.length === 0}
-              <p class="rounded-xl bg-[#222634] p-5 text-sm text-muted">{i18n.t.detail.noRecommendations}</p>
+              <p class="rounded-xl bg-[var(--color-panel-line)] p-5 text-sm text-muted">{i18n.t.detail.noRecommendations}</p>
             {:else}
               <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
                 {#each recommendations as rec (rec.id)}
                   <div class="group flex flex-col items-start text-left">
-                    <div class="aspect-[2/3] w-full overflow-hidden rounded-lg bg-[#222634] transition group-hover:ring-2 group-hover:ring-[#5844e0]">
+                    <div class="aspect-[2/3] w-full overflow-hidden rounded-lg bg-[var(--color-panel-line)] transition group-hover:ring-2 group-hover:ring-[var(--color-accent)]">
                       {#if rec.coverUrl}
                         <img src={rec.coverUrl} alt={rec.title} class="h-full w-full object-cover transition duration-300 group-hover:scale-105" />
                       {:else}
                         <div class="grid h-full place-items-center text-muted"><ImageIcon size={24} stroke-width={1.25} aria-hidden="true" /></div>
                       {/if}
                     </div>
-                    <span class="mt-1.5 line-clamp-1 text-xs font-semibold text-white group-hover:text-[#a5b4fc]">{rec.title}</span>
+                    <span class="mt-1.5 line-clamp-1 text-xs font-semibold text-white group-hover:text-[var(--color-accent-soft)]">{rec.title}</span>
                     <div class="flex items-center justify-between w-full mt-0.5 text-[11px] text-muted">
                       <span>{rec.type}</span>
                       {#if rec.score}
@@ -3671,7 +3670,7 @@
     role="presentation"
     onclick={(e) => { if (e.target === e.currentTarget) addVolumeDialogOpen = false }}
   >
-    <div class="w-full max-w-sm rounded-xl border border-white/10 bg-[#1a1d27] p-6 shadow-2xl space-y-4">
+    <div class="w-full max-w-sm rounded-xl border border-white/[0.08] bg-[var(--color-track-mid)] p-6 shadow-2xl space-y-4">
       <h3 class="text-sm font-bold text-white">Add Volume</h3>
       <div class="space-y-3">
         <div>
@@ -3679,7 +3678,7 @@
           <input
             id="add-vol-title"
             type="text"
-            class="h-9 w-full rounded-md border border-white/10 bg-[#13151b] px-3 text-xs text-white outline-none focus:ring-1 focus:ring-[#5844e0]"
+            class="h-9 w-full rounded-md border border-white/[0.08] bg-[var(--color-field)] px-3 text-xs text-white outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
             bind:value={addVolumeTitle}
             onkeydown={(e) => { if (e.key === 'Enter') void confirmAddVolume() }}
           />
@@ -3690,7 +3689,7 @@
             id="add-vol-chapters"
             type="number"
             min="0"
-            class="h-9 w-full rounded-md border border-white/10 bg-[#13151b] px-3 text-xs text-white outline-none focus:ring-1 focus:ring-[#5844e0]"
+            class="h-9 w-full rounded-md border border-white/[0.08] bg-[var(--color-field)] px-3 text-xs text-white outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
             bind:value={addVolumeChapters}
           />
         </div>
@@ -3698,14 +3697,14 @@
       <div class="flex justify-end gap-2 pt-1">
         <button
           type="button"
-          class="inline-flex h-8 items-center rounded-md border border-white/10 px-3 text-xs font-medium text-muted hover:text-white transition"
+          class="inline-flex h-8 items-center rounded-md border border-white/[0.08] px-3 text-xs font-medium text-muted hover:text-white transition"
           onclick={() => (addVolumeDialogOpen = false)}
         >
           Cancel
         </button>
         <button
           type="button"
-          class="inline-flex h-8 items-center gap-1.5 rounded-md bg-[#5844e0] px-3 text-xs font-semibold text-white transition hover:bg-[#6854f0] disabled:opacity-50"
+          class="inline-flex h-8 items-center gap-1.5 rounded-md bg-[var(--color-accent)] px-3 text-xs font-semibold text-white transition hover:bg-[var(--color-accent-bright)] disabled:opacity-50"
           disabled={Boolean(volumeBusy)}
           onclick={() => void confirmAddVolume()}
         >
@@ -3723,7 +3722,7 @@
     role="presentation"
     onclick={(e) => { if (e.target === e.currentTarget) editVolumeDialogOpen = false }}
   >
-    <div class="w-full max-w-sm rounded-xl border border-white/10 bg-[#1a1d27] p-6 shadow-2xl space-y-4">
+    <div class="w-full max-w-sm rounded-xl border border-white/[0.08] bg-[var(--color-track-mid)] p-6 shadow-2xl space-y-4">
       <h3 class="text-sm font-bold text-white">Edit Volume</h3>
       <div class="space-y-3">
         <div>
@@ -3731,7 +3730,7 @@
           <input
             id="edit-vol-title"
             type="text"
-            class="h-9 w-full rounded-md border border-white/10 bg-[#13151b] px-3 text-xs text-white outline-none focus:ring-1 focus:ring-[#5844e0]"
+            class="h-9 w-full rounded-md border border-white/[0.08] bg-[var(--color-field)] px-3 text-xs text-white outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
             bind:value={editVolumeTitle}
             onkeydown={(e) => { if (e.key === 'Enter') void confirmEditVolume() }}
           />
@@ -3743,7 +3742,7 @@
               id="edit-vol-current-chapter"
               type="number"
               min="0"
-              class="h-9 w-full rounded-md border border-white/10 bg-[#13151b] px-3 text-xs text-white outline-none focus:ring-1 focus:ring-[#5844e0]"
+              class="h-9 w-full rounded-md border border-white/[0.08] bg-[var(--color-field)] px-3 text-xs text-white outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
               bind:value={editVolumeCurrentChapter}
             />
           </div>
@@ -3753,7 +3752,7 @@
               id="edit-vol-chapters"
               type="number"
               min="0"
-              class="h-9 w-full rounded-md border border-white/10 bg-[#13151b] px-3 text-xs text-white outline-none focus:ring-1 focus:ring-[#5844e0]"
+              class="h-9 w-full rounded-md border border-white/[0.08] bg-[var(--color-field)] px-3 text-xs text-white outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
               bind:value={editVolumeChapters}
             />
           </div>
@@ -3765,7 +3764,7 @@
               id="edit-vol-current-page"
               type="number"
               min="0"
-              class="h-9 w-full rounded-md border border-white/10 bg-[#13151b] px-3 text-xs text-white outline-none focus:ring-1 focus:ring-[#5844e0]"
+              class="h-9 w-full rounded-md border border-white/[0.08] bg-[var(--color-field)] px-3 text-xs text-white outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
               bind:value={editVolumeCurrentPage}
             />
           </div>
@@ -3775,7 +3774,7 @@
               id="edit-vol-pages"
               type="number"
               min="1"
-              class="h-9 w-full rounded-md border border-white/10 bg-[#13151b] px-3 text-xs text-white outline-none focus:ring-1 focus:ring-[#5844e0]"
+              class="h-9 w-full rounded-md border border-white/[0.08] bg-[var(--color-field)] px-3 text-xs text-white outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
               bind:value={editVolumePages}
             />
           </div>
@@ -3784,14 +3783,14 @@
       <div class="flex justify-end gap-2 pt-1">
         <button
           type="button"
-          class="inline-flex h-8 items-center rounded-md border border-white/10 px-3 text-xs font-medium text-muted hover:text-white transition"
+          class="inline-flex h-8 items-center rounded-md border border-white/[0.08] px-3 text-xs font-medium text-muted hover:text-white transition"
           onclick={() => (editVolumeDialogOpen = false)}
         >
           Cancel
         </button>
         <button
           type="button"
-          class="inline-flex h-8 items-center gap-1.5 rounded-md bg-[#5844e0] px-3 text-xs font-semibold text-white transition hover:bg-[#6854f0] disabled:opacity-50"
+          class="inline-flex h-8 items-center gap-1.5 rounded-md bg-[var(--color-accent)] px-3 text-xs font-semibold text-white transition hover:bg-[var(--color-accent-bright)] disabled:opacity-50"
           disabled={Boolean(volumeBusy)}
           onclick={() => void confirmEditVolume()}
         >

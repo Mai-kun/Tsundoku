@@ -20,6 +20,7 @@
   } from "$lib/types";
   import { createProgressDebounce } from "$lib/utils/progressDebounce";
   import { schedulePrefetchMediaDetail } from "$lib/utils/mediaDetailPrefetch";
+  import PopoverMenu from "$lib/components/ui/PopoverMenu.svelte";
 
   interface Props {
     item: MediaItem;
@@ -51,8 +52,6 @@
   let progressError = $state<unknown>(null);
   let deleteError = $state<unknown>(null);
 
-  let statusMenuOpen = $state(false);
-
   const statusOptions: readonly MediaStatus[] = [
     MEDIA_STATUS.planned,
     MEDIA_STATUS.inProgress,
@@ -61,8 +60,11 @@
     MEDIA_STATUS.dropped,
   ];
 
+  const statusMenuItems = $derived(
+    statusOptions.map((value) => ({ value, label: statusLabel(value) }))
+  );
+
   async function changeStatus(newStatus: MediaStatus) {
-    statusMenuOpen = false;
     const prevStatus = item.status;
     item.status = newStatus;
     if (onStatusChange) {
@@ -80,13 +82,6 @@
     }
   }
 
-  function handleWindowPointerDown(event: PointerEvent) {
-    if (!statusMenuOpen) return;
-    const target = event.target as HTMLElement;
-    if (!target.closest("[data-status-menu]")) {
-      statusMenuOpen = false;
-    }
-  }
   const progressDebounce = createProgressDebounce({
     send: (id, value) => (onProgress ?? (async () => {}))(id, value),
     buildRequest: (id, value) => ({
@@ -116,16 +111,6 @@
 
   $effect(() => {
     return () => void progressDebounce.flush(true);
-  });
-
-  // A <svelte:window> listener per card means one global pointerdown handler per grid cell. With a
-  // few hundred cards every click anywhere on the page walks hundreds of closures, so the listener
-  // is attached only while this card's status menu is actually open.
-  $effect(() => {
-    if (!statusMenuOpen) return;
-
-    window.addEventListener('pointerdown', handleWindowPointerDown, true);
-    return () => window.removeEventListener('pointerdown', handleWindowPointerDown, true);
   });
 
   function readProgress(media: MediaItem): number {
@@ -169,21 +154,30 @@
 
   function statusBadgeClasses(status: MediaStatus): string {
     switch (status) {
-      case 2: // Completed (Green circle with lighter green ring like in the image)
-        return "bg-[#22c55e] text-white border-2 border-[#86efac]/80 ring-2 ring-[#86efac]/30";
-      case 1: // In progress (Blue)
-        return "bg-[#2563eb] text-white border-2 border-[#93c5fd]/80 ring-2 ring-[#93c5fd]/30";
-      case 3: // On hold (Amber)
-        return "bg-[#d97706] text-white border-2 border-amber-300/80 ring-2 ring-amber-300/30";
-      case 4: // Dropped (Rose)
-        return "bg-[#dc2626] text-white border-2 border-rose-300/80 ring-2 ring-rose-300/30";
-      default: // Planned (Slate)
-        return "bg-[#334155] text-slate-100 border-2 border-slate-400/70 ring-2 ring-slate-400/20";
+      case MEDIA_STATUS.inProgress:
+        return "border-[#5844e0]/50 bg-[#5844e0]/30 text-[#a5b4fc]";
+      case MEDIA_STATUS.completed:
+        return "border-emerald-700/50 bg-emerald-950/80 text-emerald-300";
+      case MEDIA_STATUS.onHold:
+        return "border-amber-700/50 bg-amber-950/80 text-amber-300";
+      case MEDIA_STATUS.dropped:
+        return "border-rose-700/50 bg-rose-950/80 text-rose-300";
+      default:
+        return "border-zinc-700/50 bg-zinc-800/80 text-zinc-300";
     }
   }
 
   function format(value: number): string {
     return new Intl.NumberFormat(i18n.current).format(value);
+  }
+
+  /**
+   * Games list every platform the release shipped on; the only one that means
+   * something to the user is the one they picked.
+   */
+  function cardPlatform(media: MediaItem): string | null {
+    if (media.type !== "game") return null;
+    return media.userPlatform?.trim() || media.platform?.trim() || null;
   }
 
   function cardTypeLabel(media: MediaItem): string {
@@ -275,8 +269,8 @@
 
 <!-- svelte-ignore a11y_no_noninteractive_element_to_interactive_role -->
 <article
-  class="group relative cursor-pointer overflow-hidden rounded-lg bg-card transition hover:bg-card-hover"
-  style="content-visibility: auto; contain-intrinsic-size: auto 280px;"
+  class="@container group relative cursor-pointer rounded-xl border border-white/[0.05] bg-card p-2.5 shadow-lg transition-all hover:border-white/[0.1] hover:bg-card-hover focus-within:ring-2 focus-within:ring-indigo-500/30"
+  style="content-visibility: auto; contain-intrinsic-size: auto 300px;"
   role="button"
   tabindex="0"
   aria-label={i18n.t.card.openDetails(item.title)}
@@ -285,7 +279,7 @@
   onfocus={() => schedulePrefetchMediaDetail(item.id)}
   onkeydown={handleCardKeydown}
 >
-  <div class="aspect-[3/4] overflow-hidden bg-canvas">
+  <div class="aspect-[3/4] overflow-hidden rounded-lg bg-canvas">
     {#if item.coverUrl}
       <img
         src={item.coverUrl}
@@ -303,89 +297,72 @@
     {/if}
 
     <div
-      class="absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-3"
+      class="absolute inset-x-0 top-0 z-10 flex items-start justify-between gap-2 p-2.5"
     >
-      <div class="relative flex items-center" data-status-menu>
-        <!-- Status Button (Left, z-10) -->
-        <button
-          type="button"
-          class={`relative z-10 flex h-8 w-8 items-center justify-center rounded-full shadow-lg backdrop-blur transition hover:scale-105 active:scale-95 cursor-pointer ${statusBadgeClasses(item.status)}`}
-          onclick={(e) => {
-            e.stopPropagation();
-            statusMenuOpen = !statusMenuOpen;
-          }}
-          title={statusLabel(item.status)}
-          aria-label={statusLabel(item.status)}
+      <!-- Status + rating as one overlapping cluster in the poster's top-left corner.
+           The score circle pulls left (-ml-2) and carries a ring in the card colour,
+           so the pair reads as a single unit instead of two unrelated chips. -->
+      <div class="relative flex items-center">
+        <PopoverMenu
+          id={`status-${item.id}`}
+          options={statusMenuItems}
+          selected={item.status}
+          onSelect={(value) => void changeStatus(value as MediaStatus)}
+          label={i18n.t.status.label}
+          openOnHover
         >
-          {#if item.status === 0}
-            <Bookmark size={14} stroke-width={2.2} />
-          {:else if item.status === 1}
-            <Play size={13} fill="currentColor" class="translate-x-0.5" />
-          {:else if item.status === 2}
-            <Check size={16} stroke-width={3} />
-          {:else if item.status === 3}
-            <Pause size={13} stroke-width={2.5} />
-          {:else if item.status === 4}
-            <X size={14} stroke-width={2.5} />
-          {/if}
-        </button>
+          {#snippet trigger({ popoverTargetId, anchorName })}
+            <button
+              type="button"
+              popovertarget={popoverTargetId}
+              popovertargetaction="toggle"
+              style="anchor-name: {anchorName}"
+              class="tap grid h-7 w-7 place-items-center rounded-full border shadow-lg backdrop-blur transition hover:brightness-125 has-[:popover-open]:ring-2 has-[:popover-open]:ring-indigo-400/70 ${statusBadgeClasses(item.status)}"
+              title={statusLabel(item.status)}
+              aria-label={statusLabel(item.status)}
+            >
+              {#if item.status === MEDIA_STATUS.planned}
+                <Bookmark size={13} stroke-width={2.2} aria-hidden="true" />
+              {:else if item.status === MEDIA_STATUS.inProgress}
+                <Play size={12} fill="currentColor" class="translate-x-px" aria-hidden="true" />
+              {:else if item.status === MEDIA_STATUS.completed}
+                <Check size={14} stroke-width={3} aria-hidden="true" />
+              {:else if item.status === MEDIA_STATUS.onHold}
+                <Pause size={12} stroke-width={2.5} aria-hidden="true" />
+              {:else if item.status === MEDIA_STATUS.dropped}
+                <X size={13} stroke-width={2.5} aria-hidden="true" />
+              {/if}
+            </button>
+          {/snippet}
+        </PopoverMenu>
 
-        <!-- Rating Circle (Right, overlaid on top with z-20 and -ml-2.5) -->
         {#if item.score !== null && item.score > 0}
           <div
-            class="relative z-20 -ml-2.5 flex h-8 w-8 items-center justify-center rounded-full bg-[#2a3cb8] text-white shadow-lg border-2 border-[#7786ee]/80 ring-2 ring-[#7786ee]/30 font-black text-xs sm:text-sm tracking-tight select-none"
+            class="-ml-2 grid h-7 w-7 place-items-center rounded-full bg-score-bg text-[11px] font-black tabular-nums tracking-tight text-white ring-2 ring-card shadow-lg select-none"
             title={`${i18n.t.createModal.fields.score}: ${item.score}`}
           >
             {format(item.score)}
           </div>
         {/if}
-
-        {#if statusMenuOpen}
-          <!-- svelte-ignore a11y_no_static_element_interactions a11y_interactive_supports_focus a11y_click_events_have_key_events -->
-          <div
-            class="absolute left-0 top-full mt-2 w-36 overflow-hidden rounded-md border border-white/10 bg-[#222634] py-1 shadow-xl z-30"
-            role="listbox"
-            tabindex="-1"
-            onclick={(e) => e.stopPropagation()}
-            onpointerdown={(e) => e.stopPropagation()}
-            onkeydown={(e) => e.stopPropagation()}
-          >
-            {#each statusOptions as option}
-              <button
-                type="button"
-                class={`flex w-full items-center justify-between px-3 py-2 text-left text-sm transition hover:bg-white/5 cursor-pointer ${option === item.status ? "text-accent-soft" : "text-muted"}`}
-                onclick={(e) => {
-                  e.stopPropagation();
-                  changeStatus(option);
-                }}
-              >
-                {statusLabel(option)}
-                {#if option === item.status}
-                  <Check size={14} class="text-accent-soft" />
-                {/if}
-              </button>
-            {/each}
-          </div>
-        {/if}
       </div>
 
-      <div class="flex gap-1">
+      <div class="flex items-center gap-1.5">
         <button
           type="button"
-          class="flex h-8 w-8 items-center justify-center rounded-md bg-black/60 backdrop-blur-md text-white/70 opacity-0 shadow-md transition hover:bg-rose-600 hover:text-white hover:scale-105 focus:opacity-100 group-hover:opacity-100 cursor-pointer"
+          class="tap grid h-7 w-7 place-items-center rounded-full border border-white/[0.06] bg-black/60 text-white/70 opacity-0 shadow-md backdrop-blur-md transition hover:border-rose-500/40 hover:bg-rose-600 hover:text-white focus:opacity-100 group-hover:opacity-100 cursor-pointer"
           aria-label={i18n.t.card.deleteAria(item.title)}
           onclick={(event) => {
             event.stopPropagation();
             void removeItem();
           }}
         >
-          <Trash2 size={15} aria-hidden="true" />
+          <Trash2 size={14} aria-hidden="true" />
         </button>
       </div>
     </div>
   </div>
 
-  <div class="relative z-10 min-w-0 space-y-3 p-3.5">
+  <div class="relative z-10 min-w-0 space-y-3 px-0.5 pb-1 pt-3">
     <div class="min-w-0">
       <h2
         class="truncate break-words text-sm font-semibold text-ink"
@@ -395,14 +372,16 @@
       >
         {item.title}
       </h2>
-      <p class="mt-1 truncate text-xs text-muted">
-        {cardTypeLabel(item)}
-        {#if item.type === "game" && item.platform}
-          · {item.platform}
+      <p class="mt-1 truncate text-xs text-muted @max-[13rem]:hidden">
+        {#if cardPlatform(item)}
+          {cardPlatform(item)}
         {:else if item.type === "book" && item.author}
-          · {item.author}
-        {:else if item.type === "tvshow" && item.seasonsCount > 0}
-          · {item.seasonsCount}
+          {item.author}
+        {:else}
+          {cardTypeLabel(item)}
+          {#if item.type === "tvshow" && item.seasonsCount > 0}
+            • {item.seasonsCount}
+          {/if}
         {/if}
       </p>
     </div>
@@ -429,7 +408,7 @@
       <div class="flex h-8 items-center rounded-md bg-canvas">
         <button
           type="button"
-          class="grid h-full w-8 place-items-center rounded-l-md text-muted transition hover:bg-panel hover:text-ink"
+          class="tap grid h-full w-8 place-items-center rounded-l-md text-muted transition hover:bg-panel hover:text-ink"
           aria-label={i18n.t.card.decrement}
           onclick={(event) => {
             event.stopPropagation();
@@ -442,7 +421,7 @@
         >
         <button
           type="button"
-          class="grid h-full w-8 place-items-center rounded-r-md text-muted transition hover:bg-panel hover:text-ink"
+          class="tap grid h-full w-8 place-items-center rounded-r-md text-muted transition hover:bg-panel hover:text-ink"
           aria-label={i18n.t.card.increment}
           onclick={(event) => {
             event.stopPropagation();
@@ -456,7 +435,7 @@
       <div class="flex h-8 items-center rounded-md bg-canvas">
         <button
           type="button"
-          class="grid h-full w-8 place-items-center rounded-l-md text-muted transition hover:bg-panel hover:text-ink disabled:opacity-40"
+          class="tap grid h-full w-8 place-items-center rounded-l-md text-muted transition hover:bg-panel hover:text-ink disabled:opacity-40"
           aria-label={i18n.t.card.decrement}
           disabled={item.totalEpisodesWatched <= 0}
           onclick={(event) => {
@@ -469,7 +448,7 @@
         </span>
         <button
           type="button"
-          class="grid h-full w-8 place-items-center rounded-r-md text-muted transition hover:bg-panel hover:text-ink disabled:opacity-40"
+          class="tap grid h-full w-8 place-items-center rounded-r-md text-muted transition hover:bg-panel hover:text-ink disabled:opacity-40"
           aria-label={i18n.t.card.increment}
           disabled={item.totalEpisodesCount > 0 && item.totalEpisodesWatched >= item.totalEpisodesCount}
           onclick={(event) => {

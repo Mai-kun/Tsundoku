@@ -88,7 +88,7 @@
     </section>
 
     <section class="space-y-3">
-      <h1 class="text-xl font-bold tracking-tight text-ink">{i18n.t.views.seasonsOf(show.title)}</h1>
+      <h1 class="text-lg font-bold tracking-wide text-white">{i18n.t.views.seasonsOf(show.title)}</h1>
       {#if (show.seasons ?? []).length === 0}
         <div class="rounded-lg bg-surface p-8 text-center text-sm text-muted">{i18n.t.views.noSeasons}</div>
       {:else}

@@ -9,19 +9,19 @@
     switch (type) {
       case 'success':
         return {
-          container: 'border-emerald-500/30 bg-[#0f241d]/90 text-emerald-200 shadow-emerald-950/40',
+          container: 'border-emerald-500/30 bg-[color-mix(in_oklab,var(--color-success-surface)_90%,transparent)] text-emerald-200 shadow-emerald-950/40',
           icon: CheckCircle2,
           iconColor: 'text-emerald-400',
         }
       case 'warning':
         return {
-          container: 'border-amber-500/30 bg-[#281e0e]/90 text-amber-200 shadow-amber-950/40',
+          container: 'border-amber-500/30 bg-[color-mix(in_oklab,var(--color-warning-surface)_90%,transparent)] text-amber-200 shadow-amber-950/40',
           icon: AlertTriangle,
           iconColor: 'text-amber-400',
         }
       case 'error':
         return {
-          container: 'border-rose-500/30 bg-[#2b1016]/90 text-rose-200 shadow-rose-950/40',
+          container: 'border-rose-500/30 bg-[color-mix(in_oklab,var(--color-danger-surface)_90%,transparent)] text-rose-200 shadow-rose-950/40',
           icon: AlertCircle,
           iconColor: 'text-rose-400',
         }

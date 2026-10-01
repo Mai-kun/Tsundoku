@@ -119,7 +119,7 @@
     {#if events.length > 0}
       <button
         type="button"
-        class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-semibold text-rose-400 transition hover:bg-rose-500/10 hover:border-rose-500/40 cursor-pointer disabled:opacity-50"
+        class="inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-field px-3 py-1.5 text-xs font-semibold text-rose-400 transition hover:bg-rose-500/10 hover:border-rose-500/40 cursor-pointer disabled:opacity-50"
         disabled={clearing}
         onclick={handleClearAll}
       >

@@ -11,7 +11,7 @@
     <p class="mt-2 text-sm text-muted">{i18n.t.views.calendarHint}</p>
   </div>
 
-  <div class="flex min-h-[50vh] flex-col items-center justify-center rounded-xl border border-dashed border-border bg-surface/50 p-8 text-center sm:p-12">
+  <div class="flex min-h-[50vh] flex-col items-center justify-center rounded-xl border border-dashed border-white/10 bg-field/50 p-8 text-center sm:p-12">
     <div class="relative grid h-16 w-16 place-items-center rounded-2xl border border-border/60 bg-card shadow-sm">
       <CalendarDays size={28} class="text-accent-soft" aria-hidden="true" />
       <span class="absolute -right-1 -top-1 grid h-5 w-5 place-items-center rounded-full bg-accent text-[10px] text-white">

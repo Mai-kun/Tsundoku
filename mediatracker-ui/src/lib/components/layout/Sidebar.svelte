@@ -1,7 +1,8 @@
-<script lang="ts">
+﻿<script lang="ts">
   import BarChart3 from 'lucide-svelte/icons/bar-chart-3'
   import BookOpen from 'lucide-svelte/icons/book-open'
   import CalendarDays from 'lucide-svelte/icons/calendar-days'
+  import Clapperboard from 'lucide-svelte/icons/clapperboard'
   import Film from 'lucide-svelte/icons/film'
   import Gamepad2 from 'lucide-svelte/icons/gamepad-2'
   import History from 'lucide-svelte/icons/history'
@@ -33,8 +34,8 @@
 
   function itemClass(view: AppView): string {
     return activeView === view
-      ? 'bg-elevated/80 text-ink font-semibold shadow-sm [&>svg]:text-accent-soft'
-      : 'text-muted hover:bg-card/50 hover:text-ink [&>svg]:text-muted hover:[&>svg]:text-ink'
+      ? 'bg-[#5844e0]/15 font-medium text-[#a5b4fc] [&>svg]:text-[#a5b4fc]'
+      : 'text-muted hover:bg-card/60 hover:text-ink [&>svg]:text-muted hover:[&>svg]:text-ink'
   }
 </script>
 
@@ -49,7 +50,7 @@
       <button type="button" class={`inline-flex h-10 w-10 items-center justify-center rounded-md transition lg:w-full lg:justify-start lg:gap-3 lg:px-3 ${itemClass('home')}`} aria-label={i18n.t.navigation.home} title={i18n.t.navigation.home} onclick={() => navigate('home')}><Home size={18} /><span class="hidden text-sm font-medium lg:inline">{i18n.t.navigation.home}</span></button>
       <button type="button" class={`inline-flex h-10 w-10 items-center justify-center rounded-md transition lg:w-full lg:justify-start lg:gap-3 lg:px-3 ${itemClass('tvshow')}`} aria-label={i18n.t.navigation.tvshow} title={i18n.t.navigation.tvshow} onclick={() => navigate('tvshow')}><Tv size={18} /><span class="hidden text-sm font-medium lg:inline">{i18n.t.navigation.tvshow}</span></button>
       <button type="button" class={`inline-flex h-10 w-10 items-center justify-center rounded-md transition lg:w-full lg:justify-start lg:gap-3 lg:px-3 ${itemClass('movie')}`} aria-label={i18n.t.navigation.movie} title={i18n.t.navigation.movie} onclick={() => navigate('movie')}><Film size={18} /><span class="hidden text-sm font-medium lg:inline">{i18n.t.navigation.movie}</span></button>
-      <button type="button" class={`inline-flex h-10 w-10 items-center justify-center rounded-md transition lg:w-full lg:justify-start lg:gap-3 lg:px-3 ${itemClass('anime')}`} aria-label={i18n.t.navigation.anime} title={i18n.t.navigation.anime} onclick={() => navigate('anime')}><Tv size={18} /><span class="hidden text-sm font-medium lg:inline">{i18n.t.navigation.anime}</span></button>
+      <button type="button" class={`inline-flex h-10 w-10 items-center justify-center rounded-md transition lg:w-full lg:justify-start lg:gap-3 lg:px-3 ${itemClass('anime')}`} aria-label={i18n.t.navigation.anime} title={i18n.t.navigation.anime} onclick={() => navigate('anime')}><Clapperboard size={18} /><span class="hidden text-sm font-medium lg:inline">{i18n.t.navigation.anime}</span></button>
       <button type="button" class={`inline-flex h-10 w-10 items-center justify-center rounded-md transition lg:w-full lg:justify-start lg:gap-3 lg:px-3 ${itemClass('manga')}`} aria-label={i18n.t.navigation.manga} title={i18n.t.navigation.manga} onclick={() => navigate('manga')}><Library size={18} /><span class="hidden text-sm font-medium lg:inline">{i18n.t.navigation.manga}</span></button>
       <button type="button" class={`inline-flex h-10 w-10 items-center justify-center rounded-md transition lg:w-full lg:justify-start lg:gap-3 lg:px-3 ${itemClass('game')}`} aria-label={i18n.t.navigation.game} title={i18n.t.navigation.game} onclick={() => navigate('game')}><Gamepad2 size={18} /><span class="hidden text-sm font-medium lg:inline">{i18n.t.navigation.game}</span></button>
       <button type="button" class={`inline-flex h-10 w-10 items-center justify-center rounded-md transition lg:w-full lg:justify-start lg:gap-3 lg:px-3 ${itemClass('book')}`} aria-label={i18n.t.navigation.book} title={i18n.t.navigation.book} onclick={() => navigate('book')}><BookOpen size={18} /><span class="hidden text-sm font-medium lg:inline">{i18n.t.navigation.book}</span></button>
@@ -69,7 +70,7 @@
   </div>
 
   {#if toolsOpen}
-    <div class="absolute inset-x-2 bottom-full mb-2 space-y-1 rounded-lg border border-border bg-surface p-2 shadow-2xl shadow-black/50 lg:hidden">
+    <div class="absolute inset-x-2 bottom-full mb-2 space-y-1 rounded-lg border border-white/[0.08] bg-elevated p-2 shadow-2xl shadow-black/60 lg:hidden">
       <p class="px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted">{i18n.t.navigation.toolsLabel}</p>
       <button type="button" class="inline-flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-muted transition hover:bg-card hover:text-ink" onclick={() => { toolsOpen = false; onCreate() }}><Plus size={18} aria-hidden="true" />{i18n.t.navigation.create}</button>
       <button type="button" class={`inline-flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition ${itemClass('stats')}`} onclick={() => navigate('stats')}><BarChart3 size={18} aria-hidden="true" />{i18n.t.navigation.stats}</button>

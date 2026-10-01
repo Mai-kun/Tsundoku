@@ -9,6 +9,7 @@
   import { untrack } from 'svelte'
   import { createMedia, deleteMedia, errorMessage, getCategoryOrder, getExternalDetails, getMedia, getSources, searchExternal } from '$lib/api'
   import { i18n } from '$lib/i18n/index.svelte'
+  import Modal from '$lib/components/ui/Modal.svelte'
   import { MEDIA_STATUS, type CreateMediaPayload, type ExternalMedia, type MediaItem, type SearchMediaType, type SourceInfo } from '$lib/types'
 
   const categories = ['all', 'anime', 'manga', 'movie', 'tvshow', 'game', 'book'] as const
@@ -552,41 +553,34 @@
 
   function sourceBadgeClass(source?: string | null): string {
     const s = (source ?? '').toLowerCase()
-    if (s.includes('anilist')) return 'bg-[#02a9ff]/15 text-[#38bdf8] border-[#02a9ff]/30'
+    if (s.includes('anilist')) return 'bg-[#02a9ff]/15 text-[var(--color-brand-sky)] border-[#02a9ff]/30'
     if (s.includes('mangadex')) return 'bg-[#ff6740]/15 text-[#ff6740] border-[#ff6740]/30'
     if (s.includes('mal') || s.includes('myanimelist') || s.includes('jikan')) return 'bg-[#2e51a2]/20 text-[#60a5fa] border-[#2e51a2]/30'
-    if (s.includes('mangaupdate')) return 'bg-[#3b82f6]/20 text-[#93c5fd] border-[#3b82f6]/30'
-    if (s.includes('tmdb')) return 'bg-[#01b4e4]/15 text-[#38bdf8] border-[#01b4e4]/30'
+    if (s.includes('mangaupdate')) return 'bg-[#3b82f6]/20 text-[var(--color-ink-faint)] border-[#3b82f6]/30'
+    if (s.includes('tmdb')) return 'bg-[#01b4e4]/15 text-[var(--color-brand-sky)] border-[#01b4e4]/30'
     if (s.includes('kitsu')) return 'bg-[#fd755c]/15 text-[#fb923c] border-[#fd755c]/30'
-    if (s.includes('rawg')) return 'bg-white/10 text-slate-200 border-white/20'
-    if (s.includes('steam')) return 'bg-[#171a21] text-[#66c0f4] border-[#66c0f4]/40'
+    if (s.includes('rawg')) return 'bg-white/10 text-slate-200 border-white/[0.14]'
+    if (s.includes('steam')) return 'bg-[var(--color-track-deep)] text-[var(--color-info-line)] border-[color-mix(in_oklab,var(--color-info-line)_40%,transparent)]'
     if (s.includes('igdb')) return 'bg-[#9146ff]/20 text-[#a855f7] border-[#9146ff]/40'
     if (s.includes('openlibrary')) return 'bg-amber-500/15 text-amber-300 border-amber-500/30'
-    return 'bg-white/10 text-muted border-white/10'
+    return 'bg-white/10 text-muted border-white/[0.08]'
   }
 
   function handleKeydown(event: KeyboardEvent) {
-    if (isOpen && event.key === 'Escape') {
-      if (previewItem) {
-        previewItem = null
-      } else {
-        onClose()
-      }
+    if (isOpen && event.key === 'Escape' && previewItem) {
+      previewItem = null
     }
   }
 </script>
 
-<svelte:window onkeydown={handleKeydown} />
-
-{#if isOpen}
-  <div class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-canvas/85 p-4 backdrop-blur-sm sm:items-center" role="presentation" onclick={closeOnBackdrop}>
-    <div class="my-auto flex min-h-[60vh] max-h-[85vh] w-full max-w-3xl flex-col overflow-hidden rounded-lg border border-border bg-surface shadow-2xl shadow-black/50" role="dialog" aria-modal="true" aria-labelledby="search-title">
-      <header class="flex items-start justify-between gap-4 px-5 pb-4 pt-5 sm:px-6">
+<Modal isOpen={isOpen} onClose={onClose} labelledBy="search-title">
+    <div class="flex max-h-[85vh] min-h-[60vh] flex-col">
+      <header class="flex shrink-0 items-start justify-between gap-4 px-5 pb-4 pt-5 sm:px-6">
         <div>
           <p class="text-xs font-semibold uppercase tracking-[0.18em] text-accent-soft">{i18n.t.searchModal.eyebrow}</p>
           <h2 id="search-title" class="mt-1 text-xl font-bold tracking-tight text-ink">{i18n.t.searchModal.title}</h2>
         </div>
-        <button type="button" class="grid h-9 w-9 place-items-center rounded-lg text-muted transition hover:bg-elevated hover:text-ink" aria-label={i18n.t.common.close} onclick={onClose}>
+        <button type="button" class="tap grid h-9 w-9 place-items-center rounded-lg text-muted transition hover:bg-elevated hover:text-ink" aria-label={i18n.t.common.close} onclick={onClose}>
           <X size={18} aria-hidden="true" />
         </button>
       </header>
@@ -599,7 +593,7 @@
             <input
               bind:this={searchInput}
               bind:value={query}
-              class="h-10 w-full rounded-lg border border-border bg-elevated pl-9 pr-3 text-sm text-ink outline-none placeholder:text-muted focus:border-accent focus:ring-2 focus:ring-accent/30"
+              class="h-10 w-full rounded-md border border-white/[0.08] bg-elevated pl-9 pr-3 text-sm text-white outline-none placeholder:text-zinc-500 focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/30"
               type="search"
               placeholder={i18n.t.searchModal.placeholder(labelForCategory(activeType))}
               autocomplete="off"
@@ -609,7 +603,7 @@
           <label class="sr-only" for="search-category">{i18n.t.searchModal.categoriesLabel}</label>
           <select
             id="search-category"
-            class="h-10 shrink-0 rounded-lg border border-border bg-elevated px-3 text-xs font-semibold text-ink outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/30"
+            class="h-10 shrink-0 rounded-lg border border-white/10 bg-field px-3 text-xs font-semibold text-ink outline-none transition focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/30"
             value={activeType}
             onchange={(e) => (activeType = (e.currentTarget as HTMLSelectElement).value as SearchCategory)}
           >
@@ -657,7 +651,7 @@
           <div class="space-y-6">
             {#each groupedResults as group (group.category)}
               <section class="space-y-3">
-                <div class="flex items-center justify-between border-b border-border/50 pb-2">
+                <div class="flex items-center justify-between border-b border-white/[0.07]/50 pb-2">
                   <div class="flex items-center gap-2">
                     <h3 class="text-sm font-bold uppercase tracking-wider text-accent-soft">{group.title}</h3>
                     {#if group.loading}
@@ -692,11 +686,12 @@
                 <ul class="space-y-2.5">
                   {#each group.items as result, idx (resultKey(result, idx))}
                     {@const key = resultKey(result)}
-                    <!-- svelte-ignore a11y_click_events_have_key_events -->
-                    <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-                    <li
+                    <div
                       class="flex cursor-pointer gap-4 rounded-lg bg-card p-3 transition hover:bg-elevated/70"
+                      role="button"
+                      tabindex="0"
                       onclick={() => openPreview(result)}
+                      onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openPreview(result) } }}
                     >
                       <div class="h-24 w-16 shrink-0 overflow-hidden rounded-md bg-canvas">
                         {#if result.coverUrl}
@@ -732,7 +727,7 @@
                               </button>
                               <button
                                 type="button"
-                                class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border bg-elevated text-muted transition hover:border-accent hover:bg-panel hover:text-accent cursor-pointer"
+                                class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/10 bg-field text-muted transition hover:border-accent hover:bg-panel hover:text-accent cursor-pointer"
                                 title={i18n.t.searchModal.preview}
                                 onclick={(e) => {
                                   e.stopPropagation()
@@ -749,7 +744,7 @@
                           {:else}
                             <button
                               type="button"
-                              class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border bg-elevated text-muted transition hover:border-accent hover:bg-panel hover:text-ink disabled:cursor-wait disabled:opacity-70"
+                              class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/10 bg-field text-muted transition hover:border-accent hover:bg-panel hover:text-ink disabled:cursor-wait disabled:opacity-70"
                               title={i18n.t.common.add}
                               disabled={Boolean(addingKey)}
                               onclick={(e) => {
@@ -786,7 +781,7 @@
                           <p class="line-clamp-2 text-xs leading-relaxed text-muted">{result.description}</p>
                         {/if}
                       </div>
-                    </li>
+                    </div>
                   {/each}
                 </ul>
                 {/if}
@@ -798,11 +793,12 @@
           <ul class="space-y-3">
             {#each results as result, idx (resultKey(result, idx))}
               {@const key = resultKey(result)}
-              <!-- svelte-ignore a11y_click_events_have_key_events -->
-              <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-              <li
+              <div
                 class="flex cursor-pointer gap-4 rounded-lg bg-card p-3 transition hover:bg-elevated/70"
+                role="button"
+                tabindex="0"
                 onclick={() => openPreview(result)}
+                onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openPreview(result) } }}
               >
                 <div class="h-28 w-20 shrink-0 overflow-hidden rounded-md bg-canvas">
                   {#if result.coverUrl}
@@ -838,7 +834,7 @@
                         </button>
                         <button
                           type="button"
-                          class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border bg-elevated text-muted transition hover:border-accent hover:bg-panel hover:text-accent cursor-pointer"
+                          class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/10 bg-field text-muted transition hover:border-accent hover:bg-panel hover:text-accent cursor-pointer"
                           title={i18n.t.searchModal.preview}
                           onclick={(e) => {
                             e.stopPropagation()
@@ -855,7 +851,7 @@
                     {:else}
                       <button
                         type="button"
-                        class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border bg-elevated text-muted transition hover:border-accent hover:bg-panel hover:text-ink disabled:cursor-wait disabled:opacity-70"
+                        class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/10 bg-field text-muted transition hover:border-accent hover:bg-panel hover:text-ink disabled:cursor-wait disabled:opacity-70"
                         title={i18n.t.common.add}
                         disabled={Boolean(addingKey)}
                         onclick={(e) => {
@@ -892,35 +888,22 @@
                     <p class="line-clamp-2 text-xs leading-5 text-muted">{result.description}</p>
                   {/if}
                 </div>
-              </li>
+              </div>
             {/each}
           </ul>
         {/if}
       </div>
     </div>
-  </div>
-{/if}
+</Modal>
 
-<!-- Preview modal (Requirement 13) -->
 {#if previewItem}
   {@const prevKey = resultKey(previewItem)}
-  <div
-    class="fixed inset-0 z-[60] flex items-center justify-center overflow-y-auto bg-black/75 p-4 backdrop-blur-md"
-    role="presentation"
-    onclick={() => (previewItem = null)}
-  >
-    <!-- svelte-ignore a11y_click_events_have_key_events -->
-    <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-    <div
-      class="relative flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-border bg-surface p-6 shadow-2xl"
-      role="dialog"
-      aria-modal="true"
-      tabindex="-1"
-      onclick={(e) => e.stopPropagation()}
-    >
+  <Modal isOpen={Boolean(previewItem)} onClose={() => (previewItem = null)} labelledBy="preview-title">
+    <div class="flex max-h-[85vh] flex-col p-6">
       <button
         type="button"
-        class="absolute right-4 top-4 grid h-8 w-8 place-items-center rounded-lg text-muted transition hover:bg-elevated hover:text-ink"
+        class="tap absolute right-4 top-4 z-10 grid h-8 w-8 place-items-center rounded-lg text-muted transition hover:bg-elevated hover:text-ink"
+        aria-label={i18n.t.common.close}
         onclick={() => (previewItem = null)}
       >
         <X size={18} aria-hidden="true" />
@@ -958,7 +941,7 @@
             {#if previewBadges.length > 0}
               <div class="flex flex-wrap items-center gap-2">
                 {#each previewBadges as r}
-                  <div class="inline-flex items-center gap-1 rounded-md border border-border bg-elevated px-2 py-0.5 text-xs">
+                  <div class="inline-flex items-center gap-1 rounded-md border border-white/10 bg-field px-2 py-0.5 text-xs">
                     <span class="font-medium text-muted">{r.source}:</span>
                     {#if r.score !== null && r.score > 0}
                       <span class="flex items-center gap-0.5 font-bold text-star">
@@ -974,7 +957,7 @@
                 {/each}
               </div>
             {:else}
-              <div class="inline-flex items-center gap-1 rounded-md border border-border bg-elevated px-2 py-0.5 text-xs text-muted">
+              <div class="inline-flex items-center gap-1 rounded-md border border-white/10 bg-field px-2 py-0.5 text-xs text-muted">
                 <span>{i18n.t.detail.previewModal.noRatings}</span>
               </div>
             {/if}
@@ -1026,7 +1009,7 @@
                   </button>
                   <button
                     type="button"
-                    class="inline-flex items-center gap-1.5 rounded-lg border border-border bg-elevated px-3 py-2 text-xs font-semibold text-ink transition hover:border-accent hover:bg-panel hover:text-accent cursor-pointer"
+                    class="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-field px-3 py-2 text-xs font-semibold text-ink transition hover:border-accent hover:bg-panel hover:text-accent cursor-pointer"
                     title={i18n.t.searchModal.preview}
                     onclick={() => {
                       const targetId = addedKeys[prevKey]
@@ -1043,7 +1026,7 @@
               {:else}
                 <button
                   type="button"
-                  class="inline-flex items-center gap-2 rounded-lg border border-border bg-elevated px-4 py-2 text-xs font-semibold text-ink transition hover:border-accent hover:bg-panel disabled:cursor-wait disabled:opacity-70"
+                  class="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-field px-4 py-2 text-xs font-semibold text-ink transition hover:border-accent hover:bg-panel disabled:cursor-wait disabled:opacity-70"
                   disabled={Boolean(addingKey)}
                   onclick={() => void addResult(previewItem!)}
                 >
@@ -1060,7 +1043,7 @@
           </div>
         </div>
 
-        <div class="mt-5 border-t border-border pt-4">
+        <div class="mt-5 border-t border-white/[0.07] pt-4">
           <h4 class="text-xs font-semibold uppercase tracking-wider text-muted">{i18n.t.detail.previewModal.description}</h4>
           {#if previewItem.description}
             <p class="mt-1.5 whitespace-pre-line text-xs leading-relaxed text-muted">{previewItem.description}</p>
@@ -1070,7 +1053,7 @@
         </div>
 
         {#if previewItem.episodes && previewItem.episodes.length > 0}
-          <div class="mt-5 border-t border-border pt-4">
+          <div class="mt-5 border-t border-white/[0.07] pt-4">
             <h4 class="text-xs font-semibold uppercase tracking-wider text-muted">{i18n.t.detail.previewModal.episodesList(previewItem.episodes.length)}</h4>
             <ul class="mt-2 max-h-48 space-y-1.5 overflow-y-auto pr-1">
               {#each previewItem.episodes as ep}
@@ -1084,5 +1067,5 @@
         {/if}
       </div>
     </div>
-  </div>
+</Modal>
 {/if}

@@ -59,6 +59,9 @@ export interface MediaBase {
   translatedSynopsis?: string | null;
   translationLanguage?: string | null;
   releaseDate?: string | null;
+  releaseYear?: number | null;
+  /** Where the user watched it: a known site or free text. */
+  watchedOn?: string | null;
   endDate?: string | null;
   releaseStatus?: string | null;
   durationMinutes?: number | null;
@@ -340,6 +343,11 @@ export interface UpdateMediaPayload {
   translationLanguage?: string | null;
   platform?: string | null;
   userPlatform?: string | null;
+  /** Explicit null means "not supplied"; these flags are what actually clear the value. */
+  clearUserPlatform?: boolean;
+  clearWatchedOn?: boolean;
+  watchedOn?: string | null;
+  releaseYear?: number | null;
   genres?: string | null;
   tags?: string | null;
   unlockedAchievements?: string | null;

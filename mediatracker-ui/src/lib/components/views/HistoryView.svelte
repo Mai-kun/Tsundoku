@@ -17,7 +17,6 @@
         mediaId: string;
         title: string;
         date: string;
-        kind: "started" | "finished";
     }
 
     interface Props {
@@ -43,40 +42,25 @@
 
         try {
             const items = await getMedia();
+            // Only completions are listed. A "started" event carried no information the library did not
+            // already show — the progress column was pure noise — and it doubled the row count.
             const nextEvents = items
-                .flatMap((item): HistoryEvent[] => [
-                    ...(item.startedAt
-                        ? [
-                              {
-                                  key: `${item.id}:started`,
-                                  mediaId: item.id,
-                                  title: item.title,
-                                  date: item.startedAt,
-                                  kind: "started" as const,
-                              },
-                          ]
-                        : []),
-                    ...(item.finishedAt
+                .flatMap((item): HistoryEvent[] =>
+                    item.finishedAt
                         ? [
                               {
                                   key: `${item.id}:finished`,
                                   mediaId: item.id,
                                   title: item.title,
                                   date: item.finishedAt,
-                                  kind: "finished" as const,
                               },
                           ]
-                        : []),
-                ])
-                .sort((left, right) => {
-                    const diff = Date.parse(right.date) - Date.parse(left.date);
-                    if (diff !== 0) return diff;
-                    if (left.kind === "finished" && right.kind === "started")
-                        return -1;
-                    if (left.kind === "started" && right.kind === "finished")
-                        return 1;
-                    return 0;
-                });
+                        : [],
+                )
+                .sort(
+                    (left, right) =>
+                        Date.parse(right.date) - Date.parse(left.date),
+                );
 
             if (sequence === requestSequence) {
                 events = nextEvents;
@@ -109,7 +93,7 @@
         events = events.filter((e) => e.key !== event.key);
 
         try {
-            await deleteHistoryEntry(event.mediaId, event.kind);
+            await deleteHistoryEntry(event.mediaId, "finished");
             showToast(i18n.t.views.historyEntryDeleted, "success");
         } catch (err) {
             events = prevEvents;
@@ -137,7 +121,7 @@
     }
 </script>
 
-<div class="mx-auto max-w-4xl space-y-6">
+<div class="space-y-6">
     <div class="flex flex-wrap items-end justify-between gap-4">
         <div>
             <p
@@ -167,7 +151,7 @@
     {#if loading}
         <div class="space-y-3" aria-hidden="true">
             {#each Array(4) as _, index (index)}<div
-                    class="h-16 animate-pulse rounded-lg bg-card"
+                    class="h-[4.5rem] animate-pulse rounded-lg bg-card"
                 ></div>{/each}
         </div>
         <p class="sr-only" role="status">{i18n.t.common.loading}</p>
@@ -204,7 +188,7 @@
                     class="flex items-center gap-4 rounded-lg bg-card p-4 transition hover:bg-card/80"
                 >
                     <div
-                        class={`grid h-10 w-10 shrink-0 place-items-center rounded-md ${event.kind === "finished" ? "bg-accent/15 text-accent-soft" : "bg-star/15 text-star"}`}
+                        class="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-accent/15 text-accent-soft"
                     >
                         <Flag size={17} aria-hidden="true" />
                     </div>
@@ -216,12 +200,6 @@
                             {formatDate(event.date)}
                         </p>
                     </div>
-                    <span
-                        class="rounded bg-canvas px-2 py-0.5 text-xs font-semibold text-muted"
-                        >{event.kind === "started"
-                            ? i18n.t.status.inProgress
-                            : i18n.t.status.completed}</span
-                    >
                     <button
                         type="button"
                         class="grid h-8 w-8 place-items-center rounded-md text-muted transition hover:bg-rose-500/15 hover:text-rose-400 cursor-pointer"

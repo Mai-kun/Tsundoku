@@ -185,16 +185,16 @@
             {/if}
         </div>
 
-        <div class="flex gap-2">
+        <div class="flex items-center gap-2">
             <label class="relative min-w-0 flex-1 lg:w-52 lg:flex-none">
                 <span class="sr-only">{i18n.t.header.searchButton}</span>
                 <Search
                     size={15}
-                    class="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted"
+                    class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted"
                     aria-hidden="true"
                 />
                 <input
-                    class="h-8 w-full rounded-md border border-white/10 bg-field pl-8 pr-2.5 text-xs text-ink outline-none placeholder:text-muted focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/30"
+                    class="h-12 w-full rounded-lg border border-white/10 bg-field pl-9 pr-2.5 text-sm text-ink outline-none placeholder:text-muted focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/30"
                     value={search}
                     placeholder={i18n.t.header.searchButton}
                     oninput={handleSearch}

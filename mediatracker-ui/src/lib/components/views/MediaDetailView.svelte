@@ -12,6 +12,7 @@
     import ImageIcon from "lucide-svelte/icons/image";
     import Languages from "lucide-svelte/icons/languages";
     import Layers from "lucide-svelte/icons/layers";
+    import LoaderCircle from "lucide-svelte/icons/loader-circle";
     import LayoutGrid from "lucide-svelte/icons/layout-grid";
     import List from "lucide-svelte/icons/list";
     import Minus from "lucide-svelte/icons/minus";
@@ -146,6 +147,12 @@
         source: string;
         score: number | null;
         votes?: number | null;
+        /**
+         * True when the source was actually asked and answered. The backend persists score 0 for
+         * "queried, this source has no rating", so the two states must not be collapsed: reading a
+         * known-absent rating as "missing" made every card open re-request the same external APIs.
+         */
+        queried?: boolean;
     }
 
     const CATEGORY_EXPECTED_SOURCES: Record<string, string[]> = {
@@ -190,6 +197,35 @@
     let synopsisExpanded = $state(false);
     let userRatingPopoverOpen = $state(false);
     let availableSources = $state<SourceInfo[]>([]);
+
+    /* Hover-opened rating menu: the close is deferred so the cursor can cross
+       the gap between the star button and the score grid. */
+    let ratingCloseTimer: ReturnType<typeof setTimeout> | null = null;
+
+    function openRatingPopover() {
+        if (ratingCloseTimer !== null) {
+            clearTimeout(ratingCloseTimer);
+            ratingCloseTimer = null;
+        }
+        userRatingPopoverOpen = true;
+    }
+
+    function closeRatingPopover() {
+        if (ratingCloseTimer !== null) clearTimeout(ratingCloseTimer);
+        ratingCloseTimer = setTimeout(hideRatingPopover, 180);
+    }
+
+    function hideRatingPopover() {
+        if (ratingCloseTimer !== null) {
+            clearTimeout(ratingCloseTimer);
+            ratingCloseTimer = null;
+        }
+        userRatingPopoverOpen = false;
+    }
+
+    $effect(() => () => {
+        if (ratingCloseTimer !== null) clearTimeout(ratingCloseTimer);
+    });
 
     $effect(() => {
         void getSources()
@@ -505,6 +541,8 @@
                                     ? rawScore
                                     : null,
                             votes,
+                            // Present in the stored JSON means the source answered, even with 0.
+                            queried: true,
                         });
                     }
                 }
@@ -854,32 +892,43 @@
     }>(5 * 60 * 1000);
     const enrichedMediaIds = new Set<string>();
 
-    let unlockedAchievementNames = $derived.by<Set<string>>(() => {
-        if (!media || !media.unlockedAchievements) return new Set<string>();
+    // lowercase key -> the name as the source spelled it.
+    let unlockedAchievementNames = $derived.by<Map<string, string>>(() => {
+        if (!media || !media.unlockedAchievements) return new Map<string, string>();
         try {
             const parsed = JSON.parse(media.unlockedAchievements);
-            if (Array.isArray(parsed))
-                return new Set<string>(
-                    parsed.map((s: string) => String(s).toLowerCase().trim()),
-                );
+            if (Array.isArray(parsed)) {
+                const map = new Map<string, string>();
+                for (const entry of parsed) {
+                    const original = String(entry);
+                    map.set(original.toLowerCase().trim(), original);
+                }
+                return map;
+            }
         } catch {}
-        return new Set<string>();
+        return new Map<string, string>();
     });
 
     async function toggleAchievement(name: string) {
         if (!media) return;
+        // Match case-insensitively but persist the source spelling: lowercasing here used to rewrite
+        // the stored names, so the achievement text in the DB no longer matched the source.
         const key = name.toLowerCase().trim();
-        const nextSet = new Set(unlockedAchievementNames);
-        if (nextSet.has(key)) {
-            nextSet.delete(key);
+        const nextMap = new Map(unlockedAchievementNames);
+        const previousJson = media.unlockedAchievements ?? null;
+
+        if (nextMap.has(key)) {
+            nextMap.delete(key);
         } else {
-            nextSet.add(key);
+            nextMap.set(key, name.trim());
         }
-        const jsonStr = JSON.stringify(Array.from(nextSet));
+
+        const jsonStr = JSON.stringify(Array.from(nextMap.values()));
         media.unlockedAchievements = jsonStr;
         try {
             await updateMedia(media.id, { unlockedAchievements: jsonStr });
         } catch (err) {
+            media.unlockedAchievements = previousJson;
             console.error("Failed to update unlocked achievements", err);
         }
     }
@@ -903,6 +952,60 @@
         statusOptions.map((value) => ({ value, label: statusLabel(value) })),
     );
 
+    let watchedOnInput = $state("");
+    let watchedOnDirty = $state(false);
+
+    const WATCHED_ON_SITES = [
+        "Kinopoisk",
+        "Кинопоиск",
+        "Netflix",
+        "YouTube",
+        "Okko",
+        "ivi",
+        "Megogo",
+        "Wink",
+        "Antonline",
+        "Disney+",
+        "Apple TV+",
+        "Amazon Prime Video",
+        "Hulu",
+        "Max",
+        "Criterion Channel",
+        "Letterboxd",
+    ];
+
+    // Offers the built-in sites plus whatever this library already uses, so a second pick of the
+    // same service is available without retyping it.
+    let watchedOnOptions = $derived.by<string[]>(() => {
+        const fromLibrary = media?.watchedOn?.trim();
+        return Array.from(
+            new Set([...WATCHED_ON_SITES, ...(fromLibrary ? [fromLibrary] : [])]),
+        );
+    });
+
+    $effect(() => {
+        // Only follow the server value while the field is untouched, so typing is not overwritten.
+        if (!watchedOnDirty) watchedOnInput = media?.watchedOn ?? "";
+    });
+
+    async function saveWatchedOn() {
+        if (!media) return;
+        const value = watchedOnInput.trim();
+        const previous = media.watchedOn ?? null;
+        media.watchedOn = value || null;
+        try {
+            await updateMedia(media.id, {
+                watchedOn: value || null,
+                clearWatchedOn: !value,
+            });
+            watchedOnDirty = false;
+        } catch (err) {
+            media.watchedOn = previous;
+            watchedOnDirty = false;
+            showToast(errorMessage(err), "error");
+        }
+    }
+
     let platformMenuItems = $derived([
         {
             value: "",
@@ -913,10 +1016,17 @@
 
     async function updateUserPlatform(val: string) {
         if (!media) return;
+        const previous = media.userPlatform ?? null;
         media.userPlatform = val || null;
         try {
-            await updateMedia(media.id, { userPlatform: val || null });
+            // A null UserPlatform means "not supplied" to the server, so clearing needs the explicit
+            // flag — sending the null alone silently kept the old platform forever.
+            await updateMedia(media.id, {
+                userPlatform: val || null,
+                clearUserPlatform: !val,
+            });
         } catch (err) {
+            media.userPlatform = previous;
             console.error("Failed to update user platform", err);
         }
     }
@@ -1079,7 +1189,10 @@
                 : (CATEGORY_EXPECTED_SOURCES[current.type] ?? []);
         if (expected.length > 0) {
             const badges = externalRatings;
-            hasMissingRatings = badges.some((b) => b.score === null);
+            // Only a source that has never been asked counts as missing. A badge whose score is null
+            // but queried === true means the source answered "no rating", and asking again would
+            // return the same empty answer — that was the repeated external request per card open.
+            hasMissingRatings = badges.some((b) => b.score === null && !b.queried);
         }
 
         let isMangaMissingData = false;
@@ -1104,7 +1217,9 @@
                 syncFrom(enriched);
             }
         } catch {
-            // Background enrichment silently completes
+            // Background enrichment silently completes. The id is marked as done even on failure so a
+            // broken provider cannot re-trigger an external request on every card open.
+            enrichedMediaIds.add(current.id);
         } finally {
             isEnriching = false;
         }
@@ -2246,7 +2361,10 @@
 
         switch (item.type) {
             case "game":
-                if (item.platform) list.push(item.platform);
+                // The header shows the platform the user picked in Ваша история;
+                // the full release list lives in the platform dropdown instead.
+                if (item.userPlatform?.trim()) list.push(item.userPlatform.trim());
+                else if (item.platform) list.push(item.platform);
                 break;
             case "book":
                 if (item.author) list.push(item.author);
@@ -2277,7 +2395,7 @@
         if (item.type === "game") {
             rows.push({
                 label: i18n.current === "ru" ? "Дата релиза" : "Release date",
-                value: formatDate(item.releaseDate ?? null),
+                value: formatReleaseDate(item),
             });
             rows.push({
                 label: i18n.t.status.label,
@@ -2307,11 +2425,11 @@
         } else {
             rows.push({
                 label: i18n.t.detail.startDateLabel,
-                value: formatDate(item.releaseDate ?? null),
+                value: formatReleaseDate(item),
             });
             rows.push({
                 label: i18n.t.detail.endDateLabel,
-                value: formatDate(item.endDate ?? null),
+                value: formatReleaseDate(item, item.endDate),
             });
             rows.push({
                 label: i18n.t.status.label,
@@ -2449,6 +2567,24 @@
             : new Intl.DateTimeFormat(i18n.current, {
                   dateStyle: "medium",
               }).format(parsed);
+    }
+
+    /**
+     * Renders only the precision the source actually provided. A source that knows just the year
+     * must not be padded into "1 January", so the stored releaseYear carries the fallback.
+     */
+    function formatReleaseDate(item: MediaItem, explicitDate?: string | null): string {
+        const raw = explicitDate !== undefined ? explicitDate : item.releaseDate;
+        if (raw) {
+            return formatDate(raw);
+        }
+
+        const year = item.releaseYear;
+        if (year && year > 0) {
+            return i18n.current === "ru" ? `${year} год` : `${year}`;
+        }
+
+        return i18n.t.detailModal.dateEmpty;
     }
 
     function format(value: number): string {
@@ -2752,7 +2888,7 @@
                                     popovertargetaction="toggle"
                                     style="anchor-name: {anchorName}"
                                     disabled={statusBusy}
-                                    class="tap flex w-full items-center justify-between gap-2 rounded-lg border border-white/[0.08] bg-[var(--color-panel-line)] px-3.5 py-2.5 text-sm font-medium text-white transition hover:bg-[var(--color-panel-raised)] has-[:popover-open]:ring-2 has-[:popover-open]:ring-accent-soft disabled:cursor-not-allowed disabled:opacity-70"
+                                    class="tap flex h-10 w-full items-center justify-between gap-2 rounded-lg border border-white/[0.08] bg-[var(--color-panel-line)] px-3.5 text-sm font-medium text-white transition hover:bg-[var(--color-panel-raised)] has-[:popover-open]:ring-2 has-[:popover-open]:ring-accent-soft disabled:cursor-not-allowed disabled:opacity-70"
                                     aria-haspopup="listbox"
                                 >
                                     <span class="truncate"
@@ -2768,35 +2904,36 @@
                         </PopoverMenu>
                     </div>
 
-                    <!-- User Rating Button (Item 7) -->
-                    <div class="relative shrink-0" data-rating-popover>
+                    <!-- User Rating Button (Item 7). Icon-only and the same height as
+                         the status block to its left; the menu opens on hover. -->
+                    <div
+                        class="relative shrink-0"
+                        data-rating-popover
+                        role="presentation"
+                        onpointerenter={openRatingPopover}
+                        onpointerleave={closeRatingPopover}
+                    >
                         <button
                             type="button"
-                            class={`flex h-10 items-center justify-center gap-1.5 rounded-lg border px-3.5 text-sm font-semibold transition hover:scale-105 active:scale-95 ${
+                            class={`tap grid h-10 w-10 place-items-center rounded-lg border transition ${
                                 scoreValue !== null
                                     ? "border-amber-400/40 bg-amber-400/10 text-amber-300"
                                     : "border-white/[0.08] bg-[var(--color-panel-line)] text-white/80 hover:bg-[var(--color-panel-raised)] hover:text-white"
                             }`}
-                            onclick={() =>
-                                (userRatingPopoverOpen =
-                                    !userRatingPopoverOpen)}
+                            onclick={openRatingPopover}
                             title={i18n.t.detail.yourRating}
+                            aria-label={i18n.t.detail.yourRating}
                             aria-expanded={userRatingPopoverOpen}
                         >
                             {#if scoreValue !== null}
-                                <span class="font-bold tabular-nums"
-                                    >{scoreValue}</span
-                                >
                                 <Star
-                                    size={14}
+                                    size={18}
                                     class="text-amber-400"
                                     fill="currentColor"
+                                    aria-hidden="true"
                                 />
                             {:else}
-                                <span class="text-xs"
-                                    >{i18n.t.detail.rateButton}</span
-                                >
-                                <Star size={13} class="text-muted" />
+                                <Star size={18} aria-hidden="true" />
                             {/if}
                         </button>
 
@@ -2807,7 +2944,14 @@
                                 <div
                                     class="mb-2 text-center text-xs font-semibold text-slate-300"
                                 >
-                                    {i18n.t.detail.yourRating}
+                                    {#if scoreValue !== null}
+                                        <span class="font-bold tabular-nums text-amber-300"
+                                            >{scoreValue}</span
+                                        >
+                                        {i18n.t.detail.yourRating}
+                                    {:else}
+                                        {i18n.t.detail.rateButton}
+                                    {/if}
                                 </div>
                                 <div class="grid grid-cols-5 gap-1.5">
                                     {#each Array(10) as _, index}
@@ -2821,7 +2965,7 @@
                                             }`}
                                             onclick={() => {
                                                 void setScore(val);
-                                                userRatingPopoverOpen = false;
+                                                hideRatingPopover();
                                             }}
                                         >
                                             {val}
@@ -2837,7 +2981,7 @@
                                             class="text-xs font-semibold text-rose-400 hover:text-rose-300 transition cursor-pointer"
                                             onclick={() => {
                                                 clearScore();
-                                                userRatingPopoverOpen = false;
+                                                hideRatingPopover();
                                             }}
                                         >
                                             {i18n.t.detail.clearRating}
@@ -3090,6 +3234,44 @@
                                 </div>
                             {/each}
                         </dl>
+
+                        <!-- Where the user watched it: pick a known site or type your own. -->
+                        {#if media.type === "movie" || media.type === "tvshow"}
+                            <div class="mt-4 border-t border-white/5 pt-4">
+                                <label
+                                    class="mb-1.5 block text-xs font-medium text-muted"
+                                    for="watched-on-input"
+                                >
+                                    {i18n.current === "ru"
+                                        ? "Где смотрено"
+                                        : "Watched on"}
+                                </label>
+                                <input
+                                    id="watched-on-input"
+                                    list="watched-on-sites"
+                                    class="h-9 w-full rounded-lg border border-white/10 bg-elevated px-3 text-xs text-white outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
+                                    placeholder={
+                                        i18n.current === "ru"
+                                            ? "Выберите сайт или введите свой"
+                                            : "Pick a site or type your own"
+                                    }
+                                    value={watchedOnInput}
+                                    oninput={(e) => {
+                                        watchedOnInput = e.currentTarget.value;
+                                        watchedOnDirty = true;
+                                    }}
+                                    onchange={() => void saveWatchedOn()}
+                                    onblur={() => {
+                                        if (watchedOnDirty) void saveWatchedOn();
+                                    }}
+                                />
+                                <datalist id="watched-on-sites">
+                                    {#each watchedOnOptions as site (site)}
+                                        <option value={site}></option>
+                                    {/each}
+                                </datalist>
+                            </div>
+                        {/if}
                     </div>
                 </div>
             </aside>
@@ -3200,9 +3382,12 @@
                                     >
                                 {/if}
                             {:else if isEnriching}
-                                <span
-                                    class="inline-block h-4 w-6 animate-pulse rounded bg-white/20"
-                                ></span>
+                                <LoaderCircle
+                                    size={15}
+                                    class="animate-spin text-white/60"
+                                    role="status"
+                                    aria-label={i18n.t.common.loading}
+                                />
                             {:else}
                                 <span class="text-sm font-medium text-white/40"
                                     >—</span
@@ -3530,7 +3715,13 @@
                                         class="rounded-full bg-amber-400/10 border border-amber-400/20 px-2 py-0.5 text-xs font-semibold text-amber-300"
                                     >
                                         {#if gameAchievementsLoading}
-                                            ...
+                                            <LoaderCircle
+                                                size={12}
+                                                class="animate-spin"
+                                                role="status"
+                                                aria-label={i18n.t.common
+                                                    .loading}
+                                            />
                                         {:else if unlockedAchievementNames.size > 0}
                                             {unlockedAchievementNames.size} / {gameAchievementsTotal}
                                             {i18n.current === "ru"
@@ -4947,9 +5138,13 @@
                                                                     )}
                                                                 </span>
                                                             {:else if previewRelatedLoading}
-                                                                <span
-                                                                    class="inline-block h-3 w-5 animate-pulse rounded bg-border"
-                                                                ></span>
+                                                                <LoaderCircle
+                                                                    size={12}
+                                                                    class="animate-spin text-muted"
+                                                                    role="status"
+                                                                    aria-label={i18n.t.common
+                                                                        .loading}
+                                                                />
                                                             {:else}
                                                                 <span
                                                                     class="text-xs text-muted"

@@ -7,7 +7,6 @@
     import Pause from "lucide-svelte/icons/pause";
     import Play from "lucide-svelte/icons/play";
     import Plus from "lucide-svelte/icons/plus";
-    import Star from "lucide-svelte/icons/star";
     import Trash2 from "lucide-svelte/icons/trash-2";
     import X from "lucide-svelte/icons/x";
     import { untrack } from "svelte";
@@ -371,22 +370,16 @@
                     {/snippet}
                 </PopoverMenu>
 
-                <!-- The rating bubble is always there: it shows a star until the user rates the
-           title, then switches to the number so the value is readable at a glance. -->
-                <div
-                    class="-ml-2 grid h-[2.33rem] w-[2.33rem] place-items-center rounded-full border border-white/10 shadow-lg backdrop-blur ring-2 ring-card select-none {item.score !==
-                    null &&
-                    item.score > 0
-                        ? 'bg-score-bg text-[17px] font-black tabular-nums tracking-tight text-white'
-                        : 'border-dashed border-white/25 bg-black/45 text-white/45'}"
-                    title={`${i18n.t.createModal.fields.score}: ${item.score ?? '—'}`}
-                >
-                    {#if item.score !== null && item.score > 0}
+                <!-- Only rendered once the user has rated: an always-on bubble with a placeholder star
+                     read as a real, unrated value on the card. -->
+                {#if item.score !== null && item.score > 0}
+                    <div
+                        class="-ml-2 grid h-[2.33rem] w-[2.33rem] place-items-center rounded-full bg-score-bg text-[17px] font-black tabular-nums tracking-tight text-white shadow-lg select-none"
+                        title={`${i18n.t.createModal.fields.score}: ${item.score}`}
+                    >
                         {format(item.score)}
-                    {:else}
-                        <Star size={15} aria-hidden="true" />
-                    {/if}
-                </div>
+                    </div>
+                {/if}
             </div>
 
             <div class="flex items-center gap-1.5">

@@ -40,7 +40,13 @@ public abstract class MediaItem
 
     public DateTime? ReleaseDate { get; set; }
 
+    /// <summary>Year kept separately: sources that only know the year must not fabricate Jan 1.</summary>
+    public int? ReleaseYear { get; set; }
+
     public DateTime? EndDate { get; set; }
+
+    /// <summary>Where the user consumed it (streaming service, cinema, ...). Free text or a known site.</summary>
+    public string? WatchedOn { get; set; }
 
     public string? ReleaseStatus { get; set; }
 

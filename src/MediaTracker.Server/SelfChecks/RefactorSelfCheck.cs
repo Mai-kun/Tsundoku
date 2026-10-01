@@ -23,6 +23,13 @@ public static class RefactorSelfCheck
         CheckRatingsSerialization(failures);
         CheckMangaGapEnrichment(failures);
         CheckMangaGapEnrichmentDoesNotOverwrite(failures);
+        CheckMergeKeepsRuntimeAndGenres(failures);
+        CheckMissingMetadataDrivesCascade(failures);
+        CheckPartialDatesDoNotBecomeJanFirst(failures);
+        CheckEnrichFillsMovieDisplayGaps(failures);
+        CheckExplicitClearFlags(failures);
+        CheckAchievementsSurviveUpdate(failures);
+        CheckSearchTypeFiltering(failures);
         CheckOverwriteRefresh(failures);
         CheckStatusTransitions(failures);
         CheckSeasonProgressStepper(failures);
@@ -86,7 +93,189 @@ public static class RefactorSelfCheck
         AssertEqual(failures, "AniList", first.GetProperty("source").GetString(), "rating source key");
         AssertEqual(failures, 8.5, first.GetProperty("score").GetDouble(), "rating score key");
         AssertEqual(failures, 1200, first.GetProperty("votes").GetInt32(), "rating votes key");
+}
+private static void CheckEnrichFillsMovieDisplayGaps(List<string> failures)
+    {
+        var movie = new Movie { Title = "Дюна" };
+        var external = new ExternalMediaDto
+        {
+            ExternalId = "1",
+            Title = "Дюна",
+            Type = "movie",
+            RuntimeMinutes = 155,
+            Studio = "Legendary Pictures",
+            Author = "Denis Villeneuve"
+        };
+
+        AssertTrue(failures, MediaMetadataApplier.ApplyIfMissing(movie, external), "enrich reports a change");
+        AssertEqual(failures, 155, movie.DurationMinutes, "enrich fills the runtime");
+        AssertEqual(failures, "Legendary Pictures", movie.Studio, "enrich fills the studio");
+        AssertEqual(failures, "Denis Villeneuve", movie.Director, "enrich fills the director");
+
+        // A second pass must not overwrite what is already there.
+        MediaMetadataApplier.ApplyIfMissing(movie, external with { RuntimeMinutes = 200, Studio = "Other" });
+        AssertEqual(failures, 155, movie.DurationMinutes, "enrich keeps the existing runtime");
+        AssertEqual(failures, "Legendary Pictures", movie.Studio, "enrich keeps the existing studio");
     }
+
+    private static void CheckExplicitClearFlags(List<string> failures)
+    {
+        var item = new VideoGame { Title = "Silksong", Platform = "PC", UserPlatform = "PC" };
+
+        // An omitted field means "not supplied" and must leave the stored value alone.
+        MediaItemUpdater.Apply(item, new UpdateMediaRequest { Title = "Silksong" });
+        AssertEqual(failures, "PC", item.UserPlatform, "an omitted field keeps the stored value");
+
+        MediaItemUpdater.Apply(item, new UpdateMediaRequest { ClearUserPlatform = true });
+        AssertTrue(failures, item.UserPlatform is null, "an explicit clear empties the platform");
+
+        MediaItemUpdater.Apply(item, new UpdateMediaRequest { WatchedOn = "Kinopoisk" });
+        AssertEqual(failures, "Kinopoisk", item.WatchedOn, "watched-on is stored");
+
+        MediaItemUpdater.Apply(item, new UpdateMediaRequest { ClearWatchedOn = true });
+        AssertTrue(failures, item.WatchedOn is null, "an explicit clear empties watched-on");
+    }
+
+    private static void CheckAchievementsSurviveUpdate(List<string> failures)
+    {
+        var game = new VideoGame { Title = "Hollow Knight", Platform = "PC" };
+        const string json = "[\"Blasphemous\",\"Quarantine\"]";
+
+        MediaItemUpdater.Apply(game, new UpdateMediaRequest { UnlockedAchievements = json });
+        AssertEqual(failures, json, game.UnlockedAchievements, "achievements are persisted by the updater");
+
+        MediaItemUpdater.Apply(game, new UpdateMediaRequest { UserPlatform = "PC" });
+        AssertEqual(
+            failures,
+            json,
+            game.UnlockedAchievements,
+            "an unrelated update must not wipe the achievements");
+    }
+private static void CheckMergeKeepsRuntimeAndGenres(List<string> failures)
+    {
+        var primary = new ExternalMediaDto
+        {
+            ExternalId = "1",
+            Title = "Дюна",
+            Type = "movie",
+            RuntimeMinutes = 155
+        };
+        var fallback = new ExternalMediaDto
+        {
+            ExternalId = "2",
+            Title = "Дюна",
+            Type = "movie",
+            Studio = "Legendary Pictures",
+            Genres = ["Sci-Fi"]
+        };
+
+        var merged = MediaMerger.Merge(primary, fallback);
+
+        AssertEqual(failures, 155, merged.RuntimeMinutes, "merge keeps a runtime the second source lacks");
+        AssertEqual(failures, "Legendary Pictures", merged.Studio, "merge fills a missing studio");
+        AssertEqual(failures, 1, merged.Genres?.Count, "merge fills genres the primary source lacks");
+    }
+
+    private static void CheckMissingMetadataDrivesCascade(List<string> failures)
+    {
+        var complete = new ExternalMediaDto
+        {
+            ExternalId = "1",
+            Title = "Дюна",
+            Type = "movie",
+            Description = "Desert planet",
+            ReleaseYear = 2021,
+            ReleaseDate = "2021-10-22",
+            RuntimeMinutes = 155,
+            Studio = "Legendary Pictures"
+        };
+        AssertFalse(failures, MediaMerger.HasMissingMetadata(complete, "movie"), "a complete movie stops the cascade");
+
+        // Runtime and studio must count as gaps: this is what makes the aggregator ask the next source.
+        AssertTrue(
+            failures,
+            MediaMerger.HasMissingMetadata(complete with { RuntimeMinutes = null }, "movie"),
+            "a missing runtime keeps the cascade going");
+        AssertTrue(
+            failures,
+            MediaMerger.HasMissingMetadata(complete with { Studio = null }, "movie"),
+            "a missing studio keeps the cascade going");
+
+        // Year alone is not a date: a source that only knows the year must be asked as well.
+        AssertTrue(
+            failures,
+            MediaMerger.HasMissingMetadata(complete with { ReleaseDate = null }, "movie"),
+            "a missing release date keeps the cascade going");
+    }
+
+    private static void CheckPartialDatesDoNotBecomeJanFirst(List<string> failures)
+    {
+        var external = new ExternalMediaDto
+        {
+            ExternalId = "1",
+            Title = "Дюна",
+            Type = "movie",
+            ReleaseYear = 2021,
+            ReleaseDate = "2021"
+        };
+
+        var yearOnly = new Movie { Title = "Дюна" };
+        MediaMetadataApplier.ApplyOverwriteAsync(
+            yearOnly,
+            external,
+            new NullImageStorage(),
+            CancellationToken.None).GetAwaiter().GetResult();
+
+        AssertTrue(failures, yearOnly.ReleaseDate is null, "a year-only source must not become 1 January");
+        AssertEqual(failures, 2021, yearOnly.ReleaseYear, "the year is kept as a year");
+
+        var full = new Movie { Title = "Дюна" };
+        MediaMetadataApplier.ApplyOverwriteAsync(
+            full,
+            external with { ReleaseDate = "2021-10-22" },
+            new NullImageStorage(),
+            CancellationToken.None).GetAwaiter().GetResult();
+
+        AssertEqual(failures, new DateTime(2021, 10, 22), full.ReleaseDate, "a full date is stored as-is");
+    }
+
+    /// <summary>
+    /// A movie must never reach the "TV Shows" group: Kinopoisk answers a keyword search with films
+    /// and series mixed together, so every item is checked against the declared type.
+    /// </summary>
+    private static void CheckSearchTypeFiltering(List<string> failures)
+    {
+        AssertFalse(
+            failures,
+            KinopoiskMetadataProvider.MatchesType("movie", "tv"),
+            "a film is not a series result");
+        AssertFalse(
+            failures,
+            KinopoiskMetadataProvider.MatchesType("tv-series", "movie"),
+            "a series is not a movie result");
+        AssertTrue(
+            failures,
+            KinopoiskMetadataProvider.MatchesType("tv-series", "tv"),
+            "a series belongs to the tv group");
+        AssertTrue(
+            failures,
+            KinopoiskMetadataProvider.MatchesType("movie", "movie"),
+            "a film belongs to the movie group");
+        AssertTrue(
+            failures,
+            KinopoiskMetadataProvider.MatchesType(null, "tv"),
+            "an unclassified item is kept rather than hidden");
+    }
+
+    /// <summary>ApplyOverwriteAsync only reaches the cover through this seam; the checks pass none.</summary>
+    private sealed class NullImageStorage : IImageStorageService
+    {
+        public Task<string?> SaveCoverAsync(string url, Guid mediaId, CancellationToken ct) =>
+            Task.FromResult<string?>(null);
+
+        public void DeleteCover(string? path) { }
+    }
+
     private static void CheckMangaGapEnrichment(List<string> failures)
     {
         var manga = new Manga { Title = "Berserk" };
@@ -223,7 +412,13 @@ public static class RefactorSelfCheck
         var planned = new Book { Title = "Dune", Author = string.Empty, TotalPages = 412, CurrentPage = 300, StartedAt = DateTime.UtcNow };
         MediaStatusTransitions.Apply(planned, MediaStatus.Planned);
         AssertEqual(failures, null, planned.StartedAt, "moving back to planned clears the start date");
-        AssertEqual(failures, 300, planned.CurrentPage, "moving to planned keeps progress");
+        AssertEqual(failures, 0, planned.CurrentPage, "moving to planned clears the phantom progress");
+
+        var plannedShow = new TvShow { Title = "Naruto" };
+        plannedShow.Seasons.Add(new TvSeason { Title = "Season 1", SeasonNumber = 1, TotalEpisodes = 220, CurrentEpisode = 220, Status = MediaStatus.Completed });
+        MediaStatusTransitions.Apply(plannedShow, MediaStatus.Planned);
+        AssertEqual(failures, 0, plannedShow.TotalEpisodesWatched, "a planned show watches no episodes");
+        AssertEqual(failures, MediaStatus.Planned, plannedShow.Seasons[0].Status, "a planned show has planned seasons");
     }
 
     private static void CheckPlaceholderVolumes(List<string> failures)

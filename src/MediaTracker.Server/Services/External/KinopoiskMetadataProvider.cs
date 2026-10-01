@@ -39,7 +39,15 @@ public sealed class KinopoiskMetadataProvider(
             var body = await resp.Content.ReadFromJsonAsync<KinopoiskSearchResponse>(ct);
             if (body?.Films is null || body.Films.Count == 0) return [];
 
-            return body.Films.ConvertAll(f => MapItem(f, _mediaType));
+            // search-by-keyword returns films *and* series mixed together. Mapping the whole list to the
+            // configured type is what put a movie into the "TV Shows" group, so each item is checked
+            // against the type it actually declares before it is mapped.
+            var expectedType = _mediaType == "movie" ? "movie" : "tv";
+            var matching = body.Films
+                .Where(film => MatchesType(film.Type, expectedType))
+                .ToList();
+
+            return matching.ConvertAll(f => MapItem(f, _mediaType));
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
@@ -108,7 +116,25 @@ public sealed class KinopoiskMetadataProvider(
         }
     }
 
-    private static ExternalMediaDto MapItem(KinopoiskFilmItem item, string type)
+    /// <summary>
+    /// Compares a Kinopoisk item type against the group being searched. An absent type is kept: the
+    /// source did not classify it, so dropping it would hide a legitimate match.
+    /// </summary>
+    internal static bool MatchesType(string? itemType, string expectedType)
+    {
+        if (string.IsNullOrWhiteSpace(itemType))
+        {
+            return true;
+        }
+
+        var normalized = itemType.Trim().ToLowerInvariant();
+
+        return expectedType == "movie"
+            ? normalized == "movie"
+            : normalized is "tv-series" or "tvshow" or "series" or "anime" or "cartoon";
+    }
+
+private static ExternalMediaDto MapItem(KinopoiskFilmItem item, string type)
     {
         double? score = null;
         if (!string.IsNullOrWhiteSpace(item.Rating) && double.TryParse(item.Rating.TrimEnd('%'), NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed) && parsed > 0)
@@ -190,6 +216,10 @@ public sealed class KinopoiskMetadataProvider(
     {
         [JsonPropertyName("filmId")]
         public long FilmId { get; set; }
+
+        /// <summary>movie | tv-series | anime | cartoon — the type the source itself declares.</summary>
+        [JsonPropertyName("type")]
+        public string? Type { get; set; }
 
         [JsonPropertyName("nameRu")]
         public string? NameRu { get; set; }

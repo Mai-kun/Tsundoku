@@ -53,4 +53,13 @@ public sealed record UpdateMediaRequest
     public string? UserPlatform { get; init; }
 
     public string? Platform { get; init; }
+
+    /// <summary>Where the user watched it. Free text or one of the known sites.</summary>
+    public string? WatchedOn { get; init; }
+
+    /// <summary>Explicit null clears the value: every other field treats null as "not supplied".</summary>
+    public bool ClearWatchedOn { get; init; }
+
+    /// <summary>Explicit null clears the value: every other field treats null as "not supplied".</summary>
+    public bool ClearUserPlatform { get; init; }
 }

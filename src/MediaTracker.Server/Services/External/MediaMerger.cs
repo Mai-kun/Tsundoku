@@ -116,8 +116,19 @@ public static class MediaMerger
                 return true;
             }
         }
+        else if (type == "movie")
+        {
+            // Movies had no branch at all, so runtime and studio never counted as "missing" and the
+            // cascade stopped at the first source instead of asking the remaining ones.
+            if (d.RuntimeMinutes is not > 0 || string.IsNullOrWhiteSpace(d.Studio))
+            {
+                return true;
+            }
+        }
 
-        return string.IsNullOrWhiteSpace(d.Description) || d.ReleaseYear == null;
+        return string.IsNullOrWhiteSpace(d.Description)
+            || d.ReleaseYear == null
+            || string.IsNullOrWhiteSpace(d.ReleaseDate);
     }
 
     public static ExternalMediaDto Merge(ExternalMediaDto primary, ExternalMediaDto fallback)
@@ -138,6 +149,11 @@ public static class MediaMerger
             RomajiTitle = FirstNonEmpty(primary.RomajiTitle, fallback.RomajiTitle),
             OriginalTitle = FirstNonEmpty(primary.OriginalTitle, fallback.OriginalTitle),
             Platform = FirstNonEmpty(primary.Platform, fallback.Platform),
+            // Runtime was silently dropped here: a source without a runtime used to overwrite the
+            // runtime the first source had already supplied, so the DB ended up with 0 minutes.
+            RuntimeMinutes = primary.RuntimeMinutes ?? fallback.RuntimeMinutes,
+            Genres = primary.Genres is { Count: > 0 } ? primary.Genres : fallback.Genres,
+            Tags = primary.Tags is { Count: > 0 } ? primary.Tags : fallback.Tags,
             Episodes = primary.Episodes is { Count: > 0 } ? primary.Episodes : fallback.Episodes
         };
     }

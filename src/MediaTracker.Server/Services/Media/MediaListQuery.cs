@@ -98,6 +98,8 @@ public static class MediaListQuery
                 StartedAt = item.StartedAt,
                 FinishedAt = item.FinishedAt,
                 ReleaseDate = item.ReleaseDate,
+                ReleaseYear = item.ReleaseYear,
+                WatchedOn = item.WatchedOn,
                 EndDate = item.EndDate,
                 ReleaseStatus = item.ReleaseStatus,
                 Notes = item.Notes,

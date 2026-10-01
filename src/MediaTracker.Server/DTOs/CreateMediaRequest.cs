@@ -40,6 +40,10 @@ public sealed record CreateMediaRequest
 
     public DateTime? ReleaseDate { get; init; }
 
+    public int? ReleaseYear { get; init; }
+
+    public string? WatchedOn { get; init; }
+
     public DateTime? EndDate { get; init; }
 
     public string? ReleaseStatus { get; init; }

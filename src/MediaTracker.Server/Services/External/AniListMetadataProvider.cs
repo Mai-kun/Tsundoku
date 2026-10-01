@@ -162,12 +162,10 @@ public sealed partial class AniListMetadataProvider(
                 .Select(n => new ExternalEpisodeDto { Number = n, Title = $"Episode {n}" })];
         }
 
-        string? releaseDate = item.StartDate?.Year is { } sy
-            ? $"{sy:D4}-{item.StartDate.Month ?? 1:D2}-{item.StartDate.Day ?? 1:D2}"
-            : null;
-        string? endDate = item.EndDate?.Year is { } ey
-            ? $"{ey:D4}-{item.EndDate.Month ?? 1:D2}-{item.EndDate.Day ?? 1:D2}"
-            : null;
+        // A source that only knows the year must not be rendered as "1 Jan": the GraphQL client fills the
+        // missing month/day with 1, so we build the shortest date the source actually vouches for.
+        string? releaseDate = FormatPartialDate(item.StartDate?.Year, item.StartDate?.Month, item.StartDate?.Day);
+        string? endDate = FormatPartialDate(item.EndDate?.Year, item.EndDate?.Month, item.EndDate?.Day);
 
         return new ExternalMediaDto
         {
@@ -250,6 +248,15 @@ public sealed partial class AniListMetadataProvider(
 
     [GeneratedRegex("<[^>]+>")]
     private static partial Regex HtmlTags();
+
+    /// <summary>Shortest date the source actually vouches for: year, year+month, or a full date.</summary>
+    private static string? FormatPartialDate(int? year, int? month, int? day)
+    {
+        if (year is not { } y) return null;
+        if (month is not { } m) return $"{y:D4}";
+        if (day is not { } d) return $"{y:D4}-{m:D2}";
+        return $"{y:D4}-{m:D2}-{d:D2}";
+    }
 
     private sealed record AniListSearchResponse(AniListData? Data);
     private sealed record AniListDetailResponse(AniListDetailData? Data);

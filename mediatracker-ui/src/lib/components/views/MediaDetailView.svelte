@@ -2980,11 +2980,25 @@
                              rhythm; the first/last rows align with the panel's own padding
                              instead of adding 12px on only one side. -->
                         <dl class="divide-y divide-white/[0.06] text-sm">
-                            <!-- "Started" and "Progress" were removed here: a start date and a raw
-                                 counter tell the user nothing the progress stepper does not already
-                                 show. Only the completion stays. -->
+                            <!-- Movies are watched as a single sitting: a start date and a raw
+                                 "current / total" counter say nothing there that the progress stepper
+                                 does not, so only the completion is kept. Every other type still needs
+                                 both rows — a series or a manga is started, then tracked over time. -->
+                            {#if media.type !== "movie"}
+                                <div
+                                    class="flex items-center justify-between gap-3 py-2.5 first:pt-0"
+                                >
+                                    <dt class="text-muted text-xs">
+                                        {i18n.t.detail.startedLabel}
+                                    </dt>
+                                    <dd class="font-medium text-white text-xs">
+                                        {formatDate(media.startedAt)}
+                                    </dd>
+                                </div>
+                            {/if}
                             <div
-                                class="flex items-center justify-between gap-3 py-2.5 first:pt-0"
+                                class="flex items-center justify-between gap-3 py-2.5"
+                                class:first:pt-0={media.type === "movie"}
                             >
                                 <dt class="text-muted text-xs">
                                     {i18n.t.detail.endedLabel}
@@ -2993,6 +3007,20 @@
                                     {formatDate(media.finishedAt)}
                                 </dd>
                             </div>
+                            {#if media.type !== "movie"}
+                                <div
+                                    class="flex items-center justify-between gap-3 py-2.5"
+                                >
+                                    <dt class="text-muted text-xs">
+                                        {i18n.t.detail.progressShort}
+                                    </dt>
+                                    <dd
+                                        class="font-medium tabular-nums text-white text-xs"
+                                    >
+                                        {historyProgressText()}
+                                    </dd>
+                                </div>
+                            {/if}
                             {#if media.type === "movie" || media.type === "tvshow"}
                                 <!-- Pick a known site or type your own; saved on change/blur. -->
                                 <div

@@ -1174,37 +1174,11 @@
         force = false,
     ) {
         if (!current.externalId && !current.title) return;
-        if (!force && enrichedMediaIds.has(current.id)) return;
 
-        let hasMissingRatings = false;
-        const expected =
-            availableSources.length > 0
-                ? availableSources
-                      .filter(
-                          (s) =>
-                              s.isEnabled &&
-                              s.mediaTypes.includes(current.type),
-                      )
-                      .map((s) => s.name)
-                : (CATEGORY_EXPECTED_SOURCES[current.type] ?? []);
-        if (expected.length > 0) {
-            const badges = externalRatings;
-            // Only a source that has never been asked counts as missing. A badge whose score is null
-            // but queried === true means the source answered "no rating", and asking again would
-            // return the same empty answer — that was the repeated external request per card open.
-            hasMissingRatings = badges.some((b) => b.score === null && !b.queried);
-        }
-
-        let isMangaMissingData = false;
-        if (current.type === "manga") {
-            isMangaMissingData =
-                !current.totalChapters ||
-                !current.totalVolumes ||
-                !current.author;
-        }
-
-        if (!hasMissingRatings && !isMangaMissingData && !force) {
-            enrichedMediaIds.add(current.id);
+        if (!force) {
+            // Opening a card must not call any external API: the ratings, dates, runtime and studio it
+            // renders all come from the local DB. Enrichment is now only an explicit user action
+            // (the refresh button), so the badge list can never appear to "still be loading".
             return;
         }
 
@@ -1217,8 +1191,6 @@
                 syncFrom(enriched);
             }
         } catch {
-            // Background enrichment silently completes. The id is marked as done even on failure so a
-            // broken provider cannot re-trigger an external request on every card open.
             enrichedMediaIds.add(current.id);
         } finally {
             isEnriching = false;
@@ -3004,19 +2976,15 @@
                         {i18n.t.detail.historyTitle}
                     </h2>
                     <div class="panel">
-                        <dl class="divide-y divide-white/5 text-sm">
+                        <!-- Every row gets the same padding so the list reads as one even
+                             rhythm; the first/last rows align with the panel's own padding
+                             instead of adding 12px on only one side. -->
+                        <dl class="divide-y divide-white/[0.06] text-sm">
+                            <!-- "Started" and "Progress" were removed here: a start date and a raw
+                                 counter tell the user nothing the progress stepper does not already
+                                 show. Only the completion stays. -->
                             <div
-                                class="flex items-center justify-between gap-3 pb-3"
-                            >
-                                <dt class="text-muted text-xs">
-                                    {i18n.t.detail.startedLabel}
-                                </dt>
-                                <dd class="font-medium text-white text-xs">
-                                    {formatDate(media.startedAt)}
-                                </dd>
-                            </div>
-                            <div
-                                class="flex items-center justify-between gap-3 py-3"
+                                class="flex items-center justify-between gap-3 py-2.5 first:pt-0"
                             >
                                 <dt class="text-muted text-xs">
                                     {i18n.t.detail.endedLabel}
@@ -3025,21 +2993,48 @@
                                     {formatDate(media.finishedAt)}
                                 </dd>
                             </div>
-                            <div
-                                class="flex items-center justify-between gap-3 pt-3"
-                            >
-                                <dt class="text-muted text-xs">
-                                    {i18n.t.detail.progressShort}
-                                </dt>
-                                <dd
-                                    class="font-medium tabular-nums text-white text-xs"
+                            {#if media.type === "movie" || media.type === "tvshow"}
+                                <!-- Pick a known site or type your own; saved on change/blur. -->
+                                <div
+                                    class="flex items-center justify-between gap-3 py-2.5 last:pb-0"
                                 >
-                                    {historyProgressText()}
-                                </dd>
-                            </div>
+                                    <dt class="text-muted text-xs">
+                                        {i18n.current === "ru"
+                                            ? "Где смотрено"
+                                            : "Watched on"}
+                                    </dt>
+                                    <dd class="min-w-0 flex-1 text-right">
+                                        <input
+                                            id="watched-on-input"
+                                            list="watched-on-sites"
+                                            class="h-8 w-full max-w-[14rem] rounded-lg border border-white/10 bg-elevated px-2 text-right text-xs text-white outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
+                                            placeholder={
+                                                i18n.current === "ru"
+                                                    ? "Выберите сайт или введите свой"
+                                                    : "Pick a site or type your own"
+                                            }
+                                            value={watchedOnInput}
+                                            oninput={(e) => {
+                                                watchedOnInput = e.currentTarget.value;
+                                                watchedOnDirty = true;
+                                            }}
+                                            onchange={() => void saveWatchedOn()}
+                                            onblur={() => {
+                                                if (watchedOnDirty)
+                                                    void saveWatchedOn();
+                                            }}
+                                        />
+                                        <datalist id="watched-on-sites">
+                                            {#each watchedOnOptions as site (site)}
+                                                <option value={site}></option>
+                                            {/each}
+                                        </datalist>
+                                    </dd>
+                                </div>
+                            {/if}
                             {#if media.type === "game"}
                                 <div
-                                    class="flex items-center justify-between gap-3 pt-3"
+                                    class="flex items-center justify-between gap-3 py-2.5 last:pb-0"
                                 >
                                     <dt class="text-muted text-xs">
                                         {i18n.current === "ru"
@@ -3064,6 +3059,8 @@
                                                 placement="bottom-end"
                                                 class="max-h-56 min-w-[150px] overflow-y-auto"
                                                 optionClass="text-xs"
+                                                openOnHover
+                                                closeDelay={220}
                                             >
                                                 {#snippet trigger({
                                                     popoverTargetId,
@@ -3234,44 +3231,6 @@
                                 </div>
                             {/each}
                         </dl>
-
-                        <!-- Where the user watched it: pick a known site or type your own. -->
-                        {#if media.type === "movie" || media.type === "tvshow"}
-                            <div class="mt-4 border-t border-white/5 pt-4">
-                                <label
-                                    class="mb-1.5 block text-xs font-medium text-muted"
-                                    for="watched-on-input"
-                                >
-                                    {i18n.current === "ru"
-                                        ? "Где смотрено"
-                                        : "Watched on"}
-                                </label>
-                                <input
-                                    id="watched-on-input"
-                                    list="watched-on-sites"
-                                    class="h-9 w-full rounded-lg border border-white/10 bg-elevated px-3 text-xs text-white outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
-                                    placeholder={
-                                        i18n.current === "ru"
-                                            ? "Выберите сайт или введите свой"
-                                            : "Pick a site or type your own"
-                                    }
-                                    value={watchedOnInput}
-                                    oninput={(e) => {
-                                        watchedOnInput = e.currentTarget.value;
-                                        watchedOnDirty = true;
-                                    }}
-                                    onchange={() => void saveWatchedOn()}
-                                    onblur={() => {
-                                        if (watchedOnDirty) void saveWatchedOn();
-                                    }}
-                                />
-                                <datalist id="watched-on-sites">
-                                    {#each watchedOnOptions as site (site)}
-                                        <option value={site}></option>
-                                    {/each}
-                                </datalist>
-                            </div>
-                        {/if}
                     </div>
                 </div>
             </aside>
@@ -3381,14 +3340,10 @@
                                             : rating.votes})</span
                                     >
                                 {/if}
-                            {:else if isEnriching}
-                                <LoaderCircle
-                                    size={15}
-                                    class="animate-spin text-white/60"
-                                    role="status"
-                                    aria-label={i18n.t.common.loading}
-                                />
                             {:else}
+                                <!-- No spinner here on purpose: the badges are rendered from the local
+                                     DB, so a source with no stored score means "no rating", not
+                                     "still being fetched". -->
                                 <span class="text-sm font-medium text-white/40"
                                     >—</span
                                 >
@@ -3669,7 +3624,6 @@
                                     value={progressValue}
                                     label={support?.label ??
                                         i18n.t.detail.hoursLabel}
-                                    unit={i18n.current === "ru" ? "ч" : "h"}
                                     onChange={(val) => {
                                         if (!media) return;
                                         const next = Math.max(val, 0);

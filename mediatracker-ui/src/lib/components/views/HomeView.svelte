@@ -28,6 +28,17 @@
         type MediaStatus,
     } from "$lib/types";
     import MediaGrid from "../media/MediaGrid.svelte";
+    import PopoverMenu from "$lib/components/ui/PopoverMenu.svelte";
+    import { SORT_ICONS } from "../media/FilterBar.svelte";
+
+    const sortOptions = $derived<
+        { value: LibrarySort; label: string }[]
+    >([
+        { value: "newest", label: i18n.t.sort.newest },
+        { value: "oldest", label: i18n.t.sort.oldest },
+        { value: "rating", label: i18n.t.sort.rating },
+        { value: "title", label: i18n.t.sort.title },
+    ]);
 
     interface Props {
         refreshKey: number;
@@ -364,7 +375,9 @@
 
 {#snippet section(items: MediaItem[], title: string)}
     <section class="space-y-4">
-        <h2 class="text-lg font-bold tracking-wide text-white">{title}</h2>
+        <h2 class="text-[25px] font-bold tracking-wide text-white">
+            {title}
+        </h2>
         {#if groupByType}
             {#each groupByMediaType(items) as group (group.key)}
                 <div class="space-y-3">
@@ -418,34 +431,59 @@
                     type="button"
                     role="switch"
                     aria-checked={groupByType}
-                    class={`inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md border px-2.5 text-xs font-medium transition cursor-pointer ${
+                    class={`tap grid h-12 w-12 shrink-0 place-items-center rounded-lg border transition cursor-pointer ${
                         groupByType
                             ? "border-accent/40 bg-accent/15 text-accent-soft"
                             : "border-white/10 bg-field text-muted hover:text-ink"
                     }`}
                     onclick={() => (groupByType = !groupByType)}
                     title={i18n.t.views.groupByType}
+                    aria-label={i18n.t.views.groupByType}
                 >
-                    <Layers size={13} />
-                    <span>{i18n.t.views.groupByType}</span>
+                    <Layers size={22} stroke-width={2} aria-hidden="true" />
                 </button>
 
-                <label class="sr-only" for="home-sort"
-                    >{i18n.t.sort.label}</label
-                >
-                <select
+                <PopoverMenu
                     id="home-sort"
-                    class="h-8 shrink-0 rounded-md border border-white/10 bg-field px-2.5 text-xs font-medium text-ink outline-none focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/30 cursor-pointer"
-                    value={sort}
-                    onchange={(e) =>
-                        (sort = (e.currentTarget as HTMLSelectElement)
-                            .value as LibrarySort)}
+                    options={sortOptions}
+                    selected={sort}
+                    onSelect={(value) => (sort = value as LibrarySort)}
+                    label={i18n.t.sort.label}
+                    placement="bottom-end"
+                    openOnHover
+                    closeDelay={220}
                 >
-                    <option value="newest">{i18n.t.sort.newest}</option>
-                    <option value="oldest">{i18n.t.sort.oldest}</option>
-                    <option value="rating">{i18n.t.sort.rating}</option>
-                    <option value="title">{i18n.t.sort.title}</option>
-                </select>
+                    {#snippet trigger({ popoverTargetId, anchorName })}
+                        {@const SortIcon = SORT_ICONS[sort]}
+                        <button
+                            type="button"
+                            popovertarget={popoverTargetId}
+                            popovertargetaction="toggle"
+                            style="anchor-name: {anchorName}"
+                            class="tap grid h-12 w-12 shrink-0 place-items-center rounded-lg border border-white/10 bg-field text-muted transition hover:border-white/20 hover:text-ink has-[:popover-open]:ring-2 has-[:popover-open]:ring-indigo-500/40"
+                            title={i18n.t.sort.label}
+                            aria-label={i18n.t.sort.label}
+                        >
+                            <SortIcon
+                                size={22}
+                                stroke-width={2}
+                                aria-hidden="true"
+                            />
+                        </button>
+                    {/snippet}
+                    {#snippet renderOption({ option })}
+                        {@const SortIcon =
+                            SORT_ICONS[option.value as LibrarySort]}
+                        <span class="flex items-center gap-2">
+                            <SortIcon
+                                size={16}
+                                stroke-width={2}
+                                aria-hidden="true"
+                            />
+                            <span class="truncate">{option.label}</span>
+                        </span>
+                    {/snippet}
+                </PopoverMenu>
             </div>
         {/if}
     </header>

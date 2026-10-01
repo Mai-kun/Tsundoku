@@ -23,6 +23,10 @@
         matchTriggerWidth?: boolean;
         /** Open on hover and close after `closeDelay` ms, so the cursor can travel to the options. */
         openOnHover?: boolean;
+        /** Replaces the default label row — used by icon-only menus (sort, grouping). */
+        renderOption?: Snippet<
+            [ctx: { option: PopoverOption<unknown>; selected: boolean }]
+        >;
         closeDelay?: number;
         label: string;
     }
@@ -38,6 +42,7 @@
         optionClass = "",
         matchTriggerWidth = false,
         openOnHover = false,
+        renderOption,
         closeDelay = 180,
         label,
     }: Props<unknown> = $props();
@@ -225,13 +230,17 @@
                 : 'text-muted'} {optionClass}"
             onclick={() => select(option.value)}
         >
-            <span class="truncate">{option.label}</span>
-            {#if option.value === selected}
-                <Check
-                    size={14}
-                    class="shrink-0 text-accent-soft"
-                    aria-hidden="true"
-                />
+            {#if renderOption}
+                {@render renderOption({ option, selected: option.value === selected })}
+            {:else}
+                <span class="truncate">{option.label}</span>
+                {#if option.value === selected}
+                    <Check
+                        size={14}
+                        class="shrink-0 text-accent-soft"
+                        aria-hidden="true"
+                    />
+                {/if}
             {/if}
         </button>
     {/each}

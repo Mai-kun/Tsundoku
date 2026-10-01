@@ -448,7 +448,7 @@
                     <section class="space-y-3">
                         <div class="flex items-center gap-2">
                             <h2
-                                class="text-lg font-bold tracking-wide text-white"
+                                class="text-[25px] font-bold tracking-wide text-white"
                             >
                                 {group.title}
                             </h2>
@@ -495,7 +495,7 @@
                     <section class="space-y-3">
                         <div class="flex items-center gap-2">
                             <h2
-                                class="text-lg font-bold tracking-wide text-white"
+                                class="text-[25px] font-bold tracking-wide text-white"
                             >
                                 {group.name}
                             </h2>

@@ -9,7 +9,6 @@
         max?: number;
         step?: number;
         label?: string;
-        unit?: string;
         disabled?: boolean;
         onChange: (value: number) => void;
     }
@@ -20,7 +19,6 @@
         max = 99999,
         step = 1,
         label = "Часы",
-        unit = "ч",
         disabled = false,
         onChange,
     }: Props = $props();
@@ -222,8 +220,10 @@
 
             <!-- Center Direct Input Container -->
             <div
-                class="relative z-10 flex flex-col items-center justify-center pointer-events-auto"
+                class="relative z-10 flex items-center justify-center pointer-events-auto"
             >
+                <!-- Chromium reserves a gutter for the number spinners, which pushes the
+                     digits off-centre even with text-align:center; appearance:none removes it. -->
                 <input
                     type="number"
                     {min}
@@ -233,14 +233,9 @@
                     value={inputValue}
                     onchange={handleInputCommit}
                     onblur={handleInputCommit}
-                    class="w-16 bg-transparent text-center text-lg font-bold tabular-nums text-white focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)] rounded py-0.5"
+                    class="w-16 appearance-none bg-transparent text-center text-lg font-bold tabular-nums text-white focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)] rounded py-0.5 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                     title="Нажмите, чтобы ввести число вручную"
                 />
-                {#if unit}
-                    <span class="text-[10px] font-medium text-muted -mt-1"
-                        >{unit}</span
-                    >
-                {/if}
             </div>
         </div>
 

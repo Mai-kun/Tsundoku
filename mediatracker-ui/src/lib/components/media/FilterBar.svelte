@@ -1,3 +1,31 @@
+<script module lang="ts">
+    import ArrowDown from "lucide-svelte/icons/arrow-down";
+    import ArrowUp from "lucide-svelte/icons/arrow-up";
+    import LayoutGrid from "lucide-svelte/icons/layout-grid";
+    import ListChecks from "lucide-svelte/icons/list-checks";
+    import Star from "lucide-svelte/icons/star";
+    import Tag from "lucide-svelte/icons/tag";
+    import Type from "lucide-svelte/icons/type";
+
+    export type LibrarySort = "newest" | "oldest" | "rating" | "title";
+    export type GroupBy = "status" | "franchise" | "all";
+
+    /* The sort/group controls are icon-only, so every option keeps its label for
+       aria/title — the words just stop taking pixels in the bar itself. */
+    export const SORT_ICONS = {
+        newest: ArrowDown,
+        oldest: ArrowUp,
+        rating: Star,
+        title: Type,
+    } as const;
+
+    export const GROUP_ICONS = {
+        status: ListChecks,
+        franchise: Tag,
+        all: LayoutGrid,
+    } as const;
+</script>
+
 <script lang="ts">
     import Search from "lucide-svelte/icons/search";
     import SlidersHorizontal from "lucide-svelte/icons/sliders-horizontal";
@@ -7,9 +35,7 @@
         type MediaStatus,
         type StatusFilter,
     } from "$lib/types";
-
-    export type LibrarySort = "newest" | "oldest" | "rating" | "title";
-    export type GroupBy = "status" | "franchise" | "all";
+    import PopoverMenu from "$lib/components/ui/PopoverMenu.svelte";
 
     interface Props {
         status: StatusFilter;
@@ -61,18 +87,6 @@
         }
     }
 
-    function handleGroup(event: Event) {
-        onGroupByChange(
-            (event.currentTarget as HTMLSelectElement).value as GroupBy,
-        );
-    }
-
-    function handleSort(event: Event) {
-        onSortChange(
-            (event.currentTarget as HTMLSelectElement).value as LibrarySort,
-        );
-    }
-
     function handleStatus(event: Event) {
         const value = (event.currentTarget as HTMLSelectElement).value;
         onStatusChange(
@@ -83,6 +97,23 @@
     function handleSearch(event: Event) {
         onSearchChange((event.currentTarget as HTMLInputElement).value);
     }
+
+    const sortOptions = $derived<
+        { value: LibrarySort; label: string }[]
+    >([
+        { value: "newest", label: i18n.t.sort.newest },
+        { value: "oldest", label: i18n.t.sort.oldest },
+        { value: "rating", label: i18n.t.sort.rating },
+        { value: "title", label: i18n.t.sort.title },
+    ]);
+
+    const groupOptions = $derived<
+        { value: GroupBy; label: string }[]
+    >([
+        { value: "status", label: i18n.t.grouping.byStatus },
+        { value: "franchise", label: i18n.t.grouping.byFranchise },
+        { value: "all", label: i18n.t.grouping.all },
+    ]);
 </script>
 
 <section
@@ -96,19 +127,40 @@
                 class="shrink-0 text-muted"
                 aria-hidden="true"
             />
-            <label class="sr-only" for="library-group"
-                >{i18n.t.grouping.label}</label
-            >
-            <select
+            <PopoverMenu
                 id="library-group"
-                class="shrink-0 whitespace-nowrap rounded-md border border-white/10 bg-field px-3 py-1.5 text-xs font-semibold text-ink outline-none focus:ring-2 focus:ring-accent/40"
-                value={groupBy}
-                onchange={handleGroup}
+                options={groupOptions}
+                selected={groupBy}
+                onSelect={(value) => onGroupByChange(value as GroupBy)}
+                label={i18n.t.grouping.label}
+                placement="bottom-start"
             >
-                <option value="status">{i18n.t.grouping.byStatus}</option>
-                <option value="franchise">{i18n.t.grouping.byFranchise}</option>
-                <option value="all">{i18n.t.grouping.all}</option>
-            </select>
+                {#snippet trigger({ popoverTargetId, anchorName })}
+                    {@const GroupIcon = GROUP_ICONS[groupBy]}
+                    <button
+                        type="button"
+                        popovertarget={popoverTargetId}
+                        popovertargetaction="toggle"
+                        style="anchor-name: {anchorName}"
+                        class="tap grid h-12 w-12 shrink-0 place-items-center rounded-lg border border-white/10 bg-field text-muted transition hover:border-white/20 hover:text-ink has-[:popover-open]:ring-2 has-[:popover-open]:ring-indigo-500/40"
+                        title={i18n.t.grouping.label}
+                        aria-label={i18n.t.grouping.label}
+                    >
+                        <GroupIcon size={22} stroke-width={2} aria-hidden="true" />
+                    </button>
+                {/snippet}
+                {#snippet renderOption({ option })}
+                    {@const GroupIcon = GROUP_ICONS[option.value as GroupBy]}
+                    <span class="flex items-center gap-2">
+                        <GroupIcon
+                            size={16}
+                            stroke-width={2}
+                            aria-hidden="true"
+                        />
+                        <span class="truncate">{option.label}</span>
+                    </span>
+                {/snippet}
+            </PopoverMenu>
 
             <label class="sr-only" for="library-status"
                 >{i18n.t.status.label}</label
@@ -148,19 +200,42 @@
                     oninput={handleSearch}
                 />
             </label>
-            <label class="sr-only" for="library-sort">{i18n.t.sort.label}</label
-            >
-            <select
+            <PopoverMenu
                 id="library-sort"
-                class="h-8 rounded-md border border-white/10 bg-field px-2 text-xs font-medium text-ink outline-none focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/30"
-                value={sort}
-                onchange={handleSort}
+                options={sortOptions}
+                selected={sort}
+                onSelect={(value) => onSortChange(value as LibrarySort)}
+                label={i18n.t.sort.label}
+                placement="bottom-end"
+                openOnHover
+                closeDelay={220}
             >
-                <option value="newest">{i18n.t.sort.newest}</option>
-                <option value="oldest">{i18n.t.sort.oldest}</option>
-                <option value="rating">{i18n.t.sort.rating}</option>
-                <option value="title">{i18n.t.sort.title}</option>
-            </select>
+                {#snippet trigger({ popoverTargetId, anchorName })}
+                    {@const SortIcon = SORT_ICONS[sort]}
+                    <button
+                        type="button"
+                        popovertarget={popoverTargetId}
+                        popovertargetaction="toggle"
+                        style="anchor-name: {anchorName}"
+                        class="tap grid h-12 w-12 shrink-0 place-items-center rounded-lg border border-white/10 bg-field text-muted transition hover:border-white/20 hover:text-ink has-[:popover-open]:ring-2 has-[:popover-open]:ring-indigo-500/40"
+                        title={i18n.t.sort.label}
+                        aria-label={i18n.t.sort.label}
+                    >
+                        <SortIcon size={22} stroke-width={2} aria-hidden="true" />
+                    </button>
+                {/snippet}
+                {#snippet renderOption({ option })}
+                    {@const SortIcon = SORT_ICONS[option.value as LibrarySort]}
+                    <span class="flex items-center gap-2">
+                        <SortIcon
+                            size={16}
+                            stroke-width={2}
+                            aria-hidden="true"
+                        />
+                        <span class="truncate">{option.label}</span>
+                    </span>
+                {/snippet}
+            </PopoverMenu>
         </div>
     </div>
 </section>

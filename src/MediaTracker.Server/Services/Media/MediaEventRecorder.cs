@@ -50,4 +50,12 @@ public static class MediaEventRecorder
             Type = MediaEventType.Deleted,
             OldValue = item.Title
         };
+
+    public static MediaEvent AchievementUnlocked(MediaItem item, string name) =>
+        new()
+        {
+            MediaId = item.Id,
+            Type = MediaEventType.AchievementUnlocked,
+            NewValue = name
+        };
 }

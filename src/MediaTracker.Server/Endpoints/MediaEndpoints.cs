@@ -277,6 +277,7 @@ public static class MediaEndpoints
 
         var previousStatus = item.Status;
         var previousScore = item.Score;
+        var previousAchievements = item.UnlockedAchievements;
 
         MediaItemUpdater.Apply(item, request);
         await franchiseService.LinkFranchiseOnUpdateAsync(db, item, request.FranchiseId, request.FranchiseName, ct);
@@ -291,10 +292,68 @@ public static class MediaEndpoints
             db.Events.Add(MediaEventRecorder.ScoreChanged(item, previousScore, item.Score));
         }
 
+        foreach (var name in NewlyUnlockedAchievements(previousAchievements, item.UnlockedAchievements))
+        {
+            db.Events.Add(MediaEventRecorder.AchievementUnlocked(item, name));
+        }
+
         item.UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync(ct);
 
         return Results.Ok(MediaResponseMapper.ToDetailDto(item));
+    }
+
+    /// <summary>
+    /// Achievement names present in the new payload but not the old one. Compared case-insensitively
+    /// because the UI toggles match that way; anything unparseable is treated as no change.
+    /// </summary>
+    private static IReadOnlyList<string> NewlyUnlockedAchievements(string? before, string? after)
+    {
+        if (string.Equals(before, after, StringComparison.Ordinal) || string.IsNullOrWhiteSpace(after))
+        {
+            return [];
+        }
+
+        var beforeNames = ParseAchievementNames(before);
+        var afterNames = ParseAchievementNames(after);
+
+        return afterNames
+            .Where(pair => !beforeNames.ContainsKey(pair.Key))
+            .Select(pair => pair.Value)
+            .ToList();
+    }
+
+    private static Dictionary<string, string> ParseAchievementNames(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return [];
+        }
+
+        try
+        {
+            using var document = System.Text.Json.JsonDocument.Parse(json);
+            if (document.RootElement.ValueKind != System.Text.Json.JsonValueKind.Array)
+            {
+                return [];
+            }
+
+            var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var element in document.RootElement.EnumerateArray())
+            {
+                var name = element.ToString();
+                if (!string.IsNullOrWhiteSpace(name))
+                {
+                    result[name.Trim()] = name.Trim();
+                }
+            }
+
+            return result;
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            return [];
+        }
     }
 
     private static async Task<IResult> UpdateStatus(

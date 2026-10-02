@@ -411,3 +411,23 @@ export interface GameRelatedItem {
   releaseDate: string | null;
   score: number | null;
 }
+
+/** Mirrors MediaEventType on the server. */
+export type HistoryEventType =
+  | "Added"
+  | "StatusChanged"
+  | "ScoreChanged"
+  | "ProgressChanged"
+  | "Deleted"
+  | "AchievementUnlocked";
+
+export interface HistoryEvent {
+  id: string;
+  mediaId: string;
+  type: HistoryEventType;
+  oldValue: string | null;
+  newValue: string | null;
+  createdAt: string;
+  /** Null once the media is deleted. */
+  title: string | null;
+}

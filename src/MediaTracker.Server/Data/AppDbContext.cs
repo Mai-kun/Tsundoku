@@ -25,9 +25,22 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 
     public DbSet<AppSetting> Settings => Set<AppSetting>();
 
+    public DbSet<MediaEvent> Events => Set<MediaEvent>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<AppSetting>(entity => entity.HasKey(s => s.Key));
+
+        modelBuilder.Entity<MediaEvent>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            // The history screen reads the newest first, so the index carries the sort column.
+            entity.HasIndex(e => e.CreatedAt);
+            entity.HasOne(e => e.Media)
+                .WithMany()
+                .HasForeignKey(e => e.MediaId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
 
         modelBuilder.Entity<MediaItem>(entity =>
         {

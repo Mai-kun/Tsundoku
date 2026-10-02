@@ -20,6 +20,12 @@ public sealed class RawgGameService(
     private const string SteamStoreUrl = "https://store.steampowered.com/api";
     private const string RawgApiUrl = "https://api.rawg.io/api";
 
+    /// <summary>RAWG's largest accepted page size for this endpoint.</summary>
+    private const int AchievementPageSize = 40;
+
+    /// <summary>50 pages x 40 = 2000 achievements, above the largest known title (Payday, ~1300).</summary>
+    private const int MaxAchievementPages = 50;
+
     public async Task<GameAchievementsResponse> GetAchievementsAsync(
         string? steamAppId,
         string? rawgId,
@@ -209,16 +215,45 @@ public sealed class RawgGameService(
                 return null;
             }
 
-            var achievements = await GetAsync<RawgAchievementsRoot>($"{RawgApiUrl}/games/{rawgGameId}/achievements?page_size=20", ct);
-            if (achievements is null || achievements.Count == 0)
+            // The list is paginated: a single page_size=20 request truncated titles like Payday
+            // (1000+ achievements) to a couple of dozen, so the pages are walked until the reported
+            // total is covered. MaxAchievementPages caps a pathological game at a few hundred calls.
+            var items = new List<GameAchievementItem>();
+            var total = 0;
+
+            for (var page = 1; page <= MaxAchievementPages; page++)
+            {
+                var achievements = await GetAsync<RawgAchievementsRoot>(
+                    $"{RawgApiUrl}/games/{rawgGameId}/achievements?page_size={AchievementPageSize}&page={page}",
+                    ct);
+
+                if (achievements is null)
+                {
+                    break;
+                }
+
+                total = Math.Max(total, achievements.Count);
+
+                var batch = achievements.Results ?? [];
+                if (batch.Count == 0)
+                {
+                    break;
+                }
+
+                items.AddRange(batch.Select(r => new GameAchievementItem(r.Name ?? "Achievement", r.Description, r.Image)));
+
+                if (items.Count >= total || batch.Count < AchievementPageSize)
+                {
+                    break;
+                }
+            }
+
+            if (items.Count == 0)
             {
                 return null;
             }
 
-            var items = (achievements.Results ?? [])
-                .Select(r => new GameAchievementItem(r.Name ?? "Achievement", r.Description, r.Image))
-                .ToList();
-            return new GameAchievementsResponse(achievements.Count, items);
+            return new GameAchievementsResponse(total, items);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {

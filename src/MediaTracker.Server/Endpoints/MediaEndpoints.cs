@@ -31,6 +31,7 @@ public static class MediaEndpoints
         group.MapDelete("/{id:guid}", DeleteMediaItem);
 
         var historyGroup = app.MapGroup("/api/history");
+        historyGroup.MapGet("/", GetHistoryEvents);
         historyGroup.MapDelete("/", ClearAllHistory);
         historyGroup.MapDelete("/{id:guid}/{kind}", DeleteHistoryEntry);
 
@@ -248,6 +249,7 @@ public static class MediaEndpoints
         await franchiseService.LinkFranchiseOnCreateAsync(db, item, request.FranchiseName, ct);
 
         db.Add(item);
+        db.Events.Add(MediaEventRecorder.Added(item));
         await db.SaveChangesAsync(ct);
 
         return Results.Created($"/api/media/{item.Id}", MediaResponseMapper.ToDetailDto(item));
@@ -273,8 +275,21 @@ public static class MediaEndpoints
             return Results.NotFound();
         }
 
+        var previousStatus = item.Status;
+        var previousScore = item.Score;
+
         MediaItemUpdater.Apply(item, request);
         await franchiseService.LinkFranchiseOnUpdateAsync(db, item, request.FranchiseId, request.FranchiseName, ct);
+
+        if (item.Status != previousStatus)
+        {
+            db.Events.Add(MediaEventRecorder.StatusChanged(item, previousStatus, item.Status));
+        }
+
+        if (item.Score != previousScore)
+        {
+            db.Events.Add(MediaEventRecorder.ScoreChanged(item, previousScore, item.Score));
+        }
 
         item.UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync(ct);
@@ -303,16 +318,45 @@ public static class MediaEndpoints
             return Results.NotFound();
         }
 
+        var previousStatus = item.Status;
         item.Status = request.Status;
         MediaStatusTransitions.Apply(item, request.Status);
         item.UpdatedAt = DateTime.UtcNow;
+
+        if (item.Status != previousStatus)
+        {
+            db.Events.Add(MediaEventRecorder.StatusChanged(item, previousStatus, item.Status));
+        }
 
         await db.SaveChangesAsync(ct);
         return Results.NoContent();
     }
 
+    /// <summary>The activity log behind the history screen: newest first, title joined in.</summary>
+    private static async Task<IResult> GetHistoryEvents(AppDbContext db, CancellationToken ct)
+    {
+        var events = await db.Events
+            .AsNoTracking()
+            .OrderByDescending(e => e.CreatedAt)
+            .Select(e => new
+            {
+                e.Id,
+                e.MediaId,
+                e.Type,
+                e.OldValue,
+                e.NewValue,
+                e.CreatedAt,
+                Title = e.Media != null ? e.Media.Title : null
+            })
+            .Take(500)
+            .ToListAsync(ct);
+
+        return Results.Ok(events);
+    }
+
     private static async Task<IResult> ClearAllHistory(AppDbContext db, CancellationToken ct)
     {
+        await db.Events.ExecuteDeleteAsync(ct);
         await db.MediaItems.ExecuteUpdateAsync(s => s
             .SetProperty(m => m.StartedAt, (DateTime?)null)
             .SetProperty(m => m.FinishedAt, (DateTime?)null), ct);

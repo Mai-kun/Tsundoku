@@ -1,12 +1,14 @@
 <script lang="ts">
     import Flag from "lucide-svelte/icons/flag";
     import History from "lucide-svelte/icons/history";
+    import LoaderCircle from "lucide-svelte/icons/loader-circle";
     import Plus from "lucide-svelte/icons/plus";
     import RefreshCw from "lucide-svelte/icons/refresh-cw";
     import Star from "lucide-svelte/icons/star";
     import Trash2 from "lucide-svelte/icons/trash-2";
     import {
         clearAllHistory,
+        deleteHistoryEvent,
         errorMessage,
         getHistoryEvents,
     } from "$lib/api";
@@ -24,6 +26,7 @@
     let loading = $state(true);
     let loadError = $state<unknown>(null);
     let clearing = $state(false);
+    let deletingId = $state<string | null>(null);
     let requestSequence = 0;
 
     $effect(() => {
@@ -87,6 +90,26 @@
                 : event.type.replace(/([A-Z])/g, " $1").toLowerCase();
         const from = event.oldValue ? `${event.oldValue} → ` : "";
         return `${base}${from}${event.newValue ?? ""}`;
+    }
+
+    async function handleDeleteEvent(event: HistoryEvent) {
+        if (deletingId !== null) return;
+        if (!window.confirm(i18n.t.views.confirmDeleteHistoryEntry)) return;
+
+        deletingId = event.id;
+        // Drop the row immediately and restore it if the request fails, so the list never lags.
+        const prevEvents = events;
+        events = events.filter((x) => x.id !== event.id);
+
+        try {
+            await deleteHistoryEvent(event.id);
+            showToast(i18n.t.views.historyEntryDeleted, "success");
+        } catch (err) {
+            events = prevEvents;
+            showToast(errorMessage(err), "error");
+        } finally {
+            deletingId = null;
+        }
     }
 
     async function handleClearAll() {
@@ -174,7 +197,7 @@
             {#each events as event (event.id)}
                 {@const Icon = EVENT_ICONS[event.type]}
                 <li
-                    class="flex items-center gap-4 rounded-lg bg-card p-4 transition hover:bg-card/80"
+                    class="group/list flex items-center gap-4 rounded-lg bg-card p-4 transition hover:bg-card/80"
                 >
                     <div
                         class="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-accent/15 text-accent-soft"
@@ -189,10 +212,30 @@
                             {eventLabel(event)}
                         </p>
                     </div>
-                    <span
-                        class="shrink-0 text-xs text-muted tabular-nums"
-                        >{formatDate(event.createdAt)}</span
-                    >
+                    <div class="flex shrink-0 items-center gap-2">
+                        <span
+                            class="text-xs text-muted tabular-nums"
+                            >{formatDate(event.createdAt)}</span
+                        >
+                        <button
+                            type="button"
+                            class="grid h-7 w-7 place-items-center rounded-md text-muted opacity-0 transition group-hover/list:opacity-100 hover:bg-rose-500/10 hover:text-rose-400 focus-visible:opacity-100 cursor-pointer disabled:opacity-40"
+                            disabled={deletingId !== null}
+                            aria-label={i18n.t.views.confirmDeleteHistoryEntry}
+                            title={i18n.t.views.confirmDeleteHistoryEntry}
+                            onclick={() => void handleDeleteEvent(event)}
+                        >
+                            {#if deletingId === event.id}
+                                <LoaderCircle
+                                    size={13}
+                                    class="animate-spin"
+                                    aria-hidden="true"
+                                />
+                            {:else}
+                                <Trash2 size={13} aria-hidden="true" />
+                            {/if}
+                        </button>
+                    </div>
                 </li>
             {/each}
         </ol>

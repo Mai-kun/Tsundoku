@@ -424,7 +424,8 @@ export type HistoryEventType =
 export interface HistoryEvent {
   id: string;
   mediaId: string;
-  type: HistoryEventType;
+  /** Serialised by name ("StatusChanged"), matching the HistoryEventType union. */
+    type: HistoryEventType;
   oldValue: string | null;
   newValue: string | null;
   createdAt: string;

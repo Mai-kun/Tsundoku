@@ -397,9 +397,7 @@ export function clearAllHistory(): Promise<void> {
   return requestVoid("/api/history", { method: "DELETE" });
 }
 
-export function deleteHistoryEntry(
-  id: string,
-  kind: "started" | "finished",
-): Promise<void> {
-  return requestVoid(`/api/history/${id}/${kind}`, { method: "DELETE" });
+/** Removes one activity-log entry. `id` is the event id, as listed by getHistoryEvents. */
+export function deleteHistoryEvent(id: string): Promise<void> {
+  return requestVoid(`/api/history/${id}`, { method: "DELETE" });
 }

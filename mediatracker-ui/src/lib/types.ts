@@ -194,6 +194,8 @@ export interface ExternalMedia {
   totalCount: number | null;
   chapters?: number | null;
   volumes?: number | null;
+  /** One of manga/manhwa/manhua/oel; null when no source could tell. */
+  mangaFormat?: string | null;
   platform: string | null;
   rating?: number | null;
   ratingVotes?: number | null;

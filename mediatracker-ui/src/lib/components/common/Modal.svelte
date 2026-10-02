@@ -6,10 +6,12 @@
         isOpen: boolean;
         onClose: () => void;
         labelledBy?: string;
+        /** `md` — обычная модалка. `lg` — широкая панель (превью деталей). */
+        size?: "md" | "lg";
         children: Snippet;
     }
 
-    let { isOpen, onClose, labelledBy, children }: Props = $props();
+    let { isOpen, onClose, labelledBy, size = "md", children }: Props = $props();
 
     let dialogElement = $state<HTMLDialogElement | null>(null);
     let closingProgrammatically = false;
@@ -45,7 +47,9 @@
 <dialog
     bind:this={dialogElement}
     aria-labelledby={labelledBy}
-    class="z-40 m-auto w-full max-w-2xl overflow-visible border-0 bg-transparent p-4 text-ink backdrop:bg-black/70 backdrop:backdrop-blur-sm"
+    class="z-40 m-auto w-full {size === 'lg'
+        ? 'max-w-5xl'
+        : 'max-w-2xl'} overflow-visible border-0 bg-transparent p-4 text-ink backdrop:bg-black/70 backdrop:backdrop-blur-sm"
     onclose={handleNativeClose}
     oncancel={handleCancel}
     onclick={handleClick}

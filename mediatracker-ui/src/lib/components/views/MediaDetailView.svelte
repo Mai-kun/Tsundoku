@@ -65,6 +65,7 @@
         type TvSeason,
     } from "$lib/types";
     import { createProgressDebounce } from "$lib/utils/progressDebounce";
+    import { sourceBadgeClasses } from "$lib/components/media/mediaLabels";
     import {
         loadMediaDetail,
         mediaDetailCache,
@@ -335,42 +336,6 @@
     let statusValue = $state<MediaStatus>(MEDIA_STATUS.planned);
     let statusBusy = $state(false);
     let statusError = $state<unknown>(null);
-
-    function sourceBadgeClasses(src: string): string {
-        if (src.includes("anilist"))
-            return "border-[#02a9ff]/30 bg-[#02a9ff]/15 text-[#02a9ff]";
-        if (src.includes("shikimori"))
-            return "border-[#2e51a2]/40 bg-[#2e51a2]/20 text-[#688ce4]";
-        if (src.includes("mangadex"))
-            return "border-[#ff6740]/30 bg-[#ff6740]/15 text-[#ff6740]";
-        if (
-            src.includes("myanimelist") ||
-            src.includes("jikan") ||
-            src.includes("mal")
-        )
-            return "border-[#2e51a2]/40 bg-[#2e51a2]/20 text-[#7d9bf0]";
-        if (src.includes("tmdb"))
-            return "border-[#01b4e4]/30 bg-[#01b4e4]/15 text-[#31c3ef]";
-        if (src.includes("rawg"))
-            return "border-[#f65e22]/30 bg-[#f65e22]/15 text-[#f79069]";
-        if (src.includes("steam"))
-            return "border-[#1b2838]/60 bg-[#1b2838]/70 text-[#66c0f4]";
-        if (src.includes("igdb"))
-            return "border-[#9146ff]/30 bg-[#9146ff]/15 text-[#b18cff]";
-        if (src.includes("kitsu"))
-            return "border-[#fd755c]/30 bg-[#fd755c]/15 text-[#ff9a86]";
-        if (src.includes("simkl"))
-            return "border-white/[0.14] bg-black/50 text-white";
-        if (src.includes("imdb"))
-            return "border-[#f5c518]/30 bg-[#f5c518]/15 text-[#f5c518]";
-        if (src.includes("thetvdb") || src.includes("tvdb"))
-            return "border-[#42b883]/30 bg-[#42b883]/15 text-[#5cc79a]";
-        if (src.includes("mangaupdate"))
-            return "border-[#3b82f6]/30 bg-[#3b82f6]/15 text-[#60a5fa]";
-        if (src.includes("openlibrary"))
-            return "border-[#e1d9cb]/25 bg-[#e1d9cb]/10 text-[#e1d9cb]";
-        return "border-white/[0.12] bg-[var(--color-panel-line)] text-amber-400";
-    }
 
     let scoreValue = $state<number | null>(null);
     let ratingBusy = $state(false);
@@ -2615,6 +2580,7 @@
      */
     function formatReleaseDate(item: MediaItem, explicitDate?: string | null): string {
         const raw = explicitDate !== undefined ? explicitDate : item.releaseDate;
+
         if (raw) {
             return formatDate(raw);
         }

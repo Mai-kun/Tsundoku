@@ -19,6 +19,7 @@
     } from "$lib/api";
     import { i18n } from "$lib/i18n/index.svelte";
     import Modal from "$lib/components/common/Modal.svelte";
+    import ExternalDetailModal from "$lib/components/media/details/ExternalDetailModal.svelte";
     import {
         MEDIA_STATUS,
         type CreateMediaPayload,
@@ -68,11 +69,10 @@
     let searchError = $state<unknown>(null);
     let addError = $state<unknown>(null);
     let addingKey = $state("");
-    // key → library mediaId (for toggle-removal); truthy means in library
+    // key РІвЂ вЂ™ library mediaId (for toggle-removal); truthy means in library
     let addedKeys = $state<Record<string, string>>({});
     let searchInput = $state<HTMLInputElement | null>(null);
     let previewItem = $state<ExternalMedia | null>(null);
-    let previewLoading = $state(false);
     let categoryOrder = $state<string[]>([
         "anime",
         "manga",
@@ -113,79 +113,6 @@
         game: ["RAWG"],
         book: ["OpenLibrary"],
     };
-
-    interface PreviewRatingBadge {
-        source: string;
-        score: number | null;
-    }
-
-    let previewBadges = $derived.by<PreviewRatingBadge[]>(() => {
-        if (!previewItem) return [];
-        const item = previewItem;
-        const badgeList: PreviewRatingBadge[] = [];
-        const seen = new Set<string>();
-
-        if (item.ratings && item.ratings.length > 0) {
-            for (const r of item.ratings) {
-                const src = (r.source || (r as any).Source || "").trim();
-                if (!src || disabledSources.has(src.toLowerCase())) continue;
-                const score =
-                    typeof r.rating === "number"
-                        ? r.rating
-                        : typeof (r as any).score === "number"
-                          ? (r as any).score
-                          : null;
-                seen.add(src.toLowerCase());
-                badgeList.push({
-                    source: src,
-                    score: score !== null && score > 0 ? score : null,
-                });
-            }
-        }
-
-        if (
-            item.rating &&
-            !seen.has((item.externalSource || "").toLowerCase())
-        ) {
-            const src =
-                item.externalSource ||
-                (item.type === "anime" || item.type === "manga"
-                    ? "AniList"
-                    : "TMDB");
-            if (!disabledSources.has(src.toLowerCase())) {
-                seen.add(src.toLowerCase());
-                badgeList.push({
-                    source: src,
-                    score: item.rating,
-                });
-            }
-        }
-
-        const typeKey = effectiveType(item);
-        const expected =
-            availableSources.length > 0
-                ? availableSources
-                      .filter(
-                          (s) => s.isEnabled && s.mediaTypes.includes(typeKey),
-                      )
-                      .map((s) => s.name)
-                : (EXPECTED_SEARCH_SOURCES[typeKey] ?? []);
-        for (const exp of expected) {
-            const expNorm = exp.toLowerCase();
-            const found = Array.from(seen).some(
-                (s) => s.includes(expNorm) || expNorm.includes(s),
-            );
-            if (!found) {
-                seen.add(expNorm);
-                badgeList.push({
-                    source: exp,
-                    score: null,
-                });
-            }
-        }
-
-        return badgeList;
-    });
 
     let term = $derived(query.trim());
     let canSearch = $derived(term.length >= minQueryLength);
@@ -434,58 +361,9 @@
     }
 
     function openPreview(result: ExternalMedia) {
+        // The preview loads the full metadata itself (through the shared cache), so
+        // opening one is nothing more than showing the hit we already have.
         previewItem = result;
-        if (
-            result.type === "manga" ||
-            result.type === "game" ||
-            !result.ratings ||
-            result.ratings.length === 0 ||
-            !result.author
-        ) {
-            previewLoading = true;
-            void getExternalDetails(
-                effectiveType(result),
-                result.externalId,
-                result.title,
-                result.externalSource ?? undefined,
-            )
-                .then((enriched) => {
-                    if (
-                        previewItem &&
-                        previewItem.externalId === result.externalId &&
-                        enriched
-                    ) {
-                        previewItem = {
-                            ...previewItem,
-                            chapters: enriched.chapters ?? previewItem.chapters,
-                            volumes: enriched.volumes ?? previewItem.volumes,
-                            totalCount:
-                                enriched.totalCount ?? previewItem.totalCount,
-                            author: enriched.author ?? previewItem.author,
-                            ratings: enriched.ratings ?? previewItem.ratings,
-                            rating: enriched.rating ?? previewItem.rating,
-                            ratingVotes:
-                                enriched.ratingVotes ?? previewItem.ratingVotes,
-                            description:
-                                enriched.description || previewItem.description,
-                            releaseDate:
-                                enriched.releaseDate ?? previewItem.releaseDate,
-                            releaseYear:
-                                enriched.releaseYear ?? previewItem.releaseYear,
-                            releaseStatus:
-                                enriched.releaseStatus ??
-                                previewItem.releaseStatus,
-                            genres: enriched.genres ?? previewItem.genres,
-                            platform: enriched.platform ?? previewItem.platform,
-                        };
-                    }
-                })
-                .finally(() => {
-                    previewLoading = false;
-                });
-        } else {
-            previewLoading = false;
-        }
     }
 
     function labelForCategory(category: SearchCategory): string {
@@ -515,7 +393,7 @@
             result.platform,
         ]
             .filter(Boolean)
-            .join(" · ");
+            .join(" Р’В· ");
     }
 
     function countLabel(result: ExternalMedia): string | null {
@@ -661,7 +539,7 @@
         const key = resultKey(result);
         if (addingKey) return;
 
-        // Bug 5: toggle — if already in library, remove it
+        // Bug 5: toggle РІР‚вЂќ if already in library, remove it
         const existingId = addedKeys[key];
         if (existingId) {
             const { [key]: _, ...rest } = addedKeys;
@@ -1348,277 +1226,62 @@
 
 {#if previewItem}
     {@const prevKey = resultKey(previewItem)}
-    <Modal
-        isOpen={Boolean(previewItem)}
+    <ExternalDetailModal
+        item={previewItem}
+        type={effectiveType(previewItem)}
         onClose={() => (previewItem = null)}
-        labelledBy="preview-title"
     >
-        <div class="flex max-h-[85vh] flex-col p-6">
-            <button
-                type="button"
-                class="tap absolute right-4 top-4 z-10 grid h-8 w-8 place-items-center rounded-lg text-muted transition hover:bg-elevated hover:text-ink"
-                aria-label={i18n.t.common.close}
-                onclick={() => (previewItem = null)}
-            >
-                <X size={18} aria-hidden="true" />
-            </button>
-
-            <div class="overflow-y-auto pr-1">
-                <div class="flex flex-col gap-5 sm:flex-row">
-                    <div
-                        class="mx-auto aspect-[2/3] w-40 shrink-0 overflow-hidden rounded-lg bg-canvas sm:mx-0"
-                    >
-                        {#if previewItem.coverUrl}
-                            <img
-                                src={previewItem.coverUrl}
-                                alt={previewItem.title}
-                                class="h-full w-full object-cover"
-                                decoding="async"
-                            />
-                        {:else}
-                            <div
-                                class="grid h-full place-items-center text-muted"
-                            >
-                                <ImageIcon
-                                    size={32}
-                                    stroke-width={1.25}
-                                    aria-hidden="true"
-                                />
-                            </div>
-                        {/if}
-                    </div>
-
-                    <div class="min-w-0 flex-1 space-y-3">
-                        <div class="flex flex-wrap items-center gap-2">
-                            <span
-                                class="rounded-full bg-elevated px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-accent-soft"
-                            >
-                                {labelForCategory(
-                                    previewItem.type as SearchCategory,
-                                )}
-                            </span>
-                            {#if previewItem.externalSource}
-                                <span
-                                    class={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold border ${sourceBadgeClass(previewItem.externalSource)}`}
-                                >
-                                    {previewItem.externalSource}
-                                </span>
-                            {/if}
-                        </div>
-                        <div>
-                            <h3 class="mt-1 text-lg font-bold text-ink">
-                                {previewItem.title}
-                            </h3>
-                            {#if previewItem.originalTitle}
-                                <p class="text-xs text-muted">
-                                    {previewItem.originalTitle}
-                                </p>
-                            {/if}
-                        </div>
-
-                        <!-- Ratings -->
-                        {#if previewBadges.length > 0}
-                            <div class="flex flex-wrap items-center gap-2">
-                                {#each previewBadges as r}
-                                    <div
-                                        class="inline-flex items-center gap-1 rounded-md border border-white/10 bg-field px-2 py-0.5 text-xs"
-                                    >
-                                        <span class="font-medium text-muted"
-                                            >{r.source}:</span
-                                        >
-                                        {#if r.score !== null && r.score > 0}
-                                            <span
-                                                class="flex items-center gap-0.5 font-bold text-star"
-                                            >
-                                                <Star
-                                                    size={11}
-                                                    fill="currentColor"
-                                                />
-                                                {r.score.toFixed(1)}
-                                            </span>
-                                        {:else if previewLoading}
-                                            <span
-                                                class="inline-block h-3 w-5 animate-pulse rounded bg-canvas"
-                                            ></span>
-                                        {:else}
-                                            <span class="text-xs text-muted"
-                                                >—</span
-                                            >
-                                        {/if}
-                                    </div>
-                                {/each}
-                            </div>
-                        {:else}
-                            <div
-                                class="inline-flex items-center gap-1 rounded-md border border-white/10 bg-field px-2 py-0.5 text-xs text-muted"
-                            >
-                                <span
-                                    >{i18n.t.detail.previewModal
-                                        .noRatings}</span
-                                >
-                            </div>
-                        {/if}
-
-                        <div class="space-y-1 text-xs text-muted">
-                            <div>
-                                <span class="font-medium text-ink"
-                                    >{i18n.t.detail.previewModal.year}:</span
-                                >
-                                {previewItem.releaseYear ??
-                                    i18n.t.detail.previewModal.noData}
-                            </div>
-                            {#if previewItem.type === "manga" || previewItem.type === "book"}
-                                <div>
-                                    <span class="font-medium text-ink"
-                                        >{i18n.t.detail.previewModal
-                                            .author}:</span
-                                    >
-                                    {previewItem.author ??
-                                        i18n.t.detail.previewModal.noData}
-                                </div>
-                            {:else}
-                                <div>
-                                    <span class="font-medium text-ink"
-                                        >{i18n.t.detail.previewModal
-                                            .studio}:</span
-                                    >
-                                    {previewItem.studio ??
-                                        i18n.t.detail.previewModal.noData}
-                                </div>
-                            {/if}
-                            {#if previewItem.platform}
-                                <div>
-                                    <span class="font-medium text-ink"
-                                        >{i18n.t.detail.previewModal
-                                            .platform}:</span
-                                    >
-                                    {previewItem.platform}
-                                </div>
-                            {/if}
-                            <div>
-                                <span class="font-medium text-ink"
-                                    >{i18n.t.detail.previewModal.count}:</span
-                                >
-                                {countLabel(previewItem) ||
-                                    i18n.t.detail.previewModal.noData}
-                            </div>
-                        </div>
-
-                        <div class="pt-2">
-                            {#if addedKeys[prevKey]}
-                                <div class="flex items-center gap-2">
-                                    <button
-                                        type="button"
-                                        class="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-4 py-2 text-xs font-semibold text-emerald-400 transition hover:border-rose-500/30 hover:bg-rose-500/10 hover:text-rose-400 disabled:cursor-wait"
-                                        disabled={Boolean(addingKey)}
-                                        onclick={() =>
-                                            void addResult(previewItem!)}
-                                    >
-                                        {#if addingKey === prevKey}
-                                            <div
-                                                class="h-4 w-4 animate-spin rounded-full border-2 border-rose-400 border-t-transparent"
-                                            ></div>
-                                            <span>{i18n.t.common.adding}</span>
-                                        {:else}
-                                            <Check
-                                                size={16}
-                                                aria-hidden="true"
-                                            />
-                                            {i18n.t.searchModal.inLibrary}
-                                        {/if}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        class="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-field px-3 py-2 text-xs font-semibold text-ink transition hover:border-accent hover:bg-panel hover:text-accent cursor-pointer"
-                                        title={i18n.t.searchModal.preview}
-                                        onclick={() => {
-                                            const targetId = addedKeys[prevKey];
-                                            if (targetId) {
-                                                onClose();
-                                                onNavigateToMedia(targetId);
-                                            }
-                                        }}
-                                    >
-                                        <span>{i18n.t.searchModal.preview}</span
-                                        >
-                                        <ChevronRight
-                                            size={14}
-                                            aria-hidden="true"
-                                        />
-                                    </button>
-                                </div>
-                            {:else}
-                                <button
-                                    type="button"
-                                    class="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-field px-4 py-2 text-xs font-semibold text-ink transition hover:border-accent hover:bg-panel disabled:cursor-wait disabled:opacity-70"
-                                    disabled={Boolean(addingKey)}
-                                    onclick={() => void addResult(previewItem!)}
-                                >
-                                    {#if addingKey === prevKey}
-                                        <div
-                                            class="h-4 w-4 animate-spin rounded-full border-2 border-accent border-t-transparent"
-                                        ></div>
-                                        <span>{i18n.t.common.adding}</span>
-                                    {:else}
-                                        <Plus size={16} aria-hidden="true" />
-                                        <span>{i18n.t.common.add}</span>
-                                    {/if}
-                                </button>
-                            {/if}
-                        </div>
-                    </div>
-                </div>
-
-                <div class="mt-5 border-t border-white/[0.07] pt-4">
-                    <h4
-                        class="text-xs font-semibold uppercase tracking-wider text-muted"
-                    >
-                        {i18n.t.detail.previewModal.description}
-                    </h4>
-                    {#if previewItem.description}
-                        <p
-                            class="mt-1.5 whitespace-pre-line text-xs leading-relaxed text-muted"
-                        >
-                            {previewItem.description}
-                        </p>
+        {#snippet actions()}
+            {#if addedKeys[prevKey]}
+                <button
+                    type="button"
+                    class="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-4 py-2 text-xs font-semibold text-emerald-400 transition hover:border-rose-500/30 hover:bg-rose-500/10 hover:text-rose-400 disabled:cursor-wait"
+                    disabled={Boolean(addingKey)}
+                    onclick={() => void addResult(previewItem!)}
+                >
+                    {#if addingKey === prevKey}
+                        <div
+                            class="h-4 w-4 animate-spin rounded-full border-2 border-rose-400 border-t-transparent"
+                        ></div>
+                        <span>{i18n.t.common.adding}</span>
                     {:else}
-                        <p class="mt-1.5 text-xs italic text-muted/70">
-                            {i18n.t.detail.previewModal.noDescription}
-                        </p>
+                        <Check size={16} aria-hidden="true" />
+                        {i18n.t.searchModal.inLibrary}
                     {/if}
-                </div>
-
-                {#if previewItem.episodes && previewItem.episodes.length > 0}
-                    <div class="mt-5 border-t border-white/[0.07] pt-4">
-                        <h4
-                            class="text-xs font-semibold uppercase tracking-wider text-muted"
-                        >
-                            {i18n.t.detail.previewModal.episodesList(
-                                previewItem.episodes.length,
-                            )}
-                        </h4>
-                        <ul
-                            class="mt-2 max-h-48 space-y-1.5 overflow-y-auto pr-1"
-                        >
-                            {#each previewItem.episodes as ep}
-                                <li
-                                    class="flex items-center justify-between rounded bg-elevated/50 px-2.5 py-1.5 text-xs text-ink"
-                                >
-                                    <span class="font-medium text-muted"
-                                        >E{ep.number}</span
-                                    >
-                                    <span class="truncate pl-2 text-right"
-                                        >{ep.title ||
-                                            i18n.t.detail.episodeTitle(
-                                                ep.number,
-                                            )}</span
-                                    >
-                                </li>
-                            {/each}
-                        </ul>
-                    </div>
-                {/if}
-            </div>
-        </div>
-    </Modal>
+                </button>
+                <button
+                    type="button"
+                    class="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-field px-3 py-2 text-xs font-semibold text-ink transition hover:border-accent hover:bg-panel hover:text-accent cursor-pointer"
+                    title={i18n.t.searchModal.preview}
+                    onclick={() => {
+                        const targetId = addedKeys[prevKey];
+                        if (targetId) {
+                            onClose();
+                            onNavigateToMedia(targetId);
+                        }
+                    }}
+                >
+                    <span>{i18n.t.searchModal.preview}</span>
+                    <ChevronRight size={14} aria-hidden="true" />
+                </button>
+            {:else}
+                <button
+                    type="button"
+                    class="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-field px-4 py-2 text-xs font-semibold text-ink transition hover:border-accent hover:bg-panel disabled:cursor-wait disabled:opacity-70"
+                    disabled={Boolean(addingKey)}
+                    onclick={() => void addResult(previewItem!)}
+                >
+                    {#if addingKey === prevKey}
+                        <div
+                            class="h-4 w-4 animate-spin rounded-full border-2 border-accent border-t-transparent"
+                        ></div>
+                        <span>{i18n.t.common.adding}</span>
+                    {:else}
+                        <Plus size={16} aria-hidden="true" />
+                        <span>{i18n.t.common.add}</span>
+                    {/if}
+                </button>
+            {/if}
+        {/snippet}
+    </ExternalDetailModal>
 {/if}

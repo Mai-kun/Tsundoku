@@ -17,13 +17,14 @@
         total: (volume: MangaVolume) => number;
         percent: (volume: MangaVolume) => number;
         progressLabel: (volume: MangaVolume) => string;
-        onStepPage: (volume: MangaVolume, delta: number) => Promise<void>;
-        onEdit: (volume: MangaVolume) => void;
-        onDelete: (volume: MangaVolume) => Promise<void>;
-        onMarkComplete: (volume: MangaVolume) => Promise<void>;
-        onUnmarkComplete: (volume: MangaVolume) => Promise<void>;
-        onAddVolume: () => Promise<void>;
-        onGenerateVolumes: () => Promise<void>;
+        /** Callers may fire the mutation without awaiting it. */
+        onStepPage: (volume: MangaVolume, delta: number) => unknown;
+        onEdit: (volume: MangaVolume) => unknown;
+        onDelete: (volume: MangaVolume) => unknown;
+        onMarkComplete: (volume: MangaVolume) => unknown;
+        onUnmarkComplete: (volume: MangaVolume) => unknown;
+        onAddVolume: () => unknown;
+        onGenerateVolumes: () => unknown;
         onOpenVolumesTab: () => void;
     }
 

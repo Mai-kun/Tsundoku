@@ -105,15 +105,6 @@
         ),
     );
 
-    const EXPECTED_SEARCH_SOURCES: Record<string, string[]> = {
-        anime: ["AniList", "MyAnimeList"],
-        manga: ["AniList", "MangaDex", "MangaUpdates", "MyAnimeList"],
-        movie: ["TMDB"],
-        tvshow: ["TMDB"],
-        game: ["RAWG"],
-        book: ["OpenLibrary"],
-    };
-
     let term = $derived(query.trim());
     let canSearch = $derived(term.length >= minQueryLength);
 
@@ -590,11 +581,6 @@
         }
     }
 
-    function closeOnBackdrop(event: MouseEvent) {
-        if (event.target === event.currentTarget) {
-            onClose();
-        }
-    }
 
     function sourceBadgeClass(source?: string | null): string {
         const s = (source ?? "").toLowerCase();
@@ -625,11 +611,6 @@
         return "bg-white/10 text-muted border-white/[0.08]";
     }
 
-    function handleKeydown(event: KeyboardEvent) {
-        if (isOpen && event.key === "Escape" && previewItem) {
-            previewItem = null;
-        }
-    }
 </script>
 
 <Modal {isOpen} {onClose} labelledBy="search-title">

@@ -6,8 +6,16 @@ namespace MediaTracker.Server.Endpoints;
 
 public static class ExternalMediaEndpoints
 {
-    private static readonly FrozenSet<string> SupportedTypes = new[] { "all", "game", "movie", "tvshow", "anime", "manga", "book" }
-        .ToFrozenSet(StringComparer.OrdinalIgnoreCase);
+    private static readonly FrozenSet<string> SupportedTypes = new[]
+    {
+        "all",
+        "game",
+        "movie",
+        "tvshow",
+        "anime",
+        "manga",
+        "book",
+    }.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
 
     public static IEndpointRouteBuilder MapExternalMediaEndpoints(this IEndpointRouteBuilder app)
     {
@@ -23,32 +31,12 @@ public static class ExternalMediaEndpoints
         return app;
     }
 
-    private static async Task<IResult> GetExternalMediaDetails(
-        string? type,
-        string? id,
-        string? title,
-        string? source,
-        MetadataAggregatorService aggregator,
-        CancellationToken ct)
-    {
-        var normalizedType = string.IsNullOrWhiteSpace(type) ? "anime" : type.Trim();
-        var normalizedId = id?.Trim() ?? string.Empty;
-        var normalizedTitle = title?.Trim() ?? string.Empty;
-
-        if (string.IsNullOrWhiteSpace(normalizedId) && string.IsNullOrWhiteSpace(normalizedTitle))
-        {
-            return Results.BadRequest(new { message = "Either id or title is required." });
-        }
-
-        var details = await aggregator.GetDetailsAsync(normalizedType, normalizedId, normalizedTitle, ct, source);
-        return details is not null ? Results.Ok(details) : Results.NotFound();
-    }
-
     private static async Task<IResult> SearchExternalMedia(
         string? type,
         string? query,
         MetadataAggregatorService aggregator,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         var normalizedType = string.IsNullOrWhiteSpace(type) ? "all" : type.Trim();
         var normalizedQuery = query?.Trim() ?? string.Empty;
@@ -74,17 +62,50 @@ public static class ExternalMediaEndpoints
         return Results.Ok(results);
     }
 
+    private static async Task<IResult> GetExternalMediaDetails(
+        string? type,
+        string? id,
+        string? title,
+        string? source,
+        MetadataAggregatorService aggregator,
+        CancellationToken ct
+    )
+    {
+        var normalizedType = string.IsNullOrWhiteSpace(type) ? "anime" : type.Trim();
+        var normalizedId = id?.Trim() ?? string.Empty;
+        var normalizedTitle = title?.Trim() ?? string.Empty;
+
+        if (string.IsNullOrWhiteSpace(normalizedId) && string.IsNullOrWhiteSpace(normalizedTitle))
+        {
+            return Results.BadRequest(new { message = "Either id or title is required." });
+        }
+
+        var details = await aggregator.GetDetailsAsync(
+            normalizedType,
+            normalizedId,
+            normalizedTitle,
+            ct,
+            source
+        );
+        return details is null ? Results.NotFound() : Results.Ok(details);
+    }
+
     private static async Task<IResult> TranslateText(
         TranslateRequest request,
         ITranslationService translationService,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         if (string.IsNullOrWhiteSpace(request.Text))
         {
             return Results.BadRequest(new { message = "Text is required." });
         }
 
-        var translated = await translationService.TranslateAsync(request.Text, request.TargetLanguage ?? "ru", ct);
+        var translated = await translationService.TranslateAsync(
+            request.Text,
+            request.TargetLanguage ?? "ru",
+            ct
+        );
         return Results.Ok(new TranslateResponse(translated));
     }
 
@@ -95,10 +116,17 @@ public static class ExternalMediaEndpoints
         string? externalSource,
         string? externalId,
         RawgGameService gameService,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         var achievements = await gameService.GetAchievementsAsync(
-            steamAppId, rawgId, title, externalSource, externalId, ct);
+            steamAppId,
+            rawgId,
+            title,
+            externalSource,
+            externalId,
+            ct
+        );
         return Results.Ok(achievements);
     }
 
@@ -108,9 +136,16 @@ public static class ExternalMediaEndpoints
         string? externalSource,
         string? externalId,
         RawgGameService gameService,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
-        var related = await gameService.GetRelatedAsync(rawgId, title, externalSource, externalId, ct);
+        var related = await gameService.GetRelatedAsync(
+            rawgId,
+            title,
+            externalSource,
+            externalId,
+            ct
+        );
         return Results.Ok(related);
     }
 
@@ -120,12 +155,20 @@ public static class ExternalMediaEndpoints
         string? externalSource,
         string? externalId,
         RawgGameService gameService,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
-        var recommendations = await gameService.GetRecommendationsAsync(rawgId, title, externalSource, externalId, ct);
+        var recommendations = await gameService.GetRecommendationsAsync(
+            rawgId,
+            title,
+            externalSource,
+            externalId,
+            ct
+        );
         return Results.Ok(recommendations);
     }
 }
-public sealed record TranslateRequest(string Text, string? TargetLanguage = "ru");
-public sealed record TranslateResponse(string TranslatedText);
 
+public sealed record TranslateRequest(string Text, string? TargetLanguage = "ru");
+
+public sealed record TranslateResponse(string TranslatedText);

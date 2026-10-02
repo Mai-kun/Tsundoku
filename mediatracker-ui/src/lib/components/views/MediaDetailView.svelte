@@ -57,6 +57,7 @@
         MEDIA_STATUS,
         type AppView,
         type GameAchievementItem,
+        type MangaMedia,
         type MangaVolume,
         type MediaDetail,
         type MediaItem,
@@ -65,7 +66,50 @@
         type TvSeason,
     } from "$lib/types";
     import { createProgressDebounce } from "$lib/utils/progressDebounce";
-    import { sourceBadgeClasses } from "$lib/components/media/mediaLabels";
+    import {
+        formatNumber,
+        sourceBadgeClasses,
+    } from "$lib/components/media/mediaLabels";
+    import {
+        buildEpisodes,
+        currentFormatLabel,
+        dataSource,
+        formatDate,
+        formatMediaDisplayType,
+        formatReleaseDate,
+        formatRelationType,
+        isAnime,
+        orderOf,
+        readOriginalTitle,
+        readProgress,
+        releaseStatusLabel,
+        specRows,
+        statusLabel,
+        tags,
+    } from "$lib/components/media/details/detailFormatters";
+    import {
+        createVolumeController,
+        isVolumeDone,
+        volumeCurrent,
+        volumePercent,
+        volumeProgressLabel,
+        volumeTotal,
+    } from "$lib/components/media/details/createVolumeController.svelte";
+    import {
+        buildRatingBadges,
+        CATEGORY_EXPECTED_SOURCES,
+        type RawRating,
+    } from "$lib/components/media/details/ratingBadges";
+    import type {
+        EpisodeRow,
+        ProgressInfo,
+        RatingBadge,
+        RecommendationItem,
+        RelatedEntry,
+        RelationGroup,
+        SubTab,
+        TimelineEntry,
+    } from "$lib/components/media/details/detailTypes";
     import {
         loadMediaDetail,
         mediaDetailCache,
@@ -82,6 +126,13 @@
     import Modal from "$lib/components/common/Modal.svelte";
     import DetailHeader from "$lib/components/media/details/DetailHeader.svelte";
     import DetailSidebar from "$lib/components/media/details/DetailSidebar.svelte";
+    import DetailTabs from "$lib/components/media/details/DetailTabs.svelte";
+    import ProgressStepper from "$lib/components/media/details/ProgressStepper.svelte";
+    import RecommendationsPanel from "$lib/components/media/details/panels/RecommendationsPanel.svelte";
+    import RelatedPanel from "$lib/components/media/details/panels/RelatedPanel.svelte";
+    import RelatedPreviewModal from "$lib/components/media/details/panels/RelatedPreviewModal.svelte";
+    import VolumeFormModal from "$lib/components/media/details/panels/VolumeFormModal.svelte";
+    import VolumesPanel from "$lib/components/media/details/panels/VolumesPanel.svelte";
     import GameDetailSection from "$lib/components/media/details/sections/GameDetailSection.svelte";
     import MangaDetailSection from "$lib/components/media/details/sections/MangaDetailSection.svelte";
     import TvShowDetailSection from "$lib/components/media/details/sections/TvShowDetailSection.svelte";
@@ -97,78 +148,7 @@
         onNavigate?: (view: AppView) => void;
     }
 
-    interface ProgressInfo {
-        current: number;
-        total: number | null;
-        editable: boolean;
-        label: string;
-    }
 
-    interface EpisodeRow {
-        id: string;
-        number: number;
-        title: string;
-        airDate: string | null;
-        description: string | null;
-        watched: boolean;
-    }
-
-    interface RecommendationItem {
-        id: string;
-        title: string;
-        coverUrl: string | null;
-        score: number | null;
-        type: string;
-    }
-
-    interface RelatedEntry {
-        id: string;
-        title: string;
-        originalTitle?: string | null;
-        coverUrl: string | null;
-        bannerUrl?: string | null;
-        type: string;
-        format?: string | null;
-        year?: number | null;
-        relationType?: string;
-        rawRelationType?: string;
-        score?: number | null;
-        ratings?: { source: string; rating: number }[] | null;
-        description?: string | null;
-        episodes?: number | null;
-        chapters?: number | null;
-        volumes?: number | null;
-        studio?: string | null;
-        author?: string | null;
-        romajiTitle?: string | null;
-        duration?: number | null;
-        releaseDate?: string | null;
-        endDate?: string | null;
-        releaseStatus?: string | null;
-        externalSource?: string | null;
-        localItem?: MediaItem;
-    }
-
-    interface RatingBadge {
-        source: string;
-        score: number | null;
-        votes?: number | null;
-        /**
-         * True when the source was actually asked and answered. The backend persists score 0 for
-         * "queried, this source has no rating", so the two states must not be collapsed: reading a
-         * known-absent rating as "missing" made every card open re-request the same external APIs.
-         */
-        queried?: boolean;
-    }
-
-    const CATEGORY_EXPECTED_SOURCES: Record<string, string[]> = {
-        anime: ["AniList", "MyAnimeList"],
-        manga: ["AniList", "MangaDex", "MangaUpdates", "MyAnimeList"],
-        movie: ["TMDB"],
-        tvshow: ["TMDB"],
-        game: ["RAWG", "Steam", "IGDB"],
-        book: ["OpenLibrary", "Google Books"],
-    };
 
     let {
         mediaId,
@@ -188,7 +168,6 @@
         MEDIA_STATUS.onHold,
         MEDIA_STATUS.dropped,
     ];
-    const maxEpisodesPerSeason = 200;
 
     let media = $state<MediaDetail | null>(null);
     let isLoading = $state(true);
@@ -196,9 +175,7 @@
     let requestSequence = 0;
     let trackedMediaId: string | null = null;
 
-    let activeSubTab = $state<
-        "overview" | "episodes" | "volumes" | "related" | "recommendations"
-    >("overview");
+    let activeSubTab = $state<SubTab>("overview");
     let episodeSortOrder = $state<"asc" | "desc">("asc");
     let synopsisExpanded = $state(false);
     let userRatingPopoverOpen = $state(false);
@@ -253,77 +230,35 @@
     let isEnriching = $state(false);
 
     let previewRelatedBadges = $derived.by<RatingBadge[]>(() => {
-        if (!previewRelatedItem) return [];
         const item = previewRelatedItem;
-        const results: RatingBadge[] = [];
-        const seen = new Set<string>();
-        const disabledSources = new Set(
-            availableSources
-                .filter((s) => !s.isEnabled)
-                .flatMap((s) => [s.name.toLowerCase(), s.id.toLowerCase()]),
-        );
+        if (!item) return [];
 
-        if (item.ratings && item.ratings.length > 0) {
-            for (const r of item.ratings) {
-                if (!r.source || disabledSources.has(r.source.toLowerCase()))
-                    continue;
-                seen.add(r.source.toLowerCase());
-                results.push({
-                    source: r.source,
-                    score: r.rating > 0 ? r.rating : null,
-                });
-            }
-        }
+        const ratings = (item.ratings ?? []).map((r) => ({
+            source: r.source,
+            rating: r.rating,
+        }));
 
-        if (
-            item.score &&
-            !seen.has((item.externalSource || "").toLowerCase())
-        ) {
-            const src =
-                item.externalSource ||
-                (item.type === "manga" || item.type === "anime"
-                    ? "AniList"
-                    : "TMDB");
-            if (!disabledSources.has(src.toLowerCase())) {
-                seen.add(src.toLowerCase());
-                results.push({
-                    source: src,
-                    score: item.score,
-                });
-            }
-        }
+        // A single top-level score still deserves a badge when the source reported no list.
+        const fallback = item.score
+            ? {
+                  source:
+                      item.externalSource ||
+                      (item.type === "manga" || item.type === "anime"
+                          ? "AniList"
+                          : "TMDB"),
+                  score: item.score,
+              }
+            : null;
 
-        const cat =
-            item.type === "anime" ||
-            item.type === "manga" ||
-            item.type === "movie" ||
-            item.type === "tvshow" ||
-            item.type === "game" ||
-            item.type === "book"
-                ? item.type
-                : "anime";
-        const expected =
-            availableSources.length > 0
-                ? availableSources
-                      .filter((s) => s.isEnabled && s.mediaTypes.includes(cat))
-                      .map((s) => s.name)
-                : (CATEGORY_EXPECTED_SOURCES[cat] ?? ["AniList"]);
-
-        for (const exp of expected) {
-            const expNorm = exp.toLowerCase();
-            const found = Array.from(seen).some(
-                (s) => s.includes(expNorm) || expNorm.includes(s),
-            );
-            if (!found) {
-                seen.add(expNorm);
-                results.push({
-                    source: exp,
-                    score: null,
-                });
-            }
-        }
-
-        return results;
+        return buildRatingBadges({
+            ratings,
+            fallback,
+            category: item.type,
+            availableSources,
+            fallbackSources: CATEGORY_EXPECTED_SOURCES[item.type] ?? [
+                "AniList",
+            ],
+        });
     });
 
     let recommendations = $state<RecommendationItem[]>([]);
@@ -440,10 +375,6 @@
         }
     }
 
-    let hasRelatedMedia = $derived(
-        related.length > 0 || relatedLoading || relatedError !== null,
-    );
-
     let nextEpisode = $derived.by(() => {
         if (!currentSeason) return null;
         const watched = currentSeason.currentEpisode ?? 0;
@@ -451,6 +382,14 @@
         if (watched >= total) return null;
         return episodes.find((e) => e.number === watched + 1) ?? null;
     });
+
+    function historyProgressText(): string {
+        const info = progressInfo;
+        if (!info) return i18n.t.detailModal.valueEmpty;
+        return info.total !== null
+            ? `${formatNumber(progressValue)} / ${formatNumber(info.total)}`
+            : formatNumber(progressValue);
+    }
 
     let progressPercent = $derived.by(() => {
         const info = progressInfo;
@@ -476,23 +415,15 @@
 
     let externalRatings = $derived.by<RatingBadge[]>(() => {
         if (!media) return [];
-        const results: RatingBadge[] = [];
-        const seen = new Set<string>();
-        const disabledSources = new Set(
-            availableSources
-                .filter((s) => !s.isEnabled)
-                .flatMap((s) => [s.name.toLowerCase(), s.id.toLowerCase()]),
-        );
 
+        // The stored JSON is PascalCase from some providers and camelCase from others.
+        let ratings: RawRating[] = [];
         if (media.externalRatingsJson) {
             try {
                 const parsed = JSON.parse(media.externalRatingsJson);
-                if (Array.isArray(parsed) && parsed.length > 0) {
-                    for (const r of parsed) {
-                        const src = (r.source ?? r.Source ?? "").trim();
-                        if (!src || disabledSources.has(src.toLowerCase()))
-                            continue;
-                        const rawScore =
+                if (Array.isArray(parsed)) {
+                    ratings = parsed.map((r) => {
+                        const score =
                             typeof r.score === "number"
                                 ? r.score
                                 : typeof r.Score === "number"
@@ -502,346 +433,51 @@
                                     : typeof r.Rating === "number"
                                       ? r.Rating
                                       : null;
-                        const votes = r.votes ?? r.Votes ?? null;
-                        seen.add(src.toLowerCase());
-                        results.push({
-                            source: src,
-                            score:
-                                rawScore !== null && rawScore > 0
-                                    ? rawScore
-                                    : null,
-                            votes,
+                        return {
+                            source: (r.source ?? r.Source ?? "").trim(),
+                            rating: score,
+                            votes: r.votes ?? r.Votes ?? null,
                             // Present in the stored JSON means the source answered, even with 0.
                             queried: true,
-                        });
-                    }
+                        };
+                    });
                 }
             } catch {}
         }
 
-        if (
-            results.length === 0 &&
-            typeof media.externalRating === "number" &&
-            media.externalRating > 0
-        ) {
-            const src = dataSource(media);
-            if (!disabledSources.has(src.toLowerCase())) {
-                seen.add(src.toLowerCase());
-                results.push({
-                    source: src,
-                    score: media.externalRating,
-                    votes: media.externalRatingVotes,
-                });
-            }
-        }
-
-        const isAnime =
-            "isAnime" in media ? Boolean((media as any).isAnime) : false;
         const cat =
-            isAnime || (media as any).type === "anime" ? "anime" : media.type;
-        const expected =
-            availableSources.length > 0
-                ? availableSources
-                      .filter((s) => s.isEnabled && s.mediaTypes.includes(cat))
-                      .map((s) => s.name)
-                : (CATEGORY_EXPECTED_SOURCES[cat] ?? []);
-        for (const exp of expected) {
-            const expNorm = exp.toLowerCase();
-            const found = Array.from(seen).some(
-                (s) => s.includes(expNorm) || expNorm.includes(s),
-            );
-            if (!found) {
-                seen.add(expNorm);
-                results.push({
-                    source: exp,
-                    score: null,
-                    votes: null,
-                });
-            }
-        }
+            (media as { isAnime?: boolean }).isAnime
+                ? "anime"
+                : media.type;
 
-        return results;
+        return buildRatingBadges({
+            ratings,
+            fallback:
+                typeof media.externalRating === "number" && media.externalRating > 0
+                    ? {
+                          source: dataSource(media),
+                          score: media.externalRating,
+                          votes: media.externalRatingVotes,
+                      }
+                    : null,
+            category: cat,
+            availableSources,
+            fallbackSources: CATEGORY_EXPECTED_SOURCES[cat] ?? [],
+        });
     });
 
     let mangaVolumes = $derived(
         media && isMangaDetail(media) ? (media.volumes ?? []) : [],
     );
-    let volumeBusy = $state("");
-    let volumeError = $state<unknown>(null);
 
-    function volumeCurrent(vol: MangaVolume): number {
-        return vol.totalChapters > 0 ? vol.currentChapter : vol.currentPage;
-    }
-
-    function volumeTotal(vol: MangaVolume): number {
-        return vol.totalChapters > 0
-            ? vol.totalChapters
-            : vol.totalPages > 0
-              ? vol.totalPages
-              : 200;
-    }
-
-    function volumePercent(vol: MangaVolume): number {
-        const total = volumeTotal(vol);
-        return total > 0
-            ? Math.min((volumeCurrent(vol) / total) * 100, 100)
-            : 0;
-    }
-
-    function isVolumeDone(vol: MangaVolume): boolean {
-        const total = volumeTotal(vol);
-        return (
-            vol.status === MEDIA_STATUS.completed ||
-            (total > 0 && volumeCurrent(vol) >= total)
-        );
-    }
-
-    function volumeProgressLabel(vol: MangaVolume): string {
-        if (vol.totalChapters > 0) {
-            return i18n.t.card.chapters(vol.currentChapter, vol.totalChapters);
-        }
-        return `${vol.currentPage} / ${vol.totalPages > 0 ? vol.totalPages : 200} pp.`;
-    }
-
-    async function stepVolumePage(vol: MangaVolume, delta: number) {
-        if (!media) return;
-        const isChapters = vol.totalChapters > 0;
-        const total = volumeTotal(vol);
-        const current = volumeCurrent(vol);
-        const next = Math.max(
-            0,
-            total > 0 ? Math.min(current + delta, total) : current + delta,
-        );
-        if (next === current) return;
-
-        if (isChapters) {
-            vol.currentChapter = next;
-        } else {
-            vol.currentPage = next;
-        }
-
-        if (total > 0 && next >= total) {
-            vol.status = MEDIA_STATUS.completed;
-        } else if (next > 0) {
-            vol.status = MEDIA_STATUS.inProgress;
-        } else {
-            vol.status = MEDIA_STATUS.planned;
-        }
-
-        try {
-            volumeBusy = vol.id;
-            await setVolumeProgress(
-                vol.id,
-                isChapters ? { currentChapter: next } : { currentPage: next },
-            );
-            onUpdate();
-        } catch (err) {
-            volumeError = err;
-        } finally {
-            volumeBusy = "";
-        }
-    }
-
-    async function markVolumeComplete(vol: MangaVolume) {
-        if (!media) return;
-        const isChapters = vol.totalChapters > 0;
-        const total = volumeTotal(vol);
-        if (!total) return;
-
-        if (isChapters) {
-            vol.currentChapter = total;
-        } else {
-            vol.currentPage = total;
-        }
-        vol.status = MEDIA_STATUS.completed;
-
-        try {
-            volumeBusy = vol.id;
-            await setVolumeProgress(
-                vol.id,
-                isChapters ? { currentChapter: total } : { currentPage: total },
-            );
-            onUpdate();
-        } catch (err) {
-            volumeError = err;
-        } finally {
-            volumeBusy = "";
-        }
-    }
-
-    async function unmarkVolumeComplete(vol: MangaVolume) {
-        if (!media) return;
-        const isChapters = vol.totalChapters > 0;
-        if (isChapters) {
-            vol.currentChapter = 0;
-        } else {
-            vol.currentPage = 0;
-        }
-        vol.status = MEDIA_STATUS.planned;
-
-        try {
-            volumeBusy = vol.id;
-            await setVolumeProgress(
-                vol.id,
-                isChapters ? { currentChapter: 0 } : { currentPage: 0 },
-            );
-            onUpdate();
-        } catch (err) {
-            volumeError = err;
-        } finally {
-            volumeBusy = "";
-        }
-    }
-
-    let addVolumeDialogOpen = $state(false);
-    let addVolumeTitle = $state("");
-    let addVolumeChapters = $state(0);
-
-    async function handleAddVolume() {
-        if (!media || media.type !== "manga") return;
-        const volNum = mangaVolumes.length + 1;
-        addVolumeTitle = `Volume ${volNum}`;
-        addVolumeChapters = 0;
-        addVolumeDialogOpen = true;
-    }
-
-    async function confirmAddVolume() {
-        if (!media || media.type !== "manga") return;
-        const volNum = mangaVolumes.length + 1;
-        addVolumeDialogOpen = false;
-        try {
-            volumeBusy = "add";
-            await addVolume(media.id, {
-                volumeNumber: volNum,
-                title: addVolumeTitle || `Volume ${volNum}`,
-                totalPages: 200,
-                totalChapters: addVolumeChapters,
-                currentPage: 0,
-                currentChapter: 0,
-            });
-            await load(media.id, ++requestSequence, false);
-            onUpdate();
-        } catch (err) {
-            volumeError = err;
-        } finally {
-            volumeBusy = "";
-        }
-    }
-
-    async function handleGenerateVolumes() {
-        if (!media || media.type !== "manga" || !media.totalVolumes) return;
-        try {
-            volumeBusy = "generate";
-            const start = mangaVolumes.length + 1;
-            const promises = [];
-            for (let i = start; i <= media.totalVolumes; i++) {
-                promises.push(
-                    addVolume(media.id, {
-                        volumeNumber: i,
-                        title: `Volume ${i}`,
-                        totalPages: 200,
-                        totalChapters: 0,
-                        currentPage: 0,
-                        currentChapter: 0,
-                    }),
-                );
-            }
-            await Promise.all(promises);
-            await load(media.id, ++requestSequence, false);
-            onUpdate();
-        } catch (err) {
-            volumeError = err;
-        } finally {
-            volumeBusy = "";
-        }
-    }
-
-    let editVolumeDialogOpen = $state(false);
-    let editingVolume = $state<MangaVolume | null>(null);
-    let editVolumeTitle = $state("");
-    let editVolumePages = $state(200);
-    let editVolumeChapters = $state(0);
-    let editVolumeCurrentPage = $state(0);
-    let editVolumeCurrentChapter = $state(0);
-
-    function openEditVolume(vol: MangaVolume) {
-        editingVolume = vol;
-        editVolumeTitle = vol.title || `Volume ${vol.volumeNumber}`;
-        editVolumePages = vol.totalPages > 0 ? vol.totalPages : 200;
-        editVolumeChapters = vol.totalChapters ?? 0;
-        editVolumeCurrentPage = vol.currentPage ?? 0;
-        editVolumeCurrentChapter = vol.currentChapter ?? 0;
-        editVolumeDialogOpen = true;
-    }
-
-    async function confirmEditVolume() {
-        if (!editingVolume || !media) return;
-        const targetVol = editingVolume;
-        editVolumeDialogOpen = false;
-        const prevTitle = targetVol.title;
-        const prevPages = targetVol.totalPages;
-        const prevChapters = targetVol.totalChapters;
-        const prevCurrentPage = targetVol.currentPage;
-        const prevCurrentChapter = targetVol.currentChapter;
-
-        targetVol.title = editVolumeTitle;
-        targetVol.totalPages = Math.max(editVolumePages, 1);
-        targetVol.totalChapters = Math.max(editVolumeChapters, 0);
-        targetVol.currentPage = Math.min(
-            Math.max(editVolumeCurrentPage, 0),
-            editVolumePages,
-        );
-        targetVol.currentChapter = Math.min(
-            Math.max(editVolumeCurrentChapter, 0),
-            targetVol.totalChapters > 0 ? targetVol.totalChapters : 999999,
-        );
-
-        try {
-            volumeBusy = targetVol.id;
-            await updateVolume(targetVol.id, {
-                title: editVolumeTitle,
-                totalPages: targetVol.totalPages,
-                totalChapters: targetVol.totalChapters,
-                currentPage: targetVol.currentPage,
-                currentChapter: targetVol.currentChapter,
-            });
-            onUpdate();
-        } catch (err) {
-            targetVol.title = prevTitle;
-            targetVol.totalPages = prevPages;
-            targetVol.totalChapters = prevChapters;
-            targetVol.currentPage = prevCurrentPage;
-            targetVol.currentChapter = prevCurrentChapter;
-            volumeError = err;
-        } finally {
-            volumeBusy = "";
-            editingVolume = null;
-        }
-    }
-
-    async function handleDeleteVolume(vol: MangaVolume) {
-        if (!media) return;
-        const volName = vol.title || `Volume ${vol.volumeNumber}`;
-        if (!confirm(`Delete ${volName}?`)) return;
-        const prevVolumes = isMangaDetail(media)
-            ? [...(media.volumes ?? [])]
-            : [];
-        if (isMangaDetail(media) && media.volumes) {
-            media.volumes = media.volumes.filter((v) => v.id !== vol.id);
-        }
-        try {
-            volumeBusy = vol.id;
-            await deleteVolume(vol.id);
-            onUpdate();
-        } catch (err) {
-            if (isMangaDetail(media)) {
-                media.volumes = prevVolumes;
-            }
-            volumeError = err;
-        } finally {
-            volumeBusy = "";
-        }
-    }
+    const volumes = createVolumeController({
+        getMedia: () => media,
+        reload: async () => {
+            await load(mediaId, ++requestSequence, false);
+        },
+        // Read through a closure so a later prop swap is not captured here.
+        onUpdate: () => onUpdate(),
+    });
 
     $effect(() => {
         void refreshKey;
@@ -952,10 +588,6 @@
         return Array.from(opts);
     });
 
-    let statusMenuItems = $derived(
-        statusOptions.map((value) => ({ value, label: statusLabel(value) })),
-    );
-
     let watchedOnInput = $state("");
     let watchedOnDirty = $state(false);
 
@@ -1009,14 +641,6 @@
             showToast(errorMessage(err), "error");
         }
     }
-
-    let platformMenuItems = $derived([
-        {
-            value: "",
-            label: i18n.current === "ru" ? "Не выбрана" : "Not selected",
-        },
-        ...gamePlatformOptions.map((p) => ({ value: p, label: p })),
-    ]);
 
     async function updateUserPlatform(val: string) {
         if (!media) return;
@@ -1565,72 +1189,7 @@
         }
     }
 
-    function formatRelationType(relType?: string): string {
-        const r = i18n.t.detail.relations;
-        switch (relType) {
-            case "SEQUEL":
-                return r.sequel;
-            case "PREQUEL":
-                return r.prequel;
-            case "ADAPTATION":
-                return r.adaptation;
-            case "SIDE_STORY":
-                return r.sideStory;
-            case "SPIN_OFF":
-                return r.spinOff;
-            case "SUMMARY":
-                return r.summary;
-            case "ALTERNATIVE":
-                return r.alternative;
-            case "CHARACTER":
-                return r.character;
-            default:
-                return r.other;
-        }
-    }
 
-    function formatMediaDisplayType(rel: RelatedEntry): string {
-        if (rel.type === "game") return i18n.current === "ru" ? "Игра" : "Game";
-        if (rel.type === "book")
-            return i18n.current === "ru" ? "Книга" : "Book";
-        const f = rel.format?.toUpperCase();
-        const fmt = i18n.t.detail.formats;
-        if (f === "MOVIE") return fmt.movie;
-        if (f === "TV" || f === "TV_SHORT") return fmt.tv;
-        if (f === "OVA") return fmt.ova;
-        if (f === "ONA") return fmt.ona;
-        if (f === "SPECIAL") return fmt.special;
-        if (f === "MANGA") return fmt.manga;
-        if (f === "NOVEL") return fmt.novel;
-        if (f === "ONE_SHOT") return fmt.oneShot;
-        if (f === "MUSIC") return fmt.music;
-        return rel.type === "manga"
-            ? fmt.manga
-            : rel.type === "movie"
-              ? fmt.movie
-              : fmt.tv;
-    }
-
-    function statusBadgeClasses(status: MediaStatus): string {
-        switch (status) {
-            case 2:
-                return "bg-[var(--color-brand-green)] text-white border-2 border-[color-mix(in_oklab,var(--color-success-soft)_80%,transparent)] ring-2 ring-[color-mix(in_oklab,var(--color-success-soft)_30%,transparent)]";
-            case 1:
-                return "bg-[var(--color-brand-blue)] text-white border-2 border-[color-mix(in_oklab,var(--color-ink-faint)_80%,transparent)] ring-2 ring-[color-mix(in_oklab,var(--color-ink-faint)_30%,transparent)]";
-            case 3:
-                return "bg-[var(--color-warning-line)] text-white border-2 border-amber-300/80 ring-2 ring-amber-300/30";
-            case 4:
-                return "bg-[var(--color-danger-line)] text-white border-2 border-rose-300/80 ring-2 ring-rose-300/30";
-            default:
-                return "bg-[var(--color-track)] text-slate-100 border-2 border-slate-400/70 ring-2 ring-slate-400/20";
-        }
-    }
-
-    interface RelationGroup {
-        id: string;
-        title: string;
-        items: RelatedEntry[];
-    }
 
     let relatedGroups = $derived.by<RelationGroup[]>(() => {
         if (related.length === 0) return [];
@@ -1696,59 +1255,41 @@
         return groups;
     });
 
-    interface TimelineEntry {
-        id: string;
-        title: string;
-        coverUrl: string | null;
-        year: number | null;
-        formatDisplay: string;
-        relationType: string;
-        isCurrent: boolean;
-        localItem?: MediaItem;
-        rawItem?: RelatedEntry;
-    }
-
     let timelineEntries = $derived.by<TimelineEntry[]>(() => {
         if (!media) return [];
 
-        const currentYear = media.releaseDate
-            ? new Date(media.releaseDate).getFullYear()
-            : null;
-        const currentFormat = isTvShowDetail(media)
-            ? i18n.t.detail.formats.tv
-            : media.type === "movie"
-              ? i18n.t.detail.formats.movie
-              : media.type === "manga"
-                ? i18n.t.detail.formats.manga
-                : media.type;
-
-        const currentEntry: TimelineEntry = {
+        const current: TimelineEntry = {
             id: media.id,
             title: media.title,
             coverUrl: media.coverUrl,
-            year: currentYear,
-            formatDisplay: currentFormat,
+            year: media.releaseDate
+                ? new Date(media.releaseDate).getFullYear()
+                : null,
+            formatDisplay: currentFormatLabel(media),
             relationType: i18n.t.detail.currentTitleBadge,
             isCurrent: true,
             localItem: media,
         };
 
-        const items: TimelineEntry[] = [currentEntry];
+        const items: TimelineEntry[] = [
+            current,
+            ...related.map(
+                (r): TimelineEntry => ({
+                    id: r.id,
+                    title: r.title,
+                    coverUrl: r.coverUrl,
+                    year: r.year ?? null,
+                    formatDisplay: formatMediaDisplayType(r),
+                    relationType:
+                        r.relationType ?? i18n.t.detail.relations.other,
+                    isCurrent: false,
+                    localItem: r.localItem,
+                    rawItem: r,
+                }),
+            ),
+        ];
 
-        for (const r of related) {
-            items.push({
-                id: r.id,
-                title: r.title,
-                coverUrl: r.coverUrl,
-                year: r.year ?? null,
-                formatDisplay: formatMediaDisplayType(r),
-                relationType: r.relationType ?? i18n.t.detail.relations.other,
-                isCurrent: false,
-                localItem: r.localItem,
-                rawItem: r,
-            });
-        }
-
+        // Entries with a known year sort by it; the rest keep their order at the end.
         return items.sort((a, b) => {
             if (a.year !== null && b.year !== null) return a.year - b.year;
             if (a.year !== null) return -1;
@@ -1756,6 +1297,7 @@
             return 0;
         });
     });
+
 
     async function handleRelatedClick(rel: RelatedEntry) {
         if (rel.localItem) {
@@ -2097,513 +1639,12 @@
         }
     }
 
-    function orderOf(item: MediaItem): number {
-        return item.franchiseOrder ?? Number.MAX_SAFE_INTEGER;
-    }
 
-    function buildEpisodes(value: TvSeason): EpisodeRow[] {
-        let parsed: Array<{
-            number: number;
-            title?: string;
-            airDate?: string;
-            description?: string;
-        }> = [];
-        if (value.episodesData) {
-            try {
-                parsed = JSON.parse(value.episodesData);
-            } catch {}
-        }
-        const total = Math.max(value.totalEpisodes ?? 0, parsed.length, 0);
-        const watched = Math.max(value.currentEpisode ?? 0, 0);
-        const limit = Math.min(total, Math.max(watched, maxEpisodesPerSeason));
 
-        return Array.from({ length: limit }, (_, index) => {
-            const number = index + 1;
-            const found = parsed.find((p) => p.number === number);
-            return {
-                id: `${value.id}:${number}`,
-                number,
-                title: found?.title || i18n.t.detail.episodeTitle(number),
-                airDate: found?.airDate ?? value.airDate ?? null,
-                description: found?.description ?? value.notes ?? null,
-                watched: number <= watched,
-            };
-        });
-    }
 
-    /**
-     * Volumes are the granular source when they carry chapter counts, but a volume seeded from
-     * provider metadata can lag behind the manga's own counter. Taking the larger of the two keeps
-     * "Характеристики" from reporting 0/386 right next to the 386/386 in "Ваша история".
-     */
-    function mangaChapterProgress(item: MediaItem): {
-        current: number;
-        total: number | null;
-    } {
-        if (item.type !== "manga") return { current: 0, total: null };
-        const volumes = isMangaDetail(item) ? (item.volumes ?? []) : [];
-        const hasVolumeChapters = volumes.some(
-            (volume) => (volume.totalChapters ?? 0) > 0,
-        );
-        if (!hasVolumeChapters) {
-            return { current: item.currentChapter, total: item.totalChapters };
-        }
-        return {
-            current: Math.max(
-                item.currentChapter,
-                volumes.reduce(
-                    (sum, volume) => sum + (volume.currentChapter ?? 0),
-                    0,
-                ),
-            ),
-            total:
-                volumes.reduce(
-                    (sum, volume) => sum + (volume.totalChapters ?? 0),
-                    0,
-                ) || item.totalChapters,
-        };
-    }
 
-    function readProgress(item: MediaItem): ProgressInfo | null {
-        switch (item.type) {
-            case "game":
-                return {
-                    current: item.hoursPlayed ?? 0,
-                    total: null,
-                    editable: true,
-                    label: i18n.t.detail.hoursLabel,
-                };
-            case "book":
-                return {
-                    current: item.currentPage,
-                    total: item.totalPages,
-                    editable: true,
-                    label: i18n.t.detail.pagesLabel,
-                };
-            case "manga": {
-                const chapters = mangaChapterProgress(item);
-                return {
-                    current: chapters.current,
-                    total: chapters.total,
-                    editable: true,
-                    label: i18n.t.detail.chaptersLabel,
-                };
-            }
-            case "tvshow":
-                return {
-                    current: item.totalEpisodesWatched,
-                    total: item.totalEpisodesCount,
-                    editable: false,
-                    label: i18n.t.detail.episodesLabel,
-                };
-            default:
-                return null;
-        }
-    }
 
-    function readOriginalTitle(item: MediaItem): string | null {
-        if (item.type === "tvshow" || item.type === "movie") {
-            const value = item.romajiTitle?.trim();
-            return value ? value : null;
-        }
 
-        return null;
-    }
-
-    function isAnime(item: MediaItem): boolean {
-        return (
-            (item.type === "tvshow" || item.type === "movie") && item.isAnime
-        );
-    }
-
-    function typeLabel(item: MediaItem): string {
-        return isAnime(item)
-            ? i18n.t.navigation.anime
-            : i18n.t.types[item.type];
-    }
-
-    /**
-     * Manga is stored as one type, but the origin decides how it is read: a manhwa or an OEL title
-     * called just "Манга" is wrong. Falls back to the plain type label when no source knew.
-     */
-    function formatLabel(item: MediaItem): string {
-        if (!isMangaDetail(item)) return typeLabel(item);
-
-        const known = item.mangaFormat;
-        if (!known) return typeLabel(item);
-
-        const labels = i18n.t.detail.mangaFormats as Record<string, string>;
-        return labels[known] ?? typeLabel(item);
-    }
-
-    function statusLabel(status: MediaStatus): string {
-        switch (status) {
-            case 0:
-                return i18n.t.status.planned;
-            case 1:
-                return i18n.t.status.inProgress;
-            case 2:
-                return i18n.t.status.completed;
-            case 3:
-                return i18n.t.status.paused;
-            case 4:
-                return i18n.t.status.dropped;
-        }
-    }
-
-    function releaseStatusLabel(item: MediaItem): string {
-        const raw = item.releaseStatus?.trim().toUpperCase();
-        const r = i18n.t.detail.releaseStatuses;
-
-        if (item.type === "game") {
-            const isRu = i18n.current === "ru";
-            const comingSoon = isRu ? "Скоро выйдет" : "Coming Soon";
-            const earlyAccess = isRu ? "Ранний доступ" : "Early Access";
-            const fullRelease = isRu ? "Релиз" : "Full Release";
-
-            if (raw) {
-                if (
-                    raw.includes("COMING") ||
-                    raw.includes("NOT_YET") ||
-                    raw.includes("UPCOMING") ||
-                    raw.includes("СКОРО")
-                )
-                    return comingSoon;
-                if (raw.includes("EARLY") || raw.includes("РАННИЙ"))
-                    return earlyAccess;
-                if (
-                    raw.includes("FULL") ||
-                    raw.includes("RELEASE") ||
-                    raw.includes("FINISHED") ||
-                    raw.includes("COMPLETED") ||
-                    raw.includes("РЕЛИЗ")
-                )
-                    return fullRelease;
-            }
-            if (item.releaseDate) {
-                const start = new Date(item.releaseDate);
-                if (!Number.isNaN(start.getTime()) && start > new Date())
-                    return comingSoon;
-            }
-            return fullRelease;
-        }
-
-        if (raw) {
-            if (
-                raw === "RELEASING" ||
-                raw === "CURRENT" ||
-                raw === "RETURNING SERIES"
-            )
-                return r.releasing;
-            if (raw === "FINISHED" || raw === "COMPLETED" || raw === "ENDED")
-                return r.finished;
-            if (
-                raw === "NOT_YET_RELEASED" ||
-                raw === "UPCOMING" ||
-                raw === "IN PRODUCTION"
-            )
-                return r.notYetReleased;
-            if (raw === "CANCELLED" || raw === "CANCELED") return r.cancelled;
-            if (raw === "HIATUS" || raw === "ON HIATUS") return r.hiatus;
-        }
-
-        // Fallback: calculate from dates if no API status
-        const now = new Date();
-        now.setHours(0, 0, 0, 0);
-
-        if (item.endDate) {
-            const end = new Date(item.endDate);
-            if (!Number.isNaN(end.getTime()) && end <= now) {
-                return r.finished;
-            }
-        }
-
-        if (item.releaseDate) {
-            const start = new Date(item.releaseDate);
-            if (!Number.isNaN(start.getTime())) {
-                if (start > now) return r.notYetReleased;
-                return r.releasing;
-            }
-        }
-
-        return i18n.t.detailModal.valueEmpty;
-    }
-
-    function dataSource(item: MediaItem): string {
-        if (item.externalSource) return item.externalSource;
-        if (isAnime(item) || item.type === "manga") return "AniList";
-
-        switch (item.type) {
-            case "game":
-                return "RAWG";
-            case "book":
-                return "OpenLibrary";
-            default:
-                return "TMDB";
-        }
-    }
-
-    function providerDomain(item: MediaItem): string {
-        const src = (item.externalSource || dataSource(item)).toLowerCase();
-        if (src.includes("anilist")) return "anilist.co";
-        if (
-            src.includes("mal") ||
-            src.includes("jikan") ||
-            src.includes("myanimelist")
-        )
-            return "myanimelist.net";
-        if (src.includes("mangaupdate")) return "mangaupdates.com";
-        if (src.includes("tmdb")) return "themoviedb.org";
-        if (src.includes("rawg")) return "rawg.io";
-        if (src.includes("openlibrary")) return "openlibrary.org";
-        return "anilist.co";
-    }
-
-    function tags(item: MediaItem): string[] {
-        const list: string[] = [typeLabel(item)];
-
-        switch (item.type) {
-            case "game":
-                // The header shows the platform the user picked in Ваша история;
-                // the full release list lives in the platform dropdown instead.
-                if (item.userPlatform?.trim()) list.push(item.userPlatform.trim());
-                else if (item.platform) list.push(item.platform);
-                break;
-            case "book":
-                if (item.author) list.push(item.author);
-                break;
-            case "manga":
-                if (item.author) list.push(item.author);
-                break;
-            case "movie":
-                if (item.studio) list.push(item.studio);
-                if (item.director) list.push(item.director);
-                break;
-            case "tvshow":
-                if (item.studio) list.push(item.studio);
-                if (item.network) list.push(item.network);
-                break;
-        }
-
-        return [...new Set(list.filter(Boolean))];
-    }
-
-    function specRows(
-        item: MediaItem,
-    ): Array<{ label: string; value: string; isLink?: boolean }> {
-        const empty = i18n.t.detailModal.valueEmpty;
-        const rows: Array<{ label: string; value: string; isLink?: boolean }> =
-            [{ label: i18n.t.detail.formatLabel, value: formatLabel(item) }];
-
-        if (item.type === "game") {
-            rows.push({
-                label: i18n.current === "ru" ? "Дата релиза" : "Release date",
-                value: formatReleaseDate(item),
-            });
-            rows.push({
-                label: i18n.t.status.label,
-                value: releaseStatusLabel(item),
-            });
-            if (item.genres) {
-                const g = Array.isArray(item.genres)
-                    ? item.genres.join(", ")
-                    : item.genres;
-                if (g && g.trim()) {
-                    rows.push({
-                        label: i18n.current === "ru" ? "Жанры" : "Genres",
-                        value: g.trim(),
-                    });
-                }
-            }
-            const t = item.tags
-                ? (Array.isArray(item.tags)
-                      ? item.tags.join(", ")
-                      : item.tags
-                  ).trim()
-                : "";
-            rows.push({
-                label: i18n.current === "ru" ? "Теги" : "Tags",
-                value: t || "—",
-            });
-        } else {
-            rows.push({
-                label: i18n.t.detail.startDateLabel,
-                value: formatReleaseDate(item),
-            });
-            rows.push({
-                label: i18n.t.detail.endDateLabel,
-                value: formatReleaseDate(item, item.endDate),
-            });
-            rows.push({
-                label: i18n.t.status.label,
-                value: releaseStatusLabel(item),
-            });
-        }
-
-        switch (item.type) {
-            case "tvshow":
-                rows.push({
-                    label: i18n.t.detail.episodesLabel,
-                    value: i18n.t.card.episodes(
-                        item.totalEpisodesWatched,
-                        item.totalEpisodesCount,
-                    ),
-                });
-                break;
-            case "book":
-                rows.push({
-                    label: i18n.t.detail.pagesLabel,
-                    value: i18n.t.card.pages(item.currentPage, item.totalPages),
-                });
-                break;
-            case "manga": {
-                const chapters = mangaChapterProgress(item);
-                rows.push({
-                    label: i18n.t.detail.chaptersLabel,
-                    value:
-                        chapters.total !== null && chapters.total > 0
-                            ? i18n.t.card.chapters(
-                                  chapters.current,
-                                  chapters.total,
-                              )
-                            : i18n.current === "ru"
-                              ? `Гл. ${chapters.current} / —`
-                              : `Ch. ${chapters.current} / —`,
-                });
-
-                const vols = isMangaDetail(item) ? (item.volumes ?? []) : [];
-                const totalVols =
-                    vols.length > 0 ? vols.length : (item.totalVolumes ?? null);
-                const curVol =
-                    item.currentVolume ?? (vols.length > 0 ? 1 : null);
-                rows.push({
-                    label: i18n.t.detail.volumesLabel,
-                    value:
-                        totalVols !== null && totalVols > 0
-                            ? curVol !== null && curVol > 0
-                                ? `${curVol} / ${totalVols}`
-                                : `${totalVols}`
-                            : curVol !== null && curVol > 0
-                              ? `${curVol} / —`
-                              : empty,
-                });
-                break;
-            }
-            case "game":
-                // Hours played removed from specRows, stays only in "Ваша история"
-                break;
-        }
-
-        if (item.type === "movie" || item.type === "tvshow") {
-            const duration =
-                item.durationMinutes && item.durationMinutes > 0
-                    ? item.type === "movie"
-                        ? i18n.t.card.movie(item.durationMinutes)
-                        : `${item.durationMinutes} ${i18n.t.detail.minPerEp}`
-                    : empty;
-            rows.push({ label: i18n.t.detail.durationLabel, value: duration });
-        }
-
-        switch (item.type) {
-            case "tvshow":
-            case "movie":
-                rows.push({
-                    label: i18n.t.detailModal.studio,
-                    value: item.studio || empty,
-                });
-                // A romaji title only means something for anime; a live-action show or film has an
-                // original title, not a romanized one, so showing the row there is just noise.
-                if (isAnime(item) && item.romajiTitle) {
-                    rows.push({
-                        label: i18n.t.detail.romajiTitle,
-                        value: item.romajiTitle,
-                    });
-                }
-                break;
-            case "book":
-                rows.push({
-                    label: i18n.t.detailModal.author,
-                    value: item.author || empty,
-                });
-                break;
-            case "manga":
-                rows.push({
-                    label: i18n.t.detailModal.author,
-                    value: item.author || empty,
-                });
-                if (item.romajiTitle) {
-                    rows.push({
-                        label: i18n.t.detail.romajiTitle,
-                        value: item.romajiTitle,
-                    });
-                }
-                break;
-            case "game":
-                rows.push({
-                    label: i18n.t.detailModal.platform,
-                    value: item.platform || empty,
-                });
-                break;
-        }
-
-        rows.push({ label: i18n.t.detail.source, value: dataSource(item) });
-        rows.push({
-            label: i18n.t.detail.providerLabel,
-            value: providerDomain(item),
-            isLink: true,
-        });
-
-        return rows;
-    }
-
-    function historyProgressText(): string {
-        const info = progressInfo;
-        if (!info) return i18n.t.detailModal.valueEmpty;
-        return info.total !== null
-            ? `${format(progressValue)} / ${format(info.total)}`
-            : format(progressValue);
-    }
-
-    function formatDate(value: string | null): string {
-        if (!value) return i18n.t.detailModal.dateEmpty;
-        const parsed = new Date(value);
-        return Number.isNaN(parsed.getTime())
-            ? i18n.t.detailModal.dateEmpty
-            : new Intl.DateTimeFormat(i18n.current, {
-                  dateStyle: "medium",
-              }).format(parsed);
-    }
-
-    /**
-     * Renders only the precision the source actually provided. A source that knows just the year
-     * must not be padded into "1 January", so the stored releaseYear carries the fallback.
-     *
-     * The end date is a different case: a missing end date means "still running", so it must never
-     * borrow the start date's year. That is why the year fallback only applies to the start row.
-     */
-    function formatReleaseDate(item: MediaItem, explicitDate?: string | null): string {
-        const isEndDate = explicitDate !== undefined;
-        const raw = isEndDate ? explicitDate : item.releaseDate;
-
-        if (raw) {
-            return formatDate(raw);
-        }
-
-        if (isEndDate) {
-            return i18n.t.detailModal.dateEmpty;
-        }
-
-        const year = item.releaseYear;
-        if (year && year > 0) {
-            return i18n.current === "ru" ? `${year} год` : `${year}`;
-        }
-
-        return i18n.t.detailModal.dateEmpty;
-    }
-
-    function format(value: number): string {
-        return new Intl.NumberFormat(i18n.current).format(value);
-    }
 
     function stepProgress(delta: number) {
         const info = progressInfo;
@@ -2908,110 +1949,20 @@
                     onToggleTranslate={toggleTranslateSynopsis}
                     onToggleExpand={() => (synopsisExpanded = !synopsisExpanded)}
                 />
-                <!-- Sub-navigation Tabs (Item 19) -->
-                <nav
-                    class="flex items-center gap-1 border-b border-white/[0.08] pb-px"
-                    aria-label="Sections"
-                >
-                    <button
-                        type="button"
-                        class={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-semibold transition ${
-                            activeSubTab === "overview"
-                                ? "border-[var(--color-accent)] text-white"
-                                : "border-transparent text-muted hover:text-white"
-                        }`}
-                        onclick={() => (activeSubTab = "overview")}
-                    >
-                        {i18n.t.detail.tabOverview}
-                    </button>
-
-                    {#if media.type === "tvshow"}
-                        <button
-                            type="button"
-                            class={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-semibold transition ${
-                                activeSubTab === "episodes"
-                                    ? "border-[var(--color-accent)] text-white"
-                                    : "border-transparent text-muted hover:text-white"
-                            }`}
-                            onclick={() => (activeSubTab = "episodes")}
-                        >
-                            {i18n.t.detail.tabEpisodes}
-                            {#if currentSeason}
-                                <span
-                                    class="rounded-full bg-white/10 px-2 py-0.5 text-xs text-[var(--color-accent-soft)]"
-                                >
-                                    {currentSeason.currentEpisode}/{currentSeason.totalEpisodes}
-                                </span>
-                            {/if}
-                        </button>
-                    {/if}
-
-                    {#if media.type === "manga"}
-                        <button
-                            type="button"
-                            class={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-semibold transition ${
-                                activeSubTab === "volumes"
-                                    ? "border-[var(--color-accent)] text-white"
-                                    : "border-transparent text-muted hover:text-white"
-                            }`}
-                            onclick={() => (activeSubTab = "volumes")}
-                        >
-                            <Layers
-                                size={14}
-                                class="text-[var(--color-accent-soft)]"
-                                aria-hidden="true"
-                            />
-                            {i18n.t.detail.tabVolumes}
-                            {#if mangaVolumes.length > 0}
-                                <span
-                                    class="rounded-full bg-white/10 px-2 py-0.5 text-xs text-[var(--color-accent-soft)]"
-                                >
-                                    {mangaVolumes.length}
-                                </span>
-                            {/if}
-                        </button>
-                    {/if}
-
-                    <button
-                        type="button"
-                        class={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-semibold transition ${
-                            activeSubTab === "related"
-                                ? "border-[var(--color-accent)] text-white"
-                                : "border-transparent text-muted hover:text-white"
-                        }`}
-                        onclick={() => (activeSubTab = "related")}
-                    >
-                        {i18n.t.detail.tabRelatedMedia}
-                        {#if related.length > 0}
-                            <span
-                                class="rounded-full bg-white/10 px-2 py-0.5 text-xs text-muted"
-                            >
-                                {related.length}
-                            </span>
-                        {/if}
-                    </button>
-
-                    <button
-                        type="button"
-                        class={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-semibold transition ${
-                            activeSubTab === "recommendations"
-                                ? "border-[var(--color-accent)] text-white"
-                                : "border-transparent text-muted hover:text-white"
-                        }`}
-                        onclick={() => {
-                            // No fetch here: recommendations are the one panel that must only
-                            // hit the external API on an explicit button press (see below).
-                            activeSubTab = "recommendations";
-                        }}
-                    >
-                        <Sparkles
-                            size={14}
-                            class="text-[var(--color-accent-soft)]"
-                            aria-hidden="true"
-                        />
-                        {i18n.t.detail.tabRecommendations}
-                    </button>
-                </nav>
+<!-- Sub-navigation tabs -->
+<DetailTabs
+    active={activeSubTab}
+    mediaType={media.type}
+    seasonProgress={currentSeason
+        ? {
+            current: currentSeason.currentEpisode ?? 0,
+            total: currentSeason.totalEpisodes ?? null,
+        }
+        : null}
+    volumeCount={mangaVolumes.length}
+    relatedCount={related.length}
+    onSelect={(tab) => (activeSubTab = tab)}
+/>
 
                 <!-- TAB 1: OVERVIEW -->
                 {#if activeSubTab === "overview"}
@@ -3045,72 +1996,14 @@
                                 onToggleAchievement={toggleAchievement}
                                 onToggleAllAchievements={toggleAllAchievements}
                             />
-                        {:else if support && support.editable}
-                            <section
-                                class="space-y-3 rounded-xl bg-[var(--color-panel-line)] p-5 shadow-sm border border-white/[0.06]"
-                            >
-                                <div
-                                    class="flex items-center justify-between gap-3"
-                                >
-                                    <h2
-                                        class="text-xs font-bold uppercase tracking-wider text-slate-300"
-                                    >
-                                        {support.label}
-                                    </h2>
-                                    <span
-                                        class="text-sm font-semibold tabular-nums text-white"
-                                    >
-                                        {support.total !== null
-                                            ? `${format(progressValue)} / ${format(support.total)}`
-                                            : format(progressValue)}
-                                    </span>
-                                </div>
-                                <div
-                                    class="flex h-10 items-center rounded-lg bg-[var(--color-field)]"
-                                >
-                                    <button
-                                        type="button"
-                                        class="grid h-full w-10 place-items-center rounded-l-lg text-[var(--color-muted)] transition hover:bg-[var(--color-panel-raised)] hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
-                                        aria-label={i18n.t.card.decrement}
-                                        disabled={progressValue <= 0}
-                                        onclick={() => stepProgress(-1)}
-                                        ><Minus
-                                            size={15}
-                                            aria-hidden="true"
-                                        /></button
-                                    >
-                                    <span
-                                        class="flex-1 text-center text-sm font-semibold tabular-nums text-white"
-                                        >{format(progressValue)}</span
-                                    >
-                                    <button
-                                        type="button"
-                                        class="grid h-full w-10 place-items-center rounded-r-lg text-[var(--color-muted)] transition hover:bg-[var(--color-panel-raised)] hover:text-white"
-                                        aria-label={i18n.t.card.increment}
-                                        onclick={() => stepProgress(1)}
-                                        ><Plus
-                                            size={15}
-                                            aria-hidden="true"
-                                        /></button
-                                    >
-                                </div>
-                                {#if support.total !== null && support.total > 0}
-                                    <div
-                                        class="h-1.5 w-full max-w-2xl overflow-hidden rounded-full bg-[var(--color-field)]"
-                                    >
-                                        <div
-                                            class="h-full rounded-full bg-[var(--color-accent)] transition-[width] duration-200"
-                                            style={`width: ${progressPercent}%`}
-                                        ></div>
-                                    </div>
-                                {/if}
-                                {#if progressError}<p
-                                        class="text-xs text-rose-300"
-                                        role="alert"
-                                    >
-                                        {errorMessage(progressError)}
-                                    </p>{/if}
-                            </section>
+{:else if support && support.editable}
+    <ProgressStepper
+        progress={support}
+        value={progressValue}
+        percent={progressPercent}
+        error={progressError}
+        onStep={stepProgress}
+    />
                         {/if}
 
                         <!-- Manga Volumes Section on Overview (Item 6) -->
@@ -3118,19 +2011,23 @@
                             <MangaDetailSection
                                 {media}
                                 volumes={mangaVolumes}
-                                {volumeBusy}
+                                volumeBusy={volumes.busy}
                                 isDone={isVolumeDone}
                                 current={volumeCurrent}
                                 total={volumeTotal}
                                 percent={volumePercent}
                                 progressLabel={volumeProgressLabel}
-                                onStepPage={stepVolumePage}
-                                onEdit={openEditVolume}
-                                onDelete={handleDeleteVolume}
-                                onMarkComplete={markVolumeComplete}
-                                onUnmarkComplete={unmarkVolumeComplete}
-                                onAddVolume={handleAddVolume}
-                                onGenerateVolumes={handleGenerateVolumes}
+                                onStepPage={(vol, delta) =>
+                                    void volumes.stepVolume(vol, delta)}
+                                onEdit={(vol) => volumes.openEdit(vol)}
+                                onDelete={(vol) => void volumes.remove(vol)}
+                                onMarkComplete={(vol) =>
+                                    void volumes.markComplete(vol)}
+                                onUnmarkComplete={(vol) =>
+                                    void volumes.unmarkComplete(vol)}
+                                onAddVolume={() => volumes.openAdd()}
+                                onGenerateVolumes={() =>
+                                    void volumes.generateMissing()}
                                 onOpenVolumesTab={() =>
                                     (activeSubTab = "volumes")}
                             />
@@ -3162,1293 +2059,97 @@
                         {formatDate}
                     />
                 {/if}
+
                 <!-- TAB: MANGA VOLUMES -->
-                {#if activeSubTab === "volumes" && media.type === "manga"}
-                    <section class="space-y-4">
-                        <div
-                            class="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-[var(--color-panel-line)] p-3.5"
-                        >
-                            <div class="flex items-center gap-2">
-                                <Layers
-                                    size={16}
-                                    class="text-[var(--color-accent-soft)]"
-                                />
-                                <h3 class="text-sm font-bold text-white">
-                                    {i18n.t.detail.tabVolumes}
-                                </h3>
-                                <span
-                                    class="rounded-full bg-white/10 px-2.5 py-0.5 text-xs font-semibold text-[var(--color-accent-soft)]"
-                                >
-                                    {mangaVolumes.length}
-                                </span>
-                            </div>
+{#if activeSubTab === "volumes" && media.type === "manga"}
+    <VolumesPanel
+        {media}
+        volumes={mangaVolumes}
+        busy={volumes.busy}
+        onAdd={() => volumes.openAdd()}
+        onGenerate={() => void volumes.generateMissing()}
+        onStep={(vol, delta) => void volumes.stepVolume(vol, delta)}
+        onEdit={(vol) => volumes.openEdit(vol)}
+        onDelete={(vol) => void volumes.remove(vol)}
+        onMarkComplete={(vol) => void volumes.markComplete(vol)}
+        onUnmarkComplete={(vol) => void volumes.unmarkComplete(vol)}
+    />
+{/if}
 
-                            <div class="flex items-center gap-2">
-                                {#if media.totalVolumes && mangaVolumes.length < media.totalVolumes}
-                                    <button
-                                        type="button"
-                                        class="inline-flex h-8 items-center gap-1.5 rounded-md bg-white/10 px-3 text-xs font-semibold text-white transition hover:bg-white/20 disabled:opacity-50"
-                                        disabled={Boolean(volumeBusy)}
-                                        onclick={() =>
-                                            void handleGenerateVolumes()}
-                                    >
-                                        <Plus size={13} />
-                                        {i18n.t.detail.addVolume} ({media.totalVolumes -
-                                            mangaVolumes.length})
-                                    </button>
-                                {/if}
-                                <button
-                                    type="button"
-                                    class="inline-flex h-8 items-center gap-1.5 rounded-md bg-[var(--color-accent)] px-3 text-xs font-semibold text-white transition hover:bg-[var(--color-accent-bright)] disabled:opacity-50"
-                                    disabled={Boolean(volumeBusy)}
-                                    onclick={() => void handleAddVolume()}
-                                >
-                                    <Plus size={13} />
-                                    {i18n.t.detail.addVolume}
-                                </button>
-                            </div>
-                        </div>
+<!-- TAB 3: RELATED MEDIA -->
+{#if activeSubTab === "related"}
+    <RelatedPanel
+        {related}
+        loading={relatedLoading}
+        error={relatedError}
+        viewMode={relatedViewMode}
+        groups={relatedGroups}
+        timeline={timelineEntries}
+        onRetry={() => {
+            if (media) void loadRelated(media, true);
+        }}
+        onSelectViewMode={(mode) => (relatedViewMode = mode)}
+        onOpen={handleRelatedClick}
+    />
+{/if}
 
-                        {#if mangaVolumes.length === 0}
-                            <div
-                                class="rounded-xl border border-white/[0.08] bg-[color-mix(in_oklab,var(--color-panel-line)_40%,transparent)] p-8 text-center space-y-3"
-                            >
-                                <Layers
-                                    size={36}
-                                    class="mx-auto text-muted/60"
-                                />
-                                <p class="text-sm text-muted">
-                                    No volumes tracked yet for this manga.
-                                </p>
-                                <button
-                                    type="button"
-                                    class="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-accent)] px-4 py-2 text-xs font-semibold text-white transition hover:bg-[var(--color-accent-bright)]"
-                                    disabled={Boolean(volumeBusy)}
-                                    onclick={() => void handleAddVolume()}
-                                >
-                                    <Plus size={14} />
-                                    {i18n.t.detail.addVolume}
-                                </button>
-                            </div>
-                        {:else}
-                            <div
-                                class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
-                            >
-                                {#each mangaVolumes as vol (vol.id)}
-                                    {@const isDone = isVolumeDone(vol)}
-                                    {@const current = volumeCurrent(vol)}
-                                    {@const total = volumeTotal(vol)}
-                                    {@const percent = volumePercent(vol)}
-                                    <div
-                                        class="rounded-xl border border-white/[0.08] bg-[var(--color-panel-line)] p-4 space-y-3 shadow-sm hover:border-white/[0.14] transition"
-                                    >
-                                        <div
-                                            class="flex items-start justify-between gap-2"
-                                        >
-                                            <div class="min-w-0">
-                                                <h4
-                                                    class="text-sm font-bold text-white truncate"
-                                                >
-                                                    {vol.title ||
-                                                        `Volume ${vol.volumeNumber}`}
-                                                </h4>
-                                            </div>
-                                            {#if isDone}
-                                                <span
-                                                    class="inline-flex items-center gap-1 rounded bg-emerald-500/15 px-2 py-0.5 text-xs font-bold text-emerald-300"
-                                                >
-                                                    <Check
-                                                        size={12}
-                                                        stroke-width={2.5}
-                                                    />
-                                                    {i18n.t.status.completed}
-                                                </span>
-                                            {:else}
-                                                <span
-                                                    class="text-xs font-semibold tabular-nums text-white"
-                                                >
-                                                    {volumeProgressLabel(vol)}
-                                                </span>
-                                            {/if}
-                                        </div>
+<!-- PREVIEW MODAL FOR UNADDED RELATED ITEMS -->
+<RelatedPreviewModal
+    item={previewRelatedItem}
+    badges={previewRelatedBadges}
+    loading={previewRelatedLoading}
+    adding={previewAddingBusy}
+    status={previewStatus}
+    onStatusChange={(v) => (previewStatus = v)}
+    onAdd={(status) => {
+        if (previewRelatedItem)
+            void addRelatedToLibrary(previewRelatedItem, status);
+    }}
+    onClose={() => (previewRelatedItem = null)}
+/>
 
-                                        <!-- Progress Bar -->
-                                        <div class="space-y-1">
-                                            <div
-                                                class="flex justify-between text-[11px] text-muted"
-                                            >
-                                                <span
-                                                    >{i18n.t.detail
-                                                        .volumeProgress}</span
-                                                >
-                                                <span
-                                                    >{percent.toFixed(0)}%</span
-                                                >
-                                            </div>
-                                            <div
-                                                class="h-2 w-full overflow-hidden rounded-full bg-black/40"
-                                            >
-                                                <div
-                                                    class="h-full rounded-full bg-gradient-to-r from-[var(--color-accent)] to-[var(--color-info-soft)] transition-all duration-300"
-                                                    style={`width: ${percent}%`}
-                                                ></div>
-                                            </div>
-                                        </div>
+<!-- TAB 4: RECOMMENDATIONS -->
+{#if activeSubTab === "recommendations"}
+    <RecommendationsPanel
+        items={recommendations}
+        loading={recommendationsLoading}
+        error={recommendationsError}
+        onLoad={(force) => void loadRecommendations(force)}
+    />
+{/if}
 
-                                        <!-- Stepper & Actions -->
-                                        <div
-                                            class="flex items-center justify-between gap-2 pt-1 border-t border-white/[0.06]"
-                                        >
-                                            <div
-                                                class="flex h-8 items-center rounded-lg bg-[var(--color-field)] border border-white/[0.08]"
-                                            >
-                                                <button
-                                                    type="button"
-                                                    class="grid h-full w-8 place-items-center text-muted transition hover:text-white disabled:opacity-30"
-                                                    disabled={current <= 0 ||
-                                                        Boolean(volumeBusy)}
-                                                    onclick={() =>
-                                                        void stepVolumePage(
-                                                            vol,
-                                                            -1,
-                                                        )}
-                                                >
-                                                    <Minus size={13} />
-                                                </button>
-                                                <span
-                                                    class="px-2.5 text-xs font-semibold tabular-nums text-white"
-                                                    >{current}</span
-                                                >
-                                                <button
-                                                    type="button"
-                                                    class="grid h-full w-8 place-items-center text-muted transition hover:text-white disabled:opacity-30"
-                                                    disabled={(total > 0 &&
-                                                        current >= total) ||
-                                                        Boolean(volumeBusy)}
-                                                    onclick={() =>
-                                                        void stepVolumePage(
-                                                            vol,
-                                                            1,
-                                                        )}
-                                                >
-                                                    <Plus size={13} />
-                                                </button>
-                                            </div>
-
-                                            <div
-                                                class="flex items-center gap-1.5"
-                                            >
-                                                <button
-                                                    type="button"
-                                                    class="inline-flex h-8 items-center gap-1 rounded-lg bg-white/5 border border-white/[0.08] px-2 text-xs font-semibold text-muted hover:bg-white/10 hover:text-white transition"
-                                                    onclick={() =>
-                                                        openEditVolume(vol)}
-                                                    title="Edit volume"
-                                                >
-                                                    <Pencil size={12} />
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    class="inline-flex h-8 items-center gap-1 rounded-lg bg-white/5 border border-white/[0.08] px-2 text-xs font-semibold text-muted hover:bg-rose-500/20 hover:text-rose-400 transition"
-                                                    onclick={() =>
-                                                        void handleDeleteVolume(
-                                                            vol,
-                                                        )}
-                                                    title="Delete volume"
-                                                >
-                                                    <Trash2 size={12} />
-                                                </button>
-
-                                                {#if !isDone}
-                                                    <button
-                                                        type="button"
-                                                        class="inline-flex h-8 items-center gap-1 rounded-lg bg-emerald-500/15 border border-emerald-500/25 px-2.5 text-xs font-semibold text-emerald-300 transition hover:bg-emerald-500/25 disabled:opacity-50"
-                                                        disabled={Boolean(
-                                                            volumeBusy,
-                                                        )}
-                                                        onclick={() =>
-                                                            void markVolumeComplete(
-                                                                vol,
-                                                            )}
-                                                    >
-                                                        <Check size={13} />
-                                                        {i18n.t.detail.markRead}
-                                                    </button>
-                                                {:else}
-                                                    <button
-                                                        type="button"
-                                                        class="inline-flex h-8 items-center gap-1 rounded-lg bg-white/5 border border-white/[0.08] px-2.5 text-xs font-semibold text-muted transition hover:bg-white/10 hover:text-white disabled:opacity-50"
-                                                        disabled={Boolean(
-                                                            volumeBusy,
-                                                        )}
-                                                        onclick={() =>
-                                                            void unmarkVolumeComplete(
-                                                                vol,
-                                                            )}
-                                                    >
-                                                        <X size={13} />
-                                                        {i18n.t.detail
-                                                            .unmarkRead}
-                                                    </button>
-                                                {/if}
-                                            </div>
-                                        </div>
-                                    </div>
-                                {/each}
-                            </div>
-                        {/if}
-                    </section>
-                {/if}
-
-                <!-- TAB 3: RELATED MEDIA -->
-                {#if activeSubTab === "related"}
-                    <section class="space-y-6">
-                        <div
-                            class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
-                        >
-                            <div>
-                                <h2
-                                    class="text-sm font-bold uppercase tracking-wider text-slate-300"
-                                >
-                                    {i18n.t.detail.relatedTitle}
-                                </h2>
-                                <p class="text-xs text-muted">
-                                    {i18n.t.detail.relatedSubtitle}
-                                </p>
-                            </div>
-
-                            <!-- View Switchers (Items 2, 4) - Compact icon-only square buttons with hover tooltip -->
-                            {#if related.length > 0}
-                                <div
-                                    class="inline-flex items-center rounded-lg border border-white/[0.08] bg-[var(--color-track-alt)] p-1 self-start sm:self-auto gap-1"
-                                >
-                                    <button
-                                        type="button"
-                                        class={`grid h-8 w-8 place-items-center rounded-md transition cursor-pointer ${
-                                            relatedViewMode === "grouped"
-                                                ? "bg-accent text-white shadow"
-                                                : "text-slate-400 hover:bg-white/5 hover:text-white"
-                                        }`}
-                                        title={i18n.t.detail.viewGrouped}
-                                        aria-label={i18n.t.detail.viewGrouped}
-                                        onclick={() =>
-                                            (relatedViewMode = "grouped")}
-                                    >
-                                        <Layers size={17} />
-                                    </button>
-
-                                    <button
-                                        type="button"
-                                        class={`grid h-8 w-8 place-items-center rounded-md transition cursor-pointer ${
-                                            relatedViewMode === "timeline"
-                                                ? "bg-accent text-white shadow"
-                                                : "text-slate-400 hover:bg-white/5 hover:text-white"
-                                        }`}
-                                        title={i18n.t.detail.viewTimeline}
-                                        aria-label={i18n.t.detail.viewTimeline}
-                                        onclick={() =>
-                                            (relatedViewMode = "timeline")}
-                                    >
-                                        <GitBranch size={17} />
-                                    </button>
-
-                                    <button
-                                        type="button"
-                                        class={`grid h-8 w-8 place-items-center rounded-md transition cursor-pointer ${
-                                            relatedViewMode === "grid"
-                                                ? "bg-accent text-white shadow"
-                                                : "text-slate-400 hover:bg-white/5 hover:text-white"
-                                        }`}
-                                        title={i18n.t.detail.viewGrid}
-                                        aria-label={i18n.t.detail.viewGrid}
-                                        onclick={() =>
-                                            (relatedViewMode = "grid")}
-                                    >
-                                        <LayoutGrid size={17} />
-                                    </button>
-                                </div>
-                            {/if}
-                        </div>
-
-                        {#if relatedLoading}
-                            <div
-                                class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5"
-                            >
-                                {#each Array(5) as _, idx (idx)}
-                                    <div class="space-y-2">
-                                        <div
-                                            class="aspect-[2/3] w-full animate-pulse rounded-xl bg-[var(--color-panel-line)]"
-                                        ></div>
-                                        <div
-                                            class="h-3 w-3/4 animate-pulse rounded bg-[var(--color-panel-line)]"
-                                        ></div>
-                                    </div>
-                                {/each}
-                            </div>
-                        {:else if relatedError}
-                            <div
-                                class="flex flex-col items-start gap-2 rounded-xl bg-rose-400/5 p-4"
-                            >
-                                <p class="text-sm text-rose-200" role="alert">
-                                    {errorMessage(relatedError)}
-                                </p>
-                                <button
-                                    type="button"
-                                    class="inline-flex items-center gap-2 rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-white transition hover:bg-accent-hover cursor-pointer"
-                                    onclick={() => {
-                                        if (media)
-                                            void loadRelated(media, true);
-                                    }}
-                                >
-                                    <RefreshCw size={14} aria-hidden="true" />
-                                    {i18n.t.common.retry}
-                                </button>
-                            </div>
-                        {:else if related.length === 0}
-                            <p
-                                class="rounded-xl bg-[var(--color-panel-line)] p-5 text-sm text-muted"
-                            >
-                                {i18n.t.detail.relatedEmpty}
-                            </p>
-                        {:else}
-                            <!-- Snippet for related card with bottom gradient & status/rating badges -->
-                            {#snippet relatedCard(rel: RelatedEntry)}
-                                <button
-                                    type="button"
-                                    class="group relative flex flex-col aspect-[2/3] w-full overflow-hidden rounded-xl border border-white/[0.06] bg-[var(--color-overlay-strong)] text-left transition duration-300 hover:border-accent/50 hover:shadow-xl hover:shadow-accent/10 cursor-pointer"
-                                    onclick={() => handleRelatedClick(rel)}
-                                >
-                                    <!-- Poster image -->
-                                    {#if rel.coverUrl}
-                                        <img
-                                            src={rel.coverUrl}
-                                            alt={rel.title}
-                                            class="h-full w-full object-cover transition duration-500 group-hover:scale-105"
-                                            loading="lazy"
-                                        />
-                                    {:else}
-                                        <div
-                                            class="grid h-full w-full place-items-center bg-[var(--color-field)] text-muted"
-                                        >
-                                            <ImageIcon
-                                                size={32}
-                                                stroke-width={1.25}
-                                                aria-hidden="true"
-                                            />
-                                        </div>
-                                    {/if}
-
-                                    <!-- Top-left Status & Rating overlay (matching main window) -->
-                                    {#if rel.localItem}
-                                        <div
-                                            class="absolute left-2.5 top-2.5 z-20 flex items-center"
-                                        >
-                                            <!-- Status circle -->
-                                            <div
-                                                class={`relative z-10 flex h-7 w-7 items-center justify-center rounded-full shadow-lg backdrop-blur ${statusBadgeClasses(rel.localItem.status)}`}
-                                                title={statusLabel(
-                                                    rel.localItem.status,
-                                                )}
-                                            >
-                                                {#if rel.localItem.status === 0}
-                                                    <Bookmark
-                                                        size={13}
-                                                        stroke-width={2.2}
-                                                    />
-                                                {:else if rel.localItem.status === 1}
-                                                    <Play
-                                                        size={12}
-                                                        fill="currentColor"
-                                                        class="translate-x-0.5"
-                                                    />
-                                                {:else if rel.localItem.status === 2}
-                                                    <Check
-                                                        size={14}
-                                                        stroke-width={3}
-                                                    />
-                                                {:else if rel.localItem.status === 3}
-                                                    <Pause
-                                                        size={12}
-                                                        stroke-width={2.5}
-                                                    />
-                                                {:else if rel.localItem.status === 4}
-                                                    <X
-                                                        size={13}
-                                                        stroke-width={2.5}
-                                                    />
-                                                {/if}
-                                            </div>
-
-                                            <!-- Rating circle -->
-                                            {#if rel.localItem.score !== null && rel.localItem.score > 0}
-                                                <div
-                                                    class="relative z-20 -ml-2 flex h-7 w-7 items-center justify-center rounded-full bg-[var(--color-score-bg)] text-white shadow-lg border-2 border-[color-mix(in_oklab,var(--color-accent-line)_80%,transparent)] ring-2 ring-[color-mix(in_oklab,var(--color-accent-line)_30%,transparent)] font-black text-xs select-none"
-                                                    title={`${i18n.t.createModal.fields.score}: ${rel.localItem.score}`}
-                                                >
-                                                    {rel.localItem.score}
-                                                </div>
-                                            {/if}
-                                        </div>
-                                    {/if}
-
-                                    <!-- Bottom overlay with strong dark gradient and readable typography -->
-                                    <div
-                                        class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/95 via-black/85 to-transparent p-3 pt-12 flex flex-col justify-end pointer-events-none"
-                                    >
-                                        <span
-                                            class="line-clamp-2 text-sm font-bold leading-snug text-white transition group-hover:text-accent-soft drop-shadow-md"
-                                        >
-                                            {rel.title}
-                                        </span>
-                                        <div
-                                            class="mt-1.5 flex items-center justify-between gap-1 text-xs"
-                                        >
-                                            {#if rel.relationType}
-                                                <span
-                                                    class="rounded bg-accent/25 border border-accent/40 px-2 py-0.5 text-[11px] font-semibold text-accent-soft backdrop-blur-sm"
-                                                >
-                                                    {rel.relationType}
-                                                </span>
-                                            {:else}
-                                                <span
-                                                    class="text-[11px] text-slate-300"
-                                                    >{formatMediaDisplayType(
-                                                        rel,
-                                                    )}</span
-                                                >
-                                            {/if}
-                                            {#if rel.year}
-                                                <span
-                                                    class="font-medium text-slate-300 text-[11px]"
-                                                >
-                                                    {rel.year}
-                                                </span>
-                                            {/if}
-                                        </div>
-                                    </div>
-                                </button>
-                            {/snippet}
-
-                            <!-- 1. GROUPED VIEW -->
-                            {#if relatedViewMode === "grouped"}
-                                <div class="space-y-8">
-                                    {#each relatedGroups as group (group.id)}
-                                        <div class="space-y-3">
-                                            <div
-                                                class="flex items-center gap-2.5 border-b border-white/[0.08] pb-2.5"
-                                            >
-                                                <h3
-                                                    class="text-base sm:text-lg font-bold text-white tracking-tight"
-                                                >
-                                                    {group.title}
-                                                </h3>
-                                                <span
-                                                    class="rounded-full bg-white/10 px-2.5 py-0.5 text-xs font-bold text-muted"
-                                                >
-                                                    {group.items.length}
-                                                </span>
-                                            </div>
-                                            <div
-                                                class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5"
-                                            >
-                                                {#each group.items as rel (rel.id)}
-                                                    {@render relatedCard(rel)}
-                                                {/each}
-                                            </div>
-                                        </div>
-                                    {/each}
-                                </div>
-
-                                <!-- 2. TIMELINE / CHRONOLOGY VIEW -->
-                            {:else if relatedViewMode === "timeline"}
-                                <div
-                                    class="relative pl-6 sm:pl-8 space-y-4 before:absolute before:bottom-3 before:left-[11px] sm:before:left-[15px] before:top-3 before:w-0.5 before:bg-gradient-to-b before:from-accent before:via-accent/40 before:to-transparent"
-                                >
-                                    {#each timelineEntries as item (item.id)}
-                                        <div
-                                            class="relative flex items-center gap-4 group"
-                                        >
-                                            <!-- Node circle marker on the timeline line -->
-                                            <div
-                                                class={`absolute -left-6 sm:-left-8 flex h-6 w-6 items-center justify-center rounded-full border-2 transition-transform duration-300 group-hover:scale-110 ${
-                                                    item.isCurrent
-                                                        ? "border-accent bg-accent text-white shadow-lg shadow-accent/50 ring-4 ring-accent/20"
-                                                        : item.localItem
-                                                          ? "border-emerald-500 bg-[var(--color-field)] text-emerald-400"
-                                                          : "border-white/[0.14] bg-[var(--color-field)] text-slate-400"
-                                                }`}
-                                            >
-                                                {#if item.isCurrent}
-                                                    <div
-                                                        class="h-2 w-2 rounded-full bg-white"
-                                                    ></div>
-                                                {:else if item.localItem}
-                                                    <Check
-                                                        size={12}
-                                                        stroke-width={3}
-                                                    />
-                                                {:else}
-                                                    <div
-                                                        class="h-1.5 w-1.5 rounded-full bg-white/40"
-                                                    ></div>
-                                                {/if}
-                                            </div>
-
-                                            <!-- Timeline row card -->
-                                            <button
-                                                type="button"
-                                                class={`flex flex-1 items-center gap-3.5 rounded-xl border p-2.5 transition text-left cursor-pointer ${
-                                                    item.isCurrent
-                                                        ? "border-accent/60 bg-accent/10 shadow-md ring-1 ring-accent/30"
-                                                        : "border-white/[0.06] bg-[var(--color-panel-line)] hover:border-white/[0.14] hover:bg-[var(--color-panel-raised)]"
-                                                }`}
-                                                onclick={() => {
-                                                    if (item.isCurrent) return;
-                                                    if (item.rawItem)
-                                                        handleRelatedClick(
-                                                            item.rawItem,
-                                                        );
-                                                }}
-                                            >
-                                                <!-- Mini poster -->
-                                                <div
-                                                    class="relative aspect-[2/3] h-16 shrink-0 overflow-hidden rounded-lg bg-[var(--color-field)]"
-                                                >
-                                                    {#if item.coverUrl}
-                                                        <img
-                                                            src={item.coverUrl}
-                                                            alt={item.title}
-                                                            class="h-full w-full object-cover"
-                                                        />
-                                                    {:else}
-                                                        <div
-                                                            class="grid h-full place-items-center text-muted"
-                                                        >
-                                                            <ImageIcon
-                                                                size={18}
-                                                            />
-                                                        </div>
-                                                    {/if}
-
-                                                    {#if item.localItem}
-                                                        <div
-                                                            class="absolute left-1 top-1 flex items-center"
-                                                        >
-                                                            <div
-                                                                class={`h-4 w-4 rounded-full flex items-center justify-center ${statusBadgeClasses(item.localItem.status)}`}
-                                                            >
-                                                                {#if item.localItem.status === 2}
-                                                                    <Check
-                                                                        size={8}
-                                                                        stroke-width={3}
-                                                                    />
-                                                                {/if}
-                                                            </div>
-                                                        </div>
-                                                    {/if}
-                                                </div>
-
-                                                <div class="min-w-0 flex-1">
-                                                    <div
-                                                        class="flex flex-wrap items-center gap-2"
-                                                    >
-                                                        {#if item.year}
-                                                            <span
-                                                                class="rounded bg-white/10 px-1.5 py-0.5 text-[11px] font-bold text-accent-soft"
-                                                            >
-                                                                {item.year}
-                                                            </span>
-                                                        {/if}
-                                                        <span
-                                                            class={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${
-                                                                item.isCurrent
-                                                                    ? "bg-accent text-white"
-                                                                    : "bg-white/5 text-slate-300 border border-white/[0.08]"
-                                                            }`}
-                                                        >
-                                                            {item.relationType}
-                                                        </span>
-                                                        <span
-                                                            class="text-[11px] text-muted"
-                                                            >{item.formatDisplay}</span
-                                                        >
-                                                    </div>
-
-                                                    <h3
-                                                        class={`mt-1 truncate text-sm font-bold ${item.isCurrent ? "text-accent-soft" : "text-white group-hover:text-accent-soft"}`}
-                                                    >
-                                                        {item.title}
-                                                    </h3>
-                                                </div>
-
-                                                <!-- Rating / Action on right -->
-                                                <div class="shrink-0 pr-2">
-                                                    {#if item.localItem?.score}
-                                                        <span
-                                                            class="rounded-full bg-[var(--color-score-bg)] border border-[color-mix(in_oklab,var(--color-accent-line)_80%,transparent)] px-2.5 py-0.5 text-xs font-black text-white"
-                                                        >
-                                                            {item.localItem
-                                                                .score}
-                                                        </span>
-                                                    {:else if !item.localItem && !item.isCurrent}
-                                                        <span
-                                                            class="rounded-md border border-white/[0.08] bg-white/5 px-2.5 py-1 text-xs font-medium text-slate-300 group-hover:border-accent/40 group-hover:text-accent-soft"
-                                                        >
-                                                            {i18n.t.detail
-                                                                .overviewBadge}
-                                                        </span>
-                                                    {/if}
-                                                </div>
-                                            </button>
-                                        </div>
-                                    {/each}
-                                </div>
-
-                                <!-- 3. FLAT GRID VIEW -->
-                            {:else}
-                                <div
-                                    class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5"
-                                >
-                                    {#each related as rel (rel.id)}
-                                        {@render relatedCard(rel)}
-                                    {/each}
-                                </div>
-                            {/if}
-                        {/if}
-                    </section>
-
-                    <!-- PREVIEW MODAL FOR UNADDED RELATED ITEMS (Items 3, 5 - Identical to SearchModal preview) -->
-                    {#if previewRelatedItem}
-                        <Modal
-                            isOpen={Boolean(previewRelatedItem)}
-                            onClose={() => (previewRelatedItem = null)}
-                            labelledBy="related-preview-title"
-                        >
-                            <div class="flex max-h-[85vh] flex-col p-6">
-                                <h2 id="related-preview-title" class="sr-only">
-                                    {previewRelatedItem.title}
-                                </h2>
-                                <button
-                                    type="button"
-                                    class="tap absolute right-4 top-4 z-10 grid h-8 w-8 place-items-center rounded-lg text-muted transition hover:bg-elevated hover:text-ink cursor-pointer"
-                                    title={i18n.t.common.close}
-                                    aria-label={i18n.t.common.close}
-                                    onclick={() => (previewRelatedItem = null)}
-                                >
-                                    <X size={18} aria-hidden="true" />
-                                </button>
-
-                                <div class="overflow-y-auto pr-1">
-                                    <div
-                                        class="flex flex-col gap-5 sm:flex-row"
-                                    >
-                                        <div
-                                            class="mx-auto aspect-[2/3] w-40 shrink-0 overflow-hidden rounded-lg bg-canvas sm:mx-0"
-                                        >
-                                            {#if previewRelatedItem.coverUrl}
-                                                <img
-                                                    src={previewRelatedItem.coverUrl}
-                                                    alt={previewRelatedItem.title}
-                                                    class="h-full w-full object-cover"
-                                                />
-                                            {:else}
-                                                <div
-                                                    class="grid h-full place-items-center text-muted"
-                                                >
-                                                    <ImageIcon
-                                                        size={32}
-                                                        stroke-width={1.25}
-                                                        aria-hidden="true"
-                                                    />
-                                                </div>
-                                            {/if}
-                                        </div>
-
-                                        <div class="min-w-0 flex-1 space-y-3">
-                                            <div
-                                                class="flex flex-wrap items-center gap-2"
-                                            >
-                                                <span
-                                                    class="rounded-full bg-elevated px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-accent-soft"
-                                                >
-                                                    {formatMediaDisplayType(
-                                                        previewRelatedItem,
-                                                    )}
-                                                </span>
-                                                {#if previewRelatedItem.relationType}
-                                                    <span
-                                                        class="rounded-full bg-accent/20 border border-accent/40 px-2.5 py-0.5 text-[11px] font-semibold text-accent-soft"
-                                                    >
-                                                        {previewRelatedItem.relationType}
-                                                    </span>
-                                                {/if}
-                                                <span
-                                                    class="rounded-full border border-white/10 bg-field px-2.5 py-0.5 text-[11px] font-semibold text-muted"
-                                                >
-                                                    AniList
-                                                </span>
-                                            </div>
-
-                                            <div>
-                                                <h3
-                                                    class="mt-1 text-lg font-bold text-ink"
-                                                >
-                                                    {previewRelatedItem.title}
-                                                </h3>
-                                                {#if previewRelatedItem.originalTitle}
-                                                    <p
-                                                        class="text-xs text-muted"
-                                                    >
-                                                        {previewRelatedItem.originalTitle}
-                                                    </p>
-                                                {/if}
-                                            </div>
-
-                                            <!-- Ratings -->
-                                            {#if previewRelatedBadges.length > 0}
-                                                <div
-                                                    class="flex flex-wrap items-center gap-2"
-                                                >
-                                                    {#each previewRelatedBadges as r}
-                                                        <div
-                                                            class="inline-flex items-center gap-1 rounded-md border border-white/10 bg-field px-2 py-0.5 text-xs"
-                                                        >
-                                                            <span
-                                                                class="font-medium text-muted"
-                                                                >{r.source}:</span
-                                                            >
-                                                            {#if r.score !== null && r.score > 0}
-                                                                <span
-                                                                    class="flex items-center gap-0.5 font-bold text-star"
-                                                                >
-                                                                    <Star
-                                                                        size={11}
-                                                                        fill="currentColor"
-                                                                    />
-                                                                    {r.score.toFixed(
-                                                                        1,
-                                                                    )}
-                                                                </span>
-                                                            {:else if previewRelatedLoading}
-                                                                <LoaderCircle
-                                                                    size={12}
-                                                                    class="animate-spin text-muted"
-                                                                    role="status"
-                                                                    aria-label={i18n.t.common
-                                                                        .loading}
-                                                                />
-                                                            {:else}
-                                                                <span
-                                                                    class="text-xs text-muted"
-                                                                    >—</span
-                                                                >
-                                                            {/if}
-                                                        </div>
-                                                    {/each}
-                                                </div>
-                                            {:else}
-                                                <div
-                                                    class="inline-flex items-center gap-1 rounded-md border border-white/10 bg-field px-2 py-0.5 text-xs text-muted"
-                                                >
-                                                    <Star size={11} />
-                                                    <span
-                                                        >{i18n.t.detail
-                                                            .previewModal
-                                                            .noRatings}</span
-                                                    >
-                                                </div>
-                                            {/if}
-
-                                            <div
-                                                class="space-y-1 text-xs text-muted"
-                                            >
-                                                <div>
-                                                    <span
-                                                        class="font-medium text-ink"
-                                                        >{i18n.t.detail
-                                                            .previewModal
-                                                            .year}:</span
-                                                    >
-                                                    {previewRelatedItem.year ??
-                                                        i18n.t.detail
-                                                            .previewModal
-                                                            .noData}
-                                                </div>
-                                                {#if previewRelatedItem.type === "manga" || previewRelatedItem.format === "NOVEL" || previewRelatedItem.format === "MANGA"}
-                                                    <div>
-                                                        <span
-                                                            class="font-medium text-ink"
-                                                            >{i18n.t.detail
-                                                                .previewModal
-                                                                .author}:</span
-                                                        >
-                                                        {previewRelatedItem.author ??
-                                                            i18n.t.detail
-                                                                .previewModal
-                                                                .noData}
-                                                    </div>
-                                                {:else}
-                                                    <div>
-                                                        <span
-                                                            class="font-medium text-ink"
-                                                            >{i18n.t.detail
-                                                                .previewModal
-                                                                .studio}:</span
-                                                        >
-                                                        {previewRelatedItem.studio ??
-                                                            i18n.t.detail
-                                                                .previewModal
-                                                                .noData}
-                                                    </div>
-                                                {/if}
-                                                <div>
-                                                    <span
-                                                        class="font-medium text-ink"
-                                                        >{i18n.t.detail
-                                                            .previewModal
-                                                            .count}:</span
-                                                    >
-                                                    {#if previewRelatedItem.episodes}
-                                                        {previewRelatedItem.episodes}
-                                                        {i18n.t.searchModal
-                                                            .countUnits.anime}
-                                                    {:else if previewRelatedItem.chapters}
-                                                        {previewRelatedItem.chapters}
-                                                        {i18n.t.searchModal
-                                                            .countUnits.manga}
-                                                    {:else if previewRelatedItem.volumes}
-                                                        {previewRelatedItem.volumes}
-                                                        {i18n.t.searchModal
-                                                            .countUnits.manga}
-                                                    {:else}
-                                                        {i18n.t.detail
-                                                            .previewModal
-                                                            .noData}
-                                                    {/if}
-                                                </div>
-                                            </div>
-
-                                            <div
-                                                class="pt-2 flex flex-wrap items-center gap-3"
-                                            >
-                                                <div
-                                                    class="flex items-center gap-2"
-                                                >
-                                                    <label
-                                                        for="preview-status"
-                                                        class="text-xs font-medium text-muted"
-                                                    >
-                                                        {i18n.t.detail
-                                                            .previewModal
-                                                            .initialStatus}:
-                                                    </label>
-                                                    <select
-                                                        id="preview-status"
-                                                        bind:value={
-                                                            previewStatus
-                                                        }
-                                                        class="rounded-md border border-white/10 bg-field px-2.5 py-1.5 text-xs font-medium text-ink outline-none focus:border-accent"
-                                                    >
-                                                        {#each statusOptions as opt}
-                                                            <option value={opt}
-                                                                >{statusLabel(
-                                                                    opt,
-                                                                )}</option
-                                                            >
-                                                        {/each}
-                                                    </select>
-                                                </div>
-
-                                                <button
-                                                    type="button"
-                                                    class="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-field px-4 py-2 text-xs font-semibold text-ink transition hover:border-accent hover:bg-panel disabled:cursor-wait disabled:opacity-70 cursor-pointer"
-                                                    disabled={previewAddingBusy}
-                                                    onclick={() => {
-                                                        if (previewRelatedItem)
-                                                            void addRelatedToLibrary(
-                                                                previewRelatedItem,
-                                                                previewStatus,
-                                                            );
-                                                    }}
-                                                >
-                                                    {#if previewAddingBusy}
-                                                        <div
-                                                            class="h-4 w-4 animate-spin rounded-full border-2 border-accent border-t-transparent"
-                                                        ></div>
-                                                        <span
-                                                            >{i18n.t.detail
-                                                                .previewModal
-                                                                .addingToLibrary}</span
-                                                        >
-                                                    {:else}
-                                                        <Plus
-                                                            size={16}
-                                                            aria-hidden="true"
-                                                        />
-                                                        <span
-                                                            >{i18n.t.detail
-                                                                .previewModal
-                                                                .addToLibrary}</span
-                                                        >
-                                                    {/if}
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div
-                                        class="mt-5 border-t border-border pt-4"
-                                    >
-                                        <h4
-                                            class="text-xs font-semibold uppercase tracking-wider text-muted"
-                                        >
-                                            {i18n.t.detail.previewModal
-                                                .description}
-                                        </h4>
-                                        {#if previewRelatedItem.description}
-                                            <p
-                                                class="mt-1.5 whitespace-pre-line text-xs leading-relaxed text-muted"
-                                            >
-                                                {previewRelatedItem.description}
-                                            </p>
-                                        {:else}
-                                            <p
-                                                class="mt-1.5 text-xs italic text-muted/70"
-                                            >
-                                                {i18n.t.detail.previewModal
-                                                    .noDescription}
-                                            </p>
-                                        {/if}
-                                    </div>
-                                </div>
-                            </div>
-                        </Modal>
-                    {/if}
-                {/if}
-
-                <!-- TAB 4: RECOMMENDATIONS (Item 19) -->
-                {#if activeSubTab === "recommendations"}
-                    <section class="space-y-4">
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center gap-3">
-                                <h2
-                                    class="text-sm font-bold uppercase tracking-wider text-slate-300"
-                                >
-                                    {i18n.t.detail.tabRecommendations}
-                                </h2>
-                                <button
-                                    type="button"
-                                    class="inline-flex items-center gap-1.5 rounded-lg border border-white/[0.08] bg-surface/50 px-2.5 py-1 text-xs font-medium text-slate-300 transition hover:bg-white/10 hover:text-white disabled:opacity-50 cursor-pointer"
-                                    disabled={recommendationsLoading}
-                                    onclick={() =>
-                                        void loadRecommendations(true)}
-                                    title={i18n.current === "ru"
-                                        ? "Перезагрузить рекомендации"
-                                        : "Reload recommendations"}
-                                >
-                                    <RefreshCw
-                                        size={13}
-                                        class={recommendationsLoading
-                                            ? "animate-spin text-[var(--color-success-line)]"
-                                            : "text-[var(--color-success-line)]"}
-                                    />
-                                    <span
-                                        >{i18n.current === "ru"
-                                            ? "Перезагрузить"
-                                            : "Reload"}</span
-                                    >
-                                </button>
-                            </div>
-                            <span class="text-xs text-muted"
-                                >{i18n.t.detail.cachedForDays}</span
-                            >
-                        </div>
-
-                        {#if recommendationsLoading}
-                            <div
-                                class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5"
-                            >
-                                {#each Array(5) as _, idx (idx)}
-                                    <div class="space-y-2">
-                                        <div
-                                            class="aspect-[2/3] w-full animate-pulse rounded-lg bg-[var(--color-panel-line)]"
-                                        ></div>
-                                        <div
-                                            class="h-3 w-3/4 animate-pulse rounded bg-[var(--color-panel-line)]"
-                                        ></div>
-                                    </div>
-                                {/each}
-                            </div>
-                        {:else if recommendationsError}
-                            <div
-                                class="flex flex-col items-start gap-2 rounded-xl bg-rose-400/5 p-4"
-                            >
-                                <p class="text-sm text-rose-200" role="alert">
-                                    {errorMessage(recommendationsError)}
-                                </p>
-                                <button
-                                    type="button"
-                                    class="inline-flex items-center gap-2 rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-white transition hover:bg-accent-hover"
-                                    onclick={() => void loadRecommendations()}
-                                >
-                                    <RefreshCw size={14} aria-hidden="true" />
-                                    {i18n.t.common.retry}
-                                </button>
-                            </div>
-                        {:else if recommendations.length === 0}
-                            <!-- The only panel that must never auto-fetch: recommendations are
-                                 requested strictly on this button. -->
-                            <div
-                                class="flex flex-col items-start gap-2 rounded-xl bg-[var(--color-panel-line)] p-5"
-                            >
-                                <p class="text-sm text-muted">
-                                    {i18n.t.detail.noRecommendations}
-                                </p>
-                                <button
-                                    type="button"
-                                    class="inline-flex items-center gap-2 rounded-md border border-[var(--color-accent)]/40 bg-[var(--color-accent)]/10 px-3 py-1.5 text-xs font-semibold text-[var(--color-accent-soft)] transition hover:bg-[var(--color-accent)]/20 disabled:opacity-40 cursor-pointer"
-                                    disabled={recommendationsLoading}
-                                    onclick={() => void loadRecommendations(true)}
-                                >
-                                    {#if recommendationsLoading}
-                                        <LoaderCircle
-                                            size={13}
-                                            class="animate-spin"
-                                            aria-hidden="true"
-                                        />
-                                    {:else}
-                                        <Sparkles size={13} aria-hidden="true" />
-                                    {/if}
-                                    {i18n.current === "ru"
-                                        ? "Получить рекомендации"
-                                        : "Get recommendations"}
-                                </button>
-                            </div>
-                        {:else}
-                            <div
-                                class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5"
-                            >
-                                {#each recommendations as rec (rec.id)}
-                                    <div
-                                        class="group flex flex-col items-start text-left"
-                                    >
-                                        <div
-                                            class="aspect-[2/3] w-full overflow-hidden rounded-lg bg-[var(--color-panel-line)] transition group-hover:ring-2 group-hover:ring-[var(--color-accent)]"
-                                        >
-                                            {#if rec.coverUrl}
-                                                <img
-                                                    src={rec.coverUrl}
-                                                    alt={rec.title}
-                                                    class="h-full w-full object-cover transition duration-300 group-hover:scale-105"
-                                                />
-                                            {:else}
-                                                <div
-                                                    class="grid h-full place-items-center text-muted"
-                                                >
-                                                    <ImageIcon
-                                                        size={24}
-                                                        stroke-width={1.25}
-                                                        aria-hidden="true"
-                                                    />
-                                                </div>
-                                            {/if}
-                                        </div>
-                                        <span
-                                            class="mt-1.5 line-clamp-1 text-xs font-semibold text-white group-hover:text-[var(--color-accent-soft)]"
-                                            >{rec.title}</span
-                                        >
-                                        <div
-                                            class="flex items-center justify-between w-full mt-0.5 text-[11px] text-muted"
-                                        >
-                                            <span>{rec.type}</span>
-                                            {#if rec.score}
-                                                <span
-                                                    class="font-bold text-amber-400"
-                                                    >★ {rec.score.toFixed(
-                                                        1,
-                                                    )}</span
-                                                >
-                                            {/if}
-                                        </div>
-                                    </div>
-                                {/each}
-                            </div>
-                        {/if}
-                    </section>
-                {/if}
             </div>
         </div>
     {/if}
 </div>
 
-{#if addVolumeDialogOpen}
-    <div
-        class="fixed inset-0 z-50 flex items-center justify-center bg-canvas/80 backdrop-blur-sm p-4"
-        role="presentation"
-        onclick={(e) => {
-            if (e.target === e.currentTarget) addVolumeDialogOpen = false;
-        }}
-    >
-        <div
-            class="w-full max-w-sm rounded-xl border border-white/[0.08] bg-[var(--color-track-mid)] p-6 shadow-2xl space-y-4"
-        >
-            <h3 class="text-sm font-bold text-white">Add Volume</h3>
-            <div class="space-y-3">
-                <div>
-                    <label
-                        class="block text-xs text-muted mb-1"
-                        for="add-vol-title">Title</label
-                    >
-                    <input
-                        id="add-vol-title"
-                        type="text"
-                        class="h-9 w-full rounded-md border border-white/[0.08] bg-[var(--color-field)] px-3 text-xs text-white outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
-                        bind:value={addVolumeTitle}
-                        onkeydown={(e) => {
-                            if (e.key === "Enter") void confirmAddVolume();
-                        }}
-                    />
-                </div>
-                <div>
-                    <label
-                        class="block text-xs text-muted mb-1"
-                        for="add-vol-chapters">Chapters</label
-                    >
-                    <input
-                        id="add-vol-chapters"
-                        type="number"
-                        min="0"
-                        class="h-9 w-full rounded-md border border-white/[0.08] bg-[var(--color-field)] px-3 text-xs text-white outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
-                        bind:value={addVolumeChapters}
-                    />
-                </div>
-            </div>
-            <div class="flex justify-end gap-2 pt-1">
-                <button
-                    type="button"
-                    class="inline-flex h-8 items-center rounded-md border border-white/[0.08] px-3 text-xs font-medium text-muted hover:text-white transition"
-                    onclick={() => (addVolumeDialogOpen = false)}
-                >
-                    Cancel
-                </button>
-                <button
-                    type="button"
-                    class="inline-flex h-8 items-center gap-1.5 rounded-md bg-[var(--color-accent)] px-3 text-xs font-semibold text-white transition hover:bg-[var(--color-accent-bright)] disabled:opacity-50"
-                    disabled={Boolean(volumeBusy)}
-                    onclick={() => void confirmAddVolume()}
-                >
-                    <Plus size={13} />
-                    Add
-                </button>
-            </div>
-        </div>
-    </div>
-{/if}
+<!-- Add / edit volume dialogs -->
+<VolumeFormModal
+    mode="add"
+    open={volumes.addDialogOpen}
+    busy={Boolean(volumes.busy)}
+    title={volumes.addTitle}
+    chapters={volumes.addChapters}
+    onTitleChange={(v) => (volumes.addTitle = v)}
+    onChaptersChange={(v) => (volumes.addChapters = v)}
+    onClose={volumes.closeAdd}
+    onSubmit={() => void volumes.confirmAdd()}
+/>
 
-{#if editVolumeDialogOpen}
-    <div
-        class="fixed inset-0 z-50 flex items-center justify-center bg-canvas/80 backdrop-blur-sm p-4"
-        role="presentation"
-        onclick={(e) => {
-            if (e.target === e.currentTarget) editVolumeDialogOpen = false;
-        }}
-    >
-        <div
-            class="w-full max-w-sm rounded-xl border border-white/[0.08] bg-[var(--color-track-mid)] p-6 shadow-2xl space-y-4"
-        >
-            <h3 class="text-sm font-bold text-white">Edit Volume</h3>
-            <div class="space-y-3">
-                <div>
-                    <label
-                        class="block text-xs text-muted mb-1"
-                        for="edit-vol-title">Title</label
-                    >
-                    <input
-                        id="edit-vol-title"
-                        type="text"
-                        class="h-9 w-full rounded-md border border-white/[0.08] bg-[var(--color-field)] px-3 text-xs text-white outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
-                        bind:value={editVolumeTitle}
-                        onkeydown={(e) => {
-                            if (e.key === "Enter") void confirmEditVolume();
-                        }}
-                    />
-                </div>
-                <div class="grid grid-cols-2 gap-2">
-                    <div>
-                        <label
-                            class="block text-xs text-muted mb-1"
-                            for="edit-vol-current-chapter"
-                            >Current Chapter</label
-                        >
-                        <input
-                            id="edit-vol-current-chapter"
-                            type="number"
-                            min="0"
-                            class="h-9 w-full rounded-md border border-white/[0.08] bg-[var(--color-field)] px-3 text-xs text-white outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
-                            bind:value={editVolumeCurrentChapter}
-                        />
-                    </div>
-                    <div>
-                        <label
-                            class="block text-xs text-muted mb-1"
-                            for="edit-vol-chapters">Total Chapters</label
-                        >
-                        <input
-                            id="edit-vol-chapters"
-                            type="number"
-                            min="0"
-                            class="h-9 w-full rounded-md border border-white/[0.08] bg-[var(--color-field)] px-3 text-xs text-white outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
-                            bind:value={editVolumeChapters}
-                        />
-                    </div>
-                </div>
-                <div class="grid grid-cols-2 gap-2">
-                    <div>
-                        <label
-                            class="block text-xs text-muted mb-1"
-                            for="edit-vol-current-page">Current Page</label
-                        >
-                        <input
-                            id="edit-vol-current-page"
-                            type="number"
-                            min="0"
-                            class="h-9 w-full rounded-md border border-white/[0.08] bg-[var(--color-field)] px-3 text-xs text-white outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
-                            bind:value={editVolumeCurrentPage}
-                        />
-                    </div>
-                    <div>
-                        <label
-                            class="block text-xs text-muted mb-1"
-                            for="edit-vol-pages">Total Pages</label
-                        >
-                        <input
-                            id="edit-vol-pages"
-                            type="number"
-                            min="1"
-                            class="h-9 w-full rounded-md border border-white/[0.08] bg-[var(--color-field)] px-3 text-xs text-white outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
-                            bind:value={editVolumePages}
-                        />
-                    </div>
-                </div>
-            </div>
-            <div class="flex justify-end gap-2 pt-1">
-                <button
-                    type="button"
-                    class="inline-flex h-8 items-center rounded-md border border-white/[0.08] px-3 text-xs font-medium text-muted hover:text-white transition"
-                    onclick={() => (editVolumeDialogOpen = false)}
-                >
-                    Cancel
-                </button>
-                <button
-                    type="button"
-                    class="inline-flex h-8 items-center gap-1.5 rounded-md bg-[var(--color-accent)] px-3 text-xs font-semibold text-white transition hover:bg-[var(--color-accent-bright)] disabled:opacity-50"
-                    disabled={Boolean(volumeBusy)}
-                    onclick={() => void confirmEditVolume()}
-                >
-                    <Check size={13} />
-                    Save
-                </button>
-            </div>
-        </div>
-    </div>
-{/if}
+<VolumeFormModal
+    mode="edit"
+    open={volumes.editDialogOpen}
+    busy={Boolean(volumes.busy)}
+    title={volumes.editTitle}
+    chapters={volumes.editChapters}
+    pages={volumes.editPages}
+    currentChapter={volumes.editCurrentChapter}
+    currentPage={volumes.editCurrentPage}
+    onTitleChange={(v) => (volumes.editTitle = v)}
+    onChaptersChange={(v) => (volumes.editChapters = v)}
+    onPagesChange={(v) => (volumes.editPages = v)}
+    onCurrentChapterChange={(v) => (volumes.editCurrentChapter = v)}
+    onCurrentPageChange={(v) => (volumes.editCurrentPage = v)}
+    onClose={volumes.closeEdit}
+    onSubmit={() => void volumes.confirmEdit()}
+/>

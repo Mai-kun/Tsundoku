@@ -480,7 +480,7 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
-src/MediaTracker.Server/appsettings.Development.json
+MediaTracker.Server/appsettings.Development.json
 dist/
 shots/
 .aider*

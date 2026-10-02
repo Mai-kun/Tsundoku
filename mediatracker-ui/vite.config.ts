@@ -12,7 +12,7 @@ export default defineConfig({
     },
   },
   build: {
-    outDir: "../src/MediaTracker.Server/wwwroot",
+    outDir: "../MediaTracker.Server/wwwroot",
     emptyOutDir: true,
   },
   server: {

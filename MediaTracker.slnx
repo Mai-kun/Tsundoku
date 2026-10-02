@@ -1,5 +1,3 @@
 <Solution>
-  <Folder Name="/src/">
-    <Project Path="src/MediaTracker.Server/MediaTracker.Server.csproj" />
-  </Folder>
+  <Project Path="MediaTracker.Server/MediaTracker.Server.csproj" />
 </Solution>

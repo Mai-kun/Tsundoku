@@ -69,7 +69,10 @@
     let requestSequence = 0;
     let skeletonTimer: ReturnType<typeof setTimeout> | null = null;
 
-    $effect(() => {
+    // $effect.pre, not $effect: a plain effect runs *after* the DOM update, so switching category
+    // painted one frame of the previous category's media before this reset ran. pre runs before,
+    // so the stale list is never rendered.
+    $effect.pre(() => {
         const saved = savedCategoryState[category];
         status = saved?.status ?? "all";
         sort = saved?.sort ?? "newest";

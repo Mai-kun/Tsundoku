@@ -2577,12 +2577,20 @@
     /**
      * Renders only the precision the source actually provided. A source that knows just the year
      * must not be padded into "1 January", so the stored releaseYear carries the fallback.
+     *
+     * The end date is a different case: a missing end date means "still running", so it must never
+     * borrow the start date's year. That is why the year fallback only applies to the start row.
      */
     function formatReleaseDate(item: MediaItem, explicitDate?: string | null): string {
-        const raw = explicitDate !== undefined ? explicitDate : item.releaseDate;
+        const isEndDate = explicitDate !== undefined;
+        const raw = isEndDate ? explicitDate : item.releaseDate;
 
         if (raw) {
             return formatDate(raw);
+        }
+
+        if (isEndDate) {
+            return i18n.t.detailModal.dateEmpty;
         }
 
         const year = item.releaseYear;

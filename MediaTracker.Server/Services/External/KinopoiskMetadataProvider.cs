@@ -99,11 +99,78 @@ public sealed class KinopoiskMetadataProvider(
             if (item is null)
                 return null;
 
-            return MapDetailItem(item, _mediaType);
+            // Seasons live behind a second endpoint and carry the episode air dates, so the show's
+            // runtime and its real start/end dates only exist once that call is made. A movie has
+            // no seasons, so this is skipped for it.
+            var seasons = _mediaType == "tvshow" ? await FetchSeasonsAsync(client, key, externalId, ct) : [];
+
+            return MapDetailItem(item, _mediaType, seasons);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
             throw;
+        }
+    }
+
+    /// <summary>
+    /// Flattens <c>/v2.2/films/{id}/seasons</c> into one ordered episode list. The source returns a
+    /// nested season → episode tree, but the app models a single flat list, so episodes are
+    /// renumbered sequentially across seasons the way the season UI counts them.
+    /// </summary>
+    private async Task<List<ExternalEpisodeDto>> FetchSeasonsAsync(
+        HttpClient client,
+        string key,
+        string externalId,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            using var req = new HttpRequestMessage(
+                HttpMethod.Get,
+                $"v2.2/films/{Uri.EscapeDataString(externalId)}/seasons"
+            );
+            req.Headers.Add("X-API-KEY", key);
+
+            using var resp = await client.SendAsync(req, ct);
+            if (!resp.IsSuccessStatusCode)
+                return [];
+
+            var body = await resp.Content.ReadFromJsonAsync<KinopoiskSeasonsResponse>(ct);
+            if (body?.Items is not { Count: > 0 })
+                return [];
+
+            var episodes = new List<ExternalEpisodeDto>();
+            foreach (
+                var season in body.Items
+                    .OrderBy(season => season.Number)
+                    .SelectMany(season => season.Episodes ?? [])
+                    .Where(episode => episode.EpisodeNumber is > 0)
+                    .OrderBy(episode => episode.EpisodeNumber)
+            )
+            {
+                episodes.Add(
+                    new ExternalEpisodeDto
+                    {
+                        Number = episodes.Count + 1,
+                        Title = !string.IsNullOrWhiteSpace(season.NameRu)
+                            ? season.NameRu
+                            : season.NameEn ?? string.Empty,
+                        AirDate = season.ReleaseDate,
+                    }
+                );
+            }
+
+            return episodes;
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception)
+        {
+            // Seasons are an enrichment; the film itself is still usable without them.
+            return [];
         }
     }
 
@@ -152,6 +219,13 @@ public sealed class KinopoiskMetadataProvider(
     /// Compares a Kinopoisk item type against the group being searched. An absent type is kept: the
     /// source did not classify it, so dropping it would hide a legitimate match.
     /// </summary>
+    /// <remarks>
+    /// The source labels titles FILM / VIDEO / TV_SERIES / MINI_SERIES / TV_SHOW (underscored
+    /// enums, upper case), not the "movie" / "tv-series" words this method used to compare against.
+    /// Every comparison therefore failed, the strict filter always came back empty, and the
+    /// "never return nothing" escape hatch put series into the Movies group and films into the
+    /// TV Shows group.
+    /// </remarks>
     internal static bool MatchesType(string? itemType, string expectedType)
     {
         if (string.IsNullOrWhiteSpace(itemType))
@@ -159,11 +233,71 @@ public sealed class KinopoiskMetadataProvider(
             return true;
         }
 
-        var normalized = itemType.Trim().ToLowerInvariant();
+        var normalized = itemType.Trim().ToLowerInvariant().Replace('_', '-');
 
         return expectedType == "movie"
-            ? normalized == "movie"
-            : normalized is "tv-series" or "tvshow" or "series" or "anime" or "cartoon";
+            ? normalized is "film" or "movie" or "video"
+            : normalized
+                is "tv-series"
+                or "tv-show"
+                or "tvshow"
+                or "mini-series"
+                or "series"
+                or "anime"
+                or "cartoon"
+                or "animated-series";
+    }
+
+    /// <summary>
+    /// Translates the source's production status into the vocabulary the UI already knows how to
+    /// translate. UNKNOWN is dropped so the caller falls back to deriving it from the dates.
+    /// </summary>
+    internal static string? MapReleaseStatus(string? productionStatus) =>
+        productionStatus?.Trim().ToUpperInvariant() switch
+        {
+            "COMPLETED" => "FINISHED",
+            "FILMING" or "POST_PRODUCTION" or "PRE_PRODUCTION" => "RELEASING",
+            "ANNOUNCED" => "NOT_YET_RELEASED",
+            _ => null,
+        };
+
+    /// <summary>
+    /// A still-airing show also has an episodes list, so its last air date is only the newest episode.
+    /// Reporting it as the end of the run would claim the series finished and fill in a
+    /// "Дата окончания" for a show that is still running.
+    /// </summary>
+    internal static string? ResolveEndDate(
+        bool? completed,
+        string? productionStatus,
+        string? lastAirDate
+    ) => completed is true || MapReleaseStatus(productionStatus) == "FINISHED" ? lastAirDate : null;
+
+    /// <summary>
+    /// The source has no <c>startDate</c>/<c>endDate</c> on the film itself — only years — but every
+    /// season episode carries a full air date, so the first and last episode date are the real
+    /// bounds of the show. A movie has no episodes at all, so its dates stay year-only and the
+    /// aggregator asks the other sources instead.
+    /// </summary>
+    internal static (string? Start, string? End) ResolveAirDateRange(
+        IReadOnlyList<ExternalEpisodeDto> episodes
+    )
+    {
+        var dates = episodes
+            .Select(episode => episode.AirDate)
+            .OfType<string>()
+            .Select(date => (Date: DateTime.TryParse(date, out var parsed) ? parsed : (DateTime?)null, Raw: date))
+            .Where(entry => entry.Date is not null)
+            .ToList();
+
+        if (dates.Count == 0)
+        {
+            return (null, null);
+        }
+
+        var earliest = dates.MinBy(entry => entry.Date!.Value)!;
+        var latest = dates.MaxBy(entry => entry.Date!.Value)!;
+
+        return (earliest.Raw, latest.Raw);
     }
 
     private static ExternalMediaDto MapItem(KinopoiskFilmItem item, string type)
@@ -213,14 +347,24 @@ public sealed class KinopoiskMetadataProvider(
             CoverUrl = item.PosterUrlPreview ?? item.PosterUrl,
             Description = item.Description,
             ReleaseYear = year,
+            // Search results already carry a runtime, so the preview card does not need a second
+            // details call just to show it. A movie shows "N мин", a series "N мин/серия".
+            RuntimeMinutes = int.TryParse(item.FilmLength, out var length) ? length : null,
             Type = type,
             Rating = score,
             RatingVotes = item.RatingVoteCount,
             Ratings = ratings,
+            Genres = item.Genres is { Count: > 0 } searchGenres
+                ? [.. searchGenres.Select(genre => genre.Genre).OfType<string>()]
+                : null,
         };
     }
 
-    private static ExternalMediaDto MapDetailItem(KinopoiskDetailItem item, string type)
+    private static ExternalMediaDto MapDetailItem(
+        KinopoiskDetailItem item,
+        string type,
+        IReadOnlyList<ExternalEpisodeDto> episodes
+    )
     {
         double? score = item.RatingKinopoisk ?? item.RatingImdb;
         var ratings = new List<ExternalRatingDto>();
@@ -237,6 +381,19 @@ public sealed class KinopoiskMetadataProvider(
             );
         }
 
+        // Episodes are the only source of a real start/end date here; without them the years below
+        // stay year-only so the aggregator knows to ask someone else for the full date.
+        var (startDate, endDate) = episodes.Count > 0 ? ResolveAirDateRange(episodes) : (null, null);
+
+        // `completed` is the source's own "no more episodes are coming" flag. A still-airing show has
+        // an episodes list too, so its last air date is just the latest episode, NOT the end of the
+        // run — reporting it as such would claim the series finished on its most recent air date and
+        // make the "Дата окончания" row show a date for a show that is still running.
+        var isFinished = item.Completed is true || MapReleaseStatus(item.ProductionStatus) == "FINISHED";
+        endDate = ResolveEndDate(item.Completed, item.ProductionStatus, endDate);
+
+        var releaseStatus = isFinished ? "FINISHED" : MapReleaseStatus(item.ProductionStatus);
+
         return new ExternalMediaDto
         {
             ExternalId = item.KinopoiskId.ToString(CultureInfo.InvariantCulture),
@@ -247,11 +404,23 @@ public sealed class KinopoiskMetadataProvider(
             OriginalTitle = item.NameOriginal ?? item.NameEn,
             CoverUrl = item.PosterUrlPreview ?? item.PosterUrl,
             Description = item.Description,
-            ReleaseYear = item.Year,
+            // startYear is the premier year and is set for series where `year` may lag behind.
+            ReleaseYear = item.StartYear ?? item.Year,
+            ReleaseDate = startDate,
+            EndDate = endDate,
+            ReleaseStatus = releaseStatus,
+            // For a series `filmLength` is the average episode runtime, which is what the app
+            // stores in EpisodeDurationMinutes; for a film it is the runtime itself.
+            RuntimeMinutes = item.FilmLength,
             Type = type,
             Rating = score,
             RatingVotes = item.RatingKinopoiskVoteCount,
             Ratings = ratings,
+            Episodes = episodes.Count > 0 ? episodes : null,
+            TotalCount = type == "tvshow" ? episodes.Count : null,
+            Genres = item.Genres is { Count: > 0 } genres
+                ? [.. genres.Select(genre => genre.Genre).OfType<string>()]
+                : null,
         };
     }
 
@@ -266,9 +435,15 @@ public sealed class KinopoiskMetadataProvider(
         [JsonPropertyName("filmId")]
         public long FilmId { get; set; }
 
-        /// <summary>movie | tv-series | anime | cartoon — the type the source itself declares.</summary>
+        /// <summary>FILM | VIDEO | TV_SERIES | MINI_SERIES | TV_SHOW — the type the source declares.</summary>
         [JsonPropertyName("type")]
         public string? Type { get; set; }
+
+        [JsonPropertyName("filmLength")]
+        public string? FilmLength { get; set; }
+
+        [JsonPropertyName("genres")]
+        public List<KinopoiskGenre>? Genres { get; set; }
 
         [JsonPropertyName("nameRu")]
         public string? NameRu { get; set; }
@@ -327,7 +502,72 @@ public sealed class KinopoiskMetadataProvider(
         [JsonPropertyName("year")]
         public int? Year { get; set; }
 
+        /// <summary>Premier year. Set for series where <c>year</c> can lag behind.</summary>
+        [JsonPropertyName("startYear")]
+        public int? StartYear { get; set; }
+
+        /// <summary>Final year. Null while the series is still running.</summary>
+        [JsonPropertyName("endYear")]
+        public int? EndYear { get; set; }
+
+        /// <summary>Runtime of a film, or the average episode runtime of a series.</summary>
+        [JsonPropertyName("filmLength")]
+        public int? FilmLength { get; set; }
+
+        /// <summary>FILMING | PRE_PRODUCTION | COMPLETED | ANNOUNCED | UNKNOWN | POST_PRODUCTION.</summary>
+        [JsonPropertyName("productionStatus")]
+        public string? ProductionStatus { get; set; }
+
+        /// <summary>Whether the whole series has finished airing.</summary>
+        [JsonPropertyName("completed")]
+        public bool? Completed { get; set; }
+
+        [JsonPropertyName("genres")]
+        public List<KinopoiskGenre>? Genres { get; set; }
+
         [JsonPropertyName("description")]
         public string? Description { get; set; }
+    }
+
+    private sealed class KinopoiskGenre
+    {
+        [JsonPropertyName("genre")]
+        public string? Genre { get; set; }
+    }
+
+    private sealed class KinopoiskSeasonsResponse
+    {
+        [JsonPropertyName("total")]
+        public int? Total { get; set; }
+
+        [JsonPropertyName("items")]
+        public List<KinopoiskSeason>? Items { get; set; }
+    }
+
+    private sealed class KinopoiskSeason
+    {
+        [JsonPropertyName("number")]
+        public int Number { get; set; }
+
+        [JsonPropertyName("episodes")]
+        public List<KinopoiskEpisode>? Episodes { get; set; }
+    }
+
+    private sealed class KinopoiskEpisode
+    {
+        [JsonPropertyName("seasonNumber")]
+        public int? SeasonNumber { get; set; }
+
+        [JsonPropertyName("episodeNumber")]
+        public int? EpisodeNumber { get; set; }
+
+        [JsonPropertyName("nameRu")]
+        public string? NameRu { get; set; }
+
+        [JsonPropertyName("nameEn")]
+        public string? NameEn { get; set; }
+
+        [JsonPropertyName("releaseDate")]
+        public string? ReleaseDate { get; set; }
     }
 }

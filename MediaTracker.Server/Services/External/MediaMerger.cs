@@ -126,6 +126,9 @@ public static class MediaMerger
             }
         }
 
+        // Release status is deliberately NOT checked here. No source reports it for most titles, so
+        // making it a gap would mean querying every source on every request forever. MediaItemFactory
+        // derives it from the dates instead, which is where the real answer lives.
         return string.IsNullOrWhiteSpace(d.Description)
             || d.ReleaseYear == null
             || string.IsNullOrWhiteSpace(d.ReleaseDate);

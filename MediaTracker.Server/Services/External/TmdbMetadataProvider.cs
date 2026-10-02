@@ -114,6 +114,9 @@ public sealed class TmdbMetadataProvider(
             Description = item.Overview,
             ReleaseYear = ParseYear(isMovie ? item.ReleaseDate : item.FirstAirDate),
             ReleaseDate = isMovie ? item.ReleaseDate : item.FirstAirDate,
+            // `last_air_date` is the mirror of `first_air_date` and is null while a series still airs.
+            // It was never mapped, so the end-date row was empty for every TMDb-sourced show.
+            EndDate = isMovie ? null : item.LastAirDate,
             ReleaseStatus = item.Status,
             // Movies carry a runtime, series only an average per-episode one; both live in `runtime`.
             RuntimeMinutes = item.Runtime,
@@ -126,6 +129,9 @@ public sealed class TmdbMetadataProvider(
             Rating = rating,
             RatingVotes = item.VoteCount,
             Ratings = ratings,
+            Genres = item.Genres is { Count: > 0 } genres
+                ? [.. genres.Select(genre => genre.Name).OfType<string>()]
+                : null,
             TotalCount = isMovie ? item.Runtime : item.NumberOfEpisodes
         };
     }
@@ -145,13 +151,15 @@ public sealed class TmdbMetadataProvider(
         [property: JsonPropertyName("poster_path")] string? PosterPath,
         [property: JsonPropertyName("release_date")] string? ReleaseDate,
         [property: JsonPropertyName("first_air_date")] string? FirstAirDate,
+        [property: JsonPropertyName("last_air_date")] string? LastAirDate,
         [property: JsonPropertyName("vote_average")] double? VoteAverage,
         [property: JsonPropertyName("vote_count")] int? VoteCount,
         [property: JsonPropertyName("runtime")] int? Runtime,
         [property: JsonPropertyName("number_of_episodes")] int? NumberOfEpisodes,
         [property: JsonPropertyName("status")] string? Status,
         [property: JsonPropertyName("production_companies")] List<TmdbNamedItem>? ProductionCompanies,
-        [property: JsonPropertyName("networks")] List<TmdbNamedItem>? Networks);
+        [property: JsonPropertyName("networks")] List<TmdbNamedItem>? Networks,
+        [property: JsonPropertyName("genres")] List<TmdbNamedItem>? Genres);
 
     private sealed record TmdbNamedItem(
         [property: JsonPropertyName("id")] long Id,

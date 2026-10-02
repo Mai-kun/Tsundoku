@@ -42,6 +42,12 @@ public static class RefactorSelfCheck
         CheckApiKeyLookup(failures);
         CheckCoverSizeLimit(failures);
         CheckCommandLineParsing(failures);
+        CheckKinopoiskEnumMapping(failures);
+        CheckKinopoiskAirDateRange(failures);
+        CheckKinopoiskEndDateOnlyWhenFinished(failures);
+        CheckEnrichFillsEndDateAndStatus(failures);
+        CheckEnrichStoresEpisodesForLiveAction(failures);
+        CheckEnrichStoresEpisodeCountWithoutEpisodes(failures);
 
         if (failures.Count == 0)
         {
@@ -1111,6 +1117,259 @@ public static class RefactorSelfCheck
             failures,
             CommandLineOptions.Parse(["--nope"]).Error is not null,
             "unknown option rejected"
+        );
+    }
+
+    /// <summary>
+    /// The source reports no start/end date on the film, only years, so the show's real bounds come
+    /// from the first and last episode air date. This is the whole reason a Kinopoisk series shows
+    /// "12 янв. 2015" instead of a bare year.
+    /// </summary>
+    private static void CheckKinopoiskAirDateRange(List<string> failures)
+    {
+        var episodes = new List<ExternalEpisodeDto>
+        {
+            new() { Number = 1, Title = "Пилот", AirDate = "2015-01-12" },
+            new() { Number = 2, Title = "Второй", AirDate = "2015-01-19" },
+            new() { Number = 3, Title = "Финал", AirDate = "2019-05-06" },
+        };
+
+        var (start, end) = KinopoiskMetadataProvider.ResolveAirDateRange(episodes);
+        AssertEqual(failures, "2015-01-12", start, "start is the earliest episode air date");
+        AssertEqual(failures, "2019-05-06", end, "end is the latest episode air date");
+
+        // A movie has no episodes, so the dates stay unset and the cascade asks the other sources
+        // instead of storing a fabricated January 1st.
+        var (noStart, noEnd) = KinopoiskMetadataProvider.ResolveAirDateRange([]);
+        AssertEqual(failures, null, noStart, "no episodes means no start date");
+        AssertEqual(failures, null, noEnd, "no episodes means no end date");
+
+        // An unparseable air date must not be turned into a date.
+        var (partial, _) = KinopoiskMetadataProvider.ResolveAirDateRange(
+            [new ExternalEpisodeDto { Number = 1, Title = "Пилот", AirDate = "неизвестно" }]
+        );
+        AssertEqual(failures, null, partial, "an unparseable air date is not a date");
+    }
+
+    private static void CheckEnrichFillsEndDateAndStatus(List<string> failures)
+    {
+        var show = new TvShow { Title = "Шоу" };
+        var external = new ExternalMediaDto
+        {
+            ExternalId = "1",
+            Title = "Шоу",
+            Type = "tvshow",
+            ReleaseDate = "2015-01-12",
+            EndDate = "2019-05-06",
+            TotalCount = 62,
+        };
+
+        AssertTrue(
+            failures,
+            MediaMetadataApplier.ApplyIfMissing(show, external),
+            "enrich reports a change for a show with dates"
+        );
+        AssertEqual(
+            failures,
+            new DateTime(2019, 5, 6),
+            show.EndDate,
+            "enrich fills the end date (Дата окончания)"
+        );
+        // No source declared a status, but a past end date decides it.
+        AssertEqual(
+            failures,
+            "FINISHED",
+            show.ReleaseStatus,
+            "enrich derives the status from the dates it just filled"
+        );
+
+        // An ongoing series has no end date and must not inherit a bogus FINISHED.
+        var ongoing = new TvShow { Title = "Онгоинг" };
+        MediaMetadataApplier.ApplyIfMissing(
+            ongoing,
+            new ExternalMediaDto
+            {
+                ExternalId = "2",
+                Title = "Онгоинг",
+                Type = "tvshow",
+                ReleaseDate = "2020-01-10",
+            }
+        );
+        AssertEqual(
+            failures,
+            "RELEASING",
+            ongoing.ReleaseStatus,
+            "a past start date with no end date reads as releasing"
+        );
+        AssertEqual(failures, null, ongoing.EndDate, "an ongoing show keeps a null end date");
+    }
+
+    /// <summary>
+    /// Episodes used to be written for anime only, so every live-action series lost its per-episode
+    /// air dates — which is where the start/end dates for a show come from.
+    /// </summary>
+    private static void CheckEnrichStoresEpisodesForLiveAction(List<string> failures)
+    {
+        var show = new TvShow { Title = "Шоу", IsAnime = false };
+        MediaMetadataApplier.ApplyIfMissing(
+            show,
+            new ExternalMediaDto
+            {
+                ExternalId = "1",
+                Title = "Шоу",
+                Type = "tvshow",
+                TotalCount = 2,
+                Episodes =
+                [
+                    new ExternalEpisodeDto { Number = 1, Title = "Пилот", AirDate = "2015-01-12" },
+                    new ExternalEpisodeDto { Number = 2, Title = "Второй", AirDate = "2015-01-19" },
+                ],
+            }
+        );
+
+        AssertEqual(
+            failures,
+            1,
+            show.Seasons.Count,
+            "a live-action show gets its season created"
+        );
+        AssertEqual(
+            failures,
+            2,
+            show.Seasons[0].TotalEpisodes,
+            "the season carries the episode count"
+        );
+
+        var stored = JsonSerializer.Deserialize<List<ExternalEpisodeDto>>(
+            show.Seasons[0].EpisodesData ?? "[]",
+            new JsonSerializerOptions { PropertyNameCaseInsensitive = true }
+        );
+        AssertEqual(failures, 2, stored?.Count ?? 0, "both episodes are stored");
+        AssertEqual(
+            failures,
+            "2015-01-12",
+            stored?[0].AirDate,
+            "the first episode keeps its air date"
+        );
+    }
+
+    /// <summary>
+    /// TMDb reports an episode count but no per-episode rows, and the count is only ever persisted on
+    /// a season — so without a season the "62 серии" row stayed at 0.
+    /// </summary>
+    private static void CheckEnrichStoresEpisodeCountWithoutEpisodes(List<string> failures)
+    {
+        var show = new TvShow { Title = "Шоу" };
+        MediaMetadataApplier.ApplyIfMissing(
+            show,
+            new ExternalMediaDto
+            {
+                ExternalId = "1",
+                Title = "Шоу",
+                Type = "tvshow",
+                TotalCount = 62,
+            }
+        );
+
+        AssertEqual(failures, 1, show.Seasons.Count, "a count-only source still gets a season");
+        AssertEqual(failures, 62, show.Seasons[0].TotalEpisodes, "the count reaches the season");
+        AssertEqual(
+            failures,
+            null,
+            show.Seasons[0].EpisodesData,
+            "no invented per-episode rows"
+        );
+    }
+
+    /// <summary>
+    /// The source labels titles with UPPER_SNAKE enums (FILM / TV_SERIES / ...). The old comparison
+    /// only knew "movie" / "tv-series", so nothing ever matched and every result was cross-listed.
+    /// </summary>
+    private static void CheckKinopoiskEnumMapping(List<string> failures)
+    {
+        AssertTrue(failures, KinopoiskMetadataProvider.MatchesType("FILM", "movie"), "FILM is a movie");
+        AssertTrue(
+            failures,
+            KinopoiskMetadataProvider.MatchesType("VIDEO", "movie"),
+            "VIDEO is a movie"
+        );
+        AssertFalse(
+            failures,
+            KinopoiskMetadataProvider.MatchesType("TV_SERIES", "movie"),
+            "TV_SERIES is not a movie"
+        );
+        AssertTrue(
+            failures,
+            KinopoiskMetadataProvider.MatchesType("TV_SERIES", "tv"),
+            "TV_SERIES belongs to the tv group"
+        );
+        AssertTrue(
+            failures,
+            KinopoiskMetadataProvider.MatchesType("MINI_SERIES", "tv"),
+            "MINI_SERIES belongs to the tv group"
+        );
+        AssertTrue(
+            failures,
+            KinopoiskMetadataProvider.MatchesType("TV_SHOW", "tv"),
+            "TV_SHOW belongs to the tv group"
+        );
+        AssertFalse(
+            failures,
+            KinopoiskMetadataProvider.MatchesType("FILM", "tv"),
+            "FILM is not a tv result"
+        );
+
+        AssertEqual(
+            failures,
+            "FINISHED",
+            KinopoiskMetadataProvider.MapReleaseStatus("COMPLETED"),
+            "COMPLETED maps to finished"
+        );
+        AssertEqual(
+            failures,
+            "RELEASING",
+            KinopoiskMetadataProvider.MapReleaseStatus("FILMING"),
+            "FILMING maps to releasing"
+        );
+        AssertEqual(
+            failures,
+            "RELEASING",
+            KinopoiskMetadataProvider.MapReleaseStatus("post_production"),
+            "POST_PRODUCTION maps to releasing, case-insensitively"
+        );
+        AssertEqual(
+            failures,
+            "NOT_YET_RELEASED",
+            KinopoiskMetadataProvider.MapReleaseStatus("ANNOUNCED"),
+            "ANNOUNCED maps to not yet released"
+        );
+        AssertEqual(
+            failures,
+            null,
+            KinopoiskMetadataProvider.MapReleaseStatus("UNKNOWN"),
+            "UNKNOWN is dropped so the dates can decide"
+        );
+    }
+
+    private static void CheckKinopoiskEndDateOnlyWhenFinished(List<string> failures)
+    {
+        AssertEqual(
+            failures,
+            "2019-05-06",
+            KinopoiskMetadataProvider.ResolveEndDate(true, "COMPLETED", "2019-05-06"),
+            "a completed show keeps its last air date as the end date"
+        );
+        AssertEqual(
+            failures,
+            null,
+            KinopoiskMetadataProvider.ResolveEndDate(false, "FILMING", "2024-03-01"),
+            "a still-airing show reports no end date"
+        );
+        AssertEqual(
+            failures,
+            null,
+            KinopoiskMetadataProvider.ResolveEndDate(null, null, "2024-03-01"),
+            "an unflagged show reports no end date"
         );
     }
 

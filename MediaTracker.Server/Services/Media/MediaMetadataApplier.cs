@@ -32,7 +32,9 @@ public static class MediaMetadataApplier
         MediaItem item,
         ExternalMediaDto external,
         IImageStorageService imageStorage,
-        CancellationToken ct)
+        CancellationToken ct,
+        Action<TvSeason>? trackNewSeason = null
+    )
     {
         item.Title = external.Title;
         if (!string.IsNullOrWhiteSpace(external.Description))
@@ -56,11 +58,21 @@ public static class MediaMetadataApplier
 
         ApplyDates(item, external);
         ApplyGenres(item, external);
-        ApplyTypeSpecific(item, external);
+        ApplyTypeSpecific(item, external, trackNewSeason);
     }
 
     /// <summary>Enrich: only fills fields the user has not filled. Returns true when the entity changed.</summary>
-    public static bool ApplyIfMissing(MediaItem item, ExternalMediaDto external)
+    /// <param name="trackNewSeason">
+    /// Marks a season this applier creates as genuinely new. EF otherwise keeps it in
+    /// <c>Modified</c> state and saves it as an UPDATE against a row that was never inserted, which
+    /// fails the whole save with a <c>DbUpdateConcurrencyException</c> and loses the dates and the
+    /// episode count along with it. The applier has no DbContext, so the caller supplies the seam.
+    /// </param>
+    public static bool ApplyIfMissing(
+        MediaItem item,
+        ExternalMediaDto external,
+        Action<TvSeason>? trackNewSeason = null
+    )
     {
         var modified = ApplyRatings(item, external);
         modified |= ApplyMangaGaps(item, external);
@@ -77,13 +89,22 @@ public static class MediaMetadataApplier
             modified = true;
         }
 
-        if (string.IsNullOrWhiteSpace(item.ReleaseStatus) && !string.IsNullOrWhiteSpace(external.ReleaseStatus))
-        {
-            item.ReleaseStatus = external.ReleaseStatus;
-            modified = true;
-        }
+        modified |= ApplyDisplayGaps(item, external, trackNewSeason);
 
-        modified |= ApplyDisplayGaps(item, external);
+        // Runs last: deriving the status from dates is only correct once the dates themselves are in.
+        if (string.IsNullOrWhiteSpace(item.ReleaseStatus))
+        {
+            var status = !string.IsNullOrWhiteSpace(external.ReleaseStatus)
+                ? external.ReleaseStatus
+                // No source declared a status, but a past end date or a future start date still
+                // decides it, and the row would otherwise stay empty.
+                : MediaItemFactory.ComputeReleaseStatusFromDates(item.ReleaseDate, item.EndDate);
+            if (!string.IsNullOrWhiteSpace(status))
+            {
+                item.ReleaseStatus = status;
+                modified = true;
+            }
+        }
 
         return modified;
     }
@@ -92,7 +113,11 @@ public static class MediaMetadataApplier
     /// Enrich only fills what the user has not filled. Runtime and studio were missing from this
     /// path entirely, so background enrichment never produced them and only an explicit refresh did.
     /// </summary>
-    private static bool ApplyDisplayGaps(MediaItem item, ExternalMediaDto external)
+    private static bool ApplyDisplayGaps(
+        MediaItem item,
+        ExternalMediaDto external,
+        Action<TvSeason>? trackNewSeason = null
+    )
     {
         var modified = false;
 
@@ -139,6 +164,36 @@ public static class MediaMetadataApplier
                     modified = true;
                 }
 
+                // Seasons are created only by the overwrite path, so a show added from search results
+                // and never explicitly refreshed kept an empty season list — no episode count and no
+                // per-episode air dates, which is where its start/end dates come from. A season is
+                // created from the episode list when there is one, and from the bare episode count
+                // when the source has no per-episode data (TMDb reports 73 episodes, not 73 rows).
+                // Only an empty season list is filled, so the user's own seasons are never touched.
+                if (show.Seasons.Count == 0)
+                {
+                    var episodes = external.Episodes is { Count: > 0 } list ? list : null;
+                    var totalEpisodes = external.TotalCount ?? episodes?.Count ?? 0;
+                    if (totalEpisodes > 0)
+                    {
+                        var season = new TvSeason
+                        {
+                            Id = Guid.NewGuid(),
+                            SeasonNumber = 1,
+                            Title = "Season 1",
+                            TvShowId = show.Id,
+                            Status = show.Status,
+                            TotalEpisodes = totalEpisodes,
+                            EpisodesData = episodes is null
+                                ? null
+                                : JsonSerializer.Serialize(episodes, CamelCaseJsonOptions),
+                        };
+                        show.Seasons.Add(season);
+                        trackNewSeason?.Invoke(season);
+                        modified = true;
+                    }
+                }
+
                 break;
         }
 
@@ -151,6 +206,14 @@ public static class MediaMetadataApplier
         if (item.ReleaseDate is null && DateTime.TryParse(external.ReleaseDate, out var releaseDate))
         {
             item.ReleaseDate = releaseDate;
+            modified = true;
+        }
+
+        // Enrich never wrote the end date, so a series that had already finished still showed an
+        // empty "Дата окончания" until an explicit refresh.
+        if (item.EndDate is null && DateTime.TryParse(external.EndDate, out var endDate))
+        {
+            item.EndDate = endDate;
             modified = true;
         }
 
@@ -267,12 +330,16 @@ public static class MediaMetadataApplier
         }
     }
 
-    private static void ApplyTypeSpecific(MediaItem item, ExternalMediaDto external)
+    private static void ApplyTypeSpecific(
+        MediaItem item,
+        ExternalMediaDto external,
+        Action<TvSeason>? trackNewSeason
+    )
     {
         switch (item)
         {
             case TvShow show:
-                ApplyToTvShow(show, external);
+                ApplyToTvShow(show, external, trackNewSeason);
                 break;
             case Movie movie:
                 if (external.RuntimeMinutes is > 0) movie.DurationMinutes = external.RuntimeMinutes.Value;
@@ -298,7 +365,11 @@ public static class MediaMetadataApplier
         }
     }
 
-    private static void ApplyToTvShow(TvShow show, ExternalMediaDto external)
+    private static void ApplyToTvShow(
+        TvShow show,
+        ExternalMediaDto external,
+        Action<TvSeason>? trackNewSeason
+    )
     {
         if (external.RuntimeMinutes is > 0)
         {
@@ -316,8 +387,11 @@ public static class MediaMetadataApplier
             show.RomajiTitle = external.OriginalTitle;
         }
 
-        // Only anime carry a per-episode list; live-action shows get episode counts, not episodes.
-        if (!show.IsAnime || external.Episodes is not { Count: > 0 } episodes)
+        // The "anime only" guard dropped episode lists for every live-action show, so a Kinopoisk or
+        // TMDb series with real per-episode air dates lost them. The list is the source's own data
+        // when it is present, so it is written regardless of the anime flag; only its absence was
+        // ever a reason to skip.
+        if (external.Episodes is not { Count: > 0 } episodes)
         {
             return;
         }
@@ -328,7 +402,7 @@ public static class MediaMetadataApplier
         var firstSeason = show.Seasons.FirstOrDefault();
         if (firstSeason is null)
         {
-            show.Seasons.Add(new TvSeason
+            var created = new TvSeason
             {
                 Id = Guid.NewGuid(),
                 SeasonNumber = 1,
@@ -337,7 +411,9 @@ public static class MediaMetadataApplier
                 Status = show.Status,
                 TotalEpisodes = totalEpisodes,
                 EpisodesData = episodesJson
-            });
+            };
+            show.Seasons.Add(created);
+            trackNewSeason?.Invoke(created);
             return;
         }
 

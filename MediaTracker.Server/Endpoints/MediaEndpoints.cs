@@ -204,7 +204,14 @@ public static class MediaEndpoints
             var external = await aggregator.GetDetailsAsync(
                 ResolveAggregatorType(item), item.ExternalId ?? string.Empty, item.Title, enrichCts.Token, item.ExternalSource);
 
-            if (external is not null && MediaMetadataApplier.ApplyIfMissing(item, external))
+            if (
+                external is not null
+                && MediaMetadataApplier.ApplyIfMissing(
+                    item,
+                    external,
+                    season => db.Entry(season).State = EntityState.Added
+                )
+            )
             {
                 item.UpdatedAt = DateTime.UtcNow;
                 await db.SaveChangesAsync(ct);
@@ -517,7 +524,13 @@ public static class MediaEndpoints
             return Results.NotFound(new { message = "Metadata could not be found from external source." });
         }
 
-        await MediaMetadataApplier.ApplyOverwriteAsync(item, external, imageStorage, ct);
+        await MediaMetadataApplier.ApplyOverwriteAsync(
+            item,
+            external,
+            imageStorage,
+            ct,
+            season => db.Entry(season).State = EntityState.Added
+        );
 
         item.UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync(ct);

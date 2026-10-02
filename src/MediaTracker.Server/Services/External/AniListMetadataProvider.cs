@@ -28,6 +28,7 @@ public sealed partial class AniListMetadataProvider(
               startDate { year month day }
               endDate { year month day }
               status
+              countryOfOrigin
               duration
               episodes
               chapters
@@ -52,6 +53,7 @@ public sealed partial class AniListMetadataProvider(
             startDate { year month day }
             endDate { year month day }
             status
+            countryOfOrigin
             duration
             episodes
             chapters
@@ -190,6 +192,7 @@ public sealed partial class AniListMetadataProvider(
             TotalCount = mediaType == "anime" ? item.Episodes : (item.Chapters ?? item.Volumes),
             Chapters = item.Chapters,
             Volumes = item.Volumes,
+            MangaFormat = mediaType == "manga" ? MangaFormats.FromCountryOfOrigin(item.CountryOfOrigin) : null,
             Rating = primaryRating,
             Ratings = ratings,
             Episodes = episodes
@@ -272,6 +275,7 @@ public sealed partial class AniListMetadataProvider(
         AniListDate? StartDate,
         AniListDate? EndDate,
         string? Status,
+        string? CountryOfOrigin,
         int? Duration,
         int? Episodes,
         int? Chapters,

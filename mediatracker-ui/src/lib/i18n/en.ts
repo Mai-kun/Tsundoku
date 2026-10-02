@@ -260,6 +260,12 @@ export const en: Dictionary = {
     endedLabel: "Ended",
     progressShort: "Progress",
     formatLabel: "Format",
+    mangaFormats: {
+        manga: "Manga",
+        manhwa: "Manhwa",
+        manhua: "Manhua",
+        oel: "Oel manga",
+    },
     startDateLabel: "Start date",
     endDateLabel: "End date",
     providerLabel: "Provider",

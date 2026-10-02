@@ -22,6 +22,8 @@ public static class RefactorSelfCheck
         CheckExternalUrlDetection(failures);
         CheckRatingsSerialization(failures);
         CheckMangaGapEnrichment(failures);
+        CheckMangaFormatFromSources(failures);
+        CheckMangaFormatMergePrefersOel(failures);
         CheckMangaGapEnrichmentDoesNotOverwrite(failures);
         CheckMergeKeepsRuntimeAndGenres(failures);
         CheckMissingMetadataDrivesCascade(failures);
@@ -274,6 +276,51 @@ private static void CheckMergeKeepsRuntimeAndGenres(List<string> failures)
             Task.FromResult<string?>(null);
 
         public void DeleteCover(string? path) { }
+    }
+
+    private static void CheckMangaFormatFromSources(List<string> failures)
+    {
+        AssertEqual(failures, MangaFormats.Manhwa, MangaFormats.FromCountryOfOrigin("KR"), "AniList KR is manhwa");
+        AssertEqual(failures, MangaFormats.Manhua, MangaFormats.FromCountryOfOrigin("CN"), "AniList CN is manhua");
+        AssertEqual(failures, MangaFormats.Manga, MangaFormats.FromCountryOfOrigin("JP"), "AniList JP is manga");
+        AssertEqual(failures, null, MangaFormats.FromCountryOfOrigin("US"), "unknown country yields nothing");
+
+        // The OEL signal only exists in MangaDex's original language; AniList files these under JP.
+        AssertEqual(failures, MangaFormats.Oel, MangaFormats.FromOriginalLanguage("en"), "MangaDex en is OEL");
+        AssertEqual(failures, MangaFormats.Manhwa, MangaFormats.FromOriginalLanguage("ko"), "MangaDex ko is manhwa");
+        AssertEqual(failures, MangaFormats.Manhua, MangaFormats.FromOriginalLanguage("zh"), "MangaDex zh is manhua");
+        AssertEqual(failures, MangaFormats.Manga, MangaFormats.FromOriginalLanguage("ja"), "MangaDex ja is manga");
+        AssertEqual(failures, null, MangaFormats.FromOriginalLanguage(null), "missing language yields nothing");
+
+        var manga = new Manga { Title = "Solo Leveling" };
+        MediaMetadataApplier.ApplyIfMissing(manga, new ExternalMediaDto
+        {
+            ExternalId = "1",
+            Title = "Solo Leveling",
+            Type = "manga",
+            MangaFormat = MangaFormats.Manhwa
+        });
+        AssertEqual(failures, MangaFormats.Manhwa, manga.Format, "manga format stored from external");
+    }
+
+    private static void CheckMangaFormatMergePrefersOel(List<string> failures)
+    {
+        // AniList says "manga", MangaDex knows it is original English: the specific answer must win,
+        // otherwise every OEL title silently reads as plain manga.
+        var merged = MediaMerger.Merge(
+            new ExternalMediaDto { ExternalId = "1", Title = "SubZero", Type = "manga", MangaFormat = MangaFormats.Manga },
+            new ExternalMediaDto { ExternalId = "2", Title = "SubZero", Type = "manga", MangaFormat = MangaFormats.Oel });
+        AssertEqual(failures, MangaFormats.Oel, merged.MangaFormat, "OEL from the second source wins");
+
+        var primaryWins = MediaMerger.Merge(
+            new ExternalMediaDto { ExternalId = "1", Title = "Tower of God", Type = "manga", MangaFormat = MangaFormats.Manhwa },
+            new ExternalMediaDto { ExternalId = "2", Title = "Tower of God", Type = "manga", MangaFormat = MangaFormats.Manga });
+        AssertEqual(failures, MangaFormats.Manhwa, primaryWins.MangaFormat, "primary source wins when no OEL");
+
+        var filled = MediaMerger.Merge(
+            new ExternalMediaDto { ExternalId = "1", Title = "Berserk", Type = "manga" },
+            new ExternalMediaDto { ExternalId = "2", Title = "Berserk", Type = "manga", MangaFormat = MangaFormats.Manga });
+        AssertEqual(failures, MangaFormats.Manga, filled.MangaFormat, "format falls back to the second source");
     }
 
     private static void CheckMangaGapEnrichment(List<string> failures)

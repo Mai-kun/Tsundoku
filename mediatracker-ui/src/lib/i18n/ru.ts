@@ -257,6 +257,12 @@ export const ru = {
     endedLabel: "Завершение",
     progressShort: "Прогресс",
     formatLabel: "Формат",
+    mangaFormats: {
+        manga: "Манга",
+        manhwa: "Манхва",
+        manhua: "Маньхуа",
+        oel: "Oel-манга",
+    },
     startDateLabel: "Дата начала",
     endDateLabel: "Дата окончания",
     providerLabel: "Провайдер",

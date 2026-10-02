@@ -10,6 +10,9 @@ public class Manga : MediaItem
 
     public string? RomajiTitle { get; set; }
 
+    /// <summary>manga / manhwa / manhua / oel, derived from the external source. Null when unknown.</summary>
+    public string? Format { get; set; }
+
     public int CurrentVolume { get; set; }
 
     public int? TotalVolumes { get; set; }

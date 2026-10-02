@@ -92,6 +92,8 @@ export interface MangaMedia extends MediaBase {
   totalVolumes?: number | null;
   author?: string | null;
   romajiTitle?: string | null;
+  /** manga / manhwa / manhua / oel, derived from the external source. */
+  mangaFormat?: string | null;
   totalPages?: number | null;
 }
 

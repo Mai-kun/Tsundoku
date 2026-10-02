@@ -207,6 +207,12 @@ public static class MediaMetadataApplier
             modified = true;
         }
 
+        if (string.IsNullOrWhiteSpace(manga.Format) && !string.IsNullOrWhiteSpace(external.MangaFormat))
+        {
+            manga.Format = external.MangaFormat;
+            modified = true;
+        }
+
         // A single stub volume stands in for the whole series until real volume data arrives.
         if (manga.Volumes is [var onlyVolume] && onlyVolume.TotalChapters == 0 && manga.TotalChapters is > 0)
         {
@@ -284,6 +290,7 @@ public static class MediaMetadataApplier
                 if (external.Volumes is > 0) manga.TotalVolumes = external.Volumes.Value;
                 if (!string.IsNullOrWhiteSpace(external.Author)) manga.Author = external.Author;
                 if (!string.IsNullOrWhiteSpace(external.RomajiTitle)) manga.RomajiTitle = external.RomajiTitle;
+                if (!string.IsNullOrWhiteSpace(external.MangaFormat)) manga.Format = external.MangaFormat;
                 break;
             case VideoGame game:
                 if (!string.IsNullOrWhiteSpace(external.Platform)) game.Platform = external.Platform;

@@ -154,6 +154,8 @@ public static class MediaMerger
             RuntimeMinutes = primary.RuntimeMinutes ?? fallback.RuntimeMinutes,
             Genres = primary.Genres is { Count: > 0 } ? primary.Genres : fallback.Genres,
             Tags = primary.Tags is { Count: > 0 } ? primary.Tags : fallback.Tags,
+            // OEL can only come from the second source, so the plain "first wins" rule is wrong here.
+            MangaFormat = MangaFormats.Pick(primary.MangaFormat, fallback.MangaFormat),
             Episodes = primary.Episodes is { Count: > 0 } ? primary.Episodes : fallback.Episodes
         };
     }

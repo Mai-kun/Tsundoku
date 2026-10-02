@@ -2252,6 +2252,20 @@
             : i18n.t.types[item.type];
     }
 
+    /**
+     * Manga is stored as one type, but the origin decides how it is read: a manhwa or an OEL title
+     * called just "Манга" is wrong. Falls back to the plain type label when no source knew.
+     */
+    function formatLabel(item: MediaItem): string {
+        if (!isMangaDetail(item)) return typeLabel(item);
+
+        const known = item.mangaFormat;
+        if (!known) return typeLabel(item);
+
+        const labels = i18n.t.detail.mangaFormats as Record<string, string>;
+        return labels[known] ?? typeLabel(item);
+    }
+
     function statusLabel(status: MediaStatus): string {
         switch (status) {
             case 0:
@@ -2409,7 +2423,7 @@
     ): Array<{ label: string; value: string; isLink?: boolean }> {
         const empty = i18n.t.detailModal.valueEmpty;
         const rows: Array<{ label: string; value: string; isLink?: boolean }> =
-            [{ label: i18n.t.detail.formatLabel, value: typeLabel(item) }];
+            [{ label: i18n.t.detail.formatLabel, value: formatLabel(item) }];
 
         if (item.type === "game") {
             rows.push({
@@ -2527,7 +2541,9 @@
                     label: i18n.t.detailModal.studio,
                     value: item.studio || empty,
                 });
-                if (item.romajiTitle) {
+                // A romaji title only means something for anime; a live-action show or film has an
+                // original title, not a romanized one, so showing the row there is just noise.
+                if (isAnime(item) && item.romajiTitle) {
                     rows.push({
                         label: i18n.t.detail.romajiTitle,
                         value: item.romajiTitle,

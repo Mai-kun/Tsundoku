@@ -70,9 +70,12 @@ public record MediaListDto
 
     public string? RomajiTitle { get; init; }
 
-    public string? Network { get; init; }
+    /// <summary>manga / manhwa / manhua / oel. Null when no source could tell.</summary>
+    public string? MangaFormat { get; init; }
 
     public int? TotalEpisodesCount { get; init; }
+
+    public string? Network { get; init; }
 
     public int? TotalEpisodesWatched { get; init; }
 
@@ -192,6 +195,7 @@ public static class MediaResponseMapper
             {
                 Author = manga.Author,
                 RomajiTitle = manga.RomajiTitle,
+                MangaFormat = manga.Format,
                 CurrentVolume = manga.CurrentVolume,
                 TotalVolumes = manga.TotalVolumes ?? (manga.Volumes?.Count > 0 ? manga.Volumes.Count : null),
                 CurrentChapter = manga.CurrentChapter,

@@ -108,6 +108,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(manga => manga.Author).HasColumnName("Manga_Author");
             entity.Property(manga => manga.RomajiTitle).HasColumnName("Manga_RomajiTitle");
             entity.Property(manga => manga.TotalVolumes).HasColumnName("Manga_TotalVolumes");
+            entity.Property(manga => manga.Format).HasColumnName("Manga_Format");
 
             entity.HasMany(manga => manga.Volumes)
                 .WithOne(volume => volume.Manga)

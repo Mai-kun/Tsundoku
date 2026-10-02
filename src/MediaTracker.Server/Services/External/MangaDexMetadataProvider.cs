@@ -297,6 +297,7 @@ public sealed class MangaDexMetadataProvider(
             TotalCount = chapters,
             Chapters = chapters,
             Volumes = volumes,
+            MangaFormat = MangaFormats.FromOriginalLanguage(attr?.OriginalLanguage),
             ExternalSource = "MangaDex",
             Rating = ratingScore,
             RatingVotes = ratingVotes,
@@ -350,6 +351,9 @@ public sealed class MangaDexMetadataProvider(
 
         [JsonPropertyName("status")]
         public string? Status { get; set; }
+
+        [JsonPropertyName("originalLanguage")]
+        public string? OriginalLanguage { get; set; }
 
         [JsonPropertyName("year")]
         public int? Year { get; set; }

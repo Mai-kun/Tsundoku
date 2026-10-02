@@ -6,6 +6,7 @@
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        <ServerGarbageCollection>false</ServerGarbageCollection>
 
         <AssemblyName>Tsundoku</AssemblyName>
         <RootNamespace>MediaTracker.Server</RootNamespace>
@@ -20,7 +21,7 @@
         <SelfContained>true</SelfContained>
         <PublishSingleFile>true</PublishSingleFile>
         <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
-        <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+        <PublishReadyToRun>true</PublishReadyToRun>
 
         <DebugType>None</DebugType>
         <DebugSymbols>false</DebugSymbols>
@@ -45,7 +46,6 @@
     <ItemGroup>
         <PackageReference Include="FluentValidation" Version="12.1.1" />
         <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
-        <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.12" />
         <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.12">
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
             <PrivateAssets>all</PrivateAssets>
@@ -53,11 +53,15 @@
         <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.12" />
         <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="10.0.12" />
         <PackageReference Include="Microsoft.Extensions.FileProviders.Embedded" Version="10.0.12" />
-        <PackageReference Include="OpenApiUi" Version="2.0.5" />
         <PackageReference Include="Photino.NET" Version="4.0.16" />
         <PackageReference Include="Serilog.AspNetCore" Version="10.0.0" />
         <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
         <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
+    </ItemGroup>
+
+    <ItemGroup Condition="'$(Configuration)' == 'Debug'">
+        <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.12" />
+        <PackageReference Include="OpenApiUi" Version="2.0.5" />
     </ItemGroup>
 
 </Project>

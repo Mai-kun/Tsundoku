@@ -13,7 +13,9 @@ using MediaTracker.Server.Services.Storage;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
+#if DEBUG
 using OpenApiUi;
+#endif
 using Serilog;
 using Serilog.Events;
 
@@ -95,7 +97,10 @@ try
         options.SerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
     });
 
+#if DEBUG
     builder.Services.AddOpenApi();
+#endif
+
     builder.Services.AddProblemDetails();
     builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
@@ -149,12 +154,14 @@ try
 
     app.UseExceptionHandler();
 
+#if DEBUG
     if (app.Environment.IsDevelopment())
     {
         app.UseCors("DevCorsPolicy");
         app.MapOpenApi();
         app.UseOpenApiUi(config => config.OpenApiSpecPath = "/openapi/v1.json");
     }
+#endif
 
     var embeddedProvider = new ManifestEmbeddedFileProvider(typeof(Program).Assembly, "wwwroot");
     app.UseDefaultFiles(new DefaultFilesOptions { FileProvider = embeddedProvider });

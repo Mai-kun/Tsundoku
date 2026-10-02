@@ -326,20 +326,18 @@
     {:else if activeView === "lists"}
         <ListsView />
     {:else if isCategory(activeView)}
-        <!-- Keyed on the category so the whole view is torn down and rebuilt. Without it Svelte
-             reuses the DOM nodes of the previous category (the status-group sections share keys like
-             `planned` across every category), and the old cards stay mounted for a frame even though
-             the counts have already switched. The module-level categoryCache/savedCategoryState
-             inside CategoryView survive the remount, so switching is still instant. -->
-        {#key activeView}
-            <CategoryView
-                category={activeView}
-                refreshKey={mediaRevision}
-                onOpen={openDetail}
-                onMediaChanged={mediaChanged}
-                onEdit={openEdit}
-            />
-        {/key}
+        <!-- Deliberately NOT wrapped in {#key}. Keying the whole view remounted it on every
+             category switch, and Svelte mounts the incoming block before tearing down the
+             outgoing one, so both libraries were on screen together for ~130ms. The section
+             {#each} keys below are category-scoped instead, which rebuilds just the sections
+             whose contents actually differ without remounting the view. -->
+        <CategoryView
+            category={activeView}
+            refreshKey={mediaRevision}
+            onOpen={openDetail}
+            onMediaChanged={mediaChanged}
+            onEdit={openEdit}
+        />
     {/if}
 </AppShell>
 

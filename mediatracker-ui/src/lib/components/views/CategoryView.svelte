@@ -447,7 +447,7 @@
             />
         {:else}
             <div class="space-y-8">
-                {#each statusGroups as group (group.status)}
+                {#each statusGroups as group (`${category}:${group.status}`)}
                     <section class="space-y-3">
                         <div class="flex items-center gap-2">
                             <h2
@@ -494,7 +494,7 @@
             />
         {:else}
             <div class="space-y-8">
-                {#each franchiseGroups as group (group.name)}
+                {#each franchiseGroups as group (`${category}:${group.name}`)}
                     <section class="space-y-3">
                         <div class="flex items-center gap-2">
                             <h2

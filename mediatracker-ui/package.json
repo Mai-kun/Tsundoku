@@ -16,6 +16,7 @@
         "check:history-delete": "node checks/historyDelete.check.cjs",
         "check:achievements-buttons": "node checks/achievementsButtons.check.cjs",
         "check:score-stack": "node checks/scoreStack.check.cjs",
+        "check:category-switch": "node checks/categorySwitch.check.cjs",
     "check:tokens": "node checks/tokens.check.cjs",
     "preview": "vite preview"
   },

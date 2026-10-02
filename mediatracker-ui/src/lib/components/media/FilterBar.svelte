@@ -134,6 +134,8 @@
                 onSelect={(value) => onGroupByChange(value as GroupBy)}
                 label={i18n.t.grouping.label}
                 placement="bottom-start"
+                openOnHover
+                closeDelay={220}
             >
                 {#snippet trigger({ popoverTargetId, anchorName })}
                     {@const GroupIcon = GROUP_ICONS[groupBy]}

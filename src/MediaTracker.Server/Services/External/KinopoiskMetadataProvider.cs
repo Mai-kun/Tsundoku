@@ -9,7 +9,8 @@ namespace MediaTracker.Server.Services.External;
 public sealed class KinopoiskMetadataProvider(
     IHttpClientFactory httpClientFactory,
     IOptions<ExternalApiOptions> options,
-    [ServiceKey] string? serviceKey = null) : IMetadataProvider
+    [ServiceKey] string? serviceKey = null
+) : IMetadataProvider
 {
     public string Id => "kinopoisk";
     public string Name => "Кинопоиск (Kinopoisk)";
@@ -17,13 +18,23 @@ public sealed class KinopoiskMetadataProvider(
     public IReadOnlyList<string> MediaTypes => ["movie", "tvshow"];
     public bool RequiresApiKey => true;
 
-    private readonly string _mediaType = serviceKey?.StartsWith("tvshow", StringComparison.OrdinalIgnoreCase) is true ? "tvshow" : "movie";
+    private readonly string _mediaType = serviceKey?.StartsWith(
+        "tvshow",
+        StringComparison.OrdinalIgnoreCase
+    )
+        is true
+        ? "tvshow"
+        : "movie";
     private string ApiKey => options.Value.GetKey(Id) ?? string.Empty;
 
-    public async Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string query, CancellationToken ct)
+    public async Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(
+        string query,
+        CancellationToken ct
+    )
     {
         var key = ApiKey;
-        if (string.IsNullOrWhiteSpace(key)) return [];
+        if (string.IsNullOrWhiteSpace(key))
+            return [];
 
         var client = httpClientFactory.CreateClient("Kinopoisk");
         var endpoint = $"v2.1/films/search-by-keyword?keyword={Uri.EscapeDataString(query)}&page=1";
@@ -34,18 +45,18 @@ public sealed class KinopoiskMetadataProvider(
             req.Headers.Add("X-API-KEY", key);
 
             using var resp = await client.SendAsync(req, ct);
-            if (!resp.IsSuccessStatusCode) return [];
+            if (!resp.IsSuccessStatusCode)
+                return [];
 
             var body = await resp.Content.ReadFromJsonAsync<KinopoiskSearchResponse>(ct);
-            if (body?.Films is null || body.Films.Count == 0) return [];
+            if (body?.Films is null || body.Films.Count == 0)
+                return [];
 
             // search-by-keyword returns films *and* series mixed together. Mapping the whole list to the
             // configured type is what put a movie into the "TV Shows" group, so the source is asked for
             // the wanted type first and the declared type is re-checked afterwards.
             var expectedType = _mediaType == "movie" ? "movie" : "tv";
-            var matching = body.Films
-                .Where(film => MatchesType(film.Type, expectedType))
-                .ToList();
+            var matching = body.Films.Where(film => MatchesType(film.Type, expectedType)).ToList();
 
             // Never return nothing just because the filter was stricter than this source's labels: an
             // empty list makes the aggregator move on and the source silently disappears from search.
@@ -62,10 +73,15 @@ public sealed class KinopoiskMetadataProvider(
         }
     }
 
-    public async Task<ExternalMediaDto?> GetDetailsAsync(string externalId, string title, CancellationToken ct)
+    public async Task<ExternalMediaDto?> GetDetailsAsync(
+        string externalId,
+        string title,
+        CancellationToken ct
+    )
     {
         var key = ApiKey;
-        if (string.IsNullOrWhiteSpace(key)) return null;
+        if (string.IsNullOrWhiteSpace(key))
+            return null;
 
         var client = httpClientFactory.CreateClient("Kinopoisk");
         var endpoint = $"v2.2/films/{Uri.EscapeDataString(externalId)}";
@@ -76,10 +92,12 @@ public sealed class KinopoiskMetadataProvider(
             req.Headers.Add("X-API-KEY", key);
 
             using var resp = await client.SendAsync(req, ct);
-            if (!resp.IsSuccessStatusCode) return null;
+            if (!resp.IsSuccessStatusCode)
+                return null;
 
             var item = await resp.Content.ReadFromJsonAsync<KinopoiskDetailItem>(ct);
-            if (item is null) return null;
+            if (item is null)
+                return null;
 
             return MapDetailItem(item, _mediaType);
         }
@@ -104,7 +122,10 @@ public sealed class KinopoiskMetadataProvider(
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             cts.CancelAfter(TimeSpan.FromSeconds(5));
 
-            using var req = new HttpRequestMessage(HttpMethod.Get, "v2.1/films/search-by-keyword?keyword=test&page=1");
+            using var req = new HttpRequestMessage(
+                HttpMethod.Get,
+                "v2.1/films/search-by-keyword?keyword=test&page=1"
+            );
             req.Headers.Add("X-API-KEY", key);
 
             using var resp = await client.SendAsync(req, cts.Token);
@@ -114,7 +135,11 @@ public sealed class KinopoiskMetadataProvider(
                 return new ConnectionTestResult(true, (int)sw.ElapsedMilliseconds, "OK");
             }
 
-            return new ConnectionTestResult(false, (int)sw.ElapsedMilliseconds, $"HTTP {(int)resp.StatusCode} {resp.ReasonPhrase}");
+            return new ConnectionTestResult(
+                false,
+                (int)sw.ElapsedMilliseconds,
+                $"HTTP {(int)resp.StatusCode} {resp.ReasonPhrase}"
+            );
         }
         catch (Exception ex)
         {
@@ -141,10 +166,19 @@ public sealed class KinopoiskMetadataProvider(
             : normalized is "tv-series" or "tvshow" or "series" or "anime" or "cartoon";
     }
 
-private static ExternalMediaDto MapItem(KinopoiskFilmItem item, string type)
+    private static ExternalMediaDto MapItem(KinopoiskFilmItem item, string type)
     {
         double? score = null;
-        if (!string.IsNullOrWhiteSpace(item.Rating) && double.TryParse(item.Rating.TrimEnd('%'), NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed) && parsed > 0)
+        if (
+            !string.IsNullOrWhiteSpace(item.Rating)
+            && double.TryParse(
+                item.Rating.TrimEnd('%'),
+                NumberStyles.Float,
+                CultureInfo.InvariantCulture,
+                out var parsed
+            )
+            && parsed > 0
+        )
         {
             score = parsed;
         }
@@ -152,12 +186,14 @@ private static ExternalMediaDto MapItem(KinopoiskFilmItem item, string type)
         var ratings = new List<ExternalRatingDto>();
         if (score.HasValue)
         {
-            ratings.Add(new ExternalRatingDto
-            {
-                Source = "Kinopoisk",
-                Rating = Math.Round(score.Value, 1),
-                Votes = item.RatingVoteCount
-            });
+            ratings.Add(
+                new ExternalRatingDto
+                {
+                    Source = "Kinopoisk",
+                    Rating = Math.Round(score.Value, 1),
+                    Votes = item.RatingVoteCount,
+                }
+            );
         }
 
         int? year = null;
@@ -170,7 +206,9 @@ private static ExternalMediaDto MapItem(KinopoiskFilmItem item, string type)
         {
             ExternalId = item.FilmId.ToString(CultureInfo.InvariantCulture),
             ExternalSource = "Kinopoisk",
-            Title = !string.IsNullOrWhiteSpace(item.NameRu) ? item.NameRu : (item.NameEn ?? "Unknown"),
+            Title = !string.IsNullOrWhiteSpace(item.NameRu)
+                ? item.NameRu
+                : (item.NameEn ?? "Unknown"),
             OriginalTitle = item.NameEn,
             CoverUrl = item.PosterUrlPreview ?? item.PosterUrl,
             Description = item.Description,
@@ -178,7 +216,7 @@ private static ExternalMediaDto MapItem(KinopoiskFilmItem item, string type)
             Type = type,
             Rating = score,
             RatingVotes = item.RatingVoteCount,
-            Ratings = ratings
+            Ratings = ratings,
         };
     }
 
@@ -189,19 +227,23 @@ private static ExternalMediaDto MapItem(KinopoiskFilmItem item, string type)
 
         if (score.HasValue && score.Value > 0)
         {
-            ratings.Add(new ExternalRatingDto
-            {
-                Source = "Kinopoisk",
-                Rating = Math.Round(score.Value, 1),
-                Votes = item.RatingKinopoiskVoteCount
-            });
+            ratings.Add(
+                new ExternalRatingDto
+                {
+                    Source = "Kinopoisk",
+                    Rating = Math.Round(score.Value, 1),
+                    Votes = item.RatingKinopoiskVoteCount,
+                }
+            );
         }
 
         return new ExternalMediaDto
         {
             ExternalId = item.KinopoiskId.ToString(CultureInfo.InvariantCulture),
             ExternalSource = "Kinopoisk",
-            Title = !string.IsNullOrWhiteSpace(item.NameRu) ? item.NameRu : (item.NameOriginal ?? item.NameEn ?? "Unknown"),
+            Title = !string.IsNullOrWhiteSpace(item.NameRu)
+                ? item.NameRu
+                : (item.NameOriginal ?? item.NameEn ?? "Unknown"),
             OriginalTitle = item.NameOriginal ?? item.NameEn,
             CoverUrl = item.PosterUrlPreview ?? item.PosterUrl,
             Description = item.Description,
@@ -209,7 +251,7 @@ private static ExternalMediaDto MapItem(KinopoiskFilmItem item, string type)
             Type = type,
             Rating = score,
             RatingVotes = item.RatingKinopoiskVoteCount,
-            Ratings = ratings
+            Ratings = ratings,
         };
     }
 

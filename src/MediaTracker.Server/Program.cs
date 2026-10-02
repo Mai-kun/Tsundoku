@@ -42,7 +42,10 @@ if (options.RunSelfCheck)
 
 if (options.Mode == TsundokuRunMode.GuiOnly)
 {
-    Log.Information("Tsundoku starting in client-only mode. Server address: {ServerAddress}", options.ServerUrl);
+    Log.Information(
+        "Tsundoku starting in client-only mode. Server address: {ServerAddress}",
+        options.ServerUrl
+    );
     RunPhotinoWindow(options.ServerUrl!);
     Log.CloseAndFlush();
     return 0;
@@ -50,13 +53,14 @@ if (options.Mode == TsundokuRunMode.GuiOnly)
 
 var isContainer = CommandLineOptions.IsRunningInContainer;
 
-var appPaths = new AppPaths(options.DataDirectory is { Length: > 0 } dataDirectory
-    ? Path.GetFullPath(dataDirectory)
-    : isContainer
-        ? Directory.GetCurrentDirectory()
-        : Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "Tsundoku"));
+var appPaths = new AppPaths(
+    options.DataDirectory is { Length: > 0 } dataDirectory ? Path.GetFullPath(dataDirectory)
+    : isContainer ? Directory.GetCurrentDirectory()
+    : Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "Tsundoku"
+    )
+);
 
 ConfigureLogging(appPaths.LogsDirectory);
 
@@ -69,7 +73,7 @@ try
     var listenUrl = options.Port is { } kestrelPort
         ? $"http://0.0.0.0:{kestrelPort}"
         : Environment.GetEnvironmentVariable("ASPNETCORE_URLS")
-          ?? $"http://0.0.0.0:{CommandLineOptions.DefaultPort}";
+            ?? $"http://0.0.0.0:{CommandLineOptions.DefaultPort}";
 
     builder.WebHost.UseUrls(listenUrl);
 
@@ -77,12 +81,12 @@ try
 
     var connectionString = isContainer
         ? builder.Configuration.GetConnectionString("DefaultConnection")
-          ?? $"Data Source={appPaths.DatabaseFilePath}"
+            ?? $"Data Source={appPaths.DatabaseFilePath}"
         : $"Data Source={appPaths.DatabaseFilePath}";
 
     builder.Services.AddDbContext<AppDbContext>(options =>
-        options.UseSqlite(connectionString)
-            .AddInterceptors(new SqliteConnectionInterceptor()));
+        options.UseSqlite(connectionString).AddInterceptors(new SqliteConnectionInterceptor())
+    );
 
     builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
@@ -108,12 +112,13 @@ try
 
     builder.Services.AddCors(options =>
     {
-        options.AddPolicy("DevCorsPolicy", policy =>
-        {
-            policy.WithOrigins("http://localhost:5173")
-                  .AllowAnyHeader()
-                  .AllowAnyMethod();
-        });
+        options.AddPolicy(
+            "DevCorsPolicy",
+            policy =>
+            {
+                policy.WithOrigins("http://localhost:5173").AllowAnyHeader().AllowAnyMethod();
+            }
+        );
     });
 
     builder.Services.AddMemoryCache();
@@ -125,7 +130,8 @@ try
     builder.Services.AddMetadataProviders();
 
     builder.Services.AddHttpClient<IImageStorageService, ImageStorageService>(client =>
-        client.Timeout = TimeSpan.FromSeconds(5));
+        client.Timeout = TimeSpan.FromSeconds(5)
+    );
 
     var app = builder.Build();
 
@@ -151,35 +157,39 @@ try
     }
 
     var embeddedProvider = new ManifestEmbeddedFileProvider(typeof(Program).Assembly, "wwwroot");
-    app.UseDefaultFiles(new DefaultFilesOptions
-    {
-        FileProvider = embeddedProvider
-    });
+    app.UseDefaultFiles(new DefaultFilesOptions { FileProvider = embeddedProvider });
 
-    app.UseStaticFiles(new StaticFileOptions
-    {
-        FileProvider = embeddedProvider,
-        OnPrepareResponse = context =>
+    app.UseStaticFiles(
+        new StaticFileOptions
         {
-            // Vite emits content-hashed filenames under /assets, so those are immutable exactly like
-            // the covers. index.html and diag.html must stay revalidated or a deploy never lands.
-            if (context.File.Name.EndsWith(".html", StringComparison.OrdinalIgnoreCase))
+            FileProvider = embeddedProvider,
+            OnPrepareResponse = context =>
             {
-                context.Context.Response.Headers.CacheControl = "no-cache";
-            }
-            else
-            {
-                context.Context.Response.Headers.CacheControl = "public, max-age=31536000, immutable";
-            }
+                // Vite emits content-hashed filenames under /assets, so those are immutable exactly like
+                // the covers. index.html and diag.html must stay revalidated or a deploy never lands.
+                if (context.File.Name.EndsWith(".html", StringComparison.OrdinalIgnoreCase))
+                {
+                    context.Context.Response.Headers.CacheControl = "no-cache";
+                }
+                else
+                {
+                    context.Context.Response.Headers.CacheControl =
+                        "public, max-age=31536000, immutable";
+                }
+            },
         }
-    });
+    );
 
-    app.UseStaticFiles(new StaticFileOptions
-    {
-        FileProvider = new PhysicalFileProvider(appPaths.CoversDirectory),
-        RequestPath = "/covers",
-        OnPrepareResponse = context => context.Context.Response.Headers.CacheControl = "public, max-age=31536000, immutable"
-    });
+    app.UseStaticFiles(
+        new StaticFileOptions
+        {
+            FileProvider = new PhysicalFileProvider(appPaths.CoversDirectory),
+            RequestPath = "/covers",
+            OnPrepareResponse = context =>
+                context.Context.Response.Headers.CacheControl =
+                    "public, max-age=31536000, immutable",
+        }
+    );
 
     app.MapMediaEndpoints();
     app.MapSeasonEndpoints();
@@ -217,7 +227,8 @@ try
         Environment.Version.ToString(),
         RuntimeInformation.OSDescription,
         mode,
-        listenUrl);
+        listenUrl
+    );
 
     if (options.IsHeadless)
     {
@@ -241,7 +252,8 @@ static void ConfigureLogging(string logsDirectory)
 {
     Directory.CreateDirectory(logsDirectory);
 
-    var existingLogs = Directory.GetFiles(logsDirectory, "session_*.log")
+    var existingLogs = Directory
+        .GetFiles(logsDirectory, "session_*.log")
         .Select(f => new FileInfo(f))
         .OrderByDescending(f => f.CreationTimeUtc)
         .ToList();
@@ -250,15 +262,21 @@ static void ConfigureLogging(string logsDirectory)
     {
         foreach (var file in existingLogs.Skip(4))
         {
-            try { file.Delete(); } catch { }
+            try
+            {
+                file.Delete();
+            }
+            catch { }
         }
     }
 
     var currentSessionLogFile = Path.Combine(
         logsDirectory,
-        $"session_{DateTime.UtcNow:yyyy-MM-dd_HH-mm-ss}.log");
+        $"session_{DateTime.UtcNow:yyyy-MM-dd_HH-mm-ss}.log"
+    );
 
-    const string outputTemplate = "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff}] [{Level:u3}] [{SourceContext}] {Message:lj}{NewLine}{Exception}";
+    const string outputTemplate =
+        "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff}] [{Level:u3}] [{SourceContext}] {Message:lj}{NewLine}{Exception}";
 
     Log.Logger = new LoggerConfiguration()
         .MinimumLevel.Information()
@@ -267,10 +285,7 @@ static void ConfigureLogging(string logsDirectory)
         .MinimumLevel.Override("Microsoft.EntityFrameworkCore", LogEventLevel.Warning)
         .Enrich.FromLogContext()
         .WriteTo.Console(outputTemplate: outputTemplate)
-        .WriteTo.File(
-            path: currentSessionLogFile,
-            outputTemplate: outputTemplate,
-            shared: true)
+        .WriteTo.File(path: currentSessionLogFile, outputTemplate: outputTemplate, shared: true)
         .CreateLogger();
 }
 

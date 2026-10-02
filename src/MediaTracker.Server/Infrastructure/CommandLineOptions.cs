@@ -4,7 +4,7 @@ public enum TsundokuRunMode
 {
     Combined,
     Headless,
-    GuiOnly
+    GuiOnly,
 }
 
 /// <summary>
@@ -32,7 +32,8 @@ public sealed class CommandLineOptions
         string.Equals(
             Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER"),
             "true",
-            StringComparison.OrdinalIgnoreCase);
+            StringComparison.OrdinalIgnoreCase
+        );
 
     public static CommandLineOptions Parse(string[] args)
     {
@@ -79,7 +80,9 @@ public sealed class CommandLineOptions
 
                     if (!int.TryParse(rawPort, out var port) || port is < 1 or > 65535)
                     {
-                        return options.WithError($"Invalid port '{rawPort}'. Expected a number between 1 and 65535.");
+                        return options.WithError(
+                            $"Invalid port '{rawPort}'. Expected a number between 1 and 65535."
+                        );
                     }
 
                     options.Port = port;
@@ -93,10 +96,17 @@ public sealed class CommandLineOptions
                         return options.WithError($"Missing value for '{arg}'.");
                     }
 
-                    if (!Uri.TryCreate(serverUrl, UriKind.Absolute, out var parsed)
-                        || (parsed.Scheme != Uri.UriSchemeHttp && parsed.Scheme != Uri.UriSchemeHttps))
+                    if (
+                        !Uri.TryCreate(serverUrl, UriKind.Absolute, out var parsed)
+                        || (
+                            parsed.Scheme != Uri.UriSchemeHttp
+                            && parsed.Scheme != Uri.UriSchemeHttps
+                        )
+                    )
                     {
-                        return options.WithError($"Invalid --server-url '{serverUrl}'. Expected an absolute http(s) URL.");
+                        return options.WithError(
+                            $"Invalid --server-url '{serverUrl}'. Expected an absolute http(s) URL."
+                        );
                     }
 
                     options.ServerUrl = serverUrl.TrimEnd('/');
@@ -124,14 +134,17 @@ public sealed class CommandLineOptions
             }
         }
 
-        var environmentForcesHeadless = IsRunningInContainer
+        var environmentForcesHeadless =
+            IsRunningInContainer
             || string.Equals(
                 Environment.GetEnvironmentVariable("HEADLESS"),
                 "true",
-                StringComparison.OrdinalIgnoreCase);
+                StringComparison.OrdinalIgnoreCase
+            );
 
-        options.Mode = requestedMode
-                       ?? (environmentForcesHeadless ? TsundokuRunMode.Headless : TsundokuRunMode.Combined);
+        options.Mode =
+            requestedMode
+            ?? (environmentForcesHeadless ? TsundokuRunMode.Headless : TsundokuRunMode.Combined);
         options.ServerUrl ??= options.Port is { } kestrelPort
             ? $"http://127.0.0.1:{kestrelPort}"
             : DefaultServerUrl;
@@ -139,36 +152,37 @@ public sealed class CommandLineOptions
         return options;
     }
 
-    public static string HelpText => """
-        Tsundoku - MediaTracker.Server
+    public static string HelpText =>
+        """
+            Tsundoku - MediaTracker.Server
 
-        Usage:
-          Tsundoku.exe [options]
+            Usage:
+              Tsundoku.exe [options]
 
-        Options:
-          --headless, --server-only    Run only the ASP.NET Core web server (Docker / service mode).
-                                     No Photino window is created.
-          --gui, --client-only         Run only the Photino desktop window. The embedded Kestrel
-                                     server and the database migrations are not started.
-          --server-url <url>           Address the --gui window connects to. Default: http://127.0.0.1:5000
-          --port <number>, -p <number> Override the Kestrel listening port. Default: 5000
-          --data-dir <path>            Base folder for tracker.db, logs and covers.
-                                     Default: %LOCALAPPDATA%\Tsundoku (current directory in Docker)
-          --migrate-only               Apply database migrations and exit with code 0.
-          --help, -h                   Show this help and exit.
+            Options:
+              --headless, --server-only    Run only the ASP.NET Core web server (Docker / service mode).
+                                         No Photino window is created.
+              --gui, --client-only         Run only the Photino desktop window. The embedded Kestrel
+                                         server and the database migrations are not started.
+              --server-url <url>           Address the --gui window connects to. Default: http://127.0.0.1:5000
+              --port <number>, -p <number> Override the Kestrel listening port. Default: 5000
+              --data-dir <path>            Base folder for tracker.db, logs and covers.
+                                         Default: %LOCALAPPDATA%\Tsundoku (current directory in Docker)
+              --migrate-only               Apply database migrations and exit with code 0.
+              --help, -h                   Show this help and exit.
 
-        Examples:
-          Tsundoku.exe                                          Backend in background + desktop window
-          Tsundoku.exe --headless -p 8080                       Web server only on port 8080
-          Tsundoku.exe --gui --server-url http://192.168.1.50:5000
-          Tsundoku.exe --port 5050 --data-dir D:\TsundokuData
-          Tsundoku.exe --migrate-only                           CI/CD migration step
+            Examples:
+              Tsundoku.exe                                          Backend in background + desktop window
+              Tsundoku.exe --headless -p 8080                       Web server only on port 8080
+              Tsundoku.exe --gui --server-url http://192.168.1.50:5000
+              Tsundoku.exe --port 5050 --data-dir D:\TsundokuData
+              Tsundoku.exe --migrate-only                           CI/CD migration step
 
-        Environment variables:
-          DOTNET_RUNNING_IN_CONTAINER=true or HEADLESS=true  force --headless
-          ASPNETCORE_URLS                                      used when --port is not given
+            Environment variables:
+              DOTNET_RUNNING_IN_CONTAINER=true or HEADLESS=true  force --headless
+              ASPNETCORE_URLS                                      used when --port is not given
 
-        """;
+            """;
 
     private static bool TryTakeValue(string[] args, ref int index, out string value)
     {

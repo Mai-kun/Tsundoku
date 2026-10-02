@@ -19,8 +19,18 @@ internal static partial class ConsoleOutput
         }
 
         AttachConsole(AttachParentProcess);
-        Console.SetOut(new StreamWriter(Console.OpenStandardOutput(), new UTF8Encoding(false)) { AutoFlush = true });
-        Console.SetError(new StreamWriter(Console.OpenStandardError(), new UTF8Encoding(false)) { AutoFlush = true });
+        Console.SetOut(
+            new StreamWriter(Console.OpenStandardOutput(), new UTF8Encoding(false))
+            {
+                AutoFlush = true,
+            }
+        );
+        Console.SetError(
+            new StreamWriter(Console.OpenStandardError(), new UTF8Encoding(false))
+            {
+                AutoFlush = true,
+            }
+        );
     }
 
     [LibraryImport("kernel32.dll", SetLastError = true)]

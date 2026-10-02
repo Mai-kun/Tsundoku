@@ -933,6 +933,40 @@
         }
     }
 
+    // ponytail: operates on the list currently loaded, not on gameAchievementsTotal. When the
+    // source was truncated by a cap the two differ, and marking names we never received would
+    // persist entries that match nothing.
+    let achievementsBusy = $state(false);
+
+    async function toggleAllAchievements() {
+        if (!media || gameAchievements.length === 0) return;
+
+        const nextMap = new Map(unlockedAchievementNames);
+        const previousJson = media.unlockedAchievements ?? null;
+
+        if (allAchievementsUnlocked) {
+            for (const ach of gameAchievements) {
+                nextMap.delete(ach.name.toLowerCase().trim());
+            }
+        } else {
+            for (const ach of gameAchievements) {
+                nextMap.set(ach.name.toLowerCase().trim(), ach.name.trim());
+            }
+        }
+
+        const jsonStr = JSON.stringify(Array.from(nextMap.values()));
+        achievementsBusy = true;
+        media.unlockedAchievements = jsonStr;
+        try {
+            await updateMedia(media.id, { unlockedAchievements: jsonStr });
+        } catch (err) {
+            media.unlockedAchievements = previousJson;
+            showToast(errorMessage(err), "error");
+        } finally {
+            achievementsBusy = false;
+        }
+    }
+
     let gamePlatformOptions = $derived.by(() => {
         if (!media || media.type !== "game") return [];
         const opts = new Set<string>();
@@ -1074,9 +1108,9 @@
             media = loaded;
             syncFrom(loaded);
 
-            if (isNew || forceRefresh) {
+            if (forceRefresh) {
                 if (loaded.type === "game") {
-                    void loadGameAchievements(loaded, forceRefresh);
+                    void loadGameAchievements(loaded, true);
                 }
                 // Restore cached translation if available for current language
                 const targetLang = i18n.current === "en" ? "en" : "ru";
@@ -1116,6 +1150,19 @@
     let gameAchievements = $state<GameAchievementItem[]>([]);
     let gameAchievementsTotal = $state(0);
     let gameAchievementsLoading = $state(false);
+
+    // Declared after gameAchievements: a $derived may only read state declared above it.
+    let allAchievementsUnlocked = $derived.by(() => {
+        if (gameAchievements.length === 0) return false;
+        return gameAchievements.every((ach) =>
+            unlockedAchievementNames.has(ach.name.toLowerCase().trim()),
+        );
+    });
+
+    /** The source reported more achievements than we received (hit the page cap). */
+    let achievementsTruncated = $derived(
+        gameAchievementsTotal > gameAchievements.length,
+    );
 
     async function loadGameAchievements(item: MediaItem, force = false) {
         if (item.type !== "game") return;
@@ -3471,8 +3518,9 @@
                                 : "border-transparent text-muted hover:text-white"
                         }`}
                         onclick={() => {
+                            // No fetch here: recommendations are the one panel that must only
+                            // hit the external API on an explicit button press (see below).
                             activeSubTab = "recommendations";
-                            void loadRecommendations();
                         }}
                     >
                         <Sparkles
@@ -3693,29 +3741,67 @@
                                                 : "Achievements"}
                                         </h2>
                                     </div>
-                                    <span
-                                        class="rounded-full bg-amber-400/10 border border-amber-400/20 px-2 py-0.5 text-xs font-semibold text-amber-300"
+                                    <div
+                                        class="flex items-center gap-2 shrink-0"
                                     >
-                                        {#if gameAchievementsLoading}
-                                            <LoaderCircle
-                                                size={12}
-                                                class="animate-spin"
-                                                role="status"
-                                                aria-label={i18n.t.common
-                                                    .loading}
-                                            />
-                                        {:else if unlockedAchievementNames.size > 0}
-                                            {unlockedAchievementNames.size} / {gameAchievementsTotal}
+                                        <button
+                                            type="button"
+                                            class="rounded-lg border border-amber-400/30 bg-amber-400/10 px-2.5 py-1 text-[11px] font-semibold text-amber-300 transition hover:bg-amber-400/20 disabled:opacity-40 cursor-pointer"
+                                            disabled={achievementsBusy
+                                                || gameAchievements.length
+                                                    === 0}
+                                            onclick={() =>
+                                                void toggleAllAchievements()}
+                                            title={i18n.current === "ru"
+                                                ? allAchievementsUnlocked
+                                                    ? "Снять отметки со всех достижений"
+                                                    : "Отметить все достижения"
+                                                : allAchievementsUnlocked
+                                                  ? "Clear all achievements"
+                                                  : "Mark all achievements"}
+                                        >
                                             {i18n.current === "ru"
-                                                ? "получено"
-                                                : "unlocked"}
-                                        {:else}
-                                            {gameAchievementsTotal}
-                                            {i18n.current === "ru"
-                                                ? "достижений"
-                                                : "achievements"}
-                                        {/if}
-                                    </span>
+                                                ? allAchievementsUnlocked
+                                                    ? "Снять все"
+                                                    : "Отметить все"
+                                                : allAchievementsUnlocked
+                                                  ? "Clear all"
+                                                  : "Mark all"}
+                                        </button>
+                                        <span
+                                            class="rounded-full bg-amber-400/10 border border-amber-400/20 px-2 py-0.5 text-xs font-semibold text-amber-300"
+                                        >
+                                            {#if gameAchievementsLoading}
+                                                <LoaderCircle
+                                                    size={12}
+                                                    class="animate-spin"
+                                                    role="status"
+                                                    aria-label={i18n.t.common
+                                                        .loading}
+                                                />
+                                            {:else if unlockedAchievementNames.size >
+                                            0}
+                                                {unlockedAchievementNames.size} / {gameAchievementsTotal}
+                                                {i18n.current === "ru"
+                                                    ? "получено"
+                                                    : "unlocked"}
+                                            {:else}
+                                                {gameAchievementsTotal}
+                                                {i18n.current === "ru"
+                                                    ? "достижений"
+                                                    : "achievements"}
+                                            {/if}
+                                            {#if achievementsTruncated}
+                                                <span
+                                                    title={i18n.current ===
+                                                    "ru"
+                                                        ? `Показаны первые ${gameAchievements.length} из ${gameAchievementsTotal}`
+                                                        : `Showing the first ${gameAchievements.length} of ${gameAchievementsTotal}`}
+                                                    >*</span
+                                                >
+                                            {/if}
+                                        </span>
+                                    </div>
                                 </div>
 
                                 {#if gameAchievementsLoading}
@@ -3808,11 +3894,45 @@
                                         {/each}
                                     </div>
                                 {:else}
-                                    <p class="text-xs text-muted">
-                                        {i18n.current === "ru"
-                                            ? "Достижения не найдены или отсутствуют в источнике"
-                                            : "No achievements found"}
-                                    </p>
+                                    <!-- Achievements are external data: they are fetched on add,
+                                         on an explicit refresh, or from this button — never on
+                                         opening the card. -->
+                                    <div class="flex flex-col items-start gap-2">
+                                        <p class="text-xs text-muted">
+                                            {i18n.current ===
+                                            "ru"
+                                                ? "Достижения не загружены. Нажмите, чтобы получить список из источника."
+                                                : "Achievements not loaded. Press to fetch them from the source."}
+                                        </p>
+                                        <button
+                                            type="button"
+                                            class="inline-flex items-center gap-2 rounded-md border border-amber-400/30 bg-amber-400/10 px-3 py-1.5 text-xs font-semibold text-amber-300 transition hover:bg-amber-400/20 disabled:opacity-40 cursor-pointer"
+                                            disabled={gameAchievementsLoading}
+                                            onclick={() => {
+                                                if (media)
+                                                    void loadGameAchievements(
+                                                        media,
+                                                        true,
+                                                    );
+                                            }}
+                                        >
+                                            {#if gameAchievementsLoading}
+                                                <LoaderCircle
+                                                    size={13}
+                                                    class="animate-spin"
+                                                    aria-hidden="true"
+                                                />
+                                            {:else}
+                                                <RefreshCw
+                                                    size={13}
+                                                    aria-hidden="true"
+                                                />
+                                            {/if}
+                                            {i18n.current === "ru"
+                                                ? "Загрузить достижения"
+                                                : "Load achievements"}
+                                        </button>
+                                    </div>
                                 {/if}
                             </section>
                         {:else if support && support.editable}
@@ -5386,11 +5506,34 @@
                                 </button>
                             </div>
                         {:else if recommendations.length === 0}
-                            <p
-                                class="rounded-xl bg-[var(--color-panel-line)] p-5 text-sm text-muted"
+                            <!-- The only panel that must never auto-fetch: recommendations are
+                                 requested strictly on this button. -->
+                            <div
+                                class="flex flex-col items-start gap-2 rounded-xl bg-[var(--color-panel-line)] p-5"
                             >
-                                {i18n.t.detail.noRecommendations}
-                            </p>
+                                <p class="text-sm text-muted">
+                                    {i18n.t.detail.noRecommendations}
+                                </p>
+                                <button
+                                    type="button"
+                                    class="inline-flex items-center gap-2 rounded-md border border-[var(--color-accent)]/40 bg-[var(--color-accent)]/10 px-3 py-1.5 text-xs font-semibold text-[var(--color-accent-soft)] transition hover:bg-[var(--color-accent)]/20 disabled:opacity-40 cursor-pointer"
+                                    disabled={recommendationsLoading}
+                                    onclick={() => void loadRecommendations(true)}
+                                >
+                                    {#if recommendationsLoading}
+                                        <LoaderCircle
+                                            size={13}
+                                            class="animate-spin"
+                                            aria-hidden="true"
+                                        />
+                                    {:else}
+                                        <Sparkles size={13} aria-hidden="true" />
+                                    {/if}
+                                    {i18n.current === "ru"
+                                        ? "Получить рекомендации"
+                                        : "Get recommendations"}
+                                </button>
+                            </div>
                         {:else}
                             <div
                                 class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5"

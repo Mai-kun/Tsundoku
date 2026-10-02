@@ -1,24 +1,18 @@
 <script lang="ts">
     import Flag from "lucide-svelte/icons/flag";
     import History from "lucide-svelte/icons/history";
+    import Plus from "lucide-svelte/icons/plus";
     import RefreshCw from "lucide-svelte/icons/refresh-cw";
+    import Star from "lucide-svelte/icons/star";
     import Trash2 from "lucide-svelte/icons/trash-2";
     import {
         clearAllHistory,
-        deleteHistoryEntry,
         errorMessage,
-        getMedia,
+        getHistoryEvents,
     } from "$lib/api";
     import { showToast } from "$lib/stores/toast.svelte";
     import { i18n } from "$lib/i18n/index.svelte";
-
-    interface HistoryEvent {
-        key: string;
-        mediaId: string;
-        title: string;
-        date: string;
-        kind: "started" | "finished";
-    }
+    import type { HistoryEvent, HistoryEventType } from "$lib/types";
 
     interface Props {
         refreshKey: number;
@@ -42,42 +36,7 @@
         loadError = null;
 
         try {
-            const items = await getMedia();
-            const nextEvents = items
-                .flatMap((item): HistoryEvent[] => [
-                    ...(item.startedAt
-                        ? [
-                              {
-                                  key: `${item.id}:started`,
-                                  mediaId: item.id,
-                                  title: item.title,
-                                  date: item.startedAt,
-                                  kind: "started" as const,
-                              },
-                          ]
-                        : []),
-                    ...(item.finishedAt
-                        ? [
-                              {
-                                  key: `${item.id}:finished`,
-                                  mediaId: item.id,
-                                  title: item.title,
-                                  date: item.finishedAt,
-                                  kind: "finished" as const,
-                              },
-                          ]
-                        : []),
-                ])
-                .sort((left, right) => {
-                    const diff = Date.parse(right.date) - Date.parse(left.date);
-                    if (diff !== 0) return diff;
-                    if (left.kind === "finished" && right.kind === "started")
-                        return -1;
-                    if (left.kind === "started" && right.kind === "finished")
-                        return 1;
-                    return 0;
-                });
-
+            const nextEvents = await getHistoryEvents();
             if (sequence === requestSequence) {
                 events = nextEvents;
             }
@@ -99,22 +58,35 @@
     function formatDate(value: string): string {
         return new Intl.DateTimeFormat(i18n.current, {
             dateStyle: "medium",
+            timeStyle: "short",
         }).format(new Date(value));
     }
 
-    async function removeEvent(event: HistoryEvent) {
-        if (!window.confirm(i18n.t.views.confirmDeleteHistoryEntry)) return;
+    const EVENT_LABELS: Record<HistoryEventType, string> = {
+        Added: "добавлено",
+        StatusChanged: "статус изменён",
+        ScoreChanged: "рейтинг изменён",
+        ProgressChanged: "прогресс изменён",
+        Deleted: "удалено",
+        AchievementUnlocked: "достижение получено",
+    };
 
-        const prevEvents = events;
-        events = events.filter((e) => e.key !== event.key);
+    const EVENT_ICONS: Record<HistoryEventType, typeof Flag> = {
+        Added: Plus,
+        StatusChanged: Flag,
+        ScoreChanged: Star,
+        ProgressChanged: RefreshCw,
+        Deleted: Trash2,
+        AchievementUnlocked: Star,
+    };
 
-        try {
-            await deleteHistoryEntry(event.mediaId, event.kind);
-            showToast(i18n.t.views.historyEntryDeleted, "success");
-        } catch (err) {
-            events = prevEvents;
-            showToast(errorMessage(err), "error");
-        }
+    function eventLabel(event: HistoryEvent): string {
+        const base =
+            i18n.current === "ru"
+                ? EVENT_LABELS[event.type]
+                : event.type.replace(/([A-Z])/g, " $1").toLowerCase();
+        const from = event.oldValue ? `${event.oldValue} → ` : "";
+        return `${base}${from}${event.newValue ?? ""}`;
     }
 
     async function handleClearAll() {
@@ -199,38 +171,28 @@
         </div>
     {:else}
         <ol class="space-y-3">
-            {#each events as event (event.key)}
+            {#each events as event (event.id)}
+                {@const Icon = EVENT_ICONS[event.type]}
                 <li
                     class="flex items-center gap-4 rounded-lg bg-card p-4 transition hover:bg-card/80"
                 >
                     <div
-                        class={`grid h-10 w-10 shrink-0 place-items-center rounded-md ${event.kind === "finished" ? "bg-accent/15 text-accent-soft" : "bg-star/15 text-star"}`}
+                        class="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-accent/15 text-accent-soft"
                     >
-                        <Flag size={17} aria-hidden="true" />
+                        <Icon size={17} aria-hidden="true" />
                     </div>
                     <div class="min-w-0 flex-1">
                         <p class="truncate text-sm font-semibold text-ink">
-                            {event.title}
+                            {event.title ?? "—"}
                         </p>
                         <p class="mt-1 text-xs text-muted">
-                            {formatDate(event.date)}
+                            {eventLabel(event)}
                         </p>
                     </div>
                     <span
-                        class="rounded bg-canvas px-2 py-0.5 text-xs font-semibold text-muted"
-                        >{event.kind === "started"
-                            ? i18n.t.status.inProgress
-                            : i18n.t.status.completed}</span
+                        class="shrink-0 text-xs text-muted tabular-nums"
+                        >{formatDate(event.createdAt)}</span
                     >
-                    <button
-                        type="button"
-                        class="grid h-8 w-8 place-items-center rounded-md text-muted transition hover:bg-rose-500/15 hover:text-rose-400 cursor-pointer"
-                        title={i18n.t.common.delete}
-                        aria-label={i18n.t.common.delete}
-                        onclick={() => void removeEvent(event)}
-                    >
-                        <Trash2 size={15} />
-                    </button>
                 </li>
             {/each}
         </ol>

@@ -4,6 +4,7 @@ import type {
   CreateMediaPayload,
   CreateVolumePayload,
   ExternalMedia,
+  HistoryEvent,
   MangaVolume,
   MediaDetail,
   MediaFilters,
@@ -386,6 +387,10 @@ export function getGameRecommendations(params: {
   return requestJson<GameRelatedItem[]>(
     `/api/external/games/recommendations?${query.toString()}`,
   );
+}
+
+export function getHistoryEvents(): Promise<HistoryEvent[]> {
+  return requestJson<HistoryEvent[]>("/api/history");
 }
 
 export function clearAllHistory(): Promise<void> {

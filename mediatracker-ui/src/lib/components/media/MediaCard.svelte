@@ -322,8 +322,6 @@
                     onSelect={(value) =>
                         void changeStatus(value as MediaStatus)}
                     label={i18n.t.status.label}
-                    openOnHover
-                    closeDelay={220}
                 >
                     {#snippet trigger({ popoverTargetId, anchorName })}
                         <button

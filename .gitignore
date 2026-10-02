@@ -488,11 +488,9 @@ shots/
 
 # Audit tooling output (scripts kept in mediatracker-ui/audit/)
 mediatracker-ui/audit/
-mediatracker-ui/checks/
 mediatracker-ui/audit-report.json
 mediatracker-ui/audit-output/
 covers/
-*.txt
 *.log
 *.err
 *.out

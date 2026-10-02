@@ -13,6 +13,9 @@
     "check:visual-qa": "node checks/visualQa.check.cjs",
     "check:nav-overlap": "node checks/navOverlap.check.cjs",
     "check:popover": "node checks/popover.check.cjs",
+        "check:history-delete": "node checks/historyDelete.check.cjs",
+        "check:achievements-buttons": "node checks/achievementsButtons.check.cjs",
+        "check:score-stack": "node checks/scoreStack.check.cjs",
     "check:tokens": "node checks/tokens.check.cjs",
     "preview": "vite preview"
   },

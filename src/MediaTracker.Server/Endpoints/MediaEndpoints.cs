@@ -33,7 +33,7 @@ public static class MediaEndpoints
         var historyGroup = app.MapGroup("/api/history");
         historyGroup.MapGet("/", GetHistoryEvents);
         historyGroup.MapDelete("/", ClearAllHistory);
-        historyGroup.MapDelete("/{id:guid}/{kind}", DeleteHistoryEntry);
+        historyGroup.MapDelete("/{id:guid}", DeleteHistoryEvent);
 
         return app;
     }
@@ -401,7 +401,9 @@ public static class MediaEndpoints
             {
                 e.Id,
                 e.MediaId,
-                e.Type,
+                // Serialised by name so the client can key its label/icon maps directly;
+                // as a raw int every lookup came back undefined.
+                type = e.Type.ToString(),
                 e.OldValue,
                 e.NewValue,
                 e.CreatedAt,
@@ -422,38 +424,25 @@ public static class MediaEndpoints
         return Results.NoContent();
     }
 
-    private static async Task<IResult> DeleteHistoryEntry(
+    /// <summary>
+    /// Removes a single activity-log entry. The id is the event's own id (the list the UI renders),
+    /// not the media id, so deleting one row leaves the rest of that title's history intact.
+    /// </summary>
+    private static async Task<IResult> DeleteHistoryEvent(
         Guid id,
-        string kind,
         AppDbContext db,
         CancellationToken ct)
     {
-        var item = await db.MediaItems.FindAsync([id], ct);
-        if (item is null)
+        var entry = await db.Events.FindAsync([id], ct);
+        if (entry is null)
         {
             return Results.NotFound();
         }
 
-        if (IsHistoryKind(kind, "started"))
-        {
-            item.StartedAt = null;
-        }
-        else if (IsHistoryKind(kind, "finished"))
-        {
-            item.FinishedAt = null;
-        }
-        else
-        {
-            return Results.BadRequest(new { message = "Kind must be 'started' or 'finished'." });
-        }
-
-        item.UpdatedAt = DateTime.UtcNow;
+        db.Events.Remove(entry);
         await db.SaveChangesAsync(ct);
         return Results.NoContent();
     }
-
-    private static bool IsHistoryKind(string kind, string expected) =>
-        string.Equals(kind.Trim(), expected, StringComparison.OrdinalIgnoreCase);
 
     private static async Task<IResult> UpdateProgress(
         Guid id,

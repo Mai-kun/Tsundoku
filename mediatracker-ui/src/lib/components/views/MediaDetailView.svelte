@@ -3894,45 +3894,14 @@
                                         {/each}
                                     </div>
                                 {:else}
-                                    <!-- Achievements are external data: they are fetched on add,
-                                         on an explicit refresh, or from this button — never on
-                                         opening the card. -->
-                                    <div class="flex flex-col items-start gap-2">
-                                        <p class="text-xs text-muted">
-                                            {i18n.current ===
-                                            "ru"
-                                                ? "Достижения не загружены. Нажмите, чтобы получить список из источника."
-                                                : "Achievements not loaded. Press to fetch them from the source."}
-                                        </p>
-                                        <button
-                                            type="button"
-                                            class="inline-flex items-center gap-2 rounded-md border border-amber-400/30 bg-amber-400/10 px-3 py-1.5 text-xs font-semibold text-amber-300 transition hover:bg-amber-400/20 disabled:opacity-40 cursor-pointer"
-                                            disabled={gameAchievementsLoading}
-                                            onclick={() => {
-                                                if (media)
-                                                    void loadGameAchievements(
-                                                        media,
-                                                        true,
-                                                    );
-                                            }}
-                                        >
-                                            {#if gameAchievementsLoading}
-                                                <LoaderCircle
-                                                    size={13}
-                                                    class="animate-spin"
-                                                    aria-hidden="true"
-                                                />
-                                            {:else}
-                                                <RefreshCw
-                                                    size={13}
-                                                    aria-hidden="true"
-                                                />
-                                            {/if}
-                                            {i18n.current === "ru"
-                                                ? "Загрузить достижения"
-                                                : "Load achievements"}
-                                        </button>
-                                    </div>
+                                    <!-- Achievements are external data and are fetched only on add
+                                         or an explicit metadata refresh, never on opening the card.
+                                         There is deliberately no fetch button here. -->
+                                    <p class="text-xs text-muted">
+                                        {i18n.current === "ru"
+                                            ? "Достижения не загружены. Обновите метаданные, чтобы получить их."
+                                            : "Achievements not loaded. Refresh metadata to fetch them."}
+                                    </p>
                                 {/if}
                             </section>
                         {:else if support && support.editable}

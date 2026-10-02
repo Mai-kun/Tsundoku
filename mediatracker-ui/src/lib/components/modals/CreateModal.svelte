@@ -1,10 +1,14 @@
 <script lang="ts">
-    import Minus from "lucide-svelte/icons/minus";
-    import Plus from "lucide-svelte/icons/plus";
     import X from "lucide-svelte/icons/x";
     import { createMedia, errorMessage, updateMedia } from "$lib/api";
-    import Modal from "$lib/components/ui/Modal.svelte";
+    import Modal from "$lib/components/common/Modal.svelte";
+    import BookFormFields from "./BookFormFields.svelte";
+    import GameFormFields from "./GameFormFields.svelte";
+    import MangaFormFields from "./MangaFormFields.svelte";
+    import MovieFormFields from "./MovieFormFields.svelte";
+    import TvShowFormFields from "./TvShowFormFields.svelte";
     import { i18n } from "$lib/i18n/index.svelte";
+    import type { SeasonDraft } from "./TvShowFormFields.svelte";
     import {
         MEDIA_STATUS,
         type CreateMediaPayload,
@@ -16,12 +20,6 @@
     } from "$lib/types";
 
     type CreateType = MediaType;
-
-    interface SeasonDraft {
-        seasonNumber: string;
-        title: string;
-        totalEpisodes: string;
-    }
 
     interface Props {
         isOpen: boolean;
@@ -222,21 +220,7 @@
         }
     }
 
-    function addSeason() {
-        seasons = [
-            ...seasons,
-            {
-                seasonNumber: String(seasons.length + 1),
-                title: "",
-                totalEpisodes: "",
-            },
-        ];
-    }
-
-    function removeSeason(index: number) {
-        seasons = seasons.filter((_, seasonIndex) => seasonIndex !== index);
-    }
-</script>
+    </script>
 
 <Modal {isOpen} onClose={close} labelledBy="create-media-title">
     <div class="flex flex-col max-h-[85vh]">
@@ -383,174 +367,30 @@
             </div>
 
             {#if type === "game"}
-                <div class="grid gap-4 sm:grid-cols-2">
-                    <label class="space-y-1.5 text-sm font-medium text-ink"
-                        ><span>{i18n.t.createModal.fields.platform}</span><input
-                            class="h-10 w-full rounded-lg border border-white/10 bg-field px-3 text-sm font-normal outline-none placeholder:text-muted focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/30"
-                            bind:value={platform}
-                            placeholder={i18n.t.createModal.placeholders
-                                .platform}
-                        /></label
-                    ><label class="space-y-1.5 text-sm font-medium text-ink"
-                        ><span>{i18n.t.createModal.fields.hoursPlayed}</span
-                        ><input
-                            class="h-10 w-full rounded-lg border border-white/10 bg-field px-3 text-sm font-normal outline-none focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/30"
-                            type="number"
-                            min="0"
-                            bind:value={hoursPlayed}
-                        /></label
-                    >
-                </div>
+                <GameFormFields bind:platform bind:hoursPlayed />
             {:else if type === "book"}
-                <div class="grid gap-4 sm:grid-cols-2">
-                    <label class="space-y-1.5 text-sm font-medium text-ink"
-                        ><span>{i18n.t.createModal.fields.author}</span><input
-                            class="h-10 w-full rounded-lg border border-white/10 bg-field px-3 text-sm font-normal outline-none placeholder:text-muted focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/30"
-                            bind:value={author}
-                            placeholder={i18n.t.createModal.placeholders.author}
-                        /></label
-                    ><label class="space-y-1.5 text-sm font-medium text-ink"
-                        ><span>{i18n.t.createModal.fields.totalPages}</span
-                        ><input
-                            class="h-10 w-full rounded-lg border border-white/10 bg-field px-3 text-sm font-normal outline-none focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/30"
-                            type="number"
-                            min="0"
-                            bind:value={totalPages}
-                        /></label
-                    >
-                </div>
+                <BookFormFields bind:author bind:totalPages />
             {:else if type === "manga"}
-                <div class="grid gap-4 sm:grid-cols-2">
-                    <label class="space-y-1.5 text-sm font-medium text-ink"
-                        ><span>{i18n.t.createModal.fields.author}</span><input
-                            class="h-10 w-full rounded-lg border border-white/10 bg-field px-3 text-sm font-normal outline-none placeholder:text-muted focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/30"
-                            bind:value={author}
-                            placeholder={i18n.t.createModal.placeholders.author}
-                        /></label
-                    ><label class="space-y-1.5 text-sm font-medium text-ink"
-                        ><span>{i18n.t.createModal.fields.totalChapters}</span
-                        ><input
-                            class="h-10 w-full rounded-lg border border-white/10 bg-field px-3 text-sm font-normal outline-none focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/30"
-                            type="number"
-                            min="0"
-                            bind:value={totalChapters}
-                        /></label
-                    >
-                </div>
-                <div class="grid gap-4 sm:grid-cols-2">
-                    <label class="space-y-1.5 text-sm font-medium text-ink"
-                        ><span>{i18n.t.createModal.fields.currentVolume}</span
-                        ><input
-                            class="h-10 w-full rounded-lg border border-white/10 bg-field px-3 text-sm font-normal outline-none focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/30"
-                            type="number"
-                            min="0"
-                            bind:value={currentVolume}
-                        /></label
-                    ><label class="space-y-1.5 text-sm font-medium text-ink"
-                        ><span>{i18n.t.detail.tabVolumes}</span><input
-                            class="h-10 w-full rounded-lg border border-white/10 bg-field px-3 text-sm font-normal outline-none focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/30"
-                            type="number"
-                            min="0"
-                            bind:value={totalPages}
-                            placeholder="1"
-                        /></label
-                    >
-                </div>
+                <!-- The volume count shares the totalPages state; the payload reads it back as totalVolumes. -->
+                <MangaFormFields
+                    bind:author
+                    bind:totalChapters
+                    bind:currentVolume
+                    bind:totalVolumes={totalPages}
+                />
             {:else if type === "movie"}
-                <div class="grid gap-4 sm:grid-cols-2">
-                    <label class="space-y-1.5 text-sm font-medium text-ink"
-                        ><span>{i18n.t.createModal.fields.durationMinutes}</span
-                        ><input
-                            class="h-10 w-full rounded-lg border border-white/10 bg-field px-3 text-sm font-normal outline-none focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/30"
-                            type="number"
-                            min="0"
-                            bind:value={durationMinutes}
-                        /></label
-                    ><label class="space-y-1.5 text-sm font-medium text-ink"
-                        ><span>{i18n.t.createModal.fields.studio}</span><input
-                            class="h-10 w-full rounded-lg border border-white/10 bg-field px-3 text-sm font-normal outline-none placeholder:text-muted focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/30"
-                            bind:value={studio}
-                            placeholder={i18n.t.createModal.placeholders.studio}
-                        /></label
-                    >
-                </div>
-                <label class="inline-flex items-center gap-2 text-sm text-muted"
-                    ><input
-                        class="h-4 w-4 accent-accent"
-                        type="checkbox"
-                        bind:checked={isAnime}
-                    />{i18n.t.createModal.fields.isAnime}</label
-                >
+                <MovieFormFields
+                    bind:durationMinutes
+                    bind:studio
+                    bind:isAnime
+                />
             {:else}
-                <div class="grid gap-4 sm:grid-cols-2">
-                    <label class="space-y-1.5 text-sm font-medium text-ink"
-                        ><span>{i18n.t.createModal.fields.studio}</span><input
-                            class="h-10 w-full rounded-lg border border-white/10 bg-field px-3 text-sm font-normal outline-none placeholder:text-muted focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/30"
-                            bind:value={studio}
-                            placeholder={i18n.t.createModal.placeholders.studio}
-                        /></label
-                    ><label class="space-y-1.5 text-sm font-medium text-ink"
-                        ><span>{i18n.t.createModal.fields.network}</span><input
-                            class="h-10 w-full rounded-lg border border-white/10 bg-field px-3 text-sm font-normal outline-none placeholder:text-muted focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/30"
-                            bind:value={network}
-                            placeholder={i18n.t.createModal.placeholders
-                                .network}
-                        /></label
-                    >
-                </div>
-                <label class="inline-flex items-center gap-2 text-sm text-muted"
-                    ><input
-                        class="h-4 w-4 accent-accent"
-                        type="checkbox"
-                        bind:checked={isAnime}
-                    />{i18n.t.createModal.fields.isAnime}</label
-                >
-                <div
-                    class="space-y-3 rounded-xl border border-white/10 bg-field/50 p-3"
-                >
-                    <div class="flex items-center justify-between">
-                        <p class="text-sm font-semibold text-ink">
-                            {i18n.t.navigation.seasons}
-                        </p>
-                        <button
-                            type="button"
-                            class="inline-flex items-center gap-1.5 text-xs font-semibold text-accent-soft transition hover:text-ink"
-                            onclick={addSeason}
-                            ><Plus size={14} aria-hidden="true" />{i18n.t
-                                .createModal.addSeason}</button
-                        >
-                    </div>
-                    {#each seasons as season, index (index)}
-                        <div
-                            class="grid gap-2 sm:grid-cols-[5rem_1fr_7rem_auto]"
-                        >
-                            <input
-                                class="h-9 rounded-lg border border-white/10 bg-field px-2 text-sm outline-none focus:border-accent"
-                                type="number"
-                                min="1"
-                                bind:value={season.seasonNumber}
-                                aria-label={i18n.t.createModal.fields.season}
-                            /><input
-                                class="h-9 rounded-lg border border-white/10 bg-field px-2 text-sm outline-none placeholder:text-muted focus:border-accent"
-                                bind:value={season.title}
-                                placeholder={i18n.t.createModal.placeholders
-                                    .season}
-                            /><input
-                                class="h-9 rounded-lg border border-white/10 bg-field px-2 text-sm outline-none placeholder:text-muted focus:border-accent"
-                                type="number"
-                                min="0"
-                                bind:value={season.totalEpisodes}
-                                placeholder={i18n.t.createModal.fields.episodes}
-                            /><button
-                                type="button"
-                                class="grid h-9 w-9 place-items-center rounded-lg text-muted transition hover:bg-rose-400/10 hover:text-rose-300"
-                                aria-label={i18n.t.common.delete}
-                                onclick={() => removeSeason(index)}
-                                ><Minus size={16} aria-hidden="true" /></button
-                            >
-                        </div>
-                    {/each}
-                </div>
+                <TvShowFormFields
+                    bind:studio
+                    bind:network
+                    bind:isAnime
+                    bind:seasons
+                />
             {/if}
 
             <footer

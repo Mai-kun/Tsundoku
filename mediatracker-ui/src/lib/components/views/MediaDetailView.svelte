@@ -76,9 +76,14 @@
         mediaDetailCache.invalidate(id);
         return loadMediaDetail(id);
     }
-    import CircularCounter from "$lib/components/ui/CircularCounter.svelte";
-    import PopoverMenu from "$lib/components/ui/PopoverMenu.svelte";
-    import Modal from "$lib/components/ui/Modal.svelte";
+    import CircularCounter from "$lib/components/common/CircularCounter.svelte";
+    import PopoverMenu from "$lib/components/common/PopoverMenu.svelte";
+    import Modal from "$lib/components/common/Modal.svelte";
+    import DetailHeader from "$lib/components/media/details/DetailHeader.svelte";
+    import DetailSidebar from "$lib/components/media/details/DetailSidebar.svelte";
+    import GameDetailSection from "$lib/components/media/details/sections/GameDetailSection.svelte";
+    import MangaDetailSection from "$lib/components/media/details/sections/MangaDetailSection.svelte";
+    import TvShowDetailSection from "$lib/components/media/details/sections/TvShowDetailSection.svelte";
 
     interface Props {
         mediaId: string;
@@ -2879,570 +2884,56 @@
         {@const support = progressInfo}
         <div class="flex flex-col gap-8 lg:flex-row">
             <!-- Left Column: Poster, Status + Rating, History, Actions, Details -->
-            <aside
-                class="w-full space-y-6 lg:sticky lg:top-4 lg:self-start lg:w-80 lg:shrink-0"
-            >
-                <div
-                    class="aspect-[2/3] w-full overflow-hidden rounded-xl border border-white/[0.06] bg-[var(--color-panel-line)] shadow-lg"
-                >
-                    {#if media.coverUrl}
-                        <img
-                            src={media.coverUrl}
-                            alt={media.title}
-                            class="h-full w-full object-cover object-top"
-                        />
-                    {:else}
-                        <div class="grid h-full place-items-center text-muted">
-                            <ImageIcon
-                                size={40}
-                                stroke-width={1.25}
-                                aria-hidden="true"
-                            />
-                        </div>
-                    {/if}
-                </div>
-
-                <!-- Status selector and User Rating in a unified row (Item 7) -->
-                <div class="flex items-center gap-2">
-                    <div class="relative flex-1">
-                        <PopoverMenu
-                            id={`detail-status-${media.id}`}
-                            options={statusMenuItems}
-                            selected={statusValue}
-                            onSelect={(value) =>
-                                void changeStatus(value as MediaStatus)}
-                            label={i18n.t.status.label}
-                            matchTriggerWidth
-                            class="min-w-40"
-                            optionClass="hover:bg-[var(--color-panel-raised)]"
-                        >
-                            {#snippet trigger({ popoverTargetId, anchorName })}
-                                <button
-                                    type="button"
-                                    popovertarget={popoverTargetId}
-                                    popovertargetaction="toggle"
-                                    style="anchor-name: {anchorName}"
-                                    disabled={statusBusy}
-                                    class="tap flex h-10 w-full items-center justify-between gap-2 rounded-lg border border-white/[0.08] bg-[var(--color-panel-line)] px-3.5 text-sm font-medium text-white transition hover:bg-[var(--color-panel-raised)] has-[:popover-open]:ring-2 has-[:popover-open]:ring-accent-soft disabled:cursor-not-allowed disabled:opacity-70"
-                                    aria-haspopup="listbox"
-                                >
-                                    <span class="truncate"
-                                        >{statusLabel(statusValue)}</span
-                                    >
-                                    <ChevronDown
-                                        size={15}
-                                        class="shrink-0 transition group-[:popover-open]:rotate-180 has-[:popover-open]:rotate-180"
-                                        aria-hidden="true"
-                                    />
-                                </button>
-                            {/snippet}
-                        </PopoverMenu>
-                    </div>
-
-                    <!-- User Rating Button (Item 7). Icon-only and the same height as
-                         the status block to its left; the menu opens on hover. -->
-                    <div
-                        class="relative shrink-0"
-                        data-rating-popover
-                        role="presentation"
-                        onpointerenter={openRatingPopover}
-                        onpointerleave={closeRatingPopover}
-                    >
-                        <button
-                            type="button"
-                            class={`tap grid h-10 w-10 place-items-center rounded-lg border transition ${
-                                scoreValue !== null
-                                    ? "border-amber-400/40 bg-amber-400/10 text-amber-300"
-                                    : "border-white/[0.08] bg-[var(--color-panel-line)] text-white/80 hover:bg-[var(--color-panel-raised)] hover:text-white"
-                            }`}
-                            onclick={openRatingPopover}
-                            title={i18n.t.detail.yourRating}
-                            aria-label={i18n.t.detail.yourRating}
-                            aria-expanded={userRatingPopoverOpen}
-                        >
-                            {#if scoreValue !== null}
-                                <Star
-                                    size={18}
-                                    class="text-amber-400"
-                                    fill="currentColor"
-                                    aria-hidden="true"
-                                />
-                            {:else}
-                                <Star size={18} aria-hidden="true" />
-                            {/if}
-                        </button>
-
-                        {#if userRatingPopoverOpen}
-                            <div
-                                class="absolute right-0 top-full z-30 mt-2 w-48 rounded-xl border border-white/[0.12] bg-[var(--color-overlay)] p-3 shadow-2xl shadow-black/90"
-                            >
-                                <div
-                                    class="mb-2 text-center text-xs font-semibold text-slate-300"
-                                >
-                                    {#if scoreValue !== null}
-                                        <span class="font-bold tabular-nums text-amber-300"
-                                            >{scoreValue}</span
-                                        >
-                                        {i18n.t.detail.yourRating}
-                                    {:else}
-                                        {i18n.t.detail.rateButton}
-                                    {/if}
-                                </div>
-                                <div class="grid grid-cols-5 gap-1.5">
-                                    {#each Array(10) as _, index}
-                                        {@const val = index + 1}
-                                        <button
-                                            type="button"
-                                            class={`flex h-7 w-7 items-center justify-center rounded-md text-xs font-bold transition cursor-pointer ${
-                                                val === scoreValue
-                                                    ? "bg-[#3b82f6] text-white shadow-md"
-                                                    : "bg-white/5 text-slate-300 hover:bg-white/15 hover:text-white"
-                                            }`}
-                                            onclick={() => {
-                                                void setScore(val);
-                                                hideRatingPopover();
-                                            }}
-                                        >
-                                            {val}
-                                        </button>
-                                    {/each}
-                                </div>
-                                {#if scoreValue !== null}
-                                    <div
-                                        class="mt-2.5 border-t border-white/[0.08] pt-2 text-center"
-                                    >
-                                        <button
-                                            type="button"
-                                            class="text-xs font-semibold text-rose-400 hover:text-rose-300 transition cursor-pointer"
-                                            onclick={() => {
-                                                clearScore();
-                                                hideRatingPopover();
-                                            }}
-                                        >
-                                            {i18n.t.detail.clearRating}
-                                        </button>
-                                    </div>
-                                {/if}
-                            </div>
-                        {/if}
-                    </div>
-                </div>
-                {#if statusError}<p class="text-xs text-rose-300" role="alert">
-                        {errorMessage(statusError)}
-                    </p>{/if}
-
-                <!-- Panel 1: Your History (Items 8, 9) -->
-                <div>
-                    <h2
-                        class="mb-2 text-xs font-bold uppercase tracking-wider text-slate-200"
-                    >
-                        {i18n.t.detail.historyTitle}
-                    </h2>
-                    <div class="panel">
-                        <!-- Every row gets the same padding so the list reads as one even
-                             rhythm; the first/last rows align with the panel's own padding
-                             instead of adding 12px on only one side. -->
-                        <dl class="divide-y divide-white/[0.06] text-sm">
-                            <!-- Movies are watched as a single sitting: a start date and a raw
-                                 "current / total" counter say nothing there that the progress stepper
-                                 does not, so only the completion is kept. Every other type still needs
-                                 both rows — a series or a manga is started, then tracked over time. -->
-                            {#if media.type !== "movie"}
-                                <div
-                                    class="flex items-center justify-between gap-3 py-2.5 first:pt-0"
-                                >
-                                    <dt class="text-muted text-xs">
-                                        {i18n.t.detail.startedLabel}
-                                    </dt>
-                                    <dd class="font-medium text-white text-xs">
-                                        {formatDate(media.startedAt)}
-                                    </dd>
-                                </div>
-                            {/if}
-                            <div
-                                class="flex items-center justify-between gap-3 py-2.5"
-                                class:first:pt-0={media.type === "movie"}
-                            >
-                                <dt class="text-muted text-xs">
-                                    {i18n.t.detail.endedLabel}
-                                </dt>
-                                <dd class="font-medium text-white text-xs">
-                                    {formatDate(media.finishedAt)}
-                                </dd>
-                            </div>
-                            {#if media.type !== "movie"}
-                                <div
-                                    class="flex items-center justify-between gap-3 py-2.5"
-                                >
-                                    <dt class="text-muted text-xs">
-                                        {i18n.t.detail.progressShort}
-                                    </dt>
-                                    <dd
-                                        class="font-medium tabular-nums text-white text-xs"
-                                    >
-                                        {historyProgressText()}
-                                    </dd>
-                                </div>
-                            {/if}
-                            {#if media.type === "movie" || media.type === "tvshow"}
-                                <!-- Pick a known site or type your own; saved on change/blur. -->
-                                <div
-                                    class="flex items-center justify-between gap-3 py-2.5 last:pb-0"
-                                >
-                                    <dt class="text-muted text-xs">
-                                        {i18n.current === "ru"
-                                            ? "Где смотрено"
-                                            : "Watched on"}
-                                    </dt>
-                                    <dd class="min-w-0 flex-1 text-right">
-                                        <input
-                                            id="watched-on-input"
-                                            list="watched-on-sites"
-                                            class="h-8 w-full max-w-[14rem] rounded-lg border border-white/10 bg-elevated px-2 text-right text-xs text-white outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
-                                            placeholder={
-                                                i18n.current === "ru"
-                                                    ? "Выберите сайт или введите свой"
-                                                    : "Pick a site or type your own"
-                                            }
-                                            value={watchedOnInput}
-                                            oninput={(e) => {
-                                                watchedOnInput = e.currentTarget.value;
-                                                watchedOnDirty = true;
-                                            }}
-                                            onchange={() => void saveWatchedOn()}
-                                            onblur={() => {
-                                                if (watchedOnDirty)
-                                                    void saveWatchedOn();
-                                            }}
-                                        />
-                                        <datalist id="watched-on-sites">
-                                            {#each watchedOnOptions as site (site)}
-                                                <option value={site}></option>
-                                            {/each}
-                                        </datalist>
-                                    </dd>
-                                </div>
-                            {/if}
-                            {#if media.type === "game"}
-                                <div
-                                    class="flex items-center justify-between gap-3 py-2.5 last:pb-0"
-                                >
-                                    <dt class="text-muted text-xs">
-                                        {i18n.current === "ru"
-                                            ? "Платформа"
-                                            : "Platform"}
-                                    </dt>
-                                    <dd
-                                        class="relative font-medium text-white text-xs"
-                                    >
-                                        {#if gamePlatformOptions.length > 0}
-                                            <PopoverMenu
-                                                id={`platform-${media.id}`}
-                                                options={platformMenuItems}
-                                                selected={media.userPlatform ??
-                                                    ""}
-                                                onSelect={(value) =>
-                                                    void updateUserPlatform(
-                                                        String(value),
-                                                    )}
-                                                label={i18n.t.detailModal
-                                                    .platform}
-                                                placement="bottom-end"
-                                                class="max-h-56 min-w-[150px] overflow-y-auto"
-                                                optionClass="text-xs"
-                                                openOnHover
-                                                closeDelay={220}
-                                            >
-                                                {#snippet trigger({
-                                                    popoverTargetId,
-                                                    anchorName,
-                                                })}
-                                                    <button
-                                                        type="button"
-                                                        popovertarget={popoverTargetId}
-                                                        popovertargetaction="toggle"
-                                                        style="anchor-name: {anchorName}"
-                                                        class="tap flex max-w-[155px] items-center justify-between gap-2 rounded-lg border border-white/[0.08] bg-[var(--color-field)] px-2.5 py-1.5 text-xs text-white transition hover:border-[color-mix(in_oklab,var(--color-accent)_50%,transparent)] hover:bg-[var(--color-track-faint)] has-[:popover-open]:ring-1 has-[:popover-open]:ring-[var(--color-accent)]"
-                                                        aria-haspopup="listbox"
-                                                    >
-                                                        <span class="truncate"
-                                                            >{media?.userPlatform ||
-                                                                (i18n.current ===
-                                                                "ru"
-                                                                    ? "Не выбрана"
-                                                                    : "Not selected")}</span
-                                                        >
-                                                        <ChevronDown
-                                                            size={13}
-                                                            class="shrink-0 text-muted transition duration-200 has-[:popover-open]:rotate-180 has-[:popover-open]:text-white"
-                                                            aria-hidden="true"
-                                                        />
-                                                    </button>
-                                                {/snippet}
-                                            </PopoverMenu>
-                                        {:else}
-                                            <span class="text-xs text-muted"
-                                                >—</span
-                                            >
-                                        {/if}
-                                    </dd>
-                                </div>
-                            {/if}
-                        </dl>
-                    </div>
-                </div>
-
-                <!-- Panel 2: Actions (Item 9) -->
-                <div>
-                    <h2
-                        class="mb-2 text-xs font-bold uppercase tracking-wider text-slate-200"
-                    >
-                        {i18n.t.detail.actionsTitle}
-                    </h2>
-                    <div class="panel space-y-2">
-                        <button
-                            type="button"
-                            class="flex w-full items-center gap-2.5 rounded-lg bg-surface/50 px-3 py-2.5 text-xs font-medium text-[var(--color-ink-dim)] transition hover:bg-[var(--color-panel-raised)] hover:text-white disabled:cursor-not-allowed disabled:opacity-70"
-                            disabled={refreshBusy}
-                            onclick={() => void handleRefreshMetadata()}
-                        >
-                            <RefreshCw
-                                size={15}
-                                class={`text-[var(--color-success-line)] ${refreshBusy ? "animate-spin" : ""}`}
-                                aria-hidden="true"
-                            />
-                            {i18n.t.detail.updateMetadata}
-                        </button>
-                        {#if refreshError}<p
-                                class="text-xs text-rose-300"
-                                role="alert"
-                            >
-                                {errorMessage(refreshError)}
-                            </p>{/if}
-
-                        <button
-                            type="button"
-                            class="flex w-full items-center gap-2.5 rounded-lg bg-surface/50 px-3 py-2.5 text-xs font-medium text-[var(--color-ink-dim)] transition hover:bg-[var(--color-panel-raised)] hover:text-white"
-                            onclick={() => onNavigate("lists")}
-                        >
-                            <List
-                                size={15}
-                                class="text-[var(--color-accent-soft)]"
-                                aria-hidden="true"
-                            />
-                            {i18n.t.detail.addToLists}
-                        </button>
-
-                        <button
-                            type="button"
-                            class="flex w-full items-center gap-2.5 rounded-lg bg-surface/50 px-3 py-2.5 text-xs font-medium text-[var(--color-ink-dim)] transition hover:bg-[var(--color-panel-raised)] hover:text-white"
-                            onclick={() => onNavigate("calendar")}
-                        >
-                            <CalendarDays
-                                size={15}
-                                class="text-[var(--color-star)]"
-                                aria-hidden="true"
-                            />
-                            {i18n.t.detail.activity}
-                        </button>
-
-                        <button
-                            type="button"
-                            class="flex w-full items-center gap-2.5 rounded-lg bg-surface/50 px-3 py-2.5 text-xs font-medium text-[var(--color-ink-dim)] transition hover:bg-[var(--color-panel-raised)] hover:text-white"
-                            onclick={startEdit}
-                        >
-                            <Pencil
-                                size={15}
-                                class="text-[var(--color-info-soft)]"
-                                aria-hidden="true"
-                            />
-                            {i18n.t.detailModal.edit}
-                        </button>
-
-                        <button
-                            type="button"
-                            class="tap flex w-full items-center gap-2.5 rounded-lg bg-surface/50 px-3 py-2.5 text-xs font-medium text-rose-300 transition hover:bg-[var(--color-panel-raised)] disabled:cursor-not-allowed disabled:opacity-70"
-                            disabled={deleteBusy}
-                            onclick={() => void removeMedia()}
-                        >
-                            <Trash2
-                                size={15}
-                                class="text-rose-400"
-                                aria-hidden="true"
-                            />
-                            {i18n.t.detailModal.delete}
-                        </button>
-                        {#if deleteError}<p
-                                class="text-xs text-rose-300"
-                                role="alert"
-                            >
-                                {errorMessage(deleteError)}
-                            </p>{/if}
-                    </div>
-                </div>
-
-                <!-- Panel 3: Details (Items 8, 9, 11) -->
-                <div>
-                    <h2
-                        class="mb-2 text-xs font-bold uppercase tracking-wider text-slate-200"
-                    >
-                        {i18n.t.detail.detailsTitle}
-                    </h2>
-                    <div class="panel">
-                        <dl class="divide-y divide-white/5 text-sm">
-                            {#each specRows(media) as row, idx (`${row.label}-${idx}`)}
-                                <div
-                                    class="flex items-start justify-between gap-3 py-3 first:pt-0 last:pb-0"
-                                >
-                                    <dt
-                                        class="shrink-0 text-xs font-medium text-muted"
-                                    >
-                                        {row.label}
-                                    </dt>
-                                    <dd
-                                        class="text-right text-xs font-medium text-white"
-                                    >
-                                        {#if row.isLink}
-                                            <a
-                                                href={`https://${row.value}`}
-                                                target="_blank"
-                                                rel="noreferrer"
-                                                class="inline-flex items-center gap-1 text-accent-soft hover:underline"
-                                            >
-                                                {row.value}
-                                                <ExternalLink
-                                                    size={11}
-                                                    aria-hidden="true"
-                                                />
-                                            </a>
-                                        {:else}
-                                            {row.value}
-                                        {/if}
-                                    </dd>
-                                </div>
-                            {/each}
-                        </dl>
-                    </div>
-                </div>
-            </aside>
+            <DetailSidebar
+                {media}
+                {statusOptions}
+                {statusBusy}
+                onChangeStatus={changeStatus}
+                {statusError}
+                {scoreValue}
+                ratingOpen={userRatingPopoverOpen}
+                onRatingOpen={openRatingPopover}
+                onRatingClose={closeRatingPopover}
+                onRatingHide={hideRatingPopover}
+                onSetScore={setScore}
+                onClearScore={clearScore}
+                {formatDate}
+                {historyProgressText}
+                {watchedOnInput}
+                {watchedOnOptions}
+                onWatchedOnInput={(value) => (watchedOnInput = value)}
+                onWatchedOnDirty={() => (watchedOnDirty = true)}
+                onSaveWatchedOn={saveWatchedOn}
+                platformOptions={gamePlatformOptions}
+                onSelectPlatform={updateUserPlatform}
+                {refreshBusy}
+                {refreshError}
+                onRefreshMetadata={handleRefreshMetadata}
+                onStartEdit={startEdit}
+                {deleteBusy}
+                {deleteError}
+                onDelete={removeMedia}
+                {onNavigate}
+                specRows={specRows(media)}
+            />
 
             <!-- Right Column: Header, Badges, Tabs, Tab Content -->
             <div class="min-w-0 flex-1 space-y-6">
-                <!-- Title and Romaji/Subtitle -->
-                <header
-                    class="flex flex-wrap items-start justify-between gap-4"
-                >
-                    <div class="min-w-0">
-                        {#if originalTitle}
-                            <p class="text-sm font-medium text-muted">
-                                {originalTitle}
-                            </p>
-                        {/if}
-                        <h1
-                            class="mt-1 break-words text-3xl font-extrabold tracking-tight text-white"
-                        >
-                            {media.title}
-                        </h1>
-                    </div>
-                </header>
-
-                <!-- Category/Type Tags -->
-                <ul class="flex flex-wrap gap-2">
-                    {#each tags(media) as tag, idx (`${tag}-${idx}`)}
-                        <li
-                            class="rounded-full bg-[color-mix(in_oklab,var(--color-accent)_20%,transparent)] px-3 py-1 text-xs font-medium text-[var(--color-accent-soft)]"
-                        >
-                            {tag}
-                        </li>
-                    {/each}
-                </ul>
-
-                <!-- Uniform External Ratings Badges (Item 6 & Point 1) -->
-                <div class="flex flex-wrap items-center gap-2.5">
-                    {#each externalRatings as rating (rating.source)}
-                        {@const src = rating.source.toLowerCase()}
-                        <div
-                            class="inline-flex h-9 items-center gap-2 rounded-lg border px-3 shadow-sm transition hover:brightness-125 {sourceBadgeClasses(
-                                src,
-                            )}"
-                            title={`${rating.source}: ${rating.score !== null && rating.score > 0 ? rating.score.toFixed(1) : "—"}`}
-                        >
-                            <span
-                                class="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider"
-                            >
-                                {#if src.includes("anilist")}
-                                    <svg
-                                        class="h-3.5 w-3.5 fill-current"
-                                        viewBox="0 0 24 24"
-                                        aria-hidden="true"
-                                        ><path
-                                            d="M24 17.561v4.425H13.678v-4.425zM12.924 2.014l7.157 15.547H14.88l-1.393-3.088H8.847l-1.385 3.088H2.179L9.345 2.014h3.579zm-.897 8.358L10.37 6.452l-1.65 3.92h3.307z"
-                                        /></svg
-                                    >
-                                    AniList
-                                {:else if src.includes("shikimori")}
-                                    Shikimori
-                                {:else if src.includes("mangadex")}
-                                    MangaDex
-                                {:else if src.includes("myanimelist") || src.includes("jikan") || src.includes("mal")}
-                                    MAL
-                                {:else if src.includes("tmdb")}
-                                    TMDB
-                                {:else if src.includes("rawg")}
-                                    RAWG
-                                {:else if src.includes("steam")}
-                                    Steam
-                                {:else if src.includes("igdb")}
-                                    IGDB
-                                {:else if src.includes("kitsu")}
-                                    Kitsu
-                                {:else if src.includes("simkl")}
-                                    Simkl
-                                {:else if src.includes("kinopoisk")}
-                                    Кинопоиск
-                                {:else if src.includes("imdb")}
-                                    IMDb
-                                {:else if src.includes("thetvdb") || src.includes("tvdb")}
-                                    TVDB
-                                {:else if src.includes("mangaupdate")}
-                                    MangaUpdates
-                                {:else if src.includes("openlibrary")}
-                                    OpenLibrary
-                                {:else}
-                                    <Star
-                                        size={13}
-                                        fill="currentColor"
-                                        aria-hidden="true"
-                                    />
-                                    {rating.source}
-                                {/if}
-                            </span>
-                            {#if rating.score !== null && rating.score > 0}
-                                <span
-                                    class="text-sm font-extrabold tabular-nums text-white"
-                                    >{rating.score.toFixed(1)}</span
-                                >
-                                {#if rating.votes}
-                                    <span
-                                        class="text-[11px] font-normal text-white/50"
-                                        >({rating.votes > 1000
-                                            ? (rating.votes / 1000).toFixed(1) +
-                                              "k"
-                                            : rating.votes})</span
-                                    >
-                                {/if}
-                            {:else}
-                                <!-- No spinner here on purpose: the badges are rendered from the local
-                                     DB, so a source with no stored score means "no rating", not
-                                     "still being fetched". -->
-                                <span class="text-sm font-medium text-white/40"
-                                    >—</span
-                                >
-                            {/if}
-                        </div>
-                    {/each}
-                </div>
-
+                <DetailHeader
+                    title={media.title}
+                    {originalTitle}
+                    tags={tags(media)}
+                    ratings={externalRatings}
+                    {sourceBadgeClasses}
+                    synopsisText={synopsisText}
+                    {synopsisExpanded}
+                    {synopsisExpandable}
+                    synopsisTranslated={isSynopsisTranslated}
+                    {translatedSynopsis}
+                    {translatingSynopsis}
+                    onToggleTranslate={toggleTranslateSynopsis}
+                    onToggleExpand={() => (synopsisExpanded = !synopsisExpanded)}
+                />
                 <!-- Sub-navigation Tabs (Item 19) -->
                 <nav
                     class="flex items-center gap-1 border-b border-white/[0.08] pb-px"
@@ -3551,375 +3042,35 @@
                 <!-- TAB 1: OVERVIEW -->
                 {#if activeSubTab === "overview"}
                     <div class="space-y-6">
-                        <!-- Synopsis with conditional Read More (Item 5) & Translator (Item 4) -->
-                        <section
-                            class="space-y-2 rounded-xl bg-[color-mix(in_oklab,var(--color-panel-line)_60%,transparent)] p-5 border border-white/[0.06]"
-                        >
-                            <div class="flex items-center justify-between">
-                                <h2
-                                    class="text-xs font-bold uppercase tracking-wider text-slate-300"
-                                >
-                                    {i18n.t.detail.synopsisTitle}
-                                </h2>
-                                {#if synopsisText}
-                                    <button
-                                        type="button"
-                                        class="inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium text-[var(--color-accent-soft)] transition hover:bg-white/10 hover:text-white cursor-pointer disabled:opacity-50"
-                                        disabled={translatingSynopsis}
-                                        onclick={() =>
-                                            void toggleTranslateSynopsis()}
-                                        title={isSynopsisTranslated
-                                            ? i18n.t.detail.showOriginal
-                                            : i18n.t.detail.translate}
-                                    >
-                                        {#if translatingSynopsis}
-                                            <div
-                                                class="h-3 w-3 animate-spin rounded-full border border-accent border-t-transparent"
-                                            ></div>
-                                            <span
-                                                >{i18n.t.detail
-                                                    .translating}</span
-                                            >
-                                        {:else}
-                                            <Languages
-                                                size={13}
-                                                aria-hidden="true"
-                                            />
-                                            <span
-                                                >{isSynopsisTranslated
-                                                    ? i18n.t.detail.showOriginal
-                                                    : i18n.t.detail
-                                                          .translate}</span
-                                            >
-                                        {/if}
-                                    </button>
-                                {/if}
-                            </div>
-                            {#if synopsisText}
-                                <p
-                                    class={`whitespace-pre-line break-words text-sm leading-relaxed text-[var(--color-ink-dim)] ${synopsisExpandable && !synopsisExpanded ? "line-clamp-4" : ""}`}
-                                >
-                                    {isSynopsisTranslated && translatedSynopsis
-                                        ? translatedSynopsis
-                                        : synopsisText}
-                                </p>
-                                {#if synopsisExpandable}
-                                    <button
-                                        type="button"
-                                        class="inline-flex items-center gap-1 pt-1 text-xs font-semibold text-[var(--color-accent-soft)] transition hover:text-white"
-                                        onclick={() =>
-                                            (synopsisExpanded =
-                                                !synopsisExpanded)}
-                                    >
-                                        {synopsisExpanded
-                                            ? i18n.t.detail.collapse
-                                            : i18n.t.detail.readMore}
-                                        <ChevronDown
-                                            size={14}
-                                            class={`transition ${synopsisExpanded ? "rotate-180" : ""}`}
-                                            aria-hidden="true"
-                                        />
-                                    </button>
-                                {/if}
-                            {:else}
-                                <p class="text-sm text-muted">
-                                    {i18n.t.detail.noSynopsis}
-                                </p>
-                            {/if}
-                        </section>
-
-                        <!-- TV / Anime Compact Episode Progress Banner (Item 19) -->
-                        {#if media.type === "tvshow" && currentSeason}
-                            <div
-                                class="relative overflow-hidden rounded-xl border border-white/[0.08] bg-gradient-to-r from-[var(--color-overlay-strong)] via-[var(--color-panel-line)] to-[var(--color-overlay-strong)] p-5 shadow-lg"
-                            >
-                                <div
-                                    class="flex flex-wrap items-center justify-between gap-4"
-                                >
-                                    <div class="min-w-0">
-                                        <p
-                                            class="text-xs font-semibold uppercase tracking-wider text-[var(--color-accent-soft)]"
-                                        >
-                                            {currentSeason.title}
-                                        </p>
-                                        <p
-                                            class="mt-1 text-lg font-bold text-white"
-                                        >
-                                            {i18n.t.card.episodes(
-                                                currentSeason.currentEpisode,
-                                                currentSeason.totalEpisodes,
-                                            )}
-                                            <span
-                                                class="ml-2 text-xs font-medium text-muted"
-                                                >({Math.round(
-                                                    seasonProgressPercent,
-                                                )}%)</span
-                                            >
-                                        </p>
-                                    </div>
-
-                                    <div class="flex items-center gap-2">
-                                        {#if nextEpisode}
-                                            <button
-                                                type="button"
-                                                class="inline-flex items-center gap-2 rounded-lg bg-[var(--color-accent)] px-4 py-2 text-xs font-semibold text-white shadow-md transition hover:bg-[var(--color-accent-deep)] active:scale-95 disabled:opacity-50"
-                                                disabled={Boolean(episodeBusy)}
-                                                onclick={() =>
-                                                    void toggleEpisode(
-                                                        nextEpisode!.number,
-                                                    )}
-                                            >
-                                                <Check
-                                                    size={14}
-                                                    stroke-width={2.5}
-                                                />
-                                                {i18n.t.detail
-                                                    .bannerNextEpisode}: E{nextEpisode.number}
-                                            </button>
-                                        {:else if currentSeason.totalEpisodes && currentSeason.currentEpisode >= currentSeason.totalEpisodes}
-                                            <span
-                                                class="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500/15 px-3 py-1.5 text-xs font-semibold text-emerald-300"
-                                            >
-                                                <CheckCircle2 size={15} />
-                                                {i18n.t.detail.bannerCompleted}
-                                            </span>
-                                        {/if}
-
-                                        <button
-                                            type="button"
-                                            class="rounded-lg border border-white/[0.08] bg-surface/50 px-3 py-2 text-xs font-medium text-muted transition hover:bg-white/10 hover:text-white"
-                                            onclick={() =>
-                                                (activeSubTab = "episodes")}
-                                        >
-                                            {i18n.t.detail.tabEpisodes} →
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <div
-                                    class="mt-4 h-2 w-full max-w-2xl overflow-hidden rounded-full bg-black/40"
-                                >
-                                    <div
-                                        class="h-full rounded-full bg-gradient-to-r from-[var(--color-accent)] to-[var(--color-info-soft)] transition-all duration-300"
-                                        style={`width: ${seasonProgressPercent}%`}
-                                    ></div>
-                                </div>
-                            </div>
-                        {/if}
 
                         <!-- Game Circular Counter / Book & Manga Stepper Progress -->
                         {#if media.type === "game"}
-                            <section
-                                class="rounded-xl bg-[var(--color-panel-line)] p-5 shadow-sm border border-white/[0.06] flex flex-col items-center"
-                            >
-                                <CircularCounter
-                                    value={progressValue}
-                                    label={support?.label ??
-                                        i18n.t.detail.hoursLabel}
-                                    onChange={(val) => {
-                                        if (!media) return;
-                                        const next = Math.max(val, 0);
-                                        if (pendingSnapshot === null)
-                                            pendingSnapshot = committedProgress;
-                                        progressValue = next;
-                                        progressError = null;
-                                        progressDebounce.schedule(
-                                            media.id,
-                                            next,
-                                        );
-                                    }}
-                                />
-                                {#if progressError}<p
-                                        class="mt-2 text-center text-xs text-rose-300"
-                                        role="alert"
-                                    >
-                                        {errorMessage(progressError)}
-                                    </p>{/if}
-                            </section>
-
-                            <!-- Game Achievements on Overview -->
-                            <section
-                                class="space-y-3 rounded-xl bg-[var(--color-panel-line)] p-5 shadow-sm border border-white/[0.06]"
-                            >
-                                <div
-                                    class="flex items-center justify-between gap-3"
-                                >
-                                    <div class="flex items-center gap-2">
-                                        <Trophy
-                                            size={16}
-                                            class="text-amber-400"
-                                        />
-                                        <h2
-                                            class="text-xs font-bold uppercase tracking-wider text-slate-300"
-                                        >
-                                            {i18n.current === "ru"
-                                                ? "Достижения"
-                                                : "Achievements"}
-                                        </h2>
-                                    </div>
-                                    <div
-                                        class="flex items-center gap-2 shrink-0"
-                                    >
-                                        <button
-                                            type="button"
-                                            class="rounded-lg border border-amber-400/30 bg-amber-400/10 px-2.5 py-1 text-[11px] font-semibold text-amber-300 transition hover:bg-amber-400/20 disabled:opacity-40 cursor-pointer"
-                                            disabled={achievementsBusy
-                                                || gameAchievements.length
-                                                    === 0}
-                                            onclick={() =>
-                                                void toggleAllAchievements()}
-                                            title={i18n.current === "ru"
-                                                ? allAchievementsUnlocked
-                                                    ? "Снять отметки со всех достижений"
-                                                    : "Отметить все достижения"
-                                                : allAchievementsUnlocked
-                                                  ? "Clear all achievements"
-                                                  : "Mark all achievements"}
-                                        >
-                                            {i18n.current === "ru"
-                                                ? allAchievementsUnlocked
-                                                    ? "Снять все"
-                                                    : "Отметить все"
-                                                : allAchievementsUnlocked
-                                                  ? "Clear all"
-                                                  : "Mark all"}
-                                        </button>
-                                        <span
-                                            class="rounded-full bg-amber-400/10 border border-amber-400/20 px-2 py-0.5 text-xs font-semibold text-amber-300"
-                                        >
-                                            {#if gameAchievementsLoading}
-                                                <LoaderCircle
-                                                    size={12}
-                                                    class="animate-spin"
-                                                    role="status"
-                                                    aria-label={i18n.t.common
-                                                        .loading}
-                                                />
-                                            {:else if unlockedAchievementNames.size >
-                                            0}
-                                                {unlockedAchievementNames.size} / {gameAchievementsTotal}
-                                                {i18n.current === "ru"
-                                                    ? "получено"
-                                                    : "unlocked"}
-                                            {:else}
-                                                {gameAchievementsTotal}
-                                                {i18n.current === "ru"
-                                                    ? "достижений"
-                                                    : "achievements"}
-                                            {/if}
-                                            {#if achievementsTruncated}
-                                                <span
-                                                    title={i18n.current ===
-                                                    "ru"
-                                                        ? `Показаны первые ${gameAchievements.length} из ${gameAchievementsTotal}`
-                                                        : `Showing the first ${gameAchievements.length} of ${gameAchievementsTotal}`}
-                                                    >*</span
-                                                >
-                                            {/if}
-                                        </span>
-                                    </div>
-                                </div>
-
-                                {#if gameAchievementsLoading}
-                                    <div
-                                        class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 pt-1"
-                                    >
-                                        {#each Array(4) as _, i (i)}
-                                            <div
-                                                class="h-14 animate-pulse rounded-lg bg-[var(--color-field)]"
-                                            ></div>
-                                        {/each}
-                                    </div>
-                                {:else if gameAchievements.length > 0}
-                                    <div
-                                        class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 pt-1 max-h-72 overflow-y-auto pr-1"
-                                    >
-                                        {#each gameAchievements as ach (ach.name)}
-                                            {@const isUnlocked =
-                                                unlockedAchievementNames.has(
-                                                    ach.name
-                                                        .toLowerCase()
-                                                        .trim(),
-                                                )}
-                                            <button
-                                                type="button"
-                                                class={`flex items-center gap-3 rounded-lg border p-2.5 text-left transition cursor-pointer ${
-                                                    isUnlocked
-                                                        ? "border-emerald-500/40 bg-[var(--color-success-deep)] hover:border-emerald-500/60"
-                                                        : "border-white/[0.06] bg-[var(--color-field)] hover:border-white/[0.12] opacity-75 hover:opacity-100"
-                                                }`}
-                                                onclick={() =>
-                                                    void toggleAchievement(
-                                                        ach.name,
-                                                    )}
-                                                title={isUnlocked
-                                                    ? i18n.current === "ru"
-                                                        ? "Получено (нажмите, чтобы снять)"
-                                                        : "Unlocked (click to lock)"
-                                                    : i18n.current === "ru"
-                                                      ? "Не получено (нажмите, чтобы отметить)"
-                                                      : "Locked (click to unlock)"}
-                                            >
-                                                <div
-                                                    class="relative h-10 w-10 flex-shrink-0"
-                                                >
-                                                    {#if ach.iconUrl}
-                                                        <img
-                                                            src={ach.iconUrl}
-                                                            alt={ach.name}
-                                                            class={`h-10 w-10 rounded-md object-cover bg-black/40 border transition ${
-                                                                isUnlocked
-                                                                    ? "border-emerald-400/50"
-                                                                    : "border-white/[0.08] grayscale contrast-75"
-                                                            }`}
-                                                            loading="lazy"
-                                                        />
-                                                    {:else}
-                                                        <div
-                                                            class={`grid h-10 w-10 place-items-center rounded-md ${isUnlocked ? "bg-emerald-950/60 text-emerald-400" : "bg-[var(--color-panel-line)] text-amber-400"}`}
-                                                        >
-                                                            <Trophy size={16} />
-                                                        </div>
-                                                    {/if}
-                                                    {#if isUnlocked}
-                                                        <div
-                                                            class="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 text-black shadow ring-1 ring-[var(--color-success-deep)]"
-                                                        >
-                                                            <Check
-                                                                size={10}
-                                                                stroke-width={3}
-                                                            />
-                                                        </div>
-                                                    {/if}
-                                                </div>
-                                                <div class="min-w-0 flex-1">
-                                                    <p
-                                                        class={`truncate text-xs font-semibold ${isUnlocked ? "text-emerald-300" : "text-white"}`}
-                                                    >
-                                                        {ach.name}
-                                                    </p>
-                                                    {#if ach.description}
-                                                        <p
-                                                            class="line-clamp-1 text-[11px] text-muted"
-                                                        >
-                                                            {ach.description}
-                                                        </p>
-                                                    {/if}
-                                                </div>
-                                            </button>
-                                        {/each}
-                                    </div>
-                                {:else}
-                                    <!-- Achievements are external data and are fetched only on add
-                                         or an explicit metadata refresh, never on opening the card.
-                                         There is deliberately no fetch button here. -->
-                                    <p class="text-xs text-muted">
-                                        {i18n.current === "ru"
-                                            ? "Достижения не загружены. Обновите метаданные, чтобы получить их."
-                                            : "Achievements not loaded. Refresh metadata to fetch them."}
-                                    </p>
-                                {/if}
-                            </section>
+                            <GameDetailSection
+                                {progressValue}
+                                progressLabel={support?.label ??
+                                    i18n.t.detail.hoursLabel}
+                                {progressError}
+                                onCounterChange={(val) => {
+                                    if (!media) return;
+                                    const next = Math.max(val, 0);
+                                    if (pendingSnapshot === null)
+                                        pendingSnapshot = committedProgress;
+                                    progressValue = next;
+                                    progressError = null;
+                                    progressDebounce.schedule(
+                                        media.id,
+                                        next,
+                                    );
+                                }}
+                                achievements={gameAchievements}
+                                achievementsTotal={gameAchievementsTotal}
+                                achievementsLoading={gameAchievementsLoading}
+                                {achievementsBusy}
+                                {achievementsTruncated}
+                                unlockedNames={unlockedAchievementNames}
+                                onToggleAchievement={toggleAchievement}
+                                onToggleAllAchievements={toggleAllAchievements}
+                            />
                         {:else if support && support.editable}
                             <section
                                 class="space-y-3 rounded-xl bg-[var(--color-panel-line)] p-5 shadow-sm border border-white/[0.06]"
@@ -3990,473 +3141,53 @@
 
                         <!-- Manga Volumes Section on Overview (Item 6) -->
                         {#if media.type === "manga"}
-                            {#if mangaVolumes.length > 0}
-                                <section
-                                    class="space-y-3 rounded-xl bg-[var(--color-panel-line)] p-5 shadow-sm border border-white/[0.06]"
-                                >
-                                    <div
-                                        class="flex items-center justify-between gap-3"
-                                    >
-                                        <div>
-                                            <h2
-                                                class="text-xs font-bold uppercase tracking-wider text-slate-300"
-                                            >
-                                                {i18n.t.detail.tabVolumes}
-                                            </h2>
-                                            <p
-                                                class="text-xs text-muted mt-0.5"
-                                            >
-                                                {mangaVolumes.length}
-                                                {i18n.t.detail.volumesLabel.toLowerCase()}
-                                            </p>
-                                        </div>
-                                        <div class="flex items-center gap-2">
-                                            <button
-                                                type="button"
-                                                class="rounded-lg border border-white/[0.08] bg-surface/50 px-3 py-1.5 text-xs font-medium text-muted transition hover:bg-white/10 hover:text-white"
-                                                onclick={() =>
-                                                    (activeSubTab = "volumes")}
-                                            >
-                                                {i18n.t.detail.tabVolumes} →
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    <div
-                                        class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-1"
-                                    >
-                                        {#each mangaVolumes as vol (vol.id)}
-                                            {@const isDone = isVolumeDone(vol)}
-                                            {@const current =
-                                                volumeCurrent(vol)}
-                                            {@const total = volumeTotal(vol)}
-                                            {@const percent =
-                                                volumePercent(vol)}
-                                            <div
-                                                class="rounded-lg border border-white/[0.08] bg-[var(--color-field)] p-3.5 space-y-2.5"
-                                            >
-                                                <div
-                                                    class="flex items-center justify-between gap-2"
-                                                >
-                                                    <span
-                                                        class="text-xs font-bold text-white truncate"
-                                                        >{vol.title ||
-                                                            `Volume ${vol.volumeNumber}`}</span
-                                                    >
-                                                    {#if isDone}
-                                                        <span
-                                                            class="inline-flex items-center gap-1 rounded bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-bold text-emerald-300"
-                                                        >
-                                                            <Check
-                                                                size={11}
-                                                                stroke-width={2.5}
-                                                            />
-                                                            OK
-                                                        </span>
-                                                    {:else}
-                                                        <span
-                                                            class="text-xs font-semibold tabular-nums text-white"
-                                                        >
-                                                            {volumeProgressLabel(
-                                                                vol,
-                                                            )}
-                                                        </span>
-                                                    {/if}
-                                                </div>
-
-                                                <!-- Progress Bar -->
-                                                <div
-                                                    class="h-1.5 w-full overflow-hidden rounded-full bg-white/10"
-                                                >
-                                                    <div
-                                                        class="h-full rounded-full bg-gradient-to-r from-[var(--color-accent)] to-[var(--color-info-soft)] transition-all duration-200"
-                                                        style={`width: ${percent}%`}
-                                                    ></div>
-                                                </div>
-
-                                                <!-- Stepper and Action -->
-                                                <div
-                                                    class="flex items-center justify-between gap-2 pt-0.5"
-                                                >
-                                                    <div
-                                                        class="flex h-7 items-center rounded-md bg-[var(--color-panel-line)] border border-white/[0.08]"
-                                                    >
-                                                        <button
-                                                            type="button"
-                                                            class="grid h-full w-7 place-items-center text-muted transition hover:text-white disabled:opacity-30"
-                                                            disabled={current <=
-                                                                0 ||
-                                                                Boolean(
-                                                                    volumeBusy,
-                                                                )}
-                                                            onclick={() =>
-                                                                void stepVolumePage(
-                                                                    vol,
-                                                                    -1,
-                                                                )}
-                                                        >
-                                                            <Minus size={12} />
-                                                        </button>
-                                                        <span
-                                                            class="px-2 text-xs font-semibold tabular-nums text-white"
-                                                            >{current}</span
-                                                        >
-                                                        <button
-                                                            type="button"
-                                                            class="grid h-full w-7 place-items-center text-muted transition hover:text-white disabled:opacity-30"
-                                                            disabled={(total >
-                                                                0 &&
-                                                                current >=
-                                                                    total) ||
-                                                                Boolean(
-                                                                    volumeBusy,
-                                                                )}
-                                                            onclick={() =>
-                                                                void stepVolumePage(
-                                                                    vol,
-                                                                    1,
-                                                                )}
-                                                        >
-                                                            <Plus size={12} />
-                                                        </button>
-                                                    </div>
-
-                                                    <div
-                                                        class="flex items-center gap-1"
-                                                    >
-                                                        <button
-                                                            type="button"
-                                                            class="grid h-7 w-7 place-items-center rounded-md bg-white/5 text-muted transition hover:bg-white/10 hover:text-white"
-                                                            onclick={() =>
-                                                                openEditVolume(
-                                                                    vol,
-                                                                )}
-                                                            title="Edit volume"
-                                                        >
-                                                            <Pencil size={11} />
-                                                        </button>
-                                                        <button
-                                                            type="button"
-                                                            class="grid h-7 w-7 place-items-center rounded-md bg-white/5 text-muted transition hover:bg-rose-500/20 hover:text-rose-400"
-                                                            onclick={() =>
-                                                                void handleDeleteVolume(
-                                                                    vol,
-                                                                )}
-                                                            title="Delete volume"
-                                                        >
-                                                            <Trash2 size={11} />
-                                                        </button>
-
-                                                        {#if !isDone}
-                                                            <button
-                                                                type="button"
-                                                                class="inline-flex h-7 items-center gap-1 rounded-md bg-emerald-500/15 px-2 text-[11px] font-semibold text-emerald-300 transition hover:bg-emerald-500/25 disabled:opacity-50"
-                                                                disabled={Boolean(
-                                                                    volumeBusy,
-                                                                )}
-                                                                onclick={() =>
-                                                                    void markVolumeComplete(
-                                                                        vol,
-                                                                    )}
-                                                                title={i18n.t
-                                                                    .detail
-                                                                    .markVolumeComplete}
-                                                            >
-                                                                <Check
-                                                                    size={12}
-                                                                />
-                                                            </button>
-                                                        {:else}
-                                                            <button
-                                                                type="button"
-                                                                class="inline-flex h-7 items-center gap-1 rounded-md bg-white/5 px-2 text-[11px] font-semibold text-muted transition hover:bg-white/10 hover:text-white disabled:opacity-50"
-                                                                disabled={Boolean(
-                                                                    volumeBusy,
-                                                                )}
-                                                                onclick={() =>
-                                                                    void unmarkVolumeComplete(
-                                                                        vol,
-                                                                    )}
-                                                                title="Unmark complete"
-                                                            >
-                                                                <X size={12} />
-                                                            </button>
-                                                        {/if}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        {/each}
-                                    </div>
-                                </section>
-                            {:else if media.totalVolumes && media.totalVolumes > 0}
-                                <section
-                                    class="space-y-3 rounded-xl bg-[var(--color-panel-line)] p-5 shadow-sm border border-white/[0.06]"
-                                >
-                                    <div
-                                        class="flex items-center justify-between gap-3"
-                                    >
-                                        <div>
-                                            <h2
-                                                class="text-xs font-bold uppercase tracking-wider text-slate-300"
-                                            >
-                                                {i18n.t.detail.tabVolumes}
-                                            </h2>
-                                            <p
-                                                class="text-xs text-muted mt-0.5"
-                                            >
-                                                {media.totalVolumes}
-                                                {i18n.t.detail.volumesLabel.toLowerCase()}
-                                            </p>
-                                        </div>
-                                        <button
-                                            type="button"
-                                            class="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-accent)] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[var(--color-accent-bright)] disabled:opacity-50"
-                                            disabled={Boolean(volumeBusy)}
-                                            onclick={() =>
-                                                void handleGenerateVolumes()}
-                                        >
-                                            <Plus size={13} />
-                                            {i18n.t.detail.addVolume} ({media.totalVolumes})
-                                        </button>
-                                    </div>
-                                </section>
-                            {:else}
-                                <section
-                                    class="space-y-3 rounded-xl bg-[var(--color-panel-line)] p-5 shadow-sm border border-white/[0.06]"
-                                >
-                                    <div
-                                        class="flex items-center justify-between gap-3"
-                                    >
-                                        <div>
-                                            <h2
-                                                class="text-xs font-bold uppercase tracking-wider text-slate-300"
-                                            >
-                                                {i18n.t.detail.tabVolumes}
-                                            </h2>
-                                            <p
-                                                class="text-xs text-muted mt-0.5"
-                                            >
-                                                0 {i18n.t.detail.volumesLabel.toLowerCase()}
-                                            </p>
-                                        </div>
-                                        <button
-                                            type="button"
-                                            class="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-accent)] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[var(--color-accent-bright)] disabled:opacity-50"
-                                            disabled={Boolean(volumeBusy)}
-                                            onclick={() =>
-                                                void handleAddVolume()}
-                                        >
-                                            <Plus size={13} />
-                                            {i18n.t.detail.addVolume}
-                                        </button>
-                                    </div>
-                                </section>
-                            {/if}
+                            <MangaDetailSection
+                                {media}
+                                volumes={mangaVolumes}
+                                {volumeBusy}
+                                isDone={isVolumeDone}
+                                current={volumeCurrent}
+                                total={volumeTotal}
+                                percent={volumePercent}
+                                progressLabel={volumeProgressLabel}
+                                onStepPage={stepVolumePage}
+                                onEdit={openEditVolume}
+                                onDelete={handleDeleteVolume}
+                                onMarkComplete={markVolumeComplete}
+                                onUnmarkComplete={unmarkVolumeComplete}
+                                onAddVolume={handleAddVolume}
+                                onGenerateVolumes={handleGenerateVolumes}
+                                onOpenVolumesTab={() =>
+                                    (activeSubTab = "volumes")}
+                            />
                         {/if}
                     </div>
                 {/if}
 
                 <!-- TAB 2: EPISODES (Items 1, 3, 4, 12) -->
-                {#if activeSubTab === "episodes" && media.type === "tvshow"}
-                    <section class="space-y-4">
-                        <!-- Controls bar: Season select, Sort order (Item 3), Batch buttons (Item 1) -->
-                        <div
-                            class="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-[var(--color-panel-line)] p-3.5"
-                        >
-                            <div class="flex items-center gap-3">
-                                {#if seasons.length > 1}
-                                    <select
-                                        class="h-9 rounded-md border border-white/[0.08] bg-[var(--color-field)] px-3 text-xs font-semibold text-white outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
-                                        value={currentSeason?.id ?? ""}
-                                        onchange={(event) =>
-                                            (selectedSeasonId = (
-                                                event.currentTarget as HTMLSelectElement
-                                            ).value)}
-                                    >
-                                        {#each seasons as value (value.id)}
-                                            <option value={value.id}
-                                                >{value.title ||
-                                                    `Season ${value.seasonNumber}`}</option
-                                            >
-                                        {/each}
-                                    </select>
-                                {:else if currentSeason}
-                                    <span
-                                        class="text-xs font-semibold text-white"
-                                        >{currentSeason.title}</span
-                                    >
-                                {/if}
-
-                                {#if currentSeason}
-                                    <span class="text-xs text-muted">
-                                        {i18n.t.card.episodes(
-                                            currentSeason.currentEpisode,
-                                            currentSeason.totalEpisodes,
-                                        )}
-                                    </span>
-                                {/if}
-                            </div>
-
-                            <div class="flex items-center gap-2">
-                                <!-- Episode Sorting Toggle (Item 3) -->
-                                <button
-                                    type="button"
-                                    class="inline-flex h-8 items-center gap-1.5 rounded-md border border-white/[0.08] bg-surface/50 px-2.5 text-xs font-medium text-white transition hover:bg-white/10"
-                                    onclick={() =>
-                                        (episodeSortOrder =
-                                            episodeSortOrder === "asc"
-                                                ? "desc"
-                                                : "asc")}
-                                    title="Toggle episode sort order"
-                                >
-                                    <ArrowUpDown
-                                        size={13}
-                                        class="text-[var(--color-accent-soft)]"
-                                        aria-hidden="true"
-                                    />
-                                    {episodeSortOrder === "asc"
-                                        ? i18n.t.detail.sortAsc
-                                        : i18n.t.detail.sortDesc}
-                                </button>
-
-                                <!-- Mark Season Watched (Item 1) -->
-                                <button
-                                    type="button"
-                                    class="inline-flex h-8 items-center gap-1.5 rounded-md bg-emerald-500/20 border border-emerald-500/30 px-2.5 text-xs font-semibold text-emerald-300 transition hover:bg-emerald-500/30 disabled:opacity-50"
-                                    disabled={Boolean(episodeBusy)}
-                                    onclick={() => void markSeasonComplete()}
-                                >
-                                    <Check size={13} stroke-width={2.5} />
-                                    {i18n.t.detail.markSeasonWatched}
-                                </button>
-
-                                <!-- Reset Season (Item 1) -->
-                                <button
-                                    type="button"
-                                    class="inline-flex h-8 items-center gap-1.5 rounded-md bg-rose-500/10 border border-rose-500/20 px-2.5 text-xs font-semibold text-rose-300 transition hover:bg-rose-500/20 disabled:opacity-50"
-                                    disabled={Boolean(episodeBusy)}
-                                    onclick={() => void resetSeasonProgress()}
-                                >
-                                    <RotateCcw size={13} />
-                                    {i18n.t.detail.resetSeason}
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- Episodes List -->
-                        {#if seasons.length === 0}
-                            <p
-                                class="rounded-xl bg-[var(--color-panel-line)] p-5 text-sm text-muted"
-                            >
-                                {i18n.t.views.noSeasons}
-                            </p>
-                        {:else if episodes.length === 0}
-                            <p
-                                class="rounded-xl bg-[var(--color-panel-line)] p-5 text-sm text-muted"
-                            >
-                                {i18n.t.common.noData}
-                            </p>
-                        {:else}
-                            <div class="space-y-2">
-                                {#each sortedEpisodes as episode (episode.id)}
-                                    <article
-                                        class="flex items-center gap-3.5 rounded-xl border border-white/[0.06] bg-[var(--color-panel-line)] p-3.5 transition hover:bg-[var(--color-panel-raised)]"
-                                    >
-                                        <span
-                                            class="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[var(--color-field)] text-xs font-bold text-[var(--color-muted)]"
-                                        >
-                                            E{episode.number}
-                                        </span>
-                                        <div class="min-w-0 flex-1">
-                                            <p
-                                                class="truncate text-sm font-semibold text-white"
-                                            >
-                                                {episode.title}
-                                            </p>
-                                            {#if episode.airDate}
-                                                <p
-                                                    class="mt-0.5 text-xs text-muted"
-                                                >
-                                                    {formatDate(
-                                                        episode.airDate,
-                                                    )}
-                                                </p>
-                                            {/if}
-                                            {#if episode.description}
-                                                <p
-                                                    class="mt-1 line-clamp-2 text-xs leading-relaxed text-[var(--color-muted)]"
-                                                >
-                                                    {episode.description}
-                                                </p>
-                                            {/if}
-                                        </div>
-
-                                        <div
-                                            class="flex shrink-0 items-center gap-2"
-                                        >
-                                            <!-- Watched Checkmark / Eye toggle (Items 4, 12) -->
-                                            <button
-                                                type="button"
-                                                class={`grid h-8 w-8 place-items-center rounded-full border transition active:scale-95 disabled:cursor-wait disabled:opacity-60 ${
-                                                    episode.watched
-                                                        ? "border-emerald-500/40 bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30"
-                                                        : "border-white/[0.08] bg-[var(--color-field)] text-[var(--color-muted)] hover:bg-[var(--color-panel-line)] hover:text-white"
-                                                }`}
-                                                aria-label={episode.watched
-                                                    ? i18n.t.detail.markWatched
-                                                    : i18n.t.detail.watchAction}
-                                                title={episode.watched
-                                                    ? i18n.t.detail
-                                                          .unwatchAction
-                                                    : i18n.t.detail.markWatched}
-                                                disabled={Boolean(episodeBusy)}
-                                                onclick={() =>
-                                                    void toggleEpisode(
-                                                        episode.number,
-                                                    )}
-                                            >
-                                                {#if episode.watched}
-                                                    <Check
-                                                        size={16}
-                                                        stroke-width={2.8}
-                                                        aria-hidden="true"
-                                                    />
-                                                {:else}
-                                                    <Eye
-                                                        size={15}
-                                                        aria-hidden="true"
-                                                    />
-                                                {/if}
-                                            </button>
-
-                                            <button
-                                                type="button"
-                                                class="grid h-8 w-8 place-items-center rounded-full text-muted transition hover:bg-[var(--color-field)] hover:text-white"
-                                                aria-label={i18n.t.views
-                                                    .listsTitle}
-                                                title={i18n.t.views.listsTitle}
-                                                onclick={() =>
-                                                    onNavigate("lists")}
-                                            >
-                                                <List
-                                                    size={15}
-                                                    aria-hidden="true"
-                                                />
-                                            </button>
-                                        </div>
-                                    </article>
-                                {/each}
-                            </div>
-                            {#if progressError}<p
-                                    class="text-xs text-rose-300"
-                                    role="alert"
-                                >
-                                    {errorMessage(progressError)}
-                                </p>{/if}
-                        {/if}
-                    </section>
+                {#if media.type === "tvshow"}
+                    <TvShowDetailSection
+                        {seasons}
+                        {currentSeason}
+                        showEpisodes={activeSubTab === "episodes"}
+                        {sortedEpisodes}
+                        {nextEpisode}
+                        {seasonProgressPercent}
+                        {episodeBusy}
+                        {progressError}
+                        sortOrder={episodeSortOrder}
+                        onSelectSeason={(id) => (selectedSeasonId = id)}
+                        onToggleSort={() =>
+                            (episodeSortOrder =
+                                episodeSortOrder === "asc" ? "desc" : "asc")}
+                        onMarkSeasonComplete={markSeasonComplete}
+                        onResetSeason={resetSeasonProgress}
+                        onToggleEpisode={toggleEpisode}
+                        onOpenEpisodesTab={() => (activeSubTab = "episodes")}
+                        onOpenLists={() => onNavigate("lists")}
+                        {formatDate}
+                    />
                 {/if}
-
                 <!-- TAB: MANGA VOLUMES -->
                 {#if activeSubTab === "volumes" && media.type === "manga"}
                     <section class="space-y-4">

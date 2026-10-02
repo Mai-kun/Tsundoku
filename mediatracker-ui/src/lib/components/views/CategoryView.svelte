@@ -31,7 +31,8 @@
         type MediaItem,
     } from "$lib/types";
     import FilterBar from "../media/FilterBar.svelte";
-    import MediaGrid from "../media/MediaGrid.svelte";
+    import MediaGrid from "../media/grid/MediaGrid.svelte";
+    import SectionRow from "../media/grid/SectionRow.svelte";
 
     export type Category =
         | "tvshow"
@@ -448,32 +449,18 @@
         {:else}
             <div class="space-y-8">
                 {#each statusGroups as group (`${category}:${group.status}`)}
-                    <section class="space-y-3">
-                        <div class="flex items-center gap-2">
-                            <h2
-                                class="text-[25px] font-bold tracking-wide text-white"
-                            >
-                                {group.title}
-                            </h2>
-                            <span
-                                class="rounded-full bg-surface px-2.5 py-0.5 text-xs font-semibold text-muted"
-                                >{group.items.length}</span
-                            >
-                        </div>
-                        <MediaGrid
-                            items={group.items}
-                            loading={false}
-                            error={null}
-                            onRetry={refresh}
-                            {onOpen}
-                            onProgress={updateProgress}
-                            onProgressCommitted={onMediaChanged}
-                            onStatusChange={handleItemStatusChange}
-                            onEpisodeStep={stepEpisode}
-                            onDelete={removeItem}
-                            {onEdit}
-                        />
-                    </section>
+                    <SectionRow
+                        title={group.title}
+                        items={group.items}
+                        onRetry={refresh}
+                        {onOpen}
+                        onProgress={updateProgress}
+                        onProgressCommitted={onMediaChanged}
+                        onStatusChange={handleItemStatusChange}
+                        onEpisodeStep={stepEpisode}
+                        onDelete={removeItem}
+                        {onEdit}
+                    />
                 {/each}
             </div>
         {/if}
@@ -495,32 +482,18 @@
         {:else}
             <div class="space-y-8">
                 {#each franchiseGroups as group (`${category}:${group.name}`)}
-                    <section class="space-y-3">
-                        <div class="flex items-center gap-2">
-                            <h2
-                                class="text-[25px] font-bold tracking-wide text-white"
-                            >
-                                {group.name}
-                            </h2>
-                            <span
-                                class="rounded-full bg-surface px-2.5 py-0.5 text-xs font-semibold text-muted"
-                                >{group.items.length}</span
-                            >
-                        </div>
-                        <MediaGrid
-                            items={group.items}
-                            loading={false}
-                            error={null}
-                            onRetry={refresh}
-                            {onOpen}
-                            onProgress={updateProgress}
-                            onProgressCommitted={onMediaChanged}
-                            onStatusChange={handleItemStatusChange}
-                            onEpisodeStep={stepEpisode}
-                            onDelete={removeItem}
-                            {onEdit}
-                        />
-                    </section>
+                    <SectionRow
+                        title={group.name}
+                        items={group.items}
+                        onRetry={refresh}
+                        {onOpen}
+                        onProgress={updateProgress}
+                        onProgressCommitted={onMediaChanged}
+                        onStatusChange={handleItemStatusChange}
+                        onEpisodeStep={stepEpisode}
+                        onDelete={removeItem}
+                        {onEdit}
+                    />
                 {/each}
             </div>
         {/if}

@@ -4,7 +4,7 @@
     import { errorMessage } from "$lib/api";
     import { i18n } from "$lib/i18n/index.svelte";
     import type { MediaItem } from "$lib/types";
-    import MediaCard from "./MediaCard.svelte";
+    import MediaCard from "../cards/MediaCard.svelte";
 
     interface Props {
         items: MediaItem[];

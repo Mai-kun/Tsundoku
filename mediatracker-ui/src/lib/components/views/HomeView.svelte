@@ -27,8 +27,8 @@
         type MediaItem,
         type MediaStatus,
     } from "$lib/types";
-    import MediaGrid from "../media/MediaGrid.svelte";
-    import PopoverMenu from "$lib/components/ui/PopoverMenu.svelte";
+    import MediaGrid from "../media/grid/MediaGrid.svelte";
+    import PopoverMenu from "$lib/components/common/PopoverMenu.svelte";
     import { SORT_ICONS } from "../media/FilterBar.svelte";
 
     const sortOptions = $derived<

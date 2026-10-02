@@ -26,7 +26,7 @@
     } from "$lib/api";
     import { showToast } from "$lib/stores/toast.svelte";
     import { i18n } from "$lib/i18n/index.svelte";
-    import Modal from "$lib/components/ui/Modal.svelte";
+    import Modal from "$lib/components/common/Modal.svelte";
     import type { ConnectionTestResult, SourceInfo } from "$lib/types";
 
     interface Props {

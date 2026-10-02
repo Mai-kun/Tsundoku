@@ -35,7 +35,7 @@
         type MediaStatus,
         type StatusFilter,
     } from "$lib/types";
-    import PopoverMenu from "$lib/components/ui/PopoverMenu.svelte";
+    import PopoverMenu from "$lib/components/common/PopoverMenu.svelte";
 
     interface Props {
         status: StatusFilter;

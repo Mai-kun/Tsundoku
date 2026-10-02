@@ -374,7 +374,7 @@
                      read as a real, unrated value on the card. -->
                 {#if item.score !== null && item.score > 0}
                     <div
-                        class="-ml-2 grid h-[2.33rem] w-[2.33rem] place-items-center rounded-full bg-score-bg text-[17px] font-black tabular-nums tracking-tight text-white shadow-lg select-none"
+                        class="relative z-10 -ml-2 grid h-[2.33rem] w-[2.33rem] place-items-center rounded-full bg-score-bg text-[17px] font-black tabular-nums tracking-tight text-white shadow-lg select-none"
                         title={`${i18n.t.createModal.fields.score}: ${item.score}`}
                     >
                         {format(item.score)}

@@ -88,8 +88,10 @@
             i18n.current === "ru"
                 ? EVENT_LABELS[event.type]
                 : event.type.replace(/([A-Z])/g, " $1").toLowerCase();
-        const from = event.oldValue ? `${event.oldValue} → ` : "";
-        return `${base}${from}${event.newValue ?? ""}`;
+        const parts = [base];
+        if (event.oldValue) parts.push(`${event.oldValue} → `);
+        if (event.newValue) parts.push(event.newValue);
+        return parts.join(" ").trim();
     }
 
     async function handleDeleteEvent(event: HistoryEvent) {

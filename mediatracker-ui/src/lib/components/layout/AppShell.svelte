@@ -7,9 +7,11 @@
         header: Snippet;
         children: Snippet;
         mainRef?: (el: HTMLElement | null) => void;
+        /** Hide the view area while a view swap is settling, so no stale view is ever painted. */
+        switching?: boolean;
     }
 
-    let { sidebar, header, children, mainRef }: Props = $props();
+    let { sidebar, header, children, mainRef, switching = false }: Props = $props();
 
     let mainElement = $state<HTMLElement | null>(null);
 
@@ -35,7 +37,10 @@
         <main
             id="main-scroll"
             bind:this={mainElement}
-            class="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-4 pb-24 pt-6 sm:px-6 lg:px-8 lg:pb-8"
+            class="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-4 pb-24 pt-6 sm:px-6 lg:px-8 lg:pb-8 {switching
+                ? 'invisible'
+                : ''}"
+            aria-busy={switching}
         >
             {@render children()}
         </main>

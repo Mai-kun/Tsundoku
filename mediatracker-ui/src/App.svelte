@@ -1,5 +1,6 @@
 <script lang="ts">
-    import { deleteMedia } from "$lib/api";
+    import { flushSync } from "svelte";
+import { deleteMedia } from "$lib/api";
     import AppShell from "$lib/components/layout/AppShell.svelte";
     import Header from "$lib/components/layout/Header.svelte";
     import Sidebar from "$lib/components/layout/Sidebar.svelte";
@@ -40,6 +41,27 @@
 
     let route = readRoute();
     let activeView = $state<AppView>(route.view);
+    /* What is actually in the DOM. Svelte mounts an incoming {#if} branch before tearing down the
+       outgoing one, so switching views rendered both at once for ~170ms. We drop the rendered view
+       to null and force the DOM update with flushSync() before mounting the new one. Both updates
+       then happen inside the same task, so the browser only ever paints the final state: it never
+       sees the outgoing view, the new view, or an empty area. */
+    let renderedView = $state<AppView | null>(route.view);
+    /* True while a view swap is in progress. Svelte defers tearing down the outgoing view (~130ms),
+       so the new one would otherwise paint on top of it. While switching we hide the view area and
+       reveal it again once the stale node is really gone. */
+    let switching = $state(false);
+    let switchFrame = 0;
+
+    function revealWhenSettled() {
+        const main = mainScrollContainer;
+        // One child means only the incoming view is left; then it is safe to show it again.
+        if (main && main.children.length <= 1) {
+            switching = false;
+            return;
+        }
+        switchFrame = requestAnimationFrame(revealWhenSettled);
+    }
     let previousView = $state<AppView>(
         route.view === "seasons" || route.view === "detail"
             ? "home"
@@ -74,6 +96,7 @@
             const nextRoute = readRoute();
             activeView = nextRoute.view;
             selectedMediaId = nextRoute.mediaId;
+            switchView(nextRoute.view);
             if (nextRoute.view === "detail") {
                 setScroll(0);
             } else {
@@ -118,11 +141,29 @@
         window.history.pushState(null, "", url);
     }
 
+    /**
+     * Single entry point for changing views. Unmounts the current view and flushes that removal
+     * synchronously, then mounts the incoming one. Because both DOM updates run in the same task,
+     * the browser paints only the final state -- never two views stacked, never an empty frame.
+     */
+    function switchView(view: AppView) {
+        cancelAnimationFrame(switchFrame);
+        switching = true;
+        renderedView = null;
+        flushSync();
+        renderedView = view;
+        flushSync();
+        // The stale node may still be in the DOM for a few frames; keep the area hidden until it is
+        // gone so the incoming view is never painted alongside it.
+        switchFrame = requestAnimationFrame(revealWhenSettled);
+    }
+
     function navigate(view: AppView) {
         activeView = view;
         selectedMediaId = null;
         detailDepth = 0;
         writeRoute(view, null);
+        switchView(view);
     }
 
     function openDetail(item: MediaItem) {
@@ -139,6 +180,7 @@
         writeRoute("detail", item.id);
         detailDepth += 1;
         setScroll(0);
+        switchView("detail");
     }
 
     function closeDetail() {
@@ -279,7 +321,7 @@
 
 <svelte:window onkeydown={handleKeydown} />
 
-<AppShell mainRef={(el) => (mainScrollContainer = el)}>
+<AppShell mainRef={(el) => (mainScrollContainer = el)} {switching}>
     {#snippet sidebar()}
         <Sidebar
             {activeView}
@@ -293,14 +335,14 @@
         <Header title={titleForView(activeView)} onSearch={openSearch} />
     {/snippet}
 
-    {#if activeView === "home"}
+    {#if renderedView === "home"}
         <HomeView
             refreshKey={mediaRevision}
             onOpen={openDetail}
             onMediaChanged={mediaChanged}
             onEdit={openEdit}
         />
-    {:else if activeView === "detail" && selectedMediaId}
+    {:else if renderedView === "detail" && selectedMediaId}
         <MediaDetailView
             mediaId={selectedMediaId}
             refreshKey={mediaRevision}
@@ -310,29 +352,28 @@
             onEdit={openEdit}
             onOpenRelated={openDetail}
         />
-    {:else if activeView === "seasons" && selectedMediaId}
+    {:else if renderedView === "seasons" && selectedMediaId}
         <ShowSeasonsView
             mediaId={selectedMediaId}
             refreshKey={mediaRevision}
             onBack={closeDetail}
             onMediaChanged={mediaChanged}
         />
-    {:else if activeView === "stats"}
+    {:else if renderedView === "stats"}
         <StatsView refreshKey={mediaRevision} />
-    {:else if activeView === "history"}
+    {:else if renderedView === "history"}
         <HistoryView refreshKey={mediaRevision} />
-    {:else if activeView === "calendar"}
+    {:else if renderedView === "calendar"}
         <CalendarView />
-    {:else if activeView === "lists"}
+    {:else if renderedView === "lists"}
         <ListsView />
-    {:else if isCategory(activeView)}
-        <!-- Deliberately NOT wrapped in {#key}. Keying the whole view remounted it on every
-             category switch, and Svelte mounts the incoming block before tearing down the
-             outgoing one, so both libraries were on screen together for ~130ms. The section
-             {#each} keys below are category-scoped instead, which rebuilds just the sections
-             whose contents actually differ without remounting the view. -->
+    {:else if renderedView !== null && isCategory(renderedView)}
+        <!-- No {#key} here: keying the whole view remounted it on every switch. The section
+             {#each} keys in CategoryView are category-scoped instead, so sections rebuild only
+             when their contents actually differ. renderedView already guarantees a single
+             mounted view at a time. -->
         <CategoryView
-            category={activeView}
+            category={renderedView}
             refreshKey={mediaRevision}
             onOpen={openDetail}
             onMediaChanged={mediaChanged}

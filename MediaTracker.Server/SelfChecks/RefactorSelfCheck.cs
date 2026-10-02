@@ -11,7 +11,7 @@ namespace MediaTracker.Server.SelfChecks;
 
 /// <summary>
 /// Runnable assertion suite for the pure decision logic extracted out of the endpoint layer.
-/// Run with: dotnet run --project src/MediaTracker.Server -- --selfcheck
+/// Run with: dotnet run --project MediaTracker.Server -- --selfcheck
 /// </summary>
 public static class RefactorSelfCheck
 {

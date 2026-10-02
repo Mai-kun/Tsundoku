@@ -1,6 +1,7 @@
 using System.Text.Json;
 using MediaTracker.Server.DTOs;
 using MediaTracker.Server.Endpoints;
+using MediaTracker.Server.Infrastructure;
 using MediaTracker.Server.Models;
 using MediaTracker.Server.Services.External;
 using MediaTracker.Server.Services.Media;
@@ -40,6 +41,7 @@ public static class RefactorSelfCheck
         CheckReleaseStatusComputation(failures);
         CheckApiKeyLookup(failures);
         CheckCoverSizeLimit(failures);
+        CheckCommandLineParsing(failures);
 
         if (failures.Count == 0)
         {
@@ -534,6 +536,37 @@ private static void CheckMergeKeepsRuntimeAndGenres(List<string> failures)
 
         options.SetKey(" igdb ", "igdb-secret");
         AssertEqual(failures, "igdb-secret", options.GetKey("igdb"), "surrounding whitespace is trimmed");
+    }
+
+    private static void CheckCommandLineParsing(List<string> failures)
+    {
+        AssertEqual(failures, null, CommandLineOptions.Parse([]).Error, "no arguments is not an error");
+        AssertEqual(failures, CommandLineOptions.DefaultServerUrl, CommandLineOptions.Parse([]).ServerUrl, "default server url");
+        AssertEqual(failures, true, CommandLineOptions.Parse(["--headless"]).IsHeadless, "--headless");
+        AssertEqual(failures, true, CommandLineOptions.Parse(["--server-only"]).IsHeadless, "--server-only alias");
+        AssertEqual(failures, TsundokuRunMode.GuiOnly, CommandLineOptions.Parse(["--gui"]).Mode, "--gui");
+        AssertEqual(failures, TsundokuRunMode.GuiOnly, CommandLineOptions.Parse(["--client-only"]).Mode, "--client-only alias");
+
+        var portOnly = CommandLineOptions.Parse(["--port", "5050"]);
+        AssertEqual(failures, 5050, portOnly.Port, "--port value");
+        AssertEqual(failures, "http://127.0.0.1:5050", portOnly.ServerUrl, "--port moves the default server url");
+        AssertEqual(failures, 5050, CommandLineOptions.Parse(["-p", "5050"]).Port, "-p alias");
+
+        var remote = CommandLineOptions.Parse(["--gui", "--server-url", "http://192.168.1.50:5000/"]);
+        AssertEqual(failures, "http://192.168.1.50:5000", remote.ServerUrl, "--server-url trailing slash is trimmed");
+
+        AssertEqual(failures, "D:\\TsundokuData", CommandLineOptions.Parse(["--data-dir", "D:\\TsundokuData"]).DataDirectory, "--data-dir");
+        AssertEqual(failures, true, CommandLineOptions.Parse(["--migrate-only"]).MigrateOnly, "--migrate-only");
+        AssertEqual(failures, true, CommandLineOptions.Parse(["--help"]).ShowHelp, "--help");
+        AssertEqual(failures, true, CommandLineOptions.Parse(["-h"]).ShowHelp, "-h alias");
+
+        AssertTrue(failures, CommandLineOptions.Parse(["--port", "abc"]).Error is not null, "non-numeric port rejected");
+        AssertTrue(failures, CommandLineOptions.Parse(["--port", "70000"]).Error is not null, "out-of-range port rejected");
+        AssertTrue(failures, CommandLineOptions.Parse(["--port"]).Error is not null, "port without a value rejected");
+        AssertTrue(failures, CommandLineOptions.Parse(["--server-url", "not-a-url"]).Error is not null, "relative server url rejected");
+        AssertTrue(failures, CommandLineOptions.Parse(["--server-url"]).Error is not null, "server url without a value rejected");
+        AssertTrue(failures, CommandLineOptions.Parse(["--data-dir"]).Error is not null, "data dir without a value rejected");
+        AssertTrue(failures, CommandLineOptions.Parse(["--nope"]).Error is not null, "unknown option rejected");
     }
 
     private static void AssertTrue(List<string> failures, bool condition, string label)

@@ -17,31 +17,61 @@ using OpenApiUi;
 using Serilog;
 using Serilog.Events;
 
-var isContainer = Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER") == "true";
-var isHeadless = isContainer
-                 || args.Contains("--headless")
-                 || Environment.GetEnvironmentVariable("HEADLESS") == "true";
+var options = CommandLineOptions.Parse(args);
+
+if (options.ShowHelp)
+{
+    ConsoleOutput.Attach();
+    Console.WriteLine(CommandLineOptions.HelpText);
+    return 0;
+}
+
+if (options.Error is { } cliError)
+{
+    ConsoleOutput.Attach();
+    Console.Error.WriteLine($"Tsundoku: {cliError}");
+    Console.Error.WriteLine("Run Tsundoku.exe --help to see the available options.");
+    return 2;
+}
 
 // Self-check runs before any host/DB setup so it stays a pure, fast logic check.
-if (args.Contains("--selfcheck"))
+if (options.RunSelfCheck)
 {
     return RefactorSelfCheck.Run() == 0 ? 0 : 1;
 }
 
-var appPaths = new AppPaths(isContainer
-    ? Directory.GetCurrentDirectory()
-    : Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "Tsundoku"));
+if (options.Mode == TsundokuRunMode.GuiOnly)
+{
+    Log.Information("Tsundoku starting in client-only mode. Server address: {ServerAddress}", options.ServerUrl);
+    RunPhotinoWindow(options.ServerUrl!);
+    Log.CloseAndFlush();
+    return 0;
+}
+
+var isContainer = CommandLineOptions.IsRunningInContainer;
+
+var appPaths = new AppPaths(options.DataDirectory is { Length: > 0 } dataDirectory
+    ? Path.GetFullPath(dataDirectory)
+    : isContainer
+        ? Directory.GetCurrentDirectory()
+        : Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "Tsundoku"));
 
 ConfigureLogging(appPaths.LogsDirectory);
 
 try
 {
-    var builder = WebApplication.CreateBuilder(args);
+    var builder = WebApplication.CreateBuilder();
+
     builder.Host.UseSerilog();
 
-    builder.WebHost.UseUrls("http://0.0.0.0:5000");
+    var listenUrl = options.Port is { } kestrelPort
+        ? $"http://0.0.0.0:{kestrelPort}"
+        : Environment.GetEnvironmentVariable("ASPNETCORE_URLS")
+          ?? $"http://0.0.0.0:{CommandLineOptions.DefaultPort}";
+
+    builder.WebHost.UseUrls(listenUrl);
 
     builder.Services.AddSingleton(appPaths);
 
@@ -104,6 +134,12 @@ try
     app.UseResponseCompression();
 
     await InitializeDatabaseAsync(app);
+
+    if (options.MigrateOnly)
+    {
+        Log.Information("Database migrations applied. Exiting because of --migrate-only.");
+        return 0;
+    }
 
     app.UseExceptionHandler();
 
@@ -175,22 +211,22 @@ try
         await stream.CopyToAsync(context.Response.Body);
     });
 
-    var mode = isHeadless ? "Headless" : "Photino";
+    var mode = options.Mode == TsundokuRunMode.Headless ? "Headless" : "Photino";
     Log.Information(
         "Tsundoku starting. .NET Version: {DotNetVersion}, OS: {OSDescription}, Mode: {Mode}, Server Address: {ServerAddress}",
         Environment.Version.ToString(),
         RuntimeInformation.OSDescription,
         mode,
-        "http://0.0.0.0:5000");
+        listenUrl);
 
-    if (isHeadless)
+    if (options.IsHeadless)
     {
         await app.RunAsync();
     }
     else
     {
         await app.StartAsync();
-        RunPhotinoWindow();
+        RunPhotinoWindow(options.ServerUrl!);
         await app.StopAsync();
     }
 }
@@ -249,7 +285,7 @@ static async Task InitializeDatabaseAsync(WebApplication app)
     await franchiseService.AutoBackfillFranchisesAsync(db);
 }
 
-static void RunPhotinoWindow()
+static void RunPhotinoWindow(string serverUrl)
 {
     var uiThread = new Thread(() =>
     {
@@ -259,7 +295,7 @@ static void RunPhotinoWindow()
             .SetSize(1300, 850)
             .Center()
             .SetDevToolsEnabled(true)
-            .Load("http://127.0.0.1:5000");
+            .Load(serverUrl);
 
         window.WaitForClose();
     });

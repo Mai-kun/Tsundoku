@@ -4,29 +4,14 @@ namespace MediaTracker.Server.Services.External;
 
 public static class MediaMerger
 {
-    private static readonly FrozenDictionary<string, string> CanonicalNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-    {
-        ["mal"] = "MyAnimeList",
-        ["jikan"] = "MyAnimeList",
-        ["myanimelist"] = "MyAnimeList",
-        ["anilist"] = "AniList",
-        ["mangaupdates"] = "MangaUpdates",
-        ["mangadex"] = "MangaDex",
-        ["tmdb"] = "TMDB",
-        ["rawg"] = "RAWG",
-        ["openlibrary"] = "OpenLibrary",
-        ["kitsu"] = "Kitsu",
-        ["shikimori"] = "Shikimori",
-        ["googlebooks"] = "Google Books",
-        ["google"] = "Google Books",
-        ["steam"] = "Steam",
-        ["imdb"] = "IMDb",
-        ["simkl"] = "Simkl",
-        ["thetvdb"] = "TheTVDB",
-        ["tvdb"] = "TheTVDB",
-        ["kinopoisk"] = "Kinopoisk",
-        ["igdb"] = "IGDB"
-    }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
+    /// <summary>
+    /// Both alias tables are built from what the providers declare, so a new source brings its own
+    /// spelling aliases along. They were two hand-written dictionaries that had to be edited
+    /// alongside the registration list, which is how a new source ended up resolvable by id but
+    /// unresolvable by any name a user would type.
+    /// </summary>
+    private static readonly FrozenDictionary<string, string> CanonicalNames =
+        MetadataSourceRegistry.BuildCanonicalNames().ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Same mapping, ordered longest-alias-first so substring matching is deterministic.</summary>
     private static readonly (string Alias, string Canonical)[] CanonicalNamesByLength =
@@ -34,33 +19,10 @@ public static class MediaMerger
 
     /// <summary>
     /// Maps any source spelling the UI may send (canonical name, provider id, free text) onto the
-    /// canonical id used as the settings key. Data-driven so a new provider is one table entry.
+    /// canonical id used as the settings key.
     /// </summary>
     private static readonly FrozenDictionary<string, string> SourceKeyAliases =
-        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["mal"] = "jikan",
-            ["myanimelist"] = "jikan",
-            ["jikan"] = "jikan",
-            ["anilist"] = "anilist",
-            ["shikimori"] = "shikimori",
-            ["kitsu"] = "kitsu",
-            ["mangaupdates"] = "mangaupdates",
-            ["mangadex"] = "mangadex",
-            ["googlebooks"] = "googlebooks",
-            ["google"] = "googlebooks",
-            ["steam"] = "steam",
-            ["rawg"] = "rawg",
-            ["igdb"] = "igdb",
-            ["imdb"] = "imdb",
-            ["simkl"] = "simkl",
-            ["thetvdb"] = "thetvdb",
-            ["tvdb"] = "thetvdb",
-            ["kinopoisk"] = "kinopoisk",
-            ["tmdb"] = "tmdb",
-            ["movie database"] = "tmdb",
-            ["openlibrary"] = "openlibrary",
-        }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
+        MetadataSourceRegistry.BuildSourceKeyAliases().ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Alias table ordered longest-first so substring matching resolves deterministically.</summary>
     private static readonly (string Alias, string Canonical)[] SourceKeyAliasesByLength =

@@ -2,20 +2,23 @@ using System.Text.Json.Serialization;
 
 namespace MediaTracker.Server.Services.External;
 
-public sealed class ImdbMetadataProvider(IHttpClientFactory httpClientFactory) : IMetadataProvider
+public sealed class ImdbMetadataProvider(IHttpClientFactory httpClientFactory) : MetadataProviderBase
 {
-    public string Id => "imdb";
-    public string Name => "IMDb";
-    public string Description => "Internet Movie Database movies and TV shows metadata provider";
-    public IReadOnlyList<string> MediaTypes => ["movie", "tvshow"];
+    public static MetadataSourceDescriptor Source { get; } = new(
+        Id: "imdb",
+        Name: "IMDb",
+        Description: "Internet Movie Database movies and TV shows metadata provider",
+        MediaTypes: ["movie", "tvshow"],
+        BaseAddress: "https://v2.sg.media-imdb.com/suggestion/",
+        Priority: 2);
 
-    public async Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string query, CancellationToken ct)
+    public override async Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string query, CancellationToken ct)
     {
         var clean = query.Trim();
         if (clean.Length == 0) return [];
 
         var firstChar = char.IsLetterOrDigit(clean[0]) ? clean[0].ToString().ToLowerInvariant() : "a";
-        var client = httpClientFactory.CreateClient("Imdb");
+        var client = httpClientFactory.CreateClient(Id);
         var endpoint = $"{firstChar}/{Uri.EscapeDataString(clean.ToLowerInvariant())}.json";
 
         try
@@ -37,7 +40,7 @@ public sealed class ImdbMetadataProvider(IHttpClientFactory httpClientFactory) :
         }
     }
 
-    public async Task<ExternalMediaDto?> GetDetailsAsync(string externalId, string title, CancellationToken ct)
+    public override async Task<ExternalMediaDto?> GetDetailsAsync(string externalId, string title, CancellationToken ct)
     {
         var results = await SearchAsync(!string.IsNullOrWhiteSpace(title) ? title : externalId, ct);
         return results.FirstOrDefault(r => r.ExternalId.Equals(externalId, StringComparison.OrdinalIgnoreCase))

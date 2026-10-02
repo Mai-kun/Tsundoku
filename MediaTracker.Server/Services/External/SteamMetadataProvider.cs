@@ -3,16 +3,19 @@ using System.Text.Json.Serialization;
 
 namespace MediaTracker.Server.Services.External;
 
-public sealed class SteamMetadataProvider(IHttpClientFactory httpClientFactory) : IMetadataProvider
+public sealed class SteamMetadataProvider(IHttpClientFactory httpClientFactory) : MetadataProviderBase
 {
-    public string Id => "steam";
-    public string Name => "Steam";
-    public string Description => "PC games metadata and Steam Community reviews provider";
-    public IReadOnlyList<string> MediaTypes => ["game"];
+    public static MetadataSourceDescriptor Source { get; } = new(
+        Id: "steam",
+        Name: "Steam",
+        Description: "PC games metadata and Steam Community reviews provider",
+        MediaTypes: ["game"],
+        BaseAddress: "https://store.steampowered.com/api/",
+        Priority: 2);
 
-    public async Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string query, CancellationToken ct)
+    public override async Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string query, CancellationToken ct)
     {
-        var client = httpClientFactory.CreateClient("Steam");
+        var client = httpClientFactory.CreateClient(Id);
         var endpoint = $"storesearch/?term={Uri.EscapeDataString(query)}&l=english&cc=US";
 
         try
@@ -31,9 +34,9 @@ public sealed class SteamMetadataProvider(IHttpClientFactory httpClientFactory) 
         }
     }
 
-    public async Task<ExternalMediaDto?> GetDetailsAsync(string externalId, string title, CancellationToken ct)
+    public override async Task<ExternalMediaDto?> GetDetailsAsync(string externalId, string title, CancellationToken ct)
     {
-        var client = httpClientFactory.CreateClient("Steam");
+        var client = httpClientFactory.CreateClient(Id);
         var endpoint = $"appdetails?appids={Uri.EscapeDataString(externalId)}&l=english";
 
         try

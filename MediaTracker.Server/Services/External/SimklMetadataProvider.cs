@@ -10,13 +10,17 @@ namespace MediaTracker.Server.Services.External;
 public sealed class SimklMetadataProvider(
     IHttpClientFactory httpClientFactory,
     IOptions<ExternalApiOptions> options,
-    [ServiceKey] string? serviceKey = null) : IMetadataProvider
+    [ServiceKey] string? serviceKey = null) : MetadataProviderBase
 {
-    public string Id => "simkl";
-    public string Name => "Simkl";
-    public string Description => "Anime, TV shows and movies metadata & ratings tracking service";
-    public IReadOnlyList<string> MediaTypes => ["anime", "movie", "tvshow"];
-    public bool RequiresApiKey => true;
+    public static MetadataSourceDescriptor Source { get; } = new(
+        Id: "simkl",
+        Name: "Simkl",
+        Description: "Anime, TV shows and movies metadata & ratings tracking service",
+        MediaTypes: ["anime", "movie", "tvshow"],
+        BaseAddress: "https://api.simkl.com/",
+        RequiresApiKey: true,
+        Priority: 4,
+        UserAgent: "MediaTracker/1.0");
 
     private readonly string _mediaType = serviceKey?.StartsWith("anime", StringComparison.OrdinalIgnoreCase) is true ? "anime"
         : serviceKey?.StartsWith("movie", StringComparison.OrdinalIgnoreCase) is true ? "movie"
@@ -25,7 +29,7 @@ public sealed class SimklMetadataProvider(
 
     private string ClientId => options.Value.GetKey(Id) ?? string.Empty;
 
-    public async Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string query, CancellationToken ct)
+    public override async Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string query, CancellationToken ct)
     {
         var clientId = ClientId;
         if (string.IsNullOrWhiteSpace(clientId))
@@ -33,7 +37,7 @@ public sealed class SimklMetadataProvider(
             return [];
         }
 
-        var client = httpClientFactory.CreateClient("Simkl");
+        var client = httpClientFactory.CreateClient(Id);
         var simklType = _mediaType switch
         {
             "movie" => "movies",
@@ -68,7 +72,7 @@ public sealed class SimklMetadataProvider(
         }
     }
 
-    public async Task<ExternalMediaDto?> GetDetailsAsync(string externalId, string title, CancellationToken ct)
+    public override async Task<ExternalMediaDto?> GetDetailsAsync(string externalId, string title, CancellationToken ct)
     {
         var results = await SearchAsync(!string.IsNullOrWhiteSpace(title) ? title : externalId, ct);
         return results.FirstOrDefault(r => r.ExternalId.Equals(externalId, StringComparison.OrdinalIgnoreCase))
@@ -86,7 +90,7 @@ public sealed class SimklMetadataProvider(
         var sw = Stopwatch.StartNew();
         try
         {
-            var client = httpClientFactory.CreateClient("Simkl");
+            var client = httpClientFactory.CreateClient(Id);
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             cts.CancelAfter(TimeSpan.FromSeconds(5));
 

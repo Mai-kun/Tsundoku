@@ -8,16 +8,20 @@ namespace MediaTracker.Server.Services.External;
 public sealed class RawgMetadataProvider(
     IHttpClientFactory httpClientFactory,
     IOptions<ExternalApiOptions> options,
-    ILogger<RawgMetadataProvider> logger) : IMetadataProvider
+    ILogger<RawgMetadataProvider> logger) : MetadataProviderBase
 {
-    public string Id => "rawg";
-    public string Name => "RAWG Video Games Database";
-    public string Description => "Video games metadata & ratings provider";
-    public IReadOnlyList<string> MediaTypes => ["game"];
-    public bool RequiresApiKey => true;
-    public bool IsDefault => true;
+    public static MetadataSourceDescriptor Source { get; } = new(
+        Id: "rawg",
+        Name: "RAWG Video Games Database",
+        Description: "Video games metadata & ratings provider",
+        MediaTypes: ["game"],
+        BaseAddress: "https://api.rawg.io/api/",
+        RequiresApiKey: true,
+        IsDefault: true,
+        Priority: 1,
+        CanonicalName: "RAWG");
 
-    public async Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string query, CancellationToken ct)
+    public override async Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string query, CancellationToken ct)
     {
         var apiKey = options.Value.RawgApiKey;
         if (string.IsNullOrWhiteSpace(apiKey))
@@ -26,7 +30,7 @@ public sealed class RawgMetadataProvider(
             return [];
         }
 
-        var client = httpClientFactory.CreateClient("Rawg");
+        var client = httpClientFactory.CreateClient(Id);
 
         try
         {
@@ -51,7 +55,7 @@ public sealed class RawgMetadataProvider(
         }
     }
 
-    public async Task<ExternalMediaDto?> GetDetailsAsync(string externalId, string title, CancellationToken ct)
+    public override async Task<ExternalMediaDto?> GetDetailsAsync(string externalId, string title, CancellationToken ct)
     {
         var apiKey = options.Value.RawgApiKey;
         if (string.IsNullOrWhiteSpace(apiKey))
@@ -63,7 +67,7 @@ public sealed class RawgMetadataProvider(
         {
             try
             {
-                var client = httpClientFactory.CreateClient("Rawg");
+                var client = httpClientFactory.CreateClient(Id);
                 var item = await client.GetFromJsonAsync<RawgGame>(
                     $"games/{id}?key={Uri.EscapeDataString(apiKey)}", ct);
 

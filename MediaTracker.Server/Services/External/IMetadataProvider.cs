@@ -8,8 +8,8 @@ public interface IMetadataProvider
     string Name { get; }
     string Description { get; }
     IReadOnlyList<string> MediaTypes { get; }
-    bool RequiresApiKey => false;
-    bool IsDefault => false;
+    bool RequiresApiKey { get; }
+    bool IsDefault { get; }
 
     Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string query, CancellationToken ct);
     Task<ExternalMediaDto?> GetDetailsAsync(string externalId, string title, CancellationToken ct);

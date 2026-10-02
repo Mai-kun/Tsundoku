@@ -7,17 +7,21 @@ namespace MediaTracker.Server.Services.External;
 
 public sealed class GoogleBooksMetadataProvider(
     IHttpClientFactory httpClientFactory,
-    IOptions<ExternalApiOptions> options) : IMetadataProvider
+    IOptions<ExternalApiOptions> options) : MetadataProviderBase
 {
-    public string Id => "googlebooks";
-    public string Name => "Google Books";
-    public string Description => "Books metadata and ratings provider from Google";
-    public IReadOnlyList<string> MediaTypes => ["book"];
-    public bool RequiresApiKey => true;
+    public static MetadataSourceDescriptor Source { get; } = new(
+        Id: "googlebooks",
+        Name: "Google Books",
+        Description: "Books metadata and ratings provider from Google",
+        MediaTypes: ["book"],
+        BaseAddress: "https://www.googleapis.com/books/v1/",
+        RequiresApiKey: true,
+        Priority: 2,
+        Aliases: ["google"]);
 
     private string ApiKey => options.Value.GetKey(Id) ?? string.Empty;
 
-    public async Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string query, CancellationToken ct)
+    public override async Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string query, CancellationToken ct)
     {
         var key = ApiKey;
         if (string.IsNullOrWhiteSpace(key))
@@ -25,7 +29,7 @@ public sealed class GoogleBooksMetadataProvider(
             return [];
         }
 
-        var client = httpClientFactory.CreateClient("GoogleBooks");
+        var client = httpClientFactory.CreateClient(Id);
         var endpoint = $"volumes?q={Uri.EscapeDataString(query)}&maxResults=10&key={Uri.EscapeDataString(key)}";
 
         try
@@ -44,7 +48,7 @@ public sealed class GoogleBooksMetadataProvider(
         }
     }
 
-    public async Task<ExternalMediaDto?> GetDetailsAsync(string externalId, string title, CancellationToken ct)
+    public override async Task<ExternalMediaDto?> GetDetailsAsync(string externalId, string title, CancellationToken ct)
     {
         var key = ApiKey;
         if (string.IsNullOrWhiteSpace(key))
@@ -52,7 +56,7 @@ public sealed class GoogleBooksMetadataProvider(
             return null;
         }
 
-        var client = httpClientFactory.CreateClient("GoogleBooks");
+        var client = httpClientFactory.CreateClient(Id);
         var endpoint = $"volumes/{Uri.EscapeDataString(externalId)}?key={Uri.EscapeDataString(key)}";
 
         try
@@ -82,7 +86,7 @@ public sealed class GoogleBooksMetadataProvider(
         var sw = Stopwatch.StartNew();
         try
         {
-            var client = httpClientFactory.CreateClient("GoogleBooks");
+            var client = httpClientFactory.CreateClient(Id);
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             cts.CancelAfter(TimeSpan.FromSeconds(5));
 

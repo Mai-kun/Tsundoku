@@ -5,16 +5,19 @@ using Microsoft.Extensions.DependencyInjection;
 namespace MediaTracker.Server.Services.External;
 
 public sealed class MangaUpdatesMetadataProvider(
-    IHttpClientFactory httpClientFactory) : IMetadataProvider
+    IHttpClientFactory httpClientFactory) : MetadataProviderBase
 {
-    public string Id => "mangaupdates";
-    public string Name => "MangaUpdates";
-    public string Description => "Manga and Manhwa metadata & ratings provider";
-    public IReadOnlyList<string> MediaTypes => ["manga"];
+    public static MetadataSourceDescriptor Source { get; } = new(
+        Id: "mangaupdates",
+        Name: "MangaUpdates",
+        Description: "Manga and Manhwa metadata & ratings provider",
+        MediaTypes: ["manga"],
+        BaseAddress: "https://api.mangaupdates.com/v1/",
+        Priority: 4);
 
-    public async Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string query, CancellationToken ct)
+    public override async Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string query, CancellationToken ct)
     {
-        var client = httpClientFactory.CreateClient("MangaUpdates");
+        var client = httpClientFactory.CreateClient(Id);
         var requestPayload = new
         {
             search = query,
@@ -46,9 +49,9 @@ public sealed class MangaUpdatesMetadataProvider(
         }
     }
 
-    public async Task<ExternalMediaDto?> GetDetailsAsync(string externalId, string title, CancellationToken ct)
+    public override async Task<ExternalMediaDto?> GetDetailsAsync(string externalId, string title, CancellationToken ct)
     {
-        var client = httpClientFactory.CreateClient("MangaUpdates");
+        var client = httpClientFactory.CreateClient(Id);
 
         try
         {

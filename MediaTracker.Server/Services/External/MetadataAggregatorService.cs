@@ -10,7 +10,7 @@ public sealed class MetadataAggregatorService(
     ILogger<MetadataAggregatorService> logger)
 {
     private static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(10);
-    public static readonly string[] AllTypes = ["anime", "manga", "movie", "tvshow", "game", "book"];
+    private static readonly string[] AllTypes = ["anime", "manga", "movie", "tvshow", "game", "book"];
 
     public async Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string type, string query, CancellationToken ct)
     {

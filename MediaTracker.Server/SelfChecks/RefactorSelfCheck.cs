@@ -20,6 +20,7 @@ public static class RefactorSelfCheck
         var failures = new List<string>();
 
         CheckSourceAliases(failures);
+        CheckSourceRegistryIsSelfContained(failures);
         CheckExternalUrlDetection(failures);
         CheckRatingsSerialization(failures);
         CheckMangaGapEnrichment(failures);
@@ -117,6 +118,93 @@ public static class RefactorSelfCheck
             string.Empty,
             MediaMerger.GetCanonicalSourceName("  "),
             "canonical blank"
+        );
+    }
+
+    /// <summary>
+    /// The whole point of the registry is that a provider file is the only place a source is declared.
+    /// These assertions fail the moment that stops being true: an id nothing resolves to, a type missing
+    /// from the cascade, or two sources sharing an id.
+    /// </summary>
+    private static void CheckSourceRegistryIsSelfContained(List<string> failures)
+    {
+        var sources = MetadataSourceRegistry.All;
+
+        AssertTrue(failures, sources.Count > 0, "the registry discovered at least one source");
+
+        var ids = sources.Select(s => s.Id).ToList();
+        AssertEqual(
+            failures,
+            ids.Count,
+            ids.Distinct(StringComparer.OrdinalIgnoreCase).Count(),
+            "source ids are unique"
+        );
+
+        foreach (var descriptor in sources)
+        {
+            // Every source must be reachable under its own id, or MediaMerger's normalizer would resolve
+            // a settings key to a provider the container cannot hand out.
+            AssertEqual(
+                failures,
+                descriptor.Id,
+                MediaMerger.NormalizeSourceKey(descriptor.Id),
+                $"'{descriptor.Id}' normalizes to itself"
+            );
+
+            AssertTrue(
+                failures,
+                Uri.TryCreate(descriptor.BaseAddress, UriKind.Absolute, out _),
+                $"'{descriptor.Id}' declares an absolute base address"
+            );
+
+            AssertTrue(
+                failures,
+                descriptor.MediaTypes.Count > 0,
+                $"'{descriptor.Id}' serves at least one media type"
+            );
+
+            foreach (var mediaType in descriptor.MediaTypes)
+            {
+                AssertTrue(
+                    failures,
+                    SourcePriorityService.DefaultPriorities.TryGetValue(mediaType, out var cascade)
+                        && cascade.Contains(descriptor.Id, StringComparer.OrdinalIgnoreCase),
+                    $"'{descriptor.Id}' appears in the '{mediaType}' cascade"
+                );
+            }
+        }
+
+        // The cascade order is what fills gaps, so a source must never sort behind a source that only
+        // exists to fill gaps for it. These two assertions pin the shipped order exactly.
+        AssertEqual(
+            failures,
+            "anilist,shikimori,kitsu,simkl,jikan",
+            string.Join(',', SourcePriorityService.DefaultPriorities["anime"]),
+            "anime cascade order"
+        );
+        AssertEqual(
+            failures,
+            "tmdb,imdb,kinopoisk,simkl,thetvdb",
+            string.Join(',', SourcePriorityService.DefaultPriorities["movie"]),
+            "movie cascade order"
+        );
+        AssertEqual(
+            failures,
+            "anilist,shikimori,mangadex,mangaupdates,jikan",
+            string.Join(',', SourcePriorityService.DefaultPriorities["manga"]),
+            "manga cascade order"
+        );
+        AssertEqual(
+            failures,
+            "rawg,steam,igdb",
+            string.Join(',', SourcePriorityService.DefaultPriorities["game"]),
+            "game cascade order"
+        );
+        AssertEqual(
+            failures,
+            "openlibrary,googlebooks",
+            string.Join(',', SourcePriorityService.DefaultPriorities["book"]),
+            "book cascade order"
         );
     }
 

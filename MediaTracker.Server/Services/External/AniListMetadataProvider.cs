@@ -7,13 +7,16 @@ namespace MediaTracker.Server.Services.External;
 
 public sealed partial class AniListMetadataProvider(
     IHttpClientFactory httpClientFactory,
-    [ServiceKey] string? serviceKey = null) : IMetadataProvider
+    [ServiceKey] string? serviceKey = null) : MetadataProviderBase
 {
-    public string Id => "anilist";
-    public string Name => "AniList";
-    public string Description => "Anime and Manga metadata & ratings provider";
-    public IReadOnlyList<string> MediaTypes => ["anime", "manga"];
-    public bool IsDefault => true;
+    public static MetadataSourceDescriptor Source { get; } = new(
+        Id: "anilist",
+        Name: "AniList",
+        Description: "Anime and Manga metadata & ratings provider",
+        MediaTypes: ["anime", "manga"],
+        BaseAddress: "https://graphql.anilist.co/",
+        IsDefault: true,
+        Priority: 1);
 
     private readonly string mediaType = serviceKey?.StartsWith("manga", StringComparison.OrdinalIgnoreCase) is true ? "manga" : "anime";
 
@@ -67,9 +70,9 @@ public sealed partial class AniListMetadataProvider(
         }
         """;
 
-    public async Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string query, CancellationToken ct)
+    public override async Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string query, CancellationToken ct)
     {
-        var client = httpClientFactory.CreateClient("AniList");
+        var client = httpClientFactory.CreateClient(Id);
         var payload = new
         {
             query = GraphQLSearchQuery,
@@ -101,11 +104,11 @@ public sealed partial class AniListMetadataProvider(
         return dtoList;
     }
 
-    public async Task<ExternalMediaDto?> GetDetailsAsync(string externalId, string title, CancellationToken ct)
+    public override async Task<ExternalMediaDto?> GetDetailsAsync(string externalId, string title, CancellationToken ct)
     {
         if (int.TryParse(externalId, out var id))
         {
-            var client = httpClientFactory.CreateClient("AniList");
+            var client = httpClientFactory.CreateClient(Id);
             var payload = new
             {
                 query = GraphQLDetailQuery,
@@ -203,7 +206,7 @@ public sealed partial class AniListMetadataProvider(
     {
         // Only enrich top 3 to keep search responsive
         var targets = items.Take(3).ToList();
-        var client = httpClientFactory.CreateClient("Kitsu");
+        var client = httpClientFactory.CreateClient("kitsu");
 
         var tasks = targets.Select(async dto =>
         {

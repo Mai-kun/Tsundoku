@@ -26,15 +26,13 @@ public sealed class SourcePriorityService(
     public const string DisabledSourcesCacheKey = "settings:disabled_sources";
     private static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(10);
 
-    public static readonly FrozenDictionary<string, string[]> DefaultPriorities = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
-    {
-        ["anime"] = ["anilist", "shikimori", "kitsu", "simkl", "jikan"],
-        ["manga"] = ["anilist", "shikimori", "mangadex", "mangaupdates", "jikan"],
-        ["movie"] = ["tmdb", "imdb", "kinopoisk", "simkl", "thetvdb"],
-        ["tvshow"] = ["tmdb", "imdb", "kinopoisk", "simkl", "thetvdb"],
-        ["game"] = ["rawg", "steam", "igdb"],
-        ["book"] = ["openlibrary", "googlebooks"]
-    }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
+    /// <summary>
+    /// Derived from what each provider declares, ordered by its own priority. It was a hand-written
+    /// dictionary, so a source could be fully registered and still be missing from the cascade the
+    /// aggregator walks whenever it needs to fill a gap.
+    /// </summary>
+    public static readonly FrozenDictionary<string, string[]> DefaultPriorities =
+        MetadataSourceRegistry.BuildDefaultPriorities().ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
     public async Task<IReadOnlyList<string>> GetPrioritiesAsync(string type, CancellationToken ct)
     {

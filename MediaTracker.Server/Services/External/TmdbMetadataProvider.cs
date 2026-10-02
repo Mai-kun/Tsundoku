@@ -10,18 +10,24 @@ public sealed class TmdbMetadataProvider(
     IHttpClientFactory httpClientFactory,
     IOptions<ExternalApiOptions> options,
     ILogger<TmdbMetadataProvider> logger,
-    [ServiceKey] string? serviceKey = null) : IMetadataProvider
+    [ServiceKey] string? serviceKey = null) : MetadataProviderBase
 {
-    public string Id => "tmdb";
-    public string Name => "The Movie Database (TMDb)";
-    public string Description => "Movies and TV Shows metadata & ratings provider";
-    public IReadOnlyList<string> MediaTypes => ["movie", "tvshow"];
-    public bool RequiresApiKey => true;
-    public bool IsDefault => true;
+    public static MetadataSourceDescriptor Source { get; } = new(
+        Id: "tmdb",
+        Name: "The Movie Database (TMDb)",
+        Description: "Movies and TV Shows metadata & ratings provider",
+        MediaTypes: ["movie", "tvshow"],
+        BaseAddress: "https://api.themoviedb.org/3/",
+        RequiresApiKey: true,
+        IsDefault: true,
+        Priority: 1,
+        // Ratings show the short brand, the settings label keeps the full title.
+        CanonicalName: "TMDB",
+        Aliases: ["movie database"]);
 
     private readonly string mediaType = serviceKey?.StartsWith("movie", StringComparison.OrdinalIgnoreCase) is true ? "movie" : "tvshow";
 
-    public async Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string query, CancellationToken ct)
+    public override async Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string query, CancellationToken ct)
     {
         var apiKey = options.Value.TmdbApiKey;
         if (string.IsNullOrWhiteSpace(apiKey))
@@ -30,7 +36,7 @@ public sealed class TmdbMetadataProvider(
             return [];
         }
 
-        var client = httpClientFactory.CreateClient("Tmdb");
+        var client = httpClientFactory.CreateClient(Id);
         var isMovie = mediaType == "movie";
         var searchPath = isMovie ? "search/movie" : "search/tv";
 
@@ -59,7 +65,7 @@ public sealed class TmdbMetadataProvider(
         }
     }
 
-    public async Task<ExternalMediaDto?> GetDetailsAsync(string externalId, string title, CancellationToken ct)
+    public override async Task<ExternalMediaDto?> GetDetailsAsync(string externalId, string title, CancellationToken ct)
     {
         var apiKey = options.Value.TmdbApiKey;
         if (string.IsNullOrWhiteSpace(apiKey))
@@ -71,7 +77,7 @@ public sealed class TmdbMetadataProvider(
         {
             try
             {
-                var client = httpClientFactory.CreateClient("Tmdb");
+                var client = httpClientFactory.CreateClient(Id);
                 var isMovie = mediaType == "movie";
                 var detailPath = isMovie ? $"movie/{id}" : $"tv/{id}";
                 var item = await client.GetFromJsonAsync<TmdbItem>(

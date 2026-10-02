@@ -10,13 +10,16 @@ public sealed class KinopoiskMetadataProvider(
     IHttpClientFactory httpClientFactory,
     IOptions<ExternalApiOptions> options,
     [ServiceKey] string? serviceKey = null
-) : IMetadataProvider
+) : MetadataProviderBase
 {
-    public string Id => "kinopoisk";
-    public string Name => "Кинопоиск (Kinopoisk)";
-    public string Description => "Russian and international movies, TV series metadata & ratings";
-    public IReadOnlyList<string> MediaTypes => ["movie", "tvshow"];
-    public bool RequiresApiKey => true;
+    public static MetadataSourceDescriptor Source { get; } = new(
+        Id: "kinopoisk",
+        Name: "Кинопоиск (Kinopoisk)",
+        Description: "Russian and international movies, TV series metadata & ratings",
+        MediaTypes: ["movie", "tvshow"],
+        BaseAddress: "https://kinopoiskapiunofficial.tech/api/",
+        RequiresApiKey: true,
+        Priority: 3);
 
     private readonly string _mediaType = serviceKey?.StartsWith(
         "tvshow",
@@ -27,7 +30,7 @@ public sealed class KinopoiskMetadataProvider(
         : "movie";
     private string ApiKey => options.Value.GetKey(Id) ?? string.Empty;
 
-    public async Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(
+    public override async Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(
         string query,
         CancellationToken ct
     )
@@ -36,7 +39,7 @@ public sealed class KinopoiskMetadataProvider(
         if (string.IsNullOrWhiteSpace(key))
             return [];
 
-        var client = httpClientFactory.CreateClient("Kinopoisk");
+        var client = httpClientFactory.CreateClient(Id);
         var endpoint = $"v2.1/films/search-by-keyword?keyword={Uri.EscapeDataString(query)}&page=1";
 
         try
@@ -73,7 +76,7 @@ public sealed class KinopoiskMetadataProvider(
         }
     }
 
-    public async Task<ExternalMediaDto?> GetDetailsAsync(
+    public override async Task<ExternalMediaDto?> GetDetailsAsync(
         string externalId,
         string title,
         CancellationToken ct
@@ -83,7 +86,7 @@ public sealed class KinopoiskMetadataProvider(
         if (string.IsNullOrWhiteSpace(key))
             return null;
 
-        var client = httpClientFactory.CreateClient("Kinopoisk");
+        var client = httpClientFactory.CreateClient(Id);
         var endpoint = $"v2.2/films/{Uri.EscapeDataString(externalId)}";
 
         try
@@ -185,7 +188,7 @@ public sealed class KinopoiskMetadataProvider(
         var sw = Stopwatch.StartNew();
         try
         {
-            var client = httpClientFactory.CreateClient("Kinopoisk");
+            var client = httpClientFactory.CreateClient(Id);
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             cts.CancelAfter(TimeSpan.FromSeconds(5));
 

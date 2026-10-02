@@ -9,13 +9,17 @@ namespace MediaTracker.Server.Services.External;
 public sealed class TvdbMetadataProvider(
     IHttpClientFactory httpClientFactory,
     IOptions<ExternalApiOptions> options,
-    [ServiceKey] string? serviceKey = null) : IMetadataProvider
+    [ServiceKey] string? serviceKey = null) : MetadataProviderBase
 {
-    public string Id => "thetvdb";
-    public string Name => "TheTVDB";
-    public string Description => "Community-driven database for TV shows and movies";
-    public IReadOnlyList<string> MediaTypes => ["tvshow", "movie"];
-    public bool RequiresApiKey => true;
+    public static MetadataSourceDescriptor Source { get; } = new(
+        Id: "thetvdb",
+        Name: "TheTVDB",
+        Description: "Community-driven database for TV shows and movies",
+        MediaTypes: ["tvshow", "movie"],
+        BaseAddress: "https://api4.thetvdb.com/",
+        RequiresApiKey: true,
+        Priority: 5,
+        Aliases: ["tvdb"]);
 
     private readonly string _mediaType = serviceKey?.StartsWith("movie", StringComparison.OrdinalIgnoreCase) is true ? "movie" : "tvshow";
     private string ApiKey => options.Value.GetKey(Id) ?? options.Value.GetKey("tvdb") ?? string.Empty;
@@ -51,12 +55,12 @@ public sealed class TvdbMetadataProvider(
         return null;
     }
 
-    public async Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string query, CancellationToken ct)
+    public override async Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string query, CancellationToken ct)
     {
         var key = ApiKey;
         if (string.IsNullOrWhiteSpace(key)) return [];
 
-        var client = httpClientFactory.CreateClient("TheTVDB");
+        var client = httpClientFactory.CreateClient(Id);
         var token = await GetTokenAsync(client, key, ct);
         if (string.IsNullOrEmpty(token)) return [];
 
@@ -82,7 +86,7 @@ public sealed class TvdbMetadataProvider(
         }
     }
 
-    public async Task<ExternalMediaDto?> GetDetailsAsync(string externalId, string title, CancellationToken ct)
+    public override async Task<ExternalMediaDto?> GetDetailsAsync(string externalId, string title, CancellationToken ct)
     {
         var results = await SearchAsync(!string.IsNullOrWhiteSpace(title) ? title : externalId, ct);
         return results.FirstOrDefault(r => r.ExternalId.Equals(externalId, StringComparison.OrdinalIgnoreCase))
@@ -100,7 +104,7 @@ public sealed class TvdbMetadataProvider(
         var sw = Stopwatch.StartNew();
         try
         {
-            var client = httpClientFactory.CreateClient("TheTVDB");
+            var client = httpClientFactory.CreateClient(Id);
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             cts.CancelAfter(TimeSpan.FromSeconds(5));
 

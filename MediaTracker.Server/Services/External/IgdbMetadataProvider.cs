@@ -7,13 +7,17 @@ namespace MediaTracker.Server.Services.External;
 
 public sealed class IgdbMetadataProvider(
     IHttpClientFactory httpClientFactory,
-    IOptions<ExternalApiOptions> options) : IMetadataProvider
+    IOptions<ExternalApiOptions> options) : MetadataProviderBase
 {
-    public string Id => "igdb";
-    public string Name => "IGDB (Twitch)";
-    public string Description => "Internet Game Database by Twitch for video games";
-    public IReadOnlyList<string> MediaTypes => ["game"];
-    public bool RequiresApiKey => true;
+    public static MetadataSourceDescriptor Source { get; } = new(
+        Id: "igdb",
+        Name: "IGDB (Twitch)",
+        Description: "Internet Game Database by Twitch for video games",
+        MediaTypes: ["game"],
+        BaseAddress: "https://api.igdb.com/",
+        RequiresApiKey: true,
+        Priority: 3,
+        CanonicalName: "IGDB");
 
     private string RawKey => options.Value.GetKey(Id) ?? string.Empty;
 
@@ -66,12 +70,12 @@ public sealed class IgdbMetadataProvider(
         return null;
     }
 
-    public async Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string query, CancellationToken ct)
+    public override async Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string query, CancellationToken ct)
     {
         var (clientId, clientSecret) = ParseKey();
         if (string.IsNullOrWhiteSpace(clientId)) return [];
 
-        var client = httpClientFactory.CreateClient("IGDB");
+        var client = httpClientFactory.CreateClient(Id);
         var token = await GetBearerTokenAsync(client, clientId, clientSecret, ct);
 
         try
@@ -103,7 +107,7 @@ public sealed class IgdbMetadataProvider(
         }
     }
 
-    public async Task<ExternalMediaDto?> GetDetailsAsync(string externalId, string title, CancellationToken ct)
+    public override async Task<ExternalMediaDto?> GetDetailsAsync(string externalId, string title, CancellationToken ct)
     {
         var results = await SearchAsync(!string.IsNullOrWhiteSpace(title) ? title : externalId, ct);
         return results.FirstOrDefault(r => r.ExternalId.Equals(externalId, StringComparison.OrdinalIgnoreCase))
@@ -121,7 +125,7 @@ public sealed class IgdbMetadataProvider(
         var sw = Stopwatch.StartNew();
         try
         {
-            var client = httpClientFactory.CreateClient("IGDB");
+            var client = httpClientFactory.CreateClient(Id);
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             cts.CancelAfter(TimeSpan.FromSeconds(5));
 

@@ -5,18 +5,24 @@ namespace MediaTracker.Server.Services.External;
 public sealed partial class JikanMetadataProvider(
     IHttpClientFactory httpClientFactory,
     [ServiceKey] string? serviceKey = null,
-    ILogger<JikanMetadataProvider>? logger = null) : IMetadataProvider
+    ILogger<JikanMetadataProvider>? logger = null) : MetadataProviderBase
 {
-    public string Id => "jikan";
-    public string Name => "MyAnimeList (Jikan)";
-    public string Description => "Anime and Manga metadata & ratings provider";
-    public IReadOnlyList<string> MediaTypes => ["anime", "manga"];
+    public static MetadataSourceDescriptor Source { get; } = new(
+        Id: "jikan",
+        Name: "MyAnimeList (Jikan)",
+        Description: "Anime and Manga metadata & ratings provider",
+        MediaTypes: ["anime", "manga"],
+        BaseAddress: "https://api.jikan.moe/v4/",
+        Priority: 5,
+        // The rating label drops the "(Jikan)" qualifier the settings label carries.
+        CanonicalName: "MyAnimeList",
+        Aliases: ["mal", "myanimelist"]);
 
     private readonly string _mediaType = serviceKey?.StartsWith("manga", StringComparison.OrdinalIgnoreCase) is true ? "manga" : "anime";
 
-    public async Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string query, CancellationToken ct)
+    public override async Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string query, CancellationToken ct)
     {
-        var client = httpClientFactory.CreateClient("Jikan");
+        var client = httpClientFactory.CreateClient(Id);
         var endpoint = _mediaType == "manga"
             ? $"manga?q={Uri.EscapeDataString(query)}&limit=10"
             : $"anime?q={Uri.EscapeDataString(query)}&limit=10";
@@ -46,9 +52,9 @@ public sealed partial class JikanMetadataProvider(
         }
     }
 
-    public async Task<ExternalMediaDto?> GetDetailsAsync(string externalId, string title, CancellationToken ct)
+    public override async Task<ExternalMediaDto?> GetDetailsAsync(string externalId, string title, CancellationToken ct)
     {
-        var client = httpClientFactory.CreateClient("Jikan");
+        var client = httpClientFactory.CreateClient(Id);
         var endpoint = _mediaType == "manga"
             ? $"manga/{externalId}/full"
             : $"anime/{externalId}/full";

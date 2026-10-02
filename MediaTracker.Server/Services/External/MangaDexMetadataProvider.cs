@@ -6,16 +6,19 @@ using Microsoft.Extensions.DependencyInjection;
 namespace MediaTracker.Server.Services.External;
 
 public sealed class MangaDexMetadataProvider(
-    IHttpClientFactory httpClientFactory) : IMetadataProvider
+    IHttpClientFactory httpClientFactory) : MetadataProviderBase
 {
-    public string Id => "mangadex";
-    public string Name => "MangaDex";
-    public string Description => "Manga and Manhwa metadata, chapters, volumes & ratings provider";
-    public IReadOnlyList<string> MediaTypes => ["manga"];
+    public static MetadataSourceDescriptor Source { get; } = new(
+        Id: "mangadex",
+        Name: "MangaDex",
+        Description: "Manga and Manhwa metadata, chapters, volumes & ratings provider",
+        MediaTypes: ["manga"],
+        BaseAddress: "https://api.mangadex.org/",
+        Priority: 3);
 
-    public async Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string query, CancellationToken ct)
+    public override async Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string query, CancellationToken ct)
     {
-        var client = httpClientFactory.CreateClient("MangaDex");
+        var client = httpClientFactory.CreateClient(Id);
         var escapedQuery = Uri.EscapeDataString(query);
         var url = $"manga?title={escapedQuery}&limit=10&includes[]=cover_art&includes[]=author&includes[]=artist&order[relevance]=desc";
 
@@ -39,9 +42,9 @@ public sealed class MangaDexMetadataProvider(
         }
     }
 
-    public async Task<ExternalMediaDto?> GetDetailsAsync(string externalId, string title, CancellationToken ct)
+    public override async Task<ExternalMediaDto?> GetDetailsAsync(string externalId, string title, CancellationToken ct)
     {
-        var client = httpClientFactory.CreateClient("MangaDex");
+        var client = httpClientFactory.CreateClient(Id);
 
         try
         {

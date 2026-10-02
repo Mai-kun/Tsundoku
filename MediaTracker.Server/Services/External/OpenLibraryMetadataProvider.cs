@@ -3,17 +3,20 @@ using System.Text.Json.Serialization;
 
 namespace MediaTracker.Server.Services.External;
 
-public sealed class OpenLibraryMetadataProvider(IHttpClientFactory httpClientFactory) : IMetadataProvider
+public sealed class OpenLibraryMetadataProvider(IHttpClientFactory httpClientFactory) : MetadataProviderBase
 {
-    public string Id => "openlibrary";
-    public string Name => "OpenLibrary";
-    public string Description => "Books metadata & ratings provider";
-    public IReadOnlyList<string> MediaTypes => ["book"];
-    public bool IsDefault => true;
+    public static MetadataSourceDescriptor Source { get; } = new(
+        Id: "openlibrary",
+        Name: "OpenLibrary",
+        Description: "Books metadata & ratings provider",
+        MediaTypes: ["book"],
+        BaseAddress: "https://openlibrary.org/",
+        IsDefault: true,
+        Priority: 1);
 
-    public async Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string query, CancellationToken ct)
+    public override async Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string query, CancellationToken ct)
     {
-        var client = httpClientFactory.CreateClient("OpenLibrary");
+        var client = httpClientFactory.CreateClient(Id);
 
         try
         {
@@ -33,7 +36,7 @@ public sealed class OpenLibraryMetadataProvider(IHttpClientFactory httpClientFac
         }
     }
 
-    public async Task<ExternalMediaDto?> GetDetailsAsync(string externalId, string title, CancellationToken ct)
+    public override async Task<ExternalMediaDto?> GetDetailsAsync(string externalId, string title, CancellationToken ct)
     {
         var searchResults = await SearchAsync(title, ct);
         return searchResults.FirstOrDefault(d => d.ExternalId == externalId) ?? (searchResults.Count > 0 ? searchResults[0] : null);

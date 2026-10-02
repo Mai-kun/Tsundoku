@@ -6,18 +6,22 @@ namespace MediaTracker.Server.Services.External;
 
 public sealed class ShikimoriMetadataProvider(
     IHttpClientFactory httpClientFactory,
-    [ServiceKey] string? serviceKey = null) : IMetadataProvider
+    [ServiceKey] string? serviceKey = null) : MetadataProviderBase
 {
-    public string Id => "shikimori";
-    public string Name => "Shikimori";
-    public string Description => "Anime & manga metadata and community ratings provider";
-    public IReadOnlyList<string> MediaTypes => ["anime", "manga"];
+    public static MetadataSourceDescriptor Source { get; } = new(
+        Id: "shikimori",
+        Name: "Shikimori",
+        Description: "Anime & manga metadata and community ratings provider",
+        MediaTypes: ["anime", "manga"],
+        BaseAddress: "https://shikimori.io/api/",
+        Priority: 2,
+        UserAgent: "MediaTracker/1.0 (Tsundoku)");
 
     private readonly string _mediaType = serviceKey?.StartsWith("manga", StringComparison.OrdinalIgnoreCase) is true ? "manga" : "anime";
 
-    public async Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string query, CancellationToken ct)
+    public override async Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string query, CancellationToken ct)
     {
-        var client = httpClientFactory.CreateClient("Shikimori");
+        var client = httpClientFactory.CreateClient(Id);
         var endpoint = _mediaType == "manga"
             ? $"mangas?search={Uri.EscapeDataString(query)}&limit=10"
             : $"animes?search={Uri.EscapeDataString(query)}&limit=10";
@@ -38,9 +42,9 @@ public sealed class ShikimoriMetadataProvider(
         }
     }
 
-    public async Task<ExternalMediaDto?> GetDetailsAsync(string externalId, string title, CancellationToken ct)
+    public override async Task<ExternalMediaDto?> GetDetailsAsync(string externalId, string title, CancellationToken ct)
     {
-        var client = httpClientFactory.CreateClient("Shikimori");
+        var client = httpClientFactory.CreateClient(Id);
         var endpoint = _mediaType == "manga" ? $"mangas/{externalId}" : $"animes/{externalId}";
 
         try

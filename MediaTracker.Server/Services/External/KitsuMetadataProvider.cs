@@ -3,16 +3,19 @@ using System.Text.Json.Serialization;
 
 namespace MediaTracker.Server.Services.External;
 
-public sealed class KitsuMetadataProvider(IHttpClientFactory httpClientFactory) : IMetadataProvider
+public sealed class KitsuMetadataProvider(IHttpClientFactory httpClientFactory) : MetadataProviderBase
 {
-    public string Id => "kitsu";
-    public string Name => "Kitsu";
-    public string Description => "Anime ratings provider (community scores)";
-    public IReadOnlyList<string> MediaTypes => ["anime"];
+    public static MetadataSourceDescriptor Source { get; } = new(
+        Id: "kitsu",
+        Name: "Kitsu",
+        Description: "Anime ratings provider (community scores)",
+        MediaTypes: ["anime"],
+        BaseAddress: "https://kitsu.io/api/",
+        Priority: 3);
 
-    public async Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string query, CancellationToken ct)
+    public override async Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string query, CancellationToken ct)
     {
-        var client = httpClientFactory.CreateClient("Kitsu");
+        var client = httpClientFactory.CreateClient(Id);
         try
         {
             var res = await client.GetFromJsonAsync<KitsuSearchResponse>(
@@ -31,9 +34,9 @@ public sealed class KitsuMetadataProvider(IHttpClientFactory httpClientFactory) 
         }
     }
 
-    public async Task<ExternalMediaDto?> GetDetailsAsync(string externalId, string title, CancellationToken ct)
+    public override async Task<ExternalMediaDto?> GetDetailsAsync(string externalId, string title, CancellationToken ct)
     {
-        var client = httpClientFactory.CreateClient("Kitsu");
+        var client = httpClientFactory.CreateClient(Id);
         try
         {
             var res = await client.GetFromJsonAsync<KitsuSingleResponse>($"edge/anime/{Uri.EscapeDataString(externalId)}", ct);

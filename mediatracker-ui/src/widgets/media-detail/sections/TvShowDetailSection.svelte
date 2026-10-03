@@ -1,4 +1,4 @@
-﻿<script lang="ts">
+﻿﻿<script lang="ts">
     import { ArrowUpDown, Check, CheckCircle2, ChevronDown, Eye, List, Play, RotateCcw } from "$shared/ui/Icons.svelte";
     import { errorMessage } from "$shared/api/api";
     import { i18n } from "$shared/i18n/index.svelte";

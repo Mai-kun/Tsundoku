@@ -1,4 +1,4 @@
-﻿// Related tab: the source picker is a styled popover rather than a native select, and a list loaded
+﻿﻿// Related tab: the source picker is a styled popover rather than a native select, and a list loaded
 // earlier is still there after a reload.
 const { chromium } = require('playwright-core');
 const BASE = process.env.TS_BASE || 'http://localhost:5099';
@@ -72,6 +72,7 @@ const BASE = process.env.TS_BASE || 'http://localhost:5099';
   if (errors.length) fails.push('page errors: ' + errors.join(' | '));
   console.log(fails.length ? 'RESULT FAIL\n  - ' + fails.join('\n  - ') : 'RESULT OK');
 })();
+
 
 
 

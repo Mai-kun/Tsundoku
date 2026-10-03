@@ -1,4 +1,4 @@
-﻿using MediaTracker.Server.Domain.Entities;
+﻿﻿using MediaTracker.Server.Domain.Entities;
 using MediaTracker.Server.Domain.Enums;
 
 namespace MediaTracker.Server.Features.Media.MediaContract;
@@ -398,3 +398,4 @@ public static class MediaResponseMapper
         TvShowId = season.TvShowId,
     };
 }
+

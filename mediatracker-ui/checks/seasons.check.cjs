@@ -1,4 +1,4 @@
-﻿// Season UX: the per-season eye closes a season out, and the banner's "next up" rolls from S1 to S2
+﻿﻿// Season UX: the per-season eye closes a season out, and the banner's "next up" rolls from S1 to S2
 // on its own and expands the season it lands in.
 const { chromium } = require('playwright-core');
 const BASE = process.env.TS_BASE || 'http://localhost:5099';
@@ -72,4 +72,5 @@ const BASE = process.env.TS_BASE || 'http://localhost:5099';
   if (errors.length) fails.push('page errors: ' + errors.join(' | '));
   console.log(fails.length ? 'RESULT FAIL\n  - ' + fails.join('\n  - ') : 'RESULT OK');
 })();
+
 

@@ -1,4 +1,4 @@
-﻿// A provider that fails leaves a dark error block with a retry (the RAWG game path, which surfaces
+﻿﻿// A provider that fails leaves a dark error block with a retry (the RAWG game path, which surfaces
 // API failures rather than swallowing them), and the detail screen offers "change source".
 const { chromium } = require('playwright-core');
 const BASE = process.env.TS_BASE || 'http://localhost:5099';
@@ -55,5 +55,6 @@ const BASE = process.env.TS_BASE || 'http://localhost:5099';
   if (errors.length) fails.push('page errors: ' + errors.join(' | '));
   console.log(fails.length ? 'RESULT FAIL\n  - ' + fails.join('\n  - ') : 'RESULT OK');
 })();
+
 
 

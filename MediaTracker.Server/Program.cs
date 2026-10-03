@@ -1,15 +1,16 @@
 using System.Runtime.InteropServices;
 using System.Text.Json.Serialization;
-using FluentValidation;
-using MediaTracker.Server.Data;
-using MediaTracker.Server.Endpoints;
-using MediaTracker.Server.Infrastructure;
-using MediaTracker.Server.Middleware;
+using MediaTracker.Server.Common.Cli;
+using MediaTracker.Server.Common.Endpoints;
+using MediaTracker.Server.Common.Extensions;
+using MediaTracker.Server.Common.Middleware;
+using MediaTracker.Server.Infrastructure.ExternalApis;
+using MediaTracker.Server.Infrastructure.Logging;
+using MediaTracker.Server.Infrastructure.Persistence;
+using MediaTracker.Server.Infrastructure.Persistence.Franchises;
+using MediaTracker.Server.Infrastructure.Security;
+using MediaTracker.Server.Infrastructure.Storage;
 using MediaTracker.Server.SelfChecks;
-using MediaTracker.Server.Services.External;
-using MediaTracker.Server.Services.Franchises;
-using MediaTracker.Server.Services.Security;
-using MediaTracker.Server.Services.Storage;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
@@ -86,11 +87,7 @@ try
             ?? $"Data Source={appPaths.DatabaseFilePath}"
         : $"Data Source={appPaths.DatabaseFilePath}";
 
-    builder.Services.AddDbContext<AppDbContext>(options =>
-        options.UseSqlite(connectionString).AddInterceptors(new SqliteConnectionInterceptor())
-    );
-
-    builder.Services.AddValidatorsFromAssemblyContaining<Program>();
+    builder.Services.AddTsundoku(connectionString);
 
     builder.Services.ConfigureHttpJsonOptions(options =>
     {
@@ -127,16 +124,6 @@ try
     });
 
     builder.Services.AddMemoryCache();
-    builder.Services.AddOptions<ExternalApiOptions>();
-    builder.Services.AddSingleton<IEncryptionService, EncryptionService>();
-    builder.Services.AddSingleton<IFranchiseService, FranchiseService>();
-
-    builder.Services.AddMetadataHttpClients();
-    builder.Services.AddMetadataProviders();
-
-    builder.Services.AddHttpClient<IImageStorageService, ImageStorageService>(client =>
-        client.Timeout = TimeSpan.FromSeconds(5)
-    );
 
     var app = builder.Build();
 
@@ -301,7 +288,8 @@ static async Task InitializeDatabaseAsync(WebApplication app)
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     await db.Database.MigrateAsync();
-    await SettingsEndpoints.LoadStoredSettingsAsync(app.Services);
+
+    await scope.ServiceProvider.GetRequiredService<StoredSettingsLoader>().LoadAsync();
 
     var franchiseService = scope.ServiceProvider.GetRequiredService<IFranchiseService>();
     await franchiseService.AutoBackfillFranchisesAsync(db);
@@ -309,6 +297,11 @@ static async Task InitializeDatabaseAsync(WebApplication app)
 
 static void RunPhotinoWindow(string serverUrl)
 {
+    // Photino reads this before the WebView2 controller is created, so it has to be set here rather
+    // than on the window: without it the surface flashes white before the web content paints.
+    // The value is the UI's --color-canvas (#0d0f14) in WebView2's AARRGGBB form.
+    Environment.SetEnvironmentVariable("WEBVIEW2_DEFAULT_BACKGROUND_COLOR", "FF0D0F14");
+
     var uiThread = new Thread(() =>
     {
         var window = new Photino.NET.PhotinoWindow()

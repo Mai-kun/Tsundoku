@@ -29,6 +29,12 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <Compile Remove="bin\**" />
+        <Compile Remove="obj\**" />
+        <Compile Remove="wwwroot\**" />
+    </ItemGroup>
+
+    <ItemGroup>
         <EmbeddedResource Include="wwwroot\**\*" Exclude="wwwroot\**\*.map" />
         <EmbeddedResource Include="appsettings.json" />
     </ItemGroup>

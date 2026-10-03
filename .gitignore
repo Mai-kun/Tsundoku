@@ -486,6 +486,9 @@ shots/
 .aider*
 *.db
 
+# Locally generated AES key for the settings encryption service
+MediaTracker.Server/.secret.key
+
 # Audit tooling output (scripts kept in mediatracker-ui/audit/)
 mediatracker-ui/audit/
 mediatracker-ui/audit-report.json

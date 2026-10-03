@@ -1,11 +1,18 @@
+using System.Globalization;
 using System.Text.Json;
-using MediaTracker.Server.DTOs;
-using MediaTracker.Server.Endpoints;
-using MediaTracker.Server.Infrastructure;
-using MediaTracker.Server.Models;
-using MediaTracker.Server.Services.External;
-using MediaTracker.Server.Services.Media;
-using MediaTracker.Server.Services.Storage;
+using MediaTracker.Server.Common.Cli;
+using MediaTracker.Server.Domain.Entities;
+using MediaTracker.Server.Domain.Rules;
+using MediaTracker.Server.Features.Media.CreateMedia;
+using MediaTracker.Server.Infrastructure.ExternalApis;
+using MediaTracker.Server.Infrastructure.Persistence.Interceptors;
+using MediaTracker.Server.Infrastructure.Storage;
+using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.DependencyInjection;
+using MediaDetailDto = MediaTracker.Server.Features.Media.MediaContract.MediaDetailDto;
+using MediaListDto = MediaTracker.Server.Features.Media.MediaContract.MediaListDto;
+using MediaResponseMapper = MediaTracker.Server.Features.Media.MediaContract.MediaResponseMapper;
+using UpdateMediaRequest = MediaTracker.Server.Features.Media.UpdateMedia.UpdateMediaRequest;
 
 namespace MediaTracker.Server.SelfChecks;
 
@@ -49,6 +56,10 @@ public static class RefactorSelfCheck
         CheckEnrichFillsEndDateAndStatus(failures);
         CheckEnrichStoresEpisodesForLiveAction(failures);
         CheckEnrichStoresEpisodeCountWithoutEpisodes(failures);
+        CheckSqliteTuningIsPreserved(failures);
+        CheckMetadataProvidersAreDiscovered(failures);
+        CheckListPayloadStaysLight(failures);
+        CheckStatusWireContract(failures);
 
         if (failures.Count == 0)
         {
@@ -1459,6 +1470,185 @@ public static class RefactorSelfCheck
             KinopoiskMetadataProvider.ResolveEndDate(null, null, "2024-03-01"),
             "an unflagged show reports no end date"
         );
+    }
+
+    /// <summary>
+    /// The production SQLite tuning, applied to a real database file and read back. These pragmas are
+    /// the difference between a responsive library screen and one that blocks on every write, so the
+    /// effective values are measured rather than trusted to a string literal.
+    /// </summary>
+    private static void CheckSqliteTuningIsPreserved(List<string> failures)
+    {
+        var script = SqliteConnectionInterceptor.BuildPragmaScript();
+
+        AssertTrue(
+            failures,
+            script.Contains("journal_mode = WAL", StringComparison.Ordinal),
+            "the first connection open enables WAL");
+
+        // journal_mode is a property of the file, so it must be applied once and then dropped.
+        var subsequent = SqliteConnectionInterceptor.BuildPragmaScript();
+        AssertFalse(
+            failures,
+            subsequent.Contains("journal_mode", StringComparison.Ordinal),
+            "the journal pragma is not re-sent on later connections");
+
+        var databasePath = Path.Combine(Path.GetTempPath(), $"tsundoku_selfcheck_{Guid.NewGuid():N}.db");
+
+        try
+        {
+            using var connection = new SqliteConnection($"Data Source={databasePath}");
+            connection.Open();
+
+            using (var open = connection.CreateCommand())
+            {
+                open.CommandText = script;
+                open.ExecuteNonQuery();
+            }
+
+            AssertEqual(failures, "wal", ReadTextPragma(connection, "journal_mode"), "journal_mode is WAL");
+            AssertEqual(failures, "1", ReadTextPragma(connection, "synchronous"), "synchronous is NORMAL (1)");
+            AssertEqual(failures, "5000", ReadTextPragma(connection, "busy_timeout"), "busy_timeout is 5000 ms");
+            AssertEqual(failures, "-64000", ReadTextPragma(connection, "cache_size"), "cache_size is -64000");
+        }
+        catch (Exception ex)
+        {
+            failures.Add($"sqlite tuning could not be applied to a real database: {ex.Message}");
+        }
+        finally
+        {
+            TryDelete(databasePath);
+        }
+    }
+
+    private static string ReadTextPragma(SqliteConnection connection, string pragma)
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = $"PRAGMA {pragma};";
+        return Convert.ToString(command.ExecuteScalar(), CultureInfo.InvariantCulture) ?? string.Empty;
+    }
+
+    private static void TryDelete(string path)
+    {
+        foreach (var file in new[] { path, path + "-wal", path + "-shm" })
+        {
+            try
+            {
+                if (File.Exists(file))
+                {
+                    File.Delete(file);
+                }
+            }
+            catch (IOException)
+            {
+            }
+        }
+    }
+
+    /// <summary>
+    /// Adding a provider file must be the only step needed to ship a source. This drives the real
+    /// registration path and resolves every discovered id back out of the container, so a provider
+    /// that reflection finds but the container cannot hand out fails the build's own check.
+    /// </summary>
+    private static void CheckMetadataProvidersAreDiscovered(List<string> failures)
+    {
+        var discovered = MetadataSourceRegistry.All;
+
+        AssertTrue(failures, discovered.Count > 1, "reflection discovers the whole provider set");
+
+        var ids = discovered.Select(descriptor => descriptor.Id).ToList();
+        AssertEqual(
+            failures,
+            ids.Count,
+            ids.Distinct(StringComparer.OrdinalIgnoreCase).Count(),
+            "discovered provider ids are unique");
+
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddAllMetadataProviders();
+
+        using var provider = services.BuildServiceProvider();
+
+        foreach (var descriptor in discovered)
+        {
+            var resolved = provider.GetKeyedService<IMetadataProvider>(descriptor.Id);
+
+            AssertTrue(failures, resolved is not null, $"container resolves provider '{descriptor.Id}'");
+
+            if (resolved is not null)
+            {
+                AssertEqual(
+                    failures,
+                    descriptor.Id,
+                    resolved.Id,
+                    $"provider resolved for key '{descriptor.Id}' reports its own id");
+            }
+
+            AssertTrue(
+                failures,
+                !string.IsNullOrWhiteSpace(descriptor.Name),
+                $"provider '{descriptor.Id}' declares a display name");
+        }
+
+        // A bare media type must resolve to that type's default source, which is what the aggregator
+        // asks for when the caller names no source at all.
+        foreach (var mediaType in discovered.SelectMany(descriptor => descriptor.MediaTypes).Distinct())
+        {
+            var fallback = provider.GetKeyedService<IMetadataProvider>(mediaType);
+
+            AssertTrue(failures, fallback is not null, $"bare type '{mediaType}' has a default source");
+
+            if (fallback is not null)
+            {
+                AssertTrue(
+                    failures,
+                    fallback.MediaTypes.Contains(mediaType, StringComparer.OrdinalIgnoreCase),
+                    $"default source for '{mediaType}' serves '{mediaType}'");
+            }
+        }
+    }
+
+    /// <summary>
+    /// The list screen renders hundreds of cards, so the heavy text columns must not ride along.
+    /// This is the contract that keeps the library payload small; only the detail shape carries them.
+    /// </summary>
+    private static void CheckListPayloadStaysLight(List<string> failures)
+    {
+        var heavy = new[] { "Notes", "TranslatedSynopsis", "ExternalRatingsJson", "UnlockedAchievements" };
+        var listFields = typeof(MediaListDto).GetProperties().Select(property => property.Name).ToList();
+
+        foreach (var member in heavy)
+        {
+            AssertFalse(
+                failures,
+                listFields.Contains(member),
+                $"MediaListDto does not carry the heavy '{member}' column");
+        }
+
+        var detailFields = typeof(MediaDetailDto).GetProperties().Select(property => property.Name).ToList();
+
+        foreach (var member in heavy)
+        {
+            AssertTrue(
+                failures,
+                detailFields.Contains(member),
+                $"MediaDetailDto still carries '{member}'");
+        }
+
+        // The detail shape must be a superset, or the client's shared field mapping breaks.
+        var missing = listFields.Except(detailFields, StringComparer.Ordinal).ToList();
+        AssertEqual(failures, 0, missing.Count, $"detail is a superset of list (missing: {string.Join(',', missing)})");
+    }
+
+    /// <summary>The status is serialised as an integer and the client's maps are keyed on 0..4.</summary>
+    private static void CheckStatusWireContract(List<string> failures)
+    {
+        AssertEqual(failures, 0, (int)MediaStatus.Planned, "Planned is 0");
+        AssertEqual(failures, 1, (int)MediaStatus.InProgress, "InProgress is 1");
+        AssertEqual(failures, 2, (int)MediaStatus.Completed, "Completed is 2");
+        AssertEqual(failures, 3, (int)MediaStatus.OnHold, "OnHold is 3");
+        AssertEqual(failures, 4, (int)MediaStatus.Dropped, "Dropped is 4");
+        AssertEqual(failures, 5, Enum.GetValues<MediaStatus>().Length, "the status enum has exactly five members");
     }
 
     private static void AssertTrue(List<string> failures, bool condition, string label)

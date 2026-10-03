@@ -15,6 +15,14 @@ public static class MediaRatingSerializer
 
     public static JsonSerializerOptions JsonOptions => CamelCaseJsonOptions;
 
+    /// <summary>
+    /// Reading needs case-insensitive matching, writing does not. The payload is camelCase, and
+    /// <see cref="JsonSerializer"/> does not match "source" to a `Source` property by default, so a
+    /// plain read silently produced rows whose source was null.
+    /// </summary>
+    public static JsonSerializerOptions ReadOptions { get; } =
+        new() { PropertyNameCaseInsensitive = true };
+
     public static string Serialize(IEnumerable<RatingSnapshot> ratings) =>
         JsonSerializer.Serialize(
             ratings.Select(rating => new { source = rating.Source, score = rating.Rating, votes = rating.Votes }),

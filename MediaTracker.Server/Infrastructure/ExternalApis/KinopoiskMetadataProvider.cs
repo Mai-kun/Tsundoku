@@ -116,11 +116,11 @@ public sealed class KinopoiskMetadataProvider(
     }
 
     /// <summary>
-    /// Flattens <c>/v2.2/films/{id}/seasons</c> into one ordered episode list. The source returns a
-    /// nested season → episode tree, but the app models a single flat list, so episodes are
-    /// renumbered sequentially across seasons the way the season UI counts them.
+    /// Reads <c>/v2.2/films/{id}/seasons</c> as the season tree it is. Flattening it renumbered every
+    /// episode across seasons into a single list and the applier then wrote all 62 episodes of
+    /// Breaking Bad into one "Season 1"; each season stays its own entry instead.
     /// </summary>
-    private async Task<List<ExternalEpisodeDto>> FetchSeasonsAsync(
+    private async Task<IReadOnlyList<ExternalSeasonDto>> FetchSeasonsAsync(
         HttpClient client,
         string key,
         string externalId,
@@ -143,28 +143,36 @@ public sealed class KinopoiskMetadataProvider(
             if (body?.Items is not { Count: > 0 })
                 return [];
 
-            var episodes = new List<ExternalEpisodeDto>();
-            foreach (
-                var season in body.Items
+            return
+            [
+                .. body.Items
                     .OrderBy(season => season.Number)
-                    .SelectMany(season => season.Episodes ?? [])
-                    .Where(episode => episode.EpisodeNumber is > 0)
-                    .OrderBy(episode => episode.EpisodeNumber)
-            )
-            {
-                episodes.Add(
-                    new ExternalEpisodeDto
+                    .Select(season =>
                     {
-                        Number = episodes.Count + 1,
-                        Title = !string.IsNullOrWhiteSpace(season.NameRu)
-                            ? season.NameRu
-                            : season.NameEn ?? string.Empty,
-                        AirDate = season.ReleaseDate,
-                    }
-                );
-            }
+                        List<ExternalEpisodeDto> episodes =
+                        [
+                            .. (season.Episodes ?? [])
+                                .Where(episode => episode.EpisodeNumber is > 0)
+                                .OrderBy(episode => episode.EpisodeNumber)
+                                .Select(episode => new ExternalEpisodeDto
+                                {
+                                    Number = episode.EpisodeNumber!.Value,
+                                    Title = !string.IsNullOrWhiteSpace(episode.NameRu)
+                                        ? episode.NameRu
+                                        : episode.NameEn ?? string.Empty,
+                                    AirDate = episode.ReleaseDate,
+                                })
+                        ];
 
-            return episodes;
+                        return new ExternalSeasonDto
+                        {
+                            Number = season.Number,
+                            Title = $"Season {season.Number}",
+                            TotalEpisodes = episodes.Count > 0 ? episodes.Count : season.Episodes?.Count ?? 0,
+                            Episodes = episodes.Count > 0 ? episodes : null,
+                        };
+                    })
+            ];
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
@@ -366,13 +374,16 @@ public sealed class KinopoiskMetadataProvider(
     private static ExternalMediaDto MapDetailItem(
         KinopoiskDetailItem item,
         string type,
-        IReadOnlyList<ExternalEpisodeDto> episodes
+        IReadOnlyList<ExternalSeasonDto> seasons
     )
     {
-        double? score = item.RatingKinopoisk ?? item.RatingImdb;
+        // Kinopoisk mirrors the IMDb score, so it is listed under its own name: folding it into the
+        // "Kinopoisk" row hid the fact that the number is IMDb's, and a title Kinopoisk itself has not
+        // rated yet lost the IMDb badge entirely because it was only used as the fallback `score`.
+        double? score = item.RatingKinopoisk;
         var ratings = new List<ExternalRatingDto>();
 
-        if (score.HasValue && score.Value > 0)
+        if (score is > 0)
         {
             ratings.Add(
                 new ExternalRatingDto
@@ -384,9 +395,28 @@ public sealed class KinopoiskMetadataProvider(
             );
         }
 
+        if (item.RatingImdb is > 0)
+        {
+            ratings.Add(
+                new ExternalRatingDto
+                {
+                    Source = "IMDb",
+                    Rating = Math.Round(item.RatingImdb.Value, 1),
+                    Votes = item.RatingImdbVoteCount,
+                }
+            );
+        }
+
+        score ??= ratings.Count > 0 ? ratings[0].Rating : null;
+
         // Episodes are the only source of a real start/end date here; without them the years below
         // stay year-only so the aggregator knows to ask someone else for the full date.
-        var (startDate, endDate) = episodes.Count > 0 ? ResolveAirDateRange(episodes) : (null, null);
+        var allEpisodes = seasons
+            .SelectMany(season => season.Episodes ?? [])
+            .ToList();
+        var (startDate, endDate) = allEpisodes.Count > 0
+            ? ResolveAirDateRange(allEpisodes)
+            : (null, null);
 
         // `completed` is the source's own "no more episodes are coming" flag. A still-airing show has
         // an episodes list too, so its last air date is just the latest episode, NOT the end of the
@@ -412,15 +442,21 @@ public sealed class KinopoiskMetadataProvider(
             ReleaseDate = startDate,
             EndDate = endDate,
             ReleaseStatus = releaseStatus,
-            // For a series `filmLength` is the average episode runtime, which is what the app
-            // stores in EpisodeDurationMinutes; for a film it is the runtime itself.
-            RuntimeMinutes = item.FilmLength,
+            // For a series `seriesLength` is the average episode runtime, which is what the app
+            // stores in EpisodeDurationMinutes; `filmLength` is the film runtime. Both are read
+            // because the API documents them per type and older responses only carried filmLength.
+            RuntimeMinutes = item.SeriesLength ?? item.FilmLength,
+            // productionCompanies/networks were in the payload all along but were never mapped, so
+            // the studio stayed empty. MediaMerger keeps the TMDB value when this returns null.
+            Studio = item.ProductionCompanies is { Count: > 0 } companies
+                ? companies.FirstOrDefault(c => !string.IsNullOrWhiteSpace(c.Name))?.Name
+                : null,
             Type = type,
             Rating = score,
             RatingVotes = item.RatingKinopoiskVoteCount,
-            Ratings = ratings,
-            Episodes = episodes.Count > 0 ? episodes : null,
-            TotalCount = type == "tvshow" ? episodes.Count : null,
+            Ratings = ratings.Count > 0 ? ratings : null,
+            Seasons = seasons.Count > 0 ? seasons : null,
+            TotalCount = type == "tvshow" ? seasons.Sum(season => season.TotalEpisodes) : null,
             Genres = item.Genres is { Count: > 0 } genres
                 ? [.. genres.Select(genre => genre.Genre).OfType<string>()]
                 : null,
@@ -502,6 +538,17 @@ public sealed class KinopoiskMetadataProvider(
         [JsonPropertyName("ratingImdb")]
         public double? RatingImdb { get; set; }
 
+        [JsonPropertyName("ratingImdbVoteCount")]
+        public int? RatingImdbVoteCount { get; set; }
+
+        /// <summary>Average episode runtime of a series, in minutes.</summary>
+        [JsonPropertyName("seriesLength")]
+        public int? SeriesLength { get; set; }
+
+        /// <summary>Production companies / networks; the studio or network a title belongs to.</summary>
+        [JsonPropertyName("productionCompanies")]
+        public List<KinopoiskCompany>? ProductionCompanies { get; set; }
+
         [JsonPropertyName("year")]
         public int? Year { get; set; }
 
@@ -536,6 +583,12 @@ public sealed class KinopoiskMetadataProvider(
     {
         [JsonPropertyName("genre")]
         public string? Genre { get; set; }
+    }
+
+    private sealed class KinopoiskCompany
+    {
+        [JsonPropertyName("name")]
+        public string? Name { get; set; }
     }
 
     private sealed class KinopoiskSeasonsResponse

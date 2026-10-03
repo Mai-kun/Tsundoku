@@ -26,6 +26,9 @@ public static class MediaItemUpdater
         item.WatchedOn = request.ClearWatchedOn ? null : request.WatchedOn ?? item.WatchedOn;
         item.UserPlatform = request.ClearUserPlatform ? null : request.UserPlatform ?? item.UserPlatform;
         item.FranchiseOrder = request.FranchiseOrder ?? item.FranchiseOrder;
+        // Both are written together by the client: one pick of a source replaces the cached list.
+        item.RelatedMediaJson = request.RelatedMediaJson ?? item.RelatedMediaJson;
+        item.RelatedSource = request.RelatedSource ?? item.RelatedSource;
 
         if (request.Status is { } status)
         {

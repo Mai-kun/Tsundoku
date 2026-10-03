@@ -1,5 +1,6 @@
 using MediaTracker.Server.Features;
 using MediaTracker.Server.Infrastructure.ExternalApis;
+using MediaTracker.Server.Infrastructure.Jobs;
 using MediaTracker.Server.Infrastructure.Persistence;
 using MediaTracker.Server.Infrastructure.Persistence.Franchises;
 using MediaTracker.Server.Infrastructure.Persistence.Interceptors;
@@ -40,6 +41,12 @@ public static class ServiceCollectionExtensions
 
         services.AddSingleton<IEncryptionService, EncryptionService>();
         services.AddSingleton<IFranchiseService, FranchiseService>();
+
+        // Singleton on both halves: the manager owns the queue the worker drains and the registry
+        // both read, so a second instance would strand jobs in a channel nobody listens to.
+        services.AddSingleton<JobManager>();
+        services.AddSingleton<IJobManager>(services => services.GetRequiredService<JobManager>());
+        services.AddHostedService<JobWorkerService>();
 
         services.AddHttpClient<IImageStorageService, ImageStorageService>(client =>
             client.Timeout = TimeSpan.FromSeconds(5));

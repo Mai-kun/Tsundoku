@@ -14,6 +14,72 @@ namespace MediaTracker.Server.Domain.Rules;
 /// </summary>
 public static class MediaMetadataApplier
 {
+    /// <summary>
+    /// Drops the rating rows whose source the user has switched off.
+    ///
+    /// Refresh only ever writes what the queried source reported, so a badge from a source that was
+    /// disabled afterwards stayed on the card forever: nothing in the codebase removed one. Returns
+    /// true when the stored payload changed.
+    /// </summary>
+    /// <param name="disabledSourceIds">Provider ids from settings, matched through the alias table.</param>
+    public static bool RemoveDisabledRatings(MediaItem item, IReadOnlySet<string> disabledSourceIds)
+    {
+        if (string.IsNullOrWhiteSpace(item.ExternalRatingsJson) || disabledSourceIds.Count == 0)
+        {
+            return false;
+        }
+
+        List<RatingSnapshot> kept;
+        try
+        {
+            var stored = JsonSerializer.Deserialize<List<StoredRating>>(
+                item.ExternalRatingsJson,
+                MediaRatingSerializer.ReadOptions);
+            kept =
+            [
+                .. stored?
+                    .Where(rating => !string.IsNullOrWhiteSpace(rating.Source))
+                    .Where(rating => !IsDisabled(rating.Source, disabledSourceIds))
+                    .Select(rating => new RatingSnapshot(rating.Source, rating.Score, rating.Votes))
+                    ?? []
+            ];
+        }
+        catch (JsonException)
+        {
+            // Unreadable payload: leave it rather than wipe ratings we could not parse.
+            return false;
+        }
+
+        if (kept.Count == 0)
+        {
+            if (item.ExternalRatingsJson is null)
+            {
+                return false;
+            }
+
+            item.ExternalRatingsJson = null;
+            item.ExternalRating = null;
+            item.ExternalRatingVotes = null;
+            return true;
+        }
+
+        var serialized = MediaRatingSerializer.Serialize(kept);
+        if (serialized == item.ExternalRatingsJson)
+        {
+            return false;
+        }
+
+        item.ExternalRatingsJson = serialized;
+        return true;
+    }
+
+    private static bool IsDisabled(string source, IReadOnlySet<string> disabled) =>
+        disabled.Contains(MediaMerger.NormalizeSourceKey(source))
+        || disabled.Contains(MediaMerger.GetCanonicalSourceName(source));
+
+    /// <summary>Persisted casing varies by provider, so both spellings are accepted.</summary>
+    private sealed record StoredRating(string Source, double Score, int? Votes);
+
     /// <summary>Persisted shape is <c>source/score/votes</c>; that is the field name the UI reads first.</summary>
     public static string SerializeRatings(IReadOnlyList<ExternalRatingDto> ratings) =>
         MediaRatingSerializer.Serialize(
@@ -30,7 +96,8 @@ public static class MediaMetadataApplier
         ExternalMediaDto external,
         IImageStorageService imageStorage,
         CancellationToken ct,
-        Action<TvSeason>? trackNewSeason = null)
+        Action<TvSeason>? trackNewSeason = null,
+        Action<MangaVolume>? trackNewVolume = null)
     {
         item.Title = external.Title;
 
@@ -56,7 +123,7 @@ public static class MediaMetadataApplier
 
         ApplyDates(item, external);
         ApplyGenres(item, external);
-        ApplyTypeSpecific(item, external, trackNewSeason);
+        ApplyTypeSpecific(item, external, trackNewSeason, trackNewVolume);
     }
 
     /// <summary>Enrich: only fills fields the user has not filled. Returns true when the entity changed.</summary>
@@ -69,10 +136,11 @@ public static class MediaMetadataApplier
     public static bool ApplyIfMissing(
         MediaItem item,
         ExternalMediaDto external,
-        Action<TvSeason>? trackNewSeason = null)
+        Action<TvSeason>? trackNewSeason = null,
+        Action<MangaVolume>? trackNewVolume = null)
     {
         var modified = ApplyRatings(item, external);
-        modified |= ApplyMangaGaps(item, external);
+        modified |= ApplyMangaGaps(item, external, trackNewVolume);
 
         modified |= SetIfBlank(item.Notes, external.Description, value => item.Notes = value);
         modified |= SetIfBlank(item.Genres, JoinGenres(external.Genres), value => item.Genres = value);
@@ -163,6 +231,13 @@ public static class MediaMetadataApplier
         ExternalMediaDto external,
         Action<TvSeason>? trackNewSeason)
     {
+        if (external.Seasons is { Count: > 0 } seasons)
+        {
+            var before = show.Seasons.Count;
+            ApplyRealSeasons(show, seasons, trackNewSeason);
+            return show.Seasons.Count > before;
+        }
+
         var episodes = external.Episodes is { Count: > 0 } list ? list : null;
         var totalEpisodes = external.TotalCount ?? episodes?.Count ?? 0;
 
@@ -182,7 +257,7 @@ public static class MediaMetadataApplier
         return true;
     }
 
-    private static bool ApplyRatings(MediaItem item, ExternalMediaDto external)
+    internal static bool ApplyRatings(MediaItem item, ExternalMediaDto external)
     {
         if (external.Ratings is not { Count: > 0 } ratings)
         {
@@ -200,7 +275,10 @@ public static class MediaMetadataApplier
         return true;
     }
 
-    private static bool ApplyMangaGaps(MediaItem item, ExternalMediaDto external)
+    private static bool ApplyMangaGaps(
+        MediaItem item,
+        ExternalMediaDto external,
+        Action<MangaVolume>? trackNewVolume)
     {
         if (item is not Manga manga)
         {
@@ -209,9 +287,27 @@ public static class MediaMetadataApplier
 
         var modified = false;
 
+        // Before the totals move: the volume pass recognises its own seeded split from them, and the
+        // freshly written total is not the number the placeholders were split across.
+        var before = manga.Volumes.Count;
+        ApplyRealVolumes(manga, external.VolumeDetails, trackNewVolume);
+        modified |= manga.Volumes.Count > before;
+
         if (external.Chapters is { } chapters && manga.TotalChapters is not > 0)
         {
             manga.RecordTotalChapters(chapters);
+            modified = true;
+        }
+
+        // The real volume split is the most accurate chapter count the source ever gives us. The
+        // series counter is what both the card and "Характеристики" read, so leaving it on the
+        // older flat number is what put 109 next to 135 for the same title.
+        var fromVolumes = manga.Volumes.Count > 0
+            ? manga.Volumes.Sum(volume => volume.TotalChapters)
+            : 0;
+        if (fromVolumes > (manga.TotalChapters ?? 0))
+        {
+            manga.RecordTotalChapters(fromVolumes);
             modified = true;
         }
 
@@ -258,7 +354,8 @@ public static class MediaMetadataApplier
     private static void ApplyTypeSpecific(
         MediaItem item,
         ExternalMediaDto external,
-        Action<TvSeason>? trackNewSeason)
+        Action<TvSeason>? trackNewSeason,
+        Action<MangaVolume>? trackNewVolume)
     {
         switch (item)
         {
@@ -276,6 +373,9 @@ public static class MediaMetadataApplier
                 if (!string.IsNullOrWhiteSpace(external.Author)) book.Author = external.Author;
                 break;
             case Manga manga:
+                // Before the totals move: the volume pass recognises its own seeded split from them, and
+                // the freshly written total is not the number the placeholders were split across.
+                ApplyRealVolumes(manga, external.VolumeDetails, trackNewVolume);
                 if (external.TotalCount is > 0) manga.RecordTotalChapters(external.TotalCount.Value);
                 if (external.Chapters is > 0) manga.RecordTotalChapters(external.Chapters.Value);
                 if (external.Volumes is > 0) manga.RecordTotalVolumes(external.Volumes.Value);
@@ -314,6 +414,12 @@ public static class MediaMetadataApplier
         // TMDb series with real per-episode air dates lost them. The list is the source's own data
         // when it is present, so it is written regardless of the anime flag; only its absence was
         // ever a reason to skip.
+        if (external.Seasons is { Count: > 0 } seasons)
+        {
+            ApplyRealSeasons(show, seasons, trackNewSeason);
+            return;
+        }
+
         if (external.Episodes is not { Count: > 0 } episodes)
         {
             return;
@@ -332,6 +438,88 @@ public static class MediaMetadataApplier
         }
 
         firstSeason.ApplyEpisodeData(totalEpisodes, episodesJson);
+    }
+
+    /// <summary>
+    /// Writes one <see cref="TvSeason"/> per season the source reported. Season numbers are matched
+    /// against what is already stored, so a refresh updates the existing rows instead of piling up
+    /// duplicates, and only numbers that are missing are created.
+    /// </summary>
+    private static void ApplyRealSeasons(
+        TvShow show,
+        IReadOnlyList<ExternalSeasonDto> seasons,
+        Action<TvSeason>? trackNewSeason)
+    {
+        foreach (var external in seasons.Where(season => season.TotalEpisodes > 0))
+        {
+            var episodesJson = external.Episodes is { Count: > 0 } list
+                ? JsonSerializer.Serialize(list, MediaRatingSerializer.JsonOptions)
+                : null;
+
+            var existing = show.Seasons.FirstOrDefault(season => season.SeasonNumber == external.Number);
+            if (existing is null)
+            {
+                show.Seasons.Add(
+                    TvSeason.CreateSeason(external.Number, external.Title, external.TotalEpisodes, episodesJson, show.Status, show.Id)
+                );
+                trackNewSeason?.Invoke(show.Seasons[^1]);
+                continue;
+            }
+
+            existing.ApplyEpisodeData(external.TotalEpisodes, episodesJson ?? existing.EpisodesData);
+        }
+    }
+
+    /// <summary>
+    /// Replaces the placeholder volume split with the real one a source reported. Volumes the user
+    /// already tracks keep their progress; only their chapter count is corrected, and only volumes
+    /// that do not exist yet are added.
+    /// </summary>
+    private static void ApplyRealVolumes(
+        Manga manga,
+        IReadOnlyList<ExternalMangaVolumeDto>? volumeDetails,
+        Action<MangaVolume>? trackNewVolume)
+    {
+        if (volumeDetails is not { Count: > 0 } details)
+        {
+            return;
+        }
+
+        // Taken before the loop adds the volumes it does not know yet, because that is the count the
+        // seed was split across.
+        var seededChapters = Manga.SeededChaptersPerVolume(manga.TotalChapters, manga.Volumes.Count);
+
+        foreach (var external in details.Where(volume => volume.Number > 0))
+        {
+            // The number of keys in the source's chapter map, which is what it means as chapters:
+            // the sibling `count` field counts translations, not chapters.
+            var chapterCount = external.Chapters?.Count ?? 0;
+            var existing = manga.Volumes.FirstOrDefault(volume => volume.VolumeNumber == external.Number);
+            if (existing is null)
+            {
+                var created = new MangaVolume
+                {
+                    MangaId = manga.Id,
+                    VolumeNumber = external.Number,
+                    Title = string.IsNullOrWhiteSpace(external.Title) ? $"Volume {external.Number}" : external.Title,
+                    TotalChapters = chapterCount,
+                    TotalPages = MangaVolume.PlaceholderPagesPerVolume,
+                };
+                manga.Volumes.Add(created);
+                trackNewVolume?.Invoke(created);
+                continue;
+            }
+
+            // A chapter count the user typed is kept. What gets replaced is the even split the
+            // placeholder seeder invented: it is never zero, so the old "only fill a zero" guard let
+            // every volume of a series keep the same made-up number instead of its real one.
+            if (chapterCount > 0 && (existing.TotalChapters == 0 || existing.TotalChapters == seededChapters))
+            {
+                existing.InheritTotalChapters(chapterCount);
+            }
+        }
+
+        manga.RecordTotalVolumes(manga.Volumes.Count);
     }
 
     private static DateTime? ParseDate(string? value) =>

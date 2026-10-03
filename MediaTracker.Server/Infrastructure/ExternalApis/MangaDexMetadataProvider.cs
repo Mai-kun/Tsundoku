@@ -74,7 +74,8 @@ public sealed class MangaDexMetadataProvider(
             }
 
             var stats = await GetBatchStatisticsAsync(client, [manga.Id], ct);
-            var (volCount, chapCount) = await GetAggregateVolumesAndChaptersAsync(client, manga.Id, ct);
+            var ((volCount, chapCount), volumeDetails) =
+                await GetAggregateVolumesAndChaptersAsync(client, manga.Id, ct);
 
             var item = MapItem(manga, stats.GetValueOrDefault(manga.Id));
             if (volCount.HasValue && (!item.Volumes.HasValue || item.Volumes.Value <= 0))
@@ -90,7 +91,7 @@ public sealed class MangaDexMetadataProvider(
                 };
             }
 
-            return item;
+            return volumeDetails.Count > 0 ? item with { VolumeDetails = volumeDetails } : item;
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
@@ -117,19 +118,26 @@ public sealed class MangaDexMetadataProvider(
         }
     }
 
-    private static async Task<(int? Volumes, int? Chapters)> GetAggregateVolumesAndChaptersAsync(
-        HttpClient client,
-        string mangaId,
-        CancellationToken ct)
+    /// <summary>
+    /// Reads <c>/manga/{id}/aggregate</c> for the real volume -> chapter split. The response is a
+    /// <c>volumes</c> map keyed by volume number whose value carries its own <c>chapters</c> map, so
+    /// this returns both the totals and the per-volume breakdown; the totals alone left every volume
+    /// of an ongoing series without a chapter count.
+    /// </summary>
+    private static async Task<((int? Volumes, int? Chapters), IReadOnlyList<ExternalMangaVolumeDto> Details)>
+        GetAggregateVolumesAndChaptersAsync(HttpClient client, string mangaId, CancellationToken ct)
     {
         try
         {
             var res = await client.GetFromJsonAsync<JsonDocument>($"manga/{mangaId}/aggregate", ct);
-            if (res is null || !res.RootElement.TryGetProperty("volumes", out var volumesElem) || volumesElem.ValueKind != JsonValueKind.Object)
+            if (res is null
+                || !res.RootElement.TryGetProperty("volumes", out var volumesElem)
+                || volumesElem.ValueKind != JsonValueKind.Object)
             {
-                return (null, null);
+                return ((null, null), []);
             }
 
+            var details = new List<ExternalMangaVolumeDto>();
             int maxVol = 0;
             double maxChap = 0;
 
@@ -140,25 +148,46 @@ public sealed class MangaDexMetadataProvider(
                     maxVol = v;
                 }
 
-                if (prop.Value.TryGetProperty("chapters", out var chapsElem) && chapsElem.ValueKind == JsonValueKind.Object)
+                if (!int.TryParse(prop.Name, out var volumeNumber))
+                {
+                    continue;
+                }
+
+                var chapters = new List<string>();
+                if (prop.Value.TryGetProperty("chapters", out var chapsElem)
+                    && chapsElem.ValueKind == JsonValueKind.Object)
                 {
                     foreach (var cProp in chapsElem.EnumerateObject())
                     {
+                        chapters.Add(cProp.Name);
                         if (double.TryParse(cProp.Name, System.Globalization.CultureInfo.InvariantCulture, out var c) && c > maxChap)
                         {
                             maxChap = c;
                         }
                     }
                 }
+
+                if (chapters.Count == 0)
+                {
+                    continue;
+                }
+
+                details.Add(
+                    new ExternalMangaVolumeDto
+                    {
+                        Number = volumeNumber,
+                        Title = $"Volume {volumeNumber}",
+                        Chapters = chapters,
+                    });
             }
 
             int? finalVols = maxVol > 0 ? maxVol : null;
             int? finalChaps = maxChap > 0 ? (int)Math.Floor(maxChap) : null;
-            return (finalVols, finalChaps);
+            return ((finalVols, finalChaps), details);
         }
         catch
         {
-            return (null, null);
+            return ((null, null), []);
         }
     }
 

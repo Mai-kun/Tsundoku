@@ -128,7 +128,8 @@ export const ru = {
     chapters: (current: number, total: number | null) =>
       `Гл. ${current}${total && total > 0 ? ` / ${total}` : ""}`,
     hours: (hours: number) => `${hours} ч.`,
-    episodes: (current: number, total: number) => `${current} / ${total} эп.`,
+    episodes: (current: number, total: number) =>
+      `${current} / ${total > 0 ? total : "—"} эп.`,
     movie: (minutes: number) => `${minutes} мин.`,
     deleteAria: (title: string) => `Удалить ${title}`,
     openDetails: (title: string) => `Открыть ${title}`,
@@ -403,6 +404,22 @@ export const ru = {
       primary: "Основной",
       fallback: (order: number) => `Резервный (${order})`,
     },
+  },
+  activity: {
+    label: "Фоновые процессы",
+    open: "Открыть фоновые процессы",
+    syncing: "Синхронизация",
+    loadingCover: "Загрузка обложки…",
+    loadingSeasons: "Загрузка сезонов…",
+    empty: "Нет активных задач",
+    emptyHint:
+      "Добавьте тайтл из поиска — здесь появится прогресс синхронизации.",
+    queued: "В очереди",
+    completed: "Готово",
+    failed: "Ошибка",
+    cancelled: "Отменено",
+    cancel: "Отменить задачу",
+    cancelAria: (title: string) => `Отменить синхронизацию «${title}»`,
   },
   errors: {
     unexpected: "Произошла непредвиденная ошибка.",

@@ -60,7 +60,8 @@ public sealed class EnrichMetadataHandler(
                 && MediaMetadataApplier.ApplyIfMissing(
                     item,
                     external,
-                    season => db.Entry(season).State = EntityState.Added))
+                    season => db.Entry(season).State = EntityState.Added,
+                    volume => db.Entry(volume).State = EntityState.Added))
             {
                 item.MarkUpdated();
                 await db.SaveChangesAsync(ct);

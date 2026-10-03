@@ -1,3 +1,25 @@
+export const SYNC_STATUS = {
+  ready: 0,
+  syncing: 1,
+  failed: 2,
+} as const;
+
+export type SyncStatus = (typeof SYNC_STATUS)[keyof typeof SYNC_STATUS];
+
+/** Mirrors JobStatus on the server, which serialises the enum by name. */
+export type JobStatus = "Queued" | "Running" | "Completed" | "Failed" | "Cancelled";
+
+export interface JobProgress {
+  jobId: string;
+  mediaId: string | null;
+  title: string;
+  progressPercent: number;
+  currentStep: string;
+  status: JobStatus;
+  startedAt: string;
+  errorMessage: string | null;
+}
+
 export const MEDIA_STATUS = {
   planned: 0,
   inProgress: 1,

@@ -1,3 +1,5 @@
+using MediaTracker.Server.Domain.Enums;
+
 namespace MediaTracker.Server.Domain.Entities;
 
 public abstract class MediaItem
@@ -17,6 +19,10 @@ public abstract class MediaItem
     public string? Notes { get; set; }
 
     public string? CoverUrl { get; set; }
+
+    /// <summary>Set to <see cref="SyncStatus.Syncing"/> the moment the row is created, so the card
+    /// and the detail screen can render immediately while the job queue fills in the rest.</summary>
+    public SyncStatus SyncStatus { get; set; } = SyncStatus.Ready;
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
@@ -61,6 +67,16 @@ public abstract class MediaItem
     public string? UnlockedAchievements { get; set; }
 
     public string? UserPlatform { get; set; }
+
+    /// <summary>
+    /// The related titles the user loaded from an external API, serialised once. Without this the
+    /// Related tab was empty after every F5 and the user had to name a source again to get the list
+    /// back; the payload is per-item and only the detail screen reads it.
+    /// </summary>
+    public string? RelatedMediaJson { get; set; }
+
+    /// <summary>Which source produced <see cref="RelatedMediaJson"/>; null while nothing is cached.</summary>
+    public string? RelatedSource { get; set; }
 
     /// <summary>
     /// Moves the item to <paramref name="status"/> and brings every dependent field along with it:

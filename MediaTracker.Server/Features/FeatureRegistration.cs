@@ -1,10 +1,12 @@
 using FluentValidation;
 using MediaTracker.Server.Features.External.EnrichMetadata;
 using MediaTracker.Server.Features.External.GetExternalDetails;
+using MediaTracker.Server.Features.External.GetExternalRelations;
 using MediaTracker.Server.Features.External.GetGameAchievements;
 using MediaTracker.Server.Features.External.GetGameRecommendations;
 using MediaTracker.Server.Features.External.GetGameRelated;
 using MediaTracker.Server.Features.External.RefreshMetadata;
+using MediaTracker.Server.Features.External.RelinkMedia;
 using MediaTracker.Server.Features.External.SearchExternal;
 using MediaTracker.Server.Features.External.TranslateText;
 using MediaTracker.Server.Features.History.ClearHistory;
@@ -73,7 +75,9 @@ public static class FeatureRegistration
         services.AddScoped<IGetGameAchievementsHandler, GetGameAchievementsHandler>();
         services.AddScoped<IGetGameRelatedHandler, GetGameRelatedHandler>();
         services.AddScoped<IGetGameRecommendationsHandler, GetGameRecommendationsHandler>();
+        services.AddScoped<IGetExternalRelationsHandler, GetExternalRelationsHandler>();
         services.AddScoped<IRefreshMetadataHandler, RefreshMetadataHandler>();
+        services.AddScoped<IRelinkMediaHandler, RelinkMediaHandler>();
         services.AddScoped<IEnrichMetadataHandler, EnrichMetadataHandler>();
 
         // History

@@ -1,14 +1,13 @@
 using System.Collections.Frozen;
 using MediaTracker.Server.Domain.Entities;
-using MediaTracker.Server.Features.Media.MediaContract;
+using MediaTracker.Server.Features.Media.GetMediaDetail;
+using MediaTracker.Server.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
 namespace MediaTracker.Server.Features.Media.GetMediaList;
 
 /// <summary>
-/// Filters, ordering and the DTO projection for the media list endpoint, expressed once so the
-/// handler stays thin. The projection keeps the read in a single SQL statement: no TPH entity graph
-/// is materialized and the season/volume collections are reduced to aggregates by the database.
+/// Filters and ordering for the media list endpoint, expressed once so the handler stays thin.
 /// </summary>
 public static class MediaListQuery
 {
@@ -26,14 +25,14 @@ public static class MediaListQuery
 
     /// <summary>Returns false when the requested type is unknown — the caller answers with an empty list.</summary>
     public static bool TryBuild(
-        IQueryable<MediaItem> source,
+        AppDbContext db,
         string? type,
         MediaStatus? status,
         bool? isAnime,
         string? search,
         string? sortBy,
         string? sortOrder,
-        out IQueryable<MediaListRow> query)
+        out IQueryable<MediaItem> query)
     {
         query = default!;
 
@@ -44,7 +43,10 @@ public static class MediaListQuery
             return false;
         }
 
-        var scoped = source.AsNoTracking();
+        // The season and volume aggregates the cards read only exist once the navigations are
+        // loaded. Selecting the DTO inside the query instead let EF evaluate it in memory against
+        // empty collections, so every card showed "0 / 0" and a blank franchise name.
+        var scoped = MediaItemGraph.LoadNoTracking(db);
 
         if (trimmedType is { } discriminatorKey)
         {
@@ -71,15 +73,9 @@ public static class MediaListQuery
 
         scoped = ApplyOrdering(scoped, sortBy, sortOrder);
 
-        query = MediaListProjection.ProjectRows(scoped);
+        query = scoped;
         return true;
     }
-
-    /// <summary>
-    /// One list row: the projected DTO plus the raw update timestamp the cover cache-buster is
-    /// derived from. Ticks is not SQL-translatable, so the version string is stamped in memory.
-    /// </summary>
-    public sealed record MediaListRow(MediaListDto Item, DateTime UpdatedAt);
 
     private static IQueryable<MediaItem> ApplySearchTerm(IQueryable<MediaItem> query, string term)
     {

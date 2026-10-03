@@ -1,6 +1,7 @@
 <script lang="ts">
     import type { Snippet } from "svelte";
-    import { Image as ImageIcon } from "$shared/ui/Icons.svelte";
+    import { Image as ImageIcon, LoaderCircle } from "$shared/ui/Icons.svelte";
+    import { i18n } from "$shared/i18n/index.svelte";
 
     interface Props {
         src: string | null;
@@ -9,12 +10,14 @@
         badges?: Snippet;
         /** Destructive/secondary actions, rendered top-right and revealed on hover. */
         actions?: Snippet;
+        /** Background enrichment is still filling this item in. The card stays clickable. */
+        syncing?: boolean;
     }
 
-    let { src, alt, badges, actions }: Props = $props();
+    let { src, alt, badges, actions, syncing = false }: Props = $props();
 </script>
 
-<div class="aspect-[3/4] overflow-hidden rounded-lg bg-canvas">
+<div class="relative aspect-[3/4] overflow-hidden rounded-lg bg-canvas">
     {#if src}
         <img
             {src}
@@ -28,6 +31,23 @@
             class="flex h-full items-center justify-center bg-gradient-to-br from-panel to-elevated text-muted"
         >
             <ImageIcon size={38} stroke-width={1.25} aria-hidden="true" />
+        </div>
+    {/if}
+
+    {#if syncing}
+        <div
+            class="absolute inset-0 z-[5] flex flex-col items-center justify-center gap-2 bg-black/55 backdrop-blur-[1px]"
+        >
+            <LoaderCircle
+                size={22}
+                class="animate-spin text-white/90"
+                aria-hidden="true"
+            />
+            <span
+                class="rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-white/90"
+            >
+                {i18n.t.activity.syncing}
+            </span>
         </div>
     {/if}
 

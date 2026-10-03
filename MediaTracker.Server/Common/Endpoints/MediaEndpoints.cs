@@ -2,6 +2,7 @@ using MediaTracker.Server.Common.Http;
 using MediaTracker.Server.Domain.Entities;
 using MediaTracker.Server.Features.External.EnrichMetadata;
 using MediaTracker.Server.Features.External.RefreshMetadata;
+using MediaTracker.Server.Features.External.RelinkMedia;
 using MediaTracker.Server.Features.History.ClearHistory;
 using MediaTracker.Server.Features.History.DeleteHistoryEvent;
 using MediaTracker.Server.Features.History.GetHistoryEvents;
@@ -91,6 +92,14 @@ public static class MediaEndpoints
                 [FromServices] IEnrichMetadataHandler handler,
                 CancellationToken ct) =>
             handler.HandleAsync(new EnrichMetadataCommand(id), ct).ToOk());
+
+        // Re-link: point an existing row at another provider's entity (Kinopoisk -> TMDb).
+        group.MapPost("/{id:guid}/relink", (
+                Guid id,
+                RelinkMediaRequest request,
+                [FromServices] IRelinkMediaHandler handler,
+                CancellationToken ct) =>
+            handler.HandleAsync(new RelinkMediaCommand(id, request), ct).ToOk());
 
         group.MapDelete("/{id:guid}", (
                 Guid id,

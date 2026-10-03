@@ -1,12 +1,13 @@
 <script lang="ts">
-    import { Bookmark, Check, GitBranch, Image as ImageIcon, Layers, LayoutGrid, Pause, Play, RefreshCw, X } from "$shared/ui/Icons.svelte";
+    import { Check, GitBranch, Image as ImageIcon, Layers, LayoutGrid, Play, RefreshCw } from "$shared/ui/Icons.svelte";
     import { errorMessage } from "$shared/api/api";
     import { i18n } from "$shared/i18n/index.svelte";
+    import MediaStatusBadge from "$entities/media/ui/MediaStatusBadge.svelte";
     import type { MediaItem } from "$shared/types";
+    import RelationLoadButton from "$widgets/media-detail/RelationLoadButton.svelte";
     import {
         formatMediaDisplayType,
         relatedStatusClasses,
-        statusLabel,
     } from "$widgets/media-detail/detailFormatters";
     import type {
         RelatedEntry,
@@ -16,6 +17,8 @@
     } from "$widgets/media-detail/detailTypes";
 
     interface Props {
+        /** The detail shape carries `relatedSource`; the panel only reads that one extra field. */
+        media: MediaItem & { relatedSource?: string | null };
         related: readonly RelatedEntry[];
         loading: boolean;
         error: unknown;
@@ -26,9 +29,12 @@
         onSelectViewMode: (mode: RelatedViewMode) => void;
         /** Opens a local item or the preview modal for an external one. */
         onOpen: (entry: RelatedEntry) => void;
+        /** `force` skips the 30-day cache; the source is the one the user picked in the dropdown. */
+        onLoadFrom: (source: string, force?: boolean) => void;
     }
 
     let {
+        media,
         related,
         loading,
         error,
@@ -38,6 +44,7 @@
         onRetry,
         onSelectViewMode,
         onOpen,
+        onLoadFrom,
     }: Props = $props();
 
     const VIEWS: ReadonlyArray<{
@@ -61,13 +68,24 @@
 
 <section class="space-y-6">
     <div
-        class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+        class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"
     >
-        <div>
+        <div class="min-w-0">
             <h2 class="text-sm font-bold uppercase tracking-wider text-slate-300">
                 {i18n.t.detail.relatedTitle}
             </h2>
             <p class="text-xs text-muted">{i18n.t.detail.relatedSubtitle}</p>
+            <!-- Stays in the header after a successful load: the data on screen came from one
+                 provider, and picking another has to overwrite it rather than need a clear first. -->
+            <div class="mt-3">
+                <RelationLoadButton
+                    {media}
+                    {loading}
+                    kind="related"
+                    currentSource={media.relatedSource ?? null}
+                    onLoad={onLoadFrom}
+                />
+            </div>
         </div>
 
         {#if related.length > 0}
@@ -103,21 +121,28 @@
             {/each}
         </div>
     {:else if error}
-        <div class="flex flex-col items-start gap-2 rounded-xl bg-rose-400/5 p-4">
-            <p class="text-sm text-rose-200" role="alert">{errorMessage(error)}</p>
+        <!-- Steam Deck greys: a failing provider should not splash a light-mode alert across a dark
+             screen. The message says what went wrong and the button repeats the same request. -->
+        <div
+            class="flex flex-col items-start gap-3 rounded-xl border border-rose-400/20 bg-[#1c202b] p-5"
+            role="alert"
+        >
+            <p class="text-sm text-rose-200">{errorMessage(error)}</p>
             <button
                 type="button"
-                class="inline-flex items-center gap-2 rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-white transition hover:bg-accent-hover cursor-pointer"
+                class="inline-flex items-center gap-2 rounded-md border border-[var(--color-accent)]/40 bg-[var(--color-accent)]/10 px-3 py-1.5 text-xs font-semibold text-[var(--color-accent-soft)] transition hover:bg-[var(--color-accent)]/20"
                 onclick={onRetry}
             >
                 <RefreshCw size={14} aria-hidden="true" />
-                {i18n.t.common.retry}
+                {i18n.current === "ru" ? "Попробовать снова" : "Try again"}
             </button>
         </div>
     {:else if related.length === 0}
-        <p class="rounded-xl bg-[var(--color-panel-line)] p-5 text-sm text-muted">
-            {i18n.t.detail.relatedEmpty}
-        </p>
+        <div
+            class="flex flex-col items-start gap-3 rounded-xl bg-[var(--color-panel-line)] p-5"
+        >
+            <p class="text-sm text-muted">{i18n.t.detail.relatedEmpty}</p>
+        </div>
     {:else if viewMode === "grouped"}
         <div class="space-y-8">
             {#each groups as group (group.id)}
@@ -184,27 +209,13 @@
 
         {#if rel.localItem}
             <div class="absolute left-2.5 top-2.5 z-20 flex items-center">
-                <div
-                    class={`relative z-10 flex h-7 w-7 items-center justify-center rounded-full shadow-lg backdrop-blur ${relatedStatusClasses(rel.localItem.status)}`}
-                    title={statusLabel(rel.localItem.status)}
-                >
-                    {#if rel.localItem.status === 0}
-                        <Bookmark size={13} stroke-width={2.2} aria-hidden="true" />
-                    {:else if rel.localItem.status === 1}
-                        <Play
-                            size={12}
-                            fill="currentColor"
-                            class="translate-x-0.5"
-                            aria-hidden="true"
-                        />
-                    {:else if rel.localItem.status === 2}
-                        <Check size={14} stroke-width={3} aria-hidden="true" />
-                    {:else if rel.localItem.status === 3}
-                        <Pause size={12} stroke-width={2.5} aria-hidden="true" />
-                    {:else if rel.localItem.status === 4}
-                        <X size={13} stroke-width={2.5} aria-hidden="true" />
-                    {/if}
-                </div>
+                <!-- The one badge component the library grid already uses, so a related card and a
+                     card on the home screen are visually identical instead of two hand-rolled dots. -->
+                <MediaStatusBadge
+                    id={`related-status-${rel.id}`}
+                    status={rel.localItem.status}
+                    onSelect={() => onOpen(rel)}
+                />
 
                 {#if rel.localItem.score !== null && rel.localItem.score > 0}
                     <div

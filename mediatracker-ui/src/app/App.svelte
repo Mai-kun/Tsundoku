@@ -1,6 +1,7 @@
 <script lang="ts">
     import { flushSync } from "svelte";
 import { deleteMedia } from "$shared/api/api";
+    import { jobsClient } from "$shared/api/jobsClient.svelte";
     import AppShell from "$widgets/layout/AppShell.svelte";
     import Header from "$widgets/layout/Header.svelte";
     import Sidebar from "$widgets/layout/Sidebar.svelte";
@@ -290,6 +291,22 @@ import { deleteMedia } from "$shared/api/api";
     function handleCreated(_: MediaItem) {
         mediaChanged();
     }
+
+    /* A finished background job rewrote the row behind the grid (cover, seasons, sync flag), so the
+       lists have to be refetched — otherwise a card keeps its "Syncing" overlay forever. The detail
+       screen refreshes itself, so it is skipped here to avoid fetching the same item twice. */
+    let settledJobKeys = $state("");
+    $effect(() => {
+        const settled = jobsClient.jobs
+            .filter((job) => job.status === "Completed")
+            .map((job) => job.jobId)
+            .join(",");
+
+        if (settled === settledJobKeys) return;
+        settledJobKeys = settled;
+        if (activeView === "detail" || settled === "") return;
+        mediaChanged();
+    });
 
     function openDetailById(id: string) {
         openDetail({ id } as MediaItem);

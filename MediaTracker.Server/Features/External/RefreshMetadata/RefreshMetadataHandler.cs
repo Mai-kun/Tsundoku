@@ -22,6 +22,7 @@ public interface IRefreshMetadataHandler
 public sealed class RefreshMetadataHandler(
     AppDbContext db,
     MetadataAggregatorService metadataAggregator,
+    ISourcePriorityService priorityService,
     IImageStorageService imageStorage) : IRefreshMetadataHandler
 {
     public async Task<Result<MediaDetailDto>> HandleAsync(RefreshMetadataCommand command, CancellationToken ct)
@@ -57,7 +58,14 @@ public sealed class RefreshMetadataHandler(
             external,
             imageStorage,
             ct,
-            season => db.Entry(season).State = EntityState.Added);
+            season => db.Entry(season).State = EntityState.Added,
+            volume => db.Entry(volume).State = EntityState.Added);
+
+        // A source disabled in settings leaves a stale badge behind otherwise: refresh only rewrites
+        // what the queried source reported, so nothing else ever removed one.
+        MediaMetadataApplier.RemoveDisabledRatings(
+            item,
+            await priorityService.GetDisabledSourcesAsync(ct));
 
         item.MarkUpdated();
         await db.SaveChangesAsync(ct);

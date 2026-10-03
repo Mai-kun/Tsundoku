@@ -109,9 +109,14 @@ public static class MediaMerger
     {
         return primary with
         {
-            Chapters = primary.Chapters ?? fallback.Chapters,
+            Chapters = BestCount(primary.Chapters, fallback.Chapters),
             Volumes = primary.Volumes ?? fallback.Volumes,
-            TotalCount = primary.TotalCount ?? fallback.TotalCount ?? fallback.Chapters ?? fallback.Volumes,
+            TotalCount = BestCount(
+                primary.TotalCount,
+                fallback.TotalCount,
+                primary.Chapters,
+                fallback.Chapters,
+                fallback.Volumes),
             Author = FirstNonEmpty(primary.Author, fallback.Author),
             Studio = FirstNonEmpty(primary.Studio, fallback.Studio),
             Description = FirstNonEmpty(primary.Description, fallback.Description),
@@ -130,7 +135,13 @@ public static class MediaMerger
             Tags = primary.Tags is { Count: > 0 } ? primary.Tags : fallback.Tags,
             // OEL can only come from the second source, so the plain "first wins" rule is wrong here.
             MangaFormat = MangaFormats.Pick(primary.MangaFormat, fallback.MangaFormat),
-            Episodes = primary.Episodes is { Count: > 0 } ? primary.Episodes : fallback.Episodes
+            Episodes = primary.Episodes is { Count: > 0 } ? primary.Episodes : fallback.Episodes,
+            // A source that knows the real season split (Kinopoisk) must not be overwritten by one
+            // that only reports a flat episode count, or the split is lost again on merge.
+            Seasons = primary.Seasons is { Count: > 0 } ? primary.Seasons : fallback.Seasons,
+            VolumeDetails = primary.VolumeDetails is { Count: > 0 }
+                ? primary.VolumeDetails
+                : fallback.VolumeDetails
         };
     }
 
@@ -215,5 +226,30 @@ public static class MediaMerger
     private static string? FirstNonEmpty(string? first, string? second)
     {
         return !string.IsNullOrWhiteSpace(first) ? first : second;
+    }
+
+    /// <summary>
+    /// Picks the count to keep when two sources disagree.
+    ///
+    /// Coalescing on nullability alone was the bug behind "Гл. 0 / —" on an ongoing series: an
+    /// ongoing source reports either no count at all or only the latest chapter, and neither was
+    /// allowed to lose the final total another source already knew (386 for Berserk). A count that
+    /// is missing or zero is not an answer, so the largest real one wins and the result is null only
+    /// when nobody knows.
+    /// </summary>
+    private static int? BestCount(params int?[] candidates)
+    {
+        int? best = null;
+        foreach (var candidate in candidates)
+        {
+            if (candidate is not > 0)
+            {
+                continue;
+            }
+
+            best = best is null || candidate > best ? candidate : best;
+        }
+
+        return best;
     }
 }

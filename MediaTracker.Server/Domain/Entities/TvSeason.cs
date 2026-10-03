@@ -49,11 +49,21 @@ public class TvSeason
 
     /// <summary>Creates the placeholder season a provider's episode list or count implies.</summary>
     public static TvSeason CreateFirst(int totalEpisodes, string? episodesData, MediaStatus status, Guid tvShowId) =>
+        CreateSeason(1, "Season 1", totalEpisodes, episodesData, status, tvShowId);
+
+    /// <summary>Creates a season for a specific season number, for sources that report the real split.</summary>
+    public static TvSeason CreateSeason(
+        int seasonNumber,
+        string? title,
+        int totalEpisodes,
+        string? episodesData,
+        MediaStatus status,
+        Guid tvShowId) =>
         new()
         {
             Id = Guid.NewGuid(),
-            SeasonNumber = 1,
-            Title = "Season 1",
+            SeasonNumber = seasonNumber,
+            Title = string.IsNullOrWhiteSpace(title) ? $"Season {seasonNumber}" : title,
             TvShowId = tvShowId,
             Status = ResolveStatus(0, totalEpisodes),
             TotalEpisodes = totalEpisodes,

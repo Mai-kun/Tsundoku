@@ -1,4 +1,5 @@
-using MediaTracker.Server.Domain.Entities;
+﻿using MediaTracker.Server.Domain.Entities;
+using MediaTracker.Server.Domain.Enums;
 
 namespace MediaTracker.Server.Features.Media.MediaContract;
 
@@ -11,6 +12,9 @@ public record MediaListDto
     public required string Title { get; init; }
 
     public required MediaStatus Status { get; init; }
+
+    /// <summary>Whether the background enrichment of a search hit is still filling this row in.</summary>
+    public required SyncStatus SyncStatus { get; init; }
 
     public int? Score { get; init; }
 
@@ -115,6 +119,12 @@ public sealed record MediaDetailDto : MediaListDto
     public string? TranslatedSynopsis { get; init; }
 
     public string? UnlockedAchievements { get; init; }
+
+    /// <summary>Cached related titles, so the Related tab survives a reload.</summary>
+    public string? RelatedMediaJson { get; init; }
+
+    /// <summary>The provider <see cref="RelatedMediaJson"/> was fetched from.</summary>
+    public string? RelatedSource { get; init; }
 
     public IReadOnlyList<TvSeasonDto>? Seasons { get; init; }
 
@@ -263,6 +273,7 @@ public static class MediaResponseMapper
             Type = listFields.Type,
             Title = listFields.Title,
             Status = listFields.Status,
+            SyncStatus = listFields.SyncStatus,
             Score = listFields.Score,
             StartedAt = listFields.StartedAt,
             FinishedAt = listFields.FinishedAt,
@@ -308,6 +319,8 @@ public static class MediaResponseMapper
             ExternalRatingsJson = item.ExternalRatingsJson,
             TranslatedSynopsis = item.TranslatedSynopsis,
             UnlockedAchievements = item.UnlockedAchievements,
+            RelatedMediaJson = item.RelatedMediaJson,
+            RelatedSource = item.RelatedSource,
         };
     }
 
@@ -334,6 +347,7 @@ public static class MediaResponseMapper
         Type = type,
         Title = item.Title,
         Status = item.Status,
+        SyncStatus = item.SyncStatus,
         Score = item.Score,
         StartedAt = item.StartedAt,
         FinishedAt = item.FinishedAt,

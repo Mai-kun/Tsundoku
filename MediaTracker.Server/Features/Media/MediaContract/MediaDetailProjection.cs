@@ -1,4 +1,5 @@
 using MediaTracker.Server.Domain.Entities;
+using MediaTracker.Server.Features.External.RefreshMetadata;
 
 namespace MediaTracker.Server.Features.Media.MediaContract;
 
@@ -32,6 +33,7 @@ public static class MediaDetailProjection
             Type = listFields.Type,
             Title = listFields.Title,
             Status = listFields.Status,
+            SyncStatus = listFields.SyncStatus,
             Score = listFields.Score,
             StartedAt = listFields.StartedAt,
             FinishedAt = listFields.FinishedAt,
@@ -77,6 +79,8 @@ public static class MediaDetailProjection
             ExternalRatingsJson = item.ExternalRatingsJson,
             TranslatedSynopsis = item.TranslatedSynopsis,
             UnlockedAchievements = item.UnlockedAchievements,
+            RelatedMediaJson = item.RelatedMediaJson,
+            RelatedSource = item.RelatedSource,
         };
     }
 

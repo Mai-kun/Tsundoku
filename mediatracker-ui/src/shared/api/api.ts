@@ -266,6 +266,21 @@ export function refreshMetadata(id: string): Promise<MediaDetail> {
   });
 }
 
+/**
+ * Re-points an item at another provider's entity. Unlike refresh, which re-reads the id the row
+ * already stores, this takes a new id from a source the user picked explicitly.
+ */
+export function relinkMedia(
+  id: string,
+  payload: { externalId: string; source: string; type: string },
+): Promise<MediaDetail> {
+  return requestJson<MediaDetail>(`${mediaEndpoint}/${id}/relink`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
 export function getSources(): Promise<SourceInfo[]> {
   return requestJson<SourceInfo[]>("/api/settings/sources");
 }
@@ -386,6 +401,28 @@ export function getGameRecommendations(params: {
   if (params.externalId) query.set("externalId", params.externalId);
   return requestJson<GameRelatedItem[]>(
     `/api/external/games/recommendations?${query.toString()}`,
+  );
+}
+
+/**
+ * Related / recommended titles for one source. `kind` is "related" or "recommendations"; the
+ * caller must name the source explicitly because these are only ever fetched on request.
+ */
+export function getExternalRelations(params: {
+  type?: string | null;
+  externalId?: string | null;
+  title?: string | null;
+  source: string;
+  kind: "related" | "recommendations";
+}): Promise<GameRelatedItem[]> {
+  const query = new URLSearchParams();
+  if (params.type) query.set("type", params.type);
+  if (params.externalId) query.set("externalId", params.externalId);
+  if (params.title) query.set("title", params.title);
+  query.set("source", params.source);
+  query.set("kind", params.kind);
+  return requestJson<GameRelatedItem[]>(
+    `/api/external/relations?${query.toString()}`,
   );
 }
 

@@ -4,6 +4,7 @@
     import { errorMessage } from "$shared/api/api";
     import { i18n } from "$shared/i18n/index.svelte";
     import type { MediaItem, MediaStatus } from "$shared/types";
+    import { SYNC_STATUS } from "$shared/types";
     import { schedulePrefetchMediaDetail } from "$features/prefetch-details/mediaDetailPrefetch";
     import MediaPoster from "$entities/media/ui/MediaPoster.svelte";
     import MediaScoreBadge from "$entities/media/ui/MediaScoreBadge.svelte";
@@ -69,7 +70,11 @@
     onfocus={() => schedulePrefetchMediaDetail(item.id)}
     onkeydown={handleKeydown}
 >
-    <MediaPoster src={item.coverUrl} alt={item.title}>
+    <MediaPoster
+        src={item.coverUrl}
+        alt={item.title}
+        syncing={item.syncStatus === SYNC_STATUS.syncing}
+    >
         {#snippet badges()}
             <MediaStatusBadge
                 id={`status-${item.id}`}

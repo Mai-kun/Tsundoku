@@ -31,6 +31,7 @@ public static class MetadataServiceExtensions
         services.AddTransient<ITranslationService, TranslationService>();
         services.AddTransient<MetadataAggregatorService>();
         services.AddTransient<RawgGameService>();
+        services.AddTransient<TmdbRelationService>();
 
         return services;
     }

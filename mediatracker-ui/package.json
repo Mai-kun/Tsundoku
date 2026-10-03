@@ -21,6 +21,10 @@
     "check:score-stack": "node checks/scoreStack.check.cjs",
     "check:category-switch": "node checks/categorySwitch.check.cjs",
     "check:tokens": "node checks/tokens.check.cjs",
+    "check:jobs": "node checks/jobsQueue.check.cjs",
+    "check:seasons": "node checks/seasons.check.cjs",
+    "check:related": "node checks/related.check.cjs",
+    "check:relink": "node checks/relink.check.cjs",
     "preview": "vite preview"
   },
   "devDependencies": {

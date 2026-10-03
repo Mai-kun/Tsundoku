@@ -141,6 +141,9 @@ export interface UpdateMediaPayload {
   genres?: string | null;
   tags?: string | null;
   unlockedAchievements?: string | null;
+  /** Cached Related-tab payload plus the source it came from; written after a successful load. */
+  relatedMediaJson?: string | null;
+  relatedSource?: string | null;
 }
 
 export interface SourceInfo {

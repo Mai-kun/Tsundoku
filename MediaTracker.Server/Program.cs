@@ -4,6 +4,7 @@ using MediaTracker.Server.Common.Cli;
 using MediaTracker.Server.Common.Endpoints;
 using MediaTracker.Server.Common.Extensions;
 using MediaTracker.Server.Common.Middleware;
+using MediaTracker.Server.Features.Jobs;
 using MediaTracker.Server.Infrastructure.ExternalApis;
 using MediaTracker.Server.Infrastructure.Logging;
 using MediaTracker.Server.Infrastructure.Persistence;
@@ -191,6 +192,7 @@ try
     app.MapExternalMediaEndpoints();
     app.MapLogEndpoints();
     app.MapSettingsEndpoints();
+    app.MapJobEndpoints();
 
     app.MapFallback(async context =>
     {

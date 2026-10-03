@@ -1,18 +1,24 @@
 <script lang="ts">
-    import { Image as ImageIcon, LoaderCircle, RefreshCw, Sparkles } from "$shared/ui/Icons.svelte";
+    import { Image as ImageIcon, RefreshCw } from "$shared/ui/Icons.svelte";
     import { errorMessage } from "$shared/api/api";
     import { i18n } from "$shared/i18n/index.svelte";
+    import type { MediaItem } from "$shared/types";
+    import RelationLoadButton from "$widgets/media-detail/RelationLoadButton.svelte";
     import type { RecommendationItem } from "$widgets/media-detail/detailTypes";
 
     interface Props {
+        media: MediaItem;
         items: readonly RecommendationItem[];
         loading: boolean;
         error: unknown;
-        /** `force` skips the 30-day localStorage cache. */
-        onLoad: (force?: boolean) => void;
+        /** `force` skips the 30-day localStorage cache; the source is the user's dropdown pick. */
+        onLoad: (source: string, force?: boolean) => void;
     }
 
-    let { items, loading, error, onLoad }: Props = $props();
+    let { media, items, loading, error, onLoad }: Props = $props();
+
+    /** The source the results on screen came from, so "reload" repeats that request. */
+    let lastSource = $state("");
 </script>
 
 <section class="space-y-4">
@@ -24,8 +30,8 @@
             <button
                 type="button"
                 class="inline-flex items-center gap-1.5 rounded-lg border border-white/[0.08] bg-surface/50 px-2.5 py-1 text-xs font-medium text-slate-300 transition hover:bg-white/10 hover:text-white disabled:opacity-50 cursor-pointer"
-                disabled={loading}
-                onclick={() => onLoad(true)}
+                disabled={loading || items.length === 0}
+                onclick={() => onLoad(lastSource, true)}
                 title={i18n.current === "ru"
                     ? "Перезагрузить рекомендации"
                     : "Reload recommendations"}
@@ -61,38 +67,28 @@
             <button
                 type="button"
                 class="inline-flex items-center gap-2 rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-white transition hover:bg-accent-hover"
-                onclick={() => onLoad()}
+                onclick={() => onLoad(lastSource)}
             >
                 <RefreshCw size={14} aria-hidden="true" />
                 {i18n.t.common.retry}
             </button>
         </div>
     {:else if items.length === 0}
-<!-- The only panel that must never auto-fetch: recommendations are requested
-             strictly on this button. -->
+        <!-- Recommendations are external data and are only ever fetched from this button, never
+             automatically when the card opens. -->
         <div
-            class="flex flex-col items-start gap-2 rounded-xl bg-[var(--color-panel-line)] p-5"
+            class="flex flex-col items-start gap-3 rounded-xl bg-[var(--color-panel-line)] p-5"
         >
             <p class="text-sm text-muted">{i18n.t.detail.noRecommendations}</p>
-            <button
-                type="button"
-                class="inline-flex items-center gap-2 rounded-md border border-[var(--color-accent)]/40 bg-[var(--color-accent)]/10 px-3 py-1.5 text-xs font-semibold text-[var(--color-accent-soft)] transition hover:bg-[var(--color-accent)]/20 disabled:opacity-40 cursor-pointer"
-                disabled={loading}
-                onclick={() => onLoad(true)}
-            >
-                {#if loading}
-                    <LoaderCircle
-                        size={13}
-                        class="animate-spin"
-                        aria-hidden="true"
-                    />
-                {:else}
-                    <Sparkles size={13} aria-hidden="true" />
-                {/if}
-                {i18n.current === "ru"
-                    ? "Получить рекомендации"
-                    : "Get recommendations"}
-            </button>
+            <RelationLoadButton
+                {media}
+                {loading}
+                kind="recommendations"
+                onLoad={(source) => {
+                    lastSource = source;
+                    onLoad(source, true);
+                }}
+            />
         </div>
     {:else}
         <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">

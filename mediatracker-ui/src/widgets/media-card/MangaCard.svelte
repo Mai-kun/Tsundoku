@@ -24,10 +24,13 @@
         getOnProgressCommitted: () => onProgressCommitted,
     });
     const showStepper = $derived(supportsProgressStepper(item));
+    // Same canonical `totalChapters` the detail screen reads, so the card and "Характеристики"
+    // can never disagree. An unknown total renders as a dash rather than a misleading 0.
+    const totalChapters = $derived(
+        item.totalChapters && item.totalChapters > 0 ? item.totalChapters : null,
+    );
     const ratio = $derived(
-        item.totalChapters && item.totalChapters > 0
-            ? progress.value / item.totalChapters
-            : null,
+        totalChapters !== null ? progress.value / totalChapters : null,
     );
     const subtitle = $derived(
         item.author?.trim()
@@ -46,7 +49,7 @@
     <CardTitleBlock title={item.title} {subtitle} />
 
     <CardProgressBar
-        label={i18n.t.card.chapters(progress.value, item.totalChapters)}
+        label={i18n.t.card.chapters(progress.value, totalChapters)}
         {ratio}
         reserveSpace={showStepper}
     />

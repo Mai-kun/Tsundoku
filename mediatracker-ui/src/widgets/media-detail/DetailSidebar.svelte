@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { CalendarDays, ChevronDown, ExternalLink, Image as ImageIcon, List, Pencil, RefreshCw, Star, Trash2 } from "$shared/ui/Icons.svelte";
+    import { CalendarDays, ChevronDown, ExternalLink, Image as ImageIcon, Link2, List, Pencil, RefreshCw, Star, Trash2 } from "$shared/ui/Icons.svelte";
     import { errorMessage } from "$shared/api/api";
     import PopoverMenu from "$shared/ui/PopoverMenu.svelte";
     import { i18n } from "$shared/i18n/index.svelte";
@@ -9,7 +9,8 @@
     export interface SpecRow {
         label: string;
         value: string;
-        isLink?: boolean;
+        /** Absolute URL when the value is a link; the sidebar renders an anchor instead of plain text. */
+        href?: string;
     }
 
     interface Props {
@@ -37,12 +38,15 @@
         refreshBusy: boolean;
         refreshError: unknown;
         onRefreshMetadata: () => Promise<void>;
+        onRelink: () => void;
         onStartEdit: () => void;
         deleteBusy: boolean;
         deleteError: unknown;
         onDelete: () => Promise<void>;
         onNavigate: (view: AppView) => void;
         specRows: readonly SpecRow[];
+        /** Background enrichment is still running: only the poster waits, the rest of the page does not. */
+        syncing?: boolean;
     }
 
     let {
@@ -70,12 +74,14 @@
         refreshBusy,
         refreshError,
         onRefreshMetadata,
+        onRelink,
         onStartEdit,
         deleteBusy,
         deleteError,
         onDelete,
         onNavigate,
         specRows,
+        syncing = false,
     }: Props = $props();
 
     const statusMenuItems = $derived(
@@ -93,7 +99,21 @@
     <div
         class="aspect-[2/3] w-full overflow-hidden rounded-xl border border-white/[0.06] bg-[var(--color-panel-line)] shadow-lg"
     >
-        {#if media.coverUrl}
+        {#if syncing && !media.coverUrl}
+            <div
+                class="flex h-full animate-pulse flex-col items-center justify-center gap-2 bg-white/[0.04]"
+            >
+                <ImageIcon
+                    size={32}
+                    stroke-width={1.25}
+                    class="text-muted"
+                    aria-hidden="true"
+                />
+                <p class="px-3 text-center text-xs text-muted">
+                    {i18n.t.activity.loadingCover}
+                </p>
+            </div>
+        {:else if media.coverUrl}
             <img
                 src={media.coverUrl}
                 alt={media.title}
@@ -395,6 +415,21 @@
                     {errorMessage(refreshError)}
                 </p>{/if}
 
+            <!-- Refresh re-reads the id already stored; this is for when that id belongs to the wrong
+                 provider's match, so the user can point the row at a better one. -->
+            <button
+                type="button"
+                class="flex w-full items-center gap-2.5 rounded-lg bg-surface/50 px-3 py-2.5 text-xs font-medium text-[var(--color-ink-dim)] transition hover:bg-[var(--color-panel-raised)] hover:text-white"
+                onclick={onRelink}
+            >
+                <Link2
+                    size={15}
+                    class="text-[var(--color-accent-soft)]"
+                    aria-hidden="true"
+                />
+                {i18n.current === "ru" ? "Сменить источник" : "Change source"}
+            </button>
+
             <button
                 type="button"
                 class="flex w-full items-center gap-2.5 rounded-lg bg-surface/50 px-3 py-2.5 text-xs font-medium text-[var(--color-ink-dim)] transition hover:bg-[var(--color-panel-raised)] hover:text-white"
@@ -465,9 +500,9 @@
                             {row.label}
                         </dt>
                         <dd class="text-right text-xs font-medium text-white">
-                            {#if row.isLink}
+                            {#if row.href}
                                 <a
-                                    href={`https://${row.value}`}
+                                    href={row.href}
                                     target="_blank"
                                     rel="noreferrer"
                                     class="inline-flex items-center gap-1 text-accent-soft hover:underline"

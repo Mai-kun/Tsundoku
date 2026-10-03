@@ -17,10 +17,14 @@
         onEpisodeStep,
     }: MediaCardProps & { item: TvShowMedia } = $props();
 
+    // The card and the detail screen read the same counters; the guard only covers a show whose
+    // seasons have not been written yet, so a known episode count is still shown instead of "0".
+    const totalEpisodes = $derived(
+        item.totalEpisodesCount > 0 ? item.totalEpisodesCount : null,
+    );
+
     const ratio = $derived(
-        item.totalEpisodesCount > 0
-            ? item.totalEpisodesWatched / item.totalEpisodesCount
-            : null,
+        totalEpisodes !== null ? item.totalEpisodesWatched / totalEpisodes : null,
     );
 
     const subtitle = $derived(
@@ -33,18 +37,17 @@
     const showStepper = $derived(
         Boolean(onEpisodeStep) &&
             item.status === MEDIA_STATUS.inProgress &&
-            item.totalEpisodesCount !== 1,
+            totalEpisodes !== 1,
     );
 
     const episodeText = $derived(
-        item.totalEpisodesCount > 0
-            ? `${item.totalEpisodesWatched} / ${item.totalEpisodesCount}`
+        totalEpisodes !== null
+            ? `${item.totalEpisodesWatched} / ${totalEpisodes}`
             : String(item.totalEpisodesWatched),
     );
 
     const atLastEpisode = $derived(
-        item.totalEpisodesCount > 0 &&
-            item.totalEpisodesWatched >= item.totalEpisodesCount,
+        totalEpisodes !== null && item.totalEpisodesWatched >= totalEpisodes,
     );
 
     async function stepEpisode(delta: number) {
@@ -65,7 +68,7 @@
     <CardProgressBar
         label={i18n.t.card.episodes(
             item.totalEpisodesWatched,
-            item.totalEpisodesCount,
+            totalEpisodes ?? 0,
         )}
         {ratio}
     />

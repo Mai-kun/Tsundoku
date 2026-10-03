@@ -72,7 +72,7 @@ public class Manga : MediaItem
 
         for (var volumeNumber = 1; volumeNumber <= volumeCount; volumeNumber++)
         {
-            var chaptersPerVolume = SplitEvenly(totalChapters, volumeCount, defaultValue: 0);
+            var chaptersPerVolume = SeededChaptersPerVolume(totalChapters, volumeCount);
 
             Volumes.Add(new MangaVolume
             {
@@ -91,6 +91,17 @@ public class Manga : MediaItem
             CurrentVolume = 1;
         }
     }
+
+    /// <summary>
+    /// The even split <see cref="SeedPlaceholderVolumes"/> hands every stub volume. Exposed so the
+    /// metadata applier can recognise a volume that still carries it and replace it with the real
+    /// per-volume chapter count a provider reports — otherwise every volume of a series kept the
+    /// same made-up number forever, because a seeded count is never zero.
+    /// </summary>
+    public static int SeededChaptersPerVolume(int? totalChapters, int volumeCount) =>
+        totalChapters is null || volumeCount <= 0
+            ? 0
+            : (int)Math.Ceiling((double)totalChapters.Value / volumeCount);
 
     public static MediaStatus ResolveMangaStatus(int currentChapter, int? totalChapters) =>
         totalChapters is > 0 && currentChapter >= totalChapters.Value

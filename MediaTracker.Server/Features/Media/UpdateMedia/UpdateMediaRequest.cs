@@ -62,4 +62,12 @@ public sealed record UpdateMediaRequest
 
     /// <summary>Explicit null clears the value: every other field treats null as "not supplied".</summary>
     public bool ClearUserPlatform { get; init; }
+
+    /// <summary>
+    /// Cached payload for the Related tab. Written by the client after a successful external
+    /// relations call so a reload does not have to ask the provider for the same list again.
+    /// </summary>
+    public string? RelatedMediaJson { get; init; }
+
+    public string? RelatedSource { get; init; }
 }

@@ -1,16 +1,18 @@
 <script lang="ts">
-    import type { RecommendationItem } from "../detailTypes";
-    import RecommendationsPanel from "../panels/RecommendationsPanel.svelte";
+    import type { MediaItem } from "$shared/types";
+import type { RecommendationItem } from "../detailTypes";
+import RecommendationsPanel from "../panels/RecommendationsPanel.svelte";
 
     interface Props {
+        media: MediaItem;
         items: readonly RecommendationItem[];
         loading: boolean;
         error: unknown;
-        /** `force` skips the 30-day cache. */
-        onLoad: (force?: boolean) => void;
+        /** The source comes from the user's dropdown pick; `force` skips the 30-day cache. */
+        onLoad: (source: string, force?: boolean) => void;
     }
 
-    let { items, loading, error, onLoad }: Props = $props();
+    let { media, items, loading, error, onLoad }: Props = $props();
 </script>
 
-<RecommendationsPanel {items} {loading} {error} {onLoad} />
+<RecommendationsPanel {media} {items} {loading} {error} {onLoad} />

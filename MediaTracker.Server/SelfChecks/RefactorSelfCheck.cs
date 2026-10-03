@@ -35,6 +35,9 @@ public static class RefactorSelfCheck
         CheckMangaFormatMergePrefersOel(failures);
         CheckMangaGapEnrichmentDoesNotOverwrite(failures);
         CheckMergeKeepsRuntimeAndGenres(failures);
+        CheckMergeKeepsFinalChapterTotal(failures);
+        CheckRealVolumesReplaceSeededSplit(failures);
+        CheckRelatedMediaSurvivesRoundTrip(failures);
         CheckMissingMetadataDrivesCascade(failures);
         CheckPartialDatesDoNotBecomeJanFirst(failures);
         CheckEnrichFillsMovieDisplayGaps(failures);
@@ -56,9 +59,12 @@ public static class RefactorSelfCheck
         CheckEnrichFillsEndDateAndStatus(failures);
         CheckEnrichStoresEpisodesForLiveAction(failures);
         CheckEnrichStoresEpisodeCountWithoutEpisodes(failures);
+        CheckRealSeasonsCreateOneTvSeasonEach(failures);
+        CheckRefreshDropsRatingsOfDisabledSources(failures);
         CheckSqliteTuningIsPreserved(failures);
         CheckMetadataProvidersAreDiscovered(failures);
         CheckListPayloadStaysLight(failures);
+        CheckListAndDetailTotalsAgree(failures);
         CheckStatusWireContract(failures);
 
         if (failures.Count == 0)
@@ -387,6 +393,169 @@ public static class RefactorSelfCheck
             merged.Genres?.Count,
             "merge fills genres the primary source lacks"
         );
+    }
+
+    private static void CheckMergeKeepsFinalChapterTotal(List<string> failures)
+    {
+        // Berserk: one source knows the finished run (386), the ongoing ones only know the latest
+        // chapter or nothing at all. None of them may knock the real total back to a dash.
+        var finished = new ExternalMediaDto
+        {
+            ExternalId = "1",
+            Title = "Berserk",
+            Type = "manga",
+            TotalCount = 386,
+            Chapters = 386,
+            Volumes = 41,
+            ReleaseStatus = "finished",
+        };
+        var ongoingWithCount = new ExternalMediaDto
+        {
+            ExternalId = "2",
+            Title = "Berserk",
+            Type = "manga",
+            TotalCount = 373,
+            Chapters = 373,
+            ReleaseStatus = "releasing",
+        };
+        var ongoingWithoutCount = new ExternalMediaDto
+        {
+            ExternalId = "3",
+            Title = "Berserk",
+            Type = "manga",
+            Chapters = 364,
+            ReleaseStatus = "releasing",
+        };
+
+        var mergedWithCount = MediaMerger.Merge(finished, ongoingWithCount);
+        AssertEqual(
+            failures,
+            386,
+            mergedWithCount.TotalCount,
+            "merge keeps the final chapter total over a lower ongoing one"
+        );
+        AssertEqual(
+            failures,
+            386,
+            mergedWithCount.Chapters,
+            "merge keeps the final chapter count over a lower ongoing one"
+        );
+
+        var mergedWithNone = MediaMerger.Merge(ongoingWithoutCount, finished);
+        AssertEqual(
+            failures,
+            386,
+            mergedWithNone.TotalCount,
+            "merge fills the total from the other source when the first knows none"
+        );
+
+        var unknown = MediaMerger.Merge(
+            ongoingWithoutCount with { TotalCount = null, Chapters = null },
+            ongoingWithCount with { TotalCount = null, Chapters = null, Volumes = null });
+        AssertEqual(
+            failures,
+            null,
+            unknown.TotalCount,
+            "merge reports no total only when no source knows one"
+        );
+
+        var fromChapters = MediaMerger.Merge(
+            ongoingWithoutCount with { TotalCount = null },
+            ongoingWithCount with { TotalCount = null, Chapters = null });
+        AssertEqual(
+            failures,
+            364,
+            fromChapters.TotalCount,
+            "merge falls back to a known chapter count when no total is reported"
+        );
+    }
+
+    /// <summary>
+    /// A seeded series splits its chapter budget evenly across its stub volumes, so every volume
+    /// starts with the same invented number. The real per-volume split a provider reports has to
+    /// replace it, or "том 1 — 3 главы, том 2 — 5 глав" never appears.
+    /// </summary>
+    private static void CheckRealVolumesReplaceSeededSplit(List<string> failures)
+    {
+        var manga = new Manga { Title = "Noragami", TotalChapters = 8 };
+        // Same order the create handler uses: the total lands on the row, then the stubs are seeded.
+        manga.SeedPlaceholderVolumes(requestedVolumes: 2, totalChapters: 8, totalPages: null);
+
+        AssertEqual(failures, 4, manga.Volumes[0].TotalChapters, "seed splits the budget evenly");
+        AssertEqual(failures, 4, manga.Volumes[1].TotalChapters, "seed splits the budget evenly");
+
+        var external = new ExternalMediaDto
+        {
+            ExternalId = "1",
+            Title = "Noragami",
+            Type = "manga",
+            TotalCount = 8,
+            Chapters = 8,
+            VolumeDetails =
+            [
+                new ExternalMangaVolumeDto { Number = 1, Chapters = ["1", "2", "3"] },
+                new ExternalMangaVolumeDto { Number = 2, Chapters = ["4", "5", "6", "7", "8"] },
+            ],
+        };
+
+        MediaMetadataApplier.ApplyIfMissing(manga, external);
+
+        AssertEqual(
+            failures,
+            3,
+            manga.Volumes[0].TotalChapters,
+            "volume 1 takes its real chapter count"
+        );
+        AssertEqual(
+            failures,
+            5,
+            manga.Volumes[1].TotalChapters,
+            "volume 2 takes its real chapter count"
+        );
+
+        // A count the user typed is not the seed, so it must survive the next provider pass.
+        manga.Volumes[0].ApplyEdits(currentPage: null, totalPages: null, currentChapter: null, totalChapters: 11);
+        MediaMetadataApplier.ApplyIfMissing(manga, external);
+        AssertEqual(
+            failures,
+            11,
+            manga.Volumes[0].TotalChapters,
+            "a chapter count the user typed is not overwritten"
+        );
+    }
+
+    private static void CheckRelatedMediaSurvivesRoundTrip(List<string> failures)
+    {
+        var item = new Manga { Title = "Noragami" };
+
+        MediaItemUpdater.Apply(item, new UpdateMediaRequest());
+        AssertEqual(
+            failures,
+            null,
+            item.RelatedMediaJson,
+            "an update without the related payload leaves the cache alone"
+        );
+
+        MediaItemUpdater.Apply(
+            item,
+            new UpdateMediaRequest { RelatedMediaJson = "[{\"id\":\"7\"}]", RelatedSource = "MangaDex" });
+
+        AssertEqual(
+            failures,
+            "[{\"id\":\"7\"}]",
+            item.RelatedMediaJson,
+            "the related payload is stored on the entity"
+        );
+        AssertEqual(failures, "MangaDex", item.RelatedSource, "the related source is stored on the entity");
+
+        var dto = MediaResponseMapper.ToDetailDto(item);
+        AssertEqual(
+            failures,
+            "[{\"id\":\"7\"}]",
+            dto.RelatedMediaJson,
+            "the detail payload carries the cached related titles"
+        );
+        AssertEqual(failures, "MangaDex", dto.RelatedSource, "the detail payload carries the related source");
     }
 
     private static void CheckMissingMetadataDrivesCascade(List<string> failures)
@@ -1356,6 +1525,133 @@ public static class RefactorSelfCheck
     /// TMDb reports an episode count but no per-episode rows, and the count is only ever persisted on
     /// a season — so without a season the "62 серии" row stayed at 0.
     /// </summary>
+    private static void CheckRealSeasonsCreateOneTvSeasonEach(List<string> failures)
+    {
+        var show = new TvShow { Title = "Во все тяжкие" };
+
+        MediaMetadataApplier.ApplyIfMissing(
+            show,
+            new ExternalMediaDto
+            {
+                ExternalId = "1",
+                Title = "Во все тяжкие",
+                Type = "tvshow",
+                TotalCount = 62,
+                Seasons =
+                [
+                    Season(1, 7),
+                    Season(2, 13),
+                    Season(3, 13),
+                    Season(4, 13),
+                    Season(5, 16),
+                ],
+            }
+        );
+
+        AssertEqual(failures, 5, show.Seasons.Count, "one TvSeason per reported season");
+        AssertEqual(failures, 62, show.TotalEpisodesCount, "the episodes are not lost");
+        AssertEqual(failures, 7, show.Seasons[0].TotalEpisodes, "season 1 keeps its own length");
+        AssertEqual(failures, 16, show.Seasons[4].TotalEpisodes, "season 5 keeps its own length");
+        AssertEqual(failures, 5, show.Seasons[4].SeasonNumber, "season numbers are preserved");
+        AssertEqual(
+            failures,
+            3,
+            show.Seasons.Count(s => s.TotalEpisodes == 13),
+            "three seasons have 13 episodes each"
+        );
+
+        // A refresh must update the rows it already has rather than appending a second copy.
+        MediaMetadataApplier.ApplyIfMissing(
+            show,
+            new ExternalMediaDto
+            {
+                ExternalId = "1",
+                Title = "Во все тяжкие",
+                Type = "tvshow",
+                TotalCount = 62,
+                Seasons = [Season(1, 7), Season(2, 13), Season(3, 13), Season(4, 13), Season(5, 16)],
+            }
+        );
+
+        AssertEqual(failures, 5, show.Seasons.Count, "a refresh does not duplicate seasons");
+    }
+
+    private static ExternalSeasonDto Season(int number, int episodeCount) =>
+        new()
+        {
+            Number = number,
+            Title = $"Season {number}",
+            TotalEpisodes = episodeCount,
+            Episodes =
+            [
+                .. Enumerable.Range(1, episodeCount).Select(index => new ExternalEpisodeDto
+                {
+                    Number = index,
+                    Title = $"Episode {index}",
+                    AirDate = null,
+                })
+            ],
+        };
+
+    /// <summary>
+    /// Disabling a source has to remove its badge. Refresh only ever rewrites the rows the queried
+    /// source reported, so without this the badge survived every later refresh.
+    /// </summary>
+    private static void CheckRefreshDropsRatingsOfDisabledSources(List<string> failures)
+    {
+        var item = new Movie { Title = "Дюна" };
+        MediaMetadataApplier.ApplyRatings(
+            item,
+            new ExternalMediaDto
+            {
+                ExternalId = "1",
+                Title = "Дюна",
+                Type = "movie",
+                Rating = 8.1,
+                Ratings =
+                [
+                    new ExternalRatingDto { Source = "Kinopoisk", Rating = 8.1, Votes = 500 },
+                    new ExternalRatingDto { Source = "IMDb", Rating = 8.0, Votes = 9000 },
+                ],
+            }
+        );
+
+        var disabled = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "kinopoisk" };
+
+        AssertTrue(
+            failures,
+            MediaMetadataApplier.RemoveDisabledRatings(item, disabled),
+            "removing a disabled source reports a change"
+        );
+        AssertFalse(
+            failures,
+            (item.ExternalRatingsJson ?? "").Contains("Kinopoisk", StringComparison.OrdinalIgnoreCase),
+            "the disabled source's badge is gone"
+        );
+        AssertTrue(
+            failures,
+            (item.ExternalRatingsJson ?? "").Contains("IMDb", StringComparison.Ordinal),
+            "the still-enabled source keeps its badge"
+        );
+
+        // Idempotent: a second pass must not report a change or wipe the payload.
+        AssertFalse(
+            failures,
+            MediaMetadataApplier.RemoveDisabledRatings(item, disabled),
+            "a second pass is a no-op"
+        );
+
+        // Disabling the last source clears the payload instead of leaving "[ ]" behind.
+        var onlyImdb = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "imdb" };
+        AssertTrue(
+            failures,
+            MediaMetadataApplier.RemoveDisabledRatings(item, onlyImdb),
+            "disabling the last source reports a change"
+        );
+        AssertEqual(failures, null, item.ExternalRatingsJson, "an empty rating list stores null");
+        AssertEqual(failures, null, item.ExternalRating, "the scalar rating goes with it");
+    }
+
     private static void CheckEnrichStoresEpisodeCountWithoutEpisodes(List<string> failures)
     {
         var show = new TvShow { Title = "Шоу" };
@@ -1638,6 +1934,97 @@ public static class RefactorSelfCheck
         // The detail shape must be a superset, or the client's shared field mapping breaks.
         var missing = listFields.Except(detailFields, StringComparer.Ordinal).ToList();
         AssertEqual(failures, 0, missing.Count, $"detail is a superset of list (missing: {string.Join(',', missing)})");
+    }
+
+    /// <summary>
+    /// A library card and the detail screen it opens must report the same episode and chapter totals.
+    ///
+    /// They used to disagree on every show: the list mapped the DTO inside the query, which EF could
+    /// not translate, so it evaluated in memory with an unloaded (empty) season collection and every
+    /// aggregate read 0 — "0 / 0" next to a correct "0 / 11" one click later. Both endpoints now go
+    /// through MediaResponseMapper over a loaded graph, so the totals are one value by construction.
+    /// </summary>
+    private static void CheckListAndDetailTotalsAgree(List<string> failures)
+    {
+        var show = new TvShow { Title = "The Promised Neverland Season 2" };
+        show.Seasons.Add(TvSeason.CreateFirst(11, null, MediaStatus.Planned, show.Id));
+
+        var manga = new Manga { Title = "Noragami" };
+        manga.AddVolume(
+            MangaVolume.CreateFrom(
+                1,
+                "Volume 1",
+                null,
+                100,
+                0,
+                3,
+                0,
+                MediaStatus.Planned,
+                null,
+                null,
+                null,
+                manga.Id));
+        manga.AddVolume(
+            MangaVolume.CreateFrom(
+                2,
+                "Volume 2",
+                null,
+                100,
+                0,
+                5,
+                0,
+                MediaStatus.Planned,
+                null,
+                null,
+                null,
+                manga.Id));
+        manga.RecordTotalChapters(8);
+
+        foreach (var (item, label) in new (MediaItem, string)[] { (show, "show"), (manga, "manga") })
+        {
+            var listDto = MediaResponseMapper.ToListDto(item);
+            var detailDto = MediaResponseMapper.ToDetailDto(item);
+
+            AssertEqual(
+                failures,
+                listDto.TotalEpisodesCount,
+                detailDto.TotalEpisodesCount,
+                $"{label}: list and detail report the same episode total"
+            );
+            AssertEqual(
+                failures,
+                listDto.TotalEpisodesWatched,
+                detailDto.TotalEpisodesWatched,
+                $"{label}: list and detail report the same watched count"
+            );
+            AssertEqual(
+                failures,
+                listDto.TotalChapters,
+                detailDto.TotalChapters,
+                $"{label}: list and detail read one canonical chapter total"
+            );
+        }
+
+        AssertEqual(
+            failures,
+            11,
+            MediaResponseMapper.ToListDto(show).TotalEpisodesCount,
+            "an 11-episode season sums to 11, not 0"
+        );
+        AssertEqual(
+            failures,
+            8,
+            MediaResponseMapper.ToListDto(manga).TotalChapters,
+            "the series counter wins over the volume sum"
+        );
+
+        // A show with no season rows has no episode count to report; 0 must not read as "watched 0 of 0".
+        AssertEqual(
+            failures,
+            0,
+            MediaResponseMapper.ToListDto(new TvShow { Title = "Empty" }).TotalEpisodesCount,
+            "a seasonless show reports no episodes"
+        );
     }
 
     /// <summary>The status is serialised as an integer and the client's maps are keyed on 0..4.</summary>

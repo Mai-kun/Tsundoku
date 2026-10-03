@@ -1,5 +1,6 @@
 <!-- The icon set the UI draws from: one import site instead of ~50 scattered lucide paths. -->
 <script module lang="ts">
+    export { default as Activity } from "lucide-svelte/icons/activity";
     export { default as AlertCircle } from "lucide-svelte/icons/alert-circle";
     export { default as AlertTriangle } from "lucide-svelte/icons/alert-triangle";
     export { default as ArrowDown } from "lucide-svelte/icons/arrow-down";
@@ -33,8 +34,10 @@
     export { default as Layers } from "lucide-svelte/icons/layers";
     export { default as LayoutGrid } from "lucide-svelte/icons/layout-grid";
     export { default as Library } from "lucide-svelte/icons/library";
+    export { default as Link2 } from "lucide-svelte/icons/link-2";
     export { default as List } from "lucide-svelte/icons/list";
     export { default as ListChecks } from "lucide-svelte/icons/list-checks";
+    export { default as ListTodo } from "lucide-svelte/icons/list-todo";
     export { default as LoaderCircle } from "lucide-svelte/icons/loader-circle";
     export { default as Menu } from "lucide-svelte/icons/menu";
     export { default as Minus } from "lucide-svelte/icons/minus";

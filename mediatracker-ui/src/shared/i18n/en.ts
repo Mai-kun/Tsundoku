@@ -130,7 +130,8 @@ export const en: Dictionary = {
     chapters: (current: number, total: number | null) =>
       `Ch. ${current}${total && total > 0 ? ` / ${total}` : ""}`,
     hours: (hours: number) => `${hours} h`,
-    episodes: (current: number, total: number) => `${current} / ${total} ep.`,
+    episodes: (current: number, total: number) =>
+      `${current} / ${total > 0 ? total : "—"} ep.`,
     movie: (minutes: number) => `${minutes} min`,
     deleteAria: (title: string) => `Delete ${title}`,
     openDetails: (title: string) => `Open ${title}`,
@@ -408,6 +409,22 @@ export const en: Dictionary = {
       primary: "Primary",
       fallback: (order: number) => `Backup (${order})`,
     },
+  },
+  activity: {
+    label: "Background processes",
+    open: "Open background processes",
+    syncing: "Syncing",
+    loadingCover: "Loading cover…",
+    loadingSeasons: "Loading seasons…",
+    empty: "No active tasks",
+    emptyHint:
+      "Add a title from search — its sync progress will show up here.",
+    queued: "Queued",
+    completed: "Done",
+    failed: "Failed",
+    cancelled: "Cancelled",
+    cancel: "Cancel task",
+    cancelAria: (title: string) => `Cancel sync of "${title}"`,
   },
   errors: {
     unexpected: "Something went wrong. Please try again.",

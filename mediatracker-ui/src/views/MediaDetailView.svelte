@@ -1,4 +1,4 @@
-<script lang="ts">
+﻿<script lang="ts">
     import { ArrowLeft, ArrowUpDown, Bookmark, CalendarDays, Check, CheckCircle2, ChevronDown, ExternalLink, Eye, GitBranch, Image as ImageIcon, Languages, Layers, LoaderCircle, LayoutGrid, List, Minus, Pause, Pencil, Play, Plus, RefreshCw, RotateCcw, Sparkles, Star, Trash2, Trophy, X } from "$shared/ui/Icons.svelte";
     import {
         addVolume,
@@ -10,6 +10,7 @@
         getGameAchievements,
         getGameRecommendations,
         getGameRelated,
+        getExternalRelations,
         getMedia,
         getSources,
         refreshMetadata,
@@ -35,6 +36,7 @@
         isMangaDetail,
         isTvShowDetail,
         MEDIA_STATUS,
+        SYNC_STATUS,
         type AppView,
         type ExternalEpisode,
         type GameAchievementItem,
@@ -78,6 +80,7 @@
     } from "$widgets/media-detail/ratingBadges";
     import type {
         EpisodeRow,
+        NextUp,
         ProgressInfo,
         RatingBadge,
         RecommendationItem,
@@ -124,6 +127,34 @@
         }
     }
 
+    /**
+     * The Related tab is the one panel whose content lives outside the database, so a reload used to
+     * come back empty and the user had to name a source again. Reading the copy stored on the row
+     * costs nothing and puts the list back on F5.
+     */
+    function readStoredRelated(item: MediaDetail): RelatedEntry[] | null {
+        if (!item.relatedMediaJson) return null;
+        try {
+            const parsed: unknown = JSON.parse(item.relatedMediaJson);
+            return Array.isArray(parsed) ? (parsed as RelatedEntry[]) : null;
+        } catch {
+            return null;
+        }
+    }
+
+    /** Persisted alongside the list so the source picker opens on the provider that produced it. */
+    function persistRelated(item: MediaDetail, entries: RelatedEntry[], source: string) {
+        const payload = JSON.stringify(entries);
+        item.relatedMediaJson = payload;
+        item.relatedSource = source;
+        updateMedia(item.id, {
+            relatedMediaJson: payload,
+            relatedSource: source,
+        }).catch((error) =>
+            console.error("[MediaDetailView] Failed to cache related titles", error),
+        );
+    }
+
     function writeCache<T>(key: string, items: T[]) {
         localStorage.setItem(
             key,
@@ -135,12 +166,15 @@
     import DetailSidebar from "$widgets/media-detail/DetailSidebar.svelte";
     import DetailTabs from "$widgets/media-detail/DetailTabs.svelte";
     import RelatedPreviewModal from "$widgets/media-detail/panels/RelatedPreviewModal.svelte";
+import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
     import VolumeFormModal from "$widgets/media-detail/panels/VolumeFormModal.svelte";
     import VolumesPanel from "$widgets/media-detail/panels/VolumesPanel.svelte";
     import EpisodesTab from "$widgets/media-detail/tabs/EpisodesTab.svelte";
     import OverviewTab from "$widgets/media-detail/tabs/OverviewTab.svelte";
     import RecommendationsTab from "$widgets/media-detail/tabs/RecommendationsTab.svelte";
     import RelatedTab from "$widgets/media-detail/tabs/RelatedTab.svelte";
+    import SyncRowsSkeleton from "$widgets/media-detail/SyncRowsSkeleton.svelte";
+    import { jobsClient } from "$shared/api/jobsClient.svelte";
 
     interface Props {
         mediaId: string;
@@ -228,6 +262,8 @@
     let relatedError = $state<unknown>(null);
     let relatedSequence = 0;
     let relatedViewMode = $state<"grouped" | "timeline" | "grid">("grouped");
+    /** The source the user picked last, so "retry" repeats that request instead of guessing. */
+    let lastRelatedSource = $state<string | null>(null);
     let previewRelatedItem = $state<RelatedEntry | null>(null);
     let previewStatus = $state<MediaStatus>(MEDIA_STATUS.planned);
     let previewAddingBusy = $state(false);
@@ -288,8 +324,64 @@
 
     let selectedSeasonId = $state<string | null>(null);
     let episodeBusy = $state("");
+
+    /**
+     * The live feed wins over the stored flag: the row says Syncing until the job commits, but the
+     * SSE event already knows the outcome, so the skeletons can go a beat before the refetch lands.
+     */
+    let isSyncing = $derived.by(() => {
+        if (!media) return false;
+        const job = jobsClient.jobFor(media.id);
+        if (job) {
+            return job.status === "Running" || job.status === "Queued";
+        }
+        return media.syncStatus === SYNC_STATUS.syncing;
+    });
+
+    /** The job whose completion already triggered a refetch, so it only fires once per run. */
+    let settledJobId = $state<string | null>(null);
+
+    $effect(() => {
+        const job = media ? jobsClient.jobFor(media.id) : undefined;
+        if (!job || job.status !== "Completed") return;
+        if (job.jobId === settledJobId) return;
+
+        settledJobId = job.jobId;
+        void refreshMediaDetail(mediaId)
+            .then((loaded) => {
+                if (loaded.id !== mediaId) return;
+                media = loaded;
+                syncFrom(loaded);
+            })
+            .catch((error) =>
+                console.error(
+                    "[MediaDetailView] Silent refresh after sync failed",
+                    error,
+                ),
+            );
+    });
     let refreshBusy = $state(false);
     let refreshError = $state<unknown>(null);
+    let relinkOpen = $state(false);
+
+    /** Drops the freshly re-pointed payload in place: the season list and the spec sheet move with it. */
+    function applyRelinked(payload: MediaDetail) {
+        media = payload;
+        syncFrom(payload);
+        mediaDetailCache.invalidate(payload.id);
+        related = [];
+        relatedError = null;
+        lastRelatedSource = null;
+        relinkOpen = false;
+        void loadRelated(payload, null);
+        onUpdate();
+        showToast(
+            i18n.current === "ru"
+                ? "Источник изменён."
+                : "Source changed.",
+            "success",
+        );
+    }
 
     const progressDebounce = createProgressDebounce({
         send: (id, value) => setProgress(id, value),
@@ -387,6 +479,25 @@
         const total = currentSeason.totalEpisodes ?? 0;
         if (watched >= total) return null;
         return episodes.find((e) => e.number === watched + 1) ?? null;
+    });
+
+    /**
+     * The first unwatched episode of the series, not of the selected season. Walking the seasons in
+     * order is what makes the banner roll over by itself: with S1 at 7/7 it reports "S2 E1", and
+     * `watchNextUp` selects that season, so its accordion opens with it.
+     */
+    let nextUp = $derived.by<NextUp | null>(() => {
+        for (const view of seasonViews) {
+            const watched = view.season.currentEpisode ?? 0;
+            const total = view.season.totalEpisodes ?? 0;
+            if (total <= 0 || watched >= total) continue;
+            return {
+                seasonId: view.season.id,
+                seasonNumber: view.season.seasonNumber,
+                episodeNumber: watched + 1,
+            };
+        }
+        return null;
     });
 
     function historyProgressText(): string {
@@ -705,6 +816,14 @@
             media = loaded;
             syncFrom(loaded);
 
+            // Opening a card must not fetch anything, but the Related tab is the one panel whose
+            // content lives outside the DB, so the copy stored on the row is put back here.
+            const storedRelated = readStoredRelated(loaded);
+            if (storedRelated) {
+                related = storedRelated;
+                lastRelatedSource = loaded.relatedSource ?? null;
+            }
+
             if (forceRefresh) {
                 if (loaded.type === "game") {
                     void loadGameAchievements(loaded, true);
@@ -718,7 +837,7 @@
                     translatedSynopsis = loaded.translatedSynopsis;
                     isSynopsisTranslated = true;
                 }
-                void loadRelated(loaded, forceRefresh);
+                void loadRelated(loaded, null);
                 void triggerBackgroundEnrichment(
                     loaded,
                     sequence,
@@ -841,10 +960,21 @@
         }
     }
 
-    async function loadRelated(item: MediaItem, forceRefresh = false) {
+    async function loadRelated(
+        item: MediaItem,
+        source: string | null,
+        forceRefresh = false,
+    ) {
         const sequence = ++relatedSequence;
-        relatedLoading = true;
+        relatedLoading = source !== null;
         relatedError = null;
+
+        // A stored list is the previous successful load, so it is shown before anything leaves the
+        // building. Picking a source below still overwrites it.
+        if (source === null && !forceRefresh) {
+            const stored = readStoredRelated(item as MediaDetail);
+            if (stored) related = stored;
+        }
 
         try {
             const all = await getMedia();
@@ -852,7 +982,8 @@
 
             const results: RelatedEntry[] = [];
 
-            // 1. Check local items with same franchiseId
+            // 1. Local siblings of the same franchise are already in our own database, so they cost
+            // nothing and are always worth showing.
             if (item.franchiseId) {
                 const localMatches = all
                     .filter(
@@ -877,8 +1008,14 @@
                 }
             }
 
-            // 2. Query external relations for games (RAWG Game Series)
-            if (item.type === "game") {
+            // 2. Everything below leaves the building. Opening a card must not pay for any of it, so
+            // it only runs once the user has named a source in the dropdown.
+            if (source === null) {
+                if (sequence === relatedSequence) related = results;
+                return;
+            }
+
+            if (source.toLowerCase().includes("rawg")) {
                 try {
                     const gameRelated = await getGameRelated({
                         rawgId:
@@ -924,23 +1061,20 @@
                         });
                     }
                 } catch {}
-            }
-
-            // 3. Query external relations (AniList GraphQL for anime/manga)
-            if (isAnime(item) || item.type === "manga") {
-                const cacheKey = `tsundoku_relations_${item.id}`;
+            } else if (isAnime(item) || item.type === "manga") {
+                const cacheKey = `tsundoku_relations_${item.id}_${source}`;
                 if (forceRefresh) {
                     localStorage.removeItem(cacheKey);
                 }
                 let externalNodes = readCache<RelatedEntry>(cacheKey);
 
                 if (externalNodes.length === 0) {
-                    const source = (item.externalSource ?? "").toLowerCase();
-                    const isAniList = source.includes("anilist");
+                    const itemSource = (item.externalSource ?? "").toLowerCase();
+                    const isAniList = itemSource.includes("anilist");
                     const isMalOrShikimori =
-                        source.includes("shikimori") ||
-                        source.includes("mal") ||
-                        source.includes("jikan");
+                        itemSource.includes("shikimori") ||
+                        itemSource.includes("mal") ||
+                        itemSource.includes("jikan");
                     const parsedId =
                         item.externalId && /^\d+$/.test(item.externalId)
                             ? parseInt(item.externalId, 10)
@@ -993,14 +1127,62 @@
                         });
                     }
                 }
+            } else {
+                // Films and series: TMDb's own recommendations + similar pool, proxied by the server
+                // so the API key never reaches the browser.
+                const rows = await getExternalRelations({
+                    type: item.type,
+                    externalId: item.externalId,
+                    title: item.title,
+                    source,
+                    kind: "related",
+                });
+                for (const row of rows) {
+                    if (
+                        results.some(
+                            (r) =>
+                                r.id === row.id ||
+                                r.title.toLowerCase() === row.title.toLowerCase(),
+                        )
+                    )
+                        continue;
+                    results.push({
+                        id: row.id,
+                        title: row.title,
+                        coverUrl: row.coverUrl,
+                        type: item.type,
+                        score: row.score,
+                        releaseDate: row.releaseDate,
+                        year:
+                            row.releaseDate && row.releaseDate.length >= 4
+                                ? parseInt(row.releaseDate.slice(0, 4), 10)
+                                : null,
+                        ratings: row.score
+                            ? [{ source: "TMDb", rating: row.score }]
+                            : null,
+                        relationType: i18n.current === "ru" ? "Похожее" : "Similar",
+                        rawRelationType: "SIMILAR",
+                    });
+                }
             }
 
             if (sequence === relatedSequence) {
                 related = results;
+                // Only the rows we actually fetched from a provider are worth keeping; the local
+                // franchise siblings are already in the database.
+                if (source !== null && results.length > 0) {
+                    const external = results.filter(
+                        (entry) => !entry.localItem || entry.localItem.externalId !== entry.id,
+                    );
+                    if (external.length > 0) {
+                        persistRelated(item as MediaDetail, external, source);
+                    }
+                }
             }
         } catch (error) {
             if (sequence === relatedSequence) {
-                related = [];
+                // The stored copy is left alone: a provider being down is not a reason to throw away
+                // what a previous successful load put there.
                 relatedError = error;
             }
         } finally {
@@ -1344,9 +1526,18 @@
         }
     }
 
-    async function loadRecommendations(force = false) {
+    async function loadRecommendations(
+        source: string | null,
+        force = false,
+    ) {
         if (!media) return;
-        const cacheKey = `tsundoku_recs_${media.id}`;
+        // No source picked means no request: this tab is opened by clicking a tab, and fetching here
+        // is exactly the "first card open hits three external APIs" behaviour being removed.
+        if (source === null) return;
+        // `media` is a $state proxy, so its non-null narrowing does not survive the awaits below.
+        const item = media;
+
+        const cacheKey = `tsundoku_recs_${item.id}_${source}`;
         if (force) {
             localStorage.removeItem(cacheKey);
         } else {
@@ -1362,27 +1553,42 @@
 
         try {
             let items: RecommendationItem[] = [];
-            if (media.type === "game") {
-                try {
-                    const gameRecs = await getGameRecommendations({
-                        rawgId:
-                            media.externalSource?.toLowerCase() === "rawg"
-                                ? media.externalId
-                                : null,
-                        title: media.title,
-                        externalSource: media.externalSource,
-                        externalId: media.externalId,
-                    });
-                    items = gameRecs.map((r, idx) => ({
-                        id: r.id || `rec-game-${idx}`,
-                        title: r.title,
-                        coverUrl: r.coverUrl,
-                        score: r.score,
-                        type: "game",
-                    }));
-                } catch {}
-            } else if (isAnime(media) || media.type === "manga") {
-                items = (await fetchAniListRecommendations(media.title)).map(
+            const lower = source.toLowerCase();
+
+            if (lower.includes("rawg")) {
+                const gameRecs = await getGameRecommendations({
+                    rawgId:
+                        item.externalSource?.toLowerCase() === "rawg"
+                            ? item.externalId
+                            : null,
+                    title: item.title,
+                    externalSource: item.externalSource,
+                    externalId: item.externalId,
+                });
+                items = gameRecs.map((r, idx) => ({
+                    id: r.id || `rec-game-${idx}`,
+                    title: r.title,
+                    coverUrl: r.coverUrl,
+                    score: r.score,
+                    type: "game",
+                }));
+            } else if (lower.includes("tmdb")) {
+                const rows = await getExternalRelations({
+                    type: item.type,
+                    externalId: item.externalId,
+                    title: item.title,
+                    source,
+                    kind: "recommendations",
+                });
+                items = rows.map((r, idx) => ({
+                    id: r.id || `rec-${idx}`,
+                    title: r.title,
+                    coverUrl: r.coverUrl,
+                    score: r.score,
+                    type: item.type,
+                }));
+            } else {
+                items = (await fetchAniListRecommendations(item.title)).map(
                     toRecommendationItem,
                 );
             }
@@ -1505,7 +1711,22 @@
         }
     }
 
-    async function toggleEpisode(number: number) {
+    /**
+ * A season that has just been closed out hands the selection to the next unfinished one. The
+ * accordions are keyed on the selected season, so without this the banner says "S2 E1" while season 1
+ * is still the expanded block and the user has to hunt for the one the button points at.
+ */
+function followRollover(seasonId: string) {
+    const index = seasonViews.findIndex((view) => view.season.id === seasonId);
+    if (index < 0) return;
+    const next = seasonViews.slice(index + 1).find((view) => {
+        const total = view.season.totalEpisodes ?? 0;
+        return total > 0 && (view.season.currentEpisode ?? 0) < total;
+    });
+    if (next) selectedSeasonId = next.season.id;
+}
+
+async function toggleEpisode(number: number) {
         const target = currentSeason;
         if (!target || episodeBusy) return;
 
@@ -1521,6 +1742,7 @@
 
         try {
             await setSeasonProgress(target.id, nextVal);
+            if (nextVal >= (target.totalEpisodes ?? 0)) followRollover(target.id);
         } catch (error) {
             target.currentEpisode = current;
             onUpdate();
@@ -1529,6 +1751,31 @@
         } finally {
             episodeBusy = "";
         }
+    }
+
+    /**
+ * Toggles an episode inside any accordion, not just the selected season. The season is selected
+ * first so the write lands on the row the user actually clicked - without it every episode of a
+ * non-selected season would have been written against the currently selected one.
+ */
+async function toggleEpisodeOf(seasonId: string, number: number) {
+        if (selectedSeasonId !== seasonId) selectedSeasonId = seasonId;
+        await toggleEpisode(number);
+    }
+
+    /**
+     * The banner's main action. Selecting the target season first both expands its accordion (the
+     * `open` attribute follows the selected season) and makes the write land on the right row.
+     */
+    async function watchNextUp(target: NextUp) {
+        if (selectedSeasonId !== target.seasonId) selectedSeasonId = target.seasonId;
+        await toggleEpisode(target.episodeNumber);
+    }
+
+    /** The eye in a season header: close that season out, whichever one it is. */
+    async function markSeasonCompleteOf(seasonId: string) {
+        if (selectedSeasonId !== seasonId) selectedSeasonId = seasonId;
+        await markSeasonComplete();
     }
 
     async function markSeasonComplete() {
@@ -1544,6 +1791,7 @@
 
         try {
             await setSeasonProgress(target.id, total);
+            followRollover(target.id);
             showToast(i18n.t.detail.markSeasonWatched, "success");
         } catch (error) {
             target.currentEpisode = previous;
@@ -1592,7 +1840,7 @@
             if (updated.type === "game") {
                 void loadGameAchievements(updated, true);
             }
-            void loadRelated(updated, true);
+            void loadRelated(updated, null);
             void triggerBackgroundEnrichment(updated, ++requestSequence, true);
             showToast(i18n.t.detail.metadataUpdated, "success");
             onUpdate();
@@ -1683,12 +1931,14 @@
                 {refreshBusy}
                 {refreshError}
                 onRefreshMetadata={handleRefreshMetadata}
+                onRelink={() => (relinkOpen = true)}
                 onStartEdit={startEdit}
                 {deleteBusy}
                 {deleteError}
                 onDelete={removeMedia}
                 {onNavigate}
                 specRows={specRows(media)}
+                syncing={isSyncing}
             />
 
             <!-- Right Column: Header, Badges, Tabs, Tab Content -->
@@ -1756,47 +2006,65 @@
 
                 <!-- The season banner shows on every tab; only the episode list is tab-gated. -->
                 {#if media.type === "tvshow"}
-                    <EpisodesTab
-                        {seasons}
-                        {currentSeason}
-                        showEpisodes={activeSubTab === "episodes"}
-                        {sortedEpisodes}
-                        {nextEpisode}
-                        {seasonProgressPercent}
-                        {episodeBusy}
-                        {progressError}
-                        sortOrder={episodeSortOrder}
-                        onSelectSeason={(id) => (selectedSeasonId = id)}
-                        onToggleSort={() =>
-                            (episodeSortOrder =
-                                episodeSortOrder === "asc" ? "desc" : "asc")}
-                        onMarkSeasonComplete={markSeasonComplete}
-                        onResetSeason={resetSeasonProgress}
-                        onToggleEpisode={toggleEpisode}
-                        onOpenEpisodesTab={() => (activeSubTab = "episodes")}
-                        onOpenLists={() => onNavigate("lists")}
-                        {formatDate}
-                    />
+                    {#if isSyncing}
+                        <SyncRowsSkeleton
+                            label={i18n.t.activity.loadingSeasons}
+                        />
+                    {:else}
+                        <EpisodesTab
+                            {seasons}
+                            {currentSeason}
+                            showEpisodes={activeSubTab === "episodes"}
+                            {sortedEpisodes}
+                            {nextEpisode}
+                            {nextUp}
+                            {seasonProgressPercent}
+                            {episodeBusy}
+                            {progressError}
+                            sortOrder={episodeSortOrder}
+                            onSelectSeason={(id) => (selectedSeasonId = id)}
+                            onToggleSort={() =>
+                                (episodeSortOrder =
+                                    episodeSortOrder === "asc" ? "desc" : "asc")}
+                            onMarkSeasonComplete={markSeasonComplete}
+                            onMarkSeasonCompleteOf={markSeasonCompleteOf}
+                            onResetSeason={resetSeasonProgress}
+                            onToggleEpisode={toggleEpisode}
+                            onToggleEpisodeOf={toggleEpisodeOf}
+                            onWatchNextUp={watchNextUp}
+                            episodesBySeason={seasonViews}
+                            onOpenEpisodesTab={() => (activeSubTab = "episodes")}
+                            onOpenLists={() => onNavigate("lists")}
+                            {formatDate}
+                        />
+                    {/if}
                 {/if}
 
                 {#if activeSubTab === "volumes" && media.type === "manga"}
-                    <VolumesPanel
-                        {media}
-                        volumes={mangaVolumes}
-                        busy={volumes.busy}
-                        onAdd={() => volumes.openAdd()}
-                        onGenerate={() => void volumes.generateMissing()}
-                        onStep={(vol, delta) => void volumes.stepVolume(vol, delta)}
-                        onEdit={(vol) => volumes.openEdit(vol)}
-                        onDelete={(vol) => void volumes.remove(vol)}
-                        onMarkComplete={(vol) => void volumes.markComplete(vol)}
-                        onUnmarkComplete={(vol) =>
-                            void volumes.unmarkComplete(vol)}
-                    />
+                    {#if isSyncing}
+                        <SyncRowsSkeleton
+                            label={i18n.t.activity.loadingSeasons}
+                        />
+                    {:else}
+                        <VolumesPanel
+                            {media}
+                            volumes={mangaVolumes}
+                            busy={volumes.busy}
+                            onAdd={() => volumes.openAdd()}
+                            onGenerate={() => void volumes.generateMissing()}
+                            onStep={(vol, delta) => void volumes.stepVolume(vol, delta)}
+                            onEdit={(vol) => volumes.openEdit(vol)}
+                            onDelete={(vol) => void volumes.remove(vol)}
+                            onMarkComplete={(vol) => void volumes.markComplete(vol)}
+                            onUnmarkComplete={(vol) =>
+                                void volumes.unmarkComplete(vol)}
+                        />
+                    {/if}
                 {/if}
 
                 {#if activeSubTab === "related"}
                     <RelatedTab
+                        {media}
                         {related}
                         loading={relatedLoading}
                         error={relatedError}
@@ -1804,10 +2072,15 @@
                         groups={relatedGroups}
                         timeline={timelineEntries}
                         onRetry={() => {
-                            if (media) void loadRelated(media, true);
+                            if (media && lastRelatedSource)
+                                void loadRelated(media, lastRelatedSource, true);
                         }}
                         onSelectViewMode={(mode) => (relatedViewMode = mode)}
                         onOpen={handleRelatedClick}
+                        onLoadFrom={(source, force) => {
+                            lastRelatedSource = source;
+                            if (media) void loadRelated(media, source, force ?? false);
+                        }}
                     />
                 {/if}
 
@@ -1828,10 +2101,12 @@
 
                 {#if activeSubTab === "recommendations"}
                     <RecommendationsTab
+                        {media}
                         items={recommendations}
                         loading={recommendationsLoading}
                         error={recommendationsError}
-                        onLoad={(force) => void loadRecommendations(force)}
+                        onLoad={(source, force) =>
+                            void loadRecommendations(source, force ?? false)}
                     />
                 {/if}
 
@@ -1839,6 +2114,17 @@
         </div>
     {/if}
 </div>
+
+<!-- Re-point this record at a better provider match (Kinopoisk -> TMDb). -->
+<RelinkSourceModal
+    isOpen={relinkOpen}
+    mediaId={mediaId}
+    title={media?.title ?? ""}
+    type={media?.type ?? "all"}
+    currentSource={media?.externalSource ?? null}
+    onClose={() => (relinkOpen = false)}
+    onRelinked={applyRelinked}
+/>
 
 <!-- Add / edit volume dialogs -->
 <VolumeFormModal
@@ -1870,3 +2156,5 @@
     onClose={volumes.closeEdit}
     onSubmit={() => void volumes.confirmEdit()}
 />
+
+

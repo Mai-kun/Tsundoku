@@ -56,20 +56,72 @@ export function dataSource(item: MediaItem): string {
     }
 }
 
-export function providerDomain(item: MediaItem): string {
+/**
+ * The external page of an item, built from the source that actually supplied it.
+ *
+ * This used to return a bare domain and fall through to `anilist.co` for anything unrecognised, so a
+ * Dune matched by Kinopoisk linked to AniList with an AniList-styled id. The URL is now composed per
+ * source and an unknown source yields no link at all rather than a wrong one.
+ */
+export function providerLink(item: MediaItem): { name: string; url: string } | null {
     const src = (item.externalSource || dataSource(item)).toLowerCase();
-    if (src.includes("anilist")) return "anilist.co";
-    if (
-        src.includes("mal") ||
-        src.includes("jikan") ||
-        src.includes("myanimelist")
-    )
-        return "myanimelist.net";
-    if (src.includes("mangaupdate")) return "mangaupdates.com";
-    if (src.includes("tmdb")) return "themoviedb.org";
-    if (src.includes("rawg")) return "rawg.io";
-    if (src.includes("openlibrary")) return "openlibrary.org";
-    return "anilist.co";
+    const id = (item.externalId ?? "").trim();
+
+    if (src.includes("kinopoisk")) {
+        return id ? { name: "Кинопоиск", url: `https://www.kinopoisk.ru/film/${encodeURIComponent(id)}/` } : null;
+    }
+    if (src.includes("tmdb") || src.includes("movie database")) {
+        if (!id) return null;
+        const kind = item.type === "tvshow" || isAnime(item) ? "tv" : "movie";
+        return { name: "TMDb", url: `https://www.themoviedb.org/${kind}/${encodeURIComponent(id)}` };
+    }
+    if (src.includes("rawg")) {
+        // RAWG ids are numeric, but the site's own slug is what the page path expects; the search
+        // link works with either, so a slug-less id still gets a usable target.
+        return {
+            name: "RAWG",
+            url: id
+                ? `https://rawg.io/games/${encodeURIComponent(slugify(item.title))}-${encodeURIComponent(id)}`
+                : `https://rawg.io/search?q=${encodeURIComponent(item.title)}`,
+        };
+    }
+    if (src.includes("mangadex")) {
+        return id ? { name: "MangaDex", url: `https://mangadex.org/title/${encodeURIComponent(id)}` } : null;
+    }
+    if (src.includes("anilist")) {
+        if (!id) return null;
+        const kind = item.type === "manga" ? "manga" : "anime";
+        return { name: "AniList", url: `https://anilist.co/${kind}/${encodeURIComponent(id)}` };
+    }
+    if (src.includes("mal") || src.includes("jikan") || src.includes("myanimelist")) {
+        return {
+            name: "MyAnimeList",
+            url: id ? `https://myanimelist.net/anime/${encodeURIComponent(id)}` : "https://myanimelist.net",
+        };
+    }
+    if (src.includes("openlibrary")) {
+        return {
+            name: "OpenLibrary",
+            url: `https://openlibrary.org${id.startsWith("/") ? id : `/${id}`}`,
+        };
+    }
+    if (src.includes("igdb")) {
+        return id ? { name: "IGDB", url: `https://www.igdb.com/games/${encodeURIComponent(slugify(item.title))}` } : null;
+    }
+    if (src.includes("steam")) {
+        return id ? { name: "Steam", url: `https://store.steampowered.com/app/${encodeURIComponent(id)}` } : null;
+    }
+    return null;
+}
+
+/** Lowercase hyphenated form RAWG and IGDB use in their URLs. */
+function slugify(title: string): string {
+    return title
+        .toLowerCase()
+        .normalize("NFKD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "");
 }
 
 export function tags(item: MediaItem): string[] {
@@ -176,9 +228,11 @@ export function releaseStatusLabel(item: MediaItem): string {
 }
 
 /**
- * Volumes are the granular source when they carry chapter counts, but a volume seeded from
- * provider metadata can lag behind the manga's own counter. Taking the larger of the two keeps
- * "Характеристики" from reporting 0/386 right next to the 386/386 in "Ваша история".
+ * Chapters for the detail screen, read from the same `totalChapters` the card renders.
+ *
+ * This used to prefer the volume sum whenever the volumes carried chapter counts, which made
+ * "Характеристики" show one number while the card next to it showed another for the same title.
+ * The counter is reconciled from the volumes on refresh, so one field is the single source.
  */
 export function mangaChapterProgress(item: MediaItem): {
     current: number;
@@ -189,20 +243,13 @@ export function mangaChapterProgress(item: MediaItem): {
     const hasVolumeChapters = volumes.some(
         (volume) => (volume.totalChapters ?? 0) > 0,
     );
-    if (!hasVolumeChapters) {
-        return { current: item.currentChapter, total: item.totalChapters };
-    }
-    return {
-        current: Math.max(
-            item.currentChapter,
-            volumes.reduce((sum, volume) => sum + (volume.currentChapter ?? 0), 0),
-        ),
-        total:
-            volumes.reduce(
-                (sum, volume) => sum + (volume.totalChapters ?? 0),
-                0,
-            ) || item.totalChapters,
-    };
+    const current = hasVolumeChapters
+        ? Math.max(
+              item.currentChapter,
+              volumes.reduce((sum, volume) => sum + (volume.currentChapter ?? 0), 0),
+          )
+        : item.currentChapter;
+    return { current, total: item.totalChapters };
 }
 
 export function readProgress(item: MediaItem): ProgressInfo | null {
@@ -403,6 +450,17 @@ export function currentFormatLabel(item: MediaItem): string {
             : item.type;
 }
 
+/**
+ * A film or book whose release date has already passed. Sources keep reporting "releasing" for
+ * titles that shipped years ago, which is what put an "Онгоинг" badge on a finished Dune.
+ */
+function hasAlreadyReleased(item: MediaItem): boolean {
+    if (item.releaseDate) {
+        return new Date(item.releaseDate).getTime() <= Date.now();
+    }
+    return item.releaseYear != null && item.releaseYear <= new Date().getFullYear();
+}
+
 export function specRows(item: MediaItem): SpecRow[] {
     const empty = i18n.t.detailModal.valueEmpty;
     const rows: SpecRow[] = [
@@ -439,6 +497,30 @@ export function specRows(item: MediaItem): SpecRow[] {
             label: i18n.current === "ru" ? "Теги" : "Tags",
             value: t || "—",
         });
+    } else if (item.type === "movie" || item.type === "book") {
+        // A film and a book are released once: the "start / end" pair was a series-shaped row pair
+        // shown on items that cannot have an end, so one row reads as an unfinished run.
+        rows.push({
+            label:
+                item.type === "movie"
+                    ? i18n.current === "ru"
+                        ? "Дата релиза"
+                        : "Release date"
+                    : i18n.current === "ru"
+                      ? "Дата публикации"
+                      : "Publication date",
+            value: formatReleaseDate(item),
+        });
+
+        // "Онгоинг" on a released film or book is the source's stale status, not the user's state.
+        const isOngoing =
+            item.releaseStatus === "RELEASING" || item.releaseStatus === "releasing";
+        if (!isOngoing || !hasAlreadyReleased(item)) {
+            rows.push({
+                label: i18n.t.status.label,
+                value: releaseStatusLabel(item),
+            });
+        }
     } else {
         rows.push({
             label: i18n.t.detail.startDateLabel,
@@ -553,11 +635,17 @@ export function specRows(item: MediaItem): SpecRow[] {
     }
 
     rows.push({ label: i18n.t.detail.source, value: dataSource(item) });
-    rows.push({
-        label: i18n.t.detail.providerLabel,
-        value: providerDomain(item),
-        isLink: true,
-    });
+
+    // The link row only appears when the source is one we can actually build a URL for, so the
+    // sidebar can never offer a link that leads somewhere else entirely.
+    const link = providerLink(item);
+    if (link) {
+        rows.push({
+            label: i18n.t.detail.providerLabel,
+            value: link.name,
+            href: link.url,
+        });
+    }
 
     return rows;
 }

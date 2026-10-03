@@ -1,6 +1,7 @@
 ﻿<script lang="ts">
     import { Search } from "$shared/ui/Icons.svelte";
     import { i18n, locales, type Locale } from "$shared/i18n/index.svelte";
+    import ActivityDropdown from "./ActivityDropdown.svelte";
 
     interface Props {
         title: string;
@@ -50,6 +51,8 @@
         >
             <Search size={17} aria-hidden="true" />
         </button>
+
+        <ActivityDropdown />
 
         <label class="sr-only" for="language-select"
             >{i18n.t.header.language}</label

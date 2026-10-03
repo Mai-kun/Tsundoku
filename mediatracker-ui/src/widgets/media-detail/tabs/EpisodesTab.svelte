@@ -1,6 +1,6 @@
 <script lang="ts">
     import type { TvSeason } from "$shared/types";
-    import type { EpisodeRow } from "../detailTypes";
+    import type { EpisodeRow, NextUp } from "$widgets/media-detail/detailTypes";
     import TvShowDetailSection from "../sections/TvShowDetailSection.svelte";
 
     interface Props {
@@ -10,6 +10,7 @@
         showEpisodes: boolean;
         sortedEpisodes: readonly EpisodeRow[];
         nextEpisode: EpisodeRow | null;
+        nextUp: NextUp | null;
         seasonProgressPercent: number;
         episodeBusy: unknown;
         progressError: unknown;
@@ -17,11 +18,18 @@
         onSelectSeason: (seasonId: string) => void;
         onToggleSort: () => void;
         onMarkSeasonComplete: () => Promise<void>;
+        onMarkSeasonCompleteOf: (seasonId: string) => Promise<void>;
         onResetSeason: () => Promise<void>;
         onToggleEpisode: (number: number) => Promise<void>;
+        onToggleEpisodeOf: (seasonId: string, number: number) => Promise<void>;
+        onWatchNextUp: (target: NextUp) => Promise<void>;
         onOpenEpisodesTab: () => void;
         onOpenLists: () => void;
         formatDate: (value: string | null) => string;
+        episodesBySeason?: readonly {
+            season: TvSeason;
+            episodes: readonly EpisodeRow[];
+        }[];
     }
 
     let {
@@ -30,6 +38,7 @@
         showEpisodes,
         sortedEpisodes,
         nextEpisode,
+        nextUp,
         seasonProgressPercent,
         episodeBusy,
         progressError,
@@ -37,11 +46,15 @@
         onSelectSeason,
         onToggleSort,
         onMarkSeasonComplete,
+        onMarkSeasonCompleteOf,
         onResetSeason,
         onToggleEpisode,
+        onToggleEpisodeOf,
+        onWatchNextUp,
         onOpenEpisodesTab,
         onOpenLists,
         formatDate,
+        episodesBySeason = [],
     }: Props = $props();
 </script>
 
@@ -51,6 +64,7 @@
     {showEpisodes}
     {sortedEpisodes}
     {nextEpisode}
+    {nextUp}
     {seasonProgressPercent}
     {episodeBusy}
     {progressError}
@@ -58,9 +72,13 @@
     {onSelectSeason}
     {onToggleSort}
     {onMarkSeasonComplete}
+    {onMarkSeasonCompleteOf}
     {onResetSeason}
     {onToggleEpisode}
+    {onToggleEpisodeOf}
+    {onWatchNextUp}
     {onOpenEpisodesTab}
     {onOpenLists}
     {formatDate}
+    {episodesBySeason}
 />

@@ -17,7 +17,7 @@ namespace MediaTracker.Server.Infrastructure.Persistence.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.12");
 
-            modelBuilder.Entity("MediaTracker.Server.Models.AppSetting", b =>
+            modelBuilder.Entity("MediaTracker.Server.Domain.Entities.AppSetting", b =>
                 {
                     b.Property<string>("Key")
                         .HasColumnType("TEXT");
@@ -34,7 +34,7 @@ namespace MediaTracker.Server.Infrastructure.Persistence.Migrations
                     b.ToTable("Settings");
                 });
 
-            modelBuilder.Entity("MediaTracker.Server.Models.Franchise", b =>
+            modelBuilder.Entity("MediaTracker.Server.Domain.Entities.Franchise", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -55,7 +55,7 @@ namespace MediaTracker.Server.Infrastructure.Persistence.Migrations
                     b.ToTable("Franchises");
                 });
 
-            modelBuilder.Entity("MediaTracker.Server.Models.MangaVolume", b =>
+            modelBuilder.Entity("MediaTracker.Server.Domain.Entities.MangaVolume", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -107,7 +107,7 @@ namespace MediaTracker.Server.Infrastructure.Persistence.Migrations
                     b.ToTable("MangaVolumes");
                 });
 
-            modelBuilder.Entity("MediaTracker.Server.Models.MediaEvent", b =>
+            modelBuilder.Entity("MediaTracker.Server.Domain.Entities.MediaEvent", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -137,7 +137,7 @@ namespace MediaTracker.Server.Infrastructure.Persistence.Migrations
                     b.ToTable("Events");
                 });
 
-            modelBuilder.Entity("MediaTracker.Server.Models.MediaItem", b =>
+            modelBuilder.Entity("MediaTracker.Server.Domain.Entities.MediaItem", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -187,6 +187,12 @@ namespace MediaTracker.Server.Infrastructure.Persistence.Migrations
                     b.Property<string>("Notes")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("RelatedMediaJson")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RelatedSource")
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime?>("ReleaseDate")
                         .HasColumnType("TEXT");
 
@@ -203,6 +209,9 @@ namespace MediaTracker.Server.Infrastructure.Persistence.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<int>("Status")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("SyncStatus")
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("Tags")
@@ -251,7 +260,7 @@ namespace MediaTracker.Server.Infrastructure.Persistence.Migrations
                     b.UseTphMappingStrategy();
                 });
 
-            modelBuilder.Entity("MediaTracker.Server.Models.TvSeason", b =>
+            modelBuilder.Entity("MediaTracker.Server.Domain.Entities.TvSeason", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -300,9 +309,9 @@ namespace MediaTracker.Server.Infrastructure.Persistence.Migrations
                     b.ToTable("TvSeasons");
                 });
 
-            modelBuilder.Entity("MediaTracker.Server.Models.Book", b =>
+            modelBuilder.Entity("MediaTracker.Server.Domain.Entities.Book", b =>
                 {
-                    b.HasBaseType("MediaTracker.Server.Models.MediaItem");
+                    b.HasBaseType("MediaTracker.Server.Domain.Entities.MediaItem");
 
                     b.Property<string>("Author")
                         .IsRequired()
@@ -317,9 +326,9 @@ namespace MediaTracker.Server.Infrastructure.Persistence.Migrations
                     b.HasDiscriminator().HasValue("Book");
                 });
 
-            modelBuilder.Entity("MediaTracker.Server.Models.Manga", b =>
+            modelBuilder.Entity("MediaTracker.Server.Domain.Entities.Manga", b =>
                 {
-                    b.HasBaseType("MediaTracker.Server.Models.MediaItem");
+                    b.HasBaseType("MediaTracker.Server.Domain.Entities.MediaItem");
 
                     b.Property<string>("Author")
                         .HasColumnType("TEXT")
@@ -349,9 +358,9 @@ namespace MediaTracker.Server.Infrastructure.Persistence.Migrations
                     b.HasDiscriminator().HasValue("Manga");
                 });
 
-            modelBuilder.Entity("MediaTracker.Server.Models.Movie", b =>
+            modelBuilder.Entity("MediaTracker.Server.Domain.Entities.Movie", b =>
                 {
-                    b.HasBaseType("MediaTracker.Server.Models.MediaItem");
+                    b.HasBaseType("MediaTracker.Server.Domain.Entities.MediaItem");
 
                     b.Property<string>("Director")
                         .HasColumnType("TEXT");
@@ -376,9 +385,9 @@ namespace MediaTracker.Server.Infrastructure.Persistence.Migrations
                     b.HasDiscriminator().HasValue("Movie");
                 });
 
-            modelBuilder.Entity("MediaTracker.Server.Models.TvShow", b =>
+            modelBuilder.Entity("MediaTracker.Server.Domain.Entities.TvShow", b =>
                 {
-                    b.HasBaseType("MediaTracker.Server.Models.MediaItem");
+                    b.HasBaseType("MediaTracker.Server.Domain.Entities.MediaItem");
 
                     b.Property<int?>("EpisodeDurationMinutes")
                         .HasColumnType("INTEGER")
@@ -404,9 +413,9 @@ namespace MediaTracker.Server.Infrastructure.Persistence.Migrations
                     b.HasDiscriminator().HasValue("TvShow");
                 });
 
-            modelBuilder.Entity("MediaTracker.Server.Models.VideoGame", b =>
+            modelBuilder.Entity("MediaTracker.Server.Domain.Entities.VideoGame", b =>
                 {
-                    b.HasBaseType("MediaTracker.Server.Models.MediaItem");
+                    b.HasBaseType("MediaTracker.Server.Domain.Entities.MediaItem");
 
                     b.Property<int?>("HoursPlayed")
                         .HasColumnType("INTEGER");
@@ -418,9 +427,9 @@ namespace MediaTracker.Server.Infrastructure.Persistence.Migrations
                     b.HasDiscriminator().HasValue("Game");
                 });
 
-            modelBuilder.Entity("MediaTracker.Server.Models.MangaVolume", b =>
+            modelBuilder.Entity("MediaTracker.Server.Domain.Entities.MangaVolume", b =>
                 {
-                    b.HasOne("MediaTracker.Server.Models.Manga", "Manga")
+                    b.HasOne("MediaTracker.Server.Domain.Entities.Manga", "Manga")
                         .WithMany("Volumes")
                         .HasForeignKey("MangaId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -429,9 +438,9 @@ namespace MediaTracker.Server.Infrastructure.Persistence.Migrations
                     b.Navigation("Manga");
                 });
 
-            modelBuilder.Entity("MediaTracker.Server.Models.MediaEvent", b =>
+            modelBuilder.Entity("MediaTracker.Server.Domain.Entities.MediaEvent", b =>
                 {
-                    b.HasOne("MediaTracker.Server.Models.MediaItem", "Media")
+                    b.HasOne("MediaTracker.Server.Domain.Entities.MediaItem", "Media")
                         .WithMany()
                         .HasForeignKey("MediaId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -440,9 +449,9 @@ namespace MediaTracker.Server.Infrastructure.Persistence.Migrations
                     b.Navigation("Media");
                 });
 
-            modelBuilder.Entity("MediaTracker.Server.Models.MediaItem", b =>
+            modelBuilder.Entity("MediaTracker.Server.Domain.Entities.MediaItem", b =>
                 {
-                    b.HasOne("MediaTracker.Server.Models.Franchise", "Franchise")
+                    b.HasOne("MediaTracker.Server.Domain.Entities.Franchise", "Franchise")
                         .WithMany("Items")
                         .HasForeignKey("FranchiseId")
                         .OnDelete(DeleteBehavior.SetNull);
@@ -450,9 +459,9 @@ namespace MediaTracker.Server.Infrastructure.Persistence.Migrations
                     b.Navigation("Franchise");
                 });
 
-            modelBuilder.Entity("MediaTracker.Server.Models.TvSeason", b =>
+            modelBuilder.Entity("MediaTracker.Server.Domain.Entities.TvSeason", b =>
                 {
-                    b.HasOne("MediaTracker.Server.Models.TvShow", "TvShow")
+                    b.HasOne("MediaTracker.Server.Domain.Entities.TvShow", "TvShow")
                         .WithMany("Seasons")
                         .HasForeignKey("TvShowId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -461,17 +470,17 @@ namespace MediaTracker.Server.Infrastructure.Persistence.Migrations
                     b.Navigation("TvShow");
                 });
 
-            modelBuilder.Entity("MediaTracker.Server.Models.Franchise", b =>
+            modelBuilder.Entity("MediaTracker.Server.Domain.Entities.Franchise", b =>
                 {
                     b.Navigation("Items");
                 });
 
-            modelBuilder.Entity("MediaTracker.Server.Models.Manga", b =>
+            modelBuilder.Entity("MediaTracker.Server.Domain.Entities.Manga", b =>
                 {
                     b.Navigation("Volumes");
                 });
 
-            modelBuilder.Entity("MediaTracker.Server.Models.TvShow", b =>
+            modelBuilder.Entity("MediaTracker.Server.Domain.Entities.TvShow", b =>
                 {
                     b.Navigation("Seasons");
                 });

@@ -10,7 +10,8 @@ export interface ProgressInfo {
 export interface SpecRow {
     label: string;
     value: string;
-    isLink?: boolean;
+    /** Absolute URL when the value is a link; the sidebar renders an anchor instead of plain text. */
+    href?: string;
 }
 
 export interface EpisodeRow {
@@ -20,6 +21,17 @@ export interface EpisodeRow {
     airDate: string | null;
     description: string | null;
     watched: boolean;
+}
+
+/**
+ * The next unwatched episode of the series, not of one season. The season it belongs to carries its
+ * own id so the caller can select and expand that season before marking the episode, which is what
+ * makes the banner roll from "S1 E7" over to "S2 E1" on its own.
+ */
+export interface NextUp {
+    seasonId: string;
+    seasonNumber: number;
+    episodeNumber: number;
 }
 
 export interface RecommendationItem {

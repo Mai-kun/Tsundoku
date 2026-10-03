@@ -4,6 +4,7 @@ using MediaTracker.Server.Features.External.GetGameAchievements;
 using MediaTracker.Server.Features.External.GetGameRecommendations;
 using MediaTracker.Server.Features.External.GetGameRelated;
 using MediaTracker.Server.Features.External.SearchExternal;
+using MediaTracker.Server.Features.External.GetExternalRelations;
 using MediaTracker.Server.Features.External.TranslateText;
 using Microsoft.AspNetCore.Mvc;
 
@@ -69,6 +70,20 @@ public static class ExternalMediaEndpoints
                 CancellationToken ct) =>
             handler.HandleAsync(
                 new GetGameRecommendationsQuery(rawgId, title, externalSource, externalId),
+                ct).ToOk());
+
+        // Relations are requested explicitly, never on card open. `kind` picks the relationship:
+        // "related" is the full pool, "recommendations" is what the source itself recommends.
+        group.MapGet("/relations", (
+                string? type,
+                string? externalId,
+                string? title,
+                string? source,
+                string? kind,
+                [FromServices] IGetExternalRelationsHandler handler,
+                CancellationToken ct) =>
+            handler.HandleAsync(
+                new GetExternalRelationsQuery(type, externalId, title, source, kind),
                 ct).ToOk());
 
         return app;

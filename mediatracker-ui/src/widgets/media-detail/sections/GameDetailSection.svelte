@@ -1,4 +1,4 @@
-<script lang="ts">
+﻿<script lang="ts">
     import { Check, LoaderCircle, Minus, Plus, Trophy } from "$shared/ui/Icons.svelte";
     import { errorMessage } from "$shared/api/api";
     import CircularCounter from "$shared/ui/CircularCounter.svelte";
@@ -66,7 +66,7 @@
         <div class="flex items-center gap-2">
             <Trophy size={16} class="text-amber-400" />
             <h2 class="text-xs font-bold uppercase tracking-wider text-slate-300">
-                {i18n.current === "ru" ? "Достижения" : "Achievements"}
+                {i18n.current === "ru" ? "Р”РѕСЃС‚РёР¶РµРЅРёСЏ" : "Achievements"}
             </h2>
         </div>
         <div class="flex items-center gap-2 shrink-0">
@@ -77,16 +77,16 @@
                 onclick={() => void onToggleAllAchievements()}
                 title={allUnlocked
                     ? i18n.current === "ru"
-                        ? "Снять отметки со всех достижений"
+                        ? "РЎРЅСЏС‚СЊ РѕС‚РјРµС‚РєРё СЃРѕ РІСЃРµС… РґРѕСЃС‚РёР¶РµРЅРёР№"
                         : "Clear all achievements"
                     : i18n.current === "ru"
-                      ? "Отметить все достижения"
+                      ? "РћС‚РјРµС‚РёС‚СЊ РІСЃРµ РґРѕСЃС‚РёР¶РµРЅРёСЏ"
                       : "Mark all achievements"}
             >
                 {#if allUnlocked}
-                    {i18n.current === "ru" ? "Снять все" : "Clear all"}
+                    {i18n.current === "ru" ? "РЎРЅСЏС‚СЊ РІСЃРµ" : "Clear all"}
                 {:else}
-                    {i18n.current === "ru" ? "Отметить все" : "Mark all"}
+                    {i18n.current === "ru" ? "РћС‚РјРµС‚РёС‚СЊ РІСЃРµ" : "Mark all"}
                 {/if}
             </button>
             <span
@@ -100,18 +100,18 @@
                         aria-label={i18n.t.common.loading}
                     />
                 {:else if unlockedNames.size > 0}
-                    {unlockedNames.size} / {achievementsTotal}
-                    {i18n.current === "ru" ? "получено" : "unlocked"}
-                {:else}
-                    {achievementsTotal}
                     {i18n.current === "ru"
-                        ? "достижений"
-                        : "achievements"}
+                        ? "РџРѕР»СѓС‡РµРЅРѕ"
+                        : "Unlocked"}: {unlockedNames.size} / {achievementsTotal}
+                {:else}
+                    {i18n.current === "ru"
+                        ? "Р’СЃРµРіРѕ РґРѕСЃС‚РёР¶РµРЅРёР№"
+                        : "Total achievements"}: {achievementsTotal}
                 {/if}
                 {#if achievementsTruncated}
                     <span
                         title={i18n.current === "ru"
-                            ? `Показаны первые ${achievements.length} из ${achievementsTotal}`
+                            ? `РџРѕРєР°Р·Р°РЅС‹ РїРµСЂРІС‹Рµ ${achievements.length} РёР· ${achievementsTotal}`
                             : `Showing the first ${achievements.length} of ${achievementsTotal}`}
                         >*</span
                     >
@@ -128,7 +128,7 @@
         </div>
     {:else if achievements.length > 0}
         <div
-            class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 pt-1 max-h-72 overflow-y-auto pr-1"
+            class="thin-scroll grid max-h-[520px] grid-cols-1 gap-2.5 overflow-y-auto pr-1 pt-1 sm:grid-cols-2 lg:grid-cols-3"
         >
             {#each achievements as ach (ach.name)}
                 {@const isUnlocked = unlockedNames.has(
@@ -144,10 +144,10 @@
                     onclick={() => void onToggleAchievement(ach.name)}
                     title={isUnlocked
                         ? i18n.current === "ru"
-                            ? "Получено (нажмите, чтобы снять)"
+                            ? "РџРѕР»СѓС‡РµРЅРѕ (РЅР°Р¶РјРёС‚Рµ, С‡С‚РѕР±С‹ СЃРЅСЏС‚СЊ)"
                             : "Unlocked (click to lock)"
                         : i18n.current === "ru"
-                          ? "Не получено (нажмите, чтобы отметить)"
+                          ? "РќРµ РїРѕР»СѓС‡РµРЅРѕ (РЅР°Р¶РјРёС‚Рµ, С‡С‚РѕР±С‹ РѕС‚РјРµС‚РёС‚СЊ)"
                           : "Locked (click to unlock)"}
                 >
                     <div class="relative h-10 w-10 flex-shrink-0">
@@ -198,7 +198,7 @@
              There is deliberately no fetch button here. -->
         <p class="text-xs text-muted">
             {i18n.current === "ru"
-                ? "Достижения не загружены. Обновите метаданные, чтобы получить их."
+                ? "Р”РѕСЃС‚РёР¶РµРЅРёСЏ РЅРµ Р·Р°РіСЂСѓР¶РµРЅС‹. РћР±РЅРѕРІРёС‚Рµ РјРµС‚Р°РґР°РЅРЅС‹Рµ, С‡С‚РѕР±С‹ РїРѕР»СѓС‡РёС‚СЊ РёС…."
                 : "Achievements not loaded. Refresh metadata to fetch them."}
         </p>
     {/if}

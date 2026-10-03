@@ -16,6 +16,32 @@ public sealed record ExternalEpisodeDto
     public string? AirDate { get; init; }
 }
 
+/// <summary>
+/// One real season of a series. Sources that report a season tree (Kinopoisk) map to this instead of
+/// flattening every episode into one list, which is what collapsed "Breaking Bad" into a single season.
+/// </summary>
+public sealed record ExternalSeasonDto
+{
+    public required int Number { get; init; }
+
+    public string? Title { get; init; }
+
+    public required int TotalEpisodes { get; init; }
+
+    public IReadOnlyList<ExternalEpisodeDto>? Episodes { get; init; }
+}
+
+/// <summary>A volume the source actually reported, with the chapter numbers that belong to it.</summary>
+public sealed record ExternalMangaVolumeDto
+{
+    public required int Number { get; init; }
+
+    public string? Title { get; init; }
+
+    /// <summary>Chapter numbers as the source spelled them, used for the volume's chapter count.</summary>
+    public IReadOnlyList<string>? Chapters { get; init; }
+}
+
 public sealed record ExternalMediaDto
 {
     public required string ExternalId { get; init; }
@@ -66,6 +92,12 @@ public sealed record ExternalMediaDto
     public IReadOnlyList<ExternalRatingDto>? Ratings { get; init; }
 
     public IReadOnlyList<ExternalEpisodeDto>? Episodes { get; init; }
+
+    /// <summary>Real per-season breakdown. Null for sources that only report a flat episode count.</summary>
+    public IReadOnlyList<ExternalSeasonDto>? Seasons { get; init; }
+
+    /// <summary>Real volumes with their chapters, for sources that report the split (MangaDex aggregate).</summary>
+    public IReadOnlyList<ExternalMangaVolumeDto>? VolumeDetails { get; init; }
 
     public IReadOnlyList<string>? Genres { get; init; }
 

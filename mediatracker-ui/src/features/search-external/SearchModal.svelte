@@ -568,6 +568,9 @@
             const created = await createMedia(buildPayload(result));
             addedKeys = { ...addedKeys, [key]: created.id };
             onMediaAdded(created);
+            // The draft row is enough for the grid and the Activity Center picks up the rest,
+            // so there is nothing left to wait for here: get out of the way.
+            onClose();
         } catch (error) {
             addError = error;
         } finally {

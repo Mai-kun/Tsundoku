@@ -5,6 +5,7 @@ import type {
   SearchMediaType,
   SortBy,
   SortOrder,
+  SyncStatus,
 } from "./enums";
 
 export interface ExternalRating {
@@ -29,6 +30,8 @@ export interface MediaBase {
   type: MediaType;
   title: string;
   status: MediaStatus;
+  /** 1 while the background enrichment of a search hit is still filling this row in. */
+  syncStatus?: SyncStatus;
   score: number | null;
   startedAt: string | null;
   finishedAt: string | null;
@@ -65,6 +68,10 @@ export interface MediaDetailFields {
   externalRatingsJson?: string | null;
   translatedSynopsis?: string | null;
   unlockedAchievements?: string | null;
+  /** Cached related titles, so the Related tab is populated on a reload. */
+  relatedMediaJson?: string | null;
+  /** The provider relatedMediaJson was fetched from. */
+  relatedSource?: string | null;
 }
 
 export interface GameMedia extends MediaBase {

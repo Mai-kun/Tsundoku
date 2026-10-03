@@ -27,7 +27,7 @@ public sealed class GetMediaListHandler(AppDbContext db) : IGetMediaListHandler
         CancellationToken ct)
     {
         if (!MediaListQuery.TryBuild(
-                db.MediaItems,
+                db,
                 query.Type,
                 query.Status,
                 query.IsAnime,
@@ -39,12 +39,15 @@ public sealed class GetMediaListHandler(AppDbContext db) : IGetMediaListHandler
             return Result<IReadOnlyList<MediaListDto>>.Success([]);
         }
 
-        var rows = await built.ToListAsync(ct);
-        var items = new List<MediaListDto>(rows.Count);
+        // The same mapper the detail screen uses, so a card and the page it opens can never report
+        // different totals. It runs in memory on purpose: the season/volume collections have to be
+        // loaded for those aggregates to mean anything.
+        var loaded = await built.ToListAsync(ct);
+        var items = new List<MediaListDto>(loaded.Count);
 
-        foreach (var row in rows)
+        foreach (var item in loaded)
         {
-            items.Add(MediaListProjection.WithCoverVersion(row.Item, row.UpdatedAt));
+            items.Add(MediaResponseMapper.ToListDto(item));
         }
 
         return Result<IReadOnlyList<MediaListDto>>.Success(items);

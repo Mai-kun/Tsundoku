@@ -8,7 +8,17 @@ const BASE = process.env.TS_BASE || 'http://localhost:5000'
 const OUT = join(__dirname, '..', 'shots', 'qa')
 mkdirSync(OUT, { recursive: true })
 
-const PAGES = [
+// Detail pages are discovered from the library rather than hardcoded, so the sweep works against any
+// data directory instead of only the one the ids happened to be copied from. A type with no items in
+// the library simply has no detail page to visit.
+const DETAIL_TYPES = [
+  ['detail-tv', 'tvshow'],
+  ['detail-manga', 'manga'],
+  ['detail-game', 'game'],
+  ['detail-movie', 'movie'],
+]
+
+const VIEW_PAGES = [
   ['home', '?view=home'],
   ['tvshow', '?view=tvshow'],
   ['movie', '?view=movie'],
@@ -20,10 +30,6 @@ const PAGES = [
   ['lists', '?view=lists'],
   ['history', '?view=history'],
   ['calendar', '?view=calendar'],
-  ['detail-tv', '?view=detail&mediaId=46b9df89-bfed-4da9-b802-474fb55a8018'],
-  ['detail-manga', '?view=detail&mediaId=c9ce4f1a-e555-47d6-ab65-2a8bf5a89eeb'],
-  ['detail-game', '?view=detail&mediaId=7435a1de-1c13-4cf1-8698-8c33c69ab2ef'],
-  ['detail-movie', '?view=detail&mediaId=197019b2-71d8-408e-b8b6-3527dcb3f861'],
 ]
 
 const STRAY = () => {
@@ -47,6 +53,20 @@ const VIEWPORTS = [
 ].filter(([name]) => !process.argv[2] || process.argv[2] === name)
 
 ;(async () => {
+  const library = await fetch(`${BASE}/api/media`).then((r) => r.json())
+  const firstOfType = (type) => library.find((m) => m.type === type)
+
+  const PAGES = [
+    ...VIEW_PAGES,
+    ...DETAIL_TYPES.map(([name, type]) => {
+      const item = firstOfType(type)
+      return item ? [name, `?view=detail&mediaId=${item.id}`] : null
+    }).filter(Boolean),
+  ]
+
+  const missing = DETAIL_TYPES.filter(([, type]) => !firstOfType(type)).map(([name]) => name)
+  if (missing.length) console.log(`note: no library item for ${missing.join(', ')} - skipping those detail pages`)
+
   const browser = await chromium.launch({ channel: 'msedge' })
   const problems = []
 

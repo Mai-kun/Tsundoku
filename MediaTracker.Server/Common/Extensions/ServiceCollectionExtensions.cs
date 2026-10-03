@@ -31,7 +31,9 @@ public static class ServiceCollectionExtensions
         services.AddFeatures();
 
         services.AddOptions<ExternalApiOptions>();
-        services.AddSingleton<StoredSettingsLoader>();
+        // Scoped, not singleton: it takes the scoped AppDbContext, and the only caller resolves it
+        // from a scope in InitializeDatabaseAsync. As a singleton it failed DI validation in Development.
+        services.AddScoped<StoredSettingsLoader>();
 
         // Reflection-based: every IMetadataProvider in the assembly registers itself.
         services.AddAllMetadataProviders();

@@ -1,7 +1,7 @@
 // Self-check for the in-memory guard (Приём 3).
 // Run: `npm run check:prefetch` (node --experimental-strip-types). No test framework, no fixtures.
 import assert from "node:assert/strict";
-import { createPrefetchCache } from "../src/lib/utils/prefetchCache.ts";
+import { createPrefetchCache } from "../src/shared/utils/prefetchCache.ts";
 
 // 1. Повторный load по тому же id не создаёт второй запрос.
 {

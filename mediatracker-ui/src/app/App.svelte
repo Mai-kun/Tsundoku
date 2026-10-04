@@ -43,26 +43,15 @@ import { deleteMedia } from "$shared/api/api";
     let route = readRoute();
     let activeView = $state<AppView>(route.view);
     /* What is actually in the DOM. Svelte mounts an incoming {#if} branch before tearing down the
-       outgoing one, so switching views rendered both at once for ~170ms. We drop the rendered view
-       to null and force the DOM update with flushSync() before mounting the new one. Both updates
-       then happen inside the same task, so the browser only ever paints the final state: it never
-       sees the outgoing view, the new view, or an empty area. */
-    let renderedView = $state<AppView | null>(route.view);
-    /* True while a view swap is in progress. Svelte defers tearing down the outgoing view (~130ms),
-       so the new one would otherwise paint on top of it. While switching we hide the view area and
-       reveal it again once the stale node is really gone. */
-    let switching = $state(false);
-    let switchFrame = 0;
+       outgoing one, so switching views rendered both at once. `flushSync()` inside switchView puts
+       both DOM updates in the same task, so the browser only ever paints the final state: it never
+       sees the outgoing view, the new view, or an empty area.
 
-    function revealWhenSettled() {
-        const main = mainScrollContainer;
-        // One child means only the incoming view is left; then it is safe to show it again.
-        if (main && main.children.length <= 1) {
-            switching = false;
-            return;
-        }
-        switchFrame = requestAnimationFrame(revealWhenSettled);
-    }
+       There is deliberately no "hide the area until the swap settles" step: the settle check used to
+       count <main>'s children, but MediaDetailView renders four top-level nodes (root + three
+       modals), so the count never reached 1, `switching` stayed true and <main> kept `invisible` --
+       the detail page mounted and stayed invisible until F5. flushSync alone is sufficient. */
+    let renderedView = $state<AppView | null>(route.view);
     let previousView = $state<AppView>(
         route.view === "seasons" || route.view === "detail"
             ? "home"
@@ -143,20 +132,13 @@ import { deleteMedia } from "$shared/api/api";
     }
 
     /**
-     * Single entry point for changing views. Unmounts the current view and flushes that removal
-     * synchronously, then mounts the incoming one. Because both DOM updates run in the same task,
-     * the browser paints only the final state -- never two views stacked, never an empty frame.
+     * Single entry point for changing views. The state change and the forced DOM update happen in the
+     * same task, so the browser paints only the final state -- never two views stacked, never an empty
+     * frame.
      */
     function switchView(view: AppView) {
-        cancelAnimationFrame(switchFrame);
-        switching = true;
-        renderedView = null;
-        flushSync();
         renderedView = view;
         flushSync();
-        // The stale node may still be in the DOM for a few frames; keep the area hidden until it is
-        // gone so the incoming view is never painted alongside it.
-        switchFrame = requestAnimationFrame(revealWhenSettled);
     }
 
     function navigate(view: AppView) {
@@ -167,6 +149,7 @@ import { deleteMedia } from "$shared/api/api";
         switchView(view);
     }
 
+    /** Every caller (card click, related tile, search result) lands here; the state write is synchronous. */
     function openDetail(item: MediaItem) {
         if (activeView !== "detail") {
             previousView = activeView;
@@ -338,7 +321,7 @@ import { deleteMedia } from "$shared/api/api";
 
 <svelte:window onkeydown={handleKeydown} />
 
-<AppShell mainRef={(el) => (mainScrollContainer = el)} {switching}>
+<AppShell mainRef={(el) => (mainScrollContainer = el)}>
     {#snippet sidebar()}
         <Sidebar
             {activeView}

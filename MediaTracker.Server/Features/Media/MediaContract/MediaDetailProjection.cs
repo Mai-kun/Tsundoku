@@ -81,6 +81,8 @@ public static class MediaDetailProjection
             UnlockedAchievements = item.UnlockedAchievements,
             RelatedMediaJson = item.RelatedMediaJson,
             RelatedSource = item.RelatedSource,
+            AchievementsJson = item.AchievementsJson,
+            RecommendationsJson = item.RecommendationsJson,
         };
     }
 

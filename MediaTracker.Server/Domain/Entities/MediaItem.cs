@@ -79,6 +79,17 @@ public abstract class MediaItem
     public string? RelatedSource { get; set; }
 
     /// <summary>
+    /// The achievement list the provider reported, serialised once. Re-reading RAWG on every open was
+    /// both slow and pointless: achievements only change when the game itself is patched, and the
+    /// panel had to re-render 1000+ nodes each time. Same trade-off as
+    /// <see cref="RelatedMediaJson"/>.
+    /// </summary>
+    public string? AchievementsJson { get; set; }
+
+    /// <summary>Recommendations the user loaded, cached for the same reason as the achievements.</summary>
+    public string? RecommendationsJson { get; set; }
+
+    /// <summary>
     /// Moves the item to <paramref name="status"/> and brings every dependent field along with it:
     /// timestamps, the type-specific counters and, for a show, its seasons. The status setter is
     /// private so a caller cannot change the status without these rules running.

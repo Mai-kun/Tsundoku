@@ -19,9 +19,10 @@ public static class ExternalMediaEndpoints
         group.MapGet("/search", (
                 string? type,
                 string? query,
+                string? source,
                 [FromServices] ISearchExternalHandler handler,
                 CancellationToken ct) =>
-            handler.HandleAsync(new SearchExternalQuery(type, query), ct).ToOk());
+            handler.HandleAsync(new SearchExternalQuery(type, query, source), ct).ToOk());
 
         group.MapGet("/details", (
                 string? type,

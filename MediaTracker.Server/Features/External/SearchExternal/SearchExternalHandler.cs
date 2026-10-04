@@ -3,7 +3,11 @@ using MediaTracker.Server.Infrastructure.ExternalApis;
 
 namespace MediaTracker.Server.Features.External.SearchExternal;
 
-public sealed record SearchExternalQuery(string? Type, string? Query);
+/// <param name="Source">
+/// When set, search that provider alone instead of cascading through the configured priorities.
+/// The relink dialog needs this: the user picks which service to look for the replacement in.
+/// </param>
+public sealed record SearchExternalQuery(string? Type, string? Query, string? Source = null);
 
 public interface ISearchExternalHandler
 {
@@ -40,7 +44,10 @@ public sealed class SearchExternalHandler(MetadataAggregatorService aggregator) 
             return Result<IReadOnlyList<ExternalMediaDto>>.Failure(Error.Validation(errors));
         }
 
-        var results = await aggregator.SearchAsync(normalizedType, normalizedQuery, ct);
+        var results = string.IsNullOrWhiteSpace(query.Source)
+            ? await aggregator.SearchAsync(normalizedType, normalizedQuery, ct)
+            : await aggregator.SearchSourceAsync(normalizedType, normalizedQuery, query.Source, ct);
+
         return Result<IReadOnlyList<ExternalMediaDto>>.Success(results);
     }
 }

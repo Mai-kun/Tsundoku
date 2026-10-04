@@ -16,27 +16,22 @@
 
     interface Props {
         seasons: readonly TvSeason[];
-        currentSeason: TvSeason | null;
         /** The season banner renders whenever a season exists; the episode list only on its tab. */
         showEpisodes: boolean;
-        sortedEpisodes: readonly EpisodeRow[];
-        nextEpisode: EpisodeRow | null;
         /** The first unwatched episode of the whole series, crossing season boundaries. */
         nextUp: NextUp | null;
-        seasonProgressPercent: number;
+        /** Series-wide episode counters: the banner never follows the season clicked below. */
+        seriesEpisodes: { current: number; total: number };
+        /** Series-wide progress in percent, derived from `seriesEpisodes`. */
+        seriesProgressPercent: number;
         episodeBusy: unknown;
         progressError: unknown;
         sortOrder: "asc" | "desc";
-        onSelectSeason: (seasonId: string) => void;
         onToggleSort: () => void;
-        onMarkSeasonComplete: () => Promise<void>;
-        /** Same, but for a season chosen inside an accordion rather than the selected one. */
-        onMarkSeasonCompleteOf: (seasonId: string) => Promise<void>;
-        onResetSeason: () => Promise<void>;
-        onToggleEpisode: (number: number) => Promise<void>;
-        /** Same toggle, but for a season chosen inside an accordion rather than the selected one. */
+        /** Two-way: completes an unfinished season, rolls a finished one back to zero. */
+        onToggleSeasonCompleteOf: (seasonId: string) => Promise<void>;
         onToggleEpisodeOf: (seasonId: string, number: number) => Promise<void>;
-        /** Jumps to the next unwatched episode, selecting and expanding its season first. */
+        /** Jumps to the next unwatched episode. */
         onWatchNextUp: (target: NextUp) => Promise<void>;
         onOpenEpisodesTab: () => void;
         onOpenLists: () => void;
@@ -50,21 +45,15 @@
 
     let {
         seasons,
-        currentSeason,
         showEpisodes,
-        sortedEpisodes,
-        nextEpisode,
         nextUp,
-        seasonProgressPercent,
+        seriesEpisodes,
+        seriesProgressPercent,
         episodeBusy,
         progressError,
         sortOrder,
-        onSelectSeason,
         onToggleSort,
-        onMarkSeasonComplete,
-        onMarkSeasonCompleteOf,
-        onResetSeason,
-        onToggleEpisode,
+        onToggleSeasonCompleteOf,
         onToggleEpisodeOf,
         onWatchNextUp,
         onOpenEpisodesTab,
@@ -73,11 +62,20 @@
         episodesBySeason = [],
     }: Props = $props();
 
-    /** Every season's episodes, so each accordion renders its own list rather than only the selected one. */
     const orderedBySort = (rows: readonly EpisodeRow[]) =>
         sortOrder === "asc" ? rows : [...rows].reverse();
+
+    const isFinished = (season: TvSeason) =>
+        season.totalEpisodes > 0 &&
+        (season.currentEpisode ?? 0) >= season.totalEpisodes;
+
+    /** A season may legitimately have no episode count (extras, unannounced splits). */
+    const seriesFinished = $derived(
+        seasons.length > 0 &&
+            seasons.every((season) => season.totalEpisodes <= 0 || isFinished(season)),
+    );
 </script>
-{#if currentSeason}
+{#if seasons.length > 0}
     <div
         class="relative overflow-hidden rounded-xl border border-white/[0.08] bg-gradient-to-r from-[var(--color-overlay-strong)] via-[var(--color-panel-line)] to-[var(--color-overlay-strong)] p-5 shadow-lg"
     >
@@ -86,26 +84,24 @@
                 <p
                     class="text-xs font-semibold uppercase tracking-wider text-[var(--color-accent-soft)]"
                 >
-                    {currentSeason.title}
+                    {i18n.current === "ru" ? "Сериал" : "Series"}
                 </p>
                 <p class="mt-1 text-lg font-bold text-white">
                     {i18n.t.card.episodes(
-                        currentSeason.currentEpisode,
-                        currentSeason.totalEpisodes,
+                        seriesEpisodes.current,
+                        seriesEpisodes.total,
                     )}
                     <span class="ml-2 text-xs font-medium text-muted"
-                        >({Math.round(seasonProgressPercent)}%)</span
+                        >({Math.round(seriesProgressPercent)}%)</span
                     >
                 </p>
             </div>
 
             <div class="flex items-center gap-2">
-                <!-- The series-wide next episode: once a season is finished this rolls over to
-                     "S2 E1" on its own instead of leaving the user on a dead season. -->
                 {#if nextUp}
                     <button
                         type="button"
-                        class="inline-flex items-center gap-2 rounded-lg bg-[var(--color-accent)] px-4 py-2 text-xs font-semibold text-white shadow-md transition hover:bg-[var(--color-accent-deep)] active:scale-95 disabled:opacity-50"
+                        class="inline-flex h-9 items-center gap-2 rounded-lg bg-[var(--color-accent)] px-4 text-xs font-semibold text-white shadow-md transition hover:bg-[var(--color-accent-deep)] active:scale-95 disabled:opacity-50"
                         disabled={Boolean(episodeBusy)}
                         title={i18n.t.detail.bannerNextEpisode}
                         onclick={() => void onWatchNextUp(nextUp)}
@@ -113,9 +109,9 @@
                         <Play size={14} stroke-width={2.5} />
                         {i18n.t.detail.bannerNextEpisode}: S{nextUp.seasonNumber} E{nextUp.episodeNumber}
                     </button>
-                {:else if currentSeason.totalEpisodes && currentSeason.currentEpisode >= currentSeason.totalEpisodes}
+                {:else if seriesFinished}
                     <span
-                        class="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500/15 px-3 py-1.5 text-xs font-semibold text-emerald-300"
+                        class="inline-flex h-9 items-center gap-1.5 rounded-lg bg-emerald-500/15 px-3 text-xs font-semibold text-emerald-300"
                     >
                         <CheckCircle2 size={15} />
                         {i18n.t.detail.bannerCompleted}
@@ -124,7 +120,7 @@
 
                 <button
                     type="button"
-                    class="rounded-lg border border-white/[0.08] bg-surface/50 px-3 py-2 text-xs font-medium text-muted transition hover:bg-white/10 hover:text-white"
+                    class="inline-flex h-9 items-center rounded-lg border border-white/[0.08] bg-surface/50 px-3 text-xs font-medium text-muted transition hover:bg-white/10 hover:text-white"
                     onclick={onOpenEpisodesTab}
                 >
                     {i18n.t.detail.tabEpisodes} в†’
@@ -135,91 +131,56 @@
         <div class="mt-4 h-2 w-full max-w-2xl overflow-hidden rounded-full bg-black/40">
             <div
                 class="h-full rounded-full bg-gradient-to-r from-[var(--color-accent)] to-[var(--color-info-soft)] transition-all duration-300"
-                style={`width: ${seasonProgressPercent}%`}
+                style={`width: ${seriesProgressPercent}%`}
             ></div>
         </div>
     </div>
 {/if}
-{#if showEpisodes}
+{#if showEpisodes && seasons.length > 0}
     <section class="space-y-4">
-    <div
-        class="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-[var(--color-panel-line)] p-3.5"
-    >
-        <div class="flex items-center gap-3">
-            {#if currentSeason}
-                <span class="text-xs text-muted">
-                    {i18n.t.card.episodes(
-                        currentSeason.currentEpisode,
-                        currentSeason.totalEpisodes,
-                    )}
-                </span>
-            {/if}
+        <div
+            class="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-[var(--color-panel-line)] p-3.5"
+        >
+            <span class="text-xs text-muted">
+                {i18n.t.card.episodes(
+                    seriesEpisodes.current,
+                    seriesEpisodes.total,
+                )}
+            </span>
+
+            <div class="flex items-center gap-2">
+                <button
+                    type="button"
+                    class="inline-flex h-8 items-center gap-1.5 rounded-md border border-white/[0.08] bg-surface/50 px-2.5 text-xs font-medium text-white transition hover:bg-white/10"
+                    onclick={onToggleSort}
+                    title={i18n.current === "ru"
+                        ? "Порядок серий"
+                        : "Episode sort order"}
+                >
+                    <ArrowUpDown
+                        size={13}
+                        class="text-[var(--color-accent-soft)]"
+                        aria-hidden="true"
+                    />
+                    {sortOrder === "asc"
+                        ? i18n.t.detail.sortAsc
+                        : i18n.t.detail.sortDesc}
+                </button>
+            </div>
         </div>
 
-        <div class="flex items-center gap-2">
-            <button
-                type="button"
-                class="inline-flex h-8 items-center gap-1.5 rounded-md border border-white/[0.08] bg-surface/50 px-2.5 text-xs font-medium text-white transition hover:bg-white/10"
-                onclick={onToggleSort}
-                title="Toggle episode sort order"
-            >
-                <ArrowUpDown
-                    size={13}
-                    class="text-[var(--color-accent-soft)]"
-                    aria-hidden="true"
-                />
-                {sortOrder === "asc"
-                    ? i18n.t.detail.sortAsc
-                    : i18n.t.detail.sortDesc}
-            </button>
-
-            <button
-                type="button"
-                class="inline-flex h-8 items-center gap-1.5 rounded-md bg-emerald-500/20 border border-emerald-500/30 px-2.5 text-xs font-semibold text-emerald-300 transition hover:bg-emerald-500/30 disabled:opacity-50"
-                disabled={Boolean(episodeBusy)}
-                onclick={() => void onMarkSeasonComplete()}
-            >
-                <Check size={13} stroke-width={2.5} />
-                {i18n.t.detail.markSeasonWatched}
-            </button>
-
-            <button
-                type="button"
-                class="inline-flex h-8 items-center gap-1.5 rounded-md bg-rose-500/10 border border-rose-500/20 px-2.5 text-xs font-semibold text-rose-300 transition hover:bg-rose-500/20 disabled:opacity-50"
-                disabled={Boolean(episodeBusy)}
-                onclick={() => void onResetSeason()}
-            >
-                <RotateCcw size={13} />
-                {i18n.t.detail.resetSeason}
-            </button>
-        </div>
-    </div>
-{#if seasons.length === 0}
-        <p class="rounded-xl bg-[var(--color-panel-line)] p-5 text-sm text-muted">
-            {i18n.t.views.noSeasons}
-        </p>
-    {:else}
-        <!-- One collapsible block per season. A <details> gives the open/close behaviour, the
-             keyboard support and the aria wiring for free; expanding also selects the season so the
-             action bar above and every episode toggle act on what the user is looking at. -->
+        <!-- One collapsible block per season. Expanding is purely visual: the <details> element owns
+             its own open state and no handler reports it back, so clicking a season neither changes
+             the active season nor re-queries anything. -->
         <div class="space-y-2">
             {#each seasons as season (season.id)}
                 {@const rows = orderedBySort(
                     episodesBySeason.find((view) => view.season.id === season.id)
-                        ?.episodes ??
-                        (season.id === currentSeason?.id ? sortedEpisodes : []),
+                        ?.episodes ?? [],
                 )}
+                {@const done = isFinished(season)}
                 <details
                     class="group overflow-hidden rounded-xl border border-white/[0.06] bg-[var(--color-panel-line)]"
-                    open={season.id === currentSeason?.id}
-                    ontoggle={(event) => {
-                        // The action bar above acts on the *selected* season, so expanding a season has
-                        // to select it; otherwise a user could open season 3 and mark season 1 done.
-                        const details = event.currentTarget;
-                        if (details.open && season.id !== currentSeason?.id) {
-                            onSelectSeason(season.id);
-                        }
-                    }}
                 >
                     <summary
                         class="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 transition hover:bg-white/[0.04]"
@@ -235,38 +196,46 @@
                             </span>
                         </span>
                         <span class="flex shrink-0 items-center gap-2">
-                            <span class="text-xs text-muted">
+                            <span class="w-16 text-right text-xs text-muted">
                                 {i18n.t.card.episodes(
                                     season.currentEpisode,
                                     season.totalEpisodes,
                                 )}
                             </span>
-                            <!-- Marks this whole season watched straight from its header. The eye is
-                                 hidden once the season is done, because there is nothing left to do. -->
-                            {#if season.totalEpisodes > 0 && season.currentEpisode < season.totalEpisodes}
+                            <!-- Two-way completion toggle in a fixed 7x7 box in both states: the icon
+                                 swaps, the footprint never does, so the row cannot jump on status
+                                 change. Unfinished -> 100% / Completed; finished -> back to 0. -->
+                            {#if season.totalEpisodes > 0}
                                 <button
                                     type="button"
-                                    class="grid h-7 w-7 place-items-center rounded-full border border-white/[0.08] bg-[var(--color-field)] text-[var(--color-muted)] transition hover:border-emerald-500/40 hover:bg-emerald-500/20 hover:text-emerald-400 disabled:cursor-wait disabled:opacity-60"
-                                    aria-label={i18n.t.detail.markSeasonWatched}
-                                    title={i18n.t.detail.markSeasonWatched}
+                                    class={`grid h-7 w-7 shrink-0 place-items-center rounded-full border transition active:scale-95 disabled:cursor-wait disabled:opacity-60 ${
+                                        done
+                                            ? "border-emerald-500/40 bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30"
+                                            : "border-white/[0.08] bg-[var(--color-field)] text-[var(--color-muted)] hover:border-emerald-500/40 hover:bg-emerald-500/20 hover:text-emerald-400"
+                                    }`}
+                                    aria-label={done
+                                        ? i18n.t.detail.resetSeason
+                                        : i18n.t.detail.markSeasonWatched}
+                                    title={done
+                                        ? i18n.t.detail.resetSeason
+                                        : i18n.t.detail.markSeasonWatched}
                                     disabled={Boolean(episodeBusy)}
                                     onclick={(event) => {
                                         // The header is a <summary>, so a plain click would also toggle
-                                        // the accordion open and re-select the season.
+                                        // the accordion open.
                                         event.preventDefault();
                                         event.stopPropagation();
-                                        void onMarkSeasonCompleteOf(season.id);
+                                        void onToggleSeasonCompleteOf(season.id);
                                     }}
                                 >
-                                    <Eye size={14} aria-hidden="true" />
+                                    {#if done}
+                                        <RotateCcw size={13} aria-hidden="true" />
+                                    {:else}
+                                        <Eye size={14} aria-hidden="true" />
+                                    {/if}
                                 </button>
-                            {:else if season.totalEpisodes > 0}
-                                <Check
-                                    size={16}
-                                    stroke-width={2.8}
-                                    class="text-emerald-400"
-                                    aria-label={i18n.t.detail.markSeasonWatched}
-                                />
+                            {:else}
+                                <span class="h-7 w-7 shrink-0"></span>
                             {/if}
                         </span>
                     </summary>
@@ -294,7 +263,6 @@
                     {#if progressError}<p class="text-xs text-rose-300" role="alert">
                 {errorMessage(progressError)}
             </p>{/if}
-    {/if}
 </section>
 {/if}
 

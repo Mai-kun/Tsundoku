@@ -1,10 +1,15 @@
 <script lang="ts">
     import { Image as ImageIcon, Link2, LoaderCircle, Search, X } from "$shared/ui/Icons.svelte";
-    import { errorMessage, relinkMedia, searchExternal } from "$shared/api/api";
+    import { errorMessage, getSources, relinkMedia, searchExternal } from "$shared/api/api";
     import { i18n } from "$shared/i18n/index.svelte";
     import Modal from "$shared/ui/Modal.svelte";
     import { sourceBadgeClasses } from "$entities/media/model/mediaLabels";
-    import type { ExternalMedia, MediaType, SearchScope } from "$shared/types";
+    import type {
+        ExternalMedia,
+        MediaType,
+        SearchScope,
+        SourceInfo,
+    } from "$shared/types";
 
     /** Anime is its own search bucket; anything the aggregator does not know becomes "all". */
     const SEARCHABLE = new Set<string>([
@@ -16,7 +21,21 @@
         "book",
     ]);
 
-    interface Props {
+    /**
+ * Candidate providers per media type. The relink dialog asks the user to pick where to look for the
+ * replacement instead of silently cascading through the configured priorities, so the list has to
+ * be explicit — otherwise the answer comes from whatever source happened to answer first.
+ */
+const RELINK_SOURCES: Record<string, readonly string[]> = {
+    movie: ["tmdb", "kinopoisk", "imdb", "simkl", "thetvdb"],
+    tvshow: ["tmdb", "kinopoisk", "imdb", "simkl", "thetvdb"],
+    anime: ["anilist", "myanimelist", "jikan", "shikimori", "kitsu", "simkl"],
+    manga: ["anilist", "myanimelist", "mangadex", "shikimori", "kitsu", "mangaupdates"],
+    game: ["rawg", "igdb"],
+    book: ["googlebooks", "openlibrary"],
+};
+
+interface Props {
         isOpen: boolean;
         mediaId: string;
         /** The library item being re-pointed: supplies the search term and the type filter. */
@@ -43,6 +62,52 @@
         SEARCHABLE.has(type) ? (type as SearchScope) : "all",
     );
 
+    /** Providers the user can pick from; resolved once from the settings endpoint. */
+    let providers = $state<SourceInfo[]>([]);
+    let provider = $state("");
+
+    $effect(() => {
+        if (!isOpen || providers.length > 0) return;
+        void getSources()
+            .then((list) => {
+                providers = list.filter((source) => source.isEnabled);
+            })
+            .catch(() => {
+                providers = [];
+            });
+    });
+
+    /**
+     * Enabled sources that can answer for this media type, matched through the id or the display
+     * name so both "mangadex" and "MangaDex" hit. The current source stays in the list on purpose:
+     * re-picking it is a legitimate way to confirm the match.
+     */
+    const providerOptions = $derived.by(() => {
+        const wanted = RELINK_SOURCES[type] ?? [];
+        const matched = providers.filter((source) => {
+            const haystack = `${source.id} ${source.name}`.toLowerCase();
+            return wanted.some((needle) => haystack.includes(needle));
+        });
+
+        // Nothing matched the table (a type we have no list for): offer every enabled source rather
+        // than an empty picker that blocks the only action this dialog exists for.
+        return matched.length > 0 ? matched : providers;
+    });
+
+    // Open on the current provider so the common case ("same service, better match") needs no pick.
+    $effect(() => {
+        const options = providerOptions;
+        if (!isOpen || provider || options.length === 0) return;
+        const current = options.find(
+            (option) =>
+                currentSource != null &&
+                `${option.id} ${option.name}`.toLowerCase().includes(
+                    currentSource.toLowerCase(),
+                ),
+        );
+        provider = current?.id ?? options[0].id;
+    });
+
     let query = $state("");
     let results = $state<ExternalMedia[]>([]);
     let searching = $state(false);
@@ -64,11 +129,18 @@
         }
     });
 
+    // A fresh pick every time the dialog opens, so a stale provider from the previous relink never
+    // silently carries over.
+    $effect(() => {
+        if (!isOpen) provider = "";
+    });
+
     // Debounced the same way the search modal is: one request per pause in typing, and an
     // out-of-order answer never overwrites a newer one.
     $effect(() => {
         const current = term;
-        if (!isOpen || current.length < 2) {
+        const target = provider;
+        if (!isOpen || current.length < 2 || !target) {
             results = [];
             searching = false;
             return;
@@ -82,7 +154,7 @@
         searchError = null;
 
         const timer = setTimeout(() => {
-            void searchExternal(scope, current, local.signal)
+            void searchExternal(scope, current, local.signal, target)
                 .then((rows) => {
                     if (mine === sequence) results = rows;
                 })
@@ -174,6 +246,27 @@
                     />
                 {/if}
             </div>
+            {#if providerOptions.length > 0}
+                <div class="mt-2">
+                    <label
+                        class="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-muted"
+                        for="relink-provider"
+                    >
+                        {i18n.current === "ru"
+                            ? "Искать в сервисе"
+                            : "Search in provider"}
+                    </label>
+                    <select
+                        id="relink-provider"
+                        bind:value={provider}
+                        class="h-10 w-full rounded-lg border border-white/[0.08] bg-[#1c202b] px-3 text-sm text-white outline-none focus:border-indigo-500/60"
+                    >
+                        {#each providerOptions as option (option.id)}
+                            <option value={option.id}>{option.name}</option>
+                        {/each}
+                    </select>
+                </div>
+            {/if}
             {#if currentSource}
                 <p class="mt-2 text-xs text-muted">
                     {i18n.current === "ru"

@@ -475,7 +475,11 @@ public static class MediaMetadataApplier
     /// already tracks keep their progress; only their chapter count is corrected, and only volumes
     /// that do not exist yet are added.
     /// </summary>
-    private static void ApplyRealVolumes(
+    /// <summary>
+    /// Public so background enrichment can apply a volume split it fetched from a *different* provider
+    /// than the one the item came from (see MangaDexMetadataProvider.GetVolumeDetailsByTitleAsync).
+    /// </summary>
+    public static void ApplyRealVolumes(
         Manga manga,
         IReadOnlyList<ExternalMangaVolumeDto>? volumeDetails,
         Action<MangaVolume>? trackNewVolume)

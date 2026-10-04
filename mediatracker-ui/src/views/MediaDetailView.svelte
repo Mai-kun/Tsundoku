@@ -155,6 +155,73 @@
         );
     }
 
+    /**
+     * Achievements and recommendations are external payloads that only change when the provider
+     * updates, so they are stored on the row on first fetch and replayed on every later open. Without
+     * this, F5 threw the list away and the user either waited on RAWG again or lost it entirely.
+     */
+    function persistGamePayloads(item: MediaDetail) {
+        if (item.achievementsJson === undefined || item.achievementsJson === null) {
+            if (gameAchievements.length === 0) return;
+            const payload = JSON.stringify({
+                total: gameAchievementsTotal,
+                items: gameAchievements,
+            });
+            item.achievementsJson = payload;
+            updateMedia(item.id, { achievementsJson: payload }).catch((error) =>
+                console.error(
+                    "[MediaDetailView] Failed to cache achievements",
+                    error,
+                ),
+            );
+        }
+
+        if (item.recommendationsJson == null && recommendations.length > 0) {
+            const payload = JSON.stringify(recommendations);
+            item.recommendationsJson = payload;
+            updateMedia(item.id, { recommendationsJson: payload }).catch((error) =>
+                console.error(
+                    "[MediaDetailView] Failed to cache recommendations",
+                    error,
+                ),
+            );
+        }
+    }
+
+    /** Restores the cached payloads; a corrupt blob is dropped rather than crashing the panel. */
+    function readStoredGamePayloads(item: MediaDetail) {
+        if (item.achievementsJson) {
+            try {
+                const parsed = JSON.parse(item.achievementsJson) as {
+                    total?: number;
+                    items?: GameAchievementItem[];
+                };
+                if (Array.isArray(parsed.items) && parsed.items.length > 0) {
+                    gameAchievements = parsed.items;
+                    gameAchievementsTotal =
+                        parsed.total ?? parsed.items.length;
+                }
+            } catch {
+                console.error(
+                    "[MediaDetailView] Stored achievements were unreadable",
+                );
+            }
+        }
+
+        if (item.recommendationsJson) {
+            try {
+                const parsed: unknown = JSON.parse(item.recommendationsJson);
+                if (Array.isArray(parsed)) {
+                    recommendations = parsed as RecommendationItem[];
+                }
+            } catch {
+                console.error(
+                    "[MediaDetailView] Stored recommendations were unreadable",
+                );
+            }
+        }
+    }
+
     function writeCache<T>(key: string, items: T[]) {
         localStorage.setItem(
             key,
@@ -322,7 +389,6 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
     let pendingSnapshot = $state<number | null>(null);
     let progressError = $state<unknown>(null);
 
-    let selectedSeasonId = $state<string | null>(null);
     let episodeBusy = $state("");
 
     /**
@@ -412,17 +478,6 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
     let seasonViews = $derived(
         seasons.map((season) => ({ season, episodes: buildEpisodes(season) })),
     );
-    let season = $derived(
-        seasonViews.find((view) => view.season.id === selectedSeasonId) ??
-            seasonViews[0] ??
-            null,
-    );
-    let episodes = $derived(season?.episodes ?? []);
-    let sortedEpisodes = $derived.by(() => {
-        const list = [...episodes];
-        return episodeSortOrder === "asc" ? list : list.reverse();
-    });
-    let currentSeason = $derived(season?.season ?? null);
     let originalTitle = $derived(media ? readOriginalTitle(media) : null);
     let synopsisText = $derived(media?.notes?.trim() ?? "");
     let synopsisExpandable = $derived(synopsisText.length > 280);
@@ -473,18 +528,9 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
         }
     }
 
-    let nextEpisode = $derived.by(() => {
-        if (!currentSeason) return null;
-        const watched = currentSeason.currentEpisode ?? 0;
-        const total = currentSeason.totalEpisodes ?? 0;
-        if (watched >= total) return null;
-        return episodes.find((e) => e.number === watched + 1) ?? null;
-    });
-
     /**
-     * The first unwatched episode of the series, not of the selected season. Walking the seasons in
-     * order is what makes the banner roll over by itself: with S1 at 7/7 it reports "S2 E1", and
-     * `watchNextUp` selects that season, so its accordion opens with it.
+     * The first unwatched episode of the series, not of any one season. Walking the seasons in order
+     * is what makes the banner roll over by itself: with S1 at 7/7 it reports "S2 E1".
      */
     let nextUp = $derived.by<NextUp | null>(() => {
         for (const view of seasonViews) {
@@ -514,21 +560,25 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
         return Math.min(progressValue / info.total, 1) * 100;
     });
 
-    let seasonProgressPercent = $derived.by(() => {
-        if (
-            !currentSeason ||
-            !currentSeason.totalEpisodes ||
-            currentSeason.totalEpisodes <= 0
-        )
-            return 0;
-        return (
-            Math.min(
-                (currentSeason.currentEpisode ?? 0) /
-                    currentSeason.totalEpisodes,
-                1,
-            ) * 100
-        );
+    /**
+     * Series-wide counters. The banner and the tab badge are pinned to these, so expanding a season
+     * accordion below cannot move the progress bar or the "next episode" button.
+     */
+    let seriesEpisodes = $derived.by(() => {
+        let current = 0;
+        let total = 0;
+        for (const view of seasonViews) {
+            current += view.season.currentEpisode ?? 0;
+            total += view.season.totalEpisodes ?? 0;
+        }
+        return { current, total };
     });
+
+    let seriesProgressPercent = $derived(
+        seriesEpisodes.total > 0
+            ? Math.min(seriesEpisodes.current / seriesEpisodes.total, 1) * 100
+            : 0,
+    );
 
     let externalRatings = $derived.by<RatingBadge[]>(() => {
         if (!media) return [];
@@ -787,7 +837,6 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
             media = null;
             isLoading = true;
             loadError = null;
-            selectedSeasonId = null;
             userRatingPopoverOpen = false;
             synopsisExpanded = false;
             isSynopsisTranslated = false;
@@ -823,6 +872,10 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
                 related = storedRelated;
                 lastRelatedSource = loaded.relatedSource ?? null;
             }
+
+            // Same for the game payloads: the row carries the achievements and the recommendations,
+            // so the panel is populated before any external request is considered.
+            readStoredGamePayloads(loaded);
 
             if (forceRefresh) {
                 if (loaded.type === "game") {
@@ -914,6 +967,8 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
             });
             gameAchievements = result.achievements;
             gameAchievementsTotal = result.total;
+            // First successful fetch: write it to the row so the next open (and F5) is instant.
+            if (media) persistGamePayloads(media);
         } catch {
             gameAchievements = [];
             gameAchievementsTotal = 0;
@@ -1596,6 +1651,7 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
             recommendations = items;
             if (items.length > 0) {
                 writeCache(cacheKey, items);
+                if (media) persistGamePayloads(media);
             }
         } catch (e) {
             recommendationsError = e;
@@ -1712,37 +1768,26 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
     }
 
     /**
- * A season that has just been closed out hands the selection to the next unfinished one. The
- * accordions are keyed on the selected season, so without this the banner says "S2 E1" while season 1
- * is still the expanded block and the user has to hunt for the one the button points at.
- */
-function followRollover(seasonId: string) {
-    const index = seasonViews.findIndex((view) => view.season.id === seasonId);
-    if (index < 0) return;
-    const next = seasonViews.slice(index + 1).find((view) => {
-        const total = view.season.totalEpisodes ?? 0;
-        return total > 0 && (view.season.currentEpisode ?? 0) < total;
-    });
-    if (next) selectedSeasonId = next.season.id;
-}
-
-async function toggleEpisode(number: number) {
-        const target = currentSeason;
-        if (!target || episodeBusy) return;
+     * One write path for every episode toggle. The season is passed in explicitly instead of being
+     * read from the selection, so a click inside any accordion lands on that season's row directly.
+     */
+    async function setEpisodeProgress(target: TvSeason, number: number) {
+        if (episodeBusy) return;
 
         const current = target.currentEpisode ?? 0;
-        // If clicking an already watched episode: unwatch it to number - 1
-        // If clicking an unwatched episode: mark watched up to number
+        // Clicking a watched episode unwatches back to the one before it; clicking an unwatched one
+        // marks everything up to and including it.
         const nextVal = number <= current ? number - 1 : number;
 
         target.currentEpisode = nextVal;
         episodeBusy = target.id;
         progressError = null;
-        onUpdate();
 
         try {
             await setSeasonProgress(target.id, nextVal);
-            if (nextVal >= (target.totalEpisodes ?? 0)) followRollover(target.id);
+            // Refresh only after the write landed. Calling it before the await made its refetch race
+            // the PUT and could return the pre-write season, silently reverting the optimistic value.
+            onUpdate();
         } catch (error) {
             target.currentEpisode = current;
             onUpdate();
@@ -1753,68 +1798,49 @@ async function toggleEpisode(number: number) {
         }
     }
 
-    /**
- * Toggles an episode inside any accordion, not just the selected season. The season is selected
- * first so the write lands on the row the user actually clicked - without it every episode of a
- * non-selected season would have been written against the currently selected one.
- */
-async function toggleEpisodeOf(seasonId: string, number: number) {
-        if (selectedSeasonId !== seasonId) selectedSeasonId = seasonId;
-        await toggleEpisode(number);
+    /** Episode toggle inside a given accordion; the season is passed in, never inferred. */
+    async function toggleEpisodeOf(seasonId: string, number: number) {
+        const target = seasonViews.find((view) => view.season.id === seasonId)?.season;
+        if (!target) return;
+        await setEpisodeProgress(target, number);
     }
 
-    /**
-     * The banner's main action. Selecting the target season first both expands its accordion (the
-     * `open` attribute follows the selected season) and makes the write land on the right row.
-     */
+    /** The banner's main action: marks the series-wide next episode as watched. */
     async function watchNextUp(target: NextUp) {
-        if (selectedSeasonId !== target.seasonId) selectedSeasonId = target.seasonId;
-        await toggleEpisode(target.episodeNumber);
+        const season = seasonViews.find((view) => view.season.id === target.seasonId)?.season;
+        if (!season) return;
+        await setEpisodeProgress(season, target.episodeNumber);
     }
 
-    /** The eye in a season header: close that season out, whichever one it is. */
-    async function markSeasonCompleteOf(seasonId: string) {
-        if (selectedSeasonId !== seasonId) selectedSeasonId = seasonId;
-        await markSeasonComplete();
-    }
-
-    async function markSeasonComplete() {
-        const target = currentSeason;
-        if (!target || episodeBusy) return;
+    /**
+     * The season-header toggle is two-way: an unfinished season jumps to 100% (status Completed), a
+     * finished one rolls back to 0 (status InProgress/Planned). One handler both ways, so the user
+     * never has to hunt for a separate "reset" control.
+     */
+    async function toggleSeasonCompleteOf(seasonId: string) {
+        const target = seasonViews.find((view) => view.season.id === seasonId)?.season;
+        if (!target) return;
         const total = target.totalEpisodes ?? 0;
-        if (total <= 0) return;
+        if (total <= 0 || episodeBusy) return;
 
         const previous = target.currentEpisode ?? 0;
-        target.currentEpisode = total;
+        const completing = previous < total;
+        const nextVal = completing ? total : 0;
+
+        target.currentEpisode = nextVal;
         episodeBusy = target.id;
-        onUpdate();
+        progressError = null;
 
         try {
-            await setSeasonProgress(target.id, total);
-            followRollover(target.id);
-            showToast(i18n.t.detail.markSeasonWatched, "success");
-        } catch (error) {
-            target.currentEpisode = previous;
+            await setSeasonProgress(target.id, nextVal);
+            // Refresh only after the write landed, for the same reason as in setEpisodeProgress.
             onUpdate();
-            progressError = error;
-            showToast(errorMessage(error), "error");
-        } finally {
-            episodeBusy = "";
-        }
-    }
-
-    async function resetSeasonProgress() {
-        const target = currentSeason;
-        if (!target || episodeBusy) return;
-
-        const previous = target.currentEpisode ?? 0;
-        target.currentEpisode = 0;
-        episodeBusy = target.id;
-        onUpdate();
-
-        try {
-            await setSeasonProgress(target.id, 0);
-            showToast(i18n.t.detail.resetSeason, "warning");
+            showToast(
+                completing
+                    ? i18n.t.detail.markSeasonWatched
+                    : i18n.t.detail.resetSeason,
+                completing ? "success" : "warning",
+            );
         } catch (error) {
             target.currentEpisode = previous;
             onUpdate();
@@ -1962,17 +1988,14 @@ async function toggleEpisodeOf(seasonId: string, number: number) {
 <DetailTabs
     active={activeSubTab}
     mediaType={media.type}
-    seasonProgress={currentSeason
-        ? {
-            current: currentSeason.currentEpisode ?? 0,
-            total: currentSeason.totalEpisodes ?? null,
-        }
-        : null}
+    seasonProgress={seriesEpisodes.total > 0 ? seriesEpisodes : null}
     volumeCount={mangaVolumes.length}
     relatedCount={related.length}
     onSelect={(tab) => (activeSubTab = tab)}
 />
 
+                <!-- One exclusive chain: a single {#if}/{:else if} guarantees at most one tab panel
+                     exists in the DOM, so switching can never leave two screens stacked. -->
                 {#if activeSubTab === "overview"}
                     <OverviewTab
                         {media}
@@ -2002,45 +2025,7 @@ async function toggleEpisodeOf(seasonId: string, number: number) {
                         {volumes}
                         onOpenVolumesTab={() => (activeSubTab = "volumes")}
                     />
-                {/if}
-
-                <!-- The season banner shows on every tab; only the episode list is tab-gated. -->
-                {#if media.type === "tvshow"}
-                    {#if isSyncing}
-                        <SyncRowsSkeleton
-                            label={i18n.t.activity.loadingSeasons}
-                        />
-                    {:else}
-                        <EpisodesTab
-                            {seasons}
-                            {currentSeason}
-                            showEpisodes={activeSubTab === "episodes"}
-                            {sortedEpisodes}
-                            {nextEpisode}
-                            {nextUp}
-                            {seasonProgressPercent}
-                            {episodeBusy}
-                            {progressError}
-                            sortOrder={episodeSortOrder}
-                            onSelectSeason={(id) => (selectedSeasonId = id)}
-                            onToggleSort={() =>
-                                (episodeSortOrder =
-                                    episodeSortOrder === "asc" ? "desc" : "asc")}
-                            onMarkSeasonComplete={markSeasonComplete}
-                            onMarkSeasonCompleteOf={markSeasonCompleteOf}
-                            onResetSeason={resetSeasonProgress}
-                            onToggleEpisode={toggleEpisode}
-                            onToggleEpisodeOf={toggleEpisodeOf}
-                            onWatchNextUp={watchNextUp}
-                            episodesBySeason={seasonViews}
-                            onOpenEpisodesTab={() => (activeSubTab = "episodes")}
-                            onOpenLists={() => onNavigate("lists")}
-                            {formatDate}
-                        />
-                    {/if}
-                {/if}
-
-                {#if activeSubTab === "volumes" && media.type === "manga"}
+                {:else if activeSubTab === "volumes" && media.type === "manga"}
                     {#if isSyncing}
                         <SyncRowsSkeleton
                             label={i18n.t.activity.loadingSeasons}
@@ -2060,9 +2045,7 @@ async function toggleEpisodeOf(seasonId: string, number: number) {
                                 void volumes.unmarkComplete(vol)}
                         />
                     {/if}
-                {/if}
-
-                {#if activeSubTab === "related"}
+                {:else if activeSubTab === "related"}
                     <RelatedTab
                         {media}
                         {related}
@@ -2082,6 +2065,45 @@ async function toggleEpisodeOf(seasonId: string, number: number) {
                             if (media) void loadRelated(media, source, force ?? false);
                         }}
                     />
+                {:else if activeSubTab === "recommendations"}
+                    <RecommendationsTab
+                        {media}
+                        items={recommendations}
+                        loading={recommendationsLoading}
+                        error={recommendationsError}
+                        onLoad={(source, force) =>
+                            void loadRecommendations(source, force ?? false)}
+                    />
+                {/if}
+
+                <!-- The season banner shows on every tab; only the episode list is tab-gated. -->
+                {#if media.type === "tvshow"}
+                    {#if isSyncing}
+                        <SyncRowsSkeleton
+                            label={i18n.t.activity.loadingSeasons}
+                        />
+                    {:else}
+                        <EpisodesTab
+                            {seasons}
+                            showEpisodes={activeSubTab === "episodes"}
+                            {nextUp}
+                            {seriesEpisodes}
+                            {seriesProgressPercent}
+                            {episodeBusy}
+                            {progressError}
+                            sortOrder={episodeSortOrder}
+                            onToggleSort={() =>
+                                (episodeSortOrder =
+                                    episodeSortOrder === "asc" ? "desc" : "asc")}
+                            onToggleSeasonCompleteOf={toggleSeasonCompleteOf}
+                            onToggleEpisodeOf={toggleEpisodeOf}
+                            onWatchNextUp={watchNextUp}
+                            episodesBySeason={seasonViews}
+                            onOpenEpisodesTab={() => (activeSubTab = "episodes")}
+                            onOpenLists={() => onNavigate("lists")}
+                            {formatDate}
+                        />
+                    {/if}
                 {/if}
 
                 <!-- PREVIEW MODAL FOR UNADDED RELATED ITEMS -->
@@ -2098,17 +2120,6 @@ async function toggleEpisodeOf(seasonId: string, number: number) {
                     }}
                     onClose={() => (previewRelatedItem = null)}
                 />
-
-                {#if activeSubTab === "recommendations"}
-                    <RecommendationsTab
-                        {media}
-                        items={recommendations}
-                        loading={recommendationsLoading}
-                        error={recommendationsError}
-                        onLoad={(source, force) =>
-                            void loadRecommendations(source, force ?? false)}
-                    />
-                {/if}
 
             </div>
         </div>

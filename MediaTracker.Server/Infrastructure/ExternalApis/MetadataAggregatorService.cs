@@ -44,6 +44,54 @@ public sealed class MetadataAggregatorService(
         return results;
     }
 
+    /// <summary>
+    /// Searches one named provider instead of cascading through the priorities. The relink dialog
+    /// uses it: the user decides which service the replacement is looked up in, so a cascade that
+    /// silently answers from a different provider would defeat the point.
+    /// </summary>
+    public async Task<IReadOnlyList<ExternalMediaDto>> SearchSourceAsync(
+        string type,
+        string query,
+        string source,
+        CancellationToken ct)
+    {
+        var normalizedType = MediaMerger.NormalizeMediaType(type);
+        var normalizedQuery = query.Trim();
+        var cacheKey = $"search:{normalizedType}:{normalizedQuery.ToLowerInvariant()}:{MediaMerger.NormalizeSourceKey(source)}";
+
+        if (cache.TryGetValue(cacheKey, out IReadOnlyList<ExternalMediaDto>? cached) && cached is not null)
+        {
+            return cached;
+        }
+
+        IReadOnlyList<ExternalMediaDto> results = [];
+        var provider = providerResolver.Resolve(normalizedType, source);
+        if (provider is not null)
+        {
+            try
+            {
+                using var providerCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                providerCts.CancelAfter(SearchFallbackTimeout);
+                results = await provider.SearchAsync(normalizedQuery, providerCts.Token);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                logger.LogDebug(ex, "[Aggregator] Source search '{Source}' failed for '{Query}': {Message}", source, normalizedQuery, ex.Message);
+            }
+        }
+        else
+        {
+            logger.LogWarning("[Aggregator] Source '{Source}' is not registered for type '{Type}'", source, normalizedType);
+        }
+
+        cache.Set(cacheKey, results, CacheDuration);
+        return results;
+    }
+
     public async Task<ExternalMediaDto?> GetDetailsAsync(string type, string externalId, string title, CancellationToken ct, string? source = null)
     {
         var normalizedType = MediaMerger.NormalizeMediaType(type, source);

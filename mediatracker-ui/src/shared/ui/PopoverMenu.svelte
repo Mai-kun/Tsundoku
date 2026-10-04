@@ -1,7 +1,6 @@
 ﻿<script lang="ts">
     import { Check } from "$shared/ui/Icons.svelte";
     import type { Snippet } from "svelte";
-    import { fly } from "svelte/transition";
 
     export interface PopoverOption<T> {
         value: T;
@@ -201,6 +200,8 @@
     {/if}
 </div>
 
+<!-- A strict rectangle: no decorative arrow/::after, so the menu can never render a stray
+     triangle that drifts off the trigger. -->
 <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions a11y_no_noninteractive_element_interactions -->
 <div
     id={popoverId}
@@ -209,7 +210,7 @@
     role="listbox"
     tabindex="-1"
     aria-label={label}
-    class="z-30 mt-2 w-max min-w-36 rounded-md border border-white/10 bg-overlay p-1 opacity-100 shadow-2xl shadow-black/70 outline-none {className}"
+    class="z-30 w-max min-w-36 rounded-md border border-white/10 bg-[#1c202b] p-1 shadow-2xl outline-none {className}"
     style={styleAttr}
     onbeforetoggle={handleBeforeToggle}
     ontoggle={handleToggle}
@@ -217,7 +218,6 @@
     onpointerdown={isolate}
     onpointerenter={cancelPendingClose}
     onpointerleave={scheduleClose}
-    transition:fly={{ y: -4, duration: 120 }}
 >
     {#each options as option (String(option.value))}
         <button

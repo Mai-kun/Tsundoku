@@ -1,5 +1,5 @@
-﻿﻿// Season UX: the per-season eye closes a season out, and the banner's "next up" rolls from S1 to S2
-// on its own and expands the season it lands in.
+﻿// Season UX: the accordions are purely visual (expanding one must NOT move the banner), the banner is
+// pinned to series-wide progress, and the per-season completion toggle is two-way.
 const { chromium } = require('playwright-core');
 const BASE = process.env.TS_BASE || 'http://localhost:5099';
 
@@ -51,8 +51,24 @@ const BASE = process.env.TS_BASE || 'http://localhost:5099';
     ok('eye stored S1 completed (' + afterEye.seasons[0].status + ')', afterEye.seasons[0].status === 2);
     ok('banner rolled to S2 E1 ("' + (await header()) + '")', (await header()).includes('S2 E1'));
 
-    const openTitle = flat(await page.locator('details[open] summary').first().innerText());
-    ok('S2 accordion auto-expanded ("' + openTitle + '")', openTitle.includes('Season 2'));
+    // Expanding a season is a purely visual action: it must not move the banner and must not
+    // refetch. With S1 closed the banner still reads S2 E1.
+    const beforeExpand = await header();
+    await page.locator('details').first().locator('summary').first().click();
+    await page.waitForTimeout(600);
+    ok('expanding S1 left the banner alone ("' + (await header()) + '")', (await header()) === beforeExpand);
+
+    // Two-way toggle: a second click on a finished season rolls it back to 0.
+    const toggle = page.locator('details').first().locator('summary button[aria-label]').first();
+    await toggle.click();
+    await page.waitForTimeout(1500);
+    const afterReset = await page.evaluate(async (m) => (await fetch('/api/media/' + m)).json(), id);
+    ok('toggle rolled S1 back to 0 (' + afterReset.seasons[0].currentEpisode + ')', afterReset.seasons[0].currentEpisode === 0);
+    ok('toggle rolled S1 back out of completed (' + afterReset.seasons[0].status + ')', afterReset.seasons[0].status !== 2);
+
+    // Put it back so the next-up assertions below still start from a completed S1.
+    await toggle.click();
+    await page.waitForTimeout(1500);
 
     // Next-up keeps walking inside the season it rolled into.
     await banner().click();
@@ -72,5 +88,6 @@ const BASE = process.env.TS_BASE || 'http://localhost:5099';
   if (errors.length) fails.push('page errors: ' + errors.join(' | '));
   console.log(fails.length ? 'RESULT FAIL\n  - ' + fails.join('\n  - ') : 'RESULT OK');
 })();
+
 
 

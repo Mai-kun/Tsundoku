@@ -1,6 +1,5 @@
 ﻿<script lang="ts">
     import type { Snippet } from "svelte";
-    import { fade, scale } from "svelte/transition";
 
     interface Props {
         isOpen: boolean;
@@ -58,9 +57,8 @@
        surface itself, otherwise page content bleeds through the text. -->
     <div
         class="overflow-hidden rounded-xl border border-white/[0.08] bg-[#151a26] shadow-2xl shadow-black/60"
-        transition:fade={{ duration: 150 }}
     >
-        <div transition:scale={{ start: 0.98, duration: 150 }}>
+        <div>
             {@render children()}
         </div>
     </div>

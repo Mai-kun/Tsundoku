@@ -70,4 +70,13 @@ public sealed record UpdateMediaRequest
     public string? RelatedMediaJson { get; init; }
 
     public string? RelatedSource { get; init; }
+
+    /// <summary>
+    /// Cached achievement / recommendation payloads. Both are external data that only changes when
+    /// the provider updates, so they are stored on the row and replayed on F5 instead of costing
+    /// another provider round trip per open.
+    /// </summary>
+    public string? AchievementsJson { get; init; }
+
+    public string? RecommendationsJson { get; init; }
 }

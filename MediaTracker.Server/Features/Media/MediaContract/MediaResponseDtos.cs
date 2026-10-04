@@ -126,6 +126,12 @@ public sealed record MediaDetailDto : MediaListDto
     /// <summary>The provider <see cref="RelatedMediaJson"/> was fetched from.</summary>
     public string? RelatedSource { get; init; }
 
+    /// <summary>Cached achievements, so the game panel opens instantly on F5 without RAWG.</summary>
+    public string? AchievementsJson { get; init; }
+
+    /// <summary>Cached recommendations, written on the first explicit load.</summary>
+    public string? RecommendationsJson { get; init; }
+
     public IReadOnlyList<TvSeasonDto>? Seasons { get; init; }
 
     public IReadOnlyList<MangaVolumeDto>? Volumes { get; init; }
@@ -321,6 +327,8 @@ public static class MediaResponseMapper
             UnlockedAchievements = item.UnlockedAchievements,
             RelatedMediaJson = item.RelatedMediaJson,
             RelatedSource = item.RelatedSource,
+            AchievementsJson = item.AchievementsJson,
+            RecommendationsJson = item.RecommendationsJson,
         };
     }
 

@@ -42,6 +42,27 @@
                 unlockedNames.has(ach.name.toLowerCase().trim()),
             ),
     );
+
+    /**
+     * Rendered at most this many rows at a time. A title like Payday has 1000+ achievements, and
+     * mounting that many DOM nodes at once makes the browser crawl; the rest loads on demand from the
+     * same in-memory list, so nothing is re-fetched.
+     */
+    const PAGE_SIZE = 60;
+    let visibleCount = $state(PAGE_SIZE);
+
+    const visible = $derived(achievements.slice(0, visibleCount));
+    const remaining = $derived(achievements.length - visible.length);
+
+    // A different game (or a forced refresh that changed the list) starts from the top again.
+    $effect(() => {
+        void achievements.length;
+        visibleCount = PAGE_SIZE;
+    });
+
+    function showMore() {
+        visibleCount += PAGE_SIZE;
+    }
 </script>
 
 <section
@@ -130,7 +151,7 @@
         <div
             class="thin-scroll grid max-h-[520px] grid-cols-1 gap-2.5 overflow-y-auto pr-1 pt-1 sm:grid-cols-2 lg:grid-cols-3"
         >
-            {#each achievements as ach (ach.name)}
+            {#each visible as ach (ach.name)}
                 {@const isUnlocked = unlockedNames.has(
                     ach.name.toLowerCase().trim(),
                 )}
@@ -192,6 +213,24 @@
                 </button>
             {/each}
         </div>
+
+        <!-- Only a window of rows is mounted at a time; the rest come from the same payload. -->
+        {#if remaining > 0}
+            <div class="flex justify-center pt-1">
+                <button
+                    type="button"
+                    class="inline-flex h-8 items-center gap-2 rounded-lg border border-white/[0.08] bg-[var(--color-field)] px-3 text-xs font-semibold text-slate-300 transition hover:bg-white/10 hover:text-white cursor-pointer"
+                    onclick={showMore}
+                >
+                    {i18n.current === "ru"
+                        ? `Показать ещё ${Math.min(remaining, PAGE_SIZE)}`
+                        : `Show ${Math.min(remaining, PAGE_SIZE)} more`}
+                    <span class="text-muted">
+                        {visible.length} / {achievements.length}
+                    </span>
+                </button>
+            </div>
+        {/if}
     {:else}
         <!-- Achievements are external data and are fetched only on add
              or an explicit metadata refresh, never on opening the card.

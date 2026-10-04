@@ -24,6 +24,7 @@ public interface IEnrichMetadataHandler
 public sealed class EnrichMetadataHandler(
     AppDbContext db,
     MetadataAggregatorService aggregator,
+    IMetadataProviderResolver providerResolver,
     ILogger<EnrichMetadataHandler> logger) : IEnrichMetadataHandler
 {
     private static readonly TimeSpan EnrichmentTimeout = TimeSpan.FromSeconds(8);
@@ -56,12 +57,25 @@ public sealed class EnrichMetadataHandler(
                 item.ExternalSource);
 
             // Missing metadata is a gap fill, not an error: the detail payload is returned either way.
-            if (external is not null
+            var changed =
+                external is not null
                 && MediaMetadataApplier.ApplyIfMissing(
                     item,
                     external,
                     season => db.Entry(season).State = EntityState.Added,
-                    volume => db.Entry(volume).State = EntityState.Added))
+                    volume => db.Entry(volume).State = EntityState.Added);
+
+            // Sources without a volume breakdown (Shikimori) never fill the per-volume chapter counts,
+            // so the library would keep the even placeholder split. Ask MangaDex by title as a
+            // background second opinion and let it replace the made-up numbers with the real ones.
+            if (item is Manga manga
+                && external?.VolumeDetails is not { Count: > 0 }
+                && NeedsRealVolumes(manga))
+            {
+                changed |= await ApplyMangaDexVolumesAsync(manga, enrichCts.Token);
+            }
+
+            if (changed)
             {
                 item.MarkUpdated();
                 await db.SaveChangesAsync(ct);
@@ -83,5 +97,35 @@ public sealed class EnrichMetadataHandler(
         }
 
         return Result<MediaDetailDto>.Success(MediaDetailProjection.ToDetailDto(item));
+    }
+
+    /// <summary>
+    /// A volume still carrying the even split the placeholder seeder invented is not real data, so it
+    /// is worth one background lookup. Volumes the user typed keep their own count and are left alone.
+    /// </summary>
+    private static bool NeedsRealVolumes(Manga manga) =>
+        manga.Volumes.Count > 0
+        && manga.Volumes.Any(volume =>
+            volume.CurrentChapter == 0
+            && (volume.TotalChapters == 0
+                || volume.TotalChapters == Manga.SeededChaptersPerVolume(manga.TotalChapters, manga.Volumes.Count)));
+
+    private async Task<bool> ApplyMangaDexVolumesAsync(Manga manga, CancellationToken ct)
+    {
+        if (providerResolver.Resolve("manga", MangaDexMetadataProvider.Source.Id) is not MangaDexMetadataProvider mangadex)
+        {
+            return false;
+        }
+
+        var details = await mangadex.GetVolumeDetailsByTitleAsync(manga.Title, ct);
+        if (details.Count == 0) return false;
+
+        var volumesBefore = manga.Volumes.Count;
+        MediaMetadataApplier.ApplyRealVolumes(
+            manga,
+            details,
+            volume => db.Entry(volume).State = EntityState.Added);
+
+        return manga.Volumes.Count != volumesBefore;
     }
 }

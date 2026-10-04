@@ -156,9 +156,17 @@ export function searchExternal(
   type: SearchScope,
   query: string,
   signal?: AbortSignal,
+  source?: string,
 ): Promise<ExternalMedia[]> {
-  const url = `${externalEndpoint}/search?type=${encodeURIComponent(type)}&query=${encodeURIComponent(query.trim())}`;
-  return requestJson<ExternalMedia[]>(url, { signal });
+  const params = new URLSearchParams({
+    type,
+    query: query.trim(),
+  });
+  if (source) params.set("source", source);
+  return requestJson<ExternalMedia[]>(
+    `${externalEndpoint}/search?${params.toString()}`,
+    { signal },
+  );
 }
 
 export function getExternalDetails(

@@ -191,6 +191,42 @@ public sealed class MangaDexMetadataProvider(
         }
     }
 
+    /// <summary>
+    /// Looks a title up by name and returns only its volume/chapter split. Sources without a volume
+    /// breakdown (Shikimori) hand back a flat chapter count, which left the library's volumes on the
+    /// even placeholder split forever. Enrichment calls this so Noragami / Berserk get their real
+    /// per-volume chapter counts even when they were added from a source that cannot report them.
+    /// </summary>
+    public async Task<IReadOnlyList<ExternalMangaVolumeDto>> GetVolumeDetailsByTitleAsync(
+        string title,
+        CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(title)) return [];
+
+        var client = httpClientFactory.CreateClient(Id);
+        try
+        {
+            var match = await SearchAsync(title, ct);
+            var best =
+                match.FirstOrDefault(item => item.Title.Equals(title, StringComparison.OrdinalIgnoreCase))
+                ?? (match.Count > 0 ? match[0] : null);
+
+            if (best is null || !Guid.TryParse(best.ExternalId, out _)) return [];
+
+            var (_, details) = await GetAggregateVolumesAndChaptersAsync(client, best.ExternalId, ct);
+            return details;
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch
+        {
+            // Best-effort background enrichment: a lookup failure must not fail the request.
+            return [];
+        }
+    }
+
     private static ExternalMediaDto MapItem(MdMangaData d, MdMangaStatistics? stat)
     {
         var attr = d.Attributes;

@@ -5,22 +5,16 @@
 
     interface Props {
         seasons: readonly TvSeason[];
-        currentSeason: TvSeason | null;
         /** The season banner renders whenever a season exists; the episode list only on its tab. */
         showEpisodes: boolean;
-        sortedEpisodes: readonly EpisodeRow[];
-        nextEpisode: EpisodeRow | null;
         nextUp: NextUp | null;
-        seasonProgressPercent: number;
+        seriesEpisodes: { current: number; total: number };
+        seriesProgressPercent: number;
         episodeBusy: unknown;
         progressError: unknown;
         sortOrder: "asc" | "desc";
-        onSelectSeason: (seasonId: string) => void;
         onToggleSort: () => void;
-        onMarkSeasonComplete: () => Promise<void>;
-        onMarkSeasonCompleteOf: (seasonId: string) => Promise<void>;
-        onResetSeason: () => Promise<void>;
-        onToggleEpisode: (number: number) => Promise<void>;
+        onToggleSeasonCompleteOf: (seasonId: string) => Promise<void>;
         onToggleEpisodeOf: (seasonId: string, number: number) => Promise<void>;
         onWatchNextUp: (target: NextUp) => Promise<void>;
         onOpenEpisodesTab: () => void;
@@ -34,21 +28,15 @@
 
     let {
         seasons,
-        currentSeason,
         showEpisodes,
-        sortedEpisodes,
-        nextEpisode,
         nextUp,
-        seasonProgressPercent,
+        seriesEpisodes,
+        seriesProgressPercent,
         episodeBusy,
         progressError,
         sortOrder,
-        onSelectSeason,
         onToggleSort,
-        onMarkSeasonComplete,
-        onMarkSeasonCompleteOf,
-        onResetSeason,
-        onToggleEpisode,
+        onToggleSeasonCompleteOf,
         onToggleEpisodeOf,
         onWatchNextUp,
         onOpenEpisodesTab,
@@ -60,21 +48,15 @@
 
 <TvShowDetailSection
     {seasons}
-    {currentSeason}
     {showEpisodes}
-    {sortedEpisodes}
-    {nextEpisode}
     {nextUp}
-    {seasonProgressPercent}
+    {seriesEpisodes}
+    {seriesProgressPercent}
     {episodeBusy}
     {progressError}
     {sortOrder}
-    {onSelectSeason}
     {onToggleSort}
-    {onMarkSeasonComplete}
-    {onMarkSeasonCompleteOf}
-    {onResetSeason}
-    {onToggleEpisode}
+    {onToggleSeasonCompleteOf}
     {onToggleEpisodeOf}
     {onWatchNextUp}
     {onOpenEpisodesTab}

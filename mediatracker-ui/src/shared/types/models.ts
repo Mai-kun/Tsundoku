@@ -72,6 +72,9 @@ export interface MediaDetailFields {
   relatedMediaJson?: string | null;
   /** The provider relatedMediaJson was fetched from. */
   relatedSource?: string | null;
+  /** Cached achievements / recommendations: written once, replayed on F5. */
+  achievementsJson?: string | null;
+  recommendationsJson?: string | null;
 }
 
 export interface GameMedia extends MediaBase {

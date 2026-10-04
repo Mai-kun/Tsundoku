@@ -29,6 +29,9 @@ public static class MediaItemUpdater
         // Both are written together by the client: one pick of a source replaces the cached list.
         item.RelatedMediaJson = request.RelatedMediaJson ?? item.RelatedMediaJson;
         item.RelatedSource = request.RelatedSource ?? item.RelatedSource;
+        // Written once, on the first successful provider fetch; a later refresh replaces them.
+        item.AchievementsJson = request.AchievementsJson ?? item.AchievementsJson;
+        item.RecommendationsJson = request.RecommendationsJson ?? item.RecommendationsJson;
 
         if (request.Status is { } status)
         {

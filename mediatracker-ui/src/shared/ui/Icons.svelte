@@ -5,6 +5,7 @@
     export { default as AlertTriangle } from "lucide-svelte/icons/alert-triangle";
     export { default as ArrowDown } from "lucide-svelte/icons/arrow-down";
     export { default as ArrowLeft } from "lucide-svelte/icons/arrow-left";
+    export { default as ArrowRight } from "lucide-svelte/icons/arrow-right";
     export { default as ArrowUp } from "lucide-svelte/icons/arrow-up";
     export { default as ArrowUpDown } from "lucide-svelte/icons/arrow-up-down";
     export { default as BarChart3 } from "lucide-svelte/icons/bar-chart-3";

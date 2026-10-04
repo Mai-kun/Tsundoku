@@ -93,7 +93,7 @@ public sealed class TvdbMetadataProvider(
                ?? (results.Count > 0 ? results[0] : null);
     }
 
-    public async Task<ConnectionTestResult> TestConnectionAsync(CancellationToken ct)
+    public override async Task<ConnectionTestResult> TestConnectionAsync(CancellationToken ct)
     {
         var key = ApiKey;
         if (string.IsNullOrWhiteSpace(key))

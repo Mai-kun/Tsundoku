@@ -10,7 +10,7 @@ using Microsoft.Extensions.Logging;
 
 namespace MediaTracker.Server.Features.External.EnrichMetadata;
 
-public sealed record EnrichMetadataCommand(Guid MediaId);
+public sealed record EnrichMetadataCommand(Guid MediaId, string? Source = null);
 
 public interface IEnrichMetadataHandler
 {
@@ -54,7 +54,9 @@ public sealed class EnrichMetadataHandler(
                 item.ExternalId ?? string.Empty,
                 item.Title,
                 enrichCts.Token,
-                item.ExternalSource);
+                // "Дополнить" lets the user name a different provider than the row came from, so an
+                // empty field can be filled from e.g. TMDb when the item was matched on Kinopoisk.
+                command.Source ?? item.ExternalSource);
 
             // Missing metadata is a gap fill, not an error: the detail payload is returned either way.
             var changed =

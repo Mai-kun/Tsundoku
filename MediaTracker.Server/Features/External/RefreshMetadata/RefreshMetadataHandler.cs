@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace MediaTracker.Server.Features.External.RefreshMetadata;
 
-public sealed record RefreshMetadataCommand(Guid MediaId);
+public sealed record RefreshMetadataCommand(Guid MediaId, bool FillMissingOnly = false);
 
 public interface IRefreshMetadataHandler
 {
@@ -18,6 +18,8 @@ public interface IRefreshMetadataHandler
 
 /// <summary>
 /// Refresh: re-reads the source and lets it overwrite the stored values, including the cover.
+/// With <c>FillMissingOnly</c> it degrades to the enrich rules instead, which is what the
+/// "keep my edits" branch of the dialog calls: the user's own values survive, only gaps are filled.
 /// </summary>
 public sealed class RefreshMetadataHandler(
     AppDbContext db,
@@ -53,13 +55,30 @@ public sealed class RefreshMetadataHandler(
                 Error.NotFound("Metadata could not be found from external source."));
         }
 
-        await MediaMetadataApplier.ApplyOverwriteAsync(
-            item,
-            external,
-            imageStorage,
-            ct,
-            season => db.Entry(season).State = EntityState.Added,
-            volume => db.Entry(volume).State = EntityState.Added);
+        if (command.FillMissingOnly)
+        {
+            // No cover download and no title rewrite: the whole point of this branch is that
+            // everything already filled in stays exactly as the user left it.
+            MediaMetadataApplier.ApplyIfMissing(
+                item,
+                external,
+                season => db.Entry(season).State = EntityState.Added,
+                volume => db.Entry(volume).State = EntityState.Added);
+        }
+        else
+        {
+            await MediaMetadataApplier.ApplyOverwriteAsync(
+                item,
+                external,
+                imageStorage,
+                ct,
+                season => db.Entry(season).State = EntityState.Added,
+                volume => db.Entry(volume).State = EntityState.Added);
+
+            // The user asked for the source to win, so the row is no longer carrying their edits and
+            // the next refresh must not prompt them again.
+            item.IsCustomEdited = false;
+        }
 
         // A source disabled in settings leaves a stale badge behind otherwise: refresh only rewrites
         // what the queried source reported, so nothing else ever removed one.

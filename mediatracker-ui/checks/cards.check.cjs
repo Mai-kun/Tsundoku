@@ -24,7 +24,7 @@ const expect = (name, ok, extra) => {
     await page.waitForTimeout(1500);
   };
 
-  // Pick one item of each type straight from the API вЂ” no seeded ids hardcoded.
+  // Pick one item of each type straight from the API — no seeded ids hardcoded.
   const library = await page.request
     .get(`${BASE}/api/media`)
     .then((r) => r.json());

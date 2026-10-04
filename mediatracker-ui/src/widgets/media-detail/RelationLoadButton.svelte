@@ -84,6 +84,7 @@
             }
         }}
         class="min-w-44 border-white/10 bg-[#262b3a]!"
+        placement="bottom-end"
         optionClass="text-slate-200 hover:bg-white/[0.07]"
         label={i18n.current === "ru" ? "Источник связанных" : "Related source"}
     >

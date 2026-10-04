@@ -25,10 +25,13 @@
  * Candidate providers per media type. The relink dialog asks the user to pick where to look for the
  * replacement instead of silently cascading through the configured priorities, so the list has to
  * be explicit — otherwise the answer comes from whatever source happened to answer first.
+ *
+ * Video excludes raw IMDb: it exposes no season list, so relinking a show onto it strips the
+ * seasons that the whole progress UI is built on.
  */
 const RELINK_SOURCES: Record<string, readonly string[]> = {
-    movie: ["tmdb", "kinopoisk", "imdb", "simkl", "thetvdb"],
-    tvshow: ["tmdb", "kinopoisk", "imdb", "simkl", "thetvdb"],
+    movie: ["tmdb", "kinopoisk", "simkl", "thetvdb"],
+    tvshow: ["tmdb", "kinopoisk", "simkl", "thetvdb"],
     anime: ["anilist", "myanimelist", "jikan", "shikimori", "kitsu", "simkl"],
     manga: ["anilist", "myanimelist", "mangadex", "shikimori", "kitsu", "mangaupdates"],
     game: ["rawg", "igdb"],
@@ -40,6 +43,8 @@ interface Props {
         mediaId: string;
         /** The library item being re-pointed: supplies the search term and the type filter. */
         title: string;
+        /** The untranslated title. Seeds the search box and travels with the relink call. */
+        originalTitle?: string | null;
         type: MediaType | string;
         currentSource?: string | null;
         onClose: () => void;
@@ -51,6 +56,7 @@ interface Props {
         isOpen,
         mediaId,
         title,
+        originalTitle = null,
         type,
         currentSource = null,
         onClose,
@@ -121,10 +127,11 @@ interface Props {
     const term = $derived(query.trim());
     const canSearch = $derived(term.length >= 2);
 
-    // Prefilled with the current title, so the common case is a single press of Enter.
+    // Prefilled with the original title, so the common case is a single press of Enter. A Russian
+    // translation matches nothing on TMDb/IMDb/Simkl, which is the whole reason this dialog exists.
     $effect(() => {
         if (isOpen && !query) {
-            query = title;
+            query = originalTitle?.trim() || title;
             requestAnimationFrame(() => input?.focus());
         }
     });
@@ -184,6 +191,7 @@ interface Props {
                 externalId: result.externalId,
                 source: result.externalSource ?? "",
                 type,
+                title: result.title,
             });
             onRelinked(payload);
         } catch (error) {

@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { CalendarDays, ChevronDown, ExternalLink, Image as ImageIcon, Link2, List, Pencil, RefreshCw, Star, Trash2 } from "$shared/ui/Icons.svelte";
+    import { CalendarDays, ChevronDown, ExternalLink, Image as ImageIcon, Link2, List, Pencil, RefreshCw, Sparkles, Star, Trash2 } from "$shared/ui/Icons.svelte";
     import { errorMessage } from "$shared/api/api";
     import PopoverMenu from "$shared/ui/PopoverMenu.svelte";
     import { i18n } from "$shared/i18n/index.svelte";
@@ -38,6 +38,8 @@
         refreshBusy: boolean;
         refreshError: unknown;
         onRefreshMetadata: () => Promise<void>;
+        fillMissingBusy: boolean;
+        onFillMissing: () => void;
         onRelink: () => void;
         onStartEdit: () => void;
         deleteBusy: boolean;
@@ -74,6 +76,8 @@
         refreshBusy,
         refreshError,
         onRefreshMetadata,
+        fillMissingBusy,
+        onFillMissing,
         onRelink,
         onStartEdit,
         deleteBusy,
@@ -90,6 +94,10 @@
 
     const platformMenuItems = $derived(
         platformOptions.map((value) => ({ value, label: value })),
+    );
+
+    const watchedOnMenuItems = $derived(
+        watchedOnOptions.map((value) => ({ value, label: value })),
     );
 </script>
 
@@ -136,6 +144,7 @@
                 onSelect={(value) => onChangeStatus(value as MediaStatus)}
                 label={i18n.t.status.label}
                 matchTriggerWidth
+                placement="bottom-end"
                 class="min-w-40"
                 optionClass="hover:bg-[var(--color-panel-raised)]"
             >
@@ -300,23 +309,21 @@
                     </div>
                 {/if}
                 {#if media.type === "movie" || media.type === "tvshow"}
-                    <!-- Pick a known site or type your own; saved on change/blur. -->
+                    <!-- Pick a known site or type your own; saved on change/blur. The sites come from
+                         our PopoverMenu rather than a native <datalist>: the browser popup ignores the
+                         app palette and renders its own arrow, which is what the datalist arrow
+                         pointed at. -->
                     <div
                         class="flex items-center justify-between gap-3 py-2.5 last:pb-0"
                     >
                         <dt class="text-muted text-xs">
-                            {i18n.current === "ru"
-                                ? "Где смотрено"
-                                : "Watched on"}
+                            {i18n.t.detail.watchedOnLabel}
                         </dt>
-                        <dd class="min-w-0 flex-1 text-right">
+                        <dd class="flex min-w-0 flex-1 items-center justify-end gap-1.5">
                             <input
                                 id="watched-on-input"
-                                list="watched-on-sites"
-                                class="h-8 w-full max-w-[14rem] rounded-lg border border-white/10 bg-elevated px-2 text-right text-xs text-white outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
-                                placeholder={i18n.current === "ru"
-                                    ? "Выберите сайт или введите свой"
-                                    : "Pick a site or type your own"}
+                                class="h-8 w-full min-w-0 max-w-[12rem] rounded-lg border border-white/10 bg-elevated px-2 text-right text-xs text-white outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
+                                placeholder={i18n.t.detail.watchedOnPlaceholder}
                                 value={watchedOnInput}
                                 oninput={(e) => {
                                     onWatchedOnInput(e.currentTarget.value);
@@ -325,11 +332,43 @@
                                 onchange={() => void onSaveWatchedOn()}
                                 onblur={() => void onSaveWatchedOn()}
                             />
-                            <datalist id="watched-on-sites">
-                                {#each watchedOnOptions as site (site)}
-                                    <option value={site}></option>
-                                {/each}
-                            </datalist>
+                            <PopoverMenu
+                                id={`watched-on-${media.id}`}
+                                options={watchedOnMenuItems}
+                                selected={watchedOnInput}
+                                onSelect={(value) => {
+                                    onWatchedOnInput(String(value));
+                                    void onSaveWatchedOn();
+                                }}
+                                label={i18n.t.detail.watchedOnLabel}
+                                placement="bottom-end"
+                                matchTriggerWidth={false}
+                                class="max-h-64 min-w-[180px] overflow-y-auto"
+                                optionClass="text-xs"
+                                openOnHover
+                                closeDelay={220}
+                            >
+                                {#snippet trigger({
+                                    popoverTargetId,
+                                    anchorName,
+                                })}
+                                    <button
+                                        type="button"
+                                        popovertarget={popoverTargetId}
+                                        popovertargetaction="toggle"
+                                        style="anchor-name: {anchorName}"
+                                        class="tap flex h-8 shrink-0 items-center justify-center gap-1 rounded-lg border border-white/[0.08] bg-[var(--color-field)] px-2 text-xs text-white transition hover:bg-[var(--color-track-faint)] has-[:popover-open]:ring-1 has-[:popover-open]:ring-[var(--color-accent)]"
+                                        aria-label={i18n.t.detail.watchedOnLabel}
+                                        aria-haspopup="listbox"
+                                    >
+                                        <ChevronDown
+                                            size={13}
+                                            class="text-muted transition duration-200 has-[:popover-open]:rotate-180 has-[:popover-open]:text-white"
+                                            aria-hidden="true"
+                                        />
+                                    </button>
+                                {/snippet}
+                            </PopoverMenu>
                         </dd>
                     </div>
                 {/if}
@@ -338,7 +377,7 @@
                         class="flex items-center justify-between gap-3 py-2.5 last:pb-0"
                     >
                         <dt class="text-muted text-xs">
-                            {i18n.current === "ru" ? "Платформа" : "Platform"}
+                            {i18n.t.detailModal.platform}
                         </dt>
                         <dd class="relative font-medium text-white text-xs">
                             {#if platformOptions.length > 0}
@@ -369,9 +408,8 @@
                                         >
                                             <span class="truncate"
                                                 >{media.userPlatform ||
-                                                (i18n.current === "ru"
-                                                    ? "Не выбрана"
-                                                    : "Not selected")}</span
+                                                i18n.t.detail
+                                                    .platformNotSelected}</span
                                             >
                                             <ChevronDown
                                                 size={13}
@@ -415,6 +453,24 @@
                     {errorMessage(refreshError)}
                 </p>{/if}
 
+            <!-- Same gap-fill rules as the safe-merge branch of the refresh dialog, but the user
+                 names the provider. Fills only empty fields, so it can never cost them data. -->
+            <button
+                type="button"
+                class="flex w-full items-center gap-2.5 rounded-lg bg-surface/50 px-3 py-2.5 text-xs font-medium text-[var(--color-ink-dim)] transition hover:bg-[var(--color-panel-raised)] hover:text-white disabled:cursor-not-allowed disabled:opacity-70"
+                disabled={fillMissingBusy || refreshBusy}
+                onclick={onFillMissing}
+            >
+                <Sparkles
+                    size={15}
+                    class={`text-[var(--color-accent-soft)] ${fillMissingBusy ? "animate-pulse" : ""}`}
+                    aria-hidden="true"
+                />
+                {fillMissingBusy
+                    ? i18n.t.detail.fillMissingRunning
+                    : i18n.t.detail.fillMissing}
+            </button>
+
             <!-- Refresh re-reads the id already stored; this is for when that id belongs to the wrong
                  provider's match, so the user can point the row at a better one. -->
             <button
@@ -427,7 +483,7 @@
                     class="text-[var(--color-accent-soft)]"
                     aria-hidden="true"
                 />
-                {i18n.current === "ru" ? "Сменить источник" : "Change source"}
+                {i18n.t.detail.changeSource}
             </button>
 
             <button

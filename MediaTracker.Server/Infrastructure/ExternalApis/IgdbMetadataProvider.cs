@@ -1,23 +1,25 @@
 using System.Diagnostics;
 using System.Net.Http.Headers;
+using System.Text;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Options;
 
 namespace MediaTracker.Server.Infrastructure.ExternalApis;
 
 public sealed class IgdbMetadataProvider(
-    IHttpClientFactory httpClientFactory,
-    IOptions<ExternalApiOptions> options) : MetadataProviderBase
+        IHttpClientFactory httpClientFactory,
+        IOptions<ExternalApiOptions> options) : MetadataProviderBase
 {
     public static MetadataSourceDescriptor Source { get; } = new(
-        Id: "igdb",
-        Name: "IGDB (Twitch)",
-        Description: "Internet Game Database by Twitch for video games",
-        MediaTypes: ["game"],
-        BaseAddress: "https://api.igdb.com/",
-        RequiresApiKey: true,
-        Priority: 3,
-        CanonicalName: "IGDB");
+            "igdb",
+            "IGDB (Twitch)",
+            "Internet Game Database by Twitch for video games",
+            ["game"],
+            "https://api.igdb.com/",
+            true,
+            Priority: 3,
+            CanonicalName: "IGDB"
+    );
 
     private string RawKey => options.Value.GetKey(Id) ?? string.Empty;
 
@@ -32,10 +34,16 @@ public sealed class IgdbMetadataProvider(
             var parts = raw.Split(':', 2);
             return (parts[0].Trim(), parts[1].Trim());
         }
+
         return (raw, null);
     }
 
-    private async Task<string?> GetBearerTokenAsync(HttpClient client, string clientId, string? clientSecret, CancellationToken ct)
+    private async Task<string?> GetBearerTokenAsync(
+            HttpClient client,
+            string clientId,
+            string? clientSecret,
+            CancellationToken ct
+    )
     {
         if (string.IsNullOrWhiteSpace(clientSecret))
         {
@@ -50,9 +58,13 @@ public sealed class IgdbMetadataProvider(
         try
         {
             using var oauthClient = httpClientFactory.CreateClient();
-            var authUrl = $"https://id.twitch.tv/oauth2/token?client_id={Uri.EscapeDataString(clientId)}&client_secret={Uri.EscapeDataString(clientSecret)}&grant_type=client_credentials";
+            var authUrl =
+                    $"https://id.twitch.tv/oauth2/token?client_id={Uri.EscapeDataString(clientId)}&client_secret={Uri.EscapeDataString(clientSecret)}&grant_type=client_credentials";
             var resp = await oauthClient.PostAsync(authUrl, null, ct);
-            if (!resp.IsSuccessStatusCode) return null;
+            if (!resp.IsSuccessStatusCode)
+            {
+                return null;
+            }
 
             var body = await resp.Content.ReadFromJsonAsync<TwitchTokenResponse>(ct);
             if (body?.AccessToken is { Length: > 0 } token)
@@ -73,7 +85,10 @@ public sealed class IgdbMetadataProvider(
     public override async Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string query, CancellationToken ct)
     {
         var (clientId, clientSecret) = ParseKey();
-        if (string.IsNullOrWhiteSpace(clientId)) return [];
+        if (string.IsNullOrWhiteSpace(clientId))
+        {
+            return [];
+        }
 
         var client = httpClientFactory.CreateClient(Id);
         var token = await GetBearerTokenAsync(client, clientId, clientSecret, ct);
@@ -89,15 +104,22 @@ public sealed class IgdbMetadataProvider(
 
             var cleanQuery = query.Replace("\"", "\\\"");
             req.Content = new StringContent(
-                $"search \"{cleanQuery}\"; fields name,summary,cover.url,first_release_date,rating,total_rating,genres.name,status; limit 10;",
-                System.Text.Encoding.UTF8,
-                "text/plain");
+                    $"search \"{cleanQuery}\"; fields name,summary,cover.url,first_release_date,rating,total_rating,genres.name,status; limit 10;",
+                    Encoding.UTF8,
+                    "text/plain"
+            );
 
             using var resp = await client.SendAsync(req, ct);
-            if (!resp.IsSuccessStatusCode) return [];
+            if (!resp.IsSuccessStatusCode)
+            {
+                return [];
+            }
 
             var items = await resp.Content.ReadFromJsonAsync<List<IgdbGameItem>>(ct);
-            if (items is null || items.Count == 0) return [];
+            if (items is null || items.Count == 0)
+            {
+                return [];
+            }
 
             return items.ConvertAll(MapItem);
         }
@@ -114,7 +136,7 @@ public sealed class IgdbMetadataProvider(
                ?? (results.Count > 0 ? results[0] : null);
     }
 
-    public async Task<ConnectionTestResult> TestConnectionAsync(CancellationToken ct)
+    public override async Task<ConnectionTestResult> TestConnectionAsync(CancellationToken ct)
     {
         var (clientId, clientSecret) = ParseKey();
         if (string.IsNullOrWhiteSpace(clientId))
@@ -135,7 +157,12 @@ public sealed class IgdbMetadataProvider(
             {
                 return new ConnectionTestResult(true, (int)sw.ElapsedMilliseconds, "OK");
             }
-            return new ConnectionTestResult(false, (int)sw.ElapsedMilliseconds, "Twitch OAuth token authentication failed");
+
+            return new ConnectionTestResult(
+                    false,
+                    (int)sw.ElapsedMilliseconds,
+                    "Twitch OAuth token authentication failed"
+            );
         }
         catch (Exception ex)
         {
@@ -159,12 +186,14 @@ public sealed class IgdbMetadataProvider(
         var ratings = new List<ExternalRatingDto>();
         if (score.HasValue)
         {
-            ratings.Add(new ExternalRatingDto
-            {
-                Source = "IGDB",
-                Rating = score.Value,
-                Votes = null
-            });
+            ratings.Add(
+                    new ExternalRatingDto
+                    {
+                            Source = "IGDB",
+                            Rating = score.Value,
+                            Votes = null,
+                    }
+            );
         }
 
         var cover = item.Cover?.Url;
@@ -174,6 +203,7 @@ public sealed class IgdbMetadataProvider(
             {
                 cover = "https:" + cover;
             }
+
             cover = cover.Replace("t_thumb", "t_cover_big");
         }
 
@@ -190,28 +220,35 @@ public sealed class IgdbMetadataProvider(
 
         return new ExternalMediaDto
         {
-            ExternalId = item.Id.ToString(),
-            ExternalSource = "IGDB",
-            Title = item.Name ?? "Unknown Game",
-            CoverUrl = cover,
-            Description = item.Summary,
-            ReleaseYear = year,
-            ReleaseDate = releaseDate,
-            ReleaseStatus = DetermineStatus(item.FirstReleaseDate, item.Status),
-            Genres = genres,
-            Platform = "Multiplatform",
-            Type = "game",
-            Rating = score,
-            Ratings = ratings
+                ExternalId = item.Id.ToString(),
+                ExternalSource = "IGDB",
+                Title = item.Name ?? "Unknown Game",
+                CoverUrl = cover,
+                Description = item.Summary,
+                ReleaseYear = year,
+                ReleaseDate = releaseDate,
+                ReleaseStatus = DetermineStatus(item.FirstReleaseDate, item.Status),
+                Genres = genres,
+                Platform = "Multiplatform",
+                Type = "game",
+                Rating = score,
+                Ratings = ratings,
         };
     }
 
     private static string DetermineStatus(long? firstReleaseDate, int? status)
     {
-        if (firstReleaseDate.HasValue && DateTimeOffset.FromUnixTimeSeconds(firstReleaseDate.Value) > DateTimeOffset.UtcNow)
+        if (firstReleaseDate.HasValue
+            && DateTimeOffset.FromUnixTimeSeconds(firstReleaseDate.Value) > DateTimeOffset.UtcNow)
+        {
             return "Coming Soon";
+        }
+
         if (status == 4)
+        {
             return "Early Access";
+        }
+
         return "Full Release";
     }
 

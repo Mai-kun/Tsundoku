@@ -132,6 +132,12 @@ public sealed record MediaDetailDto : MediaListDto
     /// <summary>Cached recommendations, written on the first explicit load.</summary>
     public string? RecommendationsJson { get; init; }
 
+    /// <summary>
+    /// The user hand-edited this row, so the refresh button has to ask before overwriting instead of
+    /// discarding their work silently.
+    /// </summary>
+    public bool IsCustomEdited { get; init; }
+
     public IReadOnlyList<TvSeasonDto>? Seasons { get; init; }
 
     public IReadOnlyList<MangaVolumeDto>? Volumes { get; init; }
@@ -329,6 +335,7 @@ public static class MediaResponseMapper
             RelatedSource = item.RelatedSource,
             AchievementsJson = item.AchievementsJson,
             RecommendationsJson = item.RecommendationsJson,
+            IsCustomEdited = item.IsCustomEdited,
         };
     }
 

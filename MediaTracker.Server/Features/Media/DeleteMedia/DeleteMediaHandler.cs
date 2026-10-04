@@ -25,6 +25,8 @@ public sealed class DeleteMediaHandler(AppDbContext db, IImageStorageService ima
         }
 
         imageStorage.DeleteCover(item.CoverUrl);
+        // The cover is only part of what the folder holds, so the whole per-title directory goes.
+        imageStorage.DeleteMediaFolder(item.Id);
 
         db.MediaItems.Remove(item);
         await db.SaveChangesAsync(ct);

@@ -83,6 +83,7 @@ public static class MediaDetailProjection
             RelatedSource = item.RelatedSource,
             AchievementsJson = item.AchievementsJson,
             RecommendationsJson = item.RecommendationsJson,
+            IsCustomEdited = item.IsCustomEdited,
         };
     }
 

@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 
@@ -72,7 +73,9 @@ public sealed class MetadataAggregatorService(
             {
                 using var providerCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
                 providerCts.CancelAfter(SearchFallbackTimeout);
+                var sw = Stopwatch.StartNew();
                 results = await provider.SearchAsync(normalizedQuery, providerCts.Token);
+                ExternalApiLog.Returned(logger, provider.Name, results.Count, sw.ElapsedMilliseconds);
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
@@ -80,6 +83,7 @@ public sealed class MetadataAggregatorService(
             }
             catch (Exception ex)
             {
+                ExternalApiLog.Failed(logger, source, ex, $"search '{normalizedQuery}'");
                 logger.LogDebug(ex, "[Aggregator] Source search '{Source}' failed for '{Query}': {Message}", source, normalizedQuery, ex.Message);
             }
         }
@@ -110,6 +114,7 @@ public sealed class MetadataAggregatorService(
 
             try
             {
+                ExternalApiLog.Querying(logger, source, normalizedType, DetailsLogLabel(externalId, title));
                 initialDetails = await directProvider.GetDetailsAsync(externalId, title, ct);
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
@@ -118,6 +123,7 @@ public sealed class MetadataAggregatorService(
             }
             catch (Exception ex)
             {
+                ExternalApiLog.Failed(logger, source, ex, $"details '{externalId}'");
                 logger.LogWarning(ex, "[Aggregator] Direct provider '{Source}' GetDetailsAsync failed: {Message}", source, ex.Message);
                 throw new SourceUnavailableException(source, ex.Message, ex);
             }
@@ -253,7 +259,9 @@ public sealed class MetadataAggregatorService(
             using var queryCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             queryCts.CancelAfter(EnrichmentQueryTimeout);
 
+            var sw = Stopwatch.StartNew();
             var search = await provider.SearchAsync(current.Title, queryCts.Token);
+            ExternalApiLog.Returned(logger, provider.Name, search.Count, sw.ElapsedMilliseconds);
             var match = search.FirstOrDefault(s => s.Title.Equals(current.Title, StringComparison.OrdinalIgnoreCase))
                         ?? (search.Count > 0 ? search[0] : null);
 
@@ -320,6 +328,7 @@ public sealed class MetadataAggregatorService(
         }
         catch (Exception ex)
         {
+            ExternalApiLog.Failed(logger, source, ex, $"enrichment '{current.Title}'");
             logger.LogDebug(ex, "[Aggregator] Enrichment query failed for source '{Source}' and title '{Title}': {Message}", source, current.Title, ex.Message);
             if (!hasRatingFromSource)
             {
@@ -335,6 +344,15 @@ public sealed class MetadataAggregatorService(
         return new SourceEnrichmentResult(source, null, null);
     }
 
+    /// <summary>
+    /// The id is the fallback label: a details request may carry no title, and an empty query in the
+    /// log is the one thing that cannot be traced back to the call that caused it.
+    /// </summary>
+    private static string DetailsLogLabel(string externalId, string title) =>
+        !string.IsNullOrWhiteSpace(title) ? title
+        : !string.IsNullOrWhiteSpace(externalId) ? $"id:{externalId}"
+        : "(no id, no title)";
+
     private async Task<IReadOnlyList<ExternalMediaDto>> SearchProviderWithFallbackAsync(string type, string query, CancellationToken ct)
     {
         var prioritySources = await priorityService.GetPrioritiesAsync(type, ct);
@@ -349,11 +367,13 @@ public sealed class MetadataAggregatorService(
                 continue;
             }
 
+            var sw = Stopwatch.StartNew();
             try
             {
                 using var providerCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
                 providerCts.CancelAfter(SearchFallbackTimeout);
                 var results = await provider.SearchAsync(query, providerCts.Token);
+                ExternalApiLog.Returned(logger, provider.Name, results.Count, sw.ElapsedMilliseconds);
                 if (results.Count > 0)
                 {
                     return results;
@@ -365,6 +385,7 @@ public sealed class MetadataAggregatorService(
             }
             catch (Exception ex)
             {
+                ExternalApiLog.Failed(logger, source, ex, $"fallback search '{query}'");
                 logger.LogDebug(ex, "[Aggregator] Search fallback: source '{Source}' failed for '{Query}': {Message}", source, query, ex.Message);
             }
         }

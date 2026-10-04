@@ -63,7 +63,7 @@
     let searchError = $state<unknown>(null);
     let addError = $state<unknown>(null);
     let addingKey = $state("");
-    // key в†’ library mediaId (for toggle-removal); truthy means in library
+    // key — library mediaId (for toggle-removal); truthy means in library
     let addedKeys = $state<Record<string, string>>({});
     let searchInput = $state<HTMLInputElement | null>(null);
     let previewItem = $state<ExternalMedia | null>(null);
@@ -524,7 +524,7 @@
         const key = resultKey(result);
         if (addingKey) return;
 
-        // Bug 5: toggle вЂ” if already in library, remove it
+        // Bug 5: toggle — if already in library, remove it
         const existingId = addedKeys[key];
         if (existingId) {
             const { [key]: _, ...rest } = addedKeys;

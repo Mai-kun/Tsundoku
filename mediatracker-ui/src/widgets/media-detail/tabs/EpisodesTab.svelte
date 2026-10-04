@@ -5,7 +5,7 @@
 
     interface Props {
         seasons: readonly TvSeason[];
-        /** The season banner renders whenever a season exists; the episode list only on its tab. */
+        /** Episodes tab active: gates BOTH the banner and the list, so neither leaks into Related. */
         showEpisodes: boolean;
         nextUp: NextUp | null;
         seriesEpisodes: { current: number; total: number };

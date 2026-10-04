@@ -51,7 +51,7 @@
    an inline style) would silently vanish from :root. */
 @theme static {
   /* Yamtrack Obsidian: neutral graphite, no blue cast.
-       MUST be @theme, not a bare :root block вЂ” Tailwind v4 only turns --color-*
+       MUST be @theme, not a bare :root block — Tailwind v4 only turns --color-*
        entries into utilities (bg-surface, text-ink, border-border) when declared
        in @theme. In a plain :root rule the var() resolves but no class is emitted. */
   --color-canvas: #0d0f14;

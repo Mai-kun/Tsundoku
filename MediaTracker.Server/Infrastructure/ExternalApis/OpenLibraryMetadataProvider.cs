@@ -1,9 +1,13 @@
+using System.Diagnostics;
+using System.Globalization;
 using System.Net.Http.Json;
 using System.Text.Json.Serialization;
 
 namespace MediaTracker.Server.Infrastructure.ExternalApis;
 
-public sealed class OpenLibraryMetadataProvider(IHttpClientFactory httpClientFactory) : MetadataProviderBase
+public sealed class OpenLibraryMetadataProvider(
+    IHttpClientFactory httpClientFactory,
+    ILogger<OpenLibraryMetadataProvider>? logger = null) : MetadataProviderBase
 {
     public static MetadataSourceDescriptor Source { get; } = new(
         Id: "openlibrary",
@@ -18,29 +22,41 @@ public sealed class OpenLibraryMetadataProvider(IHttpClientFactory httpClientFac
     {
         var client = httpClientFactory.CreateClient(Id);
 
+        // The bare search endpoint answers with a fixed, minimal field set that has no
+        // description and no page count, so both rows of the book detail stayed empty and
+        // "Страниц" rendered as 0. Asking for the fields explicitly is what fixes that; no
+        // second request per book is needed.
+        const string fields =
+            "key,title,author_name,cover_i,first_publish_year,number_of_pages_median,"
+            + "number_of_pages,subtitle,ratings_average,ratings_count,subject";
+
+        var endpoint = $"search.json?q={Uri.EscapeDataString(query)}&limit=10&fields={fields}";
+
         try
         {
-            // The bare search endpoint answers with a fixed, minimal field set that has no
-            // description and no page count, so both rows of the book detail stayed empty and
-            // "Страниц" rendered as 0. Asking for the fields explicitly is what fixes that; no
-            // second request per book is needed.
-            const string fields =
-                "key,title,author_name,cover_i,first_publish_year,number_of_pages_median,"
-                + "number_of_pages,subtitle,ratings_average,ratings_count,subject";
-
-            var result = await client.GetFromJsonAsync<OpenLibraryResponse>(
-                $"search.json?q={Uri.EscapeDataString(query)}&limit=10&fields={fields}", ct);
+            ExternalApiLog.Querying(logger, Name, "book", query);
+            var sw = Stopwatch.StartNew();
+            var result = await client.GetFromJsonAsync<OpenLibraryResponse>(endpoint, ct);
 
             if (result?.Docs is not { Count: > 0 } docs)
             {
+                ExternalApiLog.Returned(logger, Name, 0, sw.ElapsedMilliseconds);
                 return [];
             }
 
-            return docs.ConvertAll(MapDoc);
+            var mapped = docs.ConvertAll(MapDoc);
+
+            ExternalApiLog.Returned(logger, Name, mapped.Count, sw.ElapsedMilliseconds);
+            return mapped;
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
             throw;
+        }
+        catch (HttpRequestException ex)
+        {
+            ExternalApiLog.Failed(logger, Name, ex, client.BaseAddress + endpoint);
+            return [];
         }
     }
 
@@ -74,8 +90,10 @@ public sealed class OpenLibraryMetadataProvider(IHttpClientFactory httpClientFac
             ReleaseYear = doc.FirstPublishYear,
             Type = "book",
             Author = doc.AuthorName?.FirstOrDefault(),
-            // number_of_pages is a per-edition list, number_of_pages_median the agreed value; the
-            // median is preferred and the list is the fallback so the page count is never 0.
+            // number_of_pages is a per-edition list, number_of_pages_median the agreed value. The search index
+            // publishes the median exactly when some edition carries a page count, so a work without
+            // one has nothing to resolve: its editions genuinely carry no length. Both are read anyway
+            // because a single doc can carry one without the other.
             TotalCount = doc.NumberOfPagesMedian ?? doc.NumberOfPages?.FirstOrDefault(p => p > 0),
             Rating = rating,
             RatingVotes = doc.RatingsCount,

@@ -12,6 +12,12 @@ public static class MediaItemUpdater
 {
     public static void Apply(MediaItem item, UpdateMediaRequest request)
     {
+        var hadManualEdits = item.IsCustomEdited;
+
+        // Snapshot before the writes: comparing against the entity afterwards would always find the
+        // requested value already stored and never detect a change at all.
+        var before = Snapshot(item);
+
         item.Title = request.Title ?? item.Title;
         item.Score = request.Score ?? item.Score;
         item.Notes = request.Notes ?? item.Notes;
@@ -39,7 +45,33 @@ public static class MediaItemUpdater
         }
 
         ApplyTypeSpecific(item, request);
+
+        // Compared against what the request carried rather than flagged by the caller: the same endpoint
+        // also backs the progress, platform and cache writes, which are not manual field edits and
+        // must not arm the overwrite prompt.
+        if (!hadManualEdits && CarriesManualEdit(before, request))
+        {
+            item.IsCustomEdited = true;
+        }
     }
+
+    private readonly record struct ManualFields(
+        string Title,
+        int? Score,
+        string? Notes,
+        DateTime? StartedAt,
+        DateTime? FinishedAt);
+
+    private static ManualFields Snapshot(MediaItem item) =>
+        new(item.Title, item.Score, item.Notes, item.StartedAt, item.FinishedAt);
+
+    /// <summary>The fields a person types into the edit form; a provider never writes them.</summary>
+    private static bool CarriesManualEdit(ManualFields before, UpdateMediaRequest request) =>
+        (request.Title is { Length: > 0 } title && title != before.Title)
+        || (request.Score is { } score && score != before.Score)
+        || (request.Notes is { Length: > 0 } notes && notes != before.Notes)
+        || (request.StartedAt is { } startedAt && startedAt != before.StartedAt)
+        || (request.FinishedAt is { } finishedAt && finishedAt != before.FinishedAt);
 
     private static void ApplyTypeSpecific(MediaItem item, UpdateMediaRequest request)
     {

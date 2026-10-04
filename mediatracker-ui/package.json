@@ -27,6 +27,7 @@
     "check:seasons": "node checks/seasons.check.cjs",
     "check:related": "node checks/related.check.cjs",
     "check:relink": "node checks/relink.check.cjs",
+    "check:series-step": "node --experimental-strip-types checks/seriesStep.check.ts",
     "preview": "vite preview"
   },
   "devDependencies": {

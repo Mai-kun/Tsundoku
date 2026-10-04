@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net.Http.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Options;
@@ -5,8 +6,19 @@ using Microsoft.Extensions.Options;
 namespace MediaTracker.Server.Infrastructure.ExternalApis;
 
 public sealed record GameAchievementItem(string Name, string? Description, string? IconUrl);
-public sealed record GameAchievementsResponse(int TotalCount, IReadOnlyList<GameAchievementItem> Achievements);
-public sealed record GameRelatedItem(string Id, string Title, string? CoverUrl, string? ReleaseDate, double? Score);
+
+public sealed record GameAchievementsResponse(
+    int TotalCount,
+    IReadOnlyList<GameAchievementItem> Achievements
+);
+
+public sealed record GameRelatedItem(
+    string Id,
+    string Title,
+    string? CoverUrl,
+    string? ReleaseDate,
+    double? Score
+);
 
 /// <summary>
 /// Talks to Steam and RAWG for the game-only panels (achievements, series, recommendations).
@@ -15,7 +27,8 @@ public sealed record GameRelatedItem(string Id, string Title, string? CoverUrl, 
 public sealed class RawgGameService(
     IHttpClientFactory httpClientFactory,
     IOptions<ExternalApiOptions> options,
-    ILogger<RawgGameService> logger)
+    ILogger<RawgGameService> logger
+)
 {
     private const string SteamStoreUrl = "https://store.steampowered.com/api";
     private const string RawgApiUrl = "https://api.rawg.io/api";
@@ -32,16 +45,29 @@ public sealed class RawgGameService(
         string? title,
         string? externalSource,
         string? externalId,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
+        var sw = Stopwatch.StartNew();
         var steam = await TryGetSteamAchievementsAsync(steamAppId, ct);
         if (steam is not null)
         {
+            ExternalApiLog.Returned(logger, "Steam", steam.Achievements.Count, sw.ElapsedMilliseconds);
             return steam;
         }
 
-        return await TryGetRawgAchievementsAsync(rawgId, title, externalSource, externalId, ct)
-               ?? new GameAchievementsResponse(0, []);
+        var rawg = await TryGetRawgAchievementsAsync(rawgId, title, externalSource, externalId, ct);
+        if (rawg is not null)
+        {
+            ExternalApiLog.Returned(logger, "RAWG", rawg.Achievements.Count, sw.ElapsedMilliseconds);
+            return rawg;
+        }
+
+        logger.LogInformation(
+            "[Storage] No achievement source answered for '{Title}' after {ElapsedMs}ms",
+            title,
+            sw.ElapsedMilliseconds);
+        return new GameAchievementsResponse(0, []);
     }
 
     public async Task<IReadOnlyList<GameRelatedItem>> GetRelatedAsync(
@@ -49,7 +75,8 @@ public sealed class RawgGameService(
         string? title,
         string? externalSource,
         string? externalId,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         if (string.IsNullOrWhiteSpace(options.Value.RawgApiKey))
         {
@@ -58,13 +85,22 @@ public sealed class RawgGameService(
 
         try
         {
-            var rawgGameId = await ResolveRawgIdAsync(rawgId, title, externalSource, externalId, ct);
+            var rawgGameId = await ResolveRawgIdAsync(
+                rawgId,
+                title,
+                externalSource,
+                externalId,
+                ct
+            );
             if (rawgGameId is null)
             {
                 return [];
             }
 
-            var series = await GetAsync<RawgSeriesRoot>($"{RawgApiUrl}/games/{rawgGameId}/game-series?page_size=20", ct);
+            var series = await GetAsync<RawgSeriesRoot>(
+                $"{RawgApiUrl}/games/{rawgGameId}/game-series?page_size=20",
+                ct
+            );
             return series?.Results is { Count: > 0 } list
                 ? Deduplicate(list, title, rawgGameId)
                 : [];
@@ -85,7 +121,8 @@ public sealed class RawgGameService(
         string? title,
         string? externalSource,
         string? externalId,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         if (string.IsNullOrWhiteSpace(options.Value.RawgApiKey))
         {
@@ -94,10 +131,19 @@ public sealed class RawgGameService(
 
         try
         {
-            var rawgGameId = await ResolveRawgIdAsync(rawgId, title, externalSource, externalId, ct);
+            var rawgGameId = await ResolveRawgIdAsync(
+                rawgId,
+                title,
+                externalSource,
+                externalId,
+                ct
+            );
             if (rawgGameId is null)
             {
-                logger.LogWarning("RAWG recommendations: could not resolve a game id for '{Title}'", title);
+                logger.LogWarning(
+                    "RAWG recommendations: could not resolve a game id for '{Title}'",
+                    title
+                );
                 return [];
             }
 
@@ -114,7 +160,8 @@ public sealed class RawgGameService(
             }
 
             var genresParam = Uri.EscapeDataString(string.Join(',', genreIds));
-            var url = $"{RawgApiUrl}/games?genres={genresParam}&exclude={Uri.EscapeDataString(rawgGameId)}&ordering=-rating&page_size=12";
+            var url =
+                $"{RawgApiUrl}/games?genres={genresParam}&exclude={Uri.EscapeDataString(rawgGameId)}&ordering=-rating&page_size=12";
             var similar = await GetAsync<RawgSearchRoot>(url, ct);
 
             return similar?.Results is { Count: > 0 } matches
@@ -131,6 +178,7 @@ public sealed class RawgGameService(
             return [];
         }
     }
+
     /// <summary>
     /// The caller may hold a RAWG id, an id from another provider, or nothing but a title. Resolve
     /// all three cases: an id from a different source means nothing to the RAWG API.
@@ -140,14 +188,18 @@ public sealed class RawgGameService(
         string? title,
         string? externalSource,
         string? externalId,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         if (!string.IsNullOrWhiteSpace(rawgId))
         {
             return rawgId.Trim();
         }
 
-        if (string.Equals(externalSource, "rawg", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(externalId))
+        if (
+            string.Equals(externalSource, "rawg", StringComparison.OrdinalIgnoreCase)
+            && !string.IsNullOrWhiteSpace(externalId)
+        )
         {
             return externalId.Trim();
         }
@@ -157,11 +209,17 @@ public sealed class RawgGameService(
             return null;
         }
 
-        var search = await GetAsync<RawgSearchRoot>($"{RawgApiUrl}/games?search={Uri.EscapeDataString(title)}&page_size=1", ct);
+        var search = await GetAsync<RawgSearchRoot>(
+            $"{RawgApiUrl}/games?search={Uri.EscapeDataString(title)}&page_size=1",
+            ct
+        );
         return search?.Results is { Count: > 0 } ? search.Results[0].Id.ToString() : null;
     }
 
-    private async Task<GameAchievementsResponse?> TryGetSteamAchievementsAsync(string? steamAppId, CancellationToken ct)
+    private async Task<GameAchievementsResponse?> TryGetSteamAchievementsAsync(
+        string? steamAppId,
+        CancellationToken ct
+    )
     {
         if (string.IsNullOrWhiteSpace(steamAppId))
         {
@@ -170,15 +228,22 @@ public sealed class RawgGameService(
 
         try
         {
-            var url = $"{SteamStoreUrl}/appdetails?appids={Uri.EscapeDataString(steamAppId)}&l=english";
+            var url =
+                $"{SteamStoreUrl}/appdetails?appids={Uri.EscapeDataString(steamAppId)}&l=english";
             var details = await GetAsync<Dictionary<string, SteamAppDetailsRoot>>(url, ct);
 
-            if (details is not null
+            if (
+                details is not null
                 && details.TryGetValue(steamAppId, out var wrapper)
-                && wrapper.Data?.Achievements is { Total: > 0 } achievements)
+                && wrapper.Data?.Achievements is { Total: > 0 } achievements
+            )
             {
                 var items = (achievements.Highlighted ?? [])
-                    .Select(h => new GameAchievementItem(h.LocalizedName ?? h.Name ?? "Achievement", null, h.Path))
+                    .Select(h => new GameAchievementItem(
+                        h.LocalizedName ?? h.Name ?? "Achievement",
+                        null,
+                        h.Path
+                    ))
                     .ToList();
                 return new GameAchievementsResponse(achievements.Total, items);
             }
@@ -189,7 +254,11 @@ public sealed class RawgGameService(
         }
         catch (Exception ex)
         {
-            logger.LogDebug(ex, "Steam achievements lookup failed for '{SteamAppId}', falling back to RAWG", steamAppId);
+            logger.LogDebug(
+                ex,
+                "Steam achievements lookup failed for '{SteamAppId}', falling back to RAWG",
+                steamAppId
+            );
         }
 
         return null;
@@ -200,7 +269,8 @@ public sealed class RawgGameService(
         string? title,
         string? externalSource,
         string? externalId,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         if (string.IsNullOrWhiteSpace(options.Value.RawgApiKey))
         {
@@ -209,7 +279,13 @@ public sealed class RawgGameService(
 
         try
         {
-            var rawgGameId = await ResolveRawgIdAsync(rawgId, title, externalSource, externalId, ct);
+            var rawgGameId = await ResolveRawgIdAsync(
+                rawgId,
+                title,
+                externalSource,
+                externalId,
+                ct
+            );
             if (rawgGameId is null)
             {
                 return null;
@@ -225,7 +301,8 @@ public sealed class RawgGameService(
             {
                 var achievements = await GetAsync<RawgAchievementsRoot>(
                     $"{RawgApiUrl}/games/{rawgGameId}/achievements?page_size={AchievementPageSize}&page={page}",
-                    ct);
+                    ct
+                );
 
                 if (achievements is null)
                 {
@@ -240,7 +317,13 @@ public sealed class RawgGameService(
                     break;
                 }
 
-                items.AddRange(batch.Select(r => new GameAchievementItem(r.Name ?? "Achievement", r.Description, r.Image)));
+                items.AddRange(
+                    batch.Select(r => new GameAchievementItem(
+                        r.Name ?? "Achievement",
+                        r.Description,
+                        r.Image
+                    ))
+                );
 
                 if (items.Count >= total || batch.Count < AchievementPageSize)
                 {
@@ -275,10 +358,20 @@ public sealed class RawgGameService(
         return url.Contains('?') ? $"{url}&key={key}" : $"{url}?key={key}";
     }
 
-    private static IReadOnlyList<GameRelatedItem> Deduplicate(IReadOnlyList<RawgSeriesItem> list, string? title, string? rawgGameId)
+    private static IReadOnlyList<GameRelatedItem> Deduplicate(
+        IReadOnlyList<RawgSeriesItem> list,
+        string? title,
+        string? rawgGameId
+    )
     {
-        var seenNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { title?.Trim() ?? string.Empty };
-        var seenIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { rawgGameId?.Trim() ?? string.Empty };
+        var seenNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            title?.Trim() ?? string.Empty,
+        };
+        var seenIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            rawgGameId?.Trim() ?? string.Empty,
+        };
         var results = new List<GameRelatedItem>();
 
         foreach (var game in list)
@@ -290,14 +383,28 @@ public sealed class RawgGameService(
                 continue;
             }
 
-            results.Add(new GameRelatedItem(id, name, game.BackgroundImage, game.Released, ToScore(game.Rating)));
+            results.Add(
+                new GameRelatedItem(
+                    id,
+                    name,
+                    game.BackgroundImage,
+                    game.Released,
+                    ToScore(game.Rating)
+                )
+            );
         }
 
         return results;
     }
 
     private static GameRelatedItem ToRelatedItem(RawgSearchResultItem game) =>
-        new(game.Id.ToString(), game.Name!, game.BackgroundImage, game.Released, ToScore(game.Rating));
+        new(
+            game.Id.ToString(),
+            game.Name!,
+            game.BackgroundImage,
+            game.Released,
+            ToScore(game.Rating)
+        );
 
     /// <summary>RAWG scores are 0-10, the UI shows 0-20.</summary>
     private static double? ToScore(double? rating) =>

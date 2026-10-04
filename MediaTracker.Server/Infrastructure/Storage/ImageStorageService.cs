@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Processing;
 
@@ -9,7 +10,8 @@ public sealed class ImageStorageService(
     ILogger<ImageStorageService> logger) : IImageStorageService
 {
     private const string CoversRoutePrefix = "/covers/";
-    private const int MaxCoverWidth = 400;
+    private const string MediaAssetsRoutePrefix = "/media-assets/";
+    private const int MaxThumbWidth = 160;
     private const long MaxCoverSizeBytes = 10 * 1024 * 1024; // 10 MB limit
 
     public async Task<string?> SaveCoverAsync(string externalUrl, Guid itemId, CancellationToken ct = default)
@@ -19,6 +21,7 @@ public sealed class ImageStorageService(
             return externalUrl;
         }
 
+        var sw = Stopwatch.StartNew();
         try
         {
             using var response = await httpClient.GetAsync(externalUrl, HttpCompletionOption.ResponseHeadersRead, ct);
@@ -30,27 +33,38 @@ public sealed class ImageStorageService(
                 return externalUrl;
             }
 
-            var coversPath = GetCoversPath();
-            Directory.CreateDirectory(coversPath);
+            var coverDirectory = GetCoverDirectory(itemId);
+            Directory.CreateDirectory(coverDirectory);
 
-            var fileName = $"{itemId}.webp";
-            var filePath = Path.Combine(coversPath, fileName);
+            var originalPath = Path.Combine(coverDirectory, "original.webp");
+            var thumbPath = Path.Combine(coverDirectory, "thumb.webp");
 
             await using var source = await response.Content.ReadAsStreamAsync(ct);
             using var image = await Image.LoadAsync(LimitStream(source), ct);
 
-            if (image.Width > MaxCoverWidth)
+            await image.SaveAsWebpAsync(originalPath, ct);
+
+            // The thumb is what the grid renders: a 400px poster per card is several times the bytes
+            // for no visible gain at that size. Cloned from the decoded image, so the download and
+            // decode are still paid only once.
+            using var thumb = image.Clone(context => context.Resize(new ResizeOptions
             {
-                image.Mutate(context => context.Resize(new ResizeOptions
-                {
-                    Mode = ResizeMode.Max,
-                    Size = new Size(MaxCoverWidth, 0)
-                }));
-            }
+                Mode = ResizeMode.Max,
+                Size = new Size(MaxThumbWidth, 0)
+            }));
+            await thumb.SaveAsWebpAsync(thumbPath, ct);
 
-            await image.SaveAsWebpAsync(filePath, ct);
+            sw.Stop();
 
-            return $"{CoversRoutePrefix}{fileName}";
+            var sizeKb = new FileInfo(originalPath).Length / 1024;
+            logger.LogInformation(
+                "[Storage] Downloaded {Type} for {MediaId} ({SizeKb} KB, {ElapsedMs}ms)",
+                "cover",
+                itemId,
+                sizeKb,
+                sw.ElapsedMilliseconds);
+
+            return $"{MediaAssetsRoutePrefix}{itemId}/cover/thumb.webp";
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
@@ -58,7 +72,13 @@ public sealed class ImageStorageService(
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException or ImageFormatException or OversizedCoverException)
         {
-            logger.LogWarning(ex, "Failed to download cover from {ExternalUrl}, keeping external URL", externalUrl);
+            sw.Stop();
+            logger.LogWarning(
+                ex,
+                "[Storage] Failed to download cover for {MediaId} from {ExternalUrl} after {ElapsedMs}ms, keeping external URL",
+                itemId,
+                externalUrl,
+                sw.ElapsedMilliseconds);
             return externalUrl;
         }
     }
@@ -75,32 +95,75 @@ public sealed class ImageStorageService(
 
     public void DeleteCover(string? localCoverUrl)
     {
-        if (string.IsNullOrWhiteSpace(localCoverUrl) ||
-            !localCoverUrl.StartsWith(CoversRoutePrefix, StringComparison.OrdinalIgnoreCase))
+        if (string.IsNullOrWhiteSpace(localCoverUrl))
         {
             return;
         }
 
-        var fileName = localCoverUrl[CoversRoutePrefix.Length..];
+        var legacy = localCoverUrl.StartsWith(CoversRoutePrefix, StringComparison.OrdinalIgnoreCase);
+        var current = localCoverUrl.StartsWith(MediaAssetsRoutePrefix, StringComparison.OrdinalIgnoreCase);
 
-        if (fileName.Length == 0 || fileName.Contains('/') || fileName.Contains('\\'))
+        // Rows saved before the per-title folders existed still point at /covers/{id}.webp, so both
+        // prefixes have to resolve or deleting those titles would strand their files on disk.
+        if (legacy)
+        {
+            var fileName = localCoverUrl[CoversRoutePrefix.Length..];
+
+            if (fileName.Length == 0 || fileName.Contains('/') || fileName.Contains('\\'))
+            {
+                return;
+            }
+
+            DeleteFile(Path.Combine(GetCoversPath(), fileName), Path.GetFullPath(GetCoversPath()));
+            return;
+        }
+
+        if (current)
+        {
+            var relative = localCoverUrl[MediaAssetsRoutePrefix.Length..];
+            DeleteFile(
+                Path.Combine(appPaths.MediaDirectory, relative),
+                Path.GetFullPath(appPaths.MediaDirectory));
+        }
+    }
+
+    /// <summary>
+    /// Removes the whole per-title folder. A title owns more than its cover — achievement icons land
+    /// next to it — so deleting file by file would leave orphans nothing ever asks about again.
+    /// </summary>
+    public void DeleteMediaFolder(Guid mediaId)
+    {
+        var root = Path.GetFullPath(appPaths.MediaDirectory);
+        var folder = Path.GetFullPath(Path.Combine(root, mediaId.ToString()));
+
+        if (!folder.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
         {
             return;
         }
 
-        var coversRoot = Path.GetFullPath(GetCoversPath());
-        var filePath = Path.GetFullPath(Path.Combine(coversRoot, fileName));
+        if (Directory.Exists(folder))
+        {
+            Directory.Delete(folder, recursive: true);
+        }
+    }
 
-        if (!filePath.StartsWith(coversRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+    private static void DeleteFile(string filePath, string allowedRoot)
+    {
+        var fullPath = Path.GetFullPath(filePath);
+
+        if (!fullPath.StartsWith(allowedRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
         {
             return;
         }
 
-        if (File.Exists(filePath))
+        if (File.Exists(fullPath))
         {
-            File.Delete(filePath);
+            File.Delete(fullPath);
         }
     }
 
     private string GetCoversPath() => appPaths.CoversDirectory;
+
+    private string GetCoverDirectory(Guid mediaId) =>
+        Path.Combine(appPaths.MediaDirectory, mediaId.ToString(), "cover");
 }

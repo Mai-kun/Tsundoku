@@ -210,6 +210,19 @@ public static class MediaMetadataApplier
                 }
 
                 break;
+
+            case Book book:
+                // Books had no branch here at all, so enrichment never wrote the page count: only an
+                // explicit refresh (ApplyTypeSpecific) did. A book added from a search kept 0 pages
+                // even when a source had already reported the real length.
+                if (book.TotalPages <= 0 && external.TotalCount is > 0)
+                {
+                    book.TotalPages = external.TotalCount.Value;
+                    modified = true;
+                }
+
+                modified |= SetIfBlank(book.Author, external.Author, value => book.Author = value);
+                break;
         }
 
         modified |= SetIfNull(item.ReleaseYear, external.ReleaseYear is > 0 ? external.ReleaseYear : null,

@@ -81,17 +81,27 @@ public static class MediaEndpoints
                 CancellationToken ct) =>
             handler.HandleAsync(new UpdateProgressCommand(id, request.CurrentProgress), ct).ToNoContent());
 
+        // Safe-merge: the client sends fillMissing when the user picked "keep my edits" in the
+        // refresh dialog, which turns the overwrite into a gap fill.
         group.MapPost("/{id:guid}/refresh", (
                 Guid id,
+                [FromBody] RefreshMetadataRequest? request,
                 [FromServices] IRefreshMetadataHandler handler,
                 CancellationToken ct) =>
-            handler.HandleAsync(new RefreshMetadataCommand(id), ct).ToOk());
+            handler.HandleAsync(
+                new RefreshMetadataCommand(id, request?.FillMissing ?? false),
+                ct).ToOk());
 
+        // "Дополнить": same gap-fill rules, but the source is the one the user picked in the dialog
+        // rather than whatever the row was originally matched on.
         group.MapPost("/{id:guid}/enrich", (
                 Guid id,
+                [FromBody] EnrichMetadataRequest? request,
                 [FromServices] IEnrichMetadataHandler handler,
                 CancellationToken ct) =>
-            handler.HandleAsync(new EnrichMetadataCommand(id), ct).ToOk());
+            handler.HandleAsync(
+                new EnrichMetadataCommand(id, request?.Source),
+                ct).ToOk());
 
         // Re-link: point an existing row at another provider's entity (Kinopoisk -> TMDb).
         group.MapPost("/{id:guid}/relink", (
@@ -124,3 +134,7 @@ public static class MediaEndpoints
         return app;
     }
 }
+
+public sealed record RefreshMetadataRequest(bool FillMissing = false);
+
+public sealed record EnrichMetadataRequest(string? Source = null);

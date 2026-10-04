@@ -43,6 +43,7 @@ public static class RefactorSelfCheck
         CheckEnrichFillsMovieDisplayGaps(failures);
         CheckExplicitClearFlags(failures);
         CheckAchievementsSurviveUpdate(failures);
+        CheckCustomEditFlagTracksManualWrites(failures);
         CheckSearchTypeFiltering(failures);
         CheckOverwriteRefresh(failures);
         CheckStatusTransitions(failures);
@@ -63,6 +64,10 @@ public static class RefactorSelfCheck
         CheckRefreshDropsRatingsOfDisabledSources(failures);
         CheckSqliteTuningIsPreserved(failures);
         CheckMetadataProvidersAreDiscovered(failures);
+        CheckImdbSuggestionPartition(failures);
+        CheckSimklSearchSegments(failures);
+        CheckBookPageCountSurvivesMerge(failures);
+        CheckProviderConnectionTestIsNotShadowed(failures);
         CheckListPayloadStaysLight(failures);
         CheckListAndDetailTotalsAgree(failures);
         CheckStatusWireContract(failures);
@@ -336,6 +341,60 @@ public static class RefactorSelfCheck
 
         MediaItemUpdater.Apply(item, new UpdateMediaRequest { ClearWatchedOn = true });
         AssertTrue(failures, item.WatchedOn is null, "an explicit clear empties watched-on");
+    }
+
+    /// <summary>
+    /// The overwrite prompt is only useful if the flag is accurate in both directions: a person
+    /// editing a field has to arm it, and the routine progress/platform/cache writes that share
+    /// the same endpoint must not. Missing the second half means every watched item asked the user
+    /// to protect edits they never made.
+    /// </summary>
+    private static void CheckCustomEditFlagTracksManualWrites(List<string> failures)
+    {
+        var item = new Movie { Title = "Dune", Director = "Villeneuve" };
+
+        MediaItemUpdater.Apply(item, new UpdateMediaRequest { WatchedOn = "Kinopoisk" });
+        AssertTrue(
+            failures,
+            !item.IsCustomEdited,
+            "picking a streaming site does not count as a manual field edit");
+
+        MediaItemUpdater.Apply(item, new UpdateMediaRequest { AchievementsJson = "[]" });
+        AssertTrue(
+            failures,
+            !item.IsCustomEdited,
+            "writing the achievements cache does not count as a manual field edit");
+
+        MediaItemUpdater.Apply(item, new UpdateMediaRequest { CurrentVolume = 3 });
+        AssertTrue(
+            failures,
+            !item.IsCustomEdited,
+            "a progress counter does not count as a manual field edit");
+
+        MediaItemUpdater.Apply(item, new UpdateMediaRequest { Title = "Dune" });
+        AssertTrue(
+            failures,
+            !item.IsCustomEdited,
+            "resending the unchanged title does not arm the prompt");
+
+        MediaItemUpdater.Apply(item, new UpdateMediaRequest { Notes = " rewatched " });
+        AssertTrue(
+            failures,
+            item.IsCustomEdited,
+            "typing into the notes field arms the overwrite prompt");
+
+        // The flag is sticky: a later cache write must not silently disarm the prompt.
+        MediaItemUpdater.Apply(item, new UpdateMediaRequest { RecommendationsJson = "[]" });
+        AssertTrue(
+            failures,
+            item.IsCustomEdited,
+            "the flag survives an unrelated later write");
+
+        AssertEqual(
+            failures,
+            " rewatched ",
+            item.Notes,
+            "safe-merge input still stores the user's notes");
     }
 
     private static void CheckAchievementsSurviveUpdate(List<string> failures)
@@ -683,6 +742,8 @@ public static class RefactorSelfCheck
             Task.FromResult<string?>(null);
 
         public void DeleteCover(string? path) { }
+
+        public void DeleteMediaFolder(Guid mediaId) { }
     }
 
     private static void CheckMangaFormatFromSources(List<string> failures)
@@ -2038,6 +2099,143 @@ public static class RefactorSelfCheck
         AssertEqual(failures, 5, Enum.GetValues<MediaStatus>().Length, "the status enum has exactly five members");
     }
 
+    private static void CheckProviderConnectionTestIsNotShadowed(List<string> failures)
+    {
+        // Every provider declares its own TestConnectionAsync, but the settings screen only ever sees
+        // the interface. A default interface member (or one that a derived class does not properly
+        // override) silently shadows them all, and the probe that reports "OK" is the one searching
+        // for the literal word "test" — which succeeds for an API key the provider actually rejects.
+        foreach (var type in typeof(IMetadataProvider).Assembly
+                     .GetTypes()
+                     .Where(t => !t.IsAbstract && typeof(IMetadataProvider).IsAssignableFrom(t)))
+        {
+            var resolved = type.GetMethod("TestConnectionAsync");
+            AssertTrue(
+                failures,
+                resolved is not null,
+                $"{type.Name} exposes TestConnectionAsync");
+
+            // Inheriting the base probe is fine. Declaring its own is only reachable through the
+            // interface when the base declared the member virtual, which is what the previous
+            // default-interface-method arrangement silently failed to do.
+            if (resolved?.DeclaringType == type)
+            {
+                AssertTrue(
+                    failures,
+                    type.BaseType?.GetMethod("TestConnectionAsync") is { IsVirtual: true },
+                    $"{type.Name}'s TestConnectionAsync override is reachable through IMetadataProvider");
+            }
+        }
+    }
+
+    private static void CheckImdbSuggestionPartition(List<string> failures)
+    {
+        AssertEqual(failures, "d", ImdbMetadataProvider.PartitionOf("Dune"), "IMDb keeps a latin first letter");
+        AssertEqual(failures, "d", ImdbMetadataProvider.PartitionOf("dune"), "IMDb lowercases the partition");
+        AssertEqual(failures, "2", ImdbMetadataProvider.PartitionOf("2 Guns"), "IMDb keeps a digit partition");
+        AssertEqual(
+            failures,
+            "a",
+            ImdbMetadataProvider.PartitionOf("Дюна"),
+            "a Cyrillic title falls back to the 'a' partition instead of a 404"
+        );
+        AssertEqual(
+            failures,
+            "a",
+            ImdbMetadataProvider.PartitionOf("Дюна: Месяц"),
+            "a Cyrillic title with punctuation still falls back to the 'a' partition"
+        );
+        AssertEqual(
+            failures,
+            "a",
+            ImdbMetadataProvider.PartitionOf("À La Carte"),
+            "an accented latin letter is not a CDN partition either"
+        );
+    }
+
+    private static void CheckSimklSearchSegments(List<string> failures)
+    {
+        AssertEqual(
+            failures,
+            "movie",
+            SimklMetadataProvider.SearchSegmentOf("movie"),
+            "Simkl search path for movies is singular"
+        );
+        AssertEqual(failures, "tv", SimklMetadataProvider.SearchSegmentOf("tvshow"), "Simkl search path for TV");
+        AssertEqual(failures, "anime", SimklMetadataProvider.SearchSegmentOf("anime"), "Simkl search path for anime");
+        AssertEqual(
+            failures,
+            "anime",
+            SimklMetadataProvider.SearchSegmentOf("unknown"),
+            "an unrecognised media type falls back to anime"
+        );
+    }
+
+    private static void CheckBookPageCountSurvivesMerge(List<string> failures)
+    {
+        var withPages = new ExternalMediaDto
+        {
+            ExternalId = "/works/OL893414W",
+            ExternalSource = "OpenLibrary",
+            Title = "Dune",
+            Type = "book",
+            Author = "Frank Herbert",
+            TotalCount = 608
+        };
+
+        var withoutPages = new ExternalMediaDto
+        {
+            ExternalId = "/works/OL17717458W",
+            ExternalSource = "OpenLibrary",
+            Title = "Дюна",
+            Type = "book"
+        };
+
+        AssertEqual(
+            failures,
+            608,
+            MediaMerger.Merge(withPages, withoutPages).TotalCount,
+            "a source with no page count does not wipe the pages another source supplied"
+        );
+        AssertEqual(
+            failures,
+            608,
+            MediaMerger.Merge(withoutPages, withPages).TotalCount,
+            "pages survive regardless of which source answers first"
+        );
+        AssertEqual(
+            failures,
+            608,
+            MediaMerger.Merge(withPages, withoutPages with { TotalCount = 0 }).TotalCount,
+            "an explicit zero page count does not overwrite real pages"
+        );
+
+        var book = new Book { Title = "Dune", Author = string.Empty };
+        MediaMetadataApplier.ApplyIfMissing(book, withPages);
+        AssertEqual(failures, 608, book.TotalPages, "enrichment fills the page count the source reported");
+
+        var noAuthor = new Book { Title = "Dune", Author = string.Empty };
+        MediaMetadataApplier.ApplyIfMissing(noAuthor, withPages with { Author = "Frank Herbert" });
+        AssertEqual(failures, "Frank Herbert", noAuthor.Author, "enrichment fills a missing author");
+
+        var existing = new Book { Title = "Дюна", Author = "string", TotalPages = 412 };
+        MediaMetadataApplier.ApplyIfMissing(existing, withoutPages);
+        AssertEqual(
+            failures,
+            412,
+            existing.TotalPages,
+            "enrichment with no page count leaves the stored page count alone"
+        );
+
+        MediaMetadataApplier.ApplyIfMissing(existing, withPages);
+        AssertEqual(
+            failures,
+            412,
+            existing.TotalPages,
+            "enrichment never overwrites a page count the user already has"
+        );
+    }
+
     private static void AssertTrue(List<string> failures, bool condition, string label)
     {
         if (!condition)
@@ -2071,5 +2269,7 @@ public static class RefactorSelfCheck
         ) => Task.FromResult<string?>(externalUrl);
 
         public void DeleteCover(string? localCoverUrl) { }
+
+        public void DeleteMediaFolder(Guid mediaId) { }
     }
 }

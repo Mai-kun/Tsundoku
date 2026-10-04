@@ -175,6 +175,19 @@ try
         }
     );
 
+    // Per-title assets: data/media/{mediaId}/cover/{original,thumb}.webp. Legacy /covers stays mounted
+    // below so rows saved before this layout keep resolving their stored URL.
+    app.UseStaticFiles(
+        new StaticFileOptions
+        {
+            FileProvider = new PhysicalFileProvider(appPaths.MediaDirectory),
+            RequestPath = "/media-assets",
+            OnPrepareResponse = context =>
+                context.Context.Response.Headers.CacheControl =
+                    "public, max-age=31536000, immutable",
+        }
+    );
+
     app.UseStaticFiles(
         new StaticFileOptions
         {

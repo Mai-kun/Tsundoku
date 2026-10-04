@@ -146,6 +146,8 @@ export interface UpdateMediaPayload {
   relatedSource?: string | null;
   achievementsJson?: string | null;
   recommendationsJson?: string | null;
+  /** Set once the user edits a field by hand; drives the refresh overwrite prompt. */
+  isCustomEdited?: boolean;
 }
 
 export interface SourceInfo {

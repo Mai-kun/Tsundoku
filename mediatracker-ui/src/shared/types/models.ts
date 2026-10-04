@@ -75,6 +75,8 @@ export interface MediaDetailFields {
   /** Cached achievements / recommendations: written once, replayed on F5. */
   achievementsJson?: string | null;
   recommendationsJson?: string | null;
+  /** The user hand-edited this row, so a refresh has to ask instead of overwriting silently. */
+  isCustomEdited?: boolean;
 }
 
 export interface GameMedia extends MediaBase {

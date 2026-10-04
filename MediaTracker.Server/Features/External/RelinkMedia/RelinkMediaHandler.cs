@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace MediaTracker.Server.Features.External.RelinkMedia;
 
-public sealed record RelinkMediaRequest(string ExternalId, string Source, string Type);
+public sealed record RelinkMediaRequest(string ExternalId, string Source, string Type, string? Title = null);
 
 public sealed record RelinkMediaCommand(Guid MediaId, RelinkMediaRequest Request);
 
@@ -54,11 +54,17 @@ public sealed class RelinkMediaHandler(
         }
 
         // The external id only means something to the named source, so it is a hard request: the
-        // aggregator resolves that provider alone and never substitutes another one.
+        // aggregator resolves that provider alone and never substitutes another one. The caller's
+        // title wins over the stored one: a translated row ("Северная правда") is useless as a
+        // lookup key, so the original title the user matched on has to reach the provider.
+        var lookupTitle = string.IsNullOrWhiteSpace(request.Title)
+            ? item.Title
+            : request.Title;
+
         var external = await aggregator.GetDetailsAsync(
             request.Type,
             request.ExternalId.Trim(),
-            item.Title,
+            lookupTitle,
             ct,
             request.Source);
 

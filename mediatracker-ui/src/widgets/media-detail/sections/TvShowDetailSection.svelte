@@ -1,5 +1,5 @@
-﻿﻿<script lang="ts">
-    import { ArrowUpDown, Check, CheckCircle2, ChevronDown, Eye, List, Play, RotateCcw } from "$shared/ui/Icons.svelte";
+﻿<script lang="ts">
+    import { ArrowRight, ArrowUpDown, Check, CheckCircle2, ChevronDown, Eye, List, Play, RotateCcw } from "$shared/ui/Icons.svelte";
     import { errorMessage } from "$shared/api/api";
     import { i18n } from "$shared/i18n/index.svelte";
     import type { TvSeason } from "$shared/types";
@@ -16,7 +16,7 @@
 
     interface Props {
         seasons: readonly TvSeason[];
-        /** The season banner renders whenever a season exists; the episode list only on its tab. */
+        /** Episodes tab active: gates BOTH the banner and the list, so neither leaks into Related. */
         showEpisodes: boolean;
         /** The first unwatched episode of the whole series, crossing season boundaries. */
         nextUp: NextUp | null;
@@ -75,7 +75,7 @@
             seasons.every((season) => season.totalEpisodes <= 0 || isFinished(season)),
     );
 </script>
-{#if seasons.length > 0}
+{#if showEpisodes && seasons.length > 0}
     <div
         class="relative overflow-hidden rounded-xl border border-white/[0.08] bg-gradient-to-r from-[var(--color-overlay-strong)] via-[var(--color-panel-line)] to-[var(--color-overlay-strong)] p-5 shadow-lg"
     >
@@ -120,10 +120,11 @@
 
                 <button
                     type="button"
-                    class="inline-flex h-9 items-center rounded-lg border border-white/[0.08] bg-surface/50 px-3 text-xs font-medium text-muted transition hover:bg-white/10 hover:text-white"
+                    class="inline-flex h-9 items-center gap-1.5 rounded-lg border border-white/[0.08] bg-surface/50 px-3 text-xs font-medium text-muted transition hover:bg-white/10 hover:text-white"
                     onclick={onOpenEpisodesTab}
                 >
-                    {i18n.t.detail.tabEpisodes} в†’
+                    {i18n.t.detail.tabEpisodes}
+                    <ArrowRight size={14} aria-hidden="true" />
                 </button>
             </div>
         </div>
@@ -329,3 +330,4 @@
         </div>
     </article>
 {/snippet}
+

@@ -197,9 +197,15 @@ export function updateMedia(
   );
 }
 
-export function enrichMedia(id: string): Promise<MediaDetail> {
+/**
+ * "Дополнить": fills only the empty fields, from `source` when the user picked one in the dialog.
+ * Never overwrites a value that is already there.
+ */
+export function enrichMedia(id: string, source?: string): Promise<MediaDetail> {
   return requestJson<MediaDetail>(`${mediaEndpoint}/${id}/enrich`, {
     method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ source: source ?? null }),
   });
 }
 
@@ -268,9 +274,18 @@ export function deleteMedia(id: string): Promise<void> {
   return requestVoid(`${mediaEndpoint}/${id}`, { method: "DELETE" });
 }
 
-export function refreshMetadata(id: string): Promise<MediaDetail> {
+/**
+ * Re-reads the provider. `fillMissing` turns the overwrite into a gap fill, which is what the
+ * "keep my edits" branch of the refresh dialog sends.
+ */
+export function refreshMetadata(
+  id: string,
+  fillMissing = false,
+): Promise<MediaDetail> {
   return requestJson<MediaDetail>(`${mediaEndpoint}/${id}/refresh`, {
     method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ fillMissing }),
   });
 }
 
@@ -280,7 +295,12 @@ export function refreshMetadata(id: string): Promise<MediaDetail> {
  */
 export function relinkMedia(
   id: string,
-  payload: { externalId: string; source: string; type: string },
+  payload: {
+    externalId: string;
+    source: string;
+    type: string;
+    title?: string;
+  },
 ): Promise<MediaDetail> {
   return requestJson<MediaDetail>(`${mediaEndpoint}/${id}/relink`, {
     method: "POST",

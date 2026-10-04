@@ -34,6 +34,7 @@
     import FilterBar from "$features/filter-and-sort/FilterBar.svelte";
     import MediaGrid from "$widgets/media-grid/MediaGrid.svelte";
     import SectionRow from "$widgets/media-grid/SectionRow.svelte";
+    import { nextSeriesEpisodeStep } from "$entities/media/model/seriesStep";
 
     export type Category =
         | "tvshow"
@@ -358,26 +359,10 @@
             const detail = await getMediaItem(item.id);
             if (!isTvShowDetail(detail) || !detail.seasons?.length) return;
 
-            const activeSeason =
-                detail.seasons.find(
-                    (s) => s.status === MEDIA_STATUS.inProgress,
-                ) ??
-                detail.seasons.find((s) => s.status === MEDIA_STATUS.planned) ??
-                detail.seasons[detail.seasons.length - 1];
+            const step = nextSeriesEpisodeStep(detail.seasons, delta);
+            if (!step) return;
 
-            if (!activeSeason) return;
-
-            const next = Math.max(
-                0,
-                Math.min(
-                    (activeSeason.currentEpisode ?? 0) + delta,
-                    activeSeason.totalEpisodes > 0
-                        ? activeSeason.totalEpisodes
-                        : Infinity,
-                ),
-            );
-
-            await setSeasonProgress(activeSeason.id, next);
+            await setSeasonProgress(step.seasonId, step.currentEpisode);
             onMediaChanged();
         } catch {
             item.totalEpisodesWatched = prevWatched;

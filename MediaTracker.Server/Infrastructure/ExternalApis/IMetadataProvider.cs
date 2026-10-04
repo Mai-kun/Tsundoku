@@ -14,27 +14,13 @@ public interface IMetadataProvider
     Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string query, CancellationToken ct);
     Task<ExternalMediaDto?> GetDetailsAsync(string externalId, string title, CancellationToken ct);
 
-    async Task<ConnectionTestResult> TestConnectionAsync(CancellationToken ct)
-    {
-        var sw = System.Diagnostics.Stopwatch.StartNew();
-        try
-        {
-            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            timeoutCts.CancelAfter(TimeSpan.FromSeconds(5));
-            _ = await SearchAsync("test", timeoutCts.Token);
-            sw.Stop();
-            return new ConnectionTestResult(true, (int)sw.ElapsedMilliseconds, "OK");
-        }
-        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
-        {
-            sw.Stop();
-            return new ConnectionTestResult(false, (int)sw.ElapsedMilliseconds,
-                "Таймаут — сервис не отвечает (проверьте доступность из своей сети)");
-        }
-        catch (Exception ex)
-        {
-            sw.Stop();
-            return new ConnectionTestResult(false, (int)sw.ElapsedMilliseconds, ex.Message);
-        }
-    }
+    /// <summary>
+    /// Declared without a default body on purpose. A default interface member is only taken over by a
+    /// derived class that re-lists the interface or whose base redeclares it, and this interface is
+    /// implemented by the abstract base — so a default here would shadow every provider's own
+    /// <c>TestConnectionAsync</c> instead of backing it, and the settings screen would keep running the
+    /// generic "search for the word test" probe, which reports OK for a key the provider rejects.
+    /// The shared fallback lives on <see cref="MetadataProviderBase"/> as a virtual method.
+    /// </summary>
+    Task<ConnectionTestResult> TestConnectionAsync(CancellationToken ct);
 }

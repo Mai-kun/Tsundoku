@@ -1,6 +1,8 @@
+using System.Text.Json;
 using MediaTracker.Server.Domain.Entities;
 using MediaTracker.Server.Domain.Enums;
 using MediaTracker.Server.Domain.Rules;
+using MediaTracker.Server.Features.External.GetExternalRelations;
 using MediaTracker.Server.Features.External.RefreshMetadata;
 using MediaTracker.Server.Infrastructure.ExternalApis;
 using MediaTracker.Server.Infrastructure.Persistence;
@@ -69,6 +71,11 @@ public static class MediaEnrichmentJob
             item.MarkUpdated();
             await db.SaveChangesAsync(jobCts.Token).ConfigureAwait(false);
 
+            // Last, and outside the metadata write: the Related tab is the one panel whose content is
+            // not in the database, so leaving it to the first manual "load related" meant a freshly
+            // added title showed an empty tab until the user picked a source by hand.
+            await CacheRelatedAsync(services, item, jobCts.Token).ConfigureAwait(false);
+
             Report(progress, 100, "Готово");
         }
         catch
@@ -92,6 +99,52 @@ public static class MediaEnrichmentJob
         }
         catch
         {
+        }
+    }
+
+    /// <summary>
+    /// Fills the Related cache from whatever source the item already points at. Never overwrites an
+    /// existing cache and never fails the job: a provider without a relations endpoint simply returns
+    /// an empty list, and the tab then loads on demand exactly as it did before.
+    /// </summary>
+    private static async Task CacheRelatedAsync(
+        IServiceProvider services,
+        MediaItem item,
+        CancellationToken ct)
+    {
+        if (item.RelatedMediaJson is not null || string.IsNullOrWhiteSpace(item.ExternalSource))
+        {
+            return;
+        }
+
+        try
+        {
+            var result = await services.GetRequiredService<IGetExternalRelationsHandler>()
+                .HandleAsync(
+                    new GetExternalRelationsQuery(
+                        AggregatorTypes.Resolve(item),
+                        item.ExternalId,
+                        item.Title,
+                        item.ExternalSource,
+                        "related"),
+                    ct)
+                .ConfigureAwait(false);
+
+            if (!result.TryGetValue(out var related) || related.Count == 0)
+            {
+                return;
+            }
+
+            item.RelatedMediaJson = JsonSerializer.Serialize(related);
+            item.RelatedSource = item.ExternalSource;
+            item.MarkUpdated();
+            await services.GetRequiredService<AppDbContext>()
+                .SaveChangesAsync(CancellationToken.None)
+                .ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // A missing relations endpoint is the normal case for most providers, not an error.
         }
     }
 

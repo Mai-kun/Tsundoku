@@ -90,6 +90,14 @@ public abstract class MediaItem
     public string? RecommendationsJson { get; set; }
 
     /// <summary>
+    /// The user typed into this row themselves, so a refresh must not silently throw it away. Set by
+    /// the updater the moment a manual edit actually changes a stored value, and only cleared by an
+    /// explicit full overwrite — which is exactly what the safe-merge choice in the refresh dialog
+    /// preserves it for.
+    /// </summary>
+    public bool IsCustomEdited { get; set; }
+
+    /// <summary>
     /// Moves the item to <paramref name="status"/> and brings every dependent field along with it:
     /// timestamps, the type-specific counters and, for a show, its seasons. The status setter is
     /// private so a caller cannot change the status without these rules running.

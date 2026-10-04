@@ -234,6 +234,8 @@
     import DetailTabs from "$widgets/media-detail/DetailTabs.svelte";
     import RelatedPreviewModal from "$widgets/media-detail/panels/RelatedPreviewModal.svelte";
 import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
+    import FillMissingModal from "$widgets/media-detail/FillMissingModal.svelte";
+    import OverwriteConfirmModal from "$widgets/media-detail/OverwriteConfirmModal.svelte";
     import VolumeFormModal from "$widgets/media-detail/panels/VolumeFormModal.svelte";
     import VolumesPanel from "$widgets/media-detail/panels/VolumesPanel.svelte";
     import EpisodesTab from "$widgets/media-detail/tabs/EpisodesTab.svelte";
@@ -429,6 +431,9 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
     let refreshBusy = $state(false);
     let refreshError = $state<unknown>(null);
     let relinkOpen = $state(false);
+    let overwritePromptOpen = $state(false);
+    let fillMissingOpen = $state(false);
+    let fillMissingBusy = $state(false);
 
     /** Drops the freshly re-pointed payload in place: the season list and the spec sheet move with it. */
     function applyRelinked(payload: MediaDetail) {
@@ -1851,13 +1856,13 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
         }
     }
 
-    async function handleRefreshMetadata() {
+    async function handleRefreshMetadata(fillMissing = false) {
         const target = media;
         if (!target || refreshBusy) return;
         refreshBusy = true;
         refreshError = null;
         try {
-            const updated = await refreshMetadata(target.id);
+            const updated = await refreshMetadata(target.id, fillMissing);
             media = updated;
             syncFrom(updated);
             mediaDetailCache.invalidate(target.id);
@@ -1868,13 +1873,54 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
             }
             void loadRelated(updated, null);
             void triggerBackgroundEnrichment(updated, ++requestSequence, true);
-            showToast(i18n.t.detail.metadataUpdated, "success");
+            showToast(
+                fillMissing
+                    ? i18n.t.detail.metadataMergeKept
+                    : i18n.t.detail.metadataUpdated,
+                "success",
+            );
             onUpdate();
         } catch (error) {
             refreshError = error;
             showToast(errorMessage(error), "error");
         } finally {
             refreshBusy = false;
+        }
+    }
+
+    /**
+     * A row the user hand-edited cannot be overwritten behind their back, so refresh asks first.
+     * Rows with no manual edits skip the dialog entirely and refresh straight away.
+     */
+    async function requestRefresh() {
+        if (media?.isCustomEdited) {
+            overwritePromptOpen = true;
+            return;
+        }
+        await handleRefreshMetadata(false);
+    }
+
+    function resolveOverwrite(fillMissing: boolean) {
+        overwritePromptOpen = false;
+        void handleRefreshMetadata(fillMissing);
+    }
+
+    async function handleFillMissing(source: string) {
+        const target = media;
+        if (!target || fillMissingBusy) return;
+        fillMissingBusy = true;
+        try {
+            const updated = await enrichMedia(target.id, source || undefined);
+            media = updated;
+            syncFrom(updated);
+            mediaDetailCache.invalidate(target.id);
+            fillMissingOpen = false;
+            showToast(i18n.t.detail.fillMissingDone, "success");
+            onUpdate();
+        } catch (error) {
+            showToast(errorMessage(error), "error");
+        } finally {
+            fillMissingBusy = false;
         }
     }
 </script>
@@ -1956,7 +2002,9 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
                 onSelectPlatform={updateUserPlatform}
                 {refreshBusy}
                 {refreshError}
-                onRefreshMetadata={handleRefreshMetadata}
+                onRefreshMetadata={requestRefresh}
+                {fillMissingBusy}
+                onFillMissing={() => (fillMissingOpen = true)}
                 onRelink={() => (relinkOpen = true)}
                 onStartEdit={startEdit}
                 {deleteBusy}
@@ -2076,8 +2124,8 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
                     />
                 {/if}
 
-                <!-- The season banner shows on every tab; only the episode list is tab-gated. -->
-                {#if media.type === "tvshow"}
+                <!-- The whole section is tab-gated: the season banner must not leak into Related/Recommendations. -->
+                {#if media.type === "tvshow" && activeSubTab === "episodes"}
                     {#if isSyncing}
                         <SyncRowsSkeleton
                             label={i18n.t.activity.loadingSeasons}
@@ -2131,12 +2179,29 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
     isOpen={relinkOpen}
     mediaId={mediaId}
     title={media?.title ?? ""}
+    {originalTitle}
     type={media?.type ?? "all"}
     currentSource={media?.externalSource ?? null}
     onClose={() => (relinkOpen = false)}
     onRelinked={applyRelinked}
 />
 
+<OverwriteConfirmModal
+    isOpen={overwritePromptOpen}
+    busy={refreshBusy}
+    onFillMissing={() => resolveOverwrite(true)}
+    onOverwrite={() => resolveOverwrite(false)}
+    onClose={() => (overwritePromptOpen = false)}
+/>
+
+<FillMissingModal
+    isOpen={fillMissingOpen}
+    busy={fillMissingBusy}
+    mediaType={media?.type ?? "movie"}
+    currentSource={media?.externalSource ?? null}
+    onFill={(source) => void handleFillMissing(source)}
+    onClose={() => (fillMissingOpen = false)}
+/>
 <!-- Add / edit volume dialogs -->
 <VolumeFormModal
     mode="add"

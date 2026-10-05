@@ -1,5 +1,14 @@
 <script lang="ts">
-    import { Check, ChevronRight, Image as ImageIcon, Plus, Search, Star, X } from "$shared/ui/Icons.svelte";
+    import {
+        ArrowRight,
+        Check,
+        ChevronRight,
+        Image as ImageIcon,
+        Plus,
+        Search,
+        Star,
+        X,
+    } from "$shared/ui/Icons.svelte";
     import { untrack } from "svelte";
     import {
         createMedia,
@@ -884,10 +893,13 @@
                                                         >
                                                             <button
                                                                 type="button"
-                                                                class="flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 text-[11px] font-semibold text-emerald-400 transition hover:border-rose-500/30 hover:bg-rose-500/10 hover:text-rose-400"
+                                                                class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-emerald-500/20 bg-emerald-500/10 text-emerald-400 transition hover:border-rose-500/30 hover:bg-rose-500/10 hover:text-rose-400 disabled:cursor-wait disabled:opacity-70"
                                                                 title={i18n.t
                                                                     .searchModal
-                                                                    .inLibrary}
+                                                                    .added}
+                                                                aria-label={i18n.t
+                                                                    .searchModal
+                                                                    .added}
                                                                 disabled={Boolean(
                                                                     addingKey,
                                                                 )}
@@ -910,13 +922,16 @@
                                                                         aria-hidden="true"
                                                                     />
                                                                 {/if}
-                                                                <span
-                                                                    >{i18n.t.searchModal.added}</span
-                                                                >
                                                             </button>
                                                             <button
                                                                 type="button"
-                                                                class="flex h-8 shrink-0 items-center gap-1 rounded-full border border-white/10 bg-field px-2.5 text-[11px] font-semibold text-muted transition hover:border-accent hover:bg-panel hover:text-accent cursor-pointer"
+                                                                class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/10 bg-panel text-muted transition hover:border-accent hover:text-accent cursor-pointer"
+                                                                title={i18n.t
+                                                                    .searchModal
+                                                                    .goToTitle}
+                                                                aria-label={i18n.t
+                                                                    .searchModal
+                                                                    .goToTitle}
                                                                 onclick={(
                                                                     e,
                                                                 ) => {
@@ -935,11 +950,8 @@
                                                                     }
                                                                 }}
                                                             >
-                                                                <span
-                                                                    >{i18n.t.searchModal.goToTitle}</span
-                                                                >
-                                                                <ChevronRight
-                                                                    size={14}
+                                                                <ArrowRight
+                                                                    size={16}
                                                                     aria-hidden="true"
                                                                 />
                                                             </button>
@@ -1091,9 +1103,9 @@
                                         <div class="flex items-center gap-1.5">
                                             <button
                                                 type="button"
-                                                class="flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 text-[11px] font-semibold text-emerald-400 transition hover:border-rose-500/30 hover:bg-rose-500/10 hover:text-rose-400"
-                                                title={i18n.t.searchModal
-                                                    .inLibrary}
+                                                class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-emerald-500/20 bg-emerald-500/10 text-emerald-400 transition hover:border-rose-500/30 hover:bg-rose-500/10 hover:text-rose-400 disabled:cursor-wait disabled:opacity-70"
+                                                title={i18n.t.searchModal.added}
+                                                aria-label={i18n.t.searchModal.added}
                                                 disabled={Boolean(addingKey)}
                                                 onclick={(e) => {
                                                     e.stopPropagation();
@@ -1110,13 +1122,12 @@
                                                         aria-hidden="true"
                                                     />
                                                 {/if}
-                                                <span
-                                                    >{i18n.t.searchModal.added}</span
-                                                >
                                             </button>
                                             <button
                                                 type="button"
-                                                class="flex h-8 shrink-0 items-center gap-1 rounded-full border border-white/10 bg-field px-2.5 text-[11px] font-semibold text-muted transition hover:border-accent hover:bg-panel hover:text-accent cursor-pointer"
+                                                class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/10 bg-panel text-muted transition hover:border-accent hover:text-accent cursor-pointer"
+                                                title={i18n.t.searchModal.goToTitle}
+                                                aria-label={i18n.t.searchModal.goToTitle}
                                                 onclick={(e) => {
                                                     e.stopPropagation();
                                                     const targetId =
@@ -1129,11 +1140,8 @@
                                                     }
                                                 }}
                                             >
-                                                <span
-                                                    >{i18n.t.searchModal.goToTitle}</span
-                                                >
-                                                <ChevronRight
-                                                    size={14}
+                                                <ArrowRight
+                                                    size={16}
                                                     aria-hidden="true"
                                                 />
                                             </button>

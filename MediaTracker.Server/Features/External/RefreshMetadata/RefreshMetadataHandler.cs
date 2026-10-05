@@ -24,6 +24,7 @@ public interface IRefreshMetadataHandler
 public sealed class RefreshMetadataHandler(
     AppDbContext db,
     MetadataAggregatorService metadataAggregator,
+    IMetadataProviderResolver providerResolver,
     ISourcePriorityService priorityService,
     IImageStorageService imageStorage) : IRefreshMetadataHandler
 {
@@ -78,6 +79,18 @@ public sealed class RefreshMetadataHandler(
             // The user asked for the source to win, so the row is no longer carrying their edits and
             // the next refresh must not prompt them again.
             item.IsCustomEdited = false;
+        }
+
+        // "Refresh" is the user's explicit "make this match the source", so a manga that was added
+        // from a source without a volume breakdown gets its real volumes here too.
+        if (item is Manga manga)
+        {
+            await MangaVolumeStructure.ApplyCanonicalVolumesAsync(
+                providerResolver,
+                db,
+                manga,
+                external.VolumeDetails,
+                ct);
         }
 
         // A source disabled in settings leaves a stale badge behind otherwise: refresh only rewrites

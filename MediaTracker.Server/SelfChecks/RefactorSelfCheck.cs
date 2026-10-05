@@ -49,7 +49,7 @@ public static class RefactorSelfCheck
         CheckStatusTransitions(failures);
         CheckSeasonProgressStepper(failures);
         CheckVolumeProgressStepper(failures);
-        CheckPlaceholderVolumes(failures);
+        CheckNoInventedVolumes(failures);
         CheckReleaseStatusComputation(failures);
         CheckApiKeyLookup(failures);
         CheckCoverSizeLimit(failures);
@@ -71,6 +71,7 @@ public static class RefactorSelfCheck
         CheckListPayloadStaysLight(failures);
         CheckListAndDetailTotalsAgree(failures);
         CheckStatusWireContract(failures);
+        CheckMangaDexRelationTypes(failures);
 
         if (failures.Count == 0)
         {
@@ -530,59 +531,8 @@ public static class RefactorSelfCheck
     }
 
     /// <summary>
-    /// A seeded series splits its chapter budget evenly across its stub volumes, so every volume
-    /// starts with the same invented number. The real per-volume split a provider reports has to
-    /// replace it, or "том 1 — 3 главы, том 2 — 5 глав" never appears.
+    /// Related metadata has to survive a round trip through storage.
     /// </summary>
-    private static void CheckRealVolumesReplaceSeededSplit(List<string> failures)
-    {
-        var manga = new Manga { Title = "Noragami", TotalChapters = 8 };
-        // Same order the create handler uses: the total lands on the row, then the stubs are seeded.
-        manga.SeedPlaceholderVolumes(requestedVolumes: 2, totalChapters: 8, totalPages: null);
-
-        AssertEqual(failures, 4, manga.Volumes[0].TotalChapters, "seed splits the budget evenly");
-        AssertEqual(failures, 4, manga.Volumes[1].TotalChapters, "seed splits the budget evenly");
-
-        var external = new ExternalMediaDto
-        {
-            ExternalId = "1",
-            Title = "Noragami",
-            Type = "manga",
-            TotalCount = 8,
-            Chapters = 8,
-            VolumeDetails =
-            [
-                new ExternalMangaVolumeDto { Number = 1, Chapters = ["1", "2", "3"] },
-                new ExternalMangaVolumeDto { Number = 2, Chapters = ["4", "5", "6", "7", "8"] },
-            ],
-        };
-
-        MediaMetadataApplier.ApplyIfMissing(manga, external);
-
-        AssertEqual(
-            failures,
-            3,
-            manga.Volumes[0].TotalChapters,
-            "volume 1 takes its real chapter count"
-        );
-        AssertEqual(
-            failures,
-            5,
-            manga.Volumes[1].TotalChapters,
-            "volume 2 takes its real chapter count"
-        );
-
-        // A count the user typed is not the seed, so it must survive the next provider pass.
-        manga.Volumes[0].ApplyEdits(currentPage: null, totalPages: null, currentChapter: null, totalChapters: 11);
-        MediaMetadataApplier.ApplyIfMissing(manga, external);
-        AssertEqual(
-            failures,
-            11,
-            manga.Volumes[0].TotalChapters,
-            "a chapter count the user typed is not overwritten"
-        );
-    }
-
     private static void CheckRelatedMediaSurvivesRoundTrip(List<string> failures)
     {
         var item = new Manga { Title = "Noragami" };
@@ -924,11 +874,15 @@ public static class RefactorSelfCheck
         AssertEqual(failures, 374, manga.TotalChapters, "manga chapters filled");
         AssertEqual(failures, 41, manga.TotalVolumes, "manga volumes filled");
         AssertEqual(failures, "Kentaro Miura", manga.Author, "manga author filled");
+
+        // A flat total says nothing about which volume a chapter belongs to, so it must not be
+        // pushed onto the one existing volume: that is the invented split this used to produce.
+        // The per-volume number comes from MangaDex's /aggregate, never from the series total.
         AssertEqual(
             failures,
-            374,
+            0,
             manga.Volumes[0].TotalChapters,
-            "stub volume inherits chapter count"
+            "a flat chapter total is not spread onto a volume"
         );
     }
 
@@ -1214,7 +1168,12 @@ public static class RefactorSelfCheck
         );
     }
 
-    private static void CheckPlaceholderVolumes(List<string> failures)
+    /// <summary>
+    /// A manga must never gain volumes out of a local guess. Creating a series used to seed one stub
+    /// per requested volume and divide the chapter budget evenly between them, which is fabricated
+    /// data: only MangaDex knows how many chapters a volume actually holds.
+    /// </summary>
+    private static void CheckNoInventedVolumes(List<string> failures)
     {
         var request = new CreateMediaRequest
         {
@@ -1223,18 +1182,76 @@ public static class RefactorSelfCheck
             TotalChapters = 700,
             TotalVolumes = 4,
         };
-        var manga = new Manga { Title = "Naruto" };
+        var manga = new Manga { Title = "Naruto", TotalChapters = 700 };
 
-        MediaCollectionSeeder.SeedPlaceholderVolumes(manga, request);
+        MediaMetadataApplier.ApplyIfMissing(
+            manga,
+            new ExternalMediaDto
+            {
+                ExternalId = "shikimori/1",
+                ExternalSource = "Shikimori",
+                Title = "Naruto",
+                Type = "manga",
+                TotalCount = 700,
+                Chapters = 700,
+            });
 
-        AssertEqual(failures, 4, manga.Volumes.Count, "one stub per requested volume");
         AssertEqual(
             failures,
-            175,
-            manga.Volumes[0].TotalChapters,
-            "chapters split evenly across volumes"
+            0,
+            manga.Volumes.Count,
+            "a source without a volume breakdown leaves the volumes empty"
         );
-        AssertEqual(failures, 4, manga.TotalVolumes, "total volume count is recorded");
+        AssertEqual(failures, 700, manga.TotalChapters, "the flat chapter total is still kept");
+    }
+
+    /// <summary>
+    /// The real split a source reports has to land per volume, so "том 1 — 3 главы, том 2 — 5 глав"
+    /// appears instead of an even division of the chapter budget.
+    /// </summary>
+    private static void CheckRealVolumesReplaceSeededSplit(List<string> failures)
+    {
+        var manga = new Manga { Title = "Noragami", TotalChapters = 8 };
+        var external = new ExternalMediaDto
+        {
+            ExternalId = "1",
+            Title = "Noragami",
+            Type = "manga",
+            TotalCount = 8,
+            Chapters = 8,
+            VolumeDetails =
+            [
+                new ExternalMangaVolumeDto { Number = 1, Chapters = ["1", "2", "3"] },
+                new ExternalMangaVolumeDto { Number = 2, Chapters = ["4", "5", "6", "7", "8"] },
+            ],
+        };
+
+        MediaMetadataApplier.ApplyIfMissing(manga, external);
+
+        AssertEqual(failures, 2, manga.Volumes.Count, "one row per reported volume");
+        AssertEqual(
+            failures,
+            3,
+            manga.Volumes[0].TotalChapters,
+            "volume 1 takes its real chapter count"
+        );
+        AssertEqual(
+            failures,
+            5,
+            manga.Volumes[1].TotalChapters,
+            "volume 2 takes its real chapter count"
+        );
+        AssertEqual(failures, 2, manga.TotalVolumes, "the volume total is recorded");
+
+        // A count the user typed is not the source's, so it must survive the next provider pass.
+        manga.Volumes[0].ApplyEdits(currentPage: null, totalPages: null, currentChapter: null, totalChapters: 11);
+        MediaMetadataApplier.ApplyIfMissing(manga, external);
+        AssertEqual(
+            failures,
+            11,
+            manga.Volumes[0].TotalChapters,
+            "a chapter count the user typed is not overwritten"
+        );
     }
 
     private static void CheckReleaseStatusComputation(List<string> failures)
@@ -2128,6 +2145,47 @@ public static class RefactorSelfCheck
         }
     }
 
+    /// <summary>MangaDex's vocabulary has to land on the same relation types the tab groups on.</summary>
+    private static void CheckMangaDexRelationTypes(List<string> failures)
+    {
+        AssertEqual(failures, "SEQUEL", MangaDexMetadataProvider.MapRelationType("sequel"), "sequel is SEQUEL");
+        AssertEqual(failures, "PREQUEL", MangaDexMetadataProvider.MapRelationType("prequel"), "prequel is PREQUEL");
+        AssertEqual(
+            failures,
+            "PREQUEL",
+            MangaDexMetadataProvider.MapRelationType("preserialization"),
+            "preserialization is PREQUEL"
+        );
+        AssertEqual(failures, "SPIN_OFF", MangaDexMetadataProvider.MapRelationType("spin_off"), "spin_off is SPIN_OFF");
+        AssertEqual(
+            failures,
+            "SIDE_STORY",
+            MangaDexMetadataProvider.MapRelationType("side_story"),
+            "side_story is SIDE_STORY"
+        );
+        AssertEqual(
+            failures,
+            "ALTERNATIVE",
+            MangaDexMetadataProvider.MapRelationType("alternate_version"),
+            "alternate_version is ALTERNATIVE"
+        );
+        AssertEqual(
+            failures,
+            "ADAPTATION",
+            MangaDexMetadataProvider.MapRelationType("adapted_from"),
+            "adapted_from is ADAPTATION"
+        );
+        AssertEqual(
+            failures,
+            "ADAPTATION",
+            MangaDexMetadataProvider.MapRelationType("adaptation"),
+            "adaptation is ADAPTATION"
+        );
+        // Unmapped MangaDex words still have to be a row rather than a dropped relation.
+        AssertEqual(failures, "OTHER", MangaDexMetadataProvider.MapRelationType("doujinshi"), "doujinshi is OTHER");
+        AssertEqual(failures, "OTHER", MangaDexMetadataProvider.MapRelationType(null), "a missing kind is OTHER");
+    }
+
     private static void CheckImdbSuggestionPartition(List<string> failures)
     {
         AssertEqual(failures, "d", ImdbMetadataProvider.PartitionOf("Dune"), "IMDb keeps a latin first letter");
@@ -2168,6 +2226,27 @@ public static class RefactorSelfCheck
             "anime",
             SimklMetadataProvider.SearchSegmentOf("unknown"),
             "an unrecognised media type falls back to anime"
+        );
+
+        // The detail path is plural where the search path is singular, which is the whole reason
+        // movie details used to 404 and fall back to a rating-less search hit.
+        AssertEqual(
+            failures,
+            "movies",
+            SimklMetadataProvider.DetailSegmentOf("movie"),
+            "Simkl detail path for movies is plural"
+        );
+        AssertEqual(
+            failures,
+            "tv",
+            SimklMetadataProvider.DetailSegmentOf("tvshow"),
+            "Simkl detail path for TV"
+        );
+        AssertEqual(
+            failures,
+            "anime",
+            SimklMetadataProvider.DetailSegmentOf("anime"),
+            "Simkl detail path for anime"
         );
     }
 

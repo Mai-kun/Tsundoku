@@ -38,6 +38,24 @@ public sealed class GetExternalRelationsHandler(
             "recommendations",
             StringComparison.OrdinalIgnoreCase);
 
+        // MangaDex has to be caught before the AniList branch below: for a manga it would otherwise
+        // swallow the pick and look a MangaDex uuid up on AniList, where it matches nothing.
+        // Recommendations stay with AniList — MangaDex has no recommendations endpoint, and the
+        // relations list is not a recommendation feed.
+        if (!wantsRecommendations && Mentions(query.Source, MangaDexMetadataProvider.Source.Id))
+        {
+            if (providerResolver.Resolve(query.Type ?? "manga", MangaDexMetadataProvider.Source.Id)
+                is not MangaDexMetadataProvider mangaDex)
+            {
+                return Result<IReadOnlyList<ExternalRelationDto>>.Success([]);
+            }
+
+            var relations = await mangaDex.GetRelationsAsync(
+                query.ExternalId, ct, query.Title);
+
+            return Result<IReadOnlyList<ExternalRelationDto>>.Success([.. relations]);
+        }
+
         // The frontend sends the bucket it used to pick sources from, so a film flagged as anime lands
         // on AniList exactly like it did when the browser issued the query itself.
         if (query.Type is "anime" or "manga")

@@ -99,6 +99,185 @@ public sealed class MangaDexMetadataProvider(
         }
     }
 
+    /// <summary>
+    /// Related titles straight from MangaDex. The relation lives on the relation object itself
+    /// (<c>{"type":"manga","related":"sequel"}</c>), not inside <c>attributes</c>, and MangaDex does
+    /// not inline the neighbour's title, cover or rating — those need a second, batched
+    /// <c>/manga?ids[]=</c> lookup, so this is two round trips instead of the one AniList makes.
+    ///
+    /// <paramref name="externalId"/> is only a MangaDex id when the row was added from MangaDex; a row
+    /// added from AniList carries a numeric id that answers nothing here, hence the title fallback
+    /// using the same cascade as <see cref="GetDetailsAsync"/>.
+    /// </summary>
+    public async Task<IReadOnlyList<ExternalRelationDto>> GetRelationsAsync(
+        string? externalId,
+        CancellationToken ct,
+        string? title = null)
+    {
+        var client = httpClientFactory.CreateClient(Id);
+
+        try
+        {
+            var mangaId = await ResolveMangaIdAsync(client, externalId, title, ct);
+            if (mangaId is null)
+            {
+                return [];
+            }
+
+            var res = await client.GetFromJsonAsync<MdMangaSingleResponse>(
+                $"manga/{mangaId}?includes[]=manga", ct);
+
+            // Order is kept as MangaDex reported it so prequels and sequels stay in reading order
+            // rather than being alphabetised; the same id reached twice is only kept once.
+            var links = new List<(string Id, string? Related)>();
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var rel in res?.Data?.Relationships ?? [])
+            {
+                if (!string.Equals(rel.Type, "manga", StringComparison.OrdinalIgnoreCase)
+                    || string.IsNullOrWhiteSpace(rel.Id)
+                    || !seen.Add(rel.Id))
+                {
+                    continue;
+                }
+
+                links.Add((rel.Id, rel.Related));
+            }
+
+            if (links.Count == 0)
+            {
+                return [];
+            }
+
+            var details = await GetMangaByIdsAsync(
+                client, links.Select(l => l.Id).ToList(), ct);
+            var stats = await GetBatchStatisticsAsync(
+                client, [.. links.Select(l => l.Id)], ct);
+
+            var relations = new List<ExternalRelationDto>(links.Count);
+            foreach (var (id, related) in links)
+            {
+                if (!details.TryGetValue(id, out var manga)
+                    || manga.Attributes?.Title is not { Count: > 0 })
+                {
+                    continue;
+                }
+
+                relations.Add(new ExternalRelationDto(
+                    MapRelationType(related),
+                    MapItem(manga, stats.GetValueOrDefault(id))));
+            }
+
+            return relations;
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// MangaDex's own relation vocabulary → the relation types the Related tab groups on. Anything
+    /// MangaDex invents beyond this (doujinshi, contains, monochrome...) is reported as OTHER instead
+    /// of being dropped: an unmapped row still is a real relation the user asked for.
+    /// </summary>
+    public static string MapRelationType(string? related) => related?.ToLowerInvariant() switch
+    {
+        "sequel" => "SEQUEL",
+        "prequel" or "preserialization" => "PREQUEL",
+        "spin_off" => "SPIN_OFF",
+        "side_story" => "SIDE_STORY",
+        "alternate_version" or "alternate" => "ALTERNATIVE",
+        "adaptation" or "adapted_from" => "ADAPTATION",
+        "character" => "CHARACTER",
+        _ => "OTHER",
+    };
+
+    /// <summary>The MangaDex uuid when the row has one, otherwise a title lookup for rows added elsewhere.</summary>
+    private static async Task<string?> ResolveMangaIdAsync(
+        HttpClient client,
+        string? externalId,
+        string? title,
+        CancellationToken ct)
+    {
+        if (Guid.TryParse(externalId, out var id) && id != Guid.Empty)
+        {
+            return externalId;
+        }
+
+        if (string.IsNullOrWhiteSpace(title))
+        {
+            return null;
+        }
+
+        try
+        {
+            var res = await client.GetFromJsonAsync<MdMangaListResponse>(
+                $"manga?title={Uri.EscapeDataString(title)}&limit=10", ct);
+            foreach (var manga in res?.Data ?? [])
+            {
+                var label = manga.Attributes?.Title?.Values
+                    .FirstOrDefault(v => !string.IsNullOrWhiteSpace(v));
+                if (label?.Equals(title, StringComparison.OrdinalIgnoreCase) == true)
+                {
+                    return manga.Id;
+                }
+            }
+
+            // An exact title match is rare for a translated row, so the first hit wins over nothing.
+            return res?.Data?.FirstOrDefault(d => Guid.TryParse(d.Id, out _))?.Id;
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Batched <c>/manga?ids[]=</c> lookup, chunked because the endpoint caps the id list. MangaDex
+    /// does not inline a relation's own title, cover or rating, so they all come from here.
+    /// </summary>
+    private static async Task<Dictionary<string, MdMangaData>> GetMangaByIdsAsync(
+        HttpClient client,
+        IReadOnlyList<string> ids,
+        CancellationToken ct)
+    {
+        var found = new Dictionary<string, MdMangaData>(StringComparer.OrdinalIgnoreCase);
+
+        try
+        {
+            const int chunkSize = 50;
+            for (var offset = 0; offset < ids.Count; offset += chunkSize)
+            {
+                var chunk = ids.Skip(offset).Take(chunkSize).ToList();
+                var query = string.Join("&", chunk.Select(id => $"ids[]={id}"));
+                var res = await client.GetFromJsonAsync<MdMangaListResponse>(
+                    $"manga?{query}&includes[]=cover_art&limit={chunkSize}", ct);
+
+                foreach (var manga in res?.Data ?? [])
+                {
+                    if (!string.IsNullOrWhiteSpace(manga.Id))
+                    {
+                        found[manga.Id] = manga;
+                    }
+                }
+            }
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch
+        {
+            // Covers and ratings are decoration: without them the relation rows still render.
+        }
+
+        return found;
+    }
+
     private static async Task<Dictionary<string, MdMangaStatistics>> GetBatchStatisticsAsync(
         HttpClient client,
         List<string> ids,
@@ -193,38 +372,47 @@ public sealed class MangaDexMetadataProvider(
 
     /// <summary>
     /// Looks a title up by name and returns only its volume/chapter split. Sources without a volume
-    /// breakdown (Shikimori) hand back a flat chapter count, which left the library's volumes on the
-    /// even placeholder split forever. Enrichment calls this so Noragami / Berserk get their real
-    /// per-volume chapter counts even when they were added from a source that cannot report them.
+    /// breakdown (Shikimori) hand back a flat chapter count, which left the library's volumes empty.
+    /// Enrichment calls this so Noragami / Berserk get their real per-volume chapter counts even when
+    /// they were added from a source that cannot report them.
+    ///
+    /// Several titles are tried in order because MangaDex indexes romanised and English names: a row
+    /// added from Shikimori carries a Russian title that answers nothing here, and its romaji title
+    /// is the one that matches.
     /// </summary>
     public async Task<IReadOnlyList<ExternalMangaVolumeDto>> GetVolumeDetailsByTitleAsync(
-        string title,
+        IReadOnlyList<string> titles,
         CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(title)) return [];
-
         var client = httpClientFactory.CreateClient(Id);
-        try
+        foreach (var title in titles.Where(t => !string.IsNullOrWhiteSpace(t)).Distinct(StringComparer.OrdinalIgnoreCase))
         {
-            var match = await SearchAsync(title, ct);
-            var best =
-                match.FirstOrDefault(item => item.Title.Equals(title, StringComparison.OrdinalIgnoreCase))
-                ?? (match.Count > 0 ? match[0] : null);
+            try
+            {
+                var match = await SearchAsync(title, ct);
+                var best =
+                    match.FirstOrDefault(item => item.Title.Equals(title, StringComparison.OrdinalIgnoreCase))
+                    ?? (match.Count > 0 ? match[0] : null);
 
-            if (best is null || !Guid.TryParse(best.ExternalId, out _)) return [];
+                if (best is null || !Guid.TryParse(best.ExternalId, out _)) continue;
 
-            var (_, details) = await GetAggregateVolumesAndChaptersAsync(client, best.ExternalId, ct);
-            return details;
+                var (_, details) = await GetAggregateVolumesAndChaptersAsync(client, best.ExternalId, ct);
+                if (details.Count > 0)
+                {
+                    return details;
+                }
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch
+            {
+                // Best-effort background enrichment: a lookup failure must not fail the request.
+            }
         }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested)
-        {
-            throw;
-        }
-        catch
-        {
-            // Best-effort background enrichment: a lookup failure must not fail the request.
-            return [];
-        }
+
+        return [];
     }
 
     private static ExternalMediaDto MapItem(MdMangaData d, MdMangaStatistics? stat)
@@ -441,6 +629,11 @@ public sealed class MangaDexMetadataProvider(
 
         [JsonPropertyName("attributes")]
         public JsonElement? Attributes { get; set; }
+
+        /// <summary>MangaDex relation vocabulary: sequel, prequel, spin_off, side_story... A sibling of
+        /// <c>type</c> on the relation object, not a property inside <c>attributes</c>.</summary>
+        [JsonPropertyName("related")]
+        public string? Related { get; set; }
     }
 
     private sealed class MdStatisticsResponse

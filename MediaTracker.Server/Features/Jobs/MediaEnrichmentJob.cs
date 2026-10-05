@@ -2,6 +2,7 @@ using System.Text.Json;
 using MediaTracker.Server.Domain.Entities;
 using MediaTracker.Server.Domain.Enums;
 using MediaTracker.Server.Domain.Rules;
+using MediaTracker.Server.Features.External;
 using MediaTracker.Server.Features.External.GetExternalRelations;
 using MediaTracker.Server.Features.External.RefreshMetadata;
 using MediaTracker.Server.Infrastructure.ExternalApis;
@@ -63,6 +64,25 @@ public static class MediaEnrichmentJob
             {
                 item.MarkUpdated();
                 await db.SaveChangesAsync(jobCts.Token).ConfigureAwait(false);
+            }
+
+            // A manga added from a source that reports only a flat chapter count (Shikimori, AniList)
+            // would otherwise have no volumes at all now that the even local split is gone.
+            if (item is Manga manga)
+            {
+                var volumesChanged = await MangaVolumeStructure.ApplyCanonicalVolumesAsync(
+                        services.GetRequiredService<IMetadataProviderResolver>(),
+                        db,
+                        manga,
+                        external?.VolumeDetails,
+                        jobCts.Token)
+                    .ConfigureAwait(false);
+
+                if (volumesChanged)
+                {
+                    item.MarkUpdated();
+                    await db.SaveChangesAsync(jobCts.Token).ConfigureAwait(false);
+                }
             }
 
             Report(progress, 90, "Сохранение сезонов и глав");

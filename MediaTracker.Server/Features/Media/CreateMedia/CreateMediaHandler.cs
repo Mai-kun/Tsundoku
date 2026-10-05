@@ -55,7 +55,6 @@ public sealed class CreateMediaHandler(
         }
 
         MediaCollectionSeeder.SeedPlaceholderSeasons(item, request);
-        MediaCollectionSeeder.SeedPlaceholderVolumes(item, request);
 
         await franchiseService.LinkFranchiseOnCreateAsync(db, item, request.FranchiseName, ct);
 

@@ -2,8 +2,6 @@ namespace MediaTracker.Server.Domain.Entities;
 
 public class Manga : MediaItem
 {
-    public const int MaxPlaceholderVolumes = 200;
-
     public int CurrentChapter { get; set; }
 
     public int? TotalChapters { get; set; }
@@ -54,55 +52,6 @@ public class Manga : MediaItem
         return volume;
     }
 
-    /// <summary>
-    /// One stub per requested volume so the detail screen has rows before real data arrives. The
-    /// chapter and page budgets are split evenly, which is enough for a progress bar and is
-    /// recalculated on refresh once the provider reports the real counts.
-    /// </summary>
-    public void SeedPlaceholderVolumes(int? requestedVolumes, int? totalChapters, int? totalPages)
-    {
-        if (Volumes.Count > 0)
-        {
-            return;
-        }
-
-        var volumeCount = requestedVolumes is > 0
-            ? Math.Min(requestedVolumes.Value, MaxPlaceholderVolumes)
-            : 1;
-
-        for (var volumeNumber = 1; volumeNumber <= volumeCount; volumeNumber++)
-        {
-            var chaptersPerVolume = SeededChaptersPerVolume(totalChapters, volumeCount);
-
-            Volumes.Add(new MangaVolume
-            {
-                VolumeNumber = volumeNumber,
-                Title = $"Volume {volumeNumber}",
-                TotalChapters = chaptersPerVolume,
-                TotalPages = SplitEvenly(totalPages, volumeCount, defaultValue: MangaVolume.PlaceholderPagesPerVolume),
-                Status = ResolveMangaStatus(0, chaptersPerVolume),
-            });
-        }
-
-        TotalVolumes = TotalVolumes is null or 0 ? volumeCount : TotalVolumes;
-
-        if (CurrentVolume <= 0)
-        {
-            CurrentVolume = 1;
-        }
-    }
-
-    /// <summary>
-    /// The even split <see cref="SeedPlaceholderVolumes"/> hands every stub volume. Exposed so the
-    /// metadata applier can recognise a volume that still carries it and replace it with the real
-    /// per-volume chapter count a provider reports — otherwise every volume of a series kept the
-    /// same made-up number forever, because a seeded count is never zero.
-    /// </summary>
-    public static int SeededChaptersPerVolume(int? totalChapters, int volumeCount) =>
-        totalChapters is null || volumeCount <= 0
-            ? 0
-            : (int)Math.Ceiling((double)totalChapters.Value / volumeCount);
-
     public static MediaStatus ResolveMangaStatus(int currentChapter, int? totalChapters) =>
         totalChapters is > 0 && currentChapter >= totalChapters.Value
             ? MediaStatus.Completed
@@ -120,15 +69,5 @@ public class Manga : MediaItem
         {
             CurrentChapter = TotalChapters.Value;
         }
-    }
-
-    private static int SplitEvenly(int? total, int parts, int defaultValue)
-    {
-        if (total is null || parts <= 0)
-        {
-            return defaultValue;
-        }
-
-        return (int)Math.Ceiling((double)total.Value / parts);
     }
 }

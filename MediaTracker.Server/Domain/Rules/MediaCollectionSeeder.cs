@@ -35,14 +35,4 @@ public static class MediaCollectionSeeder
         var fromSeasons = request.Seasons?.Sum(season => season.TotalEpisodes) ?? 0;
         return fromSeasons > 0 ? fromSeasons : 0;
     }
-
-    public static void SeedPlaceholderVolumes(MediaItem item, Features.Media.CreateMedia.CreateMediaRequest request)
-    {
-        if (item is not Manga manga)
-        {
-            return;
-        }
-
-        manga.SeedPlaceholderVolumes(request.TotalVolumes, request.TotalChapters, request.TotalPages);
-    }
 }

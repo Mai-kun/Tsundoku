@@ -30,28 +30,56 @@ public sealed class SimklMetadataProvider(
 
     private string ClientId => options.Value.GetKey(Id) ?? string.Empty;
 
+    private const string AppName = "mediatracker";
+    private const string AppVersion = "1.0";
+
+    /// <summary>
+    /// Appends the three URL parameters Simkl requires on every request. Without them the call is
+    /// rejected outright, which is why a search that used to answer with nothing was actually a
+    /// request the service had no way to attribute.
+    /// </summary>
+    private string Keyed(string path) =>
+        $"{path}{(path.Contains('?', StringComparison.Ordinal) ? '&' : '?')}client_id={Uri.EscapeDataString(ClientId)}"
+        + $"&app-name={AppName}&app-version={AppVersion}";
+
+    /// <summary>
+    /// Builds the request for a catalog path with the client id as a header. The header is the
+    /// documented alternative to the <c>client_id</c> parameter and is what the catalog endpoints
+    /// are matched against.
+    ///
+    /// A per-request message rather than <c>DefaultRequestHeaders</c> on purpose: the named
+    /// <see cref="HttpClient"/> is shared by every resolve, so anything added there outlives the
+    /// call that needed it. It also leaves no place for an <c>Authorization: Bearer</c> to creep in
+    /// — Simkl answers 401 <c>user_token_required</c> to a catalog endpoint that carries a token,
+    /// because the edge cache treats such a request as private and drops it.
+    /// </summary>
+    private HttpRequestMessage KeyedRequest(string path)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, Keyed(path));
+        request.Headers.TryAddWithoutValidation("simkl-api-key", ClientId);
+        return request;
+    }
+
     public override async Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string query, CancellationToken ct)
     {
-        var clientId = ClientId;
-        if (string.IsNullOrWhiteSpace(clientId))
+        if (string.IsNullOrWhiteSpace(ClientId))
         {
             logger?.LogWarning("Simkl client id is not configured, search returns no results");
             return [];
         }
 
         var client = httpClientFactory.CreateClient(Id);
-        var endpoint =
-            $"search/{SearchSegmentOf(_mediaType)}?q={Uri.EscapeDataString(query)}&extended=full"
-            + $"&client_id={Uri.EscapeDataString(clientId)}&app-name=mediatracker&app-version=1.0";
+        var path = $"search/{SearchSegmentOf(_mediaType)}?q={Uri.EscapeDataString(query)}&extended=full";
 
         try
         {
             ExternalApiLog.Querying(logger, Name, _mediaType, query);
             var sw = Stopwatch.StartNew();
-            using var resp = await client.GetAsync(endpoint, ct);
+            using var request = KeyedRequest(path);
+            using var resp = await client.SendAsync(request, ct);
             if (!resp.IsSuccessStatusCode)
             {
-                ExternalApiLog.Failed(logger, Name, resp.StatusCode, client.BaseAddress + endpoint);
+                ExternalApiLog.Failed(logger, Name, resp.StatusCode, client.BaseAddress + Keyed(path));
                 return [];
             }
 
@@ -72,7 +100,7 @@ public sealed class SimklMetadataProvider(
         }
         catch (HttpRequestException ex)
         {
-            ExternalApiLog.Failed(logger, Name, ex, client.BaseAddress + endpoint);
+            ExternalApiLog.Failed(logger, Name, ex, client.BaseAddress + Keyed(path));
             return [];
         }
     }
@@ -88,21 +116,44 @@ public sealed class SimklMetadataProvider(
         _ => "anime"
     };
 
+    /// <summary>
+    /// The detail path is <em>not</em> the search path: the catalog exposes movies under
+    /// <c>/movies/{id}</c> while searching them under <c>/search/movie</c>. Reusing the search
+    /// segment here asked for <c>/movie/{id}</c>, which does not exist, so every movie detail lookup
+    /// 404'd and the caller silently fell through to a rating-less search hit.
+    /// </summary>
+    internal static string DetailSegmentOf(string mediaType) => mediaType switch
+    {
+        "movie" => "movies",
+        "tvshow" => "tv",
+        _ => "anime"
+    };
+
     public override async Task<ExternalMediaDto?> GetDetailsAsync(string externalId, string title, CancellationToken ct)
     {
-        if (!string.IsNullOrWhiteSpace(title))
-        {
-            var results = await SearchAsync(title, ct);
-            return results.FirstOrDefault(r => r.ExternalId.Equals(externalId, StringComparison.OrdinalIgnoreCase))
-                   ?? (results.Count > 0 ? results[0] : null);
-        }
-
-        // Search resolves ids like "Dune", not numeric catalog keys. A bare id needs the one-shot
-        // catalog lookup instead, which the aggregator hits on refresh where no title is known yet.
+        // The catalog detail endpoint is the only one that returns ratings under extended=full, so a
+        // numeric id goes straight there. Searching first (as this used to) could only ever hand back
+        // whatever the title search happened to rank first.
         if (long.TryParse(externalId, out var simklId) && simklId > 0)
         {
             var detail = await FetchByIdAsync(simklId, ct);
             if (detail is not null) return detail;
+        }
+
+        if (!string.IsNullOrWhiteSpace(title))
+        {
+            var results = await SearchAsync(title, ct);
+            var match = results.FirstOrDefault(r => r.ExternalId.Equals(externalId, StringComparison.OrdinalIgnoreCase))
+                        ?? (results.Count > 0 ? results[0] : null);
+
+            // Search answers in summary rows; re-read the winner by id so the stored score is the
+            // catalog's own rather than absent.
+            if (match is not null && long.TryParse(match.ExternalId, out var matchedId) && matchedId > 0)
+            {
+                return await FetchByIdAsync(matchedId, ct) ?? match;
+            }
+
+            return match;
         }
 
         var fallback = await SearchAsync(externalId, ct);
@@ -112,16 +163,15 @@ public sealed class SimklMetadataProvider(
 
     private async Task<ExternalMediaDto?> FetchByIdAsync(long simklId, CancellationToken ct)
     {
-        var clientId = ClientId;
-        if (string.IsNullOrWhiteSpace(clientId)) return null;
+        if (string.IsNullOrWhiteSpace(ClientId)) return null;
 
         var client = httpClientFactory.CreateClient(Id);
-        var endpoint = $"{SearchSegmentOf(_mediaType)}/{simklId}?extended=full"
-                       + $"&client_id={Uri.EscapeDataString(clientId)}&app-name=mediatracker&app-version=1.0";
+        var endpoint = $"{DetailSegmentOf(_mediaType)}/{simklId}?extended=full";
 
         try
         {
-            using var resp = await client.GetAsync(endpoint, ct);
+            using var request = KeyedRequest(endpoint);
+            using var resp = await client.SendAsync(request, ct);
             if (!resp.IsSuccessStatusCode) return null;
 
             var item = await resp.Content.ReadFromJsonAsync<SimklItem>(cancellationToken: ct);
@@ -140,8 +190,7 @@ public sealed class SimklMetadataProvider(
 
     public override async Task<ConnectionTestResult> TestConnectionAsync(CancellationToken ct)
     {
-        var clientId = ClientId;
-        if (string.IsNullOrWhiteSpace(clientId))
+        if (string.IsNullOrWhiteSpace(ClientId))
         {
             return new ConnectionTestResult(false, 0, "Client ID не указан");
         }
@@ -149,18 +198,22 @@ public sealed class SimklMetadataProvider(
         var sw = Stopwatch.StartNew();
         try
         {
-            // A real keyed call. /search/id resolves one catalog entry and is the cheapest endpoint
-            // that still runs the client_id check, so a wrong key fails here instead of the test
-            // reporting a connection that only exists in the URL.
+            // A real keyed call against a catalog entry that exists. /search/id is the cheapest
+            // endpoint that still runs the client_id check, so a wrong key fails here instead of the
+            // test reporting a connection that only exists in the URL. The id is a real title:
+            // an unresolvable one answers 200 with an empty array, which would read as "reachable"
+            // for a key Simkl never validated.
             var client = httpClientFactory.CreateClient(Id);
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             cts.CancelAfter(TimeSpan.FromSeconds(5));
 
-            var endpoint = "search/id?simkl=1&client_id=" + Uri.EscapeDataString(clientId)
-                           + "&app-name=mediatracker&app-version=1.0";
+            const long ProbeSimklId = 38714;
+            var path = $"search/id?simkl={ProbeSimklId}";
+            var endpoint = Keyed(path);
 
-            ExternalApiLog.Querying(logger, Name, _mediaType, "id:1 (connection test)");
-            using var resp = await client.GetAsync(endpoint, HttpCompletionOption.ResponseHeadersRead, cts.Token);
+            ExternalApiLog.Querying(logger, Name, _mediaType, $"id:{ProbeSimklId} (connection test)");
+            using var request = KeyedRequest(path);
+            using var resp = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cts.Token);
             sw.Stop();
 
             if (resp.IsSuccessStatusCode)
@@ -185,7 +238,7 @@ public sealed class SimklMetadataProvider(
                 {
                     // 412 is Simkl's own answer for an unusable client_id, not an auth challenge.
                     (HttpStatusCode)412 => "Неверный Client ID (412 client_id failed)",
-                    HttpStatusCode.Unauthorized => "Неверный Client ID (401 Unauthorized)",
+                    HttpStatusCode.Unauthorized => "Client ID не принят (401 user_token_required)",
                     HttpStatusCode.Forbidden => "Доступ запрещен сервисом Simkl (403 Forbidden)",
                     HttpStatusCode.NotFound => "Эндпоинт не найден (404 Not Found)",
                     HttpStatusCode.TooManyRequests => "Превышен лимит запросов к Simkl (429 Too Many Requests)",
@@ -200,7 +253,7 @@ public sealed class SimklMetadataProvider(
         catch (Exception ex)
         {
             sw.Stop();
-            ExternalApiLog.Failed(logger, Name, ex, "search/id?simkl=1");
+            ExternalApiLog.Failed(logger, Name, ex, $"search/id?simkl={38714}");
             return new ConnectionTestResult(false, (int)sw.ElapsedMilliseconds, $"Ошибка сети: {ex.Message}");
         }
     }

@@ -80,6 +80,10 @@
         {selected}
         onSelect={(value) => {
             if (typeof value === "string" && value !== selected) {
+                // The label has to flip on the click itself. Only awaiting onLoad left the trigger
+                // showing the old source (and the check mark on it) while the request was already
+                // in flight, so a failing MangaDex pick looked like "nothing happened".
+                selected = value;
                 onLoad(value, true);
             }
         }}
@@ -109,6 +113,13 @@
                 <span class="truncate">
                     {i18n.current === "ru" ? "Источник" : "Source"}: {selectedLabel}
                 </span>
+                {#if loading}
+                    <LoaderCircle
+                        size={13}
+                        class="shrink-0 animate-spin text-[var(--color-success-line)]"
+                        aria-hidden="true"
+                    />
+                {/if}
                 <ChevronDown size={13} class="shrink-0 text-slate-400" aria-hidden="true" />
             </button>
         {/snippet}

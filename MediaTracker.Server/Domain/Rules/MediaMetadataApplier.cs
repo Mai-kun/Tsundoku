@@ -300,8 +300,6 @@ public static class MediaMetadataApplier
 
         var modified = false;
 
-        // Before the totals move: the volume pass recognises its own seeded split from them, and the
-        // freshly written total is not the number the placeholders were split across.
         var before = manga.Volumes.Count;
         ApplyRealVolumes(manga, external.VolumeDetails, trackNewVolume);
         modified |= manga.Volumes.Count > before;
@@ -333,13 +331,6 @@ public static class MediaMetadataApplier
         modified |= SetIfBlank(manga.Author, external.Author, value => manga.Author = value);
         modified |= SetIfBlank(manga.RomajiTitle, external.RomajiTitle, value => manga.RomajiTitle = value);
         modified |= SetIfBlank(manga.Format, external.MangaFormat, value => manga.Format = value);
-
-        // A single stub volume stands in for the whole series until real volume data arrives.
-        if (manga.Volumes is [var onlyVolume] && onlyVolume.TotalChapters == 0 && manga.TotalChapters is > 0)
-        {
-            onlyVolume.InheritTotalChapters(manga.TotalChapters.Value);
-            modified = true;
-        }
 
         return modified;
     }
@@ -386,8 +377,6 @@ public static class MediaMetadataApplier
                 if (!string.IsNullOrWhiteSpace(external.Author)) book.Author = external.Author;
                 break;
             case Manga manga:
-                // Before the totals move: the volume pass recognises its own seeded split from them, and
-                // the freshly written total is not the number the placeholders were split across.
                 ApplyRealVolumes(manga, external.VolumeDetails, trackNewVolume);
                 if (external.TotalCount is > 0) manga.RecordTotalChapters(external.TotalCount.Value);
                 if (external.Chapters is > 0) manga.RecordTotalChapters(external.Chapters.Value);
@@ -484,14 +473,14 @@ public static class MediaMetadataApplier
     }
 
     /// <summary>
-    /// Replaces the placeholder volume split with the real one a source reported. Volumes the user
-    /// already tracks keep their progress; only their chapter count is corrected, and only volumes
-    /// that do not exist yet are added.
+    /// Writes the real volume -> chapter split a source reported. Volumes the user already tracks keep
+    /// their progress; their chapter count is filled only when they have none, and volumes that do not
+    /// exist yet are added.
     /// </summary>
-    /// <summary>
+    /// <remarks>
     /// Public so background enrichment can apply a volume split it fetched from a *different* provider
-    /// than the one the item came from (see MangaDexMetadataProvider.GetVolumeDetailsByTitleAsync).
-    /// </summary>
+    /// than the one the item came from (see MangaVolumeStructure).
+    /// </remarks>
     public static void ApplyRealVolumes(
         Manga manga,
         IReadOnlyList<ExternalMangaVolumeDto>? volumeDetails,
@@ -501,10 +490,6 @@ public static class MediaMetadataApplier
         {
             return;
         }
-
-        // Taken before the loop adds the volumes it does not know yet, because that is the count the
-        // seed was split across.
-        var seededChapters = Manga.SeededChaptersPerVolume(manga.TotalChapters, manga.Volumes.Count);
 
         foreach (var external in details.Where(volume => volume.Number > 0))
         {
@@ -527,10 +512,9 @@ public static class MediaMetadataApplier
                 continue;
             }
 
-            // A chapter count the user typed is kept. What gets replaced is the even split the
-            // placeholder seeder invented: it is never zero, so the old "only fill a zero" guard let
-            // every volume of a series keep the same made-up number instead of its real one.
-            if (chapterCount > 0 && (existing.TotalChapters == 0 || existing.TotalChapters == seededChapters))
+            // A chapter count the user typed is kept; only a volume that never learned its own takes
+            // the source's number.
+            if (chapterCount > 0 && existing.TotalChapters == 0)
             {
                 existing.InheritTotalChapters(chapterCount);
             }

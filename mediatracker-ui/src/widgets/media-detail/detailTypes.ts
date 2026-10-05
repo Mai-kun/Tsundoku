@@ -38,9 +38,10 @@ export interface RecommendationItem {
     id: string;
     title: string;
     coverUrl: string | null;
-    score: number | null;
-    type: string;
+    rating: number | null;
+    source: string;
 }
+
 
 export interface RelatedEntry {
     id: string;

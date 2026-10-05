@@ -1,6 +1,7 @@
 <script lang="ts">
     import { CalendarDays, ChevronDown, ExternalLink, Image as ImageIcon, Link2, List, Pencil, RefreshCw, Sparkles, Star, Trash2 } from "$shared/ui/Icons.svelte";
     import { errorMessage } from "$shared/api/api";
+    import { fullSizeCoverUrl } from "$entities/media/model/coverUrl";
     import PopoverMenu from "$shared/ui/PopoverMenu.svelte";
     import { i18n } from "$shared/i18n/index.svelte";
     import type { AppView, MediaDetail, MediaStatus } from "$shared/types";
@@ -123,7 +124,7 @@
             </div>
         {:else if media.coverUrl}
             <img
-                src={media.coverUrl}
+                src={fullSizeCoverUrl(media.coverUrl)}
                 alt={media.title}
                 class="h-full w-full object-cover object-top"
             />

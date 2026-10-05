@@ -120,10 +120,10 @@
                     <div
                         class="flex items-center justify-between w-full mt-0.5 text-[11px] text-muted"
                     >
-                        <span>{rec.type}</span>
-                        {#if rec.score}
+                        <span>{rec.source}</span>
+                        {#if rec.rating}
                             <span class="font-bold text-amber-400"
-                                >★ {rec.score.toFixed(1)}</span
+                                >★ {rec.rating.toFixed(1)}</span
                             >
                         {/if}
                     </div>

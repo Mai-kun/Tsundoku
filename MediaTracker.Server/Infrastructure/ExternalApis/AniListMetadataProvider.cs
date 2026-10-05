@@ -21,52 +21,76 @@ public sealed partial class AniListMetadataProvider(
 
     private readonly string mediaType = serviceKey?.StartsWith("manga", StringComparison.OrdinalIgnoreCase) is true ? "manga" : "anime";
 
-    private const string GraphQLSearchQuery = """
+    private const string MediaFields = """
+        id
+        type
+        format
+        title { romaji english native }
+        description(asHtml: false)
+        coverImage { extraLarge }
+        startDate { year month day }
+        endDate { year month day }
+        status
+        countryOfOrigin
+        duration
+        episodes
+        chapters
+        volumes
+        averageScore
+        meanScore
+        streamingEpisodes { title }
+        studios(isMain: true) { nodes { name } }
+        staff(perPage: 5) { edges { role node { name { full } } } }
+        """;
+
+    private const string GraphQLSearchQuery = $$"""
         query Search($search: String, $type: MediaType) {
           Page(perPage: 10) {
             media(search: $search, type: $type, sort: SEARCH_MATCH) {
-              id
-              title { romaji english native }
-              description(asHtml: false)
-              coverImage { extraLarge }
-              startDate { year month day }
-              endDate { year month day }
-              status
-              countryOfOrigin
-              duration
-              episodes
-              chapters
-              volumes
-              averageScore
-              meanScore
-              streamingEpisodes { title }
-              studios(isMain: true) { nodes { name } }
-              staff(perPage: 5) { edges { role node { name { full } } } }
+              {{MediaFields}}
             }
           }
         }
         """;
 
-    private const string GraphQLDetailQuery = """
+    private const string GraphQLDetailQuery = $$"""
         query Detail($id: Int, $type: MediaType) {
           Media(id: $id, type: $type) {
-            id
-            title { romaji english native }
-            description(asHtml: false)
-            coverImage { extraLarge }
-            startDate { year month day }
-            endDate { year month day }
-            status
-            countryOfOrigin
-            duration
-            episodes
-            chapters
-            volumes
-            averageScore
-            meanScore
-            streamingEpisodes { title }
-            studios(isMain: true) { nodes { name } }
-            staff(perPage: 5) { edges { role node { name { full } } } }
+            {{MediaFields}}
+          }
+        }
+        """;
+
+    private const string GraphQLRelationsQuery = $$"""
+        query Relations($id: Int, $idMal: Int, $search: String, $type: MediaType) {
+          Media(id: $id, idMal: $idMal, search: $search, type: $type) {
+            relations {
+              edges {
+                relationType
+                node {
+                  {{MediaFields}}
+                }
+              }
+            }
+          }
+        }
+        """;
+
+    private const string GraphQLRecommendationsQuery = $$"""
+        query Recommendations($id: Int, $idMal: Int, $search: String, $type: MediaType) {
+          Media(id: $id, idMal: $idMal, search: $search, type: $type) {
+            recommendations(sort: RATING_DESC, perPage: 12) {
+              nodes {
+                rating
+                mediaRecommendation {
+                  id
+                  type
+                  title { romaji english native }
+                  coverImage { extraLarge }
+                  averageScore
+                }
+              }
+            }
           }
         }
         """;
@@ -137,7 +161,140 @@ public sealed partial class AniListMetadataProvider(
         return searchResults.Count > 0 ? searchResults[0] : null;
     }
 
-    private ExternalMediaDto MapItem(AniListMedia item)
+    /// <summary>
+    /// Related titles for this provider's own id, falling back to a MAL id and then to a title search.
+    /// AniList resolves ids far more reliably than search, so the id wins and search is the last resort
+    /// rather than the first — the same order the client used before this moved server-side.
+    /// </summary>
+    public async Task<IReadOnlyList<ExternalRelationDto>> GetRelationsAsync(
+        string? externalId,
+        bool externalIdIsMal,
+        string? title,
+        CancellationToken ct)
+    {
+        var edges = (await QueryAsync<AniListRelationsResponse, AniListRelationsData>(
+                GraphQLRelationsQuery,
+                LookupVariables(externalId, externalIdIsMal, title),
+                ct)
+            ?? await QueryAsync<AniListRelationsResponse, AniListRelationsData>(
+                GraphQLRelationsQuery,
+                SearchOnly(title),
+                ct))?.Media?.Relations?.Edges ?? [];
+
+        var relations = new List<ExternalRelationDto>();
+        foreach (var edge in edges)
+        {
+            if (edge?.Node is not { } node || !HasTitle(node))
+            {
+                continue;
+            }
+
+            relations.Add(new ExternalRelationDto(
+                edge.RelationType ?? "OTHER",
+                MapItem(node, NormalizeType(node.Type))));
+        }
+
+        return relations;
+    }
+
+    /// <summary>
+    /// What AniList itself recommends for this title, best-rated first. Same lookup cascade as
+    /// <see cref="GetRelationsAsync"/>.
+    /// </summary>
+    public async Task<IReadOnlyList<ExternalRecommendationDto>> GetRecommendationsAsync(
+        string? externalId,
+        bool externalIdIsMal,
+        string? title,
+        CancellationToken ct)
+    {
+        var nodes = (await QueryAsync<AniListRecommendationsResponse, AniListRecommendationsData>(
+                GraphQLRecommendationsQuery,
+                LookupVariables(externalId, externalIdIsMal, title),
+                ct)
+            ?? await QueryAsync<AniListRecommendationsResponse, AniListRecommendationsData>(
+                GraphQLRecommendationsQuery,
+                SearchOnly(title),
+                ct))?.Media?.Recommendations?.Nodes ?? [];
+
+        return
+        [
+            .. nodes
+                .Select(node => node?.MediaRecommendation)
+                .Where(media => media is not null && !string.IsNullOrWhiteSpace(media.Title?.English ?? media.Title?.Romaji ?? media.Title?.Native))
+                .Select(media => new ExternalRecommendationDto(
+                    media!.Id.ToString(),
+                    media.Title?.English ?? media.Title?.Romaji ?? media.Title?.Native!,
+                    media.CoverImage?.ExtraLarge,
+                    // AniList scores 0..100; the whole app stores 0..10.
+                    media.AverageScore is > 0 ? Math.Round(media.AverageScore.Value / 10.0, 1) : null,
+                    Source.Name))
+        ];
+    }
+
+    private string GraphQlType => mediaType == "manga" ? "MANGA" : "ANIME";
+
+    private static bool HasTitle(AniListMedia node) =>
+        !string.IsNullOrWhiteSpace(node.Title?.English ?? node.Title?.Romaji ?? node.Title?.Native);
+
+    /// <summary>
+    /// The id lookup wins when the row carries one; <c>search</c> is always sent alongside it so a miss
+    /// can be retried by title instead of reporting the title as having nothing.
+    /// </summary>
+    private Dictionary<string, object> LookupVariables(string? externalId, bool externalIdIsMal, string? title)
+    {
+        var variables = new Dictionary<string, object> { ["type"] = GraphQlType, ["search"] = title ?? string.Empty };
+        if (int.TryParse(externalId, out var numeric))
+        {
+            variables[externalIdIsMal ? "idMal" : "id"] = numeric;
+        }
+
+        return variables;
+    }
+
+    private Dictionary<string, object> SearchOnly(string? title) =>
+        new() { ["type"] = GraphQlType, ["search"] = title ?? string.Empty };
+
+    /// <summary>
+    /// One GraphQL round trip, or null when the provider could not be reached. AniList answers 200 with
+    /// an <c>errors</c> array for a rejected query, so failures are reported as "no data" rather than as
+    /// exceptions for each caller to catch — the same trade-off the rating enrichment above already makes.
+    /// </summary>
+    private async Task<TData?> QueryAsync<TResponse, TData>(
+        string query,
+        Dictionary<string, object> variables,
+        CancellationToken ct)
+        where TResponse : class, IAniListEnvelope<TData>
+        where TData : class
+    {
+        try
+        {
+            using var response = await httpClientFactory.CreateClient(Id).PostAsJsonAsync(
+                "",
+                new { query, variables },
+                ct);
+
+            return response.IsSuccessStatusCode
+                ? (await response.Content.ReadFromJsonAsync<TResponse>(ct))?.Data
+                : null;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return null;
+        }
+    }
+
+    private interface IAniListEnvelope<TData>
+        where TData : class
+    {
+        TData? Data { get; }
+    }
+
+    private static string NormalizeType(string? aniListType) =>
+        aniListType?.Equals("MANGA", StringComparison.OrdinalIgnoreCase) is true ? "manga" : "anime";
+
+    private ExternalMediaDto MapItem(AniListMedia item) => MapItem(item, mediaType);
+
+    private ExternalMediaDto MapItem(AniListMedia item, string type)
     {
         var primaryRating = item.AverageScore is { } score && score > 0
             ? Math.Round(score / 10.0, 1)
@@ -187,16 +344,17 @@ public sealed partial class AniListMetadataProvider(
             EndDate = endDate,
             ReleaseStatus = item.Status,
             RuntimeMinutes = item.Duration,
-            Type = mediaType,
-            Author = mediaType == "manga"
+            Type = type,
+            Format = item.Format,
+            Author = type == "manga"
                 ? (item.Staff?.Edges?.FirstOrDefault(e => e.Role?.Contains("Story", StringComparison.OrdinalIgnoreCase) is true || e.Role?.Contains("Art", StringComparison.OrdinalIgnoreCase) is true)?.Node?.Name?.Full
                    ?? item.Staff?.Edges?.FirstOrDefault()?.Node?.Name?.Full)
                 : null,
             Studio = item.Studios?.Nodes?.FirstOrDefault()?.Name,
-            TotalCount = mediaType == "anime" ? item.Episodes : (item.Chapters ?? item.Volumes),
+            TotalCount = type == "anime" ? item.Episodes : (item.Chapters ?? item.Volumes),
             Chapters = item.Chapters,
             Volumes = item.Volumes,
-            MangaFormat = mediaType == "manga" ? MangaFormats.FromCountryOfOrigin(item.CountryOfOrigin) : null,
+            MangaFormat = type == "manga" ? MangaFormats.FromCountryOfOrigin(item.CountryOfOrigin) : null,
             Rating = primaryRating,
             Ratings = ratings,
             Episodes = episodes
@@ -271,8 +429,39 @@ public sealed partial class AniListMetadataProvider(
     private sealed record AniListData(AniListPage? Page);
     private sealed record AniListPage(List<AniListMedia>? Media);
 
+    private sealed record AniListRelationsResponse(AniListRelationsData? Data)
+        : IAniListEnvelope<AniListRelationsData>;
+
+    private sealed record AniListRelationsData(AniListRelationsPayload? Media);
+
+    private sealed record AniListRelationsPayload(AniListRelationEdges? Relations);
+
+    private sealed record AniListRelationEdges(List<AniListRelationEdge?>? Edges);
+
+    private sealed record AniListRelationEdge(string? RelationType, AniListMedia? Node);
+
+    private sealed record AniListRecommendationsResponse(AniListRecommendationsData? Data)
+        : IAniListEnvelope<AniListRecommendationsData>;
+
+    private sealed record AniListRecommendationsData(AniListRecommendationsPayload? Media);
+
+    private sealed record AniListRecommendationsPayload(AniListRecommendationNodes? Recommendations);
+
+    private sealed record AniListRecommendationNodes(List<AniListRecommendationNode?>? Nodes);
+
+    private sealed record AniListRecommendationNode(double? Rating, AniListRecommendedMedia? MediaRecommendation);
+
+    private sealed record AniListRecommendedMedia(
+        int Id,
+        string? Type,
+        AniListTitle? Title,
+        AniListCoverImage? CoverImage,
+        int? AverageScore);
+
     private sealed record AniListMedia(
         int Id,
+        string? Type,
+        string? Format,
         AniListTitle? Title,
         string? Description,
         AniListCoverImage? CoverImage,

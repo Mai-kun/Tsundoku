@@ -568,9 +568,9 @@
             const created = await createMedia(buildPayload(result));
             addedKeys = { ...addedKeys, [key]: created.id };
             onMediaAdded(created);
-            // The draft row is enough for the grid and the Activity Center picks up the rest,
-            // so there is nothing left to wait for here: get out of the way.
-            onClose();
+            // The dialog deliberately stays open: bulk-adding a run of titles is the common case, and
+            // closing on the first one forces a reopen per title. The row now carries its own
+            // "added" mark and a jump to the new detail.
         } catch (error) {
             addError = error;
         } finally {
@@ -884,7 +884,7 @@
                                                         >
                                                             <button
                                                                 type="button"
-                                                                class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-emerald-500/20 bg-emerald-500/10 text-emerald-400 transition hover:border-rose-500/30 hover:bg-rose-500/10 hover:text-rose-400"
+                                                                class="flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 text-[11px] font-semibold text-emerald-400 transition hover:border-rose-500/30 hover:bg-rose-500/10 hover:text-rose-400"
                                                                 title={i18n.t
                                                                     .searchModal
                                                                     .inLibrary}
@@ -906,17 +906,17 @@
                                                                     ></div>
                                                                 {:else}
                                                                     <Check
-                                                                        size={16}
+                                                                        size={14}
                                                                         aria-hidden="true"
                                                                     />
                                                                 {/if}
+                                                                <span
+                                                                    >{i18n.t.searchModal.added}</span
+                                                                >
                                                             </button>
                                                             <button
                                                                 type="button"
-                                                                class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/10 bg-field text-muted transition hover:border-accent hover:bg-panel hover:text-accent cursor-pointer"
-                                                                title={i18n.t
-                                                                    .searchModal
-                                                                    .preview}
+                                                                class="flex h-8 shrink-0 items-center gap-1 rounded-full border border-white/10 bg-field px-2.5 text-[11px] font-semibold text-muted transition hover:border-accent hover:bg-panel hover:text-accent cursor-pointer"
                                                                 onclick={(
                                                                     e,
                                                                 ) => {
@@ -935,8 +935,11 @@
                                                                     }
                                                                 }}
                                                             >
+                                                                <span
+                                                                    >{i18n.t.searchModal.goToTitle}</span
+                                                                >
                                                                 <ChevronRight
-                                                                    size={15}
+                                                                    size={14}
                                                                     aria-hidden="true"
                                                                 />
                                                             </button>
@@ -1088,7 +1091,7 @@
                                         <div class="flex items-center gap-1.5">
                                             <button
                                                 type="button"
-                                                class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-emerald-500/20 bg-emerald-500/10 text-emerald-400 transition hover:border-rose-500/30 hover:bg-rose-500/10 hover:text-rose-400"
+                                                class="flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 text-[11px] font-semibold text-emerald-400 transition hover:border-rose-500/30 hover:bg-rose-500/10 hover:text-rose-400"
                                                 title={i18n.t.searchModal
                                                     .inLibrary}
                                                 disabled={Boolean(addingKey)}
@@ -1103,16 +1106,17 @@
                                                     ></div>
                                                 {:else}
                                                     <Check
-                                                        size={16}
+                                                        size={14}
                                                         aria-hidden="true"
                                                     />
                                                 {/if}
+                                                <span
+                                                    >{i18n.t.searchModal.added}</span
+                                                >
                                             </button>
                                             <button
                                                 type="button"
-                                                class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/10 bg-field text-muted transition hover:border-accent hover:bg-panel hover:text-accent cursor-pointer"
-                                                title={i18n.t.searchModal
-                                                    .preview}
+                                                class="flex h-8 shrink-0 items-center gap-1 rounded-full border border-white/10 bg-field px-2.5 text-[11px] font-semibold text-muted transition hover:border-accent hover:bg-panel hover:text-accent cursor-pointer"
                                                 onclick={(e) => {
                                                     e.stopPropagation();
                                                     const targetId =
@@ -1125,8 +1129,11 @@
                                                     }
                                                 }}
                                             >
+                                                <span
+                                                    >{i18n.t.searchModal.goToTitle}</span
+                                                >
                                                 <ChevronRight
-                                                    size={15}
+                                                    size={14}
                                                     aria-hidden="true"
                                                 />
                                             </button>

@@ -42,6 +42,25 @@ public sealed record ExternalMangaVolumeDto
     public IReadOnlyList<string>? Chapters { get; init; }
 }
 
+/// <summary>
+/// One recommended title, normalised across providers. AniList answers in GraphQL, TMDb in REST, and
+/// neither shape matches the other, so the tab renders this instead of a provider-specific row.
+/// </summary>
+public sealed record ExternalRecommendationDto(
+    string Id,
+    string Title,
+    string? CoverUrl,
+    double? Rating,
+    string Source = "");
+
+/// <summary>
+/// A related title plus the relationship that produced it. The media payload reuses
+/// <see cref="ExternalMediaDto"/> rather than repeating it: every field the Related tab renders
+/// already lives there, so adding a second copy of them here would only create a second thing to keep
+/// in sync.
+/// </summary>
+public sealed record ExternalRelationDto(string RelationType, ExternalMediaDto Media);
+
 public sealed record ExternalMediaDto
 {
     public required string ExternalId { get; init; }
@@ -63,6 +82,9 @@ public sealed record ExternalMediaDto
     public string? EndDate { get; init; }
 
     public string? ReleaseStatus { get; init; }
+
+    /// <summary>Provider's own format label (MANGA, NOVEL, TV, MOVIE...). Null when it reports none.</summary>
+    public string? Format { get; init; }
 
     public int? RuntimeMinutes { get; init; }
 

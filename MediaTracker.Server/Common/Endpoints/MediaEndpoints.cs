@@ -11,6 +11,7 @@ using MediaTracker.Server.Features.Media.DeleteMedia;
 using MediaTracker.Server.Features.Media.GetMediaDetail;
 using MediaTracker.Server.Features.Media.GetMediaList;
 using MediaTracker.Server.Features.Media.GetMediaStats;
+using MediaTracker.Server.Features.Media.GetRecommendations;
 using MediaTracker.Server.Features.Media.UpdateMedia;
 using MediaTracker.Server.Features.Media.UpdateProgress;
 using MediaTracker.Server.Features.Media.UpdateStatus;
@@ -110,6 +111,18 @@ public static class MediaEndpoints
                 [FromServices] IRelinkMediaHandler handler,
                 CancellationToken ct) =>
             handler.HandleAsync(new RelinkMediaCommand(id, request), ct).ToOk());
+
+        // Recommendations live on the row, so this one endpoint both fetches and replays: a call inside the
+        // 30-day window is answered from SQLite without the provider being contacted at all.
+        group.MapPost("/{id:guid}/recommendations", (
+                Guid id,
+                string? source,
+                bool? forceRefresh,
+                [FromServices] IGetRecommendationsHandler handler,
+                CancellationToken ct) =>
+            handler.HandleAsync(
+                new GetRecommendationsCommand(id, source, forceRefresh ?? false),
+                ct).ToOk());
 
         group.MapDelete("/{id:guid}", (
                 Guid id,

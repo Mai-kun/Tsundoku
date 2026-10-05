@@ -18,6 +18,7 @@ using MediaTracker.Server.Features.Media.DeleteMedia;
 using MediaTracker.Server.Features.Media.GetMediaDetail;
 using MediaTracker.Server.Features.Media.GetMediaList;
 using MediaTracker.Server.Features.Media.GetMediaStats;
+using MediaTracker.Server.Features.Media.GetRecommendations;
 using MediaTracker.Server.Features.Media.UpdateMedia;
 using MediaTracker.Server.Features.Media.UpdateProgress;
 using MediaTracker.Server.Features.Media.UpdateStatus;
@@ -53,6 +54,7 @@ public static class FeatureRegistration
         services.AddScoped<IGetMediaListHandler, GetMediaListHandler>();
         services.AddScoped<IGetMediaStatsHandler, GetMediaStatsHandler>();
         services.AddScoped<IGetMediaDetailHandler, GetMediaDetailHandler>();
+        services.AddScoped<IGetRecommendationsHandler, GetRecommendationsHandler>();
         services.AddScoped<ICreateMediaHandler, CreateMediaHandler>();
         services.AddScoped<IUpdateMediaHandler, UpdateMediaHandler>();
         services.AddScoped<IUpdateStatusHandler, UpdateStatusHandler>();

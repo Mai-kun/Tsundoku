@@ -212,6 +212,8 @@ export const translations = {
         emptyTitle: { ru: "Ничего не найдено", en: "Nothing found" },
         emptyHint: { ru: "Попробуйте изменить запрос или выбрать другую категорию.", en: "Try a different query or switch categories." },
         inLibrary: { ru: "В библиотеке", en: "In library" },
+        added: { ru: "Добавлено", en: "Added" },
+        goToTitle: { ru: "Перейти к тайтлу", en: "Go to title" },
         unknownAuthor: { ru: "Неизвестный автор", en: "Unknown author" },
         countUnits: {
             anime: { ru: "эп.", en: "ep." },
@@ -263,6 +265,10 @@ export const translations = {
         addSeason: { ru: "Добавить сезон", en: "Add season" },
         validation: {
             titleRequired: { ru: "Укажите название.", en: "Please provide a title." },
+            coverUrlInvalid: {
+                ru: "Обложка: ссылка http(s) или локальный путь, например /media-assets/...",
+                en: "Cover: an http(s) link or a local path, e.g. /media-assets/...",
+            },
         },
     },
     detailModal: {
@@ -380,8 +386,8 @@ export const translations = {
         changeSource: { ru: "Сменить источник", en: "Change source" },
         watchedOnLabel: { ru: "Где смотрено", en: "Watched on" },
         watchedOnPlaceholder: {
-            ru: "Выберите сайт или введите свой",
-            en: "Pick a site or type your own",
+            ru: "Выберите или введите",
+            en: "Pick or type",
         },
         platformNotSelected: { ru: "Не выбрана", en: "Not selected" },
         rateButton: { ru: "Оценить", en: "Rate" },

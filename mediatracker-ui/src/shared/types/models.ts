@@ -75,6 +75,12 @@ export interface MediaDetailFields {
   /** Cached achievements / recommendations: written once, replayed on F5. */
   achievementsJson?: string | null;
   recommendationsJson?: string | null;
+  recommendationsUpdatedAt?: string | null;
+  /**
+   * The cached recommendations, already parsed by the server. The tab renders this, so a reload shows
+   * the list straight away instead of the panel having to issue a request of its own.
+   */
+  recommendations?: ExternalRecommendation[];
   /** The user hand-edited this row, so a refresh has to ask instead of overwriting silently. */
   isCustomEdited?: boolean;
 }
@@ -209,6 +215,8 @@ export interface ExternalMedia {
   releaseDate?: string | null;
   endDate?: string | null;
   releaseStatus?: string | null;
+  /** Provider's own format label (MANGA, NOVEL, TV, MOVIE...). */
+  format?: string | null;
   runtimeMinutes?: number | null;
   type: SearchMediaType;
   author: string | null;
@@ -265,6 +273,24 @@ export interface GameRelatedItem {
   coverUrl: string | null;
   releaseDate: string | null;
   score: number | null;
+}
+
+/** One recommended title, normalised server-side across AniList and TMDb. */
+export interface ExternalRecommendation {
+  id: string;
+  title: string;
+  coverUrl: string | null;
+  rating: number | null;
+  source: string;
+}
+
+/**
+ * A related title plus the relationship that produced it. Every source answers the relations endpoint
+ * in this one shape, so the Related tab maps a single type instead of branching per provider.
+ */
+export interface ExternalRelation {
+  relationType: string;
+  media: ExternalMedia;
 }
 
 /** Mirrors MediaEventType on the server. */

@@ -43,7 +43,7 @@ public sealed class Result<T> : Result
 
     public static Result<T> Success(T value) => new(true, value, null);
 
-    public static new Result<T> Failure(Error error) => new(false, default, error);
+    public new static Result<T> Failure(Error error) => new(false, default, error);
 
     public bool TryGetValue([NotNullWhen(true)] out T? value)
     {

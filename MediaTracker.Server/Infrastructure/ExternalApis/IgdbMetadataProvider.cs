@@ -45,12 +45,8 @@ public sealed class IgdbMetadataProvider(
             CancellationToken ct
     )
     {
-        if (string.IsNullOrWhiteSpace(clientSecret))
-        {
-            return _cachedToken;
-        }
-
-        if (!string.IsNullOrEmpty(_cachedToken) && DateTime.UtcNow < _tokenExpiry)
+        if (string.IsNullOrWhiteSpace(clientSecret) 
+            || !string.IsNullOrEmpty(_cachedToken) && DateTime.UtcNow < _tokenExpiry)
         {
             return _cachedToken;
         }

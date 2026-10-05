@@ -1,5 +1,6 @@
 using MediaTracker.Server.Domain.Entities;
 using MediaTracker.Server.Features.External.RefreshMetadata;
+using MediaTracker.Server.Infrastructure.ExternalApis;
 
 namespace MediaTracker.Server.Features.Media.MediaContract;
 
@@ -83,6 +84,8 @@ public static class MediaDetailProjection
             RelatedSource = item.RelatedSource,
             AchievementsJson = item.AchievementsJson,
             RecommendationsJson = item.RecommendationsJson,
+            RecommendationsUpdatedAt = item.RecommendationsUpdatedAt,
+            Recommendations = MediaJsonCache.Deserialize<ExternalRecommendationDto>(item.RecommendationsJson),
             IsCustomEdited = item.IsCustomEdited,
         };
     }

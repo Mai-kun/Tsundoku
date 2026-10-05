@@ -1,5 +1,6 @@
 ﻿﻿using MediaTracker.Server.Domain.Entities;
 using MediaTracker.Server.Domain.Enums;
+using MediaTracker.Server.Infrastructure.ExternalApis;
 
 namespace MediaTracker.Server.Features.Media.MediaContract;
 
@@ -131,6 +132,16 @@ public sealed record MediaDetailDto : MediaListDto
 
     /// <summary>Cached recommendations, written on the first explicit load.</summary>
     public string? RecommendationsJson { get; init; }
+
+    /// <summary>When <see cref="RecommendationsJson"/> was written, so the client can show its age.</summary>
+    public DateTime? RecommendationsUpdatedAt { get; init; }
+
+    /// <summary>
+    /// The cached recommendations, already parsed. Sending the blob and letting the detail screen parse
+    /// it meant the browser had to know the stored shape; this way the row is the cache and the tab has
+    /// a typed list to render the moment the page loads.
+    /// </summary>
+    public IReadOnlyList<ExternalRecommendationDto> Recommendations { get; init; } = [];
 
     /// <summary>
     /// The user hand-edited this row, so the refresh button has to ask before overwriting instead of
@@ -335,6 +346,8 @@ public static class MediaResponseMapper
             RelatedSource = item.RelatedSource,
             AchievementsJson = item.AchievementsJson,
             RecommendationsJson = item.RecommendationsJson,
+            RecommendationsUpdatedAt = item.RecommendationsUpdatedAt,
+            Recommendations = MediaJsonCache.Deserialize<ExternalRecommendationDto>(item.RecommendationsJson),
             IsCustomEdited = item.IsCustomEdited,
         };
     }

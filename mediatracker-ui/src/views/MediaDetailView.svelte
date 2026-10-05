@@ -8,10 +8,10 @@
         errorMessage,
         getExternalDetails,
         getGameAchievements,
-        getGameRecommendations,
         getGameRelated,
         getExternalRelations,
         getMedia,
+        getMediaRecommendations,
         getSources,
         refreshMetadata,
         setProgress,
@@ -23,14 +23,7 @@
         updateVolume,
     } from "$shared/api/api";
     import { i18n } from "$shared/i18n/index.svelte";
-    import {
-        fetchAniListRecommendations,
-        fetchAniListRelations,
-    } from "$shared/api/anilist";
-    import {
-        toRecommendationItem,
-        toRelatedEntry,
-    } from "$widgets/media-detail/anilistMapping";
+    import { toRelatedEntry } from "$widgets/media-detail/externalMapping";
     import { showToast } from "$shared/ui/toast.svelte";
     import {
         isMangaDetail,
@@ -156,9 +149,10 @@
     }
 
     /**
-     * Achievements and recommendations are external payloads that only change when the provider
-     * updates, so they are stored on the row on first fetch and replayed on every later open. Without
-     * this, F5 threw the list away and the user either waited on RAWG again or lost it entirely.
+     * Achievements are an external payload that only changes when the provider updates, so they are
+     * stored on the row on first fetch and replayed on every later open. Recommendations are handled the
+     * same way but by the server: POST /api/media/{id}/recommendations writes them, so the client has
+     * nothing to persist for that tab.
      */
     function persistGamePayloads(item: MediaDetail) {
         if (item.achievementsJson === undefined || item.achievementsJson === null) {
@@ -171,17 +165,6 @@
             updateMedia(item.id, { achievementsJson: payload }).catch((error) =>
                 console.error(
                     "[MediaDetailView] Failed to cache achievements",
-                    error,
-                ),
-            );
-        }
-
-        if (item.recommendationsJson == null && recommendations.length > 0) {
-            const payload = JSON.stringify(recommendations);
-            item.recommendationsJson = payload;
-            updateMedia(item.id, { recommendationsJson: payload }).catch((error) =>
-                console.error(
-                    "[MediaDetailView] Failed to cache recommendations",
                     error,
                 ),
             );
@@ -208,17 +191,12 @@
             }
         }
 
-        if (item.recommendationsJson) {
-            try {
-                const parsed: unknown = JSON.parse(item.recommendationsJson);
-                if (Array.isArray(parsed)) {
-                    recommendations = parsed as RecommendationItem[];
-                }
-            } catch {
-                console.error(
-                    "[MediaDetailView] Stored recommendations were unreadable",
-                );
-            }
+        /**
+         * Recommendations come back with the detail payload, already parsed by the server, so the tab is
+         * populated on F5 without the panel issuing a request of its own.
+         */
+        if (item.recommendations?.length) {
+            recommendations = item.recommendations;
         }
     }
 
@@ -227,6 +205,13 @@
             key,
             JSON.stringify({ timestamp: Date.now(), items }),
         );
+    }
+
+    /** TMDb and RAWG report a date string rather than a year; the timeline needs the year alone. */
+    function yearOf(releaseDate: string | null | undefined): number | null {
+        return releaseDate && releaseDate.length >= 4
+            ? parseInt(releaseDate.slice(0, 4), 10)
+            : null;
     }
 
     import DetailHeader from "$widgets/media-detail/DetailHeader.svelte";
@@ -1122,67 +1107,41 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
                     }
                 } catch {}
             } else if (isAnime(item) || item.type === "manga") {
-                const cacheKey = `tsundoku_relations_${item.id}_${source}`;
-                if (forceRefresh) {
-                    localStorage.removeItem(cacheKey);
-                }
-                let externalNodes = readCache<RelatedEntry>(cacheKey);
+                // AniList used to be queried from the browser here, which meant the Related tab was the
+                // one screen still holding a third-party wire shape client-side. Everything now goes
+                // through /api/external/relations, which normalises AniList and TMDb alike.
+                const rows = await getExternalRelations({
+                    type: isAnime(item) ? "anime" : "manga",
+                    externalId: item.externalId,
+                    title: item.title,
+                    source,
+                    kind: "related",
+                });
 
-                if (externalNodes.length === 0) {
-                    const itemSource = (item.externalSource ?? "").toLowerCase();
-                    const isAniList = itemSource.includes("anilist");
-                    const isMalOrShikimori =
-                        itemSource.includes("shikimori") ||
-                        itemSource.includes("mal") ||
-                        itemSource.includes("jikan");
-                    const parsedId =
-                        item.externalId && /^\d+$/.test(item.externalId)
-                            ? parseInt(item.externalId, 10)
-                            : null;
-
-                    externalNodes = (
-                        await fetchAniListRelations({
-                            id: isAniList ? (parsedId ?? undefined) : undefined,
-                            idMal: isMalOrShikimori
-                                ? (parsedId ?? undefined)
-                                : undefined,
-                            search: readRomajiTitle(item) ?? item.title.trim(),
-                            type: item.type === "manga" ? "MANGA" : "ANIME",
-                        })
-                    ).map((edge) => ({
-                        ...toRelatedEntry(edge),
-                        relationType: formatRelationType(edge.relationType),
-                    }));
-
-                    if (externalNodes.length > 0) {
-                        writeCache(cacheKey, externalNodes);
-                    }
-                }
-
-                // Merge external nodes avoiding duplicates with local matches
-                for (const ext of externalNodes) {
-                    if (ext.title.toLowerCase() === item.title.toLowerCase())
-                        continue;
+                for (const relation of rows) {
+                    const entry = toRelatedEntry(relation);
+                    entry.relationType = formatRelationType(relation.relationType);
+                    if (entry.title.toLowerCase() === item.title.toLowerCase()) continue;
 
                     const matchedLocal = all.find(
                         (m) =>
-                            (m.externalId && m.externalId === ext.id) ||
-                            m.title.toLowerCase() === ext.title.toLowerCase() ||
+                            (m.externalId && m.externalId === entry.id) ||
+                            m.title.toLowerCase() === entry.title.toLowerCase() ||
                             readRomajiTitle(m)?.toLowerCase() ===
-                                ext.title.toLowerCase(),
+                                entry.title.toLowerCase(),
                     );
 
                     if (
                         !results.some(
                             (r) =>
-                                r.id === ext.id ||
+                                r.id === entry.id ||
                                 r.title.toLowerCase() ===
-                                    ext.title.toLowerCase(),
+                                    entry.title.toLowerCase(),
                         )
                     ) {
                         results.push({
-                            ...ext,
-                            coverUrl: matchedLocal?.coverUrl || ext.coverUrl,
+                            ...entry,
+                            coverUrl: matchedLocal?.coverUrl || entry.coverUrl,
                             localItem: matchedLocal,
                         });
                     }
@@ -1197,31 +1156,21 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
                     source,
                     kind: "related",
                 });
-                for (const row of rows) {
+                for (const relation of rows) {
+                    const entry = toRelatedEntry(relation);
+                    entry.relationType = formatRelationType(relation.relationType);
                     if (
                         results.some(
                             (r) =>
-                                r.id === row.id ||
-                                r.title.toLowerCase() === row.title.toLowerCase(),
+                                r.id === entry.id ||
+                                r.title.toLowerCase() === entry.title.toLowerCase(),
                         )
                     )
                         continue;
                     results.push({
-                        id: row.id,
-                        title: row.title,
-                        coverUrl: row.coverUrl,
+                        ...entry,
                         type: item.type,
-                        score: row.score,
-                        releaseDate: row.releaseDate,
-                        year:
-                            row.releaseDate && row.releaseDate.length >= 4
-                                ? parseInt(row.releaseDate.slice(0, 4), 10)
-                                : null,
-                        ratings: row.score
-                            ? [{ source: "TMDb", rating: row.score }]
-                            : null,
-                        relationType: i18n.current === "ru" ? "Похожее" : "Similar",
-                        rawRelationType: "SIMILAR",
+                        year: entry.year ?? yearOf(entry.releaseDate),
                     });
                 }
             }
@@ -1597,67 +1546,16 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
         // `media` is a $state proxy, so its non-null narrowing does not survive the awaits below.
         const item = media;
 
-        const cacheKey = `tsundoku_recs_${item.id}_${source}`;
-        if (force) {
-            localStorage.removeItem(cacheKey);
-        } else {
-            const cached = readCache<RecommendationItem>(cacheKey);
-            if (cached.length > 0) {
-                recommendations = cached;
-                return;
-            }
-        }
-
         recommendationsLoading = true;
         recommendationsError = null;
 
         try {
-            let items: RecommendationItem[] = [];
-            const lower = source.toLowerCase();
-
-            if (lower.includes("rawg")) {
-                const gameRecs = await getGameRecommendations({
-                    rawgId:
-                        item.externalSource?.toLowerCase() === "rawg"
-                            ? item.externalId
-                            : null,
-                    title: item.title,
-                    externalSource: item.externalSource,
-                    externalId: item.externalId,
-                });
-                items = gameRecs.map((r, idx) => ({
-                    id: r.id || `rec-game-${idx}`,
-                    title: r.title,
-                    coverUrl: r.coverUrl,
-                    score: r.score,
-                    type: "game",
-                }));
-            } else if (lower.includes("tmdb")) {
-                const rows = await getExternalRelations({
-                    type: item.type,
-                    externalId: item.externalId,
-                    title: item.title,
-                    source,
-                    kind: "recommendations",
-                });
-                items = rows.map((r, idx) => ({
-                    id: r.id || `rec-${idx}`,
-                    title: r.title,
-                    coverUrl: r.coverUrl,
-                    score: r.score,
-                    type: item.type,
-                }));
-            } else {
-                items = (await fetchAniListRecommendations(item.title)).map(
-                    toRecommendationItem,
-                );
-            }
-
-            recommendations = items;
-            if (items.length > 0) {
-                writeCache(cacheKey, items);
-                if (media) persistGamePayloads(media);
-            }
+            // One call covers every provider: the server picks the source for the media type, applies
+            // the 30-day cache and writes the result onto the row. Inside that window this returns the
+            // stored list without touching AniList, TMDb or RAWG.
+            recommendations = await getMediaRecommendations(item.id, source, force);
+            item.recommendations = recommendations;
+            item.recommendationsJson = JSON.stringify(recommendations);
         } catch (e) {
             recommendationsError = e;
         } finally {

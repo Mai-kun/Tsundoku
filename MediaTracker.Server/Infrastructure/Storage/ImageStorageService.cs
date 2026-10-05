@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats.Webp;
 using SixLabors.ImageSharp.Processing;
 
 namespace MediaTracker.Server.Infrastructure.Storage;
@@ -11,7 +12,18 @@ public sealed class ImageStorageService(
 {
     private const string CoversRoutePrefix = "/covers/";
     private const string MediaAssetsRoutePrefix = "/media-assets/";
-    private const int MaxThumbWidth = 160;
+
+    // The thumb is what the grid renders. 360px keeps a card crisp on a retina phone and on the
+    // larger grid breakpoints; anything below that upsamples into visible mush on a desktop.
+    private const int MaxThumbWidth = 360;
+    private const int ThumbQuality = 82;
+
+    // The detail page poster is the only place a cover is shown near full size, so it gets the
+    // quality budget. Capped at 1200px: posters are portrait 2:3, so this is the width a large
+    // monitor can actually fill, and re-encoding beyond it would only cost bytes.
+    private const int MaxOriginalWidth = 1200;
+    private const int OriginalQuality = 88;
+
     private const long MaxCoverSizeBytes = 10 * 1024 * 1024; // 10 MB limit
 
     public async Task<string?> SaveCoverAsync(string externalUrl, Guid itemId, CancellationToken ct = default)
@@ -42,17 +54,11 @@ public sealed class ImageStorageService(
             await using var source = await response.Content.ReadAsStreamAsync(ct);
             using var image = await Image.LoadAsync(LimitStream(source), ct);
 
-            await image.SaveAsWebpAsync(originalPath, ct);
+            await SaveWebpAsync(image, originalPath, MaxOriginalWidth, OriginalQuality, ct);
 
-            // The thumb is what the grid renders: a 400px poster per card is several times the bytes
-            // for no visible gain at that size. Cloned from the decoded image, so the download and
+            // The thumb is what the grid renders. Cloned from the decoded image, so the download and
             // decode are still paid only once.
-            using var thumb = image.Clone(context => context.Resize(new ResizeOptions
-            {
-                Mode = ResizeMode.Max,
-                Size = new Size(MaxThumbWidth, 0)
-            }));
-            await thumb.SaveAsWebpAsync(thumbPath, ct);
+            await SaveWebpAsync(image, thumbPath, MaxThumbWidth, ThumbQuality, ct);
 
             sw.Stop();
 
@@ -92,6 +98,33 @@ public sealed class ImageStorageService(
 
     private static Stream LimitStream(Stream source) =>
         new SizeLimitedStream(source, MaxCoverSizeBytes);
+
+    /// <summary>
+    /// Writes one WebP rendition, never upscaling: a source narrower than the cap is encoded as-is,
+    /// because enlarging it would only add bytes and soften the poster.
+    /// </summary>
+    private static async Task SaveWebpAsync(
+        Image image,
+        string path,
+        int maxWidth,
+        int quality,
+        CancellationToken ct)
+    {
+        var encoder = new WebpEncoder { Quality = quality };
+
+        if (image.Width <= maxWidth)
+        {
+            await image.SaveAsWebpAsync(path, encoder, ct);
+            return;
+        }
+
+        using var resized = image.Clone(context => context.Resize(new ResizeOptions
+        {
+            Mode = ResizeMode.Max,
+            Size = new Size(maxWidth, 0)
+        }));
+        await resized.SaveAsWebpAsync(path, encoder, ct);
+    }
 
     public void DeleteCover(string? localCoverUrl)
     {

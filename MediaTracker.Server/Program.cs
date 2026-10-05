@@ -275,7 +275,10 @@ static void ConfigureLogging(string logsDirectory)
             {
                 file.Delete();
             }
-            catch { }
+            catch
+            {
+                // ignored
+            }
         }
     }
 

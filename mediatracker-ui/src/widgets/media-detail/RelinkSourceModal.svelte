@@ -22,21 +22,18 @@
     ]);
 
     /**
- * Candidate providers per media type. The relink dialog asks the user to pick where to look for the
- * replacement instead of silently cascading through the configured priorities, so the list has to
- * be explicit — otherwise the answer comes from whatever source happened to answer first.
+ * Candidate providers per media type, resolved from the `mediaTypes` every source already reports.
  *
- * Video excludes raw IMDb: it exposes no season list, so relinking a show onto it strips the
- * seasons that the whole progress UI is built on.
+ * This used to be a hand-kept list of id fragments matched by substring, which is how TMDb kept
+ * disappearing from the video picker: the table and the provider registry are edited separately and
+ * drift. Deriving it means a provider is offered exactly when it declares it can serve the type —
+ * TMDb, Kinopoisk, Simkl, IMDb and TheTVDB for video, AniList and friends for anime.
  */
-const RELINK_SOURCES: Record<string, readonly string[]> = {
-    movie: ["tmdb", "kinopoisk", "simkl", "thetvdb"],
-    tvshow: ["tmdb", "kinopoisk", "simkl", "thetvdb"],
-    anime: ["anilist", "myanimelist", "jikan", "shikimori", "kitsu", "simkl"],
-    manga: ["anilist", "myanimelist", "mangadex", "shikimori", "kitsu", "mangaupdates"],
-    game: ["rawg", "igdb"],
-    book: ["googlebooks", "openlibrary"],
-};
+    function supportsType(source: SourceInfo, mediaType: string): boolean {
+        return source.mediaTypes.some(
+            (declared) => declared.toLowerCase() === mediaType,
+        );
+    }
 
 interface Props {
         isOpen: boolean;
@@ -84,19 +81,17 @@ interface Props {
     });
 
     /**
-     * Enabled sources that can answer for this media type, matched through the id or the display
-     * name so both "mangadex" and "MangaDex" hit. The current source stays in the list on purpose:
-     * re-picking it is a legitimate way to confirm the match.
+     * Enabled sources that can answer for this media type. The current source stays in the list on
+     * purpose: re-picking it is a legitimate way to confirm the match.
      */
     const providerOptions = $derived.by(() => {
-        const wanted = RELINK_SOURCES[type] ?? [];
-        const matched = providers.filter((source) => {
-            const haystack = `${source.id} ${source.name}`.toLowerCase();
-            return wanted.some((needle) => haystack.includes(needle));
-        });
+        const wanted = String(type).toLowerCase();
+        const matched = providers.filter((source) =>
+            supportsType(source, wanted),
+        );
 
-        // Nothing matched the table (a type we have no list for): offer every enabled source rather
-        // than an empty picker that blocks the only action this dialog exists for.
+        // Nothing declared this type (a type we have no provider for): offer every enabled source
+        // rather than an empty picker that blocks the only action this dialog exists for.
         return matched.length > 0 ? matched : providers;
     });
 

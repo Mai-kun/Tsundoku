@@ -15,6 +15,8 @@ import type {
   SourceInfo,
   GameAchievementsResponse,
   GameRelatedItem,
+  ExternalRecommendation,
+  ExternalRelation,
   UpdateMediaPayload,
   UpdateVolumePayload,
 } from "$shared/types";
@@ -442,15 +444,35 @@ export function getExternalRelations(params: {
   title?: string | null;
   source: string;
   kind: "related" | "recommendations";
-}): Promise<GameRelatedItem[]> {
+}): Promise<ExternalRelation[]> {
   const query = new URLSearchParams();
   if (params.type) query.set("type", params.type);
   if (params.externalId) query.set("externalId", params.externalId);
   if (params.title) query.set("title", params.title);
   query.set("source", params.source);
   query.set("kind", params.kind);
-  return requestJson<GameRelatedItem[]>(
+  return requestJson<ExternalRelation[]>(
     `/api/external/relations?${query.toString()}`,
+  );
+}
+
+/**
+ * Recommendations for one item, fetched and stored by the server.
+ *
+ * The list is kept on the media row, so a call inside the 30-day window is answered from SQLite with
+ * no provider request at all; `forceRefresh` is what the panel's reload button sets.
+ */
+export function getMediaRecommendations(
+  id: string,
+  source: string | null,
+  forceRefresh = false,
+): Promise<ExternalRecommendation[]> {
+  const query = new URLSearchParams();
+  if (source) query.set("source", source);
+  if (forceRefresh) query.set("forceRefresh", "true");
+  return requestJson<ExternalRecommendation[]>(
+    `/api/media/${id}/recommendations?${query.toString()}`,
+    { method: "POST" },
   );
 }
 

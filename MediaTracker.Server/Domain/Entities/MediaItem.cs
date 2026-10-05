@@ -89,6 +89,30 @@ public abstract class MediaItem
     /// <summary>Recommendations the user loaded, cached for the same reason as the achievements.</summary>
     public string? RecommendationsJson { get; set; }
 
+    /// <summary>When <see cref="RecommendationsJson"/> was last written; drives the cache window.</summary>
+    public DateTime? RecommendationsUpdatedAt { get; set; }
+
+    /// <summary>
+    /// How long a fetched recommendation list stays authoritative. The provider is not called again
+    /// inside this window, so re-opening the tab — or reloading the page — costs no network at all.
+    /// </summary>
+    public static readonly TimeSpan RecommendationLifetime = TimeSpan.FromDays(30);
+
+    /// <summary>
+    /// Whether the stored list can be replayed without asking the provider again. Both halves matter:
+    /// a payload without a timestamp was written before this rule existed and must be refetched.
+    /// </summary>
+    public bool HasFreshRecommendations(DateTime now) =>
+        RecommendationsJson is not null
+        && RecommendationsUpdatedAt is { } writtenAt
+        && now - writtenAt < RecommendationLifetime;
+
+    public void CacheRecommendations(string json, DateTime now)
+    {
+        RecommendationsJson = json;
+        RecommendationsUpdatedAt = now;
+    }
+
     /// <summary>
     /// The user typed into this row themselves, so a refresh must not silently throw it away. Set by
     /// the updater the moment a manual edit actually changes a stored value, and only cleared by an

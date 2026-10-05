@@ -1,6 +1,7 @@
 <script lang="ts">
     import { X } from "$shared/ui/Icons.svelte";
     import { createMedia, errorMessage, updateMedia } from "$shared/api/api";
+    import { isValidCoverUrl } from "$entities/media/model/coverUrl";
     import Modal from "$shared/ui/Modal.svelte";
     import BookFormFields from "./BookFormFields.svelte";
     import GameFormFields from "./GameFormFields.svelte";
@@ -93,6 +94,50 @@
         startedAt = item.startedAt?.slice(0, 16) ?? "";
         finishedAt = item.finishedAt?.slice(0, 16) ?? "";
         status = item.status;
+
+        // The type-specific fields live on the same state, so they have to be reset on every apply:
+        // switching an edited row from a game to a book would otherwise keep the game's platform.
+        platform = "";
+        hoursPlayed = "";
+        author = "";
+        totalPages = "";
+        totalChapters = "";
+        currentVolume = "";
+        durationMinutes = "";
+        isAnime = false;
+        studio = "";
+        network = "";
+        seasons = [];
+
+        if (item.type === "game") {
+            platform = item.platform ?? "";
+            hoursPlayed = item.hoursPlayed?.toString() ?? "";
+        } else if (item.type === "book") {
+            author = item.author ?? "";
+            totalPages = item.totalPages?.toString() ?? "";
+        } else if (item.type === "manga") {
+            author = item.author ?? "";
+            totalChapters = item.totalChapters?.toString() ?? "";
+            currentVolume = item.currentVolume?.toString() ?? "";
+            // The manga form reuses totalPages as the volume count, so it has to read totalVolumes.
+            totalPages = item.totalVolumes?.toString() ?? "";
+        } else if (item.type === "movie") {
+            durationMinutes = item.durationMinutes?.toString() ?? "";
+            isAnime = item.isAnime ?? false;
+            studio = item.studio ?? "";
+        } else if (item.type === "tvshow") {
+            isAnime = item.isAnime ?? false;
+            studio = item.studio ?? "";
+            network = item.network ?? "";
+            // Seasons ride on the detail payload only; the library row the form opens with has none.
+            seasons = ("seasons" in item ? item.seasons ?? [] : []).map(
+                (season) => ({
+                    seasonNumber: season.seasonNumber?.toString() ?? "",
+                    title: season.title ?? "",
+                    totalEpisodes: season.totalEpisodes?.toString() ?? "",
+                }),
+            );
+        }
     }
 
     function numberOrNull(value: string): number | null {
@@ -212,6 +257,11 @@
         if (!title.trim()) {
             validationError = i18n.t.createModal.validation.titleRequired;
             titleInput?.focus();
+            return;
+        }
+
+        if (!isValidCoverUrl(coverUrl)) {
+            validationError = i18n.t.createModal.validation.coverUrlInvalid;
             return;
         }
 
@@ -371,7 +421,7 @@
                     <span>{i18n.t.createModal.fields.coverUrl}</span>
                     <input
                         class="h-10 w-full rounded-lg border border-white/10 bg-field px-3 text-sm font-normal outline-none placeholder:text-muted focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/30"
-                        type="url"
+                        type="text"
                         bind:value={coverUrl}
                     />
                 </label>

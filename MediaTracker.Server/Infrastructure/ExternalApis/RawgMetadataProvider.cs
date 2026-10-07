@@ -1,11 +1,12 @@
 using System.Net.Http.Json;
 using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace MediaTracker.Server.Infrastructure.ExternalApis;
 
-public sealed class RawgMetadataProvider(
+public sealed partial class RawgMetadataProvider(
     IHttpClientFactory httpClientFactory,
     IOptions<ExternalApiOptions> options,
     ILogger<RawgMetadataProvider> logger) : MetadataProviderBase
@@ -20,6 +21,9 @@ public sealed class RawgMetadataProvider(
         IsDefault: true,
         Priority: 1,
         CanonicalName: "RAWG");
+
+    [GeneratedRegex(@"store\.steampowered\.com/app/(\d+)", RegexOptions.IgnoreCase)]
+    private static partial Regex SteamAppIdRegex();
 
     public override async Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string query, CancellationToken ct)
     {
@@ -73,7 +77,13 @@ public sealed class RawgMetadataProvider(
 
                 if (item is not null)
                 {
-                    return MapItem(item);
+                    var steamAppId = ExtractSteamAppId(item.Stores);
+                    if (steamAppId is null && HasSteamStore(item.Stores))
+                    {
+                        steamAppId = await TryFetchSteamAppIdAsync(client, id, apiKey, ct);
+                    }
+
+                    return MapItem(item, steamAppId);
                 }
             }
             catch (Exception ex)
@@ -87,8 +97,16 @@ public sealed class RawgMetadataProvider(
         return searchResults.Count > 0 ? searchResults[0] : null;
     }
 
-    private ExternalMediaDto MapItem(RawgGame item)
+    private ExternalMediaDto MapItem(RawgGame item) => MapItem(item, null);
+
+    private ExternalMediaDto MapItem(RawgGame item, string? steamAppId)
     {
+        steamAppId ??= ExtractSteamAppId(item.Stores);
+
+        var coverUrl = !string.IsNullOrWhiteSpace(steamAppId)
+            ? $"https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/{steamAppId}/library_600x900.jpg"
+            : item.BackgroundImage;
+
         var rating = item.Rating is { } r && r > 0 ? Math.Round(r * 2.0, 1) : (double?)null;
         var ratings = rating is not null
             ? new List<ExternalRatingDto>
@@ -101,9 +119,10 @@ public sealed class RawgMetadataProvider(
         {
             ExternalId = item.Id.ToString(),
             ExternalSource = "RAWG",
+            SteamAppId = steamAppId,
             Title = item.Name ?? string.Empty,
             OriginalTitle = item.NameOriginal,
-            CoverUrl = item.BackgroundImage,
+            CoverUrl = coverUrl,
             Description = item.DescriptionRaw ?? item.Description,
             ReleaseYear = ParseYear(item.Released),
             ReleaseDate = item.Released,
@@ -115,6 +134,67 @@ public sealed class RawgMetadataProvider(
             RatingVotes = item.RatingsCount,
             Ratings = ratings
         };
+    }
+
+    private static string? ExtractSteamAppId(List<RawgGameStoreWrapper>? stores)
+    {
+        if (stores is null) return null;
+        foreach (var entry in stores)
+        {
+            var url = entry.Url ?? entry.Store?.Url;
+            if (!string.IsNullOrWhiteSpace(url))
+            {
+                var match = SteamAppIdRegex().Match(url);
+                if (match.Success)
+                {
+                    return match.Groups[1].Value;
+                }
+            }
+        }
+        return null;
+    }
+
+    private static bool HasSteamStore(List<RawgGameStoreWrapper>? stores)
+    {
+        if (stores is null) return false;
+        return stores.Any(s =>
+            s.Store?.Id == 1 ||
+            string.Equals(s.Store?.Slug, "steam", StringComparison.OrdinalIgnoreCase) ||
+            s.Store?.Domain?.Contains("steampowered.com", StringComparison.OrdinalIgnoreCase) == true);
+    }
+
+    private async Task<string?> TryFetchSteamAppIdAsync(HttpClient client, long gameId, string apiKey, CancellationToken ct)
+    {
+        try
+        {
+            var storesResponse = await client.GetFromJsonAsync<RawgStoresResponse>(
+                $"games/{gameId}/stores?key={Uri.EscapeDataString(apiKey)}", ct);
+
+            if (storesResponse?.Results is { Count: > 0 } results)
+            {
+                foreach (var link in results)
+                {
+                    if (!string.IsNullOrWhiteSpace(link.Url))
+                    {
+                        var match = SteamAppIdRegex().Match(link.Url);
+                        if (match.Success)
+                        {
+                            return match.Groups[1].Value;
+                        }
+                    }
+                }
+            }
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "Failed to fetch stores endpoint for RAWG game {GameId}", gameId);
+        }
+
+        return null;
     }
 
     private static string DetermineStatus(bool? tba, string? released, List<RawgGenre>? genres)
@@ -149,7 +229,24 @@ public sealed class RawgMetadataProvider(
         double? Rating,
         [property: JsonPropertyName("ratings_count")] int? RatingsCount,
         [property: JsonPropertyName("parent_platforms")] List<RawgParentPlatform>? ParentPlatforms,
-        [property: JsonPropertyName("genres")] List<RawgGenre>? Genres);
+        [property: JsonPropertyName("genres")] List<RawgGenre>? Genres,
+        [property: JsonPropertyName("stores")] List<RawgGameStoreWrapper>? Stores);
+
+    private sealed record RawgGameStoreWrapper(
+        [property: JsonPropertyName("url")] string? Url,
+        [property: JsonPropertyName("store")] RawgStoreInfo? Store);
+
+    private sealed record RawgStoreInfo(
+        [property: JsonPropertyName("id")] long? Id,
+        [property: JsonPropertyName("name")] string? Name,
+        [property: JsonPropertyName("slug")] string? Slug,
+        [property: JsonPropertyName("domain")] string? Domain,
+        [property: JsonPropertyName("url")] string? Url);
+
+    private sealed record RawgStoresResponse(List<RawgStoreLink>? Results);
+
+    private sealed record RawgStoreLink(
+        [property: JsonPropertyName("url")] string? Url);
 
     private sealed record RawgGenre(string? Name);
 

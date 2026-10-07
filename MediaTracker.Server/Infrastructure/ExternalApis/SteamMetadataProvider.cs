@@ -108,16 +108,15 @@ public sealed class SteamMetadataProvider(IHttpClientFactory httpClientFactory) 
             });
         }
 
-        var cover = item.TinyImage;
-        if (!string.IsNullOrWhiteSpace(cover) && cover.Contains("capsule_231x87"))
-        {
-            cover = $"https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/{item.Id}/header.jpg";
-        }
+        var cover = item.Id > 0
+            ? $"https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/{item.Id}/library_600x900.jpg"
+            : item.TinyImage;
 
         return new ExternalMediaDto
         {
             ExternalId = item.Id.ToString(CultureInfo.InvariantCulture),
             ExternalSource = "Steam",
+            SteamAppId = item.Id > 0 ? item.Id.ToString(CultureInfo.InvariantCulture) : null,
             Title = item.Name,
             CoverUrl = cover,
             Platform = "PC",
@@ -168,12 +167,17 @@ public sealed class SteamMetadataProvider(IHttpClientFactory httpClientFactory) 
         var studio = data.Developers is { Count: > 0 } ? string.Join(", ", data.Developers) : null;
         var genres = data.Genres?.Select(g => g.Description).Where(d => !string.IsNullOrWhiteSpace(d)).Select(d => d!).ToList();
 
+        var coverUrl = !string.IsNullOrWhiteSpace(externalId)
+            ? $"https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/{externalId}/library_600x900.jpg"
+            : data.HeaderImage;
+
         return new ExternalMediaDto
         {
             ExternalId = externalId,
             ExternalSource = "Steam",
+            SteamAppId = externalId,
             Title = data.Name ?? "Unknown Game",
-            CoverUrl = data.HeaderImage,
+            CoverUrl = coverUrl,
             Description = !string.IsNullOrWhiteSpace(data.ShortDescription) ? data.ShortDescription : data.DetailedDescription,
             ReleaseDate = formattedDate,
             ReleaseYear = releaseYear,

@@ -1,6 +1,9 @@
 using System.Diagnostics;
+using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
+using System.Xml.Linq;
 using Microsoft.Extensions.Options;
 
 namespace MediaTracker.Server.Infrastructure.ExternalApis;
@@ -24,7 +27,7 @@ public sealed record GameRelatedItem(
 /// Talks to Steam and RAWG for the game-only panels (achievements, series, recommendations).
 /// The endpoints stay thin and the "which RAWG id do we mean?" rule lives in one place.
 /// </summary>
-public sealed class RawgGameService(
+public sealed partial class RawgGameService(
     IHttpClientFactory httpClientFactory,
     IOptions<ExternalApiOptions> options,
     ILogger<RawgGameService> logger
@@ -39,6 +42,13 @@ public sealed class RawgGameService(
     /// <summary>50 pages x 40 = 2000 achievements, above the largest known title (Payday, ~1300).</summary>
     private const int MaxAchievementPages = 50;
 
+    /// <summary>
+    /// Strict provider choice: a game is only ever asked of the source it was added with, so a Steam
+    /// row can never carry RAWG's definitions and vice versa. Within Steam the community list comes
+    /// first — it is the only public endpoint with every achievement (Payday 2: 1342, icons and
+    /// descriptions included, no key) — while the store API's ~10 highlighted entries stay behind as
+    /// a fallback.
+    /// </summary>
     public async Task<GameAchievementsResponse> GetAchievementsAsync(
         string? steamAppId,
         string? rawgId,
@@ -49,11 +59,35 @@ public sealed class RawgGameService(
     )
     {
         var sw = Stopwatch.StartNew();
-        var steam = await TryGetSteamAchievementsAsync(steamAppId, ct);
-        if (steam is not null)
+
+        var fromSteam =
+            string.Equals(externalSource, "steam", StringComparison.OrdinalIgnoreCase)
+            || (!string.IsNullOrWhiteSpace(steamAppId)
+                && !string.Equals(externalSource, "rawg", StringComparison.OrdinalIgnoreCase));
+
+        if (fromSteam)
         {
-            ExternalApiLog.Returned(logger, "Steam", steam.Achievements.Count, sw.ElapsedMilliseconds);
-            return steam;
+            var appId = steamAppId ?? externalId;
+
+            var community = await TryGetSteamCommunityAchievementsAsync(appId, ct);
+            if (community is not null)
+            {
+                ExternalApiLog.Returned(logger, "Steam", community.Achievements.Count, sw.ElapsedMilliseconds);
+                return community;
+            }
+
+            var store = await TryGetSteamStoreAchievementsAsync(appId, ct);
+            if (store is not null)
+            {
+                ExternalApiLog.Returned(logger, "Steam", store.Achievements.Count, sw.ElapsedMilliseconds);
+                return store;
+            }
+
+            logger.LogInformation(
+                "[Storage] Steam answered no achievements for app '{AppId}' after {ElapsedMs}ms",
+                appId,
+                sw.ElapsedMilliseconds);
+            return new GameAchievementsResponse(0, []);
         }
 
         var rawg = await TryGetRawgAchievementsAsync(rawgId, title, externalSource, externalId, ct);
@@ -216,7 +250,9 @@ public sealed class RawgGameService(
         return search?.Results is { Count: > 0 } ? search.Results[0].Id.ToString() : null;
     }
 
-    private async Task<GameAchievementsResponse?> TryGetSteamAchievementsAsync(
+    /// <summary>Store API: only the ~10 highlighted achievements, kept as a backup for when the
+    /// community list cannot be reached.</summary>
+    private async Task<GameAchievementsResponse?> TryGetSteamStoreAchievementsAsync(
         string? steamAppId,
         CancellationToken ct
     )
@@ -256,13 +292,123 @@ public sealed class RawgGameService(
         {
             logger.LogDebug(
                 ex,
-                "Steam achievements lookup failed for '{SteamAppId}', falling back to RAWG",
+                "Steam store achievements lookup failed for '{SteamAppId}'",
                 steamAppId
             );
         }
 
         return null;
     }
+
+    /// <summary>
+    /// The full community list from <c>steamcommunity.com/stats/{appId}/achievements/?xml=1</c>:
+    /// completely open, no key, and it carries every achievement with icon and description even for
+    /// 1000+ titles (Payday 2: 1342 rows) — which the store API's highlighted ten never could.
+    /// Steam answers the ?xml=1 URL with HTML these days, so both payload shapes are parsed.
+    /// </summary>
+    private async Task<GameAchievementsResponse?> TryGetSteamCommunityAchievementsAsync(
+        string? appId,
+        CancellationToken ct
+    )
+    {
+        if (string.IsNullOrWhiteSpace(appId))
+        {
+            return null;
+        }
+
+        try
+        {
+            var url =
+                $"https://steamcommunity.com/stats/{Uri.EscapeDataString(appId)}/achievements/?xml=1";
+            var payload = await httpClientFactory.CreateClient().GetStringAsync(url, ct);
+            var items = ParseSteamCommunityAchievements(payload);
+            return items.Count > 0 ? new GameAchievementsResponse(items.Count, items) : null;
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(
+                ex,
+                "Steam community achievements lookup failed for app '{AppId}'",
+                appId
+            );
+            return null;
+        }
+    }
+
+    private static List<GameAchievementItem> ParseSteamCommunityAchievements(string payload)
+    {
+        if (string.IsNullOrWhiteSpace(payload))
+        {
+            return [];
+        }
+
+        if (payload.Contains("achieveRow", StringComparison.OrdinalIgnoreCase))
+        {
+            var items = new List<GameAchievementItem>();
+            foreach (Match row in AchieveRowRegex().Matches(payload))
+            {
+                var name = CleanAchievementText(row.Groups["name"].Value);
+                if (name.Length == 0)
+                {
+                    continue;
+                }
+
+                var description = CleanAchievementText(row.Groups["desc"].Value);
+                items.Add(new GameAchievementItem(
+                    name,
+                    description.Length > 0 ? description : null,
+                    row.Groups["icon"].Value));
+            }
+
+            return items;
+        }
+
+        try
+        {
+            return ParseSteamCommunityXml(payload);
+        }
+        catch (System.Xml.XmlException)
+        {
+            return [];
+        }
+    }
+
+    private static List<GameAchievementItem> ParseSteamCommunityXml(string payload)
+    {
+        static string? Field(XElement node, string name) =>
+            node.Elements(name).FirstOrDefault()?.Value;
+
+        var items = new List<GameAchievementItem>();
+        foreach (var achievement in XDocument.Parse(payload).Descendants("achievement"))
+        {
+            var name = Field(achievement, "name");
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                continue;
+            }
+
+            items.Add(new GameAchievementItem(
+                CleanAchievementText(name),
+                CleanAchievementText(Field(achievement, "description") ?? string.Empty),
+                Field(achievement, "iconOpen") ?? Field(achievement, "icon")));
+        }
+
+        return items;
+    }
+
+    private static string CleanAchievementText(string value) =>
+        WebUtility.HtmlDecode(value ?? string.Empty).Trim();
+
+    /// <summary>One <c>achieveRow</c> block: icon, heading and description of a single achievement.</summary>
+    [GeneratedRegex(
+        """<div class="achieveRow[^"]*">.*?<img src="(?<icon>[^"]+)".*?<h3>(?<name>.*?)</h3>(?:\s*<h5>(?<desc>.*?)</h5>)?""",
+        RegexOptions.Singleline,
+        10000)]
+    private static partial Regex AchieveRowRegex();
 
     private async Task<GameAchievementsResponse?> TryGetRawgAchievementsAsync(
         string? rawgId,

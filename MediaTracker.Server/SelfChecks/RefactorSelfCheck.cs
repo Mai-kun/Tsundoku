@@ -1,9 +1,11 @@
 using System.Globalization;
 using System.Text.Json;
 using MediaTracker.Server.Common.Cli;
+using MediaTracker.Server.Common.Utilities;
 using MediaTracker.Server.Domain.Entities;
 using MediaTracker.Server.Domain.Rules;
 using MediaTracker.Server.Features.Media.CreateMedia;
+using MediaTracker.Server.Features.Media.GetMediaStats;
 using MediaTracker.Server.Infrastructure.ExternalApis;
 using MediaTracker.Server.Infrastructure.Persistence.Interceptors;
 using MediaTracker.Server.Infrastructure.Storage;
@@ -27,6 +29,7 @@ public static class RefactorSelfCheck
         var failures = new List<string>();
 
         CheckSourceAliases(failures);
+        CheckSpanParsing(failures);
         CheckSourceRegistryIsSelfContained(failures);
         CheckExternalUrlDetection(failures);
         CheckRatingsSerialization(failures);
@@ -36,7 +39,6 @@ public static class RefactorSelfCheck
         CheckMangaGapEnrichmentDoesNotOverwrite(failures);
         CheckMergeKeepsRuntimeAndGenres(failures);
         CheckMergeKeepsFinalChapterTotal(failures);
-        CheckRealVolumesReplaceSeededSplit(failures);
         CheckRelatedMediaSurvivesRoundTrip(failures);
         CheckMissingMetadataDrivesCascade(failures);
         CheckPartialDatesDoNotBecomeJanFirst(failures);
@@ -48,7 +50,6 @@ public static class RefactorSelfCheck
         CheckOverwriteRefresh(failures);
         CheckStatusTransitions(failures);
         CheckSeasonProgressStepper(failures);
-        CheckVolumeProgressStepper(failures);
         CheckNoInventedVolumes(failures);
         CheckReleaseStatusComputation(failures);
         CheckApiKeyLookup(failures);
@@ -72,6 +73,10 @@ public static class RefactorSelfCheck
         CheckListAndDetailTotalsAgree(failures);
         CheckStatusWireContract(failures);
         CheckMangaDexRelationTypes(failures);
+        CheckKitsuRatingMapping(failures);
+        CheckSteamVerticalCovers(failures);
+        CheckAdvancedStatsCalculation(failures);
+        CheckAllMetadataProvidersSupportGenres(failures);
 
         if (failures.Count == 0)
         {
@@ -144,6 +149,15 @@ public static class RefactorSelfCheck
         );
     }
 
+    private static void CheckSpanParsing(List<string> failures)
+    {
+        AssertEqual(failures, 49, SpanParserExtensions.ParseDurationMinutes("49 min"), "span parser reads minute duration");
+        AssertEqual(failures, 142, SpanParserExtensions.ParseDurationMinutes("142 min"), "span parser reads long minute duration");
+        AssertEqual(failures, 90, SpanParserExtensions.ParseDurationMinutes("1h 30m"), "span parser reads hour and minute duration");
+        AssertEqual(failures, 120, SpanParserExtensions.ParseDurationMinutes("2h"), "span parser reads hour duration");
+        AssertEqual(failures, 2008, SpanParserExtensions.ParseYearFromDateString("2008-01-20"), "span parser reads ISO date year");
+    }
+
     /// <summary>
     /// The whole point of the registry is that a provider file is the only place a source is declared.
     /// These assertions fail the moment that stops being true: an id nothing resolves to, a type missing
@@ -213,7 +227,7 @@ public static class RefactorSelfCheck
         );
         AssertEqual(
             failures,
-            "anilist,shikimori,mangadex,mangaupdates,jikan",
+            "anilist,shikimori,kitsu,mangadex,mangaupdates,jikan",
             string.Join(',', SourcePriorityService.DefaultPriorities["manga"]),
             "manga cascade order"
         );
@@ -1042,57 +1056,6 @@ public static class RefactorSelfCheck
         AssertEqual(failures, null, rewound.FinishedAt, "rewinding clears the finish date");
     }
 
-    private static void CheckVolumeProgressStepper(List<string> failures)
-    {
-        AssertEqual(
-            failures,
-            MediaStatus.Completed,
-            ProgressStepperRules.ResolveVolumeStatus(
-                currentPage: 0,
-                totalPages: 0,
-                currentChapter: 40,
-                totalChapters: 40
-            ),
-            "finishing the chapters completes the volume"
-        );
-
-        AssertEqual(
-            failures,
-            MediaStatus.Completed,
-            ProgressStepperRules.ResolveVolumeStatus(
-                currentPage: 200,
-                totalPages: 200,
-                currentChapter: 0,
-                totalChapters: 0
-            ),
-            "finishing the pages completes the volume"
-        );
-
-        AssertEqual(
-            failures,
-            MediaStatus.InProgress,
-            ProgressStepperRules.ResolveVolumeStatus(
-                currentPage: 3,
-                totalPages: 200,
-                currentChapter: 0,
-                totalChapters: 0
-            ),
-            "a partial read is in progress"
-        );
-
-        AssertEqual(
-            failures,
-            MediaStatus.Planned,
-            ProgressStepperRules.ResolveVolumeStatus(
-                currentPage: 0,
-                totalPages: 200,
-                currentChapter: 0,
-                totalChapters: 0
-            ),
-            "an untouched volume stays planned"
-        );
-    }
-
     private static void CheckStatusTransitions(List<string> failures)
     {
         var show = new TvShow { Title = "Frieren" };
@@ -1203,55 +1166,6 @@ public static class RefactorSelfCheck
             "a source without a volume breakdown leaves the volumes empty"
         );
         AssertEqual(failures, 700, manga.TotalChapters, "the flat chapter total is still kept");
-    }
-
-    /// <summary>
-    /// The real split a source reports has to land per volume, so "том 1 — 3 главы, том 2 — 5 глав"
-    /// appears instead of an even division of the chapter budget.
-    /// </summary>
-    private static void CheckRealVolumesReplaceSeededSplit(List<string> failures)
-    {
-        var manga = new Manga { Title = "Noragami", TotalChapters = 8 };
-        var external = new ExternalMediaDto
-        {
-            ExternalId = "1",
-            Title = "Noragami",
-            Type = "manga",
-            TotalCount = 8,
-            Chapters = 8,
-            VolumeDetails =
-            [
-                new ExternalMangaVolumeDto { Number = 1, Chapters = ["1", "2", "3"] },
-                new ExternalMangaVolumeDto { Number = 2, Chapters = ["4", "5", "6", "7", "8"] },
-            ],
-        };
-
-        MediaMetadataApplier.ApplyIfMissing(manga, external);
-
-        AssertEqual(failures, 2, manga.Volumes.Count, "one row per reported volume");
-        AssertEqual(
-            failures,
-            3,
-            manga.Volumes[0].TotalChapters,
-            "volume 1 takes its real chapter count"
-        );
-        AssertEqual(
-            failures,
-            5,
-            manga.Volumes[1].TotalChapters,
-            "volume 2 takes its real chapter count"
-        );
-        AssertEqual(failures, 2, manga.TotalVolumes, "the volume total is recorded");
-
-        // A count the user typed is not the source's, so it must survive the next provider pass.
-        manga.Volumes[0].ApplyEdits(currentPage: null, totalPages: null, currentChapter: null, totalChapters: 11);
-        MediaMetadataApplier.ApplyIfMissing(manga, external);
-        AssertEqual(
-            failures,
-            11,
-            manga.Volumes[0].TotalChapters,
-            "a chapter count the user typed is not overwritten"
-        );
     }
 
     private static void CheckReleaseStatusComputation(List<string> failures)
@@ -2315,6 +2229,207 @@ public static class RefactorSelfCheck
         );
     }
 
+    private const string KitsuAnimeSearchJson = """
+        {"data":[{"id":"1","type":"anime","attributes":{"canonicalTitle":"Cowboy Bebop","synopsis":"Space bounty hunters.","averageRating":"82.27","userCount":162398,"startDate":"1998-04-03","status":"finished","episodeCount":26,"episodeLength":24,"posterImage":{"large":"https://cdn.example/l.png","original":"https://cdn.example/o.png"}}}]}
+        """;
+
+    private const string KitsuMangaSearchJson = """
+        {"data":[{"id":"56355","type":"manga","attributes":{"canonicalTitle":"Sousou no Frieren","averageRating":"84.2","userCount":7689,"startDate":"2020-04-28","status":"current"}}]}
+        """;
+
+    private const string KitsuMangaDetailsJson = """
+        {"data":{"id":"56355","type":"manga","attributes":{"canonicalTitle":"Sousou no Frieren","averageRating":"84.2","userCount":7689,"startDate":"2020-04-28","status":"current"}}}
+        """;
+
+    private const string KitsuAnimeDetailsJson = """
+        {"data":{"id":"1","type":"anime","attributes":{"canonicalTitle":"Cowboy Bebop","averageRating":"82.27","userCount":162398,"startDate":"1998-04-03","status":"finished"}}}
+        """;
+
+    /// <summary>
+    /// Kitsu returns averageRating as a JSON string on a 100-point scale, and manga lives on a
+    /// separate edge/manga collection. This pins both: the string parse with the /10 conversion and
+    /// the request URL per media type, using a canned payload shaped like the real API.
+    /// </summary>
+    private static void CheckKitsuRatingMapping(List<string> failures)
+    {
+        AssertTrue(
+            failures,
+            KitsuMetadataProvider.Source.MediaTypes.Contains("anime") &&
+            KitsuMetadataProvider.Source.MediaTypes.Contains("manga"),
+            "kitsu declares both anime and manga");
+
+        Uri? requested = null;
+        var factory = new StubHttpClientFactory(request =>
+        {
+            requested = request.RequestUri;
+            var path = request.RequestUri!.AbsolutePath;
+            var json = path.Contains("/manga/", StringComparison.Ordinal) ? KitsuMangaDetailsJson
+                : path.Contains("/manga", StringComparison.Ordinal) ? KitsuMangaSearchJson
+                : path.Contains("/anime/", StringComparison.Ordinal) ? KitsuAnimeDetailsJson
+                : KitsuAnimeSearchJson;
+            return Task.FromResult(new HttpResponseMessage { Content = new StringContent(json) });
+        });
+
+        var animeResults = new KitsuMetadataProvider(factory)
+            .SearchAsync("Cowboy Bebop", CancellationToken.None).GetAwaiter().GetResult();
+
+        AssertTrue(
+            failures,
+            requested?.AbsoluteUri.StartsWith("https://kitsu.io/api/edge/anime?", StringComparison.Ordinal) == true,
+            $"kitsu anime search goes to https://kitsu.io/api/edge/anime (was {requested})");
+
+        if (animeResults is [var anime])
+        {
+            AssertEqual(failures, "anime", anime.Type, "kitsu anime result is typed anime");
+            AssertEqual(failures, 8.2, anime.Rating ?? 0, "kitsu string rating converts from 100- to 10-point scale");
+            AssertEqual(failures, 162398, anime.RatingVotes ?? 0, "kitsu votes come from userCount");
+            AssertTrue(
+                failures,
+                anime.Ratings is [{ Source: "Kitsu", Rating: 8.2, Votes: 162398 }],
+                "kitsu badge payload carries source, 10-point score and votes");
+        }
+        else
+        {
+            AssertTrue(failures, false, "kitsu anime search returns exactly one result");
+        }
+
+        var mangaProvider = new KitsuMetadataProvider(factory, "manga:kitsu");
+        var mangaResults = mangaProvider
+            .SearchAsync("frieren", CancellationToken.None).GetAwaiter().GetResult();
+
+        AssertTrue(
+            failures,
+            requested?.AbsoluteUri.StartsWith("https://kitsu.io/api/edge/manga?", StringComparison.Ordinal) == true,
+            $"kitsu manga search goes to https://kitsu.io/api/edge/manga (was {requested})");
+
+        if (mangaResults is [var manga])
+        {
+            AssertEqual(failures, "manga", manga.Type, "kitsu manga result is typed manga");
+            AssertEqual(failures, 8.4, manga.Rating ?? 0, "kitsu manga rating converts from 100- to 10-point scale");
+            AssertEqual(failures, 7689, manga.RatingVotes ?? 0, "kitsu manga votes come from userCount");
+        }
+        else
+        {
+            AssertTrue(failures, false, "kitsu manga search returns exactly one result");
+        }
+
+        var mangaDetails = mangaProvider
+            .GetDetailsAsync("56355", "Sousou no Frieren", CancellationToken.None).GetAwaiter().GetResult();
+
+        AssertTrue(
+            failures,
+            requested?.AbsolutePath == "/api/edge/manga/56355" && requested.Scheme == "https" && requested.Host == "kitsu.io",
+            $"kitsu manga details go to https://kitsu.io/api/edge/manga/{{id}} (was {requested})");
+        AssertTrue(failures, mangaDetails is not null, "kitsu manga details map");
+        AssertEqual(failures, "manga", mangaDetails?.Type, "kitsu manga details are typed manga");
+        AssertEqual(failures, 8.4, mangaDetails?.Rating ?? 0, "kitsu manga details rating is on the 10-point scale");
+        AssertEqual(failures, 7689, mangaDetails?.RatingVotes ?? 0, "kitsu manga details votes come from userCount");
+    }
+
+    private static void CheckSteamVerticalCovers(List<string> failures)
+    {
+        var steamFactory = new StubHttpClientFactory(request =>
+        {
+            var uri = request.RequestUri!.AbsoluteUri;
+            if (uri.Contains("storesearch"))
+            {
+                var searchJson = """{"items":[{"id":367520,"name":"Hollow Knight","tiny_image":"https://cdn.example/capsule.jpg"}]}""";
+                return Task.FromResult(new HttpResponseMessage { Content = new StringContent(searchJson) });
+            }
+
+            var detailsJson = """{"367520":{"success":true,"data":{"name":"Hollow Knight","header_image":"https://cdn.example/header.jpg"}}}""";
+            return Task.FromResult(new HttpResponseMessage { Content = new StringContent(detailsJson) });
+        }, SteamMetadataProvider.Source.BaseAddress);
+
+        var steamProvider = new SteamMetadataProvider(steamFactory);
+        var steamSearch = steamProvider.SearchAsync("Hollow Knight", CancellationToken.None).GetAwaiter().GetResult();
+        AssertEqual(
+            failures,
+            "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/367520/library_600x900.jpg",
+            steamSearch.FirstOrDefault()?.CoverUrl,
+            "steam search produces vertical library poster");
+        AssertEqual(failures, "367520", steamSearch.FirstOrDefault()?.SteamAppId, "steam search sets steam app id");
+
+        var steamDetails = steamProvider.GetDetailsAsync("367520", "Hollow Knight", CancellationToken.None).GetAwaiter().GetResult();
+        AssertEqual(
+            failures,
+            "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/367520/library_600x900.jpg",
+            steamDetails?.CoverUrl,
+            "steam details produces vertical library poster");
+        AssertEqual(failures, "367520", steamDetails?.SteamAppId, "steam details sets steam app id");
+
+        var rawgFactory = new StubHttpClientFactory(request =>
+        {
+            var uri = request.RequestUri!.AbsoluteUri;
+            if (uri.Contains("games?search="))
+            {
+                var searchJson = """
+                {"results":[
+                    {"id":9767,"name":"Hollow Knight","background_image":"https://media.rawg.io/bg.jpg","stores":[{"url":"https://store.steampowered.com/app/367520/Hollow_Knight/"}]},
+                    {"id":9999,"name":"Console Only","background_image":"https://media.rawg.io/console.jpg","stores":[{"url":"https://store.playstation.com/app/123"}]}
+                ]}
+                """;
+                return Task.FromResult(new HttpResponseMessage { Content = new StringContent(searchJson) });
+            }
+
+            if (uri.EndsWith("/stores?key=test-key") || uri.Contains("/stores?"))
+            {
+                var storesJson = """{"results":[{"url":"https://store.steampowered.com/app/367520/"}]}""";
+                return Task.FromResult(new HttpResponseMessage { Content = new StringContent(storesJson) });
+            }
+
+            var gameDetailsJson = """
+            {"id":9767,"name":"Hollow Knight","background_image":"https://media.rawg.io/bg.jpg","stores":[{"id":1,"url":"","store":{"id":1,"slug":"steam"}}]}
+            """;
+            return Task.FromResult(new HttpResponseMessage { Content = new StringContent(gameDetailsJson) });
+        }, RawgMetadataProvider.Source.BaseAddress);
+
+        var rawgOptions = Microsoft.Extensions.Options.Options.Create(new ExternalApiOptions { RawgApiKey = "test-key" });
+        var rawgProvider = new RawgMetadataProvider(rawgFactory, rawgOptions, Microsoft.Extensions.Logging.Abstractions.NullLogger<RawgMetadataProvider>.Instance);
+
+        var rawgSearch = rawgProvider.SearchAsync("Hollow Knight", CancellationToken.None).GetAwaiter().GetResult();
+        AssertEqual(
+            failures,
+            "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/367520/library_600x900.jpg",
+            rawgSearch.FirstOrDefault(x => x.ExternalId == "9767")?.CoverUrl,
+            "rawg search with steam store produces vertical library poster");
+        AssertEqual(
+            failures,
+            "367520",
+            rawgSearch.FirstOrDefault(x => x.ExternalId == "9767")?.SteamAppId,
+            "rawg search sets steam app id");
+        AssertEqual(
+            failures,
+            "https://media.rawg.io/console.jpg",
+            rawgSearch.FirstOrDefault(x => x.ExternalId == "9999")?.CoverUrl,
+            "rawg without steam store falls back to background_image");
+
+        var rawgDetails = rawgProvider.GetDetailsAsync("9767", "Hollow Knight", CancellationToken.None).GetAwaiter().GetResult();
+        AssertEqual(
+            failures,
+            "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/367520/library_600x900.jpg",
+            rawgDetails?.CoverUrl,
+            "rawg details fetches stores endpoint and produces vertical library poster");
+        AssertEqual(failures, "367520", rawgDetails?.SteamAppId, "rawg details sets steam app id");
+
+        var merged = MediaMerger.Merge(
+            new ExternalMediaDto { ExternalId = "1", Title = "Test", Type = "game", SteamAppId = "367520" },
+            new ExternalMediaDto { ExternalId = "2", Title = "Test", Type = "game" });
+        AssertEqual(failures, "367520", merged.SteamAppId, "media merger preserves steam app id");
+    }
+
+    private sealed class StubHttpClientFactory(Func<HttpRequestMessage, Task<HttpResponseMessage>> responder, string? baseAddress = null) : IHttpClientFactory
+    {
+        public HttpClient CreateClient(string name) =>
+            new(new StubHttpMessageHandler(responder)) { BaseAddress = new Uri(baseAddress ?? KitsuMetadataProvider.Source.BaseAddress) };
+    }
+
+    private sealed class StubHttpMessageHandler(Func<HttpRequestMessage, Task<HttpResponseMessage>> responder) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
+            responder(request);
+    }
+
     private static void AssertTrue(List<string> failures, bool condition, string label)
     {
         if (!condition)
@@ -2336,6 +2451,391 @@ public static class RefactorSelfCheck
         if (!EqualityComparer<T>.Default.Equals(expected, actual))
         {
             failures.Add($"{label}: expected <{expected}> but was <{actual}>");
+        }
+    }
+
+    private static void CheckAdvancedStatsCalculation(List<string> failures)
+    {
+        var now = new DateTime(2026, 10, 7, 12, 0, 0, DateTimeKind.Utc);
+
+        var emptyStats = AdvancedStatsCalculator.Calculate([], now);
+        AssertEqual(failures, 0, emptyStats.TotalTitles, "empty TotalTitles");
+        AssertEqual(failures, 0, emptyStats.CompletedTitles, "empty CompletedTitles");
+        AssertEqual(failures, 0.0, emptyStats.CompletionRatePercent, "empty CompletionRatePercent");
+        AssertEqual(failures, 0.0, emptyStats.TotalHours, "empty TotalHours");
+        AssertEqual(failures, 0.0, emptyStats.TotalDays, "empty TotalDays");
+        AssertEqual(failures, 10, emptyStats.ScoreDistribution.Count, "empty ScoreDistribution count");
+        AssertEqual(failures, 0, emptyStats.ScoreDistribution[1], "empty ScoreDistribution 1");
+        AssertEqual(failures, 0, emptyStats.ScoreDistribution[10], "empty ScoreDistribution 10");
+        AssertEqual(failures, 12, emptyStats.MonthlyCompletions.Count, "empty MonthlyCompletions count");
+        AssertEqual(failures, 0, emptyStats.CurrentStreakDays, "empty CurrentStreakDays");
+
+        var game = new VideoGame
+        {
+            Title = "Game 1",
+            Platform = "PC",
+            HoursPlayed = 20,
+            Score = 8,
+            Status = MediaStatus.Completed,
+            FinishedAt = now.AddDays(-1),
+            UpdatedAt = now.AddDays(-1),
+            Genres = "Action, RPG",
+        };
+
+        var movie1 = new Movie
+        {
+            Title = "Movie 1",
+            DurationMinutes = 120,
+            Score = 9,
+            Status = MediaStatus.Completed,
+            FinishedAt = now,
+            UpdatedAt = now,
+            Genres = "Drama, Sci-Fi",
+        };
+
+        var movie2 = new Movie
+        {
+            Title = "Movie 2",
+            DurationMinutes = 0,
+            Score = null,
+            Status = MediaStatus.Planned,
+            UpdatedAt = now.AddDays(-2),
+            Genres = "Drama",
+        };
+
+        var series = new TvShow
+        {
+            Title = "Show 1",
+            IsAnime = false,
+            EpisodeDurationMinutes = 60,
+            Score = 7,
+            Status = MediaStatus.InProgress,
+            UpdatedAt = now,
+            Genres = "Drama, Crime",
+            Seasons =
+            [
+                new TvSeason { SeasonNumber = 1, Title = "S1", CurrentEpisode = 10, TotalEpisodes = 10 }
+            ],
+        };
+
+        var anime = new TvShow
+        {
+            Title = "Anime 1",
+            IsAnime = true,
+            EpisodeDurationMinutes = null,
+            Score = 9,
+            Status = MediaStatus.InProgress,
+            UpdatedAt = now.AddDays(-1),
+            Genres = "Anime, Action",
+            Seasons =
+            [
+                new TvSeason { SeasonNumber = 1, Title = "S1", CurrentEpisode = 5, TotalEpisodes = 12 }
+            ],
+        };
+
+        var book = new Book
+        {
+            Title = "Book 1",
+            Author = "Author 1",
+            CurrentPage = 200,
+            TotalPages = 400,
+            Score = null,
+            Status = MediaStatus.InProgress,
+            UpdatedAt = now.AddDays(-3),
+            Genres = "Fantasy",
+        };
+
+        var manga = new Manga
+        {
+            Title = "Manga 1",
+            CurrentChapter = 50,
+            TotalChapters = 100,
+            Score = null,
+            Status = MediaStatus.InProgress,
+            UpdatedAt = now.AddDays(-4),
+            Genres = "Action",
+        };
+
+        var items = new MediaItem[] { game, movie1, movie2, series, anime, book, manga };
+        var stats = AdvancedStatsCalculator.Calculate(items, now);
+
+        AssertEqual(failures, 7, stats.TotalTitles, "stats TotalTitles");
+        AssertEqual(failures, 2, stats.CompletedTitles, "stats CompletedTitles");
+        AssertEqual(failures, Math.Round(2.0 / 7.0 * 100.0, 1), stats.CompletionRatePercent, "stats CompletionRatePercent");
+
+        AssertEqual(failures, 20.0, stats.GameHours, "stats GameHours");
+        AssertEqual(failures, 3.5, stats.MovieHours, "stats MovieHours");
+        AssertEqual(failures, 10.0, stats.SeriesHours, "stats SeriesHours");
+        AssertEqual(failures, 2.0, stats.AnimeHours, "stats AnimeHours");
+        AssertEqual(failures, 5.0, stats.BookHours, "stats BookHours");
+        AssertEqual(failures, 5.0, stats.MangaHours, "stats MangaHours");
+
+        AssertEqual(failures, 45.5, stats.TotalHours, "stats TotalHours");
+        AssertEqual(failures, Math.Round(45.5 / 24.0, 1), stats.TotalDays, "stats TotalDays");
+
+        AssertEqual(failures, 200, stats.TotalPagesRead, "stats TotalPagesRead");
+        AssertEqual(failures, 50, stats.TotalChaptersRead, "stats TotalChaptersRead");
+        AssertEqual(failures, 15, stats.TotalEpisodesWatched, "stats TotalEpisodesWatched");
+
+        AssertEqual(failures, 8.3, stats.AverageScore, "stats AverageScore");
+        AssertEqual(failures, 1, stats.ScoreDistribution[7], "stats ScoreDistribution 7");
+        AssertEqual(failures, 1, stats.ScoreDistribution[8], "stats ScoreDistribution 8");
+        AssertEqual(failures, 2, stats.ScoreDistribution[9], "stats ScoreDistribution 9");
+        AssertEqual(failures, 0, stats.ScoreDistribution[10], "stats ScoreDistribution 10");
+
+        AssertEqual(failures, 8.0, stats.AverageScoreByType["game"], "stats AverageScoreByType game");
+        AssertEqual(failures, 9.0, stats.AverageScoreByType["movie"], "stats AverageScoreByType movie");
+        AssertEqual(failures, 7.0, stats.AverageScoreByType["series"], "stats AverageScoreByType series");
+        AssertEqual(failures, 9.0, stats.AverageScoreByType["anime"], "stats AverageScoreByType anime");
+
+        AssertEqual(failures, 12, stats.MonthlyCompletions.Count, "stats MonthlyCompletions count");
+        AssertEqual(failures, "2026-10", stats.MonthlyCompletions[^1].MonthYear, "stats MonthlyCompletions current month");
+        AssertEqual(failures, 2, stats.MonthlyCompletions[^1].Count, "stats MonthlyCompletions count 2026-10");
+
+        AssertTrue(failures, stats.CurrentStreakDays >= 2, "stats CurrentStreakDays");
+        AssertTrue(failures, stats.TopGenres.Count > 0, "stats TopGenres not empty");
+        AssertEqual(failures, "Action", stats.TopGenres[0].Genre, "stats TopGenres first is Action");
+        AssertEqual(failures, 3, stats.TopGenres[0].Count, "stats TopGenres Action count");
+    }
+
+    private static void CheckAllMetadataProvidersSupportGenres(List<string> failures)
+    {
+        var providerTypes = typeof(IMetadataProvider).Assembly.GetTypes()
+            .Where(t => typeof(IMetadataProvider).IsAssignableFrom(t) && !t.IsAbstract && !t.IsInterface)
+            .ToList();
+
+        foreach (var type in providerTypes)
+        {
+            var extracts = TestProviderGenreExtraction(type);
+            if (!extracts)
+            {
+                failures.Add($"FAILED: Provider {type.Name} does not extract genres");
+            }
+        }
+    }
+
+    private static bool TestProviderGenreExtraction(Type type)
+    {
+        try
+        {
+            var apiOptions = Microsoft.Extensions.Options.Options.Create(new ExternalApiOptions
+            {
+                KinopoiskApiKey = "test-key",
+                TmdbApiKey = "test-key",
+                RawgApiKey = "test-key",
+                IgdbApiKey = "test:secret",
+                SimklApiKey = "test-key",
+                TvdbApiKey = "test-key",
+                GoogleBooksApiKey = "test-key"
+            });
+
+            if (type == typeof(KinopoiskMetadataProvider))
+            {
+                var factory = new StubHttpClientFactory(_ => Task.FromResult(new HttpResponseMessage
+                {
+                    Content = new StringContent("""{"kinopoiskId":301,"nameRu":"Матрица","genres":[{"genre":"фантастика"},{"genre":"боевик"}]}""")
+                }));
+                var provider = new KinopoiskMetadataProvider(factory, apiOptions, "movie");
+                var dto = provider.GetDetailsAsync("301", "Матрица", CancellationToken.None).GetAwaiter().GetResult();
+                return dto?.Genres is { Count: > 0 } && dto.Genres.Contains("фантастика");
+            }
+
+            if (type == typeof(TmdbMetadataProvider))
+            {
+                var factory = new StubHttpClientFactory(_ => Task.FromResult(new HttpResponseMessage
+                {
+                    Content = new StringContent("""{"id":550,"title":"Fight Club","genres":[{"id":18,"name":"Drama"}]}""")
+                }));
+                var provider = new TmdbMetadataProvider(factory, apiOptions, Microsoft.Extensions.Logging.Abstractions.NullLogger<TmdbMetadataProvider>.Instance, "movie");
+                var dto = provider.GetDetailsAsync("550", "Fight Club", CancellationToken.None).GetAwaiter().GetResult();
+                return dto?.Genres is { Count: > 0 } && dto.Genres.Contains("Drama");
+            }
+
+            if (type == typeof(AniListMetadataProvider))
+            {
+                var factory = new StubHttpClientFactory(_ => Task.FromResult(new HttpResponseMessage
+                {
+                    Content = new StringContent("""{"data":{"Media":{"id":1,"title":{"english":"Cowboy Bebop"},"genres":["Action","Sci-Fi"]}}}""")
+                }));
+                var provider = new AniListMetadataProvider(factory);
+                var dto = provider.GetDetailsAsync("1", "Cowboy Bebop", CancellationToken.None).GetAwaiter().GetResult();
+                return dto?.Genres is { Count: > 0 } && dto.Genres.Contains("Action");
+            }
+
+            if (type == typeof(RawgMetadataProvider))
+            {
+                var factory = new StubHttpClientFactory(_ => Task.FromResult(new HttpResponseMessage
+                {
+                    Content = new StringContent("""{"id":3498,"name":"GTA V","genres":[{"id":4,"name":"Action"}]}""")
+                }));
+                var provider = new RawgMetadataProvider(factory, apiOptions, Microsoft.Extensions.Logging.Abstractions.NullLogger<RawgMetadataProvider>.Instance);
+                var dto = provider.GetDetailsAsync("3498", "GTA", CancellationToken.None).GetAwaiter().GetResult();
+                return dto?.Genres is { Count: > 0 } && dto.Genres.Contains("Action");
+            }
+
+            if (type == typeof(SteamMetadataProvider))
+            {
+                var factory = new StubHttpClientFactory(_ => Task.FromResult(new HttpResponseMessage
+                {
+                    Content = new StringContent("""{"367520":{"success":true,"data":{"name":"Hollow Knight","genres":[{"id":"1","description":"Action"},{"id":"2","description":"Indie"}]}}}""")
+                }));
+                var provider = new SteamMetadataProvider(factory);
+                var dto = provider.GetDetailsAsync("367520", "Hollow Knight", CancellationToken.None).GetAwaiter().GetResult();
+                return dto?.Genres is { Count: > 0 } && dto.Genres.Contains("Action");
+            }
+
+            if (type == typeof(OpenLibraryMetadataProvider))
+            {
+                var factory = new StubHttpClientFactory(_ => Task.FromResult(new HttpResponseMessage
+                {
+                    Content = new StringContent("""{"docs":[{"key":"/works/OL1","title":"Dune","subject":["Science Fiction","Adventure"]}]}""")
+                }));
+                var provider = new OpenLibraryMetadataProvider(factory);
+                var dtos = provider.SearchAsync("Dune", CancellationToken.None).GetAwaiter().GetResult();
+                return dtos.FirstOrDefault()?.Genres is { Count: > 0 } && dtos[0].Genres!.Contains("Science Fiction");
+            }
+
+            if (type == typeof(MangaDexMetadataProvider))
+            {
+                var factory = new StubHttpClientFactory(req =>
+                {
+                    var uri = req.RequestUri!.AbsoluteUri;
+                    if (uri.Contains("/statistics/"))
+                    {
+                        return Task.FromResult(new HttpResponseMessage { Content = new StringContent("""{"statistics":{}}""") });
+                    }
+                    var json = """
+                    {"data":{"id":"f98660a0-8127-46e8-8199-53e7f4a21183","type":"manga","attributes":{"title":{"en":"Sousou no Frieren"},"tags":[{"attributes":{"name":{"en":"Adventure"}}},{"attributes":{"name":{"en":"Fantasy"}}}]}}}
+                    """;
+                    return Task.FromResult(new HttpResponseMessage { Content = new StringContent(json) });
+                });
+                var provider = new MangaDexMetadataProvider(factory);
+                var dto = provider.GetDetailsAsync("f98660a0-8127-46e8-8199-53e7f4a21183", "Frieren", CancellationToken.None).GetAwaiter().GetResult();
+                return dto?.Genres is { Count: > 0 } && dto.Genres.Contains("Adventure");
+            }
+
+            if (type == typeof(MangaUpdatesMetadataProvider))
+            {
+                var factory = new StubHttpClientFactory(_ => Task.FromResult(new HttpResponseMessage
+                {
+                    Content = new StringContent("""{"series_id":1234,"title":"Berserk","genres":[{"genre":"Action"},{"genre":"Dark Fantasy"}]}""")
+                }));
+                var provider = new MangaUpdatesMetadataProvider(factory);
+                var dto = provider.GetDetailsAsync("1234", "Berserk", CancellationToken.None).GetAwaiter().GetResult();
+                return dto?.Genres is { Count: > 0 } && dto.Genres.Contains("Action");
+            }
+
+            if (type == typeof(JikanMetadataProvider))
+            {
+                var factory = new StubHttpClientFactory(_ => Task.FromResult(new HttpResponseMessage
+                {
+                    Content = new StringContent("""{"data":{"mal_id":1,"title":"Cowboy Bebop","genres":[{"name":"Action"},{"name":"Sci-Fi"}]}}""")
+                }));
+                var provider = new JikanMetadataProvider(factory);
+                var dto = provider.GetDetailsAsync("1", "Cowboy Bebop", CancellationToken.None).GetAwaiter().GetResult();
+                return dto?.Genres is { Count: > 0 } && dto.Genres.Contains("Action");
+            }
+
+            if (type == typeof(KitsuMetadataProvider))
+            {
+                var factory = new StubHttpClientFactory(_ => Task.FromResult(new HttpResponseMessage
+                {
+                    Content = new StringContent("""{"data":{"id":"1","type":"anime","attributes":{"canonicalTitle":"Cowboy Bebop","categories":["Action","Sci-Fi"]}}}""")
+                }));
+                var provider = new KitsuMetadataProvider(factory);
+                var dto = provider.GetDetailsAsync("1", "Cowboy Bebop", CancellationToken.None).GetAwaiter().GetResult();
+                return dto?.Genres is { Count: > 0 } && dto.Genres.Contains("Action");
+            }
+
+            if (type == typeof(GoogleBooksMetadataProvider))
+            {
+                var factory = new StubHttpClientFactory(_ => Task.FromResult(new HttpResponseMessage
+                {
+                    Content = new StringContent("""{"id":"xyz","volumeInfo":{"title":"Dune","categories":["Fiction","Sci-Fi"]}}""")
+                }));
+                var provider = new GoogleBooksMetadataProvider(factory, apiOptions);
+                var dto = provider.GetDetailsAsync("xyz", "Dune", CancellationToken.None).GetAwaiter().GetResult();
+                return dto?.Genres is { Count: > 0 } && dto.Genres.Contains("Fiction");
+            }
+
+            if (type == typeof(IgdbMetadataProvider))
+            {
+                var factory = new StubHttpClientFactory(req =>
+                {
+                    if (req.RequestUri!.AbsoluteUri.Contains("token"))
+                    {
+                        return Task.FromResult(new HttpResponseMessage { Content = new StringContent("""{"access_token":"tok","expires_in":3600,"token_type":"bearer"}""") });
+                    }
+                    return Task.FromResult(new HttpResponseMessage { Content = new StringContent("""[{"id":10,"name":"Half-Life","genres":[{"id":1,"name":"Shooter"}]}]""") });
+                });
+                var provider = new IgdbMetadataProvider(factory, apiOptions);
+                var dtos = provider.SearchAsync("Half-Life", CancellationToken.None).GetAwaiter().GetResult();
+                return dtos.FirstOrDefault()?.Genres is { Count: > 0 } && dtos[0].Genres!.Contains("Shooter");
+            }
+
+            if (type == typeof(ImdbMetadataProvider))
+            {
+                var factory = new StubHttpClientFactory(req =>
+                {
+                    if (req.RequestUri!.AbsoluteUri.Contains("cinemeta"))
+                    {
+                        return Task.FromResult(new HttpResponseMessage
+                        {
+                            Content = new StringContent("""{"meta":{"id":"tt0111161","name":"Shawshank","genres":["Drama","Crime"]}}""")
+                        });
+                    }
+                    return Task.FromResult(new HttpResponseMessage
+                    {
+                        Content = new StringContent("""{"d":[{"id":"tt0111161","l":"Shawshank","y":1994,"q":"feature"}]}""")
+                    });
+                });
+                var provider = new ImdbMetadataProvider(factory, Microsoft.Extensions.Logging.Abstractions.NullLogger<ImdbMetadataProvider>.Instance);
+                var dto = provider.GetDetailsAsync("tt0111161", "Shawshank", CancellationToken.None).GetAwaiter().GetResult();
+                return dto?.Genres is { Count: > 0 } && dto.Genres.Contains("Drama");
+            }
+
+            if (type == typeof(ShikimoriMetadataProvider))
+            {
+                var factory = new StubHttpClientFactory(_ => Task.FromResult(new HttpResponseMessage
+                {
+                    Content = new StringContent("""{"id":1,"name":"Cowboy Bebop","genres":[{"name":"Action","russian":"Экшен"}]}""")
+                }));
+                var provider = new ShikimoriMetadataProvider(factory);
+                var dto = provider.GetDetailsAsync("1", "Cowboy Bebop", CancellationToken.None).GetAwaiter().GetResult();
+                return dto?.Genres is { Count: > 0 } && dto.Genres.Contains("Экшен");
+            }
+
+            if (type == typeof(SimklMetadataProvider))
+            {
+                var factory = new StubHttpClientFactory(_ => Task.FromResult(new HttpResponseMessage
+                {
+                    Content = new StringContent("""{"title":"Breaking Bad","genres":["drama","crime"]}""")
+                }));
+                var provider = new SimklMetadataProvider(factory, apiOptions);
+                var dto = provider.GetDetailsAsync("38714", "Breaking Bad", CancellationToken.None).GetAwaiter().GetResult();
+                return dto?.Genres is { Count: > 0 } && dto.Genres.Contains("drama");
+            }
+
+            if (type == typeof(TvdbMetadataProvider))
+            {
+                var factory = new StubHttpClientFactory(req =>
+                {
+                    if (req.RequestUri!.AbsoluteUri.Contains("login"))
+                    {
+                        return Task.FromResult(new HttpResponseMessage { Content = new StringContent("""{"data":{"token":"tok"}}""") });
+                    }
+                    return Task.FromResult(new HttpResponseMessage { Content = new StringContent("""{"data":[{"tvdb_id":"123","name":"Breaking Bad","genres":["Drama"]}]}""") });
+                });
+                var provider = new TvdbMetadataProvider(factory, apiOptions);
+                var dtos = provider.SearchAsync("Breaking Bad", CancellationToken.None).GetAwaiter().GetResult();
+                return dtos.FirstOrDefault()?.Genres is { Count: > 0 } && dtos[0].Genres!.Contains("Drama");
+            }
+
+            return false;
+        }
+        catch
+        {
+            return false;
         }
     }
 

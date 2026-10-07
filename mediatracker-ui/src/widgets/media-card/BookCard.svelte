@@ -11,6 +11,7 @@
 
     let {
         item,
+        showProgress = true,
         onOpen = () => {},
         onProgress,
         onProgressCommitted = () => {},
@@ -41,13 +42,15 @@
         subtitle={item.author || i18n.t.types.book}
     />
 
-    <CardProgressBar
-        label={i18n.t.card.pages(progress.value, item.totalPages)}
-        {ratio}
-        reserveSpace={showStepper}
-    />
+    {#if showProgress}
+        <CardProgressBar
+            label={i18n.t.card.pages(progress.value, item.totalPages)}
+            {ratio}
+            reserveSpace={showStepper}
+        />
 
-    {#if showStepper}
-        <CardProgressControls {progress} />
+        {#if showStepper}
+            <CardProgressControls {progress} />
+        {/if}
     {/if}
 </BaseCard>

@@ -118,7 +118,7 @@
                 <button type="button" class="inline-flex items-center gap-2 rounded-lg border border-rose-400/20 bg-rose-400/5 px-3 py-2 text-sm text-rose-300 hover:bg-rose-400/10" onclick={() => { const list = lists.find((value) => value.id === selected?.id); if (list) void removeList(list); }}><Trash2 size={15} />{i18n.t.views.listDelete}</button>
             </div>
         </div>
-        <MediaGrid items={selected.items} loading={loading} error={error || null} onRetry={() => { const list = lists.find((value) => value.id === selected?.id); if (list) void openList(list); }} onOpen={onOpen} onRemoveFromList={removeItem} />
+        <MediaGrid items={selected.items} showProgress={false} loading={loading} error={error || null} onRetry={() => { const list = lists.find((value) => value.id === selected?.id); if (list) void openList(list); }} onOpen={onOpen} onRemoveFromList={removeItem} />
     {:else}
         <div class="flex flex-wrap items-end justify-between gap-4">
             <div><p class="text-xs font-semibold uppercase tracking-[0.18em] text-accent-soft">{i18n.t.library.collectionLabel}</p><h2 class="mt-1 text-2xl font-bold tracking-tight text-ink">{i18n.t.views.listsTitle}</h2></div>

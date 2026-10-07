@@ -11,6 +11,7 @@
 
     let {
         item,
+        showProgress = true,
         onOpen = () => {},
         onProgress,
         onProgressCommitted = () => {},
@@ -48,13 +49,15 @@
 >
     <CardTitleBlock title={item.title} {subtitle} />
 
-    <CardProgressBar
-        label={i18n.t.card.chapters(progress.value, totalChapters)}
-        {ratio}
-        reserveSpace={showStepper}
-    />
+    {#if showProgress}
+        <CardProgressBar
+            label={i18n.t.card.chapters(progress.value, totalChapters)}
+            {ratio}
+            reserveSpace={showStepper}
+        />
 
-    {#if showStepper}
-        <CardProgressControls {progress} />
+        {#if showStepper}
+            <CardProgressControls {progress} />
+        {/if}
     {/if}
 </BaseCard>

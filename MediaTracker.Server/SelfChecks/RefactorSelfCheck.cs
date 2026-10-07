@@ -2498,6 +2498,14 @@ public static class RefactorSelfCheck
             Genres = "Action, RPG",
         };
 
+        var plannedGame = new VideoGame
+        {
+            Title = "Planned Game",
+            Platform = "PC",
+            HoursPlayed = 12,
+            Status = MediaStatus.Planned,
+        };
+
         var movie1 = new Movie
         {
             Title = "Movie 1",
@@ -2512,7 +2520,7 @@ public static class RefactorSelfCheck
         var movie2 = new Movie
         {
             Title = "Movie 2",
-            DurationMinutes = 0,
+            DurationMinutes = 120,
             Score = null,
             Status = MediaStatus.Planned,
             UpdatedAt = now.AddDays(-2),
@@ -2549,6 +2557,18 @@ public static class RefactorSelfCheck
             ],
         };
 
+        var plannedShow = new TvShow
+        {
+            Title = "Planned Show",
+            IsAnime = false,
+            EpisodeDurationMinutes = 60,
+            Status = MediaStatus.Planned,
+            Seasons =
+            [
+                new TvSeason { SeasonNumber = 1, Title = "S1", CurrentEpisode = 4, TotalEpisodes = 12 }
+            ],
+        };
+
         var book = new Book
         {
             Title = "Book 1",
@@ -2559,6 +2579,15 @@ public static class RefactorSelfCheck
             Status = MediaStatus.InProgress,
             UpdatedAt = now.AddDays(-3),
             Genres = "Fantasy",
+        };
+
+        var plannedBook = new Book
+        {
+            Title = "Planned Book",
+            Author = "Author",
+            CurrentPage = 100,
+            TotalPages = 400,
+            Status = MediaStatus.Planned,
         };
 
         var manga = new Manga
@@ -2572,12 +2601,20 @@ public static class RefactorSelfCheck
             Genres = "Action",
         };
 
-        var items = new MediaItem[] { game, movie1, movie2, series, anime, book, manga };
+        var plannedManga = new Manga
+        {
+            Title = "Planned Manga",
+            CurrentChapter = 25,
+            TotalChapters = 100,
+            Status = MediaStatus.Planned,
+        };
+
+        var items = new MediaItem[] { game, plannedGame, movie1, movie2, series, anime, plannedShow, book, plannedBook, manga, plannedManga };
         var stats = AdvancedStatsCalculator.Calculate(items, now);
 
-        AssertEqual(failures, 7, stats.TotalTitles, "stats TotalTitles");
+        AssertEqual(failures, 11, stats.TotalTitles, "stats TotalTitles");
         AssertEqual(failures, 2, stats.CompletedTitles, "stats CompletedTitles");
-        AssertEqual(failures, Math.Round(2.0 / 7.0 * 100.0, 1), stats.CompletionRatePercent, "stats CompletionRatePercent");
+        AssertEqual(failures, Math.Round(2.0 / 11.0 * 100.0, 1), stats.CompletionRatePercent, "stats CompletionRatePercent");
 
         AssertEqual(failures, 20.0, stats.GameHours, "stats GameHours");
         AssertEqual(failures, 2.0, stats.MovieHours, "stats MovieHours");

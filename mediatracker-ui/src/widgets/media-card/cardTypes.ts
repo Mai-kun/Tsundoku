@@ -3,6 +3,7 @@ import type { MediaItem, MediaStatus } from "$shared/types";
 /** Every specialised card accepts the same callbacks, so MediaCard can spread them. */
 export interface MediaCardProps {
     item: MediaItem;
+    showProgress?: boolean;
     onOpen?: (item: MediaItem) => void;
     onProgress?: (id: string, currentProgress: number) => Promise<void>;
     onProgressCommitted?: () => void;

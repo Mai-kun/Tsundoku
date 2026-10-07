@@ -7,6 +7,7 @@
 
     interface Props {
         items: MediaItem[];
+        showProgress?: boolean;
         loading?: boolean;
         error?: unknown;
         onRetry?: () => void;
@@ -25,6 +26,7 @@
 
     let {
         items,
+        showProgress = true,
         loading = false,
         error = null,
         onRetry = () => {},
@@ -96,6 +98,7 @@
             <div class="group relative min-w-0">
                 <MediaCard
                     {item}
+                    {showProgress}
                     {onOpen}
                     {onProgress}
                     {onProgressCommitted}

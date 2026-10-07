@@ -23,15 +23,18 @@ public static class AdvancedStatsCalculator
         double gameHours = 0;
         foreach (var game in items.OfType<VideoGame>())
         {
-            gameHours += game.HoursPlayed ?? 0;
+            if (game.Status != MediaStatus.Planned)
+            {
+                gameHours += game.HoursPlayed ?? 0;
+            }
         }
 
         double movieHours = 0;
         foreach (var movie in items.OfType<Movie>())
         {
-            var duration = movie.DurationMinutes > 0
-                ? movie.DurationMinutes
-                : movie.Status == MediaStatus.Completed ? 90 : 0;
+            var duration = movie.Status == MediaStatus.Completed
+                ? movie.DurationMinutes > 0 ? movie.DurationMinutes : 90
+                : 0;
             movieHours += duration / 60.0;
         }
 
@@ -41,7 +44,7 @@ public static class AdvancedStatsCalculator
 
         foreach (var show in items.OfType<TvShow>())
         {
-            var episodesWatched = show.TotalEpisodesWatched;
+            var episodesWatched = show.Status == MediaStatus.Planned ? 0 : show.TotalEpisodesWatched;
             if (show.Status == MediaStatus.Completed && episodesWatched == 0)
             {
                 episodesWatched = show.TotalEpisodesCount;
@@ -64,12 +67,17 @@ public static class AdvancedStatsCalculator
         var totalPagesRead = 0;
         foreach (var book in items.OfType<Book>())
         {
-            var pagesRead = book.CurrentPage;
-            if (pagesRead == 0 && book.Status == MediaStatus.Completed)
+            if (book.Status == MediaStatus.Planned)
             {
-                pagesRead = book.TotalPages > 0 ? book.TotalPages : 300;
+                continue;
             }
-            totalPagesRead += book.CurrentPage;
+
+            var pagesRead = book.Status == MediaStatus.Completed
+                ? book.TotalPages > 0
+                    ? book.TotalPages
+                    : book.CurrentPage > 0 ? book.CurrentPage : 300
+                : book.CurrentPage;
+            totalPagesRead += pagesRead;
             bookHours += (pagesRead * 1.5) / 60.0;
         }
 
@@ -77,22 +85,27 @@ public static class AdvancedStatsCalculator
         var totalChaptersRead = 0;
         foreach (var manga in items.OfType<Manga>())
         {
+            if (manga.Status == MediaStatus.Planned)
+            {
+                continue;
+            }
+
             totalChaptersRead += manga.CurrentChapter;
-            if (manga.CurrentChapter > 0)
+            if (manga.Status == MediaStatus.Completed)
+            {
+                mangaHours += manga.TotalChapters is > 0
+                    ? (manga.TotalChapters.Value * 6.0) / 60.0
+                    : manga.TotalVolumes is > 0
+                        ? (manga.TotalVolumes.Value * 50.0) / 60.0
+                        : 0;
+            }
+            else if (manga.CurrentChapter > 0)
             {
                 mangaHours += (manga.CurrentChapter * 6.0) / 60.0;
             }
             else if (manga.CurrentVolume > 0)
             {
                 mangaHours += (manga.CurrentVolume * 50.0) / 60.0;
-            }
-            else if (manga.Status == MediaStatus.Completed)
-            {
-                mangaHours += manga.TotalChapters is > 0
-                    ? (manga.TotalChapters.Value * 6.0) / 60.0
-                    : manga.TotalVolumes is > 0
-                        ? (manga.TotalVolumes.Value * 50.0) / 60.0
-                        : 1.0;
             }
         }
 

@@ -26,6 +26,7 @@
     "check:nav-detail": "node checks/navDetail.check.cjs",
     "check:tokens": "node checks/tokens.check.cjs",
     "check:jobs": "node checks/jobsQueue.check.cjs",
+    "check:lists": "node checks/lists.check.cjs",
     "check:seasons": "node checks/seasons.check.cjs",
     "check:related": "node checks/related.check.cjs",
     "check:relink": "node checks/relink.check.cjs",

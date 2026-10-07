@@ -15,12 +15,13 @@
     }
 
     let { genres = [], genresByType = {} }: Props = $props();
-    let selectedType = $state("all");
+    let selectedType = $state<string>("all");
     let navContainer = $state<HTMLElement | null>(null);
     let isDragging = $state(false);
     let startX = 0;
     let scrollLeft = 0;
     let hasDragged = false;
+    let pressedCategory: string | null = null;
 
     const PALETTE = ["#f59e0b", "#06b6d4", "#6366f1", "#f43f5e", "#3b82f6", "#ec4899", "#10b981", "#8b5cf6"];
     const categories = ["all", "game", "movie", "series", "anime", "manga", "book"] as const;
@@ -30,6 +31,10 @@
         if (!navContainer || e.button !== 0) return;
         isDragging = true;
         hasDragged = false;
+        const target = e.target;
+        pressedCategory = target instanceof Element
+            ? target.closest<HTMLButtonElement>("button[data-category]")?.dataset.category ?? null
+            : null;
         startX = e.pageX - navContainer.offsetLeft;
         scrollLeft = navContainer.scrollLeft;
         navContainer.setPointerCapture(e.pointerId);
@@ -47,6 +52,16 @@
     function onPointerUp(e: PointerEvent) {
         if (!isDragging || !navContainer) return;
         isDragging = false;
+        if (!hasDragged && pressedCategory) selectedType = pressedCategory;
+        pressedCategory = null;
+        try { navContainer.releasePointerCapture(e.pointerId); } catch {}
+        setTimeout(() => (hasDragged = false), 0);
+    }
+
+    function onPointerCancel(e: PointerEvent) {
+        if (!isDragging || !navContainer) return;
+        isDragging = false;
+        pressedCategory = null;
         try { navContainer.releasePointerCapture(e.pointerId); } catch {}
         setTimeout(() => (hasDragged = false), 0);
     }
@@ -104,7 +119,7 @@
             onpointerdown={onPointerDown}
             onpointermove={onPointerMove}
             onpointerup={onPointerUp}
-            onpointercancel={onPointerUp}
+            onpointercancel={onPointerCancel}
             onwheel={onWheel}
             onclick={handleNavClick}
             onkeydown={onNavKeydown}

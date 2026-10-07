@@ -186,6 +186,17 @@ export type MediaDetail =
   | TvShowDetail
   | MangaDetail;
 
+export type CreatorRole = "director" | "author" | "studio";
+
+export interface CreatorSummaryDto {
+  name: string;
+  role: CreatorRole;
+  totalCount: number;
+  completedCount: number;
+  averageScore: number | null;
+  otherItems: MediaItem[];
+}
+
 /** A movie/book/game opened on the detail screen carries the detail-only fields too. */
 export type MovieDetail = MovieMedia & MediaDetailFields;
 

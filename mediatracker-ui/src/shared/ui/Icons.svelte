@@ -68,5 +68,6 @@
     export { default as Trophy } from "lucide-svelte/icons/trophy";
     export { default as Tv } from "lucide-svelte/icons/tv";
     export { default as Type } from "lucide-svelte/icons/type";
+    export { default as User } from "lucide-svelte/icons/user";
     export { default as X } from "lucide-svelte/icons/x";
 </script>

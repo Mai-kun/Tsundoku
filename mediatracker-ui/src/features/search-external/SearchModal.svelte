@@ -50,6 +50,7 @@
     interface Props {
         isOpen: boolean;
         initialType?: SearchCategory;
+        initialQuery?: string;
         onClose: () => void;
         onMediaAdded: (media: MediaItem) => void;
         onMediaRemoved?: (id: string) => void;
@@ -59,6 +60,7 @@
     let {
         isOpen,
         initialType = "all",
+        initialQuery = "",
         onClose,
         onMediaAdded,
         onMediaRemoved = () => {},
@@ -208,6 +210,7 @@
     $effect(() => {
         if (isOpen) {
             activeType = untrack(() => initialType);
+            query = untrack(() => initialQuery);
             previewItem = null;
             searchInput?.focus();
             void getCategoryOrder()

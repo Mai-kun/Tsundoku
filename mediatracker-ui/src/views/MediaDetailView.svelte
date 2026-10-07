@@ -228,6 +228,7 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
         onDelete: (id: string) => Promise<void>;
         onEdit: (item: MediaItem) => void;
         onOpenRelated: (item: MediaItem) => void;
+        onSearch: (query: string) => void;
         onNavigate?: (view: AppView) => void;
     }
 
@@ -241,6 +242,7 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
         onDelete,
         onEdit,
         onOpenRelated,
+        onSearch,
         onNavigate = () => {},
     }: Props = $props();
 
@@ -1907,6 +1909,8 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
                         {achievementsBusy}
                         {achievementsTruncated}
                         unlockedAchievementNames={unlockedAchievementNames}
+                        onOpenMedia={onOpenRelated}
+                        {onSearch}
                         onToggleAchievement={toggleAchievement}
                         onToggleAllAchievements={toggleAllAchievements}
                     />

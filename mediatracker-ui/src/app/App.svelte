@@ -63,6 +63,7 @@ import { deleteMedia } from "$shared/api/api";
     let isSearchOpen = $state(false);
     let isSettingsOpen = $state(false);
     let initialSearchType = $state<SearchScope>("all");
+    let initialSearchQuery = $state("");
     let mediaRevision = $state(0);
     let modalTrigger = $state<HTMLElement | null>(null);
     let detailDepth = 0;
@@ -250,9 +251,10 @@ import { deleteMedia } from "$shared/api/api";
         restoreModalFocus();
     }
 
-    function openSearch() {
+    function openSearch(query = "") {
         rememberTrigger();
         initialSearchType = "all";
+        initialSearchQuery = query;
         isSearchOpen = true;
     }
 
@@ -362,6 +364,7 @@ import { deleteMedia } from "$shared/api/api";
             onDelete={deleteFromDetail}
             onEdit={openEdit}
             onOpenRelated={openDetail}
+            onSearch={openSearch}
         />
     {:else if renderedView === "seasons" && selectedMediaId}
         <ShowSeasonsView
@@ -402,6 +405,7 @@ import { deleteMedia } from "$shared/api/api";
 <SearchModal
     isOpen={isSearchOpen}
     initialType={initialSearchType}
+    initialQuery={initialSearchQuery}
     onClose={closeSearch}
     onMediaAdded={handleCreated}
     onNavigateToMedia={(id) => {

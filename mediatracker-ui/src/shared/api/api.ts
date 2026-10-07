@@ -23,6 +23,8 @@ import type {
   UpdateListPayload,
   ImportResultDto,
   SteamImportPayload,
+  CreatorRole,
+  CreatorSummaryDto,
 } from "$shared/types";
 
 const mediaEndpoint = "/api/media";
@@ -152,6 +154,18 @@ export function getMedia(filters: MediaFilters = {}): Promise<MediaItem[]> {
 
 export function getMediaItem(id: string): Promise<MediaDetail> {
   return requestJson<MediaDetail>(`${mediaEndpoint}/${id}`);
+}
+
+export function getCreatorSummary(
+  name: string,
+  role: CreatorRole,
+  excludeId?: string,
+): Promise<CreatorSummaryDto | null> {
+  const params = new URLSearchParams({ name, role });
+  if (excludeId) params.set("excludeId", excludeId);
+  return requestJson<CreatorSummaryDto | null>(
+    `${mediaEndpoint}/creator-summary?${params.toString()}`,
+  );
 }
 
 export function getStats(): Promise<MediaStats> {

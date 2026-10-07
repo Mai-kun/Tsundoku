@@ -9,6 +9,7 @@ using MediaTracker.Server.Features.History.GetHistoryEvents;
 using MediaTracker.Server.Features.Media.CreateMedia;
 using MediaTracker.Server.Features.Media.DeleteMedia;
 using MediaTracker.Server.Features.Media.GetMediaDetail;
+using MediaTracker.Server.Features.Media.GetCreatorSummary;
 using MediaTracker.Server.Features.Media.GetMediaList;
 using MediaTracker.Server.Features.Media.GetMediaStats;
 using MediaTracker.Server.Features.Media.GetRecommendations;
@@ -64,6 +65,14 @@ public static class MediaEndpoints
 
         group.MapGet("/stats/advanced", ([FromServices] IGetMediaStatsHandler handler, CancellationToken ct) =>
             handler.HandleAdvancedAsync(ct).ToOk());
+
+        group.MapGet("/creator-summary", (
+                string name,
+                string role,
+                Guid? excludeId,
+                [FromServices] IGetCreatorSummaryHandler handler,
+                CancellationToken ct) =>
+            handler.HandleAsync(name, role, excludeId, ct));
 
         group.MapGet("/{id:guid}", (
                 Guid id,

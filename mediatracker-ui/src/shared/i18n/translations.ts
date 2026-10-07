@@ -154,6 +154,25 @@ export const translations = {
         paused: { ru: "На паузе", en: "On hold" },
         dropped: { ru: "Брошено", en: "Dropped" },
     },
+    creator: {
+        director: { ru: "Режиссёр", en: "Director" },
+        author: { ru: "Автор", en: "Author" },
+        studio: { ru: "Студия", en: "Studio" },
+        inLibrary: { ru: "В вашей медиатеке", en: "In your library" },
+        titles: { ru: "тайтлов", en: "titles" },
+        completedOf: {
+            ru: (completed: number, total: number) => `Завершено: ${completed} из ${total}`,
+            en: (completed: number, total: number) => `Completed: ${completed} of ${total}`,
+        },
+        averageScore: { ru: "Средний балл", en: "Average score" },
+        otherWorks: { ru: "Другие работы в вашей медиатеке", en: "Other works in your library" },
+        noOtherItems: {
+            ru: "Это единственное произведение автора в вашей медиатеке",
+            en: "This is the only work by this creator in your library",
+        },
+        searchMore: { ru: "Искать ещё работы", en: "Search for more works" },
+        loading: { ru: "Загружаем статистику…", en: "Loading creator stats…" },
+    },
     sort: {
         label: { ru: "Сортировка", en: "Sort" },
         newest: { ru: "Сначала новые", en: "Newest first" },

@@ -4,6 +4,8 @@
     import type { ProgressInfo } from "../detailTypes";
     import ProgressStepper from "../ProgressStepper.svelte";
     import GameDetailSection from "../sections/GameDetailSection.svelte";
+    import CreatorSection from "../sections/CreatorSection.svelte";
+    import type { CreatorRole, MediaItem } from "$shared/types";
 
     interface Props {
         media: MediaDetail;
@@ -23,6 +25,8 @@
         unlockedAchievementNames: Map<string, string>;
         onToggleAchievement: (name: string) => Promise<void>;
         onToggleAllAchievements: () => Promise<void>;
+        onOpenMedia: (item: MediaItem) => void;
+        onSearch: (query: string) => void;
     }
 
     let {
@@ -41,7 +45,22 @@
         unlockedAchievementNames,
         onToggleAchievement,
         onToggleAllAchievements,
+        onOpenMedia,
+        onSearch,
     }: Props = $props();
+
+    const creator = $derived.by((): { name: string; role: CreatorRole } | null => {
+        if (media.type === "movie") {
+            if (media.director?.trim()) return { name: media.director.trim(), role: "director" };
+            if (media.studio?.trim()) return { name: media.studio.trim(), role: "studio" };
+        } else if (media.type === "book" || media.type === "manga") {
+            if (media.author?.trim()) return { name: media.author.trim(), role: "author" };
+        } else if (media.type === "tvshow") {
+            const name = media.studio?.trim() || media.network?.trim();
+            if (name) return { name, role: "studio" };
+        }
+        return null;
+    });
 </script>
 
 <div class="space-y-6">
@@ -67,6 +86,15 @@
             percent={progressPercent}
             error={progressError}
             {onStep}
+        />
+    {/if}
+    {#if creator}
+        <CreatorSection
+            creatorName={creator.name}
+            role={creator.role}
+            currentMediaId={media.id}
+            {onOpenMedia}
+            {onSearch}
         />
     {/if}
 </div>

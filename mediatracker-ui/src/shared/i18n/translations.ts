@@ -159,7 +159,15 @@ export const translations = {
         author: { ru: "Автор", en: "Author" },
         studio: { ru: "Студия", en: "Studio" },
         inLibrary: { ru: "В вашей медиатеке", en: "In your library" },
-        titles: { ru: "тайтлов", en: "titles" },
+        titlesCount: {
+            ru: (count: number) => {
+                const lastTwo = count % 100;
+                const last = count % 10;
+                const word = lastTwo >= 11 && lastTwo <= 14 ? "тайтлов" : last === 1 ? "тайтл" : last >= 2 && last <= 4 ? "тайтла" : "тайтлов";
+                return `${count} ${word}`;
+            },
+            en: (count: number) => `${count} ${count === 1 ? "title" : "titles"}`,
+        },
         completedOf: {
             ru: (completed: number, total: number) => `Завершено: ${completed} из ${total}`,
             en: (completed: number, total: number) => `Completed: ${completed} of ${total}`,
@@ -172,6 +180,7 @@ export const translations = {
         },
         searchMore: { ru: "Искать ещё работы", en: "Search for more works" },
         loading: { ru: "Загружаем статистику…", en: "Loading creator stats…" },
+        noCreator: { ru: "Информация о создателе пока недоступна", en: "Creator information is not available yet" },
     },
     sort: {
         label: { ru: "Сортировка", en: "Sort" },
@@ -446,12 +455,17 @@ export const translations = {
         relatedTitle: { ru: "Связанные тайтлы", en: "Related titles" },
         relatedEmpty: { ru: "Этот тайтл не входит ни в одну франшизу.", en: "This title does not belong to a franchise." },
         notesHint: { ru: "Личные мысли, цитаты и рецензия по этому тайтлу.", en: "Your thoughts, quotes and review for this title." },
-        notesPlaceholder: { ru: "Поделитесь мыслями, цитатами и рецензией…", en: "Share your thoughts, quotes and review…" },
         saveNotes: { ru: "Сохранить заметки", en: "Save notes" },
         notesSaved: { ru: "Заметки сохранены.", en: "Notes saved." },
         quickFacts: { ru: "Быстрые факты", en: "Quick facts" },
         addNoteHint: { ru: "+ Добавить личные заметки, цитаты или рецензию", en: "+ Add personal notes, quotes or a review" },
         yourNotes: { ru: "Ваши заметки и мысли", en: "Your notes and thoughts" },
+        notesPlaceholder: {
+            ru: "У вас пока нет личных заметок по этому тайтлу. Нажмите, чтобы записать впечатления, любимые цитаты или черновик отзыва...",
+            en: "You don't have personal notes for this title yet. Click to save your impressions, favorite quotes, or a draft review...",
+        },
+        trailerNotFound: { ru: "Трейлер не найден", en: "Trailer not found" },
+        trailerTitle: { ru: "Трейлер", en: "Trailer" },
         castTitle: { ru: "Актёрский состав", en: "Cast" },
         voiceActorsTitle: { ru: "Актёры озвучки (сэйю)", en: "Voice actors" },
         formatMovie: { ru: "Фильм", en: "Movie" },

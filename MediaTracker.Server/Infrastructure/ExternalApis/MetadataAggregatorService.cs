@@ -26,7 +26,7 @@ public sealed class MetadataAggregatorService(
 
     private static readonly string[] AllTypes = ["anime", "manga", "movie", "tvshow", "game", "book"];
 
-    public async Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string type, string query, CancellationToken ct)
+    public async ValueTask<IReadOnlyList<ExternalMediaDto>> SearchAsync(string type, string query, CancellationToken ct)
     {
         var normalizedType = MediaMerger.NormalizeMediaType(type);
         var normalizedQuery = query.Trim();
@@ -96,9 +96,15 @@ public sealed class MetadataAggregatorService(
         return results;
     }
 
-    public async Task<ExternalMediaDto?> GetDetailsAsync(string type, string externalId, string title, CancellationToken ct, string? source = null)
+    public async ValueTask<ExternalMediaDto?> GetDetailsAsync(string type, string externalId, string title, CancellationToken ct, string? source = null)
     {
         var normalizedType = MediaMerger.NormalizeMediaType(type, source);
+        var cacheKey = $"details:{normalizedType}:{MediaMerger.NormalizeSourceKey(source ?? string.Empty)}:{externalId}:{title}";
+        if (cache.TryGetValue(cacheKey, out ExternalMediaDto? cached) && cached is not null)
+        {
+            return cached;
+        }
+
         ExternalMediaDto? initialDetails = null;
 
         if (!string.IsNullOrWhiteSpace(source))
@@ -133,7 +139,9 @@ public sealed class MetadataAggregatorService(
                 return null;
             }
 
-            return await EnrichAsync(initialDetails, normalizedType, ct);
+            var enriched = await EnrichAsync(initialDetails, normalizedType, ct);
+            cache.Set(cacheKey, enriched, CacheDuration);
+            return enriched;
         }
 
         var prioritySources = await priorityService.GetPrioritiesAsync(normalizedType, ct);
@@ -159,7 +167,9 @@ public sealed class MetadataAggregatorService(
 
         if (initialDetails is null) return null;
 
-        return await EnrichAsync(initialDetails, normalizedType, ct);
+        var result = await EnrichAsync(initialDetails, normalizedType, ct);
+        cache.Set(cacheKey, result, CacheDuration);
+        return result;
     }
 
     public async Task<ExternalMediaDto> EnrichAsync(ExternalMediaDto details, string type, CancellationToken ct)
@@ -262,6 +272,21 @@ public sealed class MetadataAggregatorService(
             var sw = Stopwatch.StartNew();
             var search = await provider.SearchAsync(current.Title, queryCts.Token);
             ExternalApiLog.Returned(logger, provider.Name, search.Count, sw.ElapsedMilliseconds);
+
+            // A Russian title answers nothing on AniList/Shikimori, which index romaji and English
+            // names: "Гачиакута" finds no rating while its romaji spelling ("Gachiakuta") does, so
+            // an empty first search retries with the alternate spellings before giving up on the source.
+            foreach (var altTitle in AlternativeTitles(current))
+            {
+                if (search.Count > 0)
+                {
+                    break;
+                }
+
+                search = await provider.SearchAsync(altTitle, queryCts.Token);
+                ExternalApiLog.Returned(logger, provider.Name, search.Count, sw.ElapsedMilliseconds);
+            }
+
             var match = search.FirstOrDefault(s => s.Title.Equals(current.Title, StringComparison.OrdinalIgnoreCase))
                         ?? (search.Count > 0 ? search[0] : null);
 
@@ -342,6 +367,26 @@ public sealed class MetadataAggregatorService(
         }
 
         return new SourceEnrichmentResult(source, null, null);
+    }
+
+    /// <summary>
+    /// The stored title's alternate spellings for the retry search: romaji first (what AniList and
+    /// Shikimori actually match on), then the native/English alt. Duplicates of the title that was
+    /// already tried are skipped.
+    /// </summary>
+    private static IEnumerable<string> AlternativeTitles(ExternalMediaDto current)
+    {
+        if (!string.IsNullOrWhiteSpace(current.RomajiTitle)
+            && !current.RomajiTitle.Equals(current.Title, StringComparison.OrdinalIgnoreCase))
+        {
+            yield return current.RomajiTitle;
+        }
+
+        if (!string.IsNullOrWhiteSpace(current.OriginalTitle)
+            && !current.OriginalTitle.Equals(current.Title, StringComparison.OrdinalIgnoreCase))
+        {
+            yield return current.OriginalTitle;
+        }
     }
 
     /// <summary>

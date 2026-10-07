@@ -112,9 +112,10 @@ public sealed class ImageStorageService(
     {
         var encoder = new WebpEncoder { Quality = quality };
 
+        await using var fileStream = File.Create(path);
         if (image.Width <= maxWidth)
         {
-            await image.SaveAsWebpAsync(path, encoder, ct);
+            await image.SaveAsWebpAsync(fileStream, encoder, ct);
             return;
         }
 
@@ -123,7 +124,7 @@ public sealed class ImageStorageService(
             Mode = ResizeMode.Max,
             Size = new Size(maxWidth, 0)
         }));
-        await resized.SaveAsWebpAsync(path, encoder, ct);
+        await resized.SaveAsWebpAsync(fileStream, encoder, ct);
     }
 
     public void DeleteCover(string? localCoverUrl)

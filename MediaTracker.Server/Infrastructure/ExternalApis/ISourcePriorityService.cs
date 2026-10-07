@@ -11,7 +11,7 @@ namespace MediaTracker.Server.Infrastructure.ExternalApis;
 
 public interface ISourcePriorityService
 {
-    Task<IReadOnlyList<string>> GetPrioritiesAsync(string type, CancellationToken ct);
+    ValueTask<IReadOnlyList<string>> GetPrioritiesAsync(string type, CancellationToken ct);
     Task<IReadOnlySet<string>> GetDisabledSourcesAsync(CancellationToken ct);
     Task SetSourceEnabledAsync(string sourceId, bool enabled, CancellationToken ct);
     void InvalidateCache();
@@ -34,12 +34,27 @@ public sealed class SourcePriorityService(
     public static readonly FrozenDictionary<string, string[]> DefaultPriorities =
         MetadataSourceRegistry.BuildDefaultPriorities().ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
-    public async Task<IReadOnlyList<string>> GetPrioritiesAsync(string type, CancellationToken ct)
+    public async ValueTask<IReadOnlyList<string>> GetPrioritiesAsync(string type, CancellationToken ct)
     {
         // DefaultPriorities, the cached dict and the disabled set are all OrdinalIgnoreCase, so the type
         // needs no normalisation copy on what is a per-search path.
         var normalizedType = type?.Trim() ?? string.Empty;
         var defaultSources = DefaultPriorities.TryGetValue(normalizedType, out var def) ? def : [normalizedType];
+
+        if (cache.TryGetValue(PriorityCacheKey, out Dictionary<string, string[]>? cachedPriorityMap)
+            && cachedPriorityMap is not null
+            && cache.TryGetValue(DisabledSourcesCacheKey, out HashSet<string>? cachedDisabled)
+            && cachedDisabled is not null)
+        {
+            IReadOnlyList<string> cachedResult = cachedPriorityMap.TryGetValue(normalizedType, out var cachedList) && cachedList.Length > 0
+                ? MergePriorityLists(cachedList, defaultSources)
+                : defaultSources;
+
+            return cachedDisabled.Count == 0
+                ? cachedResult
+                : cachedResult.Where(s => !cachedDisabled.Contains(MediaMerger.NormalizeSourceKey(s)) && !cachedDisabled.Contains(s)).ToList();
+        }
+
         IReadOnlyList<string> basePriorities = defaultSources;
 
         if (cache.TryGetValue(PriorityCacheKey, out Dictionary<string, string[]>? cachedPriorities) && cachedPriorities is not null)

@@ -128,7 +128,7 @@ export interface MangaVolume {
 }
 
 export interface MangaDetail extends MangaMedia, MediaDetailFields {
-  volumes: MangaVolume[];
+  volumes?: MangaVolume[];
 }
 
 export interface MovieMedia extends MediaBase {
@@ -203,6 +203,30 @@ export interface MediaStats {
   completedMoviesCount: number;
 }
 
+export interface AdvancedStats {
+  totalTitles: number;
+  completedTitles: number;
+  completionRatePercent: number;
+  totalHours: number;
+  totalDays: number;
+  gameHours: number;
+  movieHours: number;
+  seriesHours: number;
+  animeHours: number;
+  bookHours: number;
+  mangaHours: number;
+  totalPagesRead: number;
+  totalChaptersRead: number;
+  totalEpisodesWatched: number;
+  averageScore: number;
+  scoreDistribution: Record<number, number>;
+  averageScoreByType: Record<string, number>;
+  currentStreakDays: number;
+  monthlyCompletions: Array<{ monthYear: string; count: number }>;
+  topGenres: Array<{ genre: string; count: number; percentage: number }>;
+}
+
+
 export interface ExternalMedia {
   externalId: string;
   externalSource?: string | null;
@@ -253,7 +277,7 @@ export function isTvShowDetail(
 export function isMangaDetail(
   item: MediaItem | MediaDetail,
 ): item is MangaDetail {
-  return item.type === "manga" && "volumes" in item;
+  return item.type === "manga";
 }
 
 export interface GameAchievementItem {

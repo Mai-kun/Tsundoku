@@ -5,10 +5,12 @@ using MediaTracker.Server.Domain.Entities;
 using MediaTracker.Server.Domain.Rules;
 using MediaTracker.Server.Infrastructure.Persistence.Franchises;
 using MediaTracker.Server.Features.Media.GetMediaDetail;
+using MediaTracker.Server.Features.Media.GetMediaStats;
 using MediaTracker.Server.Features.Media.MediaContract;
 using MediaTracker.Server.Features.Media.UpdateMedia;
 using MediaTracker.Server.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace MediaTracker.Server.Features.Media.UpdateMedia;
 
@@ -22,7 +24,8 @@ public interface IUpdateMediaHandler
 public sealed class UpdateMediaHandler(
     AppDbContext db,
     IValidator<UpdateMediaRequest> validator,
-    IFranchiseService franchiseService) : IUpdateMediaHandler
+    IFranchiseService franchiseService,
+    IMemoryCache cache) : IUpdateMediaHandler
 {
     public async Task<Result<MediaDetailDto>> HandleAsync(UpdateMediaCommand command, CancellationToken ct)
     {
@@ -54,6 +57,7 @@ public sealed class UpdateMediaHandler(
 
         item.MarkUpdated();
         await db.SaveChangesAsync(ct);
+        cache.Remove(AdvancedStatsCalculator.CacheKey);
 
         return Result<MediaDetailDto>.Success(MediaDetailProjection.ToDetailDto(item));
     }

@@ -1,8 +1,10 @@
 using MediaTracker.Server.Domain.Common;
 using MediaTracker.Server.Domain.Entities;
+using MediaTracker.Server.Features.Media.GetMediaStats;
 using MediaTracker.Server.Infrastructure.Persistence;
 using MediaTracker.Server.Infrastructure.Storage;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace MediaTracker.Server.Features.Media.DeleteMedia;
 
@@ -13,7 +15,10 @@ public interface IDeleteMediaHandler
     Task<Result> HandleAsync(DeleteMediaCommand command, CancellationToken ct);
 }
 
-public sealed class DeleteMediaHandler(AppDbContext db, IImageStorageService imageStorage) : IDeleteMediaHandler
+public sealed class DeleteMediaHandler(
+    AppDbContext db,
+    IImageStorageService imageStorage,
+    IMemoryCache cache) : IDeleteMediaHandler
 {
     public async Task<Result> HandleAsync(DeleteMediaCommand command, CancellationToken ct)
     {
@@ -25,11 +30,11 @@ public sealed class DeleteMediaHandler(AppDbContext db, IImageStorageService ima
         }
 
         imageStorage.DeleteCover(item.CoverUrl);
-        // The cover is only part of what the folder holds, so the whole per-title directory goes.
         imageStorage.DeleteMediaFolder(item.Id);
 
         db.MediaItems.Remove(item);
         await db.SaveChangesAsync(ct);
+        cache.Remove(AdvancedStatsCalculator.CacheKey);
 
         return Result.Success();
     }

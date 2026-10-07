@@ -15,6 +15,7 @@
     export { default as Check } from "lucide-svelte/icons/check";
     export { default as CheckCircle2 } from "lucide-svelte/icons/check-circle-2";
     export { default as ChevronDown } from "lucide-svelte/icons/chevron-down";
+    export { default as ChevronLeft } from "lucide-svelte/icons/chevron-left";
     export { default as ChevronRight } from "lucide-svelte/icons/chevron-right";
     export { default as ChevronUp } from "lucide-svelte/icons/chevron-up";
     export { default as Clapperboard } from "lucide-svelte/icons/clapperboard";
@@ -24,6 +25,7 @@
     export { default as EyeOff } from "lucide-svelte/icons/eye-off";
     export { default as Film } from "lucide-svelte/icons/film";
     export { default as Flag } from "lucide-svelte/icons/flag";
+    export { default as Flame } from "lucide-svelte/icons/flame";
     export { default as Gamepad2 } from "lucide-svelte/icons/gamepad-2";
     export { default as GitBranch } from "lucide-svelte/icons/git-branch";
     export { default as History } from "lucide-svelte/icons/history";
@@ -57,6 +59,11 @@
     export { default as Star } from "lucide-svelte/icons/star";
     export { default as Tag } from "lucide-svelte/icons/tag";
     export { default as Trash2 } from "lucide-svelte/icons/trash-2";
+    export { default as Boxes } from "lucide-svelte/icons/boxes";
+    export { default as Clock } from "lucide-svelte/icons/clock";
+    export { default as Compass } from "lucide-svelte/icons/compass";
+    export { default as Crown } from "lucide-svelte/icons/crown";
+    export { default as Scale } from "lucide-svelte/icons/scale";
     export { default as Trophy } from "lucide-svelte/icons/trophy";
     export { default as Tv } from "lucide-svelte/icons/tv";
     export { default as Type } from "lucide-svelte/icons/type";

@@ -1,25 +1,24 @@
 using MediaTracker.Server.Domain.Common;
 using MediaTracker.Server.Domain.Entities;
-using MediaTracker.Server.Features.Media.GetMediaStats;
+using MediaTracker.Server.Features.Media.GetMediaDetail;
 using MediaTracker.Server.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace MediaTracker.Server.Features.Media.GetMediaStats;
 
-/// <summary>The dashboard counters, kept in its own slice because it is its own read shape.</summary>
 public interface IGetMediaStatsHandler
 {
     Task<Result<MediaStatsDto>> HandleAsync(CancellationToken ct);
+    Task<Result<AdvancedStatsDto>> HandleAdvancedAsync(CancellationToken ct);
 }
 
-public sealed class GetMediaStatsHandler(AppDbContext db) : IGetMediaStatsHandler
+public sealed class GetMediaStatsHandler(AppDbContext db, IMemoryCache cache) : IGetMediaStatsHandler
 {
     private const string Discriminator = "MediaType";
 
     public async Task<Result<MediaStatsDto>> HandleAsync(CancellationToken ct)
     {
-        // One grouped scan over MediaItems yields every per-type count and sum the dashboard shows,
-        // instead of the five separate round-trips this endpoint used to issue.
         var totals = await db.MediaItems
             .AsNoTracking()
             .GroupBy(_ => 1)
@@ -58,5 +57,22 @@ public sealed class GetMediaStatsHandler(AppDbContext db) : IGetMediaStatsHandle
         };
 
         return Result<MediaStatsDto>.Success(stats);
+    }
+
+    public async Task<Result<AdvancedStatsDto>> HandleAdvancedAsync(CancellationToken ct)
+    {
+        if (cache.TryGetValue(AdvancedStatsCalculator.CacheKey, out AdvancedStatsDto? cached) && cached is not null)
+        {
+            return Result<AdvancedStatsDto>.Success(cached);
+        }
+
+        var items = await MediaItemGraph
+            .LoadNoTracking(db)
+            .ToListAsync(ct);
+
+        var stats = AdvancedStatsCalculator.Calculate(items);
+        cache.Set(AdvancedStatsCalculator.CacheKey, stats, TimeSpan.FromMinutes(5));
+
+        return Result<AdvancedStatsDto>.Success(stats);
     }
 }

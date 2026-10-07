@@ -40,6 +40,9 @@ public static class MediaEndpoints
         group.MapGet("/stats", ([FromServices] IGetMediaStatsHandler handler, CancellationToken ct) =>
             handler.HandleAsync(ct).ToOk());
 
+        group.MapGet("/stats/advanced", ([FromServices] IGetMediaStatsHandler handler, CancellationToken ct) =>
+            handler.HandleAdvancedAsync(ct).ToOk());
+
         group.MapGet("/{id:guid}", (
                 Guid id,
                 [FromServices] IGetMediaDetailHandler handler,

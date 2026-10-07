@@ -3,9 +3,11 @@ using MediaTracker.Server.Common.Http;
 using MediaTracker.Server.Domain.Common;
 using MediaTracker.Server.Domain.Entities;
 using MediaTracker.Server.Features.Media.GetMediaDetail;
+using MediaTracker.Server.Features.Media.GetMediaStats;
 using MediaTracker.Server.Features.Media.UpdateStatus;
 using MediaTracker.Server.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace MediaTracker.Server.Features.Media.UpdateStatus;
 
@@ -18,7 +20,8 @@ public interface IUpdateStatusHandler
 
 public sealed class UpdateStatusHandler(
     AppDbContext db,
-    IValidator<UpdateStatusRequest> validator) : IUpdateStatusHandler
+    IValidator<UpdateStatusRequest> validator,
+    IMemoryCache cache) : IUpdateStatusHandler
 {
     public async Task<Result> HandleAsync(UpdateStatusCommand command, CancellationToken ct)
     {
@@ -50,6 +53,7 @@ public sealed class UpdateStatusHandler(
         }
 
         await db.SaveChangesAsync(ct);
+        cache.Remove(AdvancedStatsCalculator.CacheKey);
         return Result.Success();
     }
 }

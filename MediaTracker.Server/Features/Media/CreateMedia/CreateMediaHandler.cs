@@ -6,12 +6,14 @@ using MediaTracker.Server.Domain.Enums;
 using MediaTracker.Server.Domain.Rules;
 using MediaTracker.Server.Features.Jobs;
 using MediaTracker.Server.Features.Media.CreateMedia;
+using MediaTracker.Server.Features.Media.GetMediaStats;
 using MediaTracker.Server.Features.Media.MediaContract;
 using MediaTracker.Server.Infrastructure.Jobs;
 using MediaTracker.Server.Infrastructure.Persistence.Franchises;
 using MediaTracker.Server.Infrastructure.Persistence;
 using MediaTracker.Server.Infrastructure.Storage;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace MediaTracker.Server.Features.Media.CreateMedia;
 
@@ -27,7 +29,8 @@ public sealed class CreateMediaHandler(
     IValidator<CreateMediaRequest> validator,
     IImageStorageService imageStorage,
     IFranchiseService franchiseService,
-    IJobManager jobs) : ICreateMediaHandler
+    IJobManager jobs,
+    IMemoryCache cache) : ICreateMediaHandler
 {
     public async Task<Result<MediaDetailDto>> HandleAsync(CreateMediaCommand command, CancellationToken ct)
     {
@@ -61,6 +64,7 @@ public sealed class CreateMediaHandler(
         db.Add(item);
         db.Events.Add(MediaEventRecorder.Added(item));
         await db.SaveChangesAsync(ct);
+        cache.Remove(AdvancedStatsCalculator.CacheKey);
 
         if (deferEnrichment)
         {

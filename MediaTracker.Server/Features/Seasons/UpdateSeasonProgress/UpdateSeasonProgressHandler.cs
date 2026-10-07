@@ -2,9 +2,11 @@ using FluentValidation;
 using MediaTracker.Server.Common.Http;
 using MediaTracker.Server.Domain.Common;
 using MediaTracker.Server.Domain.Entities;
+using MediaTracker.Server.Features.Media.GetMediaStats;
 using MediaTracker.Server.Features.Seasons.UpdateSeasonProgress;
 using MediaTracker.Server.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace MediaTracker.Server.Features.Seasons.UpdateSeasonProgress;
 
@@ -15,13 +17,10 @@ public interface IUpdateSeasonProgressHandler
     Task<Result> HandleAsync(UpdateSeasonProgressCommand command, CancellationToken ct);
 }
 
-/// <summary>
-/// The season stepper. The season write is a single UPDATE with no tracked entity, and the parent
-/// show's status is then recalculated from the season totals by <see cref="TvShow.SyncStatusFromSeasons"/>.
-/// </summary>
 public sealed class UpdateSeasonProgressHandler(
     AppDbContext db,
-    IValidator<UpdateSeasonProgressRequest> validator) : IUpdateSeasonProgressHandler
+    IValidator<UpdateSeasonProgressRequest> validator,
+    IMemoryCache cache) : IUpdateSeasonProgressHandler
 {
     public async Task<Result> HandleAsync(UpdateSeasonProgressCommand command, CancellationToken ct)
     {
@@ -73,6 +72,7 @@ public sealed class UpdateSeasonProgressHandler(
             await SyncShowAsync(season.TvShowId, totals.AllCompleted, totals.TotalWatched > 0, ct);
         }
 
+        cache.Remove(AdvancedStatsCalculator.CacheKey);
         return Result.Success();
     }
 

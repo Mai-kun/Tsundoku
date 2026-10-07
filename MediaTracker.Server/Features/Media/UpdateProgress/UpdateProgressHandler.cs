@@ -1,9 +1,11 @@
 using FluentValidation;
 using MediaTracker.Server.Common.Http;
 using MediaTracker.Server.Domain.Common;
+using MediaTracker.Server.Features.Media.GetMediaStats;
 using MediaTracker.Server.Features.Media.UpdateProgress;
 using MediaTracker.Server.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace MediaTracker.Server.Features.Media.UpdateProgress;
 
@@ -14,14 +16,10 @@ public interface IUpdateProgressHandler
     Task<Result> HandleAsync(UpdateProgressCommand command, CancellationToken ct);
 }
 
-/// <summary>
-/// The progress stepper for books, manga and games. The clamping total and the row type live in the
-/// same table, so the whole write is one UPDATE per candidate type: no SELECT, no entity
-/// materialization, no change tracker entry.
-/// </summary>
 public sealed class UpdateProgressHandler(
     AppDbContext db,
-    IValidator<UpdateProgressRequest> validator) : IUpdateProgressHandler
+    IValidator<UpdateProgressRequest> validator,
+    IMemoryCache cache) : IUpdateProgressHandler
 {
     public async Task<Result> HandleAsync(UpdateProgressCommand command, CancellationToken ct)
     {
@@ -46,6 +44,7 @@ public sealed class UpdateProgressHandler(
 
         if (bookRows > 0)
         {
+            cache.Remove(AdvancedStatsCalculator.CacheKey);
             return Result.Success();
         }
 
@@ -59,6 +58,7 @@ public sealed class UpdateProgressHandler(
 
         if (mangaRows > 0)
         {
+            cache.Remove(AdvancedStatsCalculator.CacheKey);
             return Result.Success();
         }
 
@@ -66,8 +66,12 @@ public sealed class UpdateProgressHandler(
             .Where(x => x.Id == command.Id)
             .ExecuteUpdateAsync(s => s.SetProperty(x => x.HoursPlayed, progress), ct);
 
-        return gameRows > 0
-            ? Result.Success()
-            : Result.Failure(Error.Unsupported("Progress is not supported for this media type."));
+        if (gameRows > 0)
+        {
+            cache.Remove(AdvancedStatsCalculator.CacheKey);
+            return Result.Success();
+        }
+
+        return Result.Failure(Error.Unsupported("Progress is not supported for this media type."));
     }
 }

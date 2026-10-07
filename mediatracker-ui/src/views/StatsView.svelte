@@ -1,8 +1,15 @@
-﻿<script lang="ts">
-    import { BookOpen, Bookmark, CheckCircle2, Clock3, Film, Gamepad2, Library, RefreshCw, Tv } from "$shared/ui/Icons.svelte";
-    import { errorMessage, getStats } from "$shared/api/api";
+<script lang="ts">
+    import { RefreshCw } from "$shared/ui/Icons.svelte";
+    import { errorMessage, getAdvancedStats } from "$shared/api/api";
     import { i18n } from "$shared/i18n/index.svelte";
-    import type { MediaStats } from "$shared/types";
+    import type { AdvancedStats } from "$shared/types";
+    import StatsHeroBanner from "$widgets/stats/StatsHeroBanner.svelte";
+    import TimeDistributionDonut from "$widgets/stats/TimeDistributionDonut.svelte";
+    import RatingPsychology from "$widgets/stats/RatingPsychology.svelte";
+    import MonthlyActivityChart from "$widgets/stats/MonthlyActivityChart.svelte";
+    import TopGenresBar from "$widgets/stats/TopGenresBar.svelte";
+    import BacklogHealth from "$widgets/stats/BacklogHealth.svelte";
+    import TrackerBadges from "$widgets/stats/TrackerBadges.svelte";
 
     interface Props {
         refreshKey: number;
@@ -10,7 +17,7 @@
 
     let { refreshKey }: Props = $props();
 
-    let stats = $state<MediaStats | null>(null);
+    let stats = $state<AdvancedStats | null>(null);
     let loading = $state(true);
     let loadError = $state<unknown>(null);
     let requestSequence = 0;
@@ -25,7 +32,7 @@
         loadError = null;
 
         try {
-            const nextStats = await getStats();
+            const nextStats = await getAdvancedStats();
             if (sequence === requestSequence) {
                 stats = nextStats;
             }
@@ -43,135 +50,83 @@
     function retry() {
         void loadStats(++requestSequence);
     }
-
-    function format(value: number): string {
-        return new Intl.NumberFormat(i18n.current).format(value);
-    }
 </script>
 
-{#snippet metric(
-    value: number,
-    label: string,
-    Icon: typeof Library,
-    tone: string,
-)}
-    <article
-        class="rounded-lg border border-white/[0.06] bg-card p-5 transition hover:border-white/[0.08]"
-    >
-        <div class="flex items-center gap-2">
-            <Icon size={16} class={tone} aria-hidden="true" />
-            <p class="truncate text-xs font-medium text-muted">{label}</p>
-        </div>
-        <p class="mt-3 text-2xl font-bold tabular-nums text-ink">
-            {format(value)}
-        </p>
-    </article>
-{/snippet}
-
 <div class="mx-auto max-w-6xl space-y-6">
-    <div>
-        <p
-            class="text-xs font-semibold uppercase tracking-[0.18em] text-accent-soft"
-        >
-            {i18n.t.library.collectionLabel}
-        </p>
-        <h2 class="mt-1 text-2xl font-bold tracking-tight text-ink">
-            {i18n.t.stats.title}
-        </h2>
-    </div>
-
     {#if loading}
-        <div class="grid grid-cols-2 gap-4 md:grid-cols-4" aria-hidden="true">
-            {#each Array(8) as _, index (index)}
-                <div
-                    class="h-28 animate-pulse rounded-lg border border-white/[0.06] bg-card"
-                ></div>
-            {/each}
+        <div class="space-y-4" aria-hidden="true">
+            <div class="space-y-2">
+                <div class="h-8 w-72 max-w-full animate-pulse rounded-lg bg-white/5"></div>
+                <div class="h-4 w-96 max-w-full animate-pulse rounded-lg bg-white/5"></div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                {#each Array(3) as _, index (index)}
+                    <div class="h-20 animate-pulse rounded-xl border border-white/5 bg-[#151a26]"></div>
+                {/each}
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6" aria-hidden="true">
+            <div class="h-64 animate-pulse rounded-xl border border-white/5 bg-[#151a26]"></div>
+            <div class="h-64 animate-pulse rounded-xl border border-white/5 bg-[#151a26]"></div>
+        </div>
+
+        <div class="grid grid-cols-1 gap-6" aria-hidden="true">
+            <div class="h-64 animate-pulse rounded-xl border border-white/5 bg-[#151a26]"></div>
+            <div class="h-40 animate-pulse rounded-xl border border-white/5 bg-[#151a26]"></div>
+        </div>
+
+        <!-- Skeleton for BacklogHealth and TrackerBadges -->
+        <div class="space-y-6" aria-hidden="true">
+            <div class="h-36 animate-pulse rounded-xl border border-white/5 bg-[#151a26]"></div>
+            <div class="space-y-4">
+                <div class="flex items-center justify-between">
+                    <div class="h-6 w-48 animate-pulse rounded-lg bg-white/5"></div>
+                    <div class="h-6 w-36 animate-pulse rounded-lg bg-white/5"></div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {#each Array(6) as _, index (index)}
+                        <div class="h-32 animate-pulse rounded-xl border border-white/5 bg-[#151a26]"></div>
+                    {/each}
+                </div>
+            </div>
         </div>
         <p class="sr-only" role="status">{i18n.t.common.loading}</p>
     {:else if loadError}
         <div
-            class="flex min-h-72 flex-col items-center justify-center gap-3 rounded-lg bg-rose-400/5 p-6 text-center"
+            class="flex min-h-72 flex-col items-center justify-center gap-3 rounded-xl border border-rose-500/10 bg-rose-500/5 p-6 text-center"
         >
-            <p class="text-sm text-rose-200" role="alert">
+            <p class="text-sm text-rose-300" role="alert">
                 {errorMessage(loadError)}
             </p>
             <button
                 type="button"
-                class="inline-flex items-center gap-2 rounded-md bg-accent px-4 py-2 text-sm font-medium text-white transition hover:bg-accent-hover"
+                class="inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition hover:bg-accent-hover"
                 onclick={retry}
-                ><RefreshCw size={15} aria-hidden="true" />{i18n.t.common
-                    .retry}</button
             >
+                <RefreshCw size={15} aria-hidden="true" />
+                {i18n.t.common.retry}
+            </button>
         </div>
     {:else if stats}
-        <div class="grid grid-cols-2 gap-4 md:grid-cols-4">
-            {@render metric(
-                stats.totalItems,
-                i18n.t.stats.totalItems,
-                Library,
-                "text-accent-soft",
-            )}
-            {@render metric(
-                stats.completedItems,
-                i18n.t.stats.completedItems,
-                CheckCircle2,
-                "text-emerald-400",
-            )}
-            {@render metric(
-                stats.inProgressItems,
-                i18n.t.stats.inProgressItems,
-                Clock3,
-                "text-[#a5b4fc]",
-            )}
-            {@render metric(
-                stats.plannedItems,
-                i18n.t.stats.plannedItems,
-                Bookmark,
-                "text-zinc-300",
-            )}
-            {@render metric(
-                stats.totalHoursPlayed,
-                i18n.t.stats.hours,
-                Gamepad2,
-                "text-sky-400",
-            )}
-            {@render metric(
-                stats.totalPagesRead,
-                i18n.t.stats.pages,
-                BookOpen,
-                "text-amber-300",
-            )}
-            {@render metric(
-                stats.totalChaptersRead,
-                i18n.t.stats.chapters,
-                BookOpen,
-                "text-amber-300",
-            )}
-            {@render metric(
-                stats.totalEpisodesWatched,
-                i18n.t.stats.episodes,
-                Tv,
-                "text-violet-300",
-            )}
-            {@render metric(
-                stats.completedGamesCount,
-                i18n.t.stats.gamesCompleted,
-                Gamepad2,
-                "text-sky-400",
-            )}
-            {@render metric(
-                stats.completedBooksCount,
-                i18n.t.stats.booksCompleted,
-                BookOpen,
-                "text-amber-300",
-            )}
-            {@render metric(
-                stats.completedMoviesCount,
-                i18n.t.stats.moviesCompleted,
-                Film,
-                "text-accent-soft",
-            )}
+        <StatsHeroBanner {stats} />
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="bg-[#151a26] border border-white/5 rounded-xl p-5">
+                <TimeDistributionDonut {stats} />
+            </div>
+
+            <div class="bg-[#151a26] border border-white/5 rounded-xl p-5">
+                <RatingPsychology {stats} />
+            </div>
         </div>
+
+        <div class="grid grid-cols-1 gap-6 mt-6">
+            <MonthlyActivityChart completions={stats.monthlyCompletions} />
+            <TopGenresBar genres={stats.topGenres} />
+        </div>
+
+        <BacklogHealth {stats} />
+        <TrackerBadges {stats} />
     {/if}
 </div>

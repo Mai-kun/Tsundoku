@@ -2,14 +2,13 @@ import { i18n } from "$shared/i18n/index.svelte";
 import type {
   ConnectionTestResult,
   CreateMediaPayload,
-  CreateVolumePayload,
   ExternalMedia,
   HistoryEvent,
-  MangaVolume,
   MediaDetail,
   MediaFilters,
   MediaItem,
   MediaStats,
+  AdvancedStats,
   MediaStatus,
   SearchScope,
   SourceInfo,
@@ -18,7 +17,6 @@ import type {
   ExternalRecommendation,
   ExternalRelation,
   UpdateMediaPayload,
-  UpdateVolumePayload,
 } from "$shared/types";
 
 const mediaEndpoint = "/api/media";
@@ -154,6 +152,10 @@ export function getStats(): Promise<MediaStats> {
   return requestJson<MediaStats>(`${mediaEndpoint}/stats`);
 }
 
+export function getAdvancedStats(signal?: AbortSignal): Promise<AdvancedStats> {
+  return requestJson<AdvancedStats>(`${mediaEndpoint}/stats/advanced`, { signal });
+}
+
 export function searchExternal(
   type: SearchScope,
   query: string,
@@ -229,40 +231,6 @@ export function setSeasonProgress(
     `/api/seasons/${id}/progress`,
     jsonOptions("PUT", { currentEpisode }),
   );
-}
-
-export function setVolumeProgress(
-  id: string,
-  progress: { currentPage?: number; currentChapter?: number },
-): Promise<void> {
-  return requestVoid(
-    `/api/volumes/${id}/progress`,
-    jsonOptions("PUT", progress),
-  );
-}
-
-export function addVolume(
-  mangaId: string,
-  payload: CreateVolumePayload,
-): Promise<MangaVolume> {
-  return requestJson<MangaVolume>(
-    `/api/volumes?mangaId=${mangaId}`,
-    jsonOptions("POST", payload),
-  );
-}
-
-export function updateVolume(
-  id: string,
-  payload: UpdateVolumePayload,
-): Promise<MangaVolume> {
-  return requestJson<MangaVolume>(
-    `/api/volumes/${id}`,
-    jsonOptions("PUT", payload),
-  );
-}
-
-export function deleteVolume(id: string): Promise<void> {
-  return requestVoid(`/api/volumes/${id}`, { method: "DELETE" });
 }
 
 export function updateStatus(id: string, status: MediaStatus): Promise<void> {

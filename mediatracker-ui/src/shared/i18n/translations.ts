@@ -159,9 +159,9 @@ export const translations = {
         },
         chapters: {
             ru: (current: number, total: number | null) =>
-      `Гл. ${current}${total && total > 0 ? ` / ${total}` : ""}`,
+                `${current} / ${total && total > 0 ? total : "—"} гл.`,
             en: (current: number, total: number | null) =>
-      `Ch. ${current}${total && total > 0 ? ` / ${total}` : ""}`,
+                `${current} / ${total && total > 0 ? total : "—"} ch.`,
         },
         hours: {
             ru: (hours: number) => `${hours} ч.`,

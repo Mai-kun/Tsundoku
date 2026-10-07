@@ -239,17 +239,7 @@ export function mangaChapterProgress(item: MediaItem): {
     total: number | null;
 } {
     if (item.type !== "manga") return { current: 0, total: null };
-    const volumes = isMangaDetail(item) ? (item.volumes ?? []) : [];
-    const hasVolumeChapters = volumes.some(
-        (volume) => (volume.totalChapters ?? 0) > 0,
-    );
-    const current = hasVolumeChapters
-        ? Math.max(
-              item.currentChapter,
-              volumes.reduce((sum, volume) => sum + (volume.currentChapter ?? 0), 0),
-          )
-        : item.currentChapter;
-    return { current, total: item.totalChapters };
+    return { current: item.currentChapter, total: item.totalChapters };
 }
 
 export function readProgress(item: MediaItem): ProgressInfo | null {
@@ -461,6 +451,25 @@ function hasAlreadyReleased(item: MediaItem): boolean {
     return item.releaseYear != null && item.releaseYear <= new Date().getFullYear();
 }
 
+function parseGenresList(genres?: string[] | string | null): string[] {
+    if (!genres) return [];
+    if (Array.isArray(genres)) return genres.map((g) => g.trim()).filter(Boolean);
+    if (typeof genres === "string") {
+        const trimmed = genres.trim();
+        if (!trimmed) return [];
+        if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+            try {
+                const parsed = JSON.parse(trimmed);
+                if (Array.isArray(parsed)) {
+                    return parsed.map((g: unknown) => String(g).trim()).filter(Boolean);
+                }
+            } catch {}
+        }
+        return trimmed.split(",").map((g) => g.trim()).filter(Boolean);
+    }
+    return [];
+}
+
 export function specRows(item: MediaItem): SpecRow[] {
     const empty = i18n.t.detailModal.valueEmpty;
     const rows: SpecRow[] = [
@@ -476,17 +485,6 @@ export function specRows(item: MediaItem): SpecRow[] {
             label: i18n.t.status.label,
             value: releaseStatusLabel(item),
         });
-        if (item.genres) {
-            const g = Array.isArray(item.genres)
-                ? item.genres.join(", ")
-                : item.genres;
-            if (g && g.trim()) {
-                rows.push({
-                    label: i18n.current === "ru" ? "Жанры" : "Genres",
-                    value: g.trim(),
-                });
-            }
-        }
         const t = item.tags
             ? (Array.isArray(item.tags)
                   ? item.tags.join(", ")
@@ -556,28 +554,17 @@ export function specRows(item: MediaItem): SpecRow[] {
             const chapters = mangaChapterProgress(item);
             rows.push({
                 label: i18n.t.detail.chaptersLabel,
-                value:
-                    chapters.total !== null && chapters.total > 0
-                        ? i18n.t.card.chapters(chapters.current, chapters.total)
-                        : i18n.current === "ru"
-                          ? `Гл. ${chapters.current} / —`
-                          : `Ch. ${chapters.current} / —`,
+                value: i18n.t.card.chapters(chapters.current, chapters.total),
             });
 
-            const vols = isMangaDetail(item) ? (item.volumes ?? []) : [];
+            const vols = (item as { volumes?: unknown }).volumes;
             const totalVols =
-                vols.length > 0 ? vols.length : (item.totalVolumes ?? null);
-            const curVol = item.currentVolume ?? (vols.length > 0 ? 1 : null);
+                typeof vols === "number"
+                    ? vols
+                    : (item.totalVolumes ?? (Array.isArray(vols) ? vols.length : null));
             rows.push({
                 label: i18n.t.detail.volumesLabel,
-                value:
-                    totalVols !== null && totalVols > 0
-                        ? curVol !== null && curVol > 0
-                            ? `${curVol} / ${totalVols}`
-                            : `${totalVols}`
-                        : curVol !== null && curVol > 0
-                          ? `${curVol} / —`
-                          : empty,
+                value: totalVols && totalVols > 0 ? `${totalVols}` : "—",
             });
             break;
         }
@@ -633,6 +620,13 @@ export function specRows(item: MediaItem): SpecRow[] {
             });
             break;
     }
+
+    const genreList = parseGenresList(item.genres);
+    rows.push({
+        label: i18n.t.detail.genresLabel,
+        value: genreList.length > 0 ? genreList.join(", ") : "—",
+        badges: genreList.length > 0 ? genreList : undefined,
+    });
 
     rows.push({ label: i18n.t.detail.source, value: dataSource(item) });
 

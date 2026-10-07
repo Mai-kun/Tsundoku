@@ -12,6 +12,7 @@ export interface SpecRow {
     value: string;
     /** Absolute URL when the value is a link; the sidebar renders an anchor instead of plain text. */
     href?: string;
+    badges?: readonly string[];
 }
 
 export interface EpisodeRow {
@@ -104,7 +105,6 @@ export interface TimelineEntry {
 export type SubTab =
     | "overview"
     | "episodes"
-    | "volumes"
     | "related"
     | "recommendations";
 

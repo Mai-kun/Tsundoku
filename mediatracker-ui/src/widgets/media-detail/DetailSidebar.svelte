@@ -12,6 +12,7 @@
         value: string;
         /** Absolute URL when the value is a link; the sidebar renders an anchor instead of plain text. */
         href?: string;
+        badges?: readonly string[];
     }
 
     interface Props {
@@ -567,6 +568,16 @@
                                     {row.value}
                                     <ExternalLink size={11} aria-hidden="true" />
                                 </a>
+                            {:else if row.badges && row.badges.length > 0}
+                                <div class="flex flex-wrap justify-end gap-1">
+                                    {#each row.badges as badge}
+                                        <span
+                                            class="inline-block rounded border border-white/10 bg-white/5 px-1.5 py-0.5 text-xs text-zinc-300"
+                                        >
+                                            {badge}
+                                        </span>
+                                    {/each}
+                                </div>
                             {:else}
                                 {row.value}
                             {/if}

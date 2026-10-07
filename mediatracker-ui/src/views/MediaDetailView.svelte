@@ -1,9 +1,7 @@
 ﻿<script lang="ts">
     import { ArrowLeft, ArrowUpDown, Bookmark, CalendarDays, Check, CheckCircle2, ChevronDown, ExternalLink, Eye, GitBranch, Image as ImageIcon, Languages, Layers, LoaderCircle, LayoutGrid, List, Minus, Pause, Pencil, Play, Plus, RefreshCw, RotateCcw, Sparkles, Star, Trash2, Trophy, X } from "$shared/ui/Icons.svelte";
     import {
-        addVolume,
         createMedia,
-        deleteVolume,
         enrichMedia,
         errorMessage,
         getExternalDetails,
@@ -11,22 +9,18 @@
         getGameRelated,
         getExternalRelations,
         getMedia,
-        getMediaRecommendations,
         getSources,
         refreshMetadata,
         setProgress,
         setSeasonProgress,
-        setVolumeProgress,
         translateText,
         updateMedia,
         updateStatus,
-        updateVolume,
     } from "$shared/api/api";
     import { i18n } from "$shared/i18n/index.svelte";
     import { toRelatedEntry } from "$widgets/media-detail/externalMapping";
     import { showToast } from "$shared/ui/toast.svelte";
     import {
-        isMangaDetail,
         isTvShowDetail,
         MEDIA_STATUS,
         SYNC_STATUS,
@@ -34,7 +28,6 @@
         type ExternalEpisode,
         type GameAchievementItem,
         type MangaMedia,
-        type MangaVolume,
         type MediaDetail,
         type MediaItem,
         type MediaStatus,
@@ -65,7 +58,6 @@
         statusLabel,
         tags,
     } from "$widgets/media-detail/detailFormatters";
-    import { createVolumeController } from "$widgets/media-detail/createVolumeController.svelte";
     import {
         buildRatingBadges,
         CATEGORY_EXPECTED_SOURCES,
@@ -221,8 +213,6 @@
 import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
     import FillMissingModal from "$widgets/media-detail/FillMissingModal.svelte";
     import OverwriteConfirmModal from "$widgets/media-detail/OverwriteConfirmModal.svelte";
-    import VolumeFormModal from "$widgets/media-detail/panels/VolumeFormModal.svelte";
-    import VolumesPanel from "$widgets/media-detail/panels/VolumesPanel.svelte";
     import EpisodesTab from "$widgets/media-detail/tabs/EpisodesTab.svelte";
     import OverviewTab from "$widgets/media-detail/tabs/OverviewTab.svelte";
     import RecommendationsTab from "$widgets/media-detail/tabs/RecommendationsTab.svelte";
@@ -357,8 +347,6 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
     });
 
     let recommendations = $state<RecommendationItem[]>([]);
-    let recommendationsLoading = $state(false);
-    let recommendationsError = $state<unknown>(null);
 
     let deleteBusy = $state(false);
     let deleteError = $state<unknown>(null);
@@ -623,19 +611,6 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
         });
     });
 
-    let mangaVolumes = $derived(
-        media && isMangaDetail(media) ? (media.volumes ?? []) : [],
-    );
-
-    const volumes = createVolumeController({
-        getMedia: () => media,
-        reload: async () => {
-            await load(mediaId, ++requestSequence, false);
-        },
-        // Read through a closure so a later prop swap is not captured here.
-        onUpdate: () => onUpdate(),
-    });
-
     $effect(() => {
         void refreshKey;
         const id = mediaId;
@@ -837,7 +812,6 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
             relatedError = null;
             previewRelatedItem = null;
             recommendations = [];
-            recommendationsError = null;
             progressError = null;
             statusError = null;
             ratingError = null;
@@ -1465,8 +1439,7 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
                         itemDetails.originalTitle ??
                         undefined,
                     totalChapters: itemDetails.chapters ?? null,
-                    totalVolumes: itemDetails.volumes ?? 1,
-                    currentVolume: 1,
+                    totalVolumes: itemDetails.volumes ?? null,
                     franchiseId,
                     franchiseName,
                     externalId: itemDetails.id,
@@ -1534,36 +1507,6 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
             previewAddingBusy = false;
         }
     }
-
-    async function loadRecommendations(
-        source: string | null,
-        force = false,
-    ) {
-        if (!media) return;
-        // No source picked means no request: this tab is opened by clicking a tab, and fetching here
-        // is exactly the "first card open hits three external APIs" behaviour being removed.
-        if (source === null) return;
-        // `media` is a $state proxy, so its non-null narrowing does not survive the awaits below.
-        const item = media;
-
-        recommendationsLoading = true;
-        recommendationsError = null;
-
-        try {
-            // One call covers every provider: the server picks the source for the media type, applies
-            // the 30-day cache and writes the result onto the row. Inside that window this returns the
-            // stored list without touching AniList, TMDb or RAWG.
-            recommendations = await getMediaRecommendations(item.id, source, force);
-            item.recommendations = recommendations;
-            item.recommendationsJson = JSON.stringify(recommendations);
-        } catch (e) {
-            recommendationsError = e;
-        } finally {
-            recommendationsLoading = false;
-        }
-    }
-
-
 
 
 
@@ -1935,7 +1878,6 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
     active={activeSubTab}
     mediaType={media.type}
     seasonProgress={seriesEpisodes.total > 0 ? seriesEpisodes : null}
-    volumeCount={mangaVolumes.length}
     relatedCount={related.length}
     onSelect={(tab) => (activeSubTab = tab)}
 />
@@ -1967,30 +1909,7 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
                         unlockedAchievementNames={unlockedAchievementNames}
                         onToggleAchievement={toggleAchievement}
                         onToggleAllAchievements={toggleAllAchievements}
-                        {mangaVolumes}
-                        {volumes}
-                        onOpenVolumesTab={() => (activeSubTab = "volumes")}
                     />
-                {:else if activeSubTab === "volumes" && media.type === "manga"}
-                    {#if isSyncing}
-                        <SyncRowsSkeleton
-                            label={i18n.t.activity.loadingSeasons}
-                        />
-                    {:else}
-                        <VolumesPanel
-                            {media}
-                            volumes={mangaVolumes}
-                            busy={volumes.busy}
-                            onAdd={() => volumes.openAdd()}
-                            onGenerate={() => void volumes.generateMissing()}
-                            onStep={(vol, delta) => void volumes.stepVolume(vol, delta)}
-                            onEdit={(vol) => volumes.openEdit(vol)}
-                            onDelete={(vol) => void volumes.remove(vol)}
-                            onMarkComplete={(vol) => void volumes.markComplete(vol)}
-                            onUnmarkComplete={(vol) =>
-                                void volumes.unmarkComplete(vol)}
-                        />
-                    {/if}
                 {:else if activeSubTab === "related"}
                     <RelatedTab
                         {media}
@@ -2012,14 +1931,7 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
                         }}
                     />
                 {:else if activeSubTab === "recommendations"}
-                    <RecommendationsTab
-                        {media}
-                        items={recommendations}
-                        loading={recommendationsLoading}
-                        error={recommendationsError}
-                        onLoad={(source, force) =>
-                            void loadRecommendations(source, force ?? false)}
-                    />
+                    <RecommendationsTab items={recommendations} />
                 {/if}
 
                 <!-- The whole section is tab-gated: the season banner must not leak into Related/Recommendations. -->
@@ -2099,36 +2011,6 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
     currentSource={media?.externalSource ?? null}
     onFill={(source) => void handleFillMissing(source)}
     onClose={() => (fillMissingOpen = false)}
-/>
-<!-- Add / edit volume dialogs -->
-<VolumeFormModal
-    mode="add"
-    open={volumes.addDialogOpen}
-    busy={Boolean(volumes.busy)}
-    title={volumes.addTitle}
-    chapters={volumes.addChapters}
-    onTitleChange={(v) => (volumes.addTitle = v)}
-    onChaptersChange={(v) => (volumes.addChapters = v)}
-    onClose={volumes.closeAdd}
-    onSubmit={() => void volumes.confirmAdd()}
-/>
-
-<VolumeFormModal
-    mode="edit"
-    open={volumes.editDialogOpen}
-    busy={Boolean(volumes.busy)}
-    title={volumes.editTitle}
-    chapters={volumes.editChapters}
-    pages={volumes.editPages}
-    currentChapter={volumes.editCurrentChapter}
-    currentPage={volumes.editCurrentPage}
-    onTitleChange={(v) => (volumes.editTitle = v)}
-    onChaptersChange={(v) => (volumes.editChapters = v)}
-    onPagesChange={(v) => (volumes.editPages = v)}
-    onCurrentChapterChange={(v) => (volumes.editCurrentChapter = v)}
-    onCurrentPageChange={(v) => (volumes.editCurrentPage = v)}
-    onClose={volumes.closeEdit}
-    onSubmit={() => void volumes.confirmEdit()}
 />
 
 

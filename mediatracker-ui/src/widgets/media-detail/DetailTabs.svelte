@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { Layers, Sparkles } from "$shared/ui/Icons.svelte";
+    import { Sparkles } from "$shared/ui/Icons.svelte";
     import { i18n } from "$shared/i18n/index.svelte";
     import type { SubTab } from "./detailTypes";
 
@@ -8,7 +8,6 @@
         mediaType: string;
         /** Undefined for non-shows; drives the "3/12" badge on the episodes tab. */
         seasonProgress: { current: number; total: number | null } | null;
-        volumeCount: number;
         relatedCount: number;
         onSelect: (tab: SubTab) => void;
     }
@@ -17,7 +16,6 @@
         active,
         mediaType,
         seasonProgress,
-        volumeCount,
         relatedCount,
         onSelect,
     }: Props = $props();
@@ -57,28 +55,6 @@
         </button>
     {/if}
 
-    {#if mediaType === "manga"}
-        <button
-            type="button"
-            class={tabClass("volumes")}
-            onclick={() => onSelect("volumes")}
-        >
-            <Layers
-                size={14}
-                class="text-[var(--color-accent-soft)]"
-                aria-hidden="true"
-            />
-            {i18n.t.detail.tabVolumes}
-            {#if volumeCount > 0}
-                <span
-                    class="rounded-full bg-white/10 px-2 py-0.5 text-xs text-[var(--color-accent-soft)]"
-                >
-                    {volumeCount}
-                </span>
-            {/if}
-        </button>
-    {/if}
-
     <button
         type="button"
         class={tabClass("related")}
@@ -96,8 +72,7 @@
         type="button"
         class={tabClass("recommendations")}
         onclick={() => {
-            // No fetch here: recommendations are the one panel that must only hit the
-            // external API on an explicit button press (see RecommendationsPanel).
+            // No fetch here: the tab renders the recommendations already stored on the row.
             onSelect("recommendations");
         }}
     >

@@ -58,6 +58,39 @@ public static class SettingsEndpoints
                 CancellationToken ct) =>
             handler.HandleAsync(new SaveSourcePriorityCommand(priority), ct).ToOk());
 
+        group.MapGet("/backup/export", async (
+            [FromServices] MediaTracker.Server.Infrastructure.Storage.IBackupService backupService,
+            CancellationToken ct) =>
+        {
+            var result = await backupService.CreateBackupArchiveAsync(ct);
+            if (result.IsFailure || result.Value is null)
+            {
+                return result.Problem();
+            }
+
+            var fileName = $"tsundoku-backup-{DateTime.UtcNow:yyyyMMdd-HHmmss}.zip";
+            return Results.File(
+                result.Value,
+                contentType: "application/zip",
+                fileDownloadName: fileName);
+        });
+
+        group.MapPost("/backup/restore", async (
+            IFormFile backupFile,
+            [FromServices] MediaTracker.Server.Infrastructure.Storage.IBackupService backupService,
+            CancellationToken ct) =>
+        {
+            if (backupFile is null || backupFile.Length == 0)
+            {
+                return Results.BadRequest(HttpResultMapper.CreateProblem(
+                    MediaTracker.Server.Domain.Common.Error.Validation("Файл бэкапа не предоставлен.")));
+            }
+
+            await using var stream = backupFile.OpenReadStream();
+            var result = await backupService.RestoreBackupArchiveAsync(stream, ct);
+            return result.ToHttpResult();
+        }).DisableAntiforgery();
+
         return app;
     }
 }

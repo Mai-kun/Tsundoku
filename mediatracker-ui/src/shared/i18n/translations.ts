@@ -487,6 +487,7 @@ export const translations = {
         tabs: {
             sources: { ru: "Источники", en: "Sources" },
             search: { ru: "Поиск", en: "Search" },
+            backup: { ru: "Резервная копия", en: "Backup" },
         },
         sources: {
             title: { ru: "Поддерживаемые источники", en: "Supported Sources" },
@@ -541,6 +542,36 @@ export const translations = {
             fallback: {
                 ru: (order: number) => `Резервный (${order})`,
                 en: (order: number) => `Backup (${order})`,
+            },
+        },
+        backup: {
+            title: { ru: "Резервное копирование и восстановление", en: "Backup and Restore" },
+            exportTitle: { ru: "Экспорт резервной копии", en: "Export Backup" },
+            exportDescription: {
+                ru: "Создает полный автономный архив вашей медиатеки: базу данных SQLite и все скачанные обложки в оригинальном качестве.",
+                en: "Creates a complete standalone archive of your media library: SQLite database and all downloaded covers in original quality.",
+            },
+            exportButton: { ru: "Скачать резервную копию", en: "Download Backup" },
+            exporting: { ru: "Создание архива...", en: "Creating archive..." },
+            restoreTitle: { ru: "Восстановление из копии", en: "Restore from Backup" },
+            restoreDescription: {
+                ru: "Восстановление полностью заменит текущую базу данных и сохраненные обложки данными из архива. Рекомендуется сначала сделать свежий бэкап.",
+                en: "Restoring will completely replace the current database and saved covers with data from the archive. It is recommended to make a fresh backup first.",
+            },
+            selectFileButton: { ru: "Восстановить из файла...", en: "Restore from file..." },
+            dangerZone: { ru: "Опасная зона", en: "Danger Zone" },
+            confirmModalTitle: { ru: "Подтверждение восстановления", en: "Confirm Restore" },
+            confirmModalWarning: {
+                ru: "Вы уверены, что хотите восстановить данные из выбранного архива? Текущая база данных и все файлы обложек будут перезаписаны. Это действие необратимо.",
+                en: "Are you sure you want to restore data from the selected archive? The current database and all cover files will be overwritten. This action cannot be undone.",
+            },
+            selectedFileLabel: { ru: "Выбранный файл:", en: "Selected file:" },
+            confirmButton: { ru: "Да, восстановить базу", en: "Yes, restore database" },
+            cancelButton: { ru: "Отмена", en: "Cancel" },
+            restoring: { ru: "Восстановление...", en: "Restoring..." },
+            restoreSuccess: {
+                ru: "База данных успешно восстановлена. Страница будет перезагружена...",
+                en: "Database restored successfully. The page will reload...",
             },
         },
     },

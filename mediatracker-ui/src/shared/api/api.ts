@@ -456,3 +456,25 @@ export function clearAllHistory(): Promise<void> {
 export function deleteHistoryEvent(id: string): Promise<void> {
   return requestVoid(`/api/history/${id}`, { method: "DELETE" });
 }
+
+export async function exportBackup(): Promise<Blob> {
+  const response = await fetch("/api/settings/backup/export");
+  if (!response.ok) {
+    return throwApiError(response);
+  }
+  return response.blob();
+}
+
+export async function restoreBackup(file: File): Promise<void> {
+  const formData = new FormData();
+  formData.append("backupFile", file);
+
+  const response = await fetch("/api/settings/backup/restore", {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!response.ok) {
+    return throwApiError(response);
+  }
+}

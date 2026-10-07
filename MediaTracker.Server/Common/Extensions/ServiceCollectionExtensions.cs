@@ -51,6 +51,8 @@ public static class ServiceCollectionExtensions
         services.AddHttpClient<IImageStorageService, ImageStorageService>(client =>
             client.Timeout = TimeSpan.FromSeconds(5));
 
+        services.AddScoped<IBackupService, BackupService>();
+
         return services;
     }
 }

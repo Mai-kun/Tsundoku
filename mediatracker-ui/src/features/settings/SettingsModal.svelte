@@ -1,11 +1,31 @@
 <script lang="ts">
-    import { AlertCircle, Check, ChevronDown, ChevronUp, Eye, EyeOff, Key, Layers, RefreshCw, Search, Server, ShieldCheck, X } from "$shared/ui/Icons.svelte";
+    import {
+        AlertCircle,
+        AlertTriangle,
+        ArrowDown,
+        Check,
+        ChevronDown,
+        ChevronUp,
+        Eye,
+        EyeOff,
+        Key,
+        Layers,
+        LoaderCircle,
+        RefreshCw,
+        RotateCcw,
+        Search,
+        Server,
+        ShieldCheck,
+        X,
+    } from "$shared/ui/Icons.svelte";
     import { onMount } from "svelte";
     import {
         errorMessage,
+        exportBackup,
         getCategoryOrder,
         getSources,
         getSourcePriority,
+        restoreBackup,
         saveCategoryOrder,
         saveSourceKey,
         saveSourcePriority,
@@ -24,8 +44,73 @@
 
     let { isOpen, onClose }: Props = $props();
 
-    type Tab = "sources" | "search";
+    type Tab = "sources" | "search" | "backup";
     let activeTab = $state<Tab>("sources");
+
+    let isExporting = $state(false);
+    let isRestoring = $state(false);
+    let selectedBackupFile = $state<File | null>(null);
+    let showRestoreConfirm = $state(false);
+    let fileInputRef = $state<HTMLInputElement | null>(null);
+
+    async function handleExportBackup() {
+        if (isExporting) return;
+        isExporting = true;
+        try {
+            const blob = await exportBackup();
+            const url = URL.createObjectURL(blob);
+            const now = new Date();
+            const pad = (n: number) => String(n).padStart(2, "0");
+            const timestamp = `${now.getUTCFullYear()}${pad(now.getUTCMonth() + 1)}${pad(now.getUTCDate())}-${pad(now.getUTCHours())}${pad(now.getUTCMinutes())}${pad(now.getUTCSeconds())}`;
+            const fileName = `tsundoku-backup-${timestamp}.zip`;
+
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        } catch (e) {
+            console.error(e);
+            showToast(errorMessage(e), "error");
+        } finally {
+            isExporting = false;
+        }
+    }
+
+    function handleFileSelected(event: Event) {
+        const input = event.target as HTMLInputElement;
+        if (input.files && input.files[0]) {
+            selectedBackupFile = input.files[0];
+            showRestoreConfirm = true;
+        }
+        input.value = "";
+    }
+
+    async function handleConfirmRestore() {
+        if (!selectedBackupFile || isRestoring) return;
+        isRestoring = true;
+        try {
+            await restoreBackup(selectedBackupFile);
+            showRestoreConfirm = false;
+            selectedBackupFile = null;
+            showToast(i18n.t.settingsModal.backup.restoreSuccess, "success", 5000);
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+        } catch (e) {
+            console.error(e);
+            showToast(errorMessage(e), "error");
+            isRestoring = false;
+        }
+    }
+
+    function handleCancelRestore() {
+        if (isRestoring) return;
+        showRestoreConfirm = false;
+        selectedBackupFile = null;
+    }
 
     let sources = $state<SourceInfo[]>([]);
     let sourcesLoading = $state(false);
@@ -352,6 +437,18 @@
             >
                 <Search size={16} />
                 {i18n.t.settingsModal.tabs.search}
+            </button>
+            <button
+                type="button"
+                class={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition cursor-pointer ${
+                    activeTab === "backup"
+                        ? "border-accent-soft text-ink"
+                        : "border-transparent text-muted hover:text-ink"
+                }`}
+                onclick={() => (activeTab = "backup")}
+            >
+                <RotateCcw size={16} />
+                {i18n.t.settingsModal.tabs.backup}
             </button>
         </div>
 
@@ -951,7 +1048,122 @@
                         {/if}
                     </div>
                 </div>
+            {:else if activeTab === "backup"}
+                <div class="space-y-6">
+                    <!-- Export Section -->
+                    <div class="rounded-lg border border-white/[0.08] bg-card p-5">
+                        <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                            <div class="max-w-xl">
+                                <h3 class="text-sm font-semibold text-ink">
+                                    {i18n.t.settingsModal.backup.exportTitle}
+                                </h3>
+                                <p class="mt-1 text-xs leading-relaxed text-muted">
+                                    {i18n.t.settingsModal.backup.exportDescription}
+                                </p>
+                            </div>
+                            <div class="shrink-0">
+                                <button
+                                    type="button"
+                                    class="inline-flex h-9 items-center gap-2 rounded-md bg-accent-soft px-4 text-xs font-semibold text-ink transition hover:bg-accent cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+                                    class:cursor-wait={isExporting}
+                                    disabled={isExporting}
+                                    onclick={handleExportBackup}
+                                >
+                                    {#if isExporting}
+                                        <LoaderCircle size={14} class="animate-spin" />
+                                        {i18n.t.settingsModal.backup.exporting}
+                                    {:else}
+                                        <ArrowDown size={14} />
+                                        {i18n.t.settingsModal.backup.exportButton}
+                                    {/if}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Restore Section (Danger Zone) -->
+                    <div class="rounded-lg border border-rose-500/20 bg-rose-950/10 p-5">
+                        <div class="flex items-center gap-2 text-rose-400">
+                            <AlertTriangle size={16} />
+                            <h3 class="text-xs font-semibold tracking-wide uppercase">
+                                {i18n.t.settingsModal.backup.dangerZone}: {i18n.t.settingsModal.backup.restoreTitle}
+                            </h3>
+                        </div>
+                        <p class="mt-2 text-xs leading-relaxed text-muted">
+                            {i18n.t.settingsModal.backup.restoreDescription}
+                        </p>
+                        <div class="mt-4">
+                            <input
+                                bind:this={fileInputRef}
+                                type="file"
+                                accept=".zip"
+                                class="hidden"
+                                onchange={handleFileSelected}
+                            />
+                            <button
+                                type="button"
+                                class="inline-flex h-9 items-center gap-2 rounded-md border border-rose-500/30 bg-field px-4 text-xs font-semibold text-rose-300 transition hover:bg-rose-500/15 hover:border-rose-500/50 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+                                disabled={isRestoring}
+                                onclick={() => fileInputRef?.click()}
+                            >
+                                <RotateCcw size={14} />
+                                {i18n.t.settingsModal.backup.selectFileButton}
+                            </button>
+                        </div>
+                    </div>
+                </div>
             {/if}
+        </div>
+    </div>
+</Modal>
+
+<!-- Confirmation Modal for Restore -->
+<Modal isOpen={showRestoreConfirm} onClose={handleCancelRestore} labelledBy="restore-confirm-title">
+    <div class="p-6">
+        <div class="flex items-start gap-4">
+            <div class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-rose-500/15 text-rose-400">
+                <AlertTriangle size={20} />
+            </div>
+            <div>
+                <h3 id="restore-confirm-title" class="text-base font-bold text-ink">
+                    {i18n.t.settingsModal.backup.confirmModalTitle}
+                </h3>
+                <p class="mt-2 text-xs leading-relaxed text-muted">
+                    {i18n.t.settingsModal.backup.confirmModalWarning}
+                </p>
+                {#if selectedBackupFile}
+                    <div class="mt-3 rounded-md bg-field px-3 py-2 text-xs text-ink font-mono border border-white/10">
+                        <span class="text-muted font-sans mr-1">{i18n.t.settingsModal.backup.selectedFileLabel}</span>
+                        {selectedBackupFile.name} ({(selectedBackupFile.size / (1024 * 1024)).toFixed(2)} MB)
+                    </div>
+                {/if}
+            </div>
+        </div>
+
+        <div class="mt-6 flex items-center justify-end gap-3 border-t border-white/[0.07] pt-4">
+            <button
+                type="button"
+                class="inline-flex h-9 items-center rounded-md border border-white/10 bg-field px-4 text-xs font-semibold text-ink transition hover:bg-card cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={isRestoring}
+                onclick={handleCancelRestore}
+            >
+                {i18n.t.settingsModal.backup.cancelButton}
+            </button>
+            <button
+                type="button"
+                class="inline-flex h-9 items-center gap-2 rounded-md bg-rose-600 px-4 text-xs font-semibold text-white transition hover:bg-rose-500 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+                class:cursor-wait={isRestoring}
+                disabled={isRestoring}
+                onclick={handleConfirmRestore}
+            >
+                {#if isRestoring}
+                    <LoaderCircle size={14} class="animate-spin" />
+                    {i18n.t.settingsModal.backup.restoring}
+                {:else}
+                    <AlertTriangle size={14} />
+                    {i18n.t.settingsModal.backup.confirmButton}
+                {/if}
+            </button>
         </div>
     </div>
 </Modal>

@@ -1,5 +1,6 @@
 <script lang="ts">
     import { Scale } from "$shared/ui/Icons.svelte";
+    import { i18n } from "$shared/i18n/index.svelte";
     import type { AdvancedStats } from "$shared/types";
 
     interface Props {
@@ -11,15 +12,6 @@
     const totalTitles = $derived(stats.totalTitles);
     const completedTitles = $derived(stats.completedTitles);
 
-    // В ТЗ:
-    // Легенда под полосой с точными цифрами:
-    // - Завершено: {completedTitles}
-    // - В процессе: {inProgressCount} (вычисляется как totalTitles - completedTitles - plannedTitles)
-    // - В планах: {plannedCount}
-    // Поскольку на бэкенде в AdvancedStats нет отдельного plannedTitles,
-    // вычисляем точное количество plannedTitles через available fields
-    // или (stats as any).plannedTitles ?? Math.max(0, Math.round((totalTitles - completedTitles) * 0.7))
-    // если не передано напрямую.
     const rawPlanned = $derived(
         (stats as { plannedTitles?: number }).plannedTitles
     );
@@ -50,15 +42,15 @@
 
     const verdictText = $derived.by(() => {
         if (stats.totalTitles === 0) {
-            return "Ваша медиатека пока пуста. Добавьте свои первые произведения!";
+            return i18n.t.stats.emptyVerdict;
         }
         if (stats.completionRatePercent >= 60) {
-            return "🟢 Высокая продуктивность! Вы завершаете больше половины того, что начинаете. Бэклог под полным контролем.";
+            return i18n.t.stats.productiveVerdict;
         }
         if (stats.completionRatePercent >= 30) {
-            return "🟡 Здоровый культурный баланс. Коллекция планомерно пополняется и осваивается.";
+            return i18n.t.stats.balancedVerdict;
         }
-        return "📚 Истинный дух Цундоку! Стопка запланированного внушительна — библиотека полна будущих открытий. Самое время выбрать тайтл на вечер.";
+        return i18n.t.stats.tsundokuVerdict;
     });
 </script>
 
@@ -66,7 +58,7 @@
     <div class="flex items-center gap-2 mb-4">
         <Scale class="size-4 text-emerald-400" aria-hidden="true" />
         <h3 class="text-base font-semibold tracking-tight text-white">
-            Баланс медиатеки (Индекс Цундоку)
+            {i18n.t.stats.backlogTitle}
         </h3>
     </div>
 
@@ -78,21 +70,21 @@
                 <div
                     class="h-full bg-[#10b981] first:rounded-l-full last:rounded-r-full"
                     style="width: {completedPercent}%;"
-                    title="Завершено: {completedTitles} ({Math.round(completedPercent)}%)"
+                    title={i18n.t.stats.segmentTooltip(i18n.t.stats.completed, completedTitles, Math.round(completedPercent))}
                 ></div>
             {/if}
             {#if inProgressPercent > 0}
                 <div
                     class="h-full bg-[#8b5cf6] first:rounded-l-full last:rounded-r-full"
                     style="width: {inProgressPercent}%;"
-                    title="В процессе: {inProgressCount} ({Math.round(inProgressPercent)}%)"
+                    title={i18n.t.stats.segmentTooltip(i18n.t.stats.inProgress, inProgressCount, Math.round(inProgressPercent))}
                 ></div>
             {/if}
             {#if plannedPercent > 0}
                 <div
                     class="h-full bg-[#3b82f6] first:rounded-l-full last:rounded-r-full"
                     style="width: {plannedPercent}%;"
-                    title="В планах: {plannedCount} ({Math.round(plannedPercent)}%)"
+                    title={i18n.t.stats.segmentTooltip(i18n.t.stats.planned, plannedCount, Math.round(plannedPercent))}
                 ></div>
             {/if}
         {/if}
@@ -102,19 +94,19 @@
         <div class="flex items-center gap-2">
             <span class="size-2.5 rounded-full shrink-0 bg-[#10b981]"></span>
             <span class="text-slate-300">
-                Завершено: <span class="font-semibold text-white tabular-nums">{completedTitles}</span>
+                {i18n.t.stats.completed}: <span class="font-semibold text-white tabular-nums">{completedTitles}</span>
             </span>
         </div>
         <div class="flex items-center gap-2">
             <span class="size-2.5 rounded-full shrink-0 bg-[#8b5cf6]"></span>
             <span class="text-slate-300">
-                В процессе: <span class="font-semibold text-white tabular-nums">{inProgressCount}</span>
+                {i18n.t.stats.inProgress}: <span class="font-semibold text-white tabular-nums">{inProgressCount}</span>
             </span>
         </div>
         <div class="flex items-center gap-2">
             <span class="size-2.5 rounded-full shrink-0 bg-[#3b82f6]"></span>
             <span class="text-slate-300">
-                В планах: <span class="font-semibold text-white tabular-nums">{plannedCount}</span>
+                {i18n.t.stats.planned}: <span class="font-semibold text-white tabular-nums">{plannedCount}</span>
             </span>
         </div>
     </div>

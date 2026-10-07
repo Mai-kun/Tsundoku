@@ -224,6 +224,8 @@ export interface AdvancedStats {
   currentStreakDays: number;
   monthlyCompletions: Array<{ monthYear: string; count: number }>;
   topGenres: Array<{ genre: string; count: number; percentage: number }>;
+  topGenresByType: Record<string, Array<{ genre: string; count: number; percentage: number }>>;
+  dailyActivity: Record<string, number>;
 }
 
 

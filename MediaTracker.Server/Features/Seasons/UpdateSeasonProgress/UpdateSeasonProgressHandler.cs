@@ -2,6 +2,7 @@ using FluentValidation;
 using MediaTracker.Server.Common.Http;
 using MediaTracker.Server.Domain.Common;
 using MediaTracker.Server.Domain.Entities;
+using MediaTracker.Server.Domain.Enums;
 using MediaTracker.Server.Features.Media.GetMediaStats;
 using MediaTracker.Server.Features.Seasons.UpdateSeasonProgress;
 using MediaTracker.Server.Infrastructure.Persistence;
@@ -38,7 +39,7 @@ public sealed class UpdateSeasonProgressHandler(
         var season = await db.TvSeasons
             .AsNoTracking()
             .Where(item => item.Id == command.SeasonId)
-            .Select(item => new { item.TotalEpisodes, item.TvShowId })
+            .Select(item => new { item.TotalEpisodes, item.TvShowId, item.CurrentEpisode })
             .FirstOrDefaultAsync(ct);
 
         if (season is null)
@@ -54,6 +55,18 @@ public sealed class UpdateSeasonProgressHandler(
             .ExecuteUpdateAsync(s => s
                 .SetProperty(item => item.CurrentEpisode, currentEpisode)
                 .SetProperty(item => item.Status, newStatus), ct);
+
+        if (season.CurrentEpisode != currentEpisode)
+        {
+            db.Events.Add(new MediaEvent
+            {
+                MediaId = season.TvShowId,
+                Type = MediaEventType.ProgressChanged,
+                OldValue = season.CurrentEpisode.ToString(),
+                NewValue = currentEpisode.ToString(),
+            });
+            await db.SaveChangesAsync(ct);
+        }
 
         var totals = await db.TvSeasons
             .AsNoTracking()

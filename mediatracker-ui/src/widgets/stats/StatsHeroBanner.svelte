@@ -17,10 +17,10 @@
 <section class="space-y-4">
     <div>
         <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight text-ink">
-            Вы провели {formatNumber(stats.totalHours)} ч. за {formatNumber(stats.totalTitles)} тайтлами.
+            {i18n.t.stats.heroTitle(formatNumber(stats.totalHours), formatNumber(stats.totalTitles))}
         </h1>
         <p class="mt-1 text-sm sm:text-base text-muted">
-            Это {formatNumber(stats.totalDays)} дн. непрерывных историй, миров и приключений.
+            {i18n.t.stats.heroSubtitle(formatNumber(stats.totalDays))}
         </p>
     </div>
 
@@ -30,9 +30,9 @@
                 <Flame size={22} aria-hidden="true" />
             </div>
             <div class="min-w-0">
-                <p class="text-xs font-medium text-muted">Стрик активности</p>
+                <p class="text-xs font-medium text-muted">{i18n.t.stats.activityStreak}</p>
                 <p class="mt-0.5 truncate text-base font-bold text-ink">
-                    {stats.currentStreakDays} дн. активности подряд
+                    {i18n.t.stats.streakDays(stats.currentStreakDays)}
                 </p>
             </div>
         </article>
@@ -42,7 +42,7 @@
                 <Star size={22} class="fill-yellow-400/20" aria-hidden="true" />
             </div>
             <div class="min-w-0">
-                <p class="text-xs font-medium text-muted">Средний балл</p>
+                <p class="text-xs font-medium text-muted">{i18n.t.stats.averageScore}</p>
                 <p class="mt-0.5 truncate text-base font-bold text-ink">
                     {stats.averageScore > 0 ? stats.averageScore : "—"} / 10
                 </p>
@@ -54,7 +54,7 @@
                 <CheckCircle2 size={22} aria-hidden="true" />
             </div>
             <div class="min-w-0">
-                <p class="text-xs font-medium text-muted">Завершено</p>
+                <p class="text-xs font-medium text-muted">{i18n.t.stats.completed}</p>
                 <p class="mt-0.5 truncate text-base font-bold text-ink">
                     {stats.completedTitles} / {stats.totalTitles} ({stats.completionRatePercent}%)
                 </p>

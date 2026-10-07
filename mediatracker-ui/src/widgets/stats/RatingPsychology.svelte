@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { i18n } from "$shared/i18n/index.svelte";
     import type { AdvancedStats } from "$shared/types";
 
     interface Props {
@@ -21,12 +22,12 @@
     );
 
     const typeLabels: Record<string, string> = {
-        game: "Игры",
-        movie: "Фильмы",
-        series: "Сериалы",
-        anime: "Аниме",
-        book: "Книги",
-        manga: "Манга",
+        game: i18n.t.stats.games,
+        movie: i18n.t.stats.movies,
+        series: i18n.t.stats.series,
+        anime: i18n.t.stats.anime,
+        book: i18n.t.stats.books,
+        manga: i18n.t.stats.manga,
     };
 
     const typeScores = $derived.by(() => {
@@ -43,16 +44,16 @@
 <div class="space-y-4">
     <div class="flex items-center justify-between">
         <h3 class="text-base font-semibold tracking-tight text-ink">
-            Психология оценок
+            {i18n.t.stats.ratingPsychology}
         </h3>
         {#if stats.averageScore > 0}
             <span class="text-xs font-medium text-amber-400/90">
-                Средняя: {stats.averageScore} ★
+                {i18n.t.stats.averagePrefix}: {stats.averageScore} ★
             </span>
         {/if}
     </div>
 
-    <div class="space-y-1.5" role="list" aria-label="Распределение оценок">
+    <div class="space-y-1.5" role="list" aria-label={i18n.t.stats.ratingDistribution}>
         {#each distribution as { score, count } (score)}
             {@const pct = (count / maxCount) * 100}
             <div class="flex items-center gap-2.5 text-xs">
@@ -77,7 +78,7 @@
     {#if typeScores.length > 0}
         <div class="pt-2 border-t border-white/[0.04]">
             <p class="text-[11px] font-medium text-muted uppercase tracking-wider mb-2">
-                Средний балл по категориям
+                {i18n.t.stats.averageByCategory}
             </p>
             <div class="flex flex-wrap gap-2">
                 {#each typeScores as item (item.label)}

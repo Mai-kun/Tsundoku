@@ -10,6 +10,7 @@
     import TopGenresBar from "$widgets/stats/TopGenresBar.svelte";
     import BacklogHealth from "$widgets/stats/BacklogHealth.svelte";
     import TrackerBadges from "$widgets/stats/TrackerBadges.svelte";
+    import ActivityHeatmap from "$widgets/stats/ActivityHeatmap.svelte";
 
     interface Props {
         refreshKey: number;
@@ -111,19 +112,20 @@
     {:else if stats}
         <StatsHeroBanner {stats} />
 
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div class="bg-[#151a26] border border-white/5 rounded-xl p-5">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div class="bg-[#151a26] border border-white/5 rounded-xl p-5 lg:col-span-7">
                 <TimeDistributionDonut {stats} />
             </div>
 
-            <div class="bg-[#151a26] border border-white/5 rounded-xl p-5">
+            <div class="bg-[#151a26] border border-white/5 rounded-xl p-5 lg:col-span-5">
                 <RatingPsychology {stats} />
             </div>
         </div>
 
         <div class="grid grid-cols-1 gap-6 mt-6">
             <MonthlyActivityChart completions={stats.monthlyCompletions} />
-            <TopGenresBar genres={stats.topGenres} />
+            <ActivityHeatmap dailyActivity={stats.dailyActivity ?? {}} />
+            <TopGenresBar genres={stats.topGenres} genresByType={stats.topGenresByType ?? {}} />
         </div>
 
         <BacklogHealth {stats} />

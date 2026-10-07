@@ -26,6 +26,8 @@ public record AdvancedStatsDto
     public int CurrentStreakDays { get; init; }
     public List<MonthlyActivityDto> MonthlyCompletions { get; init; } = [];
     public List<GenreStatDto> TopGenres { get; init; } = [];
+    public Dictionary<string, List<GenreStatDto>> TopGenresByType { get; init; } = new();
+    public Dictionary<string, int> DailyActivity { get; init; } = new();
 }
 
 public record MonthlyActivityDto(string MonthYear, int Count);

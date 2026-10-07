@@ -70,7 +70,13 @@ public sealed class GetMediaStatsHandler(AppDbContext db, IMemoryCache cache) : 
             .LoadNoTracking(db)
             .ToListAsync(ct);
 
-        var stats = AdvancedStatsCalculator.Calculate(items);
+        var activityStart = DateTime.UtcNow.AddDays(-364);
+        var events = await db.Events
+            .AsNoTracking()
+            .Where(mediaEvent => mediaEvent.CreatedAt >= activityStart)
+            .ToListAsync(ct);
+
+        var stats = AdvancedStatsCalculator.Calculate(items, events: events);
         cache.Set(AdvancedStatsCalculator.CacheKey, stats, TimeSpan.FromMinutes(5));
 
         return Result<AdvancedStatsDto>.Success(stats);

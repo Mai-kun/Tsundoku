@@ -140,7 +140,10 @@ public sealed class TvdbMetadataProvider(
             Description = item.Overview,
             ReleaseYear = year,
             Type = type,
-            Ratings = []
+            Ratings = [],
+            Genres = item.Genres is { Count: > 0 }
+                ? item.Genres.Where(g => !string.IsNullOrWhiteSpace(g)).Distinct(StringComparer.OrdinalIgnoreCase).ToList()
+                : null
         };
     }
 
@@ -181,5 +184,8 @@ public sealed class TvdbMetadataProvider(
 
         [JsonPropertyName("year")]
         public string? Year { get; set; }
+
+        [JsonPropertyName("genres")]
+        public List<string>? Genres { get; set; }
     }
 }

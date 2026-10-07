@@ -112,7 +112,15 @@ public sealed class ShikimoriMetadataProvider(
             Chapters = item.Chapters,
             Volumes = item.Volumes,
             Rating = score,
-            Ratings = ratings
+            Ratings = ratings,
+            Genres = item.Genres is { Count: > 0 }
+                ? item.Genres
+                    .Select(g => !string.IsNullOrWhiteSpace(g.Russian) ? g.Russian : g.Name)
+                    .Where(g => !string.IsNullOrWhiteSpace(g))
+                    .Select(g => g!)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList()
+                : null
         };
     }
 
@@ -153,6 +161,18 @@ public sealed class ShikimoriMetadataProvider(
 
         [JsonPropertyName("description")]
         public string? Description { get; set; }
+
+        [JsonPropertyName("genres")]
+        public List<ShikimoriGenre>? Genres { get; set; }
+    }
+
+    private sealed class ShikimoriGenre
+    {
+        [JsonPropertyName("russian")]
+        public string? Russian { get; set; }
+
+        [JsonPropertyName("name")]
+        public string? Name { get; set; }
     }
 
     private sealed class ShikimoriImage

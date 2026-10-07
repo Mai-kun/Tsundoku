@@ -103,7 +103,10 @@ public sealed class MangaUpdatesMetadataProvider(
             ExternalSource = "MangaUpdates",
             Rating = ratingScore is > 0 ? Math.Round(ratingScore.Value, 1) : null,
             RatingVotes = ratingVotes,
-            Ratings = ratings.Count > 0 ? ratings : null
+            Ratings = ratings.Count > 0 ? ratings : null,
+            Genres = record.Genres is { Count: > 0 }
+                ? record.Genres.Select(g => g.Genre).Where(g => !string.IsNullOrWhiteSpace(g)).Select(g => g!).Distinct(StringComparer.OrdinalIgnoreCase).ToList()
+                : null
         };
     }
 
@@ -165,6 +168,15 @@ public sealed class MangaUpdatesMetadataProvider(
 
         [JsonPropertyName("associated")]
         public List<MuAssociatedTitle>? Associated { get; set; }
+
+        [JsonPropertyName("genres")]
+        public List<MuGenre>? Genres { get; set; }
+    }
+
+    private sealed class MuGenre
+    {
+        [JsonPropertyName("genre")]
+        public string? Genre { get; set; }
     }
 
     private sealed class MuImage

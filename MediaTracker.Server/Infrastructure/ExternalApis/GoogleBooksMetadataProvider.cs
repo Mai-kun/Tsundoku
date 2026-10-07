@@ -166,7 +166,10 @@ public sealed class GoogleBooksMetadataProvider(
             TotalCount = info?.PageCount,
             Rating = rating is > 0 ? rating.Value * 2 : null,
             RatingVotes = votes,
-            Ratings = ratings
+            Ratings = ratings,
+            Genres = info?.Categories is { Count: > 0 }
+                ? info.Categories.Where(c => !string.IsNullOrWhiteSpace(c)).Distinct(StringComparer.OrdinalIgnoreCase).ToList()
+                : null
         };
     }
 
@@ -210,6 +213,9 @@ public sealed class GoogleBooksMetadataProvider(
 
         [JsonPropertyName("imageLinks")]
         public GoogleBookImageLinks? ImageLinks { get; set; }
+
+        [JsonPropertyName("categories")]
+        public List<string>? Categories { get; set; }
     }
 
     private sealed class GoogleBookImageLinks

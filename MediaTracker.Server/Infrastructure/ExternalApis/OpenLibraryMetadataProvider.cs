@@ -97,7 +97,10 @@ public sealed class OpenLibraryMetadataProvider(
             TotalCount = doc.NumberOfPagesMedian ?? doc.NumberOfPages?.FirstOrDefault(p => p > 0),
             Rating = rating,
             RatingVotes = doc.RatingsCount,
-            Ratings = ratings
+            Ratings = ratings,
+            Genres = doc.Subject is { Count: > 0 }
+                ? doc.Subject.Where(s => !string.IsNullOrWhiteSpace(s)).Distinct(StringComparer.OrdinalIgnoreCase).Take(5).ToList()
+                : null
         };
     }
 

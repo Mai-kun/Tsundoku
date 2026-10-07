@@ -293,7 +293,10 @@ public sealed class SimklMetadataProvider(
             Type = type,
             Rating = score,
             RatingVotes = simklRating?.Votes,
-            Ratings = ratings
+            Ratings = ratings,
+            Genres = item.Genres is { Count: > 0 }
+                ? item.Genres.Where(g => !string.IsNullOrWhiteSpace(g)).Select(g => g.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).ToList()
+                : null
         };
     }
 
@@ -313,6 +316,9 @@ public sealed class SimklMetadataProvider(
 
         [JsonPropertyName("ratings")]
         public SimklRatings? Ratings { get; set; }
+
+        [JsonPropertyName("genres")]
+        public List<string>? Genres { get; set; }
     }
 
     private sealed class SimklIds

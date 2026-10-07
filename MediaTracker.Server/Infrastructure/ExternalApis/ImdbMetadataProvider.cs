@@ -1,7 +1,9 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.Net;
+using System.Text.Json;
 using System.Text.Json.Serialization;
+using MediaTracker.Server.Common.Utilities;
 
 namespace MediaTracker.Server.Infrastructure.ExternalApis;
 
@@ -74,11 +76,17 @@ public sealed class ImdbMetadataProvider(
 
     public override async Task<ExternalMediaDto?> GetDetailsAsync(string externalId, string title, CancellationToken ct)
     {
-        // The suggestion endpoint is a title index, not an id lookup: feeding a "tt..." id into it
-        // either 404'd or resolved to whatever title happened to share the prefix.
-        if (string.IsNullOrWhiteSpace(title))
+        var hasTitle = !string.IsNullOrWhiteSpace(title);
+        ExternalMediaDto? result;
+        if (hasTitle)
         {
-            return IsImdbId(externalId)
+            var results = await SearchAsync(title, ct);
+            result = results.FirstOrDefault(r => r.ExternalId.Equals(externalId, StringComparison.OrdinalIgnoreCase))
+                     ?? (results.Count > 0 ? results[0] : null);
+        }
+        else
+        {
+            result = IsImdbId(externalId)
                 ? new ExternalMediaDto
                 {
                     ExternalId = externalId,
@@ -90,9 +98,86 @@ public sealed class ImdbMetadataProvider(
                 : null;
         }
 
-        var results = await SearchAsync(title, ct);
-        return results.FirstOrDefault(r => r.ExternalId.Equals(externalId, StringComparison.OrdinalIgnoreCase))
-               ?? (results.Count > 0 ? results[0] : null);
+        if (result is null || !IsImdbId(externalId))
+        {
+            return result;
+        }
+
+        var meta = await FetchCinemetaAsync(externalId, hasTitle ? result.Type : null, ct);
+        if (meta is null)
+        {
+            return result;
+        }
+
+        var rating = NumberOrNull(meta.ImdbRating);
+        int? votes = NumberOrNull(meta.Votes) is { } rawVotes ? (int)rawVotes : null;
+        var runtime = ParseRuntime(meta.Runtime);
+        IReadOnlyList<ExternalRatingDto>? ratings = rating is not null
+            ? [new ExternalRatingDto { Source = "IMDb", Rating = rating.Value, Votes = votes }]
+            : result.Ratings;
+
+        return result with
+        {
+            Title = hasTitle ? result.Title : meta.Name ?? result.Title,
+            Type = hasTitle ? result.Type : meta.Type == "series" ? "tvshow" : "movie",
+            Description = meta.Description ?? result.Description,
+            RuntimeMinutes = runtime ?? result.RuntimeMinutes,
+            Rating = rating ?? result.Rating,
+            RatingVotes = votes ?? result.RatingVotes,
+            Ratings = ratings,
+            Genres = meta.Genres is { Count: > 0 } genres ? genres : result.Genres
+        };
+    }
+
+    private const string CinemetaMetaUrl = "https://v3-cinemeta.strem.io/meta";
+
+    private async Task<CinemetaMeta?> FetchCinemetaAsync(string externalId, string? type, CancellationToken ct)
+    {
+        var typedUrl = type is null
+            ? null
+            : $"{CinemetaMetaUrl}/{(type == "tvshow" ? "series" : "movie")}/{externalId}.json";
+
+        try
+        {
+            var client = httpClientFactory.CreateClient(Id);
+            if (typedUrl is not null)
+            {
+                var typed = await client.GetFromJsonAsync<CinemetaResponse>(typedUrl, ct);
+                return typed?.Meta;
+            }
+
+            var series = await client.GetFromJsonAsync<CinemetaResponse>($"{CinemetaMetaUrl}/series/{externalId}.json", ct);
+            if (series?.Meta is not null)
+            {
+                return series.Meta;
+            }
+
+            var movie = await client.GetFromJsonAsync<CinemetaResponse>($"{CinemetaMetaUrl}/movie/{externalId}.json", ct);
+            return movie?.Meta;
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            ExternalApiLog.Failed(logger, Name, ex, typedUrl ?? externalId);
+            return null;
+        }
+    }
+
+    private static double? NumberOrNull(JsonElement? element) => element?.ValueKind switch
+    {
+        JsonValueKind.String => double.TryParse(element.Value.GetString(), NumberStyles.Float, CultureInfo.InvariantCulture, out var value)
+            ? value
+            : null,
+        JsonValueKind.Number => element.Value.GetDouble(),
+        _ => null
+    };
+
+    internal static int? ParseRuntime(string? runtime)
+    {
+        return runtime is null ? null : SpanParserExtensions.ParseDurationMinutes(runtime.AsSpan());
     }
 
     public override async Task<ConnectionTestResult> TestConnectionAsync(CancellationToken ct)
@@ -145,7 +230,6 @@ public sealed class ImdbMetadataProvider(
             Title = item.L ?? "Unknown",
             CoverUrl = item.I?.ImageUrl,
             ReleaseYear = item.Y,
-            Studio = item.S,
             Type = type,
             Ratings = []
         };
@@ -171,9 +255,6 @@ public sealed class ImdbMetadataProvider(
         [JsonPropertyName("q")]
         public string? Q { get; set; }
 
-        [JsonPropertyName("s")]
-        public string? S { get; set; }
-
         [JsonPropertyName("i")]
         public ImdbImage? I { get; set; }
     }
@@ -182,5 +263,35 @@ public sealed class ImdbMetadataProvider(
     {
         [JsonPropertyName("imageUrl")]
         public string? ImageUrl { get; set; }
+    }
+
+    private sealed class CinemetaResponse
+    {
+        [JsonPropertyName("meta")]
+        public CinemetaMeta? Meta { get; set; }
+    }
+
+    private sealed class CinemetaMeta
+    {
+        [JsonPropertyName("name")]
+        public string? Name { get; set; }
+
+        [JsonPropertyName("type")]
+        public string? Type { get; set; }
+
+        [JsonPropertyName("imdbRating")]
+        public JsonElement? ImdbRating { get; set; }
+
+        [JsonPropertyName("runtime")]
+        public string? Runtime { get; set; }
+
+        [JsonPropertyName("description")]
+        public string? Description { get; set; }
+
+        [JsonPropertyName("genres")]
+        public List<string>? Genres { get; set; }
+
+        [JsonPropertyName("votes")]
+        public JsonElement? Votes { get; set; }
     }
 }

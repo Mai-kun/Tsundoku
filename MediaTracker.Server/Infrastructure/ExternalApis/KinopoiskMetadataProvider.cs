@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.Text.Json.Serialization;
+using MediaTracker.Server.Common.Utilities;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
@@ -341,11 +342,7 @@ public sealed class KinopoiskMetadataProvider(
             );
         }
 
-        int? year = null;
-        if (!string.IsNullOrWhiteSpace(item.Year) && int.TryParse(item.Year, out var y))
-        {
-            year = y;
-        }
+        var year = item.Year is null ? null : SpanParserExtensions.ParseYearFromDateString(item.Year.AsSpan());
 
         return new ExternalMediaDto
         {
@@ -360,7 +357,7 @@ public sealed class KinopoiskMetadataProvider(
             ReleaseYear = year,
             // Search results already carry a runtime, so the preview card does not need a second
             // details call just to show it. A movie shows "N мин", a series "N мин/серия".
-            RuntimeMinutes = int.TryParse(item.FilmLength, out var length) ? length : null,
+            RuntimeMinutes = item.FilmLength is null ? null : SpanParserExtensions.ParseDurationMinutes(item.FilmLength.AsSpan()),
             Type = type,
             Rating = score,
             RatingVotes = item.RatingVoteCount,

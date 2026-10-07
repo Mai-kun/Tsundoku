@@ -41,6 +41,7 @@ public sealed partial class AniListMetadataProvider(
         streamingEpisodes { title }
         studios(isMain: true) { nodes { name } }
         staff(perPage: 5) { edges { role node { name { full } } } }
+        genres
         """;
 
     private const string GraphQLSearchQuery = $$"""
@@ -357,6 +358,7 @@ public sealed partial class AniListMetadataProvider(
             MangaFormat = type == "manga" ? MangaFormats.FromCountryOfOrigin(item.CountryOfOrigin) : null,
             Rating = primaryRating,
             Ratings = ratings,
+            Genres = item.Genres is { Count: > 0 } genres ? [.. genres.Where(g => !string.IsNullOrWhiteSpace(g))] : null,
             Episodes = episodes
         };
     }
@@ -477,7 +479,8 @@ public sealed partial class AniListMetadataProvider(
         int? MeanScore,
         List<AniListStreamingEpisode>? StreamingEpisodes,
         AniListStudios? Studios,
-        AniListStaff? Staff);
+        AniListStaff? Staff,
+        List<string>? Genres);
 
     private sealed record AniListStreamingEpisode(string? Title);
     private sealed record AniListTitle(string? Romaji, string? English, string? Native);

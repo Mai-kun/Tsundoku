@@ -1,7 +1,6 @@
 <script lang="ts">
     import { Sparkles } from "$shared/ui/Icons.svelte";
     import { i18n } from "$shared/i18n/index.svelte";
-    import { fade } from "svelte/transition";
 
     interface GenreItem {
         genre: string;
@@ -74,7 +73,7 @@
             </div>
         {:else}
             {#each displayGenres as item, index (item.genre)}
-                <div class="flex items-center gap-2 min-w-0" in:fade={{ duration: 180 }} out:fade={{ duration: 120 }}>
+                <div class="flex items-center gap-2 min-w-0">
                     <span class="size-2.5 rounded-full shrink-0" style="background-color: {PALETTE[index % PALETTE.length]};"></span>
                     <span class="text-sm font-medium text-slate-200 truncate" title={genreLabel(item.genre)}>{genreLabel(item.genre)}</span>
                     <span class="text-xs text-slate-400 tabular-nums shrink-0 ml-auto flex items-center gap-1">

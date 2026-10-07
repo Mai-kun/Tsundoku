@@ -27,6 +27,7 @@ public sealed partial class AniListMetadataProvider(
         format
         title { romaji english native }
         description(asHtml: false)
+        trailer { id site }
         coverImage { extraLarge }
         startDate { year month day }
         endDate { year month day }
@@ -347,6 +348,10 @@ public sealed partial class AniListMetadataProvider(
             RomajiTitle = item.Title?.Romaji ?? item.Title?.English,
             CoverUrl = item.CoverImage?.ExtraLarge,
             Description = item.Description is null ? null : HtmlTags().Replace(item.Description, string.Empty),
+            TrailerVideoId = item.Trailer is { Site: { } trailerSite } trailer
+                && string.Equals(trailerSite, "youtube", StringComparison.OrdinalIgnoreCase)
+                    ? trailer.Id
+                    : null,
             ReleaseYear = item.StartDate?.Year,
             ReleaseDate = releaseDate,
             EndDate = endDate,
@@ -489,6 +494,7 @@ public sealed partial class AniListMetadataProvider(
         string? Format,
         AniListTitle? Title,
         string? Description,
+        AniListTrailer? Trailer,
         AniListCoverImage? CoverImage,
         AniListDate? StartDate,
         AniListDate? EndDate,
@@ -507,6 +513,7 @@ public sealed partial class AniListMetadataProvider(
         List<string>? Genres);
 
     private sealed record AniListStreamingEpisode(string? Title);
+    private sealed record AniListTrailer(string? Id, string? Site);
     private sealed record AniListTitle(string? Romaji, string? English, string? Native);
     private sealed record AniListCoverImage(string? ExtraLarge);
     private sealed record AniListDate(int? Year, int? Month, int? Day);

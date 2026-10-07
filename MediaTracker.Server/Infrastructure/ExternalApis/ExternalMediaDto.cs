@@ -68,6 +68,8 @@ public sealed record ExternalMediaDto
 
     public string? Description { get; init; }
 
+    public string? TrailerVideoId { get; init; }
+
     public int? ReleaseYear { get; init; }
 
     public string? ReleaseDate { get; init; }

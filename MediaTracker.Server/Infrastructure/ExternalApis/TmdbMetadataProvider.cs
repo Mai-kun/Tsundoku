@@ -81,7 +81,7 @@ public sealed class TmdbMetadataProvider(
                 var isMovie = mediaType == "movie";
                 var detailPath = isMovie ? $"movie/{id}" : $"tv/{id}";
                 var item = await client.GetFromJsonAsync<TmdbItem>(
-                    $"{detailPath}?api_key={Uri.EscapeDataString(apiKey)}&append_to_response=credits", ct);
+                    $"{detailPath}?api_key={Uri.EscapeDataString(apiKey)}&append_to_response=credits,videos", ct);
 
                 if (item is not null)
                 {
@@ -118,6 +118,12 @@ public sealed class TmdbMetadataProvider(
             OriginalTitle = isMovie ? item.OriginalTitle : item.OriginalName,
             CoverUrl = item.PosterPath is null ? null : $"https://image.tmdb.org/t/p/w500{item.PosterPath}",
             Description = item.Overview,
+            TrailerVideoId = item.Videos?.Results?
+                .FirstOrDefault(video => string.Equals(video.Site, "YouTube", StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(video.Type, "Trailer", StringComparison.OrdinalIgnoreCase))?.Key
+                ?? item.Videos?.Results?
+                    .FirstOrDefault(video => string.Equals(video.Site, "YouTube", StringComparison.OrdinalIgnoreCase)
+                        && string.Equals(video.Type, "Teaser", StringComparison.OrdinalIgnoreCase))?.Key,
             ReleaseYear = ParseYear(isMovie ? item.ReleaseDate : item.FirstAirDate),
             ReleaseDate = isMovie ? item.ReleaseDate : item.FirstAirDate,
             // `last_air_date` is the mirror of `first_air_date` and is null while a series still airs.
@@ -176,7 +182,12 @@ public sealed class TmdbMetadataProvider(
         [property: JsonPropertyName("networks")] List<TmdbNamedItem>? Networks,
         [property: JsonPropertyName("genres")] List<TmdbNamedItem>? Genres,
         [property: JsonPropertyName("original_language")] string? OriginalLanguage,
-        [property: JsonPropertyName("credits")] TmdbCredits? Credits);
+        [property: JsonPropertyName("credits")] TmdbCredits? Credits,
+        [property: JsonPropertyName("videos")] TmdbVideos? Videos);
+
+    private sealed record TmdbVideos([property: JsonPropertyName("results")] List<TmdbVideo>? Results);
+
+    private sealed record TmdbVideo(string? Site, string? Type, string? Key);
 
     private sealed record TmdbCredits([property: JsonPropertyName("cast")] List<TmdbCastMember>? Cast);
 

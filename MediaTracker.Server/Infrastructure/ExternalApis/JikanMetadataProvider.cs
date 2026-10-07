@@ -136,7 +136,10 @@ public sealed partial class JikanMetadataProvider(
             ExternalSource = "MyAnimeList",
             Rating = rating,
             RatingVotes = votes,
-            Ratings = ratings.Count > 0 ? ratings : null
+            Ratings = ratings.Count > 0 ? ratings : null,
+            Genres = item.Genres is { Count: > 0 }
+                ? item.Genres.Select(g => g.Name).Where(n => !string.IsNullOrWhiteSpace(n)).Select(n => n!).Distinct(StringComparer.OrdinalIgnoreCase).ToList()
+                : null
         };
     }
 
@@ -195,6 +198,9 @@ public sealed partial class JikanMetadataProvider(
 
         [JsonPropertyName("authors")]
         public List<JikanNamedItem>? Authors { get; set; }
+
+        [JsonPropertyName("genres")]
+        public List<JikanNamedItem>? Genres { get; set; }
 
         [JsonPropertyName("aired")]
         public JikanAired? Aired { get; set; }

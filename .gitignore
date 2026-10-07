@@ -498,3 +498,4 @@ covers/
 *.err
 *.out
 bombardier.exe
+wwwroot/

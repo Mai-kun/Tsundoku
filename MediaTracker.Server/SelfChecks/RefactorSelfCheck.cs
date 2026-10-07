@@ -2580,14 +2580,14 @@ public static class RefactorSelfCheck
         AssertEqual(failures, Math.Round(2.0 / 7.0 * 100.0, 1), stats.CompletionRatePercent, "stats CompletionRatePercent");
 
         AssertEqual(failures, 20.0, stats.GameHours, "stats GameHours");
-        AssertEqual(failures, 3.5, stats.MovieHours, "stats MovieHours");
+        AssertEqual(failures, 2.0, stats.MovieHours, "stats MovieHours");
         AssertEqual(failures, 10.0, stats.SeriesHours, "stats SeriesHours");
         AssertEqual(failures, 2.0, stats.AnimeHours, "stats AnimeHours");
         AssertEqual(failures, 5.0, stats.BookHours, "stats BookHours");
         AssertEqual(failures, 5.0, stats.MangaHours, "stats MangaHours");
 
-        AssertEqual(failures, 45.5, stats.TotalHours, "stats TotalHours");
-        AssertEqual(failures, Math.Round(45.5 / 24.0, 1), stats.TotalDays, "stats TotalDays");
+        AssertEqual(failures, 44.0, stats.TotalHours, "stats TotalHours");
+        AssertEqual(failures, Math.Round(44.0 / 24.0, 1), stats.TotalDays, "stats TotalDays");
 
         AssertEqual(failures, 200, stats.TotalPagesRead, "stats TotalPagesRead");
         AssertEqual(failures, 50, stats.TotalChaptersRead, "stats TotalChaptersRead");

@@ -921,6 +921,7 @@ public static class RefactorSelfCheck
             Title = "Berserk",
             TotalChapters = 100,
             Author = "User typed this",
+            Notes = "My reading notes",
         };
         var external = new ExternalMediaDto
         {
@@ -941,7 +942,8 @@ public static class RefactorSelfCheck
             manga.Author,
             "enrich must not overwrite a user author"
         );
-        AssertEqual(failures, "A dark fantasy epic", manga.Notes, "enrich fills empty notes");
+        AssertEqual(failures, "A dark fantasy epic", manga.Description, "enrich fills empty description");
+        AssertEqual(failures, "My reading notes", manga.Notes, "enrich preserves personal notes");
     }
 
     private static void CheckOverwriteRefresh(List<string> failures)
@@ -952,6 +954,8 @@ public static class RefactorSelfCheck
             Author = string.Empty,
             TotalPages = 100,
             CurrentPage = 50,
+            Notes = "My private note",
+            Description = "Old synopsis",
         };
         var external = new ExternalMediaDto
         {
@@ -960,6 +964,8 @@ public static class RefactorSelfCheck
             Type = "book",
             TotalCount = 321,
             Author = "Someone Else",
+            Description = "Fresh synopsis",
+            TrailerVideoId = "abc123",
         };
 
         MediaMetadataApplier
@@ -970,6 +976,9 @@ public static class RefactorSelfCheck
         AssertEqual(failures, "New title", book.Title, "refresh overwrites the title");
         AssertEqual(failures, 321, book.TotalPages, "refresh overwrites the page count");
         AssertEqual(failures, "Someone Else", book.Author, "refresh overwrites the author");
+        AssertEqual(failures, "Fresh synopsis", book.Description, "refresh overwrites the description");
+        AssertEqual(failures, "My private note", book.Notes, "refresh preserves personal notes");
+        AssertEqual(failures, "abc123", book.TrailerVideoId, "refresh stores the trailer id");
     }
 
     /// <summary>

@@ -67,6 +67,8 @@ export interface MediaBase {
  */
 export interface MediaDetailFields {
   notes: string | null;
+  description?: string | null;
+  trailerVideoId?: string | null;
   cast?: CastMember[];
   externalRatingsJson?: string | null;
   translatedSynopsis?: string | null;
@@ -257,6 +259,7 @@ export interface ExternalMedia {
   romajiTitle?: string | null;
   coverUrl: string | null;
   description: string | null;
+  trailerVideoId?: string | null;
   releaseYear: number | null;
   releaseDate?: string | null;
   endDate?: string | null;

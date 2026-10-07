@@ -49,6 +49,8 @@ interface CreateMediaBase {
   score?: number | null;
   coverUrl?: string | null;
   notes?: string | null;
+  description?: string | null;
+  trailerVideoId?: string | null;
   franchiseId?: string | null;
   franchiseName?: string | null;
   franchiseOrder?: number | null;

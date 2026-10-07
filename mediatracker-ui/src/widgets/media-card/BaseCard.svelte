@@ -61,7 +61,7 @@
 
 <!-- svelte-ignore a11y_no_noninteractive_element_to_interactive_role -->
 <article
-    class="media-card @container group relative cursor-pointer rounded-xl border border-white/[0.05] bg-card p-2.5 shadow-lg transition-all hover:border-white/[0.1] hover:bg-card-hover focus-within:ring-2 focus-within:ring-indigo-500/30"
+    class="media-card @container group relative cursor-pointer rounded-xl border border-white/[0.05] bg-card p-2.5 shadow-lg hover:border-white/[0.1] hover:bg-card-hover focus-within:ring-2 focus-within:ring-indigo-500/30"
     role="button"
     tabindex="0"
     aria-label={i18n.t.card.openDetails(item.title)}

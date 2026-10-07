@@ -15,6 +15,13 @@
     let dialogElement = $state<HTMLDialogElement | null>(null);
     let closingProgrammatically = false;
 
+    /**
+     * A press that starts inside the panel (selecting text) and ends on the backdrop is a drag, not
+     * a dismissal — so the overlay only counts as clicked when BOTH mousedown and mouseup landed on
+     * it (`target === dialogElement`, i.e. the backdrop area, never the panel's contents).
+     */
+    let pressedOnBackdrop = false;
+
     $effect(() => {
         const dialog = dialogElement;
         if (!dialog) return;
@@ -38,8 +45,14 @@
         onClose();
     }
 
-    function handleClick(event: MouseEvent) {
-        if (event.target === dialogElement) onClose();
+    function handleMouseDown(event: MouseEvent) {
+        pressedOnBackdrop = event.target === dialogElement;
+    }
+
+    function handleMouseUp(event: MouseEvent) {
+        const startedOnBackdrop = pressedOnBackdrop;
+        pressedOnBackdrop = false;
+        if (startedOnBackdrop && event.target === dialogElement) onClose();
     }
 </script>
 
@@ -51,7 +64,8 @@
         : 'max-w-2xl'} overflow-visible border-0 bg-transparent p-4 text-ink backdrop:bg-black/70 backdrop:backdrop-blur-sm"
     onclose={handleNativeClose}
     oncancel={handleCancel}
-    onclick={handleClick}
+    onmousedown={handleMouseDown}
+    onmouseup={handleMouseUp}
 >
     <!-- Fully opaque panel: only the ::backdrop carries the dim/blur, never the dialog
        surface itself, otherwise page content bleeds through the text. -->

@@ -130,8 +130,8 @@
             {#if season.totalEpisodes > 0}
                 <div class="h-1.5 overflow-hidden rounded-full bg-canvas">
                     <div
-                        class="h-full rounded-full bg-accent transition-[width] duration-200"
-                        style={`width: ${Math.min(currentEpisode / season.totalEpisodes, 1) * 100}%`}
+                        class="h-full w-full origin-left rounded-full bg-accent transition-transform duration-200"
+                        style={`transform: scaleX(${Math.min(currentEpisode / season.totalEpisodes, 1)})`}
                     ></div>
                 </div>
             {/if}

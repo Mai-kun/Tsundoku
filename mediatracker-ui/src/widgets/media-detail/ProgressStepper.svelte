@@ -57,8 +57,8 @@
             class="h-1.5 w-full max-w-2xl overflow-hidden rounded-full bg-[var(--color-field)]"
         >
             <div
-                class="h-full rounded-full bg-[var(--color-accent)] transition-[width] duration-200"
-                style={`width: ${percent}%`}
+                class="h-full w-full origin-left rounded-full bg-[var(--color-accent)] transition-transform duration-200"
+                style={`transform: scaleX(${percent / 100})`}
             ></div>
         </div>
     {/if}

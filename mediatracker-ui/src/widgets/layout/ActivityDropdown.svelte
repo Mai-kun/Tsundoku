@@ -124,8 +124,8 @@
                             aria-valuemax="100"
                         >
                             <div
-                                class="h-full rounded-full bg-[#5844e0] transition-[width] duration-300 ease-out"
-                                style={`width:${job.progressPercent}%`}
+                                class="h-full w-full origin-left rounded-full bg-[#5844e0] transition-transform duration-300 ease-out"
+                                style={`transform: scaleX(${job.progressPercent / 100})`}
                             ></div>
                         </div>
 

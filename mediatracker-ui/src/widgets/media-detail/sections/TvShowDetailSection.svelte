@@ -131,8 +131,8 @@
 
         <div class="mt-4 h-2 w-full max-w-2xl overflow-hidden rounded-full bg-black/40">
             <div
-                class="h-full rounded-full bg-gradient-to-r from-[var(--color-accent)] to-[var(--color-info-soft)] transition-all duration-300"
-                style={`width: ${seriesProgressPercent}%`}
+                class="h-full w-full origin-left rounded-full bg-gradient-to-r from-[var(--color-accent)] to-[var(--color-info-soft)] transition-transform duration-300"
+                style={`transform: scaleX(${seriesProgressPercent / 100})`}
             ></div>
         </div>
     </div>

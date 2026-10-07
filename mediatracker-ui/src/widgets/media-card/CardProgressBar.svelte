@@ -17,8 +17,8 @@
     {#if ratio !== null}
         <div class="h-1.5 overflow-hidden rounded-full bg-canvas">
             <div
-                class="h-full rounded-full bg-accent transition-[width] duration-200"
-                style={`width: ${ratio * 100}%`}
+                class="h-full w-full origin-left rounded-full bg-accent transition-transform duration-200"
+                style={`transform: scaleX(${ratio})`}
             ></div>
         </div>
     {:else if reserveSpace}

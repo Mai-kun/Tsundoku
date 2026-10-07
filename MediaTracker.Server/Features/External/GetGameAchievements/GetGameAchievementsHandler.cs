@@ -15,7 +15,10 @@ public interface IGetGameAchievementsHandler
     Task<Result<object>> HandleAsync(GetGameAchievementsQuery query, CancellationToken ct);
 }
 
-/// <summary>Achievements are read live from the provider and never stored on the item.</summary>
+/// <summary>
+/// Live re-read of the provider's list; the creation pipeline already stores its own copy on the
+/// row (see <see cref="Features.Jobs.MediaEnrichmentJob"/>), so this backs the explicit refresh.
+/// </summary>
 public sealed class GetGameAchievementsHandler(RawgGameService gameService) : IGetGameAchievementsHandler
 {
     public async Task<Result<object>> HandleAsync(GetGameAchievementsQuery query, CancellationToken ct)

@@ -46,6 +46,8 @@ if (options.RunSelfCheck)
 
 if (options.Mode == TsundokuRunMode.GuiOnly)
 {
+    var guiPaths = CreateAppPaths(options);
+    ConfigureWebView2(guiPaths);
     Log.Information(
         "Tsundoku starting in client-only mode. Server address: {ServerAddress}",
         options.ServerUrl
@@ -57,14 +59,12 @@ if (options.Mode == TsundokuRunMode.GuiOnly)
 
 var isContainer = CommandLineOptions.IsRunningInContainer;
 
-var appPaths = new AppPaths(
-    options.DataDirectory is { Length: > 0 } dataDirectory ? Path.GetFullPath(dataDirectory)
-    : isContainer ? Directory.GetCurrentDirectory()
-    : Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "Tsundoku"
-    )
-);
+var appPaths = CreateAppPaths(options);
+
+if (!options.IsHeadless && !options.MigrateOnly)
+{
+    ConfigureWebView2(appPaths);
+}
 
 ConfigureLogging(appPaths.LogsDirectory);
 
@@ -298,6 +298,32 @@ static void ConfigureLogging(string logsDirectory)
         .WriteTo.Console(outputTemplate: outputTemplate)
         .WriteTo.File(path: currentSessionLogFile, outputTemplate: outputTemplate, shared: true)
         .CreateLogger();
+}
+
+static AppPaths CreateAppPaths(CommandLineOptions options)
+{
+    var dataDirectory = options.DataDirectory is { Length: > 0 } configuredDirectory
+        ? Path.GetFullPath(configuredDirectory)
+        : CommandLineOptions.IsRunningInContainer
+            ? Directory.GetCurrentDirectory()
+            : Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "Tsundoku"
+            );
+
+    return new AppPaths(dataDirectory);
+}
+
+static void ConfigureWebView2(AppPaths appPaths)
+{
+    var webViewCacheDir = Path.Combine(appPaths.DataDirectory, "cache", "webview2");
+    Directory.CreateDirectory(webViewCacheDir);
+
+    Environment.SetEnvironmentVariable(
+        "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS",
+        "--enable-gpu-rasterization --enable-zero-copy --ignore-gpu-blocklist --disable-features=msWebOOUI,msPdfOOUI"
+    );
+    Environment.SetEnvironmentVariable("WEBVIEW2_USER_DATA_FOLDER", webViewCacheDir);
 }
 
 static async Task InitializeDatabaseAsync(WebApplication app)

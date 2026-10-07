@@ -66,35 +66,24 @@ public static class MediaEnrichmentJob
                 await db.SaveChangesAsync(jobCts.Token).ConfigureAwait(false);
             }
 
-            // A manga added from a source that reports only a flat chapter count (Shikimori, AniList)
-            // would otherwise have no volumes at all now that the even local split is gone.
-            if (item is Manga manga)
-            {
-                var volumesChanged = await MangaVolumeStructure.ApplyCanonicalVolumesAsync(
-                        services.GetRequiredService<IMetadataProviderResolver>(),
-                        db,
-                        manga,
-                        external?.VolumeDetails,
-                        jobCts.Token)
-                    .ConfigureAwait(false);
-
-                if (volumesChanged)
-                {
-                    item.MarkUpdated();
-                    await db.SaveChangesAsync(jobCts.Token).ConfigureAwait(false);
-                }
-            }
-
             Report(progress, 90, "Сохранение сезонов и глав");
 
             item.SyncStatus = SyncStatus.Ready;
             item.MarkUpdated();
             await db.SaveChangesAsync(jobCts.Token).ConfigureAwait(false);
+            services.GetService<Microsoft.Extensions.Caching.Memory.IMemoryCache>()?.Remove(MediaTracker.Server.Features.Media.GetMediaStats.AdvancedStatsCalculator.CacheKey);
 
             // Last, and outside the metadata write: the Related tab is the one panel whose content is
             // not in the database, so leaving it to the first manual "load related" meant a freshly
             // added title showed an empty tab until the user picked a source by hand.
             await CacheRelatedAsync(services, item, jobCts.Token).ConfigureAwait(false);
+
+            // Same story for a game's achievements: without this the panel stayed at Steam's ten
+            // highlighted entries until the user pressed "update metadata" by hand.
+            if (item is VideoGame)
+            {
+                await CacheAchievementsAsync(services, item, external?.SteamAppId, jobCts.Token).ConfigureAwait(false);
+            }
 
             Report(progress, 100, "Готово");
         }
@@ -168,6 +157,58 @@ public static class MediaEnrichmentJob
         }
     }
 
+    /// <summary>
+    /// Stores the game's full achievement list on the row right after creation, from the same
+    /// provider the game was added with (Steam/RAWG). Never overwrites an existing payload and never
+    /// fails the job: a provider outage just leaves the panel to its live fetch.
+    /// </summary>
+    private static async Task CacheAchievementsAsync(
+        IServiceProvider services,
+        MediaItem item,
+        string? steamAppId,
+        CancellationToken ct)
+    {
+        if (item.AchievementsJson is not null || string.IsNullOrWhiteSpace(item.ExternalSource))
+        {
+            return;
+        }
+
+        try
+        {
+            var isSteam = string.Equals(item.ExternalSource, "steam", StringComparison.OrdinalIgnoreCase);
+            var result = await services.GetRequiredService<RawgGameService>()
+                .GetAchievementsAsync(
+                    isSteam ? item.ExternalId : steamAppId,
+                    string.Equals(item.ExternalSource, "rawg", StringComparison.OrdinalIgnoreCase)
+                        ? item.ExternalId
+                        : null,
+                    item.Title,
+                    item.ExternalSource,
+                    item.ExternalId,
+                    ct)
+                .ConfigureAwait(false);
+
+            if (result.Achievements.Count == 0)
+            {
+                return;
+            }
+
+            // Same shape the panel already reads back: { total, items: [{ name, description, iconUrl }] }.
+            item.AchievementsJson = JsonSerializer.Serialize(
+                new { total = result.TotalCount, items = result.Achievements },
+                new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+
+            item.MarkUpdated();
+            await services.GetRequiredService<AppDbContext>()
+                .SaveChangesAsync(CancellationToken.None)
+                .ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // Achievements are decoration: the row stays valid without them.
+        }
+    }
+
     private static Task<MediaItem?> LoadAsync(AppDbContext db, Guid mediaId) =>
         db.MediaItems
             .Include(media => media.Franchise)
@@ -200,8 +241,7 @@ public static class MediaEnrichmentJob
             external,
             services.GetRequiredService<IImageStorageService>(),
             ct,
-            season => db.Entry(season).State = EntityState.Added,
-            volume => db.Entry(volume).State = EntityState.Added).ConfigureAwait(false);
+            season => db.Entry(season).State = EntityState.Added).ConfigureAwait(false);
 
         return true;
     }

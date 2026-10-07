@@ -220,6 +220,9 @@ namespace MediaTracker.Server.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Description")
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime?>("EndDate")
                         .HasColumnType("TEXT");
 
@@ -302,6 +305,9 @@ namespace MediaTracker.Server.Infrastructure.Persistence.Migrations
 
                     b.Property<string>("Title")
                         .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TrailerVideoId")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("TranslatedSynopsis")

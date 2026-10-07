@@ -120,6 +120,10 @@ public sealed record MediaDetailDto : MediaListDto
 
     public string? Notes { get; init; }
 
+    public string? Description { get; init; }
+
+    public string? TrailerVideoId { get; init; }
+
     public string? ExternalRatingsJson { get; init; }
 
     public string? TranslatedSynopsis { get; init; }

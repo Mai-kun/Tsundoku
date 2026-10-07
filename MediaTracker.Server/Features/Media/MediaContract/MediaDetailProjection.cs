@@ -75,6 +75,8 @@ public static class MediaDetailProjection
             Tags = listFields.Tags,
             UserPlatform = listFields.UserPlatform,
             Notes = item.Notes,
+            Description = item.Description,
+            TrailerVideoId = item.TrailerVideoId,
             ExternalRatingsJson = item.ExternalRatingsJson,
             TranslatedSynopsis = item.TranslatedSynopsis,
             UnlockedAchievements = item.UnlockedAchievements,

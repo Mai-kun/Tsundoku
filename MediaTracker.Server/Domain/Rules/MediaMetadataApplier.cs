@@ -100,10 +100,8 @@ public static class MediaMetadataApplier
     {
         item.Title = external.Title;
 
-        if (!string.IsNullOrWhiteSpace(external.Description))
-        {
-            item.Notes = external.Description;
-        }
+        item.Description = external.Description;
+        item.TrailerVideoId = external.TrailerVideoId;
 
         if (IsExternalUrl(external.CoverUrl))
         {
@@ -150,7 +148,8 @@ public static class MediaMetadataApplier
         }
         modified |= ApplyMangaGaps(item, external);
 
-        modified |= SetIfBlank(item.Notes, external.Description, value => item.Notes = value);
+        modified |= SetIfBlank(item.Description, external.Description, value => item.Description = value);
+        modified |= SetIfBlank(item.TrailerVideoId, external.TrailerVideoId, value => item.TrailerVideoId = value);
         modified |= SetIfBlank(item.Genres, JoinGenres(external.Genres), value => item.Genres = value);
         modified |= ApplyDisplayGaps(item, external, trackNewSeason);
 

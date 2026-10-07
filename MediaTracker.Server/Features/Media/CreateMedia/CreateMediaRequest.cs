@@ -16,6 +16,10 @@ public sealed record CreateMediaRequest
 
     public string? Notes { get; init; }
 
+    public string? Description { get; init; }
+
+    public string? TrailerVideoId { get; init; }
+
     public Guid? FranchiseId { get; init; }
 
     public string? FranchiseName { get; init; }

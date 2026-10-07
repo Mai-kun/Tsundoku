@@ -18,6 +18,11 @@ public abstract class MediaItem
 
     public string? Notes { get; set; }
 
+    public string? Description { get; set; }
+
+    /// <summary>YouTube video identifier for the title's trailer, when a provider exposes one.</summary>
+    public string? TrailerVideoId { get; set; }
+
     public string? CoverUrl { get; set; }
 
     /// <summary>Set to <see cref="SyncStatus.Syncing"/> the moment the row is created, so the card

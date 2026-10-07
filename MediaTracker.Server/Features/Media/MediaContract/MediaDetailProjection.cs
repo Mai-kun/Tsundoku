@@ -77,6 +77,7 @@ public static class MediaDetailProjection
             Notes = item.Notes,
             Description = item.Description,
             TrailerVideoId = item.TrailerVideoId,
+            CreatorImageUrl = item.CreatorImageUrl,
             ExternalRatingsJson = item.ExternalRatingsJson,
             TranslatedSynopsis = item.TranslatedSynopsis,
             UnlockedAchievements = item.UnlockedAchievements,

@@ -8,11 +8,12 @@
         creatorName: string;
         role: CreatorRole;
         currentMediaId: string;
+        imageUrl?: string | null;
         onOpenMedia: (item: MediaItem) => void;
         onSearch: (query: string) => void;
     }
 
-    let { creatorName, role, currentMediaId, onOpenMedia, onSearch }: Props = $props();
+    let { creatorName, role, currentMediaId, imageUrl = null, onOpenMedia, onSearch }: Props = $props();
     let summary = $state<Awaited<ReturnType<typeof getCreatorSummary>>>(null);
     let loading = $state(true);
 
@@ -55,11 +56,20 @@
 <section class="h-full space-y-4 rounded-xl border border-white/[0.06] bg-[var(--color-panel-line)] p-5">
     <div class="flex flex-wrap items-start justify-between gap-4">
         <div class="flex min-w-0 items-center gap-3">
-            <span class="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white/[0.06] text-accent-soft">
-                {#if role === "director"}<Clapperboard size={21} />
-                {:else if role === "author"}<BookOpen size={21} />
-                {:else}<User size={21} />{/if}
-            </span>
+            {#if imageUrl}
+                <img
+                    src={imageUrl}
+                    alt={creatorName}
+                    loading="lazy"
+                    class="h-11 w-11 shrink-0 rounded-xl bg-white/[0.06] object-cover"
+                />
+            {:else}
+                <span class="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white/[0.06] text-accent-soft">
+                    {#if role === "director"}<Clapperboard size={21} />
+                    {:else if role === "author"}<BookOpen size={21} />
+                    {:else}<User size={21} />{/if}
+                </span>
+            {/if}
             <div class="min-w-0">
                 <p class="text-xs font-semibold uppercase tracking-[0.16em] text-muted">{i18n.t.creator[role]}</p>
                 <h2 class="truncate text-xl font-bold text-ink">{creatorName}</h2>

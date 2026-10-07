@@ -152,9 +152,34 @@ public sealed class TmdbMetadataProvider(
                 .Select(cast => new CastMemberDto(
                     cast.Name!,
                     cast.Character,
-                    cast.ProfilePath is null ? null : $"https://image.tmdb.org/t/p/w185{cast.ProfilePath}"))
-                .ToList()
+                    ImageUrl(cast.ProfilePath, "w185")))
+                .ToList(),
+            CreatorImageUrl = isMovie
+                ? ImageUrl(
+                    item.Credits?.Crew?
+                        .FirstOrDefault(crew => string.Equals(crew.Job, "Director", StringComparison.OrdinalIgnoreCase)
+                            && !string.IsNullOrWhiteSpace(crew.ProfilePath))
+                        ?.ProfilePath,
+                    "w185")
+                : StudioLogoUrl(item)
         };
+    }
+
+    private static string? ImageUrl(string? path, string size) =>
+        string.IsNullOrWhiteSpace(path) ? null : $"https://image.tmdb.org/t/p/{size}{path}";
+
+    /// <summary>
+    /// A series card names the network, and TMDb's networks carry no logo, so the production company's
+    /// logo is only used when it is the very studio on the card. Pairing a logo with a different name
+    /// would be a picture of the wrong thing.
+    /// </summary>
+    private static string? StudioLogoUrl(TmdbItem item)
+    {
+        var studio = item.Networks?.FirstOrDefault(n => !string.IsNullOrWhiteSpace(n.Name))?.Name;
+        var company = item.ProductionCompanies?.FirstOrDefault(c => !string.IsNullOrWhiteSpace(c.LogoPath));
+        return company is not null && string.Equals(company.Name, studio, StringComparison.OrdinalIgnoreCase)
+            ? ImageUrl(company.LogoPath, "w185")
+            : null;
     }
 
     private static int? ParseYear(string? date) =>
@@ -189,7 +214,13 @@ public sealed class TmdbMetadataProvider(
 
     private sealed record TmdbVideo(string? Site, string? Type, string? Key);
 
-    private sealed record TmdbCredits([property: JsonPropertyName("cast")] List<TmdbCastMember>? Cast);
+    private sealed record TmdbCredits(
+        [property: JsonPropertyName("cast")] List<TmdbCastMember>? Cast,
+        [property: JsonPropertyName("crew")] List<TmdbCrewMember>? Crew);
+
+    private sealed record TmdbCrewMember(
+        [property: JsonPropertyName("job")] string? Job,
+        [property: JsonPropertyName("profile_path")] string? ProfilePath);
 
     private sealed record TmdbCastMember(
         [property: JsonPropertyName("name")] string? Name,
@@ -198,5 +229,6 @@ public sealed class TmdbMetadataProvider(
 
     private sealed record TmdbNamedItem(
         [property: JsonPropertyName("id")] long Id,
-        [property: JsonPropertyName("name")] string? Name);
+        [property: JsonPropertyName("name")] string? Name,
+        [property: JsonPropertyName("logo_path")] string? LogoPath);
 }

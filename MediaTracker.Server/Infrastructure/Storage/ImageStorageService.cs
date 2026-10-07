@@ -26,7 +26,11 @@ public sealed class ImageStorageService(
 
     private const long MaxCoverSizeBytes = 10 * 1024 * 1024; // 10 MB limit
 
-    public async Task<string?> SaveCoverAsync(string externalUrl, Guid itemId, CancellationToken ct = default)
+    public async Task<string?> SaveCoverAsync(
+        string externalUrl,
+        Guid itemId,
+        CancellationToken ct = default,
+        string folder = "cover")
     {
         if (string.IsNullOrWhiteSpace(externalUrl))
         {
@@ -45,7 +49,7 @@ public sealed class ImageStorageService(
                 return externalUrl;
             }
 
-            var coverDirectory = GetCoverDirectory(itemId);
+            var coverDirectory = Path.Combine(GetCoverDirectory(itemId), folder);
             Directory.CreateDirectory(coverDirectory);
 
             var originalPath = Path.Combine(coverDirectory, "original.webp");
@@ -65,12 +69,12 @@ public sealed class ImageStorageService(
             var sizeKb = new FileInfo(originalPath).Length / 1024;
             logger.LogInformation(
                 "[Storage] Downloaded {Type} for {MediaId} ({SizeKb} KB, {ElapsedMs}ms)",
-                "cover",
+                folder,
                 itemId,
                 sizeKb,
                 sw.ElapsedMilliseconds);
 
-            return $"{MediaAssetsRoutePrefix}{itemId}/cover/thumb.webp";
+            return $"{MediaAssetsRoutePrefix}{itemId}/{folder}/thumb.webp";
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {

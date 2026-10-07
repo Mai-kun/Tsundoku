@@ -108,6 +108,17 @@ public static class MediaMetadataApplier
             item.CoverUrl = await imageStorage.SaveCoverAsync(external.CoverUrl!, item.Id, ct);
         }
 
+        // Only written when the source had one: a provider without a creator photo must not erase the
+        // one a previous refresh already saved, and the UI falls back to a role icon either way.
+        if (IsExternalUrl(external.CreatorImageUrl))
+        {
+            item.CreatorImageUrl = await imageStorage.SaveCoverAsync(
+                external.CreatorImageUrl!,
+                item.Id,
+                ct,
+                "creator");
+        }
+
         item.ExternalId = external.ExternalId;
         item.ExternalSource = external.ExternalSource ?? item.ExternalSource;
         item.ExternalRating = external.Rating;
@@ -150,6 +161,9 @@ public static class MediaMetadataApplier
 
         modified |= SetIfBlank(item.Description, external.Description, value => item.Description = value);
         modified |= SetIfBlank(item.TrailerVideoId, external.TrailerVideoId, value => item.TrailerVideoId = value);
+        // No image storage on this path, so the remote URL is kept: the browser loads it directly and
+        // the next full refresh swaps it for the locally stored copy.
+        modified |= SetIfBlank(item.CreatorImageUrl, external.CreatorImageUrl, value => item.CreatorImageUrl = value);
         modified |= SetIfBlank(item.Genres, JoinGenres(external.Genres), value => item.Genres = value);
         modified |= ApplyDisplayGaps(item, external, trackNewSeason);
 

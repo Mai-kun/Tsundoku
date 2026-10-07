@@ -75,7 +75,7 @@ public static class MediaMerger
         }
         else if (type is "anime" or "tvshow")
         {
-            if (d.TotalCount == null || string.IsNullOrWhiteSpace(d.Studio))
+            if (d.TotalCount == null || string.IsNullOrWhiteSpace(d.Studio) || MissingCastOrTrailer(d))
             {
                 return true;
             }
@@ -91,7 +91,7 @@ public static class MediaMerger
         {
             // Movies had no branch at all, so runtime and studio never counted as "missing" and the
             // cascade stopped at the first source instead of asking the remaining ones.
-            if (d.RuntimeMinutes is not > 0 || string.IsNullOrWhiteSpace(d.Studio))
+            if (d.RuntimeMinutes is not > 0 || string.IsNullOrWhiteSpace(d.Studio) || MissingCastOrTrailer(d))
             {
                 return true;
             }
@@ -104,6 +104,16 @@ public static class MediaMerger
             || d.ReleaseYear == null
             || string.IsNullOrWhiteSpace(d.ReleaseDate);
     }
+
+    /// <summary>
+    /// Cast and trailer only exist for shows and movies, and neither was a gap: the cascade saw the
+    /// IMDb answer as complete, stopped, and never asked TMDb for the credits and the video the
+    /// overview actually renders.
+    /// ponytail: a title no source has a trailer for keeps every source in the cascade on each refresh.
+    /// Worth a stored "asked" flag only when refresh latency starts to matter.
+    /// </summary>
+    private static bool MissingCastOrTrailer(ExternalMediaDto d) =>
+        d.Cast is not { Count: > 0 } || string.IsNullOrWhiteSpace(d.TrailerVideoId);
 
     public static ExternalMediaDto Merge(ExternalMediaDto primary, ExternalMediaDto fallback)
     {
@@ -119,6 +129,13 @@ public static class MediaMerger
                 fallback.Volumes),
             Author = FirstNonEmpty(primary.Author, fallback.Author),
             Studio = FirstNonEmpty(primary.Studio, fallback.Studio),
+            // Cast and trailer come only from the sources that track them (TMDb, AniList); the IMDb
+            // suggestion endpoint has neither, so the primary side was always null and the merge used
+            // to drop the fallback's answer entirely. That is what left every show without actor
+            // photos and without a trailer even when the cascade had already asked TMDb.
+            Cast = BestCast(primary.Cast, fallback.Cast),
+            TrailerVideoId = FirstNonEmpty(primary.TrailerVideoId, fallback.TrailerVideoId),
+            CreatorImageUrl = FirstNonEmpty(primary.CreatorImageUrl, fallback.CreatorImageUrl),
             Description = FirstNonEmpty(primary.Description, fallback.Description),
             CoverUrl = FirstNonEmpty(primary.CoverUrl, fallback.CoverUrl),
             ReleaseYear = primary.ReleaseYear ?? fallback.ReleaseYear,
@@ -219,6 +236,22 @@ public static class MediaMerger
         }
 
         return trimmed.ToLowerInvariant();
+    }
+
+    /// <summary>
+    /// Keeps the cast list that actually has faces. Several sources report names only, and a list of
+    /// names is worth less than a list with photos, so a photo-bearing answer wins even when it comes
+    /// from the lower-priority source.
+    /// </summary>
+    private static IReadOnlyList<CastMemberDto>? BestCast(
+        IReadOnlyList<CastMemberDto>? first,
+        IReadOnlyList<CastMemberDto>? second)
+    {
+        var a = first is { Count: > 0 } ? first : null;
+        var b = second is { Count: > 0 } ? second : null;
+        if (a is not null && a.Any(member => !string.IsNullOrWhiteSpace(member.PhotoUrl))) return a;
+        if (b is not null && b.Any(member => !string.IsNullOrWhiteSpace(member.PhotoUrl))) return b;
+        return a ?? b;
     }
 
     private static string? FirstNonEmpty(string? first, string? second)

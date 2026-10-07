@@ -120,6 +120,7 @@
                 <CreatorSection
                     creatorName={creator.name}
                     role={creator.role}
+                    imageUrl={media.creatorImageUrl ?? null}
                     currentMediaId={media.id}
                     {onOpenMedia}
                     {onSearch}

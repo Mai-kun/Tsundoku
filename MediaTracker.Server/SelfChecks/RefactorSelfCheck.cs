@@ -39,6 +39,7 @@ public static class RefactorSelfCheck
         CheckMangaFormatMergePrefersOel(failures);
         CheckMangaGapEnrichmentDoesNotOverwrite(failures);
         CheckMergeKeepsRuntimeAndGenres(failures);
+        CheckMergeCarriesCastAndTrailer(failures);
         CheckMergeKeepsFinalChapterTotal(failures);
         CheckRelatedMediaSurvivesRoundTrip(failures);
         CheckMissingMetadataDrivesCascade(failures);
@@ -483,6 +484,76 @@ public static class RefactorSelfCheck
         );
     }
 
+    private static void CheckMergeCarriesCastAndTrailer(List<string> failures)
+    {
+        // Breaking Bad added from IMDb: the suggestion endpoint reports neither credits nor a video,
+        // so both live on the TMDb answer that the cascade fetched second.
+        var imdb = new ExternalMediaDto
+        {
+            ExternalId = "tt0903747",
+            Title = "Breaking Bad",
+            Type = "tvshow",
+            Studio = "High Bridge Entertainment",
+            TotalCount = 62,
+            Description = "A chemistry teacher turns to manufacturing meth.",
+            ReleaseYear = 2008,
+            ReleaseDate = "2008-01-20",
+        };
+        var tmdb = new ExternalMediaDto
+        {
+            ExternalId = "1396",
+            Title = "Breaking Bad",
+            Type = "tvshow",
+            TrailerVideoId = "HhesaQXLuRY",
+            CreatorImageUrl = "https://image.tmdb.org/t/p/w185/studio.png",
+            Cast =
+            [
+                new CastMemberDto("Bryan Cranston", "Walter White", "https://image.tmdb.org/t/p/w185/w185.jpg"),
+                new CastMemberDto("Aaron Paul", "Jesse Pinkman", "https://image.tmdb.org/t/p/w185/paul.jpg")
+            ],
+        };
+
+        var merged = MediaMerger.Merge(imdb, tmdb);
+
+        AssertEqual(failures, "HhesaQXLuRY", merged.TrailerVideoId, "merge keeps a trailer the primary source lacks");
+        AssertEqual(failures, 2, merged.Cast?.Count, "merge keeps the cast the primary source lacks");
+        AssertEqual(
+            failures,
+            "https://image.tmdb.org/t/p/w185/studio.png",
+            merged.CreatorImageUrl,
+            "merge keeps the creator image the primary source lacks");
+
+        // The reverse order must keep the photo-bearing list: the primary answer wins only because
+        // names alone are worth less than faces in the overview.
+        var namesOnly = imdb with { Cast = [new CastMemberDto("Bryan Cranston", "Walter White", null)] };
+        AssertEqual(
+            failures,
+            2,
+            MediaMerger.Merge(namesOnly, tmdb).Cast?.Count,
+            "a cast list with photos beats one with names only"
+        );
+        AssertEqual(
+            failures,
+            2,
+            MediaMerger.Merge(tmdb, namesOnly).Cast?.Count,
+            "the photo-bearing primary cast survives a later merge"
+        );
+
+        // Without this the cascade treated the IMDb answer as complete and never asked for credits.
+        AssertTrue(
+            failures,
+            MediaMerger.HasMissingMetadata(
+                merged with { TrailerVideoId = null, Cast = null },
+                "tvshow"),
+            "a show without credits or a video keeps the cascade going"
+        );
+        AssertFalse(
+            failures,
+            MediaMerger.HasMissingMetadata(merged, "tvshow"),
+            "a show with cast and a trailer stops the cascade"
+        );
+    }
+
     private static void CheckMergeKeepsFinalChapterTotal(List<string> failures)
     {
         // Berserk: one source knows the finished run (386), the ongoing ones only know the latest
@@ -607,6 +678,8 @@ public static class RefactorSelfCheck
             ReleaseDate = "2021-10-22",
             RuntimeMinutes = 155,
             Studio = "Legendary Pictures",
+            TrailerVideoId = "Way9Dexny3w",
+            Cast = [new CastMemberDto("Timothée Chalamet", "Paul Atreides", null)],
         };
         AssertFalse(
             failures,
@@ -631,6 +704,18 @@ public static class RefactorSelfCheck
             failures,
             MediaMerger.HasMissingMetadata(complete with { ReleaseDate = null }, "movie"),
             "a missing release date keeps the cascade going"
+        );
+
+        // Credits and a video are what the overview renders, so they count as gaps too.
+        AssertTrue(
+            failures,
+            MediaMerger.HasMissingMetadata(complete with { Cast = null }, "movie"),
+            "a movie without cast keeps the cascade going"
+        );
+        AssertTrue(
+            failures,
+            MediaMerger.HasMissingMetadata(complete with { TrailerVideoId = null }, "movie"),
+            "a movie without a trailer keeps the cascade going"
         );
     }
 
@@ -716,7 +801,7 @@ public static class RefactorSelfCheck
     /// <summary>ApplyOverwriteAsync only reaches the cover through this seam; the checks pass none.</summary>
     private sealed class NullImageStorage : IImageStorageService
     {
-        public Task<string?> SaveCoverAsync(string url, Guid mediaId, CancellationToken ct) =>
+        public Task<string?> SaveCoverAsync(string url, Guid mediaId, CancellationToken ct, string folder = "cover") =>
             Task.FromResult<string?>(null);
 
         public void DeleteCover(string? path) { }
@@ -966,6 +1051,7 @@ public static class RefactorSelfCheck
             Author = "Someone Else",
             Description = "Fresh synopsis",
             TrailerVideoId = "abc123",
+            CreatorImageUrl = "https://image.tmdb.org/t/p/w185/author.jpg",
         };
 
         MediaMetadataApplier
@@ -979,6 +1065,24 @@ public static class RefactorSelfCheck
         AssertEqual(failures, "Fresh synopsis", book.Description, "refresh overwrites the description");
         AssertEqual(failures, "My private note", book.Notes, "refresh preserves personal notes");
         AssertEqual(failures, "abc123", book.TrailerVideoId, "refresh stores the trailer id");
+        AssertEqual(
+            failures,
+            "https://image.tmdb.org/t/p/w185/author.jpg",
+            book.CreatorImageUrl,
+            "refresh stores the creator image");
+
+        // A source without a photo must not erase the one already on the row: the UI falls back to a
+        // role icon, and a blank out would leave a saved file nothing points at.
+        MediaMetadataApplier
+            .ApplyOverwriteAsync(book, external with { CreatorImageUrl = null }, new NoOpImageStorage(), CancellationToken.None)
+            .GetAwaiter()
+            .GetResult();
+
+        AssertEqual(
+            failures,
+            "https://image.tmdb.org/t/p/w185/author.jpg",
+            book.CreatorImageUrl,
+            "refresh keeps a creator image the new source does not have");
     }
 
     /// <summary>
@@ -2906,7 +3010,8 @@ public static class RefactorSelfCheck
         public Task<string?> SaveCoverAsync(
             string externalUrl,
             Guid itemId,
-            CancellationToken ct = default
+            CancellationToken ct = default,
+            string folder = "cover"
         ) => Task.FromResult<string?>(externalUrl);
 
         public void DeleteCover(string? localCoverUrl) { }

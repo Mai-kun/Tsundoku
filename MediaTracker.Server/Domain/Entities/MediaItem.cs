@@ -25,6 +25,12 @@ public abstract class MediaItem
 
     public string? CoverUrl { get; set; }
 
+    /// <summary>
+    /// Local path to the director's photo or the studio's logo, when a provider had one. Null is the
+    /// normal case, and the UI falls back to a role icon rather than reserving space for nothing.
+    /// </summary>
+    public string? CreatorImageUrl { get; set; }
+
     /// <summary>Set to <see cref="SyncStatus.Syncing"/> the moment the row is created, so the card
     /// and the detail screen can render immediately while the job queue fills in the rest.</summary>
     public SyncStatus SyncStatus { get; set; } = SyncStatus.Ready;

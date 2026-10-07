@@ -70,6 +70,8 @@ export interface MediaDetailFields {
   description?: string | null;
   trailerVideoId?: string | null;
   cast?: CastMember[];
+  /** Director photo or studio logo, when a provider supplied one. */
+  creatorImageUrl?: string | null;
   externalRatingsJson?: string | null;
   translatedSynopsis?: string | null;
   unlockedAchievements?: string | null;

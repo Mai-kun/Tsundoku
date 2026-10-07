@@ -124,6 +124,9 @@ public sealed record MediaDetailDto : MediaListDto
 
     public string? TrailerVideoId { get; init; }
 
+    /// <summary>Director photo or studio logo, when a provider supplied one.</summary>
+    public string? CreatorImageUrl { get; init; }
+
     public string? ExternalRatingsJson { get; init; }
 
     public string? TranslatedSynopsis { get; init; }
@@ -358,6 +361,7 @@ public static class MediaResponseMapper
             Recommendations = MediaJsonCache.Deserialize<ExternalRecommendationDto>(item.RecommendationsJson),
             IsCustomEdited = item.IsCustomEdited,
             Cast = MediaJsonCache.Deserialize<CastMemberDto>(item.CastJson),
+            CreatorImageUrl = item.CreatorImageUrl,
         };
     }
 

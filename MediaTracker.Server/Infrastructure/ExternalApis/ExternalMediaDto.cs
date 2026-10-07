@@ -84,6 +84,9 @@ public sealed record ExternalMediaDto
 
     public IReadOnlyList<CastMemberDto>? Cast { get; init; }
 
+    /// <summary>Photo of the director, or logo of the studio the card shows. Null when unknown.</summary>
+    public string? CreatorImageUrl { get; init; }
+
     /// <summary>Provider's own format label (MANGA, NOVEL, TV, MOVIE...). Null when it reports none.</summary>
     public string? Format { get; init; }
 

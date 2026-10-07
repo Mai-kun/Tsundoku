@@ -35,6 +35,7 @@
     import MediaGrid from "$widgets/media-grid/MediaGrid.svelte";
     import SectionRow from "$widgets/media-grid/SectionRow.svelte";
     import { nextSeriesEpisodeStep } from "$entities/media/model/seriesStep";
+    import { uiSettings } from "$shared/utils/uiSettings.svelte";
 
     export type Category =
         | "tvshow"
@@ -77,8 +78,8 @@
     // so the stale list is never rendered.
     $effect.pre(() => {
         const saved = savedCategoryState[category];
-        status = saved?.status ?? "all";
-        sort = saved?.sort ?? "newest";
+        status = saved?.status ?? (uiSettings.statusFilter as StatusFilter);
+        sort = saved?.sort ?? (uiSettings.sortOption as LibrarySort);
         groupBy = saved?.groupBy ?? "status";
         search = saved?.search ?? "";
         const cached = categoryCache.peek(category);
@@ -330,11 +331,13 @@
 
     function updateStatus(value: StatusFilter) {
         status = value;
+        uiSettings.setStatusFilter(value);
         savedCategoryState[category] = { status: value, sort, groupBy, search };
     }
 
     function updateSort(value: LibrarySort) {
         sort = value;
+        uiSettings.setSortOption(value);
         savedCategoryState[category] = { status, sort: value, groupBy, search };
     }
 

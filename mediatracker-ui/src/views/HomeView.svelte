@@ -2,8 +2,6 @@
     import type { LibrarySort } from "$features/filter-and-sort/FilterBar.svelte";
     import { createSwrCache } from "$shared/utils/swrCache";
 
-    let savedHomeSort: LibrarySort = "newest";
-    let savedHomeGroupByType = true;
     interface HomePayload {
         inProgress: MediaItem[];
         upNext: MediaItem[];
@@ -35,6 +33,7 @@
     import PopoverMenu from "$shared/ui/PopoverMenu.svelte";
     import { nextSeriesEpisodeStep } from "$entities/media/model/seriesStep";
     import { SORT_ICONS } from "$features/filter-and-sort/FilterBar.svelte";
+    import { uiSettings } from "$shared/utils/uiSettings.svelte";
 
     const sortOptions = $derived<
         { value: LibrarySort; label: string }[]
@@ -66,19 +65,11 @@
     );
     let loading = $state(homeCache.peek(HOME_KEY) === undefined);
     let loadError = $state<unknown>(null);
-    let sort = $state<LibrarySort>(savedHomeSort);
-    let groupByType = $state<boolean>(savedHomeGroupByType);
+    let sort = $state<LibrarySort>(uiSettings.sortOption as LibrarySort);
+    let groupByType = $state<boolean>(uiSettings.groupByType);
     let requestSequence = 0;
     let hasLoaded = homeCache.peek(HOME_KEY) !== undefined;
     let skeletonTimer: ReturnType<typeof setTimeout> | null = null;
-
-    $effect(() => {
-        savedHomeSort = sort;
-    });
-
-    $effect(() => {
-        savedHomeGroupByType = groupByType;
-    });
 
     const TYPE_ORDER: Record<string, number> = {
         game: 1,
@@ -421,7 +412,7 @@
                             ? "border-accent/40 bg-accent/15 text-accent-soft"
                             : "border-white/10 bg-field text-muted hover:text-ink"
                     }`}
-                    onclick={() => (groupByType = !groupByType)}
+                    onclick={() => { groupByType = !groupByType; uiSettings.setGroupByType(groupByType); }}
                     title={i18n.t.views.groupByType}
                     aria-label={i18n.t.views.groupByType}
                 >
@@ -432,7 +423,7 @@
                     id="home-sort"
                     options={sortOptions}
                     selected={sort}
-                    onSelect={(value) => (sort = value as LibrarySort)}
+                    onSelect={(value) => { sort = value as LibrarySort; uiSettings.setSortOption(sort); }}
                     label={i18n.t.sort.label}
                     placement="bottom-end"
                     openOnHover

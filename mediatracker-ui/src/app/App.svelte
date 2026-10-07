@@ -19,6 +19,7 @@ import { deleteMedia } from "$shared/api/api";
     import ShowSeasonsView from "$views/ShowSeasonsView.svelte";
     import StatsView from "$views/StatsView.svelte";
     import { i18n } from "$shared/i18n/index.svelte";
+    import { uiSettings } from "$shared/utils/uiSettings.svelte";
     import type { AppView, MediaItem, SearchScope } from "$shared/types";
 
     const categories: readonly Category[] = [
@@ -106,10 +107,13 @@ import { deleteMedia } from "$shared/api/api";
 
         const parameters = new URLSearchParams(window.location.search);
         const candidate = parameters.get("view");
+        const saved = uiSettings.lastView as AppView;
         const view =
             candidate && views.includes(candidate as AppView)
                 ? (candidate as AppView)
-                : "home";
+                : views.includes(saved)
+                  ? saved
+                  : "home";
         const requiresMedia = view === "seasons" || view === "detail";
         const mediaId = requiresMedia ? parameters.get("mediaId") : null;
 
@@ -146,6 +150,7 @@ import { deleteMedia } from "$shared/api/api";
         selectedMediaId = null;
         detailDepth = 0;
         writeRoute(view, null);
+        uiSettings.setLastView(view);
         switchView(view);
     }
 

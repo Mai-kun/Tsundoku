@@ -416,7 +416,8 @@
         const common = {
             title: result.title,
             coverUrl: result.coverUrl,
-            notes: result.description,
+            description: result.description,
+            trailerVideoId: result.trailerVideoId,
             status: MEDIA_STATUS.planned,
             externalId: result.externalId,
             externalSource: result.externalSource,

@@ -459,7 +459,7 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
         seasons.map((season) => ({ season, episodes: buildEpisodes(season) })),
     );
     let originalTitle = $derived(media ? readOriginalTitle(media) : null);
-    let synopsisText = $derived(media?.notes?.trim() ?? "");
+    let synopsisText = $derived(media?.description?.trim() ?? "");
     let synopsisExpandable = $derived(synopsisText.length > 280);
     let isSynopsisTranslated = $state(false);
     let translatingSynopsis = $state(false);
@@ -1410,7 +1410,8 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
                     title: itemDetails.title,
                     status,
                     coverUrl: itemDetails.coverUrl,
-                    notes: itemDetails.description,
+                    description: itemDetails.description,
+                    trailerVideoId: itemDetails.trailerVideoId,
                     durationMinutes: itemDetails.duration ?? 0,
                     isAnime: true,
                     studio: itemDetails.studio ?? undefined,
@@ -1434,7 +1435,8 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
                     title: itemDetails.title,
                     status,
                     coverUrl: itemDetails.coverUrl,
-                    notes: itemDetails.description,
+                    description: itemDetails.description,
+                    trailerVideoId: itemDetails.trailerVideoId,
                     author: itemDetails.author || undefined,
                     romajiTitle:
                         itemDetails.romajiTitle ??
@@ -1458,7 +1460,8 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
                     title: itemDetails.title,
                     status,
                     coverUrl: itemDetails.coverUrl,
-                    notes: itemDetails.description,
+                    description: itemDetails.description,
+                    trailerVideoId: itemDetails.trailerVideoId,
                     durationMinutes: itemDetails.duration ?? undefined,
                     episodeDurationMinutes: itemDetails.duration ?? undefined,
                     isAnime: true,

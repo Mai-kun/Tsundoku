@@ -26,6 +26,23 @@ export interface CreateListPayload {
 
 export type UpdateListPayload = CreateListPayload;
 
+export interface ImportResultDto {
+  totalFound: number;
+  importedCount: number;
+  skippedDuplicates: number;
+  targetListId: string | null;
+  targetListName: string | null;
+}
+
+export interface SteamImportPayload {
+  steamId?: string;
+  profileUrl?: string;
+  steamApiKey?: string;
+  skipDuplicates: boolean;
+  targetListId?: string;
+  newListName?: string;
+}
+
 interface CreateMediaBase {
   title: string;
   status: MediaStatus;

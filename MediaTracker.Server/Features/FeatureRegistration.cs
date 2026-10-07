@@ -20,6 +20,7 @@ using MediaTracker.Server.Features.Media.GetMediaDetail;
 using MediaTracker.Server.Features.Media.GetMediaList;
 using MediaTracker.Server.Features.Media.GetMediaStats;
 using MediaTracker.Server.Features.Media.GetRecommendations;
+using MediaTracker.Server.Features.Media.Import;
 using MediaTracker.Server.Features.Media.UpdateMedia;
 using MediaTracker.Server.Features.Media.UpdateProgress;
 using MediaTracker.Server.Features.Media.UpdateStatus;
@@ -58,6 +59,7 @@ public static class FeatureRegistration
         services.AddScoped<IUpdateStatusHandler, UpdateStatusHandler>();
         services.AddScoped<IUpdateProgressHandler, UpdateProgressHandler>();
         services.AddScoped<IDeleteMediaHandler, DeleteMediaHandler>();
+        services.AddScoped<ImportMediaHandler>();
 
         // Seasons
         services.AddScoped<IUpdateSeasonProgressHandler, UpdateSeasonProgressHandler>();

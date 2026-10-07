@@ -275,6 +275,13 @@ import { deleteMedia } from "$shared/api/api";
         mediaRevision += 1;
     }
 
+    function navigateToList(id: string) {
+        navigate("lists");
+        const url = new URL(window.location.href);
+        url.searchParams.set("listId", id);
+        window.history.replaceState(null, "", url);
+    }
+
     function handleCreated(_: MediaItem) {
         mediaChanged();
     }
@@ -370,7 +377,7 @@ import { deleteMedia } from "$shared/api/api";
     {:else if renderedView === "calendar"}
         <CalendarView />
     {:else if renderedView === "lists"}
-        <ListsView onOpen={openDetail} />
+        <ListsView onOpen={openDetail} onImportCompleted={mediaChanged} />
     {:else if renderedView !== null && isCategory(renderedView)}
         <!-- No {#key} here: keying the whole view remounted it on every switch. The section
              {#each} keys in CategoryView are category-scoped instead, so sections rebuild only
@@ -402,4 +409,4 @@ import { deleteMedia } from "$shared/api/api";
         openDetailById(id);
     }}
 />
-<SettingsModal isOpen={isSettingsOpen} onClose={closeSettings} />
+<SettingsModal isOpen={isSettingsOpen} onClose={closeSettings} onImportCompleted={mediaChanged} onNavigateToList={navigateToList} />

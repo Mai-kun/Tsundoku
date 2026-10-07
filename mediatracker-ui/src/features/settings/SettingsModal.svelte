@@ -35,17 +35,21 @@
     import { showToast } from "$shared/ui/toast.svelte";
     import { i18n } from "$shared/i18n/index.svelte";
     import Modal from "$shared/ui/Modal.svelte";
+    import ImportModal from "$features/import-media/ImportModal.svelte";
     import type { ConnectionTestResult, SourceInfo } from "$shared/types";
 
     interface Props {
         isOpen: boolean;
         onClose: () => void;
+        onImportCompleted: () => void;
+        onNavigateToList?: (id: string) => void;
     }
 
-    let { isOpen, onClose }: Props = $props();
+    let { isOpen, onClose, onImportCompleted, onNavigateToList }: Props = $props();
 
-    type Tab = "sources" | "search" | "backup";
+    type Tab = "sources" | "search" | "backup" | "import";
     let activeTab = $state<Tab>("sources");
+    let importOpen = $state(false);
 
     let isExporting = $state(false);
     let isRestoring = $state(false);
@@ -450,6 +454,9 @@
                 <RotateCcw size={16} />
                 {i18n.t.settingsModal.tabs.backup}
             </button>
+            <button type="button" class={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition cursor-pointer ${activeTab === "import" ? "border-accent-soft text-ink" : "border-transparent text-muted hover:text-ink"}`} onclick={() => (activeTab = "import")}>
+                <Layers size={16} />{i18n.t.settingsModal.tabs.import}
+            </button>
         </div>
 
         <!-- Tab Body -->
@@ -820,6 +827,13 @@
                         </div>
                     {/if}
                 </div>
+            {:else if activeTab === "import"}
+                <section class="mx-auto max-w-xl rounded-xl border border-white/[0.07] bg-card p-6 text-center">
+                    <div class="mx-auto grid h-12 w-12 place-items-center rounded-xl bg-accent/10 text-accent-soft"><Layers size={22} /></div>
+                    <h3 class="mt-4 text-lg font-semibold text-ink">{i18n.t.importModal.title}</h3>
+                    <p class="mt-2 text-sm leading-6 text-muted">{i18n.t.importModal.description}</p>
+                    <button type="button" class="mt-5 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-white hover:bg-accent-hover" onclick={() => (importOpen = true)}>{i18n.t.importModal.start}</button>
+                </section>
             {:else if activeTab === "search"}
                 <div class="space-y-6">
                     <!-- Category order in All search -->
@@ -1116,6 +1130,7 @@
         </div>
     </div>
 </Modal>
+<ImportModal isOpen={importOpen} onClose={() => (importOpen = false)} {onImportCompleted} {onNavigateToList} />
 
 <!-- Confirmation Modal for Restore -->
 <Modal isOpen={showRestoreConfirm} onClose={handleCancelRestore} labelledBy="restore-confirm-title">

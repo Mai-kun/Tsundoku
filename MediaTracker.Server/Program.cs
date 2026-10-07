@@ -72,6 +72,8 @@ try
 {
     var builder = WebApplication.CreateBuilder();
 
+    builder.Services.AddHttpClient("steam", client => client.Timeout = TimeSpan.FromSeconds(30));
+
     builder.Host.UseSerilog();
 
     var listenUrl = options.Port is { } kestrelPort

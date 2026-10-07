@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { Bookmark, Flame, Heart, List, Pencil, Plus, Sparkles, Star, Trash2 } from "$shared/ui/Icons.svelte";
+    import { Bookmark, Flame, Heart, List, Pencil, Plus, Sparkles, Star, Trash2, Layers } from "$shared/ui/Icons.svelte";
     import { deleteList, errorMessage, getListDetail, getLists, removeMediaFromList } from "$shared/api/api";
     import { fullSizeCoverUrl } from "$entities/media/model/coverUrl";
     import CreateListModal from "$features/lists/CreateListModal.svelte";
@@ -7,15 +7,17 @@
     import { i18n } from "$shared/i18n/index.svelte";
     import { showToast } from "$shared/ui/toast.svelte";
     import type { CustomListDetail, CustomListSummary, MediaItem } from "$shared/types";
+    import ImportModal from "$features/import-media/ImportModal.svelte";
 
-    interface Props { onOpen: (item: MediaItem) => void; }
-    let { onOpen }: Props = $props();
+    interface Props { onOpen: (item: MediaItem) => void; onImportCompleted: () => void; }
+    let { onOpen, onImportCompleted }: Props = $props();
 
     let lists = $state<CustomListSummary[]>([]);
     let selected = $state<CustomListDetail | null>(null);
     let loading = $state(true);
     let error = $state("");
     let modalOpen = $state(false);
+    let importOpen = $state(false);
     let editing = $state<CustomListSummary | null>(null);
     const iconComponents = { list: List, bookmark: Bookmark, heart: Heart, star: Star, sparkles: Sparkles, flame: Flame } as const;
     const SelectedIcon = $derived(iconComponents[selected?.icon as keyof typeof iconComponents] ?? List);
@@ -87,6 +89,12 @@
         return new Intl.DateTimeFormat(i18n.current, { day: "numeric", month: "short", year: "numeric" }).format(new Date(value));
     }
 
+    async function showImportedList(id: string) {
+        await loadLists();
+        selected = await getListDetail(id).catch(() => null);
+        if (selected) { const url = new URL(window.location.href); url.searchParams.set("listId", id); window.history.replaceState(null, "", url); }
+    }
+
     $effect(() => { void loadLists(); });
 </script>
 
@@ -114,7 +122,7 @@
     {:else}
         <div class="flex flex-wrap items-end justify-between gap-4">
             <div><p class="text-xs font-semibold uppercase tracking-[0.18em] text-accent-soft">{i18n.t.library.collectionLabel}</p><h2 class="mt-1 text-2xl font-bold tracking-tight text-ink">{i18n.t.views.listsTitle}</h2></div>
-            {#if lists.length > 0}<button type="button" class="tap inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white hover:bg-accent-hover" onclick={() => openCreate()}><Plus size={16} />{i18n.t.views.listsCreate}</button>{/if}
+            <div class="flex gap-2"><button type="button" class="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-card px-4 py-2 text-sm font-semibold text-ink hover:bg-card-hover" onclick={() => (importOpen = true)}><Layers size={16} />{i18n.t.importModal.start}</button>{#if lists.length > 0}<button type="button" class="tap inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white hover:bg-accent-hover" onclick={() => openCreate()}><Plus size={16} />{i18n.t.views.listsCreate}</button>{/if}</div>
         </div>
         {#if loading}
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{#each [1,2,3] as item (item)}<div class="h-56 animate-pulse rounded-xl border border-white/[0.06] bg-card"></div>{/each}</div>
@@ -172,5 +180,6 @@
         {/if}
     {/if}
 </div>
+<ImportModal isOpen={importOpen} onClose={() => (importOpen = false)} onImportCompleted={() => { onImportCompleted(); void loadLists(); }} onNavigateToList={showImportedList} />
 
 <CreateListModal isOpen={modalOpen} list={editing} onClose={() => (modalOpen = false)} onSaved={() => void loadLists()} />

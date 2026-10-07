@@ -12,6 +12,7 @@ using MediaTracker.Server.Features.Media.GetMediaDetail;
 using MediaTracker.Server.Features.Media.GetMediaList;
 using MediaTracker.Server.Features.Media.GetMediaStats;
 using MediaTracker.Server.Features.Media.GetRecommendations;
+using MediaTracker.Server.Features.Media.Import;
 using MediaTracker.Server.Features.Media.UpdateMedia;
 using MediaTracker.Server.Features.Media.UpdateProgress;
 using MediaTracker.Server.Features.Media.UpdateStatus;
@@ -24,6 +25,27 @@ public static class MediaEndpoints
     public static IEndpointRouteBuilder MapMediaEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/media");
+
+        group.MapPost("/import/file", async (
+            [FromForm] IFormFile file, [FromForm] string provider, [FromForm] bool? skipDuplicates,
+            [FromForm] Guid? targetListId, [FromForm] string? newListName,
+            [FromServices] ImportMediaHandler handler, CancellationToken ct) =>
+        {
+            try
+            {
+                return Results.Ok(await handler.ImportFileAsync(new ImportFileRequest(file, provider, skipDuplicates ?? true, targetListId, newListName), ct));
+            }
+            catch (FormatException error) { return Results.BadRequest(new { detail = error.Message }); }
+            catch (HttpRequestException error) { return Results.BadRequest(new { detail = $"Steam request failed: {error.Message}" }); }
+        }).DisableAntiforgery();
+
+        group.MapPost("/import/steam", async (
+            SteamImportRequest request, [FromServices] ImportMediaHandler handler, CancellationToken ct) =>
+        {
+            try { return Results.Ok(await handler.ImportSteamAsync(request, ct)); }
+            catch (FormatException error) { return Results.BadRequest(new { detail = error.Message }); }
+            catch (HttpRequestException error) { return Results.BadRequest(new { detail = $"Steam request failed: {error.Message}" }); }
+        });
 
         group.MapGet("/", (
                 [FromServices] IGetMediaListHandler handler,

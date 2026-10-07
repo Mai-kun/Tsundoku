@@ -21,6 +21,8 @@ import type {
   CustomListDetail,
   CreateListPayload,
   UpdateListPayload,
+  ImportResultDto,
+  SteamImportPayload,
 } from "$shared/types";
 
 const mediaEndpoint = "/api/media";
@@ -246,6 +248,14 @@ export function updateStatus(id: string, status: MediaStatus): Promise<void> {
 
 export function deleteMedia(id: string): Promise<void> {
   return requestVoid(`${mediaEndpoint}/${id}`, { method: "DELETE" });
+}
+
+export function importFile(formData: FormData): Promise<ImportResultDto> {
+  return requestJson<ImportResultDto>(`${mediaEndpoint}/import/file`, { method: "POST", body: formData });
+}
+
+export function importSteamProfile(payload: SteamImportPayload): Promise<ImportResultDto> {
+  return requestJson<ImportResultDto>(`${mediaEndpoint}/import/steam`, jsonOptions("POST", payload));
 }
 
 export function getLists(): Promise<CustomListSummary[]> {

@@ -6,6 +6,7 @@ using MediaTracker.Server.Domain.Entities;
 using MediaTracker.Server.Domain.Rules;
 using MediaTracker.Server.Features.Media.CreateMedia;
 using MediaTracker.Server.Features.Media.GetMediaStats;
+using MediaTracker.Server.Features.Media.Import.Parsers;
 using MediaTracker.Server.Infrastructure.ExternalApis;
 using MediaTracker.Server.Infrastructure.Persistence.Interceptors;
 using MediaTracker.Server.Infrastructure.Storage;
@@ -77,6 +78,7 @@ public static class RefactorSelfCheck
         CheckSteamVerticalCovers(failures);
         CheckAdvancedStatsCalculation(failures);
         CheckAllMetadataProvidersSupportGenres(failures);
+        CheckLetterboxdCsvImportParser(failures);
 
         if (failures.Count == 0)
         {
@@ -91,6 +93,18 @@ public static class RefactorSelfCheck
         }
 
         return 1;
+    }
+
+    private static void CheckLetterboxdCsvImportParser(List<string> failures)
+    {
+        var parsed = LetterboxdCsvParser.Parse("Name,Year,Rating,Watched Date\n\"Title, The\",1999,4.5,2024-03-02");
+        AssertEqual(failures, 1, parsed.Count, "Letterboxd CSV record count");
+        if (parsed.Count == 1)
+        {
+            AssertEqual(failures, "Title, The", parsed[0].Title, "Letterboxd quoted comma title");
+            AssertEqual<int?>(failures, 9, parsed[0].Score, "Letterboxd half-star conversion");
+            AssertEqual<int?>(failures, 1999, parsed[0].ReleaseYear, "Letterboxd release year");
+        }
     }
 
     private static void CheckSourceAliases(List<string> failures)

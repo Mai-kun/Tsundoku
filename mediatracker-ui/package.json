@@ -8,6 +8,7 @@
     "build": "vite build",
     "check": "svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json",
     "check:cards": "node checks/cards.check.cjs",
+    "check:search": "node checks/searchModal.check.cjs",
     "check:prefetch": "node --experimental-strip-types checks/prefetchCache.check.ts",
     "check:external-mapping": "node --experimental-strip-types checks/externalMapping.check.ts",
     "check:cover": "node --experimental-strip-types checks/coverUrl.check.ts",

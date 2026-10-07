@@ -43,21 +43,48 @@
         };
     });
 
-    // Preselect what the item already points at: topping up gaps in the same provider is the
-    // common case, and re-picking it every time is pure friction.
-    $effect(() => {
-        if (isOpen && source === "") source = currentSource ?? "";
+    // Preselect what the item already points at is handled by selectedValue below: it may only
+    // ever resolve to a whitelisted entry, never to a stored source from another category.
+
+    /**
+     * Sources offered per category, filtered strictly by `media.type`: the "Дополнить" list must
+     * never show a provider that cannot answer for this kind of media — AniList on a game,
+     * Кинопоиск on a manga and so on.
+     */
+    const SOURCES_BY_TYPE: Record<string, readonly string[]> = {
+        game: ["rawg", "steam"],
+        movie: ["tmdb", "kinopoisk", "simkl"],
+        tvshow: ["tmdb", "kinopoisk", "simkl"],
+        anime: ["anilist", "mangadex", "shikimori"],
+        manga: ["anilist", "mangadex", "shikimori"],
+        book: ["openlibrary", "googlebooks"],
+    };
+
+    const options = $derived.by(() => {
+        const allowed = SOURCES_BY_TYPE[String(mediaType).toLowerCase()] ?? [];
+        return sources
+            .filter((entry) => entry.isEnabled && allowed.includes(entry.id))
+            .map((entry) => ({ value: entry.id, label: entry.name }));
     });
 
-    const options = $derived(
-        sources.map((entry) => ({ value: entry.id, label: entry.name })),
+    /**
+     * The value the dropdown shows and the fill button sends. A source outside the whitelist
+     * (say, the item was relinked to AniList while being a game) collapses to the first allowed
+     * entry instead of leaking through.
+     */
+    const selectedValue = $derived(
+        options.find((o) => o.value.toLowerCase() === String(source).toLowerCase())?.value ??
+            options.find(
+                (o) =>
+                    o.value.toLowerCase() === String(currentSource).toLowerCase() ||
+                    o.label.toLowerCase() === String(currentSource).toLowerCase(),
+            )?.value ??
+            options[0]?.value ??
+            "",
     );
 
     const selectedLabel = $derived(
-        options.find((o) => o.value === source)?.label ??
-            options.find((o) => o.value === currentSource)?.label ??
-            options[0]?.label ??
-            "",
+        options.find((o) => o.value === selectedValue)?.label ?? "",
     );
 </script>
 
@@ -89,7 +116,7 @@
                     <PopoverMenu
                         id={`fill-missing-${mediaType}`}
                         {options}
-                        selected={source}
+                        selected={selectedValue}
                         onSelect={(value) => (source = String(value))}
                         label={i18n.t.detail.fillMissingSource}
                         placement="bottom-end"
@@ -134,7 +161,7 @@
             type="button"
             class="tap inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-[var(--color-accent)] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-[var(--color-accent-hover)] disabled:cursor-wait disabled:opacity-60"
             disabled={busy || options.length === 0}
-            onclick={() => onFill(source || options[0]?.value || "")}
+            onclick={() => onFill(selectedValue)}
         >
             {#if busy}
                 <LoaderCircle size={14} class="animate-spin" aria-hidden="true" />

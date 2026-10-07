@@ -4,6 +4,7 @@ using MediaTracker.Server.Features.Settings.GetSourcePriority;
 using MediaTracker.Server.Features.Settings.SaveCategoryOrder;
 using MediaTracker.Server.Features.Settings.SaveSourceKey;
 using MediaTracker.Server.Features.Settings.SaveSourcePriority;
+using MediaTracker.Server.Features.Settings.ResetData;
 using MediaTracker.Server.Features.Settings.TestSource;
 using MediaTracker.Server.Features.Settings.ToggleSource;
 using MediaTracker.Server.Features.System.GetSources;
@@ -16,6 +17,12 @@ public static class SettingsEndpoints
     public static IEndpointRouteBuilder MapSettingsEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/settings");
+
+        group.MapPost("/reset", (
+                ResetDataRequest request,
+                [FromServices] IResetDataHandler handler,
+                CancellationToken ct) =>
+            handler.HandleAsync(request, ct).ToNoContent());
 
         group.MapGet("/sources", ([FromServices] IGetSourcesHandler handler, CancellationToken ct) =>
             handler.HandleAsync(ct).ToOk());

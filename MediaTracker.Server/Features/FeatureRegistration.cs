@@ -30,6 +30,7 @@ using MediaTracker.Server.Features.Settings.GetSourcePriority;
 using MediaTracker.Server.Features.Settings.SaveCategoryOrder;
 using MediaTracker.Server.Features.Settings.SaveSourceKey;
 using MediaTracker.Server.Features.Settings.SaveSourcePriority;
+using MediaTracker.Server.Features.Settings.ResetData;
 using MediaTracker.Server.Features.Settings.TestSource;
 using MediaTracker.Server.Features.Settings.ToggleSource;
 using MediaTracker.Server.Features.System.GetSources;
@@ -90,6 +91,7 @@ public static class FeatureRegistration
         services.AddScoped<ISaveCategoryOrderHandler, SaveCategoryOrderHandler>();
         services.AddScoped<IGetSourcePriorityHandler, GetSourcePriorityHandler>();
         services.AddScoped<ISaveSourcePriorityHandler, SaveSourcePriorityHandler>();
+        services.AddScoped<IResetDataHandler, ResetDataHandler>();
 
         // Logs
         services.AddScoped<IClientLogHandler, ClientLogHandler>();

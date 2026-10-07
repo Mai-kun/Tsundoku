@@ -49,4 +49,17 @@ public sealed class ExternalApiOptions
 
         _customKeys[id] = key;
     }
+
+    public void ClearKeys()
+    {
+        TmdbApiKey = string.Empty;
+        RawgApiKey = string.Empty;
+        GoogleBooksApiKey = string.Empty;
+        SimklApiKey = string.Empty;
+        TvdbApiKey = string.Empty;
+        KinopoiskApiKey = string.Empty;
+        IgdbApiKey = string.Empty;
+        SteamApiKey = string.Empty;
+        _customKeys.Clear();
+    }
 }

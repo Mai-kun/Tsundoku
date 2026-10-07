@@ -16,6 +16,7 @@
         Search,
         Server,
         ShieldCheck,
+        Trash2,
         X,
     } from "$shared/ui/Icons.svelte";
     import { onMount } from "svelte";
@@ -26,6 +27,7 @@
         getSources,
         getSourcePriority,
         restoreBackup,
+        resetAllData,
         saveCategoryOrder,
         saveSourceKey,
         saveSourcePriority,
@@ -55,6 +57,10 @@
     let isRestoring = $state(false);
     let selectedBackupFile = $state<File | null>(null);
     let showRestoreConfirm = $state(false);
+    let showResetConfirm = $state(false);
+    let isResetting = $state(false);
+    let keepApiKeys = $state(true);
+    let resetConfirmationInput = $state("");
     let fileInputRef = $state<HTMLInputElement | null>(null);
 
     async function handleExportBackup() {
@@ -114,6 +120,30 @@
         if (isRestoring) return;
         showRestoreConfirm = false;
         selectedBackupFile = null;
+    }
+
+    function handleCancelReset() {
+        if (isResetting) return;
+        showResetConfirm = false;
+        resetConfirmationInput = "";
+        keepApiKeys = true;
+    }
+
+    async function handleConfirmReset() {
+        if (isResetting || resetConfirmationInput.trim() !== i18n.t.settingsModal.backup.confirmationWord) return;
+        isResetting = true;
+        try {
+            await resetAllData(keepApiKeys);
+            showResetConfirm = false;
+            showToast(i18n.t.settingsModal.backup.resetSuccess, "success", 5000);
+            setTimeout(() => {
+                window.location.href = "/";
+            }, 1000);
+        } catch (e) {
+            console.error(e);
+            showToast(errorMessage(e), "error");
+            isResetting = false;
+        }
     }
 
     let sources = $state<SourceInfo[]>([]);
@@ -1125,8 +1155,90 @@
                             </button>
                         </div>
                     </div>
+
+                    <div class="rounded-lg border border-rose-500/30 bg-rose-950/15 p-5">
+                        <div class="flex items-center gap-2 text-rose-400">
+                            <AlertTriangle size={16} />
+                            <h3 class="text-xs font-semibold tracking-wide uppercase">
+                                {i18n.t.settingsModal.backup.dangerZone}: {i18n.t.settingsModal.backup.resetTitle}
+                            </h3>
+                        </div>
+                        <p class="mt-2 text-xs leading-relaxed text-muted">
+                            {i18n.t.settingsModal.backup.resetDescription}
+                        </p>
+                        <button
+                            type="button"
+                            class="mt-4 inline-flex h-9 items-center gap-2 rounded-md bg-rose-700 px-4 text-xs font-semibold text-white transition hover:bg-rose-600 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+                            disabled={isResetting}
+                            onclick={() => (showResetConfirm = true)}
+                        >
+                            <Trash2 size={14} />
+                            {i18n.t.settingsModal.backup.resetButton}
+                        </button>
+                    </div>
                 </div>
             {/if}
+        </div>
+    </div>
+</Modal>
+
+<!-- Double confirmation for full library reset -->
+<Modal isOpen={showResetConfirm} onClose={handleCancelReset} labelledBy="reset-confirm-title">
+    <div class="p-6">
+        <div class="flex items-start gap-4">
+            <div class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-rose-500/15 text-rose-400">
+                <AlertTriangle size={20} />
+            </div>
+            <div class="min-w-0 flex-1">
+                <h3 id="reset-confirm-title" class="text-base font-bold text-ink">
+                    {i18n.t.settingsModal.backup.resetConfirmTitle}
+                </h3>
+                <p class="mt-2 text-xs leading-relaxed text-muted">
+                    {i18n.t.settingsModal.backup.resetWarning}
+                </p>
+                <label class="mt-4 flex items-center gap-2 text-xs text-ink">
+                    <input type="checkbox" bind:checked={keepApiKeys} disabled={isResetting} class="accent-rose-500" />
+                    {i18n.t.settingsModal.backup.keepApiKeys}
+                </label>
+                <label for="reset-confirmation-input" class="mt-4 block text-xs text-muted">
+                    {i18n.t.settingsModal.backup.typeToConfirm}
+                    <span class="ml-1 font-mono font-semibold text-rose-300">{i18n.t.settingsModal.backup.confirmationWord}</span>
+                </label>
+                <input
+                    id="reset-confirmation-input"
+                    type="text"
+                    bind:value={resetConfirmationInput}
+                    disabled={isResetting}
+                    autocomplete="off"
+                    spellcheck="false"
+                    class="mt-2 h-9 w-full rounded-md border border-white/10 bg-field px-3 text-sm text-ink outline-none focus:border-rose-500/60"
+                />
+            </div>
+        </div>
+        <div class="mt-6 flex items-center justify-end gap-3 border-t border-white/[0.07] pt-4">
+            <button
+                type="button"
+                class="inline-flex h-9 items-center rounded-md border border-white/10 bg-field px-4 text-xs font-semibold text-ink transition hover:bg-card cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={isResetting}
+                onclick={handleCancelReset}
+            >
+                {i18n.t.settingsModal.backup.cancelButton}
+            </button>
+            <button
+                type="button"
+                class="inline-flex h-9 items-center gap-2 rounded-md bg-rose-700 px-4 text-xs font-semibold text-white transition hover:bg-rose-600 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+                class:cursor-wait={isResetting}
+                disabled={isResetting || resetConfirmationInput.trim() !== i18n.t.settingsModal.backup.confirmationWord}
+                onclick={handleConfirmReset}
+            >
+                {#if isResetting}
+                    <LoaderCircle size={14} class="animate-spin" />
+                    {i18n.t.settingsModal.backup.resetting}
+                {:else}
+                    <Trash2 size={14} />
+                    {i18n.t.settingsModal.backup.resetConfirmButton}
+                {/if}
+            </button>
         </div>
     </div>
 </Modal>

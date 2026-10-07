@@ -719,6 +719,26 @@ export const translations = {
                 ru: "База данных успешно восстановлена. Страница будет перезагружена...",
                 en: "Database restored successfully. The page will reload...",
             },
+            resetTitle: { ru: "Удалить все данные", en: "Delete all data" },
+            resetDescription: {
+                ru: "Безвозвратно удаляет все тайтлы, коллекции, историю активности и сохранённые обложки.",
+                en: "Permanently deletes all titles, collections, activity history, and saved covers.",
+            },
+            resetButton: { ru: "Сбросить медиатеку...", en: "Reset media library..." },
+            resetConfirmTitle: { ru: "Полный сброс данных", en: "Factory reset" },
+            resetWarning: {
+                ru: "Это действие безвозвратно удалит всю медиатеку, списки, историю активности и файлы обложек. Отменить его будет невозможно.",
+                en: "This will permanently delete your entire media library, lists, activity history, and cover files. This action cannot be undone.",
+            },
+            keepApiKeys: { ru: "Сохранить настроенные API-ключи", en: "Keep configured API keys" },
+            typeToConfirm: {
+                ru: "Введите проверочное слово, чтобы подтвердить удаление:",
+                en: "Type the confirmation word to confirm deletion:",
+            },
+            confirmationWord: { ru: "УДАЛИТЬ", en: "DELETE" },
+            resetConfirmButton: { ru: "Подтвердить полное удаление", en: "Confirm full deletion" },
+            resetting: { ru: "Очистка медиатеки...", en: "Resetting media library..." },
+            resetSuccess: { ru: "Медиатека успешно очищена", en: "Media library reset successfully" },
         },
     },
     activity: {

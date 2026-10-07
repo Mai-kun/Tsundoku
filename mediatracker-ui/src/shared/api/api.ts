@@ -524,3 +524,10 @@ export async function restoreBackup(file: File): Promise<void> {
     return throwApiError(response);
   }
 }
+
+export function resetAllData(keepApiKeys: boolean = true): Promise<void> {
+  return requestVoid(
+    "/api/settings/reset",
+    jsonOptions("POST", { keepApiKeys }),
+  );
+}

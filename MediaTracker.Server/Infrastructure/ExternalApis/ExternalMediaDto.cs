@@ -31,17 +31,6 @@ public sealed record ExternalSeasonDto
     public IReadOnlyList<ExternalEpisodeDto>? Episodes { get; init; }
 }
 
-/// <summary>A volume the source actually reported, with the chapter numbers that belong to it.</summary>
-public sealed record ExternalMangaVolumeDto
-{
-    public required int Number { get; init; }
-
-    public string? Title { get; init; }
-
-    /// <summary>Chapter numbers as the source spelled them, used for the volume's chapter count.</summary>
-    public IReadOnlyList<string>? Chapters { get; init; }
-}
-
 /// <summary>
 /// One recommended title, normalised across providers. AniList answers in GraphQL, TMDb in REST, and
 /// neither shape matches the other, so the tab renders this instead of a provider-specific row.
@@ -70,6 +59,8 @@ public sealed record ExternalMediaDto
     public string? OriginalTitle { get; init; }
 
     public string? RomajiTitle { get; init; }
+
+    public string? SteamAppId { get; init; }
 
     public string? CoverUrl { get; init; }
 
@@ -117,9 +108,6 @@ public sealed record ExternalMediaDto
 
     /// <summary>Real per-season breakdown. Null for sources that only report a flat episode count.</summary>
     public IReadOnlyList<ExternalSeasonDto>? Seasons { get; init; }
-
-    /// <summary>Real volumes with their chapters, for sources that report the split (MangaDex aggregate).</summary>
-    public IReadOnlyList<ExternalMangaVolumeDto>? VolumeDetails { get; init; }
 
     public IReadOnlyList<string>? Genres { get; init; }
 

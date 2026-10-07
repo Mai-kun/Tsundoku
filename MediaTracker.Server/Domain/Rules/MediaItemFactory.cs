@@ -1,6 +1,5 @@
 using MediaTracker.Server.Domain.Entities;
 using MediaTracker.Server.Features.Media.CreateMedia;
-using MediaTracker.Server.Features.Volumes.AddVolume;
 
 namespace MediaTracker.Server.Domain.Rules;
 
@@ -49,7 +48,7 @@ public static class MediaItemFactory
 
     private static Manga CreateManga(CreateMediaRequest request)
     {
-        var manga = new Manga
+        return new Manga
         {
             Author = request.Author,
             RomajiTitle = request.RomajiTitle,
@@ -58,25 +57,6 @@ public static class MediaItemFactory
             CurrentVolume = request.CurrentVolume ?? 0,
             Title = request.Title,
         };
-
-        foreach (var volume in request.Volumes ?? [])
-        {
-            manga.AddVolume(MangaVolume.CreateFrom(
-                volume.VolumeNumber,
-                volume.Title,
-                volume.CoverUrl,
-                volume.TotalPages,
-                volume.CurrentPage,
-                volume.TotalChapters,
-                volume.CurrentChapter,
-                volume.Status,
-                volume.Score,
-                volume.Notes,
-                volume.ReleaseDate,
-                manga.Id));
-        }
-
-        return manga;
     }
 
     private static TvShow CreateTvShow(CreateMediaRequest request)

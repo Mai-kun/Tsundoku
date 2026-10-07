@@ -74,24 +74,7 @@ public sealed class MangaDexMetadataProvider(
             }
 
             var stats = await GetBatchStatisticsAsync(client, [manga.Id], ct);
-            var ((volCount, chapCount), volumeDetails) =
-                await GetAggregateVolumesAndChaptersAsync(client, manga.Id, ct);
-
-            var item = MapItem(manga, stats.GetValueOrDefault(manga.Id));
-            if (volCount.HasValue && (!item.Volumes.HasValue || item.Volumes.Value <= 0))
-            {
-                item = item with { Volumes = volCount.Value };
-            }
-            if (chapCount.HasValue && (!item.Chapters.HasValue || item.Chapters.Value <= 0))
-            {
-                item = item with
-                {
-                    Chapters = chapCount.Value,
-                    TotalCount = item.TotalCount ?? chapCount.Value
-                };
-            }
-
-            return volumeDetails.Count > 0 ? item with { VolumeDetails = volumeDetails } : item;
+            return MapItem(manga, stats.GetValueOrDefault(manga.Id));
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
@@ -297,124 +280,6 @@ public sealed class MangaDexMetadataProvider(
         }
     }
 
-    /// <summary>
-    /// Reads <c>/manga/{id}/aggregate</c> for the real volume -> chapter split. The response is a
-    /// <c>volumes</c> map keyed by volume number whose value carries its own <c>chapters</c> map, so
-    /// this returns both the totals and the per-volume breakdown; the totals alone left every volume
-    /// of an ongoing series without a chapter count.
-    /// </summary>
-    private static async Task<((int? Volumes, int? Chapters), IReadOnlyList<ExternalMangaVolumeDto> Details)>
-        GetAggregateVolumesAndChaptersAsync(HttpClient client, string mangaId, CancellationToken ct)
-    {
-        try
-        {
-            var res = await client.GetFromJsonAsync<JsonDocument>($"manga/{mangaId}/aggregate", ct);
-            if (res is null
-                || !res.RootElement.TryGetProperty("volumes", out var volumesElem)
-                || volumesElem.ValueKind != JsonValueKind.Object)
-            {
-                return ((null, null), []);
-            }
-
-            var details = new List<ExternalMangaVolumeDto>();
-            int maxVol = 0;
-            double maxChap = 0;
-
-            foreach (var prop in volumesElem.EnumerateObject())
-            {
-                if (int.TryParse(prop.Name, out var v) && v > maxVol)
-                {
-                    maxVol = v;
-                }
-
-                if (!int.TryParse(prop.Name, out var volumeNumber))
-                {
-                    continue;
-                }
-
-                var chapters = new List<string>();
-                if (prop.Value.TryGetProperty("chapters", out var chapsElem)
-                    && chapsElem.ValueKind == JsonValueKind.Object)
-                {
-                    foreach (var cProp in chapsElem.EnumerateObject())
-                    {
-                        chapters.Add(cProp.Name);
-                        if (double.TryParse(cProp.Name, System.Globalization.CultureInfo.InvariantCulture, out var c) && c > maxChap)
-                        {
-                            maxChap = c;
-                        }
-                    }
-                }
-
-                if (chapters.Count == 0)
-                {
-                    continue;
-                }
-
-                details.Add(
-                    new ExternalMangaVolumeDto
-                    {
-                        Number = volumeNumber,
-                        Title = $"Volume {volumeNumber}",
-                        Chapters = chapters,
-                    });
-            }
-
-            int? finalVols = maxVol > 0 ? maxVol : null;
-            int? finalChaps = maxChap > 0 ? (int)Math.Floor(maxChap) : null;
-            return ((finalVols, finalChaps), details);
-        }
-        catch
-        {
-            return ((null, null), []);
-        }
-    }
-
-    /// <summary>
-    /// Looks a title up by name and returns only its volume/chapter split. Sources without a volume
-    /// breakdown (Shikimori) hand back a flat chapter count, which left the library's volumes empty.
-    /// Enrichment calls this so Noragami / Berserk get their real per-volume chapter counts even when
-    /// they were added from a source that cannot report them.
-    ///
-    /// Several titles are tried in order because MangaDex indexes romanised and English names: a row
-    /// added from Shikimori carries a Russian title that answers nothing here, and its romaji title
-    /// is the one that matches.
-    /// </summary>
-    public async Task<IReadOnlyList<ExternalMangaVolumeDto>> GetVolumeDetailsByTitleAsync(
-        IReadOnlyList<string> titles,
-        CancellationToken ct)
-    {
-        var client = httpClientFactory.CreateClient(Id);
-        foreach (var title in titles.Where(t => !string.IsNullOrWhiteSpace(t)).Distinct(StringComparer.OrdinalIgnoreCase))
-        {
-            try
-            {
-                var match = await SearchAsync(title, ct);
-                var best =
-                    match.FirstOrDefault(item => item.Title.Equals(title, StringComparison.OrdinalIgnoreCase))
-                    ?? (match.Count > 0 ? match[0] : null);
-
-                if (best is null || !Guid.TryParse(best.ExternalId, out _)) continue;
-
-                var (_, details) = await GetAggregateVolumesAndChaptersAsync(client, best.ExternalId, ct);
-                if (details.Count > 0)
-                {
-                    return details;
-                }
-            }
-            catch (OperationCanceledException) when (ct.IsCancellationRequested)
-            {
-                throw;
-            }
-            catch
-            {
-                // Best-effort background enrichment: a lookup failure must not fail the request.
-            }
-        }
-
-        return [];
-    }
-
     private static ExternalMediaDto MapItem(MdMangaData d, MdMangaStatistics? stat)
     {
         var attr = d.Attributes;
@@ -538,6 +403,46 @@ public sealed class MangaDexMetadataProvider(
             }
         }
 
+        var genres = new List<string>();
+        if (attr?.Tags is { Count: > 0 })
+        {
+            foreach (var tag in attr.Tags)
+            {
+                if (tag.Attributes?.Name != null &&
+                    tag.Attributes.Name.TryGetValue("en", out var enName) &&
+                    !string.IsNullOrWhiteSpace(enName))
+                {
+                    genres.Add(enName);
+                }
+            }
+        }
+
+        if (d.Relationships is { Count: > 0 })
+        {
+            foreach (var rel in d.Relationships)
+            {
+                if (rel.Type == "tag" && rel.Attributes is { } tagAttr && tagAttr.TryGetProperty("name", out var nameProp))
+                {
+                    if (nameProp.ValueKind == JsonValueKind.Object && nameProp.TryGetProperty("en", out var enProp))
+                    {
+                        var enVal = enProp.GetString();
+                        if (!string.IsNullOrWhiteSpace(enVal))
+                        {
+                            genres.Add(enVal);
+                        }
+                    }
+                    else if (nameProp.ValueKind == JsonValueKind.String)
+                    {
+                        var strVal = nameProp.GetString();
+                        if (!string.IsNullOrWhiteSpace(strVal))
+                        {
+                            genres.Add(strVal);
+                        }
+                    }
+                }
+            }
+        }
+
         return new ExternalMediaDto
         {
             ExternalId = d.Id,
@@ -558,7 +463,8 @@ public sealed class MangaDexMetadataProvider(
             ExternalSource = "MangaDex",
             Rating = ratingScore,
             RatingVotes = ratingVotes,
-            Ratings = ratings.Count > 0 ? ratings : null
+            Ratings = ratings.Count > 0 ? ratings : null,
+            Genres = genres.Count > 0 ? genres.Distinct(StringComparer.OrdinalIgnoreCase).ToList() : null
         };
     }
 
@@ -617,6 +523,21 @@ public sealed class MangaDexMetadataProvider(
 
         [JsonPropertyName("createdAt")]
         public DateTime? CreatedAt { get; set; }
+
+        [JsonPropertyName("tags")]
+        public List<MdTag>? Tags { get; set; }
+    }
+
+    private sealed class MdTag
+    {
+        [JsonPropertyName("attributes")]
+        public MdTagAttributes? Attributes { get; set; }
+    }
+
+    private sealed class MdTagAttributes
+    {
+        [JsonPropertyName("name")]
+        public Dictionary<string, string>? Name { get; set; }
     }
 
     private sealed class MdRelationship

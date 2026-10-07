@@ -1,4 +1,5 @@
-﻿﻿using MediaTracker.Server.Domain.Entities;
+using System.Text.Json;
+using MediaTracker.Server.Domain.Entities;
 using MediaTracker.Server.Domain.Enums;
 using MediaTracker.Server.Infrastructure.ExternalApis;
 
@@ -96,7 +97,7 @@ public record MediaListDto
 
     public string? TranslationLanguage { get; init; }
 
-    public string? Genres { get; init; }
+    public IReadOnlyList<string> Genres { get; init; } = [];
 
     public string? Tags { get; init; }
 
@@ -235,10 +236,9 @@ public static class MediaResponseMapper
                 RomajiTitle = manga.RomajiTitle,
                 MangaFormat = manga.Format,
                 CurrentVolume = manga.CurrentVolume,
-                TotalVolumes = manga.TotalVolumes ?? (manga.Volumes?.Count > 0 ? manga.Volumes.Count : null),
+                TotalVolumes = manga.TotalVolumes,
                 CurrentChapter = manga.CurrentChapter,
-                TotalChapters = manga.TotalChapters ?? (manga.Volumes?.Count > 0 ? manga.Volumes.Sum(v => v.TotalChapters) : null),
-                TotalPages = manga.Volumes?.Count > 0 ? manga.Volumes.Sum(v => v.TotalPages) : null,
+                TotalChapters = manga.TotalChapters,
             },
             Movie movie => dto with
             {
@@ -272,10 +272,6 @@ public static class MediaResponseMapper
             TvShow show => detail with
             {
                 Seasons = [.. (show.Seasons ?? []).OrderBy(season => season.SeasonNumber).Select(ToDto)],
-            },
-            Manga manga => detail with
-            {
-                Volumes = [.. (manga.Volumes ?? []).OrderBy(volume => volume.VolumeNumber).Select(ToDto)],
             },
             _ => detail,
         };
@@ -395,10 +391,40 @@ public static class MediaResponseMapper
         ExternalRating = item.ExternalRating,
         ExternalRatingVotes = item.ExternalRatingVotes,
         TranslationLanguage = item.TranslationLanguage,
-        Genres = item.Genres,
+        Genres = ParseGenres(item.Genres),
         Tags = item.Tags,
         UserPlatform = item.UserPlatform,
     };
+
+    public static IReadOnlyList<string> ParseGenres(string? genres)
+    {
+        if (string.IsNullOrWhiteSpace(genres))
+        {
+            return [];
+        }
+
+        if (genres.TrimStart().StartsWith('['))
+        {
+            try
+            {
+                var parsed = JsonSerializer.Deserialize<List<string>>(genres);
+                if (parsed is { Count: > 0 })
+                {
+                    return parsed;
+                }
+            }
+            catch
+            {
+                // Fall back to comma-separated
+            }
+        }
+
+        return genres
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(g => !string.IsNullOrWhiteSpace(g))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
 
     public static string GetType(MediaItem item) => item switch
     {
@@ -426,4 +452,3 @@ public static class MediaResponseMapper
         TvShowId = season.TvShowId,
     };
 }
-

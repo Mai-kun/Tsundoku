@@ -42,7 +42,6 @@ public static class MediaItemGraph
         db.MediaItems
             .Include(media => media.Franchise)
             .Include(media => ((TvShow)media).Seasons.OrderBy(season => season.SeasonNumber))
-            .Include(media => ((Manga)media).Volumes.OrderBy(volume => volume.VolumeNumber))
             .AsSplitQuery();
 
     public static IQueryable<MediaItem> LoadNoTracking(AppDbContext db) =>

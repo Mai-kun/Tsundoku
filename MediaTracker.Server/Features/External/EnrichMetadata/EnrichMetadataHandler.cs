@@ -2,10 +2,12 @@ using MediaTracker.Server.Domain.Common;
 using MediaTracker.Server.Domain.Entities;
 using MediaTracker.Server.Domain.Rules;
 using MediaTracker.Server.Features.External.RefreshMetadata;
+using MediaTracker.Server.Features.Media.GetMediaStats;
 using MediaTracker.Server.Features.Media.MediaContract;
 using MediaTracker.Server.Infrastructure.ExternalApis;
 using MediaTracker.Server.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 
 namespace MediaTracker.Server.Features.External.EnrichMetadata;
@@ -17,15 +19,11 @@ public interface IEnrichMetadataHandler
     Task<Result<MediaDetailDto>> HandleAsync(EnrichMetadataCommand command, CancellationToken ct);
 }
 
-/// <summary>
-/// Background quality pass: an unreachable or slow provider must not fail the request, the user still
-/// gets the item they asked for.
-/// </summary>
 public sealed class EnrichMetadataHandler(
     AppDbContext db,
     MetadataAggregatorService aggregator,
-    IMetadataProviderResolver providerResolver,
-    ILogger<EnrichMetadataHandler> logger) : IEnrichMetadataHandler
+    ILogger<EnrichMetadataHandler> logger,
+    IMemoryCache cache) : IEnrichMetadataHandler
 {
     private static readonly TimeSpan EnrichmentTimeout = TimeSpan.FromSeconds(8);
 
@@ -34,7 +32,6 @@ public sealed class EnrichMetadataHandler(
         var item = await db.MediaItems
             .Include(media => media.Franchise)
             .Include(media => ((TvShow)media).Seasons.OrderBy(season => season.SeasonNumber))
-            .Include(media => ((Manga)media).Volumes.OrderBy(volume => volume.VolumeNumber))
             .AsSplitQuery()
             .SingleOrDefaultAsync(media => media.Id == command.MediaId, ct);
 
@@ -64,26 +61,13 @@ public sealed class EnrichMetadataHandler(
                 && MediaMetadataApplier.ApplyIfMissing(
                     item,
                     external,
-                    season => db.Entry(season).State = EntityState.Added,
-                    volume => db.Entry(volume).State = EntityState.Added);
-
-            // Sources without a volume breakdown (Shikimori, AniList) never fill the per-volume
-            // chapter counts, so the series would have no volumes at all. MangaDex is asked by name
-            // so the real split is written regardless of where the row came from.
-            if (item is Manga manga)
-            {
-                changed |= await MangaVolumeStructure.ApplyCanonicalVolumesAsync(
-                    providerResolver,
-                    db,
-                    manga,
-                    external?.VolumeDetails,
-                    enrichCts.Token);
-            }
+                    season => db.Entry(season).State = EntityState.Added);
 
             if (changed)
             {
                 item.MarkUpdated();
                 await db.SaveChangesAsync(ct);
+                cache.Remove(AdvancedStatsCalculator.CacheKey);
             }
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)

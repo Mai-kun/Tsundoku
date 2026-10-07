@@ -96,8 +96,7 @@ public static class MediaMetadataApplier
         ExternalMediaDto external,
         IImageStorageService imageStorage,
         CancellationToken ct,
-        Action<TvSeason>? trackNewSeason = null,
-        Action<MangaVolume>? trackNewVolume = null)
+        Action<TvSeason>? trackNewSeason = null)
     {
         item.Title = external.Title;
 
@@ -123,7 +122,7 @@ public static class MediaMetadataApplier
 
         ApplyDates(item, external);
         ApplyGenres(item, external);
-        ApplyTypeSpecific(item, external, trackNewSeason, trackNewVolume);
+        ApplyTypeSpecific(item, external, trackNewSeason);
     }
 
     /// <summary>Enrich: only fills fields the user has not filled. Returns true when the entity changed.</summary>
@@ -136,11 +135,10 @@ public static class MediaMetadataApplier
     public static bool ApplyIfMissing(
         MediaItem item,
         ExternalMediaDto external,
-        Action<TvSeason>? trackNewSeason = null,
-        Action<MangaVolume>? trackNewVolume = null)
+        Action<TvSeason>? trackNewSeason = null)
     {
         var modified = ApplyRatings(item, external);
-        modified |= ApplyMangaGaps(item, external, trackNewVolume);
+        modified |= ApplyMangaGaps(item, external);
 
         modified |= SetIfBlank(item.Notes, external.Description, value => item.Notes = value);
         modified |= SetIfBlank(item.Genres, JoinGenres(external.Genres), value => item.Genres = value);
@@ -290,8 +288,7 @@ public static class MediaMetadataApplier
 
     private static bool ApplyMangaGaps(
         MediaItem item,
-        ExternalMediaDto external,
-        Action<MangaVolume>? trackNewVolume)
+        ExternalMediaDto external)
     {
         if (item is not Manga manga)
         {
@@ -300,25 +297,9 @@ public static class MediaMetadataApplier
 
         var modified = false;
 
-        var before = manga.Volumes.Count;
-        ApplyRealVolumes(manga, external.VolumeDetails, trackNewVolume);
-        modified |= manga.Volumes.Count > before;
-
         if (external.Chapters is { } chapters && manga.TotalChapters is not > 0)
         {
             manga.RecordTotalChapters(chapters);
-            modified = true;
-        }
-
-        // The real volume split is the most accurate chapter count the source ever gives us. The
-        // series counter is what both the card and "Характеристики" read, so leaving it on the
-        // older flat number is what put 109 next to 135 for the same title.
-        var fromVolumes = manga.Volumes.Count > 0
-            ? manga.Volumes.Sum(volume => volume.TotalChapters)
-            : 0;
-        if (fromVolumes > (manga.TotalChapters ?? 0))
-        {
-            manga.RecordTotalChapters(fromVolumes);
             modified = true;
         }
 
@@ -358,8 +339,7 @@ public static class MediaMetadataApplier
     private static void ApplyTypeSpecific(
         MediaItem item,
         ExternalMediaDto external,
-        Action<TvSeason>? trackNewSeason,
-        Action<MangaVolume>? trackNewVolume)
+        Action<TvSeason>? trackNewSeason)
     {
         switch (item)
         {
@@ -377,7 +357,6 @@ public static class MediaMetadataApplier
                 if (!string.IsNullOrWhiteSpace(external.Author)) book.Author = external.Author;
                 break;
             case Manga manga:
-                ApplyRealVolumes(manga, external.VolumeDetails, trackNewVolume);
                 if (external.TotalCount is > 0) manga.RecordTotalChapters(external.TotalCount.Value);
                 if (external.Chapters is > 0) manga.RecordTotalChapters(external.Chapters.Value);
                 if (external.Volumes is > 0) manga.RecordTotalVolumes(external.Volumes.Value);
@@ -470,57 +449,6 @@ public static class MediaMetadataApplier
 
             existing.ApplyEpisodeData(external.TotalEpisodes, episodesJson ?? existing.EpisodesData);
         }
-    }
-
-    /// <summary>
-    /// Writes the real volume -> chapter split a source reported. Volumes the user already tracks keep
-    /// their progress; their chapter count is filled only when they have none, and volumes that do not
-    /// exist yet are added.
-    /// </summary>
-    /// <remarks>
-    /// Public so background enrichment can apply a volume split it fetched from a *different* provider
-    /// than the one the item came from (see MangaVolumeStructure).
-    /// </remarks>
-    public static void ApplyRealVolumes(
-        Manga manga,
-        IReadOnlyList<ExternalMangaVolumeDto>? volumeDetails,
-        Action<MangaVolume>? trackNewVolume)
-    {
-        if (volumeDetails is not { Count: > 0 } details)
-        {
-            return;
-        }
-
-        foreach (var external in details.Where(volume => volume.Number > 0))
-        {
-            // The number of keys in the source's chapter map, which is what it means as chapters:
-            // the sibling `count` field counts translations, not chapters.
-            var chapterCount = external.Chapters?.Count ?? 0;
-            var existing = manga.Volumes.FirstOrDefault(volume => volume.VolumeNumber == external.Number);
-            if (existing is null)
-            {
-                var created = new MangaVolume
-                {
-                    MangaId = manga.Id,
-                    VolumeNumber = external.Number,
-                    Title = string.IsNullOrWhiteSpace(external.Title) ? $"Volume {external.Number}" : external.Title,
-                    TotalChapters = chapterCount,
-                    TotalPages = MangaVolume.PlaceholderPagesPerVolume,
-                };
-                manga.Volumes.Add(created);
-                trackNewVolume?.Invoke(created);
-                continue;
-            }
-
-            // A chapter count the user typed is kept; only a volume that never learned its own takes
-            // the source's number.
-            if (chapterCount > 0 && existing.TotalChapters == 0)
-            {
-                existing.InheritTotalChapters(chapterCount);
-            }
-        }
-
-        manga.RecordTotalVolumes(manga.Volumes.Count);
     }
 
     private static DateTime? ParseDate(string? value) =>

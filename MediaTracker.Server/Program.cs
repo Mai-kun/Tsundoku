@@ -201,7 +201,6 @@ try
 
     app.MapMediaEndpoints();
     app.MapSeasonEndpoints();
-    app.MapVolumeEndpoints();
     app.MapExternalMediaEndpoints();
     app.MapLogEndpoints();
     app.MapSettingsEndpoints();

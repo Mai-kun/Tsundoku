@@ -110,7 +110,7 @@ public static class MediaMerger
         return primary with
         {
             Chapters = BestCount(primary.Chapters, fallback.Chapters),
-            Volumes = primary.Volumes ?? fallback.Volumes,
+            Volumes = BestCount(primary.Volumes, fallback.Volumes),
             TotalCount = BestCount(
                 primary.TotalCount,
                 fallback.TotalCount,
@@ -127,11 +127,12 @@ public static class MediaMerger
             ReleaseStatus = FirstNonEmpty(primary.ReleaseStatus, fallback.ReleaseStatus),
             RomajiTitle = FirstNonEmpty(primary.RomajiTitle, fallback.RomajiTitle),
             OriginalTitle = FirstNonEmpty(primary.OriginalTitle, fallback.OriginalTitle),
+            SteamAppId = FirstNonEmpty(primary.SteamAppId, fallback.SteamAppId),
             Platform = FirstNonEmpty(primary.Platform, fallback.Platform),
             // Runtime was silently dropped here: a source without a runtime used to overwrite the
             // runtime the first source had already supplied, so the DB ended up with 0 minutes.
             RuntimeMinutes = primary.RuntimeMinutes ?? fallback.RuntimeMinutes,
-            Genres = primary.Genres is { Count: > 0 } ? primary.Genres : fallback.Genres,
+            Genres = primary.Genres?.Union(fallback.Genres ?? [], StringComparer.OrdinalIgnoreCase).Distinct(StringComparer.OrdinalIgnoreCase).ToList() ?? fallback.Genres ?? [],
             Tags = primary.Tags is { Count: > 0 } ? primary.Tags : fallback.Tags,
             // OEL can only come from the second source, so the plain "first wins" rule is wrong here.
             MangaFormat = MangaFormats.Pick(primary.MangaFormat, fallback.MangaFormat),
@@ -139,9 +140,6 @@ public static class MediaMerger
             // A source that knows the real season split (Kinopoisk) must not be overwritten by one
             // that only reports a flat episode count, or the split is lost again on merge.
             Seasons = primary.Seasons is { Count: > 0 } ? primary.Seasons : fallback.Seasons,
-            VolumeDetails = primary.VolumeDetails is { Count: > 0 }
-                ? primary.VolumeDetails
-                : fallback.VolumeDetails
         };
     }
 

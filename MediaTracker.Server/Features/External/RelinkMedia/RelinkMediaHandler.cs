@@ -3,11 +3,13 @@ using MediaTracker.Server.Domain.Entities;
 using MediaTracker.Server.Domain.Rules;
 using MediaTracker.Server.Features.External.RefreshMetadata;
 using MediaTracker.Server.Features.Media.GetMediaDetail;
+using MediaTracker.Server.Features.Media.GetMediaStats;
 using MediaTracker.Server.Features.Media.MediaContract;
 using MediaTracker.Server.Infrastructure.ExternalApis;
 using MediaTracker.Server.Infrastructure.Persistence;
 using MediaTracker.Server.Infrastructure.Storage;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace MediaTracker.Server.Features.External.RelinkMedia;
 
@@ -20,16 +22,11 @@ public interface IRelinkMediaHandler
     Task<Result<MediaDetailDto>> HandleAsync(RelinkMediaCommand command, CancellationToken ct);
 }
 
-/// <summary>
-/// Re-points an existing item at another provider: "this is the same show, but on TMDb instead of
-/// Kinopoisk". Refresh cannot do this — it re-reads the id the row already stores, which is the very
-/// thing that matched wrong. Everything the new source reports overwrites the stored metadata, and the
-/// cached related list is dropped because it was fetched for the previous entity.
-/// </summary>
 public sealed class RelinkMediaHandler(
     AppDbContext db,
     MetadataAggregatorService aggregator,
-    IImageStorageService imageStorage) : IRelinkMediaHandler
+    IImageStorageService imageStorage,
+    IMemoryCache cache) : IRelinkMediaHandler
 {
     public async Task<Result<MediaDetailDto>> HandleAsync(RelinkMediaCommand command, CancellationToken ct)
     {
@@ -79,8 +76,7 @@ public sealed class RelinkMediaHandler(
             external,
             imageStorage,
             ct,
-            season => db.Entry(season).State = EntityState.Added,
-            volume => db.Entry(volume).State = EntityState.Added);
+            season => db.Entry(season).State = EntityState.Added);
 
         // The cached relations were fetched through the old provider for a different entity id.
         item.RelatedMediaJson = null;
@@ -88,6 +84,7 @@ public sealed class RelinkMediaHandler(
 
         item.MarkUpdated();
         await db.SaveChangesAsync(ct);
+        cache.Remove(AdvancedStatsCalculator.CacheKey);
 
         return Result<MediaDetailDto>.Success(MediaDetailProjection.ToDetailDto(item));
     }

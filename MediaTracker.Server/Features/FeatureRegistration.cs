@@ -31,10 +31,6 @@ using MediaTracker.Server.Features.Settings.SaveSourcePriority;
 using MediaTracker.Server.Features.Settings.TestSource;
 using MediaTracker.Server.Features.Settings.ToggleSource;
 using MediaTracker.Server.Features.System.GetSources;
-using MediaTracker.Server.Features.Volumes.AddVolume;
-using MediaTracker.Server.Features.Volumes.DeleteVolume;
-using MediaTracker.Server.Features.Volumes.UpdateVolume;
-using MediaTracker.Server.Features.Volumes.UpdateVolumeProgress;
 
 namespace MediaTracker.Server.Features;
 
@@ -63,12 +59,6 @@ public static class FeatureRegistration
 
         // Seasons
         services.AddScoped<IUpdateSeasonProgressHandler, UpdateSeasonProgressHandler>();
-
-        // Volumes
-        services.AddScoped<IUpdateVolumeProgressHandler, UpdateVolumeProgressHandler>();
-        services.AddScoped<IAddVolumeHandler, AddVolumeHandler>();
-        services.AddScoped<IUpdateVolumeHandler, UpdateVolumeHandler>();
-        services.AddScoped<IDeleteVolumeHandler, DeleteVolumeHandler>();
 
         // External
         services.AddScoped<ISearchExternalHandler, SearchExternalHandler>();

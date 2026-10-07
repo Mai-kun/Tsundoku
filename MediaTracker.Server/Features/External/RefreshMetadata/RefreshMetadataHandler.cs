@@ -1,11 +1,13 @@
 using MediaTracker.Server.Domain.Common;
 using MediaTracker.Server.Domain.Entities;
 using MediaTracker.Server.Domain.Rules;
+using MediaTracker.Server.Features.Media.GetMediaStats;
 using MediaTracker.Server.Features.Media.MediaContract;
 using MediaTracker.Server.Infrastructure.ExternalApis;
 using MediaTracker.Server.Infrastructure.Persistence;
 using MediaTracker.Server.Infrastructure.Storage;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace MediaTracker.Server.Features.External.RefreshMetadata;
 
@@ -16,24 +18,18 @@ public interface IRefreshMetadataHandler
     Task<Result<MediaDetailDto>> HandleAsync(RefreshMetadataCommand command, CancellationToken ct);
 }
 
-/// <summary>
-/// Refresh: re-reads the source and lets it overwrite the stored values, including the cover.
-/// With <c>FillMissingOnly</c> it degrades to the enrich rules instead, which is what the
-/// "keep my edits" branch of the dialog calls: the user's own values survive, only gaps are filled.
-/// </summary>
 public sealed class RefreshMetadataHandler(
     AppDbContext db,
     MetadataAggregatorService metadataAggregator,
-    IMetadataProviderResolver providerResolver,
     ISourcePriorityService priorityService,
-    IImageStorageService imageStorage) : IRefreshMetadataHandler
+    IImageStorageService imageStorage,
+    IMemoryCache cache) : IRefreshMetadataHandler
 {
     public async Task<Result<MediaDetailDto>> HandleAsync(RefreshMetadataCommand command, CancellationToken ct)
     {
         var item = await db.MediaItems
             .Include(media => media.Franchise)
             .Include(media => ((TvShow)media).Seasons.OrderBy(season => season.SeasonNumber))
-            .Include(media => ((Manga)media).Volumes.OrderBy(volume => volume.VolumeNumber))
             .AsSplitQuery()
             .SingleOrDefaultAsync(media => media.Id == command.MediaId, ct);
 
@@ -63,8 +59,7 @@ public sealed class RefreshMetadataHandler(
             MediaMetadataApplier.ApplyIfMissing(
                 item,
                 external,
-                season => db.Entry(season).State = EntityState.Added,
-                volume => db.Entry(volume).State = EntityState.Added);
+                season => db.Entry(season).State = EntityState.Added);
         }
         else
         {
@@ -73,24 +68,11 @@ public sealed class RefreshMetadataHandler(
                 external,
                 imageStorage,
                 ct,
-                season => db.Entry(season).State = EntityState.Added,
-                volume => db.Entry(volume).State = EntityState.Added);
+                season => db.Entry(season).State = EntityState.Added);
 
             // The user asked for the source to win, so the row is no longer carrying their edits and
             // the next refresh must not prompt them again.
             item.IsCustomEdited = false;
-        }
-
-        // "Refresh" is the user's explicit "make this match the source", so a manga that was added
-        // from a source without a volume breakdown gets its real volumes here too.
-        if (item is Manga manga)
-        {
-            await MangaVolumeStructure.ApplyCanonicalVolumesAsync(
-                providerResolver,
-                db,
-                manga,
-                external.VolumeDetails,
-                ct);
         }
 
         // A source disabled in settings leaves a stale badge behind otherwise: refresh only rewrites
@@ -101,6 +83,7 @@ public sealed class RefreshMetadataHandler(
 
         item.MarkUpdated();
         await db.SaveChangesAsync(ct);
+        cache.Remove(AdvancedStatsCalculator.CacheKey);
 
         return Result<MediaDetailDto>.Success(MediaDetailProjection.ToDetailDto(item));
     }

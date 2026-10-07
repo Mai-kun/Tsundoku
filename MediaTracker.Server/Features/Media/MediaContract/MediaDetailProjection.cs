@@ -17,10 +17,6 @@ public static class MediaDetailProjection
         {
             Seasons = [.. show.Seasons.OrderBy(season => season.SeasonNumber).Select(ToDto)],
         },
-        Manga manga => Create(item) with
-        {
-            Volumes = [.. manga.Volumes.OrderBy(volume => volume.VolumeNumber).Select(ToDto)],
-        },
         _ => Create(item),
     };
 

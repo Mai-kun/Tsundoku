@@ -1,5 +1,4 @@
 using MediaTracker.Server.Domain.Entities;
-using MediaTracker.Server.Features.Volumes.AddVolume;
 
 namespace MediaTracker.Server.Features.Media.CreateMedia;
 
@@ -61,8 +60,6 @@ public sealed record CreateMediaRequest
     public List<CreateSeasonRequest>? Seasons { get; init; }
 
     public int? TotalVolumes { get; init; }
-
-    public List<CreateVolumeRequest>? Volumes { get; init; }
 
     public string? ExternalId { get; init; }
 

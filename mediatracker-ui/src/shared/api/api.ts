@@ -17,6 +17,10 @@ import type {
   ExternalRecommendation,
   ExternalRelation,
   UpdateMediaPayload,
+  CustomListSummary,
+  CustomListDetail,
+  CreateListPayload,
+  UpdateListPayload,
 } from "$shared/types";
 
 const mediaEndpoint = "/api/media";
@@ -242,6 +246,38 @@ export function updateStatus(id: string, status: MediaStatus): Promise<void> {
 
 export function deleteMedia(id: string): Promise<void> {
   return requestVoid(`${mediaEndpoint}/${id}`, { method: "DELETE" });
+}
+
+export function getLists(): Promise<CustomListSummary[]> {
+  return requestJson<CustomListSummary[]>("/api/lists");
+}
+
+export function getListDetail(id: string): Promise<CustomListDetail> {
+  return requestJson<CustomListDetail>(`/api/lists/${id}`);
+}
+
+export function createList(payload: CreateListPayload): Promise<{ id: string }> {
+  return requestJson<{ id: string }>("/api/lists", jsonOptions("POST", payload));
+}
+
+export function updateList(id: string, payload: UpdateListPayload): Promise<void> {
+  return requestVoid(`/api/lists/${id}`, jsonOptions("PUT", payload));
+}
+
+export function deleteList(id: string): Promise<void> {
+  return requestVoid(`/api/lists/${id}`, { method: "DELETE" });
+}
+
+export function addMediaToList(listId: string, mediaId: string): Promise<void> {
+  return requestVoid(`/api/lists/${listId}/items`, jsonOptions("POST", { mediaId }));
+}
+
+export function removeMediaFromList(listId: string, mediaId: string): Promise<void> {
+  return requestVoid(`/api/lists/${listId}/items/${mediaId}`, { method: "DELETE" });
+}
+
+export function getListsForMedia(mediaId: string): Promise<string[]> {
+  return requestJson<string[]>(`/api/media/${mediaId}/lists`);
 }
 
 /**

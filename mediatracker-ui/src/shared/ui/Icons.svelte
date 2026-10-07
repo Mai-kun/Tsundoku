@@ -29,6 +29,7 @@
     export { default as Gamepad2 } from "lucide-svelte/icons/gamepad-2";
     export { default as GitBranch } from "lucide-svelte/icons/git-branch";
     export { default as History } from "lucide-svelte/icons/history";
+    export { default as Heart } from "lucide-svelte/icons/heart";
     export { default as Home } from "lucide-svelte/icons/home";
     export { default as Image } from "lucide-svelte/icons/image";
     export { default as Inbox } from "lucide-svelte/icons/inbox";

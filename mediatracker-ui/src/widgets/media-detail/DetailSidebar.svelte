@@ -1,5 +1,6 @@
 <script lang="ts">
-    import { CalendarDays, ChevronDown, ExternalLink, Image as ImageIcon, Link2, List, Pencil, RefreshCw, Sparkles, Star, Trash2 } from "$shared/ui/Icons.svelte";
+    import { CalendarDays, ChevronDown, ExternalLink, Image as ImageIcon, Link2, Pencil, RefreshCw, Sparkles, Star, Trash2 } from "$shared/ui/Icons.svelte";
+    import ListPicker from "$features/lists/ListPicker.svelte";
     import { errorMessage } from "$shared/api/api";
     import { fullSizeCoverUrl } from "$entities/media/model/coverUrl";
     import PopoverMenu from "$shared/ui/PopoverMenu.svelte";
@@ -488,18 +489,7 @@
                 {i18n.t.detail.changeSource}
             </button>
 
-            <button
-                type="button"
-                class="flex w-full items-center gap-2.5 rounded-lg bg-surface/50 px-3 py-2.5 text-xs font-medium text-[var(--color-ink-dim)] transition hover:bg-[var(--color-panel-raised)] hover:text-white"
-                onclick={() => onNavigate("lists")}
-            >
-                <List
-                    size={15}
-                    class="text-[var(--color-accent-soft)]"
-                    aria-hidden="true"
-                />
-                {i18n.t.detail.addToLists}
-            </button>
+            <ListPicker mediaId={media.id} />
 
             <button
                 type="button"

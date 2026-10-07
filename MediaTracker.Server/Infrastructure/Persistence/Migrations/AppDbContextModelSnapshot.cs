@@ -34,6 +34,68 @@ namespace MediaTracker.Server.Infrastructure.Persistence.Migrations
                     b.ToTable("Settings");
                 });
 
+            modelBuilder.Entity("MediaTracker.Server.Domain.Entities.CustomList", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Color")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Icon")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue("list");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("CustomLists");
+                });
+
+            modelBuilder.Entity("MediaTracker.Server.Domain.Entities.CustomListItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("AddedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ListId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("MediaItemId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Order")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MediaItemId");
+
+                    b.HasIndex("ListId", "MediaItemId")
+                        .IsUnique();
+
+                    b.ToTable("CustomListItems");
+                });
+
             modelBuilder.Entity("MediaTracker.Server.Domain.Entities.Franchise", b =>
                 {
                     b.Property<Guid>("Id")
@@ -439,6 +501,25 @@ namespace MediaTracker.Server.Infrastructure.Persistence.Migrations
                     b.HasDiscriminator().HasValue("Game");
                 });
 
+            modelBuilder.Entity("MediaTracker.Server.Domain.Entities.CustomListItem", b =>
+                {
+                    b.HasOne("MediaTracker.Server.Domain.Entities.CustomList", "List")
+                        .WithMany("Items")
+                        .HasForeignKey("ListId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("MediaTracker.Server.Domain.Entities.MediaItem", "MediaItem")
+                        .WithMany()
+                        .HasForeignKey("MediaItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("List");
+
+                    b.Navigation("MediaItem");
+                });
+
             modelBuilder.Entity("MediaTracker.Server.Domain.Entities.MangaVolume", b =>
                 {
                     b.HasOne("MediaTracker.Server.Domain.Entities.Manga", "Manga")
@@ -480,6 +561,11 @@ namespace MediaTracker.Server.Infrastructure.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("TvShow");
+                });
+
+            modelBuilder.Entity("MediaTracker.Server.Domain.Entities.CustomList", b =>
+                {
+                    b.Navigation("Items");
                 });
 
             modelBuilder.Entity("MediaTracker.Server.Domain.Entities.Franchise", b =>

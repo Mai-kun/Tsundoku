@@ -200,6 +200,7 @@ try
     );
 
     app.MapMediaEndpoints();
+    app.MapListEndpoints();
     app.MapSeasonEndpoints();
     app.MapExternalMediaEndpoints();
     app.MapLogEndpoints();

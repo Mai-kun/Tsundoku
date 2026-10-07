@@ -128,6 +128,10 @@ import { deleteMedia } from "$shared/api/api";
             url.searchParams.delete("mediaId");
         }
 
+        if (view !== "detail" || previousView !== "lists") {
+            url.searchParams.delete("listId");
+        }
+
         window.history.pushState(null, "", url);
     }
 
@@ -366,7 +370,7 @@ import { deleteMedia } from "$shared/api/api";
     {:else if renderedView === "calendar"}
         <CalendarView />
     {:else if renderedView === "lists"}
-        <ListsView />
+        <ListsView onOpen={openDetail} />
     {:else if renderedView !== null && isCategory(renderedView)}
         <!-- No {#key} here: keying the whole view remounted it on every switch. The section
              {#each} keys in CategoryView are category-scoped instead, so sections rebuild only

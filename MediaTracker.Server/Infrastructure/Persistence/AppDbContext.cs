@@ -27,9 +27,34 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 
     public DbSet<MediaEvent> Events => Set<MediaEvent>();
 
+    public DbSet<CustomList> CustomLists => Set<CustomList>();
+
+    public DbSet<CustomListItem> CustomListItems => Set<CustomListItem>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<AppSetting>(entity => entity.HasKey(s => s.Key));
+
+        modelBuilder.Entity<CustomList>(entity =>
+        {
+            entity.Property(list => list.Name).IsRequired().HasMaxLength(100);
+            entity.Property(list => list.Description).HasMaxLength(500);
+            entity.Property(list => list.Icon).HasDefaultValue("list");
+            entity.HasMany(list => list.Items)
+                .WithOne(item => item.List)
+                .HasForeignKey(item => item.ListId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<CustomListItem>(entity =>
+        {
+            entity.HasIndex(item => new { item.ListId, item.MediaItemId }).IsUnique();
+            entity.HasIndex(item => item.MediaItemId);
+            entity.HasOne(item => item.MediaItem)
+                .WithMany()
+                .HasForeignKey(item => item.MediaItemId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
 
         modelBuilder.Entity<MediaEvent>(entity =>
         {

@@ -1,4 +1,30 @@
 import type { MediaStatus } from "./enums";
+import type { MediaItem } from "./models";
+
+export interface CustomListSummary {
+  id: string;
+  name: string;
+  description: string | null;
+  icon: string | null;
+  color: string | null;
+  itemsCount: number;
+  updatedAt: string;
+  previewCovers: (string | null)[];
+}
+
+export interface CustomListDetail extends Omit<CustomListSummary, "itemsCount" | "previewCovers"> {
+  createdAt: string;
+  items: MediaItem[];
+}
+
+export interface CreateListPayload {
+  name: string;
+  description?: string | null;
+  icon?: string | null;
+  color?: string | null;
+}
+
+export type UpdateListPayload = CreateListPayload;
 
 interface CreateMediaBase {
   title: string;

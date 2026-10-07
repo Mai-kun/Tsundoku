@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { Inbox, RefreshCw } from "$shared/ui/Icons.svelte";
+    import { Inbox, RefreshCw, X } from "$shared/ui/Icons.svelte";
     import { errorMessage } from "$shared/api/api";
     import { i18n } from "$shared/i18n/index.svelte";
     import type { MediaItem } from "$shared/types";
@@ -20,6 +20,7 @@
         onDelete?: (item: MediaItem) => Promise<void>;
         onEdit?: (item: MediaItem) => void;
         onEpisodeStep?: (item: MediaItem, delta: number) => Promise<void>;
+        onRemoveFromList?: (item: MediaItem) => Promise<void>;
     }
 
     let {
@@ -34,6 +35,7 @@
         onDelete,
         onEdit = () => {},
         onEpisodeStep,
+        onRemoveFromList,
     }: Props = $props();
 </script>
 
@@ -91,16 +93,23 @@
         class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-7"
     >
         {#each items as item (item.id)}
-            <MediaCard
-                {item}
-                {onOpen}
-                {onProgress}
-                {onProgressCommitted}
-                {onStatusChange}
-                {onDelete}
-                {onEdit}
-                {onEpisodeStep}
-            />
+            <div class="group relative min-w-0">
+                <MediaCard
+                    {item}
+                    {onOpen}
+                    {onProgress}
+                    {onProgressCommitted}
+                    {onStatusChange}
+                    {onDelete}
+                    {onEdit}
+                    {onEpisodeStep}
+                />
+                {#if onRemoveFromList}
+                    <button type="button" class="absolute right-2 top-2 z-10 grid h-8 w-8 place-items-center rounded-lg border border-white/10 bg-black/75 text-white opacity-100 transition hover:bg-rose-500 sm:opacity-0 sm:group-hover:opacity-100" title={i18n.t.views.listRemoveItem} aria-label={i18n.t.views.listRemoveItem} onclick={(event) => { event.stopPropagation(); void onRemoveFromList?.(item); }}>
+                        <X size={15} aria-hidden="true" />
+                    </button>
+                {/if}
+            </div>
         {/each}
     </div>
 {/if}

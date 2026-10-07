@@ -13,6 +13,7 @@ using MediaTracker.Server.Features.History.ClearHistory;
 using MediaTracker.Server.Features.History.DeleteHistoryEvent;
 using MediaTracker.Server.Features.History.GetHistoryEvents;
 using MediaTracker.Server.Features.Logs.ClientLog;
+using MediaTracker.Server.Features.Lists;
 using MediaTracker.Server.Features.Media.CreateMedia;
 using MediaTracker.Server.Features.Media.DeleteMedia;
 using MediaTracker.Server.Features.Media.GetMediaDetail;
@@ -47,6 +48,7 @@ public static class FeatureRegistration
             includeInternalTypes: true);
 
         // Media
+        services.AddScoped<ListsService>();
         services.AddScoped<IGetMediaListHandler, GetMediaListHandler>();
         services.AddScoped<IGetMediaStatsHandler, GetMediaStatsHandler>();
         services.AddScoped<IGetMediaDetailHandler, GetMediaDetailHandler>();

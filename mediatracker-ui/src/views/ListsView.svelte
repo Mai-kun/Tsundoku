@@ -90,7 +90,7 @@
     $effect(() => { void loadLists(); });
 </script>
 
-<div class="mx-auto max-w-6xl space-y-6">
+<div class="space-y-6 w-full">
     {#if selected}
         <div class="flex flex-wrap items-start justify-between gap-4">
             <div class="min-w-0">
@@ -117,7 +117,7 @@
             {#if lists.length > 0}<button type="button" class="tap inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white hover:bg-accent-hover" onclick={() => openCreate()}><Plus size={16} />{i18n.t.views.listsCreate}</button>{/if}
         </div>
         {#if loading}
-            <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{#each [1,2,3] as item (item)}<div class="h-56 animate-pulse rounded-xl border border-white/[0.06] bg-card"></div>{/each}</div>
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{#each [1,2,3] as item (item)}<div class="h-56 animate-pulse rounded-xl border border-white/[0.06] bg-card"></div>{/each}</div>
         {:else if error}
             <div class="rounded-xl border border-rose-400/20 bg-rose-400/5 p-6 text-center text-sm text-rose-200" role="alert">{error}<button class="ml-3 underline" onclick={() => void loadLists()}>{i18n.t.common.retry}</button></div>
         {:else if lists.length === 0}
@@ -127,16 +127,34 @@
                 <button type="button" class="mt-6 inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-white hover:bg-accent-hover" onclick={() => openCreate()}><Plus size={16} />{i18n.t.views.listCreateFirst}</button>
             </div>
         {:else}
-            <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {#each lists as list (list.id)}
                     <article class="group overflow-hidden rounded-xl border border-white/[0.07] bg-card transition hover:border-white/15 hover:bg-card-hover">
                         <button type="button" class="block w-full text-left" onclick={() => void openList(list)}>
-                            <div class="relative aspect-[2.15/1] overflow-hidden bg-elevated">
-                                {#if list.previewCovers.length}
-                                    <div class="grid h-full grid-cols-2 grid-rows-2 gap-1 p-1">{#each list.previewCovers as cover, index (`${index}-${cover}`)}<div class="overflow-hidden rounded-md bg-white/[0.04]">{#if cover}<img src={fullSizeCoverUrl(cover)} alt="" loading="lazy" class="h-full w-full object-cover object-top" />{:else}<div class="h-full w-full" style={`background:${list.color ?? "#5844e0"}30`}></div>{/if}</div>{/each}</div>
-                                {:else}
+                            <div class="relative h-44 w-full overflow-hidden rounded-t-xl bg-card">
+                                {#if list.previewCovers.length === 0}
                                     {@const Icon = iconComponents[list.icon as keyof typeof iconComponents] ?? List}
-                                    <div class="flex h-full items-center justify-center" style={`background:linear-gradient(135deg, ${list.color ?? "#5844e0"}44, transparent)`}><span class="grid h-16 w-16 place-items-center rounded-2xl border border-white/10 text-white shadow-lg" style={`background:${list.color ?? "#5844e0"}`}><Icon size={27} /></span></div>
+                                    <div class="flex h-full w-full items-center justify-center" style={`background:linear-gradient(135deg, ${list.color ?? "#5844e0"}44, transparent)`}><span class="grid h-16 w-16 place-items-center rounded-2xl border border-white/10 text-white shadow-lg" style={`background:${list.color ?? "#5844e0"}`}><Icon size={27} /></span></div>
+                                {:else if list.previewCovers.length === 1}
+                                    {@const cover = list.previewCovers[0]}
+                                    <div class="flex h-full w-full items-center justify-center">
+                                        {#if cover}
+                                            <img src={fullSizeCoverUrl(cover)} alt="" loading="lazy" class="pointer-events-none absolute inset-0 h-full w-full scale-125 object-cover opacity-25 blur-[20px]" />
+                                            <img src={fullSizeCoverUrl(cover)} alt="" loading="lazy" class="z-10 aspect-[2/3] h-36 rounded-lg object-cover shadow-2xl shadow-black/90 ring-1 ring-white/10" />
+                                        {:else}
+                                            <div class="z-10 aspect-[2/3] h-36 rounded-lg shadow-2xl shadow-black/90 ring-1 ring-white/10" style={`background:${list.color ?? "#5844e0"}`}></div>
+                                        {/if}
+                                    </div>
+                                {:else}
+                                    <div class="flex h-full w-full items-center justify-center -space-x-5 px-4">
+                                        {#each list.previewCovers as cover, index (`${index}-${cover}`)}
+                                            {#if cover}
+                                                <img src={fullSizeCoverUrl(cover)} alt="" loading="lazy" class="aspect-[2/3] h-32 shrink-0 rounded-lg object-cover shadow-xl shadow-black/80 ring-1 ring-white/10 transition-transform hover:scale-105 hover:z-20 sm:h-36" />
+                                            {:else}
+                                                <div class="aspect-[2/3] h-32 shrink-0 rounded-lg shadow-xl shadow-black/80 ring-1 ring-white/10 transition-transform hover:scale-105 hover:z-20 sm:h-36" style={`background:${list.color ?? "#5844e0"}`}></div>
+                                            {/if}
+                                        {/each}
+                                    </div>
                                 {/if}
                                 <span class="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/70 to-transparent"></span>
                             </div>

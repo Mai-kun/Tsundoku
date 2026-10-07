@@ -106,7 +106,17 @@ export const translations = {
         listIcon: { ru: "Иконка", en: "Icon" },
         listModalHint: { ru: "Подберите название и стиль для вашей коллекции.", en: "Choose a name and style for your collection." },
         listBack: { ru: "Назад к спискам", en: "Back to lists" },
-        listTitles: { ru: (count: number) => `${count} тайтлов`, en: (count: number) => `${count} titles` },
+        listTitles: {
+            ru: (count: number) => {
+                const mod10 = count % 10;
+                const mod100 = count % 100;
+                if (mod100 >= 11 && mod100 <= 19) return `${count} тайтлов`;
+                if (mod10 === 1) return `${count} тайтл`;
+                if (mod10 >= 2 && mod10 <= 4) return `${count} тайтла`;
+                return `${count} тайтлов`;
+            },
+            en: (count: number) => `${count} ${count === 1 ? "title" : "titles"}`,
+        },
         listUpdated: { ru: "Обновлён", en: "Updated" },
         listCreateFirst: { ru: "Создать первый список", en: "Create your first list" },
         listDelete: { ru: "Удалить список", en: "Delete list" },

@@ -35,6 +35,7 @@
         type TvSeason,
     } from "$shared/types";
     import { clampProgress } from "$entities/media/model/progressRules";
+    import { nextSeriesEpisodeStep } from "$entities/media/model/seriesStep";
     import { createProgressDebounce } from "$shared/utils/progressDebounce";
     import {
         formatNumber,
@@ -559,6 +560,28 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
             ? Math.min(seriesEpisodes.current / seriesEpisodes.total, 1) * 100
             : 0,
     );
+
+    /**
+     * A show's overview card fell back to the plain status text: `readProgress` reports a series as
+     * read-only, so the stepper was never rendered. The season totals already on screen are the
+     * honest number, and +/- writes to whichever season holds the next unwatched episode — the same
+     * rule the media cards use.
+     */
+    let episodeProgress = $derived.by<ProgressInfo | null>(() =>
+        seriesEpisodes.total > 0
+            ? {
+                  current: seriesEpisodes.current,
+                  total: seriesEpisodes.total,
+                  editable: true,
+                  label: i18n.t.detail.episodesLabel,
+              }
+            : null,
+    );
+
+    let isSeriesOverview = $derived(media?.type === "tvshow");
+    let overviewSupport = $derived(isSeriesOverview ? episodeProgress : progressInfo);
+    let overviewValue = $derived(isSeriesOverview ? seriesEpisodes.current : progressValue);
+    let overviewPercent = $derived(isSeriesOverview ? seriesProgressPercent : progressPercent);
 
     let externalRatings = $derived.by<RatingBadge[]>(() => {
         if (!media) return [];
@@ -1532,6 +1555,28 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
         progressDebounce.schedule(target.id, next);
     }
 
+    async function stepEpisodeProgress(delta: number) {
+        const step = nextSeriesEpisodeStep(seasons, delta);
+        if (!step) return;
+
+        try {
+            await setSeasonProgress(step.seasonId, step.currentEpisode);
+            onUpdate();
+        } catch (error) {
+            progressError = error;
+            showToast(errorMessage(error), "error");
+        }
+    }
+
+    function stepOverview(delta: number) {
+        if (isSeriesOverview) {
+            void stepEpisodeProgress(delta);
+            return;
+        }
+
+        stepProgress(delta);
+    }
+
     async function changeStatus(value: MediaStatus) {
         const target = media;
         if (!target || statusBusy) return;
@@ -1892,11 +1937,11 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
                 {#if activeSubTab === "overview"}
                     <OverviewTab
                         {media}
-                        {support}
-                        {progressValue}
-                        {progressPercent}
+                        support={overviewSupport}
+                        progressValue={overviewValue}
+                        progressPercent={overviewPercent}
                         {progressError}
-                        onStep={stepProgress}
+                        onStep={stepOverview}
                         onCounterChange={(val) => {
                             if (!media) return;
                             const next = Math.max(val, 0);

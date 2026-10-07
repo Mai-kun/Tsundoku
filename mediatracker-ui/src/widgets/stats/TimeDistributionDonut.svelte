@@ -101,7 +101,7 @@
     });
 </script>
 
-<div class="flex flex-col sm:flex-row items-center gap-6">
+<div class="flex flex-col sm:flex-row items-center justify-center gap-6 my-auto w-full">
     <div class="relative flex h-48 w-48 shrink-0 items-center justify-center">
         <svg
             viewBox="0 0 180 180"

@@ -113,7 +113,7 @@
         <StatsHeroBanner {stats} />
 
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            <div class="bg-[#151a26] border border-white/5 rounded-xl p-5 lg:col-span-7">
+            <div class="bg-[#151a26] border border-white/5 rounded-xl p-5 lg:col-span-7 flex flex-col justify-center">
                 <TimeDistributionDonut {stats} />
             </div>
 

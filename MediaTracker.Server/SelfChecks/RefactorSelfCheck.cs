@@ -1249,6 +1249,7 @@ public static class RefactorSelfCheck
 
         options.SetKey("TMDB", "tmdb-secret");
         options.SetKey("TheTVDB", "tvdb-secret");
+        options.SetKey("steam", "steam-secret");
         options.SetKey("SomeCustomProvider", "custom-secret");
 
         AssertEqual(failures, "tmdb-secret", options.GetKey("tmdb"), "built-in key stored");
@@ -1264,6 +1265,7 @@ public static class RefactorSelfCheck
             options.GetKey("thetvdb"),
             "alias resolves to the same slot"
         );
+        AssertEqual(failures, "steam-secret", options.GetKey("steam"), "Steam key stored");
         AssertEqual(
             failures,
             "custom-secret",

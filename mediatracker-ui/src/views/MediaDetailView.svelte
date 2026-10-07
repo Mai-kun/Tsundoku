@@ -1910,6 +1910,7 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
                         {achievementsTruncated}
                         unlockedAchievementNames={unlockedAchievementNames}
                         onOpenMedia={onOpenRelated}
+                        onEdit={startEdit}
                         {onSearch}
                         onToggleAchievement={toggleAchievement}
                         onToggleAllAchievements={toggleAllAchievements}

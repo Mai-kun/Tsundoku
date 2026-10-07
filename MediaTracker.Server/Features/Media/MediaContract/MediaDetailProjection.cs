@@ -39,6 +39,8 @@ public static class MediaDetailProjection
             WatchedOn = listFields.WatchedOn,
             EndDate = listFields.EndDate,
             ReleaseStatus = listFields.ReleaseStatus,
+            OriginalLanguage = listFields.OriginalLanguage,
+            CountryOfOrigin = listFields.CountryOfOrigin,
             CoverUrl = listFields.CoverUrl,
             CreatedAt = listFields.CreatedAt,
             UpdatedAt = listFields.UpdatedAt,
@@ -83,6 +85,7 @@ public static class MediaDetailProjection
             RecommendationsUpdatedAt = item.RecommendationsUpdatedAt,
             Recommendations = MediaJsonCache.Deserialize<ExternalRecommendationDto>(item.RecommendationsJson),
             IsCustomEdited = item.IsCustomEdited,
+            Cast = MediaJsonCache.Deserialize<CastMemberDto>(item.CastJson),
         };
     }
 

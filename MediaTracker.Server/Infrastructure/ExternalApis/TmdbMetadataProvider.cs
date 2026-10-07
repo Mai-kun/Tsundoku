@@ -81,7 +81,7 @@ public sealed class TmdbMetadataProvider(
                 var isMovie = mediaType == "movie";
                 var detailPath = isMovie ? $"movie/{id}" : $"tv/{id}";
                 var item = await client.GetFromJsonAsync<TmdbItem>(
-                    $"{detailPath}?api_key={Uri.EscapeDataString(apiKey)}", ct);
+                    $"{detailPath}?api_key={Uri.EscapeDataString(apiKey)}&append_to_response=credits", ct);
 
                 if (item is not null)
                 {
@@ -124,6 +124,7 @@ public sealed class TmdbMetadataProvider(
             // It was never mapped, so the end-date row was empty for every TMDb-sourced show.
             EndDate = isMovie ? null : item.LastAirDate,
             ReleaseStatus = item.Status,
+            OriginalLanguage = item.OriginalLanguage,
             // Movies carry a runtime, series only an average per-episode one; both live in `runtime`.
             RuntimeMinutes = item.Runtime,
             // TMDb returns the production companies but the provider never mapped them, so the studio
@@ -138,7 +139,15 @@ public sealed class TmdbMetadataProvider(
             Genres = item.Genres is { Count: > 0 } genres
                 ? [.. genres.Select(genre => genre.Name).OfType<string>()]
                 : null,
-            TotalCount = isMovie ? item.Runtime : item.NumberOfEpisodes
+            TotalCount = isMovie ? item.Runtime : item.NumberOfEpisodes,
+            Cast = item.Credits?.Cast?
+                .Where(cast => !string.IsNullOrWhiteSpace(cast.Name))
+                .Take(6)
+                .Select(cast => new CastMemberDto(
+                    cast.Name!,
+                    cast.Character,
+                    cast.ProfilePath is null ? null : $"https://image.tmdb.org/t/p/w185{cast.ProfilePath}"))
+                .ToList()
         };
     }
 
@@ -165,7 +174,16 @@ public sealed class TmdbMetadataProvider(
         [property: JsonPropertyName("status")] string? Status,
         [property: JsonPropertyName("production_companies")] List<TmdbNamedItem>? ProductionCompanies,
         [property: JsonPropertyName("networks")] List<TmdbNamedItem>? Networks,
-        [property: JsonPropertyName("genres")] List<TmdbNamedItem>? Genres);
+        [property: JsonPropertyName("genres")] List<TmdbNamedItem>? Genres,
+        [property: JsonPropertyName("original_language")] string? OriginalLanguage,
+        [property: JsonPropertyName("credits")] TmdbCredits? Credits);
+
+    private sealed record TmdbCredits([property: JsonPropertyName("cast")] List<TmdbCastMember>? Cast);
+
+    private sealed record TmdbCastMember(
+        [property: JsonPropertyName("name")] string? Name,
+        [property: JsonPropertyName("character")] string? Character,
+        [property: JsonPropertyName("profile_path")] string? ProfilePath);
 
     private sealed record TmdbNamedItem(
         [property: JsonPropertyName("id")] long Id,

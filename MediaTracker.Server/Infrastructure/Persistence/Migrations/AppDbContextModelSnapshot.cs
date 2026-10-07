@@ -208,6 +208,12 @@ namespace MediaTracker.Server.Infrastructure.Persistence.Migrations
                     b.Property<string>("AchievementsJson")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("CastJson")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CountryOfOrigin")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("CoverUrl")
                         .HasColumnType("TEXT");
 
@@ -253,6 +259,9 @@ namespace MediaTracker.Server.Infrastructure.Persistence.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Notes")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("OriginalLanguage")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("RecommendationsJson")

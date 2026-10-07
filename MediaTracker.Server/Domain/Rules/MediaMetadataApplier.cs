@@ -114,6 +114,9 @@ public static class MediaMetadataApplier
         item.ExternalSource = external.ExternalSource ?? item.ExternalSource;
         item.ExternalRating = external.Rating;
         item.ExternalRatingVotes = external.RatingVotes;
+        item.OriginalLanguage = external.OriginalLanguage;
+        item.CountryOfOrigin = external.CountryOfOrigin;
+        item.CastJson = external.Cast is { Count: > 0 } cast ? JsonSerializer.Serialize(cast, MediaRatingSerializer.JsonOptions) : null;
 
         if (external.Ratings is { Count: > 0 } ratings)
         {
@@ -138,6 +141,13 @@ public static class MediaMetadataApplier
         Action<TvSeason>? trackNewSeason = null)
     {
         var modified = ApplyRatings(item, external);
+        modified |= SetIfBlank(item.OriginalLanguage, external.OriginalLanguage, value => item.OriginalLanguage = value);
+        modified |= SetIfBlank(item.CountryOfOrigin, external.CountryOfOrigin, value => item.CountryOfOrigin = value);
+        if (string.IsNullOrWhiteSpace(item.CastJson) && external.Cast is { Count: > 0 } cast)
+        {
+            item.CastJson = JsonSerializer.Serialize(cast, MediaRatingSerializer.JsonOptions);
+            modified = true;
+        }
         modified |= ApplyMangaGaps(item, external);
 
         modified |= SetIfBlank(item.Notes, external.Description, value => item.Notes = value);

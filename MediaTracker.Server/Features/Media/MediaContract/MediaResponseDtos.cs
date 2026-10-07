@@ -35,6 +35,10 @@ public record MediaListDto
 
     public string? ReleaseStatus { get; init; }
 
+    public string? OriginalLanguage { get; init; }
+
+    public string? CountryOfOrigin { get; init; }
+
     public string? CoverUrl { get; init; }
 
     public required DateTime CreatedAt { get; init; }
@@ -151,6 +155,8 @@ public sealed record MediaDetailDto : MediaListDto
     public bool IsCustomEdited { get; init; }
 
     public IReadOnlyList<TvSeasonDto>? Seasons { get; init; }
+
+    public IReadOnlyList<CastMemberDto> Cast { get; init; } = [];
 
     public IReadOnlyList<MangaVolumeDto>? Volumes { get; init; }
 }
@@ -301,6 +307,8 @@ public static class MediaResponseMapper
             WatchedOn = listFields.WatchedOn,
             EndDate = listFields.EndDate,
             ReleaseStatus = listFields.ReleaseStatus,
+            OriginalLanguage = listFields.OriginalLanguage,
+            CountryOfOrigin = listFields.CountryOfOrigin,
             CoverUrl = listFields.CoverUrl,
             CreatedAt = listFields.CreatedAt,
             UpdatedAt = listFields.UpdatedAt,
@@ -345,6 +353,7 @@ public static class MediaResponseMapper
             RecommendationsUpdatedAt = item.RecommendationsUpdatedAt,
             Recommendations = MediaJsonCache.Deserialize<ExternalRecommendationDto>(item.RecommendationsJson),
             IsCustomEdited = item.IsCustomEdited,
+            Cast = MediaJsonCache.Deserialize<CastMemberDto>(item.CastJson),
         };
     }
 
@@ -380,6 +389,8 @@ public static class MediaResponseMapper
         WatchedOn = item.WatchedOn,
         EndDate = item.EndDate,
         ReleaseStatus = item.ReleaseStatus,
+        OriginalLanguage = item.OriginalLanguage,
+        CountryOfOrigin = item.CountryOfOrigin,
         CoverUrl = item.CoverUrl != null ? $"{item.CoverUrl}?v={item.UpdatedAt.Ticks}" : null,
         CreatedAt = item.CreatedAt,
         UpdatedAt = item.UpdatedAt,

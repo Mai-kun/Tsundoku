@@ -41,6 +41,13 @@ public sealed partial class AniListMetadataProvider(
         streamingEpisodes { title }
         studios(isMain: true) { nodes { name } }
         staff(perPage: 5) { edges { role node { name { full } } } }
+        characters(perPage: 6, sort: [ROLE, RELEVANCE]) {
+          edges {
+            role
+            node { name { full } image { medium } }
+            voiceActors(language: JAPANESE) { name { full } image { medium } }
+          }
+        }
         genres
         """;
 
@@ -344,6 +351,7 @@ public sealed partial class AniListMetadataProvider(
             ReleaseDate = releaseDate,
             EndDate = endDate,
             ReleaseStatus = item.Status,
+            CountryOfOrigin = item.CountryOfOrigin,
             RuntimeMinutes = item.Duration,
             Type = type,
             Format = item.Format,
@@ -358,6 +366,21 @@ public sealed partial class AniListMetadataProvider(
             MangaFormat = type == "manga" ? MangaFormats.FromCountryOfOrigin(item.CountryOfOrigin) : null,
             Rating = primaryRating,
             Ratings = ratings,
+            Cast = type == "anime"
+                ? item.Characters?.Edges?
+                    .Where(edge => !string.IsNullOrWhiteSpace(edge?.Node?.Name?.Full))
+                    .Take(6)
+                    .Select(edge =>
+                    {
+                        var character = edge!.Node!;
+                        var voiceActor = edge.VoiceActors?.FirstOrDefault(actor => !string.IsNullOrWhiteSpace(actor.Name?.Full));
+                        return new CastMemberDto(
+                            voiceActor?.Name?.Full ?? character.Name!.Full!,
+                            character.Name?.Full,
+                            voiceActor?.Image?.Medium ?? character.Image?.Medium);
+                    })
+                    .ToList()
+                : null,
             Genres = item.Genres is { Count: > 0 } genres ? [.. genres.Where(g => !string.IsNullOrWhiteSpace(g))] : null,
             Episodes = episodes
         };
@@ -480,6 +503,7 @@ public sealed partial class AniListMetadataProvider(
         List<AniListStreamingEpisode>? StreamingEpisodes,
         AniListStudios? Studios,
         AniListStaff? Staff,
+        AniListCharacters? Characters,
         List<string>? Genres);
 
     private sealed record AniListStreamingEpisode(string? Title);
@@ -491,6 +515,11 @@ public sealed partial class AniListMetadataProvider(
     private sealed record AniListStaff(List<AniListStaffEdge>? Edges);
     private sealed record AniListStaffEdge(string? Role, AniListStaffNode? Node);
     private sealed record AniListStaffNode(AniListName? Name);
+    private sealed record AniListCharacters(List<AniListCharacterEdge>? Edges);
+    private sealed record AniListCharacterEdge(string? Role, AniListCharacter? Node, List<AniListVoiceActor>? VoiceActors);
+    private sealed record AniListCharacter(AniListName? Name, AniListCharacterImage? Image);
+    private sealed record AniListVoiceActor(AniListName? Name, AniListCharacterImage? Image);
+    private sealed record AniListCharacterImage(string? Medium);
     private sealed record AniListName(string? Full);
 
     private sealed record KitsuSearchResponse(List<KitsuData>? Data);

@@ -42,6 +42,8 @@ public sealed record ExternalRecommendationDto(
     double? Rating,
     string Source = "");
 
+public sealed record CastMemberDto(string Name, string? Character, string? PhotoUrl);
+
 /// <summary>
 /// A related title plus the relationship that produced it. The media payload reuses
 /// <see cref="ExternalMediaDto"/> rather than repeating it: every field the Related tab renders
@@ -73,6 +75,12 @@ public sealed record ExternalMediaDto
     public string? EndDate { get; init; }
 
     public string? ReleaseStatus { get; init; }
+
+    public string? OriginalLanguage { get; init; }
+
+    public string? CountryOfOrigin { get; init; }
+
+    public IReadOnlyList<CastMemberDto>? Cast { get; init; }
 
     /// <summary>Provider's own format label (MANGA, NOVEL, TV, MOVIE...). Null when it reports none.</summary>
     public string? Format { get; init; }

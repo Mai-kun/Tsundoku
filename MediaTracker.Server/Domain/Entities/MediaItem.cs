@@ -56,6 +56,12 @@ public abstract class MediaItem
 
     public string? ReleaseStatus { get; set; }
 
+    public string? OriginalLanguage { get; set; }
+
+    public string? CountryOfOrigin { get; set; }
+
+    public string? CastJson { get; set; }
+
     public string? TranslatedSynopsis { get; set; }
 
     public string? TranslationLanguage { get; set; }

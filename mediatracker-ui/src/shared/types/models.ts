@@ -53,6 +53,8 @@ export interface MediaBase {
   watchedOn?: string | null;
   endDate?: string | null;
   releaseStatus?: string | null;
+  originalLanguage?: string | null;
+  countryOfOrigin?: string | null;
   durationMinutes?: number | null;
   genres?: string[] | string | null;
   tags?: string[] | string | null;
@@ -65,6 +67,7 @@ export interface MediaBase {
  */
 export interface MediaDetailFields {
   notes: string | null;
+  cast?: CastMember[];
   externalRatingsJson?: string | null;
   translatedSynopsis?: string | null;
   unlockedAchievements?: string | null;
@@ -195,6 +198,12 @@ export interface CreatorSummaryDto {
   completedCount: number;
   averageScore: number | null;
   otherItems: MediaItem[];
+}
+
+export interface CastMember {
+  name: string;
+  character: string | null;
+  photoUrl: string | null;
 }
 
 /** A movie/book/game opened on the detail screen carries the detail-only fields too. */

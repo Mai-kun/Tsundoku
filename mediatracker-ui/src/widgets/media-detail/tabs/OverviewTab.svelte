@@ -5,6 +5,9 @@
     import ProgressStepper from "../ProgressStepper.svelte";
     import GameDetailSection from "../sections/GameDetailSection.svelte";
     import CreatorSection from "../sections/CreatorSection.svelte";
+    import NotesSection from "../sections/NotesSection.svelte";
+    import QuickFactsSection from "../sections/QuickFactsSection.svelte";
+    import CastSection from "../sections/CastSection.svelte";
     import type { CreatorRole, MediaItem } from "$shared/types";
 
     interface Props {
@@ -27,6 +30,7 @@
         onToggleAllAchievements: () => Promise<void>;
         onOpenMedia: (item: MediaItem) => void;
         onSearch: (query: string) => void;
+        onEdit: () => void;
     }
 
     let {
@@ -47,6 +51,7 @@
         onToggleAllAchievements,
         onOpenMedia,
         onSearch,
+        onEdit,
     }: Props = $props();
 
     const creator = $derived.by((): { name: string; role: CreatorRole } | null => {
@@ -64,6 +69,7 @@
 </script>
 
 <div class="space-y-6">
+    <QuickFactsSection {media} />
     {#if media.type === "game"}
         <GameDetailSection
             {progressValue}
@@ -88,6 +94,8 @@
             {onStep}
         />
     {/if}
+    <NotesSection notes={media.notes} {onEdit} />
+    <CastSection media={media} />
     {#if creator}
         <CreatorSection
             creatorName={creator.name}

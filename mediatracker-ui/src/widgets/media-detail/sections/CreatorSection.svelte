@@ -52,7 +52,7 @@
     }
 </script>
 
-<section class="space-y-4 rounded-xl border border-white/[0.06] bg-[var(--color-panel-line)] p-5">
+<section class="h-full space-y-4 rounded-xl border border-white/[0.06] bg-[var(--color-panel-line)] p-5">
     <div class="flex flex-wrap items-start justify-between gap-4">
         <div class="flex min-w-0 items-center gap-3">
             <span class="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white/[0.06] text-accent-soft">
@@ -85,7 +85,7 @@
         <p class="text-sm text-muted">{i18n.t.creator.loading}</p>
     {:else if summary}
         <p class="text-sm text-muted">
-            {i18n.t.creator.inLibrary}: <span class="font-semibold text-ink">{summary.totalCount}</span> {i18n.t.creator.titles}
+            {i18n.t.creator.inLibrary}: <span class="font-semibold text-ink">{i18n.t.creator.titlesCount(summary.totalCount)}</span>
         </p>
 
         {#if summary.otherItems.length > 0}

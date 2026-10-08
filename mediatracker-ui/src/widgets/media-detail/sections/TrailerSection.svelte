@@ -12,7 +12,7 @@
 </script>
 
 {#if trailerVideoId}
-    <section class="group relative h-full min-h-[190px] aspect-video w-full overflow-hidden rounded-xl border border-white/10 bg-black/60">
+    <section class="group relative aspect-video w-full overflow-hidden rounded-xl border border-white/10 bg-black/60">
         {#if playing}
             <iframe
                 src={`https://www.youtube-nocookie.com/embed/${encodeURIComponent(trailerVideoId)}?autoplay=1`}

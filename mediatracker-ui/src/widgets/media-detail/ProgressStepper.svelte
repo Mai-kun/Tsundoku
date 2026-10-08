@@ -17,7 +17,7 @@
 </script>
 
 <section
-    class="flex h-full min-h-[190px] flex-col justify-center space-y-3 rounded-xl bg-[var(--color-panel-line)] p-5 shadow-sm border border-white/[0.06]"
+    class="flex flex-col justify-center space-y-3 rounded-xl bg-[var(--color-panel-line)] p-5 shadow-sm border border-white/[0.06]"
 >
     <div class="flex items-center justify-between gap-3">
         <h2 class="text-xs font-bold uppercase tracking-wider text-slate-300">

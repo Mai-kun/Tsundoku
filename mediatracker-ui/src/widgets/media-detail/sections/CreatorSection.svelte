@@ -53,7 +53,7 @@
     }
 </script>
 
-<section class="h-full space-y-4 rounded-xl border border-white/[0.06] bg-[var(--color-panel-line)] p-5">
+<section class="space-y-4 rounded-xl border border-white/[0.06] bg-[var(--color-panel-line)] p-5 shadow-sm">
     <div class="flex flex-wrap items-start justify-between gap-4">
         <div class="flex min-w-0 items-center gap-3">
             {#if imageUrl}
@@ -61,6 +61,7 @@
                     src={imageUrl}
                     alt={creatorName}
                     loading="lazy"
+                    referrerpolicy="no-referrer"
                     class="h-11 w-11 shrink-0 rounded-xl bg-white/[0.06] object-cover"
                 />
             {:else}
@@ -111,7 +112,7 @@
                         >
                             <div class="relative aspect-[2/3] overflow-hidden rounded-lg bg-black/20">
                                 {#if item.coverUrl}
-                                    <img src={item.coverUrl} alt="" loading="lazy" class="h-full w-full object-cover transition group-hover:scale-[1.03]" />
+                                    <img src={item.coverUrl} alt="" loading="lazy" referrerpolicy="no-referrer" class="h-full w-full object-cover transition group-hover:scale-[1.03]" />
                                 {:else}
                                     <div class="grid h-full place-items-center px-2 text-center text-xs text-muted">{item.title}</div>
                                 {/if}

@@ -10,19 +10,42 @@
 </script>
 
 {#if supported && cast.length > 0}
-    <section class="space-y-3">
-        <h2 class="text-sm font-semibold text-ink">{isAnime ? i18n.t.detail.voiceActorsTitle : i18n.t.detail.castTitle}</h2>
-        <div class="flex gap-3 overflow-x-auto pb-1">
+    <!-- Height follows content: the block is a grid cell of the overview ladder,
+         never stretched to match its neighbour. -->
+    <section
+        class="space-y-3 rounded-xl border border-white/[0.06] bg-[var(--color-panel-line)] p-5 shadow-sm"
+    >
+        <h2 class="text-xs font-bold uppercase tracking-wider text-slate-300">
+            {isAnime ? i18n.t.detail.voiceActorsTitle : i18n.t.detail.castTitle}
+        </h2>
+        <div class="grid grid-cols-3 gap-2.5">
             {#each cast as member (member.name + member.character)}
-                <article class="flex w-24 shrink-0 flex-col items-center gap-1.5 text-center">
+                <div class="flex min-w-0 items-center gap-2">
                     {#if member.photoUrl}
-                        <img src={member.photoUrl} alt={member.name} loading="lazy" class="size-12 rounded-full border border-white/10 object-cover" />
+                        <img
+                            src={member.photoUrl}
+                            alt={member.name}
+                            loading="lazy"
+                            referrerpolicy="no-referrer"
+                            class="size-9 shrink-0 rounded-full border border-white/10 object-cover"
+                        />
                     {:else}
-                        <span class="flex size-12 items-center justify-center rounded-full border border-white/10 bg-surface/60 text-muted"><User size={20} /></span>
+                        <span
+                            class="flex size-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-surface/60 text-muted"
+                            ><User size={15} /></span
+                        >
                     {/if}
-                    <span class="w-full truncate text-xs font-semibold text-white" title={member.name}>{member.name}</span>
-                    {#if member.character}<span class="w-full truncate text-[11px] text-muted" title={member.character}>{member.character}</span>{/if}
-                </article>
+                    <div class="min-w-0 flex-1">
+                        <p class="truncate text-xs font-semibold text-white" title={member.name}>
+                            {member.name}
+                        </p>
+                        {#if member.character}
+                            <p class="truncate text-[10px] text-muted" title={member.character}>
+                                {member.character}
+                            </p>
+                        {/if}
+                    </div>
+                </div>
             {/each}
         </div>
     </section>

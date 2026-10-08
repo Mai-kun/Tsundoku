@@ -24,6 +24,7 @@
     "check:score-stack": "node checks/scoreStack.check.cjs",
     "check:category-switch": "node checks/categorySwitch.check.cjs",
     "check:nav-detail": "node checks/navDetail.check.cjs",
+    "check:overview": "node checks/overviewLadder.check.cjs",
     "check:tokens": "node checks/tokens.check.cjs",
     "check:jobs": "node checks/jobsQueue.check.cjs",
     "check:lists": "node checks/lists.check.cjs",

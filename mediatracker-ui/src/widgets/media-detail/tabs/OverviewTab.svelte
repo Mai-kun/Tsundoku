@@ -82,64 +82,83 @@
 <div class="space-y-5">
     <QuickFactsSection {media} />
 
-    <div class="grid grid-cols-1 items-stretch gap-5 lg:grid-cols-2">
-        <div class="flex flex-col">
-            {#if media.type === "game"}
-                <GameDetailSection
-                    {progressValue}
-                    progressLabel={support?.label ?? i18n.t.detail.hoursLabel}
-                    {progressError}
-                    {onCounterChange}
-                    {achievements}
-                    {achievementsTotal}
-                    {achievementsLoading}
-                    {achievementsBusy}
-                    {achievementsTruncated}
-                    unlockedNames={unlockedAchievementNames}
-                    {onToggleAchievement}
-                    {onToggleAllAchievements}
-                />
-            {:else if support && support.editable}
-                <ProgressStepper
-                    progress={support}
-                    value={progressValue}
-                    percent={progressPercent}
-                    error={progressError}
-                    {onStep}
-                />
-            {:else}
-                <div class="flex h-full min-h-[190px] flex-col justify-center rounded-xl border border-white/[0.06] bg-[var(--color-panel-line)] p-5">
-                    <span class="text-xs font-bold uppercase tracking-wider text-muted">{i18n.t.status.label}</span>
-                    <span class="mt-1 text-lg font-bold text-white">{statusLabel}</span>
+    <!-- Ladder, not a stretched grid: two independent columns, each block sized by
+         its own content, so nothing stretches to match its neighbour and no black
+         holes open up. Below lg the columns are `display: contents`, so the blocks
+         fall back into one flow ordered Progress → Cast → Trailer → Studio → Notes. -->
+    <div class="grid w-full grid-cols-1 items-start gap-4 lg:grid-cols-2">
+        <!-- ЛЕВАЯ КОЛОНКА -->
+        <div class="contents lg:flex lg:min-w-0 lg:flex-col lg:gap-4">
+            <!-- 1. БЛОК ПРОГРЕССА: серии / страницы / главы, высота по содержимому -->
+            <div class="order-1 min-w-0">
+                {#if media.type === "game"}
+                    <GameDetailSection
+                        {progressValue}
+                        progressLabel={support?.label ?? i18n.t.detail.hoursLabel}
+                        {progressError}
+                        {onCounterChange}
+                        {achievements}
+                        {achievementsTotal}
+                        {achievementsLoading}
+                        {achievementsBusy}
+                        {achievementsTruncated}
+                        unlockedNames={unlockedAchievementNames}
+                        {onToggleAchievement}
+                        {onToggleAllAchievements}
+                    />
+                {:else if support && support.editable}
+                    <ProgressStepper
+                        progress={support}
+                        value={progressValue}
+                        percent={progressPercent}
+                        error={progressError}
+                        {onStep}
+                    />
+                {:else}
+                    <div class="flex flex-col justify-center rounded-xl border border-white/[0.06] bg-[var(--color-panel-line)] p-5 shadow-sm">
+                        <span class="text-xs font-bold uppercase tracking-wider text-muted">{i18n.t.status.label}</span>
+                        <span class="mt-1 text-lg font-bold text-white">{statusLabel}</span>
+                    </div>
+                {/if}
+            </div>
+
+            <!-- 3. БЛОК ВИДЕО / ТРЕЙЛЕРА: нативный плеер aspect-video -->
+            {#if media.trailerVideoId}
+                <div class="order-3 min-w-0">
+                    <TrailerSection trailerVideoId={media.trailerVideoId} title={media.title} />
                 </div>
             {/if}
         </div>
 
-        <div class="flex flex-col">
-            {#if creator}
-                <CreatorSection
-                    creatorName={creator.name}
-                    role={creator.role}
-                    imageUrl={media.creatorImageUrl ?? null}
-                    currentMediaId={media.id}
-                    {onOpenMedia}
-                    {onSearch}
-                />
-            {:else}
-                <div class="flex h-full min-h-[190px] items-center rounded-xl border border-white/[0.06] bg-[var(--color-panel-line)] p-5 text-sm text-muted">
-                    {i18n.t.creator.noCreator}
-                </div>
-            {/if}
-        </div>
+        <!-- ПРАВАЯ КОЛОНКА -->
+        <div class="contents lg:flex lg:min-w-0 lg:flex-col lg:gap-4">
+            <!-- 2. БЛОК АКТЕРОВ (СЭЙЮ) -->
+            <div class="order-2 min-w-0">
+                <CastSection {media} />
+            </div>
 
-        <div class="flex flex-col">
-            <TrailerSection trailerVideoId={media.trailerVideoId ?? null} title={media.title} />
-        </div>
+            <!-- 4. БЛОК СТУДИИ / АВТОРА -->
+            <div class="order-4 min-w-0">
+                {#if creator}
+                    <CreatorSection
+                        creatorName={creator.name}
+                        role={creator.role}
+                        imageUrl={media.creatorImageUrl ?? null}
+                        currentMediaId={media.id}
+                        {onOpenMedia}
+                        {onSearch}
+                    />
+                {:else}
+                    <div class="flex items-center rounded-xl border border-white/[0.06] bg-[var(--color-panel-line)] p-5 text-sm text-muted shadow-sm">
+                        {i18n.t.creator.noCreator}
+                    </div>
+                {/if}
+            </div>
 
-        <div class="flex flex-col">
-            <NotesSection notes={media.notes} {onEdit} />
+            <!-- 5. БЛОК ЗАМЕТОК -->
+            <div class="order-5 min-w-0">
+                <NotesSection notes={media.notes} {onEdit} />
+            </div>
         </div>
     </div>
-
-    <CastSection media={media} />
 </div>

@@ -123,7 +123,7 @@
 </script>
 
 <section
-    class="flex h-full min-h-[190px] flex-col items-center justify-center rounded-xl bg-[var(--color-panel-line)] p-5 shadow-sm border border-white/[0.06]"
+    class="flex flex-col items-center justify-center rounded-xl bg-[var(--color-panel-line)] p-5 shadow-sm border border-white/[0.06]"
 >
     <CircularCounter
         value={progressValue}

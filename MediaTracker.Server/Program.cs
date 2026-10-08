@@ -41,6 +41,7 @@ if (options.Error is { } cliError)
 // Self-check runs before any host/DB setup so it stays a pure, fast logic check.
 if (options.RunSelfCheck)
 {
+    ConsoleOutput.Attach();
     return RefactorSelfCheck.Run() == 0 ? 0 : 1;
 }
 

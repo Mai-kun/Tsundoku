@@ -22,7 +22,7 @@
              Upgrade path: bump to 4.1.2, take the free community key from
              licensing.sixlabors.com (or a sixlabors.lic file), then drop NU1902/NU1903
              from this list. -->
-        <NoWarn>$(NoWarn);NU1902;NU1903</NoWarn>
+        <NoWarn>$(NoWarn);NU1902;NU1903;NETSDK1194</NoWarn>
     </PropertyGroup>
 
     <PropertyGroup Condition="'$(Configuration)' == 'Release' and '$(RuntimeIdentifier)' == 'win-x64'">
@@ -77,5 +77,10 @@
         <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.12" />
         <PackageReference Include="OpenApiUi" Version="2.0.5" />
     </ItemGroup>
+
+    <!-- Close any running instance of Tsundoku on Windows before publish so locked files don't fail bundle generation -->
+    <Target Name="CloseRunningTsundoku" BeforeTargets="BeforePublish;PrepareForPublish" Condition="'$(OS)' == 'Windows_NT'">
+        <Exec Command="taskkill /F /IM Tsundoku.exe 2&gt;nul || exit 0" ContinueOnError="true" IgnoreExitCode="true" />
+    </Target>
 
 </Project>

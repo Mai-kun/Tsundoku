@@ -75,6 +75,7 @@ public static class MediaDetailProjection
             Tags = listFields.Tags,
             UserPlatform = listFields.UserPlatform,
             Notes = item.Notes,
+            QuotesJson = item.QuotesJson,
             Description = item.Description,
             TrailerVideoId = item.TrailerVideoId,
             CreatorImageUrl = item.CreatorImageUrl,

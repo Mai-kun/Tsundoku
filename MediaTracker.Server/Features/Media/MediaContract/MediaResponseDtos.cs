@@ -120,6 +120,8 @@ public sealed record MediaDetailDto : MediaListDto
 
     public string? Notes { get; init; }
 
+    public string? QuotesJson { get; init; }
+
     public string? Description { get; init; }
 
     public string? TrailerVideoId { get; init; }
@@ -351,6 +353,9 @@ public static class MediaResponseMapper
             Tags = listFields.Tags,
             UserPlatform = listFields.UserPlatform,
             Notes = item.Notes,
+            QuotesJson = item.QuotesJson,
+            Description = item.Description,
+            TrailerVideoId = item.TrailerVideoId,
             ExternalRatingsJson = item.ExternalRatingsJson,
             TranslatedSynopsis = item.TranslatedSynopsis,
             UnlockedAchievements = item.UnlockedAchievements,

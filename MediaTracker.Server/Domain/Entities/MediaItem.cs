@@ -18,6 +18,8 @@ public abstract class MediaItem
 
     public string? Notes { get; set; }
 
+    public string? QuotesJson { get; set; }
+
     public string? Description { get; set; }
 
     /// <summary>YouTube video identifier for the title's trailer, when a provider exposes one.</summary>

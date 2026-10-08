@@ -12,6 +12,8 @@ public sealed record UpdateMediaRequest
 
     public string? Notes { get; init; }
 
+    public string? QuotesJson { get; init; }
+
     public string? CoverUrl { get; init; }
 
     public DateTime? StartedAt { get; init; }

@@ -21,6 +21,7 @@ public static class MediaItemUpdater
         item.Title = request.Title ?? item.Title;
         item.Score = request.Score ?? item.Score;
         item.Notes = request.Notes ?? item.Notes;
+        item.QuotesJson = request.QuotesJson ?? item.QuotesJson;
         item.CoverUrl = request.CoverUrl ?? item.CoverUrl;
         item.StartedAt = request.StartedAt ?? item.StartedAt;
         item.FinishedAt = request.FinishedAt ?? item.FinishedAt;

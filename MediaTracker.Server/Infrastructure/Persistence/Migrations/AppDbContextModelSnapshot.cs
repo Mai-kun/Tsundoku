@@ -270,6 +270,9 @@ namespace MediaTracker.Server.Infrastructure.Persistence.Migrations
                     b.Property<string>("OriginalLanguage")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("QuotesJson")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("RecommendationsJson")
                         .HasColumnType("TEXT");
 

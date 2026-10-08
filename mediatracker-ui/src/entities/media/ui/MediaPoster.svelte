@@ -22,6 +22,7 @@
         <img
             {src}
             {alt}
+            referrerpolicy="no-referrer"
             class="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
             loading="lazy"
             decoding="async"

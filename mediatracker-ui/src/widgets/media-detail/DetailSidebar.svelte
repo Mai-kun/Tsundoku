@@ -128,6 +128,7 @@
             <img
                 src={fullSizeCoverUrl(media.coverUrl)}
                 alt={media.title}
+                referrerpolicy="no-referrer"
                 class="h-full w-full object-cover object-top"
             />
         {:else}

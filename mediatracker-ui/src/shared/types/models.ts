@@ -21,6 +21,13 @@ export interface ExternalEpisode {
   airDate?: string | null;
 }
 
+export interface MediaQuote {
+  id: string;
+  text: string;
+  pageOrContext?: string; // например: "стр. 142" или "Гл. 5"
+  createdAt: string;
+}
+
 /**
  * The card/list shape. The library screen fetches every item in one request, so free-text fields
  * that only the detail screen renders live in MediaDetailFields instead of here.
@@ -67,6 +74,7 @@ export interface MediaBase {
  */
 export interface MediaDetailFields {
   notes: string | null;
+  quotesJson?: string | null;
   description?: string | null;
   trailerVideoId?: string | null;
   cast?: CastMember[];

@@ -1,14 +1,19 @@
 <script lang="ts">
     import { i18n } from "$shared/i18n/index.svelte";
     import type { GameAchievementItem, MediaDetail } from "$shared/types";
+    import type { MediaStatus } from "$shared/types/enums";
     import type { ProgressInfo } from "../detailTypes";
     import ProgressStepper from "../ProgressStepper.svelte";
     import GameDetailSection from "../sections/GameDetailSection.svelte";
     import CreatorSection from "../sections/CreatorSection.svelte";
     import NotesSection from "../sections/NotesSection.svelte";
+    import QuotesSection from "../sections/QuotesSection.svelte";
     import QuickFactsSection from "../sections/QuickFactsSection.svelte";
     import CastSection from "../sections/CastSection.svelte";
     import TrailerSection from "../sections/TrailerSection.svelte";
+    import BookProgressSection from "../sections/BookProgressSection.svelte";
+    import BookEditionSection from "../sections/BookEditionSection.svelte";
+    import MovieStatusSection from "../sections/MovieStatusSection.svelte";
     import type { CreatorRole, MediaItem } from "$shared/types";
 
     interface Props {
@@ -32,6 +37,7 @@
         onOpenMedia: (item: MediaItem) => void;
         onSearch: (query: string) => void;
         onEdit: () => void;
+        onChangeStatus?: (status: MediaStatus) => void;
     }
 
     let {
@@ -53,6 +59,7 @@
         onOpenMedia,
         onSearch,
         onEdit,
+        onChangeStatus,
     }: Props = $props();
 
     const creator = $derived.by((): { name: string; role: CreatorRole; label: string } | null => {
@@ -119,6 +126,12 @@
             default: return i18n.t.status.dropped;
         }
     });
+
+    const isBook = $derived(media.type === "book");
+    const isManga = $derived(media.type === "manga");
+    const isMovie = $derived(media.type === "movie");
+    const hasQuotes = $derived(Boolean(media.quotesJson && media.quotesJson !== "[]"));
+    const showQuotes = $derived(isBook || isManga || hasQuotes);
 </script>
 
 <div class="space-y-5">
@@ -148,6 +161,20 @@
                         {onToggleAchievement}
                         {onToggleAllAchievements}
                     />
+                {:else if isBook && support}
+                    <!-- Книги: расширенный блок с временными расчётами -->
+                    <BookProgressSection
+                        totalPages={(media as { totalPages: number }).totalPages ?? 0}
+                        currentPage={(media as { currentPage: number }).currentPage ?? 0}
+                        progress={support}
+                        value={progressValue}
+                        percent={progressPercent}
+                        error={progressError}
+                        {onStep}
+                    />
+                {:else if isMovie}
+                    <!-- Фильмы: хронометраж + статус вместо плоской плашки -->
+                    <MovieStatusSection {media} {statusLabel} {onEdit} {onChangeStatus} />
                 {:else if support && support.editable}
                     <ProgressStepper
                         progress={support}
@@ -171,9 +198,16 @@
                 </div>
             {/if}
 
-            <!-- 5. БЛОК ЗАМЕТОК: closes the left column, which is what balances its height
+            <!-- 5. БЛОК ЦИТАТ: для книг, манги или тайтлов с сохраненными цитатами -->
+            {#if showQuotes}
+                <div class="order-5 min-w-0">
+                    <QuotesSection {media} />
+                </div>
+            {/if}
+
+            <!-- 7. БЛОК ЗАМЕТОК: closes the left column, which is what balances its height
                  against cast + creator on the right. -->
-            <div class="order-5 min-w-0">
+            <div class="order-7 min-w-0">
                 <NotesSection notes={media.notes} {onEdit} />
             </div>
         </div>
@@ -205,6 +239,13 @@
                     </div>
                 {/if}
             </div>
+
+            <!-- 6. Книги: карточка «Об издании» -->
+            {#if isBook}
+                <div class="order-6 min-w-0">
+                    <BookEditionSection media={media as (typeof media & { type: "book" })} />
+                </div>
+            {/if}
         </div>
     </div>
 </div>

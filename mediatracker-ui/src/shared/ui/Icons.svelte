@@ -23,6 +23,7 @@
     export { default as ExternalLink } from "lucide-svelte/icons/external-link";
     export { default as Eye } from "lucide-svelte/icons/eye";
     export { default as EyeOff } from "lucide-svelte/icons/eye-off";
+    export { default as Feather } from "lucide-svelte/icons/feather";
     export { default as Film } from "lucide-svelte/icons/film";
     export { default as Flag } from "lucide-svelte/icons/flag";
     export { default as Flame } from "lucide-svelte/icons/flame";
@@ -49,6 +50,7 @@
     export { default as Pencil } from "lucide-svelte/icons/pencil";
     export { default as Play } from "lucide-svelte/icons/play";
     export { default as Plus } from "lucide-svelte/icons/plus";
+    export { default as Quote } from "lucide-svelte/icons/quote";
     export { default as RefreshCw } from "lucide-svelte/icons/refresh-cw";
     export { default as RotateCcw } from "lucide-svelte/icons/rotate-ccw";
     export { default as Search } from "lucide-svelte/icons/search";

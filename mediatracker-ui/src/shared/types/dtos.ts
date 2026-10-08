@@ -160,6 +160,7 @@ export interface UpdateMediaPayload {
   score?: number | null;
   status?: MediaStatus;
   notes?: string | null;
+  quotesJson?: string | null;
   coverUrl?: string | null;
   startedAt?: string | null;
   finishedAt?: string | null;

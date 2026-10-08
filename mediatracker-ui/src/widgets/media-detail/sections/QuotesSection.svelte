@@ -147,28 +147,30 @@
 
         <div class="space-y-2.5">
             {#each quotes as quote (quote.id)}
-                <div class="group relative space-y-1.5 rounded-lg border-l-2 border-amber-400/50 bg-white/[0.02] p-3.5 pl-4 transition hover:border-amber-400 hover:bg-white/[0.04]">
+                <div class="group relative flex items-center justify-between gap-3 rounded-lg border-l-2 border-amber-400/50 bg-white/[0.02] p-3.5 pl-4 transition hover:border-amber-400 hover:bg-white/[0.04]">
+                    <div class="min-w-0 flex-1 space-y-1.5">
+                        <div>
+                            <span class="pointer-events-none select-none text-base text-amber-400/40 font-serif leading-none mr-1">“</span>
+                            <p class="inline text-sm italic leading-relaxed text-slate-200 font-serif">
+                                {quote.text}
+                            </p>
+                            <span class="pointer-events-none select-none text-base text-amber-400/40 font-serif leading-none ml-1">”</span>
+                        </div>
+                        {#if quote.pageOrContext}
+                            <div class="pointer-events-none select-none text-xs font-medium text-amber-300">
+                                — {quote.pageOrContext}
+                            </div>
+                        {/if}
+                    </div>
                     <button
                         type="button"
-                        class="absolute top-2.5 right-2.5 rounded-md p-1.5 text-muted opacity-0 transition group-hover:opacity-100 hover:bg-white/[0.06] hover:text-rose-400 cursor-pointer"
+                        class="tap size-8 grid place-items-center rounded-lg text-muted opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:text-rose-400 hover:bg-rose-500/15 transition-all cursor-pointer shrink-0 pointer-events-auto z-10"
                         onclick={() => handleDelete(quote.id)}
                         title={i18n.t.common.delete}
                         aria-label={i18n.t.common.delete}
                     >
-                        <Trash2 size={13} />
+                        <Trash2 size={15} />
                     </button>
-                    <div class="relative pr-6">
-                        <span class="pointer-events-none select-none text-base text-amber-400/40 font-serif leading-none mr-1">“</span>
-                        <p class="inline text-sm italic leading-relaxed text-slate-200 font-serif">
-                            {quote.text}
-                        </p>
-                        <span class="pointer-events-none select-none text-base text-amber-400/40 font-serif leading-none ml-1">”</span>
-                    </div>
-                    {#if quote.pageOrContext}
-                        <div class="text-xs font-medium text-amber-300">
-                            — {quote.pageOrContext}
-                        </div>
-                    {/if}
                 </div>
             {/each}
         </div>

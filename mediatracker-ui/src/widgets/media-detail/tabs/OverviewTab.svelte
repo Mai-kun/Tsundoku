@@ -55,18 +55,60 @@
         onEdit,
     }: Props = $props();
 
-    const creator = $derived.by((): { name: string; role: CreatorRole } | null => {
+    const creator = $derived.by((): { name: string; role: CreatorRole; label: string } | null => {
         if (media.type === "movie") {
-            if (media.director?.trim()) return { name: media.director.trim(), role: "director" };
-            if (media.studio?.trim()) return { name: media.studio.trim(), role: "studio" };
-        } else if (media.type === "book" || media.type === "manga") {
-            if (media.author?.trim()) return { name: media.author.trim(), role: "author" };
+            if (media.director?.trim()) {
+                return {
+                    name: media.director.trim(),
+                    role: "director",
+                    label: i18n.t.creator.director,
+                };
+            }
+            if (media.studio?.trim()) {
+                return {
+                    name: media.studio.trim(),
+                    role: "studio",
+                    label: i18n.t.creator.studio,
+                };
+            }
         } else if (media.type === "tvshow") {
-            const name = media.studio?.trim() || media.network?.trim();
-            if (name) return { name, role: "studio" };
+            if (media.studio?.trim()) {
+                return {
+                    name: media.studio.trim(),
+                    role: "studio",
+                    label: i18n.t.creator.studio,
+                };
+            }
+            if (media.network?.trim()) {
+                return {
+                    name: media.network.trim(),
+                    role: "studio",
+                    label: i18n.t.creator.network,
+                };
+            }
+        } else if (media.type === "book" || media.type === "manga") {
+            if (media.author?.trim()) {
+                return {
+                    name: media.author.trim(),
+                    role: "author",
+                    label: media.type === "manga" ? i18n.t.creator.mangaka : i18n.t.creator.author,
+                };
+            }
+        } else if (media.type === "game" && media.studio?.trim()) {
+            return {
+                name: media.studio.trim(),
+                role: "studio",
+                label: i18n.t.creator.developer,
+            };
         }
         return null;
     });
+
+    // The CastSection wrapper only renders when there is somebody to show, so books/manga (no cast
+    // at all) never pay for an empty order-2 cell -- no phantom gap, no misaligned row.
+    const hasCast = $derived(
+        (media.type === "movie" || media.type === "tvshow") && (media.cast?.length ?? 0) > 0,
+    );
 
     const statusLabel = $derived.by(() => {
         switch (media.status) {
@@ -128,14 +170,22 @@
                     <TrailerSection trailerVideoId={media.trailerVideoId} title={media.title} />
                 </div>
             {/if}
+
+            <!-- 5. БЛОК ЗАМЕТОК: closes the left column, which is what balances its height
+                 against cast + creator on the right. -->
+            <div class="order-5 min-w-0">
+                <NotesSection notes={media.notes} {onEdit} />
+            </div>
         </div>
 
         <!-- ПРАВАЯ КОЛОНКА -->
         <div class="contents lg:flex lg:min-w-0 lg:flex-col lg:gap-4">
             <!-- 2. БЛОК АКТЕРОВ (СЭЙЮ) -->
-            <div class="order-2 min-w-0">
-                <CastSection {media} />
-            </div>
+            {#if hasCast}
+                <div class="order-2 min-w-0">
+                    <CastSection {media} />
+                </div>
+            {/if}
 
             <!-- 4. БЛОК СТУДИИ / АВТОРА -->
             <div class="order-4 min-w-0">
@@ -143,6 +193,7 @@
                     <CreatorSection
                         creatorName={creator.name}
                         role={creator.role}
+                        label={creator.label}
                         imageUrl={media.creatorImageUrl ?? null}
                         currentMediaId={media.id}
                         {onOpenMedia}
@@ -153,11 +204,6 @@
                         {i18n.t.creator.noCreator}
                     </div>
                 {/if}
-            </div>
-
-            <!-- 5. БЛОК ЗАМЕТОК -->
-            <div class="order-5 min-w-0">
-                <NotesSection notes={media.notes} {onEdit} />
             </div>
         </div>
     </div>

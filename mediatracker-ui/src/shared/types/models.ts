@@ -96,6 +96,8 @@ export interface GameMedia extends MediaBase {
   type: "game";
   platform: string;
   hoursPlayed: number | null;
+  /** Developer reported by RAWG/Steam; drives the overview's creator card. */
+  studio?: string | null;
 }
 
 export interface BookMedia extends MediaBase {

@@ -236,6 +236,7 @@ public static class MediaResponseMapper
             {
                 Platform = game.Platform,
                 HoursPlayed = game.HoursPlayed,
+                Studio = game.Studio,
             },
             Book book => dto with
             {

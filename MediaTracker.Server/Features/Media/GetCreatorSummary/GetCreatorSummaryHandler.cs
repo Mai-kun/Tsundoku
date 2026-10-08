@@ -38,7 +38,8 @@ public sealed class GetCreatorSummaryHandler(AppDbContext db) : IGetCreatorSumma
                 .Include(item => (item as TvShow)!.Seasons)
                 .Where(item =>
                     item is Movie && ((Movie)item).Studio == name
-                    || item is TvShow && (((TvShow)item).Studio == name || ((TvShow)item).Network == name)),
+                    || item is TvShow && (((TvShow)item).Studio == name || ((TvShow)item).Network == name)
+                    || item is VideoGame && ((VideoGame)item).Studio == name),
             _ => query.Where(_ => false),
         };
 

@@ -158,6 +158,9 @@ export const translations = {
         director: { ru: "Режиссёр", en: "Director" },
         author: { ru: "Автор", en: "Author" },
         studio: { ru: "Студия", en: "Studio" },
+        network: { ru: "Телесеть", en: "Network" },
+        mangaka: { ru: "Мангака", en: "Mangaka" },
+        developer: { ru: "Разработчик", en: "Developer" },
         inLibrary: { ru: "В вашей медиатеке", en: "In your library" },
         titlesCount: {
             ru: (count: number) => {
@@ -466,8 +469,8 @@ export const translations = {
         },
         trailerNotFound: { ru: "Трейлер не найден", en: "Trailer not found" },
         trailerTitle: { ru: "Трейлер", en: "Trailer" },
-        castTitle: { ru: "Актёрский состав", en: "Cast" },
-        voiceActorsTitle: { ru: "Актёры озвучки (сэйю)", en: "Voice actors" },
+        castTitle: { ru: "В главных ролях", en: "Cast" },
+        voiceActorsTitle: { ru: "Актёры озвучки (сэйю)", en: "Voice Cast" },
         formatMovie: { ru: "Фильм", en: "Movie" },
         formatSeries: { ru: "Сериал", en: "Series" },
         formatAnime: { ru: "Аниме", en: "Anime" },

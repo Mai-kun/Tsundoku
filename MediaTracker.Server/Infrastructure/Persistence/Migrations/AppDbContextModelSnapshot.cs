@@ -516,6 +516,9 @@ namespace MediaTracker.Server.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Studio")
+                        .HasColumnType("TEXT");
+
                     b.HasDiscriminator().HasValue("Game");
                 });
 

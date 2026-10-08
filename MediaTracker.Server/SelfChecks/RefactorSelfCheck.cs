@@ -40,6 +40,7 @@ public static class RefactorSelfCheck
         CheckMangaGapEnrichmentDoesNotOverwrite(failures);
         CheckMergeKeepsRuntimeAndGenres(failures);
         CheckMergeCarriesCastAndTrailer(failures);
+        CheckEnrichStoresGameDeveloper(failures);
         CheckMergeKeepsFinalChapterTotal(failures);
         CheckRelatedMediaSurvivesRoundTrip(failures);
         CheckMissingMetadataDrivesCascade(failures);
@@ -552,6 +553,34 @@ public static class RefactorSelfCheck
             MediaMerger.HasMissingMetadata(merged, "tvshow"),
             "a show with cast and a trailer stops the cascade"
         );
+    }
+
+    private static void CheckEnrichStoresGameDeveloper(List<string> failures)
+    {
+        var game = new VideoGame { Title = "PAYDAY 2", HoursPlayed = 34, Platform = "PC" };
+
+        MediaMetadataApplier.ApplyIfMissing(
+            game,
+            new ExternalMediaDto
+            {
+                ExternalId = "rawg/1",
+                Title = "PAYDAY 2",
+                Type = "game",
+                Platform = "PC",
+                Studio = "Overkill Software",
+            });
+
+        AssertEqual(
+            failures,
+            "Overkill Software",
+            game.Studio,
+            "enrichment keeps the developer the overview's creator card shows"
+        );
+        AssertEqual(failures, 34, game.HoursPlayed, "the played hours survive enrichment");
+
+        // A refresh may restate the developer, but a blank source must never wipe the known one.
+        MediaMetadataApplier.ApplyIfMissing(game, new ExternalMediaDto { ExternalId = "rawg/1", Title = "PAYDAY 2", Type = "game" });
+        AssertEqual(failures, "Overkill Software", game.Studio, "a source without a developer keeps the stored one");
     }
 
     private static void CheckMergeKeepsFinalChapterTotal(List<string> failures)

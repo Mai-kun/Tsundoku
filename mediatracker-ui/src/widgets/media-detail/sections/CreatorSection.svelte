@@ -7,13 +7,23 @@
     interface Props {
         creatorName: string;
         role: CreatorRole;
+        /** Overrides the role's default caption (network, mangaka, developer). */
+        label?: string | null;
         currentMediaId: string;
         imageUrl?: string | null;
         onOpenMedia: (item: MediaItem) => void;
         onSearch: (query: string) => void;
     }
 
-    let { creatorName, role, currentMediaId, imageUrl = null, onOpenMedia, onSearch }: Props = $props();
+    let {
+        creatorName,
+        role,
+        label = null,
+        currentMediaId,
+        imageUrl = null,
+        onOpenMedia,
+        onSearch,
+    }: Props = $props();
     let summary = $state<Awaited<ReturnType<typeof getCreatorSummary>>>(null);
     let loading = $state(true);
 
@@ -72,7 +82,7 @@
                 </span>
             {/if}
             <div class="min-w-0">
-                <p class="text-xs font-semibold uppercase tracking-[0.16em] text-muted">{i18n.t.creator[role]}</p>
+                <p class="text-xs font-semibold uppercase tracking-[0.16em] text-muted">{label ?? i18n.t.creator[role]}</p>
                 <h2 class="truncate text-xl font-bold text-ink">{creatorName}</h2>
             </div>
         </div>

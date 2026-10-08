@@ -244,6 +244,12 @@ public static class MediaMetadataApplier
 
                 modified |= SetIfBlank(book.Author, external.Author, value => book.Author = value);
                 break;
+
+            case VideoGame game:
+                // Steam and RAWG both report the developers; without this branch enrichment threw
+                // the list away and the overview's "Разработчик" card had nothing to render.
+                modified |= SetIfBlank(game.Studio, external.Studio, value => game.Studio = value);
+                break;
         }
 
         modified |= SetIfNull(item.ReleaseYear, external.ReleaseYear is > 0 ? external.ReleaseYear : null,
@@ -389,6 +395,7 @@ public static class MediaMetadataApplier
                 break;
             case VideoGame game:
                 if (!string.IsNullOrWhiteSpace(external.Platform)) game.Platform = external.Platform;
+                if (!string.IsNullOrWhiteSpace(external.Studio)) game.Studio = external.Studio;
                 break;
         }
     }

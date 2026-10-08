@@ -96,6 +96,9 @@ public sealed record ExternalMediaDto
 
     public string? Author { get; init; }
 
+    /// <summary>Movie/TV director name. Separate from Author so movies and books never cross-wire.</summary>
+    public string? Director { get; init; }
+
     public string? Studio { get; init; }
 
     public int? TotalCount { get; init; }

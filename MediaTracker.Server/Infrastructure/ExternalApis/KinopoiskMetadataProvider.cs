@@ -1,3 +1,4 @@
+using System.Net.Http.Json;
 using System.Diagnostics;
 using System.Globalization;
 using System.Text.Json.Serialization;
@@ -107,8 +108,10 @@ public sealed class KinopoiskMetadataProvider(
             // runtime and its real start/end dates only exist once that call is made. A movie has
             // no seasons, so this is skipped for it.
             var seasons = _mediaType == "tvshow" ? await FetchSeasonsAsync(client, key, externalId, ct) : [];
+            var (director, cast) = await FetchStaffAsync(client, key, externalId, ct);
+            var trailerVideoId = await FetchTrailerAsync(client, key, externalId, ct);
 
-            return MapDetailItem(item, _mediaType, seasons);
+            return MapDetailItem(item, _mediaType, seasons, director, cast, trailerVideoId);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
@@ -184,6 +187,72 @@ public sealed class KinopoiskMetadataProvider(
             // Seasons are an enrichment; the film itself is still usable without them.
             return [];
         }
+    }
+
+    private async Task<(string? Director, IReadOnlyList<CastMemberDto>? Cast)> FetchStaffAsync(
+        HttpClient client, string key, string externalId, CancellationToken ct)
+    {
+        try
+        {
+            using var req = new HttpRequestMessage(HttpMethod.Get, $"v1/staff?filmId={Uri.EscapeDataString(externalId)}");
+            req.Headers.Add("X-API-KEY", key);
+            using var resp = await client.SendAsync(req, ct);
+            if (!resp.IsSuccessStatusCode) return (null, null);
+
+            var staff = await resp.Content.ReadFromJsonAsync<List<KinopoiskStaffMember>>(ct);
+            if (staff is null or { Count: 0 }) return (null, null);
+
+            var director = staff
+                .FirstOrDefault(s => string.Equals(s.ProfessionKey, "DIRECTOR", StringComparison.OrdinalIgnoreCase))
+                ?.NameRu ?? staff
+                    .FirstOrDefault(s => string.Equals(s.ProfessionKey, "DIRECTOR", StringComparison.OrdinalIgnoreCase))
+                    ?.NameEn;
+
+            var cast = staff
+                .Where(s => string.Equals(s.ProfessionKey, "ACTOR", StringComparison.OrdinalIgnoreCase)
+                    && !string.IsNullOrWhiteSpace(s.NameRu ?? s.NameEn))
+                .Take(6)
+                .Select(s => new CastMemberDto(
+                    !string.IsNullOrWhiteSpace(s.NameRu) ? s.NameRu : s.NameEn!,
+                    s.Description,
+                    s.PosterUrl))
+                .ToList();
+
+            return (director, cast.Count > 0 ? cast : null);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+        catch { return (null, null); }
+    }
+
+    private async Task<string?> FetchTrailerAsync(
+        HttpClient client, string key, string externalId, CancellationToken ct)
+    {
+        try
+        {
+            using var req = new HttpRequestMessage(HttpMethod.Get, $"v2.2/films/{Uri.EscapeDataString(externalId)}/videos");
+            req.Headers.Add("X-API-KEY", key);
+            using var resp = await client.SendAsync(req, ct);
+            if (!resp.IsSuccessStatusCode) return null;
+
+            var body = await resp.Content.ReadFromJsonAsync<KinopoiskVideosResponse>(ct);
+            var yt = body?.Items?.FirstOrDefault(v =>
+                !string.IsNullOrWhiteSpace(v.Url) && v.Url.Contains("youtube", StringComparison.OrdinalIgnoreCase));
+            if (yt?.Url is null) return null;
+
+            // Extract video ID from YouTube URL (e.g. ?v=XXXX or /embed/XXXX)
+            var url = yt.Url;
+            var vIdx = url.IndexOf("v=", StringComparison.OrdinalIgnoreCase);
+            if (vIdx >= 0)
+            {
+                var id = url[(vIdx + 2)..];
+                var amp = id.IndexOf('&');
+                return amp >= 0 ? id[..amp] : id;
+            }
+            var embedIdx = url.LastIndexOf('/');
+            return embedIdx >= 0 && embedIdx < url.Length - 1 ? url[(embedIdx + 1)..] : null;
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+        catch { return null; }
     }
 
     public override async Task<ConnectionTestResult> TestConnectionAsync(CancellationToken ct)
@@ -371,7 +440,10 @@ public sealed class KinopoiskMetadataProvider(
     private static ExternalMediaDto MapDetailItem(
         KinopoiskDetailItem item,
         string type,
-        IReadOnlyList<ExternalSeasonDto> seasons
+        IReadOnlyList<ExternalSeasonDto> seasons,
+        string? director = null,
+        IReadOnlyList<CastMemberDto>? cast = null,
+        string? trailerVideoId = null
     )
     {
         // Kinopoisk mirrors the IMDb score, so it is listed under its own name: folding it into the
@@ -457,6 +529,9 @@ public sealed class KinopoiskMetadataProvider(
             Genres = item.Genres is { Count: > 0 } genres
                 ? [.. genres.Select(genre => genre.Genre).OfType<string>()]
                 : null,
+            Director = director,
+            Cast = cast,
+            TrailerVideoId = trailerVideoId,
         };
     }
 
@@ -586,6 +661,45 @@ public sealed class KinopoiskMetadataProvider(
     {
         [JsonPropertyName("name")]
         public string? Name { get; set; }
+    }
+
+    private sealed class KinopoiskStaffMember
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("nameRu")]
+        public string? NameRu { get; set; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("nameEn")]
+        public string? NameEn { get; set; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("professionKey")]
+        public string? ProfessionKey { get; set; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("description")]
+        public string? Description { get; set; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("posterUrl")]
+        public string? PosterUrl { get; set; }
+    }
+
+    private sealed class KinopoiskVideosResponse
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("total")]
+        public int? Total { get; set; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("items")]
+        public List<KinopoiskVideoItem>? Items { get; set; }
+    }
+
+    private sealed class KinopoiskVideoItem
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("url")]
+        public string? Url { get; set; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("name")]
+        public string? Name { get; set; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("site")]
+        public string? Site { get; set; }
     }
 
     private sealed class KinopoiskSeasonsResponse

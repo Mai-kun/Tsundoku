@@ -203,7 +203,7 @@ public static class MediaMetadataApplier
                 }
 
                 modified |= SetIfBlank(movie.Studio, external.Studio, value => movie.Studio = value);
-                modified |= SetIfBlank(movie.Director, external.Author, value => movie.Director = value);
+                modified |= SetIfBlank(movie.Director, external.Director ?? external.Author, value => movie.Director = value);
                 modified |= SetIfBlank(movie.RomajiTitle, external.OriginalTitle, value => movie.RomajiTitle = value);
                 break;
 
@@ -380,6 +380,8 @@ public static class MediaMetadataApplier
                 else if (external.TotalCount is > 0) movie.DurationMinutes = external.TotalCount.Value;
                 if (!string.IsNullOrWhiteSpace(external.Studio)) movie.Studio = external.Studio;
                 if (!string.IsNullOrWhiteSpace(external.OriginalTitle)) movie.RomajiTitle = external.OriginalTitle;
+                if (!string.IsNullOrWhiteSpace(external.Director)) movie.Director = external.Director;
+                else if (!string.IsNullOrWhiteSpace(external.Author)) movie.Director = external.Author;
                 break;
             case Book book:
                 if (external.TotalCount is > 0) book.TotalPages = external.TotalCount.Value;

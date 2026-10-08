@@ -154,6 +154,10 @@ public sealed class TmdbMetadataProvider(
                     cast.Character,
                     ImageUrl(cast.ProfilePath, "w185")))
                 .ToList(),
+            Director = isMovie
+                ? item.Credits?.Crew?
+                    .FirstOrDefault(c => string.Equals(c.Job, "Director", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(c.Name))?.Name
+                : null,
             CreatorImageUrl = isMovie
                 ? ImageUrl(
                     item.Credits?.Crew?
@@ -219,6 +223,7 @@ public sealed class TmdbMetadataProvider(
         [property: JsonPropertyName("crew")] List<TmdbCrewMember>? Crew);
 
     private sealed record TmdbCrewMember(
+        [property: JsonPropertyName("name")] string? Name,
         [property: JsonPropertyName("job")] string? Job,
         [property: JsonPropertyName("profile_path")] string? ProfilePath);
 

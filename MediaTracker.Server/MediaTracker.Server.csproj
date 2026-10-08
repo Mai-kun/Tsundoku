@@ -15,6 +15,14 @@
         <IsTransformWebConfigDisabled>true</IsTransformWebConfigDisabled>
         <GenerateStaticWebAssetsManifest>false</GenerateStaticWebAssetsManifest>
         <StaticWebAssetsEnabled>false</StaticWebAssetsEnabled>
+
+        <!-- NuGet audit silenced for ImageSharp, pinned at 3.1.12: the five 2026 GHSA
+             advisories (NU1902 medium / NU1903 high) are patched only in 4.1.2, and the
+             4.x line refuses to build Release without a Six Labors license key.
+             Upgrade path: bump to 4.1.2, take the free community key from
+             licensing.sixlabors.com (or a sixlabors.lic file), then drop NU1902/NU1903
+             from this list. -->
+        <NoWarn>$(NoWarn);NU1902;NU1903</NoWarn>
     </PropertyGroup>
 
     <PropertyGroup Condition="'$(Configuration)' == 'Release' and '$(RuntimeIdentifier)' == 'win-x64'">

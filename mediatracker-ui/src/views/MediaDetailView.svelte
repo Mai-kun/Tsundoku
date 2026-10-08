@@ -1,4 +1,4 @@
-﻿<script lang="ts">
+<script lang="ts">
     import { ArrowLeft, ArrowUpDown, Bookmark, CalendarDays, Check, CheckCircle2, ChevronDown, ExternalLink, Eye, GitBranch, Image as ImageIcon, Languages, Layers, LoaderCircle, LayoutGrid, List, Minus, Pause, Pencil, Play, Plus, RefreshCw, RotateCcw, Sparkles, Star, Trash2, Trophy, X } from "$shared/ui/Icons.svelte";
     import {
         createMedia,
@@ -1962,6 +1962,7 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
                         {onSearch}
                         onToggleAchievement={toggleAchievement}
                         onToggleAllAchievements={toggleAllAchievements}
+                        onChangeStatus={changeStatus}
                     />
                 {:else if activeSubTab === "related"}
                     <RelatedTab

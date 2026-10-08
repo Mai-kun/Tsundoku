@@ -49,7 +49,10 @@ public sealed class ImageStorageService(
                 return externalUrl;
             }
 
-            var coverDirectory = Path.Combine(GetCoverDirectory(itemId), folder);
+            // One path, one URL: <title>/<folder>/... is exactly what the returned URL and the
+            // /media-assets static route resolve, so nesting another "cover" under GetCoverDirectory
+            // used to write cover/cover/ while the browser asked for cover/ and got a 404.
+            var coverDirectory = Path.Combine(appPaths.MediaDirectory, itemId.ToString(), folder);
             Directory.CreateDirectory(coverDirectory);
 
             var originalPath = Path.Combine(coverDirectory, "original.webp");
@@ -201,7 +204,4 @@ public sealed class ImageStorageService(
     }
 
     private string GetCoversPath() => appPaths.CoversDirectory;
-
-    private string GetCoverDirectory(Guid mediaId) =>
-        Path.Combine(appPaths.MediaDirectory, mediaId.ToString(), "cover");
 }

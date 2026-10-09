@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { Flag, History, LoaderCircle, Plus, RefreshCw, Star, Trash2 } from "$shared/ui/Icons.svelte";
+    import { History, LoaderCircle, RefreshCw, Trash2, Flag } from "$shared/ui/Icons.svelte";
     import {
         clearAllHistory,
         deleteHistoryEvent,
@@ -8,7 +8,11 @@
     } from "$shared/api/api";
     import { showToast } from "$shared/ui/toast.svelte";
     import { i18n } from "$shared/i18n/index.svelte";
-    import type { HistoryEvent, HistoryEventType } from "$shared/types";
+    import type { HistoryEvent } from "$shared/types";
+    import {
+        formatHistoryEventLabel,
+        HISTORY_EVENT_ICONS,
+    } from "$shared/utils/historyFormatters";
 
     interface Props {
         refreshKey: number;
@@ -16,6 +20,7 @@
 
     let { refreshKey }: Props = $props();
 
+    let selectedDate = $state("");
     let events = $state<HistoryEvent[]>([]);
     let loading = $state(true);
     let loadError = $state<unknown>(null);
@@ -25,6 +30,7 @@
 
     $effect(() => {
         void refreshKey;
+        void selectedDate;
         void loadEvents(++requestSequence);
     });
 
@@ -33,7 +39,9 @@
         loadError = null;
 
         try {
-            const nextEvents = await getHistoryEvents();
+            const nextEvents = await getHistoryEvents({
+                date: selectedDate || undefined,
+            });
             if (sequence === requestSequence) {
                 events = nextEvents;
             }
@@ -57,35 +65,6 @@
             dateStyle: "medium",
             timeStyle: "short",
         }).format(new Date(value));
-    }
-
-    const EVENT_LABELS: Record<HistoryEventType, string> = {
-        Added: "добавлено",
-        StatusChanged: "статус изменён",
-        ScoreChanged: "рейтинг изменён",
-        ProgressChanged: "прогресс изменён",
-        Deleted: "удалено",
-        AchievementUnlocked: "достижение получено",
-    };
-
-    const EVENT_ICONS: Record<HistoryEventType, typeof Flag> = {
-        Added: Plus,
-        StatusChanged: Flag,
-        ScoreChanged: Star,
-        ProgressChanged: RefreshCw,
-        Deleted: Trash2,
-        AchievementUnlocked: Star,
-    };
-
-    function eventLabel(event: HistoryEvent): string {
-        const base =
-            i18n.current === "ru"
-                ? EVENT_LABELS[event.type]
-                : event.type.replace(/([A-Z])/g, " $1").toLowerCase();
-        const parts = [base];
-        if (event.oldValue) parts.push(`${event.oldValue} → `);
-        if (event.newValue) parts.push(event.newValue);
-        return parts.join(" ").trim();
     }
 
     async function handleDeleteEvent(event: HistoryEvent) {
@@ -142,24 +121,44 @@
             <p class="mt-2 text-sm text-muted">{i18n.t.views.historyHint}</p>
         </div>
 
-        {#if events.length > 0}
-            <button
-                type="button"
-                class="inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-field px-3 py-1.5 text-xs font-semibold text-rose-400 transition hover:bg-rose-500/10 hover:border-rose-500/40 cursor-pointer disabled:opacity-50"
-                disabled={clearing}
-                onclick={handleClearAll}
-            >
-                <Trash2 size={13} />
-                <span>{i18n.t.views.clearHistory}</span>
-            </button>
-        {/if}
+        <div class="flex flex-wrap items-center gap-2">
+            <div class="flex items-center gap-1.5">
+                <input
+                    type="date"
+                    bind:value={selectedDate}
+                    class="h-8 rounded-lg border border-white/10 bg-field px-2.5 text-xs text-white outline-none focus:border-accent focus:ring-1 focus:ring-accent transition cursor-pointer"
+                    aria-label={i18n.t.views.filterByDate}
+                />
+                {#if selectedDate}
+                    <button
+                        type="button"
+                        class="h-8 rounded-lg border border-white/10 bg-field px-2.5 text-xs text-muted hover:text-white transition cursor-pointer"
+                        onclick={() => (selectedDate = "")}
+                    >
+                        {i18n.t.views.resetDate}
+                    </button>
+                {/if}
+            </div>
+
+            {#if events.length > 0}
+                <button
+                    type="button"
+                    class="inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-field px-3 py-1.5 text-xs font-semibold text-rose-400 transition hover:bg-rose-500/10 hover:border-rose-500/40 cursor-pointer disabled:opacity-50"
+                    disabled={clearing}
+                    onclick={handleClearAll}
+                >
+                    <Trash2 size={13} />
+                    <span>{i18n.t.views.clearHistory}</span>
+                </button>
+            {/if}
+        </div>
     </div>
 
     {#if loading}
         <div class="space-y-3" aria-hidden="true">
-            {#each Array(4) as _, index (index)}<div
-                    class="h-16 animate-pulse rounded-lg bg-card"
-                ></div>{/each}
+            {#each Array(4) as _, index (index)}
+                <div class="h-16 animate-pulse rounded-lg bg-card"></div>
+            {/each}
         </div>
         <p class="sr-only" role="status">{i18n.t.common.loading}</p>
     {:else if loadError}
@@ -171,11 +170,12 @@
             </p>
             <button
                 type="button"
-                class="inline-flex items-center gap-2 rounded-md bg-accent px-4 py-2 text-sm font-medium text-white transition hover:bg-accent-hover"
+                class="inline-flex items-center gap-2 rounded-md bg-accent px-4 py-2 text-sm font-medium text-white transition hover:bg-accent-hover cursor-pointer"
                 onclick={retry}
-                ><RefreshCw size={15} aria-hidden="true" />{i18n.t.common
-                    .retry}</button
             >
+                <RefreshCw size={15} aria-hidden="true" />
+                {i18n.t.common.retry}
+            </button>
         </div>
     {:else if events.length === 0}
         <div
@@ -186,12 +186,16 @@
             >
                 <History size={22} aria-hidden="true" />
             </div>
-            <p class="text-sm text-muted">{i18n.t.common.noData}</p>
+            <p class="text-sm text-muted">
+                {selectedDate
+                    ? i18n.t.views.noActivityForDate
+                    : i18n.t.common.noData}
+            </p>
         </div>
     {:else}
         <ol class="space-y-3">
             {#each events as event (event.id)}
-                {@const Icon = EVENT_ICONS[event.type]}
+                {@const Icon = HISTORY_EVENT_ICONS[event.type] ?? Flag}
                 <li
                     class="group/list flex items-center gap-4 rounded-lg bg-card p-4 transition hover:bg-card/80"
                 >
@@ -205,7 +209,7 @@
                             {event.title ?? "—"}
                         </p>
                         <p class="mt-1 text-xs text-muted">
-                            {eventLabel(event)}
+                            {formatHistoryEventLabel(event)}
                         </p>
                     </div>
                     <div class="flex shrink-0 items-center gap-2">

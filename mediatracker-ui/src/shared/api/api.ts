@@ -504,8 +504,12 @@ export function getMediaRecommendations(
   );
 }
 
-export function getHistoryEvents(): Promise<HistoryEvent[]> {
-  return requestJson<HistoryEvent[]>("/api/history");
+export function getHistoryEvents(params?: { mediaId?: string; date?: string }): Promise<HistoryEvent[]> {
+  const query = new URLSearchParams();
+  if (params?.mediaId) query.set("mediaId", params.mediaId);
+  if (params?.date) query.set("date", params.date);
+  const qs = query.toString();
+  return requestJson<HistoryEvent[]>(`/api/history${qs ? `?${qs}` : ""}`);
 }
 
 export function clearAllHistory(): Promise<void> {

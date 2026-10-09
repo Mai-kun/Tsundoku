@@ -166,8 +166,8 @@ public static class MediaEndpoints
 
         var historyGroup = app.MapGroup("/api/history");
 
-        historyGroup.MapGet("/", ([FromServices] IGetHistoryEventsHandler handler, CancellationToken ct) =>
-            handler.HandleAsync(ct).ToOk());
+        historyGroup.MapGet("/", (Guid? mediaId, DateOnly? date, [FromServices] IGetHistoryEventsHandler handler, CancellationToken ct) =>
+            handler.HandleAsync(new GetHistoryEventsQuery(mediaId, date), ct).ToOk());
 
         historyGroup.MapDelete("/", ([FromServices] IClearHistoryHandler handler, CancellationToken ct) =>
             handler.HandleAsync(ct).ToNoContent());

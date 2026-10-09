@@ -11,6 +11,10 @@ using MediaTracker.Server.Infrastructure.ExternalApis;
 using MediaTracker.Server.Infrastructure.Persistence.Interceptors;
 using MediaTracker.Server.Infrastructure.Storage;
 using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
+using MediaTracker.Server.Domain.Enums;
+using MediaTracker.Server.Features.History.GetHistoryEvents;
+using MediaTracker.Server.Infrastructure.Persistence;
 using Microsoft.Extensions.DependencyInjection;
 using MediaDetailDto = MediaTracker.Server.Features.Media.MediaContract.MediaDetailDto;
 using MediaListDto = MediaTracker.Server.Features.Media.MediaContract.MediaListDto;
@@ -81,6 +85,7 @@ public static class RefactorSelfCheck
         CheckAdvancedStatsCalculation(failures);
         CheckAllMetadataProvidersSupportGenres(failures);
         CheckLetterboxdCsvImportParser(failures);
+        CheckHistoryEventsFiltering(failures);
 
         if (failures.Count == 0)
         {
@@ -107,6 +112,64 @@ public static class RefactorSelfCheck
             AssertEqual<int?>(failures, 9, parsed[0].Score, "Letterboxd half-star conversion");
             AssertEqual<int?>(failures, 1999, parsed[0].ReleaseYear, "Letterboxd release year");
         }
+    }
+
+    private static void CheckHistoryEventsFiltering(List<string> failures)
+    {
+        using var connection = new SqliteConnection("DataSource=:memory:");
+        connection.Open();
+        var options = new DbContextOptionsBuilder<AppDbContext>().UseSqlite(connection).Options;
+        using var db = new AppDbContext(options);
+        db.Database.EnsureCreated();
+
+        var media1 = Guid.NewGuid();
+        var media2 = Guid.NewGuid();
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var yesterday = today.AddDays(-1);
+
+        db.Books.Add(new Book { Id = media1, Title = "Book 1", Author = "Author 1", CurrentPage = 10 });
+        db.TvShows.Add(new TvShow { Id = media2, Title = "Show 1" });
+
+        var event1 = new MediaEvent
+        {
+            MediaId = media1,
+            Type = MediaEventType.ProgressChanged,
+            OldValue = "10 стр.",
+            NewValue = "20 стр.",
+            CreatedAt = today.ToDateTime(new TimeOnly(10, 0), DateTimeKind.Utc)
+        };
+        var event2 = new MediaEvent
+        {
+            MediaId = media1,
+            Type = MediaEventType.StatusChanged,
+            OldValue = "Planned",
+            NewValue = "InProgress",
+            CreatedAt = yesterday.ToDateTime(new TimeOnly(12, 0), DateTimeKind.Utc)
+        };
+        var event3 = new MediaEvent
+        {
+            MediaId = media2,
+            Type = MediaEventType.ProgressChanged,
+            OldValue = "S1 E1",
+            NewValue = "S1 E2",
+            CreatedAt = today.ToDateTime(new TimeOnly(15, 0), DateTimeKind.Utc)
+        };
+
+        db.Events.AddRange(event1, event2, event3);
+        db.SaveChanges();
+
+        var handler = new GetHistoryEventsHandler(db);
+
+        var media1Events = handler.HandleAsync(new GetHistoryEventsQuery(MediaId: media1), CancellationToken.None).GetAwaiter().GetResult().Value!;
+        AssertEqual(failures, 2, media1Events.Count, "media1 has 2 events");
+
+        var todayEvents = handler.HandleAsync(new GetHistoryEventsQuery(Date: today), CancellationToken.None).GetAwaiter().GetResult().Value!;
+        AssertEqual(failures, 2, todayEvents.Count, "today has 2 events");
+
+        var bothEvents = handler.HandleAsync(new GetHistoryEventsQuery(MediaId: media1, Date: today), CancellationToken.None).GetAwaiter().GetResult().Value!;
+        AssertEqual(failures, 1, bothEvents.Count, "media1 today has 1 event");
+        AssertEqual(failures, "10 стр.", bothEvents[0].OldValue, "old value matches");
+        AssertEqual(failures, "20 стр.", bothEvents[0].NewValue, "new value matches");
     }
 
     private static void CheckSourceAliases(List<string> failures)

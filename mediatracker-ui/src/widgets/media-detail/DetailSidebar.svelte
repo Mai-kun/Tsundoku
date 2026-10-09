@@ -1,6 +1,7 @@
 <script lang="ts">
     import { CalendarDays, ChevronDown, ExternalLink, Image as ImageIcon, Link2, Pencil, RefreshCw, Sparkles, Star, Trash2 } from "$shared/ui/Icons.svelte";
     import ListPicker from "$features/lists/ListPicker.svelte";
+    import MediaActivityModal from "./MediaActivityModal.svelte";
     import { errorMessage } from "$shared/api/api";
     import { fullSizeCoverUrl } from "$entities/media/model/coverUrl";
     import PopoverMenu from "$shared/ui/PopoverMenu.svelte";
@@ -90,6 +91,8 @@
         specRows,
         syncing = false,
     }: Props = $props();
+
+    let isActivityOpen = $state(false);
 
     const statusMenuItems = $derived(
         statusOptions.map((value) => ({ value, label: statusLabel(value) })),
@@ -495,7 +498,7 @@
             <button
                 type="button"
                 class="flex w-full items-center gap-2.5 rounded-lg bg-surface/50 px-3 py-2.5 text-xs font-medium text-[var(--color-ink-dim)] transition hover:bg-[var(--color-panel-raised)] hover:text-white"
-                onclick={() => onNavigate("calendar")}
+                onclick={() => (isActivityOpen = true)}
             >
                 <CalendarDays
                     size={15}
@@ -579,3 +582,10 @@
         </div>
     </div>
 </aside>
+
+<MediaActivityModal
+    isOpen={isActivityOpen}
+    mediaId={media.id}
+    title={media.title}
+    onClose={() => (isActivityOpen = false)}
+/>

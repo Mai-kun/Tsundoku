@@ -39,7 +39,7 @@ public sealed class UpdateSeasonProgressHandler(
         var season = await db.TvSeasons
             .AsNoTracking()
             .Where(item => item.Id == command.SeasonId)
-            .Select(item => new { item.TotalEpisodes, item.TvShowId, item.CurrentEpisode })
+            .Select(item => new { item.TotalEpisodes, item.TvShowId, item.CurrentEpisode, item.SeasonNumber })
             .FirstOrDefaultAsync(ct);
 
         if (season is null)
@@ -62,8 +62,9 @@ public sealed class UpdateSeasonProgressHandler(
             {
                 MediaId = season.TvShowId,
                 Type = MediaEventType.ProgressChanged,
-                OldValue = season.CurrentEpisode.ToString(),
-                NewValue = currentEpisode.ToString(),
+                OldValue = $"S{season.SeasonNumber} E{season.CurrentEpisode}",
+                NewValue = $"S{season.SeasonNumber} E{currentEpisode}",
+                CreatedAt = DateTime.UtcNow
             });
             await db.SaveChangesAsync(ct);
         }

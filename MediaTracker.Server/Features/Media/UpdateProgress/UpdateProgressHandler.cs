@@ -49,7 +49,7 @@ public sealed class UpdateProgressHandler(
         if (bookRows > 0)
         {
             var next = book!.TotalPages > 0 ? Math.Min(progress, book.TotalPages) : progress;
-            await RecordProgressAsync(command.Id, book.CurrentPage.ToString(), next.ToString(), ct);
+            await RecordProgressAsync(command.Id, $"{book.CurrentPage} стр.", $"{next} стр.", ct);
             cache.Remove(AdvancedStatsCalculator.CacheKey);
             return Result.Success();
         }
@@ -67,7 +67,7 @@ public sealed class UpdateProgressHandler(
         if (mangaRows > 0)
         {
             var next = manga!.TotalChapters is > 0 ? Math.Min(progress, manga.TotalChapters.Value) : progress;
-            await RecordProgressAsync(command.Id, manga.CurrentChapter.ToString(), next.ToString(), ct);
+            await RecordProgressAsync(command.Id, $"{manga.CurrentChapter} гл.", $"{next} гл.", ct);
             cache.Remove(AdvancedStatsCalculator.CacheKey);
             return Result.Success();
         }
@@ -80,7 +80,7 @@ public sealed class UpdateProgressHandler(
 
         if (gameRows > 0)
         {
-            await RecordProgressAsync(command.Id, game?.ToString(), progress.ToString(), ct);
+            await RecordProgressAsync(command.Id, $"{game ?? 0} ч.", $"{progress} ч.", ct);
             cache.Remove(AdvancedStatsCalculator.CacheKey);
             return Result.Success();
         }
@@ -101,6 +101,7 @@ public sealed class UpdateProgressHandler(
             Type = MediaEventType.ProgressChanged,
             OldValue = oldValue,
             NewValue = newValue,
+            CreatedAt = DateTime.UtcNow
         });
         await db.SaveChangesAsync(ct);
     }

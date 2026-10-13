@@ -9,6 +9,9 @@
         <ServerGarbageCollection>false</ServerGarbageCollection>
         <GarbageCollectionAdaptationMode>1</GarbageCollectionAdaptationMode>
 
+        <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+        <PublishDir>$(MSBuildThisFileDirectory)..\dist\</PublishDir>
+
         <AssemblyName>Tsundoku</AssemblyName>
         <RootNamespace>MediaTracker.Server</RootNamespace>
 

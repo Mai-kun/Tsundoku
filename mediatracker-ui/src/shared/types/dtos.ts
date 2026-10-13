@@ -43,6 +43,14 @@ export interface SteamImportPayload {
   newListName?: string;
 }
 
+export interface AniListProfilePayload {
+  username: string;
+  createList?: boolean;
+  targetListId?: string;
+  newListName?: string;
+  skipDuplicates?: boolean;
+}
+
 interface CreateMediaBase {
   title: string;
   status: MediaStatus;

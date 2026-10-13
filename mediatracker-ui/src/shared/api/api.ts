@@ -23,6 +23,7 @@ import type {
   UpdateListPayload,
   ImportResultDto,
   SteamImportPayload,
+  AniListProfilePayload,
   CreatorRole,
   CreatorSummaryDto,
 } from "$shared/types";
@@ -271,6 +272,11 @@ export function importFile(formData: FormData): Promise<ImportResultDto> {
 export function importSteamProfile(payload: SteamImportPayload): Promise<ImportResultDto> {
   return requestJson<ImportResultDto>(`${mediaEndpoint}/import/steam`, jsonOptions("POST", payload));
 }
+
+export function importAniListProfile(payload: AniListProfilePayload): Promise<ImportResultDto> {
+  return requestJson<ImportResultDto>(`${mediaEndpoint}/import/anilist-profile`, jsonOptions("POST", payload));
+}
+
 
 export function getLists(): Promise<CustomListSummary[]> {
   return requestJson<CustomListSummary[]>("/api/lists");

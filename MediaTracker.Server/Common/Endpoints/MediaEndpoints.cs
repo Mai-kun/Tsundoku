@@ -48,6 +48,15 @@ public static class MediaEndpoints
             catch (HttpRequestException error) { return Results.BadRequest(new { detail = $"Steam request failed: {error.Message}" }); }
         });
 
+        group.MapPost("/import/anilist-profile", async (
+            AniListProfileRequest request, [FromServices] ImportMediaHandler handler, CancellationToken ct) =>
+        {
+            try { return Results.Ok(await handler.ImportAniListProfileAsync(request, ct)); }
+            catch (FormatException error) { return Results.BadRequest(new { detail = error.Message }); }
+            catch (HttpRequestException error) { return Results.BadRequest(new { detail = $"AniList request failed: {error.Message}" }); }
+        });
+
+
         group.MapGet("/", (
                 [FromServices] IGetMediaListHandler handler,
                 string? type,

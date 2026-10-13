@@ -40,6 +40,9 @@ public sealed class ImportMediaHandler(
                 "letterboxd" => LetterboxdCsvParser.Parse(content),
                 "goodreads" => GoodreadsCsvParser.Parse(content),
                 "steam" => SteamLibraryParser.Parse(content),
+                "anilist" => AniListImportParser.Parse(content, request.File.FileName.Contains("manga", StringComparison.OrdinalIgnoreCase)),
+                "mangalib" => MangalibParser.Parse(content),
+                "custom" => CustomImportParser.Parse(content),
                 _ => throw new FormatException("Unsupported import provider.")
             };
         }
@@ -80,6 +83,47 @@ public sealed class ImportMediaHandler(
         var games = SteamLibraryParser.Parse(json);
         if (games.Count == 0) throw new FormatException("Steam returned no games. Check that the profile and game details are public.");
         return await ImportAsync(games, request.SkipDuplicates, request.TargetListId, request.NewListName, ct);
+    }
+
+    /// <summary>
+    /// AniList's public GraphQL endpoint answers MediaListCollection without an API key, so the
+    /// username flow reuses the file parser: one ANIME and one MANGA query, entries flattened into
+    /// the same ParsedMediaItemDto pipeline.
+    /// </summary>
+    public async Task<ImportResultDto> ImportAniListProfileAsync(AniListProfileRequest request, CancellationToken ct)
+    {
+        var username = request.Username?.Trim();
+        if (string.IsNullOrWhiteSpace(username)) throw new FormatException("Enter an AniList username.");
+        var client = clients.CreateClient();
+        var items = new List<ParsedMediaItemDto>();
+        foreach (var type in new[] { "ANIME", "MANGA" })
+        {
+            var payload = JsonSerializer.Serialize(new
+            {
+                query = "query ($userName: String, $type: MediaType) { MediaListCollection(userName: $userName, type: $type) { lists { entries { progress status score media { id type episodes chapters title { english romaji native } } } } } }",
+                variables = new { userName = username, type }
+            });
+            using var content = new StringContent(payload, global::System.Text.Encoding.UTF8, "application/json");
+            using var response = await client.PostAsync("https://graphql.anilist.co", content, ct);
+            var json = await response.Content.ReadAsStringAsync(ct);
+            if (!response.IsSuccessStatusCode) throw new FormatException(AniListError(json) ?? $"AniList request failed ({(int)response.StatusCode}).");
+            try { items.AddRange(AniListImportParser.Parse(json, mangaFile: type == "MANGA")); }
+            catch (JsonException error) { throw new FormatException("AniList returned a malformed response.", error); }
+        }
+        if (items.Count == 0) throw new FormatException($"AniList has no public lists for '{username}'.");
+        return await ImportAsync(items, request.SkipDuplicates, request.TargetListId, request.NewListName, ct);
+    }
+
+    private static string? AniListError(string json)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+            if (document.RootElement.TryGetProperty("errors", out var errors) && errors.ValueKind == JsonValueKind.Array && errors.GetArrayLength() > 0
+                && errors[0].TryGetProperty("message", out var message)) return message.ToString();
+        }
+        catch (JsonException) { /* non-JSON error body: fall back to the status code */ }
+        return null;
     }
 
     private async Task<ImportResultDto> ImportAsync(IReadOnlyList<ParsedMediaItemDto> parsed, bool skipDuplicates, Guid? targetListId, string? newListName, CancellationToken ct)

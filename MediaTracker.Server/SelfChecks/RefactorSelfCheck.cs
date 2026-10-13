@@ -85,6 +85,9 @@ public static class RefactorSelfCheck
         CheckAdvancedStatsCalculation(failures);
         CheckAllMetadataProvidersSupportGenres(failures);
         CheckLetterboxdCsvImportParser(failures);
+        CheckAniListImportParser(failures);
+        CheckMangalibImportParser(failures);
+        CheckCustomImportParser(failures);
         CheckHistoryEventsFiltering(failures);
 
         if (failures.Count == 0)
@@ -113,6 +116,140 @@ public static class RefactorSelfCheck
             AssertEqual<int?>(failures, 1999, parsed[0].ReleaseYear, "Letterboxd release year");
         }
     }
+    private static void CheckAniListImportParser(List<string> failures)
+    {
+        var json = """
+            [
+              {
+                "progress": 12,
+                "status": "CURRENT",
+                "score": 87,
+                "media": { "id": 5114, "type": "ANIME", "episodes": 64, "title": { "english": "Fullmetal Alchemist: Brotherhood", "romaji": "Hagane no Renkinjutsushi", "native": "鋼の錬金術師" } }
+              },
+              {
+                "progress": 30,
+                "listStatus": "PAUSED",
+                "score": 8,
+                "media": { "id": 30002, "type": "MANGA", "chapters": 364, "title": { "english": null, "romaji": "Berserk", "native": "ベルセルク" } }
+              }
+            ]
+            """;
+        var parsed = AniListImportParser.Parse(json, mangaFile: false);
+        AssertEqual(failures, 2, parsed.Count, "AniList entry count");
+        if (parsed.Count == 2)
+        {
+            AssertEqual(failures, "Fullmetal Alchemist: Brotherhood", parsed[0].Title, "AniList english title preferred");
+            AssertEqual(failures, "anime", parsed[0].Type, "AniList ANIME type");
+            AssertEqual(failures, MediaStatus.InProgress, parsed[0].Status, "AniList CURRENT maps to in-progress");
+            AssertEqual<int?>(failures, 9, parsed[0].Score, "AniList 100-point score normalizes to 10");
+            AssertEqual<int?>(failures, 64, parsed[0].TotalCount, "AniList episodes total");
+            AssertEqual(failures, "5114", parsed[0].ExternalId, "AniList external id");
+            AssertEqual(failures, "Berserk", parsed[1].Title, "AniList romaji fallback title");
+            AssertEqual(failures, "manga", parsed[1].Type, "AniList MANGA type");
+            AssertEqual(failures, MediaStatus.OnHold, parsed[1].Status, "AniList listStatus PAUSED maps to on-hold");
+        }
+
+        var graphQl = """
+            {
+              "data": {
+                "MediaListCollection": {
+                  "lists": [
+                    {
+                      "entries": [
+                        { "progress": 3, "status": "PLANNING", "score": 0, "media": { "id": 1, "type": "ANIME", "episodes": 12, "title": { "english": "Frieren", "romaji": "Sousou no Frieren", "native": "葬送のフリーレン" } } }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+            """;
+        var fromProfile = AniListImportParser.Parse(graphQl, mangaFile: false);
+        AssertEqual(failures, 1, fromProfile.Count, "AniList GraphQL collection entry count");
+        if (fromProfile.Count == 1)
+        {
+            AssertEqual(failures, "Frieren", fromProfile[0].Title, "AniList GraphQL title");
+            AssertEqual(failures, MediaStatus.Planned, fromProfile[0].Status, "AniList GraphQL PLANNING maps to planned");
+            AssertEqual<int?>(failures, null, fromProfile[0].Score, "AniList GraphQL zero score becomes null");
+        }
+
+        var combined = """{"animelist":[{ "progress": 1, "status": "CURRENT", "score": 8, "media": { "id": 1, "type": "ANIME", "episodes": 12, "title": { "english": "Frieren" } } }],"mangalist":[{ "progress": 5, "status": "COMPLETED", "score": 10, "media": { "id": 2, "type": "MANGA", "chapters": 100, "title": { "english": "Vinland Saga" } } }]}""";
+        var merged = AniListImportParser.Parse(combined, mangaFile: false);
+        AssertEqual(failures, 2, merged.Count, "AniList combined export flattens both lists");
+        if (merged.Count == 2)
+        {
+            AssertEqual(failures, "anime", merged[0].Type, "AniList combined anime entry type");
+            AssertEqual(failures, "manga", merged[1].Type, "AniList combined manga entry type");
+        }
+    }
+
+    private static void CheckMangalibImportParser(List<string> failures)
+    {
+        var json = """
+            [
+              { "rus_name": "Ван-Пис", "name": "One Piece", "status": 1, "user_chapters": 1122, "chapters": 1122, "user_rating": 10 },
+              { "rus_name": "Берсерк", "eng_name": "Berserk", "status": "Брошено", "read_chapters": 36, "total_chapters": 374, "rating": 9 }
+            ]
+            """;
+        var parsed = MangalibParser.Parse(json);
+        AssertEqual(failures, 2, parsed.Count, "MangaLib JSON entry count");
+        if (parsed.Count == 2)
+        {
+            AssertEqual(failures, "Ван-Пис", parsed[0].Title, "MangaLib rus_name preferred");
+            AssertEqual(failures, "manga", parsed[0].Type, "MangaLib type is always manga");
+            AssertEqual(failures, MediaStatus.InProgress, parsed[0].Status, "MangaLib numeric status 1 maps to in-progress");
+            AssertEqual<int?>(failures, 1122, parsed[0].CurrentProgress, "MangaLib user_chapters");
+            AssertEqual<int?>(failures, 10, parsed[0].Score, "MangaLib user_rating");
+            AssertEqual(failures, "MangaLib", parsed[0].ExternalSource, "MangaLib external source");
+            AssertEqual(failures, MediaStatus.Dropped, parsed[1].Status, "MangaLib string status брошено maps to dropped");
+            AssertEqual<int?>(failures, 36, parsed[1].CurrentProgress, "MangaLib read_chapters fallback");
+            AssertEqual<int?>(failures, 374, parsed[1].TotalCount, "MangaLib total_chapters fallback");
+        }
+
+        var csv = MangalibParser.Parse("name,status,user_chapters,chapters,user_rating\n\"Соло-levelling\",отложено,120,200,8");
+        AssertEqual(failures, 1, csv.Count, "MangaLib CSV entry count");
+        if (csv.Count == 1)
+        {
+            AssertEqual(failures, MediaStatus.OnHold, csv[0].Status, "MangaLib CSV отложено maps to on-hold");
+            AssertEqual<int?>(failures, 8, csv[0].Score, "MangaLib CSV rating");
+        }
+    }
+
+    private static void CheckCustomImportParser(List<string> failures)
+    {
+        var json = """
+            [
+              { "title": "Тетрадь смерти", "type": "сериал", "status": "в планах", "score": 9, "progress": 37, "totalCount": 37, "director": "Тэцуро Араки", "year": 2006 },
+              { "title": "Disco Elysium", "type": "game", "status": 2, "progress": 40, "studio": "ZA/UM" },
+              { "type": "movie", "status": "completed" }
+            ]
+            """;
+        var parsed = CustomImportParser.Parse(json);
+        AssertEqual(failures, 2, parsed.Count, "Custom JSON skips titleless rows");
+        if (parsed.Count == 2)
+        {
+            AssertEqual(failures, "Тетрадь смерти", parsed[0].Title, "Custom title");
+            AssertEqual(failures, "tvshow", parsed[0].Type, "Custom Russian тип сериал maps to tvshow");
+            AssertEqual(failures, MediaStatus.Planned, parsed[0].Status, "Custom в планах maps to planned");
+            AssertEqual<int?>(failures, 9, parsed[0].Score, "Custom score");
+            AssertEqual<int?>(failures, 37, parsed[0].CurrentProgress, "Custom progress");
+            AssertEqual<int?>(failures, 2006, parsed[0].ReleaseYear, "Custom year");
+            AssertEqual(failures, "Тэцуро Араки", parsed[0].Author, "Custom director becomes author");
+            AssertEqual(failures, "game", parsed[1].Type, "Custom game type");
+            AssertEqual(failures, MediaStatus.Completed, parsed[1].Status, "Custom numeric status 2 maps to completed");
+            AssertEqual(failures, "ZA/UM", parsed[1].Author, "Custom studio becomes author");
+        }
+
+        var csv = CustomImportParser.Parse("title,type,status,score\n\"Наруто\",Манга,читаю,7\n\"\",anime,completed,5");
+        AssertEqual(failures, 1, csv.Count, "Custom CSV skips titleless rows");
+        if (csv.Count == 1)
+        {
+            AssertEqual(failures, "manga", csv[0].Type, "Custom CSV Russian тип манга");
+            AssertEqual(failures, MediaStatus.InProgress, csv[0].Status, "Custom CSV читаю maps to in-progress");
+        }
+    }
+
+
 
     private static void CheckHistoryEventsFiltering(List<string> failures)
     {

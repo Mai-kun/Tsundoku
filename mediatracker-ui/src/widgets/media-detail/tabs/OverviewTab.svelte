@@ -64,6 +64,13 @@
 
     const creator = $derived.by((): { name: string; role: CreatorRole; label: string } | null => {
         if (media.type === "movie") {
+            if ((media.isAnime || (media as { type: string }).type === "anime") && media.studio?.trim()) {
+                return {
+                    name: media.studio.trim(),
+                    role: "studio",
+                    label: i18n.t.creator.studio,
+                };
+            }
             if (media.director?.trim()) {
                 return {
                     name: media.director.trim(),

@@ -19,6 +19,7 @@
     } from "$shared/api/api";
     import { i18n } from "$shared/i18n/index.svelte";
     import { toRelatedEntry } from "$widgets/media-detail/externalMapping";
+    import { findMatchingLocal } from "$widgets/media-detail/relatedMatching";
     import { showToast } from "$shared/ui/toast.svelte";
     import {
         isTvShowDetail,
@@ -311,6 +312,24 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
     let relatedViewMode = $state<"grouped" | "timeline" | "grid">("grouped");
     /** The source the user picked last, so "retry" repeats that request instead of guessing. */
     let lastRelatedSource = $state<string | null>(null);
+
+    $effect(() => {
+        if (
+            activeSubTab === "related" &&
+            media &&
+            related.length === 0 &&
+            !relatedLoading &&
+            !relatedError
+        ) {
+            const initialSource =
+                media.relatedSource ||
+                (isAnime(media) ? "anilist" : null);
+            if (initialSource) {
+                lastRelatedSource = initialSource;
+                void loadRelated(media, initialSource);
+            }
+        }
+    });
     let previewRelatedItem = $state<RelatedEntry | null>(null);
     let previewStatus = $state<MediaStatus>(MEDIA_STATUS.planned);
     let previewAddingBusy = $state(false);
@@ -748,7 +767,6 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
 
     const WATCHED_ON_SITES = [
         "Kinopoisk",
-        "Кинопоиск",
         "Netflix",
         "YouTube",
         "Okko",
@@ -769,9 +787,13 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
     // same service is available without retyping it.
     let watchedOnOptions = $derived.by<string[]>(() => {
         const fromLibrary = media?.watchedOn?.trim();
-        return Array.from(
-            new Set([...WATCHED_ON_SITES, ...(fromLibrary ? [fromLibrary] : [])]),
-        );
+        const custom =
+            fromLibrary &&
+            fromLibrary.toLowerCase() !== "кинопоиск" &&
+            fromLibrary.toLowerCase() !== "kinopoisk"
+                ? [fromLibrary]
+                : [];
+        return Array.from(new Set([...WATCHED_ON_SITES, ...custom]));
     });
 
     $effect(() => {
@@ -1055,7 +1077,36 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
             // 2. Everything below leaves the building. Opening a card must not pay for any of it, so
             // it only runs once the user has named a source in the dropdown.
             if (source === null) {
-                if (sequence === relatedSequence) related = results;
+                if (sequence === relatedSequence) {
+                    const stored = readStoredRelated(item as MediaDetail);
+                    if (stored && stored.length > 0) {
+                        const remappedStored = stored.map((entry) => {
+                            const local = findMatchingLocal(entry, all);
+                            return {
+                                ...entry,
+                                coverUrl: local?.coverUrl || entry.coverUrl,
+                                localItem: local ?? entry.localItem,
+                            };
+                        });
+                        const merged = [...results];
+                        for (const s of remappedStored) {
+                            if (
+                                !merged.some(
+                                    (m) =>
+                                        m.id === s.id ||
+                                        (m.localItem &&
+                                            s.localItem &&
+                                            m.localItem.id === s.localItem.id),
+                                )
+                            ) {
+                                merged.push(s);
+                            }
+                        }
+                        related = merged;
+                    } else {
+                        related = results;
+                    }
+                }
                 return;
             }
 
@@ -1112,7 +1163,7 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
                 const rows = await getExternalRelations({
                     type: isAnime(item) ? "anime" : "manga",
                     externalId: item.externalId,
-                    title: item.title,
+                    title: readRomajiTitle(item) || item.title,
                     source,
                     kind: "related",
                 });
@@ -1122,13 +1173,7 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
                     entry.relationType = formatRelationType(relation.relationType);
                     if (entry.title.toLowerCase() === item.title.toLowerCase()) continue;
 
-                    const matchedLocal = all.find(
-                        (m) =>
-                            (m.externalId && m.externalId === entry.id) ||
-                            m.title.toLowerCase() === entry.title.toLowerCase() ||
-                            readRomajiTitle(m)?.toLowerCase() ===
-                                entry.title.toLowerCase(),
-                    );
+                    const matchedLocal = findMatchingLocal(entry, all);
 
                     if (
                         !results.some(
@@ -1166,10 +1211,13 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
                         )
                     )
                         continue;
+                    const matchedLocal = findMatchingLocal(entry, all);
                     results.push({
                         ...entry,
                         type: item.type,
                         year: entry.year ?? yearOf(entry.releaseDate),
+                        coverUrl: matchedLocal?.coverUrl || entry.coverUrl,
+                        localItem: matchedLocal,
                     });
                 }
             }
@@ -1180,7 +1228,7 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
                 // franchise siblings are already in the database.
                 if (source !== null && results.length > 0) {
                     const external = results.filter(
-                        (entry) => !entry.localItem || entry.localItem.externalId !== entry.id,
+                        (entry) => !entry.localItem || entry.localItem.id !== entry.id,
                     );
                     if (external.length > 0) {
                         persistRelated(item as MediaDetail, external, source);

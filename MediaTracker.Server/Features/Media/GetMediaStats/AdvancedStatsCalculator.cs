@@ -153,7 +153,9 @@ public static class AdvancedStatsCalculator
         }
 
         var todayUtc = DateOnly.FromDateTime(refTime);
-        var todayLocal = DateOnly.FromDateTime(DateTime.Now);
+        // Derive local today from refTime, not DateTime.Now: the wall clock would leak real time into
+        // an otherwise pure calculation and break the streak walk whenever now != today.
+        var todayLocal = DateOnly.FromDateTime(refTime.ToLocalTime());
 
         DateOnly startCheckDate;
         if (activeDates.Contains(todayLocal))

@@ -7,6 +7,7 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
         <ServerGarbageCollection>false</ServerGarbageCollection>
+        <GarbageCollectionAdaptationMode>1</GarbageCollectionAdaptationMode>
 
         <AssemblyName>Tsundoku</AssemblyName>
         <RootNamespace>MediaTracker.Server</RootNamespace>
@@ -29,7 +30,11 @@
         <SelfContained>true</SelfContained>
         <PublishSingleFile>true</PublishSingleFile>
         <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
-        <PublishReadyToRun>true</PublishReadyToRun>
+        <!-- R2R doubles assembly size (IL + native image); .NET 10 QuickJIT starts fast enough without it. -->
+        <PublishReadyToRun>false</PublishReadyToRun>
+        <!-- Without R2R the self-contained bundle is still ~110 MB; Brotli-compressing it brings the
+             single file to ~80 MB. Assemblies are extracted to the versioned temp dir on first run. -->
+        <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
 
         <DebugType>None</DebugType>
         <DebugSymbols>false</DebugSymbols>

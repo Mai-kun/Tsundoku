@@ -244,11 +244,15 @@ try
 
     if (options.IsHeadless)
     {
+        // Headless serves forever; kick off the backfill concurrently instead of blocking startup.
+        StartBackgroundFranchiseBackfill(app);
         await app.RunAsync();
     }
     else
     {
         await app.StartAsync();
+        // Фоновый запуск бэкфилла франшиз без блокировки открытия UI-окна
+        StartBackgroundFranchiseBackfill(app);
         RunPhotinoWindow(options.ServerUrl!);
         await app.StopAsync();
     }
@@ -264,15 +268,16 @@ static void ConfigureLogging(string logsDirectory)
 {
     Directory.CreateDirectory(logsDirectory);
 
-    var existingLogs = Directory
-        .GetFiles(logsDirectory, "session_*.log")
-        .Select(f => new FileInfo(f))
-        .OrderByDescending(f => f.CreationTimeUtc)
-        .ToList();
-
-    if (existingLogs.Count >= 5)
+    // Fast count check before materializing FileInfo for every log file on disk.
+    var logFiles = Directory.GetFiles(logsDirectory, "session_*.log");
+    if (logFiles.Length >= 5)
     {
-        foreach (var file in existingLogs.Skip(4))
+        var filesToDelete = logFiles
+            .Select(f => new FileInfo(f))
+            .OrderByDescending(f => f.CreationTimeUtc)
+            .Skip(4);
+
+        foreach (var file in filesToDelete)
         {
             try
             {
@@ -334,12 +339,39 @@ static async Task InitializeDatabaseAsync(WebApplication app)
 {
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    await db.Database.MigrateAsync();
+
+    // Only run the full migration pipeline when there are actually pending migrations;
+    // on an up-to-date database GetPendingMigrationsAsync short-circuits cheaply.
+    var pendingMigrations = await db.Database.GetPendingMigrationsAsync();
+    if (pendingMigrations.Any())
+    {
+        Log.Information(
+            "Applying {Count} pending database migration(s)...",
+            pendingMigrations.Count()
+        );
+        await db.Database.MigrateAsync();
+    }
 
     await scope.ServiceProvider.GetRequiredService<StoredSettingsLoader>().LoadAsync();
+}
 
-    var franchiseService = scope.ServiceProvider.GetRequiredService<IFranchiseService>();
-    await franchiseService.AutoBackfillFranchisesAsync(db);
+static void StartBackgroundFranchiseBackfill(WebApplication app)
+{
+    // Фоновый запуск бэкфилла франшиз без блокировки открытия UI-окна
+    _ = Task.Run(async () =>
+    {
+        try
+        {
+            using var bgScope = app.Services.CreateScope();
+            var bgDb = bgScope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var bgFranchise = bgScope.ServiceProvider.GetRequiredService<IFranchiseService>();
+            await bgFranchise.AutoBackfillFranchisesAsync(bgDb);
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Background franchise auto-backfill failed");
+        }
+    });
 }
 
 static void RunPhotinoWindow(string serverUrl)

@@ -17,12 +17,28 @@ public static class MangalibParser
     private static ParsedMediaItemDto Map(Dictionary<string, string> row)
     {
         var progress = Number(row, "user_chapters", "read_chapters", "chapters_read", "chapter");
-        return new ParsedMediaItemDto(Get(row, "rus_name", "name", "eng_name", "title"), "manga", Status(Get(row, "status")),
-            Score(Number(row, "user_rating", "rating", "score")),
+        var cover = NullIfEmpty(Get(row, "cover", "img", "poster", "thumbnail", "image", "cover_url"));
+        var description = NullIfEmpty(Get(row, "summary", "description", "desc", "синопсис", "описание"));
+        var genres = NullIfEmpty(Get(row, "genres", "genre", "жанры", "жанр"));
+        var author = NullIfEmpty(Get(row, "author", "authors", "автор", "авторы", "artist"));
+        var romaji = NullIfEmpty(Get(row, "eng_name", "romaji", "romaji_name"));
+
+        return new ParsedMediaItemDto(
+            Title: Get(row, "rus_name", "name", "eng_name", "title"),
+            Type: "manga",
+            Status: Status(Get(row, "status")),
+            Score: Score(Number(row, "user_rating", "rating", "score")),
             CurrentProgress: progress ?? 0,
             TotalCount: Number(row, "chapters", "total_chapters"),
-            ExternalSource: "MangaLib");
+            Author: author,
+            ExternalSource: "MangaLib",
+            CoverUrl: cover,
+            Description: description,
+            Genres: genres,
+            RomajiTitle: romaji);
     }
+
+    private static string? NullIfEmpty(string value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     private static MediaStatus Status(string value)
     {

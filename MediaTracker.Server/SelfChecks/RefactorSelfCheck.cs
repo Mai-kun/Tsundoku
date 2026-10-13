@@ -14,8 +14,12 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using MediaTracker.Server.Domain.Enums;
 using MediaTracker.Server.Features.History.GetHistoryEvents;
+using MediaTracker.Server.Features.Media.Import;
 using MediaTracker.Server.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using MediaDetailDto = MediaTracker.Server.Features.Media.MediaContract.MediaDetailDto;
 using MediaListDto = MediaTracker.Server.Features.Media.MediaContract.MediaListDto;
 using MediaResponseMapper = MediaTracker.Server.Features.Media.MediaContract.MediaResponseMapper;
@@ -88,6 +92,8 @@ public static class RefactorSelfCheck
         CheckAniListImportParser(failures);
         CheckMangalibImportParser(failures);
         CheckCustomImportParser(failures);
+        CheckSteamLibraryImportParser(failures);
+        CheckImportHealing(failures);
         CheckHistoryEventsFiltering(failures);
 
         if (failures.Count == 0)
@@ -156,7 +162,26 @@ public static class RefactorSelfCheck
                   "lists": [
                     {
                       "entries": [
-                        { "progress": 3, "status": "PLANNING", "score": 0, "media": { "id": 1, "type": "ANIME", "episodes": 12, "title": { "english": "Frieren", "romaji": "Sousou no Frieren", "native": "葬送のフリーレン" } } }
+                        {
+                          "progress": 3,
+                          "status": "PLANNING",
+                          "score": 0,
+                          "media": {
+                            "id": 1,
+                            "type": "ANIME",
+                            "episodes": 12,
+                            "title": { "english": "Frieren", "romaji": "Sousou no Frieren", "native": "葬送のフリーレン" },
+                            "coverImage": { "extraLarge": "https://cdn.example/frieren_xl.jpg", "large": "https://cdn.example/frieren_l.jpg" },
+                            "description": "<p>After a 10-year quest...</p>",
+                            "genres": ["Adventure", "Fantasy"],
+                            "startDate": { "year": 2023, "month": 9, "day": 29 },
+                            "endDate": { "year": 2024, "month": 3, "day": 22 },
+                            "status": "FINISHED",
+                            "averageScore": 91,
+                            "studios": { "nodes": [ { "name": "Madhouse" } ] },
+                            "duration": 24
+                          }
+                        }
                       ]
                     }
                   ]
@@ -171,6 +196,17 @@ public static class RefactorSelfCheck
             AssertEqual(failures, "Frieren", fromProfile[0].Title, "AniList GraphQL title");
             AssertEqual(failures, MediaStatus.Planned, fromProfile[0].Status, "AniList GraphQL PLANNING maps to planned");
             AssertEqual<int?>(failures, null, fromProfile[0].Score, "AniList GraphQL zero score becomes null");
+            AssertEqual(failures, "https://cdn.example/frieren_xl.jpg", fromProfile[0].CoverUrl, "AniList GraphQL coverImage");
+            AssertEqual(failures, "After a 10-year quest...", fromProfile[0].Description, "AniList GraphQL description");
+            AssertEqual(failures, "Adventure, Fantasy", fromProfile[0].Genres, "AniList GraphQL genres");
+            AssertEqual(failures, "2023-09-29", fromProfile[0].ReleaseDate, "AniList GraphQL releaseDate");
+            AssertEqual(failures, "2024-03-22", fromProfile[0].EndDate, "AniList GraphQL endDate");
+            AssertEqual(failures, "FINISHED", fromProfile[0].ReleaseStatus, "AniList GraphQL releaseStatus");
+            AssertEqual<double?>(failures, 9.1, fromProfile[0].Rating, "AniList GraphQL rating");
+            AssertEqual(failures, "Madhouse", fromProfile[0].Studio, "AniList GraphQL studio");
+            AssertEqual(failures, "Sousou no Frieren", fromProfile[0].RomajiTitle, "AniList GraphQL romaji");
+            AssertEqual(failures, "葬送のフリーレン", fromProfile[0].OriginalTitle, "AniList GraphQL native");
+            AssertEqual<int?>(failures, 24, fromProfile[0].DurationMinutes, "AniList GraphQL duration");
         }
 
         var combined = """{"animelist":[{ "progress": 1, "status": "CURRENT", "score": 8, "media": { "id": 1, "type": "ANIME", "episodes": 12, "title": { "english": "Frieren" } } }],"mangalist":[{ "progress": 5, "status": "COMPLETED", "score": 10, "media": { "id": 2, "type": "MANGA", "chapters": 100, "title": { "english": "Vinland Saga" } } }]}""";
@@ -249,7 +285,107 @@ public static class RefactorSelfCheck
         }
     }
 
+    private static void CheckSteamLibraryImportParser(List<string> failures)
+    {
+        var steamJson = """{"games":[{"appid":367520,"name":"Hollow Knight","playtime_forever":120}]}""";
+        var steamGames = SteamLibraryParser.Parse(steamJson);
+        AssertEqual(failures, 1, steamGames.Count, "Steam games count");
+        if (steamGames.Count == 1)
+        {
+            AssertEqual(failures, "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/367520/library_600x900.jpg", steamGames[0].CoverUrl, "Steam library 600x900 cover");
+            AssertEqual(failures, "PC", steamGames[0].Platform, "Steam platform is PC");
+            AssertEqual(failures, "Steam", steamGames[0].ExternalSource, "Steam external source");
+            AssertEqual(failures, "367520", steamGames[0].ExternalId, "Steam external id");
+            AssertEqual(failures, 2, steamGames[0].CurrentProgress, "Steam playtime hours");
+        }
+    }
 
+    private static void CheckImportHealing(List<string> failures)
+    {
+        using var connection = new SqliteConnection("DataSource=:memory:");
+        connection.Open();
+        var options = new DbContextOptionsBuilder<AppDbContext>().UseSqlite(connection).Options;
+        using var db = new AppDbContext(options);
+        db.Database.EnsureCreated();
+
+        // 1. Existing empty manga row
+        var existingManga = new Manga
+        {
+            Title = "Demon King of the Royal Class",
+            ExternalId = "12345",
+            ExternalSource = "AniList"
+        };
+        db.Manga.Add(existingManga);
+
+        // 2. Existing empty game row
+        var existingGame = new VideoGame
+        {
+            Title = "Hollow Knight",
+            Platform = "Steam",
+            ExternalId = "367520",
+            ExternalSource = "Steam"
+        };
+        db.Games.Add(existingGame);
+        db.SaveChanges();
+
+        var handler = new ImportMediaHandler(
+            db,
+            new StubHttpClientFactory(_ => Task.FromResult(new HttpResponseMessage())),
+            new ConfigurationBuilder().Build(),
+            Options.Create(new ExternalApiOptions()));
+
+        var anilistJson = """
+            [
+              {
+                "progress": 50,
+                "status": "CURRENT",
+                "score": 85,
+                "media": {
+                  "id": 12345,
+                  "type": "MANGA",
+                  "chapters": 120,
+                  "title": { "english": "Demon King of the Royal Class", "romaji": "Demon King Romaji" },
+                  "coverImage": { "extraLarge": "https://s4.anilist.co/cover/12345.jpg" },
+                  "description": "<p>A great story about royal academy</p>",
+                  "genres": ["Action", "Fantasy", "School"],
+                  "startDate": { "year": 2022, "month": 3, "day": 15 },
+                  "status": "RELEASING",
+                  "averageScore": 84,
+                  "staff": { "edges": [ { "role": "Story & Art", "node": { "name": { "full": "Geul Jangi" } } } ] }
+                }
+              }
+            ]
+            """;
+        var fileBytes = global::System.Text.Encoding.UTF8.GetBytes(anilistJson);
+        using var stream = new MemoryStream(fileBytes);
+        var formFile = new FormFile(stream, 0, fileBytes.Length, "file", "anilist.json");
+        var result = handler.ImportFileAsync(new ImportFileRequest(formFile, "anilist", SkipDuplicates: true), CancellationToken.None).GetAwaiter().GetResult();
+
+        AssertEqual(failures, 1, result.TotalFound, "Import total found");
+        AssertEqual(failures, 0, result.ImportedCount, "Import imported count (skipped duplicate)");
+        AssertEqual(failures, 1, result.SkippedDuplicates, "Import duplicate count");
+
+        var healedManga = db.Manga.Single(m => m.ExternalId == "12345");
+        AssertEqual(failures, "https://s4.anilist.co/cover/12345.jpg", healedManga.CoverUrl, "Healed manga has cover");
+        AssertEqual(failures, "A great story about royal academy", healedManga.Description, "Healed manga has description");
+        AssertEqual(failures, "Action, Fantasy, School", healedManga.Genres, "Healed manga has genres");
+        AssertEqual(failures, "Geul Jangi", healedManga.Author, "Healed manga has author");
+        AssertEqual(failures, "Demon King Romaji", healedManga.RomajiTitle, "Healed manga has romaji");
+        AssertEqual(failures, "RELEASING", healedManga.ReleaseStatus, "Healed manga has release status");
+        AssertEqual<double?>(failures, 8.4, healedManga.ExternalRating, "Healed manga has rating");
+        AssertTrue(failures, healedManga.ExternalRatingsJson is not null && healedManga.ExternalRatingsJson.Contains("8.4"), "Healed manga has external ratings JSON");
+
+        // Now test Steam game healing
+        var steamJson = """{"games":[{"appid":367520,"name":"Hollow Knight","playtime_forever":120}]}""";
+        var steamBytes = global::System.Text.Encoding.UTF8.GetBytes(steamJson);
+        using var steamStream = new MemoryStream(steamBytes);
+        var steamFormFile = new FormFile(steamStream, 0, steamBytes.Length, "file", "steam.json");
+        handler.ImportFileAsync(new ImportFileRequest(steamFormFile, "steam", SkipDuplicates: true), CancellationToken.None).GetAwaiter().GetResult();
+
+        var healedGame = db.Games.Single(g => g.ExternalId == "367520");
+        AssertEqual(failures, "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/367520/library_600x900.jpg", healedGame.CoverUrl, "Healed steam game has 600x900 cover");
+        AssertEqual(failures, "PC", healedGame.Platform, "Healed steam game platform is PC");
+    }
 
     private static void CheckHistoryEventsFiltering(List<string> failures)
     {

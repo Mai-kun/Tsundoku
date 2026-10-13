@@ -17,8 +17,18 @@ public static class SteamLibraryParser
             var name = String(game, "name") ?? String(game, "title") ?? "";
             var appId = String(game, "appid") ?? String(game, "appId") ?? String(game, "id");
             var minutes = Number(game, "playtime_forever") ?? Number(game, "playtimeForever") ?? Number(game, "minutesPlayed") ?? 0;
-            return new ParsedMediaItemDto(name, "game", minutes > 0 ? MediaStatus.InProgress : MediaStatus.Planned,
-                CurrentProgress: (int)Math.Min(minutes / 60, int.MaxValue), ExternalId: appId, ExternalSource: "steam");
+            var coverUrl = !string.IsNullOrWhiteSpace(appId)
+                ? $"https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/{appId}/library_600x900.jpg"
+                : null;
+            return new ParsedMediaItemDto(
+                Title: name,
+                Type: "game",
+                Status: minutes > 0 ? MediaStatus.InProgress : MediaStatus.Planned,
+                CurrentProgress: (int)Math.Min(minutes / 60, int.MaxValue),
+                ExternalId: appId,
+                ExternalSource: "Steam",
+                CoverUrl: coverUrl,
+                Platform: "PC");
         }).Where(item => !string.IsNullOrWhiteSpace(item.Title)).ToArray();
     }
     private static string? String(JsonElement el, string name) => el.TryGetProperty(name, out var v) ? v.ToString() : null;

@@ -20,12 +20,48 @@ public static class CustomImportParser
         var title = Get(row, "title", "name", "название");
         var type = Type(Get(row, "type", "тип"));
         if (string.IsNullOrWhiteSpace(title) || type is null) return null;
-        return new ParsedMediaItemDto(title, type, Status(Get(row, "status", "статус")),
-            Number(row, "score", "rating", "оценка") is { } score and > 0 ? Math.Clamp(score, 1, 10) : null,
+
+        var author = NullIfEmpty(Get(row, "author", "автор", "artist", "creator"));
+        var studio = NullIfEmpty(Get(row, "studio", "студия", "developer", "разработчик", "publisher"));
+        var director = NullIfEmpty(Get(row, "director", "режиссёр", "режиссер"));
+        var effectiveAuthor = author ?? director ?? studio;
+
+        var cover = NullIfEmpty(Get(row, "coverurl", "cover_url", "cover", "image", "poster", "обложка"));
+        var desc = NullIfEmpty(Get(row, "description", "summary", "desc", "синопсис", "описание"));
+        var genres = NullIfEmpty(Get(row, "genres", "genre", "жанры", "жанр"));
+        var releaseDate = NullIfEmpty(Get(row, "releasedate", "release_date", "дата_выхода", "датавыхода"));
+        var endDate = NullIfEmpty(Get(row, "enddate", "end_date", "дата_окончания", "датаокончания"));
+        var releaseStatus = NullIfEmpty(Get(row, "releasestatus", "release_status", "статус_релиза", "статусрелиза"));
+        var romaji = NullIfEmpty(Get(row, "romaji", "romaji_title", "romajititle", "english_title", "eng_name"));
+
+        var rating = Double(row, "rating", "external_rating", "externalrating", "рейтинг");
+        var score = Number(row, "score", "оценка");
+        if (score is null && rating is { } r and >= 1 and <= 10)
+        {
+            score = (int)Math.Round(r);
+        }
+
+        var year = Number(row, "releaseyear", "year", "год") ?? ParseYear(releaseDate);
+
+        return new ParsedMediaItemDto(
+            Title: title,
+            Type: type,
+            Status: Status(Get(row, "status", "статус")),
+            Score: score is > 0 ? Math.Clamp(score.Value, 1, 10) : null,
             CurrentProgress: Number(row, "progress", "прогресс"),
             TotalCount: Number(row, "totalcount", "total_count", "всего"),
-            Author: Get(row, "author", "studio", "director", "автор", "студия", "режиссёр"),
-            ReleaseYear: Number(row, "releaseyear", "year", "год"));
+            Author: effectiveAuthor,
+            ReleaseYear: year,
+            CoverUrl: cover,
+            Description: desc,
+            Genres: genres,
+            ReleaseDate: releaseDate,
+            EndDate: endDate,
+            ReleaseStatus: releaseStatus,
+            RomajiTitle: romaji,
+            Rating: rating,
+            Studio: studio,
+            Director: director);
     }
 
     private static string? Type(string value) => value.Trim().ToLowerInvariant() switch
@@ -59,4 +95,13 @@ public static class CustomImportParser
 
     private static int? Number(Dictionary<string, string> row, params string[] keys) =>
         int.TryParse(Get(row, keys), NumberStyles.Integer, CultureInfo.InvariantCulture, out var n) ? n : null;
+
+    private static double? Double(Dictionary<string, string> row, params string[] keys) =>
+        double.TryParse(Get(row, keys), NumberStyles.Float, CultureInfo.InvariantCulture, out var n) ? n : null;
+
+    private static string? NullIfEmpty(string value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static int? ParseYear(string? value) => DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.None, out var date)
+        ? date.Year
+        : int.TryParse(value?.Split('-')[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out var yr) ? yr : null;
 }

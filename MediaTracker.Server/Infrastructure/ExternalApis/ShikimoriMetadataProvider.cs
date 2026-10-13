@@ -99,7 +99,7 @@ public sealed class ShikimoriMetadataProvider(
             ExternalId = item.Id.ToString(CultureInfo.InvariantCulture),
             ExternalSource = "Shikimori",
             Title = !string.IsNullOrWhiteSpace(item.Russian) ? item.Russian : item.Name,
-            OriginalTitle = item.Name,
+            OriginalTitle = item.Japanese?.FirstOrDefault(j => !string.IsNullOrWhiteSpace(j)) ?? item.Name,
             RomajiTitle = item.Name,
             CoverUrl = cover,
             Description = item.Description,
@@ -134,6 +134,9 @@ public sealed class ShikimoriMetadataProvider(
 
         [JsonPropertyName("russian")]
         public string? Russian { get; set; }
+
+        [JsonPropertyName("japanese")]
+        public List<string>? Japanese { get; set; }
 
         [JsonPropertyName("image")]
         public ShikimoriImage? Image { get; set; }

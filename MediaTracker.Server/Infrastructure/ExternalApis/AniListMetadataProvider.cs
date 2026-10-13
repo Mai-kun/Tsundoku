@@ -185,6 +185,10 @@ public sealed partial class AniListMetadataProvider(
                 GraphQLRelationsQuery,
                 LookupVariables(externalId, externalIdIsMal, title),
                 ct)
+            ?? (externalIdIsMal ? null : await QueryAsync<AniListRelationsResponse, AniListRelationsData>(
+                GraphQLRelationsQuery,
+                LookupVariables(externalId, true, title),
+                ct))
             ?? await QueryAsync<AniListRelationsResponse, AniListRelationsData>(
                 GraphQLRelationsQuery,
                 SearchOnly(title),
@@ -220,6 +224,10 @@ public sealed partial class AniListMetadataProvider(
                 GraphQLRecommendationsQuery,
                 LookupVariables(externalId, externalIdIsMal, title),
                 ct)
+            ?? (externalIdIsMal ? null : await QueryAsync<AniListRecommendationsResponse, AniListRecommendationsData>(
+                GraphQLRecommendationsQuery,
+                LookupVariables(externalId, true, title),
+                ct))
             ?? await QueryAsync<AniListRecommendationsResponse, AniListRecommendationsData>(
                 GraphQLRecommendationsQuery,
                 SearchOnly(title),

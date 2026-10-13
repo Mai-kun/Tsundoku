@@ -199,7 +199,7 @@ public static class MediaMerger
             }
             if (MentionsAny(trimmedSource, MovieSourceFragments))
             {
-                if (lowerType is "anime" or "all" or "")
+                if (lowerType is "all" or "")
                 {
                     return "movie";
                 }

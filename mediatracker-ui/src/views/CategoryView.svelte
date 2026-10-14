@@ -126,6 +126,8 @@
     }
 
     let franchiseGroups = $derived.by<FranchiseGroup[]>(() => {
+        if (groupBy !== "franchise") return [];
+
         const map = new Map<string, MediaItem[]>();
         const noFranchise: MediaItem[] = [];
 
@@ -252,9 +254,25 @@
             const found = await getMedia(categoryFilters());
             if (sequence === requestSequence) {
                 if (skeletonTimer) clearTimeout(skeletonTimer);
+                loading = false;
+                // Пропускаем холостую мутацию стейта, если данные не изменились:
+                // после возврата из деталки фоновая перезагрузка перезаписывала
+                // allItems новым объектом и пересобирала сетку прямо во время
+                // восстановленного скролла (микрофриз). Идентичность проверяем
+                // по длине и составу (id + статус), чтобы реальные изменения
+                // (удаление, смена статуса в деталке) сетку всё же обновляли.
+                if (
+                    allItems.length === found.length &&
+                    found.every(
+                        (item, index) =>
+                            item.id === allItems[index]?.id &&
+                            item.status === allItems[index]?.status,
+                    )
+                ) {
+                    return;
+                }
                 allItems = found;
                 categoryCache.set(category, found);
-                loading = false;
             }
         } catch (error) {
             if (sequence === requestSequence) {

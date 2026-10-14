@@ -125,10 +125,23 @@
         });
     }
 
-    let displayInProgress = $derived(sortItems(inProgress, groupByType, sort));
-    let displayUpNext = $derived(sortItems(upNext, groupByType, sort));
+    // Dashboard sections show a compact recent slice; the full lists live in
+    // the category views. 14 gives 2 neat rows on 7-column screens while keeping
+    // every section under the grid's FLAT_LIMIT (15), so Home mounts plain card
+    // grids with no virtualizer machinery.
+    const HOME_SECTION_LIMIT = 14;
+
+    let displayInProgress = $derived(
+        sortItems(inProgress, groupByType, sort).slice(0, HOME_SECTION_LIMIT),
+    );
+    let displayUpNext = $derived(
+        sortItems(upNext, groupByType, sort).slice(0, HOME_SECTION_LIMIT),
+    );
     let displayRecentlyCompleted = $derived(
-        sortItems(recentlyCompleted, groupByType, sort),
+        sortItems(recentlyCompleted, groupByType, sort).slice(
+            0,
+            HOME_SECTION_LIMIT,
+        ),
     );
 
     function typeKey(media: MediaItem): string {
@@ -438,13 +451,13 @@
                     openOnHover
                     closeDelay={220}
                 >
-                    {#snippet trigger({ popoverTargetId, anchorName })}
+                    {#snippet trigger({ popoverTargetId, anchorName, isOpen })}
                         {@const SortIcon = SORT_ICONS[sort]}
                         <button
                             type="button"
                             popovertarget={popoverTargetId}
                             popovertargetaction="toggle"
-                            style="anchor-name: {anchorName}"
+                            style={isOpen ? `anchor-name: ${anchorName}` : undefined}
                             class="tap grid h-12 w-12 shrink-0 place-items-center rounded-lg border border-white/10 bg-field text-muted transition hover:border-white/20 hover:text-ink has-[:popover-open]:ring-2 has-[:popover-open]:ring-indigo-500/40"
                             title={i18n.t.sort.label}
                             aria-label={i18n.t.sort.label}

@@ -1,6 +1,5 @@
 <script lang="ts">
-    import { flushSync } from "svelte";
-import { deleteMedia } from "$shared/api/api";
+    import { deleteMedia } from "$shared/api/api";
     import { jobsClient } from "$shared/api/jobsClient.svelte";
     import AppShell from "$widgets/layout/AppShell.svelte";
     import Header from "$widgets/layout/Header.svelte";
@@ -42,15 +41,16 @@ import { deleteMedia } from "$shared/api/api";
 
     let route = readRoute();
     let activeView = $state<AppView>(route.view);
-    /* What is actually in the DOM. Svelte mounts an incoming {#if} branch before tearing down the
-       outgoing one, so switching views rendered both at once. `flushSync()` inside switchView puts
-       both DOM updates in the same task, so the browser only ever paints the final state: it never
-       sees the outgoing view, the new view, or an empty area.
+    /* What is actually in the DOM. The swap is a plain state write: Svelte 5 flushes it in a
+       microtask, i.e. before the browser paints, so the outgoing {#if} branch is destroyed and
+       the incoming one mounted within the same frame. flushSync() used to force that mid-task
+       and blocked the main thread for hundreds of ms on every category switch; the microtask
+       flush already guarantees the browser never paints two views stacked, or an empty <main>.
 
-       There is deliberately no "hide the area until the swap settles" step: the settle check used to
-       count <main>'s children, but MediaDetailView renders four top-level nodes (root + three
-       modals), so the count never reached 1, `switching` stayed true and <main> kept `invisible` --
-       the detail page mounted and stayed invisible until F5. flushSync alone is sufficient. */
+       There is deliberately no "hide the area until the swap settles" step: the settle check used
+       to count <main>'s children, but MediaDetailView renders four top-level nodes (root + three
+       modals), so the count never reached 1, `switching` stayed true and <main> kept `invisible`
+       -- the detail page mounted and stayed invisible until F5. */
     let renderedView = $state<AppView | null>(route.view);
     let previousView = $state<AppView>(
         route.view === "seasons" || route.view === "detail"
@@ -93,6 +93,12 @@ import { deleteMedia } from "$shared/api/api";
             } else {
                 detailDepth = 0;
                 restoreScroll(nextRoute.view);
+                if (
+                    nextRoute.view === "home" &&
+                    !savedScrollPositions.has("home")
+                ) {
+                    setScroll(0);
+                }
             }
         };
 
@@ -137,20 +143,29 @@ import { deleteMedia } from "$shared/api/api";
     }
 
     /**
-     * Single entry point for changing views. The state change and the forced DOM update happen in the
-     * same task, so the browser paints only the final state -- never two views stacked, never an empty
-     * frame.
+     * Single entry point for changing views. The state write is flushed by Svelte in a
+     * microtask, before the browser paints, so only the final state is ever on screen.
      */
     function switchView(view: AppView) {
         renderedView = view;
-        flushSync();
     }
 
     function navigate(view: AppView) {
+        // Remember where the outgoing view was scrolled: the home reset below
+        // (and any view swap) would otherwise lose it for history back.
+        if (activeView !== view) {
+            savedScrollPositions.set(
+                activeView,
+                mainScrollContainer?.scrollTop ?? 0,
+            );
+        }
         activeView = view;
         selectedMediaId = null;
         detailDepth = 0;
         writeRoute(view, null);
+        // Home always opens from the top: the shared scroller would otherwise
+        // keep the previous view's offset and clip the first rows.
+        if (view === "home") setScroll(0);
         switchView(view);
     }
 

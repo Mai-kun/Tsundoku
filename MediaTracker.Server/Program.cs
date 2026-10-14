@@ -15,11 +15,11 @@ using MediaTracker.Server.SelfChecks;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
+using Serilog;
+using Serilog.Events;
 #if DEBUG
 using OpenApiUi;
 #endif
-using Serilog;
-using Serilog.Events;
 
 var options = CommandLineOptions.Parse(args);
 
@@ -311,14 +311,14 @@ static void ConfigureLogging(string logsDirectory)
 
 static AppPaths CreateAppPaths(CommandLineOptions options)
 {
-    var dataDirectory = options.DataDirectory is { Length: > 0 } configuredDirectory
-        ? Path.GetFullPath(configuredDirectory)
-        : CommandLineOptions.IsRunningInContainer
-            ? Directory.GetCurrentDirectory()
-            : Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "Tsundoku"
-            );
+    var dataDirectory =
+        options.DataDirectory is { Length: > 0 } configuredDirectory
+            ? Path.GetFullPath(configuredDirectory)
+        : CommandLineOptions.IsRunningInContainer ? Directory.GetCurrentDirectory()
+        : Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "Tsundoku"
+        );
 
     return new AppPaths(dataDirectory);
 }
@@ -330,7 +330,10 @@ static void ConfigureWebView2(AppPaths appPaths)
 
     Environment.SetEnvironmentVariable(
         "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS",
-        "--enable-gpu-rasterization --enable-zero-copy --ignore-gpu-blocklist --disable-features=msWebOOUI,msPdfOOUI"
+        "--enable-gpu-rasterization "
+            + "--ignore-gpu-blocklist "
+            + "--disable-features=msWebOOUI,msPdfOOUI "
+            + "--enable-smooth-scrolling"
     );
     Environment.SetEnvironmentVariable("WEBVIEW2_USER_DATA_FOLDER", webViewCacheDir);
 }

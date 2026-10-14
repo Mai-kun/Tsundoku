@@ -33,13 +33,13 @@
     onSelect={(value) => onSelect(value as MediaStatus)}
     label={i18n.t.status.label}
 >
-    {#snippet trigger({ popoverTargetId, anchorName })}
+    {#snippet trigger({ popoverTargetId, anchorName, isOpen })}
         <button
             type="button"
             popovertarget={popoverTargetId}
             popovertargetaction="toggle"
-            style="anchor-name: {anchorName}"
-            class="tap grid h-[2.33rem] w-[2.33rem] shrink-0 place-items-center p-0 rounded-full border shadow-lg backdrop-blur transition hover:brightness-125 has-[:popover-open]:ring-2 has-[:popover-open]:ring-indigo-400/70 {statusBadgeClasses(
+            style={isOpen ? `anchor-name: ${anchorName}` : undefined}
+            class="tap grid h-[2.33rem] w-[2.33rem] shrink-0 place-items-center p-0 rounded-full border shadow-md bg-[#14171f]/95 transition hover:brightness-125 has-[:popover-open]:ring-2 has-[:popover-open]:ring-indigo-400/70 {statusBadgeClasses(
                 status,
             )}"
             title={statusLabel(status)}

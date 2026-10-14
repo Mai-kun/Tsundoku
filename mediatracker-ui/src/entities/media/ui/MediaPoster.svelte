@@ -26,6 +26,7 @@
             class="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
             loading="lazy"
             decoding="async"
+            fetchpriority="low"
         />
     {:else}
         <div
@@ -37,7 +38,7 @@
 
     {#if syncing}
         <div
-            class="absolute inset-0 z-[5] flex flex-col items-center justify-center gap-2 bg-black/55 backdrop-blur-[1px]"
+            class="absolute inset-0 z-[5] flex flex-col items-center justify-center gap-2 bg-black/80"
         >
             <LoaderCircle
                 size={22}

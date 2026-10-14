@@ -17,7 +17,5 @@
     >
         {title}
     </h2>
-    <p class="mt-1 truncate text-xs text-muted @max-[13rem]:hidden">
-        {subtitle}
-    </p>
+    <p class="mt-1 hidden truncate text-xs text-muted sm:block">{subtitle}</p>
 </div>

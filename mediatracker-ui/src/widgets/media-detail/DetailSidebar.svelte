@@ -155,12 +155,12 @@
                 class="min-w-40"
                 optionClass="hover:bg-[var(--color-panel-raised)]"
             >
-                {#snippet trigger({ popoverTargetId, anchorName })}
+                {#snippet trigger({ popoverTargetId, anchorName, isOpen })}
                     <button
                         type="button"
                         popovertarget={popoverTargetId}
                         popovertargetaction="toggle"
-                        style="anchor-name: {anchorName}"
+                        style={isOpen ? `anchor-name: ${anchorName}` : undefined}
                         disabled={statusBusy}
                         class="tap flex h-10 w-full items-center justify-between gap-2 rounded-lg border border-white/[0.08] bg-[var(--color-panel-line)] px-3.5 text-sm font-medium text-white transition hover:bg-[var(--color-panel-raised)] has-[:popover-open]:ring-2 has-[:popover-open]:ring-accent-soft disabled:cursor-not-allowed disabled:opacity-70"
                         aria-haspopup="listbox"
@@ -358,12 +358,13 @@
                                 {#snippet trigger({
                                     popoverTargetId,
                                     anchorName,
+                                    isOpen,
                                 })}
                                     <button
                                         type="button"
                                         popovertarget={popoverTargetId}
                                         popovertargetaction="toggle"
-                                        style="anchor-name: {anchorName}"
+                                        style={isOpen ? `anchor-name: ${anchorName}` : undefined}
                                         class="tap flex h-8 shrink-0 items-center justify-center gap-1 rounded-lg border border-white/[0.08] bg-[var(--color-field)] px-2 text-xs text-white transition hover:bg-[var(--color-track-faint)] has-[:popover-open]:ring-1 has-[:popover-open]:ring-[var(--color-accent)]"
                                         aria-label={i18n.t.detail.watchedOnLabel}
                                         aria-haspopup="listbox"
@@ -404,12 +405,13 @@
                                     {#snippet trigger({
                                         popoverTargetId,
                                         anchorName,
+                                        isOpen,
                                     })}
                                         <button
                                             type="button"
                                             popovertarget={popoverTargetId}
                                             popovertargetaction="toggle"
-                                            style="anchor-name: {anchorName}"
+                                            style={isOpen ? `anchor-name: ${anchorName}` : undefined}
                                             class="tap flex max-w-[155px] items-center justify-between gap-2 rounded-lg border border-white/[0.08] bg-[var(--color-field)] px-2.5 py-1.5 text-xs text-white transition hover:border-[color-mix(in_oklab,var(--color-accent)_50%,transparent)] hover:bg-[var(--color-track-faint)] has-[:popover-open]:ring-1 has-[:popover-open]:ring-[var(--color-accent)]"
                                             aria-haspopup="listbox"
                                         >

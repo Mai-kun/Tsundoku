@@ -92,12 +92,12 @@
         optionClass="text-slate-200 hover:bg-white/[0.07]"
         label={i18n.current === "ru" ? "Источник связанных" : "Related source"}
     >
-        {#snippet trigger({ popoverTargetId, anchorName })}
+        {#snippet trigger({ popoverTargetId, anchorName, isOpen })}
             <button
                 type="button"
                 popovertarget={popoverTargetId}
                 popovertargetaction="toggle"
-                style="anchor-name: {anchorName}"
+                style={isOpen ? `anchor-name: ${anchorName}` : undefined}
                 disabled={loading || sources.length === 0}
                 aria-haspopup="listbox"
                 aria-label={i18n.current === "ru"

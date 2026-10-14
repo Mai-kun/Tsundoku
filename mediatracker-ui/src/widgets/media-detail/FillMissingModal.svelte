@@ -125,12 +125,12 @@
                         openOnHover
                         closeDelay={220}
                     >
-                        {#snippet trigger({ popoverTargetId, anchorName })}
+                        {#snippet trigger({ popoverTargetId, anchorName, isOpen })}
                             <button
                                 type="button"
                                 popovertarget={popoverTargetId}
                                 popovertargetaction="toggle"
-                                style="anchor-name: {anchorName}"
+                                style={isOpen ? `anchor-name: ${anchorName}` : undefined}
                                 class="tap flex max-w-[220px] items-center justify-between gap-2 rounded-lg border border-white/[0.08] bg-[var(--color-field)] px-2.5 py-1.5 text-xs text-white transition hover:bg-[var(--color-track-faint)] has-[:popover-open]:ring-1 has-[:popover-open]:ring-[var(--color-accent)]"
                                 aria-haspopup="listbox"
                             >

@@ -13,7 +13,14 @@
         selected: T;
         onSelect: (value: T) => void;
         trigger: Snippet<
-            [ctx: { popoverTargetId: string; anchorName: string }]
+            [ctx: {
+                popoverTargetId: string;
+                anchorName: string;
+                /** True while the menu is open. The trigger only needs `anchor-name` then --
+                 *  registering an anchor on every closed card in a long grid freezes the
+                 *  style engine during scroll. */
+                isOpen: boolean;
+            }]
         >;
         placement?: "bottom" | "bottom-start" | "bottom-end" | "top";
         class?: string;
@@ -111,6 +118,10 @@
     }
 
     function handleBeforeToggle(event: ToggleEvent) {
+        // beforetoggle fires synchronously inside showPopover(), before the popover paints.
+        // Flipping isOpen here (not in the queued toggle event) lets the trigger register its
+        // anchor-name in the same frame, so the menu never flashes at the fallback position.
+        if (event.newState === "open") isOpen = true;
         if (event.newState === "open") placeFallback();
     }
 
@@ -193,10 +204,10 @@
             onpointerenter={openOnEnter}
             onpointerleave={scheduleClose}
         >
-            {@render trigger({ popoverTargetId: popoverId, anchorName })}
+            {@render trigger({ popoverTargetId: popoverId, anchorName, isOpen })}
         </span>
     {:else}
-        {@render trigger({ popoverTargetId: popoverId, anchorName })}
+        {@render trigger({ popoverTargetId: popoverId, anchorName, isOpen })}
     {/if}
 </div>
 

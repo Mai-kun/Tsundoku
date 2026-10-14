@@ -61,7 +61,7 @@
 
 <!-- svelte-ignore a11y_no_noninteractive_element_to_interactive_role -->
 <article
-    class="media-card @container group relative cursor-pointer rounded-xl border border-white/[0.05] bg-card p-2.5 shadow-lg hover:border-white/[0.1] hover:bg-card-hover focus-within:ring-2 focus-within:ring-indigo-500/30"
+    class="media-card group relative cursor-pointer rounded-xl border border-white/[0.05] bg-card p-2.5 shadow-lg hover:border-white/[0.1] hover:bg-card-hover focus-within:ring-2 focus-within:ring-indigo-500/30"
     role="button"
     tabindex="0"
     aria-label={i18n.t.card.openDetails(item.title)}
@@ -87,7 +87,7 @@
         {#snippet actions()}
             <button
                 type="button"
-                class="tap grid h-7 w-7 place-items-center rounded-full border border-white/[0.06] bg-black/60 text-white/70 opacity-0 shadow-md backdrop-blur-md transition hover:border-rose-500/40 hover:bg-rose-600 hover:text-white focus:opacity-100 group-hover:opacity-100 cursor-pointer"
+                class="tap grid h-7 w-7 place-items-center rounded-full border border-white/[0.06] bg-black/80 text-white/70 opacity-0 shadow-md transition hover:border-rose-500/40 hover:bg-rose-600 hover:text-white focus:opacity-100 group-hover:opacity-100 cursor-pointer"
                 aria-label={i18n.t.card.deleteAria(item.title)}
                 onclick={(event) => {
                     event.stopPropagation();

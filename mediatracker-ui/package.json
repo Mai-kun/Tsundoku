@@ -32,6 +32,9 @@
     "check:related": "node checks/related.check.cjs",
     "check:relink": "node checks/relink.check.cjs",
     "check:series-step": "node --experimental-strip-types checks/seriesStep.check.ts",
+    "check:virtual-grid-rows": "node --experimental-strip-types checks/virtualGridRows.check.ts",
+    "check:virtual-grid": "node checks/virtualGrid.check.cjs",
+    "check:client-errors": "node --experimental-strip-types checks/clientErrors.check.ts",
     "preview": "vite preview"
   },
   "devDependencies": {
@@ -48,6 +51,7 @@
     "vite": "^8.3.0"
   },
   "dependencies": {
+    "@tanstack/svelte-virtual": "^3.13.45",
     "lucide-svelte": "^1.0.1"
   }
 }

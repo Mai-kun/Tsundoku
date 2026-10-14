@@ -51,7 +51,13 @@ public static class MediaEndpoints
         group.MapPost("/import/anilist-profile", async (
             AniListProfileRequest request, [FromServices] ImportMediaHandler handler, CancellationToken ct) =>
         {
-            try { return Results.Ok(await handler.ImportAniListProfileAsync(request, ct)); }
+            try
+            {
+                var result = await handler.ImportAniListProfileAsync(request, ct);
+                return result.TryGetValue(out var imported)
+                    ? Results.Ok(imported)
+                    : Results.BadRequest(new { detail = result.Error?.Message ?? "Import failed." });
+            }
             catch (FormatException error) { return Results.BadRequest(new { detail = error.Message }); }
             catch (HttpRequestException error) { return Results.BadRequest(new { detail = $"AniList request failed: {error.Message}" }); }
         });

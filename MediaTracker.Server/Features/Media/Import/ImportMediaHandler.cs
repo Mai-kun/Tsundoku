@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Xml;
+using MediaTracker.Server.Domain.Common;
 using MediaTracker.Server.Domain.Entities;
 using MediaTracker.Server.Domain.Enums;
 using MediaTracker.Server.Domain.Rules;
@@ -91,28 +92,74 @@ public sealed class ImportMediaHandler(
     /// username flow reuses the file parser: one ANIME and one MANGA query, entries flattened into
     /// the same ParsedMediaItemDto pipeline.
     /// </summary>
-    public async Task<ImportResultDto> ImportAniListProfileAsync(AniListProfileRequest request, CancellationToken ct)
+    public async Task<Result<ImportResultDto>> ImportAniListProfileAsync(AniListProfileRequest request, CancellationToken ct)
     {
         var username = request.Username?.Trim();
-        if (string.IsNullOrWhiteSpace(username)) throw new FormatException("Enter an AniList username.");
+        if (string.IsNullOrWhiteSpace(username))
+            return Result<ImportResultDto>.Failure(Error.Validation("Enter an AniList username."));
+
         var client = clients.CreateClient();
         var items = new List<ParsedMediaItemDto>();
         foreach (var type in new[] { "ANIME", "MANGA" })
         {
             var payload = JsonSerializer.Serialize(new
             {
-                query = "query ($userName: String, $type: MediaType) { MediaListCollection(userName: $userName, type: $type) { lists { entries { progress status score media { id type format title { romaji english native } description(asHtml: false) coverImage { extraLarge large } startDate { year month day } endDate { year month day } status averageScore genres chapters volumes episodes duration countryOfOrigin studios(isMain: true) { nodes { name } } staff(perPage: 3) { edges { role node { name { full } } } } } } } } }",
+                query = "query ($userName: String, $type: MediaType) { MediaListCollection(userName: $userName, type: $type) { lists { entries { progress status score media { id type format title { romaji english native } description coverImage { extraLarge large } startDate { year month day } endDate { year month day } status averageScore genres chapters volumes episodes } } } } }",
                 variables = new { userName = username, type }
             });
             using var content = new StringContent(payload, global::System.Text.Encoding.UTF8, "application/json");
             using var response = await client.PostAsync("https://graphql.anilist.co", content, ct);
             var json = await response.Content.ReadAsStringAsync(ct);
-            if (!response.IsSuccessStatusCode) throw new FormatException(AniListError(json) ?? $"AniList request failed ({(int)response.StatusCode}).");
-            try { items.AddRange(AniListImportParser.Parse(json, mangaFile: type == "MANGA")); }
-            catch (JsonException error) { throw new FormatException("AniList returned a malformed response.", error); }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var errMsg = AniListError(json) ?? $"AniList request failed ({(int)response.StatusCode}).";
+                return Result<ImportResultDto>.Failure(Error.Validation($"AniList error: {errMsg}"));
+            }
+
+            try
+            {
+                using var document = JsonDocument.Parse(json);
+                var root = document.RootElement;
+                bool hasErrors = root.TryGetProperty("errors", out var errors) && errors.ValueKind == JsonValueKind.Array && errors.GetArrayLength() > 0;
+                bool dataIsNull = !root.TryGetProperty("data", out var data) || data.ValueKind == JsonValueKind.Null;
+
+                if (hasErrors && dataIsNull)
+                {
+                    string msg = "Unknown error";
+                    if (errors[0].ValueKind == JsonValueKind.Object &&
+                        errors[0].TryGetProperty("message", out var msgProp) &&
+                        msgProp.ValueKind == JsonValueKind.String)
+                    {
+                        msg = msgProp.GetString() ?? "Unknown error";
+                    }
+                    return Result<ImportResultDto>.Failure(Error.Validation($"AniList error: {msg}"));
+                }
+            }
+            catch (JsonException)
+            {
+                return Result<ImportResultDto>.Failure(Error.Validation("AniList returned a malformed response."));
+            }
+
+            try
+            {
+                items.AddRange(AniListImportParser.Parse(json, mangaFile: type == "MANGA"));
+            }
+            catch (FormatException ex)
+            {
+                return Result<ImportResultDto>.Failure(Error.Validation(ex.Message));
+            }
+            catch (JsonException)
+            {
+                return Result<ImportResultDto>.Failure(Error.Validation("AniList returned a malformed response."));
+            }
         }
-        if (items.Count == 0) throw new FormatException($"AniList has no public lists for '{username}'.");
-        return await ImportAsync(items, request.SkipDuplicates, request.TargetListId, request.NewListName, ct);
+
+        if (items.Count == 0)
+            return Result<ImportResultDto>.Failure(Error.Validation($"AniList has no public lists for '{username}'."));
+
+        var importResult = await ImportAsync(items, request.SkipDuplicates, request.TargetListId, request.NewListName, ct);
+        return Result<ImportResultDto>.Success(importResult);
     }
 
     private static string? AniListError(string json)
@@ -120,8 +167,15 @@ public sealed class ImportMediaHandler(
         try
         {
             using var document = JsonDocument.Parse(json);
-            if (document.RootElement.TryGetProperty("errors", out var errors) && errors.ValueKind == JsonValueKind.Array && errors.GetArrayLength() > 0
-                && errors[0].TryGetProperty("message", out var message)) return message.ToString();
+            if (document.RootElement.TryGetProperty("errors", out var errors) &&
+                errors.ValueKind == JsonValueKind.Array &&
+                errors.GetArrayLength() > 0 &&
+                errors[0].ValueKind == JsonValueKind.Object &&
+                errors[0].TryGetProperty("message", out var message) &&
+                message.ValueKind == JsonValueKind.String)
+            {
+                return message.GetString();
+            }
         }
         catch (JsonException) { /* non-JSON error body: fall back to the status code */ }
         return null;

@@ -217,6 +217,54 @@ public static class RefactorSelfCheck
             AssertEqual(failures, "anime", merged[0].Type, "AniList combined anime entry type");
             AssertEqual(failures, "manga", merged[1].Type, "AniList combined manga entry type");
         }
+
+        // Fuzzy dates with null month / day
+        var fuzzyDatesJson = """
+            [
+              {
+                "progress": 1,
+                "status": "CURRENT",
+                "media": {
+                  "id": 100,
+                  "type": "ANIME",
+                  "title": { "english": "Fuzzy Year Only" },
+                  "startDate": { "year": 2021, "month": null, "day": null },
+                  "endDate": { "year": 2022, "month": 6, "day": null }
+                }
+              },
+              {
+                "progress": 2,
+                "status": "COMPLETED",
+                "media": {
+                  "id": 101,
+                  "type": "MANGA",
+                  "title": { "romaji": "Fuzzy All Nulls" },
+                  "startDate": { "year": null, "month": null, "day": null },
+                  "endDate": null
+                }
+              }
+            ]
+            """;
+        var fuzzyParsed = AniListImportParser.Parse(fuzzyDatesJson, mangaFile: false);
+        AssertEqual(failures, 2, fuzzyParsed.Count, "AniList fuzzy dates entry count");
+        if (fuzzyParsed.Count == 2)
+        {
+            AssertEqual(failures, "2021", fuzzyParsed[0].ReleaseDate, "AniList fuzzy date year-only formatted as yyyy");
+            AssertEqual(failures, "2022-06", fuzzyParsed[0].EndDate, "AniList fuzzy date year-month formatted as yyyy-MM");
+            AssertEqual(failures, null, fuzzyParsed[1].ReleaseDate, "AniList all-null fuzzy date is null");
+        }
+
+        // GraphQL error envelope handling
+        var errorJson = """{"errors":[{"message":"User not found","status":404}],"data":null}""";
+        try
+        {
+            AniListImportParser.Parse(errorJson, mangaFile: false);
+            failures.Add("Expected AniListImportParser to throw on GraphQL errors envelope");
+        }
+        catch (FormatException ex)
+        {
+            AssertEqual(failures, true, ex.Message.Contains("User not found"), "AniList error message extracted");
+        }
     }
 
     private static void CheckMangalibImportParser(List<string> failures)

@@ -14,7 +14,7 @@
     <!-- Kinopoisk/Yandex CDN answers 403 to any request that carries a Referer.
          Sending none keeps external posters loading; local /covers & /media-assets
          are same-origin, so they are unaffected. -->
-    <meta name="referrer" content="no-referrer" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
     <link rel="preconnect" href="https://image.tmdb.org" crossorigin />
     <link rel="preconnect" href="https://shared.fastly.steamstatic.com" crossorigin />
     <link rel="dns-prefetch" href="https://s4.anilist.co" />

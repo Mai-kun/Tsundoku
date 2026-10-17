@@ -728,6 +728,7 @@ export const translations = {
             search: { ru: "Поиск", en: "Search" },
             backup: { ru: "Резервная копия", en: "Backup" },
             import: { ru: "Импорт", en: "Import" },
+            reading: { ru: "Темп чтения", en: "Reading Speed" },
         },
         sources: {
             title: { ru: "Поддерживаемые источники", en: "Supported Sources" },
@@ -833,6 +834,23 @@ export const translations = {
             resetConfirmButton: { ru: "Подтвердить полное удаление", en: "Confirm full deletion" },
             resetting: { ru: "Очистка медиатеки...", en: "Resetting media library..." },
             resetSuccess: { ru: "Медиатека успешно очищена", en: "Media library reset successfully" },
+        },
+        reading: {
+            title: { ru: "Темп чтения", en: "Reading Speed" },
+            description: {
+                ru: "Индивидуальные параметры скорости чтения для расчета оставшегося времени и статистики.",
+                en: "Personal reading speed settings used for estimated reading times and statistics.",
+            },
+            bookPageMinutes: {
+                ru: "Скорость чтения книг (минут на страницу)",
+                en: "Book reading speed (minutes per page)",
+            },
+            mangaChapterMinutes: {
+                ru: "Скорость чтения манги (минут на главу)",
+                en: "Manga reading speed (minutes per chapter)",
+            },
+            saveButton: { ru: "Сохранить", en: "Save" },
+            savedToast: { ru: "Настройки темпа чтения успешно сохранены", en: "Reading speed settings saved successfully" },
         },
     },
     activity: {

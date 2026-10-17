@@ -417,19 +417,27 @@
 {/snippet}
 
 <div class="space-y-8">
-    <header class="flex flex-wrap items-end justify-between gap-4">
+    <!-- Обычный заголовок вверху страницы -->
+    <div class="mb-2">
         <p
             class="text-xs font-semibold uppercase tracking-[0.18em] text-accent-soft"
         >
             {i18n.t.library.collectionLabel}
         </p>
-        {#if !loading && !loadError}
-            <div class="flex flex-wrap items-center gap-2">
+    </div>
+
+    <!-- Плавающий островок кнопок справа (только кнопки интерактивны) -->
+    {#if !loading && !loadError}
+        <div class="sticky top-2 z-30 pointer-events-none -mt-8 mb-4 flex justify-end">
+            <div
+                class="pointer-events-auto inline-flex items-center gap-2 rounded-xl border border-white/10 bg-[#12151c]/90 p-1.5 shadow-xl shadow-black/50 backdrop-blur-md"
+            >
+                <!-- Кнопка группировки -->
                 <button
                     type="button"
                     role="switch"
                     aria-checked={groupByType}
-                    class={`tap grid h-12 w-12 shrink-0 place-items-center rounded-lg border transition cursor-pointer ${
+                    class={`tap grid h-9 w-9 shrink-0 place-items-center rounded-lg border transition cursor-pointer ${
                         groupByType
                             ? "border-accent/40 bg-accent/15 text-accent-soft"
                             : "border-white/10 bg-field text-muted hover:text-ink"
@@ -438,9 +446,10 @@
                     title={i18n.t.views.groupByType}
                     aria-label={i18n.t.views.groupByType}
                 >
-                    <Layers size={22} stroke-width={2} aria-hidden="true" />
+                    <Layers size={18} stroke-width={2} aria-hidden="true" />
                 </button>
 
+                <!-- Меню сортировки -->
                 <PopoverMenu
                     id="home-sort"
                     options={sortOptions}
@@ -458,12 +467,12 @@
                             popovertarget={popoverTargetId}
                             popovertargetaction="toggle"
                             style={isOpen ? `anchor-name: ${anchorName}` : undefined}
-                            class="tap grid h-12 w-12 shrink-0 place-items-center rounded-lg border border-white/10 bg-field text-muted transition hover:border-white/20 hover:text-ink has-[:popover-open]:ring-2 has-[:popover-open]:ring-indigo-500/40"
+                            class="tap grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-white/10 bg-field text-muted transition hover:border-white/20 hover:text-ink has-[:popover-open]:ring-2 has-[:popover-open]:ring-indigo-500/40"
                             title={i18n.t.sort.label}
                             aria-label={i18n.t.sort.label}
                         >
                             <SortIcon
-                                size={22}
+                                size={18}
                                 stroke-width={2}
                                 aria-hidden="true"
                             />
@@ -483,8 +492,8 @@
                     {/snippet}
                 </PopoverMenu>
             </div>
-        {/if}
-    </header>
+        </div>
+    {/if}
 
     {#if loading}
         <MediaGrid items={[]} {loading} />

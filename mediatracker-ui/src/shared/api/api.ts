@@ -407,6 +407,25 @@ export function saveSourcePriority(
   );
 }
 
+export interface ReadingSettings {
+  bookPageMinutes: number;
+  mangaChapterMinutes: number;
+}
+
+export function getReadingSettings(): Promise<ReadingSettings> {
+  return requestJson<ReadingSettings>("/api/settings/reading");
+}
+
+export function saveReadingSettings(
+  settings: ReadingSettings,
+): Promise<ReadingSettings> {
+  return requestJson<ReadingSettings>("/api/settings/reading", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(settings),
+  });
+}
+
 export function translateText(
   text: string,
   targetLanguage = "ru",

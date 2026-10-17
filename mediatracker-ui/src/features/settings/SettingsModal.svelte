@@ -3,11 +3,13 @@
         AlertCircle,
         AlertTriangle,
         ArrowDown,
+        BookOpen,
         Check,
         ChevronDown,
         ChevronUp,
         Eye,
         EyeOff,
+        FolderInput,
         Key,
         Layers,
         LoaderCircle,
@@ -15,11 +17,13 @@
         RotateCcw,
         Search,
         Server,
+        Settings,
         ShieldCheck,
         Trash2,
         X,
     } from "$shared/ui/Icons.svelte";
     import { onMount } from "svelte";
+    import { uiSettings } from "$shared/utils/uiSettings.svelte";
     import {
         errorMessage,
         exportBackup,
@@ -49,9 +53,46 @@
 
     let { isOpen, onClose, onImportCompleted, onNavigateToList }: Props = $props();
 
-    type Tab = "sources" | "search" | "backup" | "import";
+    type Tab = "sources" | "search" | "backup" | "import" | "reading";
     let activeTab = $state<Tab>("sources");
     let importOpen = $state(false);
+
+    let readingBookPageMinutes = $state(uiSettings.bookPageMinutes);
+    let readingMangaChapterMinutes = $state(uiSettings.mangaChapterMinutes);
+    let isSavingReading = $state(false);
+
+    $effect(() => {
+        if (isOpen) {
+            readingBookPageMinutes = uiSettings.bookPageMinutes;
+            readingMangaChapterMinutes = uiSettings.mangaChapterMinutes;
+        }
+    });
+
+    async function handleSaveReadingSpeed() {
+        if (isSavingReading) return;
+        const bookMin = Number(readingBookPageMinutes);
+        const mangaMin = Number(readingMangaChapterMinutes);
+
+        if (isNaN(bookMin) || bookMin < 0.2 || bookMin > 10.0) {
+            showToast("Скорость чтения книг должна быть от 0.2 до 10.0 мин/стр", "error");
+            return;
+        }
+        if (isNaN(mangaMin) || mangaMin < 0.5 || mangaMin > 30.0) {
+            showToast("Скорость чтения манги должна быть от 0.5 до 30.0 мин/гл", "error");
+            return;
+        }
+
+        isSavingReading = true;
+        try {
+            await uiSettings.setReadingSpeed(bookMin, mangaMin);
+            showToast(i18n.t.settingsModal.reading.savedToast, "success");
+        } catch (e) {
+            console.error(e);
+            showToast(errorMessage(e), "error");
+        } finally {
+            isSavingReading = false;
+        }
+    }
 
     let isExporting = $state(false);
     let isRestoring = $state(false);
@@ -415,22 +456,22 @@
     }
 </script>
 
-<Modal {isOpen} {onClose} labelledBy="settings-title">
-    <div class="flex max-h-[85vh] min-h-[500px] flex-col">
+<Modal {isOpen} {onClose} size="xl" labelledBy="settings-title">
+    <div class="flex h-full flex-col min-h-0 overflow-hidden">
         <!-- Header -->
         <header
-            class="flex shrink-0 items-center justify-between border-b border-white/[0.07] px-6 py-4"
+            class="flex shrink-0 items-center justify-between border-b border-white/[0.08] px-6 py-4"
         >
             <div class="flex items-center gap-3">
                 <div
-                    class="grid h-8 w-8 place-items-center rounded-lg bg-card text-accent-soft"
+                    class="grid h-9 w-9 place-items-center rounded-lg bg-[#5844e0]/15 text-[#a5b4fc]"
                 >
-                    <Server size={18} />
+                    <Settings size={20} />
                 </div>
                 <div>
                     <h2
                         id="settings-title"
-                        class="text-lg font-bold tracking-tight text-ink"
+                        class="text-lg font-bold tracking-tight text-white"
                     >
                         {i18n.t.settingsModal.title}
                     </h2>
@@ -438,7 +479,7 @@
             </div>
             <button
                 type="button"
-                class="grid h-8 w-8 place-items-center rounded-lg text-muted transition hover:bg-elevated hover:text-ink cursor-pointer"
+                class="grid h-8 w-8 place-items-center rounded-lg text-muted transition hover:bg-white/10 hover:text-white cursor-pointer"
                 aria-label={i18n.t.common.close}
                 onclick={onClose}
             >
@@ -446,51 +487,81 @@
             </button>
         </header>
 
-        <!-- Tabs Navigation -->
-        <div class="flex border-b border-white/[0.07] bg-card/40 px-6">
-            <button
-                type="button"
-                class={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition cursor-pointer ${
-                    activeTab === "sources"
-                        ? "border-accent-soft text-ink"
-                        : "border-transparent text-muted hover:text-ink"
-                }`}
-                onclick={() => (activeTab = "sources")}
+        <!-- Modal Body: 2 columns -->
+        <div class="flex-1 flex min-h-0 overflow-hidden">
+            <!-- Left sidebar navigation -->
+            <nav
+                class="w-56 sm:w-64 shrink-0 border-r border-white/[0.08] p-3 space-y-1.5 bg-[#12151c]/60 overflow-y-auto thin-scroll"
+                aria-label={i18n.t.settingsModal.title}
             >
-                <ShieldCheck size={16} />
-                {i18n.t.settingsModal.tabs.sources}
-            </button>
-            <button
-                type="button"
-                class={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition cursor-pointer ${
-                    activeTab === "search"
-                        ? "border-accent-soft text-ink"
-                        : "border-transparent text-muted hover:text-ink"
-                }`}
-                onclick={() => (activeTab = "search")}
-            >
-                <Search size={16} />
-                {i18n.t.settingsModal.tabs.search}
-            </button>
-            <button
-                type="button"
-                class={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition cursor-pointer ${
-                    activeTab === "backup"
-                        ? "border-accent-soft text-ink"
-                        : "border-transparent text-muted hover:text-ink"
-                }`}
-                onclick={() => (activeTab = "backup")}
-            >
-                <RotateCcw size={16} />
-                {i18n.t.settingsModal.tabs.backup}
-            </button>
-            <button type="button" class={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition cursor-pointer ${activeTab === "import" ? "border-accent-soft text-ink" : "border-transparent text-muted hover:text-ink"}`} onclick={() => (activeTab = "import")}>
-                <Layers size={16} />{i18n.t.settingsModal.tabs.import}
-            </button>
-        </div>
+                <button
+                    type="button"
+                    class={`flex items-center gap-3 w-full px-3.5 py-2.5 rounded-lg text-xs text-left transition tap cursor-pointer ${
+                        activeTab === "sources"
+                            ? "bg-[#5844e0]/15 text-[#a5b4fc] font-semibold border border-[#5844e0]/30 shadow-sm"
+                            : "text-muted hover:text-white hover:bg-white/5 font-medium border border-transparent"
+                    }`}
+                    onclick={() => (activeTab = "sources")}
+                >
+                    <Server size={16} />
+                    <span>{i18n.t.settingsModal.tabs.sources}</span>
+                </button>
 
-        <!-- Tab Body -->
-        <div class="flex-1 overflow-y-auto p-6">
+                <button
+                    type="button"
+                    class={`flex items-center gap-3 w-full px-3.5 py-2.5 rounded-lg text-xs text-left transition tap cursor-pointer ${
+                        activeTab === "search"
+                            ? "bg-[#5844e0]/15 text-[#a5b4fc] font-semibold border border-[#5844e0]/30 shadow-sm"
+                            : "text-muted hover:text-white hover:bg-white/5 font-medium border border-transparent"
+                    }`}
+                    onclick={() => (activeTab = "search")}
+                >
+                    <Search size={16} />
+                    <span>{i18n.t.settingsModal.tabs.search}</span>
+                </button>
+
+                <button
+                    type="button"
+                    class={`flex items-center gap-3 w-full px-3.5 py-2.5 rounded-lg text-xs text-left transition tap cursor-pointer ${
+                        activeTab === "backup"
+                            ? "bg-[#5844e0]/15 text-[#a5b4fc] font-semibold border border-[#5844e0]/30 shadow-sm"
+                            : "text-muted hover:text-white hover:bg-white/5 font-medium border border-transparent"
+                    }`}
+                    onclick={() => (activeTab = "backup")}
+                >
+                    <RotateCcw size={16} />
+                    <span>{i18n.t.settingsModal.tabs.backup}</span>
+                </button>
+
+                <button
+                    type="button"
+                    class={`flex items-center gap-3 w-full px-3.5 py-2.5 rounded-lg text-xs text-left transition tap cursor-pointer ${
+                        activeTab === "import"
+                            ? "bg-[#5844e0]/15 text-[#a5b4fc] font-semibold border border-[#5844e0]/30 shadow-sm"
+                            : "text-muted hover:text-white hover:bg-white/5 font-medium border border-transparent"
+                    }`}
+                    onclick={() => (activeTab = "import")}
+                >
+                    <FolderInput size={16} />
+                    <span>{i18n.t.settingsModal.tabs.import}</span>
+                </button>
+
+                <button
+                    type="button"
+                    class={`flex items-center gap-3 w-full px-3.5 py-2.5 rounded-lg text-xs text-left transition tap cursor-pointer ${
+                        activeTab === "reading"
+                            ? "bg-[#5844e0]/15 text-[#a5b4fc] font-semibold border border-[#5844e0]/30 shadow-sm"
+                            : "text-muted hover:text-white hover:bg-white/5 font-medium border border-transparent"
+                    }`}
+                    onclick={() => (activeTab = "reading")}
+                >
+                    <BookOpen size={16} />
+                    <span>{i18n.t.settingsModal.tabs.reading}</span>
+                </button>
+            </nav>
+
+            <!-- Right content area -->
+            <div class="flex-1 min-w-0 p-6 overflow-y-auto thin-scroll bg-[#151a26]/40">
             {#if activeTab === "sources"}
                 <div class="space-y-4">
                     <div
@@ -1177,9 +1248,69 @@
                         </button>
                     </div>
                 </div>
+            {:else if activeTab === "reading"}
+                <section class="space-y-6">
+                    <div>
+                        <h3 class="text-sm font-semibold text-ink">
+                            {i18n.t.settingsModal.reading.title}
+                        </h3>
+                        <p class="mt-1 text-xs text-muted">
+                            {i18n.t.settingsModal.reading.description}
+                        </p>
+                    </div>
+
+                    <div class="space-y-5 max-w-md">
+                        <div class="space-y-1.5">
+                            <label for="book-page-speed" class="block text-xs font-semibold text-slate-300">
+                                {i18n.t.settingsModal.reading.bookPageMinutes}
+                            </label>
+                            <input
+                                id="book-page-speed"
+                                type="number"
+                                min="0.2"
+                                max="10.0"
+                                step="0.1"
+                                class="w-full rounded-lg border border-white/10 bg-field px-3 py-2 text-sm text-ink outline-none transition focus:border-accent-soft focus:ring-1 focus:ring-accent-soft"
+                                bind:value={readingBookPageMinutes}
+                            />
+                            <p class="text-[11px] text-muted">По умолчанию: 1.5 мин/стр. Диапазон: 0.2 – 10.0</p>
+                        </div>
+
+                        <div class="space-y-1.5">
+                            <label for="manga-chapter-speed" class="block text-xs font-semibold text-slate-300">
+                                {i18n.t.settingsModal.reading.mangaChapterMinutes}
+                            </label>
+                            <input
+                                id="manga-chapter-speed"
+                                type="number"
+                                min="0.5"
+                                max="30.0"
+                                step="0.5"
+                                class="w-full rounded-lg border border-white/10 bg-field px-3 py-2 text-sm text-ink outline-none transition focus:border-accent-soft focus:ring-1 focus:ring-accent-soft"
+                                bind:value={readingMangaChapterMinutes}
+                            />
+                            <p class="text-[11px] text-muted">По умолчанию: 6.0 мин/гл. Диапазон: 0.5 – 30.0</p>
+                        </div>
+
+                        <div class="pt-2">
+                            <button
+                                type="button"
+                                disabled={isSavingReading}
+                                class="inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+                                onclick={handleSaveReadingSpeed}
+                            >
+                                {#if isSavingReading}
+                                    <LoaderCircle size={15} class="animate-spin" />
+                                {/if}
+                                {i18n.t.settingsModal.reading.saveButton}
+                            </button>
+                        </div>
+                    </div>
+                </section>
             {/if}
         </div>
     </div>
+</div>
 </Modal>
 
 <!-- Double confirmation for full library reset -->

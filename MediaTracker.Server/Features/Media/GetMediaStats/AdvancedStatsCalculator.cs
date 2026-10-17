@@ -10,7 +10,9 @@ public static class AdvancedStatsCalculator
     public static AdvancedStatsDto Calculate(
         IReadOnlyCollection<MediaItem> items,
         DateTime? now = null,
-        IEnumerable<MediaEvent>? events = null)
+        IEnumerable<MediaEvent>? events = null,
+        double bookPageMinutes = 1.5,
+        double mangaChapterMinutes = 6.0)
     {
         var refTime = now ?? DateTime.UtcNow;
 
@@ -78,7 +80,7 @@ public static class AdvancedStatsCalculator
                     : book.CurrentPage > 0 ? book.CurrentPage : 300
                 : book.CurrentPage;
             totalPagesRead += pagesRead;
-            bookHours += (pagesRead * 1.5) / 60.0;
+            bookHours += (pagesRead * bookPageMinutes) / 60.0;
         }
 
         double mangaHours = 0;
@@ -94,14 +96,14 @@ public static class AdvancedStatsCalculator
             if (manga.Status == MediaStatus.Completed)
             {
                 mangaHours += manga.TotalChapters is > 0
-                    ? (manga.TotalChapters.Value * 6.0) / 60.0
+                    ? (manga.TotalChapters.Value * mangaChapterMinutes) / 60.0
                     : manga.TotalVolumes is > 0
                         ? (manga.TotalVolumes.Value * 50.0) / 60.0
                         : 0;
             }
             else if (manga.CurrentChapter > 0)
             {
-                mangaHours += (manga.CurrentChapter * 6.0) / 60.0;
+                mangaHours += (manga.CurrentChapter * mangaChapterMinutes) / 60.0;
             }
             else if (manga.CurrentVolume > 0)
             {

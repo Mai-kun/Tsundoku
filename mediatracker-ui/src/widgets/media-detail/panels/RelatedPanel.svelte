@@ -198,6 +198,7 @@
                 alt={rel.title}
                 class="h-full w-full object-cover transition duration-500 group-hover:scale-105"
                 loading="lazy"
+                referrerpolicy="no-referrer"
             />
         {:else}
             <div
@@ -297,6 +298,7 @@
                     <img
                         src={item.coverUrl}
                         alt={item.title}
+                        referrerpolicy="no-referrer"
                         class="h-full w-full object-cover"
                     />
                 {:else}

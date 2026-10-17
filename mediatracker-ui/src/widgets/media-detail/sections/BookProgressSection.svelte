@@ -1,5 +1,6 @@
 <script lang="ts">
     import { i18n } from "$shared/i18n/index.svelte";
+    import { uiSettings } from "$shared/utils/uiSettings.svelte";
     import { BookOpen, Clock, Minus, Plus } from "$shared/ui/Icons.svelte";
     import { formatNumber } from "$entities/media/model/mediaLabels";
     import { errorMessage } from "$shared/api/api";
@@ -25,14 +26,13 @@
         onStep,
     }: Props = $props();
 
-    // ponytail: 1.5 min/page is a common reading speed heuristic
-    const MINS_PER_PAGE = 1.5;
+    const minsPerPage = $derived(uiSettings.bookPageMinutes || 1.5);
     const DAILY_PACE = 20;
 
-    const totalMinutes = $derived(Math.round(totalPages * MINS_PER_PAGE));
+    const totalMinutes = $derived(Math.round(totalPages * minsPerPage));
     const totalHours = $derived((totalMinutes / 60).toFixed(1));
     const remainingPages = $derived(Math.max(0, totalPages - value));
-    const remainingMinutes = $derived(Math.round(remainingPages * MINS_PER_PAGE));
+    const remainingMinutes = $derived(Math.round(remainingPages * minsPerPage));
     const remainingHours = $derived((remainingMinutes / 60).toFixed(1));
     const daysAtPace = $derived(Math.ceil(remainingPages / DAILY_PACE));
 

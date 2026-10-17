@@ -82,6 +82,7 @@
                             <img
                                 src={item.coverUrl}
                                 alt={item.title}
+                                referrerpolicy="no-referrer"
                                 class="h-full w-full object-cover"
                             />
                         {:else}

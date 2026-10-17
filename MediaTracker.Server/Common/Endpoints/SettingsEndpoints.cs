@@ -4,6 +4,7 @@ using MediaTracker.Server.Features.Settings.GetSourcePriority;
 using MediaTracker.Server.Features.Settings.SaveCategoryOrder;
 using MediaTracker.Server.Features.Settings.SaveSourceKey;
 using MediaTracker.Server.Features.Settings.SaveSourcePriority;
+using MediaTracker.Server.Features.Settings.ReadingSettings;
 using MediaTracker.Server.Features.Settings.ResetData;
 using MediaTracker.Server.Features.Settings.TestSource;
 using MediaTracker.Server.Features.Settings.ToggleSource;
@@ -64,6 +65,15 @@ public static class SettingsEndpoints
                 [FromServices] ISaveSourcePriorityHandler handler,
                 CancellationToken ct) =>
             handler.HandleAsync(new SaveSourcePriorityCommand(priority), ct).ToOk());
+
+        group.MapGet("/reading", ([FromServices] IGetReadingSettingsHandler handler, CancellationToken ct) =>
+            handler.HandleAsync(ct).ToOk());
+
+        group.MapPut("/reading", (
+                ReadingSettingsDto request,
+                [FromServices] ISaveReadingSettingsHandler handler,
+                CancellationToken ct) =>
+            handler.HandleAsync(request, ct).ToOk());
 
         group.MapGet("/backup/export", async (
             [FromServices] MediaTracker.Server.Infrastructure.Storage.IBackupService backupService,

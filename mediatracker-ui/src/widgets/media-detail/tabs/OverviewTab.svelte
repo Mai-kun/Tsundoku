@@ -13,8 +13,9 @@
     import TrailerSection from "../sections/TrailerSection.svelte";
     import BookProgressSection from "../sections/BookProgressSection.svelte";
     import BookEditionSection from "../sections/BookEditionSection.svelte";
+    import MangaProgressSection from "../sections/MangaProgressSection.svelte";
     import MovieStatusSection from "../sections/MovieStatusSection.svelte";
-    import type { CreatorRole, MediaItem } from "$shared/types";
+    import type { CreatorRole, MangaDetail, MediaItem } from "$shared/types";
 
     interface Props {
         media: MediaDetail;
@@ -173,6 +174,18 @@
                     <BookProgressSection
                         totalPages={(media as { totalPages: number }).totalPages ?? 0}
                         currentPage={(media as { currentPage: number }).currentPage ?? 0}
+                        progress={support}
+                        value={progressValue}
+                        percent={progressPercent}
+                        error={progressError}
+                        {onStep}
+                    />
+                {:else if isManga && support}
+                    <!-- Манга: расширенный блок с расчетом времени и томами -->
+                    <MangaProgressSection
+                        media={media as MangaDetail}
+                        totalChapters={(media as MangaDetail).totalChapters ?? 0}
+                        currentChapter={(media as MangaDetail).currentChapter ?? 0}
                         progress={support}
                         value={progressValue}
                         percent={progressPercent}

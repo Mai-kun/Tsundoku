@@ -1,12 +1,12 @@
-﻿<script lang="ts">
+<script lang="ts">
     import type { Snippet } from "svelte";
 
     interface Props {
         isOpen: boolean;
         onClose: () => void;
         labelledBy?: string;
-        /** `md` — обычная модалка. `lg` — широкая панель (превью деталей). */
-        size?: "md" | "lg";
+        /** `md` — обычная модалка. `lg` — широкая панель (превью деталей). `xl` — расширенная модалка (настройки и т.д.). */
+        size?: "md" | "lg" | "xl";
         children: Snippet;
     }
 
@@ -59,9 +59,11 @@
 <dialog
     bind:this={dialogElement}
     aria-labelledby={labelledBy}
-    class="z-40 m-auto w-full {size === 'lg'
-        ? 'max-w-5xl'
-        : 'max-w-2xl'} overflow-visible border-0 bg-transparent p-4 text-ink backdrop:bg-black/70 backdrop:backdrop-blur-sm"
+    class="z-40 m-auto w-full {size === 'xl'
+        ? 'w-[85vw] max-w-6xl h-[80vh] max-h-[85vh]'
+        : size === 'lg'
+          ? 'max-w-5xl'
+          : 'max-w-2xl'} overflow-visible border-0 bg-transparent p-4 text-ink backdrop:bg-black/70 backdrop:backdrop-blur-sm"
     onclose={handleNativeClose}
     oncancel={handleCancel}
     onmousedown={handleMouseDown}
@@ -70,9 +72,11 @@
     <!-- Fully opaque panel: only the ::backdrop carries the dim/blur, never the dialog
        surface itself, otherwise page content bleeds through the text. -->
     <div
-        class="overflow-hidden rounded-xl border border-white/[0.08] bg-[#151a26] shadow-2xl shadow-black/60"
+        class="overflow-hidden rounded-xl border border-white/[0.08] bg-[#151a26] shadow-2xl shadow-black/60 {size === 'xl'
+            ? 'h-full flex flex-col min-h-0'
+            : ''}"
     >
-        <div>
+        <div class={size === 'xl' ? 'h-full flex flex-col min-h-0' : ''}>
             {@render children()}
         </div>
     </div>

@@ -187,7 +187,7 @@
             <button
                 type="button"
                 class={`tap grid h-10 w-10 place-items-center rounded-lg border transition ${
-                    scoreValue !== null
+                    scoreValue !== null && scoreValue > 0
                         ? "border-amber-400/40 bg-amber-400/10 text-amber-300"
                         : "border-white/[0.08] bg-[var(--color-panel-line)] text-white/80 hover:bg-[var(--color-panel-raised)] hover:text-white"
                 }`}
@@ -196,15 +196,10 @@
                 aria-label={i18n.t.detail.yourRating}
                 aria-expanded={ratingOpen}
             >
-                {#if scoreValue !== null}
-                    <Star
-                        size={18}
-                        class="text-amber-400"
-                        fill="currentColor"
-                        aria-hidden="true"
-                    />
+                {#if scoreValue !== null && scoreValue > 0}
+                    <span class="text-sm font-black tabular-nums text-amber-300">{scoreValue}</span>
                 {:else}
-                    <Star size={18} aria-hidden="true" />
+                    <Star size={18} class="text-white/80" aria-hidden="true" />
                 {/if}
             </button>
 

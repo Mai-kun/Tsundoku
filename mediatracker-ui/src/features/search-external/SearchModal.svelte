@@ -854,6 +854,7 @@
                                                         class="h-full w-full object-cover"
                                                         loading="lazy"
                                                         decoding="async"
+                                                        referrerpolicy="no-referrer"
                                                     />
                                                 {:else}
                                                     <div
@@ -1068,6 +1069,7 @@
                                         class="h-full w-full object-cover"
                                         loading="lazy"
                                         decoding="async"
+                                        referrerpolicy="no-referrer"
                                     />
                                 {:else}
                                     <div

@@ -1,6 +1,8 @@
+using System.Globalization;
 using MediaTracker.Server.Domain.Common;
 using MediaTracker.Server.Domain.Entities;
 using MediaTracker.Server.Features.Media.GetMediaDetail;
+using MediaTracker.Server.Features.Settings.ReadingSettings;
 using MediaTracker.Server.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
@@ -76,7 +78,22 @@ public sealed class GetMediaStatsHandler(AppDbContext db, IMemoryCache cache) : 
             .Where(mediaEvent => mediaEvent.CreatedAt >= activityStart)
             .ToListAsync(ct);
 
-        var stats = AdvancedStatsCalculator.Calculate(items, events: events);
+        var bookVal = await AppSettingStore.ReadAsync(db, GetReadingSettingsHandler.BookPageMinutesKey, ct);
+        var mangaVal = await AppSettingStore.ReadAsync(db, GetReadingSettingsHandler.MangaChapterMinutesKey, ct);
+
+        var bookMinutes = double.TryParse(bookVal, CultureInfo.InvariantCulture, out var b) && b >= 0.2 && b <= 10.0
+            ? b
+            : GetReadingSettingsHandler.DefaultBookPageMinutes;
+
+        var mangaMinutes = double.TryParse(mangaVal, CultureInfo.InvariantCulture, out var m) && m >= 0.5 && m <= 30.0
+            ? m
+            : GetReadingSettingsHandler.DefaultMangaChapterMinutes;
+
+        var stats = AdvancedStatsCalculator.Calculate(
+            items,
+            events: events,
+            bookPageMinutes: bookMinutes,
+            mangaChapterMinutes: mangaMinutes);
         cache.Set(AdvancedStatsCalculator.CacheKey, stats, TimeSpan.FromMinutes(5));
 
         return Result<AdvancedStatsDto>.Success(stats);

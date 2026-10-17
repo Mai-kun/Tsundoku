@@ -20,6 +20,7 @@
                 class="absolute inset-0 h-full w-full border-0"
                 allow="autoplay; encrypted-media; picture-in-picture"
                 allowfullscreen
+                referrerpolicy="strict-origin-when-cross-origin"
             ></iframe>
         {:else}
             <img

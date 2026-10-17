@@ -345,14 +345,26 @@ export function relinkMedia(
   });
 }
 
-export function getSources(): Promise<SourceInfo[]> {
-  return requestJson<SourceInfo[]>("/api/settings/sources");
+let sourcesCachePromise: Promise<SourceInfo[]> | null = null;
+
+export function getSources(forceRefresh = false): Promise<SourceInfo[]> {
+  if (!forceRefresh && sourcesCachePromise) return sourcesCachePromise;
+  sourcesCachePromise = requestJson<SourceInfo[]>("/api/settings/sources").catch((err) => {
+    sourcesCachePromise = null;
+    throw err;
+  });
+  return sourcesCachePromise;
+}
+
+export function invalidateSourcesCache(): void {
+  sourcesCachePromise = null;
 }
 
 export function toggleSourceEnabled(
   sourceId: string,
   enabled: boolean,
 ): Promise<{ success: boolean; isEnabled: boolean }> {
+  invalidateSourcesCache();
   return requestJson(
     `/api/settings/sources/${sourceId}/toggle`,
     jsonOptions("PUT", { enabled }),
@@ -372,6 +384,7 @@ export function saveSourceKey(
   sourceId: string,
   apiKey: string,
 ): Promise<{ success: boolean; hasKey: boolean; maskedKey: string | null }> {
+  invalidateSourcesCache();
   return requestJson(
     `/api/settings/sources/${sourceId}/key`,
     jsonOptions("PUT", { apiKey }),

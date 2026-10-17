@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text.Json.Serialization;
 using MediaTracker.Server.Common.Cli;
@@ -13,6 +14,7 @@ using MediaTracker.Server.Infrastructure.Security;
 using MediaTracker.Server.Infrastructure.Storage;
 using MediaTracker.Server.SelfChecks;
 using Microsoft.AspNetCore.ResponseCompression;
+using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 using Serilog;
@@ -80,6 +82,24 @@ if (options.Mode == TsundokuRunMode.GuiOnly)
         "Tsundoku starting in client-only mode. Server address: {ServerAddress}",
         options.ServerUrl
     );
+    if (OperatingSystem.IsLinux())
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "xdg-open",
+                Arguments = options.ServerUrl!,
+                UseShellExecute = true
+            });
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Failed to launch default browser via xdg-open");
+        }
+        Log.CloseAndFlush();
+        return 0;
+    }
     RunPhotinoWindow(options.ServerUrl!);
     Log.CloseAndFlush();
     return 0;
@@ -198,17 +218,23 @@ try
         ? new CompositeFileProvider(new PhysicalFileProvider(wwwrootPath), embeddedProvider)
         : embeddedProvider;
 
+    var contentTypeProvider = new FileExtensionContentTypeProvider();
+    contentTypeProvider.Mappings[".webmanifest"] = "application/manifest+json";
+
     app.UseDefaultFiles(new DefaultFilesOptions { FileProvider = staticFileProvider });
 
     app.UseStaticFiles(
         new StaticFileOptions
         {
             FileProvider = staticFileProvider,
+            ContentTypeProvider = contentTypeProvider,
             OnPrepareResponse = context =>
             {
                 // Vite emits content-hashed filenames under /assets, so those are immutable exactly like
                 // the covers. index.html and diag.html must stay revalidated or a deploy never lands.
-                if (context.File.Name.EndsWith(".html", StringComparison.OrdinalIgnoreCase))
+                if (context.File.Name.EndsWith(".html", StringComparison.OrdinalIgnoreCase)
+                    || context.File.Name.EndsWith(".webmanifest", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(context.File.Name, "sw.js", StringComparison.OrdinalIgnoreCase))
                 {
                     context.Context.Response.Headers.CacheControl = "no-cache";
                 }
@@ -297,6 +323,35 @@ try
 
         // Фоновый запуск бэкфилла франшиз без блокировки открытия UI-окна
         StartBackgroundFranchiseBackfill(app);
+
+        if (OperatingSystem.IsLinux() && !options.IsHeadless && !options.MigrateOnly)
+        {
+            try
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = "xdg-open",
+                    Arguments = options.ServerUrl!,
+                    UseShellExecute = true
+                });
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "Failed to launch default browser via xdg-open");
+            }
+
+            ConsoleOutput.Attach();
+            Console.WriteLine();
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"[Tsundoku] Сервер запущен: {options.ServerUrl}");
+            Console.ResetColor();
+            Console.WriteLine("[Tsundoku] Приложение открыто в браузере. Вы можете установить его как PWA через меню браузера.");
+            Console.WriteLine("Нажмите Ctrl+C для остановки сервера.");
+            Console.WriteLine();
+
+            await app.WaitForShutdownAsync();
+            return 0;
+        }
 
         try
         {

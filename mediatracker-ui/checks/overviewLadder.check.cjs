@@ -142,7 +142,11 @@ async function checkItem(page, item, vpName, problems) {
     return
   }
 
-  const browser = await chromium.launch({ channel: 'msedge' })
+  const launchOptions = {
+    channel: process.env.TS_BROWSER_CHANNEL || (process.platform === 'win32' ? 'msedge' : undefined),
+    headless: true
+  };
+  const browser = await chromium.launch(launchOptions);
   const problems = []
 
   for (const [vpName, viewport] of VIEWPORTS) {

@@ -46,6 +46,10 @@ public sealed class EncryptionService : IEncryptionService
             {
                 File.SetAttributes(keyFilePath, FileAttributes.Hidden);
             }
+            if (!OperatingSystem.IsWindows())
+            {
+                File.SetUnixFileMode(keyFilePath, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+            }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {

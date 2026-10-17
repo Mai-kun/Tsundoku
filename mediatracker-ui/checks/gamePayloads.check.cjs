@@ -53,7 +53,11 @@ const recommendations = [
   ok('server stored the achievements payload', !!stored.achievementsJson);
   ok('server stored the recommendations payload', !!stored.recommendationsJson);
 
-  const browser = await chromium.launch({ channel: 'msedge' });
+  const launchOptions = {
+    channel: process.env.TS_BROWSER_CHANNEL || (process.platform === 'win32' ? 'msedge' : undefined),
+    headless: true
+  };
+  const browser = await chromium.launch(launchOptions);
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
   page.setDefaultTimeout(12000);
   const errors = [];

@@ -8,7 +8,11 @@ const { chromium } = require("playwright-core");
 const BASE = process.env.TS_BASE || "http://localhost:5173";
 
 (async () => {
-  const browser = await chromium.launch({ channel: "msedge" });
+  const launchOptions = {
+    channel: process.env.TS_BROWSER_CHANNEL || (process.platform === 'win32' ? 'msedge' : undefined),
+    headless: true
+  };
+  const browser = await chromium.launch(launchOptions);
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   const problems = [];
   page.on("pageerror", (e) => problems.push("pageerror: " + e.message.slice(0, 200)));

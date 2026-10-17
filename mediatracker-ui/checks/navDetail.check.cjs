@@ -9,7 +9,11 @@ const BASE = process.env.TS_BASE || 'http://localhost:5000';
   const fails = [];
   const ok = (l, c) => { if (!c) fails.push(l); console.log((c ? 'ok   ' : 'FAIL ') + l); };
 
-  const browser = await chromium.launch({ channel: 'msedge' });
+  const launchOptions = {
+    channel: process.env.TS_BROWSER_CHANNEL || (process.platform === 'win32' ? 'msedge' : undefined),
+    headless: true
+  };
+  const browser = await chromium.launch(launchOptions);
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   page.setDefaultTimeout(12000);
   const errors = [];

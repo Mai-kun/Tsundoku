@@ -11,7 +11,11 @@ function check(name, condition, details) {
 }
 
 (async () => {
-  const browser = await chromium.launch({ channel: 'msedge' });
+  const launchOptions = {
+    channel: process.env.TS_BROWSER_CHANNEL || (process.platform === 'win32' ? 'msedge' : undefined),
+    headless: true
+  };
+  const browser = await chromium.launch(launchOptions);
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   page.setDefaultTimeout(10000);
   page.on('pageerror', (error) => pageErrors.push(error.message));

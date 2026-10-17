@@ -21,6 +21,26 @@ using Serilog.Events;
 using OpenApiUi;
 #endif
 
+if (OperatingSystem.IsLinux())
+{
+    // Принудительный бэкенд X11/XWayland для стабильности GTK3 и защита от крашей DMA-BUF
+    if (
+        string.IsNullOrEmpty(Environment.GetEnvironmentVariable("GDK_BACKEND"))
+        || string.Equals(
+            Environment.GetEnvironmentVariable("GDK_BACKEND"),
+            "wayland",
+            StringComparison.OrdinalIgnoreCase
+        )
+    )
+    {
+        Environment.SetEnvironmentVariable("GDK_BACKEND", "x11");
+    }
+    if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WEBKIT_DISABLE_DMABUF_RENDERER")))
+    {
+        Environment.SetEnvironmentVariable("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+    }
+}
+
 var options = CommandLineOptions.Parse(args);
 
 if (options.ShowHelp)
@@ -48,7 +68,14 @@ if (options.RunSelfCheck)
 if (options.Mode == TsundokuRunMode.GuiOnly)
 {
     var guiPaths = CreateAppPaths(options);
-    ConfigureWebView2(guiPaths);
+    if (OperatingSystem.IsWindows())
+    {
+        ConfigureWebView2(guiPaths);
+    }
+    else
+    {
+        ConfigureLinuxEnvironment(guiPaths);
+    }
     Log.Information(
         "Tsundoku starting in client-only mode. Server address: {ServerAddress}",
         options.ServerUrl
@@ -62,9 +89,13 @@ var isContainer = CommandLineOptions.IsRunningInContainer;
 
 var appPaths = CreateAppPaths(options);
 
-if (!options.IsHeadless && !options.MigrateOnly)
+if (OperatingSystem.IsWindows() && !options.IsHeadless && !options.MigrateOnly)
 {
     ConfigureWebView2(appPaths);
+}
+else if (!OperatingSystem.IsWindows() && !options.IsHeadless && !options.MigrateOnly)
+{
+    ConfigureLinuxEnvironment(appPaths);
 }
 
 ConfigureLogging(appPaths.LogsDirectory);
@@ -155,12 +186,24 @@ try
 #endif
 
     var embeddedProvider = new ManifestEmbeddedFileProvider(typeof(Program).Assembly, "wwwroot");
-    app.UseDefaultFiles(new DefaultFilesOptions { FileProvider = embeddedProvider });
+    var wwwrootCandidates = new[]
+    {
+        Path.Combine(builder.Environment.ContentRootPath, "wwwroot"),
+        Path.Combine(builder.Environment.ContentRootPath, "MediaTracker.Server", "wwwroot"),
+        Path.Combine(AppContext.BaseDirectory, "wwwroot"),
+    };
+    var wwwrootPath = wwwrootCandidates.FirstOrDefault(Directory.Exists)
+        ?? Path.Combine(builder.Environment.ContentRootPath, "wwwroot");
+    IFileProvider staticFileProvider = Directory.Exists(wwwrootPath)
+        ? new CompositeFileProvider(new PhysicalFileProvider(wwwrootPath), embeddedProvider)
+        : embeddedProvider;
+
+    app.UseDefaultFiles(new DefaultFilesOptions { FileProvider = staticFileProvider });
 
     app.UseStaticFiles(
         new StaticFileOptions
         {
-            FileProvider = embeddedProvider,
+            FileProvider = staticFileProvider,
             OnPrepareResponse = context =>
             {
                 // Vite emits content-hashed filenames under /assets, so those are immutable exactly like
@@ -219,7 +262,7 @@ try
             return;
         }
 
-        var indexFile = embeddedProvider.GetFileInfo("index.html");
+        var indexFile = staticFileProvider.GetFileInfo("index.html");
         if (!indexFile.Exists)
         {
             context.Response.StatusCode = StatusCodes.Status404NotFound;
@@ -251,9 +294,31 @@ try
     else
     {
         await app.StartAsync();
+
         // Фоновый запуск бэкфилла франшиз без блокировки открытия UI-окна
         StartBackgroundFranchiseBackfill(app);
-        RunPhotinoWindow(options.ServerUrl!);
+
+        try
+        {
+            RunPhotinoWindow(options.ServerUrl!);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Photino GUI failed to start. Falling back to Headless mode.");
+            ConsoleOutput.Attach();
+            Console.WriteLine();
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine($"[Tsundoku] Не удалось открыть графическое окно Photino: {ex.Message}");
+            Console.ResetColor();
+            Console.WriteLine($"[Tsundoku] Сервер продолжает работать в штатном фоновом режиме!");
+            Console.WriteLine($"[Tsundoku] Откройте приложение в браузере: {options.ServerUrl}");
+            Console.WriteLine();
+
+            // Сервер не гасится, а ждет сигнала завершения (Ctrl+C / SIGTERM)
+            await app.WaitForShutdownAsync();
+            return 0;
+        }
+
         await app.StopAsync();
     }
 }
@@ -338,6 +403,20 @@ static void ConfigureWebView2(AppPaths appPaths)
     Environment.SetEnvironmentVariable("WEBVIEW2_USER_DATA_FOLDER", webViewCacheDir);
 }
 
+static void ConfigureLinuxEnvironment(AppPaths appPaths)
+{
+    // Защита от краша "Protocol error dispatching to Wayland display" в WebKitGTK / Photino
+    if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("GDK_BACKEND")))
+    {
+        Environment.SetEnvironmentVariable("GDK_BACKEND", "x11");
+    }
+
+    if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WEBKIT_DISABLE_DMABUF_RENDERER")))
+    {
+        Environment.SetEnvironmentVariable("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+    }
+}
+
 static async Task InitializeDatabaseAsync(WebApplication app)
 {
     using var scope = app.Services.CreateScope();
@@ -382,24 +461,73 @@ static void RunPhotinoWindow(string serverUrl)
     // Photino reads this before the WebView2 controller is created, so it has to be set here rather
     // than on the window: without it the surface flashes white before the web content paints.
     // The value is the UI's --color-canvas (#0d0f14) in WebView2's AARRGGBB form.
-    Environment.SetEnvironmentVariable("WEBVIEW2_DEFAULT_BACKGROUND_COLOR", "FF0D0F14");
+    if (OperatingSystem.IsWindows())
+    {
+        Environment.SetEnvironmentVariable("WEBVIEW2_DEFAULT_BACKGROUND_COLOR", "FF0D0F14");
+    }
+
+    Exception? threadException = null;
 
     var uiThread = new Thread(() =>
     {
-        var window = new Photino.NET.PhotinoWindow()
-            .SetTitle("Tsundoku")
-            .SetUseOsDefaultSize(false)
-            .SetSize(1300, 850)
-            .Center()
-            .SetDevToolsEnabled(true)
-            .Load(serverUrl);
+        try
+        {
+            if (OperatingSystem.IsLinux())
+            {
+                if (
+                    string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DISPLAY"))
+                    && string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WAYLAND_DISPLAY"))
+                )
+                {
+                    throw new InvalidOperationException(
+                        "No graphical display found (neither DISPLAY nor WAYLAND_DISPLAY is set)."
+                    );
+                }
 
-        window.WaitForClose();
+                try
+                {
+                    if (!GtkInitCheck(IntPtr.Zero, IntPtr.Zero))
+                    {
+                        throw new InvalidOperationException("Cannot open display or initialize GTK3.");
+                    }
+                }
+                catch (DllNotFoundException)
+                {
+                    throw new InvalidOperationException("GTK3 runtime library (libgtk-3.so.0) not found.");
+                }
+            }
+
+            var window = new Photino.NET.PhotinoWindow()
+                .SetTitle("Tsundoku")
+                .SetUseOsDefaultSize(false)
+                .SetSize(1300, 850)
+                .Center()
+                .SetDevToolsEnabled(true)
+                .Load(serverUrl);
+
+            window.WaitForClose();
+        }
+        catch (Exception ex)
+        {
+            threadException = ex;
+        }
     });
 
 #pragma warning disable CA1416
-    uiThread.SetApartmentState(ApartmentState.STA);
+    if (OperatingSystem.IsWindows())
+    {
+        uiThread.SetApartmentState(ApartmentState.STA);
+    }
 #pragma warning restore CA1416
     uiThread.Start();
     uiThread.Join();
+
+    if (threadException != null)
+    {
+        throw threadException;
+    }
 }
+
+[DllImport("libgtk-3.so.0", EntryPoint = "gtk_init_check")]
+[return: MarshalAs(UnmanagedType.Bool)]
+static extern bool GtkInitCheck(IntPtr argc, IntPtr argv);

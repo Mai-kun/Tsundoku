@@ -10,7 +10,11 @@ const TOKENS = [
 ];
 
 (async () => {
-  const browser = await chromium.launch({ channel: 'msedge' });
+  const launchOptions = {
+    channel: process.env.TS_BROWSER_CHANNEL || (process.platform === 'win32' ? 'msedge' : undefined),
+    headless: true
+  };
+  const browser = await chromium.launch(launchOptions);
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   await page.goto(BASE + '/?view=home', { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(1200);

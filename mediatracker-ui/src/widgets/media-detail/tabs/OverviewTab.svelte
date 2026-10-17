@@ -181,9 +181,10 @@
                         percent={progressPercent}
                         error={progressError}
                         {onStep}
+                        {onCounterChange}
                     />
                 {:else if isManga && support}
-                    <!-- Манга: расширенный блок с расчетом времени и томами -->
+                    <!-- Манга: расширенный блок с расчетом времени и главами -->
                     <MangaProgressSection
                         media={media as MangaDetail}
                         totalChapters={(media as MangaDetail).totalChapters ?? 0}
@@ -193,6 +194,7 @@
                         percent={progressPercent}
                         error={progressError}
                         {onStep}
+                        {onCounterChange}
                     />
                 {:else if isTvShow && support}
                     <!-- Сериалы и аниме: расширенный блок с аналитикой времени просмотра -->
@@ -205,6 +207,7 @@
                         percent={progressPercent}
                         error={progressError}
                         {onStep}
+                        {onCounterChange}
                     />
                 {:else if isMovie}
                     <!-- Фильмы: хронометраж + статус вместо плоской плашки -->
@@ -216,6 +219,7 @@
                         percent={progressPercent}
                         error={progressError}
                         {onStep}
+                        {onCounterChange}
                     />
                 {:else}
                     <div class="flex flex-col justify-center rounded-xl border border-white/[0.06] bg-[var(--color-panel-line)] p-5 shadow-sm">
@@ -261,6 +265,7 @@
                     <CreatorSection
                         creatorName={creator.name}
                         role={creator.role}
+                        mediaType={media.type}
                         label={creator.label}
                         imageUrl={media.creatorImageUrl ?? null}
                         currentMediaId={media.id}

@@ -1,7 +1,7 @@
 <script lang="ts">
     import { i18n } from "$shared/i18n/index.svelte";
     import { uiSettings } from "$shared/utils/uiSettings.svelte";
-    import { BookOpen, Clock, Layers, Minus, Plus } from "$shared/ui/Icons.svelte";
+    import { Clock, Minus, Plus } from "$shared/ui/Icons.svelte";
     import { formatNumber } from "$entities/media/model/mediaLabels";
     import { errorMessage } from "$shared/api/api";
     import type { ProgressInfo } from "../detailTypes";
@@ -16,6 +16,7 @@
         percent: number;
         error: unknown;
         onStep: (delta: number) => void;
+        onCounterChange?: (value: number) => void;
     }
 
     let {
@@ -27,6 +28,7 @@
         percent,
         error,
         onStep,
+        onCounterChange,
     }: Props = $props();
 
     const minsPerChapter = $derived(uiSettings.mangaChapterMinutes || 6.0);
@@ -42,69 +44,173 @@
 
     const isRu = $derived(i18n.current === "ru");
 
-    const hasVolumes = $derived((media.totalVolumes ?? 0) > 0);
-    const volumePercent = $derived(
-        hasVolumes ? Math.round(((media.currentVolume ?? 0) / (media.totalVolumes || 1)) * 100) : 0
-    );
+    let isEditing = $state(false);
+    let editValue = $state("");
+    let isDragging = $state(false);
+    let barElement: HTMLElement | null = $state(null);
+
+    function focusOnMount(el: HTMLElement) {
+        el.focus();
+        if (el instanceof HTMLInputElement) el.select();
+    }
+
+    function applyValue(nextVal: number) {
+        const clamped = Math.max(0, effectiveTotal > 0 ? Math.min(nextVal, effectiveTotal) : nextVal);
+        if (clamped === value) return;
+        if (onCounterChange) {
+            onCounterChange(clamped);
+        } else {
+            onStep(clamped - value);
+        }
+    }
+
+    function startEditing() {
+        editValue = String(value);
+        isEditing = true;
+    }
+
+    function commitEditing() {
+        if (!isEditing) return;
+        isEditing = false;
+        const parsed = parseInt(editValue, 10);
+        if (!isNaN(parsed)) {
+            applyValue(parsed);
+        }
+    }
+
+    function handleKeydown(e: KeyboardEvent) {
+        if (e.key === "Enter") {
+            commitEditing();
+        } else if (e.key === "Escape") {
+            isEditing = false;
+        }
+    }
+
+    function calculateValueFromPointer(clientX: number): number {
+        if (!barElement || effectiveTotal <= 0) return value;
+        const rect = barElement.getBoundingClientRect();
+        if (rect.width <= 0) return value;
+        const offsetX = Math.max(0, Math.min(clientX - rect.left, rect.width));
+        const ratio = offsetX / rect.width;
+        return Math.round(ratio * effectiveTotal);
+    }
+
+    function handlePointerDown(e: PointerEvent) {
+        if (effectiveTotal <= 0) return;
+        isDragging = true;
+        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+        applyValue(calculateValueFromPointer(e.clientX));
+    }
+
+    function handlePointerMove(e: PointerEvent) {
+        if (!isDragging || effectiveTotal <= 0) return;
+        applyValue(calculateValueFromPointer(e.clientX));
+    }
+
+    function handlePointerUp(e: PointerEvent) {
+        if (isDragging) {
+            isDragging = false;
+            try {
+                (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+            } catch {}
+        }
+    }
 </script>
 
 <section class="space-y-4 rounded-xl border border-white/[0.06] bg-[var(--color-panel-line)] p-5 shadow-sm">
+    <!-- 1. Верхняя строка: ГЛАВЫ, счетчик и капсула кнопок -->
     <div class="flex items-center justify-between gap-3">
-        <div class="flex items-center gap-2">
-            <BookOpen size={16} class="shrink-0 text-accent-soft" />
-            <h2 class="text-xs font-bold uppercase tracking-wider text-slate-300">
-                {isRu ? "Чтение и прогресс" : "Reading & Progress"}
-            </h2>
-        </div>
-        <div class="flex items-center gap-2">
-            <span class="text-xs font-bold tabular-nums text-slate-300">
-                {effectiveTotal > 0
-                    ? `${formatNumber(value)} / ${formatNumber(effectiveTotal)}`
-                    : formatNumber(value)}
-                {isRu ? "гл." : "ch."}
+        <div class="flex items-center gap-2.5 min-w-0 flex-wrap">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-300">
+                {isRu ? "ГЛАВЫ" : "CHAPTERS"}
             </span>
-            {#if effectiveTotal > 0}
-                <span class="rounded-full bg-accent-soft/10 px-2 py-0.5 text-[11px] font-semibold text-accent-soft">
-                    {Math.round(percent)}%
-                </span>
+            <div class="flex items-center gap-1.5">
+                {#if isEditing}
+                    <input
+                        type="number"
+                        min="0"
+                        max={effectiveTotal > 0 ? effectiveTotal : undefined}
+                        class="h-7 w-16 rounded-lg border border-accent bg-black/60 px-1 text-center text-lg font-black text-white outline-none ring-0 tabular-nums focus:border-accent"
+                        bind:value={editValue}
+                        onblur={commitEditing}
+                        onkeydown={handleKeydown}
+                        use:focusOnMount
+                    />
+                {:else}
+                    <button
+                        type="button"
+                        class="cursor-pointer text-xl font-black text-white hover:text-accent-soft tabular-nums transition"
+                        onclick={startEditing}
+                        title={isRu ? "Нажмите для ручного ввода" : "Click to enter number"}
+                    >
+                        {formatNumber(value)}
+                    </button>
+                {/if}
+                {#if effectiveTotal > 0}
+                    <span class="text-xs font-bold text-muted tabular-nums">
+                        / {formatNumber(effectiveTotal)}
+                    </span>
+                    <span class="rounded-full bg-accent-soft/10 px-2 py-0.5 text-xs font-bold text-accent-soft tabular-nums">
+                        {Math.round(percent)}%
+                    </span>
+                {/if}
+            </div>
+        </div>
+
+        <!-- Компактная сгруппированная капсула кнопок -->
+        <div class="flex items-center gap-1.5 shrink-0">
+            <button
+                type="button"
+                class="h-8 w-8 rounded-lg bg-[var(--color-field)] border border-white/10 hover:bg-white/10 grid place-items-center text-slate-300 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition"
+                aria-label={i18n.t.card.decrement}
+                disabled={value <= 0}
+                onclick={() => onStep(-1)}
+            >
+                <Minus size={15} aria-hidden="true" />
+            </button>
+            <button
+                type="button"
+                class="h-8 px-2.5 rounded-lg bg-accent/20 border border-accent/40 text-accent-soft hover:bg-accent hover:text-white font-bold text-xs flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition"
+                aria-label="+1"
+                disabled={effectiveTotal > 0 && value >= effectiveTotal}
+                onclick={() => onStep(1)}
+            >
+                +1
+            </button>
+            {#if effectiveTotal === 0 || effectiveTotal - value >= 5}
+                <button
+                    type="button"
+                    class="h-8 px-2 rounded-lg bg-[var(--color-field)] border border-white/10 hover:bg-white/10 text-slate-300 hover:text-white font-bold text-xs flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition"
+                    aria-label="+5"
+                    disabled={effectiveTotal > 0 && value >= effectiveTotal}
+                    onclick={() => onStep(5)}
+                >
+                    +5
+                </button>
             {/if}
         </div>
     </div>
 
-    <!-- Степпер прочитанных глав -->
-    <div class="flex h-10 items-center rounded-lg bg-[var(--color-field)] border border-white/[0.06]">
-        <button
-            type="button"
-            class="grid h-full w-10 place-items-center rounded-l-lg text-[var(--color-muted)] transition hover:bg-[var(--color-panel-raised)] hover:text-white disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
-            aria-label={i18n.t.card.decrement}
-            disabled={value <= 0}
-            onclick={() => onStep(-1)}
-        >
-            <Minus size={15} aria-hidden="true" />
-        </button>
-        <span class="flex-1 text-center text-sm font-semibold tabular-nums text-white">
-            {formatNumber(value)}
-        </span>
-        <button
-            type="button"
-            class="grid h-full w-10 place-items-center rounded-r-lg text-[var(--color-muted)] transition hover:bg-[var(--color-panel-raised)] hover:text-white cursor-pointer"
-            aria-label={i18n.t.card.increment}
-            disabled={effectiveTotal > 0 && value >= effectiveTotal}
-            onclick={() => onStep(1)}
-        >
-            <Plus size={15} aria-hidden="true" />
-        </button>
-    </div>
-
-    <!-- Стилизованная полоса прогресса -->
+    <!-- 2. Интерактивная шкала-прогрессбар -->
     {#if effectiveTotal > 0}
-        <div class="space-y-1">
-            <div class="h-2 w-full overflow-hidden rounded-full bg-[var(--color-field)] border border-white/[0.04]">
-                <div
-                    class="h-full rounded-full bg-gradient-to-r from-[#5844e0] to-[#7f6ff0] transition-all duration-200"
-                    style={`width: ${Math.min(100, Math.max(0, percent))}%`}
-                ></div>
-            </div>
+        <div
+            bind:this={barElement}
+            role="slider"
+            tabindex="0"
+            aria-label={isRu ? "Прогресс чтения глав" : "Chapter progress"}
+            aria-valuenow={value}
+            aria-valuemin="0"
+            aria-valuemax={effectiveTotal}
+            class="relative h-2.5 w-full cursor-pointer overflow-hidden rounded-full bg-[var(--color-field)] border border-white/[0.06] select-none touch-none shadow-inner"
+            onpointerdown={handlePointerDown}
+            onpointermove={handlePointerMove}
+            onpointerup={handlePointerUp}
+            onpointercancel={handlePointerUp}
+        >
+            <div
+                class="h-full rounded-full bg-gradient-to-r from-[#5844e0] to-[#818cf8] shadow-[0_0_8px_rgba(129,140,248,0.4)] transition-all duration-150 ease-out"
+                style="width: {Math.min(100, Math.max(0, percent))}%"
+            ></div>
         </div>
     {/if}
 
@@ -114,9 +220,9 @@
         </p>
     {/if}
 
-    <!-- Расчет времени и темп -->
+    <!-- 3. Расчет времени и темп -->
     {#if effectiveTotal > 0}
-        <div class="grid grid-cols-2 gap-2 text-xs">
+        <div class="grid grid-cols-2 gap-2 text-xs pt-1">
             <div class="flex flex-col gap-0.5 rounded-lg border border-white/[0.06] bg-black/15 px-3 py-2">
                 <span class="text-muted">{isRu ? "Ориентировочно на мангу" : "Estimated total time"}</span>
                 <span class="font-semibold text-white">~{totalHours} {isRu ? "ч." : "h"}</span>
@@ -141,32 +247,5 @@
                 {isRu ? "✓ Манга полностью прочитана!" : "✓ Manga completed!"}
             </div>
         {/if}
-    {/if}
-
-    <!-- Прогресс по томам (если ведется учет) -->
-    {#if hasVolumes}
-        <div class="space-y-1.5 pt-2 border-t border-white/[0.06]">
-            <div class="flex items-center justify-between text-xs">
-                <div class="flex items-center gap-1.5 text-muted">
-                    <Layers size={14} class="shrink-0 text-accent-soft" />
-                    <span>{isRu ? "Прогресс по томам" : "Volume progress"}</span>
-                </div>
-                <div class="flex items-center gap-2">
-                    <span class="font-medium tabular-nums text-slate-300">
-                        {formatNumber(media.currentVolume ?? 0)} / {formatNumber(media.totalVolumes ?? 0)}
-                        {isRu ? "том." : "vol."}
-                    </span>
-                    <span class="rounded-full bg-accent-soft/10 px-1.5 py-0.5 text-[10px] font-semibold text-accent-soft">
-                        {volumePercent}%
-                    </span>
-                </div>
-            </div>
-            <div class="h-1.5 w-full overflow-hidden rounded-full bg-[var(--color-field)] border border-white/[0.04]">
-                <div
-                    class="h-full rounded-full bg-accent-soft/80 transition-all duration-200"
-                    style={`width: ${Math.min(100, Math.max(0, volumePercent))}%`}
-                ></div>
-            </div>
-        </div>
     {/if}
 </section>

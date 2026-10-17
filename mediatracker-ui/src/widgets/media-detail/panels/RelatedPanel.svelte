@@ -159,7 +159,7 @@
         </div>
     {:else if viewMode === "grouped"}
         <div class="space-y-8">
-            {#each (groups ?? []) as group (group.id)}
+            {#each (groups ?? []) as group, gIdx (group?.id ?? group?.title ?? gIdx)}
                 <div class="space-y-3">
                     <div
                         class="flex items-center gap-2.5 border-b border-white/[0.08] pb-2.5"
@@ -176,7 +176,7 @@
                     <div
                         class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5"
                     >
-                        {#each (group.items ?? []) as rel (rel.id)}
+                        {#each (group.items ?? []) as rel, rIdx (rel?.id ? `${rel.id}-${rIdx}` : `${gIdx}-${rIdx}`)}
                             {@render relatedCard(rel)}
                         {/each}
                     </div>
@@ -187,13 +187,13 @@
         <div
             class="relative pl-6 sm:pl-8 space-y-4 before:absolute before:bottom-3 before:left-[11px] sm:before:left-[15px] before:top-3 before:w-0.5 before:bg-gradient-to-b before:from-accent before:via-accent/40 before:to-transparent"
         >
-            {#each (timeline ?? []) as item (item.id)}
+            {#each (timeline ?? []) as item, tIdx (item?.id ? `${item.id}-${tIdx}` : tIdx)}
                 {@render timelineRow(item)}
             {/each}
         </div>
     {:else}
         <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-            {#each (related ?? []) as rel (rel.id)}
+            {#each (related ?? []) as rel, rIdx (rel?.id ? `${rel.id}-${rIdx}` : rIdx)}
                 {@render relatedCard(rel)}
             {/each}
         </div>

@@ -115,6 +115,146 @@
     }
 
     /**
+     * Normalizes a raw stored related entry.
+     * Can be either an ExternalRelation shape (from backend MediaEnrichmentJob: RelationType/relationType + Media/media)
+     * or a RelatedEntry shape (from client persistRelated).
+     */
+    function normalizeStoredRelatedEntry(raw: any, index: number): RelatedEntry {
+        if (!raw || typeof raw !== "object") {
+            return {
+                id: `rel-${index}`,
+                title: "Unknown",
+                type: "anime",
+                coverUrl: null,
+            };
+        }
+
+        const media = raw.Media ?? raw.media;
+        if (media && typeof media === "object") {
+            const rawRelType =
+                raw.RelationType ??
+                raw.relationType ??
+                raw.rawRelationType ??
+                "OTHER";
+            const score = media.Rating ?? media.rating ?? media.score ?? null;
+            const extSource = media.ExternalSource ?? media.externalSource ?? null;
+            const ratingsRaw = media.Ratings ?? media.ratings;
+            const ratings = Array.isArray(ratingsRaw)
+                ? ratingsRaw.map((r: any) => ({
+                      source: r.Source ?? r.source ?? extSource ?? "",
+                      rating: Number(r.Rating ?? r.rating ?? 0),
+                  }))
+                : score && extSource
+                  ? [{ source: extSource, rating: score }]
+                  : null;
+
+            const releaseYear = media.ReleaseYear ?? media.releaseYear ?? null;
+            const releaseDate = media.ReleaseDate ?? media.releaseDate ?? null;
+            const year =
+                releaseYear ??
+                (releaseDate && releaseDate.length >= 4
+                    ? parseInt(releaseDate.slice(0, 4), 10)
+                    : null);
+
+            const relId = String(
+                media.ExternalId ??
+                    media.externalId ??
+                    media.id ??
+                    raw.id ??
+                    `rel-${index}`,
+            );
+
+            return {
+                id: relId,
+                title: media.Title ?? media.title ?? "Title",
+                originalTitle: media.OriginalTitle ?? media.originalTitle ?? null,
+                romajiTitle: media.RomajiTitle ?? media.romajiTitle ?? null,
+                coverUrl: media.CoverUrl ?? media.coverUrl ?? null,
+                bannerUrl: media.BannerUrl ?? media.bannerUrl ?? null,
+                type: media.Type ?? media.type ?? "anime",
+                format: media.Format ?? media.format ?? null,
+                year: year ?? null,
+                releaseDate: releaseDate ?? null,
+                endDate: media.EndDate ?? media.endDate ?? null,
+                releaseStatus: media.ReleaseStatus ?? media.releaseStatus ?? null,
+                score,
+                ratings,
+                description: media.Description ?? media.description ?? null,
+                trailerVideoId: media.TrailerVideoId ?? media.trailerVideoId ?? null,
+                duration:
+                    media.RuntimeMinutes ??
+                    media.runtimeMinutes ??
+                    media.duration ??
+                    null,
+                episodes:
+                    media.TotalCount ?? media.totalCount ?? media.episodes ?? null,
+                chapters: media.Chapters ?? media.chapters ?? null,
+                volumes: media.Volumes ?? media.volumes ?? null,
+                studio: media.Studio ?? media.studio ?? null,
+                author: media.Author ?? media.author ?? null,
+                externalSource: extSource,
+                rawRelationType: rawRelType,
+                relationType:
+                    raw.relationType && raw.relationType !== rawRelType
+                        ? raw.relationType
+                        : formatRelationType(rawRelType),
+                localItem: raw.localItem ?? media.localItem,
+            };
+        }
+
+        const rawRelType =
+            raw.rawRelationType ?? raw.RelationType ?? raw.relationType;
+        const score = raw.score ?? raw.rating ?? raw.Rating ?? null;
+        const releaseDate = raw.releaseDate ?? raw.ReleaseDate ?? null;
+        const releaseYear = raw.year ?? raw.ReleaseYear ?? raw.releaseYear;
+        const year =
+            releaseYear ??
+            (releaseDate && releaseDate.length >= 4
+                ? parseInt(releaseDate.slice(0, 4), 10)
+                : null);
+
+        const relId = String(
+            raw.id ?? raw.externalId ?? raw.ExternalId ?? `rel-${index}`,
+        );
+
+        return {
+            ...raw,
+            id: relId,
+            title: raw.title ?? raw.Title ?? "Title",
+            originalTitle: raw.originalTitle ?? raw.OriginalTitle ?? null,
+            romajiTitle: raw.romajiTitle ?? raw.RomajiTitle ?? null,
+            coverUrl: raw.coverUrl ?? raw.CoverUrl ?? null,
+            bannerUrl: raw.bannerUrl ?? raw.BannerUrl ?? null,
+            type: raw.type ?? raw.Type ?? "anime",
+            format: raw.format ?? raw.Format ?? null,
+            year: year ?? null,
+            releaseDate: releaseDate ?? null,
+            endDate: raw.endDate ?? raw.EndDate ?? null,
+            releaseStatus: raw.releaseStatus ?? raw.ReleaseStatus ?? null,
+            score,
+            ratings: raw.ratings ?? raw.Ratings ?? null,
+            description: raw.description ?? raw.Description ?? null,
+            trailerVideoId: raw.trailerVideoId ?? raw.TrailerVideoId ?? null,
+            duration:
+                raw.duration ?? raw.runtimeMinutes ?? raw.RuntimeMinutes ?? null,
+            episodes: raw.episodes ?? raw.totalCount ?? raw.TotalCount ?? null,
+            chapters: raw.chapters ?? raw.Chapters ?? null,
+            volumes: raw.volumes ?? raw.Volumes ?? null,
+            studio: raw.studio ?? raw.Studio ?? null,
+            author: raw.author ?? raw.Author ?? null,
+            externalSource: raw.externalSource ?? raw.ExternalSource ?? null,
+            rawRelationType: rawRelType,
+            relationType:
+                raw.relationType && raw.relationType !== rawRelType
+                    ? raw.relationType
+                    : rawRelType
+                      ? formatRelationType(rawRelType)
+                      : undefined,
+            localItem: raw.localItem,
+        };
+    }
+
+    /**
      * The Related tab is the one panel whose content lives outside the database, so a reload used to
      * come back empty and the user had to name a source again. Reading the copy stored on the row
      * costs nothing and puts the list back on F5.
@@ -123,7 +263,10 @@
         if (!item?.relatedMediaJson) return null;
         try {
             const parsed: unknown = JSON.parse(item.relatedMediaJson);
-            return Array.isArray(parsed) ? (parsed as RelatedEntry[]) : null;
+            if (!Array.isArray(parsed)) return null;
+            return parsed.map((entry, index) =>
+                normalizeStoredRelatedEntry(entry, index),
+            );
         } catch (error) {
             console.error("[MediaDetailView] Failed to parse relatedMediaJson", error);
             return null;

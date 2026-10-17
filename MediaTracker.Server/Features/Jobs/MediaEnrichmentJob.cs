@@ -144,7 +144,9 @@ public static class MediaEnrichmentJob
                 return;
             }
 
-            item.RelatedMediaJson = JsonSerializer.Serialize(related);
+            item.RelatedMediaJson = JsonSerializer.Serialize(
+                related,
+                new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
             item.RelatedSource = item.ExternalSource;
             item.MarkUpdated();
             await services.GetRequiredService<AppDbContext>()

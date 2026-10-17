@@ -1,9 +1,12 @@
 using MediaTracker.Server.Domain.Common;
 using MediaTracker.Server.Domain.Entities;
+using MediaTracker.Server.Domain.Enums;
 using MediaTracker.Server.Domain.Rules;
+using MediaTracker.Server.Features.Jobs;
 using MediaTracker.Server.Features.Media.GetMediaStats;
 using MediaTracker.Server.Features.Media.MediaContract;
 using MediaTracker.Server.Infrastructure.ExternalApis;
+using MediaTracker.Server.Infrastructure.Jobs;
 using MediaTracker.Server.Infrastructure.Persistence;
 using MediaTracker.Server.Infrastructure.Storage;
 using Microsoft.EntityFrameworkCore;
@@ -20,10 +23,7 @@ public interface IRefreshMetadataHandler
 
 public sealed class RefreshMetadataHandler(
     AppDbContext db,
-    MetadataAggregatorService metadataAggregator,
-    ISourcePriorityService priorityService,
-    IImageStorageService imageStorage,
-    IMemoryCache cache) : IRefreshMetadataHandler
+    IJobManager jobs) : IRefreshMetadataHandler
 {
     public async Task<Result<MediaDetailDto>> HandleAsync(RefreshMetadataCommand command, CancellationToken ct)
     {
@@ -39,51 +39,94 @@ public sealed class RefreshMetadataHandler(
                 Error.NotFound($"Media item '{command.MediaId}' was not found."));
         }
 
-        var external = await metadataAggregator.GetDetailsAsync(
-            AggregatorTypes.Resolve(item),
-            item.ExternalId ?? string.Empty,
-            item.Title,
-            ct,
-            item.ExternalSource);
-
-        if (external is null)
-        {
-            return Result<MediaDetailDto>.Failure(
-                Error.NotFound("Metadata could not be found from external source."));
-        }
-
-        if (command.FillMissingOnly)
-        {
-            // No cover download and no title rewrite: the whole point of this branch is that
-            // everything already filled in stays exactly as the user left it.
-            MediaMetadataApplier.ApplyIfMissing(
-                item,
-                external,
-                season => db.Entry(season).State = EntityState.Added);
-        }
-        else
-        {
-            await MediaMetadataApplier.ApplyOverwriteAsync(
-                item,
-                external,
-                imageStorage,
-                ct,
-                season => db.Entry(season).State = EntityState.Added);
-
-            // The user asked for the source to win, so the row is no longer carrying their edits and
-            // the next refresh must not prompt them again.
-            item.IsCustomEdited = false;
-        }
-
-        // A source disabled in settings leaves a stale badge behind otherwise: refresh only rewrites
-        // what the queried source reported, so nothing else ever removed one.
-        MediaMetadataApplier.RemoveDisabledRatings(
-            item,
-            await priorityService.GetDisabledSourcesAsync(ct));
-
-        item.MarkUpdated();
+        item.SyncStatus = SyncStatus.Syncing;
         await db.SaveChangesAsync(ct);
-        cache.Remove(AdvancedStatsCalculator.CacheKey);
+
+        jobs.Enqueue(
+            item.Id,
+            item.Title,
+            async (sp, token, progress) =>
+            {
+                var scopedDb = sp.GetRequiredService<AppDbContext>();
+                var metadataAggregator = sp.GetRequiredService<MetadataAggregatorService>();
+                var priorityService = sp.GetRequiredService<ISourcePriorityService>();
+                var imageStorage = sp.GetRequiredService<IImageStorageService>();
+                var cache = sp.GetRequiredService<IMemoryCache>();
+
+                var current = await scopedDb.MediaItems
+                    .Include(media => media.Franchise)
+                    .Include(media => ((TvShow)media).Seasons.OrderBy(season => season.SeasonNumber))
+                    .Include(media => ((Manga)media).Volumes.OrderBy(volume => volume.VolumeNumber))
+                    .AsSplitQuery()
+                    .SingleOrDefaultAsync(media => media.Id == command.MediaId, token);
+
+                if (current is null) return;
+
+                try
+                {
+                    progress.Report(new JobProgressDto(
+                        Guid.Empty, null, string.Empty, 20, "Поиск метаданных", JobStatus.Running, DateTime.MinValue, null));
+
+                    var external = await metadataAggregator.GetDetailsAsync(
+                        AggregatorTypes.Resolve(current),
+                        current.ExternalId ?? string.Empty,
+                        current.Title,
+                        token,
+                        current.ExternalSource);
+
+                    if (external is null)
+                    {
+                        throw new InvalidOperationException("Metadata could not be found from external source.");
+                    }
+
+                    progress.Report(new JobProgressDto(
+                        Guid.Empty, null, string.Empty, 60, "Обновление обложки и связей", JobStatus.Running, DateTime.MinValue, null));
+
+                    if (command.FillMissingOnly)
+                    {
+                        MediaMetadataApplier.ApplyIfMissing(
+                            current,
+                            external,
+                            season => scopedDb.Entry(season).State = EntityState.Added);
+                    }
+                    else
+                    {
+                        await MediaMetadataApplier.ApplyOverwriteAsync(
+                            current,
+                            external,
+                            imageStorage,
+                            token,
+                            season => scopedDb.Entry(season).State = EntityState.Added);
+
+                        current.IsCustomEdited = false;
+                    }
+
+                    MediaMetadataApplier.RemoveDisabledRatings(
+                        current,
+                        await priorityService.GetDisabledSourcesAsync(token));
+
+                    progress.Report(new JobProgressDto(
+                        Guid.Empty, null, string.Empty, 90, "Сохранение", JobStatus.Running, DateTime.MinValue, null));
+
+                    current.SyncStatus = SyncStatus.Ready;
+                    current.MarkUpdated();
+                    await scopedDb.SaveChangesAsync(token);
+                    cache.Remove(AdvancedStatsCalculator.CacheKey);
+                }
+                catch
+                {
+                    try
+                    {
+                        current.SyncStatus = SyncStatus.Failed;
+                        current.MarkUpdated();
+                        await scopedDb.SaveChangesAsync(CancellationToken.None);
+                    }
+                    catch
+                    {
+                    }
+                    throw;
+                }
+            });
 
         return Result<MediaDetailDto>.Success(MediaDetailProjection.ToDetailDto(item));
     }

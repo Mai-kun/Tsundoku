@@ -559,6 +559,14 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
                 if (loaded.id !== mediaId) return;
                 media = loaded;
                 syncFrom(loaded);
+                mediaDetailCache.invalidate(loaded.id);
+                achievementsCache.invalidate(loaded.id);
+                enrichedMediaIds.delete(loaded.id);
+                if (loaded.type === "game") {
+                    void loadGameAchievements(loaded, true);
+                }
+                void loadRelated(loaded, null);
+                onUpdate();
             })
             .catch((error) =>
                 console.error(
@@ -1975,21 +1983,12 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
             const updated = await refreshMetadata(target.id, fillMissing);
             media = updated;
             syncFrom(updated);
-            mediaDetailCache.invalidate(target.id);
-            achievementsCache.invalidate(target.id);
-            enrichedMediaIds.delete(target.id);
-            if (updated.type === "game") {
-                void loadGameAchievements(updated, true);
-            }
-            void loadRelated(updated, null);
-            void triggerBackgroundEnrichment(updated, ++requestSequence, true);
             showToast(
                 fillMissing
                     ? i18n.t.detail.metadataMergeKept
                     : i18n.t.detail.metadataUpdated,
                 "success",
             );
-            onUpdate();
         } catch (error) {
             refreshError = error;
             showToast(errorMessage(error), "error");
@@ -2023,10 +2022,8 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
             const updated = await enrichMedia(target.id, source || undefined);
             media = updated;
             syncFrom(updated);
-            mediaDetailCache.invalidate(target.id);
             fillMissingOpen = false;
             showToast(i18n.t.detail.fillMissingDone, "success");
-            onUpdate();
         } catch (error) {
             showToast(errorMessage(error), "error");
         } finally {

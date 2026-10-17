@@ -77,15 +77,17 @@
             <p class="text-xs text-muted">{i18n.t.detail.relatedSubtitle}</p>
             <!-- Stays in the header after a successful load: the data on screen came from one
                  provider, and picking another has to overwrite it rather than need a clear first. -->
-            <div class="mt-3">
-                <RelationLoadButton
-                    {media}
-                    {loading}
-                    kind="related"
-                    currentSource={media.relatedSource ?? null}
-                    onLoad={onLoadFrom}
-                />
-            </div>
+            {#if (related?.length ?? 0) > 0}
+                <div class="mt-3">
+                    <RelationLoadButton
+                        {media}
+                        {loading}
+                        kind="related"
+                        currentSource={media.relatedSource ?? null}
+                        onLoad={onLoadFrom}
+                    />
+                </div>
+            {/if}
         </div>
 
         {#if (related?.length ?? 0) > 0}

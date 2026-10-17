@@ -391,7 +391,10 @@
     {:else if renderedView === "stats"}
         <StatsView refreshKey={mediaRevision} />
     {:else if renderedView === "history"}
-        <HistoryView refreshKey={mediaRevision} />
+        <HistoryView
+            refreshKey={mediaRevision}
+            onOpenMedia={(mediaId) => openDetailById(mediaId)}
+        />
     {:else if renderedView === "calendar"}
         <CalendarView />
     {:else if renderedView === "lists"}

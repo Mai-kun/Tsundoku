@@ -3155,6 +3155,19 @@ public static class RefactorSelfCheck
         AssertEqual(failures, 200, stats.TotalPagesRead, "stats TotalPagesRead");
         AssertEqual(failures, 50, stats.TotalChaptersRead, "stats TotalChaptersRead");
         AssertEqual(failures, 15, stats.TotalEpisodesWatched, "stats TotalEpisodesWatched");
+        AssertEqual(failures, 10, stats.SeriesEpisodesWatched, "stats SeriesEpisodesWatched");
+        AssertEqual(failures, 5, stats.AnimeEpisodesWatched, "stats AnimeEpisodesWatched");
+
+        var animeMovie = new Movie
+        {
+            Title = "Spirited Away",
+            IsAnime = true,
+            DurationMinutes = 125,
+            Status = MediaStatus.Completed,
+        };
+        var animeMovieStats = AdvancedStatsCalculator.Calculate([animeMovie], now);
+        AssertEqual(failures, 0.0, animeMovieStats.MovieHours, "anime movie MovieHours should be 0");
+        AssertEqual(failures, Math.Round(125.0 / 60.0, 1), animeMovieStats.AnimeHours, "anime movie AnimeHours");
 
         AssertEqual(failures, 8.3, stats.AverageScore, "stats AverageScore");
         AssertEqual(failures, 1, stats.ScoreDistribution[7], "stats ScoreDistribution 7");

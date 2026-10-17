@@ -9,6 +9,7 @@
     export { default as ArrowRight } from "lucide-svelte/icons/arrow-right";
     export { default as ArrowUp } from "lucide-svelte/icons/arrow-up";
     export { default as ArrowUpDown } from "lucide-svelte/icons/arrow-up-down";
+    export { default as ArrowUpRight } from "lucide-svelte/icons/arrow-up-right";
     export { default as BarChart3 } from "lucide-svelte/icons/bar-chart-3";
     export { default as BookOpen } from "lucide-svelte/icons/book-open";
     export { default as Bookmark } from "lucide-svelte/icons/bookmark";

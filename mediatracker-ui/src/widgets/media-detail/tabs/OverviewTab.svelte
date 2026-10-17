@@ -15,6 +15,7 @@
     import BookEditionSection from "../sections/BookEditionSection.svelte";
     import MangaProgressSection from "../sections/MangaProgressSection.svelte";
     import MovieStatusSection from "../sections/MovieStatusSection.svelte";
+    import TvShowProgressSection from "../sections/TvShowProgressSection.svelte";
     import type { CreatorRole, MangaDetail, MediaItem } from "$shared/types";
 
     interface Props {
@@ -138,6 +139,7 @@
     const isBook = $derived(media.type === "book");
     const isManga = $derived(media.type === "manga");
     const isMovie = $derived(media.type === "movie");
+    const isTvShow = $derived(media.type === "tvshow");
     const hasQuotes = $derived(Boolean(media.quotesJson && media.quotesJson !== "[]"));
     const showQuotes = $derived(isBook || isManga || hasQuotes);
 </script>
@@ -186,6 +188,18 @@
                         media={media as MangaDetail}
                         totalChapters={(media as MangaDetail).totalChapters ?? 0}
                         currentChapter={(media as MangaDetail).currentChapter ?? 0}
+                        progress={support}
+                        value={progressValue}
+                        percent={progressPercent}
+                        error={progressError}
+                        {onStep}
+                    />
+                {:else if isTvShow && support}
+                    <!-- Сериалы и аниме: расширенный блок с аналитикой времени просмотра -->
+                    <TvShowProgressSection
+                        {media}
+                        totalEpisodes={support.total ?? 0}
+                        watchedEpisodes={progressValue}
                         progress={support}
                         value={progressValue}
                         percent={progressPercent}

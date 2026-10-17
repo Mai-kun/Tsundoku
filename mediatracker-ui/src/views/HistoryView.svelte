@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { History, LoaderCircle, RefreshCw, Trash2, Flag } from "$shared/ui/Icons.svelte";
+    import { ArrowUpRight, History, LoaderCircle, RefreshCw, Trash2, Flag } from "$shared/ui/Icons.svelte";
     import {
         clearAllHistory,
         deleteHistoryEvent,
@@ -16,9 +16,10 @@
 
     interface Props {
         refreshKey: number;
+        onOpenMedia?: (mediaId: string) => void;
     }
 
-    let { refreshKey }: Props = $props();
+    let { refreshKey, onOpenMedia }: Props = $props();
 
     let selectedDate = $state("");
     let events = $state<HistoryEvent[]>([]);
@@ -205,9 +206,21 @@
                         <Icon size={17} aria-hidden="true" />
                     </div>
                     <div class="min-w-0 flex-1">
-                        <p class="truncate text-sm font-semibold text-ink">
-                            {event.title ?? "—"}
-                        </p>
+                        {#if event.title && event.mediaId && event.type !== 'Deleted'}
+                            <button
+                                type="button"
+                                class="truncate text-sm font-semibold text-ink hover:text-accent-soft hover:underline text-left cursor-pointer transition inline-flex items-center gap-1.5 group/link"
+                                onclick={() => onOpenMedia?.(event.mediaId)}
+                                title={i18n.current === 'ru' ? 'Перейти к медиа' : 'Go to media'}
+                            >
+                                <span>{event.title}</span>
+                                <ArrowUpRight size={13} class="opacity-0 group-hover/list:opacity-100 transition text-accent-soft shrink-0" />
+                            </button>
+                        {:else}
+                            <span class="truncate text-sm font-semibold text-muted">
+                                {event.title ?? '—'}
+                            </span>
+                        {/if}
                         <p class="mt-1 text-xs text-muted">
                             {formatHistoryEventLabel(event)}
                         </p>

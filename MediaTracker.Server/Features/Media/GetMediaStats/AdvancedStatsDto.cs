@@ -18,6 +18,8 @@ public record AdvancedStatsDto
     public int TotalPagesRead { get; init; }
     public int TotalChaptersRead { get; init; }
     public int TotalEpisodesWatched { get; init; }
+    public int SeriesEpisodesWatched { get; init; }
+    public int AnimeEpisodesWatched { get; init; }
 
     public double AverageScore { get; init; }
     public Dictionary<int, int> ScoreDistribution { get; init; } = new();

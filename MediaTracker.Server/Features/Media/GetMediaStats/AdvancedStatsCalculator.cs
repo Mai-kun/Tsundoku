@@ -32,17 +32,27 @@ public static class AdvancedStatsCalculator
         }
 
         double movieHours = 0;
+        double animeMovieHours = 0;
         foreach (var movie in items.OfType<Movie>())
         {
             var duration = movie.Status == MediaStatus.Completed
                 ? movie.DurationMinutes > 0 ? movie.DurationMinutes : 90
                 : 0;
-            movieHours += duration / 60.0;
+
+            if (movie.IsAnime)
+            {
+                animeMovieHours += duration / 60.0;
+            }
+            else
+            {
+                movieHours += duration / 60.0;
+            }
         }
 
         double seriesHours = 0;
-        double animeHours = 0;
-        var totalEpisodesWatched = 0;
+        double animeHours = animeMovieHours;
+        var seriesEpisodesWatched = 0;
+        var animeEpisodesWatched = 0;
 
         foreach (var show in items.OfType<TvShow>())
         {
@@ -51,19 +61,22 @@ public static class AdvancedStatsCalculator
             {
                 episodesWatched = show.TotalEpisodesCount;
             }
-            totalEpisodesWatched += episodesWatched;
 
             if (show.IsAnime)
             {
+                animeEpisodesWatched += episodesWatched;
                 var duration = show.EpisodeDurationMinutes is > 0 ? show.EpisodeDurationMinutes.Value : 24;
                 animeHours += (episodesWatched * duration) / 60.0;
             }
             else
             {
+                seriesEpisodesWatched += episodesWatched;
                 var duration = show.EpisodeDurationMinutes is > 0 ? show.EpisodeDurationMinutes.Value : 45;
                 seriesHours += (episodesWatched * duration) / 60.0;
             }
         }
+
+        var totalEpisodesWatched = seriesEpisodesWatched + animeEpisodesWatched;
 
         double bookHours = 0;
         var totalPagesRead = 0;
@@ -342,6 +355,8 @@ public static class AdvancedStatsCalculator
             TotalPagesRead = totalPagesRead,
             TotalChaptersRead = totalChaptersRead,
             TotalEpisodesWatched = totalEpisodesWatched,
+            SeriesEpisodesWatched = seriesEpisodesWatched,
+            AnimeEpisodesWatched = animeEpisodesWatched,
             AverageScore = averageScore,
             ScoreDistribution = scoreDistribution,
             AverageScoreByType = averageScoreByType,

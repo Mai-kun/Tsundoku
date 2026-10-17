@@ -32,7 +32,7 @@
             label: i18n.t.stats.series,
             hours: stats.seriesHours,
             color: "#06b6d4",
-            extraText: `${formatNumber(stats.totalEpisodesWatched)} ${i18n.t.stats.episodesShort}`,
+            extraText: `${formatNumber(stats.seriesEpisodesWatched ?? stats.totalEpisodesWatched)} ${i18n.t.stats.episodesShort}`,
         },
         {
             id: "movie",
@@ -45,7 +45,7 @@
             label: i18n.t.stats.anime,
             hours: stats.animeHours,
             color: "#a855f7",
-            extraText: `${formatNumber(stats.totalEpisodesWatched)} ${i18n.t.stats.episodesShort}`,
+            extraText: `${formatNumber(stats.animeEpisodesWatched ?? stats.totalEpisodesWatched)} ${i18n.t.stats.episodesShort}`,
         },
         {
             id: "book",

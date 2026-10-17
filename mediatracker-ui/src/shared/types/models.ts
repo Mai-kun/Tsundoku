@@ -166,6 +166,8 @@ export interface TvShowMedia extends MediaBase {
   totalEpisodesCount: number;
   totalEpisodesWatched: number;
   seasonsCount: number;
+  durationMinutes?: number | null;
+  episodeDurationMinutes?: number | null;
 }
 
 export interface TvSeason {
@@ -252,6 +254,8 @@ export interface AdvancedStats {
   totalPagesRead: number;
   totalChaptersRead: number;
   totalEpisodesWatched: number;
+  seriesEpisodesWatched?: number;
+  animeEpisodesWatched?: number;
   averageScore: number;
   scoreDistribution: Record<number, number>;
   averageScoreByType: Record<string, number>;

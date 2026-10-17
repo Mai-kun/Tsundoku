@@ -318,7 +318,7 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
         if (
             activeSubTab === "related" &&
             media &&
-            related.length === 0 &&
+            (related?.length ?? 0) === 0 &&
             !relatedLoading &&
             !relatedError
         ) {
@@ -883,6 +883,8 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
             if (storedRelated) {
                 related = storedRelated;
                 lastRelatedSource = loaded.relatedSource ?? null;
+            } else {
+                related = [];
             }
 
             // Same for the game payloads: the row carries the achievements and the recommendations,
@@ -1273,14 +1275,15 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
 
 
     let relatedGroups = $derived.by<RelationGroup[]>(() => {
-        if (related.length === 0) return [];
+        const safeRelated = related ?? [];
+        if (safeRelated.length === 0) return [];
 
         const main: RelatedEntry[] = [];
         const spinoffs: RelatedEntry[] = [];
         const adaptations: RelatedEntry[] = [];
         const others: RelatedEntry[] = [];
 
-        for (const item of related) {
+        for (const item of safeRelated) {
             const raw = (item.rawRelationType ?? "").toUpperCase();
             if (raw === "SEQUEL" || raw === "PREQUEL") {
                 main.push(item);
@@ -1352,9 +1355,10 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
             localItem: media,
         };
 
+        const safeRelated = related ?? [];
         const items: TimelineEntry[] = [
             current,
-            ...related.map(
+            ...safeRelated.map(
                 (r): TimelineEntry => ({
                     id: r.id,
                     title: r.title,
@@ -1594,7 +1598,7 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
 
             showToast(i18n.t.searchModal.inLibrary, "success");
             // Update the related grid immediately to show the "added" badge
-            related = related.map((r) =>
+            related = (related ?? []).map((r) =>
                 r.id === rel.id ? { ...r, localItem: created } : r,
             );
             previewRelatedItem = null;
@@ -2000,7 +2004,7 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
     active={activeSubTab}
     mediaType={media.type}
     seasonProgress={seriesEpisodes.total > 0 ? seriesEpisodes : null}
-    relatedCount={related.length}
+    relatedCount={related?.length ?? 0}
     onSelect={(tab) => (activeSubTab = tab)}
 />
 

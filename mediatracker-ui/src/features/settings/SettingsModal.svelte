@@ -11,7 +11,6 @@
         EyeOff,
         FolderInput,
         Key,
-        Layers,
         LoaderCircle,
         RefreshCw,
         RotateCcw,
@@ -41,7 +40,7 @@
     import { showToast } from "$shared/ui/toast.svelte";
     import { i18n } from "$shared/i18n/index.svelte";
     import Modal from "$shared/ui/Modal.svelte";
-    import ImportModal from "$features/import-media/ImportModal.svelte";
+    import ImportPanel from "$features/import-media/ImportPanel.svelte";
     import type { ConnectionTestResult, SourceInfo } from "$shared/types";
 
     interface Props {
@@ -55,7 +54,6 @@
 
     type Tab = "sources" | "search" | "backup" | "import" | "reading";
     let activeTab = $state<Tab>("sources");
-    let importOpen = $state(false);
 
     let readingBookPageMinutes = $state(uiSettings.bookPageMinutes);
     let readingMangaChapterMinutes = $state(uiSettings.mangaChapterMinutes);
@@ -929,12 +927,13 @@
                     {/if}
                 </div>
             {:else if activeTab === "import"}
-                <section class="mx-auto max-w-xl rounded-xl border border-white/[0.07] bg-card p-6 text-center">
-                    <div class="mx-auto grid h-12 w-12 place-items-center rounded-xl bg-accent/10 text-accent-soft"><Layers size={22} /></div>
-                    <h3 class="mt-4 text-lg font-semibold text-ink">{i18n.t.importModal.title}</h3>
-                    <p class="mt-2 text-sm leading-6 text-muted">{i18n.t.importModal.description}</p>
-                    <button type="button" class="mt-5 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-white hover:bg-accent-hover" onclick={() => (importOpen = true)}>{i18n.t.importModal.start}</button>
-                </section>
+                <ImportPanel
+                    {onImportCompleted}
+                    onNavigateToList={(id) => {
+                        onClose();
+                        onNavigateToList?.(id);
+                    }}
+                />
             {:else if activeTab === "search"}
                 <div class="space-y-6">
                     <!-- Category order in All search -->
@@ -1373,7 +1372,6 @@
         </div>
     </div>
 </Modal>
-<ImportModal isOpen={importOpen} onClose={() => (importOpen = false)} {onImportCompleted} {onNavigateToList} />
 
 <!-- Confirmation Modal for Restore -->
 <Modal isOpen={showRestoreConfirm} onClose={handleCancelRestore} labelledBy="restore-confirm-title">

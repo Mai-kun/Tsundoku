@@ -60,7 +60,7 @@
     bind:this={dialogElement}
     aria-labelledby={labelledBy}
     class="z-40 m-auto w-full {size === 'xl'
-        ? 'w-[85vw] max-w-6xl h-[80vh] max-h-[85vh]'
+        ? 'w-[90vw] max-w-7xl h-[86vh] max-h-[90vh]'
         : size === 'lg'
           ? 'max-w-5xl'
           : 'max-w-2xl'} overflow-visible border-0 bg-transparent p-4 text-ink backdrop:bg-black/70 backdrop:backdrop-blur-sm"

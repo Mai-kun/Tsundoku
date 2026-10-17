@@ -665,7 +665,7 @@ export const translations = {
     },
     importModal: {
         title: { ru: "Импорт медиатеки", en: "Import your library" },
-        description: { ru: "Перенесите прогресс и оценки из популярных сервисов.", en: "Bring your progress and ratings from popular services." },
+        description: { ru: "Перенесите прогресс, оценки и списки из популярных сервисов или своих файлов.", en: "Transfer progress, ratings and lists from popular services or custom files." },
         source: { ru: "1. Выберите источник", en: "1. Choose a source" },
         fileLabel: { ru: "2. Файл или профиль", en: "2. File or profile" },
         dropFile: { ru: "Перетащите файл сюда или нажмите для выбора", en: "Drop a file here or click to browse" },
@@ -720,6 +720,14 @@ export const translations = {
         copyTemplate: { ru: "Скопировать пример JSON", en: "Copy JSON example" },
         templateCopied: { ru: "Пример скопирован", en: "Example copied" },
         templateCopyFailed: { ru: "Не удалось скопировать пример.", en: "Failed to copy the example." },
+        customTitle: { ru: "Свой файл", en: "Custom file" },
+        steamProfileTab: { ru: "Публичный профиль", en: "Public profile" },
+        steamFileTab: { ru: "JSON-файл", en: "JSON file" },
+        fileSelected: { ru: "Файл выбран", en: "File selected" },
+        changeFile: { ru: "Сменить файл", en: "Change file" },
+        importAnother: { ru: "Импортировать ещё", en: "Import another" },
+        optionsTitle: { ru: "Опции импорта", en: "Import options" },
+        sourceTitle: { ru: "Выбор источника", en: "Source selection" },
     },
     settingsModal: {
         title: { ru: "Настройки", en: "Settings" },

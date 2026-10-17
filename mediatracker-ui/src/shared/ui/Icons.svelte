@@ -21,11 +21,13 @@
     export { default as ChevronUp } from "lucide-svelte/icons/chevron-up";
     export { default as Clapperboard } from "lucide-svelte/icons/clapperboard";
     export { default as Clock3 } from "lucide-svelte/icons/clock-3";
+    export { default as Copy } from "lucide-svelte/icons/copy";
     export { default as Download } from "lucide-svelte/icons/download";
     export { default as ExternalLink } from "lucide-svelte/icons/external-link";
     export { default as Eye } from "lucide-svelte/icons/eye";
     export { default as EyeOff } from "lucide-svelte/icons/eye-off";
     export { default as Feather } from "lucide-svelte/icons/feather";
+    export { default as FileText } from "lucide-svelte/icons/file-text";
     export { default as Film } from "lucide-svelte/icons/film";
     export { default as FolderInput } from "lucide-svelte/icons/folder-input";
     export { default as Flag } from "lucide-svelte/icons/flag";
@@ -73,6 +75,7 @@
     export { default as Trophy } from "lucide-svelte/icons/trophy";
     export { default as Tv } from "lucide-svelte/icons/tv";
     export { default as Type } from "lucide-svelte/icons/type";
+    export { default as Upload } from "lucide-svelte/icons/upload";
     export { default as User } from "lucide-svelte/icons/user";
     export { default as X } from "lucide-svelte/icons/x";
 </script>

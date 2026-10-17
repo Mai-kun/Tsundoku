@@ -113,14 +113,14 @@
             <div class="space-y-3 rounded-lg border border-amber-400/20 bg-black/25 p-3.5 shadow-inner">
                 <textarea
                     use:focusOnMount
-                    class="w-full resize-y rounded-lg border border-white/10 bg-black/20 p-3 text-sm leading-relaxed text-ink placeholder:text-muted/60 focus:border-amber-400/60 focus:outline-none focus:ring-1 focus:ring-amber-400/60 min-h-[90px]"
+                    class="w-full resize-y rounded-lg border border-white/10 bg-black/20 p-3 text-sm leading-relaxed text-ink placeholder:text-muted/60 focus:border-amber-400/60 outline-none ring-0 focus:ring-0 min-h-[90px]"
                     placeholder={i18n.t.detail.quotesPlaceholder}
                     bind:value={newText}
                 ></textarea>
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                     <input
                         type="text"
-                        class="w-full sm:max-w-xs rounded-lg border border-white/10 bg-black/20 px-3 py-1.5 text-xs text-ink placeholder:text-muted/60 focus:border-amber-400/60 focus:outline-none focus:ring-1 focus:ring-amber-400/60"
+                        class="w-full sm:max-w-xs rounded-lg border border-white/10 bg-black/20 px-3 py-1.5 text-xs text-ink placeholder:text-muted/60 focus:border-amber-400/60 outline-none ring-0 focus:ring-0"
                         placeholder={i18n.t.detail.quotesContextPlaceholder}
                         bind:value={newPageOrContext}
                     />

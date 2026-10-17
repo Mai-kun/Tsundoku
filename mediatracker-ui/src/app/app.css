@@ -1,4 +1,4 @@
-﻿@import "tailwindcss";
+@import "tailwindcss";
 @plugin "daisyui" {
   themes: false;
   logs: false;
@@ -189,9 +189,14 @@ button:not(:disabled) {
   cursor: pointer;
 }
 
-:focus-visible {
+:focus-visible:not(input):not(textarea):not(select) {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
+}
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
 }
 
 * {

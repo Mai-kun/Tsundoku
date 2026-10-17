@@ -2277,6 +2277,7 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
 <FillMissingModal
     isOpen={fillMissingOpen}
     busy={fillMissingBusy}
+    media={media}
     mediaType={media?.type ?? "movie"}
     currentSource={media?.externalSource ?? null}
     onFill={(source) => void handleFillMissing(source)}

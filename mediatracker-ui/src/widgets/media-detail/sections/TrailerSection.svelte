@@ -37,7 +37,7 @@
                 onclick={() => playing = true}
             >
                 <span class="grid size-14 place-items-center rounded-2xl bg-red-600 text-white shadow-xl transition group-hover:scale-110 group-hover:bg-red-500">
-                    <Play size={25} class="ml-1 fill-current" />
+                    <Play size={25} class="fill-current" />
                 </span>
             </button>
             <span class="absolute bottom-3 left-3 text-xs font-semibold text-white drop-shadow">{i18n.t.detail.trailerTitle}</span>

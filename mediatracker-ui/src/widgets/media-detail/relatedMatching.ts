@@ -50,6 +50,7 @@ function readItemRomaji(item: { type?: string; romajiTitle?: string | null }): s
  * 5. Base title match with movie/film markers stripped (when both represent movies)
  */
 export function isRelatedMatch(rel: RelatedEntry, item: MediaItem): boolean {
+    if (!rel || !item) return false;
     // 1. External ID match
     if (
         item.externalId &&
@@ -127,7 +128,19 @@ export function isRelatedMatch(rel: RelatedEntry, item: MediaItem): boolean {
 /** Finds a matching library item for an external relation entry. */
 export function findMatchingLocal(
     rel: RelatedEntry,
-    all: readonly MediaItem[],
+    library?: readonly MediaItem[] | null,
 ): MediaItem | undefined {
-    return all.find((item) => isRelatedMatch(rel, item));
+    if (!library || !Array.isArray(library) || library.length === 0) return undefined;
+    if (!rel) return undefined;
+    try {
+        return library.find((item) => {
+            try {
+                return Boolean(item && isRelatedMatch(rel, item));
+            } catch {
+                return false;
+            }
+        });
+    } catch {
+        return undefined;
+    }
 }

@@ -27,6 +27,15 @@
             loading="lazy"
             decoding="async"
             fetchpriority="low"
+            onerror={(e) => {
+                const target = e.currentTarget as HTMLImageElement;
+                if (!target.dataset.retried && src) {
+                    target.dataset.retried = 'true';
+                    setTimeout(() => {
+                        target.src = src;
+                    }, 1200);
+                }
+            }}
         />
     {:else}
         <div

@@ -197,7 +197,7 @@
                 aria-expanded={ratingOpen}
             >
                 {#if scoreValue !== null && scoreValue > 0}
-                    <span class="text-sm font-black tabular-nums text-amber-300">{scoreValue}</span>
+                    <span class="text-[17px] font-black tabular-nums tracking-tight text-amber-300 select-none">{scoreValue}</span>
                 {:else}
                     <Star size={18} class="text-white/80" aria-hidden="true" />
                 {/if}

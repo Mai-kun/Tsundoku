@@ -119,12 +119,13 @@
      * come back empty and the user had to name a source again. Reading the copy stored on the row
      * costs nothing and puts the list back on F5.
      */
-    function readStoredRelated(item: MediaDetail): RelatedEntry[] | null {
-        if (!item.relatedMediaJson) return null;
+    function readStoredRelated(item?: MediaDetail | null): RelatedEntry[] | null {
+        if (!item?.relatedMediaJson) return null;
         try {
             const parsed: unknown = JSON.parse(item.relatedMediaJson);
             return Array.isArray(parsed) ? (parsed as RelatedEntry[]) : null;
-        } catch {
+        } catch (error) {
+            console.error("[MediaDetailView] Failed to parse relatedMediaJson", error);
             return null;
         }
     }
@@ -1043,14 +1044,22 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
         }
 
         try {
-            const all = await getMedia();
+            let all: MediaItem[] = [];
+            try {
+                const fetched = await getMedia();
+                if (Array.isArray(fetched)) {
+                    all = fetched;
+                }
+            } catch (err) {
+                console.error("[MediaDetailView] Failed to fetch library media for relations", err);
+            }
             if (sequence !== relatedSequence) return;
 
             const results: RelatedEntry[] = [];
 
             // 1. Local siblings of the same franchise are already in our own database, so they cost
             // nothing and are always worth showing.
-            if (item.franchiseId) {
+            if (item.franchiseId && Array.isArray(all)) {
                 const localMatches = all
                     .filter(
                         (candidate) =>
@@ -1081,7 +1090,12 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
                     const stored = readStoredRelated(item as MediaDetail);
                     if (stored && stored.length > 0) {
                         const remappedStored = stored.map((entry) => {
-                            const local = findMatchingLocal(entry, all);
+                            let local: MediaItem | undefined;
+                            try {
+                                local = findMatchingLocal(entry, all);
+                            } catch (e) {
+                                console.error("[MediaDetailView] Error in findMatchingLocal", e);
+                            }
                             return {
                                 ...entry,
                                 coverUrl: local?.coverUrl || entry.coverUrl,
@@ -1173,7 +1187,12 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
                     entry.relationType = formatRelationType(relation.relationType);
                     if (entry.title.toLowerCase() === item.title.toLowerCase()) continue;
 
-                    const matchedLocal = findMatchingLocal(entry, all);
+                    let matchedLocal: MediaItem | undefined;
+                    try {
+                        matchedLocal = findMatchingLocal(entry, all);
+                    } catch (e) {
+                        console.error("[MediaDetailView] Error in findMatchingLocal", e);
+                    }
 
                     if (
                         !results.some(
@@ -1211,7 +1230,12 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
                         )
                     )
                         continue;
-                    const matchedLocal = findMatchingLocal(entry, all);
+                    let matchedLocal: MediaItem | undefined;
+                    try {
+                        matchedLocal = findMatchingLocal(entry, all);
+                    } catch (e) {
+                        console.error("[MediaDetailView] Error in findMatchingLocal", e);
+                    }
                     results.push({
                         ...entry,
                         type: item.type,

@@ -14,6 +14,7 @@
         items: MediaItem[];
         showProgress?: boolean;
         loading?: boolean;
+        isInitialLoading?: boolean;
         error?: unknown;
         onRetry?: () => void;
         onOpen?: (item: MediaItem) => void;
@@ -33,6 +34,7 @@
         items,
         showProgress = true,
         loading = false,
+        isInitialLoading = false,
         error = null,
         onRetry = () => {},
         onOpen = () => {},
@@ -194,7 +196,7 @@
     </div>
 {/snippet}
 
-{#if loading}
+{#if loading || isInitialLoading}
     <div
         class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-7"
         aria-hidden="true"
@@ -227,7 +229,7 @@
                 .retry}</button
         >
     </div>
-{:else if items.length === 0}
+{:else if items.length === 0 && !loading && !isInitialLoading}
     <div
         class="flex min-h-72 flex-col items-center justify-center gap-3 rounded-lg bg-surface p-6 text-center"
     >

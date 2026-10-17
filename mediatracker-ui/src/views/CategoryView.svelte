@@ -64,10 +64,9 @@
     let sort = $state<LibrarySort>("newest");
     let groupBy = $state<GroupBy>("status");
     let search = $state("");
-    let allItems = $state<MediaItem[]>(
-        untrack(() => categoryCache.peek(category) ?? []),
-    );
-    let loading = $state(false);
+    const initialItems = untrack(() => categoryCache.peek(category) ?? []);
+    let allItems = $state<MediaItem[]>(initialItems);
+    let loading = $state(initialItems.length === 0);
     let loadError = $state<unknown>(null);
     let requestSequence = 0;
     let skeletonTimer: ReturnType<typeof setTimeout> | null = null;
@@ -87,7 +86,7 @@
             loading = false;
         } else {
             allItems = [];
-            loading = false;
+            loading = true;
         }
     });
 
@@ -242,8 +241,10 @@
     async function loadItems(sequence: number) {
         if (skeletonTimer) clearTimeout(skeletonTimer);
         if (allItems.length === 0) {
+            loading = true;
+        } else {
             skeletonTimer = setTimeout(() => {
-                if (sequence === requestSequence && allItems.length === 0) {
+                if (sequence === requestSequence) {
                     loading = true;
                 }
             }, 120);

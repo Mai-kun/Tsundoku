@@ -1,7 +1,7 @@
 // Self-check for the time budget calculator: verifies that media items fit slots according to
 // duration, reading speed, and remaining progress. Run: `node --experimental-strip-types checks/timeBudget.check.ts`
 import assert from "node:assert/strict";
-import { evaluateTimeFit } from "../src/entities/media/model/timeBudget.ts";
+import { evaluateTimeFit, formatTimeBudgetChip } from "../src/entities/media/model/timeBudget.ts";
 import type { BookMedia, GameMedia, MangaMedia, MovieMedia, TvShowMedia } from "../src/shared/types/models.ts";
 
 function createMovie(durationMinutes: number): MovieMedia {
@@ -171,6 +171,43 @@ function createGame(): GameMedia {
 
     const movieEn = evaluateTimeFit(createMovie(90), 90, 1.5, 6.0, "en");
     assert.equal(movieEn.sessionLabel, "🔥 Entire: 90 min");
+}
+
+// 5. Arbitrary custom time (40 min, 150 min) and formatTimeBudgetChip
+{
+    // Custom time 40 min
+    const anime1EpLeft = createTvShow({ durationMinutes: 24, isAnime: true, totalEpisodesCount: 12, totalEpisodesWatched: 11 });
+    const anime1Res = evaluateTimeFit(anime1EpLeft, 40, 1.5, 6.0, "ru");
+    assert.equal(anime1Res.fits, true, "24 min anime fits in 40 min slot");
+    assert.equal(anime1Res.canFinishNow, true, "1 episode left finishes in 40 min");
+
+    const movie45 = createMovie(45);
+    assert.equal(evaluateTimeFit(movie45, 40, 1.5, 6.0, "ru").fits, false, "45 min movie does not fit in 40 min slot");
+
+    const game = createGame();
+    assert.equal(evaluateTimeFit(game, 40, 1.5, 6.0, "ru").fits, true, "Game fits in 40 min slot (>= 30)");
+
+    // Custom time 150 min (2.5 hours)
+    const movie140 = createMovie(140);
+    const movie140Res = evaluateTimeFit(movie140, 150, 1.5, 6.0, "ru");
+    assert.equal(movie140Res.fits, true, "140 min movie fits in 150 min slot");
+    assert.equal(movie140Res.canFinishNow, true, "140 min movie finishes in 150 min slot");
+
+    // formatTimeBudgetChip tests
+    assert.equal(formatTimeBudgetChip(15, "ru"), "15 м");
+    assert.equal(formatTimeBudgetChip(15, "en"), "15m");
+    assert.equal(formatTimeBudgetChip(40, "ru"), "40 м");
+    assert.equal(formatTimeBudgetChip(40, "en"), "40m");
+    assert.equal(formatTimeBudgetChip(60, "ru"), "1 ч");
+    assert.equal(formatTimeBudgetChip(60, "en"), "1h");
+    assert.equal(formatTimeBudgetChip(90, "ru"), "1.5 ч");
+    assert.equal(formatTimeBudgetChip(90, "en"), "1.5h");
+    assert.equal(formatTimeBudgetChip(120, "ru"), "2 ч");
+    assert.equal(formatTimeBudgetChip(120, "en"), "2h");
+    assert.equal(formatTimeBudgetChip(150, "ru"), "2.5 ч");
+    assert.equal(formatTimeBudgetChip(150, "en"), "2.5h");
+    assert.equal(formatTimeBudgetChip(75, "ru"), "1ч 15м");
+    assert.equal(formatTimeBudgetChip(75, "en"), "1h 15m");
 }
 
 console.log("ok   time budget evaluateTimeFit checks passed");

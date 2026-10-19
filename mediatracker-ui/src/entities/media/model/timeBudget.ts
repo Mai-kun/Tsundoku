@@ -1,12 +1,31 @@
 import type { MediaItem } from "$shared/types";
 
-export type TimeBudgetMinutes = null | 15 | 30 | 45 | 60 | 90 | 120 | 180;
+export type TimeBudgetMinutes = number | null;
 
 export interface TimeFitResult {
     fits: boolean; // Вписывается ли тайтл в выбранный слот времени
     canFinishNow: boolean; // Можно ли полностью завершить тайтл до 100% за это время
     remainingMinutes: number | null; // Сколько всего минут осталось до конца тайтла
     sessionLabel: string; // Короткая подсказка для бейджа
+}
+
+/**
+ * Formats a chosen time budget in minutes for display on compact trigger chips.
+ */
+export function formatTimeBudgetChip(
+    minutes: number,
+    locale: "ru" | "en" = "ru",
+): string {
+    if (minutes < 60) {
+        return locale === "ru" ? `${minutes} м` : `${minutes}m`;
+    }
+    if (minutes % 60 === 0 || minutes % 30 === 0) {
+        const hours = minutes / 60;
+        return locale === "ru" ? `${hours} ч` : `${hours}h`;
+    }
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    return locale === "ru" ? `${h}ч ${m}м` : `${h}h ${m}m`;
 }
 
 /**

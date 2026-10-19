@@ -35,6 +35,7 @@
         >;
         closeDelay?: number;
         label: string;
+        footer?: Snippet<[ctx: { close: () => void }]>;
     }
 
     let {
@@ -51,6 +52,7 @@
         renderOption,
         closeDelay = 180,
         label,
+        footer,
     }: Props<unknown> = $props();
 
     const popoverId = $derived(`popover-${id}`);
@@ -193,6 +195,7 @@
 
     function scheduleClose() {
         if (!openOnHover) return;
+        if (popoverEl && popoverEl.contains(document.activeElement)) return;
         cancelPendingClose();
         closeTimer = setTimeout(() => {
             closeTimer = null;
@@ -291,5 +294,10 @@
                 {/if}
             </button>
         {/each}
+        {#if footer}
+            <div class="mt-1 border-t border-white/10 pt-1.5 px-1.5 pb-1">
+                {@render footer({ close: () => popoverEl?.hidePopover() })}
+            </div>
+        {/if}
     </div>
 {/if}

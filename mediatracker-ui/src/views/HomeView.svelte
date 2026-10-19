@@ -37,23 +37,23 @@
     import { SORT_ICONS } from "$features/filter-and-sort/FilterBar.svelte";
     import {
         evaluateTimeFit,
+        formatTimeBudgetChip,
         type TimeBudgetMinutes,
         type TimeFitResult,
     } from "$entities/media/model/timeBudget";
     import { uiSettings } from "$shared/utils/uiSettings.svelte";
 
-    const TIME_BUDGET_OPTIONS: {
-        value: TimeBudgetMinutes;
-        key: "all" | "m15" | "m30" | "m45" | "h1" | "h1_5" | "h2_plus";
-    }[] = [
-        { value: null, key: "all" },
-        { value: 15, key: "m15" },
-        { value: 30, key: "m30" },
-        { value: 45, key: "m45" },
-        { value: 60, key: "h1" },
-        { value: 90, key: "h1_5" },
-        { value: 120, key: "h2_plus" },
-    ];
+    const timeBudgetOptions = $derived<
+        { value: TimeBudgetMinutes; label: string }[]
+    >([
+        { value: null, label: i18n.t.timeBudget.options.all },
+        { value: 15, label: i18n.t.timeBudget.options.m15 },
+        { value: 30, label: i18n.t.timeBudget.options.m30 },
+        { value: 45, label: i18n.t.timeBudget.options.m45 },
+        { value: 60, label: i18n.t.timeBudget.options.h1 },
+        { value: 90, label: i18n.t.timeBudget.options.h1_5 },
+        { value: 120, label: i18n.t.timeBudget.options.h2_plus },
+    ]);
 
     const sortOptions = $derived<
         { value: LibrarySort; label: string }[]
@@ -232,10 +232,28 @@
         return count;
     });
 
+    let customTimeValue = $state<number | string>("");
+    let customTimeUnit = $state<"min" | "h">("min");
+
+    function applyCustomTime(close?: () => void) {
+        const val =
+            typeof customTimeValue === "number"
+                ? customTimeValue
+                : parseFloat(String(customTimeValue));
+        if (!isNaN(val) && val > 0) {
+            timeBudget =
+                customTimeUnit === "h"
+                    ? Math.round(val * 60)
+                    : Math.round(val);
+            customTimeValue = "";
+            close?.();
+        }
+    }
+
     const activeBudgetLabel = $derived.by(() => {
         if (timeBudget === null) return "";
-        const opt = TIME_BUDGET_OPTIONS.find((o) => o.value === timeBudget);
-        return opt ? i18n.t.timeBudget.options[opt.key] : `${timeBudget}m`;
+        const opt = timeBudgetOptions.find((o) => o.value === timeBudget);
+        return opt ? opt.label : formatTimeBudgetChip(timeBudget, i18n.current);
     });
 
     let displayInProgress = $derived(
@@ -541,38 +559,93 @@
         </p>
     </div>
 
-    <!-- Плавающий островок управления (селектор времени слева, группировка/сортировка справа) -->
+    <!-- Плавающий островок кнопок справа (только кнопки интерактивны) -->
     {#if !loading && !loadError}
-        <div class="sticky top-2 z-30 pointer-events-none -mt-8 mb-4 flex flex-wrap items-center justify-between gap-3">
-            <!-- Селектор времени -->
-            <div
-                class="pointer-events-auto inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-[#12151c]/90 p-1.5 shadow-xl shadow-black/50 backdrop-blur-md max-w-full"
-            >
-                <div class="flex items-center gap-1.5 pl-1.5 pr-1 text-xs font-semibold text-muted shrink-0">
-                    <Clock3 size={16} class="text-accent-soft shrink-0" aria-hidden="true" />
-                    <span class="hidden md:inline">{i18n.t.timeBudget.filterTitle}</span>
-                </div>
-                <div class="flex items-center gap-1 overflow-x-auto no-scrollbar py-0.5">
-                    {#each TIME_BUDGET_OPTIONS as opt (opt.value)}
-                        <button
-                            type="button"
-                            class={`tap px-2.5 py-1 text-xs rounded-lg transition font-medium cursor-pointer whitespace-nowrap ${
-                                timeBudget === opt.value
-                                    ? "border border-accent/40 bg-accent/25 text-white font-semibold shadow-xs"
-                                    : "text-muted hover:text-ink hover:bg-white/5"
-                            }`}
-                            onclick={() => (timeBudget = opt.value)}
-                        >
-                            {i18n.t.timeBudget.options[opt.key]}
-                        </button>
-                    {/each}
-                </div>
-            </div>
-
-            <!-- Группировка и сортировка -->
+        <div class="sticky top-2 z-30 pointer-events-none -mt-8 mb-4 flex justify-end">
             <div
                 class="pointer-events-auto inline-flex items-center gap-2 rounded-xl border border-white/10 bg-[#12151c]/90 p-1.5 shadow-xl shadow-black/50 backdrop-blur-md"
             >
+                <!-- Меню фильтра времени -->
+                <PopoverMenu
+                    id="home-time-budget"
+                    options={timeBudgetOptions}
+                    selected={timeBudget}
+                    onSelect={(val) => (timeBudget = val as TimeBudgetMinutes)}
+                    label={i18n.t.timeBudget.filterTitle}
+                    placement="bottom-end"
+                    openOnHover
+                    closeDelay={220}
+                >
+                    {#snippet trigger({ popoverTargetId, anchorName, isOpen })}
+                        {#if timeBudget !== null}
+                            <button
+                                type="button"
+                                popovertarget={popoverTargetId}
+                                popovertargetaction="toggle"
+                                style={isOpen ? `anchor-name: ${anchorName}` : undefined}
+                                class="tap inline-flex h-9 items-center gap-1.5 rounded-lg border border-accent/40 bg-accent/15 px-2.5 text-xs font-semibold text-accent-soft transition hover:bg-accent/25 has-[:popover-open]:ring-2 has-[:popover-open]:ring-indigo-500/40 cursor-pointer"
+                                title={i18n.t.timeBudget.filterTitle}
+                                aria-label={i18n.t.timeBudget.filterTitle}
+                            >
+                                <Clock3 size={16} stroke-width={2} aria-hidden="true" />
+                                <span>{formatTimeBudgetChip(timeBudget, i18n.current)}</span>
+                            </button>
+                        {:else}
+                            <button
+                                type="button"
+                                popovertarget={popoverTargetId}
+                                popovertargetaction="toggle"
+                                style={isOpen ? `anchor-name: ${anchorName}` : undefined}
+                                class="tap grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-white/10 bg-field text-muted transition hover:border-white/20 hover:text-ink has-[:popover-open]:ring-2 has-[:popover-open]:ring-indigo-500/40 cursor-pointer"
+                                title={i18n.t.timeBudget.filterTitle}
+                                aria-label={i18n.t.timeBudget.filterTitle}
+                            >
+                                <Clock3 size={18} stroke-width={2} aria-hidden="true" />
+                            </button>
+                        {/if}
+                    {/snippet}
+
+                    {#snippet footer({ close })}
+                        <form
+                            class="flex items-center gap-1.5"
+                            onsubmit={(e) => {
+                                e.preventDefault();
+                                applyCustomTime(close);
+                            }}
+                        >
+                            <input
+                                type="number"
+                                min="1"
+                                max="999"
+                                step="any"
+                                placeholder={i18n.t.timeBudget.customTimePlaceholder}
+                                bind:value={customTimeValue}
+                                class="h-7 w-16 rounded bg-canvas border border-white/10 px-2 text-xs text-ink outline-none focus:border-accent"
+                                onkeydown={(e) => {
+                                    if (e.key === "Enter") {
+                                        e.preventDefault();
+                                        applyCustomTime(close);
+                                    }
+                                }}
+                            />
+                            <select
+                                bind:value={customTimeUnit}
+                                class="h-7 rounded bg-canvas border border-white/10 px-1 text-xs text-ink outline-none focus:border-accent cursor-pointer"
+                            >
+                                <option value="min">{i18n.t.timeBudget.unitMin}</option>
+                                <option value="h">{i18n.t.timeBudget.unitHours}</option>
+                            </select>
+                            <button
+                                type="submit"
+                                class="tap h-7 rounded bg-accent px-2 text-xs font-medium text-white transition hover:bg-accent-hover cursor-pointer"
+                                title={i18n.t.timeBudget.applyCustomTime}
+                            >
+                                OK
+                            </button>
+                        </form>
+                    {/snippet}
+                </PopoverMenu>
+
                 <!-- Кнопка группировки -->
                 <button
                     type="button"

@@ -914,6 +914,10 @@ export const translations = {
             en: (timeLabel: string) =>
                 `Nothing in your backlog fits in ${timeLabel}. Try choosing a longer time slot or adding shorter titles.`,
         },
+        customTimePlaceholder: { ru: "Время…", en: "Time…" },
+        unitMin: { ru: "мин", en: "min" },
+        unitHours: { ru: "ч", en: "h" },
+        applyCustomTime: { ru: "Применить", en: "Apply" },
     },
     errors: {
         unexpected: { ru: "Произошла непредвиденная ошибка.", en: "Something went wrong. Please try again." },

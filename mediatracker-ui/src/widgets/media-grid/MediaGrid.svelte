@@ -112,7 +112,7 @@
     // freeze.
     $effect(() => {
         const el = containerEl;
-        if (!el) return;
+        if (!el || el.offsetParent === null || el.getClientRects().length === 0) return;
         columnsCount;
         gridLayoutVersion();
         const scroller = document.getElementById("main-scroll");
@@ -125,7 +125,14 @@
                     scroller.scrollTop,
             ),
         );
-        if (margin !== untrack(() => scrollMargin)) scrollMargin = margin;
+        if (margin !== untrack(() => scrollMargin)) {
+            scrollMargin = margin;
+        } else {
+            virtualizerInstance?.setOptions({
+                count: rows.length,
+                scrollMargin: margin,
+            });
+        }
     });
 
     // A grid's footprint on the page (row count, corrected row height) shifts

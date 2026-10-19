@@ -18,6 +18,7 @@
     import ShowSeasonsView from "$views/ShowSeasonsView.svelte";
     import StatsView from "$views/StatsView.svelte";
     import { i18n } from "$shared/i18n/index.svelte";
+    import { bumpGridLayout } from "$widgets/media-grid/gridLayout.svelte";
     import type { AppView, MediaItem, SearchScope } from "$shared/types";
 
     const categories: readonly Category[] = [
@@ -52,6 +53,9 @@
        modals), so the count never reached 1, `switching` stayed true and <main> kept `invisible`
        -- the detail page mounted and stayed invisible until F5. */
     let renderedView = $state<AppView | null>(route.view);
+    let activeCategory = $state<Category | null>(
+        isCategory(route.view) ? route.view : null,
+    );
     let previousView = $state<AppView>(
         route.view === "seasons" || route.view === "detail"
             ? "home"
@@ -147,8 +151,20 @@
      * microtask, before the browser paints, so only the final state is ever on screen.
      */
     function switchView(view: AppView) {
+        if (isCategory(view)) {
+            activeCategory = view;
+        }
         renderedView = view;
     }
+
+    $effect(() => {
+        if (
+            renderedView === "home" ||
+            (renderedView !== null && isCategory(renderedView))
+        ) {
+            requestAnimationFrame(() => bumpGridLayout());
+        }
+    });
 
     function navigate(view: AppView) {
         // Remember where the outgoing view was scrolled: the home reset below
@@ -363,14 +379,29 @@
         <Header title={titleForView(activeView)} onSearch={openSearch} />
     {/snippet}
 
-    {#if renderedView === "home"}
+    <div class:hidden={renderedView !== "home"}>
         <HomeView
             refreshKey={mediaRevision}
             onOpen={openDetail}
             onMediaChanged={mediaChanged}
             onEdit={openEdit}
         />
-    {:else if renderedView === "detail" && selectedMediaId}
+    </div>
+
+    {#if activeCategory !== null}
+        <div class:hidden={renderedView === null || !isCategory(renderedView)}>
+            <CategoryView
+                category={activeCategory}
+                active={renderedView !== null && isCategory(renderedView)}
+                refreshKey={mediaRevision}
+                onOpen={openDetail}
+                onMediaChanged={mediaChanged}
+                onEdit={openEdit}
+            />
+        </div>
+    {/if}
+
+    {#if renderedView === "detail" && selectedMediaId}
         <MediaDetailView
             mediaId={selectedMediaId}
             refreshKey={mediaRevision}
@@ -399,18 +430,6 @@
         <CalendarView />
     {:else if renderedView === "lists"}
         <ListsView onOpen={openDetail} onImportCompleted={mediaChanged} />
-    {:else if renderedView !== null && isCategory(renderedView)}
-        <!-- No {#key} here: keying the whole view remounted it on every switch. The section
-             {#each} keys in CategoryView are category-scoped instead, so sections rebuild only
-             when their contents actually differ. renderedView already guarantees a single
-             mounted view at a time. -->
-        <CategoryView
-            category={renderedView}
-            refreshKey={mediaRevision}
-            onOpen={openDetail}
-            onMediaChanged={mediaChanged}
-            onEdit={openEdit}
-        />
     {/if}
 </AppShell>
 

@@ -46,6 +46,7 @@
 
     interface Props {
         category: Category;
+        active?: boolean;
         refreshKey: number;
         onOpen: (item: MediaItem) => void;
         onMediaChanged: () => void;
@@ -54,6 +55,7 @@
 
     let {
         category,
+        active = true,
         refreshKey,
         onOpen,
         onMediaChanged,
@@ -402,17 +404,19 @@
 </script>
 
 <div class="space-y-6">
-    <FilterBar
-        {status}
-        {sort}
-        {groupBy}
-        {search}
-        counts={statusCounts}
-        onStatusChange={updateStatus}
-        onSortChange={updateSort}
-        onGroupByChange={updateGroupBy}
-        onSearchChange={updateSearch}
-    />
+    {#if active}
+        <FilterBar
+            {status}
+            {sort}
+            {groupBy}
+            {search}
+            counts={statusCounts}
+            onStatusChange={updateStatus}
+            onSortChange={updateSort}
+            onGroupByChange={updateGroupBy}
+            onSearchChange={updateSearch}
+        />
+    {/if}
 
     <p class="text-xs font-medium text-muted">
         {i18n.t.library.resultCount(filteredItems.length)}
@@ -449,7 +453,7 @@
             />
         {:else}
             <div class="space-y-8">
-                {#each statusGroups as group (`${category}:${group.status}`)}
+                {#each statusGroups as group (group.status)}
                     <SectionRow
                         title={group.title}
                         items={group.items}
@@ -482,7 +486,7 @@
             />
         {:else}
             <div class="space-y-8">
-                {#each franchiseGroups as group (`${category}:${group.name}`)}
+                {#each franchiseGroups as group (group.name)}
                     <SectionRow
                         title={group.name}
                         items={group.items}

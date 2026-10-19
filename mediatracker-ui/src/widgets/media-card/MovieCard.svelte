@@ -8,6 +8,7 @@
 
     let {
         item,
+        timeHint,
         showProgress = true,
         onOpen = () => {},
         onStatusChange,
@@ -18,6 +19,7 @@
 
 <BaseCard
     {item}
+    {timeHint}
     {onOpen}
     {onStatusChange}
     {onProgressCommitted}

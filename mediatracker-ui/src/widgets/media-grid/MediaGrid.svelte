@@ -7,11 +7,16 @@
     import { i18n } from "$shared/i18n/index.svelte";
     import type { MediaItem } from "$shared/types";
     import MediaCard from "$widgets/media-card/MediaCard.svelte";
+    import type { CardTimeHint } from "$widgets/media-card/cardTypes";
+    import { evaluateTimeFit, type TimeBudgetMinutes } from "$entities/media/model/timeBudget";
+    import { uiSettings } from "$shared/utils/uiSettings.svelte";
     import { bumpGridLayout, gridLayoutVersion } from "./gridLayout.svelte";
     import { chunkIntoRows, columnsForWidth, estimateRowHeight } from "./virtualGrid";
 
     interface Props {
         items: MediaItem[];
+        timeBudget?: TimeBudgetMinutes;
+        getTimeHint?: (item: MediaItem) => CardTimeHint | null;
         showProgress?: boolean;
         loading?: boolean;
         isInitialLoading?: boolean;
@@ -32,6 +37,8 @@
 
     let {
         items,
+        timeBudget,
+        getTimeHint,
         showProgress = true,
         loading = false,
         isInitialLoading = false,
@@ -183,9 +190,27 @@
 </script>
 
 {#snippet card(item: MediaItem)}
+    {@const timeHint = getTimeHint
+        ? getTimeHint(item)
+        : timeBudget
+            ? (() => {
+                  const res = evaluateTimeFit(
+                      item,
+                      timeBudget,
+                      uiSettings.bookPageMinutes,
+                      uiSettings.mangaChapterMinutes,
+                      i18n.current,
+                  );
+                  return {
+                      label: res.sessionLabel,
+                      canFinishNow: res.canFinishNow,
+                  };
+              })()
+            : null}
     <div class="group relative min-w-0">
         <MediaCard
             {item}
+            {timeHint}
             {showProgress}
             {onOpen}
             {onProgress}

@@ -15,7 +15,7 @@
 </script>
 
 <script lang="ts">
-    import { Layers } from "$shared/ui/Icons.svelte";
+    import { Clock3, Layers } from "$shared/ui/Icons.svelte";
     import {
         deleteMedia,
         getMedia,
@@ -35,6 +35,25 @@
     import PopoverMenu from "$shared/ui/PopoverMenu.svelte";
     import { nextSeriesEpisodeStep } from "$entities/media/model/seriesStep";
     import { SORT_ICONS } from "$features/filter-and-sort/FilterBar.svelte";
+    import {
+        evaluateTimeFit,
+        type TimeBudgetMinutes,
+        type TimeFitResult,
+    } from "$entities/media/model/timeBudget";
+    import { uiSettings } from "$shared/utils/uiSettings.svelte";
+
+    const TIME_BUDGET_OPTIONS: {
+        value: TimeBudgetMinutes;
+        key: "all" | "m15" | "m30" | "m45" | "h1" | "h1_5" | "h2_plus";
+    }[] = [
+        { value: null, key: "all" },
+        { value: 15, key: "m15" },
+        { value: 30, key: "m30" },
+        { value: 45, key: "m45" },
+        { value: 60, key: "h1" },
+        { value: 90, key: "h1_5" },
+        { value: 120, key: "h2_plus" },
+    ];
 
     const sortOptions = $derived<
         { value: LibrarySort; label: string }[]
@@ -68,6 +87,7 @@
     let loadError = $state<unknown>(null);
     let sort = $state<LibrarySort>(savedHomeSort);
     let groupByType = $state<boolean>(savedHomeGroupByType);
+    let timeBudget = $state<TimeBudgetMinutes>(null);
     let requestSequence = 0;
     let hasLoaded = homeCache.peek(HOME_KEY) !== undefined;
     let skeletonTimer: ReturnType<typeof setTimeout> | null = null;
@@ -79,6 +99,16 @@
     $effect(() => {
         savedHomeGroupByType = groupByType;
     });
+
+    function evaluateItem(item: MediaItem, budget: number): TimeFitResult {
+        return evaluateTimeFit(
+            item,
+            budget,
+            uiSettings.bookPageMinutes,
+            uiSettings.mangaChapterMinutes,
+            i18n.current,
+        );
+    }
 
     const TYPE_ORDER: Record<string, number> = {
         game: 1,
@@ -125,23 +155,106 @@
         });
     }
 
+    function sortBudgetItems(
+        list: MediaItem[],
+        budget: number,
+        byType: boolean,
+        currentSort: LibrarySort,
+    ): MediaItem[] {
+        return [...list].sort((a, b) => {
+            const finishA = evaluateItem(a, budget).canFinishNow ? 1 : 0;
+            const finishB = evaluateItem(b, budget).canFinishNow ? 1 : 0;
+            if (finishA !== finishB) {
+                return finishB - finishA;
+            }
+            if (byType) {
+                const typeA = TYPE_ORDER[a.type] ?? 99;
+                const typeB = TYPE_ORDER[b.type] ?? 99;
+                if (typeA !== typeB) return typeA - typeB;
+            }
+            if (currentSort === "rating") {
+                return (b.score ?? 0) - (a.score ?? 0);
+            }
+            if (currentSort === "title") {
+                return a.title.localeCompare(b.title);
+            }
+            if (currentSort === "oldest") {
+                const aTime = a.finishedAt
+                    ? Date.parse(a.finishedAt)
+                    : Date.parse(a.createdAt);
+                const bTime = b.finishedAt
+                    ? Date.parse(b.finishedAt)
+                    : Date.parse(b.createdAt);
+                return aTime - bTime;
+            }
+            const aTime = a.finishedAt
+                ? Date.parse(a.finishedAt)
+                : Date.parse(a.createdAt);
+            const bTime = b.finishedAt
+                ? Date.parse(b.finishedAt)
+                : Date.parse(b.createdAt);
+            return bTime - aTime;
+        });
+    }
+
     // Dashboard sections show a compact recent slice; the full lists live in
     // the category views. 14 gives 2 neat rows on 7-column screens while keeping
     // every section under the grid's FLAT_LIMIT (15), so Home mounts plain card
     // grids with no virtualizer machinery.
     const HOME_SECTION_LIMIT = 14;
 
+    let inProgressFitting = $derived.by(() => {
+        const budget = timeBudget;
+        if (budget === null) return [];
+        return inProgress.filter((item) => evaluateItem(item, budget).fits);
+    });
+
+    let upNextFitting = $derived.by(() => {
+        const budget = timeBudget;
+        if (budget === null) return [];
+        return upNext.filter((item) => evaluateItem(item, budget).fits);
+    });
+
+    let totalFitting = $derived(
+        inProgressFitting.length + upNextFitting.length,
+    );
+
+    let totalFinishable = $derived.by(() => {
+        const budget = timeBudget;
+        if (budget === null) return 0;
+        let count = 0;
+        for (const item of inProgressFitting) {
+            if (evaluateItem(item, budget).canFinishNow) count++;
+        }
+        for (const item of upNextFitting) {
+            if (evaluateItem(item, budget).canFinishNow) count++;
+        }
+        return count;
+    });
+
+    const activeBudgetLabel = $derived.by(() => {
+        if (timeBudget === null) return "";
+        const opt = TIME_BUDGET_OPTIONS.find((o) => o.value === timeBudget);
+        return opt ? i18n.t.timeBudget.options[opt.key] : `${timeBudget}m`;
+    });
+
     let displayInProgress = $derived(
-        sortItems(inProgress, groupByType, sort).slice(0, HOME_SECTION_LIMIT),
+        timeBudget !== null
+            ? sortBudgetItems(inProgressFitting, timeBudget, groupByType, sort).slice(0, HOME_SECTION_LIMIT)
+            : sortItems(inProgress, groupByType, sort).slice(0, HOME_SECTION_LIMIT),
     );
     let displayUpNext = $derived(
-        sortItems(upNext, groupByType, sort).slice(0, HOME_SECTION_LIMIT),
+        timeBudget !== null
+            ? sortBudgetItems(upNextFitting, timeBudget, groupByType, sort).slice(0, HOME_SECTION_LIMIT)
+            : sortItems(upNext, groupByType, sort).slice(0, HOME_SECTION_LIMIT),
     );
     let displayRecentlyCompleted = $derived(
-        sortItems(recentlyCompleted, groupByType, sort).slice(
-            0,
-            HOME_SECTION_LIMIT,
-        ),
+        timeBudget === null
+            ? sortItems(recentlyCompleted, groupByType, sort).slice(
+                  0,
+                  HOME_SECTION_LIMIT,
+              )
+            : [],
     );
 
     function typeKey(media: MediaItem): string {
@@ -391,6 +504,7 @@
                     </div>
                     <MediaGrid
                         items={group.items}
+                        {timeBudget}
                         {onOpen}
                         onProgress={updateProgress}
                         onProgressCommitted={onMediaChanged}
@@ -404,6 +518,7 @@
         {:else}
             <MediaGrid
                 {items}
+                {timeBudget}
                 {onOpen}
                 onProgress={updateProgress}
                 onProgressCommitted={onMediaChanged}
@@ -426,9 +541,35 @@
         </p>
     </div>
 
-    <!-- Плавающий островок кнопок справа (только кнопки интерактивны) -->
+    <!-- Плавающий островок управления (селектор времени слева, группировка/сортировка справа) -->
     {#if !loading && !loadError}
-        <div class="sticky top-2 z-30 pointer-events-none -mt-8 mb-4 flex justify-end">
+        <div class="sticky top-2 z-30 pointer-events-none -mt-8 mb-4 flex flex-wrap items-center justify-between gap-3">
+            <!-- Селектор времени -->
+            <div
+                class="pointer-events-auto inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-[#12151c]/90 p-1.5 shadow-xl shadow-black/50 backdrop-blur-md max-w-full"
+            >
+                <div class="flex items-center gap-1.5 pl-1.5 pr-1 text-xs font-semibold text-muted shrink-0">
+                    <Clock3 size={16} class="text-accent-soft shrink-0" aria-hidden="true" />
+                    <span class="hidden md:inline">{i18n.t.timeBudget.filterTitle}</span>
+                </div>
+                <div class="flex items-center gap-1 overflow-x-auto no-scrollbar py-0.5">
+                    {#each TIME_BUDGET_OPTIONS as opt (opt.value)}
+                        <button
+                            type="button"
+                            class={`tap px-2.5 py-1 text-xs rounded-lg transition font-medium cursor-pointer whitespace-nowrap ${
+                                timeBudget === opt.value
+                                    ? "border border-accent/40 bg-accent/25 text-white font-semibold shadow-xs"
+                                    : "text-muted hover:text-ink hover:bg-white/5"
+                            }`}
+                            onclick={() => (timeBudget = opt.value)}
+                        >
+                            {i18n.t.timeBudget.options[opt.key]}
+                        </button>
+                    {/each}
+                </div>
+            </div>
+
+            <!-- Группировка и сортировка -->
             <div
                 class="pointer-events-auto inline-flex items-center gap-2 rounded-xl border border-white/10 bg-[#12151c]/90 p-1.5 shadow-xl shadow-black/50 backdrop-blur-md"
             >
@@ -495,12 +636,56 @@
         </div>
     {/if}
 
+    <!-- Сводка при активном фильтре времени -->
+    {#if !loading && !loadError && timeBudget !== null && totalFitting > 0}
+        <div
+            class="flex items-center justify-between gap-3 rounded-xl border border-accent/30 bg-accent/10 px-4 py-2.5 text-xs text-ink shadow-sm backdrop-blur-xs"
+        >
+            <div class="flex items-center gap-2 min-w-0">
+                <span class="grid h-6 w-6 shrink-0 place-items-center rounded-lg bg-accent/20 text-accent-soft">
+                    <Clock3 size={14} aria-hidden="true" />
+                </span>
+                <span class="font-medium truncate">
+                    {i18n.t.timeBudget.summary(totalFitting, totalFinishable)}
+                </span>
+            </div>
+            <button
+                type="button"
+                class="tap text-xs text-muted hover:text-white transition cursor-pointer shrink-0 font-medium underline underline-offset-2"
+                onclick={() => (timeBudget = null)}
+            >
+                {i18n.t.timeBudget.reset}
+            </button>
+        </div>
+    {/if}
+
     {#if loading}
         <MediaGrid items={[]} {loading} />
     {:else if loadError}
         <MediaGrid items={[]} error={loadError} onRetry={refresh} />
     {:else if totalItems === 0}
         <MediaGrid items={[]} />
+    {:else if timeBudget !== null && totalFitting === 0}
+        <div
+            class="flex min-h-60 flex-col items-center justify-center gap-3 rounded-xl border border-white/5 bg-surface/60 p-8 text-center"
+        >
+            <div class="grid h-12 w-12 place-items-center rounded-xl bg-card text-muted">
+                <Clock3 size={24} class="text-accent-soft" aria-hidden="true" />
+            </div>
+            <div>
+                <p class="font-semibold text-ink">{i18n.t.timeBudget.emptyTitle}</p>
+                <p class="mt-1 max-w-sm text-sm text-muted">
+                    {i18n.t.timeBudget.emptyHint(activeBudgetLabel)}
+                </p>
+            </div>
+            <button
+                type="button"
+                class="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-accent px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-accent-hover cursor-pointer"
+                onclick={() => (timeBudget = null)}
+            >
+                {i18n.t.timeBudget.reset}
+            </button>
+        </div>
     {:else}
         {#if displayInProgress.length > 0}
             {@render section(displayInProgress, i18n.t.views.inProgress)}
@@ -508,7 +693,7 @@
         {#if displayUpNext.length > 0}
             {@render section(displayUpNext, i18n.t.views.upNext)}
         {/if}
-        {#if displayRecentlyCompleted.length > 0}
+        {#if timeBudget === null && displayRecentlyCompleted.length > 0}
             {@render section(
                 displayRecentlyCompleted,
                 i18n.t.views.recentlyCompleted,

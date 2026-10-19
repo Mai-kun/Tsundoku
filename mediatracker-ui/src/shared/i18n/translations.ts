@@ -882,6 +882,39 @@ export const translations = {
             en: (title: string) => `Cancel sync of "${title}"`,
         },
     },
+    timeBudget: {
+        filterTitle: { ru: "Сколько есть времени?", en: "Available time" },
+        reset: { ru: "Сбросить", en: "Reset" },
+        options: {
+            all: { ru: "Все", en: "All" },
+            m15: { ru: "15 м", en: "15 m" },
+            m30: { ru: "30 м", en: "30 m" },
+            m45: { ru: "45 м", en: "45 m" },
+            h1: { ru: "1 ч", en: "1 h" },
+            h1_5: { ru: "1.5 ч", en: "1.5 h" },
+            h2_plus: { ru: "2 ч+", en: "2 h+" },
+        },
+        summary: {
+            ru: (fitting: number, finishable: number) =>
+                finishable > 0
+                    ? `Подходит тайтлов: ${fitting} • 🔥 Можно добить: ${finishable}`
+                    : `Подходит тайтлов: ${fitting}`,
+            en: (fitting: number, finishable: number) =>
+                finishable > 0
+                    ? `Matching titles: ${fitting} • 🔥 Can finish: ${finishable}`
+                    : `Matching titles: ${fitting}`,
+        },
+        emptyTitle: {
+            ru: "Ничего не подошло",
+            en: "Nothing fits this time slot",
+        },
+        emptyHint: {
+            ru: (timeLabel: string) =>
+                `За ${timeLabel} не нашлось подходящих тайтлов. Выберите больше времени или добавьте более короткие тайтлы.`,
+            en: (timeLabel: string) =>
+                `Nothing in your backlog fits in ${timeLabel}. Try choosing a longer time slot or adding shorter titles.`,
+        },
+    },
     errors: {
         unexpected: { ru: "Произошла непредвиденная ошибка.", en: "Something went wrong. Please try again." },
         requestFailed: { ru: "Не удалось выполнить запрос.", en: "The request could not be completed." },

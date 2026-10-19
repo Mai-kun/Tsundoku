@@ -35,6 +35,7 @@
     "check:virtual-grid-rows": "node --experimental-strip-types checks/virtualGridRows.check.ts",
     "check:virtual-grid": "node checks/virtualGrid.check.cjs",
     "check:client-errors": "node --experimental-strip-types checks/clientErrors.check.ts",
+    "check:time-budget": "node --experimental-strip-types checks/timeBudget.check.ts",
     "preview": "vite preview"
   },
   "devDependencies": {

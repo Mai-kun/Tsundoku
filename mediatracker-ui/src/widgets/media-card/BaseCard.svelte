@@ -10,9 +10,11 @@
     import MediaScoreBadge from "$entities/media/ui/MediaScoreBadge.svelte";
     import MediaStatusBadge from "$entities/media/ui/MediaStatusBadge.svelte";
     import { createCardStatus } from "$features/change-status/statusController.svelte";
+    import type { CardTimeHint } from "./cardTypes";
 
     interface Props {
         item: MediaItem;
+        timeHint?: CardTimeHint | null;
         onOpen?: (item: MediaItem) => void;
         onStatusChange?: (item: MediaItem, newStatus: MediaStatus) => void;
         onProgressCommitted?: () => void;
@@ -23,6 +25,7 @@
 
     let {
         item,
+        timeHint,
         onOpen = () => {},
         onStatusChange,
         onProgressCommitted = () => {},
@@ -99,7 +102,22 @@
         {/snippet}
     </MediaPoster>
 
-    <div class="relative z-10 min-w-0 space-y-3 px-0.5 pb-1 pt-3">
+    <div class="relative z-10 min-w-0 space-y-2.5 px-0.5 pb-1 pt-3">
+        {#if timeHint}
+            <div class="flex items-center">
+                <span
+                    class={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md border max-w-full truncate ${
+                        timeHint.canFinishNow
+                            ? "bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 font-semibold"
+                            : "bg-accent/20 border border-accent/30 text-accent-soft font-medium"
+                    }`}
+                    title={timeHint.label}
+                >
+                    {timeHint.label}
+                </span>
+            </div>
+        {/if}
+
         {@render children()}
 
         {#if deleteError}

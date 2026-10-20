@@ -14,6 +14,7 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using MediaTracker.Server.Domain.Enums;
 using MediaTracker.Server.Features.History.GetHistoryEvents;
+using MediaTracker.Server.Features.Lists;
 using MediaTracker.Server.Features.Media.Import;
 using MediaTracker.Server.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Http;
@@ -101,6 +102,7 @@ public static class RefactorSelfCheck
         CheckSteamLibraryImportParser(failures);
         CheckImportHealing(failures);
         CheckHistoryEventsFiltering(failures);
+        CheckSmartListEvaluator(failures);
 
         if (failures.Count == 0)
         {
@@ -3561,6 +3563,51 @@ public static class RefactorSelfCheck
         {
             return false;
         }
+    }
+
+    private static void CheckSmartListEvaluator(List<string> failures)
+    {
+        var anime = new TvShow { Title = "Attack on Titan", IsAnime = true };
+        anime.Seasons.Add(TvSeason.CreateFirst(25, null, MediaStatus.Planned, anime.Id));
+        var shortAnime = new TvShow { Title = "Ping Pong The Animation", IsAnime = true };
+        shortAnime.Seasons.Add(TvSeason.CreateFirst(11, null, MediaStatus.Planned, shortAnime.Id));
+        var movie = new Movie { Title = "Inception", DurationMinutes = 148, Score = 9 };
+        var shortMovie = new Movie { Title = "Lunch Box", DurationMinutes = 80, Studio = "Studio Ghibli" };
+        var book = new Book { Title = "The Hobbit", Author = "Tolkien", TotalPages = 310 };
+        var items = new List<MediaItem> { anime, shortAnime, movie, shortMovie, book };
+
+        // Test: category filter anime
+        var animeOnly = SmartListEvaluator.Evaluate(items, new SmartListQueryDto { Categories = ["anime"] });
+        AssertEqual(failures, 2, animeOnly.Count, "SmartList: anime category returns 2 shows");
+
+        // Test: category movie
+        var moviesOnly = SmartListEvaluator.Evaluate(items, new SmartListQueryDto { Categories = ["movie"] });
+        AssertEqual(failures, 2, moviesOnly.Count, "SmartList: movie category returns 2 movies");
+
+        // Test: MinScore filters
+        var highScore = SmartListEvaluator.Evaluate(items, new SmartListQueryDto { MinScore = 9 });
+        AssertEqual(failures, 1, highScore.Count, "SmartList: MinScore=9 returns 1 item");
+        AssertEqual(failures, "Inception", highScore[0].Title, "SmartList: MinScore=9 returns Inception");
+
+        // Test: MaxDurationMinutes for movies
+        var shortMovies = SmartListEvaluator.Evaluate(items,
+            new SmartListQueryDto { Categories = ["movie"], MaxDurationMinutes = 100 });
+        AssertEqual(failures, 1, shortMovies.Count, "SmartList: MaxDurationMinutes=100 returns 1 movie");
+        AssertEqual(failures, "Lunch Box", shortMovies[0].Title, "SmartList: MaxDurationMinutes=100 returns short movie");
+
+        // Test: MaxEpisodes for TvShow
+        var shortShows = SmartListEvaluator.Evaluate(items,
+            new SmartListQueryDto { Categories = ["anime"], MaxEpisodes = 13 });
+        AssertEqual(failures, 1, shortShows.Count, "SmartList: MaxEpisodes=13 returns 1 anime");
+        AssertEqual(failures, "Ping Pong The Animation", shortShows[0].Title, "SmartList: MaxEpisodes=13 returns short anime");
+
+        // Test: CreatorContains
+        var ghibli = SmartListEvaluator.Evaluate(items, new SmartListQueryDto { CreatorContains = "ghibli" });
+        AssertEqual(failures, 1, ghibli.Count, "SmartList: CreatorContains=ghibli returns 1 item");
+
+        // Test: Limit
+        var limited = SmartListEvaluator.Evaluate(items, new SmartListQueryDto { Limit = 2 });
+        AssertEqual(failures, 2, limited.Count, "SmartList: Limit=2 returns 2 items");
     }
 
     private sealed class NoOpImageStorage : IImageStorageService

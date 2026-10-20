@@ -10,4 +10,5 @@ public sealed class CustomList
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
     public List<CustomListItem> Items { get; set; } = [];
+    public string? SmartQueryJson { get; set; }
 }

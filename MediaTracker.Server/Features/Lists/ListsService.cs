@@ -8,14 +8,16 @@ namespace MediaTracker.Server.Features.Lists;
 
 public sealed record CustomListSummaryDto(
     Guid Id, string Name, string? Description, string? Icon, string? Color,
-    int ItemsCount, DateTime UpdatedAt, IReadOnlyList<string?> PreviewCovers);
+    int ItemsCount, DateTime UpdatedAt, IReadOnlyList<string?> PreviewCovers,
+    bool IsSmart, string? SmartQueryJson);
 
 public sealed record CustomListDetailDto(
     Guid Id, string Name, string? Description, string? Icon, string? Color,
-    DateTime CreatedAt, DateTime UpdatedAt, IReadOnlyList<MediaListDto> Items);
+    DateTime CreatedAt, DateTime UpdatedAt, IReadOnlyList<MediaListDto> Items,
+    bool IsSmart, string? SmartQueryJson);
 
-public sealed record CreateListRequest(string Name, string? Description, string? Icon, string? Color);
-public sealed record UpdateListRequest(string Name, string? Description, string? Icon, string? Color);
+public sealed record CreateListRequest(string Name, string? Description, string? Icon, string? Color, string? SmartQueryJson);
+public sealed record UpdateListRequest(string Name, string? Description, string? Icon, string? Color, string? SmartQueryJson);
 public sealed record AddMediaToListRequest(Guid MediaId);
 
 public sealed class CreateListRequestValidator : AbstractValidator<CreateListRequest>
@@ -47,10 +49,32 @@ public sealed class ListsService(AppDbContext db)
             .OrderByDescending(list => list.UpdatedAt)
             .ToListAsync(ct);
 
-        return lists.Select(list => new CustomListSummaryDto(
-            list.Id, list.Name, list.Description, list.Icon, list.Color,
-            list.Items.Count, list.UpdatedAt,
-            list.Items.Take(4).Select(item => item.MediaItem.CoverUrl).ToArray())).ToArray();
+        // Load all media once if any smart list exists
+        List<MediaItem>? allMedia = null;
+        if (lists.Any(list => list.SmartQueryJson != null))
+        {
+            allMedia = await db.MediaItems.AsNoTracking()
+                .Include(m => (m as TvShow)!.Seasons)
+                .ToListAsync(ct);
+        }
+
+        return lists.Select(list =>
+        {
+            if (list.SmartQueryJson is { } json && SmartListEvaluator.ParseQuery(json) is { } query)
+            {
+                var matched = SmartListEvaluator.Evaluate(allMedia!, query);
+                return new CustomListSummaryDto(
+                    list.Id, list.Name, list.Description, list.Icon, list.Color,
+                    matched.Count, list.UpdatedAt,
+                    matched.Take(4).Select(item => item.CoverUrl).ToArray(),
+                    IsSmart: true, SmartQueryJson: list.SmartQueryJson);
+            }
+            return new CustomListSummaryDto(
+                list.Id, list.Name, list.Description, list.Icon, list.Color,
+                list.Items.Count, list.UpdatedAt,
+                list.Items.Take(4).Select(item => item.MediaItem.CoverUrl).ToArray(),
+                IsSmart: false, SmartQueryJson: null);
+        }).ToArray();
     }
 
     public async Task<CustomListDetailDto?> GetListDetailAsync(Guid id, CancellationToken ct)
@@ -65,10 +89,25 @@ public sealed class ListsService(AppDbContext db)
             .SingleOrDefaultAsync(value => value.Id == id, ct);
         if (list is null) return null;
 
+        if (list.SmartQueryJson is { } json && SmartListEvaluator.ParseQuery(json) is { } query)
+        {
+            var allMedia = await db.MediaItems.AsNoTracking()
+                .Include(m => (m as TvShow)!.Seasons)
+                .Include(m => m.Franchise)
+                .ToListAsync(ct);
+            var matched = SmartListEvaluator.Evaluate(allMedia, query);
+            return new CustomListDetailDto(
+                list.Id, list.Name, list.Description, list.Icon, list.Color,
+                list.CreatedAt, list.UpdatedAt,
+                matched.Select(item => MediaResponseMapper.ToListDto(item)).ToArray(),
+                IsSmart: true, SmartQueryJson: list.SmartQueryJson);
+        }
+
         return new CustomListDetailDto(
             list.Id, list.Name, list.Description, list.Icon, list.Color,
             list.CreatedAt, list.UpdatedAt,
-            list.Items.Select(item => MediaResponseMapper.ToListDto(item.MediaItem)).ToArray());
+            list.Items.Select(item => MediaResponseMapper.ToListDto(item.MediaItem)).ToArray(),
+            IsSmart: false, SmartQueryJson: null);
     }
 
     public async Task<Guid> CreateAsync(CreateListRequest request, CancellationToken ct)
@@ -78,7 +117,9 @@ public sealed class ListsService(AppDbContext db)
         {
             Name = request.Name.Trim(), Description = request.Description?.Trim(),
             Icon = string.IsNullOrWhiteSpace(request.Icon) ? "list" : request.Icon,
-            Color = request.Color, CreatedAt = now, UpdatedAt = now,
+            Color = request.Color,
+            SmartQueryJson = string.IsNullOrWhiteSpace(request.SmartQueryJson) ? null : request.SmartQueryJson,
+            CreatedAt = now, UpdatedAt = now,
         };
         db.CustomLists.Add(list);
         await db.SaveChangesAsync(ct);
@@ -93,6 +134,7 @@ public sealed class ListsService(AppDbContext db)
         list.Description = request.Description?.Trim();
         list.Icon = string.IsNullOrWhiteSpace(request.Icon) ? "list" : request.Icon;
         list.Color = request.Color;
+        list.SmartQueryJson = string.IsNullOrWhiteSpace(request.SmartQueryJson) ? null : request.SmartQueryJson;
         list.UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync(ct);
         return true;
@@ -138,5 +180,7 @@ public sealed class ListsService(AppDbContext db)
 
     public Task<List<Guid>> GetListsForMediaAsync(Guid mediaId, CancellationToken ct) =>
         db.CustomListItems.AsNoTracking().Where(item => item.MediaItemId == mediaId)
-            .Select(item => item.ListId).ToListAsync(ct);
+            .Select(item => item.ListId)
+            .Join(db.CustomLists.Where(l => l.SmartQueryJson == null), id => id, l => l.Id, (id, _) => id)
+            .ToListAsync(ct);
 }

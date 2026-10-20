@@ -124,6 +124,11 @@
     // studio/author came with the metadata.
     const staff = $derived(media.staff ?? []);
 
+    // Anime live-action types count as the anime category: they share the same payload shape.
+    const categoryKey = $derived(
+        (media.type === "tvshow" || media.type === "movie") && media.isAnime ? "anime" : media.type,
+    );
+
     // The CastSection wrapper only renders when there is somebody to show; manga now carries a
     // stored characters snapshot, live-action carries the classic cast.
     const hasCast = $derived(
@@ -274,6 +279,7 @@
                         label={creator?.label ?? null}
                         imageUrl={media.creatorImageUrl ?? null}
                         {staff}
+                        category={categoryKey}
                         currentMediaId={media.id}
                         {onOpenMedia}
                         {onSearch}

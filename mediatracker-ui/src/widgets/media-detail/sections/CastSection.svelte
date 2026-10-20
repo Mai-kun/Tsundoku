@@ -8,7 +8,11 @@
     let { media }: { media: MediaDetail } = $props();
 
     const cast = $derived(media.cast ?? []);
-    const large = $derived(uiSettings.peopleCardSize === "large");
+    // Anime live-action types count as the anime category: they share the same payload shape.
+    const categoryKey = $derived(
+        (media.type === "tvshow" || media.type === "movie") && media.isAnime ? "anime" : media.type,
+    );
+    const large = $derived(uiSettings.getCastSize(categoryKey) === "large");
     const isAnime = $derived(
         (media.type === "movie" || media.type === "tvshow") && media.isAnime,
     );
@@ -115,7 +119,7 @@
             <h2 class="text-xs font-bold uppercase tracking-wider text-slate-300">
                 {display.title}
             </h2>
-            <PeopleSizeToggle />
+            <PeopleSizeToggle category={categoryKey} block="cast" />
         </div>
 
         {#if display.voiceMode}

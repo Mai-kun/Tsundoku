@@ -16,6 +16,8 @@
         imageUrl?: string | null;
         /** Key crew parsed from the stored staff snapshot; renders even without a studio. */
         staff?: readonly StaffMember[];
+        /** Media category key (anime counts as its own one) for the per-category staff card size. */
+        category: string;
         onOpenMedia: (item: MediaItem) => void;
         onSearch: (query: string) => void;
     }
@@ -28,6 +30,7 @@
         currentMediaId,
         imageUrl = null,
         staff = [],
+        category,
         onOpenMedia,
         onSearch,
     }: Props = $props();
@@ -63,7 +66,7 @@
     });
 
     const isRu = $derived(i18n.current === "ru");
-    const largeStaff = $derived(uiSettings.peopleCardSize === "large");
+    const largeStaff = $derived(uiSettings.getStaffSize(category) === "large");
 
     const completionPercent = $derived(
         summary && summary.totalCount > 0
@@ -175,7 +178,7 @@
                 <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300">
                     {i18n.t.creator.staffHeading}
                 </h3>
-                <PeopleSizeToggle />
+                <PeopleSizeToggle {category} block="staff" />
             </div>
             {#each staff as person, idx (person.name + idx)}
                 <div class="flex {largeStaff ? 'gap-3' : 'min-w-0 items-center gap-2.5'}">

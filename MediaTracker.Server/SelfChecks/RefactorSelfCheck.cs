@@ -17,8 +17,10 @@ using MediaTracker.Server.Features.History.GetHistoryEvents;
 using MediaTracker.Server.Features.Media.Import;
 using MediaTracker.Server.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using MediaDetailDto = MediaTracker.Server.Features.Media.MediaContract.MediaDetailDto;
 using MediaListDto = MediaTracker.Server.Features.Media.MediaContract.MediaListDto;
@@ -77,6 +79,8 @@ public static class RefactorSelfCheck
         CheckSqliteTuningIsPreserved(failures);
         CheckMetadataProvidersAreDiscovered(failures);
         CheckImdbSuggestionPartition(failures);
+        CheckImdbTypeClassification(failures);
+        CheckSourcePriorityVersionBump(failures);
         CheckSimklSearchSegments(failures);
         CheckBookPageCountSurvivesMerge(failures);
         CheckProviderConnectionTestIsNotShadowed(failures);
@@ -2667,6 +2671,47 @@ public static class RefactorSelfCheck
         );
     }
 
+    /// <summary>
+    /// Spirited Away (a movie) once landed in the TV series tab: the q string of a "TV movie"
+    /// contains "tv", so anything television-flavoured was filed as a series. Only a real
+    /// series/mini-series qid is a tvshow now, everything filmed is a movie, and games are dropped.
+    /// </summary>
+    private static void CheckImdbTypeClassification(List<string> failures)
+    {
+        AssertEqual(failures, "tvshow", ImdbMetadataProvider.Classify("tvSeries", "TV series"), "a TV series is a tvshow");
+        AssertEqual(failures, "tvshow", ImdbMetadataProvider.Classify("tvMiniSeries", "TV mini-series"), "a TV mini-series is a tvshow");
+        AssertEqual(failures, "movie", ImdbMetadataProvider.Classify("movie", "feature"), "a feature is a movie");
+        AssertEqual(failures, "movie", ImdbMetadataProvider.Classify("tvMovie", "TV movie"), "a TV movie is NOT a tvshow");
+        AssertEqual(failures, "movie", ImdbMetadataProvider.Classify("tvSpecial", "TV special"), "a TV special is NOT a tvshow");
+        AssertEqual(failures, "movie", ImdbMetadataProvider.Classify("short", "short"), "a short is a movie");
+        AssertEqual(failures, "movie", ImdbMetadataProvider.Classify("video", "video"), "a video is a movie");
+        AssertEqual(failures, "", ImdbMetadataProvider.Classify("videoGame", "video game"), "a video game is dropped");
+        // The q label alone must never flip a TV movie into a series without a series qid.
+        AssertEqual(failures, "movie", ImdbMetadataProvider.Classify("featureFfilm", "TV movie"), "a q label with 'tv' without a series qid stays a movie");
+    }
+
+    /// <summary>
+    /// Changing the source order or toggling a source must invalidate every cached answer that was
+    /// built under the old settings: the version that rides in the aggregator's cache keys is what
+    /// makes the next search re-read the new priorities without a server restart.
+    /// </summary>
+    private static void CheckSourcePriorityVersionBump(List<string> failures)
+    {
+        var services = new ServiceCollection();
+        services.AddMemoryCache();
+        using var provider = services.BuildServiceProvider();
+
+        var service = new SourcePriorityService(
+            provider.GetRequiredService<IServiceScopeFactory>(),
+            provider.GetRequiredService<IMemoryCache>(),
+            NullLogger<SourcePriorityService>.Instance);
+
+        AssertTrue(failures, service.Version >= 1, "the priority version starts positive");
+        var before = service.Version;
+        service.InvalidateCache();
+        AssertEqual(failures, before + 1, service.Version, "InvalidateCache bumps the priority version");
+    }
+
     private static void CheckSimklSearchSegments(List<string> failures)
     {
         AssertEqual(
@@ -3381,7 +3426,7 @@ public static class RefactorSelfCheck
                         Content = new StringContent("""{"d":[{"id":"tt0111161","l":"Shawshank","y":1994,"q":"feature"}]}""")
                     });
                 });
-                var provider = new ImdbMetadataProvider(factory, Microsoft.Extensions.Logging.Abstractions.NullLogger<ImdbMetadataProvider>.Instance);
+                var provider = new ImdbMetadataProvider(factory, serviceKey: null, Microsoft.Extensions.Logging.Abstractions.NullLogger<ImdbMetadataProvider>.Instance);
                 var dto = provider.GetDetailsAsync("tt0111161", "Shawshank", CancellationToken.None).GetAwaiter().GetResult();
                 return dto?.Genres is { Count: > 0 } && dto.Genres.Contains("Drama");
             }

@@ -19,7 +19,12 @@
     import StatsView from "$views/StatsView.svelte";
     import { i18n } from "$shared/i18n/index.svelte";
     import { bumpGridLayout } from "$widgets/media-grid/gridLayout.svelte";
-    import type { AppView, MediaItem, SearchScope } from "$shared/types";
+    import type {
+        AppView,
+        MediaItem,
+        SearchModalContext,
+        SearchScope,
+    } from "$shared/types";
 
     const categories: readonly Category[] = [
         "tvshow",
@@ -68,6 +73,8 @@
     let isSettingsOpen = $state(false);
     let initialSearchType = $state<SearchScope>("all");
     let initialSearchQuery = $state("");
+    let initialSearchSource = $state("");
+    let initialSearchByCreator = $state(false);
     let mediaRevision = $state(0);
     let modalTrigger = $state<HTMLElement | null>(null);
     let detailDepth = 0;
@@ -282,10 +289,19 @@
         restoreModalFocus();
     }
 
-    function openSearch(query = "") {
+    function openSearch(context: string | SearchModalContext = "") {
         rememberTrigger();
-        initialSearchType = "all";
-        initialSearchQuery = query;
+        if (typeof context === "string") {
+            initialSearchType = "all";
+            initialSearchQuery = context;
+            initialSearchSource = "";
+            initialSearchByCreator = false;
+        } else {
+            initialSearchType = (context.type as SearchScope) || "all";
+            initialSearchQuery = context.query;
+            initialSearchSource = context.source ?? "";
+            initialSearchByCreator = Boolean(context.byCreator);
+        }
         isSearchOpen = true;
     }
 
@@ -376,7 +392,7 @@
     {/snippet}
 
     {#snippet header()}
-        <Header title={titleForView(activeView)} onSearch={openSearch} />
+        <Header title={titleForView(activeView)} onSearch={() => openSearch()} />
     {/snippet}
 
     <div class:hidden={renderedView !== "home"}>
@@ -410,7 +426,7 @@
             onDelete={deleteFromDetail}
             onEdit={openEdit}
             onOpenRelated={openDetail}
-            onSearch={openSearch}
+            onSearch={(context) => openSearch(context)}
         />
     {:else if renderedView === "seasons" && selectedMediaId}
         <ShowSeasonsView
@@ -443,6 +459,8 @@
     isOpen={isSearchOpen}
     initialType={initialSearchType}
     initialQuery={initialSearchQuery}
+    initialSource={initialSearchSource}
+    byCreator={initialSearchByCreator}
     onClose={closeSearch}
     onMediaAdded={handleCreated}
     onNavigateToMedia={(id) => {

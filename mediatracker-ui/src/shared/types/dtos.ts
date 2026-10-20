@@ -216,6 +216,17 @@ export interface SourceInfo {
   isEnabled: boolean;
 }
 
+/**
+ * Context the creator card passes into the search modal: the query is a studio/author name, the
+ * type is the category it belongs to and byCreator asks the sources for that creator's works.
+ */
+export interface SearchModalContext {
+  query: string;
+  type?: string;
+  source?: string | null;
+  byCreator?: boolean;
+}
+
 export interface ConnectionTestResult {
   success: boolean;
   latencyMs: number;

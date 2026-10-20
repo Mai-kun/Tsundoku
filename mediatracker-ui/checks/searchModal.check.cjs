@@ -10,6 +10,20 @@ function check(name, condition, details) {
   return condition;
 }
 
+/** Opens the category PopoverMenu from a settled dialog and picks the option matching `pattern`. */
+async function selectCategoryOption(dialog, page, pattern) {
+  const trigger = dialog.locator('button[popovertarget="popover-search-category"]').first();
+  await trigger.waitFor({ state: 'visible', timeout: 10000 });
+  await trigger.click();
+  const menu = page.locator('[popover]:popover-open').first();
+  await menu.waitFor({ state: 'visible', timeout: 5000 });
+  const option = menu.locator('button[role="option"]', { hasText: pattern }).first();
+  await option.click();
+  // Picking an option leaves the popover light-dismissable only via Escape/fire-click.
+  await page.keyboard.press('Escape');
+  await menu.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
+}
+
 (async () => {
   const launchOptions = {
     channel: process.env.TS_BROWSER_CHANNEL || (process.platform === 'win32' ? 'msedge' : undefined),
@@ -67,15 +81,17 @@ function check(name, condition, details) {
     check('result has a quick add button', resultDetails.add, resultDetails);
 
     // 4. Category switching updates the selected category and leaves the dialog usable.
-    const category = dialog.locator('#search-category');
-    await category.selectOption('game');
-    const categoryValue = await category.inputValue();
-    check('search category switches to Games', categoryValue === 'game', { categoryValue });
+    // The category picker is a PopoverMenu: its trigger opens the popover, an option row selects.
+    await selectCategoryOption(dialog, page, /games|игра/i);
+    const categoryValue = await dialog
+        .locator('button[popovertarget="popover-search-category"]')
+        .innerText();
+    check('search category switches to Games', /games|игра/i.test(categoryValue), { categoryValue });
     check('dialog remains open after category switch', await dialog.evaluate((d) => d.open));
 
     // 5. Open result details, wait for its metadata, then dismiss the preview with Escape.
     // Switching back to Anime makes this result type unambiguous for the preview.
-    await category.selectOption('anime');
+    await selectCategoryOption(dialog, page, /anime|аниме/i);
     const animeResult = dialog.locator('[role="button"]').first();
     await animeResult.waitFor({ state: 'visible', timeout: 10000 });
     await animeResult.click();

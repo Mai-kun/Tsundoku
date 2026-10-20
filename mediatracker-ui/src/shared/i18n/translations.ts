@@ -410,6 +410,13 @@ export const translations = {
             en: (count: number) => `Show more (${count})`,
         },
         preview: { ru: "Подробнее", en: "Details" },
+        sourceLabel: { ru: "Источник", en: "Source" },
+        allSources: { ru: "Все / По приоритету", en: "All / By priority" },
+        creatorFilter: {
+            ru: (name: string) => `Фильтр по создателю: ${name}`,
+            en: (name: string) => `Creator filter: ${name}`,
+        },
+        resetCreatorFilter: { ru: "Вернуться к обычному поиску", en: "Back to a regular search" },
     },
     createModal: {
         eyebrow: { ru: "Новая запись", en: "New entry" },

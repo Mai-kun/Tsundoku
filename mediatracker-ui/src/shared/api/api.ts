@@ -182,12 +182,14 @@ export function searchExternal(
   query: string,
   signal?: AbortSignal,
   source?: string,
+  byCreator?: boolean,
 ): Promise<ExternalMedia[]> {
   const params = new URLSearchParams({
     type,
     query: query.trim(),
   });
   if (source) params.set("source", source);
+  if (byCreator) params.set("byCreator", "true");
   return requestJson<ExternalMedia[]>(
     `${externalEndpoint}/search?${params.toString()}`,
     { signal },

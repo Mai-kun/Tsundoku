@@ -32,6 +32,7 @@
         type MediaDetail,
         type MediaItem,
         type MediaStatus,
+        type SearchModalContext,
         type SourceInfo,
         type TvSeason,
     } from "$shared/types";
@@ -374,11 +375,9 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
         onDelete: (id: string) => Promise<void>;
         onEdit: (item: MediaItem) => void;
         onOpenRelated: (item: MediaItem) => void;
-        onSearch: (query: string) => void;
+        onSearch: (context: string | SearchModalContext) => void;
         onNavigate?: (view: AppView) => void;
     }
-
-
 
     let {
         mediaId,
@@ -2175,7 +2174,23 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
                         unlockedAchievementNames={unlockedAchievementNames}
                         onOpenMedia={onOpenRelated}
                         onEdit={startEdit}
-                        {onSearch}
+                        onSearch={(creatorName) => {
+                            // The card's search button means "works of this creator": the
+                            // type and source of the current record narrow the external search.
+                            // Only tvshows/movies can be anime; manga keeps its own category.
+                            const record = media;
+                            if (!record) return onSearch(creatorName);
+                            const type =
+                                "isAnime" in record && record.isAnime
+                                    ? "anime"
+                                    : record.type;
+                            return onSearch({
+                                query: creatorName,
+                                type,
+                                source: record.externalSource,
+                                byCreator: true,
+                            });
+                        }}
                         onToggleAchievement={toggleAchievement}
                         onToggleAllAchievements={toggleAllAchievements}
                         onChangeStatus={changeStatus}

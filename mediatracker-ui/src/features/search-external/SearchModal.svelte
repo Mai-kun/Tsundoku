@@ -22,7 +22,9 @@
     } from "$shared/api/api";
     import { i18n } from "$shared/i18n/index.svelte";
     import Modal from "$shared/ui/Modal.svelte";
+    import PopoverMenu from "$shared/ui/PopoverMenu.svelte";
     import ExternalDetailModal from "$widgets/media-detail/ExternalDetailModal.svelte";
+    import { ChevronDown } from "$shared/ui/Icons.svelte";
     import {
         MEDIA_STATUS,
         type CreateMediaPayload,
@@ -51,6 +53,9 @@
         isOpen: boolean;
         initialType?: SearchCategory;
         initialQuery?: string;
+        initialSource?: string;
+        /** The initialQuery names a creator (studio/author), not a title. */
+        byCreator?: boolean;
         onClose: () => void;
         onMediaAdded: (media: MediaItem) => void;
         onMediaRemoved?: (id: string) => void;
@@ -61,6 +66,8 @@
         isOpen,
         initialType = "all",
         initialQuery = "",
+        initialSource = "",
+        byCreator = false,
         onClose,
         onMediaAdded,
         onMediaRemoved = () => {},
@@ -91,10 +98,16 @@
     let requestSequence = 0;
     let searchController: AbortController | null = null;
     let availableSources = $state<SourceInfo[]>([]);
+    // "" = "All / by priority"; a concrete id pins the search to one source.
+    let selectedSource = $state("");
+    // The creator chip: a studio/author name restricting the search to their works.
+    let creatorFilter = $state<string | null>(null);
 
     $effect(() => {
+        // Every open re-reads the settings: a priority or enablement change made in the
+        // settings modal applies to the very next open, no page reload needed.
         if (isOpen) {
-            void getSources()
+            void getSources(true)
                 .then((res) => {
                     if (res && res.length > 0) availableSources = res;
                 })
@@ -112,6 +125,41 @@
 
     let term = $derived(query.trim());
     let canSearch = $derived(term.length >= minQueryLength);
+
+    function sourceSupports(sourceId: string, type: SearchCategory): boolean {
+        return availableSources.some(
+            (s) =>
+                s.isEnabled &&
+                (s.id.toLowerCase() === sourceId.toLowerCase() ||
+                    s.name.toLowerCase() === sourceId.toLowerCase()) &&
+                (type === "all" || s.mediaTypes.includes(type)),
+        );
+    }
+
+    let sourceOptions = $derived.by(() => {
+        const enabled = availableSources.filter(
+            (s) => s.isEnabled && (activeType === "all" || s.mediaTypes.includes(activeType)),
+        );
+        return [
+            { value: "", label: i18n.t.searchModal.allSources },
+            ...enabled.map((s) => ({ value: s.id as string, label: s.name as string })),
+        ];
+    });
+
+    let selectedSourceLabel = $derived.by(() => {
+        if (!selectedSource) return i18n.t.searchModal.allSources;
+        const found = availableSources.find(
+            (s) => s.id.toLowerCase() === selectedSource.toLowerCase(),
+        );
+        return found?.name ?? selectedSource;
+    });
+
+    let categoryOptions = $derived(
+        categories.map((category) => ({
+            value: category as string,
+            label: labelForCategory(category),
+        })),
+    );
 
     interface GroupedResult {
         category: SearchMediaType;
@@ -168,6 +216,9 @@
 
         const pendingTerm = term;
         const pendingType = activeType;
+        // Read inside the effect so changing the source or dropping the creator chip restarts it.
+        const pendingSource = selectedSource;
+        const pendingCreator = creatorFilter;
         const sequence = ++requestSequence;
         addError = null;
 
@@ -197,6 +248,8 @@
                     pendingTerm,
                     sequence,
                     controller.signal,
+                    pendingSource || undefined,
+                    Boolean(pendingCreator),
                 ),
             debounceDelay,
         );
@@ -212,6 +265,8 @@
             activeType = untrack(() => initialType);
             query = untrack(() => initialQuery);
             previewItem = null;
+            creatorFilter = untrack(() => (byCreator ? initialQuery : null));
+            selectedSource = untrack(() => initialSource);
             searchInput?.focus();
             void getCategoryOrder()
                 .then((order) => {
@@ -251,12 +306,20 @@
         pendingTerm: string,
         sequence: number,
         signal: AbortSignal,
+        source?: string,
+        byCreator?: boolean,
     ) {
         if (signal.aborted) return;
 
         if (type !== "all") {
             try {
-                const found = await searchExternal(type, pendingTerm, signal);
+                const found = await searchExternal(
+                    type,
+                    pendingTerm,
+                    signal,
+                    source,
+                    byCreator,
+                );
                 if (sequence === requestSequence) {
                     results = found;
                     resultsByCategory = { [type]: found };
@@ -295,7 +358,13 @@
             orderedTypes.map(async (cat) => {
                 let found: ExternalMedia[] = [];
                 try {
-                    found = await searchExternal(cat, pendingTerm, signal);
+                    found = await searchExternal(
+                        cat,
+                        pendingTerm,
+                        signal,
+                        source,
+                        byCreator,
+                    );
                 } catch {
                     found = [];
                 }
@@ -368,6 +437,14 @@
         return category === "anime"
             ? i18n.t.navigation.anime
             : i18n.t.types[category];
+    }
+
+    function selectCategory(category: SearchCategory) {
+        activeType = category;
+        // A source pinned for films must not silently survive a jump to anime.
+        if (selectedSource && !sourceSupports(selectedSource, category)) {
+            selectedSource = "";
+        }
     }
 
     function effectiveType(result: ExternalMedia): SearchMediaType {
@@ -675,21 +752,87 @@
                 <label class="sr-only" for="search-category"
                     >{i18n.t.searchModal.categoriesLabel}</label
                 >
-                <select
+                <PopoverMenu
                     id="search-category"
-                    class="h-10 shrink-0 rounded-lg border border-white/10 bg-field px-3 text-xs font-semibold text-ink outline-none transition focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/30"
-                    value={activeType}
-                    onchange={(e) =>
-                        (activeType = (e.currentTarget as HTMLSelectElement)
-                            .value as SearchCategory)}
+                    options={categoryOptions}
+                    selected={activeType}
+                    onSelect={(value) => selectCategory(value as SearchCategory)}
+                    label={i18n.t.searchModal.categoriesLabel}
+                    matchTriggerWidth
                 >
-                    {#each categories as category}
-                        <option value={category}
-                            >{labelForCategory(category)}</option
+                    {#snippet trigger({ popoverTargetId, anchorName, isOpen })}
+                        <button
+                            type="button"
+                            popovertarget={popoverTargetId}
+                            popovertargetaction="toggle"
+                            style={isOpen ? `anchor-name: ${anchorName}` : undefined}
+                            class="tap flex h-10 shrink-0 items-center gap-1.5 rounded-lg border border-white/10 bg-field px-3 text-xs font-semibold text-ink outline-none transition hover:border-indigo-500/40 has-[:popover-open]:border-indigo-500/60 has-[:popover-open]:ring-1 has-[:popover-open]:ring-indigo-500/30"
                         >
-                    {/each}
-                </select>
+                            <span
+                                class="max-w-28 truncate"
+                                title={labelForCategory(activeType)}
+                            >
+                                {labelForCategory(activeType)}
+                            </span>
+                            <ChevronDown
+                                size={14}
+                                class="shrink-0 text-muted"
+                                aria-hidden="true"
+                            />
+                        </button>
+                    {/snippet}
+                </PopoverMenu>
+
+                <label class="sr-only" for="search-source"
+                    >{i18n.t.searchModal.sourceLabel}</label
+                >
+                <PopoverMenu
+                    id="search-source"
+                    options={sourceOptions}
+                    selected={selectedSource}
+                    onSelect={(value) => (selectedSource = value as string)}
+                    label={i18n.t.searchModal.sourceLabel}
+                    matchTriggerWidth
+                >
+                    {#snippet trigger({ popoverTargetId, anchorName, isOpen })}
+                        <button
+                            type="button"
+                            popovertarget={popoverTargetId}
+                            popovertargetaction="toggle"
+                            style={isOpen ? `anchor-name: ${anchorName}` : undefined}
+                            class="tap flex h-10 shrink-0 items-center gap-1.5 rounded-lg border border-white/10 bg-field px-3 text-xs font-semibold text-ink outline-none transition hover:border-indigo-500/40 has-[:popover-open]:border-indigo-500/60 has-[:popover-open]:ring-1 has-[:popover-open]:ring-indigo-500/30"
+                        >
+                            <span class="max-w-32 truncate" title={selectedSourceLabel}>
+                                {selectedSourceLabel}
+                            </span>
+                            <ChevronDown
+                                size={14}
+                                class="shrink-0 text-muted"
+                                aria-hidden="true"
+                            />
+                        </button>
+                    {/snippet}
+                </PopoverMenu>
             </div>
+
+            {#if creatorFilter}
+                <div class="mt-2 flex items-center gap-2">
+                    <span
+                        class="inline-flex items-center gap-1.5 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-2.5 py-1 text-xs font-semibold text-[var(--color-accent-soft)]"
+                    >
+                        {i18n.t.searchModal.creatorFilter(creatorFilter)}
+                        <button
+                            type="button"
+                            class="grid h-4 w-4 place-items-center rounded-full text-[var(--color-accent-soft)] transition hover:text-ink"
+                            aria-label={i18n.t.searchModal.resetCreatorFilter}
+                            title={i18n.t.searchModal.resetCreatorFilter}
+                            onclick={() => (creatorFilter = null)}
+                        >
+                            <X size={12} aria-hidden="true" />
+                        </button>
+                    </span>
+                </div>
+            {/if}
         </div>
 
         <div class="min-h-72 flex-1 overflow-y-auto px-5 py-4 sm:px-6">

@@ -73,7 +73,13 @@ public abstract class MediaItem
 
     public string? CountryOfOrigin { get; set; }
 
+    /// <summary>Native or romanized original title the source reported; rendered under the main one.</summary>
+    public string? OriginalTitle { get; set; }
+
     public string? CastJson { get; set; }
+
+    /// <summary>Serialised key staff (director, script, art...), stored once per refresh like CastJson.</summary>
+    public string? StaffJson { get; set; }
 
     public string? TranslatedSynopsis { get; set; }
 

@@ -134,6 +134,7 @@ public static class MediaMerger
             // to drop the fallback's answer entirely. That is what left every show without actor
             // photos and without a trailer even when the cascade had already asked TMDb.
             Cast = BestCast(primary.Cast, fallback.Cast),
+            Staff = primary.Staff is { Count: > 0 } ? primary.Staff : fallback.Staff,
             TrailerVideoId = FirstNonEmpty(primary.TrailerVideoId, fallback.TrailerVideoId),
             CreatorImageUrl = FirstNonEmpty(primary.CreatorImageUrl, fallback.CreatorImageUrl),
             Description = FirstNonEmpty(primary.Description, fallback.Description),

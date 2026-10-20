@@ -167,6 +167,14 @@ public sealed record MediaDetailDto : MediaListDto
 
     public IReadOnlyList<CastMemberDto> Cast { get; init; } = [];
 
+    /// <summary>Native/romanized title, shown under the main headline on the detail screen.</summary>
+    public string? OriginalTitle { get; init; }
+
+    public string? StaffJson { get; init; }
+
+    /// <summary>Key crew, already parsed so the overview renders it without knowing the stored shape.</summary>
+    public IReadOnlyList<ExternalStaffMemberDto> Staff { get; init; } = [];
+
     public IReadOnlyList<MangaVolumeDto>? Volumes { get; init; }
 }
 
@@ -368,6 +376,9 @@ public static class MediaResponseMapper
             IsCustomEdited = item.IsCustomEdited,
             Cast = MediaJsonCache.Deserialize<CastMemberDto>(item.CastJson),
             CreatorImageUrl = item.CreatorImageUrl,
+            OriginalTitle = item.OriginalTitle,
+            StaffJson = item.StaffJson,
+            Staff = MediaJsonCache.Deserialize<ExternalStaffMemberDto>(item.StaffJson),
         };
     }
 

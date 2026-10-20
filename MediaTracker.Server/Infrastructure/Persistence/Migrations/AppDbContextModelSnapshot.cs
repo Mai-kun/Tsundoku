@@ -270,6 +270,9 @@ namespace MediaTracker.Server.Infrastructure.Persistence.Migrations
                     b.Property<string>("OriginalLanguage")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("OriginalTitle")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("QuotesJson")
                         .HasColumnType("TEXT");
 
@@ -296,6 +299,9 @@ namespace MediaTracker.Server.Infrastructure.Persistence.Migrations
 
                     b.Property<int?>("Score")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("StaffJson")
+                        .HasColumnType("TEXT");
 
                     b.Property<DateTime?>("StartedAt")
                         .HasColumnType("TEXT");

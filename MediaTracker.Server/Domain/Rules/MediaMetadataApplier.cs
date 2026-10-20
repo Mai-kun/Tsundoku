@@ -126,6 +126,8 @@ public static class MediaMetadataApplier
         item.OriginalLanguage = external.OriginalLanguage;
         item.CountryOfOrigin = external.CountryOfOrigin;
         item.CastJson = external.Cast is { Count: > 0 } cast ? JsonSerializer.Serialize(cast, MediaRatingSerializer.JsonOptions) : null;
+        item.OriginalTitle = external.OriginalTitle;
+        item.StaffJson = external.Staff is { Count: > 0 } staff ? JsonSerializer.Serialize(staff, MediaRatingSerializer.JsonOptions) : null;
 
         if (external.Ratings is { Count: > 0 } ratings)
         {
@@ -157,6 +159,10 @@ public static class MediaMetadataApplier
             item.CastJson = JsonSerializer.Serialize(cast, MediaRatingSerializer.JsonOptions);
             modified = true;
         }
+        modified |= SetIfBlank(item.OriginalTitle, external.OriginalTitle, value => item.OriginalTitle = value);
+        modified |= SetIfBlank(item.StaffJson, external.Staff is { Count: > 0 } staff
+            ? JsonSerializer.Serialize(staff, MediaRatingSerializer.JsonOptions)
+            : null, value => item.StaffJson = value);
         modified |= ApplyMangaGaps(item, external);
 
         modified |= SetIfBlank(item.Description, external.Description, value => item.Description = value);

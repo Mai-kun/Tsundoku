@@ -41,12 +41,12 @@ public sealed partial class AniListMetadataProvider(
         meanScore
         streamingEpisodes { title }
         studios(isMain: true) { nodes { name } }
-        staff(perPage: 5) { edges { role node { name { full } } } }
-        characters(perPage: 6, sort: [ROLE, RELEVANCE]) {
+        staff(perPage: 10, sort: [RELEVANCE, ID]) { edges { role node { name { full } image { large medium } } } }
+        characters(perPage: 12, sort: [ROLE, RELEVANCE, ID]) {
           edges {
             role
-            node { name { full } image { medium } }
-            voiceActors(language: JAPANESE) { name { full } image { medium } }
+            node { name { full } image { large medium } }
+            voiceActors(language: JAPANESE, sort: [RELEVANCE, ID]) { name { full } image { large medium } }
           }
         }
         genres
@@ -448,8 +448,7 @@ public sealed partial class AniListMetadataProvider(
         string? endDate = FormatPartialDate(item.EndDate?.Year, item.EndDate?.Month, item.EndDate?.Day);
 
         return new ExternalMediaDto
-        {
-            ExternalId = item.Id.ToString(),
+        {            ExternalId = item.Id.ToString(),
             ExternalSource = "AniList",
             Title = item.Title?.English ?? item.Title?.Romaji ?? item.Title?.Native ?? string.Empty,
             OriginalTitle = item.Title?.Native ?? item.Title?.Romaji,
@@ -477,26 +476,106 @@ public sealed partial class AniListMetadataProvider(
             Chapters = item.Chapters,
             Volumes = item.Volumes,
             MangaFormat = type == "manga" ? MangaFormats.FromCountryOfOrigin(item.CountryOfOrigin) : null,
+            Staff = MapStaff(item.Staff),
             Rating = primaryRating,
             Ratings = ratings,
-            Cast = type == "anime"
-                ? item.Characters?.Edges?
-                    .Where(edge => !string.IsNullOrWhiteSpace(edge?.Node?.Name?.Full))
-                    .Take(6)
-                    .Select(edge =>
-                    {
-                        var character = edge!.Node!;
-                        var voiceActor = edge.VoiceActors?.FirstOrDefault(actor => !string.IsNullOrWhiteSpace(actor.Name?.Full));
-                        return new CastMemberDto(
-                            voiceActor?.Name?.Full ?? character.Name!.Full!,
-                            character.Name?.Full,
-                            voiceActor?.Image?.Medium ?? character.Image?.Medium);
-                    })
-                    .ToList()
-                : null,
+            Cast = MapCast(item.Characters, type),
             Genres = item.Genres is { Count: > 0 } genres ? [.. genres.Where(g => !string.IsNullOrWhiteSpace(g))] : null,
             Episodes = episodes
         };
+    }
+
+    /// <summary>
+    /// Key crew, up to eight people. One person can sit on the same media twice ("Story" and "Art"),
+    /// so their roles are joined into "Story & Art"-shaped rows rather than dropped.
+    /// </summary>
+    private static IReadOnlyList<ExternalStaffMemberDto>? MapStaff(AniListStaff? staff)
+    {
+        var grouped = new List<(string Name, string? Image, List<string> Roles)>();
+        var names = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var edge in staff?.Edges ?? [])
+        {
+            var name = edge?.Node?.Name?.Full;
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                continue;
+            }
+
+            if (!names.TryGetValue(name, out var roles))
+            {
+                if (grouped.Count >= 8)
+                {
+                    break;
+                }
+
+                roles = [];
+                names[name] = roles;
+                grouped.Add((name, edge!.Node!.Image?.Best, roles));
+            }
+
+            if (!string.IsNullOrWhiteSpace(edge!.Role))
+            {
+                roles.Add(edge.Role);
+            }
+        }
+
+        if (grouped.Count == 0)
+        {
+            return null;
+        }
+
+        return [.. grouped.Select(member => new ExternalStaffMemberDto(
+            member.Name,
+            string.Join(", ", member.Roles),
+            member.Image))];
+    }
+
+    /// <summary>
+    /// Anime: voice actor with the character they dub. Manga: the characters themselves. The
+    /// backwards-compatible Name/Role/PhotoUrl trio mirrors the stronger fields so old readers of the
+    /// stored JSON keep rendering.
+    /// </summary>
+    private static IReadOnlyList<CastMemberDto>? MapCast(AniListCharacters? characters, string type)
+    {
+        var edges = characters?.Edges?
+            .Where(edge => !string.IsNullOrWhiteSpace(edge?.Node?.Name?.Full))
+            .Take(12)
+            .ToList() ?? [];
+
+        if (edges.Count == 0)
+        {
+            return null;
+        }
+
+        return
+        [
+            .. edges.Select(edge =>
+                {
+                    var character = edge!.Node!;
+                    // The Where filter above keeps only edges with a full character name.
+                    var charName = character.Name!.Full!;
+                    var charImg = character.Image?.Best;
+                    if (type != "anime")
+                    {
+                        return new CastMemberDto(charName, charName, charImg)
+                        {
+                            CharacterImageUrl = charImg,
+                            CharacterRole = edge.Role,
+                        };
+                    }
+
+                    var va = edge.VoiceActors?.FirstOrDefault(actor => !string.IsNullOrWhiteSpace(actor.Name?.Full));
+                    var vaName = va?.Name?.Full;
+                    var vaImg = va?.Image?.Best;
+                    return new CastMemberDto(vaName ?? charName, charName, vaImg ?? charImg)
+                    {
+                        CharacterImageUrl = charImg,
+                        CharacterRole = edge.Role,
+                        VoiceActorName = vaName,
+                        VoiceActorImageUrl = vaImg,
+                    };
+                })
+        ];
     }
 
     private async Task EnrichAnimeRatingsAsync(List<ExternalMediaDto> items, CancellationToken ct)
@@ -635,12 +714,16 @@ public sealed partial class AniListMetadataProvider(
     private sealed record AniListStudio(string? Name);
     private sealed record AniListStaff(List<AniListStaffEdge>? Edges);
     private sealed record AniListStaffEdge(string? Role, AniListStaffNode? Node);
-    private sealed record AniListStaffNode(AniListName? Name);
+    private sealed record AniListStaffNode(AniListName? Name, AniListCharacterImage? Image);
     private sealed record AniListCharacters(List<AniListCharacterEdge>? Edges);
     private sealed record AniListCharacterEdge(string? Role, AniListCharacter? Node, List<AniListVoiceActor>? VoiceActors);
     private sealed record AniListCharacter(AniListName? Name, AniListCharacterImage? Image);
     private sealed record AniListVoiceActor(AniListName? Name, AniListCharacterImage? Image);
-    private sealed record AniListCharacterImage(string? Medium);
+    private sealed record AniListCharacterImage(string? Large, string? Medium)
+    {
+        /// <summary>Large when the source has one: small portraits blur in the big people cards.</summary>
+        public string? Best => Large ?? Medium;
+    }
     private sealed record AniListName(string? Full);
 
     private sealed record KitsuSearchResponse(List<KitsuData>? Data);

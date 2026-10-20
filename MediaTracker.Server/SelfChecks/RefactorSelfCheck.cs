@@ -23,6 +23,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using MediaDetailDto = MediaTracker.Server.Features.Media.MediaContract.MediaDetailDto;
+using MediaJsonCache = MediaTracker.Server.Features.Media.MediaContract.MediaJsonCache;
 using MediaListDto = MediaTracker.Server.Features.Media.MediaContract.MediaListDto;
 using MediaResponseMapper = MediaTracker.Server.Features.Media.MediaContract.MediaResponseMapper;
 using UpdateMediaRequest = MediaTracker.Server.Features.Media.UpdateMedia.UpdateMediaRequest;
@@ -68,6 +69,7 @@ public static class RefactorSelfCheck
         CheckApiKeyLookup(failures);
         CheckCoverSizeLimit(failures);
         CheckCommandLineParsing(failures);
+        CheckStaffAndCastSnapshots(failures);
         CheckKinopoiskEnumMapping(failures);
         CheckKinopoiskAirDateRange(failures);
         CheckKinopoiskEndDateOnlyWhenFinished(failures);
@@ -871,6 +873,91 @@ public static class RefactorSelfCheck
             merged.Genres?.Count,
             "merge fills genres the primary source lacks"
         );
+    }
+
+    private static void CheckStaffAndCastSnapshots(List<string> failures)
+    {
+        // Anime: a voice actor clears two roles, staff carries photos, both survive the JSON round trip.
+        var anime = new ExternalMediaDto
+        {
+            ExternalId = "1",
+            Title = "Re:Zero",
+            Type = "anime",
+            OriginalTitle = "Re:ゼロから始める異世界生活",
+            Staff =
+            [
+                new ExternalStaffMemberDto("Masahiro Watanabe", "Director", "https://s4.anilist.co/file/anilistcdn/staff/large/d1.jpg"),
+                new ExternalStaffMemberDto("Kyuta Sakai", "Character Design, Chief Animation Director", "https://s4.anilist.co/file/anilistcdn/staff/large/d2.jpg"),
+            ],
+            Cast =
+            [
+                new CastMemberDto("Rie Takahashi", "Emilia", "https://s4.anilist.co/file/anilistcdn/character/large/v1.jpg")
+                {
+                    CharacterImageUrl = "https://s4.anilist.co/file/anilistcdn/character/large/c1.jpg",
+                    CharacterRole = "MAIN",
+                    VoiceActorName = "Rie Takahashi",
+                    VoiceActorImageUrl = "https://s4.anilist.co/file/anilistcdn/staff/large/v1.jpg",
+                },
+            ],
+        };
+
+        var show = new TvShow
+        {
+            Title = "Re:Zero",
+            Studio = "White Fox",
+            IsAnime = true,
+        };
+        MediaMetadataApplier
+            .ApplyOverwriteAsync(show, anime, new NoOpImageStorage(), CancellationToken.None)
+            .GetAwaiter()
+            .GetResult();
+
+        AssertEqual(failures, "Re:ゼロから始める異世界生活", show.OriginalTitle, "refresh stores the native title");
+        var staff = MediaJsonCache.Deserialize<ExternalStaffMemberDto>(show.StaffJson);
+        AssertEqual(failures, 2, staff.Count, "staff snapshot survives the round trip");
+        AssertEqual(
+            failures,
+            "https://s4.anilist.co/file/anilistcdn/staff/large/d1.jpg",
+            staff[0].ImageUrl,
+            "staff keeps the medium photo");
+        var cast = MediaJsonCache.Deserialize<CastMemberDto>(show.CastJson);
+        AssertEqual(failures, "Rie Takahashi", cast.Single().VoiceActorName, "cast keeps the Japanese voice actor");
+        AssertEqual(
+            failures,
+            "https://s4.anilist.co/file/anilistcdn/character/large/c1.jpg",
+            cast.Single().CharacterImageUrl,
+            "cast keeps the character portrait");
+
+        // Manga: entries are pure characters — name, portrait and MAIN/SUPPORTING role, no voice actor.
+        var mangaExternal = anime with
+        {
+            Type = "manga",
+            Title = "Berserk",
+            OriginalTitle = "ベルセルク",
+            Staff = [new ExternalStaffMemberDto("Kentaro Miura", "Story & Art", "https://s4.anilist.co/file/anilistcdn/staff/large/m1.jpg")],
+            Cast = [new CastMemberDto("Guts", "Guts", "https://s4.anilist.co/file/anilistcdn/character/large/g1.jpg")
+            {
+                CharacterImageUrl = "https://s4.anilist.co/file/anilistcdn/character/large/g1.jpg",
+                CharacterRole = "MAIN",
+            }],
+        };
+        var manga = new Manga { Title = "Berserk" };
+        MediaMetadataApplier
+            .ApplyOverwriteAsync(manga, mangaExternal, new NoOpImageStorage(), CancellationToken.None)
+            .GetAwaiter()
+            .GetResult();
+
+        AssertEqual(failures, "ベルセルク", manga.OriginalTitle, "manga refresh stores the native title");
+        var mangaCast = MediaJsonCache.Deserialize<CastMemberDto>(manga.CastJson);
+        AssertEqual(failures, null, mangaCast.Single().VoiceActorName, "manga cast carries no voice actor");
+        AssertEqual(failures, "MAIN", mangaCast.Single().CharacterRole, "manga cast keeps the character role");
+        AssertEqual(failures, 1, MediaJsonCache.Deserialize<ExternalStaffMemberDto>(manga.StaffJson).Count, "manga stores its staff");
+
+        // Enrich never wipes what the user already has.
+        var enriched = mangaExternal with { Staff = [new ExternalStaffMemberDto("Other Guy", "Director", null)] };
+        MediaMetadataApplier.ApplyIfMissing(manga, enriched);
+        AssertEqual(failures, 1, MediaJsonCache.Deserialize<ExternalStaffMemberDto>(manga.StaffJson).Count, "enrich keeps the stored staff");
+        AssertEqual(failures, "ベルセルク", manga.OriginalTitle, "enrich keeps the stored native title");
     }
 
     private static void CheckMergeCarriesCastAndTrailer(List<string> failures)

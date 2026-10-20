@@ -62,6 +62,49 @@ public sealed partial class AniListMetadataProvider(
         }
         """;
 
+    /// <summary>A leaner field set for the studio/author listing: no cast or episodes, just the work.</summary>
+    private const string CreatorMediaFields = """
+        id
+        type
+        format
+        title { romaji english native }
+        description(asHtml: false)
+        coverImage { extraLarge }
+        startDate { year month day }
+        endDate { year month day }
+        status
+        countryOfOrigin
+        duration
+        episodes
+        chapters
+        volumes
+        averageScore
+        studios(isMain: true) { nodes { name } }
+        staff(perPage: 1) { edges { role node { name { full } } } }
+        """;
+
+    private const string GraphQLStudioSearchQuery = $$"""
+        query StudioWorks($search: String) {
+          Studio(search: $search) {
+            name
+            media(sort: POPULARITY_DESC, perPage: 15) {
+              nodes { {{CreatorMediaFields}} }
+            }
+          }
+        }
+        """;
+
+    private const string GraphQLStaffSearchQuery = $$"""
+        query StaffWorks($search: String) {
+          Staff(search: $search) {
+            name { full }
+            staffMedia(sort: POPULARITY_DESC, perPage: 15) {
+              nodes { {{CreatorMediaFields}} }
+            }
+          }
+        }
+        """;
+
     private const string GraphQLDetailQuery = $$"""
         query Detail($id: Int, $type: MediaType) {
           Media(id: $id, type: $type) {
@@ -136,6 +179,63 @@ public sealed partial class AniListMetadataProvider(
         }
 
         return dtoList;
+    }
+
+    /// <summary>
+    /// A "works by studio/author" query. Anime goes through the Studio node the API itself resolves,
+    /// manga through the Staff node; when either answers nothing the regular search runs and only
+    /// rows whose Studio/Author name the creator are kept, so the section is never simply empty.
+    /// </summary>
+    public override async Task<IReadOnlyList<ExternalMediaDto>> SearchByCreatorAsync(string creator, CancellationToken ct)
+    {
+        var clean = creator.Trim();
+        if (clean.Length == 0) return [];
+
+        try
+        {
+            var payload = new
+            {
+                query = mediaType == "anime" ? GraphQLStudioSearchQuery : GraphQLStaffSearchQuery,
+                variables = new { search = clean },
+            };
+
+            using var response = await httpClientFactory.CreateClient(Id).PostAsJsonAsync("", payload, ct);
+            response.EnsureSuccessStatusCode();
+
+            var data = (await response.Content.ReadFromJsonAsync<AniListCreatorSearchResponse>(ct))?.Data;
+            var isAnime = mediaType == "anime";
+            var nodes = isAnime ? data?.Studio?.Media?.Nodes : data?.Staff?.StaffMedia?.Nodes;
+
+            var works = nodes?
+                .Where(node => node is not null
+                    // staffMedia carries everything a voice actor touched; keep only the kind asked.
+                    && (node.Type is null
+                        || node.Type.Equals(isAnime ? "ANIME" : "MANGA", StringComparison.OrdinalIgnoreCase))
+                    && !string.IsNullOrWhiteSpace(
+                        node.Title?.English ?? node.Title?.Romaji ?? node.Title?.Native))
+                .Select(node => MapItem(node!, mediaType))
+                .ToList();
+
+            if (works is { Count: > 0 })
+            {
+                if (isAnime)
+                {
+                    await EnrichAnimeRatingsAsync(works, ct);
+                }
+                return works;
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // Fall through to the filtered search below.
+        }
+
+        var results = await SearchAsync(clean, ct);
+        var matched = results
+            .Where(dto => (mediaType == "anime" ? dto.Studio : dto.Author)?
+                .Contains(clean, StringComparison.OrdinalIgnoreCase) is true)
+            .ToList();
+        return matched.Count > 0 ? matched : results;
     }
 
     public override async Task<ExternalMediaDto?> GetDetailsAsync(string externalId, string title, CancellationToken ct)
@@ -466,6 +566,12 @@ public sealed partial class AniListMetadataProvider(
     private sealed record AniListDetailData(AniListMedia? Media);
     private sealed record AniListData(AniListPage? Page);
     private sealed record AniListPage(List<AniListMedia>? Media);
+
+    private sealed record AniListCreatorSearchResponse(AniListCreatorData? Data);
+    private sealed record AniListCreatorData(AniListStudioPayload? Studio, AniListStaffPayload? Staff);
+    private sealed record AniListStudioPayload(string? Name, AniListCreatorMediaConnection? Media);
+    private sealed record AniListStaffPayload(AniListName? Name, AniListCreatorMediaConnection? StaffMedia);
+    private sealed record AniListCreatorMediaConnection(List<AniListMedia>? Nodes);
 
     private sealed record AniListRelationsResponse(AniListRelationsData? Data)
         : IAniListEnvelope<AniListRelationsData>;

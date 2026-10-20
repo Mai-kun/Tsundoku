@@ -26,20 +26,35 @@ public sealed class MetadataAggregatorService(
 
     private static readonly string[] AllTypes = ["anime", "manga", "movie", "tvshow", "game", "book"];
 
-    public async ValueTask<IReadOnlyList<ExternalMediaDto>> SearchAsync(string type, string query, CancellationToken ct)
+    /// <summary>
+    /// The priority version rides in every cache key: a settings change (new source order, a source
+    /// toggled off) bumps the version, so the old cached answers are unreachable without any
+    /// manual eviction — the 10-minute search cache stops blending stale priorities.
+    /// </summary>
+    private string SearchCacheKey(string type, string query, bool byCreator) =>
+        $"search:v{priorityService.Version}:{type}:{query.ToLowerInvariant()}{(byCreator ? ":creator" : "")}";
+
+    private string DetailsCacheKey(string type, string source, string externalId, string title) =>
+        $"details:v{priorityService.Version}:{type}:{MediaMerger.NormalizeSourceKey(source ?? string.Empty)}:{externalId}:{title}";
+
+    public async ValueTask<IReadOnlyList<ExternalMediaDto>> SearchAsync(
+        string type,
+        string query,
+        CancellationToken ct,
+        bool byCreator = false)
     {
         var normalizedType = MediaMerger.NormalizeMediaType(type);
         var normalizedQuery = query.Trim();
-        var cacheKey = $"search:{(normalizedType.Length == 0 ? "all" : normalizedType)}:{normalizedQuery.ToLowerInvariant()}";
+        var cacheKey = SearchCacheKey(normalizedType.Length == 0 ? "all" : normalizedType, normalizedQuery, byCreator);
 
         if (cache.TryGetValue(cacheKey, out IReadOnlyList<ExternalMediaDto>? cached) && cached is not null)
         {
             return cached;
         }
 
-        var results = normalizedType is "all" or ""
-            ? await SearchAllAsync(normalizedQuery, ct)
-            : await SearchProviderWithFallbackAsync(normalizedType, normalizedQuery, ct);
+        IReadOnlyList<ExternalMediaDto> results = normalizedType is "all" or ""
+            ? await SearchAllAsync(normalizedQuery, ct, byCreator)
+            : await SearchProviderWithFallbackAsync(normalizedType, normalizedQuery, ct, byCreator);
 
         cache.Set(cacheKey, results, CacheDuration);
         return results;
@@ -54,11 +69,12 @@ public sealed class MetadataAggregatorService(
         string type,
         string query,
         string source,
-        CancellationToken ct)
+        CancellationToken ct,
+        bool byCreator = false)
     {
         var normalizedType = MediaMerger.NormalizeMediaType(type);
         var normalizedQuery = query.Trim();
-        var cacheKey = $"search:{normalizedType}:{normalizedQuery.ToLowerInvariant()}:{MediaMerger.NormalizeSourceKey(source)}";
+        var cacheKey = $"search:v{priorityService.Version}:{normalizedType}:{normalizedQuery.ToLowerInvariant()}:{MediaMerger.NormalizeSourceKey(source)}{(byCreator ? ":creator" : "")}";
 
         if (cache.TryGetValue(cacheKey, out IReadOnlyList<ExternalMediaDto>? cached) && cached is not null)
         {
@@ -74,7 +90,9 @@ public sealed class MetadataAggregatorService(
                 using var providerCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
                 providerCts.CancelAfter(SearchFallbackTimeout);
                 var sw = Stopwatch.StartNew();
-                results = await provider.SearchAsync(normalizedQuery, providerCts.Token);
+                results = byCreator
+                    ? await provider.SearchByCreatorAsync(normalizedQuery, providerCts.Token)
+                    : await provider.SearchAsync(normalizedQuery, providerCts.Token);
                 ExternalApiLog.Returned(logger, provider.Name, results.Count, sw.ElapsedMilliseconds);
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
@@ -99,7 +117,7 @@ public sealed class MetadataAggregatorService(
     public async ValueTask<ExternalMediaDto?> GetDetailsAsync(string type, string externalId, string title, CancellationToken ct, string? source = null)
     {
         var normalizedType = MediaMerger.NormalizeMediaType(type, source);
-        var cacheKey = $"details:{normalizedType}:{MediaMerger.NormalizeSourceKey(source ?? string.Empty)}:{externalId}:{title}";
+        var cacheKey = DetailsCacheKey(normalizedType, source ?? string.Empty, externalId, title);
         if (cache.TryGetValue(cacheKey, out ExternalMediaDto? cached) && cached is not null)
         {
             return cached;
@@ -398,7 +416,8 @@ public sealed class MetadataAggregatorService(
         : !string.IsNullOrWhiteSpace(externalId) ? $"id:{externalId}"
         : "(no id, no title)";
 
-    private async Task<IReadOnlyList<ExternalMediaDto>> SearchProviderWithFallbackAsync(string type, string query, CancellationToken ct)
+    private async Task<IReadOnlyList<ExternalMediaDto>> SearchProviderWithFallbackAsync(
+        string type, string query, CancellationToken ct, bool byCreator = false)
     {
         var prioritySources = await priorityService.GetPrioritiesAsync(type, ct);
 
@@ -417,7 +436,9 @@ public sealed class MetadataAggregatorService(
             {
                 using var providerCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
                 providerCts.CancelAfter(SearchFallbackTimeout);
-                var results = await provider.SearchAsync(query, providerCts.Token);
+                var results = byCreator
+                    ? await provider.SearchByCreatorAsync(query, providerCts.Token)
+                    : await provider.SearchAsync(query, providerCts.Token);
                 ExternalApiLog.Returned(logger, provider.Name, results.Count, sw.ElapsedMilliseconds);
                 if (results.Count > 0)
                 {
@@ -438,19 +459,20 @@ public sealed class MetadataAggregatorService(
         return [];
     }
 
-    private async Task<IReadOnlyList<ExternalMediaDto>> SearchAllAsync(string query, CancellationToken ct)
+    private async Task<IReadOnlyList<ExternalMediaDto>> SearchAllAsync(string query, CancellationToken ct, bool byCreator = false)
     {
-        var tasks = AllTypes.Select(type => SearchProviderSafeAsync(type, query, ct));
+        var tasks = AllTypes.Select(type => SearchProviderSafeAsync(type, query, ct, byCreator));
         var groups = await Task.WhenAll(tasks);
 
         return [.. groups.SelectMany(group => group)];
     }
 
-    private async Task<IReadOnlyList<ExternalMediaDto>> SearchProviderSafeAsync(string type, string query, CancellationToken ct)
+    private async Task<IReadOnlyList<ExternalMediaDto>> SearchProviderSafeAsync(
+        string type, string query, CancellationToken ct, bool byCreator = false)
     {
         try
         {
-            return await SearchProviderWithFallbackAsync(type, query, ct);
+            return await SearchProviderWithFallbackAsync(type, query, ct, byCreator);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {

@@ -15,6 +15,14 @@ public interface IMetadataProvider
     Task<ExternalMediaDto?> GetDetailsAsync(string externalId, string title, CancellationToken ct);
 
     /// <summary>
+    /// Declared abstract here (not with a default body) so the aggregator can route a creator
+    /// search through it: every provider derives from <see cref="MetadataProviderBase"/>, which
+    /// supplies the searchable-and-filter default and the AniList/book sources their native
+    /// studio/author overrides.
+    /// </summary>
+    Task<IReadOnlyList<ExternalMediaDto>> SearchByCreatorAsync(string creator, CancellationToken ct);
+
+    /// <summary>
     /// Declared without a default body on purpose. A default interface member is only taken over by a
     /// derived class that re-lists the interface or whose base redeclares it, and this interface is
     /// implemented by the abstract base — so a default here would shadow every provider's own

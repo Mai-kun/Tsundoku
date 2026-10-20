@@ -18,19 +18,19 @@ public sealed class OpenLibraryMetadataProvider(
         IsDefault: true,
         Priority: 1);
 
+    // The bare search endpoint answers with a fixed, minimal field set that has no
+    // description and no page count, so both rows of the book detail stayed empty and
+    // "Страниц" rendered as 0. Asking for the fields explicitly is what fixes that; no
+    // second request per book is needed.
+    private const string SearchFields =
+        "key,title,author_name,cover_i,first_publish_year,number_of_pages_median,"
+        + "number_of_pages,subtitle,ratings_average,ratings_count,subject";
+
     public override async Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string query, CancellationToken ct)
     {
         var client = httpClientFactory.CreateClient(Id);
 
-        // The bare search endpoint answers with a fixed, minimal field set that has no
-        // description and no page count, so both rows of the book detail stayed empty and
-        // "Страниц" rendered as 0. Asking for the fields explicitly is what fixes that; no
-        // second request per book is needed.
-        const string fields =
-            "key,title,author_name,cover_i,first_publish_year,number_of_pages_median,"
-            + "number_of_pages,subtitle,ratings_average,ratings_count,subject";
-
-        var endpoint = $"search.json?q={Uri.EscapeDataString(query)}&limit=10&fields={fields}";
+        var endpoint = $"search.json?q={Uri.EscapeDataString(query)}&limit=10&fields={SearchFields}";
 
         try
         {
@@ -58,6 +58,39 @@ public sealed class OpenLibraryMetadataProvider(
             ExternalApiLog.Failed(logger, Name, ex, client.BaseAddress + endpoint);
             return [];
         }
+    }
+
+    /// <summary>A "works by author" query: OpenLibrary's own <c>author</c> index instead of a title match.</summary>
+    public override async Task<IReadOnlyList<ExternalMediaDto>> SearchByCreatorAsync(string creator, CancellationToken ct)
+    {
+        var clean = creator.Trim();
+        if (clean.Length == 0) return [];
+
+        var client = httpClientFactory.CreateClient(Id);
+        var endpoint = $"search.json?author={Uri.EscapeDataString(clean)}&limit=10&fields={SearchFields}";
+
+        try
+        {
+            ExternalApiLog.Querying(logger, Name, "book author", clean);
+            var sw = Stopwatch.StartNew();
+            var result = await client.GetFromJsonAsync<OpenLibraryResponse>(endpoint, ct);
+
+            var mapped = result?.Docs is { Count: > 0 } docs ? docs.ConvertAll(MapDoc) : [];
+            ExternalApiLog.Returned(logger, Name, mapped.Count, sw.ElapsedMilliseconds);
+            if (mapped.Count > 0) return mapped;
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            ExternalApiLog.Failed(logger, Name, ex, client.BaseAddress + endpoint);
+        }
+
+        // Author=index answered nothing (or failed): the generic creator filter on a title search
+        // still surfaces works whose stored author matches.
+        return await base.SearchByCreatorAsync(clean, ct);
     }
 
     public override async Task<ExternalMediaDto?> GetDetailsAsync(string externalId, string title, CancellationToken ct)

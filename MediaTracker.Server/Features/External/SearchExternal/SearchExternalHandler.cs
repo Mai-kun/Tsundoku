@@ -7,7 +7,11 @@ namespace MediaTracker.Server.Features.External.SearchExternal;
 /// When set, search that provider alone instead of cascading through the configured priorities.
 /// The relink dialog needs this: the user picks which service to look for the replacement in.
 /// </param>
-public sealed record SearchExternalQuery(string? Type, string? Query, string? Source = null);
+/// <param name="ByCreator">
+/// The query names a studio/author, not a title: providers ask their upstream creator index and
+/// results are filtered to works the creator actually made.
+/// </param>
+public sealed record SearchExternalQuery(string? Type, string? Query, string? Source = null, bool ByCreator = false);
 
 public interface ISearchExternalHandler
 {
@@ -45,8 +49,8 @@ public sealed class SearchExternalHandler(MetadataAggregatorService aggregator) 
         }
 
         var results = string.IsNullOrWhiteSpace(query.Source)
-            ? await aggregator.SearchAsync(normalizedType, normalizedQuery, ct)
-            : await aggregator.SearchSourceAsync(normalizedType, normalizedQuery, query.Source, ct);
+            ? await aggregator.SearchAsync(normalizedType, normalizedQuery, ct, query.ByCreator)
+            : await aggregator.SearchSourceAsync(normalizedType, normalizedQuery, query.Source, ct, query.ByCreator);
 
         return Result<IReadOnlyList<ExternalMediaDto>>.Success(results);
     }

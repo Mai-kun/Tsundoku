@@ -764,6 +764,13 @@ public static class RefactorSelfCheck
 
         MediaItemUpdater.Apply(item, new UpdateMediaRequest { ClearWatchedOn = true });
         AssertTrue(failures, item.WatchedOn is null, "an explicit clear empties watched-on");
+
+        MediaItemUpdater.Apply(item, new UpdateMediaRequest { DetailedScoreJson = "{\"gameplay\":9}" });
+        AssertEqual(failures, "{\"gameplay\":9}", item.DetailedScoreJson, "detailed score is stored");
+        AssertEqual(failures, "{\"gameplay\":9}", MediaResponseMapper.ToDetailDto(item).DetailedScoreJson, "ToDetailDto maps detailed score");
+
+        MediaItemUpdater.Apply(item, new UpdateMediaRequest { ClearDetailedScore = true });
+        AssertTrue(failures, item.DetailedScoreJson is null, "an explicit clear empties detailed score");
     }
 
     /// <summary>

@@ -12,6 +12,8 @@ public abstract class MediaItem
 
     public int? Score { get; set; }
 
+    public string? DetailedScoreJson { get; set; }
+
     public DateTime? StartedAt { get; set; }
 
     public DateTime? FinishedAt { get; set; }

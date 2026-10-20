@@ -8,6 +8,12 @@ public sealed record UpdateMediaRequest
 
     public int? Score { get; init; }
 
+    public bool ClearScore { get; init; }
+
+    public string? DetailedScoreJson { get; init; }
+
+    public bool ClearDetailedScore { get; init; }
+
     public MediaStatus? Status { get; init; }
 
     public string? Notes { get; init; }

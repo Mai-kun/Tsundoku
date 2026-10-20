@@ -400,6 +400,10 @@
         <Header title={titleForView(activeView)} onSearch={() => openSearch()} />
     {/snippet}
 
+    {#if renderedView === "lists"}
+        <ListsView onOpen={openDetail} onImportCompleted={mediaChanged} />
+    {/if}
+
     <div class:hidden={renderedView !== "home"}>
         <HomeView
             refreshKey={mediaRevision}
@@ -449,8 +453,6 @@
         />
     {:else if renderedView === "calendar"}
         <CalendarView />
-    {:else if renderedView === "lists"}
-        <ListsView onOpen={openDetail} onImportCompleted={mediaChanged} />
     {/if}
 </AppShell>
 

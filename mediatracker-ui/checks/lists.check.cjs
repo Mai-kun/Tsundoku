@@ -238,6 +238,45 @@ const expect = (name, ok, extra) => {
       { detail: detailCard, home: homeCard },
     );
 
+    // 3. CreateListModal: verify scrollable center, fixed header/footer, and clean emojis.
+    await page.goto(BASE + "/?view=lists", { waitUntil: "domcontentloaded" });
+    const createBtn = page.locator("button", { hasText: "+ Создать список" }).first();
+    await createBtn.click();
+    await page.locator("h2#custom-list-modal-title").waitFor({ state: "visible", timeout: 15000 });
+
+    const manualBtn = page.locator("button", { hasText: "Обычный список" });
+    const smartBtn = page.locator("button", { hasText: "Умный список" });
+    const manualText = (await manualBtn.innerText()).trim();
+    const smartText = (await smartBtn.innerText()).trim();
+
+    expect("manual switch emoji is clean", !manualText.includes("📁 📁") && manualText.includes("📁"), { manualText });
+    expect("smart switch emoji is clean", !smartText.includes("⚡ ⚡") && smartText.includes("⚡"), { smartText });
+
+    await smartBtn.click();
+    await page.waitForTimeout(300);
+
+    const modalHeader = page.locator("header").filter({ hasText: "Создать список" });
+    const modalFooter = page.locator("footer").filter({ hasText: "Создать" });
+    expect("modal header is visible", await modalHeader.isVisible());
+    expect("modal footer is visible", await modalFooter.isVisible());
+
+    const footerMatches = modalFooter.locator("text=/Сейчас подходит/");
+    expect("footer live matches indicator is visible", await footerMatches.isVisible());
+
+    const scrollContainer = page.locator("form div.overflow-y-auto");
+    const isScrollable = await scrollContainer.evaluate((el) => el.scrollHeight > el.clientHeight);
+    expect("smart list builder is vertically scrollable", isScrollable);
+
+    const limitInput = page.getByRole("spinbutton", { name: "Лимит" });
+    await limitInput.scrollIntoViewIfNeeded();
+    expect("limit input at bottom is reachable and visible", await limitInput.isVisible());
+    expect("modal header stays visible after scrolling to bottom", await modalHeader.isVisible());
+    expect("modal footer stays visible after scrolling to bottom", await modalFooter.isVisible());
+
+    const closeBtn = modalHeader.locator("button[aria-label=\"Закрыть\"]");
+    await closeBtn.click();
+    await page.locator("h2#custom-list-modal-title").waitFor({ state: "hidden", timeout: 5000 });
+
     expect("no page errors", errors.length === 0, errors);
 
     console.log(

@@ -118,7 +118,27 @@
                 <button type="button" class="inline-flex items-center gap-2 rounded-lg border border-rose-400/20 bg-rose-400/5 px-3 py-2 text-sm text-rose-300 hover:bg-rose-400/10" onclick={() => { const list = lists.find((value) => value.id === selected?.id); if (list) void removeList(list); }}><Trash2 size={15} />{i18n.t.views.listDelete}</button>
             </div>
         </div>
-        <MediaGrid items={selected.items} showProgress={false} loading={loading} error={error || null} onRetry={() => { const list = lists.find((value) => value.id === selected?.id); if (list) void openList(list); }} onOpen={onOpen} onRemoveFromList={removeItem} />
+        {#if selected.isSmart && selected.smartQueryJson}
+            {@const sq = (() => { try { return JSON.parse(selected.smartQueryJson!); } catch { return null; } })()}
+            {#if sq}
+                <div class="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-violet-400/20 bg-violet-400/5 px-4 py-2.5 text-xs text-violet-300">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span class="font-semibold">⚡ {i18n.t.views.smartBadge}</span>
+                        {#if sq.categories?.length}<span class="rounded-full bg-violet-400/15 px-2 py-0.5">{sq.categories.join(" · ")}</span>{/if}
+                        {#if sq.statuses?.length}<span class="rounded-full bg-violet-400/15 px-2 py-0.5">{sq.statuses.map((s: number) => ["В планах","В процессе","Завершено","На паузе","Брошено"][s]).join(" · ")}</span>{/if}
+                        {#if sq.maxEpisodes}<span class="rounded-full bg-violet-400/15 px-2 py-0.5">≤{sq.maxEpisodes} эп.</span>{/if}
+                        {#if sq.maxDurationMinutes}<span class="rounded-full bg-violet-400/15 px-2 py-0.5">≤{sq.maxDurationMinutes} мин</span>{/if}
+                        {#if sq.maxPages}<span class="rounded-full bg-violet-400/15 px-2 py-0.5">≤{sq.maxPages} стр.</span>{/if}
+                        {#if sq.minScore}<span class="rounded-full bg-violet-400/15 px-2 py-0.5">★{sq.minScore}+</span>{/if}
+                    </div>
+                    <button type="button" class="inline-flex items-center gap-1.5 rounded-lg border border-violet-400/30 bg-violet-400/10 px-2.5 py-1 text-xs font-medium text-violet-200 hover:bg-violet-400/20" onclick={() => openCreate(lists.find((list) => list.id === selected?.id) ?? null)}>
+                        <Pencil size={12} />
+                        {i18n.t.views.smartEditRules}
+                    </button>
+                </div>
+            {/if}
+        {/if}
+        <MediaGrid items={selected.items} showProgress={false} loading={loading} error={error || null} onRetry={() => { const list = lists.find((value) => value.id === selected?.id); if (list) void openList(list); }} onOpen={onOpen} onRemoveFromList={selected.isSmart ? undefined : removeItem} />
     {:else}
         <div class="flex flex-wrap items-end justify-between gap-4">
             <div><p class="text-xs font-semibold uppercase tracking-[0.18em] text-accent-soft">{i18n.t.library.collectionLabel}</p><h2 class="mt-1 text-2xl font-bold tracking-tight text-ink">{i18n.t.views.listsTitle}</h2></div>
@@ -165,8 +185,35 @@
                                     </div>
                                 {/if}
                                 <span class="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/70 to-transparent"></span>
+                                {#if list.isSmart}
+                                    <span class="absolute top-2 right-2 z-20 inline-flex items-center gap-1 rounded-full border border-violet-400/40 bg-gradient-to-r from-violet-600/90 to-amber-600/90 px-2 py-0.5 text-[10px] font-semibold text-white shadow-lg backdrop-blur-sm">
+                                        ⚡ {i18n.t.views.smartBadge}
+                                    </span>
+                                {/if}
                             </div>
-                            <div class="p-4 pb-2"><h3 class="truncate text-base font-semibold text-ink">{list.name}</h3><p class="mt-1 line-clamp-2 min-h-10 text-sm leading-5 text-muted">{list.description || " "}</p></div>
+                            <div class="p-4 pb-2">
+                                <h3 class="truncate text-base font-semibold text-ink">{list.name}</h3>
+                                <p class="mt-1 line-clamp-2 min-h-10 text-sm leading-5 text-muted">{list.description || " "}</p>
+                                {#if list.isSmart && list.smartQueryJson}
+                                    {@const sq = (() => { try { return JSON.parse(list.smartQueryJson!); } catch { return null; } })()}
+                                    {#if sq}
+                                        <div class="mt-2 flex flex-wrap gap-1">
+                                            {#if sq.categories?.length}
+                                                <span class="rounded bg-violet-400/10 px-1.5 py-0.5 text-[10px] font-medium text-violet-300">{sq.categories.join(", ")}</span>
+                                            {/if}
+                                            {#if sq.minScore}
+                                                <span class="rounded bg-amber-400/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-300">★{sq.minScore}+</span>
+                                            {/if}
+                                            {#if sq.maxEpisodes}
+                                                <span class="rounded bg-white/10 px-1.5 py-0.5 text-[10px] font-medium text-muted">≤{sq.maxEpisodes} эп.</span>
+                                            {/if}
+                                            {#if sq.maxDurationMinutes}
+                                                <span class="rounded bg-white/10 px-1.5 py-0.5 text-[10px] font-medium text-muted">≤{sq.maxDurationMinutes}м</span>
+                                            {/if}
+                                        </div>
+                                    {/if}
+                                {/if}
+                            </div>
                         </button>
                         <div class="flex items-center justify-between gap-2 px-4 pb-4 text-xs text-muted"><span>{i18n.t.views.listTitles(list.itemsCount)}</span><span>{i18n.t.views.listUpdated} · {updatedDate(list.updatedAt)}</span>
                             <span class="flex gap-1 opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100">

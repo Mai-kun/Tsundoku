@@ -23,11 +23,13 @@
         setProgress,
         setSeasonProgress,
     } from "$shared/api/api";
+    import { jobsClient } from "$shared/api/jobsClient.svelte";
     import { showToast } from "$shared/ui/toast.svelte";
     import { i18n } from "$shared/i18n/index.svelte";
     import {
         isTvShowDetail,
         MEDIA_STATUS,
+        SYNC_STATUS,
         type MediaFilters,
         type MediaItem,
     } from "$shared/types";
@@ -207,6 +209,18 @@
         };
     });
 
+    // Страховка: карточка ещё под оверлеем «Синхронизация», но ни одной активной
+    // фоновой задачи нет — сигнал о завершении был потерян (упавший джоб, отрицший
+    // SSE). Перезагружаем список один раз, чтобы спиннер не застревал до F5.
+    let stuckReloadKey = 0;
+    $effect(() => {
+        if (jobsClient.activeCount > 0) return;
+        if (!allItems.some((item) => item.syncStatus === SYNC_STATUS.syncing)) return;
+        if (stuckReloadKey === refreshKey) return;
+        stuckReloadKey = refreshKey;
+        refresh();
+    });
+
     function categoryFilters(): MediaFilters {
         const filters: MediaFilters = {
             search: search.trim() || undefined,
@@ -261,19 +275,21 @@
                 // Пропускаем холостую мутацию стейта, если данные не изменились:
                 // после возврата из деталки фоновая перезагрузка перезаписывала
                 // allItems новым объектом и пересобирала сетку прямо во время
-                // восстановленного скролла (микрофриз). Идентичность проверяем
-                // по длине и составу (id + статус), чтобы реальные изменения
-                // (удаление, смена статуса в деталке) сетку всё же обновляли.
-                if (
+                // восстановленного скролла (микрофриз). Сравниваем отпечаток элемента,
+                // а не только id: при завершении фоновой синхронизации состав совпадает,
+                // но меняются syncStatus, обложка и updatedAt — сетка обязана обновиться.
+                const sameSnapshot =
                     allItems.length === found.length &&
                     found.every(
                         (item, index) =>
                             item.id === allItems[index]?.id &&
-                            item.status === allItems[index]?.status,
-                    )
-                ) {
-                    return;
-                }
+                            item.syncStatus === allItems[index]?.syncStatus &&
+                            item.updatedAt === allItems[index]?.updatedAt &&
+                            item.status === allItems[index]?.status &&
+                            item.score === allItems[index]?.score &&
+                            item.coverUrl === allItems[index]?.coverUrl,
+                    );
+                if (sameSnapshot) return;
                 allItems = found;
                 categoryCache.set(category, found);
             }

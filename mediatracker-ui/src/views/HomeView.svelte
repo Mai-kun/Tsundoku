@@ -23,10 +23,12 @@
         setProgress,
         setSeasonProgress,
     } from "$shared/api/api";
+    import { jobsClient } from "$shared/api/jobsClient.svelte";
     import { showToast } from "$shared/ui/toast.svelte";
     import { i18n } from "$shared/i18n/index.svelte";
     import {
         MEDIA_STATUS,
+        SYNC_STATUS,
         isTvShowDetail,
         type MediaItem,
         type MediaStatus,
@@ -342,6 +344,21 @@
         return () => {
             if (skeletonTimer) clearTimeout(skeletonTimer);
         };
+    });
+
+    // Страховка: карточка ещё под оверлеем «Синхронизация», но ни одной активной
+    // фоновой задачи нет — сигнал о завершении был потерян. Перезагружаем списки
+    // один раз, чтобы спиннер не застревал до F5.
+    let stuckReloadKey = 0;
+    $effect(() => {
+        if (jobsClient.activeCount > 0) return;
+        const hasStuck = [inProgress, upNext, recentlyCompleted].some((list) =>
+            list.some((item) => item.syncStatus === SYNC_STATUS.syncing),
+        );
+        if (!hasStuck) return;
+        if (stuckReloadKey === refreshKey) return;
+        stuckReloadKey = refreshKey;
+        refresh();
     });
 
     function sortFilters(value: LibrarySort) {

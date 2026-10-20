@@ -128,7 +128,7 @@
             <TopGenresBar genres={stats.topGenres} genresByType={stats.topGenresByType ?? {}} />
         </div>
 
-        <BacklogHealth {stats} />
+        <BacklogHealth {stats} onMediaChanged={() => loadStats(++requestSequence)} />
         <TrackerBadges {stats} />
     {/if}
 </div>

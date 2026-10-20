@@ -2,12 +2,16 @@
     import { Scale } from "$shared/ui/Icons.svelte";
     import { i18n } from "$shared/i18n/index.svelte";
     import type { AdvancedStats } from "$shared/types";
+    import StaleBacklogModal from "$features/stale-triage/StaleBacklogModal.svelte";
 
     interface Props {
         stats: AdvancedStats;
+        onMediaChanged?: () => void;
     }
 
-    let { stats }: Props = $props();
+    let { stats, onMediaChanged }: Props = $props();
+
+    let showTriageModal = $state(false);
 
     const totalTitles = $derived(stats.totalTitles);
     const completedTitles = $derived(stats.completedTitles);
@@ -114,4 +118,22 @@
     <div class="bg-white/[0.02] border border-white/5 rounded-lg p-3.5 mt-4 text-sm text-slate-300 leading-relaxed">
         {verdictText}
     </div>
+
+    <div class="mt-3">
+        <button
+            type="button"
+            class="inline-flex items-center gap-1.5 text-xs font-medium text-accent hover:text-accent-hover transition cursor-pointer"
+            onclick={() => (showTriageModal = true)}
+        >
+            <span>{i18n.t.staleTriage.triageActionLink}</span>
+        </button>
+    </div>
+
+    <StaleBacklogModal
+        isOpen={showTriageModal}
+        onClose={() => (showTriageModal = false)}
+        onMediaChanged={() => {
+            onMediaChanged?.();
+        }}
+    />
 </section>

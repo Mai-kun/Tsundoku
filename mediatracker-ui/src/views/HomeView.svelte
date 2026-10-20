@@ -44,6 +44,8 @@
         type TimeFitResult,
     } from "$entities/media/model/timeBudget";
     import { uiSettings } from "$shared/utils/uiSettings.svelte";
+    import { isStaleInProgress } from "$entities/media/model/staleTriage";
+    import StaleBacklogModal from "$features/stale-triage/StaleBacklogModal.svelte";
 
     const timeBudgetOptions = $derived<
         { value: TimeBudgetMinutes; label: string }[]
@@ -90,6 +92,10 @@
     let sort = $state<LibrarySort>(savedHomeSort);
     let groupByType = $state<boolean>(savedHomeGroupByType);
     let timeBudget = $state<TimeBudgetMinutes>(null);
+    let showStaleModal = $state(false);
+    const staleCount = $derived(
+        inProgress.filter((item) => isStaleInProgress(item, 180)).length,
+    );
     let requestSequence = 0;
     let hasLoaded = homeCache.peek(HOME_KEY) !== undefined;
     let skeletonTimer: ReturnType<typeof setTimeout> | null = null;
@@ -519,11 +525,28 @@
     }
 </script>
 
-{#snippet section(items: MediaItem[], title: string)}
+{#snippet section(items: MediaItem[], title: string, isProgressSection = false)}
     <section class="space-y-4">
-        <h2 class="text-[25px] font-bold tracking-wide text-white">
-            {title}
-        </h2>
+        <div class="flex items-center gap-3 flex-wrap">
+            <h2 class="text-[25px] font-bold tracking-wide text-white">
+                {title}
+            </h2>
+            <span
+                class="rounded-full bg-card-hover px-2.5 py-0.5 text-xs font-semibold tabular-nums text-muted"
+            >
+                {items.length}
+            </span>
+            {#if isProgressSection && staleCount > 0}
+                <button
+                    type="button"
+                    class="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-xs font-medium text-amber-400 hover:bg-amber-500/20 hover:border-amber-500/50 transition cursor-pointer"
+                    onclick={() => (showStaleModal = true)}
+                >
+                    <span>🕸</span>
+                    <span>{staleCount} {i18n.t.staleTriage.staleBadge}</span>
+                </button>
+            {/if}
+        </div>
         {#if groupByType}
             {#each groupByMediaType(items) as group (group.key)}
                 <div class="space-y-3">
@@ -778,16 +801,27 @@
         </div>
     {:else}
         {#if displayInProgress.length > 0}
-            {@render section(displayInProgress, i18n.t.views.inProgress)}
+            {@render section(displayInProgress, i18n.t.views.inProgress, true)}
         {/if}
         {#if displayUpNext.length > 0}
-            {@render section(displayUpNext, i18n.t.views.upNext)}
+            {@render section(displayUpNext, i18n.t.views.upNext, false)}
         {/if}
         {#if timeBudget === null && displayRecentlyCompleted.length > 0}
             {@render section(
                 displayRecentlyCompleted,
                 i18n.t.views.recentlyCompleted,
+                false,
             )}
         {/if}
     {/if}
+
+    <StaleBacklogModal
+        isOpen={showStaleModal}
+        onClose={() => (showStaleModal = false)}
+        items={inProgress}
+        onMediaChanged={() => {
+            refresh();
+            onMediaChanged();
+        }}
+    />
 </div>

@@ -120,10 +120,15 @@
         return null;
     });
 
-    // The CastSection wrapper only renders when there is somebody to show, so books/manga (no cast
-    // at all) never pay for an empty order-2 cell -- no phantom gap, no misaligned row.
+    // Key crew from the stored staff snapshot: the card must render even when no
+    // studio/author came with the metadata.
+    const staff = $derived(media.staff ?? []);
+
+    // The CastSection wrapper only renders when there is somebody to show; manga now carries a
+    // stored characters snapshot, live-action carries the classic cast.
     const hasCast = $derived(
-        (media.type === "movie" || media.type === "tvshow") && (media.cast?.length ?? 0) > 0,
+        (media.type === "movie" || media.type === "tvshow" || media.type === "manga") &&
+            (media.cast?.length ?? 0) > 0,
     );
 
     const statusLabel = $derived.by(() => {
@@ -259,15 +264,16 @@
                 </div>
             {/if}
 
-            <!-- 4. БЛОК СТУДИИ / АВТОРА -->
+            <!-- 4. БЛОК СТУДИИ / АВТОРА + КОМАНДЫ СОЗДАТЕЛЕЙ -->
             <div class="order-4 min-w-0">
-                {#if creator}
+                {#if creator || staff.length > 0}
                     <CreatorSection
-                        creatorName={creator.name}
-                        role={creator.role}
+                        creatorName={creator?.name ?? ""}
+                        role={creator?.role ?? "author"}
                         mediaType={media.type}
-                        label={creator.label}
+                        label={creator?.label ?? null}
                         imageUrl={media.creatorImageUrl ?? null}
+                        {staff}
                         currentMediaId={media.id}
                         {onOpenMedia}
                         {onSearch}

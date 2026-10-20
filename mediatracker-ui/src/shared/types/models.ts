@@ -78,6 +78,11 @@ export interface MediaDetailFields {
   description?: string | null;
   trailerVideoId?: string | null;
   cast?: CastMember[];
+  /** Native/romanized title; rendered under the main headline on the detail screen. */
+  originalTitle?: string | null;
+  staffJson?: string | null;
+  /** Key crew, already parsed by the server (like recommendations). */
+  staff?: StaffMember[];
   /** Director photo or studio logo, when a provider supplied one. */
   creatorImageUrl?: string | null;
   externalRatingsJson?: string | null;
@@ -220,6 +225,18 @@ export interface CastMember {
   name: string;
   character: string | null;
   photoUrl: string | null;
+  /** MAIN / SUPPORTING, as the source spelled it. */
+  characterRole?: string | null;
+  characterImageUrl?: string | null;
+  /** Japanese voice actor; absent for manga entries and legacy flat cast. */
+  voiceActorName?: string | null;
+  voiceActorImageUrl?: string | null;
+}
+
+export interface StaffMember {
+  name: string;
+  role: string | null;
+  imageUrl: string | null;
 }
 
 /** A movie/book/game opened on the detail screen carries the detail-only fields too. */

@@ -1,8 +1,10 @@
 <script lang="ts">
     import { getCreatorSummary } from "$shared/api/api";
     import { i18n } from "$shared/i18n/index.svelte";
-    import type { CreatorRole, MediaItem } from "$shared/types";
+    import type { CreatorRole, MediaItem, StaffMember } from "$shared/types";
     import { BookOpen, Clapperboard, Gamepad2, Search } from "$shared/ui/Icons.svelte";
+    import { uiSettings } from "$shared/utils/uiSettings.svelte";
+    import PeopleSizeToggle from "./PeopleSizeToggle.svelte";
 
     interface Props {
         creatorName: string;
@@ -12,6 +14,8 @@
         label?: string | null;
         currentMediaId: string;
         imageUrl?: string | null;
+        /** Key crew parsed from the stored staff snapshot; renders even without a studio. */
+        staff?: readonly StaffMember[];
         onOpenMedia: (item: MediaItem) => void;
         onSearch: (query: string) => void;
     }
@@ -23,6 +27,7 @@
         label = null,
         currentMediaId,
         imageUrl = null,
+        staff = [],
         onOpenMedia,
         onSearch,
     }: Props = $props();
@@ -35,6 +40,12 @@
         const currentId = currentMediaId;
         const currentRole = role;
         let active = true;
+        if (!name) {
+            // No studio/author on the row: the card still renders, but only the staff grid.
+            loading = false;
+            summary = null;
+            return;
+        }
         loading = true;
         void getCreatorSummary(name, currentRole, currentId)
             .then((value) => {
@@ -52,6 +63,7 @@
     });
 
     const isRu = $derived(i18n.current === "ru");
+    const largeStaff = $derived(uiSettings.peopleCardSize === "large");
 
     const completionPercent = $derived(
         summary && summary.totalCount > 0
@@ -86,54 +98,56 @@
 
 <section class="space-y-3.5 rounded-xl border border-white/[0.06] bg-[var(--color-panel-line)] p-5 shadow-sm">
     <!-- 1. Шапка карточки ("Визитка Создателя") -->
-    <div class="flex items-center justify-between gap-3">
-        <!-- Слева: стильный квадрат size-10 + мелкий лейбл + крупное имя -->
-        <div class="flex min-w-0 items-center gap-3">
-            {#if imageUrl}
-                <img
-                    src={imageUrl}
-                    alt={creatorName}
-                    loading="lazy"
-                    referrerpolicy="no-referrer"
-                    class="size-10 shrink-0 rounded-xl bg-accent/15 border border-accent/30 object-cover"
-                />
-            {:else}
-                {@const IconComponent = getCreatorIcon()}
-                <div class="size-10 shrink-0 rounded-xl bg-accent/15 border border-accent/30 text-accent-soft grid place-items-center">
-                    <IconComponent size={20} aria-hidden="true" />
+    {#if creatorName}
+        <div class="flex items-center justify-between gap-3">
+            <!-- Слева: стильный квадрат size-10 + мелкий лейбл + крупное имя -->
+            <div class="flex min-w-0 items-center gap-3">
+                {#if imageUrl}
+                    <img
+                        src={imageUrl}
+                        alt={creatorName}
+                        loading="lazy"
+                        referrerpolicy="no-referrer"
+                        class="size-10 shrink-0 rounded-xl bg-accent/15 border border-accent/30 object-cover"
+                    />
+                {:else}
+                    {@const IconComponent = getCreatorIcon()}
+                    <div class="size-10 shrink-0 rounded-xl bg-accent/15 border border-accent/30 text-accent-soft grid place-items-center">
+                        <IconComponent size={20} aria-hidden="true" />
+                    </div>
+                {/if}
+                <div class="min-w-0">
+                    <p class="text-[10px] font-bold uppercase tracking-wider text-muted truncate">
+                        {displayLabel}
+                    </p>
+                    <h2 class="truncate text-base font-extrabold text-white" title={creatorName}>
+                        {creatorName}
+                    </h2>
                 </div>
-            {/if}
-            <div class="min-w-0">
-                <p class="text-[10px] font-bold uppercase tracking-wider text-muted truncate">
-                    {displayLabel}
-                </p>
-                <h2 class="truncate text-base font-extrabold text-white" title={creatorName}>
-                    {creatorName}
-                </h2>
+            </div>
+
+            <!-- Справа: золотистый бейдж ★ 9.0 и компактная кнопка поиска Search -->
+            <div class="flex items-center gap-2 shrink-0">
+                {#if summary?.averageScore !== null && summary?.averageScore !== undefined}
+                    <div
+                        class="inline-flex items-center gap-1 rounded-lg border border-amber-400/30 bg-amber-400/10 px-2.5 py-1 text-xs font-black text-amber-300 select-none"
+                        title={isRu ? `Средняя оценка: ${summary.averageScore.toFixed(1)}` : `Average score: ${summary.averageScore.toFixed(1)}`}
+                    >
+                        ★ {summary.averageScore.toFixed(1)}
+                    </div>
+                {/if}
+                <button
+                    type="button"
+                    class="tap size-8 grid place-items-center rounded-lg border border-white/10 bg-white/[0.04] text-muted hover:border-accent/40 hover:bg-accent/10 hover:text-accent-soft transition cursor-pointer"
+                    onclick={() => onSearch(creatorName)}
+                    title={isRu ? "Искать другие работы в базе" : "Search other works"}
+                    aria-label={isRu ? "Искать другие работы в базе" : "Search other works"}
+                >
+                    <Search size={15} />
+                </button>
             </div>
         </div>
-
-        <!-- Справа: золотистый бейдж ★ 9.0 и компактная кнопка поиска Search -->
-        <div class="flex items-center gap-2 shrink-0">
-            {#if summary?.averageScore !== null && summary?.averageScore !== undefined}
-                <div
-                    class="inline-flex items-center gap-1 rounded-lg border border-amber-400/30 bg-amber-400/10 px-2.5 py-1 text-xs font-black text-amber-300 select-none"
-                    title={isRu ? `Средняя оценка: ${summary.averageScore.toFixed(1)}` : `Average score: ${summary.averageScore.toFixed(1)}`}
-                >
-                    ★ {summary.averageScore.toFixed(1)}
-                </div>
-            {/if}
-            <button
-                type="button"
-                class="tap size-8 grid place-items-center rounded-lg border border-white/10 bg-white/[0.04] text-muted hover:border-accent/40 hover:bg-accent/10 hover:text-accent-soft transition cursor-pointer"
-                onclick={() => onSearch(creatorName)}
-                title={isRu ? "Искать другие работы в базе" : "Search other works"}
-                aria-label={isRu ? "Искать другие работы в базе" : "Search other works"}
-            >
-                <Search size={15} />
-            </button>
-        </div>
-    </div>
+    {/if}
 
     <!-- 2. Компактная строка освоения в коллекции -->
     {#if summary}
@@ -152,6 +166,62 @@
         </div>
     {:else if loading}
         <div class="h-10 w-full animate-pulse rounded-lg bg-white/[0.03]"></div>
+    {/if}
+
+    <!-- 2.5 Команда создателей: директор, сценарист, художник... -->
+    {#if staff.length > 0}
+        <div class="grid grid-cols-1 gap-2.5 border-t border-white/[0.06] sm:grid-cols-2 pt-3">
+            <div class="flex items-center justify-between gap-2 sm:col-span-2">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300">
+                    {i18n.t.creator.staffHeading}
+                </h3>
+                <PeopleSizeToggle />
+            </div>
+            {#each staff as person, idx (person.name + idx)}
+                <div class="flex {largeStaff ? 'gap-3' : 'min-w-0 items-center gap-2.5'}">
+                    {#if person.imageUrl}
+                        <img
+                            src={person.imageUrl}
+                            alt={person.name}
+                            loading="lazy"
+                            referrerpolicy="no-referrer"
+                            class="{largeStaff
+                                ? 'w-16 h-20 rounded-xl shadow-md'
+                                : 'size-10 rounded-lg'} shrink-0 bg-white/5 object-cover ring-1 ring-white/10"
+                        />
+                    {:else}
+                        <span
+                            class="{largeStaff
+                                ? 'w-16 h-20 shrink-0 rounded-xl'
+                                : 'size-10 shrink-0 rounded-lg'} grid place-items-center bg-white/5 text-[11px] font-bold text-muted ring-1 ring-white/10"
+                            aria-hidden="true"
+                        >
+                            {person.name.slice(0, 1).toUpperCase()}
+                        </span>
+                    {/if}
+                    <div class="min-w-0">
+                        <p
+                            class="{largeStaff
+                                ? 'text-sm leading-snug line-clamp-2'
+                                : 'truncate text-xs'} font-bold text-white"
+                            title={person.name}
+                        >
+                            {person.name}
+                        </p>
+                        {#if person.role}
+                            <p
+                                class="{largeStaff
+                                    ? 'text-xs mt-1'
+                                    : 'truncate text-[11px]'} text-muted {largeStaff ? 'line-clamp-2' : ''}"
+                                title={person.role}
+                            >
+                                {person.role}
+                            </p>
+                        {/if}
+                    </div>
+                </div>
+            {/each}
+        </div>
     {/if}
 
     <!-- 3. Галерея других работ (только если otherItems.length > 0) -->

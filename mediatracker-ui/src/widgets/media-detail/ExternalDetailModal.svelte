@@ -11,6 +11,7 @@
     import type { ExternalMedia, SearchMediaType } from "$shared/types";
     import { loadExternalDetails } from "$features/prefetch-details/externalDetailPrefetch";
     import { sourceBadgeClasses } from "$entities/media/model/mediaLabels";
+    import { joinOriginalTitle } from "./detailFormatters";
 
     interface Props {
         /** The search hit. Rendered immediately, then enriched by the full details. */
@@ -37,7 +38,7 @@
     // aggregator knows better, and the reverse is just as common.
     let media = $derived<ExternalMedia>({ ...item, ...stripEmpty(details) });
     let originalTitle = $derived(
-        media.romajiTitle ?? media.originalTitle ?? null,
+        joinOriginalTitle(media.title, media.originalTitle, media.romajiTitle),
     );
     let synopsisText = $derived(media.description?.trim() ?? "");
     let synopsisExpandable = $derived(synopsisText.length > 280);

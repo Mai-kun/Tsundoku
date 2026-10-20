@@ -44,14 +44,14 @@
 
 <header class="flex flex-wrap items-start justify-between gap-4">
     <div class="min-w-0">
-        {#if originalTitle}
-            <p class="text-sm font-medium text-muted">{originalTitle}</p>
-        {/if}
         <h1
             class="mt-1 break-words text-3xl font-extrabold tracking-tight text-white"
         >
             {title}
         </h1>
+        {#if originalTitle}
+            <p class="mt-1.5 text-sm font-medium text-muted">{originalTitle}</p>
+        {/if}
     </div>
 </header>
 

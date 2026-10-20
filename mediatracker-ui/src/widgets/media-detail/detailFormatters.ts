@@ -2,6 +2,7 @@ import { i18n } from "$shared/i18n/index.svelte";
 import {
     isMangaDetail,
     isTvShowDetail,
+    type MediaDetail,
     type MediaItem,
     type MediaStatus,
     type TvSeason,
@@ -279,12 +280,30 @@ export function readProgress(item: MediaItem): ProgressInfo | null {
     }
 }
 
-export function readOriginalTitle(item: MediaItem): string | null {
-    if (item.type === "tvshow" || item.type === "movie") {
-        const value = item.romajiTitle?.trim();
-        return value ? value : null;
+/**
+ * Joins the native and romanized titles the source reported, skipping any that duplicates the
+ * main one, so "Re:Zero" shows "Re:ゼロ… · Re:Zero kara…" below the headline instead of repeating it.
+ */
+export function joinOriginalTitle(
+    title: string,
+    originalTitle: string | null | undefined,
+    romajiTitle: string | null | undefined,
+): string | null {
+    const variants: string[] = [];
+    for (const raw of [originalTitle, romajiTitle]) {
+        const value = raw?.trim();
+        if (value && value !== title && !variants.includes(value)) variants.push(value);
     }
-    return null;
+    return variants.length > 0 ? variants.join(" · ") : null;
+}
+
+/** All types: the source's native and/or romanized title, minus what the headline already says. */
+export function readOriginalTitle(item: MediaDetail): string | null {
+    return joinOriginalTitle(
+        item.title,
+        item.originalTitle,
+        "romajiTitle" in item ? item.romajiTitle : null,
+    );
 }
 
 /** The transliterated title, for every type that stores one. Game and book have none. */

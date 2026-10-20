@@ -9,6 +9,9 @@ namespace MediaTracker.Server.Infrastructure.ExternalApis;
 
 public sealed class ImdbMetadataProvider(
     IHttpClientFactory httpClientFactory,
+    // The key carries the requested type ("movie" / "tvshow"), so a search in the Films tab can be
+    // filtered to films only instead of returning the whole mixed suggestion pool for both tabs.
+    [ServiceKey] string? serviceKey = null,
     ILogger<ImdbMetadataProvider>? logger = null) : MetadataProviderBase
 {
     public static MetadataSourceDescriptor Source { get; } = new(
@@ -18,6 +21,11 @@ public sealed class ImdbMetadataProvider(
         MediaTypes: ["movie", "tvshow"],
         BaseAddress: "https://v2.sg.media-imdb.com/suggestion/",
         Priority: 2);
+
+    private readonly string? _requestedType =
+        serviceKey?.StartsWith("tvshow", StringComparison.OrdinalIgnoreCase) is true ? "tvshow"
+        : serviceKey?.StartsWith("movie", StringComparison.OrdinalIgnoreCase) is true ? "movie"
+        : null;
 
     public override async Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string query, CancellationToken ct)
     {
@@ -43,6 +51,7 @@ public sealed class ImdbMetadataProvider(
             var mapped = res.D
                 .Where(item => !string.IsNullOrWhiteSpace(item.Id) && !string.IsNullOrWhiteSpace(item.L))
                 .Select(MapItem)
+                .Where(dto => dto.Type.Length > 0 && (_requestedType is null || dto.Type == _requestedType))
                 .ToList();
 
             ExternalApiLog.Returned(logger, Name, mapped.Count, sw.ElapsedMilliseconds);
@@ -220,9 +229,6 @@ public sealed class ImdbMetadataProvider(
 
     private static ExternalMediaDto MapItem(ImdbSuggestionItem item)
     {
-        var isTv = item.Q is not null && (item.Q.Contains("tv", StringComparison.OrdinalIgnoreCase) || item.Q.Contains("series", StringComparison.OrdinalIgnoreCase));
-        var type = isTv ? "tvshow" : "movie";
-
         return new ExternalMediaDto
         {
             ExternalId = item.Id,
@@ -230,9 +236,27 @@ public sealed class ImdbMetadataProvider(
             Title = item.L ?? "Unknown",
             CoverUrl = item.I?.ImageUrl,
             ReleaseYear = item.Y,
-            Type = type,
+            Type = Classify(item.Qid, item.Q),
             Ratings = []
         };
+    }
+
+    /// <summary>
+    /// Suggest-types from the CDN. A "TV series" entry is the only true tvshow; TV movie / TV special
+    /// said television in their old q strings and were wrongly filed as series — only qid (or the
+    /// exact q label) can tell a series from a TV movie. Video games share the pool and are dropped.
+    /// </summary>
+    internal static string Classify(string? qid, string? q)
+    {
+        if (qid?.Equals("videoGame", StringComparison.OrdinalIgnoreCase) is true
+            || q?.Equals("video game", StringComparison.OrdinalIgnoreCase) is true)
+        {
+            return "";
+        }
+
+        var isSeries = qid is "tvSeries" or "tvMiniSeries"
+            || q is "TV series" or "TV mini-series";
+        return isSeries ? "tvshow" : "movie";
     }
 
     private sealed class ImdbSuggestionResponse
@@ -254,6 +278,9 @@ public sealed class ImdbMetadataProvider(
 
         [JsonPropertyName("q")]
         public string? Q { get; set; }
+
+        [JsonPropertyName("qid")]
+        public string? Qid { get; set; }
 
         [JsonPropertyName("i")]
         public ImdbImage? I { get; set; }

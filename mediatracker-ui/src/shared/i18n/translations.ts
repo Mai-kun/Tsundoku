@@ -142,6 +142,39 @@ export const translations = {
         resetDate: { ru: "Сбросить дату", en: "Reset date" },
         noActivityForDate: { ru: "Нет записей активности за выбранный день", en: "No activity records for the selected day" },
         noActivity: { ru: "Нет записей активности", en: "No activity records" },
+        tabChronicle: { ru: "Хроника", en: "Chronicle" },
+        tabActivity: { ru: "Активность", en: "Activity" },
+        scaleMonths: { ru: "По месяцам", en: "By month" },
+        scaleYears: { ru: "По годам", en: "By year" },
+        includeInProgress: { ru: "Включая начатые", en: "Include in-progress" },
+        yearSummaryCount: {
+            ru: (count: number) => {
+                const mod10 = count % 10;
+                const mod100 = count % 100;
+                if (mod100 >= 11 && mod100 <= 19) return `${count} тайтлов`;
+                if (mod10 === 1) return `${count} тайтл`;
+                if (mod10 >= 2 && mod10 <= 4) return `${count} тайтла`;
+                return `${count} тайтлов`;
+            },
+            en: (count: number) => `${count} ${count === 1 ? "title" : "titles"}`,
+        },
+        yearAvgScore: {
+            ru: (score: string) => `★ ${score}`,
+            en: (score: string) => `★ ${score}`,
+        },
+        yearFavorite: {
+            ru: (title: string) => `Топ года: ${title}`,
+            en: (title: string) => `Top of the year: ${title}`,
+        },
+        undatedCompletedTitle: {
+            ru: (count: number) => `Завершено без точной даты (${count})`,
+            en: (count: number) => `Completed without a date (${count})`,
+        },
+        emptyChronicleTitle: { ru: "Хроника пуста", en: "Chronicle is empty" },
+        emptyChronicleHint: {
+            ru: "Отметьте тайтлы как завершённые — они появятся здесь по годам.",
+            en: "Mark titles as completed — they will appear here by year.",
+        },
         titleAdded: { ru: "Тайтл добавлен", en: "Title added" },
         titleDeleted: { ru: "Тайтл удалён", en: "Title deleted" },
         statusPrefix: { ru: "Статус:", en: "Status:" },

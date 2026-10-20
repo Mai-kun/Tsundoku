@@ -107,8 +107,10 @@
     );
 </script>
 
+<!-- Без lg:sticky: сайдбар выше окна (~1400px), и пересчёт sticky-нижней границы
+     при изменении высоты правой колонки дёргал постер вверх-вниз. -->
 <aside
-    class="w-full space-y-6 lg:sticky lg:top-4 lg:self-start lg:w-80 lg:shrink-0"
+    class="w-full space-y-6 lg:self-start lg:w-80 lg:shrink-0"
 >
     <div
         class="aspect-[2/3] w-full overflow-hidden rounded-xl border border-white/[0.06] bg-[var(--color-panel-line)] shadow-lg"

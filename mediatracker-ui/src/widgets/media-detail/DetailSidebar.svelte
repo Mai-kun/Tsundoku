@@ -8,6 +8,13 @@
     import { i18n } from "$shared/i18n/index.svelte";
     import type { AppView, MediaDetail, MediaStatus } from "$shared/types";
     import { statusLabel } from "$entities/media/model/mediaLabels";
+    import {
+        getCriteriaAxes,
+        parseDetailedScore,
+        serializeDetailedScore,
+        computeDetailedAverage,
+        type DetailedScoreMap,
+    } from "$entities/media/model/detailedScore";
 
     export interface SpecRow {
         label: string;
@@ -30,6 +37,7 @@
         onRatingHide: () => void;
         onSetScore: (score: number) => Promise<void>;
         onClearScore: () => void;
+        onSaveDetailedScore?: (detailedJson: string | null, newScore?: number | null) => Promise<void>;
         formatDate: (value: string | null) => string;
         historyProgressText: () => string;
         watchedOnInput: string;
@@ -68,6 +76,7 @@
         onRatingHide,
         onSetScore,
         onClearScore,
+        onSaveDetailedScore,
         formatDate,
         historyProgressText,
         watchedOnInput,
@@ -93,6 +102,21 @@
     }: Props = $props();
 
     let isActivityOpen = $state(false);
+    let detailedExpanded = $state(false);
+    let detailedDraft = $state<DetailedScoreMap>({});
+    let lastMediaJson = $state<string | null | undefined>(undefined);
+
+    $effect(() => {
+        if (media.detailedScoreJson !== lastMediaJson) {
+            lastMediaJson = media.detailedScoreJson;
+            detailedDraft = parseDetailedScore(media.detailedScoreJson);
+        }
+    });
+
+    const axes = $derived(getCriteriaAxes(media));
+    const savedDetailedMap = $derived(parseDetailedScore(media.detailedScoreJson));
+    const savedSummary = $derived(computeDetailedAverage(savedDetailedMap));
+    const draftSummary = $derived(computeDetailedAverage(detailedDraft));
 
     const statusMenuItems = $derived(
         statusOptions.map((value) => ({ value, label: statusLabel(value) })),
@@ -207,7 +231,9 @@
 
             {#if ratingOpen}
                 <div
-                    class="absolute right-0 top-full z-30 mt-2 w-48 rounded-xl border border-white/[0.12] bg-[var(--color-overlay)] p-3 shadow-2xl shadow-black/90"
+                    class={`absolute right-0 top-full z-30 mt-2 rounded-xl border border-white/[0.12] bg-[var(--color-overlay)] p-3 shadow-2xl shadow-black/90 transition-all ${
+                        detailedExpanded ? "w-72 sm:w-80" : "w-48"
+                    }`}
                 >
                     <div
                         class="mb-2 text-center text-xs font-semibold text-slate-300"
@@ -240,7 +266,125 @@
                             </button>
                         {/each}
                     </div>
-                    {#if scoreValue !== null}
+
+                    <div class="mt-2.5 border-t border-white/[0.08] pt-2">
+                        <button
+                            type="button"
+                            class="flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-xs font-medium text-slate-300 hover:bg-white/[0.06] hover:text-white transition cursor-pointer"
+                            onclick={() => (detailedExpanded = !detailedExpanded)}
+                        >
+                            <span class="flex items-center gap-1.5">
+                                <span>{i18n.t.detail.byCriteria}</span>
+                                {#if savedSummary}
+                                    <span class="rounded bg-amber-400/20 px-1.5 py-0.5 text-[10px] font-bold text-amber-300 tabular-nums">
+                                        ★ {savedSummary.exact}
+                                    </span>
+                                {/if}
+                            </span>
+                            <ChevronDown
+                                size={14}
+                                class={`shrink-0 transition-transform duration-200 ${detailedExpanded ? "rotate-180" : ""}`}
+                                aria-hidden="true"
+                            />
+                        </button>
+                    </div>
+
+                    {#if detailedExpanded}
+                        <div class="mt-2 space-y-2.5 border-t border-white/[0.08] pt-2.5">
+                            <div class="space-y-2">
+                                {#each axes as axis}
+                                    {@const val = detailedDraft[axis.key]}
+                                    <div class="space-y-1">
+                                        <div class="flex items-center justify-between text-xs">
+                                            <span class="text-slate-300 truncate font-medium">
+                                                {axis.label[i18n.current]}
+                                            </span>
+                                            <div class="flex items-center gap-1">
+                                                <span class={`tabular-nums font-bold ${val !== undefined ? "text-amber-300" : "text-muted"}`}>
+                                                    {val ?? "—"}
+                                                </span>
+                                                {#if val !== undefined}
+                                                    <button
+                                                        type="button"
+                                                        class="text-muted hover:text-rose-400 transition ml-0.5 text-[10px] cursor-pointer"
+                                                        title="Очистить"
+                                                        aria-label={`Очистить ${axis.label[i18n.current]}`}
+                                                        onclick={() => {
+                                                            const next = { ...detailedDraft };
+                                                            delete next[axis.key];
+                                                            detailedDraft = next;
+                                                        }}
+                                                    >
+                                                        ✕
+                                                    </button>
+                                                {/if}
+                                            </div>
+                                        </div>
+                                        <div class="relative flex items-center">
+                                            <input
+                                                type="range"
+                                                min="1"
+                                                max="10"
+                                                step="1"
+                                                value={val ?? 5}
+                                                class={`h-1.5 w-full cursor-pointer appearance-none rounded-lg bg-white/10 accent-amber-400 transition-opacity ${
+                                                    val === undefined ? "opacity-50 hover:opacity-80" : "opacity-100"
+                                                }`}
+                                                oninput={(e) => {
+                                                    const num = Number(e.currentTarget.value);
+                                                    detailedDraft = {
+                                                        ...detailedDraft,
+                                                        [axis.key]: num,
+                                                    };
+                                                }}
+                                            />
+                                        </div>
+                                    </div>
+                                {/each}
+                            </div>
+
+                            {#if draftSummary !== null}
+                                <div class="space-y-2 border-t border-white/[0.08] pt-2">
+                                    <div class="flex items-center justify-between text-xs font-semibold">
+                                        <span class="text-slate-300">{i18n.t.detail.detailedAverage}:</span>
+                                        <span class="font-bold text-amber-300 tabular-nums">★ {draftSummary.exact}</span>
+                                    </div>
+                                    <div class="flex flex-col gap-1.5">
+                                        <button
+                                            type="button"
+                                            class="flex w-full items-center justify-center rounded-lg bg-amber-400/20 px-3 py-1.5 text-xs font-bold text-amber-300 hover:bg-amber-400/30 transition cursor-pointer"
+                                            onclick={async () => {
+                                                const json = serializeDetailedScore(detailedDraft);
+                                                if (onSaveDetailedScore) {
+                                                    await onSaveDetailedScore(json, draftSummary.rounded);
+                                                } else {
+                                                    await onSetScore(draftSummary.rounded);
+                                                }
+                                                onRatingHide();
+                                            }}
+                                        >
+                                            {i18n.t.detail.saveDetailedScore(draftSummary.rounded)}
+                                        </button>
+                                        {#if onSaveDetailedScore && (scoreValue === null || scoreValue !== draftSummary.rounded)}
+                                            <button
+                                                type="button"
+                                                class="flex w-full items-center justify-center rounded-lg bg-white/5 px-2 py-1 text-[11px] text-slate-300 hover:bg-white/10 hover:text-white transition cursor-pointer"
+                                                onclick={async () => {
+                                                    const json = serializeDetailedScore(detailedDraft);
+                                                    await onSaveDetailedScore(json);
+                                                    onRatingHide();
+                                                }}
+                                            >
+                                                {i18n.t.detail.saveCriteriaOnly}
+                                            </button>
+                                        {/if}
+                                    </div>
+                                </div>
+                            {/if}
+                        </div>
+                    {/if}
+
+                    {#if scoreValue !== null || savedSummary !== null}
                         <div
                             class="mt-2.5 border-t border-white/[0.08] pt-2 text-center"
                         >
@@ -249,6 +393,7 @@
                                 class="text-xs font-semibold text-rose-400 hover:text-rose-300 transition cursor-pointer"
                                 onclick={() => {
                                     onClearScore();
+                                    detailedDraft = {};
                                     onRatingHide();
                                 }}
                             >
@@ -263,6 +408,49 @@
     {#if statusError}<p class="text-xs text-rose-300" role="alert">
             {errorMessage(statusError)}
         </p>{/if}
+
+    {#if savedSummary !== null}
+        <button
+            type="button"
+            class="w-full text-left rounded-xl border border-white/[0.06] bg-[var(--color-panel-line)] p-3 space-y-2 hover:bg-[var(--color-panel-raised)] hover:border-white/[0.12] transition cursor-pointer group"
+            onclick={() => {
+                detailedDraft = parseDetailedScore(media.detailedScoreJson);
+                detailedExpanded = true;
+                onRatingOpen();
+            }}
+            aria-label={i18n.t.detail.detailedScoreTitle}
+        >
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-semibold text-slate-300 group-hover:text-white transition">
+                    {i18n.t.detail.detailedScoreTitle}
+                </span>
+                <span class="inline-flex items-center gap-1 text-xs font-bold text-amber-400 tabular-nums">
+                    ★ {savedSummary.exact}
+                </span>
+            </div>
+            <div class="space-y-1.5 pt-0.5">
+                {#each axes as axis}
+                    {@const val = savedDetailedMap[axis.key]}
+                    {#if val !== undefined}
+                        <div class="flex items-center gap-2 text-xs">
+                            <span class="w-24 truncate text-muted text-[11px]">
+                                {axis.label[i18n.current]}
+                            </span>
+                            <div class="h-1.5 flex-1 overflow-hidden rounded-full bg-white/[0.08]">
+                                <div
+                                    class="h-full rounded-full bg-gradient-to-r from-amber-500/80 to-amber-400 transition-all duration-300 origin-left"
+                                    style="width: {val * 10}%"
+                                ></div>
+                            </div>
+                            <span class="w-4 text-right font-mono font-bold text-slate-200 text-[11px] tabular-nums">
+                                {val}
+                            </span>
+                        </div>
+                    {/if}
+                {/each}
+            </div>
+        </button>
+    {/if}
 <!-- Panel 1: Your History -->
     <div>
         <h2

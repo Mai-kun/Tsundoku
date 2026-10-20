@@ -35,6 +35,7 @@
         type SearchModalContext,
         type SourceInfo,
         type TvSeason,
+        type UpdateMediaPayload,
     } from "$shared/types";
     import { clampProgress } from "$entities/media/model/progressRules";
     import { nextSeriesEpisodeStep } from "$entities/media/model/seriesStep";
@@ -1840,7 +1841,10 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
         ratingError = null;
 
         try {
-            await updateMedia(target.id, { score: next });
+            await updateMedia(target.id, {
+                score: next,
+                clearScore: next === null,
+            });
             showToast(
                 next ? `${next} ★` : i18n.t.detail.clearRating,
                 "success",
@@ -1855,8 +1859,78 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
         }
     }
 
-    function clearScore() {
-        void setScore(scoreValue ?? 0);
+    async function clearScore() {
+        const target = media;
+        if (!target || ratingBusy) return;
+
+        const previousScore = scoreValue;
+        const previousDetailed = target.detailedScoreJson;
+
+        scoreValue = null;
+        target.detailedScoreJson = null;
+        ratingBusy = true;
+        ratingError = null;
+
+        try {
+            await updateMedia(target.id, {
+                score: null,
+                clearScore: true,
+                clearDetailedScore: true,
+            });
+            showToast(i18n.t.detail.clearRating, "success");
+            onUpdate();
+        } catch (error) {
+            scoreValue = previousScore;
+            target.detailedScoreJson = previousDetailed;
+            ratingError = error;
+            showToast(errorMessage(error), "error");
+        } finally {
+            ratingBusy = false;
+        }
+    }
+
+    async function saveDetailedScore(
+        detailedJson: string | null,
+        newScore?: number | null,
+    ) {
+        const target = media;
+        if (!target || ratingBusy) return;
+
+        const previousScore = scoreValue;
+        const previousDetailed = target.detailedScoreJson;
+
+        if (newScore !== undefined) {
+            scoreValue = newScore;
+        }
+        target.detailedScoreJson = detailedJson;
+        ratingBusy = true;
+        ratingError = null;
+
+        try {
+            const payload: UpdateMediaPayload = {
+                detailedScoreJson: detailedJson,
+                clearDetailedScore: detailedJson === null,
+            };
+            if (newScore !== undefined) {
+                payload.score = newScore;
+                if (newScore === null) {
+                    payload.clearScore = true;
+                }
+            }
+            await updateMedia(target.id, payload);
+            showToast(
+                newScore ? `${newScore} ★` : i18n.t.detail.notesSaved,
+                "success",
+            );
+            onUpdate();
+        } catch (error) {
+            scoreValue = previousScore;
+            target.detailedScoreJson = previousDetailed;
+            ratingError = error;
+            showToast(errorMessage(error), "error");
+        } finally {
+            ratingBusy = false;
+        }
     }
 
     function retry() {
@@ -2097,6 +2171,7 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
                 onRatingHide={hideRatingPopover}
                 onSetScore={setScore}
                 onClearScore={clearScore}
+                onSaveDetailedScore={saveDetailedScore}
                 {formatDate}
                 {historyProgressText}
                 {watchedOnInput}

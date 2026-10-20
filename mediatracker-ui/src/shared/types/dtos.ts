@@ -191,6 +191,9 @@ export type CreateMediaPayload =
 export interface UpdateMediaPayload {
   title?: string;
   score?: number | null;
+  clearScore?: boolean;
+  detailedScoreJson?: string | null;
+  clearDetailedScore?: boolean;
   status?: MediaStatus;
   notes?: string | null;
   quotesJson?: string | null;

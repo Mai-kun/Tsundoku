@@ -557,6 +557,15 @@ export const translations = {
             en: (count: number) => `Votes: ${count}`,
         },
         yourRating: { ru: "Ваша личная оценка", en: "Your personal score" },
+        byCriteria: { ru: "По критериям", en: "Detailed" },
+        detailedScoreTitle: { ru: "Детальная оценка", en: "Detailed score" },
+        detailedAverage: { ru: "Среднее", en: "Average" },
+        applyScore: { ru: "Применить", en: "Apply" },
+        saveDetailedScore: {
+            ru: (score: number) => `Сохранить (${score} ★)`,
+            en: (score: number) => `Save (${score} ★)`,
+        },
+        saveCriteriaOnly: { ru: "Только критерии", en: "Criteria only" },
         clearRating: { ru: "Сбросить", en: "Clear" },
         ratingValue: {
             ru: (score: number) => `${score} / 10`,

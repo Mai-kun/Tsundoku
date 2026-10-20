@@ -74,6 +74,7 @@ export interface MediaBase {
  */
 export interface MediaDetailFields {
   notes: string | null;
+  detailedScoreJson?: string | null;
   quotesJson?: string | null;
   description?: string | null;
   trailerVideoId?: string | null;

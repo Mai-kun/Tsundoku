@@ -10,11 +10,15 @@ export interface CustomListSummary {
   itemsCount: number;
   updatedAt: string;
   previewCovers: (string | null)[];
+  isSmart: boolean;
+  smartQueryJson: string | null;
 }
 
 export interface CustomListDetail extends Omit<CustomListSummary, "itemsCount" | "previewCovers"> {
   createdAt: string;
   items: MediaItem[];
+  isSmart: boolean;
+  smartQueryJson: string | null;
 }
 
 export interface CreateListPayload {
@@ -22,9 +26,30 @@ export interface CreateListPayload {
   description?: string | null;
   icon?: string | null;
   color?: string | null;
+  smartQueryJson?: string | null;
 }
 
 export type UpdateListPayload = CreateListPayload;
+
+export interface SmartListQuery {
+  categories?: string[] | null;
+  statuses?: number[] | null;
+  minScore?: number | null;
+  maxScore?: number | null;
+  onlyUnrated?: boolean | null;
+  minExternalRating?: number | null;
+  genres?: string[] | null;
+  releaseYearFrom?: number | null;
+  releaseYearTo?: number | null;
+  maxDurationMinutes?: number | null;
+  maxEpisodes?: number | null;
+  maxPages?: number | null;
+  maxChapters?: number | null;
+  creatorContains?: string | null;
+  sortBy?: string | null;
+  sortOrder?: string | null;
+  limit?: number | null;
+}
 
 export interface ImportResultDto {
   totalFound: number;

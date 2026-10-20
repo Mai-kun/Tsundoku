@@ -24,9 +24,12 @@ public static class ServiceCollectionExtensions
         this IServiceCollection services,
         string connectionString)
     {
+        // SplitQuery: one SQL round trip per include branch instead of one JOIN whose columns
+        // multiply across every collection include, which EF flags with MultipleCollectionIncludeWarning.
         services.AddDbContext<AppDbContext>(options =>
             options
-                .UseSqlite(connectionString)
+                .UseSqlite(connectionString, sqlite =>
+                    sqlite.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery))
                 .AddInterceptors(new SqliteConnectionInterceptor()));
 
         services.AddFeatures();

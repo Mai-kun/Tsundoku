@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "check": "svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json",
+    "check:stale": "node --experimental-strip-types checks/staleTriage.check.ts",
     "check:detailed-score": "node --experimental-strip-types checks/detailedScore.check.ts",
     "check:cards": "node checks/cards.check.cjs",
     "check:search": "node checks/searchModal.check.cjs",

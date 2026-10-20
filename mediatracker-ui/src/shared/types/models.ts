@@ -42,6 +42,7 @@ export interface MediaBase {
   score: number | null;
   startedAt: string | null;
   finishedAt: string | null;
+  lastActivityAt?: string | null;
   coverUrl: string | null;
   createdAt: string;
   /** Feeds the cover cache-buster on the server side. */

@@ -1032,6 +1032,84 @@ export const translations = {
         unitHours: { ru: "ч", en: "h" },
         applyCustomTime: { ru: "Применить", en: "Apply" },
     },
+    staleTriage: {
+        staleBadge: {
+            ru: "без активности >180 дн.",
+            en: "inactive >180 d",
+        },
+        staleTriageTitle: {
+            ru: "Ревизия заброшенного бэклога",
+            en: "Stale Backlog Triage",
+        },
+        staleTriageSubtitle: {
+            ru: "Тайтлы в процессе, к которым вы давно не возвращались. Разгрузите список в 1 клик.",
+            en: "In-progress titles you haven't returned to in a while. Declutter your list in 1 click.",
+        },
+        threshold90: {
+            ru: "90 дней (3 мес)",
+            en: "90 days (3 mo)",
+        },
+        threshold180: {
+            ru: "180 дней (полгода)",
+            en: "180 days (6 mo)",
+        },
+        threshold365: {
+            ru: "1 год (365 дн.)",
+            en: "1 year (365 d)",
+        },
+        foundCount: {
+            ru: (count: number) => `Найдено висяков: ${count}`,
+            en: (count: number) => `Stale items found: ${count}`,
+        },
+        daysInactive: {
+            ru: (days: number, date: string) => `⏱ Без активности: ${days} дн. (с ${date})`,
+            en: (days: number, date: string) => `⏱ Inactive: ${days} d (since ${date})`,
+        },
+        actionFocus: {
+            ru: "В фокус",
+            en: "Focus",
+        },
+        actionOnHold: {
+            ru: "На паузу",
+            en: "Pause",
+        },
+        actionDrop: {
+            ru: "Бросить",
+            en: "Drop",
+        },
+        actionToPlanned: {
+            ru: "В планы",
+            en: "To Planned",
+        },
+        triageCompleteTitle: {
+            ru: "🎉 Отличная работа!",
+            en: "🎉 Great job!",
+        },
+        triageCompleteText: {
+            ru: (threshold: number) => `В бэклоге нет заброшенных тайтлов старше ${threshold} дней. Внимание свободно для актуальных историй.`,
+            en: (threshold: number) => `There are no abandoned titles older than ${threshold} days in your backlog. Attention is free for current stories.`,
+        },
+        toastFocus: {
+            ru: "Возвращено в фокус",
+            en: "Returned to focus",
+        },
+        toastOnHold: {
+            ru: "Отложено на паузу",
+            en: "Paused",
+        },
+        toastDropped: {
+            ru: "Помечено как брошенное",
+            en: "Marked as dropped",
+        },
+        toastPlanned: {
+            ru: "Перенесено в планы",
+            en: "Moved to planned",
+        },
+        triageActionLink: {
+            ru: "Провести ревизию заброшенных тайтлов →",
+            en: "Review abandoned titles →",
+        },
+    },
     errors: {
         unexpected: { ru: "Произошла непредвиденная ошибка.", en: "Something went wrong. Please try again." },
         requestFailed: { ru: "Не удалось выполнить запрос.", en: "The request could not be completed." },

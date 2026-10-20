@@ -200,6 +200,7 @@ export interface UpdateMediaPayload {
   coverUrl?: string | null;
   startedAt?: string | null;
   finishedAt?: string | null;
+  lastActivityAt?: string | null;
   franchiseId?: string | null;
   franchiseName?: string | null;
   franchiseOrder?: number | null;

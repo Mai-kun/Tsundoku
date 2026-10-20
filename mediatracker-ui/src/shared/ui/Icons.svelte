@@ -11,6 +11,7 @@
     export { default as ArrowUpDown } from "lucide-svelte/icons/arrow-up-down";
     export { default as ArrowUpRight } from "lucide-svelte/icons/arrow-up-right";
     export { default as BarChart3 } from "lucide-svelte/icons/bar-chart-3";
+    export { default as Ban } from "lucide-svelte/icons/ban";
     export { default as BookOpen } from "lucide-svelte/icons/book-open";
     export { default as Bookmark } from "lucide-svelte/icons/bookmark";
     export { default as CalendarDays } from "lucide-svelte/icons/calendar-days";
@@ -38,6 +39,7 @@
     export { default as History } from "lucide-svelte/icons/history";
     export { default as Heart } from "lucide-svelte/icons/heart";
     export { default as Home } from "lucide-svelte/icons/home";
+    export { default as Hourglass } from "lucide-svelte/icons/hourglass";
     export { default as Image } from "lucide-svelte/icons/image";
     export { default as Inbox } from "lucide-svelte/icons/inbox";
     export { default as Key } from "lucide-svelte/icons/key";

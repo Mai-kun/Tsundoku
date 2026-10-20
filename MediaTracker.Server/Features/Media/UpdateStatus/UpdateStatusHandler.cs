@@ -49,6 +49,7 @@ public sealed class UpdateStatusHandler(
 
         if (item.Status != previousStatus)
         {
+            item.LastActivityAt = DateTime.UtcNow;
             db.Events.Add(MediaEventRecorder.StatusChanged(item, previousStatus, item.Status));
         }
 

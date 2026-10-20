@@ -58,6 +58,12 @@ public sealed class UpdateMediaHandler(
 
         RecordEvents(item, previousStatus, previousScore, previousAchievements, previousProgress, db);
 
+        var currentProgress = GetProgressValue(item);
+        if (request.LastActivityAt is null && (item.Status != previousStatus || item.Score != previousScore || currentProgress != previousProgress))
+        {
+            item.LastActivityAt = DateTime.UtcNow;
+        }
+
         item.MarkUpdated();
         await db.SaveChangesAsync(ct);
         cache.Remove(AdvancedStatsCalculator.CacheKey);

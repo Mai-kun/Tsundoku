@@ -18,6 +18,8 @@ public abstract class MediaItem
 
     public DateTime? FinishedAt { get; set; }
 
+    public DateTime? LastActivityAt { get; set; }
+
     public string? Notes { get; set; }
 
     public string? QuotesJson { get; set; }
@@ -167,6 +169,7 @@ public abstract class MediaItem
             case MediaStatus.InProgress:
                 StartedAt ??= stamp;
                 FinishedAt = null;
+                LastActivityAt = stamp;
                 break;
             case MediaStatus.Planned:
                 StartedAt = null;

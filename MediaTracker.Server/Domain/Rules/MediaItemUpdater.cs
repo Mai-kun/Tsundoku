@@ -26,6 +26,10 @@ public static class MediaItemUpdater
         item.CoverUrl = request.CoverUrl ?? item.CoverUrl;
         item.StartedAt = request.StartedAt ?? item.StartedAt;
         item.FinishedAt = request.FinishedAt ?? item.FinishedAt;
+        if (request.LastActivityAt is { } lastActivity)
+        {
+            item.LastActivityAt = lastActivity;
+        }
         item.TranslatedSynopsis = request.TranslatedSynopsis ?? item.TranslatedSynopsis;
         item.TranslationLanguage = request.TranslationLanguage ?? item.TranslationLanguage;
         item.Genres = request.Genres ?? item.Genres;

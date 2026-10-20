@@ -1769,6 +1769,20 @@ public static class RefactorSelfCheck
             plannedShow.Seasons[0].Status,
             "a planned show has planned seasons"
         );
+
+        var inProgressItem = new Book
+        {
+            Title = "Dune Messiah",
+            Author = string.Empty,
+        };
+        var stamp = new DateTime(2026, 10, 20, 12, 0, 0, DateTimeKind.Utc);
+        inProgressItem.ChangeStatus(MediaStatus.InProgress, stamp);
+        AssertEqual(
+            failures,
+            stamp,
+            inProgressItem.LastActivityAt,
+            "moving to InProgress sets LastActivityAt to timestamp"
+        );
     }
 
     /// <summary>

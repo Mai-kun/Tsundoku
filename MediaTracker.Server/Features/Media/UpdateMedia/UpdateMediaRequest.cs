@@ -26,6 +26,8 @@ public sealed record UpdateMediaRequest
 
     public DateTime? FinishedAt { get; init; }
 
+    public DateTime? LastActivityAt { get; init; }
+
     public Guid? FranchiseId { get; init; }
 
     public string? FranchiseName { get; init; }

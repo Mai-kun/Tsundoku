@@ -61,6 +61,7 @@ public sealed class CreateMediaHandler(
 
         await franchiseService.LinkFranchiseOnCreateAsync(db, item, request.FranchiseName, ct);
 
+        item.LastActivityAt = DateTime.UtcNow;
         db.Add(item);
         db.Events.Add(MediaEventRecorder.Added(item));
         await db.SaveChangesAsync(ct);

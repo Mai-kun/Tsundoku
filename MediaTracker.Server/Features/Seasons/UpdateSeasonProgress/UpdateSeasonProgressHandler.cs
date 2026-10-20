@@ -85,6 +85,12 @@ public sealed class UpdateSeasonProgressHandler(
         {
             await SyncShowAsync(season.TvShowId, totals.AllCompleted, totals.TotalWatched > 0, ct);
         }
+        else
+        {
+            await db.TvShows
+                .Where(item => item.Id == season.TvShowId)
+                .ExecuteUpdateAsync(s => s.SetProperty(item => item.LastActivityAt, DateTime.UtcNow), ct);
+        }
 
         cache.Remove(AdvancedStatsCalculator.CacheKey);
         return Result.Success();
@@ -116,6 +122,7 @@ public sealed class UpdateSeasonProgressHandler(
             .ExecuteUpdateAsync(s => s
                 .SetProperty(item => item.Status, newShowStatus)
                 .SetProperty(item => item.StartedAt, startedAt)
-                .SetProperty(item => item.FinishedAt, finishedAt), ct);
+                .SetProperty(item => item.FinishedAt, finishedAt)
+                .SetProperty(item => item.LastActivityAt, DateTime.UtcNow), ct);
     }
 }

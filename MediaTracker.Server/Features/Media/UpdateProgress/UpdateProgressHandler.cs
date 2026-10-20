@@ -35,15 +35,18 @@ public sealed class UpdateProgressHandler(
         }
 
         var progress = Math.Max(command.CurrentProgress, 0);
+        var now = DateTime.UtcNow;
 
         var book = await db.Books.AsNoTracking().Where(x => x.Id == command.Id)
             .Select(x => new { x.CurrentPage, x.TotalPages }).FirstOrDefaultAsync(ct);
         var bookRows = await db.Books
             .Where(x => x.Id == command.Id)
             .ExecuteUpdateAsync(
-                s => s.SetProperty(
-                    x => x.CurrentPage,
-                    x => x.TotalPages > 0 && progress > x.TotalPages ? x.TotalPages : progress),
+                s => s
+                    .SetProperty(
+                        x => x.CurrentPage,
+                        x => x.TotalPages > 0 && progress > x.TotalPages ? x.TotalPages : progress)
+                    .SetProperty(x => x.LastActivityAt, now),
                 ct);
 
         if (bookRows > 0)
@@ -59,9 +62,11 @@ public sealed class UpdateProgressHandler(
         var mangaRows = await db.Manga
             .Where(x => x.Id == command.Id)
             .ExecuteUpdateAsync(
-                s => s.SetProperty(
-                    x => x.CurrentChapter,
-                    x => x.TotalChapters != null && progress > x.TotalChapters ? x.TotalChapters : progress),
+                s => s
+                    .SetProperty(
+                        x => x.CurrentChapter,
+                        x => x.TotalChapters != null && progress > x.TotalChapters ? x.TotalChapters : progress)
+                    .SetProperty(x => x.LastActivityAt, now),
                 ct);
 
         if (mangaRows > 0)
@@ -76,7 +81,11 @@ public sealed class UpdateProgressHandler(
             .Select(x => x.HoursPlayed).FirstOrDefaultAsync(ct);
         var gameRows = await db.Games
             .Where(x => x.Id == command.Id)
-            .ExecuteUpdateAsync(s => s.SetProperty(x => x.HoursPlayed, progress), ct);
+            .ExecuteUpdateAsync(
+                s => s
+                    .SetProperty(x => x.HoursPlayed, progress)
+                    .SetProperty(x => x.LastActivityAt, now),
+                ct);
 
         if (gameRows > 0)
         {

@@ -34,6 +34,7 @@ public static class MediaDetailProjection
             Score = listFields.Score,
             StartedAt = listFields.StartedAt,
             FinishedAt = listFields.FinishedAt,
+            LastActivityAt = listFields.LastActivityAt,
             ReleaseDate = listFields.ReleaseDate,
             ReleaseYear = listFields.ReleaseYear,
             WatchedOn = listFields.WatchedOn,

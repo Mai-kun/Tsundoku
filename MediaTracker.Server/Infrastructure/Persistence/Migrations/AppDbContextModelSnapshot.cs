@@ -253,6 +253,9 @@ namespace MediaTracker.Server.Infrastructure.Persistence.Migrations
                     b.Property<DateTime?>("FinishedAt")
                         .HasColumnType("TEXT");
 
+                    b.Property<DateTime?>("LastActivityAt")
+                        .HasColumnType("TEXT");
+
                     b.Property<Guid?>("FranchiseId")
                         .HasColumnType("TEXT");
 

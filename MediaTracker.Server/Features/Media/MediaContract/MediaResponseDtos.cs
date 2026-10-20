@@ -24,6 +24,8 @@ public record MediaListDto
 
     public DateTime? FinishedAt { get; init; }
 
+    public DateTime? LastActivityAt { get; init; }
+
     public DateTime? ReleaseDate { get; init; }
 
     public int? ReleaseYear { get; init; }
@@ -412,6 +414,7 @@ public static class MediaResponseMapper
         Score = item.Score,
         StartedAt = item.StartedAt,
         FinishedAt = item.FinishedAt,
+        LastActivityAt = item.LastActivityAt,
         ReleaseDate = item.ReleaseDate,
         ReleaseYear = item.ReleaseYear,
         WatchedOn = item.WatchedOn,

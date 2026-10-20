@@ -22,6 +22,7 @@
 
 <script lang="ts">
     import { i18n } from "$shared/i18n/index.svelte";
+    import { ChevronDown } from "$shared/ui/Icons.svelte";
     import {
         MEDIA_STATUS,
         type MediaStatus,
@@ -79,16 +80,27 @@
         }
     }
 
-    function handleStatus(event: Event) {
-        const value = (event.currentTarget as HTMLSelectElement).value;
+    function handleSearch(event: Event) {
+        onSearchChange((event.currentTarget as HTMLInputElement).value);
+    }
+
+    /* The status select carries the status id as the option value, the label in the trigger. */
+    function handleStatus(value: string) {
         onStatusChange(
             value === "all" ? "all" : (Number(value) as MediaStatus),
         );
     }
 
-    function handleSearch(event: Event) {
-        onSearchChange((event.currentTarget as HTMLInputElement).value);
-    }
+    const statusOptions = $derived<{ value: string; label: string }[]>(
+        statuses.map((option) => ({
+            value: option === "all" ? "all" : String(option),
+            label: labelForStatus(option),
+        })),
+    );
+
+    const statusValue = $derived(
+        status === "all" ? "all" : String(status),
+    );
 
     const sortOptions = $derived<
         { value: LibrarySort; label: string }[]
@@ -136,11 +148,11 @@
                         popovertarget={popoverTargetId}
                         popovertargetaction="toggle"
                         style={isOpen ? `anchor-name: ${anchorName}` : undefined}
-                        class="tap grid h-12 w-12 shrink-0 place-items-center rounded-lg border border-white/10 bg-field text-muted transition hover:border-white/20 hover:text-ink has-[:popover-open]:ring-2 has-[:popover-open]:ring-indigo-500/40"
+                        class="tap grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-white/10 bg-field text-muted transition hover:border-white/20 hover:text-ink has-[:popover-open]:ring-2 has-[:popover-open]:ring-indigo-500/40"
                         title={i18n.t.grouping.label}
                         aria-label={i18n.t.grouping.label}
                     >
-                        <GroupIcon size={22} stroke-width={2} aria-hidden="true" />
+                        <GroupIcon size={18} stroke-width={2} aria-hidden="true" />
                     </button>
                 {/snippet}
                 {#snippet renderOption({ option })}
@@ -159,36 +171,52 @@
             <label class="sr-only" for="library-status"
                 >{i18n.t.status.label}</label
             >
-            <select
+            <PopoverMenu
                 id="library-status"
-                class="rounded-md border border-white/10 bg-field px-3 py-1.5 text-xs text-ink outline-none focus:ring-2 focus:ring-accent/40"
-                value={status === "all" ? "all" : String(status)}
-                onchange={handleStatus}
+                options={statusOptions}
+                selected={statusValue}
+                onSelect={(value) => handleStatus(value as string)}
+                label={i18n.t.status.label}
+                placement="bottom-start"
+                openOnHover
+                closeDelay={220}
             >
-                {#each statuses as option (option)}
-                    <option value={option === "all" ? "all" : String(option)}
-                        >{labelForStatus(option)}</option
+                {#snippet trigger({ popoverTargetId, anchorName, isOpen })}
+                    <button
+                        type="button"
+                        popovertarget={popoverTargetId}
+                        popovertargetaction="toggle"
+                        style={isOpen ? `anchor-name: ${anchorName}` : undefined}
+                        class="tap flex h-10 shrink-0 items-center gap-2 rounded-lg border border-white/10 bg-field px-3 text-xs font-semibold text-ink transition hover:border-white/20 has-[:popover-open]:ring-2 has-[:popover-open]:ring-indigo-500/40"
+                        title={i18n.t.status.label}
                     >
-                {/each}
-            </select>
-            {#if counts[status] !== undefined}
-                <span
-                    class="rounded-full bg-card px-2.5 py-1 text-xs font-semibold text-ink"
-                    aria-live="polite">{counts[status]}</span
-                >
-            {/if}
+                        <span class="truncate">{labelForStatus(status)}</span>
+                        {#if counts[status] !== undefined}
+                            <span
+                                class="rounded-full bg-card px-2 py-0.5 text-[10px] font-bold text-muted"
+                                aria-live="polite">{counts[status]}</span
+                            >
+                        {/if}
+                        <ChevronDown
+                            size={14}
+                            class="shrink-0 text-muted"
+                            aria-hidden="true"
+                        />
+                    </button>
+                {/snippet}
+            </PopoverMenu>
         </div>
 
         <div class="flex items-center gap-2">
             <label class="relative min-w-0 flex-1 lg:w-52 lg:flex-none">
                 <span class="sr-only">{i18n.t.header.searchButton}</span>
                 <Search
-                    size={15}
+                    size={18}
                     class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted"
                     aria-hidden="true"
                 />
                 <input
-                    class="h-12 w-full rounded-lg border border-white/10 bg-field pl-9 pr-2.5 text-sm text-ink outline-none placeholder:text-muted focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/30"
+                    class="h-10 w-full rounded-lg border border-white/10 bg-field pl-9 pr-2.5 text-sm text-ink outline-none placeholder:text-muted focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/30"
                     value={search}
                     placeholder={i18n.t.header.searchButton}
                     oninput={handleSearch}
@@ -211,11 +239,11 @@
                         popovertarget={popoverTargetId}
                         popovertargetaction="toggle"
                         style={isOpen ? `anchor-name: ${anchorName}` : undefined}
-                        class="tap grid h-12 w-12 shrink-0 place-items-center rounded-lg border border-white/10 bg-field text-muted transition hover:border-white/20 hover:text-ink has-[:popover-open]:ring-2 has-[:popover-open]:ring-indigo-500/40"
+                        class="tap grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-white/10 bg-field text-muted transition hover:border-white/20 hover:text-ink has-[:popover-open]:ring-2 has-[:popover-open]:ring-indigo-500/40"
                         title={i18n.t.sort.label}
                         aria-label={i18n.t.sort.label}
                     >
-                        <SortIcon size={22} stroke-width={2} aria-hidden="true" />
+                        <SortIcon size={18} stroke-width={2} aria-hidden="true" />
                     </button>
                 {/snippet}
                 {#snippet renderOption({ option })}

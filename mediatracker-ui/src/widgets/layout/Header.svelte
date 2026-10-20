@@ -1,6 +1,7 @@
 ﻿<script lang="ts">
-    import { Search } from "$shared/ui/Icons.svelte";
+    import { ChevronDown, Languages, Search } from "$shared/ui/Icons.svelte";
     import { i18n, locales, type Locale } from "$shared/i18n/index.svelte";
+    import PopoverMenu from "$shared/ui/PopoverMenu.svelte";
     import ActivityDropdown from "./ActivityDropdown.svelte";
 
     interface Props {
@@ -10,11 +11,10 @@
 
     let { title, onSearch }: Props = $props();
 
-    function changeLocale(event: Event) {
-        i18n.setLocale(
-            (event.currentTarget as HTMLSelectElement).value as Locale,
-        );
-    }
+    const localeOptions = locales.map((locale) => ({
+        value: locale,
+        label: locale.toUpperCase(),
+    }));
 </script>
 
 <div
@@ -57,15 +57,32 @@
         <label class="sr-only" for="language-select"
             >{i18n.t.header.language}</label
         >
-        <select
+        <PopoverMenu
             id="language-select"
-            class="h-9 rounded-lg border border-white/[0.08] bg-elevated px-2 text-xs font-semibold text-ink outline-none transition focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/30"
-            value={i18n.current}
-            onchange={changeLocale}
+            options={localeOptions}
+            selected={i18n.current}
+            onSelect={(locale) => i18n.setLocale(locale as Locale)}
+            label={i18n.t.header.language}
+            placement="bottom-end"
         >
-            {#each locales as locale}
-                <option value={locale}>{locale.toUpperCase()}</option>
-            {/each}
-        </select>
+            {#snippet trigger({ popoverTargetId, anchorName, isOpen })}
+                <button
+                    type="button"
+                    popovertarget={popoverTargetId}
+                    popovertargetaction="toggle"
+                    style={isOpen ? `anchor-name: ${anchorName}` : undefined}
+                    class="tap inline-flex h-9 items-center gap-1.5 rounded-lg border border-white/[0.08] bg-elevated px-2.5 text-xs font-semibold text-ink transition hover:border-indigo-500/40 hover:text-white focus:outline-none focus:ring-1 focus:ring-indigo-500/30"
+                    title={i18n.t.header.language}
+                >
+                    <Languages
+                        size={15}
+                        class="text-muted"
+                        aria-hidden="true"
+                    />
+                    {i18n.current.toUpperCase()}
+                    <ChevronDown size={14} class="text-muted" aria-hidden="true" />
+                </button>
+            {/snippet}
+        </PopoverMenu>
     </div>
 </div>

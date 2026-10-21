@@ -24,7 +24,7 @@ using Microsoft.OpenApi;
 
 if (OperatingSystem.IsLinux())
 {
-    // Принудительный бэкенд X11/XWayland для стабильности GTK3 и защита от крашей DMA-BUF
+    // Enforce X11 backend on Linux for GTK3 stability and DMA-BUF crash prevention
     if (
         string.IsNullOrEmpty(Environment.GetEnvironmentVariable("GDK_BACKEND"))
         || string.Equals(
@@ -152,6 +152,11 @@ try
     {
         options.AddDocumentTransformer((document, context, cancellationToken) =>
         {
+            document.Info ??= new OpenApiInfo();
+            document.Info.Title = "Tsundoku API";
+            document.Info.Version = "v1";
+            document.Info.Description = "Персональный автономный REST API для управления медиатекой (книги, манга, аниме, фильмы, сериалы, игры), интеграций с Home Assistant, ботами и скриптами автоматизации. Поддерживает Bearer/X-Api-Key авторизацию.";
+
             document.Components ??= new OpenApiComponents();
             document.Components.SecuritySchemes ??= new Dictionary<string, IOpenApiSecurityScheme>();
 
@@ -228,7 +233,7 @@ try
 
     app.MapOpenApi();
     app.UseOpenApiUi(config => config.OpenApiSpecPath = "/openapi/v1.json");
-    app.MapGet("/api/docs", () => Results.Redirect("/openapi-ui"));
+    app.MapGet("/api/docs", () => Results.Redirect("/openapi-ui")).ExcludeFromDescription();
 
     var embeddedProvider = new ManifestEmbeddedFileProvider(typeof(Program).Assembly, "wwwroot");
     var wwwrootCandidates = new[]
@@ -348,7 +353,7 @@ try
     {
         await app.StartAsync();
 
-        // Фоновый запуск бэкфилла франшиз без блокировки открытия UI-окна
+        // Start background franchise backfill without blocking UI window opening
         StartBackgroundFranchiseBackfill(app);
 
         if (OperatingSystem.IsLinux() && !options.IsHeadless && !options.MigrateOnly)
@@ -396,7 +401,7 @@ try
             Console.WriteLine($"[Tsundoku] Откройте приложение в браузере: {options.ServerUrl}");
             Console.WriteLine();
 
-            // Сервер не гасится, а ждет сигнала завершения (Ctrl+C / SIGTERM)
+            // Server keeps running and waits for shutdown signal (Ctrl+C / SIGTERM)
             await app.WaitForShutdownAsync();
             return 0;
         }
@@ -487,7 +492,7 @@ static void ConfigureWebView2(AppPaths appPaths)
 
 static void ConfigureLinuxEnvironment(AppPaths appPaths)
 {
-    // Защита от краша "Protocol error dispatching to Wayland display" в WebKitGTK / Photino
+    // Prevent WebKitGTK / Photino "Protocol error dispatching to Wayland display" crash
     if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("GDK_BACKEND")))
     {
         Environment.SetEnvironmentVariable("GDK_BACKEND", "x11");
@@ -521,7 +526,7 @@ static async Task InitializeDatabaseAsync(WebApplication app)
 
 static void StartBackgroundFranchiseBackfill(WebApplication app)
 {
-    // Фоновый запуск бэкфилла франшиз без блокировки открытия UI-окна
+    // Start background franchise backfill without blocking UI window opening
     _ = Task.Run(async () =>
     {
         try

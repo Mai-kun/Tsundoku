@@ -11,7 +11,10 @@ public static class LogEndpoints
         app.MapPost("/api/logs/client", (
                 ClientLogRequest request,
                 [FromServices] IClientLogHandler handler) =>
-            handler.Handle(request).ToNoContent());
+            handler.Handle(request).ToNoContent())
+            .WithTags("Система / System")
+            .WithSummary("Запись клиентских логов")
+            .WithDescription("Принимает сообщения об ошибках и событиях с фронтенда для централизованного логирования на сервере.");
 
         return app;
     }

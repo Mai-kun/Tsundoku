@@ -13,7 +13,9 @@ public static class JobEndpoints
     {
         var group = app.MapGroup("/api/jobs");
 
-        group.MapGet("/", ([FromServices] IJobManager jobs) => Results.Ok(jobs.GetSnapshot()));
+        group.MapGet("/", ([FromServices] IJobManager jobs) => Results.Ok(jobs.GetSnapshot()))
+            .WithTags("Фоновые задачи / Jobs")
+            .WithSummary("Снимок очереди задач");
 
         group.MapGet("/stream", async (
             HttpContext context,
@@ -40,12 +42,16 @@ public static class JobEndpoints
             {
                 await WriteAsync(response, job, ct).ConfigureAwait(false);
             }
-        });
+        })
+        .WithTags("Фоновые задачи / Jobs")
+        .WithSummary("SSE-стрим живого прогресса задач (Server-Sent Events)");
 
         group.MapPost("/{id:guid}/cancel", (
             Guid id,
             [FromServices] IJobManager jobs) =>
-            jobs.CancelJob(id) ? Results.NoContent() : Results.NotFound());
+            jobs.CancelJob(id) ? Results.NoContent() : Results.NotFound())
+            .WithTags("Фоновые задачи / Jobs")
+            .WithSummary("Отменить выполнение задачи");
 
         return app;
     }

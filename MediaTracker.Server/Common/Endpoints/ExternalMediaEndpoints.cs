@@ -23,7 +23,9 @@ public static class ExternalMediaEndpoints
                 bool? byCreator,
                 [FromServices] ISearchExternalHandler handler,
                 CancellationToken ct) =>
-            handler.HandleAsync(new SearchExternalQuery(type, query, source, byCreator == true), ct).ToOk());
+            handler.HandleAsync(new SearchExternalQuery(type, query, source, byCreator == true), ct).ToOk())
+            .WithTags("Внешний поиск / External")
+            .WithSummary("Поиск по внешним базам (с поддержкой выбора источника и студии/автора)");
 
         group.MapGet("/details", (
                 string? type,
@@ -32,13 +34,17 @@ public static class ExternalMediaEndpoints
                 string? source,
                 [FromServices] IGetExternalDetailsHandler handler,
                 CancellationToken ct) =>
-            handler.HandleAsync(new GetExternalDetailsQuery(type, id, title, source), ct).ToOk());
+            handler.HandleAsync(new GetExternalDetailsQuery(type, id, title, source), ct).ToOk())
+            .WithTags("Внешний поиск / External")
+            .WithSummary("Детальные метаданные из внешнего источника");
 
         group.MapPost("/translate", (
                 TranslateRequest request,
                 [FromServices] ITranslateTextHandler handler,
                 CancellationToken ct) =>
-            handler.HandleAsync(new TranslateTextCommand(request.Text, request.TargetLanguage), ct).ToOk());
+            handler.HandleAsync(new TranslateTextCommand(request.Text, request.TargetLanguage), ct).ToOk())
+            .WithTags("Внешний поиск / External")
+            .WithSummary("Машинный перевод синопсиса");
 
         group.MapGet("/games/achievements", (
                 string? steamAppId,
@@ -50,7 +56,9 @@ public static class ExternalMediaEndpoints
                 CancellationToken ct) =>
             handler.HandleAsync(
                 new GetGameAchievementsQuery(steamAppId, rawgId, title, externalSource, externalId),
-                ct).ToOk());
+                ct).ToOk())
+            .WithTags("Внешний поиск / External")
+            .WithSummary("Список достижений игры");
 
         group.MapGet("/games/related", (
                 string? rawgId,
@@ -61,7 +69,9 @@ public static class ExternalMediaEndpoints
                 CancellationToken ct) =>
             handler.HandleAsync(
                 new GetGameRelatedQuery(rawgId, title, externalSource, externalId),
-                ct).ToOk());
+                ct).ToOk())
+            .WithTags("Внешний поиск / External")
+            .WithSummary("Связанные игры (DLC, спин-оффы, серии)");
 
         group.MapGet("/games/recommendations", (
                 string? rawgId,
@@ -72,7 +82,9 @@ public static class ExternalMediaEndpoints
                 CancellationToken ct) =>
             handler.HandleAsync(
                 new GetGameRecommendationsQuery(rawgId, title, externalSource, externalId),
-                ct).ToOk());
+                ct).ToOk())
+            .WithTags("Внешний поиск / External")
+            .WithSummary("Рекомендации похожих игр");
 
         // Relations are requested explicitly, never on card open. `kind` picks the relationship:
         // "related" is the full pool, "recommendations" is what the source itself recommends.
@@ -86,7 +98,9 @@ public static class ExternalMediaEndpoints
                 CancellationToken ct) =>
             handler.HandleAsync(
                 new GetExternalRelationsQuery(type, externalId, title, source, kind),
-                ct).ToOk());
+                ct).ToOk())
+            .WithTags("Внешний поиск / External")
+            .WithSummary("Связанные тайтлы франшизы");
 
         return app;
     }

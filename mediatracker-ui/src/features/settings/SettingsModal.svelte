@@ -1456,28 +1456,30 @@
                                 {i18n.t.settingsModal.apiTokens.description}
                             </p>
                         </div>
-                        <div class="flex items-center gap-3 shrink-0">
+                        <div class="flex items-center gap-2.5 shrink-0">
                             <a
                                 href="/api/docs"
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/[0.06] hover:bg-white/[0.1] text-[#a5b4fc] border border-white/[0.08] transition shadow-sm tap"
+                                class="h-9 px-3.5 inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 text-xs font-semibold text-slate-200 transition cursor-pointer"
                             >
                                 <span>{i18n.t.settingsModal.apiTokens.docsButton}</span>
                                 <ExternalLink size={13} />
                             </a>
-                            <button
-                                type="button"
-                                class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-[#5844e0] hover:bg-[#6854f0] text-white transition shadow-sm tap cursor-pointer"
-                                onclick={() => {
-                                    newTokenName = "";
-                                    newTokenExpiresInDays = undefined;
-                                    showCreateTokenModal = true;
-                                }}
-                            >
-                                <Plus size={15} />
-                                <span>{i18n.t.settingsModal.apiTokens.createButton}</span>
-                            </button>
+                            {#if tokens.length > 0}
+                                <button
+                                    type="button"
+                                    class="h-9 px-3.5 inline-flex items-center gap-2 rounded-lg bg-accent hover:bg-accent-hover text-xs font-semibold text-white shadow-md shadow-accent/20 transition cursor-pointer"
+                                    onclick={() => {
+                                        newTokenName = "";
+                                        newTokenExpiresInDays = undefined;
+                                        showCreateTokenModal = true;
+                                    }}
+                                >
+                                    <Plus size={14} />
+                                    <span>{i18n.t.settingsModal.apiTokens.createButton}</span>
+                                </button>
+                            {/if}
                         </div>
                     </div>
 
@@ -1500,14 +1502,14 @@
                             </p>
                             <button
                                 type="button"
-                                class="mt-4 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold bg-[#5844e0] hover:bg-[#6854f0] text-white transition tap cursor-pointer"
+                                class="mt-4 h-9 px-3.5 inline-flex items-center gap-2 rounded-lg bg-accent hover:bg-accent-hover text-xs font-semibold text-white shadow-md shadow-accent/20 transition cursor-pointer"
                                 onclick={() => {
                                     newTokenName = "";
                                     newTokenExpiresInDays = undefined;
                                     showCreateTokenModal = true;
                                 }}
                             >
-                                <Plus size={15} />
+                                <Plus size={14} />
                                 <span>{i18n.t.settingsModal.apiTokens.createButton}</span>
                             </button>
                         </div>

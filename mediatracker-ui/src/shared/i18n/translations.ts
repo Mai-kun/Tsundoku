@@ -1108,7 +1108,7 @@ export const translations = {
                 en: "Use tokens for integration with Home Assistant, Telegram bots, automation scripts, and external apps.",
             },
             docsButton: { ru: "Документация API (/api/docs)", en: "API Documentation (/api/docs)" },
-            createButton: { ru: "+ Сгенерировать новый токен", en: "+ Generate New Token" },
+            createButton: { ru: "Сгенерировать новый токен", en: "Generate new token" },
             emptyState: { ru: "У вас пока нет активных API-токенов", en: "You don't have any active API tokens yet" },
             modalTitle: { ru: "Новый токен доступа", en: "New Access Token" },
             nameLabel: { ru: "Название токена", en: "Token Name" },

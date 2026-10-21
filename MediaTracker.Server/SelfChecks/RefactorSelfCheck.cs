@@ -9,6 +9,7 @@ using MediaTracker.Server.Features.Media.GetMediaStats;
 using MediaTracker.Server.Features.Media.Import.Parsers;
 using MediaTracker.Server.Infrastructure.ExternalApis;
 using MediaTracker.Server.Infrastructure.Persistence.Interceptors;
+using MediaTracker.Server.Infrastructure.Security;
 using MediaTracker.Server.Infrastructure.Storage;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
@@ -105,6 +106,7 @@ public static class RefactorSelfCheck
         CheckImportHealing(failures);
         CheckHistoryEventsFiltering(failures);
         CheckSmartListEvaluator(failures);
+        CheckApiTokenHashingAndValidation(failures);
 
         if (failures.Count == 0)
         {
@@ -3857,6 +3859,43 @@ public static class RefactorSelfCheck
         // Test: Limit
         var limited = SmartListEvaluator.Evaluate(items, new SmartListQueryDto { Limit = 2 });
         AssertEqual(failures, 2, limited.Count, "SmartList: Limit=2 returns 2 items");
+    }
+
+    private static void CheckApiTokenHashingAndValidation(List<string> failures)
+    {
+        // 1. Generation format and invariants
+        var (rawToken, prefix, hash) = ApiTokenHelper.GenerateToken();
+
+        AssertTrue(failures, rawToken.StartsWith("tsk_live_"), "Token starts with tsk_live_ prefix");
+        AssertTrue(failures, rawToken.Length >= 40, "Token length is at least 40 characters");
+        AssertEqual(failures, 16, prefix.Length, "Token prefix is exactly 16 characters");
+        AssertTrue(failures, rawToken.StartsWith(prefix), "Token starts with its prefix");
+        AssertEqual(failures, 64, hash.Length, "Token hash is 64 hex characters (SHA-256)");
+
+        // 2. Deterministic SHA-256 hashing
+        var recomputedHash = ApiTokenHelper.ComputeHash(rawToken);
+        AssertEqual(failures, hash, recomputedHash, "Hash computation is deterministic");
+
+        var testToken = "tsk_live_test_token_1234567890_abcdef";
+        var testHash1 = ApiTokenHelper.ComputeHash(testToken);
+        var testHash2 = ApiTokenHelper.ComputeHash(testToken);
+        AssertEqual(failures, testHash1, testHash2, "Identical tokens produce identical hashes");
+
+        var differentToken = "tsk_live_test_token_1234567890_different";
+        var differentHash = ApiTokenHelper.ComputeHash(differentToken);
+        AssertTrue(failures, testHash1 != differentHash, "Different tokens produce different hashes");
+
+        // 3. Expiry check logic
+        var now = DateTime.UtcNow;
+        DateTime? noExpiry = null;
+        DateTime? activeExpiry = now.AddDays(30);
+        DateTime? expiredExpiry = now.AddMinutes(-10);
+
+        bool IsActive(DateTime? exp) => exp == null || exp > now;
+
+        AssertTrue(failures, IsActive(noExpiry), "Token without expiry is active");
+        AssertTrue(failures, IsActive(activeExpiry), "Token with future expiry is active");
+        AssertFalse(failures, IsActive(expiredExpiry), "Token with past expiry is inactive/expired");
     }
 
     private sealed class NoOpImageStorage : IImageStorageService

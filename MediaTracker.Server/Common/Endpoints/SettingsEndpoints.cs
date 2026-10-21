@@ -1,4 +1,5 @@
 using MediaTracker.Server.Common.Http;
+using MediaTracker.Server.Features.Settings.ApiTokens;
 using MediaTracker.Server.Features.Settings.GetCategoryOrder;
 using MediaTracker.Server.Features.Settings.GetSourcePriority;
 using MediaTracker.Server.Features.Settings.SaveCategoryOrder;
@@ -74,6 +75,21 @@ public static class SettingsEndpoints
                 [FromServices] ISaveReadingSettingsHandler handler,
                 CancellationToken ct) =>
             handler.HandleAsync(request, ct).ToOk());
+
+        group.MapGet("/tokens", ([FromServices] IGetApiTokensHandler handler, CancellationToken ct) =>
+            handler.HandleAsync(ct).ToOk());
+
+        group.MapPost("/tokens", (
+                CreateApiTokenRequest request,
+                [FromServices] ICreateApiTokenHandler handler,
+                CancellationToken ct) =>
+            handler.HandleAsync(request, ct).ToCreated("/api/settings/tokens"));
+
+        group.MapDelete("/tokens/{id:guid}", (
+                Guid id,
+                [FromServices] IRevokeApiTokenHandler handler,
+                CancellationToken ct) =>
+            handler.HandleAsync(id, ct).ToNoContent());
 
         group.MapGet("/backup/export", async (
             [FromServices] MediaTracker.Server.Infrastructure.Storage.IBackupService backupService,

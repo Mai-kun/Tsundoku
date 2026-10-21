@@ -19,9 +19,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 using Serilog;
 using Serilog.Events;
-#if DEBUG
 using OpenApiUi;
-#endif
+using Microsoft.OpenApi;
 
 if (OperatingSystem.IsLinux())
 {
@@ -149,9 +148,35 @@ try
         options.SerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
     });
 
-#if DEBUG
-    builder.Services.AddOpenApi();
-#endif
+    builder.Services.AddOpenApi(options =>
+    {
+        options.AddDocumentTransformer((document, context, cancellationToken) =>
+        {
+            document.Components ??= new OpenApiComponents();
+            document.Components.SecuritySchemes ??= new Dictionary<string, IOpenApiSecurityScheme>();
+
+            var bearerScheme = new OpenApiSecurityScheme
+            {
+                Type = SecuritySchemeType.Http,
+                Scheme = "bearer",
+                BearerFormat = "Token",
+                Description = "Enter your API token (tsk_live_...)"
+            };
+
+            var apiKeyScheme = new OpenApiSecurityScheme
+            {
+                Type = SecuritySchemeType.ApiKey,
+                Name = "X-Api-Key",
+                In = ParameterLocation.Header,
+                Description = "Enter your API token in the X-Api-Key header"
+            };
+
+            document.Components.SecuritySchemes["Bearer"] = bearerScheme;
+            document.Components.SecuritySchemes["ApiKey"] = apiKeyScheme;
+
+            return Task.CompletedTask;
+        });
+    });
 
     builder.Services.AddProblemDetails();
     builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
@@ -196,14 +221,14 @@ try
 
     app.UseExceptionHandler();
 
-#if DEBUG
     if (app.Environment.IsDevelopment())
     {
         app.UseCors("DevCorsPolicy");
-        app.MapOpenApi();
-        app.UseOpenApiUi(config => config.OpenApiSpecPath = "/openapi/v1.json");
     }
-#endif
+
+    app.MapOpenApi();
+    app.UseOpenApiUi(config => config.OpenApiSpecPath = "/openapi/v1.json");
+    app.MapGet("/api/docs", () => Results.Redirect("/openapi-ui"));
 
     var embeddedProvider = new ManifestEmbeddedFileProvider(typeof(Program).Assembly, "wwwroot");
     var wwwrootCandidates = new[]
@@ -270,6 +295,8 @@ try
                     "public, max-age=31536000, immutable",
         }
     );
+
+    app.UseMiddleware<ApiKeyAuthMiddleware>();
 
     app.MapMediaEndpoints();
     app.MapListEndpoints();

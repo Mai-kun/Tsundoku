@@ -26,6 +26,7 @@ using MediaTracker.Server.Features.Media.UpdateMedia;
 using MediaTracker.Server.Features.Media.UpdateProgress;
 using MediaTracker.Server.Features.Media.UpdateStatus;
 using MediaTracker.Server.Features.Seasons.UpdateSeasonProgress;
+using MediaTracker.Server.Features.Settings.ApiTokens;
 using MediaTracker.Server.Features.Settings.GetCategoryOrder;
 using MediaTracker.Server.Features.Settings.GetSourcePriority;
 using MediaTracker.Server.Features.Settings.SaveCategoryOrder;
@@ -97,6 +98,11 @@ public static class FeatureRegistration
         services.AddScoped<IGetReadingSettingsHandler, GetReadingSettingsHandler>();
         services.AddScoped<ISaveReadingSettingsHandler, SaveReadingSettingsHandler>();
         services.AddScoped<IResetDataHandler, ResetDataHandler>();
+
+        // API Tokens
+        services.AddScoped<IGetApiTokensHandler, GetApiTokensHandler>();
+        services.AddScoped<ICreateApiTokenHandler, CreateApiTokenHandler>();
+        services.AddScoped<IRevokeApiTokenHandler, RevokeApiTokenHandler>();
 
         // Logs
         services.AddScoped<IClientLogHandler, ClientLogHandler>();

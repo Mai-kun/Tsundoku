@@ -1,5 +1,7 @@
 import { i18n } from "$shared/i18n/index.svelte";
 import type {
+  ApiTokenSummary,
+  CreateApiTokenResponse,
   ConnectionTestResult,
   CreateMediaPayload,
   ExternalMedia,
@@ -598,4 +600,22 @@ export function resetAllData(keepApiKeys: boolean = true): Promise<void> {
     "/api/settings/reset",
     jsonOptions("POST", { keepApiKeys }),
   );
+}
+
+export function getApiTokens(): Promise<ApiTokenSummary[]> {
+  return requestJson<ApiTokenSummary[]>("/api/settings/tokens");
+}
+
+export function createApiToken(
+  name: string,
+  expiresInDays?: number,
+): Promise<CreateApiTokenResponse> {
+  return requestJson<CreateApiTokenResponse>(
+    "/api/settings/tokens",
+    jsonOptions("POST", { name, expiresInDays }),
+  );
+}
+
+export function revokeApiToken(id: string): Promise<void> {
+  return requestVoid(`/api/settings/tokens/${id}`, { method: "DELETE" });
 }

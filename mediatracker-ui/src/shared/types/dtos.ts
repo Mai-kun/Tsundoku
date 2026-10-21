@@ -265,3 +265,20 @@ export interface ConnectionTestResult {
   message: string;
 }
 
+export interface ApiTokenSummary {
+  id: string;
+  name: string;
+  tokenPrefix: string;
+  createdAt: string;
+  lastUsedAt: string | null;
+  expiresAt: string | null;
+}
+
+export interface CreateApiTokenResponse {
+  id: string;
+  name: string;
+  tokenPrefix: string;
+  rawToken: string;
+}
+
+

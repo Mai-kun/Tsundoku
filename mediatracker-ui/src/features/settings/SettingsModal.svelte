@@ -7,11 +7,14 @@
         Check,
         ChevronDown,
         ChevronUp,
+        Copy,
+        ExternalLink,
         Eye,
         EyeOff,
         FolderInput,
         Key,
         LoaderCircle,
+        Plus,
         RefreshCw,
         RotateCcw,
         Search,
@@ -24,13 +27,16 @@
     import { onMount } from "svelte";
     import { uiSettings } from "$shared/utils/uiSettings.svelte";
     import {
+        createApiToken,
         errorMessage,
         exportBackup,
+        getApiTokens,
         getCategoryOrder,
         getSources,
         getSourcePriority,
         restoreBackup,
         resetAllData,
+        revokeApiToken,
         saveCategoryOrder,
         saveSourceKey,
         saveSourcePriority,
@@ -41,7 +47,7 @@
     import { i18n } from "$shared/i18n/index.svelte";
     import Modal from "$shared/ui/Modal.svelte";
     import ImportPanel from "$features/import-media/ImportPanel.svelte";
-    import type { ConnectionTestResult, SourceInfo } from "$shared/types";
+    import type { ApiTokenSummary, ConnectionTestResult, CreateApiTokenResponse, SourceInfo } from "$shared/types";
 
     interface Props {
         isOpen: boolean;
@@ -52,8 +58,127 @@
 
     let { isOpen, onClose, onImportCompleted, onNavigateToList }: Props = $props();
 
-    type Tab = "sources" | "search" | "backup" | "import" | "reading";
+    type Tab = "sources" | "search" | "backup" | "import" | "reading" | "apiTokens";
     let activeTab = $state<Tab>("sources");
+
+    let tokens = $state<ApiTokenSummary[]>([]);
+    let isLoadingTokens = $state(false);
+    let isCreatingToken = $state(false);
+    let isRevokingToken = $state(false);
+
+    let showCreateTokenModal = $state(false);
+    let newTokenName = $state("");
+    let newTokenExpiresInDays = $state<number | undefined>(undefined);
+
+    let createdTokenResult = $state<CreateApiTokenResponse | null>(null);
+    let hasCopiedToken = $state(false);
+
+    let tokenToRevoke = $state<ApiTokenSummary | null>(null);
+
+    $effect(() => {
+        if (isOpen && activeTab === "apiTokens") {
+            loadTokens();
+        }
+    });
+
+    async function loadTokens() {
+        isLoadingTokens = true;
+        try {
+            tokens = await getApiTokens();
+        } catch (e) {
+            console.error(e);
+            showToast(errorMessage(e), "error");
+        } finally {
+            isLoadingTokens = false;
+        }
+    }
+
+    async function handleCreateToken() {
+        if (!newTokenName.trim() || isCreatingToken) return;
+        isCreatingToken = true;
+        try {
+            const res = await createApiToken(
+                newTokenName.trim(),
+                newTokenExpiresInDays && newTokenExpiresInDays > 0 ? newTokenExpiresInDays : undefined,
+            );
+            createdTokenResult = res;
+            hasCopiedToken = false;
+            showCreateTokenModal = false;
+            newTokenName = "";
+            newTokenExpiresInDays = undefined;
+            showToast(i18n.t.settingsModal.apiTokens.createdToast, "success");
+            await loadTokens();
+        } catch (e) {
+            console.error(e);
+            showToast(errorMessage(e), "error");
+        } finally {
+            isCreatingToken = false;
+        }
+    }
+
+    async function handleCopyToken(token: string) {
+        try {
+            await navigator.clipboard.writeText(token);
+            hasCopiedToken = true;
+            showToast(i18n.t.settingsModal.apiTokens.copied, "success");
+            setTimeout(() => {
+                hasCopiedToken = false;
+            }, 3000);
+        } catch (e) {
+            console.error(e);
+            showToast("Failed to copy", "error");
+        }
+    }
+
+    async function handleRevokeToken() {
+        if (!tokenToRevoke || isRevokingToken) return;
+        isRevokingToken = true;
+        try {
+            await revokeApiToken(tokenToRevoke.id);
+            tokens = tokens.filter((t) => t.id !== tokenToRevoke!.id);
+            showToast(i18n.t.settingsModal.apiTokens.revokedToast, "success");
+            tokenToRevoke = null;
+        } catch (e) {
+            console.error(e);
+            showToast(errorMessage(e), "error");
+        } finally {
+            isRevokingToken = false;
+        }
+    }
+
+    function formatRelativeTime(dateString: string | null | undefined): string {
+        if (!dateString) return i18n.t.settingsModal.apiTokens.neverUsed;
+        const date = new Date(dateString);
+        const diffSec = Math.round((date.getTime() - Date.now()) / 1000);
+        const diffMin = Math.round(diffSec / 60);
+        const diffHours = Math.round(diffMin / 60);
+        const diffDays = Math.round(diffHours / 24);
+
+        try {
+            const rtf = new Intl.RelativeTimeFormat(i18n.current, { numeric: "auto" });
+            if (Math.abs(diffSec) < 60) {
+                return i18n.current === "ru" ? "только что" : "just now";
+            }
+            if (Math.abs(diffMin) < 60) {
+                return rtf.format(diffMin, "minute");
+            }
+            if (Math.abs(diffHours) < 24) {
+                return rtf.format(diffHours, "hour");
+            }
+            return rtf.format(diffDays, "day");
+        } catch {
+            return date.toLocaleDateString();
+        }
+    }
+
+    function formatDate(dateString: string | null | undefined): string {
+        if (!dateString) return "";
+        return new Date(dateString).toLocaleDateString(i18n.current, {
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+        });
+    }
 
     let readingBookPageMinutes = $state(uiSettings.bookPageMinutes);
     let readingMangaChapterMinutes = $state(uiSettings.mangaChapterMinutes);
@@ -555,6 +680,19 @@
                 >
                     <BookOpen size={16} />
                     <span>{i18n.t.settingsModal.tabs.reading}</span>
+                </button>
+
+                <button
+                    type="button"
+                    class={`flex items-center gap-3 w-full px-3.5 py-2.5 rounded-lg text-xs text-left transition tap cursor-pointer ${
+                        activeTab === "apiTokens"
+                            ? "bg-[#5844e0]/15 text-[#a5b4fc] font-semibold border border-[#5844e0]/30 shadow-sm"
+                            : "text-muted hover:text-white hover:bg-white/5 font-medium border border-transparent"
+                    }`}
+                    onclick={() => (activeTab = "apiTokens")}
+                >
+                    <Key size={16} />
+                    <span>{i18n.t.settingsModal.tabs.apiTokens}</span>
                 </button>
             </nav>
 
@@ -1306,6 +1444,113 @@
                         </div>
                     </div>
                 </section>
+            {:else if activeTab === "apiTokens"}
+                <section class="space-y-6">
+                    <!-- Header -->
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-5 border-b border-white/[0.08]">
+                        <div>
+                            <h3 class="text-base font-bold text-ink">
+                                {i18n.t.settingsModal.apiTokens.title}
+                            </h3>
+                            <p class="mt-1 text-xs text-muted max-w-xl leading-relaxed">
+                                {i18n.t.settingsModal.apiTokens.description}
+                            </p>
+                        </div>
+                        <div class="flex items-center gap-3 shrink-0">
+                            <a
+                                href="/api/docs"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/[0.06] hover:bg-white/[0.1] text-[#a5b4fc] border border-white/[0.08] transition shadow-sm tap"
+                            >
+                                <span>{i18n.t.settingsModal.apiTokens.docsButton}</span>
+                                <ExternalLink size={13} />
+                            </a>
+                            <button
+                                type="button"
+                                class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-[#5844e0] hover:bg-[#6854f0] text-white transition shadow-sm tap cursor-pointer"
+                                onclick={() => {
+                                    newTokenName = "";
+                                    newTokenExpiresInDays = undefined;
+                                    showCreateTokenModal = true;
+                                }}
+                            >
+                                <Plus size={15} />
+                                <span>{i18n.t.settingsModal.apiTokens.createButton}</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Token list or empty state -->
+                    {#if isLoadingTokens}
+                        <div class="flex flex-col items-center justify-center p-12 text-center">
+                            <LoaderCircle size={28} class="animate-spin text-[#a5b4fc] mb-3" />
+                            <p class="text-xs text-muted">Загрузка...</p>
+                        </div>
+                    {:else if tokens.length === 0}
+                        <div class="flex flex-col items-center justify-center p-12 text-center border border-dashed border-white/[0.1] rounded-2xl bg-white/[0.02]">
+                            <div class="grid h-12 w-12 place-items-center rounded-2xl bg-[#5844e0]/10 text-[#a5b4fc] mb-3">
+                                <Key size={22} />
+                            </div>
+                            <p class="text-sm font-medium text-slate-300">
+                                {i18n.t.settingsModal.apiTokens.emptyState}
+                            </p>
+                            <p class="text-xs text-muted mt-1 max-w-sm">
+                                {i18n.t.settingsModal.apiTokens.description}
+                            </p>
+                            <button
+                                type="button"
+                                class="mt-4 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold bg-[#5844e0] hover:bg-[#6854f0] text-white transition tap cursor-pointer"
+                                onclick={() => {
+                                    newTokenName = "";
+                                    newTokenExpiresInDays = undefined;
+                                    showCreateTokenModal = true;
+                                }}
+                            >
+                                <Plus size={15} />
+                                <span>{i18n.t.settingsModal.apiTokens.createButton}</span>
+                            </button>
+                        </div>
+                    {:else}
+                        <div class="space-y-3">
+                            {#each tokens as token (token.id)}
+                                <div class="flex items-center justify-between p-4 rounded-xl bg-field border border-white/[0.08] hover:border-white/[0.15] transition shadow-sm">
+                                    <div class="space-y-1.5 min-w-0 pr-4">
+                                        <div class="flex items-center gap-2.5 flex-wrap">
+                                            <span class="text-sm font-bold text-ink truncate">{token.name}</span>
+                                            <code class="px-2 py-0.5 rounded font-mono text-[11px] bg-black/40 text-indigo-300 border border-white/[0.06]">
+                                                {token.tokenPrefix}••••••••
+                                            </code>
+                                        </div>
+                                        <div class="flex items-center gap-4 text-[11px] text-muted flex-wrap">
+                                            <span>
+                                                {i18n.t.settingsModal.apiTokens.created}: {formatDate(token.createdAt)}
+                                            </span>
+                                            <span>•</span>
+                                            <span>
+                                                {i18n.t.settingsModal.apiTokens.lastUsed}: <strong class="text-slate-300 font-normal">{formatRelativeTime(token.lastUsedAt)}</strong>
+                                            </span>
+                                            {#if token.expiresAt}
+                                                <span>•</span>
+                                                <span class="text-amber-400/90">
+                                                    {i18n.t.settingsModal.apiTokens.expiresAt}: {formatDate(token.expiresAt)}
+                                                </span>
+                                            {/if}
+                                        </div>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        class="shrink-0 p-2 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 rounded-lg transition tap cursor-pointer"
+                                        title={i18n.t.settingsModal.apiTokens.revokeButton}
+                                        onclick={() => (tokenToRevoke = token)}
+                                    >
+                                        <Trash2 size={16} />
+                                    </button>
+                                </div>
+                            {/each}
+                        </div>
+                    {/if}
+                </section>
             {/if}
         </div>
     </div>
@@ -1418,6 +1663,198 @@
                 {:else}
                     <AlertTriangle size={14} />
                     {i18n.t.settingsModal.backup.confirmButton}
+                {/if}
+            </button>
+        </div>
+    </div>
+</Modal>
+
+<!-- Create API Token Modal -->
+<Modal isOpen={showCreateTokenModal} onClose={() => (showCreateTokenModal = false)} labelledBy="create-token-title">
+    <div class="p-6">
+        <div class="flex items-start gap-4 mb-5">
+            <div class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#5844e0]/15 text-[#a5b4fc]">
+                <Key size={20} />
+            </div>
+            <div>
+                <h3 id="create-token-title" class="text-base font-bold text-ink">
+                    {i18n.t.settingsModal.apiTokens.modalTitle}
+                </h3>
+                <p class="mt-1 text-xs text-muted leading-relaxed">
+                    {i18n.t.settingsModal.apiTokens.description}
+                </p>
+            </div>
+        </div>
+
+        <form
+            onsubmit={(e) => {
+                e.preventDefault();
+                handleCreateToken();
+            }}
+            class="space-y-4"
+        >
+            <div class="space-y-1.5">
+                <label for="token-name-input" class="block text-xs font-semibold text-slate-300">
+                    {i18n.t.settingsModal.apiTokens.nameLabel} <span class="text-rose-400">*</span>
+                </label>
+                <input
+                    id="token-name-input"
+                    type="text"
+                    required
+                    maxlength="100"
+                    placeholder={i18n.t.settingsModal.apiTokens.namePlaceholder}
+                    class="w-full rounded-lg border border-white/10 bg-field px-3 py-2 text-sm text-ink outline-none transition focus:border-accent-soft focus:ring-1 focus:ring-accent-soft"
+                    bind:value={newTokenName}
+                />
+            </div>
+
+            <div class="space-y-1.5">
+                <label for="token-expires-input" class="block text-xs font-semibold text-slate-300">
+                    {i18n.t.settingsModal.apiTokens.expiresInDaysLabel}
+                </label>
+                <input
+                    id="token-expires-input"
+                    type="number"
+                    min="1"
+                    max="3650"
+                    placeholder={i18n.t.settingsModal.apiTokens.expiresInDaysPlaceholder}
+                    class="w-full rounded-lg border border-white/10 bg-field px-3 py-2 text-sm text-ink outline-none transition focus:border-accent-soft focus:ring-1 focus:ring-accent-soft"
+                    bind:value={newTokenExpiresInDays}
+                />
+            </div>
+
+            <div class="mt-6 flex items-center justify-end gap-3 border-t border-white/[0.07] pt-4">
+                <button
+                    type="button"
+                    class="inline-flex h-9 items-center rounded-md border border-white/10 bg-field px-4 text-xs font-semibold text-ink transition hover:bg-card cursor-pointer"
+                    disabled={isCreatingToken}
+                    onclick={() => (showCreateTokenModal = false)}
+                >
+                    {i18n.t.settingsModal.apiTokens.cancel}
+                </button>
+                <button
+                    type="submit"
+                    class="inline-flex h-9 items-center gap-2 rounded-md bg-[#5844e0] px-4 text-xs font-semibold text-white transition hover:bg-[#6854f0] cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+                    disabled={isCreatingToken || !newTokenName.trim()}
+                >
+                    {#if isCreatingToken}
+                        <LoaderCircle size={14} class="animate-spin" />
+                        {i18n.t.settingsModal.apiTokens.generating}
+                    {:else}
+                        <Plus size={14} />
+                        {i18n.t.settingsModal.apiTokens.generateSubmit}
+                    {/if}
+                </button>
+            </div>
+        </form>
+    </div>
+</Modal>
+
+<!-- Generated API Token Reveal Modal (Shown once!) -->
+<Modal isOpen={createdTokenResult !== null} onClose={() => (createdTokenResult = null)} labelledBy="token-reveal-title">
+    <div class="p-6">
+        <div class="flex items-start gap-4 mb-4">
+            <div class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-emerald-500/15 text-emerald-400">
+                <ShieldCheck size={22} />
+            </div>
+            <div>
+                <h3 id="token-reveal-title" class="text-base font-bold text-ink">
+                    {createdTokenResult?.name}
+                </h3>
+                <p class="mt-0.5 text-xs text-muted">
+                    {i18n.t.settingsModal.apiTokens.modalTitle}
+                </p>
+            </div>
+        </div>
+
+        <!-- Warning in gold/amber -->
+        <div class="flex items-start gap-3 p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs mb-4 leading-relaxed">
+            <AlertTriangle size={18} class="shrink-0 text-amber-400 mt-0.5" />
+            <div>
+                <strong class="font-semibold block text-amber-300 mb-0.5">{i18n.t.settingsModal.apiTokens.warningTitle}</strong>
+                {i18n.t.settingsModal.apiTokens.warningText}
+            </div>
+        </div>
+
+        {#if createdTokenResult}
+            <div class="space-y-2 mb-6">
+                <div class="flex items-center gap-2 p-3 bg-black/60 rounded-xl border border-white/[0.12]">
+                    <code class="font-mono text-xs sm:text-sm text-emerald-400 break-all select-all flex-1 tracking-wide">
+                        {createdTokenResult.rawToken}
+                    </code>
+                    <button
+                        type="button"
+                        class="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#5844e0] hover:bg-[#6854f0] text-white text-xs font-semibold transition tap cursor-pointer shadow-sm"
+                        onclick={() => handleCopyToken(createdTokenResult!.rawToken)}
+                    >
+                        {#if hasCopiedToken}
+                            <Check size={14} class="text-emerald-300" />
+                            <span>{i18n.t.settingsModal.apiTokens.copied}</span>
+                        {:else}
+                            <Copy size={14} />
+                            <span>{i18n.t.settingsModal.apiTokens.copyToken}</span>
+                        {/if}
+                    </button>
+                </div>
+            </div>
+        {/if}
+
+        <div class="flex justify-end pt-2">
+            <button
+                type="button"
+                class="w-full sm:w-auto inline-flex h-9 items-center justify-center rounded-lg bg-white/10 hover:bg-white/15 text-white px-5 text-xs font-semibold transition tap cursor-pointer"
+                onclick={() => (createdTokenResult = null)}
+            >
+                {i18n.t.settingsModal.apiTokens.closeModal}
+            </button>
+        </div>
+    </div>
+</Modal>
+
+<!-- Revoke API Token Confirmation Modal -->
+<Modal isOpen={tokenToRevoke !== null} onClose={() => (tokenToRevoke = null)} labelledBy="revoke-token-title">
+    <div class="p-6">
+        <div class="flex items-start gap-4">
+            <div class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-rose-500/15 text-rose-400">
+                <AlertTriangle size={20} />
+            </div>
+            <div>
+                <h3 id="revoke-token-title" class="text-base font-bold text-ink">
+                    {i18n.t.settingsModal.apiTokens.revokeConfirmTitle}
+                </h3>
+                <p class="mt-2 text-xs leading-relaxed text-muted">
+                    {i18n.t.settingsModal.apiTokens.revokeConfirmText}
+                </p>
+                {#if tokenToRevoke}
+                    <div class="mt-3 rounded-md bg-field px-3 py-2 text-xs text-ink font-mono border border-white/10">
+                        <span class="text-muted font-sans mr-2">{tokenToRevoke.name}:</span>
+                        {tokenToRevoke.tokenPrefix}••••••••
+                    </div>
+                {/if}
+            </div>
+        </div>
+
+        <div class="mt-6 flex items-center justify-end gap-3 border-t border-white/[0.07] pt-4">
+            <button
+                type="button"
+                class="inline-flex h-9 items-center rounded-md border border-white/10 bg-field px-4 text-xs font-semibold text-ink transition hover:bg-card cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={isRevokingToken}
+                onclick={() => (tokenToRevoke = null)}
+            >
+                {i18n.t.settingsModal.apiTokens.cancel}
+            </button>
+            <button
+                type="button"
+                class="inline-flex h-9 items-center gap-2 rounded-md bg-rose-600 px-4 text-xs font-semibold text-white transition hover:bg-rose-500 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={isRevokingToken}
+                onclick={handleRevokeToken}
+            >
+                {#if isRevokingToken}
+                    <LoaderCircle size={14} class="animate-spin" />
+                    {i18n.t.settingsModal.apiTokens.revoking}
+                {:else}
+                    <Trash2 size={14} />
+                    {i18n.t.settingsModal.apiTokens.revokeButton}
                 {/if}
             </button>
         </div>

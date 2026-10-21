@@ -19,12 +19,12 @@
     interface Props {
         /** The detail shape carries `relatedSource`; the panel only reads that one extra field. */
         media: MediaItem & { relatedSource?: string | null };
-        related: readonly RelatedEntry[];
-        loading: boolean;
-        error: unknown;
-        viewMode: RelatedViewMode;
-        groups: readonly RelationGroup[];
-        timeline: readonly TimelineEntry[];
+        related?: readonly RelatedEntry[];
+        loading?: boolean;
+        error?: unknown;
+        viewMode?: RelatedViewMode;
+        groups?: readonly RelationGroup[];
+        timeline?: readonly TimelineEntry[];
         onRetry: () => void;
         onSelectViewMode: (mode: RelatedViewMode) => void;
         /** Opens a local item or the preview modal for an external one. */
@@ -35,12 +35,12 @@
 
     let {
         media,
-        related,
-        loading,
-        error,
-        viewMode,
-        groups,
-        timeline,
+        related = [],
+        loading = false,
+        error = null,
+        viewMode = "grouped",
+        groups = [],
+        timeline = [],
         onRetry,
         onSelectViewMode,
         onOpen,
@@ -77,18 +77,20 @@
             <p class="text-xs text-muted">{i18n.t.detail.relatedSubtitle}</p>
             <!-- Stays in the header after a successful load: the data on screen came from one
                  provider, and picking another has to overwrite it rather than need a clear first. -->
-            <div class="mt-3">
-                <RelationLoadButton
-                    {media}
-                    {loading}
-                    kind="related"
-                    currentSource={media.relatedSource ?? null}
-                    onLoad={onLoadFrom}
-                />
-            </div>
+            {#if (related?.length ?? 0) > 0}
+                <div class="mt-3">
+                    <RelationLoadButton
+                        {media}
+                        {loading}
+                        kind="related"
+                        currentSource={media.relatedSource ?? null}
+                        onLoad={onLoadFrom}
+                    />
+                </div>
+            {/if}
         </div>
 
-        {#if related.length > 0}
+        {#if (related?.length ?? 0) > 0}
             <div
                 class="inline-flex items-center rounded-lg border border-white/[0.08] bg-[var(--color-track-alt)] p-1 self-start sm:self-auto gap-1"
             >
@@ -137,15 +139,29 @@
                 {i18n.current === "ru" ? "Попробовать снова" : "Try again"}
             </button>
         </div>
-    {:else if related.length === 0}
+    {:else if (related?.length ?? 0) === 0}
         <div
-            class="flex flex-col items-start gap-3 rounded-xl bg-[var(--color-panel-line)] p-5"
+            class="flex flex-col items-center justify-center gap-4 rounded-xl bg-[var(--color-panel-line)] p-8 text-center"
         >
-            <p class="text-sm text-muted">{i18n.t.detail.relatedEmpty}</p>
+            <div class="space-y-1">
+                <p class="text-sm font-medium text-slate-300">{i18n.t.detail.relatedEmpty}</p>
+                <p class="text-xs text-muted">
+                    {i18n.current === "ru"
+                        ? "Нажмите кнопку ниже, чтобы загрузить связанные произведения."
+                        : "Click the button below to load related titles."}
+                </p>
+            </div>
+            <RelationLoadButton
+                {media}
+                {loading}
+                kind="related"
+                currentSource={media.relatedSource ?? null}
+                onLoad={onLoadFrom}
+            />
         </div>
     {:else if viewMode === "grouped"}
         <div class="space-y-8">
-            {#each groups as group (group.id)}
+            {#each (groups ?? []) as group, gIdx (group?.id ?? group?.title ?? gIdx)}
                 <div class="space-y-3">
                     <div
                         class="flex items-center gap-2.5 border-b border-white/[0.08] pb-2.5"
@@ -156,13 +172,13 @@
                         <span
                             class="rounded-full bg-white/10 px-2.5 py-0.5 text-xs font-bold text-muted"
                         >
-                            {group.items.length}
+                            {group.items?.length ?? 0}
                         </span>
                     </div>
                     <div
                         class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5"
                     >
-                        {#each group.items as rel (rel.id)}
+                        {#each (group.items ?? []) as rel, rIdx (rel?.id ? `${rel.id}-${rIdx}` : `${gIdx}-${rIdx}`)}
                             {@render relatedCard(rel)}
                         {/each}
                     </div>
@@ -173,13 +189,13 @@
         <div
             class="relative pl-6 sm:pl-8 space-y-4 before:absolute before:bottom-3 before:left-[11px] sm:before:left-[15px] before:top-3 before:w-0.5 before:bg-gradient-to-b before:from-accent before:via-accent/40 before:to-transparent"
         >
-            {#each timeline as item (item.id)}
+            {#each (timeline ?? []) as item, tIdx (item?.id ? `${item.id}-${tIdx}` : tIdx)}
                 {@render timelineRow(item)}
             {/each}
         </div>
     {:else}
         <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-            {#each related as rel (rel.id)}
+            {#each (related ?? []) as rel, rIdx (rel?.id ? `${rel.id}-${rIdx}` : rIdx)}
                 {@render relatedCard(rel)}
             {/each}
         </div>
@@ -198,6 +214,7 @@
                 alt={rel.title}
                 class="h-full w-full object-cover transition duration-500 group-hover:scale-105"
                 loading="lazy"
+                referrerpolicy="no-referrer"
             />
         {:else}
             <div
@@ -297,6 +314,7 @@
                     <img
                         src={item.coverUrl}
                         alt={item.title}
+                        referrerpolicy="no-referrer"
                         class="h-full w-full object-cover"
                     />
                 {:else}

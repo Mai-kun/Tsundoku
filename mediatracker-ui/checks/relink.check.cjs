@@ -12,7 +12,11 @@ const BASE = process.env.TS_BASE || 'http://localhost:5099';
     body: JSON.stringify({ type: 'tvshow', title: 'Severance', status: 0, externalId: 'sev-test', externalSource: 'TMDb' }),
   }).then((r) => r.json())).id;
 
-  const browser = await chromium.launch({ channel: 'msedge' });
+  const launchOptions = {
+    channel: process.env.TS_BROWSER_CHANNEL || (process.platform === 'win32' ? 'msedge' : undefined),
+    headless: true
+  };
+  const browser = await chromium.launch(launchOptions);
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
   page.setDefaultTimeout(9000);
   const errors = [];

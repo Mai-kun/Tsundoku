@@ -81,7 +81,7 @@ public sealed class TmdbMetadataProvider(
                 var isMovie = mediaType == "movie";
                 var detailPath = isMovie ? $"movie/{id}" : $"tv/{id}";
                 var item = await client.GetFromJsonAsync<TmdbItem>(
-                    $"{detailPath}?api_key={Uri.EscapeDataString(apiKey)}", ct);
+                    $"{detailPath}?api_key={Uri.EscapeDataString(apiKey)}&append_to_response=credits,videos", ct);
 
                 if (item is not null)
                 {
@@ -118,12 +118,19 @@ public sealed class TmdbMetadataProvider(
             OriginalTitle = isMovie ? item.OriginalTitle : item.OriginalName,
             CoverUrl = item.PosterPath is null ? null : $"https://image.tmdb.org/t/p/w500{item.PosterPath}",
             Description = item.Overview,
+            TrailerVideoId = item.Videos?.Results?
+                .FirstOrDefault(video => string.Equals(video.Site, "YouTube", StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(video.Type, "Trailer", StringComparison.OrdinalIgnoreCase))?.Key
+                ?? item.Videos?.Results?
+                    .FirstOrDefault(video => string.Equals(video.Site, "YouTube", StringComparison.OrdinalIgnoreCase)
+                        && string.Equals(video.Type, "Teaser", StringComparison.OrdinalIgnoreCase))?.Key,
             ReleaseYear = ParseYear(isMovie ? item.ReleaseDate : item.FirstAirDate),
             ReleaseDate = isMovie ? item.ReleaseDate : item.FirstAirDate,
             // `last_air_date` is the mirror of `first_air_date` and is null while a series still airs.
             // It was never mapped, so the end-date row was empty for every TMDb-sourced show.
             EndDate = isMovie ? null : item.LastAirDate,
             ReleaseStatus = item.Status,
+            OriginalLanguage = item.OriginalLanguage,
             // Movies carry a runtime, series only an average per-episode one; both live in `runtime`.
             RuntimeMinutes = item.Runtime,
             // TMDb returns the production companies but the provider never mapped them, so the studio
@@ -138,8 +145,45 @@ public sealed class TmdbMetadataProvider(
             Genres = item.Genres is { Count: > 0 } genres
                 ? [.. genres.Select(genre => genre.Name).OfType<string>()]
                 : null,
-            TotalCount = isMovie ? item.Runtime : item.NumberOfEpisodes
+            TotalCount = isMovie ? item.Runtime : item.NumberOfEpisodes,
+            Cast = item.Credits?.Cast?
+                .Where(cast => !string.IsNullOrWhiteSpace(cast.Name))
+                .Take(6)
+                .Select(cast => new CastMemberDto(
+                    cast.Name!,
+                    cast.Character,
+                    ImageUrl(cast.ProfilePath, "w185")))
+                .ToList(),
+            Director = isMovie
+                ? item.Credits?.Crew?
+                    .FirstOrDefault(c => string.Equals(c.Job, "Director", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(c.Name))?.Name
+                : null,
+            CreatorImageUrl = isMovie
+                ? ImageUrl(
+                    item.Credits?.Crew?
+                        .FirstOrDefault(crew => string.Equals(crew.Job, "Director", StringComparison.OrdinalIgnoreCase)
+                            && !string.IsNullOrWhiteSpace(crew.ProfilePath))
+                        ?.ProfilePath,
+                    "w185")
+                : StudioLogoUrl(item)
         };
+    }
+
+    private static string? ImageUrl(string? path, string size) =>
+        string.IsNullOrWhiteSpace(path) ? null : $"https://image.tmdb.org/t/p/{size}{path}";
+
+    /// <summary>
+    /// A series card names the network, and TMDb's networks carry no logo, so the production company's
+    /// logo is only used when it is the very studio on the card. Pairing a logo with a different name
+    /// would be a picture of the wrong thing.
+    /// </summary>
+    private static string? StudioLogoUrl(TmdbItem item)
+    {
+        var studio = item.Networks?.FirstOrDefault(n => !string.IsNullOrWhiteSpace(n.Name))?.Name;
+        var company = item.ProductionCompanies?.FirstOrDefault(c => !string.IsNullOrWhiteSpace(c.LogoPath));
+        return company is not null && string.Equals(company.Name, studio, StringComparison.OrdinalIgnoreCase)
+            ? ImageUrl(company.LogoPath, "w185")
+            : null;
     }
 
     private static int? ParseYear(string? date) =>
@@ -165,9 +209,31 @@ public sealed class TmdbMetadataProvider(
         [property: JsonPropertyName("status")] string? Status,
         [property: JsonPropertyName("production_companies")] List<TmdbNamedItem>? ProductionCompanies,
         [property: JsonPropertyName("networks")] List<TmdbNamedItem>? Networks,
-        [property: JsonPropertyName("genres")] List<TmdbNamedItem>? Genres);
+        [property: JsonPropertyName("genres")] List<TmdbNamedItem>? Genres,
+        [property: JsonPropertyName("original_language")] string? OriginalLanguage,
+        [property: JsonPropertyName("credits")] TmdbCredits? Credits,
+        [property: JsonPropertyName("videos")] TmdbVideos? Videos);
+
+    private sealed record TmdbVideos([property: JsonPropertyName("results")] List<TmdbVideo>? Results);
+
+    private sealed record TmdbVideo(string? Site, string? Type, string? Key);
+
+    private sealed record TmdbCredits(
+        [property: JsonPropertyName("cast")] List<TmdbCastMember>? Cast,
+        [property: JsonPropertyName("crew")] List<TmdbCrewMember>? Crew);
+
+    private sealed record TmdbCrewMember(
+        [property: JsonPropertyName("name")] string? Name,
+        [property: JsonPropertyName("job")] string? Job,
+        [property: JsonPropertyName("profile_path")] string? ProfilePath);
+
+    private sealed record TmdbCastMember(
+        [property: JsonPropertyName("name")] string? Name,
+        [property: JsonPropertyName("character")] string? Character,
+        [property: JsonPropertyName("profile_path")] string? ProfilePath);
 
     private sealed record TmdbNamedItem(
         [property: JsonPropertyName("id")] long Id,
-        [property: JsonPropertyName("name")] string? Name);
+        [property: JsonPropertyName("name")] string? Name,
+        [property: JsonPropertyName("logo_path")] string? LogoPath);
 }

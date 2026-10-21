@@ -130,6 +130,7 @@ public sealed partial class RawgMetadataProvider(
             Genres = item.Genres?.Select(g => g.Name).Where(n => !string.IsNullOrWhiteSpace(n)).Select(n => n!).ToList(),
             Type = "game",
             Platform = JoinPlatforms(item.ParentPlatforms),
+            Studio = JoinNames(item.Developers),
             Rating = rating,
             RatingVotes = item.RatingsCount,
             Ratings = ratings
@@ -215,6 +216,12 @@ public sealed partial class RawgMetadataProvider(
         return names is { Count: > 0 } ? string.Join(", ", names) : null;
     }
 
+    private static string? JoinNames(List<RawgNamedEntity>? entities)
+    {
+        var names = entities?.Select(entity => entity.Name).Where(name => !string.IsNullOrWhiteSpace(name)).ToList();
+        return names is { Count: > 0 } ? string.Join(", ", names) : null;
+    }
+
     private sealed record RawgResponse(List<RawgGame>? Results);
 
     private sealed record RawgGame(
@@ -230,7 +237,9 @@ public sealed partial class RawgMetadataProvider(
         [property: JsonPropertyName("ratings_count")] int? RatingsCount,
         [property: JsonPropertyName("parent_platforms")] List<RawgParentPlatform>? ParentPlatforms,
         [property: JsonPropertyName("genres")] List<RawgGenre>? Genres,
-        [property: JsonPropertyName("stores")] List<RawgGameStoreWrapper>? Stores);
+        [property: JsonPropertyName("stores")] List<RawgGameStoreWrapper>? Stores,
+        // Present in the details payload only; search results leave it null.
+        [property: JsonPropertyName("developers")] List<RawgNamedEntity>? Developers);
 
     private sealed record RawgGameStoreWrapper(
         [property: JsonPropertyName("url")] string? Url,
@@ -249,6 +258,8 @@ public sealed partial class RawgMetadataProvider(
         [property: JsonPropertyName("url")] string? Url);
 
     private sealed record RawgGenre(string? Name);
+
+    private sealed record RawgNamedEntity(string? Name);
 
     private sealed record RawgParentPlatform(RawgPlatform? Platform);
 

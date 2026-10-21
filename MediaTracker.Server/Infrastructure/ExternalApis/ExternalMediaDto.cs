@@ -42,6 +42,22 @@ public sealed record ExternalRecommendationDto(
     double? Rating,
     string Source = "");
 
+public sealed record CastMemberDto(string Name, string? Character, string? PhotoUrl)
+{
+    /// <summary>MAIN / SUPPORTING, as the source spelled it; null for a plain actor role.</summary>
+    public string? CharacterRole { get; init; }
+
+    public string? CharacterImageUrl { get; init; }
+
+    /// <summary>Japanese voice actor of the character; null for manga entries and legacy flat cast.</summary>
+    public string? VoiceActorName { get; init; }
+
+    public string? VoiceActorImageUrl { get; init; }
+}
+
+/// <summary>One key crew member; old rows still render through the creator card via Role.</summary>
+public sealed record ExternalStaffMemberDto(string Name, string? Role, string? ImageUrl);
+
 /// <summary>
 /// A related title plus the relationship that produced it. The media payload reuses
 /// <see cref="ExternalMediaDto"/> rather than repeating it: every field the Related tab renders
@@ -66,6 +82,8 @@ public sealed record ExternalMediaDto
 
     public string? Description { get; init; }
 
+    public string? TrailerVideoId { get; init; }
+
     public int? ReleaseYear { get; init; }
 
     public string? ReleaseDate { get; init; }
@@ -73,6 +91,18 @@ public sealed record ExternalMediaDto
     public string? EndDate { get; init; }
 
     public string? ReleaseStatus { get; init; }
+
+    public string? OriginalLanguage { get; init; }
+
+    public string? CountryOfOrigin { get; init; }
+
+    public IReadOnlyList<CastMemberDto>? Cast { get; init; }
+
+    /// <summary>Key crew the provider lists (director, script, art...); kept rather than the one mangaka.</summary>
+    public IReadOnlyList<ExternalStaffMemberDto>? Staff { get; init; }
+
+    /// <summary>Photo of the director, or logo of the studio the card shows. Null when unknown.</summary>
+    public string? CreatorImageUrl { get; init; }
 
     /// <summary>Provider's own format label (MANGA, NOVEL, TV, MOVIE...). Null when it reports none.</summary>
     public string? Format { get; init; }
@@ -82,6 +112,9 @@ public sealed record ExternalMediaDto
     public required string Type { get; init; }
 
     public string? Author { get; init; }
+
+    /// <summary>Movie/TV director name. Separate from Author so movies and books never cross-wire.</summary>
+    public string? Director { get; init; }
 
     public string? Studio { get; init; }
 

@@ -13,21 +13,27 @@ using MediaTracker.Server.Features.History.ClearHistory;
 using MediaTracker.Server.Features.History.DeleteHistoryEvent;
 using MediaTracker.Server.Features.History.GetHistoryEvents;
 using MediaTracker.Server.Features.Logs.ClientLog;
+using MediaTracker.Server.Features.Lists;
 using MediaTracker.Server.Features.Media.CreateMedia;
 using MediaTracker.Server.Features.Media.DeleteMedia;
 using MediaTracker.Server.Features.Media.GetMediaDetail;
+using MediaTracker.Server.Features.Media.GetCreatorSummary;
 using MediaTracker.Server.Features.Media.GetMediaList;
 using MediaTracker.Server.Features.Media.GetMediaStats;
 using MediaTracker.Server.Features.Media.GetRecommendations;
+using MediaTracker.Server.Features.Media.Import;
 using MediaTracker.Server.Features.Media.UpdateMedia;
 using MediaTracker.Server.Features.Media.UpdateProgress;
 using MediaTracker.Server.Features.Media.UpdateStatus;
 using MediaTracker.Server.Features.Seasons.UpdateSeasonProgress;
+using MediaTracker.Server.Features.Settings.ApiTokens;
 using MediaTracker.Server.Features.Settings.GetCategoryOrder;
 using MediaTracker.Server.Features.Settings.GetSourcePriority;
 using MediaTracker.Server.Features.Settings.SaveCategoryOrder;
 using MediaTracker.Server.Features.Settings.SaveSourceKey;
 using MediaTracker.Server.Features.Settings.SaveSourcePriority;
+using MediaTracker.Server.Features.Settings.ReadingSettings;
+using MediaTracker.Server.Features.Settings.ResetData;
 using MediaTracker.Server.Features.Settings.TestSource;
 using MediaTracker.Server.Features.Settings.ToggleSource;
 using MediaTracker.Server.Features.System.GetSources;
@@ -47,15 +53,18 @@ public static class FeatureRegistration
             includeInternalTypes: true);
 
         // Media
+        services.AddScoped<ListsService>();
         services.AddScoped<IGetMediaListHandler, GetMediaListHandler>();
         services.AddScoped<IGetMediaStatsHandler, GetMediaStatsHandler>();
         services.AddScoped<IGetMediaDetailHandler, GetMediaDetailHandler>();
+        services.AddScoped<IGetCreatorSummaryHandler, GetCreatorSummaryHandler>();
         services.AddScoped<IGetRecommendationsHandler, GetRecommendationsHandler>();
         services.AddScoped<ICreateMediaHandler, CreateMediaHandler>();
         services.AddScoped<IUpdateMediaHandler, UpdateMediaHandler>();
         services.AddScoped<IUpdateStatusHandler, UpdateStatusHandler>();
         services.AddScoped<IUpdateProgressHandler, UpdateProgressHandler>();
         services.AddScoped<IDeleteMediaHandler, DeleteMediaHandler>();
+        services.AddScoped<ImportMediaHandler>();
 
         // Seasons
         services.AddScoped<IUpdateSeasonProgressHandler, UpdateSeasonProgressHandler>();
@@ -86,6 +95,14 @@ public static class FeatureRegistration
         services.AddScoped<ISaveCategoryOrderHandler, SaveCategoryOrderHandler>();
         services.AddScoped<IGetSourcePriorityHandler, GetSourcePriorityHandler>();
         services.AddScoped<ISaveSourcePriorityHandler, SaveSourcePriorityHandler>();
+        services.AddScoped<IGetReadingSettingsHandler, GetReadingSettingsHandler>();
+        services.AddScoped<ISaveReadingSettingsHandler, SaveReadingSettingsHandler>();
+        services.AddScoped<IResetDataHandler, ResetDataHandler>();
+
+        // API Tokens
+        services.AddScoped<IGetApiTokensHandler, GetApiTokensHandler>();
+        services.AddScoped<ICreateApiTokenHandler, CreateApiTokenHandler>();
+        services.AddScoped<IRevokeApiTokenHandler, RevokeApiTokenHandler>();
 
         // Logs
         services.AddScoped<IClientLogHandler, ClientLogHandler>();

@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text.Json.Serialization;
 using MediaTracker.Server.Common.Cli;
@@ -13,13 +14,33 @@ using MediaTracker.Server.Infrastructure.Security;
 using MediaTracker.Server.Infrastructure.Storage;
 using MediaTracker.Server.SelfChecks;
 using Microsoft.AspNetCore.ResponseCompression;
+using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
-#if DEBUG
-using OpenApiUi;
-#endif
 using Serilog;
 using Serilog.Events;
+using OpenApiUi;
+using Microsoft.OpenApi;
+
+if (OperatingSystem.IsLinux())
+{
+    // Enforce X11 backend on Linux for GTK3 stability and DMA-BUF crash prevention
+    if (
+        string.IsNullOrEmpty(Environment.GetEnvironmentVariable("GDK_BACKEND"))
+        || string.Equals(
+            Environment.GetEnvironmentVariable("GDK_BACKEND"),
+            "wayland",
+            StringComparison.OrdinalIgnoreCase
+        )
+    )
+    {
+        Environment.SetEnvironmentVariable("GDK_BACKEND", "x11");
+    }
+    if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WEBKIT_DISABLE_DMABUF_RENDERER")))
+    {
+        Environment.SetEnvironmentVariable("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+    }
+}
 
 var options = CommandLineOptions.Parse(args);
 
@@ -41,17 +62,43 @@ if (options.Error is { } cliError)
 // Self-check runs before any host/DB setup so it stays a pure, fast logic check.
 if (options.RunSelfCheck)
 {
+    ConsoleOutput.Attach();
     return RefactorSelfCheck.Run() == 0 ? 0 : 1;
 }
 
 if (options.Mode == TsundokuRunMode.GuiOnly)
 {
     var guiPaths = CreateAppPaths(options);
-    ConfigureWebView2(guiPaths);
+    if (OperatingSystem.IsWindows())
+    {
+        ConfigureWebView2(guiPaths);
+    }
+    else
+    {
+        ConfigureLinuxEnvironment(guiPaths);
+    }
     Log.Information(
         "Tsundoku starting in client-only mode. Server address: {ServerAddress}",
         options.ServerUrl
     );
+    if (OperatingSystem.IsLinux())
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "xdg-open",
+                Arguments = options.ServerUrl!,
+                UseShellExecute = true
+            });
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Failed to launch default browser via xdg-open");
+        }
+        Log.CloseAndFlush();
+        return 0;
+    }
     RunPhotinoWindow(options.ServerUrl!);
     Log.CloseAndFlush();
     return 0;
@@ -61,9 +108,13 @@ var isContainer = CommandLineOptions.IsRunningInContainer;
 
 var appPaths = CreateAppPaths(options);
 
-if (!options.IsHeadless && !options.MigrateOnly)
+if (OperatingSystem.IsWindows() && !options.IsHeadless && !options.MigrateOnly)
 {
     ConfigureWebView2(appPaths);
+}
+else if (!OperatingSystem.IsWindows() && !options.IsHeadless && !options.MigrateOnly)
+{
+    ConfigureLinuxEnvironment(appPaths);
 }
 
 ConfigureLogging(appPaths.LogsDirectory);
@@ -71,6 +122,8 @@ ConfigureLogging(appPaths.LogsDirectory);
 try
 {
     var builder = WebApplication.CreateBuilder();
+
+    builder.Services.AddHttpClient("steam", client => client.Timeout = TimeSpan.FromSeconds(30));
 
     builder.Host.UseSerilog();
 
@@ -95,9 +148,40 @@ try
         options.SerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
     });
 
-#if DEBUG
-    builder.Services.AddOpenApi();
-#endif
+    builder.Services.AddOpenApi(options =>
+    {
+        options.AddDocumentTransformer((document, context, cancellationToken) =>
+        {
+            document.Info ??= new OpenApiInfo();
+            document.Info.Title = "Tsundoku API";
+            document.Info.Version = "v1";
+            document.Info.Description = "Персональный автономный REST API для управления медиатекой (книги, манга, аниме, фильмы, сериалы, игры), интеграций с Home Assistant, ботами и скриптами автоматизации. Поддерживает Bearer/X-Api-Key авторизацию.";
+
+            document.Components ??= new OpenApiComponents();
+            document.Components.SecuritySchemes ??= new Dictionary<string, IOpenApiSecurityScheme>();
+
+            var bearerScheme = new OpenApiSecurityScheme
+            {
+                Type = SecuritySchemeType.Http,
+                Scheme = "bearer",
+                BearerFormat = "Token",
+                Description = "Enter your API token (tsk_live_...)"
+            };
+
+            var apiKeyScheme = new OpenApiSecurityScheme
+            {
+                Type = SecuritySchemeType.ApiKey,
+                Name = "X-Api-Key",
+                In = ParameterLocation.Header,
+                Description = "Enter your API token in the X-Api-Key header"
+            };
+
+            document.Components.SecuritySchemes["Bearer"] = bearerScheme;
+            document.Components.SecuritySchemes["ApiKey"] = apiKeyScheme;
+
+            return Task.CompletedTask;
+        });
+    });
 
     builder.Services.AddProblemDetails();
     builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
@@ -142,27 +226,45 @@ try
 
     app.UseExceptionHandler();
 
-#if DEBUG
     if (app.Environment.IsDevelopment())
     {
         app.UseCors("DevCorsPolicy");
-        app.MapOpenApi();
-        app.UseOpenApiUi(config => config.OpenApiSpecPath = "/openapi/v1.json");
     }
-#endif
+
+    app.MapOpenApi();
+    app.UseOpenApiUi(config => config.OpenApiSpecPath = "/openapi/v1.json");
+    app.MapGet("/api/docs", () => Results.Redirect("/openapi-ui")).ExcludeFromDescription();
 
     var embeddedProvider = new ManifestEmbeddedFileProvider(typeof(Program).Assembly, "wwwroot");
-    app.UseDefaultFiles(new DefaultFilesOptions { FileProvider = embeddedProvider });
+    var wwwrootCandidates = new[]
+    {
+        Path.Combine(builder.Environment.ContentRootPath, "wwwroot"),
+        Path.Combine(builder.Environment.ContentRootPath, "MediaTracker.Server", "wwwroot"),
+        Path.Combine(AppContext.BaseDirectory, "wwwroot"),
+    };
+    var wwwrootPath = wwwrootCandidates.FirstOrDefault(Directory.Exists)
+        ?? Path.Combine(builder.Environment.ContentRootPath, "wwwroot");
+    IFileProvider staticFileProvider = Directory.Exists(wwwrootPath)
+        ? new CompositeFileProvider(new PhysicalFileProvider(wwwrootPath), embeddedProvider)
+        : embeddedProvider;
+
+    var contentTypeProvider = new FileExtensionContentTypeProvider();
+    contentTypeProvider.Mappings[".webmanifest"] = "application/manifest+json";
+
+    app.UseDefaultFiles(new DefaultFilesOptions { FileProvider = staticFileProvider });
 
     app.UseStaticFiles(
         new StaticFileOptions
         {
-            FileProvider = embeddedProvider,
+            FileProvider = staticFileProvider,
+            ContentTypeProvider = contentTypeProvider,
             OnPrepareResponse = context =>
             {
                 // Vite emits content-hashed filenames under /assets, so those are immutable exactly like
                 // the covers. index.html and diag.html must stay revalidated or a deploy never lands.
-                if (context.File.Name.EndsWith(".html", StringComparison.OrdinalIgnoreCase))
+                if (context.File.Name.EndsWith(".html", StringComparison.OrdinalIgnoreCase)
+                    || context.File.Name.EndsWith(".webmanifest", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(context.File.Name, "sw.js", StringComparison.OrdinalIgnoreCase))
                 {
                     context.Context.Response.Headers.CacheControl = "no-cache";
                 }
@@ -199,7 +301,10 @@ try
         }
     );
 
+    app.UseMiddleware<ApiKeyAuthMiddleware>();
+
     app.MapMediaEndpoints();
+    app.MapListEndpoints();
     app.MapSeasonEndpoints();
     app.MapExternalMediaEndpoints();
     app.MapLogEndpoints();
@@ -215,7 +320,7 @@ try
             return;
         }
 
-        var indexFile = embeddedProvider.GetFileInfo("index.html");
+        var indexFile = staticFileProvider.GetFileInfo("index.html");
         if (!indexFile.Exists)
         {
             context.Response.StatusCode = StatusCodes.Status404NotFound;
@@ -240,12 +345,67 @@ try
 
     if (options.IsHeadless)
     {
+        // Headless serves forever; kick off the backfill concurrently instead of blocking startup.
+        StartBackgroundFranchiseBackfill(app);
         await app.RunAsync();
     }
     else
     {
         await app.StartAsync();
-        RunPhotinoWindow(options.ServerUrl!);
+
+        // Start background franchise backfill without blocking UI window opening
+        StartBackgroundFranchiseBackfill(app);
+
+        if (OperatingSystem.IsLinux() && !options.IsHeadless && !options.MigrateOnly)
+        {
+            try
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = "xdg-open",
+                    Arguments = options.ServerUrl!,
+                    UseShellExecute = true
+                });
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "Failed to launch default browser via xdg-open");
+            }
+
+            ConsoleOutput.Attach();
+            Console.WriteLine();
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"[Tsundoku] Сервер запущен: {options.ServerUrl}");
+            Console.ResetColor();
+            Console.WriteLine("[Tsundoku] Приложение открыто в браузере. Вы можете установить его как PWA через меню браузера.");
+            Console.WriteLine("Нажмите Ctrl+C для остановки сервера.");
+            Console.WriteLine();
+
+            await app.WaitForShutdownAsync();
+            return 0;
+        }
+
+        try
+        {
+            RunPhotinoWindow(options.ServerUrl!);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Photino GUI failed to start. Falling back to Headless mode.");
+            ConsoleOutput.Attach();
+            Console.WriteLine();
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine($"[Tsundoku] Не удалось открыть графическое окно Photino: {ex.Message}");
+            Console.ResetColor();
+            Console.WriteLine($"[Tsundoku] Сервер продолжает работать в штатном фоновом режиме!");
+            Console.WriteLine($"[Tsundoku] Откройте приложение в браузере: {options.ServerUrl}");
+            Console.WriteLine();
+
+            // Server keeps running and waits for shutdown signal (Ctrl+C / SIGTERM)
+            await app.WaitForShutdownAsync();
+            return 0;
+        }
+
         await app.StopAsync();
     }
 }
@@ -260,15 +420,16 @@ static void ConfigureLogging(string logsDirectory)
 {
     Directory.CreateDirectory(logsDirectory);
 
-    var existingLogs = Directory
-        .GetFiles(logsDirectory, "session_*.log")
-        .Select(f => new FileInfo(f))
-        .OrderByDescending(f => f.CreationTimeUtc)
-        .ToList();
-
-    if (existingLogs.Count >= 5)
+    // Fast count check before materializing FileInfo for every log file on disk.
+    var logFiles = Directory.GetFiles(logsDirectory, "session_*.log");
+    if (logFiles.Length >= 5)
     {
-        foreach (var file in existingLogs.Skip(4))
+        var filesToDelete = logFiles
+            .Select(f => new FileInfo(f))
+            .OrderByDescending(f => f.CreationTimeUtc)
+            .Skip(4);
+
+        foreach (var file in filesToDelete)
         {
             try
             {
@@ -302,14 +463,14 @@ static void ConfigureLogging(string logsDirectory)
 
 static AppPaths CreateAppPaths(CommandLineOptions options)
 {
-    var dataDirectory = options.DataDirectory is { Length: > 0 } configuredDirectory
-        ? Path.GetFullPath(configuredDirectory)
-        : CommandLineOptions.IsRunningInContainer
-            ? Directory.GetCurrentDirectory()
-            : Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "Tsundoku"
-            );
+    var dataDirectory =
+        options.DataDirectory is { Length: > 0 } configuredDirectory
+            ? Path.GetFullPath(configuredDirectory)
+        : CommandLineOptions.IsRunningInContainer ? Directory.GetCurrentDirectory()
+        : Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "Tsundoku"
+        );
 
     return new AppPaths(dataDirectory);
 }
@@ -321,21 +482,65 @@ static void ConfigureWebView2(AppPaths appPaths)
 
     Environment.SetEnvironmentVariable(
         "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS",
-        "--enable-gpu-rasterization --enable-zero-copy --ignore-gpu-blocklist --disable-features=msWebOOUI,msPdfOOUI"
+        "--enable-gpu-rasterization "
+            + "--ignore-gpu-blocklist "
+            + "--disable-features=msWebOOUI,msPdfOOUI "
+            + "--enable-smooth-scrolling"
     );
     Environment.SetEnvironmentVariable("WEBVIEW2_USER_DATA_FOLDER", webViewCacheDir);
+}
+
+static void ConfigureLinuxEnvironment(AppPaths appPaths)
+{
+    // Prevent WebKitGTK / Photino "Protocol error dispatching to Wayland display" crash
+    if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("GDK_BACKEND")))
+    {
+        Environment.SetEnvironmentVariable("GDK_BACKEND", "x11");
+    }
+
+    if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WEBKIT_DISABLE_DMABUF_RENDERER")))
+    {
+        Environment.SetEnvironmentVariable("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+    }
 }
 
 static async Task InitializeDatabaseAsync(WebApplication app)
 {
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    await db.Database.MigrateAsync();
+
+    // Only run the full migration pipeline when there are actually pending migrations;
+    // on an up-to-date database GetPendingMigrationsAsync short-circuits cheaply.
+    var pendingMigrations = await db.Database.GetPendingMigrationsAsync();
+    if (pendingMigrations.Any())
+    {
+        Log.Information(
+            "Applying {Count} pending database migration(s)...",
+            pendingMigrations.Count()
+        );
+        await db.Database.MigrateAsync();
+    }
 
     await scope.ServiceProvider.GetRequiredService<StoredSettingsLoader>().LoadAsync();
+}
 
-    var franchiseService = scope.ServiceProvider.GetRequiredService<IFranchiseService>();
-    await franchiseService.AutoBackfillFranchisesAsync(db);
+static void StartBackgroundFranchiseBackfill(WebApplication app)
+{
+    // Start background franchise backfill without blocking UI window opening
+    _ = Task.Run(async () =>
+    {
+        try
+        {
+            using var bgScope = app.Services.CreateScope();
+            var bgDb = bgScope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var bgFranchise = bgScope.ServiceProvider.GetRequiredService<IFranchiseService>();
+            await bgFranchise.AutoBackfillFranchisesAsync(bgDb);
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Background franchise auto-backfill failed");
+        }
+    });
 }
 
 static void RunPhotinoWindow(string serverUrl)
@@ -343,24 +548,73 @@ static void RunPhotinoWindow(string serverUrl)
     // Photino reads this before the WebView2 controller is created, so it has to be set here rather
     // than on the window: without it the surface flashes white before the web content paints.
     // The value is the UI's --color-canvas (#0d0f14) in WebView2's AARRGGBB form.
-    Environment.SetEnvironmentVariable("WEBVIEW2_DEFAULT_BACKGROUND_COLOR", "FF0D0F14");
+    if (OperatingSystem.IsWindows())
+    {
+        Environment.SetEnvironmentVariable("WEBVIEW2_DEFAULT_BACKGROUND_COLOR", "FF0D0F14");
+    }
+
+    Exception? threadException = null;
 
     var uiThread = new Thread(() =>
     {
-        var window = new Photino.NET.PhotinoWindow()
-            .SetTitle("Tsundoku")
-            .SetUseOsDefaultSize(false)
-            .SetSize(1300, 850)
-            .Center()
-            .SetDevToolsEnabled(true)
-            .Load(serverUrl);
+        try
+        {
+            if (OperatingSystem.IsLinux())
+            {
+                if (
+                    string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DISPLAY"))
+                    && string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WAYLAND_DISPLAY"))
+                )
+                {
+                    throw new InvalidOperationException(
+                        "No graphical display found (neither DISPLAY nor WAYLAND_DISPLAY is set)."
+                    );
+                }
 
-        window.WaitForClose();
+                try
+                {
+                    if (!GtkInitCheck(IntPtr.Zero, IntPtr.Zero))
+                    {
+                        throw new InvalidOperationException("Cannot open display or initialize GTK3.");
+                    }
+                }
+                catch (DllNotFoundException)
+                {
+                    throw new InvalidOperationException("GTK3 runtime library (libgtk-3.so.0) not found.");
+                }
+            }
+
+            var window = new Photino.NET.PhotinoWindow()
+                .SetTitle("Tsundoku")
+                .SetUseOsDefaultSize(false)
+                .SetSize(1300, 850)
+                .Center()
+                .SetDevToolsEnabled(true)
+                .Load(serverUrl);
+
+            window.WaitForClose();
+        }
+        catch (Exception ex)
+        {
+            threadException = ex;
+        }
     });
 
 #pragma warning disable CA1416
-    uiThread.SetApartmentState(ApartmentState.STA);
+    if (OperatingSystem.IsWindows())
+    {
+        uiThread.SetApartmentState(ApartmentState.STA);
+    }
 #pragma warning restore CA1416
     uiThread.Start();
     uiThread.Join();
+
+    if (threadException != null)
+    {
+        throw threadException;
+    }
 }
+
+[DllImport("libgtk-3.so.0", EntryPoint = "gtk_init_check")]
+[return: MarshalAs(UnmanagedType.Bool)]
+static extern bool GtkInitCheck(IntPtr argc, IntPtr argv);

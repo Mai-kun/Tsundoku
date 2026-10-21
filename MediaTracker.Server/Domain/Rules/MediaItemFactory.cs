@@ -96,6 +96,8 @@ public static class MediaItemFactory
         item.Score = request.Score;
         item.CoverUrl = request.CoverUrl;
         item.Notes = request.Notes;
+        item.Description = request.Description;
+        item.TrailerVideoId = request.TrailerVideoId;
         item.FranchiseId = request.FranchiseId;
         item.FranchiseOrder = request.FranchiseOrder;
         item.ExternalId = request.ExternalId;

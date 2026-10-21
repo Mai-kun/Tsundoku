@@ -58,6 +58,7 @@ export interface RelatedEntry {
     score?: number | null;
     ratings?: { source: string; rating: number }[] | null;
     description?: string | null;
+    trailerVideoId?: string | null;
     episodes?: number | null;
     chapters?: number | null;
     volumes?: number | null;

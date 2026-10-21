@@ -1,6 +1,7 @@
 import { mount } from "svelte";
 import "./app.css";
 import App from "./App.svelte";
+import { isIgnorableClientError } from "./clientErrors";
 
 function sendClientLog(message: string, stack?: string, url?: string) {
   try {
@@ -15,6 +16,7 @@ function sendClientLog(message: string, stack?: string, url?: string) {
 
 window.addEventListener("error", (event) => {
   const message = event.message || "Script error";
+  if (isIgnorableClientError(message)) return;
   const stack =
     event.error?.stack || `${event.filename}:${event.lineno}:${event.colno}`;
   sendClientLog(message, stack, window.location.href);
@@ -30,5 +32,11 @@ window.addEventListener("unhandledrejection", (event) => {
 const app = mount(App, {
   target: document.getElementById("app")!,
 });
+
+if ("serviceWorker" in navigator && window.location.protocol.startsWith("http")) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  });
+}
 
 export default app;

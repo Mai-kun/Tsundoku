@@ -27,6 +27,7 @@ public sealed partial class AniListMetadataProvider(
         format
         title { romaji english native }
         description(asHtml: false)
+        trailer { id site }
         coverImage { extraLarge }
         startDate { year month day }
         endDate { year month day }
@@ -40,7 +41,14 @@ public sealed partial class AniListMetadataProvider(
         meanScore
         streamingEpisodes { title }
         studios(isMain: true) { nodes { name } }
-        staff(perPage: 5) { edges { role node { name { full } } } }
+        staff(perPage: 10, sort: [RELEVANCE, ID]) { edges { role node { name { full } image { large medium } } } }
+        characters(perPage: 12, sort: [ROLE, RELEVANCE, ID]) {
+          edges {
+            role
+            node { name { full } image { large medium } }
+            voiceActors(language: JAPANESE, sort: [RELEVANCE, ID]) { name { full } image { large medium } }
+          }
+        }
         genres
         """;
 
@@ -49,6 +57,49 @@ public sealed partial class AniListMetadataProvider(
           Page(perPage: 10) {
             media(search: $search, type: $type, sort: SEARCH_MATCH) {
               {{MediaFields}}
+            }
+          }
+        }
+        """;
+
+    /// <summary>A leaner field set for the studio/author listing: no cast or episodes, just the work.</summary>
+    private const string CreatorMediaFields = """
+        id
+        type
+        format
+        title { romaji english native }
+        description(asHtml: false)
+        coverImage { extraLarge }
+        startDate { year month day }
+        endDate { year month day }
+        status
+        countryOfOrigin
+        duration
+        episodes
+        chapters
+        volumes
+        averageScore
+        studios(isMain: true) { nodes { name } }
+        staff(perPage: 1) { edges { role node { name { full } } } }
+        """;
+
+    private const string GraphQLStudioSearchQuery = $$"""
+        query StudioWorks($search: String) {
+          Studio(search: $search) {
+            name
+            media(sort: POPULARITY_DESC, perPage: 15) {
+              nodes { {{CreatorMediaFields}} }
+            }
+          }
+        }
+        """;
+
+    private const string GraphQLStaffSearchQuery = $$"""
+        query StaffWorks($search: String) {
+          Staff(search: $search) {
+            name { full }
+            staffMedia(sort: POPULARITY_DESC, perPage: 15) {
+              nodes { {{CreatorMediaFields}} }
             }
           }
         }
@@ -130,6 +181,63 @@ public sealed partial class AniListMetadataProvider(
         return dtoList;
     }
 
+    /// <summary>
+    /// A "works by studio/author" query. Anime goes through the Studio node the API itself resolves,
+    /// manga through the Staff node; when either answers nothing the regular search runs and only
+    /// rows whose Studio/Author name the creator are kept, so the section is never simply empty.
+    /// </summary>
+    public override async Task<IReadOnlyList<ExternalMediaDto>> SearchByCreatorAsync(string creator, CancellationToken ct)
+    {
+        var clean = creator.Trim();
+        if (clean.Length == 0) return [];
+
+        try
+        {
+            var payload = new
+            {
+                query = mediaType == "anime" ? GraphQLStudioSearchQuery : GraphQLStaffSearchQuery,
+                variables = new { search = clean },
+            };
+
+            using var response = await httpClientFactory.CreateClient(Id).PostAsJsonAsync("", payload, ct);
+            response.EnsureSuccessStatusCode();
+
+            var data = (await response.Content.ReadFromJsonAsync<AniListCreatorSearchResponse>(ct))?.Data;
+            var isAnime = mediaType == "anime";
+            var nodes = isAnime ? data?.Studio?.Media?.Nodes : data?.Staff?.StaffMedia?.Nodes;
+
+            var works = nodes?
+                .Where(node => node is not null
+                    // staffMedia carries everything a voice actor touched; keep only the kind asked.
+                    && (node.Type is null
+                        || node.Type.Equals(isAnime ? "ANIME" : "MANGA", StringComparison.OrdinalIgnoreCase))
+                    && !string.IsNullOrWhiteSpace(
+                        node.Title?.English ?? node.Title?.Romaji ?? node.Title?.Native))
+                .Select(node => MapItem(node!, mediaType))
+                .ToList();
+
+            if (works is { Count: > 0 })
+            {
+                if (isAnime)
+                {
+                    await EnrichAnimeRatingsAsync(works, ct);
+                }
+                return works;
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // Fall through to the filtered search below.
+        }
+
+        var results = await SearchAsync(clean, ct);
+        var matched = results
+            .Where(dto => (mediaType == "anime" ? dto.Studio : dto.Author)?
+                .Contains(clean, StringComparison.OrdinalIgnoreCase) is true)
+            .ToList();
+        return matched.Count > 0 ? matched : results;
+    }
+
     public override async Task<ExternalMediaDto?> GetDetailsAsync(string externalId, string title, CancellationToken ct)
     {
         if (int.TryParse(externalId, out var id))
@@ -177,6 +285,10 @@ public sealed partial class AniListMetadataProvider(
                 GraphQLRelationsQuery,
                 LookupVariables(externalId, externalIdIsMal, title),
                 ct)
+            ?? (externalIdIsMal ? null : await QueryAsync<AniListRelationsResponse, AniListRelationsData>(
+                GraphQLRelationsQuery,
+                LookupVariables(externalId, true, title),
+                ct))
             ?? await QueryAsync<AniListRelationsResponse, AniListRelationsData>(
                 GraphQLRelationsQuery,
                 SearchOnly(title),
@@ -212,6 +324,10 @@ public sealed partial class AniListMetadataProvider(
                 GraphQLRecommendationsQuery,
                 LookupVariables(externalId, externalIdIsMal, title),
                 ct)
+            ?? (externalIdIsMal ? null : await QueryAsync<AniListRecommendationsResponse, AniListRecommendationsData>(
+                GraphQLRecommendationsQuery,
+                LookupVariables(externalId, true, title),
+                ct))
             ?? await QueryAsync<AniListRecommendationsResponse, AniListRecommendationsData>(
                 GraphQLRecommendationsQuery,
                 SearchOnly(title),
@@ -332,18 +448,22 @@ public sealed partial class AniListMetadataProvider(
         string? endDate = FormatPartialDate(item.EndDate?.Year, item.EndDate?.Month, item.EndDate?.Day);
 
         return new ExternalMediaDto
-        {
-            ExternalId = item.Id.ToString(),
+        {            ExternalId = item.Id.ToString(),
             ExternalSource = "AniList",
             Title = item.Title?.English ?? item.Title?.Romaji ?? item.Title?.Native ?? string.Empty,
             OriginalTitle = item.Title?.Native ?? item.Title?.Romaji,
             RomajiTitle = item.Title?.Romaji ?? item.Title?.English,
             CoverUrl = item.CoverImage?.ExtraLarge,
             Description = item.Description is null ? null : HtmlTags().Replace(item.Description, string.Empty),
+            TrailerVideoId = item.Trailer is { Site: { } trailerSite } trailer
+                && string.Equals(trailerSite, "youtube", StringComparison.OrdinalIgnoreCase)
+                    ? trailer.Id
+                    : null,
             ReleaseYear = item.StartDate?.Year,
             ReleaseDate = releaseDate,
             EndDate = endDate,
             ReleaseStatus = item.Status,
+            CountryOfOrigin = item.CountryOfOrigin,
             RuntimeMinutes = item.Duration,
             Type = type,
             Format = item.Format,
@@ -356,11 +476,106 @@ public sealed partial class AniListMetadataProvider(
             Chapters = item.Chapters,
             Volumes = item.Volumes,
             MangaFormat = type == "manga" ? MangaFormats.FromCountryOfOrigin(item.CountryOfOrigin) : null,
+            Staff = MapStaff(item.Staff),
             Rating = primaryRating,
             Ratings = ratings,
+            Cast = MapCast(item.Characters, type),
             Genres = item.Genres is { Count: > 0 } genres ? [.. genres.Where(g => !string.IsNullOrWhiteSpace(g))] : null,
             Episodes = episodes
         };
+    }
+
+    /// <summary>
+    /// Key crew, up to eight people. One person can sit on the same media twice ("Story" and "Art"),
+    /// so their roles are joined into "Story & Art"-shaped rows rather than dropped.
+    /// </summary>
+    private static IReadOnlyList<ExternalStaffMemberDto>? MapStaff(AniListStaff? staff)
+    {
+        var grouped = new List<(string Name, string? Image, List<string> Roles)>();
+        var names = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var edge in staff?.Edges ?? [])
+        {
+            var name = edge?.Node?.Name?.Full;
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                continue;
+            }
+
+            if (!names.TryGetValue(name, out var roles))
+            {
+                if (grouped.Count >= 8)
+                {
+                    break;
+                }
+
+                roles = [];
+                names[name] = roles;
+                grouped.Add((name, edge!.Node!.Image?.Best, roles));
+            }
+
+            if (!string.IsNullOrWhiteSpace(edge!.Role))
+            {
+                roles.Add(edge.Role);
+            }
+        }
+
+        if (grouped.Count == 0)
+        {
+            return null;
+        }
+
+        return [.. grouped.Select(member => new ExternalStaffMemberDto(
+            member.Name,
+            string.Join(", ", member.Roles),
+            member.Image))];
+    }
+
+    /// <summary>
+    /// Anime: voice actor with the character they dub. Manga: the characters themselves. The
+    /// backwards-compatible Name/Role/PhotoUrl trio mirrors the stronger fields so old readers of the
+    /// stored JSON keep rendering.
+    /// </summary>
+    private static IReadOnlyList<CastMemberDto>? MapCast(AniListCharacters? characters, string type)
+    {
+        var edges = characters?.Edges?
+            .Where(edge => !string.IsNullOrWhiteSpace(edge?.Node?.Name?.Full))
+            .Take(12)
+            .ToList() ?? [];
+
+        if (edges.Count == 0)
+        {
+            return null;
+        }
+
+        return
+        [
+            .. edges.Select(edge =>
+                {
+                    var character = edge!.Node!;
+                    // The Where filter above keeps only edges with a full character name.
+                    var charName = character.Name!.Full!;
+                    var charImg = character.Image?.Best;
+                    if (type != "anime")
+                    {
+                        return new CastMemberDto(charName, charName, charImg)
+                        {
+                            CharacterImageUrl = charImg,
+                            CharacterRole = edge.Role,
+                        };
+                    }
+
+                    var va = edge.VoiceActors?.FirstOrDefault(actor => !string.IsNullOrWhiteSpace(actor.Name?.Full));
+                    var vaName = va?.Name?.Full;
+                    var vaImg = va?.Image?.Best;
+                    return new CastMemberDto(vaName ?? charName, charName, vaImg ?? charImg)
+                    {
+                        CharacterImageUrl = charImg,
+                        CharacterRole = edge.Role,
+                        VoiceActorName = vaName,
+                        VoiceActorImageUrl = vaImg,
+                    };
+                })
+        ];
     }
 
     private async Task EnrichAnimeRatingsAsync(List<ExternalMediaDto> items, CancellationToken ct)
@@ -431,6 +646,12 @@ public sealed partial class AniListMetadataProvider(
     private sealed record AniListData(AniListPage? Page);
     private sealed record AniListPage(List<AniListMedia>? Media);
 
+    private sealed record AniListCreatorSearchResponse(AniListCreatorData? Data);
+    private sealed record AniListCreatorData(AniListStudioPayload? Studio, AniListStaffPayload? Staff);
+    private sealed record AniListStudioPayload(string? Name, AniListCreatorMediaConnection? Media);
+    private sealed record AniListStaffPayload(AniListName? Name, AniListCreatorMediaConnection? StaffMedia);
+    private sealed record AniListCreatorMediaConnection(List<AniListMedia>? Nodes);
+
     private sealed record AniListRelationsResponse(AniListRelationsData? Data)
         : IAniListEnvelope<AniListRelationsData>;
 
@@ -466,6 +687,7 @@ public sealed partial class AniListMetadataProvider(
         string? Format,
         AniListTitle? Title,
         string? Description,
+        AniListTrailer? Trailer,
         AniListCoverImage? CoverImage,
         AniListDate? StartDate,
         AniListDate? EndDate,
@@ -480,9 +702,11 @@ public sealed partial class AniListMetadataProvider(
         List<AniListStreamingEpisode>? StreamingEpisodes,
         AniListStudios? Studios,
         AniListStaff? Staff,
+        AniListCharacters? Characters,
         List<string>? Genres);
 
     private sealed record AniListStreamingEpisode(string? Title);
+    private sealed record AniListTrailer(string? Id, string? Site);
     private sealed record AniListTitle(string? Romaji, string? English, string? Native);
     private sealed record AniListCoverImage(string? ExtraLarge);
     private sealed record AniListDate(int? Year, int? Month, int? Day);
@@ -490,7 +714,16 @@ public sealed partial class AniListMetadataProvider(
     private sealed record AniListStudio(string? Name);
     private sealed record AniListStaff(List<AniListStaffEdge>? Edges);
     private sealed record AniListStaffEdge(string? Role, AniListStaffNode? Node);
-    private sealed record AniListStaffNode(AniListName? Name);
+    private sealed record AniListStaffNode(AniListName? Name, AniListCharacterImage? Image);
+    private sealed record AniListCharacters(List<AniListCharacterEdge>? Edges);
+    private sealed record AniListCharacterEdge(string? Role, AniListCharacter? Node, List<AniListVoiceActor>? VoiceActors);
+    private sealed record AniListCharacter(AniListName? Name, AniListCharacterImage? Image);
+    private sealed record AniListVoiceActor(AniListName? Name, AniListCharacterImage? Image);
+    private sealed record AniListCharacterImage(string? Large, string? Medium)
+    {
+        /// <summary>Large when the source has one: small portraits blur in the big people cards.</summary>
+        public string? Best => Large ?? Medium;
+    }
     private sealed record AniListName(string? Full);
 
     private sealed record KitsuSearchResponse(List<KitsuData>? Data);

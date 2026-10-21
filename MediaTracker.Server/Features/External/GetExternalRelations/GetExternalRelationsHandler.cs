@@ -56,11 +56,20 @@ public sealed class GetExternalRelationsHandler(
             return Result<IReadOnlyList<ExternalRelationDto>>.Success([.. relations]);
         }
 
+        var isAnimeOrManga = query.Type is "anime" or "manga"
+            || Mentions(query.Source, "anilist")
+            || Mentions(query.Source, "shikimori")
+            || Mentions(query.Source, "myanimelist")
+            || Mentions(query.Source, "jikan")
+            || Mentions(query.Source, "mal")
+            || Mentions(query.Source, "kitsu");
+
         // The frontend sends the bucket it used to pick sources from, so a film flagged as anime lands
         // on AniList exactly like it did when the browser issued the query itself.
-        if (query.Type is "anime" or "manga")
+        if (isAnimeOrManga && !Mentions(query.Source, MangaDexMetadataProvider.Source.Id))
         {
-            if (providerResolver.Resolve(query.Type, AniListMetadataProvider.Source.Id)
+            var resolvedType = query.Type is "manga" ? "manga" : "anime";
+            if (providerResolver.Resolve(resolvedType, AniListMetadataProvider.Source.Id)
                 is not AniListMetadataProvider aniList)
             {
                 return Result<IReadOnlyList<ExternalRelationDto>>.Success([]);

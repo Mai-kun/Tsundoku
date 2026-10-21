@@ -3,6 +3,7 @@ using MediaTracker.Server.Common.Http;
 using MediaTracker.Server.Domain.Common;
 using MediaTracker.Server.Domain.Entities;
 using MediaTracker.Server.Domain.Rules;
+using MediaTracker.Server.Domain.Enums;
 using MediaTracker.Server.Infrastructure.Persistence.Franchises;
 using MediaTracker.Server.Features.Media.GetMediaDetail;
 using MediaTracker.Server.Features.Media.GetMediaStats;
@@ -11,6 +12,7 @@ using MediaTracker.Server.Features.Media.UpdateMedia;
 using MediaTracker.Server.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
+using System.Globalization;
 
 namespace MediaTracker.Server.Features.Media.UpdateMedia;
 
@@ -49,15 +51,23 @@ public sealed class UpdateMediaHandler(
         var previousStatus = item.Status;
         var previousScore = item.Score;
         var previousAchievements = item.UnlockedAchievements;
+        var previousProgress = GetProgressValue(item);
 
         MediaItemUpdater.Apply(item, request);
         await franchiseService.LinkFranchiseOnUpdateAsync(db, item, request.FranchiseId, request.FranchiseName, ct);
 
-        RecordEvents(item, previousStatus, previousScore, previousAchievements, db);
+        RecordEvents(item, previousStatus, previousScore, previousAchievements, previousProgress, db);
+
+        var currentProgress = GetProgressValue(item);
+        if (request.LastActivityAt is null && (item.Status != previousStatus || item.Score != previousScore || currentProgress != previousProgress))
+        {
+            item.LastActivityAt = DateTime.UtcNow;
+        }
 
         item.MarkUpdated();
         await db.SaveChangesAsync(ct);
         cache.Remove(AdvancedStatsCalculator.CacheKey);
+        cache.Remove(TasteProfileCalculator.CacheKey);
 
         return Result<MediaDetailDto>.Success(MediaDetailProjection.ToDetailDto(item));
     }
@@ -67,6 +77,7 @@ public sealed class UpdateMediaHandler(
         MediaStatus previousStatus,
         int? previousScore,
         string? previousAchievements,
+        string? previousProgress,
         AppDbContext db)
     {
         if (item.Status != previousStatus)
@@ -79,9 +90,24 @@ public sealed class UpdateMediaHandler(
             db.Events.Add(MediaEventRecorder.ScoreChanged(item, previousScore, item.Score));
         }
 
+        var currentProgress = GetProgressValue(item);
+        if (currentProgress != previousProgress)
+        {
+            db.Events.Add(MediaEventRecorder.ProgressChanged(item, previousProgress, currentProgress));
+        }
+
         foreach (var name in MediaAchievements.NewlyUnlocked(previousAchievements, item.UnlockedAchievements))
         {
             db.Events.Add(MediaEventRecorder.AchievementUnlocked(item, name));
         }
     }
+
+    private static string? GetProgressValue(MediaItem item) => item switch
+    {
+        VideoGame game => game.HoursPlayed?.ToString(CultureInfo.InvariantCulture),
+        Book book => book.CurrentPage.ToString(CultureInfo.InvariantCulture),
+        Manga manga => $"{manga.CurrentChapter}:{manga.CurrentVolume}",
+        TvShow show => show.TotalEpisodesWatched.ToString(CultureInfo.InvariantCulture),
+        _ => null,
+    };
 }

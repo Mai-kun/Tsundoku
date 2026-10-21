@@ -27,9 +27,45 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 
     public DbSet<MediaEvent> Events => Set<MediaEvent>();
 
+    public DbSet<CustomList> CustomLists => Set<CustomList>();
+
+    public DbSet<CustomListItem> CustomListItems => Set<CustomListItem>();
+
+    public DbSet<ApiToken> ApiTokens => Set<ApiToken>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<ApiToken>(entity =>
+        {
+            entity.HasKey(t => t.Id);
+            entity.Property(t => t.Name).IsRequired().HasMaxLength(100);
+            entity.Property(t => t.TokenHash).IsRequired();
+            entity.Property(t => t.TokenPrefix).IsRequired().HasMaxLength(32);
+            entity.HasIndex(t => t.TokenHash).IsUnique();
+        });
+
         modelBuilder.Entity<AppSetting>(entity => entity.HasKey(s => s.Key));
+
+        modelBuilder.Entity<CustomList>(entity =>
+        {
+            entity.Property(list => list.Name).IsRequired().HasMaxLength(100);
+            entity.Property(list => list.Description).HasMaxLength(500);
+            entity.Property(list => list.Icon).HasDefaultValue("list");
+            entity.HasMany(list => list.Items)
+                .WithOne(item => item.List)
+                .HasForeignKey(item => item.ListId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<CustomListItem>(entity =>
+        {
+            entity.HasIndex(item => new { item.ListId, item.MediaItemId }).IsUnique();
+            entity.HasIndex(item => item.MediaItemId);
+            entity.HasOne(item => item.MediaItem)
+                .WithMany()
+                .HasForeignKey(item => item.MediaItemId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
 
         modelBuilder.Entity<MediaEvent>(entity =>
         {

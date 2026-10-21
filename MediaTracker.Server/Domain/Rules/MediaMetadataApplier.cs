@@ -100,20 +100,34 @@ public static class MediaMetadataApplier
     {
         item.Title = external.Title;
 
-        if (!string.IsNullOrWhiteSpace(external.Description))
-        {
-            item.Notes = external.Description;
-        }
+        item.Description = external.Description;
+        item.TrailerVideoId = external.TrailerVideoId;
 
         if (IsExternalUrl(external.CoverUrl))
         {
             item.CoverUrl = await imageStorage.SaveCoverAsync(external.CoverUrl!, item.Id, ct);
         }
 
+        // Only written when the source had one: a provider without a creator photo must not erase the
+        // one a previous refresh already saved, and the UI falls back to a role icon either way.
+        if (IsExternalUrl(external.CreatorImageUrl))
+        {
+            item.CreatorImageUrl = await imageStorage.SaveCoverAsync(
+                external.CreatorImageUrl!,
+                item.Id,
+                ct,
+                "creator");
+        }
+
         item.ExternalId = external.ExternalId;
         item.ExternalSource = external.ExternalSource ?? item.ExternalSource;
         item.ExternalRating = external.Rating;
         item.ExternalRatingVotes = external.RatingVotes;
+        item.OriginalLanguage = external.OriginalLanguage;
+        item.CountryOfOrigin = external.CountryOfOrigin;
+        item.CastJson = external.Cast is { Count: > 0 } cast ? JsonSerializer.Serialize(cast, MediaRatingSerializer.JsonOptions) : null;
+        item.OriginalTitle = external.OriginalTitle;
+        item.StaffJson = external.Staff is { Count: > 0 } staff ? JsonSerializer.Serialize(staff, MediaRatingSerializer.JsonOptions) : null;
 
         if (external.Ratings is { Count: > 0 } ratings)
         {
@@ -138,9 +152,24 @@ public static class MediaMetadataApplier
         Action<TvSeason>? trackNewSeason = null)
     {
         var modified = ApplyRatings(item, external);
+        modified |= SetIfBlank(item.OriginalLanguage, external.OriginalLanguage, value => item.OriginalLanguage = value);
+        modified |= SetIfBlank(item.CountryOfOrigin, external.CountryOfOrigin, value => item.CountryOfOrigin = value);
+        if (string.IsNullOrWhiteSpace(item.CastJson) && external.Cast is { Count: > 0 } cast)
+        {
+            item.CastJson = JsonSerializer.Serialize(cast, MediaRatingSerializer.JsonOptions);
+            modified = true;
+        }
+        modified |= SetIfBlank(item.OriginalTitle, external.OriginalTitle, value => item.OriginalTitle = value);
+        modified |= SetIfBlank(item.StaffJson, external.Staff is { Count: > 0 } staff
+            ? JsonSerializer.Serialize(staff, MediaRatingSerializer.JsonOptions)
+            : null, value => item.StaffJson = value);
         modified |= ApplyMangaGaps(item, external);
 
-        modified |= SetIfBlank(item.Notes, external.Description, value => item.Notes = value);
+        modified |= SetIfBlank(item.Description, external.Description, value => item.Description = value);
+        modified |= SetIfBlank(item.TrailerVideoId, external.TrailerVideoId, value => item.TrailerVideoId = value);
+        // No image storage on this path, so the remote URL is kept: the browser loads it directly and
+        // the next full refresh swaps it for the locally stored copy.
+        modified |= SetIfBlank(item.CreatorImageUrl, external.CreatorImageUrl, value => item.CreatorImageUrl = value);
         modified |= SetIfBlank(item.Genres, JoinGenres(external.Genres), value => item.Genres = value);
         modified |= ApplyDisplayGaps(item, external, trackNewSeason);
 
@@ -180,8 +209,8 @@ public static class MediaMetadataApplier
                 }
 
                 modified |= SetIfBlank(movie.Studio, external.Studio, value => movie.Studio = value);
-                modified |= SetIfBlank(movie.Director, external.Author, value => movie.Director = value);
-                modified |= SetIfBlank(movie.RomajiTitle, external.OriginalTitle, value => movie.RomajiTitle = value);
+                modified |= SetIfBlank(movie.Director, external.Director ?? external.Author, value => movie.Director = value);
+                modified |= SetIfBlank(movie.RomajiTitle, external.RomajiTitle ?? external.OriginalTitle, value => movie.RomajiTitle = value);
                 break;
 
             case TvShow show:
@@ -220,6 +249,12 @@ public static class MediaMetadataApplier
                 }
 
                 modified |= SetIfBlank(book.Author, external.Author, value => book.Author = value);
+                break;
+
+            case VideoGame game:
+                // Steam and RAWG both report the developers; without this branch enrichment threw
+                // the list away and the overview's "Разработчик" card had nothing to render.
+                modified |= SetIfBlank(game.Studio, external.Studio, value => game.Studio = value);
                 break;
         }
 
@@ -350,7 +385,10 @@ public static class MediaMetadataApplier
                 if (external.RuntimeMinutes is > 0) movie.DurationMinutes = external.RuntimeMinutes.Value;
                 else if (external.TotalCount is > 0) movie.DurationMinutes = external.TotalCount.Value;
                 if (!string.IsNullOrWhiteSpace(external.Studio)) movie.Studio = external.Studio;
-                if (!string.IsNullOrWhiteSpace(external.OriginalTitle)) movie.RomajiTitle = external.OriginalTitle;
+                var movieRomaji = external.RomajiTitle ?? external.OriginalTitle;
+                if (!string.IsNullOrWhiteSpace(movieRomaji)) movie.RomajiTitle = movieRomaji;
+                if (!string.IsNullOrWhiteSpace(external.Director)) movie.Director = external.Director;
+                else if (!string.IsNullOrWhiteSpace(external.Author)) movie.Director = external.Author;
                 break;
             case Book book:
                 if (external.TotalCount is > 0) book.TotalPages = external.TotalCount.Value;
@@ -366,6 +404,7 @@ public static class MediaMetadataApplier
                 break;
             case VideoGame game:
                 if (!string.IsNullOrWhiteSpace(external.Platform)) game.Platform = external.Platform;
+                if (!string.IsNullOrWhiteSpace(external.Studio)) game.Studio = external.Studio;
                 break;
         }
     }
@@ -386,9 +425,10 @@ public static class MediaMetadataApplier
             show.Network = external.Studio;
         }
 
-        if (!string.IsNullOrWhiteSpace(external.OriginalTitle))
+        var showRomaji = external.RomajiTitle ?? external.OriginalTitle;
+        if (!string.IsNullOrWhiteSpace(showRomaji))
         {
-            show.RomajiTitle = external.OriginalTitle;
+            show.RomajiTitle = showRomaji;
         }
 
         // The "anime only" guard dropped episode lists for every live-action show, so a Kinopoisk or

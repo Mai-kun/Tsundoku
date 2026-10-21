@@ -1,12 +1,18 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
     <PropertyGroup>
-        <OutputType>WinExe</OutputType>
+        <OutputType Condition="'$(OS)' == 'Windows_NT'">WinExe</OutputType>
+        <OutputType Condition="'$(OS)' != 'Windows_NT'">Exe</OutputType>
         <TargetFramework>net10.0</TargetFramework>
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
         <ServerGarbageCollection>false</ServerGarbageCollection>
+        <GarbageCollectionAdaptationMode>1</GarbageCollectionAdaptationMode>
+        <AllowMissingPrunePackageData>true</AllowMissingPrunePackageData>
+
+        <RuntimeIdentifier Condition="'$(OS)' == 'Windows_NT'">win-x64</RuntimeIdentifier>
+        <PublishDir>$(MSBuildThisFileDirectory)..\dist\</PublishDir>
 
         <AssemblyName>Tsundoku</AssemblyName>
         <RootNamespace>MediaTracker.Server</RootNamespace>
@@ -15,13 +21,25 @@
         <IsTransformWebConfigDisabled>true</IsTransformWebConfigDisabled>
         <GenerateStaticWebAssetsManifest>false</GenerateStaticWebAssetsManifest>
         <StaticWebAssetsEnabled>false</StaticWebAssetsEnabled>
+
+        <!-- NuGet audit silenced for ImageSharp, pinned at 3.1.12: the five 2026 GHSA
+             advisories (NU1902 medium / NU1903 high) are patched only in 4.1.2, and the
+             4.x line refuses to build Release without a Six Labors license key.
+             Upgrade path: bump to 4.1.2, take the free community key from
+             licensing.sixlabors.com (or a sixlabors.lic file), then drop NU1902/NU1903
+             from this list. -->
+        <NoWarn>$(NoWarn);NU1902;NU1903;NETSDK1194</NoWarn>
     </PropertyGroup>
 
-    <PropertyGroup Condition="'$(Configuration)' == 'Release' and '$(RuntimeIdentifier)' == 'win-x64'">
+    <PropertyGroup Condition="'$(Configuration)' == 'Release' and ('$(RuntimeIdentifier)' == 'win-x64' or '$(RuntimeIdentifier)' == 'linux-x64')">
         <SelfContained>true</SelfContained>
         <PublishSingleFile>true</PublishSingleFile>
         <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
-        <PublishReadyToRun>true</PublishReadyToRun>
+        <!-- R2R doubles assembly size (IL + native image); .NET 10 QuickJIT starts fast enough without it. -->
+        <PublishReadyToRun>false</PublishReadyToRun>
+        <!-- Without R2R the self-contained bundle is still ~110 MB; Brotli-compressing it brings the
+             single file to ~80 MB. Assemblies are extracted to the versioned temp dir on first run. -->
+        <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
 
         <DebugType>None</DebugType>
         <DebugSymbols>false</DebugSymbols>
@@ -65,9 +83,14 @@
         <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
     </ItemGroup>
 
-    <ItemGroup Condition="'$(Configuration)' == 'Debug'">
+    <ItemGroup>
         <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.12" />
         <PackageReference Include="OpenApiUi" Version="2.0.5" />
     </ItemGroup>
+
+    <!-- Close any running instance of Tsundoku on Windows before publish so locked files don't fail bundle generation -->
+    <Target Name="CloseRunningTsundoku" BeforeTargets="BeforePublish;PrepareForPublish" Condition="'$(OS)' == 'Windows_NT'">
+        <Exec Command="taskkill /F /IM Tsundoku.exe 2&gt;nul || exit 0" ContinueOnError="true" IgnoreExitCode="true" />
+    </Target>
 
 </Project>

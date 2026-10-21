@@ -15,6 +15,13 @@ public interface ISourcePriorityService
     Task<IReadOnlySet<string>> GetDisabledSourcesAsync(CancellationToken ct);
     Task SetSourceEnabledAsync(string sourceId, bool enabled, CancellationToken ct);
     void InvalidateCache();
+
+    /// <summary>
+    /// Bumps on every priority/enablement change, so dependent caches (the aggregator search cache)
+    /// can fold it into their keys and go stale the moment the settings change — without any
+    /// manual eviction across cache keys.
+    /// </summary>
+    int Version { get; }
 }
 
 public sealed class SourcePriorityService(
@@ -33,6 +40,13 @@ public sealed class SourcePriorityService(
     /// </summary>
     public static readonly FrozenDictionary<string, string[]> DefaultPriorities =
         MetadataSourceRegistry.BuildDefaultPriorities().ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
+
+    // Starts at 1 so a key of "v1" always means "no settings change yet".
+    private int _version = 1;
+
+    public int Version => Volatile.Read(ref _version);
+
+    private void BumpVersion() => Interlocked.Increment(ref _version);
 
     public async ValueTask<IReadOnlyList<string>> GetPrioritiesAsync(string type, CancellationToken ct)
     {
@@ -196,12 +210,14 @@ public sealed class SourcePriorityService(
         await db.SaveChangesAsync(ct);
         cache.Set(DisabledSourcesCacheKey, list, CacheDuration);
         cache.Remove(PriorityCacheKey);
+        BumpVersion();
     }
 
     public void InvalidateCache()
     {
         cache.Remove(PriorityCacheKey);
         cache.Remove(DisabledSourcesCacheKey);
+        BumpVersion();
     }
 
     /// <summary>

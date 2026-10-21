@@ -38,6 +38,33 @@ public abstract class MetadataProviderBase : IMetadataProvider
     public abstract Task<ExternalMediaDto?> GetDetailsAsync(string externalId, string title, CancellationToken ct);
 
     /// <summary>
+    /// A "works by this studio/author" search. Sources that can ask the upstream API natively
+    /// (AniList by studio, the book services by author) override this; every other provider runs a
+    /// regular query and keeps only rows whose Studio or Author names the creator, falling back to
+    /// the raw answer so a source that never reports creators still shows something.
+    /// </summary>
+    public virtual async Task<IReadOnlyList<ExternalMediaDto>> SearchByCreatorAsync(string creator, CancellationToken ct)
+    {
+        var results = await SearchAsync(creator, ct);
+        var matches = results.Where(dto => MatchesCreator(dto, creator)).ToList();
+        return matches.Count > 0 ? matches : results;
+    }
+
+    /// <summary>True when the row's Studio or Author names the creator, in either spelling order.</summary>
+    internal static bool MatchesCreator(ExternalMediaDto dto, string creator)
+    {
+        return NameNamesCreator(dto.Studio, creator) || NameNamesCreator(dto.Author, creator);
+    }
+
+    private static bool NameNamesCreator(string? name, string creator)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return false;
+        var clean = name.Trim();
+        return clean.Contains(creator, StringComparison.OrdinalIgnoreCase)
+            || creator.Contains(clean, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
     /// Reachability probe used by every provider that does not override it.
     ///
     /// This lives on the base class rather than as a default interface method on purpose. C# only

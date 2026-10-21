@@ -24,6 +24,7 @@
                         <img
                             src={rec.coverUrl}
                             alt={rec.title}
+                            referrerpolicy="no-referrer"
                             class="h-full w-full object-cover transition duration-300 group-hover:scale-105"
                         />
                     {:else}

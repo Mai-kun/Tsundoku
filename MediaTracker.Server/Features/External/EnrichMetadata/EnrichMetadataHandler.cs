@@ -1,10 +1,13 @@
 using MediaTracker.Server.Domain.Common;
 using MediaTracker.Server.Domain.Entities;
+using MediaTracker.Server.Domain.Enums;
 using MediaTracker.Server.Domain.Rules;
 using MediaTracker.Server.Features.External.RefreshMetadata;
+using MediaTracker.Server.Features.Jobs;
 using MediaTracker.Server.Features.Media.GetMediaStats;
 using MediaTracker.Server.Features.Media.MediaContract;
 using MediaTracker.Server.Infrastructure.ExternalApis;
+using MediaTracker.Server.Infrastructure.Jobs;
 using MediaTracker.Server.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
@@ -21,12 +24,9 @@ public interface IEnrichMetadataHandler
 
 public sealed class EnrichMetadataHandler(
     AppDbContext db,
-    MetadataAggregatorService aggregator,
-    ILogger<EnrichMetadataHandler> logger,
-    IMemoryCache cache) : IEnrichMetadataHandler
+    IJobManager jobs,
+    ILogger<EnrichMetadataHandler> logger) : IEnrichMetadataHandler
 {
-    private static readonly TimeSpan EnrichmentTimeout = TimeSpan.FromSeconds(8);
-
     public async Task<Result<MediaDetailDto>> HandleAsync(EnrichMetadataCommand command, CancellationToken ct)
     {
         var item = await db.MediaItems
@@ -41,49 +41,75 @@ public sealed class EnrichMetadataHandler(
                 Error.NotFound($"Media item '{command.MediaId}' was not found."));
         }
 
-        try
-        {
-            using var enrichCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            enrichCts.CancelAfter(EnrichmentTimeout);
+        item.SyncStatus = SyncStatus.Syncing;
+        await db.SaveChangesAsync(ct);
 
-            var external = await aggregator.GetDetailsAsync(
-                AggregatorTypes.Resolve(item),
-                item.ExternalId ?? string.Empty,
-                item.Title,
-                enrichCts.Token,
-                // "Дополнить" lets the user name a different provider than the row came from, so an
-                // empty field can be filled from e.g. TMDb when the item was matched on Kinopoisk.
-                command.Source ?? item.ExternalSource);
-
-            // Missing metadata is a gap fill, not an error: the detail payload is returned either way.
-            var changed =
-                external is not null
-                && MediaMetadataApplier.ApplyIfMissing(
-                    item,
-                    external,
-                    season => db.Entry(season).State = EntityState.Added);
-
-            if (changed)
+        jobs.Enqueue(
+            item.Id,
+            item.Title,
+            async (sp, token, progress) =>
             {
-                item.MarkUpdated();
-                await db.SaveChangesAsync(ct);
-                cache.Remove(AdvancedStatsCalculator.CacheKey);
-            }
-        }
-        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
-        {
-            logger.LogWarning(
-                "Enrichment for media {MediaId} timed out after {Timeout}",
-                command.MediaId,
-                EnrichmentTimeout);
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(
-                ex,
-                "Enrichment for media {MediaId} failed, returning the item unchanged",
-                command.MediaId);
-        }
+                var scopedDb = sp.GetRequiredService<AppDbContext>();
+                var aggregator = sp.GetRequiredService<MetadataAggregatorService>();
+                var cache = sp.GetRequiredService<IMemoryCache>();
+
+                var current = await scopedDb.MediaItems
+                    .Include(media => media.Franchise)
+                    .Include(media => ((TvShow)media).Seasons.OrderBy(season => season.SeasonNumber))
+                    .Include(media => ((Manga)media).Volumes.OrderBy(volume => volume.VolumeNumber))
+                    .AsSplitQuery()
+                    .SingleOrDefaultAsync(media => media.Id == command.MediaId, token);
+
+                if (current is null) return;
+
+                try
+                {
+                    progress.Report(new JobProgressDto(
+                        Guid.Empty, null, string.Empty, 20, "Поиск метаданных", JobStatus.Running, DateTime.MinValue, null));
+
+                    var external = await aggregator.GetDetailsAsync(
+                        AggregatorTypes.Resolve(current),
+                        current.ExternalId ?? string.Empty,
+                        current.Title,
+                        token,
+                        command.Source ?? current.ExternalSource);
+
+                    progress.Report(new JobProgressDto(
+                        Guid.Empty, null, string.Empty, 60, "Обновление обложки и связей", JobStatus.Running, DateTime.MinValue, null));
+
+                    var changed =
+                        external is not null
+                        && MediaMetadataApplier.ApplyIfMissing(
+                            current,
+                            external,
+                            season => scopedDb.Entry(season).State = EntityState.Added);
+
+                    progress.Report(new JobProgressDto(
+                        Guid.Empty, null, string.Empty, 90, "Сохранение", JobStatus.Running, DateTime.MinValue, null));
+
+                    current.SyncStatus = SyncStatus.Ready;
+                    if (changed)
+                    {
+                        current.MarkUpdated();
+                        cache.Remove(AdvancedStatsCalculator.CacheKey);
+                        cache.Remove(TasteProfileCalculator.CacheKey);
+                    }
+                    await scopedDb.SaveChangesAsync(token);
+                }
+                catch (Exception ex)
+                {
+                    try
+                    {
+                        current.SyncStatus = SyncStatus.Ready;
+                        await scopedDb.SaveChangesAsync(CancellationToken.None);
+                    }
+                    catch
+                    {
+                    }
+                    logger.LogWarning(ex, "Enrichment for media {MediaId} failed", command.MediaId);
+                    throw;
+                }
+            });
 
         return Result<MediaDetailDto>.Success(MediaDetailProjection.ToDetailDto(item));
     }

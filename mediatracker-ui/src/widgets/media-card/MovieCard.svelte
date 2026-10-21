@@ -8,6 +8,8 @@
 
     let {
         item,
+        timeHint,
+        showProgress = true,
         onOpen = () => {},
         onStatusChange,
         onProgressCommitted = () => {},
@@ -17,6 +19,7 @@
 
 <BaseCard
     {item}
+    {timeHint}
     {onOpen}
     {onStatusChange}
     {onProgressCommitted}
@@ -27,8 +30,10 @@
         subtitle={item.director?.trim() || i18n.t.types.movie}
     />
 
-    <CardProgressBar
-        label={i18n.t.card.movie(item.durationMinutes)}
-        ratio={null}
-    />
+    {#if showProgress}
+        <CardProgressBar
+            label={i18n.t.card.movie(item.durationMinutes)}
+            ratio={null}
+        />
+    {/if}
 </BaseCard>

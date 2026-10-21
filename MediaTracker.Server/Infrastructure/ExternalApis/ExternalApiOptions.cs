@@ -9,6 +9,7 @@ public sealed class ExternalApiOptions
     public string TvdbApiKey { get; set; } = string.Empty;
     public string KinopoiskApiKey { get; set; } = string.Empty;
     public string IgdbApiKey { get; set; } = string.Empty;
+    public string SteamApiKey { get; set; } = string.Empty;
 
     // OrdinalIgnoreCase already makes the lookup case-insensitive, so no lowercase copy of the id is
     // allocated per call. Left as a plain Dictionary because SetKey mutates it.
@@ -28,6 +29,7 @@ public sealed class ExternalApiOptions
         if (Is(id, "tvdb") || Is(id, "thetvdb")) return TvdbApiKey;
         if (Is(id, "kinopoisk")) return KinopoiskApiKey;
         if (Is(id, "igdb")) return IgdbApiKey;
+        if (Is(id, "steam")) return SteamApiKey;
 
         return _customKeys.TryGetValue(id, out var key) ? key : null;
     }
@@ -43,7 +45,21 @@ public sealed class ExternalApiOptions
         if (Is(id, "tvdb") || Is(id, "thetvdb")) { TvdbApiKey = key; return; }
         if (Is(id, "kinopoisk")) { KinopoiskApiKey = key; return; }
         if (Is(id, "igdb")) { IgdbApiKey = key; return; }
+        if (Is(id, "steam")) { SteamApiKey = key; return; }
 
         _customKeys[id] = key;
+    }
+
+    public void ClearKeys()
+    {
+        TmdbApiKey = string.Empty;
+        RawgApiKey = string.Empty;
+        GoogleBooksApiKey = string.Empty;
+        SimklApiKey = string.Empty;
+        TvdbApiKey = string.Empty;
+        KinopoiskApiKey = string.Empty;
+        IgdbApiKey = string.Empty;
+        SteamApiKey = string.Empty;
+        _customKeys.Clear();
     }
 }

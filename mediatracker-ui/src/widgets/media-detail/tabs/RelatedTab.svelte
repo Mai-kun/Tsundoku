@@ -5,12 +5,12 @@ import RelatedPanel from "../panels/RelatedPanel.svelte";
 
     interface Props {
         media: MediaItem;
-        related: readonly RelatedEntry[];
-        loading: boolean;
-        error: unknown;
-        viewMode: RelatedViewMode;
-        groups: readonly RelationGroup[];
-        timeline: readonly TimelineEntry[];
+        related?: readonly RelatedEntry[];
+        loading?: boolean;
+        error?: unknown;
+        viewMode?: RelatedViewMode;
+        groups?: readonly RelationGroup[];
+        timeline?: readonly TimelineEntry[];
         onRetry: () => void;
         onSelectViewMode: (mode: RelatedViewMode) => void;
         /** Opens a local item, or the preview modal for an external one. */
@@ -20,12 +20,12 @@ import RelatedPanel from "../panels/RelatedPanel.svelte";
 
     let {
         media,
-        related,
-        loading,
-        error,
-        viewMode,
-        groups,
-        timeline,
+        related = [],
+        loading = false,
+        error = null,
+        viewMode = "grouped",
+        groups = [],
+        timeline = [],
         onRetry,
         onSelectViewMode,
         onOpen,

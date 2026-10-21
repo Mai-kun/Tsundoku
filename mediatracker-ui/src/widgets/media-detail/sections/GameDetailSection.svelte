@@ -1,4 +1,4 @@
-﻿<script lang="ts">
+<script lang="ts">
     import { Check, ChevronLeft, ChevronRight, LoaderCircle, Trophy, X } from "$shared/ui/Icons.svelte";
     import { errorMessage } from "$shared/api/api";
     import CircularCounter from "$shared/ui/CircularCounter.svelte";
@@ -122,8 +122,9 @@
     });
 </script>
 
+<div class="flex flex-col gap-4">
 <section
-    class="rounded-xl bg-[var(--color-panel-line)] p-5 shadow-sm border border-white/[0.06] flex flex-col items-center"
+    class="flex flex-col items-center justify-center rounded-xl bg-[var(--color-panel-line)] p-5 shadow-sm border border-white/[0.06]"
 >
     <CircularCounter
         value={progressValue}
@@ -365,3 +366,4 @@
         </p>
     {/if}
 </section>
+</div>

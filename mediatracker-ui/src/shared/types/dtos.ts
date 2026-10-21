@@ -1,4 +1,80 @@
 import type { MediaStatus } from "./enums";
+import type { MediaItem } from "./models";
+
+export interface CustomListSummary {
+  id: string;
+  name: string;
+  description: string | null;
+  icon: string | null;
+  color: string | null;
+  itemsCount: number;
+  updatedAt: string;
+  previewCovers: (string | null)[];
+  isSmart: boolean;
+  smartQueryJson: string | null;
+}
+
+export interface CustomListDetail extends Omit<CustomListSummary, "itemsCount" | "previewCovers"> {
+  createdAt: string;
+  items: MediaItem[];
+  isSmart: boolean;
+  smartQueryJson: string | null;
+}
+
+export interface CreateListPayload {
+  name: string;
+  description?: string | null;
+  icon?: string | null;
+  color?: string | null;
+  smartQueryJson?: string | null;
+}
+
+export type UpdateListPayload = CreateListPayload;
+
+export interface SmartListQuery {
+  categories?: string[] | null;
+  statuses?: number[] | null;
+  minScore?: number | null;
+  maxScore?: number | null;
+  onlyUnrated?: boolean | null;
+  minExternalRating?: number | null;
+  genres?: string[] | null;
+  releaseYearFrom?: number | null;
+  releaseYearTo?: number | null;
+  maxDurationMinutes?: number | null;
+  maxEpisodes?: number | null;
+  maxPages?: number | null;
+  maxChapters?: number | null;
+  creatorContains?: string | null;
+  sortBy?: string | null;
+  sortOrder?: string | null;
+  limit?: number | null;
+}
+
+export interface ImportResultDto {
+  totalFound: number;
+  importedCount: number;
+  skippedDuplicates: number;
+  targetListId: string | null;
+  targetListName: string | null;
+}
+
+export interface SteamImportPayload {
+  steamId?: string;
+  profileUrl?: string;
+  steamApiKey?: string;
+  skipDuplicates: boolean;
+  targetListId?: string;
+  newListName?: string;
+}
+
+export interface AniListProfilePayload {
+  username: string;
+  createList?: boolean;
+  targetListId?: string;
+  newListName?: string;
+  skipDuplicates?: boolean;
+}
 
 interface CreateMediaBase {
   title: string;
@@ -6,6 +82,8 @@ interface CreateMediaBase {
   score?: number | null;
   coverUrl?: string | null;
   notes?: string | null;
+  description?: string | null;
+  trailerVideoId?: string | null;
   franchiseId?: string | null;
   franchiseName?: string | null;
   franchiseOrder?: number | null;
@@ -113,11 +191,16 @@ export type CreateMediaPayload =
 export interface UpdateMediaPayload {
   title?: string;
   score?: number | null;
+  clearScore?: boolean;
+  detailedScoreJson?: string | null;
+  clearDetailedScore?: boolean;
   status?: MediaStatus;
   notes?: string | null;
+  quotesJson?: string | null;
   coverUrl?: string | null;
   startedAt?: string | null;
   finishedAt?: string | null;
+  lastActivityAt?: string | null;
   franchiseId?: string | null;
   franchiseName?: string | null;
   franchiseOrder?: number | null;
@@ -136,6 +219,9 @@ export interface UpdateMediaPayload {
   /** Explicit null means "not supplied"; these flags are what actually clear the value. */
   clearUserPlatform?: boolean;
   clearWatchedOn?: boolean;
+  clearDropReason?: boolean;
+  dropReason?: string | null;
+  dropNotes?: string | null;
   watchedOn?: string | null;
   releaseYear?: number | null;
   genres?: string | null;
@@ -162,9 +248,37 @@ export interface SourceInfo {
   isEnabled: boolean;
 }
 
+/**
+ * Context the creator card passes into the search modal: the query is a studio/author name, the
+ * type is the category it belongs to and byCreator asks the sources for that creator's works.
+ */
+export interface SearchModalContext {
+  query: string;
+  type?: string;
+  source?: string | null;
+  byCreator?: boolean;
+}
+
 export interface ConnectionTestResult {
   success: boolean;
   latencyMs: number;
   message: string;
 }
+
+export interface ApiTokenSummary {
+  id: string;
+  name: string;
+  tokenPrefix: string;
+  createdAt: string;
+  lastUsedAt: string | null;
+  expiresAt: string | null;
+}
+
+export interface CreateApiTokenResponse {
+  id: string;
+  name: string;
+  tokenPrefix: string;
+  rawToken: string;
+}
+
 

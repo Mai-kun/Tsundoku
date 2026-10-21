@@ -24,6 +24,12 @@ public record MediaListDto
 
     public DateTime? FinishedAt { get; init; }
 
+    public DateTime? LastActivityAt { get; init; }
+
+    public string? DropReason { get; init; }
+
+    public string? DropNotes { get; init; }
+
     public DateTime? ReleaseDate { get; init; }
 
     public int? ReleaseYear { get; init; }
@@ -34,6 +40,10 @@ public record MediaListDto
     public DateTime? EndDate { get; init; }
 
     public string? ReleaseStatus { get; init; }
+
+    public string? OriginalLanguage { get; init; }
+
+    public string? CountryOfOrigin { get; init; }
 
     public string? CoverUrl { get; init; }
 
@@ -116,6 +126,17 @@ public sealed record MediaDetailDto : MediaListDto
 
     public string? Notes { get; init; }
 
+    public string? DetailedScoreJson { get; init; }
+
+    public string? QuotesJson { get; init; }
+
+    public string? Description { get; init; }
+
+    public string? TrailerVideoId { get; init; }
+
+    /// <summary>Director photo or studio logo, when a provider supplied one.</summary>
+    public string? CreatorImageUrl { get; init; }
+
     public string? ExternalRatingsJson { get; init; }
 
     public string? TranslatedSynopsis { get; init; }
@@ -151,6 +172,16 @@ public sealed record MediaDetailDto : MediaListDto
     public bool IsCustomEdited { get; init; }
 
     public IReadOnlyList<TvSeasonDto>? Seasons { get; init; }
+
+    public IReadOnlyList<CastMemberDto> Cast { get; init; } = [];
+
+    /// <summary>Native/romanized title, shown under the main headline on the detail screen.</summary>
+    public string? OriginalTitle { get; init; }
+
+    public string? StaffJson { get; init; }
+
+    /// <summary>Key crew, already parsed so the overview renders it without knowing the stored shape.</summary>
+    public IReadOnlyList<ExternalStaffMemberDto> Staff { get; init; } = [];
 
     public IReadOnlyList<MangaVolumeDto>? Volumes { get; init; }
 }
@@ -223,6 +254,7 @@ public static class MediaResponseMapper
             {
                 Platform = game.Platform,
                 HoursPlayed = game.HoursPlayed,
+                Studio = game.Studio,
             },
             Book book => dto with
             {
@@ -301,6 +333,8 @@ public static class MediaResponseMapper
             WatchedOn = listFields.WatchedOn,
             EndDate = listFields.EndDate,
             ReleaseStatus = listFields.ReleaseStatus,
+            OriginalLanguage = listFields.OriginalLanguage,
+            CountryOfOrigin = listFields.CountryOfOrigin,
             CoverUrl = listFields.CoverUrl,
             CreatedAt = listFields.CreatedAt,
             UpdatedAt = listFields.UpdatedAt,
@@ -335,6 +369,10 @@ public static class MediaResponseMapper
             Tags = listFields.Tags,
             UserPlatform = listFields.UserPlatform,
             Notes = item.Notes,
+            DetailedScoreJson = item.DetailedScoreJson,
+            QuotesJson = item.QuotesJson,
+            Description = item.Description,
+            TrailerVideoId = item.TrailerVideoId,
             ExternalRatingsJson = item.ExternalRatingsJson,
             TranslatedSynopsis = item.TranslatedSynopsis,
             UnlockedAchievements = item.UnlockedAchievements,
@@ -345,6 +383,11 @@ public static class MediaResponseMapper
             RecommendationsUpdatedAt = item.RecommendationsUpdatedAt,
             Recommendations = MediaJsonCache.Deserialize<ExternalRecommendationDto>(item.RecommendationsJson),
             IsCustomEdited = item.IsCustomEdited,
+            Cast = MediaJsonCache.Deserialize<CastMemberDto>(item.CastJson),
+            CreatorImageUrl = item.CreatorImageUrl,
+            OriginalTitle = item.OriginalTitle,
+            StaffJson = item.StaffJson,
+            Staff = MediaJsonCache.Deserialize<ExternalStaffMemberDto>(item.StaffJson),
         };
     }
 
@@ -375,11 +418,16 @@ public static class MediaResponseMapper
         Score = item.Score,
         StartedAt = item.StartedAt,
         FinishedAt = item.FinishedAt,
+        LastActivityAt = item.LastActivityAt,
+        DropReason = item.DropReason,
+        DropNotes = item.DropNotes,
         ReleaseDate = item.ReleaseDate,
         ReleaseYear = item.ReleaseYear,
         WatchedOn = item.WatchedOn,
         EndDate = item.EndDate,
         ReleaseStatus = item.ReleaseStatus,
+        OriginalLanguage = item.OriginalLanguage,
+        CountryOfOrigin = item.CountryOfOrigin,
         CoverUrl = item.CoverUrl != null ? $"{item.CoverUrl}?v={item.UpdatedAt.Ticks}" : null,
         CreatedAt = item.CreatedAt,
         UpdatedAt = item.UpdatedAt,

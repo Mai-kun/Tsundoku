@@ -3,12 +3,15 @@
     export { default as Activity } from "lucide-svelte/icons/activity";
     export { default as AlertCircle } from "lucide-svelte/icons/alert-circle";
     export { default as AlertTriangle } from "lucide-svelte/icons/alert-triangle";
+    export { default as Archive } from "lucide-svelte/icons/archive";
     export { default as ArrowDown } from "lucide-svelte/icons/arrow-down";
     export { default as ArrowLeft } from "lucide-svelte/icons/arrow-left";
     export { default as ArrowRight } from "lucide-svelte/icons/arrow-right";
     export { default as ArrowUp } from "lucide-svelte/icons/arrow-up";
     export { default as ArrowUpDown } from "lucide-svelte/icons/arrow-up-down";
+    export { default as ArrowUpRight } from "lucide-svelte/icons/arrow-up-right";
     export { default as BarChart3 } from "lucide-svelte/icons/bar-chart-3";
+    export { default as Ban } from "lucide-svelte/icons/ban";
     export { default as BookOpen } from "lucide-svelte/icons/book-open";
     export { default as Bookmark } from "lucide-svelte/icons/bookmark";
     export { default as CalendarDays } from "lucide-svelte/icons/calendar-days";
@@ -20,16 +23,23 @@
     export { default as ChevronUp } from "lucide-svelte/icons/chevron-up";
     export { default as Clapperboard } from "lucide-svelte/icons/clapperboard";
     export { default as Clock3 } from "lucide-svelte/icons/clock-3";
+    export { default as Copy } from "lucide-svelte/icons/copy";
+    export { default as Download } from "lucide-svelte/icons/download";
     export { default as ExternalLink } from "lucide-svelte/icons/external-link";
     export { default as Eye } from "lucide-svelte/icons/eye";
     export { default as EyeOff } from "lucide-svelte/icons/eye-off";
+    export { default as Feather } from "lucide-svelte/icons/feather";
+    export { default as FileText } from "lucide-svelte/icons/file-text";
     export { default as Film } from "lucide-svelte/icons/film";
+    export { default as FolderInput } from "lucide-svelte/icons/folder-input";
     export { default as Flag } from "lucide-svelte/icons/flag";
     export { default as Flame } from "lucide-svelte/icons/flame";
     export { default as Gamepad2 } from "lucide-svelte/icons/gamepad-2";
     export { default as GitBranch } from "lucide-svelte/icons/git-branch";
     export { default as History } from "lucide-svelte/icons/history";
+    export { default as Heart } from "lucide-svelte/icons/heart";
     export { default as Home } from "lucide-svelte/icons/home";
+    export { default as Hourglass } from "lucide-svelte/icons/hourglass";
     export { default as Image } from "lucide-svelte/icons/image";
     export { default as Inbox } from "lucide-svelte/icons/inbox";
     export { default as Key } from "lucide-svelte/icons/key";
@@ -48,6 +58,7 @@
     export { default as Pencil } from "lucide-svelte/icons/pencil";
     export { default as Play } from "lucide-svelte/icons/play";
     export { default as Plus } from "lucide-svelte/icons/plus";
+    export { default as Quote } from "lucide-svelte/icons/quote";
     export { default as RefreshCw } from "lucide-svelte/icons/refresh-cw";
     export { default as RotateCcw } from "lucide-svelte/icons/rotate-ccw";
     export { default as Search } from "lucide-svelte/icons/search";
@@ -67,5 +78,7 @@
     export { default as Trophy } from "lucide-svelte/icons/trophy";
     export { default as Tv } from "lucide-svelte/icons/tv";
     export { default as Type } from "lucide-svelte/icons/type";
+    export { default as Upload } from "lucide-svelte/icons/upload";
+    export { default as User } from "lucide-svelte/icons/user";
     export { default as X } from "lucide-svelte/icons/x";
 </script>

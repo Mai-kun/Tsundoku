@@ -15,7 +15,10 @@ public static class SeasonEndpoints
                 UpdateSeasonProgressRequest request,
                 [FromServices] IUpdateSeasonProgressHandler handler,
                 CancellationToken ct) =>
-            handler.HandleAsync(new UpdateSeasonProgressCommand(id, request.CurrentEpisode), ct).ToNoContent());
+            handler.HandleAsync(new UpdateSeasonProgressCommand(id, request.CurrentEpisode), ct).ToNoContent())
+            .WithTags("Сезоны / Seasons")
+            .WithSummary("Обновить номер просмотренной серии сезона")
+            .WithDescription("Устанавливает текущую серию сезона, автоматически рассчитывает статус родительского сериала и логирует прогресс в историю.");
 
         return app;
     }

@@ -14,9 +14,11 @@ public sealed record HistoryEventDto(
     DateTime CreatedAt,
     string? Title);
 
+public sealed record GetHistoryEventsQuery(Guid? MediaId = null, DateOnly? Date = null);
+
 public interface IGetHistoryEventsHandler
 {
-    Task<Result<IReadOnlyList<HistoryEventDto>>> HandleAsync(CancellationToken ct);
+    Task<Result<IReadOnlyList<HistoryEventDto>>> HandleAsync(GetHistoryEventsQuery query, CancellationToken ct);
 }
 
 /// <summary>The activity log behind the history screen: newest first, title joined in.</summary>
@@ -24,10 +26,23 @@ public sealed class GetHistoryEventsHandler(AppDbContext db) : IGetHistoryEvents
 {
     private const int MaxEvents = 500;
 
-    public async Task<Result<IReadOnlyList<HistoryEventDto>>> HandleAsync(CancellationToken ct)
+    public async Task<Result<IReadOnlyList<HistoryEventDto>>> HandleAsync(GetHistoryEventsQuery query, CancellationToken ct)
     {
-        var events = await db.Events
-            .AsNoTracking()
+        var eventsQuery = db.Events.AsNoTracking();
+
+        if (query.MediaId is { } mediaId)
+        {
+            eventsQuery = eventsQuery.Where(e => e.MediaId == mediaId);
+        }
+
+        if (query.Date is { } date)
+        {
+            var start = date.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+            var end = date.ToDateTime(TimeOnly.MaxValue, DateTimeKind.Utc);
+            eventsQuery = eventsQuery.Where(e => e.CreatedAt >= start && e.CreatedAt <= end);
+        }
+
+        var events = await eventsQuery
             .OrderByDescending(e => e.CreatedAt)
             .Take(MaxEvents)
             .Select(e => new HistoryEventDto(

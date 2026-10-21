@@ -4,7 +4,11 @@ const BASE = 'http://localhost:5000';
 const ID = '46b9df89-bfed-4da9-b802-474fb55a8018';
 
 (async () => {
-  const browser = await chromium.launch({ channel: 'msedge' });
+  const launchOptions = {
+    channel: process.env.TS_BROWSER_CHANNEL || (process.platform === 'win32' ? 'msedge' : undefined),
+    headless: true
+  };
+  const browser = await chromium.launch(launchOptions);
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   await page.goto(`${BASE}/?view=detail&mediaId=${ID}`, { waitUntil: 'domcontentloaded' });
 

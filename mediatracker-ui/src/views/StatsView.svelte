@@ -1,8 +1,8 @@
 <script lang="ts">
-    import { RefreshCw } from "$shared/ui/Icons.svelte";
-    import { errorMessage, getAdvancedStats } from "$shared/api/api";
+    import { BarChart3, RefreshCw, Sparkles } from "$shared/ui/Icons.svelte";
+    import { errorMessage, getAdvancedStats, getTasteProfile } from "$shared/api/api";
     import { i18n } from "$shared/i18n/index.svelte";
-    import type { AdvancedStats } from "$shared/types";
+    import type { AdvancedStats, TasteProfile } from "$shared/types";
     import StatsHeroBanner from "$widgets/stats/StatsHeroBanner.svelte";
     import TimeDistributionDonut from "$widgets/stats/TimeDistributionDonut.svelte";
     import RatingPsychology from "$widgets/stats/RatingPsychology.svelte";
@@ -10,16 +10,30 @@
     import TopGenresBar from "$widgets/stats/TopGenresBar.svelte";
     import BacklogHealth from "$widgets/stats/BacklogHealth.svelte";
     import TrackerBadges from "$widgets/stats/TrackerBadges.svelte";
+    import ActivityHeatmap from "$widgets/stats/ActivityHeatmap.svelte";
+    import TastePersonaCard from "$widgets/stats/taste-profile/TastePersonaCard.svelte";
+    import GenreRadarChart from "$widgets/stats/taste-profile/GenreRadarChart.svelte";
+    import CriticalDivergenceCard from "$widgets/stats/taste-profile/CriticalDivergenceCard.svelte";
+    import SunkCostCard from "$widgets/stats/taste-profile/SunkCostCard.svelte";
+    import DropAnalyticsCard from "$widgets/stats/taste-profile/DropAnalyticsCard.svelte";
+    import GenreParadoxCard from "$widgets/stats/taste-profile/GenreParadoxCard.svelte";
+    import EraAffinityCard from "$widgets/stats/taste-profile/EraAffinityCard.svelte";
 
     interface Props {
         refreshKey: number;
+        onOpenMedia?: (mediaId: string) => void;
     }
 
-    let { refreshKey }: Props = $props();
+    let { refreshKey, onOpenMedia }: Props = $props();
 
+    type StatsTab = "summary" | "taste";
+
+    let activeTab = $state<StatsTab>("summary");
     let stats = $state<AdvancedStats | null>(null);
+    let profile = $state<TasteProfile | null>(null);
     let loading = $state(true);
     let loadError = $state<unknown>(null);
+    let profileError = $state<unknown>(null);
     let requestSequence = 0;
 
     $effect(() => {
@@ -30,11 +44,26 @@
     async function loadStats(sequence: number) {
         loading = true;
         loadError = null;
+        profileError = null;
 
         try {
-            const nextStats = await getAdvancedStats();
-            if (sequence === requestSequence) {
-                stats = nextStats;
+            const [nextStats, nextProfile] = await Promise.allSettled([getAdvancedStats(), getTasteProfile()]);
+            if (sequence !== requestSequence) {
+                return;
+            }
+
+            if (nextStats.status === "fulfilled") {
+                stats = nextStats.value;
+            } else {
+                stats = null;
+                loadError = nextStats.reason;
+            }
+
+            if (nextProfile.status === "fulfilled") {
+                profile = nextProfile.value;
+            } else {
+                profile = null;
+                profileError = nextProfile.reason;
             }
         } catch (error) {
             if (sequence === requestSequence) {
@@ -53,6 +82,37 @@
 </script>
 
 <div class="mx-auto max-w-6xl space-y-6">
+    <div class="flex justify-center">
+        <div class="grid w-full max-w-md grid-cols-2 gap-1 rounded-xl bg-white/[0.03] p-1" role="tablist" aria-label={i18n.t.stats.title}>
+            <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === "summary"}
+                class="flex h-9 items-center justify-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors duration-200 {activeTab ===
+                'summary'
+                    ? 'bg-[#5844e0]/30 text-white'
+                    : 'text-slate-400 hover:text-white'}"
+                onclick={() => (activeTab = "summary")}
+            >
+                <BarChart3 class="size-4" aria-hidden="true" />
+                {i18n.t.stats.tabSummary}
+            </button>
+            <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === "taste"}
+                class="flex h-9 items-center justify-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors duration-200 {activeTab ===
+                'taste'
+                    ? 'bg-[#5844e0]/30 text-white'
+                    : 'text-slate-400 hover:text-white'}"
+                onclick={() => (activeTab = "taste")}
+            >
+                <Sparkles class="size-4" aria-hidden="true" />
+                {i18n.t.stats.tabTaste}
+            </button>
+        </div>
+    </div>
+
     {#if loading}
         <div class="space-y-4" aria-hidden="true">
             <div class="space-y-2">
@@ -108,25 +168,61 @@
                 {i18n.t.common.retry}
             </button>
         </div>
-    {:else if stats}
+    {:else if activeTab === "summary" && stats}
         <StatsHeroBanner {stats} />
 
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div class="bg-[#151a26] border border-white/5 rounded-xl p-5">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div class="bg-[#151a26] border border-white/5 rounded-xl p-5 lg:col-span-7 flex flex-col justify-center">
                 <TimeDistributionDonut {stats} />
             </div>
 
-            <div class="bg-[#151a26] border border-white/5 rounded-xl p-5">
+            <div class="bg-[#151a26] border border-white/5 rounded-xl p-5 lg:col-span-5">
                 <RatingPsychology {stats} />
             </div>
         </div>
 
         <div class="grid grid-cols-1 gap-6 mt-6">
             <MonthlyActivityChart completions={stats.monthlyCompletions} />
-            <TopGenresBar genres={stats.topGenres} />
+            <ActivityHeatmap dailyActivity={stats.dailyActivity ?? {}} />
+            <TopGenresBar genres={stats.topGenres} genresByType={stats.topGenresByType ?? {}} />
         </div>
 
-        <BacklogHealth {stats} />
+        <BacklogHealth {stats} onMediaChanged={() => loadStats(++requestSequence)} />
         <TrackerBadges {stats} />
+    {:else if activeTab === "taste"}
+        {#if profileError}
+            <div
+                class="flex min-h-72 flex-col items-center justify-center gap-3 rounded-xl border border-rose-500/10 bg-rose-500/5 p-6 text-center"
+            >
+                <p class="text-sm text-rose-300" role="alert">
+                    {errorMessage(profileError)}
+                </p>
+                <button
+                    type="button"
+                    class="inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition hover:bg-accent-hover"
+                    onclick={retry}
+                >
+                    <RefreshCw size={15} aria-hidden="true" />
+                    {i18n.t.common.retry}
+                </button>
+            </div>
+        {:else if profile}
+            <TastePersonaCard persona={profile.persona} />
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <GenreRadarChart axes={profile.genreRadar} />
+                <EraAffinityCard eras={profile.eraAffinity} />
+            </div>
+
+            <SunkCostCard sunkCost={profile.sunkCost} />
+
+            {#if profile.dropAnalytics}
+                <DropAnalyticsCard analytics={profile.dropAnalytics} />
+            {/if}
+
+            <CriticalDivergenceCard divergence={profile.divergence} {onOpenMedia} />
+
+            <GenreParadoxCard paradox={profile.genreParadox} />
+        {/if}
     {/if}
 </div>

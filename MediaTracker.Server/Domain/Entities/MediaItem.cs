@@ -12,13 +12,34 @@ public abstract class MediaItem
 
     public int? Score { get; set; }
 
+    public string? DetailedScoreJson { get; set; }
+
     public DateTime? StartedAt { get; set; }
 
     public DateTime? FinishedAt { get; set; }
 
+    public DateTime? LastActivityAt { get; set; }
+
     public string? Notes { get; set; }
 
+    public string? DropReason { get; set; }
+
+    public string? DropNotes { get; set; }
+
+    public string? QuotesJson { get; set; }
+
+    public string? Description { get; set; }
+
+    /// <summary>YouTube video identifier for the title's trailer, when a provider exposes one.</summary>
+    public string? TrailerVideoId { get; set; }
+
     public string? CoverUrl { get; set; }
+
+    /// <summary>
+    /// Local path to the director's photo or the studio's logo, when a provider had one. Null is the
+    /// normal case, and the UI falls back to a role icon rather than reserving space for nothing.
+    /// </summary>
+    public string? CreatorImageUrl { get; set; }
 
     /// <summary>Set to <see cref="SyncStatus.Syncing"/> the moment the row is created, so the card
     /// and the detail screen can render immediately while the job queue fills in the rest.</summary>
@@ -55,6 +76,18 @@ public abstract class MediaItem
     public string? WatchedOn { get; set; }
 
     public string? ReleaseStatus { get; set; }
+
+    public string? OriginalLanguage { get; set; }
+
+    public string? CountryOfOrigin { get; set; }
+
+    /// <summary>Native or romanized original title the source reported; rendered under the main one.</summary>
+    public string? OriginalTitle { get; set; }
+
+    public string? CastJson { get; set; }
+
+    /// <summary>Serialised key staff (director, script, art...), stored once per refresh like CastJson.</summary>
+    public string? StaffJson { get; set; }
 
     public string? TranslatedSynopsis { get; set; }
 
@@ -131,6 +164,12 @@ public abstract class MediaItem
         var stamp = now ?? DateTime.UtcNow;
         Status = status;
 
+        if (status != MediaStatus.Dropped)
+        {
+            DropReason = null;
+            DropNotes = null;
+        }
+
         switch (status)
         {
             case MediaStatus.Completed:
@@ -140,6 +179,7 @@ public abstract class MediaItem
             case MediaStatus.InProgress:
                 StartedAt ??= stamp;
                 FinishedAt = null;
+                LastActivityAt = stamp;
                 break;
             case MediaStatus.Planned:
                 StartedAt = null;

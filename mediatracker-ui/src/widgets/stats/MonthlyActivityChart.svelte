@@ -1,5 +1,6 @@
 ﻿<script lang="ts">
     import { CalendarDays } from "$shared/ui/Icons.svelte";
+    import { i18n } from "$shared/i18n/index.svelte";
 
     interface MonthlyCompletionItem {
         monthYear: string;
@@ -12,21 +13,6 @@
 
     let { completions = [] }: Props = $props();
 
-    const MONTH_NAMES = [
-        "Янв",
-        "Фев",
-        "Мар",
-        "Апр",
-        "Май",
-        "Июн",
-        "Июл",
-        "Авг",
-        "Сен",
-        "Окт",
-        "Ноя",
-        "Дек",
-    ];
-
     const totalCompletions = $derived(
         completions.reduce((acc, curr) => acc + curr.count, 0)
     );
@@ -36,27 +22,14 @@
     );
 
     function formatMonth(monthYear: string): string {
-        const parts = monthYear.split("-");
-        if (parts.length >= 2) {
-            const monthIdx = parseInt(parts[1], 10) - 1;
-            if (monthIdx >= 0 && monthIdx < 12) {
-                return MONTH_NAMES[monthIdx];
-            }
-        }
-        return monthYear;
+        const date = new Date(`${monthYear}-01T00:00:00`);
+        return Number.isNaN(date.getTime()) ? monthYear : new Intl.DateTimeFormat(i18n.current, { month: "short" }).format(date);
     }
 
     function formatTooltip(monthYear: string, count: number): string {
-        const parts = monthYear.split("-");
-        let formattedDate = monthYear;
-        if (parts.length >= 2) {
-            const monthIdx = parseInt(parts[1], 10) - 1;
-            const year = parts[0];
-            if (monthIdx >= 0 && monthIdx < 12) {
-                formattedDate = `${MONTH_NAMES[monthIdx]} ${year}`;
-            }
-        }
-        return `${formattedDate}: ${count} завершено`;
+        const date = new Date(`${monthYear}-01T00:00:00`);
+        const formattedDate = Number.isNaN(date.getTime()) ? monthYear : new Intl.DateTimeFormat(i18n.current, { month: "short", year: "numeric" }).format(date);
+        return `${formattedDate}: ${i18n.t.stats.completedTooltip(count)}`;
     }
 </script>
 
@@ -65,11 +38,11 @@
         <div class="flex items-center gap-2">
             <CalendarDays class="size-4 text-[#818cf8]" aria-hidden="true" />
             <h3 class="text-base font-semibold tracking-tight text-white">
-                Активность за 12 месяцев
+                {i18n.t.stats.monthlyActivity}
             </h3>
         </div>
         <span class="inline-flex items-center rounded-md bg-[#5844e0]/15 border border-[#5844e0]/30 px-2.5 py-1 text-xs font-semibold text-[#818cf8]">
-            {totalCompletions} за год
+            {i18n.t.stats.completedInYear(totalCompletions)}
         </span>
     </div>
 

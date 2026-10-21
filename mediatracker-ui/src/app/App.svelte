@@ -1,6 +1,5 @@
 <script lang="ts">
-    import { flushSync } from "svelte";
-import { deleteMedia } from "$shared/api/api";
+    import { deleteMedia } from "$shared/api/api";
     import { jobsClient } from "$shared/api/jobsClient.svelte";
     import AppShell from "$widgets/layout/AppShell.svelte";
     import Header from "$widgets/layout/Header.svelte";
@@ -8,6 +7,7 @@ import { deleteMedia } from "$shared/api/api";
     import CreateModal from "$features/create-media/CreateModal.svelte";
     import SearchModal from "$features/search-external/SearchModal.svelte";
     import SettingsModal from "$features/settings/SettingsModal.svelte";
+    import DropReasonModal from "$features/drop-reason/DropReasonModal.svelte";
     import CalendarView from "$views/CalendarView.svelte";
     import CategoryView, {
         type Category,
@@ -20,7 +20,14 @@ import { deleteMedia } from "$shared/api/api";
     import StatsView from "$views/StatsView.svelte";
     import { i18n } from "$shared/i18n/index.svelte";
     import { uiSettings } from "$shared/utils/uiSettings.svelte";
-    import type { AppView, MediaItem, SearchScope } from "$shared/types";
+    import { bumpGridLayout } from "$widgets/media-grid/gridLayout.svelte";
+    import type {
+        AppView,
+        JobProgress,
+        MediaItem,
+        SearchModalContext,
+        SearchScope,
+    } from "$shared/types";
 
     const categories: readonly Category[] = [
         "tvshow",
@@ -43,16 +50,20 @@ import { deleteMedia } from "$shared/api/api";
 
     let route = readRoute();
     let activeView = $state<AppView>(route.view);
-    /* What is actually in the DOM. Svelte mounts an incoming {#if} branch before tearing down the
-       outgoing one, so switching views rendered both at once. `flushSync()` inside switchView puts
-       both DOM updates in the same task, so the browser only ever paints the final state: it never
-       sees the outgoing view, the new view, or an empty area.
+    /* What is actually in the DOM. The swap is a plain state write: Svelte 5 flushes it in a
+       microtask, i.e. before the browser paints, so the outgoing {#if} branch is destroyed and
+       the incoming one mounted within the same frame. flushSync() used to force that mid-task
+       and blocked the main thread for hundreds of ms on every category switch; the microtask
+       flush already guarantees the browser never paints two views stacked, or an empty <main>.
 
-       There is deliberately no "hide the area until the swap settles" step: the settle check used to
-       count <main>'s children, but MediaDetailView renders four top-level nodes (root + three
-       modals), so the count never reached 1, `switching` stayed true and <main> kept `invisible` --
-       the detail page mounted and stayed invisible until F5. flushSync alone is sufficient. */
+       There is deliberately no "hide the area until the swap settles" step: the settle check used
+       to count <main>'s children, but MediaDetailView renders four top-level nodes (root + three
+       modals), so the count never reached 1, `switching` stayed true and <main> kept `invisible`
+       -- the detail page mounted and stayed invisible until F5. */
     let renderedView = $state<AppView | null>(route.view);
+    let activeCategory = $state<Category | null>(
+        isCategory(route.view) ? route.view : null,
+    );
     let previousView = $state<AppView>(
         route.view === "seasons" || route.view === "detail"
             ? "home"
@@ -64,6 +75,9 @@ import { deleteMedia } from "$shared/api/api";
     let isSearchOpen = $state(false);
     let isSettingsOpen = $state(false);
     let initialSearchType = $state<SearchScope>("all");
+    let initialSearchQuery = $state("");
+    let initialSearchSource = $state("");
+    let initialSearchByCreator = $state(false);
     let mediaRevision = $state(0);
     let modalTrigger = $state<HTMLElement | null>(null);
     let detailDepth = 0;
@@ -93,6 +107,12 @@ import { deleteMedia } from "$shared/api/api";
             } else {
                 detailDepth = 0;
                 restoreScroll(nextRoute.view);
+                if (
+                    nextRoute.view === "home" &&
+                    !savedScrollPositions.has("home")
+                ) {
+                    setScroll(0);
+                }
             }
         };
 
@@ -132,25 +152,50 @@ import { deleteMedia } from "$shared/api/api";
             url.searchParams.delete("mediaId");
         }
 
+        if (view !== "detail" || previousView !== "lists") {
+            url.searchParams.delete("listId");
+        }
+
         window.history.pushState(null, "", url);
     }
 
     /**
-     * Single entry point for changing views. The state change and the forced DOM update happen in the
-     * same task, so the browser paints only the final state -- never two views stacked, never an empty
-     * frame.
+     * Single entry point for changing views. The state write is flushed by Svelte in a
+     * microtask, before the browser paints, so only the final state is ever on screen.
      */
     function switchView(view: AppView) {
+        if (isCategory(view)) {
+            activeCategory = view;
+        }
         renderedView = view;
-        flushSync();
     }
 
+    $effect(() => {
+        if (
+            renderedView === "home" ||
+            (renderedView !== null && isCategory(renderedView))
+        ) {
+            requestAnimationFrame(() => bumpGridLayout());
+        }
+    });
+
     function navigate(view: AppView) {
+        // Remember where the outgoing view was scrolled: the home reset below
+        // (and any view swap) would otherwise lose it for history back.
+        if (activeView !== view) {
+            savedScrollPositions.set(
+                activeView,
+                mainScrollContainer?.scrollTop ?? 0,
+            );
+        }
         activeView = view;
         selectedMediaId = null;
         detailDepth = 0;
         writeRoute(view, null);
         uiSettings.setLastView(view);
+        // Home always opens from the top: the shared scroller would otherwise
+        // keep the previous view's offset and clip the first rows.
+        if (view === "home") setScroll(0);
         switchView(view);
     }
 
@@ -251,9 +296,19 @@ import { deleteMedia } from "$shared/api/api";
         restoreModalFocus();
     }
 
-    function openSearch() {
+    function openSearch(context: string | SearchModalContext = "") {
         rememberTrigger();
-        initialSearchType = "all";
+        if (typeof context === "string") {
+            initialSearchType = "all";
+            initialSearchQuery = context;
+            initialSearchSource = "";
+            initialSearchByCreator = false;
+        } else {
+            initialSearchType = (context.type as SearchScope) || "all";
+            initialSearchQuery = context.query;
+            initialSearchSource = context.source ?? "";
+            initialSearchByCreator = Boolean(context.byCreator);
+        }
         isSearchOpen = true;
     }
 
@@ -276,24 +331,35 @@ import { deleteMedia } from "$shared/api/api";
         mediaRevision += 1;
     }
 
+    function navigateToList(id: string) {
+        navigate("lists");
+        const url = new URL(window.location.href);
+        url.searchParams.set("listId", id);
+        window.history.replaceState(null, "", url);
+    }
+
     function handleCreated(_: MediaItem) {
         mediaChanged();
     }
 
     /* A finished background job rewrote the row behind the grid (cover, seasons, sync flag), so the
-       lists have to be refetched — otherwise a card keeps its "Syncing" overlay forever. The detail
-       screen refreshes itself, so it is skipped here to avoid fetching the same item twice. */
-    let settledJobKeys = $state("");
+       lists have to be refetched — otherwise a card keeps its "Syncing" overlay forever. Failed and
+       cancelled jobs also settle the row (it stays with syncStatus=failed), so they count too. The
+       detail screen refreshes itself, but the signal still fires: HomeView and CategoryView live in
+       keep-alive containers and only hear about the change through their refreshKey. */
+    const settledJobIds = new Set<string>();
+    const isFinalJob = (job: JobProgress) =>
+        job.status === "Completed" || job.status === "Failed" || job.status === "Cancelled";
     $effect(() => {
-        const settled = jobsClient.jobs
-            .filter((job) => job.status === "Completed")
-            .map((job) => job.jobId)
-            .join(",");
+        const settled = jobsClient.jobs.filter(isFinalJob);
 
-        if (settled === settledJobKeys) return;
-        settledJobKeys = settled;
-        if (activeView === "detail" || settled === "") return;
-        mediaChanged();
+        let fired = false;
+        for (const job of settled) {
+            if (settledJobIds.has(job.jobId)) continue;
+            settledJobIds.add(job.jobId);
+            fired = true;
+        }
+        if (fired) mediaChanged();
     });
 
     function openDetailById(id: string) {
@@ -337,17 +403,36 @@ import { deleteMedia } from "$shared/api/api";
     {/snippet}
 
     {#snippet header()}
-        <Header title={titleForView(activeView)} onSearch={openSearch} />
+        <Header title={titleForView(activeView)} onSearch={() => openSearch()} />
     {/snippet}
 
-    {#if renderedView === "home"}
+    {#if renderedView === "lists"}
+        <ListsView onOpen={openDetail} onImportCompleted={mediaChanged} />
+    {/if}
+
+    <div class:hidden={renderedView !== "home"}>
         <HomeView
             refreshKey={mediaRevision}
             onOpen={openDetail}
             onMediaChanged={mediaChanged}
             onEdit={openEdit}
         />
-    {:else if renderedView === "detail" && selectedMediaId}
+    </div>
+
+    {#if activeCategory !== null}
+        <div class:hidden={renderedView === null || !isCategory(renderedView)}>
+            <CategoryView
+                category={activeCategory}
+                active={renderedView !== null && isCategory(renderedView)}
+                refreshKey={mediaRevision}
+                onOpen={openDetail}
+                onMediaChanged={mediaChanged}
+                onEdit={openEdit}
+            />
+        </div>
+    {/if}
+
+    {#if renderedView === "detail" && selectedMediaId}
         <MediaDetailView
             mediaId={selectedMediaId}
             refreshKey={mediaRevision}
@@ -356,6 +441,7 @@ import { deleteMedia } from "$shared/api/api";
             onDelete={deleteFromDetail}
             onEdit={openEdit}
             onOpenRelated={openDetail}
+            onSearch={(context) => openSearch(context)}
         />
     {:else if renderedView === "seasons" && selectedMediaId}
         <ShowSeasonsView
@@ -365,25 +451,14 @@ import { deleteMedia } from "$shared/api/api";
             onMediaChanged={mediaChanged}
         />
     {:else if renderedView === "stats"}
-        <StatsView refreshKey={mediaRevision} />
+        <StatsView refreshKey={mediaRevision} onOpenMedia={(mediaId) => openDetailById(mediaId)} />
     {:else if renderedView === "history"}
-        <HistoryView refreshKey={mediaRevision} />
+        <HistoryView
+            refreshKey={mediaRevision}
+            onOpenMedia={(mediaId) => openDetailById(mediaId)}
+        />
     {:else if renderedView === "calendar"}
         <CalendarView />
-    {:else if renderedView === "lists"}
-        <ListsView />
-    {:else if renderedView !== null && isCategory(renderedView)}
-        <!-- No {#key} here: keying the whole view remounted it on every switch. The section
-             {#each} keys in CategoryView are category-scoped instead, so sections rebuild only
-             when their contents actually differ. renderedView already guarantees a single
-             mounted view at a time. -->
-        <CategoryView
-            category={renderedView}
-            refreshKey={mediaRevision}
-            onOpen={openDetail}
-            onMediaChanged={mediaChanged}
-            onEdit={openEdit}
-        />
     {/if}
 </AppShell>
 
@@ -396,6 +471,9 @@ import { deleteMedia } from "$shared/api/api";
 <SearchModal
     isOpen={isSearchOpen}
     initialType={initialSearchType}
+    initialQuery={initialSearchQuery}
+    initialSource={initialSearchSource}
+    byCreator={initialSearchByCreator}
     onClose={closeSearch}
     onMediaAdded={handleCreated}
     onNavigateToMedia={(id) => {
@@ -403,4 +481,5 @@ import { deleteMedia } from "$shared/api/api";
         openDetailById(id);
     }}
 />
-<SettingsModal isOpen={isSettingsOpen} onClose={closeSettings} />
+<SettingsModal isOpen={isSettingsOpen} onClose={closeSettings} onImportCompleted={mediaChanged} onNavigateToList={navigateToList} />
+<DropReasonModal />

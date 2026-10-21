@@ -8,15 +8,25 @@ public sealed record UpdateMediaRequest
 
     public int? Score { get; init; }
 
+    public bool ClearScore { get; init; }
+
+    public string? DetailedScoreJson { get; init; }
+
+    public bool ClearDetailedScore { get; init; }
+
     public MediaStatus? Status { get; init; }
 
     public string? Notes { get; init; }
+
+    public string? QuotesJson { get; init; }
 
     public string? CoverUrl { get; init; }
 
     public DateTime? StartedAt { get; init; }
 
     public DateTime? FinishedAt { get; init; }
+
+    public DateTime? LastActivityAt { get; init; }
 
     public Guid? FranchiseId { get; init; }
 
@@ -79,4 +89,10 @@ public sealed record UpdateMediaRequest
     public string? AchievementsJson { get; init; }
 
     public string? RecommendationsJson { get; init; }
+
+    public string? DropReason { get; init; }
+
+    public string? DropNotes { get; init; }
+
+    public bool ClearDropReason { get; init; }
 }

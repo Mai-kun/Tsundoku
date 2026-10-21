@@ -17,6 +17,43 @@ namespace MediaTracker.Server.Infrastructure.Persistence.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.12");
 
+            modelBuilder.Entity("MediaTracker.Server.Domain.Entities.ApiToken", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("ExpiresAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("LastUsedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TokenPrefix")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique();
+
+                    b.ToTable("ApiTokens");
+                });
+
             modelBuilder.Entity("MediaTracker.Server.Domain.Entities.AppSetting", b =>
                 {
                     b.Property<string>("Key")
@@ -32,6 +69,71 @@ namespace MediaTracker.Server.Infrastructure.Persistence.Migrations
                     b.HasKey("Key");
 
                     b.ToTable("Settings");
+                });
+
+            modelBuilder.Entity("MediaTracker.Server.Domain.Entities.CustomList", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Color")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Icon")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue("list");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SmartQueryJson")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("CustomLists");
+                });
+
+            modelBuilder.Entity("MediaTracker.Server.Domain.Entities.CustomListItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("AddedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ListId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("MediaItemId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Order")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MediaItemId");
+
+                    b.HasIndex("ListId", "MediaItemId")
+                        .IsUnique();
+
+                    b.ToTable("CustomListItems");
                 });
 
             modelBuilder.Entity("MediaTracker.Server.Domain.Entities.Franchise", b =>
@@ -146,10 +248,31 @@ namespace MediaTracker.Server.Infrastructure.Persistence.Migrations
                     b.Property<string>("AchievementsJson")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("CastJson")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CountryOfOrigin")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("CoverUrl")
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CreatorImageUrl")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DetailedScoreJson")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DropNotes")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DropReason")
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime?>("EndDate")
@@ -185,12 +308,24 @@ namespace MediaTracker.Server.Infrastructure.Persistence.Migrations
                     b.Property<bool>("IsCustomEdited")
                         .HasColumnType("INTEGER");
 
+                    b.Property<DateTime?>("LastActivityAt")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("MediaType")
                         .IsRequired()
                         .HasMaxLength(13)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Notes")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("OriginalLanguage")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("OriginalTitle")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("QuotesJson")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("RecommendationsJson")
@@ -217,6 +352,9 @@ namespace MediaTracker.Server.Infrastructure.Persistence.Migrations
                     b.Property<int?>("Score")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("StaffJson")
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime?>("StartedAt")
                         .HasColumnType("TEXT");
 
@@ -231,6 +369,9 @@ namespace MediaTracker.Server.Infrastructure.Persistence.Migrations
 
                     b.Property<string>("Title")
                         .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TrailerVideoId")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("TranslatedSynopsis")
@@ -436,7 +577,29 @@ namespace MediaTracker.Server.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Studio")
+                        .HasColumnType("TEXT");
+
                     b.HasDiscriminator().HasValue("Game");
+                });
+
+            modelBuilder.Entity("MediaTracker.Server.Domain.Entities.CustomListItem", b =>
+                {
+                    b.HasOne("MediaTracker.Server.Domain.Entities.CustomList", "List")
+                        .WithMany("Items")
+                        .HasForeignKey("ListId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("MediaTracker.Server.Domain.Entities.MediaItem", "MediaItem")
+                        .WithMany()
+                        .HasForeignKey("MediaItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("List");
+
+                    b.Navigation("MediaItem");
                 });
 
             modelBuilder.Entity("MediaTracker.Server.Domain.Entities.MangaVolume", b =>
@@ -480,6 +643,11 @@ namespace MediaTracker.Server.Infrastructure.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("TvShow");
+                });
+
+            modelBuilder.Entity("MediaTracker.Server.Domain.Entities.CustomList", b =>
+                {
+                    b.Navigation("Items");
                 });
 
             modelBuilder.Entity("MediaTracker.Server.Domain.Entities.Franchise", b =>

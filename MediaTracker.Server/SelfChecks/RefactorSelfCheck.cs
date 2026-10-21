@@ -6,12 +6,26 @@ using MediaTracker.Server.Domain.Entities;
 using MediaTracker.Server.Domain.Rules;
 using MediaTracker.Server.Features.Media.CreateMedia;
 using MediaTracker.Server.Features.Media.GetMediaStats;
+using MediaTracker.Server.Features.Media.Import.Parsers;
 using MediaTracker.Server.Infrastructure.ExternalApis;
 using MediaTracker.Server.Infrastructure.Persistence.Interceptors;
+using MediaTracker.Server.Infrastructure.Security;
 using MediaTracker.Server.Infrastructure.Storage;
 using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
+using MediaTracker.Server.Domain.Enums;
+using MediaTracker.Server.Features.History.GetHistoryEvents;
+using MediaTracker.Server.Features.Lists;
+using MediaTracker.Server.Features.Media.Import;
+using MediaTracker.Server.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using MediaDetailDto = MediaTracker.Server.Features.Media.MediaContract.MediaDetailDto;
+using MediaJsonCache = MediaTracker.Server.Features.Media.MediaContract.MediaJsonCache;
 using MediaListDto = MediaTracker.Server.Features.Media.MediaContract.MediaListDto;
 using MediaResponseMapper = MediaTracker.Server.Features.Media.MediaContract.MediaResponseMapper;
 using UpdateMediaRequest = MediaTracker.Server.Features.Media.UpdateMedia.UpdateMediaRequest;
@@ -38,6 +52,8 @@ public static class RefactorSelfCheck
         CheckMangaFormatMergePrefersOel(failures);
         CheckMangaGapEnrichmentDoesNotOverwrite(failures);
         CheckMergeKeepsRuntimeAndGenres(failures);
+        CheckMergeCarriesCastAndTrailer(failures);
+        CheckEnrichStoresGameDeveloper(failures);
         CheckMergeKeepsFinalChapterTotal(failures);
         CheckRelatedMediaSurvivesRoundTrip(failures);
         CheckMissingMetadataDrivesCascade(failures);
@@ -55,6 +71,7 @@ public static class RefactorSelfCheck
         CheckApiKeyLookup(failures);
         CheckCoverSizeLimit(failures);
         CheckCommandLineParsing(failures);
+        CheckStaffAndCastSnapshots(failures);
         CheckKinopoiskEnumMapping(failures);
         CheckKinopoiskAirDateRange(failures);
         CheckKinopoiskEndDateOnlyWhenFinished(failures);
@@ -66,6 +83,8 @@ public static class RefactorSelfCheck
         CheckSqliteTuningIsPreserved(failures);
         CheckMetadataProvidersAreDiscovered(failures);
         CheckImdbSuggestionPartition(failures);
+        CheckImdbTypeClassification(failures);
+        CheckSourcePriorityVersionBump(failures);
         CheckSimklSearchSegments(failures);
         CheckBookPageCountSurvivesMerge(failures);
         CheckProviderConnectionTestIsNotShadowed(failures);
@@ -76,7 +95,18 @@ public static class RefactorSelfCheck
         CheckKitsuRatingMapping(failures);
         CheckSteamVerticalCovers(failures);
         CheckAdvancedStatsCalculation(failures);
+        CheckTasteProfileCalculations(failures);
+        CheckDropAnalyticsCalculations(failures);
         CheckAllMetadataProvidersSupportGenres(failures);
+        CheckLetterboxdCsvImportParser(failures);
+        CheckAniListImportParser(failures);
+        CheckMangalibImportParser(failures);
+        CheckCustomImportParser(failures);
+        CheckSteamLibraryImportParser(failures);
+        CheckImportHealing(failures);
+        CheckHistoryEventsFiltering(failures);
+        CheckSmartListEvaluator(failures);
+        CheckApiTokenHashingAndValidation(failures);
 
         if (failures.Count == 0)
         {
@@ -91,6 +121,388 @@ public static class RefactorSelfCheck
         }
 
         return 1;
+    }
+
+    private static void CheckLetterboxdCsvImportParser(List<string> failures)
+    {
+        var parsed = LetterboxdCsvParser.Parse("Name,Year,Rating,Watched Date\n\"Title, The\",1999,4.5,2024-03-02");
+        AssertEqual(failures, 1, parsed.Count, "Letterboxd CSV record count");
+        if (parsed.Count == 1)
+        {
+            AssertEqual(failures, "Title, The", parsed[0].Title, "Letterboxd quoted comma title");
+            AssertEqual<int?>(failures, 9, parsed[0].Score, "Letterboxd half-star conversion");
+            AssertEqual<int?>(failures, 1999, parsed[0].ReleaseYear, "Letterboxd release year");
+        }
+    }
+    private static void CheckAniListImportParser(List<string> failures)
+    {
+        var json = """
+            [
+              {
+                "progress": 12,
+                "status": "CURRENT",
+                "score": 87,
+                "media": { "id": 5114, "type": "ANIME", "episodes": 64, "title": { "english": "Fullmetal Alchemist: Brotherhood", "romaji": "Hagane no Renkinjutsushi", "native": "鋼の錬金術師" } }
+              },
+              {
+                "progress": 30,
+                "listStatus": "PAUSED",
+                "score": 8,
+                "media": { "id": 30002, "type": "MANGA", "chapters": 364, "title": { "english": null, "romaji": "Berserk", "native": "ベルセルク" } }
+              }
+            ]
+            """;
+        var parsed = AniListImportParser.Parse(json, mangaFile: false);
+        AssertEqual(failures, 2, parsed.Count, "AniList entry count");
+        if (parsed.Count == 2)
+        {
+            AssertEqual(failures, "Fullmetal Alchemist: Brotherhood", parsed[0].Title, "AniList english title preferred");
+            AssertEqual(failures, "anime", parsed[0].Type, "AniList ANIME type");
+            AssertEqual(failures, MediaStatus.InProgress, parsed[0].Status, "AniList CURRENT maps to in-progress");
+            AssertEqual<int?>(failures, 9, parsed[0].Score, "AniList 100-point score normalizes to 10");
+            AssertEqual<int?>(failures, 64, parsed[0].TotalCount, "AniList episodes total");
+            AssertEqual(failures, "5114", parsed[0].ExternalId, "AniList external id");
+            AssertEqual(failures, "Berserk", parsed[1].Title, "AniList romaji fallback title");
+            AssertEqual(failures, "manga", parsed[1].Type, "AniList MANGA type");
+            AssertEqual(failures, MediaStatus.OnHold, parsed[1].Status, "AniList listStatus PAUSED maps to on-hold");
+        }
+
+        var graphQl = """
+            {
+              "data": {
+                "MediaListCollection": {
+                  "lists": [
+                    {
+                      "entries": [
+                        {
+                          "progress": 3,
+                          "status": "PLANNING",
+                          "score": 0,
+                          "media": {
+                            "id": 1,
+                            "type": "ANIME",
+                            "episodes": 12,
+                            "title": { "english": "Frieren", "romaji": "Sousou no Frieren", "native": "葬送のフリーレン" },
+                            "coverImage": { "extraLarge": "https://cdn.example/frieren_xl.jpg", "large": "https://cdn.example/frieren_l.jpg" },
+                            "description": "<p>After a 10-year quest...</p>",
+                            "genres": ["Adventure", "Fantasy"],
+                            "startDate": { "year": 2023, "month": 9, "day": 29 },
+                            "endDate": { "year": 2024, "month": 3, "day": 22 },
+                            "status": "FINISHED",
+                            "averageScore": 91,
+                            "studios": { "nodes": [ { "name": "Madhouse" } ] },
+                            "duration": 24
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+            """;
+        var fromProfile = AniListImportParser.Parse(graphQl, mangaFile: false);
+        AssertEqual(failures, 1, fromProfile.Count, "AniList GraphQL collection entry count");
+        if (fromProfile.Count == 1)
+        {
+            AssertEqual(failures, "Frieren", fromProfile[0].Title, "AniList GraphQL title");
+            AssertEqual(failures, MediaStatus.Planned, fromProfile[0].Status, "AniList GraphQL PLANNING maps to planned");
+            AssertEqual<int?>(failures, null, fromProfile[0].Score, "AniList GraphQL zero score becomes null");
+            AssertEqual(failures, "https://cdn.example/frieren_xl.jpg", fromProfile[0].CoverUrl, "AniList GraphQL coverImage");
+            AssertEqual(failures, "After a 10-year quest...", fromProfile[0].Description, "AniList GraphQL description");
+            AssertEqual(failures, "Adventure, Fantasy", fromProfile[0].Genres, "AniList GraphQL genres");
+            AssertEqual(failures, "2023-09-29", fromProfile[0].ReleaseDate, "AniList GraphQL releaseDate");
+            AssertEqual(failures, "2024-03-22", fromProfile[0].EndDate, "AniList GraphQL endDate");
+            AssertEqual(failures, "FINISHED", fromProfile[0].ReleaseStatus, "AniList GraphQL releaseStatus");
+            AssertEqual<double?>(failures, 9.1, fromProfile[0].Rating, "AniList GraphQL rating");
+            AssertEqual(failures, "Madhouse", fromProfile[0].Studio, "AniList GraphQL studio");
+            AssertEqual(failures, "Sousou no Frieren", fromProfile[0].RomajiTitle, "AniList GraphQL romaji");
+            AssertEqual(failures, "葬送のフリーレン", fromProfile[0].OriginalTitle, "AniList GraphQL native");
+            AssertEqual<int?>(failures, 24, fromProfile[0].DurationMinutes, "AniList GraphQL duration");
+        }
+
+        var combined = """{"animelist":[{ "progress": 1, "status": "CURRENT", "score": 8, "media": { "id": 1, "type": "ANIME", "episodes": 12, "title": { "english": "Frieren" } } }],"mangalist":[{ "progress": 5, "status": "COMPLETED", "score": 10, "media": { "id": 2, "type": "MANGA", "chapters": 100, "title": { "english": "Vinland Saga" } } }]}""";
+        var merged = AniListImportParser.Parse(combined, mangaFile: false);
+        AssertEqual(failures, 2, merged.Count, "AniList combined export flattens both lists");
+        if (merged.Count == 2)
+        {
+            AssertEqual(failures, "anime", merged[0].Type, "AniList combined anime entry type");
+            AssertEqual(failures, "manga", merged[1].Type, "AniList combined manga entry type");
+        }
+
+        // Fuzzy dates with null month / day
+        var fuzzyDatesJson = """
+            [
+              {
+                "progress": 1,
+                "status": "CURRENT",
+                "media": {
+                  "id": 100,
+                  "type": "ANIME",
+                  "title": { "english": "Fuzzy Year Only" },
+                  "startDate": { "year": 2021, "month": null, "day": null },
+                  "endDate": { "year": 2022, "month": 6, "day": null }
+                }
+              },
+              {
+                "progress": 2,
+                "status": "COMPLETED",
+                "media": {
+                  "id": 101,
+                  "type": "MANGA",
+                  "title": { "romaji": "Fuzzy All Nulls" },
+                  "startDate": { "year": null, "month": null, "day": null },
+                  "endDate": null
+                }
+              }
+            ]
+            """;
+        var fuzzyParsed = AniListImportParser.Parse(fuzzyDatesJson, mangaFile: false);
+        AssertEqual(failures, 2, fuzzyParsed.Count, "AniList fuzzy dates entry count");
+        if (fuzzyParsed.Count == 2)
+        {
+            AssertEqual(failures, "2021", fuzzyParsed[0].ReleaseDate, "AniList fuzzy date year-only formatted as yyyy");
+            AssertEqual(failures, "2022-06", fuzzyParsed[0].EndDate, "AniList fuzzy date year-month formatted as yyyy-MM");
+            AssertEqual(failures, null, fuzzyParsed[1].ReleaseDate, "AniList all-null fuzzy date is null");
+        }
+
+        // GraphQL error envelope handling
+        var errorJson = """{"errors":[{"message":"User not found","status":404}],"data":null}""";
+        try
+        {
+            AniListImportParser.Parse(errorJson, mangaFile: false);
+            failures.Add("Expected AniListImportParser to throw on GraphQL errors envelope");
+        }
+        catch (FormatException ex)
+        {
+            AssertEqual(failures, true, ex.Message.Contains("User not found"), "AniList error message extracted");
+        }
+    }
+
+    private static void CheckMangalibImportParser(List<string> failures)
+    {
+        var json = """
+            [
+              { "rus_name": "Ван-Пис", "name": "One Piece", "status": 1, "user_chapters": 1122, "chapters": 1122, "user_rating": 10 },
+              { "rus_name": "Берсерк", "eng_name": "Berserk", "status": "Брошено", "read_chapters": 36, "total_chapters": 374, "rating": 9 }
+            ]
+            """;
+        var parsed = MangalibParser.Parse(json);
+        AssertEqual(failures, 2, parsed.Count, "MangaLib JSON entry count");
+        if (parsed.Count == 2)
+        {
+            AssertEqual(failures, "Ван-Пис", parsed[0].Title, "MangaLib rus_name preferred");
+            AssertEqual(failures, "manga", parsed[0].Type, "MangaLib type is always manga");
+            AssertEqual(failures, MediaStatus.InProgress, parsed[0].Status, "MangaLib numeric status 1 maps to in-progress");
+            AssertEqual<int?>(failures, 1122, parsed[0].CurrentProgress, "MangaLib user_chapters");
+            AssertEqual<int?>(failures, 10, parsed[0].Score, "MangaLib user_rating");
+            AssertEqual(failures, "MangaLib", parsed[0].ExternalSource, "MangaLib external source");
+            AssertEqual(failures, MediaStatus.Dropped, parsed[1].Status, "MangaLib string status брошено maps to dropped");
+            AssertEqual<int?>(failures, 36, parsed[1].CurrentProgress, "MangaLib read_chapters fallback");
+            AssertEqual<int?>(failures, 374, parsed[1].TotalCount, "MangaLib total_chapters fallback");
+        }
+
+        var csv = MangalibParser.Parse("name,status,user_chapters,chapters,user_rating\n\"Соло-levelling\",отложено,120,200,8");
+        AssertEqual(failures, 1, csv.Count, "MangaLib CSV entry count");
+        if (csv.Count == 1)
+        {
+            AssertEqual(failures, MediaStatus.OnHold, csv[0].Status, "MangaLib CSV отложено maps to on-hold");
+            AssertEqual<int?>(failures, 8, csv[0].Score, "MangaLib CSV rating");
+        }
+    }
+
+    private static void CheckCustomImportParser(List<string> failures)
+    {
+        var json = """
+            [
+              { "title": "Тетрадь смерти", "type": "сериал", "status": "в планах", "score": 9, "progress": 37, "totalCount": 37, "director": "Тэцуро Араки", "year": 2006 },
+              { "title": "Disco Elysium", "type": "game", "status": 2, "progress": 40, "studio": "ZA/UM" },
+              { "type": "movie", "status": "completed" }
+            ]
+            """;
+        var parsed = CustomImportParser.Parse(json);
+        AssertEqual(failures, 2, parsed.Count, "Custom JSON skips titleless rows");
+        if (parsed.Count == 2)
+        {
+            AssertEqual(failures, "Тетрадь смерти", parsed[0].Title, "Custom title");
+            AssertEqual(failures, "tvshow", parsed[0].Type, "Custom Russian тип сериал maps to tvshow");
+            AssertEqual(failures, MediaStatus.Planned, parsed[0].Status, "Custom в планах maps to planned");
+            AssertEqual<int?>(failures, 9, parsed[0].Score, "Custom score");
+            AssertEqual<int?>(failures, 37, parsed[0].CurrentProgress, "Custom progress");
+            AssertEqual<int?>(failures, 2006, parsed[0].ReleaseYear, "Custom year");
+            AssertEqual(failures, "Тэцуро Араки", parsed[0].Author, "Custom director becomes author");
+            AssertEqual(failures, "game", parsed[1].Type, "Custom game type");
+            AssertEqual(failures, MediaStatus.Completed, parsed[1].Status, "Custom numeric status 2 maps to completed");
+            AssertEqual(failures, "ZA/UM", parsed[1].Author, "Custom studio becomes author");
+        }
+
+        var csv = CustomImportParser.Parse("title,type,status,score\n\"Наруто\",Манга,читаю,7\n\"\",anime,completed,5");
+        AssertEqual(failures, 1, csv.Count, "Custom CSV skips titleless rows");
+        if (csv.Count == 1)
+        {
+            AssertEqual(failures, "manga", csv[0].Type, "Custom CSV Russian тип манга");
+            AssertEqual(failures, MediaStatus.InProgress, csv[0].Status, "Custom CSV читаю maps to in-progress");
+        }
+    }
+
+    private static void CheckSteamLibraryImportParser(List<string> failures)
+    {
+        var steamJson = """{"games":[{"appid":367520,"name":"Hollow Knight","playtime_forever":120}]}""";
+        var steamGames = SteamLibraryParser.Parse(steamJson);
+        AssertEqual(failures, 1, steamGames.Count, "Steam games count");
+        if (steamGames.Count == 1)
+        {
+            AssertEqual(failures, "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/367520/library_600x900.jpg", steamGames[0].CoverUrl, "Steam library 600x900 cover");
+            AssertEqual(failures, "PC", steamGames[0].Platform, "Steam platform is PC");
+            AssertEqual(failures, "Steam", steamGames[0].ExternalSource, "Steam external source");
+            AssertEqual(failures, "367520", steamGames[0].ExternalId, "Steam external id");
+            AssertEqual(failures, 2, steamGames[0].CurrentProgress, "Steam playtime hours");
+        }
+    }
+
+    private static void CheckImportHealing(List<string> failures)
+    {
+        using var connection = new SqliteConnection("DataSource=:memory:");
+        connection.Open();
+        var options = new DbContextOptionsBuilder<AppDbContext>().UseSqlite(connection).Options;
+        using var db = new AppDbContext(options);
+        db.Database.EnsureCreated();
+
+        // 1. Existing empty manga row
+        var existingManga = new Manga
+        {
+            Title = "Demon King of the Royal Class",
+            ExternalId = "12345",
+            ExternalSource = "AniList"
+        };
+        db.Manga.Add(existingManga);
+
+        // 2. Existing empty game row
+        var existingGame = new VideoGame
+        {
+            Title = "Hollow Knight",
+            Platform = "Steam",
+            ExternalId = "367520",
+            ExternalSource = "Steam"
+        };
+        db.Games.Add(existingGame);
+        db.SaveChanges();
+
+        var handler = new ImportMediaHandler(
+            db,
+            new StubHttpClientFactory(_ => Task.FromResult(new HttpResponseMessage())),
+            new ConfigurationBuilder().Build(),
+            Options.Create(new ExternalApiOptions()));
+
+        var anilistJson = """
+            [
+              {
+                "progress": 50,
+                "status": "CURRENT",
+                "score": 85,
+                "media": {
+                  "id": 12345,
+                  "type": "MANGA",
+                  "chapters": 120,
+                  "title": { "english": "Demon King of the Royal Class", "romaji": "Demon King Romaji" },
+                  "coverImage": { "extraLarge": "https://s4.anilist.co/cover/12345.jpg" },
+                  "description": "<p>A great story about royal academy</p>",
+                  "genres": ["Action", "Fantasy", "School"],
+                  "startDate": { "year": 2022, "month": 3, "day": 15 },
+                  "status": "RELEASING",
+                  "averageScore": 84,
+                  "staff": { "edges": [ { "role": "Story & Art", "node": { "name": { "full": "Geul Jangi" } } } ] }
+                }
+              }
+            ]
+            """;
+        var fileBytes = global::System.Text.Encoding.UTF8.GetBytes(anilistJson);
+        using var stream = new MemoryStream(fileBytes);
+        var formFile = new FormFile(stream, 0, fileBytes.Length, "file", "anilist.json");
+        var result = handler.ImportFileAsync(new ImportFileRequest(formFile, "anilist", SkipDuplicates: true), CancellationToken.None).GetAwaiter().GetResult();
+
+        AssertEqual(failures, 1, result.TotalFound, "Import total found");
+        AssertEqual(failures, 0, result.ImportedCount, "Import imported count (skipped duplicate)");
+        AssertEqual(failures, 1, result.SkippedDuplicates, "Import duplicate count");
+
+        var healedManga = db.Manga.Single(m => m.ExternalId == "12345");
+        AssertEqual(failures, "https://s4.anilist.co/cover/12345.jpg", healedManga.CoverUrl, "Healed manga has cover");
+        AssertEqual(failures, "A great story about royal academy", healedManga.Description, "Healed manga has description");
+        AssertEqual(failures, "Action, Fantasy, School", healedManga.Genres, "Healed manga has genres");
+        AssertEqual(failures, "Geul Jangi", healedManga.Author, "Healed manga has author");
+        AssertEqual(failures, "Demon King Romaji", healedManga.RomajiTitle, "Healed manga has romaji");
+        AssertEqual(failures, "RELEASING", healedManga.ReleaseStatus, "Healed manga has release status");
+        AssertEqual<double?>(failures, 8.4, healedManga.ExternalRating, "Healed manga has rating");
+        AssertTrue(failures, healedManga.ExternalRatingsJson is not null && healedManga.ExternalRatingsJson.Contains("8.4"), "Healed manga has external ratings JSON");
+
+        // Now test Steam game healing
+        var steamJson = """{"games":[{"appid":367520,"name":"Hollow Knight","playtime_forever":120}]}""";
+        var steamBytes = global::System.Text.Encoding.UTF8.GetBytes(steamJson);
+        using var steamStream = new MemoryStream(steamBytes);
+        var steamFormFile = new FormFile(steamStream, 0, steamBytes.Length, "file", "steam.json");
+        handler.ImportFileAsync(new ImportFileRequest(steamFormFile, "steam", SkipDuplicates: true), CancellationToken.None).GetAwaiter().GetResult();
+
+        var healedGame = db.Games.Single(g => g.ExternalId == "367520");
+        AssertEqual(failures, "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/367520/library_600x900.jpg", healedGame.CoverUrl, "Healed steam game has 600x900 cover");
+        AssertEqual(failures, "PC", healedGame.Platform, "Healed steam game platform is PC");
+    }
+
+    private static void CheckHistoryEventsFiltering(List<string> failures)
+    {
+        using var connection = new SqliteConnection("DataSource=:memory:");
+        connection.Open();
+        var options = new DbContextOptionsBuilder<AppDbContext>().UseSqlite(connection).Options;
+        using var db = new AppDbContext(options);
+        db.Database.EnsureCreated();
+
+        var media1 = Guid.NewGuid();
+        var media2 = Guid.NewGuid();
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var yesterday = today.AddDays(-1);
+
+        db.Books.Add(new Book { Id = media1, Title = "Book 1", Author = "Author 1", CurrentPage = 10 });
+        db.TvShows.Add(new TvShow { Id = media2, Title = "Show 1" });
+
+        var event1 = new MediaEvent
+        {
+            MediaId = media1,
+            Type = MediaEventType.ProgressChanged,
+            OldValue = "10 стр.",
+            NewValue = "20 стр.",
+            CreatedAt = today.ToDateTime(new TimeOnly(10, 0), DateTimeKind.Utc)
+        };
+        var event2 = new MediaEvent
+        {
+            MediaId = media1,
+            Type = MediaEventType.StatusChanged,
+            OldValue = "Planned",
+            NewValue = "InProgress",
+            CreatedAt = yesterday.ToDateTime(new TimeOnly(12, 0), DateTimeKind.Utc)
+        };
+        var event3 = new MediaEvent
+        {
+            MediaId = media2,
+            Type = MediaEventType.ProgressChanged,
+            OldValue = "S1 E1",
+            NewValue = "S1 E2",
+            CreatedAt = today.ToDateTime(new TimeOnly(15, 0), DateTimeKind.Utc)
+        };
+
+        db.Events.AddRange(event1, event2, event3);
+        db.SaveChanges();
+
+        var handler = new GetHistoryEventsHandler(db);
+
+        var media1Events = handler.HandleAsync(new GetHistoryEventsQuery(MediaId: media1), CancellationToken.None).GetAwaiter().GetResult().Value!;
+        AssertEqual(failures, 2, media1Events.Count, "media1 has 2 events");
+
+        var todayEvents = handler.HandleAsync(new GetHistoryEventsQuery(Date: today), CancellationToken.None).GetAwaiter().GetResult().Value!;
+        AssertEqual(failures, 2, todayEvents.Count, "today has 2 events");
+
+        var bothEvents = handler.HandleAsync(new GetHistoryEventsQuery(MediaId: media1, Date: today), CancellationToken.None).GetAwaiter().GetResult().Value!;
+        AssertEqual(failures, 1, bothEvents.Count, "media1 today has 1 event");
+        AssertEqual(failures, "10 стр.", bothEvents[0].OldValue, "old value matches");
+        AssertEqual(failures, "20 стр.", bothEvents[0].NewValue, "new value matches");
     }
 
     private static void CheckSourceAliases(List<string> failures)
@@ -356,6 +768,13 @@ public static class RefactorSelfCheck
 
         MediaItemUpdater.Apply(item, new UpdateMediaRequest { ClearWatchedOn = true });
         AssertTrue(failures, item.WatchedOn is null, "an explicit clear empties watched-on");
+
+        MediaItemUpdater.Apply(item, new UpdateMediaRequest { DetailedScoreJson = "{\"gameplay\":9}" });
+        AssertEqual(failures, "{\"gameplay\":9}", item.DetailedScoreJson, "detailed score is stored");
+        AssertEqual(failures, "{\"gameplay\":9}", MediaResponseMapper.ToDetailDto(item).DetailedScoreJson, "ToDetailDto maps detailed score");
+
+        MediaItemUpdater.Apply(item, new UpdateMediaRequest { ClearDetailedScore = true });
+        AssertTrue(failures, item.DetailedScoreJson is null, "an explicit clear empties detailed score");
     }
 
     /// <summary>
@@ -467,6 +886,189 @@ public static class RefactorSelfCheck
             merged.Genres?.Count,
             "merge fills genres the primary source lacks"
         );
+    }
+
+    private static void CheckStaffAndCastSnapshots(List<string> failures)
+    {
+        // Anime: a voice actor clears two roles, staff carries photos, both survive the JSON round trip.
+        var anime = new ExternalMediaDto
+        {
+            ExternalId = "1",
+            Title = "Re:Zero",
+            Type = "anime",
+            OriginalTitle = "Re:ゼロから始める異世界生活",
+            Staff =
+            [
+                new ExternalStaffMemberDto("Masahiro Watanabe", "Director", "https://s4.anilist.co/file/anilistcdn/staff/large/d1.jpg"),
+                new ExternalStaffMemberDto("Kyuta Sakai", "Character Design, Chief Animation Director", "https://s4.anilist.co/file/anilistcdn/staff/large/d2.jpg"),
+            ],
+            Cast =
+            [
+                new CastMemberDto("Rie Takahashi", "Emilia", "https://s4.anilist.co/file/anilistcdn/character/large/v1.jpg")
+                {
+                    CharacterImageUrl = "https://s4.anilist.co/file/anilistcdn/character/large/c1.jpg",
+                    CharacterRole = "MAIN",
+                    VoiceActorName = "Rie Takahashi",
+                    VoiceActorImageUrl = "https://s4.anilist.co/file/anilistcdn/staff/large/v1.jpg",
+                },
+            ],
+        };
+
+        var show = new TvShow
+        {
+            Title = "Re:Zero",
+            Studio = "White Fox",
+            IsAnime = true,
+        };
+        MediaMetadataApplier
+            .ApplyOverwriteAsync(show, anime, new NoOpImageStorage(), CancellationToken.None)
+            .GetAwaiter()
+            .GetResult();
+
+        AssertEqual(failures, "Re:ゼロから始める異世界生活", show.OriginalTitle, "refresh stores the native title");
+        var staff = MediaJsonCache.Deserialize<ExternalStaffMemberDto>(show.StaffJson);
+        AssertEqual(failures, 2, staff.Count, "staff snapshot survives the round trip");
+        AssertEqual(
+            failures,
+            "https://s4.anilist.co/file/anilistcdn/staff/large/d1.jpg",
+            staff[0].ImageUrl,
+            "staff keeps the medium photo");
+        var cast = MediaJsonCache.Deserialize<CastMemberDto>(show.CastJson);
+        AssertEqual(failures, "Rie Takahashi", cast.Single().VoiceActorName, "cast keeps the Japanese voice actor");
+        AssertEqual(
+            failures,
+            "https://s4.anilist.co/file/anilistcdn/character/large/c1.jpg",
+            cast.Single().CharacterImageUrl,
+            "cast keeps the character portrait");
+
+        // Manga: entries are pure characters — name, portrait and MAIN/SUPPORTING role, no voice actor.
+        var mangaExternal = anime with
+        {
+            Type = "manga",
+            Title = "Berserk",
+            OriginalTitle = "ベルセルク",
+            Staff = [new ExternalStaffMemberDto("Kentaro Miura", "Story & Art", "https://s4.anilist.co/file/anilistcdn/staff/large/m1.jpg")],
+            Cast = [new CastMemberDto("Guts", "Guts", "https://s4.anilist.co/file/anilistcdn/character/large/g1.jpg")
+            {
+                CharacterImageUrl = "https://s4.anilist.co/file/anilistcdn/character/large/g1.jpg",
+                CharacterRole = "MAIN",
+            }],
+        };
+        var manga = new Manga { Title = "Berserk" };
+        MediaMetadataApplier
+            .ApplyOverwriteAsync(manga, mangaExternal, new NoOpImageStorage(), CancellationToken.None)
+            .GetAwaiter()
+            .GetResult();
+
+        AssertEqual(failures, "ベルセルク", manga.OriginalTitle, "manga refresh stores the native title");
+        var mangaCast = MediaJsonCache.Deserialize<CastMemberDto>(manga.CastJson);
+        AssertEqual(failures, null, mangaCast.Single().VoiceActorName, "manga cast carries no voice actor");
+        AssertEqual(failures, "MAIN", mangaCast.Single().CharacterRole, "manga cast keeps the character role");
+        AssertEqual(failures, 1, MediaJsonCache.Deserialize<ExternalStaffMemberDto>(manga.StaffJson).Count, "manga stores its staff");
+
+        // Enrich never wipes what the user already has.
+        var enriched = mangaExternal with { Staff = [new ExternalStaffMemberDto("Other Guy", "Director", null)] };
+        MediaMetadataApplier.ApplyIfMissing(manga, enriched);
+        AssertEqual(failures, 1, MediaJsonCache.Deserialize<ExternalStaffMemberDto>(manga.StaffJson).Count, "enrich keeps the stored staff");
+        AssertEqual(failures, "ベルセルク", manga.OriginalTitle, "enrich keeps the stored native title");
+    }
+
+    private static void CheckMergeCarriesCastAndTrailer(List<string> failures)
+    {
+        // Breaking Bad added from IMDb: the suggestion endpoint reports neither credits nor a video,
+        // so both live on the TMDb answer that the cascade fetched second.
+        var imdb = new ExternalMediaDto
+        {
+            ExternalId = "tt0903747",
+            Title = "Breaking Bad",
+            Type = "tvshow",
+            Studio = "High Bridge Entertainment",
+            TotalCount = 62,
+            Description = "A chemistry teacher turns to manufacturing meth.",
+            ReleaseYear = 2008,
+            ReleaseDate = "2008-01-20",
+        };
+        var tmdb = new ExternalMediaDto
+        {
+            ExternalId = "1396",
+            Title = "Breaking Bad",
+            Type = "tvshow",
+            TrailerVideoId = "HhesaQXLuRY",
+            CreatorImageUrl = "https://image.tmdb.org/t/p/w185/studio.png",
+            Cast =
+            [
+                new CastMemberDto("Bryan Cranston", "Walter White", "https://image.tmdb.org/t/p/w185/w185.jpg"),
+                new CastMemberDto("Aaron Paul", "Jesse Pinkman", "https://image.tmdb.org/t/p/w185/paul.jpg")
+            ],
+        };
+
+        var merged = MediaMerger.Merge(imdb, tmdb);
+
+        AssertEqual(failures, "HhesaQXLuRY", merged.TrailerVideoId, "merge keeps a trailer the primary source lacks");
+        AssertEqual(failures, 2, merged.Cast?.Count, "merge keeps the cast the primary source lacks");
+        AssertEqual(
+            failures,
+            "https://image.tmdb.org/t/p/w185/studio.png",
+            merged.CreatorImageUrl,
+            "merge keeps the creator image the primary source lacks");
+
+        // The reverse order must keep the photo-bearing list: the primary answer wins only because
+        // names alone are worth less than faces in the overview.
+        var namesOnly = imdb with { Cast = [new CastMemberDto("Bryan Cranston", "Walter White", null)] };
+        AssertEqual(
+            failures,
+            2,
+            MediaMerger.Merge(namesOnly, tmdb).Cast?.Count,
+            "a cast list with photos beats one with names only"
+        );
+        AssertEqual(
+            failures,
+            2,
+            MediaMerger.Merge(tmdb, namesOnly).Cast?.Count,
+            "the photo-bearing primary cast survives a later merge"
+        );
+
+        // Without this the cascade treated the IMDb answer as complete and never asked for credits.
+        AssertTrue(
+            failures,
+            MediaMerger.HasMissingMetadata(
+                merged with { TrailerVideoId = null, Cast = null },
+                "tvshow"),
+            "a show without credits or a video keeps the cascade going"
+        );
+        AssertFalse(
+            failures,
+            MediaMerger.HasMissingMetadata(merged, "tvshow"),
+            "a show with cast and a trailer stops the cascade"
+        );
+    }
+
+    private static void CheckEnrichStoresGameDeveloper(List<string> failures)
+    {
+        var game = new VideoGame { Title = "PAYDAY 2", HoursPlayed = 34, Platform = "PC" };
+
+        MediaMetadataApplier.ApplyIfMissing(
+            game,
+            new ExternalMediaDto
+            {
+                ExternalId = "rawg/1",
+                Title = "PAYDAY 2",
+                Type = "game",
+                Platform = "PC",
+                Studio = "Overkill Software",
+            });
+
+        AssertEqual(
+            failures,
+            "Overkill Software",
+            game.Studio,
+            "enrichment keeps the developer the overview's creator card shows"
+        );
+        AssertEqual(failures, 34, game.HoursPlayed, "the played hours survive enrichment");
+
+        // A refresh may restate the developer, but a blank source must never wipe the known one.
+        MediaMetadataApplier.ApplyIfMissing(game, new ExternalMediaDto { ExternalId = "rawg/1", Title = "PAYDAY 2", Type = "game" });
+        AssertEqual(failures, "Overkill Software", game.Studio, "a source without a developer keeps the stored one");
     }
 
     private static void CheckMergeKeepsFinalChapterTotal(List<string> failures)
@@ -593,6 +1195,8 @@ public static class RefactorSelfCheck
             ReleaseDate = "2021-10-22",
             RuntimeMinutes = 155,
             Studio = "Legendary Pictures",
+            TrailerVideoId = "Way9Dexny3w",
+            Cast = [new CastMemberDto("Timothée Chalamet", "Paul Atreides", null)],
         };
         AssertFalse(
             failures,
@@ -617,6 +1221,18 @@ public static class RefactorSelfCheck
             failures,
             MediaMerger.HasMissingMetadata(complete with { ReleaseDate = null }, "movie"),
             "a missing release date keeps the cascade going"
+        );
+
+        // Credits and a video are what the overview renders, so they count as gaps too.
+        AssertTrue(
+            failures,
+            MediaMerger.HasMissingMetadata(complete with { Cast = null }, "movie"),
+            "a movie without cast keeps the cascade going"
+        );
+        AssertTrue(
+            failures,
+            MediaMerger.HasMissingMetadata(complete with { TrailerVideoId = null }, "movie"),
+            "a movie without a trailer keeps the cascade going"
         );
     }
 
@@ -702,7 +1318,7 @@ public static class RefactorSelfCheck
     /// <summary>ApplyOverwriteAsync only reaches the cover through this seam; the checks pass none.</summary>
     private sealed class NullImageStorage : IImageStorageService
     {
-        public Task<string?> SaveCoverAsync(string url, Guid mediaId, CancellationToken ct) =>
+        public Task<string?> SaveCoverAsync(string url, Guid mediaId, CancellationToken ct, string folder = "cover") =>
             Task.FromResult<string?>(null);
 
         public void DeleteCover(string? path) { }
@@ -907,6 +1523,7 @@ public static class RefactorSelfCheck
             Title = "Berserk",
             TotalChapters = 100,
             Author = "User typed this",
+            Notes = "My reading notes",
         };
         var external = new ExternalMediaDto
         {
@@ -927,7 +1544,8 @@ public static class RefactorSelfCheck
             manga.Author,
             "enrich must not overwrite a user author"
         );
-        AssertEqual(failures, "A dark fantasy epic", manga.Notes, "enrich fills empty notes");
+        AssertEqual(failures, "A dark fantasy epic", manga.Description, "enrich fills empty description");
+        AssertEqual(failures, "My reading notes", manga.Notes, "enrich preserves personal notes");
     }
 
     private static void CheckOverwriteRefresh(List<string> failures)
@@ -938,6 +1556,8 @@ public static class RefactorSelfCheck
             Author = string.Empty,
             TotalPages = 100,
             CurrentPage = 50,
+            Notes = "My private note",
+            Description = "Old synopsis",
         };
         var external = new ExternalMediaDto
         {
@@ -946,6 +1566,9 @@ public static class RefactorSelfCheck
             Type = "book",
             TotalCount = 321,
             Author = "Someone Else",
+            Description = "Fresh synopsis",
+            TrailerVideoId = "abc123",
+            CreatorImageUrl = "https://image.tmdb.org/t/p/w185/author.jpg",
         };
 
         MediaMetadataApplier
@@ -956,6 +1579,27 @@ public static class RefactorSelfCheck
         AssertEqual(failures, "New title", book.Title, "refresh overwrites the title");
         AssertEqual(failures, 321, book.TotalPages, "refresh overwrites the page count");
         AssertEqual(failures, "Someone Else", book.Author, "refresh overwrites the author");
+        AssertEqual(failures, "Fresh synopsis", book.Description, "refresh overwrites the description");
+        AssertEqual(failures, "My private note", book.Notes, "refresh preserves personal notes");
+        AssertEqual(failures, "abc123", book.TrailerVideoId, "refresh stores the trailer id");
+        AssertEqual(
+            failures,
+            "https://image.tmdb.org/t/p/w185/author.jpg",
+            book.CreatorImageUrl,
+            "refresh stores the creator image");
+
+        // A source without a photo must not erase the one already on the row: the UI falls back to a
+        // role icon, and a blank out would leave a saved file nothing points at.
+        MediaMetadataApplier
+            .ApplyOverwriteAsync(book, external with { CreatorImageUrl = null }, new NoOpImageStorage(), CancellationToken.None)
+            .GetAwaiter()
+            .GetResult();
+
+        AssertEqual(
+            failures,
+            "https://image.tmdb.org/t/p/w185/author.jpg",
+            book.CreatorImageUrl,
+            "refresh keeps a creator image the new source does not have");
     }
 
     /// <summary>
@@ -1129,6 +1773,20 @@ public static class RefactorSelfCheck
             plannedShow.Seasons[0].Status,
             "a planned show has planned seasons"
         );
+
+        var inProgressItem = new Book
+        {
+            Title = "Dune Messiah",
+            Author = string.Empty,
+        };
+        var stamp = new DateTime(2026, 10, 20, 12, 0, 0, DateTimeKind.Utc);
+        inProgressItem.ChangeStatus(MediaStatus.InProgress, stamp);
+        AssertEqual(
+            failures,
+            stamp,
+            inProgressItem.LastActivityAt,
+            "moving to InProgress sets LastActivityAt to timestamp"
+        );
     }
 
     /// <summary>
@@ -1235,6 +1893,7 @@ public static class RefactorSelfCheck
 
         options.SetKey("TMDB", "tmdb-secret");
         options.SetKey("TheTVDB", "tvdb-secret");
+        options.SetKey("steam", "steam-secret");
         options.SetKey("SomeCustomProvider", "custom-secret");
 
         AssertEqual(failures, "tmdb-secret", options.GetKey("tmdb"), "built-in key stored");
@@ -1250,6 +1909,7 @@ public static class RefactorSelfCheck
             options.GetKey("thetvdb"),
             "alias resolves to the same slot"
         );
+        AssertEqual(failures, "steam-secret", options.GetKey("steam"), "Steam key stored");
         AssertEqual(
             failures,
             "custom-secret",
@@ -2125,6 +2785,47 @@ public static class RefactorSelfCheck
         );
     }
 
+    /// <summary>
+    /// Spirited Away (a movie) once landed in the TV series tab: the q string of a "TV movie"
+    /// contains "tv", so anything television-flavoured was filed as a series. Only a real
+    /// series/mini-series qid is a tvshow now, everything filmed is a movie, and games are dropped.
+    /// </summary>
+    private static void CheckImdbTypeClassification(List<string> failures)
+    {
+        AssertEqual(failures, "tvshow", ImdbMetadataProvider.Classify("tvSeries", "TV series"), "a TV series is a tvshow");
+        AssertEqual(failures, "tvshow", ImdbMetadataProvider.Classify("tvMiniSeries", "TV mini-series"), "a TV mini-series is a tvshow");
+        AssertEqual(failures, "movie", ImdbMetadataProvider.Classify("movie", "feature"), "a feature is a movie");
+        AssertEqual(failures, "movie", ImdbMetadataProvider.Classify("tvMovie", "TV movie"), "a TV movie is NOT a tvshow");
+        AssertEqual(failures, "movie", ImdbMetadataProvider.Classify("tvSpecial", "TV special"), "a TV special is NOT a tvshow");
+        AssertEqual(failures, "movie", ImdbMetadataProvider.Classify("short", "short"), "a short is a movie");
+        AssertEqual(failures, "movie", ImdbMetadataProvider.Classify("video", "video"), "a video is a movie");
+        AssertEqual(failures, "", ImdbMetadataProvider.Classify("videoGame", "video game"), "a video game is dropped");
+        // The q label alone must never flip a TV movie into a series without a series qid.
+        AssertEqual(failures, "movie", ImdbMetadataProvider.Classify("featureFfilm", "TV movie"), "a q label with 'tv' without a series qid stays a movie");
+    }
+
+    /// <summary>
+    /// Changing the source order or toggling a source must invalidate every cached answer that was
+    /// built under the old settings: the version that rides in the aggregator's cache keys is what
+    /// makes the next search re-read the new priorities without a server restart.
+    /// </summary>
+    private static void CheckSourcePriorityVersionBump(List<string> failures)
+    {
+        var services = new ServiceCollection();
+        services.AddMemoryCache();
+        using var provider = services.BuildServiceProvider();
+
+        var service = new SourcePriorityService(
+            provider.GetRequiredService<IServiceScopeFactory>(),
+            provider.GetRequiredService<IMemoryCache>(),
+            NullLogger<SourcePriorityService>.Instance);
+
+        AssertTrue(failures, service.Version >= 1, "the priority version starts positive");
+        var before = service.Version;
+        service.InvalidateCache();
+        AssertEqual(failures, before + 1, service.Version, "InvalidateCache bumps the priority version");
+    }
+
     private static void CheckSimklSearchSegments(List<string> failures)
     {
         AssertEqual(
@@ -2454,6 +3155,232 @@ public static class RefactorSelfCheck
         }
     }
 
+    private static void CheckTasteProfileCalculations(List<string> failures)
+    {
+        var now = new DateTime(2026, 10, 7, 12, 0, 0, DateTimeKind.Utc);
+
+        var emptyStats = AdvancedStatsCalculator.Calculate([], now);
+        var emptyProfile = TasteProfileCalculator.Calculate([], emptyStats);
+        AssertEqual(failures, "archivist", emptyProfile.Persona.Icon, "taste empty persona icon");
+        AssertEqual(failures, 0.0, emptyProfile.SunkCost.LowScoreHours, "taste empty sunk cost hours");
+        AssertEqual(failures, 0, emptyProfile.SunkCost.TitlesCount, "taste empty sunk cost titles");
+        AssertEqual(failures, 0, emptyProfile.GenreRadar.Count, "taste empty radar axes");
+        AssertEqual(failures, 0, emptyProfile.GenreParadox.Count, "taste empty paradox");
+
+        var droppedGame = new VideoGame
+        {
+            Title = "Dropped Game",
+            Platform = "PC",
+            HoursPlayed = 30,
+            Score = 3,
+            Status = MediaStatus.Dropped,
+            Genres = "Action",
+        };
+
+        var lowScoreBook = new Book
+        {
+            Title = "Low Score Book",
+            Author = "Author 1",
+            CurrentPage = 120,
+            Score = 4,
+            Status = MediaStatus.InProgress,
+            Genres = "Fantasy",
+            ReleaseYear = 1995,
+        };
+
+        var gem = new Movie
+        {
+            Title = "Hidden Gem",
+            DurationMinutes = 120,
+            Score = 9,
+            ExternalRating = 6.8,
+            Status = MediaStatus.Completed,
+            Genres = "Sci-Fi",
+            ReleaseYear = 2015,
+        };
+
+        var disappointment = new Movie
+        {
+            Title = "Main Disappointment",
+            DurationMinutes = 90,
+            Score = 4,
+            ExternalRating = 9.5,
+            Status = MediaStatus.Completed,
+            Genres = "Drama",
+            ReleaseYear = 2023,
+        };
+
+        var extraDrama = new Movie
+        {
+            Title = "Drama Extra",
+            DurationMinutes = 90,
+            Score = 8,
+            ExternalRating = 7.0,
+            Status = MediaStatus.Completed,
+            Genres = "Drama",
+        };
+
+        var actionMovie = new Movie
+        {
+            Title = "Action In Progress",
+            DurationMinutes = 100,
+            Score = null,
+            Status = MediaStatus.InProgress,
+            Genres = "Action",
+        };
+
+        var items = new MediaItem[] { droppedGame, lowScoreBook, gem, disappointment, extraDrama, actionMovie };
+        var stats = AdvancedStatsCalculator.Calculate(items, now);
+        var profile = TasteProfileCalculator.Calculate(items, stats);
+
+        // Sunk cost: dropped game (30 h) + book in progress rated 4 (120 pages × 1.5 min = 3 h)
+        // + the movie rated 4 (90 min completed = 1.5 h).
+        AssertEqual(failures, 34.5, profile.SunkCost.LowScoreHours, "taste sunk cost hours");
+        AssertEqual(failures, 3, profile.SunkCost.TitlesCount, "taste sunk cost titles");
+        AssertEqual(failures, Math.Round(34.5 / stats.TotalHours * 100.0, 1), profile.SunkCost.PercentageOfTotal, "taste sunk cost percentage");
+        AssertEqual(failures, 3, profile.SunkCost.CategoryBreakdown.Count, "taste sunk cost category count");
+        AssertEqual(failures, 30.0, profile.SunkCost.CategoryBreakdown.GetValueOrDefault("game"), "taste sunk cost game hours");
+        AssertEqual(failures, 3.0, profile.SunkCost.CategoryBreakdown.GetValueOrDefault("book"), "taste sunk cost book hours");
+        AssertEqual(failures, 1.5, profile.SunkCost.CategoryBreakdown.GetValueOrDefault("movie"), "taste sunk cost movie hours");
+
+        // Divergence: gem = 9 vs 6.8 (+2.2), disappointment = 9.5 vs 4 (-5.5).
+        AssertTrue(failures, profile.Divergence.HiddenGem is not null, "taste hidden gem present");
+        AssertTrue(failures, profile.Divergence.Disappointment is not null, "taste disappointment present");
+        if (profile.Divergence.HiddenGem is { } foundGem)
+        {
+            AssertEqual(failures, "Hidden Gem", foundGem.Title, "taste hidden gem title");
+            AssertEqual(failures, "movie", foundGem.Type, "taste hidden gem type");
+            AssertEqual(failures, 9.0, foundGem.UserScore, "taste hidden gem user score");
+            AssertEqual(failures, 6.8, foundGem.WorldRating, "taste hidden gem world rating");
+            AssertEqual(failures, 2.2, foundGem.Delta, "taste hidden gem delta");
+        }
+
+        if (profile.Divergence.Disappointment is { } foundDisappointment)
+        {
+            AssertEqual(failures, "Main Disappointment", foundDisappointment.Title, "taste disappointment title");
+            AssertEqual(failures, -5.5, foundDisappointment.Delta, "taste disappointment delta");
+        }
+
+        // Radar: Action (game + movie) is the top genre with two tracked titles.
+        AssertEqual(failures, 4, profile.GenreRadar.Count, "taste radar axes count");
+        AssertEqual(failures, "Action", profile.GenreRadar[0].Genre, "taste radar top genre");
+        AssertEqual(failures, 100.0, profile.GenreRadar[0].VolumeScore, "taste radar top volume score");
+        AssertEqual(failures, 3.0, profile.GenreRadar[0].AverageScore, "taste radar top average score");
+
+        // Paradox: Drama (2 completed of 2) finishes, Action (1 dropped of 2) is abandoned halfway.
+        AssertEqual(failures, 2, profile.GenreParadox.Count, "taste paradox genres");
+        AssertEqual(failures, "Action", profile.GenreParadox[0].Genre, "taste paradox action genre");
+        AssertEqual(failures, 2, profile.GenreParadox[0].Total, "taste paradox action total");
+        AssertEqual(failures, 0.0, profile.GenreParadox[0].CompletionRate, "taste paradox action completion");
+        AssertEqual(failures, 50.0, profile.GenreParadox[0].DropRate, "taste paradox action drop");
+        AssertEqual(failures, "Drama", profile.GenreParadox[1].Genre, "taste paradox drama genre");
+        AssertEqual(failures, 100.0, profile.GenreParadox[1].CompletionRate, "taste paradox drama completion");
+
+        // Golden era: favorites are the three completed movies; 1995 vs 2015 both map to their own decade.
+        AssertEqual(failures, 2, profile.EraAffinity.Count, "taste era buckets");
+        AssertEqual(failures, "2010s", profile.EraAffinity[0].Era, "taste era first bucket");
+        AssertEqual(failures, 1, profile.EraAffinity[0].Count, "taste era first count");
+    }
+
+    private static void CheckDropAnalyticsCalculations(List<string> failures)
+    {
+        var now = new DateTime(2026, 10, 7, 12, 0, 0, DateTimeKind.Utc);
+        var emptyStats = AdvancedStatsCalculator.Calculate([], now);
+        var emptyProfile = TasteProfileCalculator.Calculate([], emptyStats);
+
+        AssertEqual(failures, 0, emptyProfile.DropAnalytics.TotalDropped, "empty drop analytics total");
+        AssertEqual(failures, 0.0, emptyProfile.DropAnalytics.AverageDropProgressPercent, "empty drop analytics avg");
+        AssertEqual(failures, 0, emptyProfile.DropAnalytics.EarlyDropCount, "empty drop analytics early");
+        AssertEqual(failures, 0, emptyProfile.DropAnalytics.MidDropCount, "empty drop analytics mid");
+        AssertEqual(failures, 0, emptyProfile.DropAnalytics.LateDropCount, "empty drop analytics late");
+        AssertEqual(failures, 0, emptyProfile.DropAnalytics.TopReasons.Count, "empty drop analytics reasons");
+
+        var droppedGame = new VideoGame
+        {
+            Title = "Hard Game",
+            Platform = "PC",
+            Status = MediaStatus.Dropped,
+            DropReason = "too_hard",
+            DropNotes = "Boss unbeatable",
+        };
+
+        var droppedBook = new Book
+        {
+            Title = "Boring Book",
+            Author = "Author",
+            TotalPages = 200,
+            CurrentPage = 100, // 50%
+            Status = MediaStatus.Dropped,
+            DropReason = "boring",
+        };
+
+        var droppedManga = new Manga
+        {
+            Title = "Late Manga",
+            TotalChapters = 10,
+            CurrentChapter = 8, // 80%
+            Status = MediaStatus.Dropped,
+            DropReason = "bad_plot",
+        };
+
+        var droppedShow = new TvShow
+        {
+            Title = "Early Show",
+            Status = MediaStatus.Dropped,
+            DropReason = "boring",
+            Seasons =
+            [
+                new TvSeason { Title = "Season 1", SeasonNumber = 1, TotalEpisodes = 10, CurrentEpisode = 1 }, // 10%
+            ],
+        };
+
+        var droppedMovie = new Movie
+        {
+            Title = "Unspecified Movie",
+            DurationMinutes = 120,
+            Status = MediaStatus.Dropped,
+            DropReason = null, // "unspecified"
+        };
+
+        var completedBook = new Book
+        {
+            Title = "Finished Book",
+            Author = "Author",
+            TotalPages = 300,
+            CurrentPage = 300,
+            Status = MediaStatus.Completed,
+            DropReason = "boring", // status is Completed, must NOT be counted
+        };
+
+        var items = new MediaItem[] { droppedGame, droppedBook, droppedManga, droppedShow, droppedMovie, completedBook };
+        var stats = AdvancedStatsCalculator.Calculate(items, now);
+        var profile = TasteProfileCalculator.Calculate(items, stats);
+
+        var dropAnalytics = profile.DropAnalytics;
+        AssertEqual(failures, 5, dropAnalytics.TotalDropped, "drop analytics total dropped");
+        // Progresses: Game (0%), Book (50%), Manga (80%), Show (10%), Movie (0%).
+        // Sum = 140. Avg = 140 / 5 = 28.0%
+        AssertEqual(failures, 28.0, dropAnalytics.AverageDropProgressPercent, "drop analytics avg progress");
+        AssertEqual(failures, 3, dropAnalytics.EarlyDropCount, "drop analytics early count (<20%)");
+        AssertEqual(failures, 1, dropAnalytics.MidDropCount, "drop analytics mid count (20-70%)");
+        AssertEqual(failures, 1, dropAnalytics.LateDropCount, "drop analytics late count (>70%)");
+
+        // Reasons: boring (2 = 40.0%), bad_plot (1 = 20.0%), too_hard (1 = 20.0%), unspecified (1 = 20.0%)
+        AssertEqual(failures, 4, dropAnalytics.TopReasons.Count, "drop analytics top reasons count");
+        AssertEqual(failures, "boring", dropAnalytics.TopReasons[0].Reason, "top reason 1");
+        AssertEqual(failures, 2, dropAnalytics.TopReasons[0].Count, "top reason 1 count");
+        AssertEqual(failures, 40.0, dropAnalytics.TopReasons[0].Percentage, "top reason 1 percentage");
+
+        var badPlot = dropAnalytics.TopReasons.FirstOrDefault(r => r.Reason == "bad_plot");
+        AssertTrue(failures, badPlot is not null, "bad_plot reason exists");
+        AssertEqual(failures, 1, badPlot?.Count ?? 0, "bad_plot count");
+        AssertEqual(failures, 20.0, badPlot?.Percentage ?? 0, "bad_plot percentage");
+
+        var unspecified = dropAnalytics.TopReasons.FirstOrDefault(r => r.Reason == "unspecified");
+        AssertTrue(failures, unspecified is not null, "unspecified reason exists for null drop reason");
+        AssertEqual(failures, 1, unspecified?.Count ?? 0, "unspecified count");
+    }
+
     private static void CheckAdvancedStatsCalculation(List<string> failures)
     {
         var now = new DateTime(2026, 10, 7, 12, 0, 0, DateTimeKind.Utc);
@@ -2482,6 +3409,14 @@ public static class RefactorSelfCheck
             Genres = "Action, RPG",
         };
 
+        var plannedGame = new VideoGame
+        {
+            Title = "Planned Game",
+            Platform = "PC",
+            HoursPlayed = 12,
+            Status = MediaStatus.Planned,
+        };
+
         var movie1 = new Movie
         {
             Title = "Movie 1",
@@ -2496,7 +3431,7 @@ public static class RefactorSelfCheck
         var movie2 = new Movie
         {
             Title = "Movie 2",
-            DurationMinutes = 0,
+            DurationMinutes = 120,
             Score = null,
             Status = MediaStatus.Planned,
             UpdatedAt = now.AddDays(-2),
@@ -2533,6 +3468,18 @@ public static class RefactorSelfCheck
             ],
         };
 
+        var plannedShow = new TvShow
+        {
+            Title = "Planned Show",
+            IsAnime = false,
+            EpisodeDurationMinutes = 60,
+            Status = MediaStatus.Planned,
+            Seasons =
+            [
+                new TvSeason { SeasonNumber = 1, Title = "S1", CurrentEpisode = 4, TotalEpisodes = 12 }
+            ],
+        };
+
         var book = new Book
         {
             Title = "Book 1",
@@ -2543,6 +3490,15 @@ public static class RefactorSelfCheck
             Status = MediaStatus.InProgress,
             UpdatedAt = now.AddDays(-3),
             Genres = "Fantasy",
+        };
+
+        var plannedBook = new Book
+        {
+            Title = "Planned Book",
+            Author = "Author",
+            CurrentPage = 100,
+            TotalPages = 400,
+            Status = MediaStatus.Planned,
         };
 
         var manga = new Manga
@@ -2556,26 +3512,47 @@ public static class RefactorSelfCheck
             Genres = "Action",
         };
 
-        var items = new MediaItem[] { game, movie1, movie2, series, anime, book, manga };
+        var plannedManga = new Manga
+        {
+            Title = "Planned Manga",
+            CurrentChapter = 25,
+            TotalChapters = 100,
+            Status = MediaStatus.Planned,
+        };
+
+        var items = new MediaItem[] { game, plannedGame, movie1, movie2, series, anime, plannedShow, book, plannedBook, manga, plannedManga };
         var stats = AdvancedStatsCalculator.Calculate(items, now);
 
-        AssertEqual(failures, 7, stats.TotalTitles, "stats TotalTitles");
+        AssertEqual(failures, 11, stats.TotalTitles, "stats TotalTitles");
         AssertEqual(failures, 2, stats.CompletedTitles, "stats CompletedTitles");
-        AssertEqual(failures, Math.Round(2.0 / 7.0 * 100.0, 1), stats.CompletionRatePercent, "stats CompletionRatePercent");
+        AssertEqual(failures, Math.Round(2.0 / 11.0 * 100.0, 1), stats.CompletionRatePercent, "stats CompletionRatePercent");
 
         AssertEqual(failures, 20.0, stats.GameHours, "stats GameHours");
-        AssertEqual(failures, 3.5, stats.MovieHours, "stats MovieHours");
+        AssertEqual(failures, 2.0, stats.MovieHours, "stats MovieHours");
         AssertEqual(failures, 10.0, stats.SeriesHours, "stats SeriesHours");
         AssertEqual(failures, 2.0, stats.AnimeHours, "stats AnimeHours");
         AssertEqual(failures, 5.0, stats.BookHours, "stats BookHours");
         AssertEqual(failures, 5.0, stats.MangaHours, "stats MangaHours");
 
-        AssertEqual(failures, 45.5, stats.TotalHours, "stats TotalHours");
-        AssertEqual(failures, Math.Round(45.5 / 24.0, 1), stats.TotalDays, "stats TotalDays");
+        AssertEqual(failures, 44.0, stats.TotalHours, "stats TotalHours");
+        AssertEqual(failures, Math.Round(44.0 / 24.0, 1), stats.TotalDays, "stats TotalDays");
 
         AssertEqual(failures, 200, stats.TotalPagesRead, "stats TotalPagesRead");
         AssertEqual(failures, 50, stats.TotalChaptersRead, "stats TotalChaptersRead");
         AssertEqual(failures, 15, stats.TotalEpisodesWatched, "stats TotalEpisodesWatched");
+        AssertEqual(failures, 10, stats.SeriesEpisodesWatched, "stats SeriesEpisodesWatched");
+        AssertEqual(failures, 5, stats.AnimeEpisodesWatched, "stats AnimeEpisodesWatched");
+
+        var animeMovie = new Movie
+        {
+            Title = "Spirited Away",
+            IsAnime = true,
+            DurationMinutes = 125,
+            Status = MediaStatus.Completed,
+        };
+        var animeMovieStats = AdvancedStatsCalculator.Calculate([animeMovie], now);
+        AssertEqual(failures, 0.0, animeMovieStats.MovieHours, "anime movie MovieHours should be 0");
+        AssertEqual(failures, Math.Round(125.0 / 60.0, 1), animeMovieStats.AnimeHours, "anime movie AnimeHours");
 
         AssertEqual(failures, 8.3, stats.AverageScore, "stats AverageScore");
         AssertEqual(failures, 1, stats.ScoreDistribution[7], "stats ScoreDistribution 7");
@@ -2789,7 +3766,7 @@ public static class RefactorSelfCheck
                         Content = new StringContent("""{"d":[{"id":"tt0111161","l":"Shawshank","y":1994,"q":"feature"}]}""")
                     });
                 });
-                var provider = new ImdbMetadataProvider(factory, Microsoft.Extensions.Logging.Abstractions.NullLogger<ImdbMetadataProvider>.Instance);
+                var provider = new ImdbMetadataProvider(factory, serviceKey: null, Microsoft.Extensions.Logging.Abstractions.NullLogger<ImdbMetadataProvider>.Instance);
                 var dto = provider.GetDetailsAsync("tt0111161", "Shawshank", CancellationToken.None).GetAwaiter().GetResult();
                 return dto?.Genres is { Count: > 0 } && dto.Genres.Contains("Drama");
             }
@@ -2839,12 +3816,95 @@ public static class RefactorSelfCheck
         }
     }
 
+    private static void CheckSmartListEvaluator(List<string> failures)
+    {
+        var anime = new TvShow { Title = "Attack on Titan", IsAnime = true };
+        anime.Seasons.Add(TvSeason.CreateFirst(25, null, MediaStatus.Planned, anime.Id));
+        var shortAnime = new TvShow { Title = "Ping Pong The Animation", IsAnime = true };
+        shortAnime.Seasons.Add(TvSeason.CreateFirst(11, null, MediaStatus.Planned, shortAnime.Id));
+        var movie = new Movie { Title = "Inception", DurationMinutes = 148, Score = 9 };
+        var shortMovie = new Movie { Title = "Lunch Box", DurationMinutes = 80, Studio = "Studio Ghibli" };
+        var book = new Book { Title = "The Hobbit", Author = "Tolkien", TotalPages = 310 };
+        var items = new List<MediaItem> { anime, shortAnime, movie, shortMovie, book };
+
+        // Test: category filter anime
+        var animeOnly = SmartListEvaluator.Evaluate(items, new SmartListQueryDto { Categories = ["anime"] });
+        AssertEqual(failures, 2, animeOnly.Count, "SmartList: anime category returns 2 shows");
+
+        // Test: category movie
+        var moviesOnly = SmartListEvaluator.Evaluate(items, new SmartListQueryDto { Categories = ["movie"] });
+        AssertEqual(failures, 2, moviesOnly.Count, "SmartList: movie category returns 2 movies");
+
+        // Test: MinScore filters
+        var highScore = SmartListEvaluator.Evaluate(items, new SmartListQueryDto { MinScore = 9 });
+        AssertEqual(failures, 1, highScore.Count, "SmartList: MinScore=9 returns 1 item");
+        AssertEqual(failures, "Inception", highScore[0].Title, "SmartList: MinScore=9 returns Inception");
+
+        // Test: MaxDurationMinutes for movies
+        var shortMovies = SmartListEvaluator.Evaluate(items,
+            new SmartListQueryDto { Categories = ["movie"], MaxDurationMinutes = 100 });
+        AssertEqual(failures, 1, shortMovies.Count, "SmartList: MaxDurationMinutes=100 returns 1 movie");
+        AssertEqual(failures, "Lunch Box", shortMovies[0].Title, "SmartList: MaxDurationMinutes=100 returns short movie");
+
+        // Test: MaxEpisodes for TvShow
+        var shortShows = SmartListEvaluator.Evaluate(items,
+            new SmartListQueryDto { Categories = ["anime"], MaxEpisodes = 13 });
+        AssertEqual(failures, 1, shortShows.Count, "SmartList: MaxEpisodes=13 returns 1 anime");
+        AssertEqual(failures, "Ping Pong The Animation", shortShows[0].Title, "SmartList: MaxEpisodes=13 returns short anime");
+
+        // Test: CreatorContains
+        var ghibli = SmartListEvaluator.Evaluate(items, new SmartListQueryDto { CreatorContains = "ghibli" });
+        AssertEqual(failures, 1, ghibli.Count, "SmartList: CreatorContains=ghibli returns 1 item");
+
+        // Test: Limit
+        var limited = SmartListEvaluator.Evaluate(items, new SmartListQueryDto { Limit = 2 });
+        AssertEqual(failures, 2, limited.Count, "SmartList: Limit=2 returns 2 items");
+    }
+
+    private static void CheckApiTokenHashingAndValidation(List<string> failures)
+    {
+        // 1. Generation format and invariants
+        var (rawToken, prefix, hash) = ApiTokenHelper.GenerateToken();
+
+        AssertTrue(failures, rawToken.StartsWith("tsk_live_"), "Token starts with tsk_live_ prefix");
+        AssertTrue(failures, rawToken.Length >= 40, "Token length is at least 40 characters");
+        AssertEqual(failures, 16, prefix.Length, "Token prefix is exactly 16 characters");
+        AssertTrue(failures, rawToken.StartsWith(prefix), "Token starts with its prefix");
+        AssertEqual(failures, 64, hash.Length, "Token hash is 64 hex characters (SHA-256)");
+
+        // 2. Deterministic SHA-256 hashing
+        var recomputedHash = ApiTokenHelper.ComputeHash(rawToken);
+        AssertEqual(failures, hash, recomputedHash, "Hash computation is deterministic");
+
+        var testToken = "tsk_live_test_token_1234567890_abcdef";
+        var testHash1 = ApiTokenHelper.ComputeHash(testToken);
+        var testHash2 = ApiTokenHelper.ComputeHash(testToken);
+        AssertEqual(failures, testHash1, testHash2, "Identical tokens produce identical hashes");
+
+        var differentToken = "tsk_live_test_token_1234567890_different";
+        var differentHash = ApiTokenHelper.ComputeHash(differentToken);
+        AssertTrue(failures, testHash1 != differentHash, "Different tokens produce different hashes");
+
+        // 3. Expiry check logic
+        var now = DateTime.UtcNow;
+        DateTime? noExpiry = null;
+        DateTime? activeExpiry = now.AddDays(30);
+        DateTime? expiredExpiry = now.AddMinutes(-10);
+
+        bool IsActive(DateTime? exp) => exp == null || exp > now;
+
+        AssertTrue(failures, IsActive(noExpiry), "Token without expiry is active");
+        AssertTrue(failures, IsActive(activeExpiry), "Token with future expiry is active");
+        AssertFalse(failures, IsActive(expiredExpiry), "Token with past expiry is inactive/expired");
+    }
+
     private sealed class NoOpImageStorage : IImageStorageService
     {
         public Task<string?> SaveCoverAsync(
             string externalUrl,
             Guid itemId,
-            CancellationToken ct = default
+            CancellationToken ct = default,
+            string folder = "cover"
         ) => Task.FromResult<string?>(externalUrl);
 
         public void DeleteCover(string? localCoverUrl) { }

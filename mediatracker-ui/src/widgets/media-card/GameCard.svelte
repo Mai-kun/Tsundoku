@@ -11,6 +11,8 @@
 
     let {
         item,
+        timeHint,
+        showProgress = true,
         onOpen = () => {},
         onProgress,
         onProgressCommitted = () => {},
@@ -33,6 +35,7 @@
 
 <BaseCard
     {item}
+    {timeHint}
     {onOpen}
     {onStatusChange}
     {onProgressCommitted}
@@ -43,9 +46,11 @@
         subtitle={platform ?? i18n.t.types.game}
     />
 
-    <CardProgressBar label={i18n.t.card.hours(progress.value)} ratio={null} />
+    {#if showProgress}
+        <CardProgressBar label={i18n.t.card.hours(progress.value)} ratio={null} />
 
-    {#if showStepper}
-        <CardProgressControls {progress} />
+        {#if showStepper}
+            <CardProgressControls {progress} />
+        {/if}
     {/if}
 </BaseCard>

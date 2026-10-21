@@ -1,4 +1,4 @@
-﻿@import "tailwindcss";
+@import "tailwindcss";
 @plugin "daisyui" {
   themes: false;
   logs: false;
@@ -139,13 +139,13 @@
     transform: scale(0.97);
   }
 
-  /* Library card. content-visibility skips rendering and layout for cards outside the viewport,
-     which is what keeps a long grid scrolling smoothly. The intrinsic size is the placeholder the
-     skipped box reserves: without it the scrollbar jumps, and `auto` lets the engine remember the
-     real rendered height after the first paint so the placeholder stops being used. */
+  /* Library card. The virtual grid already removes off-screen rows from the DOM,
+     so content-visibility only added visibility-toggle work on top of it
+     (micro-freezes on card entry in WebView2). layout+paint containment keeps
+     each card an isolated layout/paint unit instead; open popovers live in the
+     top layer and are not clipped by it. */
   .media-card {
-    content-visibility: auto;
-    contain-intrinsic-size: auto 300px;
+    contain: layout paint;
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -189,9 +189,14 @@ button:not(:disabled) {
   cursor: pointer;
 }
 
-:focus-visible {
+:focus-visible:not(input):not(textarea):not(select) {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
+}
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
 }
 
 * {

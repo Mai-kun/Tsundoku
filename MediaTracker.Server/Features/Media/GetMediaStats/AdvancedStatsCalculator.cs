@@ -7,7 +7,12 @@ public static class AdvancedStatsCalculator
 {
     public const string CacheKey = "stats:advanced";
 
-    public static AdvancedStatsDto Calculate(IReadOnlyCollection<MediaItem> items, DateTime? now = null)
+    public static AdvancedStatsDto Calculate(
+        IReadOnlyCollection<MediaItem> items,
+        DateTime? now = null,
+        IEnumerable<MediaEvent>? events = null,
+        double bookPageMinutes = 1.5,
+        double mangaChapterMinutes = 6.0)
     {
         var refTime = now ?? DateTime.UtcNow;
 
@@ -20,51 +25,103 @@ public static class AdvancedStatsCalculator
         double gameHours = 0;
         foreach (var game in items.OfType<VideoGame>())
         {
-            gameHours += game.HoursPlayed ?? 0;
+            if (game.Status != MediaStatus.Planned)
+            {
+                gameHours += game.HoursPlayed ?? 0;
+            }
         }
 
         double movieHours = 0;
+        double animeMovieHours = 0;
         foreach (var movie in items.OfType<Movie>())
         {
-            var duration = movie.DurationMinutes > 0 ? movie.DurationMinutes : 90;
-            movieHours += duration / 60.0;
+            var duration = movie.Status == MediaStatus.Completed
+                ? movie.DurationMinutes > 0 ? movie.DurationMinutes : 90
+                : 0;
+
+            if (movie.IsAnime)
+            {
+                animeMovieHours += duration / 60.0;
+            }
+            else
+            {
+                movieHours += duration / 60.0;
+            }
         }
 
         double seriesHours = 0;
-        double animeHours = 0;
-        var totalEpisodesWatched = 0;
+        double animeHours = animeMovieHours;
+        var seriesEpisodesWatched = 0;
+        var animeEpisodesWatched = 0;
 
         foreach (var show in items.OfType<TvShow>())
         {
-            var episodesWatched = show.TotalEpisodesWatched;
-            totalEpisodesWatched += episodesWatched;
+            var episodesWatched = show.Status == MediaStatus.Planned ? 0 : show.TotalEpisodesWatched;
+            if (show.Status == MediaStatus.Completed && episodesWatched == 0)
+            {
+                episodesWatched = show.TotalEpisodesCount;
+            }
 
             if (show.IsAnime)
             {
+                animeEpisodesWatched += episodesWatched;
                 var duration = show.EpisodeDurationMinutes is > 0 ? show.EpisodeDurationMinutes.Value : 24;
                 animeHours += (episodesWatched * duration) / 60.0;
             }
             else
             {
+                seriesEpisodesWatched += episodesWatched;
                 var duration = show.EpisodeDurationMinutes is > 0 ? show.EpisodeDurationMinutes.Value : 45;
                 seriesHours += (episodesWatched * duration) / 60.0;
             }
         }
 
+        var totalEpisodesWatched = seriesEpisodesWatched + animeEpisodesWatched;
+
         double bookHours = 0;
         var totalPagesRead = 0;
         foreach (var book in items.OfType<Book>())
         {
-            totalPagesRead += book.CurrentPage;
-            bookHours += (book.CurrentPage * 1.5) / 60.0;
+            if (book.Status == MediaStatus.Planned)
+            {
+                continue;
+            }
+
+            var pagesRead = book.Status == MediaStatus.Completed
+                ? book.TotalPages > 0
+                    ? book.TotalPages
+                    : book.CurrentPage > 0 ? book.CurrentPage : 300
+                : book.CurrentPage;
+            totalPagesRead += pagesRead;
+            bookHours += (pagesRead * bookPageMinutes) / 60.0;
         }
 
         double mangaHours = 0;
         var totalChaptersRead = 0;
         foreach (var manga in items.OfType<Manga>())
         {
+            if (manga.Status == MediaStatus.Planned)
+            {
+                continue;
+            }
+
             totalChaptersRead += manga.CurrentChapter;
-            mangaHours += (manga.CurrentChapter * 6.0) / 60.0;
+            if (manga.Status == MediaStatus.Completed)
+            {
+                mangaHours += manga.TotalChapters is > 0
+                    ? (manga.TotalChapters.Value * mangaChapterMinutes) / 60.0
+                    : manga.TotalVolumes is > 0
+                        ? (manga.TotalVolumes.Value * 50.0) / 60.0
+                        : 0;
+            }
+            else if (manga.CurrentChapter > 0)
+            {
+                mangaHours += (manga.CurrentChapter * mangaChapterMinutes) / 60.0;
+            }
+            else if (manga.CurrentVolume > 0)
+            {
+                mangaHours += (manga.CurrentVolume * 50.0) / 60.0;
+            }
         }
 
         var totalHours = gameHours + movieHours + seriesHours + animeHours + bookHours + mangaHours;
@@ -111,7 +168,9 @@ public static class AdvancedStatsCalculator
         }
 
         var todayUtc = DateOnly.FromDateTime(refTime);
-        var todayLocal = DateOnly.FromDateTime(DateTime.Now);
+        // Derive local today from refTime, not DateTime.Now: the wall clock would leak real time into
+        // an otherwise pure calculation and break the streak walk whenever now != today.
+        var todayLocal = DateOnly.FromDateTime(refTime.ToLocalTime());
 
         DateOnly startCheckDate;
         if (activeDates.Contains(todayLocal))
@@ -188,7 +247,13 @@ public static class AdvancedStatsCalculator
                     continue;
                 }
 
-                genreCounts[genre] = genreCounts.GetValueOrDefault(genre) + 1;
+                var normalized = GenreNormalizer.Normalize(genre);
+                if (string.IsNullOrWhiteSpace(normalized))
+                {
+                    continue;
+                }
+
+                genreCounts[normalized] = genreCounts.GetValueOrDefault(normalized) + 1;
                 totalGenreOccurrences++;
             }
         }
@@ -202,6 +267,77 @@ public static class AdvancedStatsCalculator
                 kv.Value,
                 totalGenreOccurrences > 0 ? Math.Round((double)kv.Value / totalGenreOccurrences * 100.0, 1, MidpointRounding.AwayFromZero) : 0.0))
             .ToList();
+
+        var genreCountsByType = new Dictionary<string, Dictionary<string, int>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var item in items)
+        {
+            if (string.IsNullOrWhiteSpace(item.Genres))
+            {
+                continue;
+            }
+
+            var type = GetMediaTypeName(item);
+            if (!genreCountsByType.TryGetValue(type, out var counts))
+            {
+                counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+                genreCountsByType[type] = counts;
+            }
+
+            foreach (var genre in item.Genres.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                var normalized = GenreNormalizer.Normalize(genre);
+                if (!string.IsNullOrWhiteSpace(normalized))
+                {
+                    counts[normalized] = counts.GetValueOrDefault(normalized) + 1;
+                }
+            }
+        }
+
+        var topGenresByType = new Dictionary<string, List<GenreStatDto>>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["all"] = topGenres,
+        };
+        foreach (var type in new[] { "game", "movie", "series", "anime", "manga", "book" })
+        {
+            var counts = genreCountsByType.GetValueOrDefault(type) ?? new Dictionary<string, int>();
+            var totalOccurrences = counts.Values.Sum();
+            topGenresByType[type] = counts
+                .OrderByDescending(kv => kv.Value)
+                .ThenBy(kv => kv.Key)
+                .Take(10)
+                .Select(kv => new GenreStatDto(
+                    kv.Key,
+                    kv.Value,
+                    totalOccurrences > 0 ? Math.Round((double)kv.Value / totalOccurrences * 100.0, 1, MidpointRounding.AwayFromZero) : 0.0))
+                .ToList();
+        }
+
+        var dailyActivity = new Dictionary<DateOnly, int>();
+        var activityStart = DateOnly.FromDateTime(refTime).AddDays(-364);
+        var activityEnd = DateOnly.FromDateTime(refTime);
+        foreach (var mediaEvent in events ?? [])
+        {
+            var date = DateOnly.FromDateTime(mediaEvent.CreatedAt);
+            if (date >= activityStart && date <= activityEnd)
+            {
+                dailyActivity[date] = dailyActivity.GetValueOrDefault(date) + 1;
+            }
+        }
+
+        var finishActivity = items
+            .Where(item => item.Status == MediaStatus.Completed && item.FinishedAt.HasValue)
+            .GroupBy(item => DateOnly.FromDateTime(item.FinishedAt!.Value));
+        foreach (var day in finishActivity)
+        {
+            if (day.Key >= activityStart && day.Key <= activityEnd && !dailyActivity.ContainsKey(day.Key))
+            {
+                dailyActivity[day.Key] = day.Count();
+            }
+        }
+
+        var dailyActivityDto = dailyActivity.ToDictionary(
+            kv => kv.Key.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+            kv => kv.Value);
 
         return new AdvancedStatsDto
         {
@@ -219,16 +355,20 @@ public static class AdvancedStatsCalculator
             TotalPagesRead = totalPagesRead,
             TotalChaptersRead = totalChaptersRead,
             TotalEpisodesWatched = totalEpisodesWatched,
+            SeriesEpisodesWatched = seriesEpisodesWatched,
+            AnimeEpisodesWatched = animeEpisodesWatched,
             AverageScore = averageScore,
             ScoreDistribution = scoreDistribution,
             AverageScoreByType = averageScoreByType,
             CurrentStreakDays = currentStreakDays,
             MonthlyCompletions = monthlyCompletions,
             TopGenres = topGenres,
+            TopGenresByType = topGenresByType,
+            DailyActivity = dailyActivityDto,
         };
     }
 
-    private static string GetMediaTypeName(MediaItem item) => item switch
+    internal static string GetMediaTypeName(MediaItem item) => item switch
     {
         VideoGame => "game",
         Book => "book",

@@ -23,17 +23,39 @@ public sealed class GoogleBooksMetadataProvider(
 
     public override async Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string query, CancellationToken ct)
     {
-        var key = ApiKey;
-        if (string.IsNullOrWhiteSpace(key))
+        return await SearchVolumesAsync(
+            $"volumes?q={Uri.EscapeDataString(query)}&maxResults=10&key={Uri.EscapeDataString(ApiKey)}",
+            query,
+            ct);
+    }
+
+    /// <summary>A "works by author" query with Google's <c>inauthor:</c> index.</summary>
+    public override async Task<IReadOnlyList<ExternalMediaDto>> SearchByCreatorAsync(string creator, CancellationToken ct)
+    {
+        var clean = creator.Trim();
+        if (clean.Length == 0) return [];
+
+        var byAuthor = await SearchVolumesAsync(
+            $"volumes?q={Uri.EscapeDataString("inauthor:" + clean)}&maxResults=10&key={Uri.EscapeDataString(ApiKey)}",
+            clean,
+            ct);
+        if (byAuthor.Count > 0) return byAuthor;
+
+        // The author index answered nothing: fall back to a title query filtered to books whose
+        // reported author names the creator.
+        return await base.SearchByCreatorAsync(clean, ct);
+    }
+
+    private async Task<IReadOnlyList<ExternalMediaDto>> SearchVolumesAsync(string endpoint, string query, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(ApiKey))
         {
             return [];
         }
 
-        var client = httpClientFactory.CreateClient(Id);
-        var endpoint = $"volumes?q={Uri.EscapeDataString(query)}&maxResults=10&key={Uri.EscapeDataString(key)}";
-
         try
         {
+            var client = httpClientFactory.CreateClient(Id);
             var res = await client.GetFromJsonAsync<GoogleBooksSearchResponse>(endpoint, ct);
             if (res?.Items is null || res.Items.Count == 0)
             {

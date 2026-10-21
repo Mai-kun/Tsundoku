@@ -1,4 +1,4 @@
-﻿<script lang="ts">
+<script lang="ts">
     import { Check } from "$shared/ui/Icons.svelte";
     import type { Snippet } from "svelte";
 
@@ -13,7 +13,14 @@
         selected: T;
         onSelect: (value: T) => void;
         trigger: Snippet<
-            [ctx: { popoverTargetId: string; anchorName: string }]
+            [ctx: {
+                popoverTargetId: string;
+                anchorName: string;
+                /** True while the menu is open. The trigger only needs `anchor-name` then --
+                 *  registering an anchor on every closed card in a long grid freezes the
+                 *  style engine during scroll. */
+                isOpen: boolean;
+            }]
         >;
         placement?: "bottom" | "bottom-start" | "bottom-end" | "top";
         class?: string;
@@ -28,6 +35,7 @@
         >;
         closeDelay?: number;
         label: string;
+        footer?: Snippet<[ctx: { close: () => void }]>;
     }
 
     let {
@@ -44,6 +52,7 @@
         renderOption,
         closeDelay = 180,
         label,
+        footer,
     }: Props<unknown> = $props();
 
     const popoverId = $derived(`popover-${id}`);
@@ -67,8 +76,15 @@
 
     let popoverEl = $state<HTMLDivElement | null>(null);
     let isOpen = $state(false);
+    let shouldRenderMenu = $state(false);
     /* Only used on the no-anchor path: `left`/`top` (+ width) in viewport coordinates. */
     let fallbackStyle = $state("");
+
+    function prepareMenu() {
+        if (!shouldRenderMenu) {
+            shouldRenderMenu = true;
+        }
+    }
 
     function placeFallback() {
         if (supportsAnchor) return;
@@ -111,6 +127,10 @@
     }
 
     function handleBeforeToggle(event: ToggleEvent) {
+        // beforetoggle fires synchronously inside showPopover(), before the popover paints.
+        // Flipping isOpen here (not in the queued toggle event) lets the trigger register its
+        // anchor-name in the same frame, so the menu never flashes at the fallback position.
+        if (event.newState === "open") isOpen = true;
         if (event.newState === "open") placeFallback();
     }
 
@@ -145,6 +165,20 @@
         event.stopPropagation();
     }
 
+    function handleClick(event: MouseEvent) {
+        isolate(event);
+        if (!shouldRenderMenu) {
+            prepareMenu();
+            if (popoverEl && !popoverEl.matches(":popover-open")) {
+                popoverEl.showPopover();
+            } else {
+                requestAnimationFrame(() => {
+                    popoverEl?.showPopover();
+                });
+            }
+        }
+    }
+
     function select(value: unknown) {
         onSelect(value);
     }
@@ -161,6 +195,7 @@
 
     function scheduleClose() {
         if (!openOnHover) return;
+        if (popoverEl && popoverEl.contains(document.activeElement)) return;
         cancelPendingClose();
         closeTimer = setTimeout(() => {
             closeTimer = null;
@@ -170,9 +205,17 @@
 
     function openOnEnter() {
         if (!openOnHover) return;
+        prepareMenu();
         cancelPendingClose();
-        if (popoverEl && !popoverEl.matches(":popover-open"))
+        if (popoverEl && !popoverEl.matches(":popover-open")) {
             popoverEl.showPopover();
+        } else if (!popoverEl) {
+            requestAnimationFrame(() => {
+                if (popoverEl && !popoverEl.matches(":popover-open")) {
+                    popoverEl.showPopover();
+                }
+            });
+        }
     }
 
     $effect(() => () => cancelPendingClose());
@@ -182,8 +225,14 @@
 <div
     class="contents"
     role="presentation"
-    onclick={isolate}
-    onpointerdown={isolate}
+    onclick={handleClick}
+    onpointerdown={(event) => {
+        isolate(event);
+        prepareMenu();
+    }}
+    onpointerenter={prepareMenu}
+    onpointerover={prepareMenu}
+    onfocusin={prepareMenu}
 >
     <!-- Hover mode needs a real box to receive enter/leave; `contents` has none. -->
     {#if openOnHover}
@@ -193,55 +242,62 @@
             onpointerenter={openOnEnter}
             onpointerleave={scheduleClose}
         >
-            {@render trigger({ popoverTargetId: popoverId, anchorName })}
+            {@render trigger({ popoverTargetId: popoverId, anchorName, isOpen })}
         </span>
     {:else}
-        {@render trigger({ popoverTargetId: popoverId, anchorName })}
+        {@render trigger({ popoverTargetId: popoverId, anchorName, isOpen })}
     {/if}
 </div>
 
-<!-- A strict rectangle: no decorative arrow/::after, so the menu can never render a stray
-     triangle that drifts off the trigger. -->
-<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions a11y_no_noninteractive_element_interactions -->
-<div
-    id={popoverId}
-    bind:this={popoverEl}
-    popover="auto"
-    role="listbox"
-    tabindex="-1"
-    aria-label={label}
-    class="z-30 w-max min-w-36 rounded-md border border-white/10 bg-[#1c202b] p-1 shadow-2xl outline-none {className}"
-    style={styleAttr}
-    onbeforetoggle={handleBeforeToggle}
-    ontoggle={handleToggle}
-    onclick={isolate}
-    onpointerdown={isolate}
-    onpointerenter={cancelPendingClose}
-    onpointerleave={scheduleClose}
->
-    {#each options as option (String(option.value))}
-        <button
-            type="button"
-            role="option"
-            aria-selected={option.value === selected}
-            class="tap flex w-full items-center justify-between gap-3 rounded-sm px-3 py-2 text-left text-sm transition hover:bg-white/5 hover:text-ink {option.value ===
-            selected
-                ? 'text-accent-soft'
-                : 'text-muted'} {optionClass}"
-            onclick={() => select(option.value)}
-        >
-            {#if renderOption}
-                {@render renderOption({ option, selected: option.value === selected })}
-            {:else}
-                <span class="truncate">{option.label}</span>
-                {#if option.value === selected}
-                    <Check
-                        size={14}
-                        class="shrink-0 text-accent-soft"
-                        aria-hidden="true"
-                    />
+{#if shouldRenderMenu || isOpen}
+    <!-- A strict rectangle: no decorative arrow/::after, so the menu can never render a stray
+         triangle that drifts off the trigger. -->
+    <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions a11y_no_noninteractive_element_interactions -->
+    <div
+        id={popoverId}
+        bind:this={popoverEl}
+        popover="auto"
+        role="listbox"
+        tabindex="-1"
+        aria-label={label}
+        class="z-30 w-max min-w-36 rounded-md border border-white/10 bg-[#1c202b] p-1 shadow-2xl outline-none {className}"
+        style={styleAttr}
+        onbeforetoggle={handleBeforeToggle}
+        ontoggle={handleToggle}
+        onclick={isolate}
+        onpointerdown={isolate}
+        onpointerenter={cancelPendingClose}
+        onpointerleave={scheduleClose}
+    >
+        {#each options as option (String(option.value))}
+            <button
+                type="button"
+                role="option"
+                aria-selected={option.value === selected}
+                class="tap flex w-full items-center justify-between gap-3 rounded-sm px-3 py-2 text-left text-sm transition hover:bg-white/5 hover:text-ink {option.value ===
+                selected
+                    ? 'text-accent-soft'
+                    : 'text-muted'} {optionClass}"
+                onclick={() => select(option.value)}
+            >
+                {#if renderOption}
+                    {@render renderOption({ option, selected: option.value === selected })}
+                {:else}
+                    <span class="truncate">{option.label}</span>
+                    {#if option.value === selected}
+                        <Check
+                            size={14}
+                            class="shrink-0 text-accent-soft"
+                            aria-hidden="true"
+                        />
+                    {/if}
                 {/if}
-            {/if}
-        </button>
-    {/each}
-</div>
+            </button>
+        {/each}
+        {#if footer}
+            <div class="mt-1 border-t border-white/10 pt-1.5 px-1.5 pb-1">
+                {@render footer({ close: () => popoverEl?.hidePopover() })}
+            </div>
+        {/if}
+    </div>
+{/if}

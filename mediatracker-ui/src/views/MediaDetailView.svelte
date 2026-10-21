@@ -1,4 +1,4 @@
-﻿<script lang="ts">
+<script lang="ts">
     import { ArrowLeft, ArrowUpDown, Bookmark, CalendarDays, Check, CheckCircle2, ChevronDown, ExternalLink, Eye, GitBranch, Image as ImageIcon, Languages, Layers, LoaderCircle, LayoutGrid, List, Minus, Pause, Pencil, Play, Plus, RefreshCw, RotateCcw, Sparkles, Star, Trash2, Trophy, X } from "$shared/ui/Icons.svelte";
     import {
         createMedia,
@@ -19,7 +19,9 @@
     } from "$shared/api/api";
     import { i18n } from "$shared/i18n/index.svelte";
     import { toRelatedEntry } from "$widgets/media-detail/externalMapping";
+    import { findMatchingLocal } from "$widgets/media-detail/relatedMatching";
     import { showToast } from "$shared/ui/toast.svelte";
+    import { dropPromptState } from "$features/drop-reason/dropReasonPrompt.svelte";
     import {
         isTvShowDetail,
         MEDIA_STATUS,
@@ -31,10 +33,13 @@
         type MediaDetail,
         type MediaItem,
         type MediaStatus,
+        type SearchModalContext,
         type SourceInfo,
         type TvSeason,
+        type UpdateMediaPayload,
     } from "$shared/types";
     import { clampProgress } from "$entities/media/model/progressRules";
+    import { nextSeriesEpisodeStep } from "$entities/media/model/seriesStep";
     import { createProgressDebounce } from "$shared/utils/progressDebounce";
     import {
         formatNumber,
@@ -113,16 +118,160 @@
     }
 
     /**
+     * Normalizes a raw stored related entry.
+     * Can be either an ExternalRelation shape (from backend MediaEnrichmentJob: RelationType/relationType + Media/media)
+     * or a RelatedEntry shape (from client persistRelated).
+     */
+    function normalizeStoredRelatedEntry(raw: any, index: number): RelatedEntry {
+        if (!raw || typeof raw !== "object") {
+            return {
+                id: `rel-${index}`,
+                title: "Unknown",
+                type: "anime",
+                coverUrl: null,
+            };
+        }
+
+        const media = raw.Media ?? raw.media;
+        if (media && typeof media === "object") {
+            const rawRelType =
+                raw.RelationType ??
+                raw.relationType ??
+                raw.rawRelationType ??
+                "OTHER";
+            const score = media.Rating ?? media.rating ?? media.score ?? null;
+            const extSource = media.ExternalSource ?? media.externalSource ?? null;
+            const ratingsRaw = media.Ratings ?? media.ratings;
+            const ratings = Array.isArray(ratingsRaw)
+                ? ratingsRaw.map((r: any) => ({
+                      source: r.Source ?? r.source ?? extSource ?? "",
+                      rating: Number(r.Rating ?? r.rating ?? 0),
+                  }))
+                : score && extSource
+                  ? [{ source: extSource, rating: score }]
+                  : null;
+
+            const releaseYear = media.ReleaseYear ?? media.releaseYear ?? null;
+            const releaseDate = media.ReleaseDate ?? media.releaseDate ?? null;
+            const year =
+                releaseYear ??
+                (releaseDate && releaseDate.length >= 4
+                    ? parseInt(releaseDate.slice(0, 4), 10)
+                    : null);
+
+            const relId = String(
+                media.ExternalId ??
+                    media.externalId ??
+                    media.id ??
+                    raw.id ??
+                    `rel-${index}`,
+            );
+
+            return {
+                id: relId,
+                title: media.Title ?? media.title ?? "Title",
+                originalTitle: media.OriginalTitle ?? media.originalTitle ?? null,
+                romajiTitle: media.RomajiTitle ?? media.romajiTitle ?? null,
+                coverUrl: media.CoverUrl ?? media.coverUrl ?? null,
+                bannerUrl: media.BannerUrl ?? media.bannerUrl ?? null,
+                type: media.Type ?? media.type ?? "anime",
+                format: media.Format ?? media.format ?? null,
+                year: year ?? null,
+                releaseDate: releaseDate ?? null,
+                endDate: media.EndDate ?? media.endDate ?? null,
+                releaseStatus: media.ReleaseStatus ?? media.releaseStatus ?? null,
+                score,
+                ratings,
+                description: media.Description ?? media.description ?? null,
+                trailerVideoId: media.TrailerVideoId ?? media.trailerVideoId ?? null,
+                duration:
+                    media.RuntimeMinutes ??
+                    media.runtimeMinutes ??
+                    media.duration ??
+                    null,
+                episodes:
+                    media.TotalCount ?? media.totalCount ?? media.episodes ?? null,
+                chapters: media.Chapters ?? media.chapters ?? null,
+                volumes: media.Volumes ?? media.volumes ?? null,
+                studio: media.Studio ?? media.studio ?? null,
+                author: media.Author ?? media.author ?? null,
+                externalSource: extSource,
+                rawRelationType: rawRelType,
+                relationType:
+                    raw.relationType && raw.relationType !== rawRelType
+                        ? raw.relationType
+                        : formatRelationType(rawRelType),
+                localItem: raw.localItem ?? media.localItem,
+            };
+        }
+
+        const rawRelType =
+            raw.rawRelationType ?? raw.RelationType ?? raw.relationType;
+        const score = raw.score ?? raw.rating ?? raw.Rating ?? null;
+        const releaseDate = raw.releaseDate ?? raw.ReleaseDate ?? null;
+        const releaseYear = raw.year ?? raw.ReleaseYear ?? raw.releaseYear;
+        const year =
+            releaseYear ??
+            (releaseDate && releaseDate.length >= 4
+                ? parseInt(releaseDate.slice(0, 4), 10)
+                : null);
+
+        const relId = String(
+            raw.id ?? raw.externalId ?? raw.ExternalId ?? `rel-${index}`,
+        );
+
+        return {
+            ...raw,
+            id: relId,
+            title: raw.title ?? raw.Title ?? "Title",
+            originalTitle: raw.originalTitle ?? raw.OriginalTitle ?? null,
+            romajiTitle: raw.romajiTitle ?? raw.RomajiTitle ?? null,
+            coverUrl: raw.coverUrl ?? raw.CoverUrl ?? null,
+            bannerUrl: raw.bannerUrl ?? raw.BannerUrl ?? null,
+            type: raw.type ?? raw.Type ?? "anime",
+            format: raw.format ?? raw.Format ?? null,
+            year: year ?? null,
+            releaseDate: releaseDate ?? null,
+            endDate: raw.endDate ?? raw.EndDate ?? null,
+            releaseStatus: raw.releaseStatus ?? raw.ReleaseStatus ?? null,
+            score,
+            ratings: raw.ratings ?? raw.Ratings ?? null,
+            description: raw.description ?? raw.Description ?? null,
+            trailerVideoId: raw.trailerVideoId ?? raw.TrailerVideoId ?? null,
+            duration:
+                raw.duration ?? raw.runtimeMinutes ?? raw.RuntimeMinutes ?? null,
+            episodes: raw.episodes ?? raw.totalCount ?? raw.TotalCount ?? null,
+            chapters: raw.chapters ?? raw.Chapters ?? null,
+            volumes: raw.volumes ?? raw.Volumes ?? null,
+            studio: raw.studio ?? raw.Studio ?? null,
+            author: raw.author ?? raw.Author ?? null,
+            externalSource: raw.externalSource ?? raw.ExternalSource ?? null,
+            rawRelationType: rawRelType,
+            relationType:
+                raw.relationType && raw.relationType !== rawRelType
+                    ? raw.relationType
+                    : rawRelType
+                      ? formatRelationType(rawRelType)
+                      : undefined,
+            localItem: raw.localItem,
+        };
+    }
+
+    /**
      * The Related tab is the one panel whose content lives outside the database, so a reload used to
      * come back empty and the user had to name a source again. Reading the copy stored on the row
      * costs nothing and puts the list back on F5.
      */
-    function readStoredRelated(item: MediaDetail): RelatedEntry[] | null {
-        if (!item.relatedMediaJson) return null;
+    function readStoredRelated(item?: MediaDetail | null): RelatedEntry[] | null {
+        if (!item?.relatedMediaJson) return null;
         try {
             const parsed: unknown = JSON.parse(item.relatedMediaJson);
-            return Array.isArray(parsed) ? (parsed as RelatedEntry[]) : null;
-        } catch {
+            if (!Array.isArray(parsed)) return null;
+            return parsed.map((entry, index) =>
+                normalizeStoredRelatedEntry(entry, index),
+            );
+        } catch (error) {
+            console.error("[MediaDetailView] Failed to parse relatedMediaJson", error);
             return null;
         }
     }
@@ -228,10 +377,9 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
         onDelete: (id: string) => Promise<void>;
         onEdit: (item: MediaItem) => void;
         onOpenRelated: (item: MediaItem) => void;
+        onSearch: (context: string | SearchModalContext) => void;
         onNavigate?: (view: AppView) => void;
     }
-
-
 
     let {
         mediaId,
@@ -241,6 +389,7 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
         onDelete,
         onEdit,
         onOpenRelated,
+        onSearch,
         onNavigate = () => {},
     }: Props = $props();
 
@@ -308,6 +457,24 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
     let relatedViewMode = $state<"grouped" | "timeline" | "grid">("grouped");
     /** The source the user picked last, so "retry" repeats that request instead of guessing. */
     let lastRelatedSource = $state<string | null>(null);
+
+    $effect(() => {
+        if (
+            activeSubTab === "related" &&
+            media &&
+            (related?.length ?? 0) === 0 &&
+            !relatedLoading &&
+            !relatedError
+        ) {
+            const initialSource =
+                media.relatedSource ||
+                (isAnime(media) ? "anilist" : null);
+            if (initialSource) {
+                lastRelatedSource = initialSource;
+                void loadRelated(media, initialSource);
+            }
+        }
+    });
     let previewRelatedItem = $state<RelatedEntry | null>(null);
     let previewStatus = $state<MediaStatus>(MEDIA_STATUS.planned);
     let previewAddingBusy = $state(false);
@@ -393,6 +560,14 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
                 if (loaded.id !== mediaId) return;
                 media = loaded;
                 syncFrom(loaded);
+                mediaDetailCache.invalidate(loaded.id);
+                achievementsCache.invalidate(loaded.id);
+                enrichedMediaIds.delete(loaded.id);
+                if (loaded.type === "game") {
+                    void loadGameAchievements(loaded, true);
+                }
+                void loadRelated(loaded, null);
+                onUpdate();
             })
             .catch((error) =>
                 console.error(
@@ -457,7 +632,7 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
         seasons.map((season) => ({ season, episodes: buildEpisodes(season) })),
     );
     let originalTitle = $derived(media ? readOriginalTitle(media) : null);
-    let synopsisText = $derived(media?.notes?.trim() ?? "");
+    let synopsisText = $derived(media?.description?.trim() ?? "");
     let synopsisExpandable = $derived(synopsisText.length > 280);
     let isSynopsisTranslated = $state(false);
     let translatingSynopsis = $state(false);
@@ -557,6 +732,28 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
             ? Math.min(seriesEpisodes.current / seriesEpisodes.total, 1) * 100
             : 0,
     );
+
+    /**
+     * A show's overview card fell back to the plain status text: `readProgress` reports a series as
+     * read-only, so the stepper was never rendered. The season totals already on screen are the
+     * honest number, and +/- writes to whichever season holds the next unwatched episode — the same
+     * rule the media cards use.
+     */
+    let episodeProgress = $derived.by<ProgressInfo | null>(() =>
+        seriesEpisodes.total > 0
+            ? {
+                  current: seriesEpisodes.current,
+                  total: seriesEpisodes.total,
+                  editable: true,
+                  label: i18n.t.detail.episodesLabel,
+              }
+            : null,
+    );
+
+    let isSeriesOverview = $derived(media?.type === "tvshow");
+    let overviewSupport = $derived(isSeriesOverview ? episodeProgress : progressInfo);
+    let overviewValue = $derived(isSeriesOverview ? seriesEpisodes.current : progressValue);
+    let overviewPercent = $derived(isSeriesOverview ? seriesProgressPercent : progressPercent);
 
     let externalRatings = $derived.by<RatingBadge[]>(() => {
         if (!media) return [];
@@ -723,7 +920,6 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
 
     const WATCHED_ON_SITES = [
         "Kinopoisk",
-        "Кинопоиск",
         "Netflix",
         "YouTube",
         "Okko",
@@ -744,9 +940,13 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
     // same service is available without retyping it.
     let watchedOnOptions = $derived.by<string[]>(() => {
         const fromLibrary = media?.watchedOn?.trim();
-        return Array.from(
-            new Set([...WATCHED_ON_SITES, ...(fromLibrary ? [fromLibrary] : [])]),
-        );
+        const custom =
+            fromLibrary &&
+            fromLibrary.toLowerCase() !== "кинопоиск" &&
+            fromLibrary.toLowerCase() !== "kinopoisk"
+                ? [fromLibrary]
+                : [];
+        return Array.from(new Set([...WATCHED_ON_SITES, ...custom]));
     });
 
     $effect(() => {
@@ -835,6 +1035,8 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
             if (storedRelated) {
                 related = storedRelated;
                 lastRelatedSource = loaded.relatedSource ?? null;
+            } else {
+                related = [];
             }
 
             // Same for the game payloads: the row carries the achievements and the recommendations,
@@ -996,14 +1198,22 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
         }
 
         try {
-            const all = await getMedia();
+            let all: MediaItem[] = [];
+            try {
+                const fetched = await getMedia();
+                if (Array.isArray(fetched)) {
+                    all = fetched;
+                }
+            } catch (err) {
+                console.error("[MediaDetailView] Failed to fetch library media for relations", err);
+            }
             if (sequence !== relatedSequence) return;
 
             const results: RelatedEntry[] = [];
 
             // 1. Local siblings of the same franchise are already in our own database, so they cost
             // nothing and are always worth showing.
-            if (item.franchiseId) {
+            if (item.franchiseId && Array.isArray(all)) {
                 const localMatches = all
                     .filter(
                         (candidate) =>
@@ -1030,7 +1240,41 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
             // 2. Everything below leaves the building. Opening a card must not pay for any of it, so
             // it only runs once the user has named a source in the dropdown.
             if (source === null) {
-                if (sequence === relatedSequence) related = results;
+                if (sequence === relatedSequence) {
+                    const stored = readStoredRelated(item as MediaDetail);
+                    if (stored && stored.length > 0) {
+                        const remappedStored = stored.map((entry) => {
+                            let local: MediaItem | undefined;
+                            try {
+                                local = findMatchingLocal(entry, all);
+                            } catch (e) {
+                                console.error("[MediaDetailView] Error in findMatchingLocal", e);
+                            }
+                            return {
+                                ...entry,
+                                coverUrl: local?.coverUrl || entry.coverUrl,
+                                localItem: local ?? entry.localItem,
+                            };
+                        });
+                        const merged = [...results];
+                        for (const s of remappedStored) {
+                            if (
+                                !merged.some(
+                                    (m) =>
+                                        m.id === s.id ||
+                                        (m.localItem &&
+                                            s.localItem &&
+                                            m.localItem.id === s.localItem.id),
+                                )
+                            ) {
+                                merged.push(s);
+                            }
+                        }
+                        related = merged;
+                    } else {
+                        related = results;
+                    }
+                }
                 return;
             }
 
@@ -1087,7 +1331,7 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
                 const rows = await getExternalRelations({
                     type: isAnime(item) ? "anime" : "manga",
                     externalId: item.externalId,
-                    title: item.title,
+                    title: readRomajiTitle(item) || item.title,
                     source,
                     kind: "related",
                 });
@@ -1097,13 +1341,12 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
                     entry.relationType = formatRelationType(relation.relationType);
                     if (entry.title.toLowerCase() === item.title.toLowerCase()) continue;
 
-                    const matchedLocal = all.find(
-                        (m) =>
-                            (m.externalId && m.externalId === entry.id) ||
-                            m.title.toLowerCase() === entry.title.toLowerCase() ||
-                            readRomajiTitle(m)?.toLowerCase() ===
-                                entry.title.toLowerCase(),
-                    );
+                    let matchedLocal: MediaItem | undefined;
+                    try {
+                        matchedLocal = findMatchingLocal(entry, all);
+                    } catch (e) {
+                        console.error("[MediaDetailView] Error in findMatchingLocal", e);
+                    }
 
                     if (
                         !results.some(
@@ -1141,10 +1384,18 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
                         )
                     )
                         continue;
+                    let matchedLocal: MediaItem | undefined;
+                    try {
+                        matchedLocal = findMatchingLocal(entry, all);
+                    } catch (e) {
+                        console.error("[MediaDetailView] Error in findMatchingLocal", e);
+                    }
                     results.push({
                         ...entry,
                         type: item.type,
                         year: entry.year ?? yearOf(entry.releaseDate),
+                        coverUrl: matchedLocal?.coverUrl || entry.coverUrl,
+                        localItem: matchedLocal,
                     });
                 }
             }
@@ -1155,7 +1406,7 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
                 // franchise siblings are already in the database.
                 if (source !== null && results.length > 0) {
                     const external = results.filter(
-                        (entry) => !entry.localItem || entry.localItem.externalId !== entry.id,
+                        (entry) => !entry.localItem || entry.localItem.id !== entry.id,
                     );
                     if (external.length > 0) {
                         persistRelated(item as MediaDetail, external, source);
@@ -1176,14 +1427,15 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
 
 
     let relatedGroups = $derived.by<RelationGroup[]>(() => {
-        if (related.length === 0) return [];
+        const safeRelated = related ?? [];
+        if (safeRelated.length === 0) return [];
 
         const main: RelatedEntry[] = [];
         const spinoffs: RelatedEntry[] = [];
         const adaptations: RelatedEntry[] = [];
         const others: RelatedEntry[] = [];
 
-        for (const item of related) {
+        for (const item of safeRelated) {
             const raw = (item.rawRelationType ?? "").toUpperCase();
             if (raw === "SEQUEL" || raw === "PREQUEL") {
                 main.push(item);
@@ -1255,9 +1507,10 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
             localItem: media,
         };
 
+        const safeRelated = related ?? [];
         const items: TimelineEntry[] = [
             current,
-            ...related.map(
+            ...safeRelated.map(
                 (r): TimelineEntry => ({
                     id: r.id,
                     title: r.title,
@@ -1408,7 +1661,8 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
                     title: itemDetails.title,
                     status,
                     coverUrl: itemDetails.coverUrl,
-                    notes: itemDetails.description,
+                    description: itemDetails.description,
+                    trailerVideoId: itemDetails.trailerVideoId,
                     durationMinutes: itemDetails.duration ?? 0,
                     isAnime: true,
                     studio: itemDetails.studio ?? undefined,
@@ -1432,7 +1686,8 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
                     title: itemDetails.title,
                     status,
                     coverUrl: itemDetails.coverUrl,
-                    notes: itemDetails.description,
+                    description: itemDetails.description,
+                    trailerVideoId: itemDetails.trailerVideoId,
                     author: itemDetails.author || undefined,
                     romajiTitle:
                         itemDetails.romajiTitle ??
@@ -1456,7 +1711,8 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
                     title: itemDetails.title,
                     status,
                     coverUrl: itemDetails.coverUrl,
-                    notes: itemDetails.description,
+                    description: itemDetails.description,
+                    trailerVideoId: itemDetails.trailerVideoId,
                     durationMinutes: itemDetails.duration ?? undefined,
                     episodeDurationMinutes: itemDetails.duration ?? undefined,
                     isAnime: true,
@@ -1494,7 +1750,7 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
 
             showToast(i18n.t.searchModal.inLibrary, "success");
             // Update the related grid immediately to show the "added" badge
-            related = related.map((r) =>
+            related = (related ?? []).map((r) =>
                 r.id === rel.id ? { ...r, localItem: created } : r,
             );
             previewRelatedItem = null;
@@ -1527,6 +1783,28 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
         progressDebounce.schedule(target.id, next);
     }
 
+    async function stepEpisodeProgress(delta: number) {
+        const step = nextSeriesEpisodeStep(seasons, delta);
+        if (!step) return;
+
+        try {
+            await setSeasonProgress(step.seasonId, step.currentEpisode);
+            onUpdate();
+        } catch (error) {
+            progressError = error;
+            showToast(errorMessage(error), "error");
+        }
+    }
+
+    function stepOverview(delta: number) {
+        if (isSeriesOverview) {
+            void stepEpisodeProgress(delta);
+            return;
+        }
+
+        stepProgress(delta);
+    }
+
     async function changeStatus(value: MediaStatus) {
         const target = media;
         if (!target || statusBusy) return;
@@ -1543,6 +1821,24 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
                 i18n.t.status.label + ": " + statusLabel(value),
                 "success",
             );
+            if (value === MEDIA_STATUS.dropped) {
+                dropPromptState.open({
+                    id: target.id,
+                    title: target.title,
+                    type: target.type,
+                    isAnime: (target as { isAnime?: boolean }).isAnime,
+                    dropReason: target.dropReason,
+                    dropNotes: target.dropNotes,
+                    onSaved: (reason, notes) => {
+                        target.dropReason = reason;
+                        target.dropNotes = notes;
+                        onUpdate();
+                    },
+                });
+            } else {
+                target.dropReason = null;
+                target.dropNotes = null;
+            }
             onUpdate();
         } catch (error) {
             statusValue = previous;
@@ -1564,7 +1860,10 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
         ratingError = null;
 
         try {
-            await updateMedia(target.id, { score: next });
+            await updateMedia(target.id, {
+                score: next,
+                clearScore: next === null,
+            });
             showToast(
                 next ? `${next} ★` : i18n.t.detail.clearRating,
                 "success",
@@ -1579,8 +1878,78 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
         }
     }
 
-    function clearScore() {
-        void setScore(scoreValue ?? 0);
+    async function clearScore() {
+        const target = media;
+        if (!target || ratingBusy) return;
+
+        const previousScore = scoreValue;
+        const previousDetailed = target.detailedScoreJson;
+
+        scoreValue = null;
+        target.detailedScoreJson = null;
+        ratingBusy = true;
+        ratingError = null;
+
+        try {
+            await updateMedia(target.id, {
+                score: null,
+                clearScore: true,
+                clearDetailedScore: true,
+            });
+            showToast(i18n.t.detail.clearRating, "success");
+            onUpdate();
+        } catch (error) {
+            scoreValue = previousScore;
+            target.detailedScoreJson = previousDetailed;
+            ratingError = error;
+            showToast(errorMessage(error), "error");
+        } finally {
+            ratingBusy = false;
+        }
+    }
+
+    async function saveDetailedScore(
+        detailedJson: string | null,
+        newScore?: number | null,
+    ) {
+        const target = media;
+        if (!target || ratingBusy) return;
+
+        const previousScore = scoreValue;
+        const previousDetailed = target.detailedScoreJson;
+
+        if (newScore !== undefined) {
+            scoreValue = newScore;
+        }
+        target.detailedScoreJson = detailedJson;
+        ratingBusy = true;
+        ratingError = null;
+
+        try {
+            const payload: UpdateMediaPayload = {
+                detailedScoreJson: detailedJson,
+                clearDetailedScore: detailedJson === null,
+            };
+            if (newScore !== undefined) {
+                payload.score = newScore;
+                if (newScore === null) {
+                    payload.clearScore = true;
+                }
+            }
+            await updateMedia(target.id, payload);
+            showToast(
+                newScore ? `${newScore} ★` : i18n.t.detail.notesSaved,
+                "success",
+            );
+            onUpdate();
+        } catch (error) {
+            scoreValue = previousScore;
+            target.detailedScoreJson = previousDetailed;
+            ratingError = error;
+            showToast(errorMessage(error), "error");
+        } finally {
+            ratingBusy = false;
+        }
     }
 
     function retry() {
@@ -1706,21 +2075,12 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
             const updated = await refreshMetadata(target.id, fillMissing);
             media = updated;
             syncFrom(updated);
-            mediaDetailCache.invalidate(target.id);
-            achievementsCache.invalidate(target.id);
-            enrichedMediaIds.delete(target.id);
-            if (updated.type === "game") {
-                void loadGameAchievements(updated, true);
-            }
-            void loadRelated(updated, null);
-            void triggerBackgroundEnrichment(updated, ++requestSequence, true);
             showToast(
                 fillMissing
                     ? i18n.t.detail.metadataMergeKept
                     : i18n.t.detail.metadataUpdated,
                 "success",
             );
-            onUpdate();
         } catch (error) {
             refreshError = error;
             showToast(errorMessage(error), "error");
@@ -1754,10 +2114,8 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
             const updated = await enrichMedia(target.id, source || undefined);
             media = updated;
             syncFrom(updated);
-            mediaDetailCache.invalidate(target.id);
             fillMissingOpen = false;
             showToast(i18n.t.detail.fillMissingDone, "success");
-            onUpdate();
         } catch (error) {
             showToast(errorMessage(error), "error");
         } finally {
@@ -1832,6 +2190,7 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
                 onRatingHide={hideRatingPopover}
                 onSetScore={setScore}
                 onClearScore={clearScore}
+                onSaveDetailedScore={saveDetailedScore}
                 {formatDate}
                 {historyProgressText}
                 {watchedOnInput}
@@ -1878,7 +2237,7 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
     active={activeSubTab}
     mediaType={media.type}
     seasonProgress={seriesEpisodes.total > 0 ? seriesEpisodes : null}
-    relatedCount={related.length}
+    relatedCount={related?.length ?? 0}
     onSelect={(tab) => (activeSubTab = tab)}
 />
 
@@ -1887,11 +2246,11 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
                 {#if activeSubTab === "overview"}
                     <OverviewTab
                         {media}
-                        {support}
-                        {progressValue}
-                        {progressPercent}
+                        support={overviewSupport}
+                        progressValue={overviewValue}
+                        progressPercent={overviewPercent}
                         {progressError}
-                        onStep={stepProgress}
+                        onStep={stepOverview}
                         onCounterChange={(val) => {
                             if (!media) return;
                             const next = Math.max(val, 0);
@@ -1907,8 +2266,28 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
                         {achievementsBusy}
                         {achievementsTruncated}
                         unlockedAchievementNames={unlockedAchievementNames}
+                        onOpenMedia={onOpenRelated}
+                        onEdit={startEdit}
+                        onSearch={(creatorName) => {
+                            // The card's search button means "works of this creator": the
+                            // type and source of the current record narrow the external search.
+                            // Only tvshows/movies can be anime; manga keeps its own category.
+                            const record = media;
+                            if (!record) return onSearch(creatorName);
+                            const type =
+                                "isAnime" in record && record.isAnime
+                                    ? "anime"
+                                    : record.type;
+                            return onSearch({
+                                query: creatorName,
+                                type,
+                                source: record.externalSource,
+                                byCreator: true,
+                            });
+                        }}
                         onToggleAchievement={toggleAchievement}
                         onToggleAllAchievements={toggleAllAchievements}
+                        onChangeStatus={changeStatus}
                     />
                 {:else if activeSubTab === "related"}
                     <RelatedTab
@@ -2007,6 +2386,7 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
 <FillMissingModal
     isOpen={fillMissingOpen}
     busy={fillMissingBusy}
+    media={media}
     mediaType={media?.type ?? "movie"}
     currentSource={media?.externalSource ?? null}
     onFill={(source) => void handleFillMissing(source)}

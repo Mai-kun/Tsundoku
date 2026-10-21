@@ -14,7 +14,11 @@ const expect = (name, ok, extra) => {
 };
 
 (async () => {
-  const browser = await chromium.launch({ channel: "msedge" });
+  const launchOptions = {
+    channel: process.env.TS_BROWSER_CHANNEL || (process.platform === 'win32' ? 'msedge' : undefined),
+    headless: true
+  };
+  const browser = await chromium.launch(launchOptions);
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));

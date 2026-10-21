@@ -23,11 +23,13 @@
         setProgress,
         setSeasonProgress,
     } from "$shared/api/api";
+    import { jobsClient } from "$shared/api/jobsClient.svelte";
     import { showToast } from "$shared/ui/toast.svelte";
     import { i18n } from "$shared/i18n/index.svelte";
     import {
         isTvShowDetail,
         MEDIA_STATUS,
+        SYNC_STATUS,
         type MediaFilters,
         type MediaItem,
     } from "$shared/types";
@@ -47,6 +49,7 @@
 
     interface Props {
         category: Category;
+        active?: boolean;
         refreshKey: number;
         onOpen: (item: MediaItem) => void;
         onMediaChanged: () => void;
@@ -55,6 +58,7 @@
 
     let {
         category,
+        active = true,
         refreshKey,
         onOpen,
         onMediaChanged,
@@ -65,10 +69,9 @@
     let sort = $state<LibrarySort>("newest");
     let groupBy = $state<GroupBy>("status");
     let search = $state("");
-    let allItems = $state<MediaItem[]>(
-        untrack(() => categoryCache.peek(category) ?? []),
-    );
-    let loading = $state(false);
+    const initialItems = untrack(() => categoryCache.peek(category) ?? []);
+    let allItems = $state<MediaItem[]>(initialItems);
+    let loading = $state(initialItems.length === 0);
     let loadError = $state<unknown>(null);
     let requestSequence = 0;
     let skeletonTimer: ReturnType<typeof setTimeout> | null = null;
@@ -88,7 +91,7 @@
             loading = false;
         } else {
             allItems = [];
-            loading = false;
+            loading = true;
         }
     });
 
@@ -127,6 +130,8 @@
     }
 
     let franchiseGroups = $derived.by<FranchiseGroup[]>(() => {
+        if (groupBy !== "franchise") return [];
+
         const map = new Map<string, MediaItem[]>();
         const noFranchise: MediaItem[] = [];
 
@@ -205,6 +210,18 @@
         };
     });
 
+    // Страховка: карточка ещё под оверлеем «Синхронизация», но ни одной активной
+    // фоновой задачи нет — сигнал о завершении был потерян (упавший джоб, отрицший
+    // SSE). Перезагружаем список один раз, чтобы спиннер не застревал до F5.
+    let stuckReloadKey = 0;
+    $effect(() => {
+        if (jobsClient.activeCount > 0) return;
+        if (!allItems.some((item) => item.syncStatus === SYNC_STATUS.syncing)) return;
+        if (stuckReloadKey === refreshKey) return;
+        stuckReloadKey = refreshKey;
+        refresh();
+    });
+
     function categoryFilters(): MediaFilters {
         const filters: MediaFilters = {
             search: search.trim() || undefined,
@@ -241,8 +258,10 @@
     async function loadItems(sequence: number) {
         if (skeletonTimer) clearTimeout(skeletonTimer);
         if (allItems.length === 0) {
+            loading = true;
+        } else {
             skeletonTimer = setTimeout(() => {
-                if (sequence === requestSequence && allItems.length === 0) {
+                if (sequence === requestSequence) {
                     loading = true;
                 }
             }, 120);
@@ -253,9 +272,27 @@
             const found = await getMedia(categoryFilters());
             if (sequence === requestSequence) {
                 if (skeletonTimer) clearTimeout(skeletonTimer);
+                loading = false;
+                // Пропускаем холостую мутацию стейта, если данные не изменились:
+                // после возврата из деталки фоновая перезагрузка перезаписывала
+                // allItems новым объектом и пересобирала сетку прямо во время
+                // восстановленного скролла (микрофриз). Сравниваем отпечаток элемента,
+                // а не только id: при завершении фоновой синхронизации состав совпадает,
+                // но меняются syncStatus, обложка и updatedAt — сетка обязана обновиться.
+                const sameSnapshot =
+                    allItems.length === found.length &&
+                    found.every(
+                        (item, index) =>
+                            item.id === allItems[index]?.id &&
+                            item.syncStatus === allItems[index]?.syncStatus &&
+                            item.updatedAt === allItems[index]?.updatedAt &&
+                            item.status === allItems[index]?.status &&
+                            item.score === allItems[index]?.score &&
+                            item.coverUrl === allItems[index]?.coverUrl,
+                    );
+                if (sameSnapshot) return;
                 allItems = found;
                 categoryCache.set(category, found);
-                loading = false;
             }
         } catch (error) {
             if (sequence === requestSequence) {
@@ -386,17 +423,19 @@
 </script>
 
 <div class="space-y-6">
-    <FilterBar
-        {status}
-        {sort}
-        {groupBy}
-        {search}
-        counts={statusCounts}
-        onStatusChange={updateStatus}
-        onSortChange={updateSort}
-        onGroupByChange={updateGroupBy}
-        onSearchChange={updateSearch}
-    />
+    {#if active}
+        <FilterBar
+            {status}
+            {sort}
+            {groupBy}
+            {search}
+            counts={statusCounts}
+            onStatusChange={updateStatus}
+            onSortChange={updateSort}
+            onGroupByChange={updateGroupBy}
+            onSearchChange={updateSearch}
+        />
+    {/if}
 
     <p class="text-xs font-medium text-muted">
         {i18n.t.library.resultCount(filteredItems.length)}
@@ -433,7 +472,7 @@
             />
         {:else}
             <div class="space-y-8">
-                {#each statusGroups as group (`${category}:${group.status}`)}
+                {#each statusGroups as group (group.status)}
                     <SectionRow
                         title={group.title}
                         items={group.items}
@@ -466,7 +505,7 @@
             />
         {:else}
             <div class="space-y-8">
-                {#each franchiseGroups as group (`${category}:${group.name}`)}
+                {#each franchiseGroups as group (group.name)}
                     <SectionRow
                         title={group.name}
                         items={group.items}

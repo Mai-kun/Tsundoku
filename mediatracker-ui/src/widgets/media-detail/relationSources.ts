@@ -27,7 +27,7 @@ export async function availableRelationSources(item: {
     type: string;
     isAnime?: boolean;
 }): Promise<RelationSourceOption[]> {
-    const bucket = isAnime(item as never) ? "anime" : item.type;
+    const bucket = item.isAnime || item.type === "anime" || isAnime(item as never) ? "anime" : item.type;
     const allowed = RELATION_SOURCES[bucket];
     if (!allowed) return [];
 

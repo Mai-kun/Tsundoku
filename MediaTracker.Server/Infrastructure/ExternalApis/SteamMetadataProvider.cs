@@ -11,6 +11,7 @@ public sealed class SteamMetadataProvider(IHttpClientFactory httpClientFactory) 
         Description: "PC games metadata and Steam Community reviews provider",
         MediaTypes: ["game"],
         BaseAddress: "https://store.steampowered.com/api/",
+        RequiresApiKey: true,
         Priority: 2);
 
     public override async Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string query, CancellationToken ct)

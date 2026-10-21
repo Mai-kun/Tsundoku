@@ -8,7 +8,7 @@
         mediaType: string;
         /** Undefined for non-shows; drives the "3/12" badge on the episodes tab. */
         seasonProgress: { current: number; total: number | null } | null;
-        relatedCount: number;
+        relatedCount?: number;
         onSelect: (tab: SubTab) => void;
     }
 
@@ -16,7 +16,7 @@
         active,
         mediaType,
         seasonProgress,
-        relatedCount,
+        relatedCount = 0,
         onSelect,
     }: Props = $props();
 

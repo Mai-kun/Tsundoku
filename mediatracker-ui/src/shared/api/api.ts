@@ -1,5 +1,7 @@
 import { i18n } from "$shared/i18n/index.svelte";
 import type {
+  ApiTokenSummary,
+  CreateApiTokenResponse,
   ConnectionTestResult,
   CreateMediaPayload,
   ExternalMedia,
@@ -9,6 +11,7 @@ import type {
   MediaItem,
   MediaStats,
   AdvancedStats,
+  TasteProfile,
   MediaStatus,
   SearchScope,
   SourceInfo,
@@ -17,6 +20,15 @@ import type {
   ExternalRecommendation,
   ExternalRelation,
   UpdateMediaPayload,
+  CustomListSummary,
+  CustomListDetail,
+  CreateListPayload,
+  UpdateListPayload,
+  ImportResultDto,
+  SteamImportPayload,
+  AniListProfilePayload,
+  CreatorRole,
+  CreatorSummaryDto,
 } from "$shared/types";
 
 const mediaEndpoint = "/api/media";
@@ -148,6 +160,18 @@ export function getMediaItem(id: string): Promise<MediaDetail> {
   return requestJson<MediaDetail>(`${mediaEndpoint}/${id}`);
 }
 
+export function getCreatorSummary(
+  name: string,
+  role: CreatorRole,
+  excludeId?: string,
+): Promise<CreatorSummaryDto | null> {
+  const params = new URLSearchParams({ name, role });
+  if (excludeId) params.set("excludeId", excludeId);
+  return requestJson<CreatorSummaryDto | null>(
+    `${mediaEndpoint}/creator-summary?${params.toString()}`,
+  );
+}
+
 export function getStats(): Promise<MediaStats> {
   return requestJson<MediaStats>(`${mediaEndpoint}/stats`);
 }
@@ -155,18 +179,23 @@ export function getStats(): Promise<MediaStats> {
 export function getAdvancedStats(signal?: AbortSignal): Promise<AdvancedStats> {
   return requestJson<AdvancedStats>(`${mediaEndpoint}/stats/advanced`, { signal });
 }
+export function getTasteProfile(signal?: AbortSignal): Promise<TasteProfile> {
+  return requestJson<TasteProfile>(`${mediaEndpoint}/stats/taste-profile`, { signal });
+}
 
 export function searchExternal(
   type: SearchScope,
   query: string,
   signal?: AbortSignal,
   source?: string,
+  byCreator?: boolean,
 ): Promise<ExternalMedia[]> {
   const params = new URLSearchParams({
     type,
     query: query.trim(),
   });
   if (source) params.set("source", source);
+  if (byCreator) params.set("byCreator", "true");
   return requestJson<ExternalMedia[]>(
     `${externalEndpoint}/search?${params.toString()}`,
     { signal },
@@ -233,15 +262,66 @@ export function setSeasonProgress(
   );
 }
 
-export function updateStatus(id: string, status: MediaStatus): Promise<void> {
+export function updateStatus(
+  id: string,
+  payload:
+    | MediaStatus
+    | { status: MediaStatus; dropReason?: string | null; dropNotes?: string | null },
+): Promise<void> {
+  const body = typeof payload === "number" ? { status: payload } : payload;
   return requestVoid(
     `${mediaEndpoint}/${id}/status`,
-    jsonOptions("PUT", { status }),
+    jsonOptions("PUT", body),
   );
 }
 
 export function deleteMedia(id: string): Promise<void> {
   return requestVoid(`${mediaEndpoint}/${id}`, { method: "DELETE" });
+}
+
+export function importFile(formData: FormData): Promise<ImportResultDto> {
+  return requestJson<ImportResultDto>(`${mediaEndpoint}/import/file`, { method: "POST", body: formData });
+}
+
+export function importSteamProfile(payload: SteamImportPayload): Promise<ImportResultDto> {
+  return requestJson<ImportResultDto>(`${mediaEndpoint}/import/steam`, jsonOptions("POST", payload));
+}
+
+export function importAniListProfile(payload: AniListProfilePayload): Promise<ImportResultDto> {
+  return requestJson<ImportResultDto>(`${mediaEndpoint}/import/anilist-profile`, jsonOptions("POST", payload));
+}
+
+
+export function getLists(): Promise<CustomListSummary[]> {
+  return requestJson<CustomListSummary[]>("/api/lists");
+}
+
+export function getListDetail(id: string): Promise<CustomListDetail> {
+  return requestJson<CustomListDetail>(`/api/lists/${id}`);
+}
+
+export function createList(payload: CreateListPayload): Promise<{ id: string }> {
+  return requestJson<{ id: string }>("/api/lists", jsonOptions("POST", payload));
+}
+
+export function updateList(id: string, payload: UpdateListPayload): Promise<void> {
+  return requestVoid(`/api/lists/${id}`, jsonOptions("PUT", payload));
+}
+
+export function deleteList(id: string): Promise<void> {
+  return requestVoid(`/api/lists/${id}`, { method: "DELETE" });
+}
+
+export function addMediaToList(listId: string, mediaId: string): Promise<void> {
+  return requestVoid(`/api/lists/${listId}/items`, jsonOptions("POST", { mediaId }));
+}
+
+export function removeMediaFromList(listId: string, mediaId: string): Promise<void> {
+  return requestVoid(`/api/lists/${listId}/items/${mediaId}`, { method: "DELETE" });
+}
+
+export function getListsForMedia(mediaId: string): Promise<string[]> {
+  return requestJson<string[]>(`/api/media/${mediaId}/lists`);
 }
 
 /**
@@ -279,14 +359,26 @@ export function relinkMedia(
   });
 }
 
-export function getSources(): Promise<SourceInfo[]> {
-  return requestJson<SourceInfo[]>("/api/settings/sources");
+let sourcesCachePromise: Promise<SourceInfo[]> | null = null;
+
+export function getSources(forceRefresh = false): Promise<SourceInfo[]> {
+  if (!forceRefresh && sourcesCachePromise) return sourcesCachePromise;
+  sourcesCachePromise = requestJson<SourceInfo[]>("/api/settings/sources").catch((err) => {
+    sourcesCachePromise = null;
+    throw err;
+  });
+  return sourcesCachePromise;
+}
+
+export function invalidateSourcesCache(): void {
+  sourcesCachePromise = null;
 }
 
 export function toggleSourceEnabled(
   sourceId: string,
   enabled: boolean,
 ): Promise<{ success: boolean; isEnabled: boolean }> {
+  invalidateSourcesCache();
   return requestJson(
     `/api/settings/sources/${sourceId}/toggle`,
     jsonOptions("PUT", { enabled }),
@@ -306,6 +398,7 @@ export function saveSourceKey(
   sourceId: string,
   apiKey: string,
 ): Promise<{ success: boolean; hasKey: boolean; maskedKey: string | null }> {
+  invalidateSourcesCache();
   return requestJson(
     `/api/settings/sources/${sourceId}/key`,
     jsonOptions("PUT", { apiKey }),
@@ -339,6 +432,25 @@ export function saveSourcePriority(
       body: JSON.stringify(priority),
     },
   );
+}
+
+export interface ReadingSettings {
+  bookPageMinutes: number;
+  mangaChapterMinutes: number;
+}
+
+export function getReadingSettings(): Promise<ReadingSettings> {
+  return requestJson<ReadingSettings>("/api/settings/reading");
+}
+
+export function saveReadingSettings(
+  settings: ReadingSettings,
+): Promise<ReadingSettings> {
+  return requestJson<ReadingSettings>("/api/settings/reading", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(settings),
+  });
 }
 
 export function translateText(
@@ -444,8 +556,12 @@ export function getMediaRecommendations(
   );
 }
 
-export function getHistoryEvents(): Promise<HistoryEvent[]> {
-  return requestJson<HistoryEvent[]>("/api/history");
+export function getHistoryEvents(params?: { mediaId?: string; date?: string }): Promise<HistoryEvent[]> {
+  const query = new URLSearchParams();
+  if (params?.mediaId) query.set("mediaId", params.mediaId);
+  if (params?.date) query.set("date", params.date);
+  const qs = query.toString();
+  return requestJson<HistoryEvent[]>(`/api/history${qs ? `?${qs}` : ""}`);
 }
 
 export function clearAllHistory(): Promise<void> {
@@ -455,4 +571,51 @@ export function clearAllHistory(): Promise<void> {
 /** Removes one activity-log entry. `id` is the event id, as listed by getHistoryEvents. */
 export function deleteHistoryEvent(id: string): Promise<void> {
   return requestVoid(`/api/history/${id}`, { method: "DELETE" });
+}
+
+export async function exportBackup(): Promise<Blob> {
+  const response = await fetch("/api/settings/backup/export");
+  if (!response.ok) {
+    return throwApiError(response);
+  }
+  return response.blob();
+}
+
+export async function restoreBackup(file: File): Promise<void> {
+  const formData = new FormData();
+  formData.append("backupFile", file);
+
+  const response = await fetch("/api/settings/backup/restore", {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!response.ok) {
+    return throwApiError(response);
+  }
+}
+
+export function resetAllData(keepApiKeys: boolean = true): Promise<void> {
+  return requestVoid(
+    "/api/settings/reset",
+    jsonOptions("POST", { keepApiKeys }),
+  );
+}
+
+export function getApiTokens(): Promise<ApiTokenSummary[]> {
+  return requestJson<ApiTokenSummary[]>("/api/settings/tokens");
+}
+
+export function createApiToken(
+  name: string,
+  expiresInDays?: number,
+): Promise<CreateApiTokenResponse> {
+  return requestJson<CreateApiTokenResponse>(
+    "/api/settings/tokens",
+    jsonOptions("POST", { name, expiresInDays }),
+  );
+}
+
+export function revokeApiToken(id: string): Promise<void> {
+  return requestVoid(`/api/settings/tokens/${id}`, { method: "DELETE" });
 }

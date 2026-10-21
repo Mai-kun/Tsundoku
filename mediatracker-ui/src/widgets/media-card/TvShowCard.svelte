@@ -10,6 +10,8 @@
 
     let {
         item,
+        timeHint,
+        showProgress = true,
         onOpen = () => {},
         onStatusChange,
         onProgressCommitted = () => {},
@@ -58,6 +60,7 @@
 
 <BaseCard
     {item}
+    {timeHint}
     {onOpen}
     {onStatusChange}
     {onProgressCommitted}
@@ -65,20 +68,22 @@
 >
     <CardTitleBlock title={item.title} {subtitle} />
 
-    <CardProgressBar
-        label={i18n.t.card.episodes(
-            item.totalEpisodesWatched,
-            totalEpisodes ?? 0,
-        )}
-        {ratio}
-    />
-
-    {#if showStepper && onEpisodeStep}
-        <MediaStepper
-            text={episodeText}
-            onStep={(delta) => void stepEpisode(delta)}
-            decrementDisabled={item.totalEpisodesWatched <= 0}
-            incrementDisabled={atLastEpisode}
+    {#if showProgress}
+        <CardProgressBar
+            label={i18n.t.card.episodes(
+                item.totalEpisodesWatched,
+                totalEpisodes ?? 0,
+            )}
+            {ratio}
         />
+
+        {#if showStepper && onEpisodeStep}
+            <MediaStepper
+                text={episodeText}
+                onStep={(delta) => void stepEpisode(delta)}
+                decrementDisabled={item.totalEpisodesWatched <= 0}
+                incrementDisabled={atLastEpisode}
+            />
+        {/if}
     {/if}
 </BaseCard>

@@ -21,6 +21,13 @@ export interface ExternalEpisode {
   airDate?: string | null;
 }
 
+export interface MediaQuote {
+  id: string;
+  text: string;
+  pageOrContext?: string; // например: "стр. 142" или "Гл. 5"
+  createdAt: string;
+}
+
 /**
  * The card/list shape. The library screen fetches every item in one request, so free-text fields
  * that only the detail screen renders live in MediaDetailFields instead of here.
@@ -35,6 +42,9 @@ export interface MediaBase {
   score: number | null;
   startedAt: string | null;
   finishedAt: string | null;
+  lastActivityAt?: string | null;
+  dropReason?: string | null;
+  dropNotes?: string | null;
   coverUrl: string | null;
   createdAt: string;
   /** Feeds the cover cache-buster on the server side. */
@@ -53,6 +63,8 @@ export interface MediaBase {
   watchedOn?: string | null;
   endDate?: string | null;
   releaseStatus?: string | null;
+  originalLanguage?: string | null;
+  countryOfOrigin?: string | null;
   durationMinutes?: number | null;
   genres?: string[] | string | null;
   tags?: string[] | string | null;
@@ -65,6 +77,18 @@ export interface MediaBase {
  */
 export interface MediaDetailFields {
   notes: string | null;
+  detailedScoreJson?: string | null;
+  quotesJson?: string | null;
+  description?: string | null;
+  trailerVideoId?: string | null;
+  cast?: CastMember[];
+  /** Native/romanized title; rendered under the main headline on the detail screen. */
+  originalTitle?: string | null;
+  staffJson?: string | null;
+  /** Key crew, already parsed by the server (like recommendations). */
+  staff?: StaffMember[];
+  /** Director photo or studio logo, when a provider supplied one. */
+  creatorImageUrl?: string | null;
   externalRatingsJson?: string | null;
   translatedSynopsis?: string | null;
   unlockedAchievements?: string | null;
@@ -89,6 +113,8 @@ export interface GameMedia extends MediaBase {
   type: "game";
   platform: string;
   hoursPlayed: number | null;
+  /** Developer reported by RAWG/Steam; drives the overview's creator card. */
+  studio?: string | null;
 }
 
 export interface BookMedia extends MediaBase {
@@ -149,6 +175,8 @@ export interface TvShowMedia extends MediaBase {
   totalEpisodesCount: number;
   totalEpisodesWatched: number;
   seasonsCount: number;
+  durationMinutes?: number | null;
+  episodeDurationMinutes?: number | null;
 }
 
 export interface TvSeason {
@@ -186,6 +214,35 @@ export type MediaDetail =
   | TvShowDetail
   | MangaDetail;
 
+export type CreatorRole = "director" | "author" | "studio";
+
+export interface CreatorSummaryDto {
+  name: string;
+  role: CreatorRole;
+  totalCount: number;
+  completedCount: number;
+  averageScore: number | null;
+  otherItems: MediaItem[];
+}
+
+export interface CastMember {
+  name: string;
+  character: string | null;
+  photoUrl: string | null;
+  /** MAIN / SUPPORTING, as the source spelled it. */
+  characterRole?: string | null;
+  characterImageUrl?: string | null;
+  /** Japanese voice actor; absent for manga entries and legacy flat cast. */
+  voiceActorName?: string | null;
+  voiceActorImageUrl?: string | null;
+}
+
+export interface StaffMember {
+  name: string;
+  role: string | null;
+  imageUrl: string | null;
+}
+
 /** A movie/book/game opened on the detail screen carries the detail-only fields too. */
 export type MovieDetail = MovieMedia & MediaDetailFields;
 
@@ -218,12 +275,91 @@ export interface AdvancedStats {
   totalPagesRead: number;
   totalChaptersRead: number;
   totalEpisodesWatched: number;
+  seriesEpisodesWatched?: number;
+  animeEpisodesWatched?: number;
   averageScore: number;
   scoreDistribution: Record<number, number>;
   averageScoreByType: Record<string, number>;
   currentStreakDays: number;
   monthlyCompletions: Array<{ monthYear: string; count: number }>;
   topGenres: Array<{ genre: string; count: number; percentage: number }>;
+  topGenresByType: Record<string, Array<{ genre: string; count: number; percentage: number }>>;
+  dailyActivity: Record<string, number>;
+}
+
+export interface TastePersona {
+  title: string;
+  description: string;
+  icon: string;
+  traits: string[];
+}
+
+export interface SunkCost {
+  lowScoreHours: number;
+  percentageOfTotal: number;
+  titlesCount: number;
+  categoryBreakdown: Record<string, number>;
+}
+
+export interface DivergenceItem {
+  id: string;
+  title: string;
+  type: string;
+  coverUrl: string | null;
+  userScore: number;
+  worldRating: number;
+  delta: number;
+}
+
+export interface CriticalDivergence {
+  hiddenGem: DivergenceItem | null;
+  disappointment: DivergenceItem | null;
+}
+
+export interface GenreCompletionStat {
+  genre: string;
+  total: number;
+  completed: number;
+  dropped: number;
+  completionRate: number;
+  dropRate: number;
+}
+
+export interface EraAffinityStat {
+  era: string;
+  count: number;
+  percentage: number;
+}
+
+export interface RadarAxis {
+  genre: string;
+  volumeScore: number;
+  averageScore: number;
+}
+
+export interface DropReasonStat {
+  reason: string;
+  count: number;
+  percentage: number;
+}
+
+export interface DropAnalytics {
+  totalDropped: number;
+  averageDropProgressPercent: number;
+  earlyDropCount: number;
+  midDropCount: number;
+  lateDropCount: number;
+  topReasons: DropReasonStat[];
+}
+
+export interface TasteProfile {
+  persona: TastePersona;
+  sunkCost: SunkCost;
+  divergence: CriticalDivergence;
+  genreParadox: GenreCompletionStat[];
+  eraAffinity: EraAffinityStat[];
+  genreRadar: RadarAxis[];
+  dropAnalytics?: DropAnalytics;
 }
 
 
@@ -235,6 +371,7 @@ export interface ExternalMedia {
   romajiTitle?: string | null;
   coverUrl: string | null;
   description: string | null;
+  trailerVideoId?: string | null;
   releaseYear: number | null;
   releaseDate?: string | null;
   endDate?: string | null;

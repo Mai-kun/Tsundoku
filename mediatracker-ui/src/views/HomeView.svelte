@@ -13,7 +13,7 @@
 </script>
 
 <script lang="ts">
-    import { Layers } from "$shared/ui/Icons.svelte";
+    import { Clock3, Layers } from "$shared/ui/Icons.svelte";
     import {
         deleteMedia,
         getMedia,
@@ -21,10 +21,12 @@
         setProgress,
         setSeasonProgress,
     } from "$shared/api/api";
+    import { jobsClient } from "$shared/api/jobsClient.svelte";
     import { showToast } from "$shared/ui/toast.svelte";
     import { i18n } from "$shared/i18n/index.svelte";
     import {
         MEDIA_STATUS,
+        SYNC_STATUS,
         isTvShowDetail,
         type MediaItem,
         type MediaStatus,
@@ -33,7 +35,27 @@
     import PopoverMenu from "$shared/ui/PopoverMenu.svelte";
     import { nextSeriesEpisodeStep } from "$entities/media/model/seriesStep";
     import { SORT_ICONS } from "$features/filter-and-sort/FilterBar.svelte";
+    import {
+        evaluateTimeFit,
+        formatTimeBudgetChip,
+        type TimeBudgetMinutes,
+        type TimeFitResult,
+    } from "$entities/media/model/timeBudget";
     import { uiSettings } from "$shared/utils/uiSettings.svelte";
+    import { isStaleInProgress } from "$entities/media/model/staleTriage";
+    import StaleBacklogModal from "$features/stale-triage/StaleBacklogModal.svelte";
+
+    const timeBudgetOptions = $derived<
+        { value: TimeBudgetMinutes; label: string }[]
+    >([
+        { value: null, label: i18n.t.timeBudget.options.all },
+        { value: 15, label: i18n.t.timeBudget.options.m15 },
+        { value: 30, label: i18n.t.timeBudget.options.m30 },
+        { value: 45, label: i18n.t.timeBudget.options.m45 },
+        { value: 60, label: i18n.t.timeBudget.options.h1 },
+        { value: 90, label: i18n.t.timeBudget.options.h1_5 },
+        { value: 120, label: i18n.t.timeBudget.options.h2_plus },
+    ]);
 
     const sortOptions = $derived<
         { value: LibrarySort; label: string }[]
@@ -67,10 +89,24 @@
     let loadError = $state<unknown>(null);
     let sort = $state<LibrarySort>(uiSettings.sortOption as LibrarySort);
     let groupByType = $state<boolean>(uiSettings.groupByType);
+    let timeBudget = $state<TimeBudgetMinutes>(null);
+    let showStaleModal = $state(false);
+    const staleCount = $derived(
+        inProgress.filter((item) => isStaleInProgress(item, 180)).length,
+    );
     let requestSequence = 0;
     let hasLoaded = homeCache.peek(HOME_KEY) !== undefined;
     let skeletonTimer: ReturnType<typeof setTimeout> | null = null;
 
+    function evaluateItem(item: MediaItem, budget: number): TimeFitResult {
+        return evaluateTimeFit(
+            item,
+            budget,
+            uiSettings.bookPageMinutes,
+            uiSettings.mangaChapterMinutes,
+            i18n.current,
+        );
+    }
     const TYPE_ORDER: Record<string, number> = {
         game: 1,
         anime: 2,
@@ -116,10 +152,124 @@
         });
     }
 
-    let displayInProgress = $derived(sortItems(inProgress, groupByType, sort));
-    let displayUpNext = $derived(sortItems(upNext, groupByType, sort));
+    function sortBudgetItems(
+        list: MediaItem[],
+        budget: number,
+        byType: boolean,
+        currentSort: LibrarySort,
+    ): MediaItem[] {
+        return [...list].sort((a, b) => {
+            const finishA = evaluateItem(a, budget).canFinishNow ? 1 : 0;
+            const finishB = evaluateItem(b, budget).canFinishNow ? 1 : 0;
+            if (finishA !== finishB) {
+                return finishB - finishA;
+            }
+            if (byType) {
+                const typeA = TYPE_ORDER[a.type] ?? 99;
+                const typeB = TYPE_ORDER[b.type] ?? 99;
+                if (typeA !== typeB) return typeA - typeB;
+            }
+            if (currentSort === "rating") {
+                return (b.score ?? 0) - (a.score ?? 0);
+            }
+            if (currentSort === "title") {
+                return a.title.localeCompare(b.title);
+            }
+            if (currentSort === "oldest") {
+                const aTime = a.finishedAt
+                    ? Date.parse(a.finishedAt)
+                    : Date.parse(a.createdAt);
+                const bTime = b.finishedAt
+                    ? Date.parse(b.finishedAt)
+                    : Date.parse(b.createdAt);
+                return aTime - bTime;
+            }
+            const aTime = a.finishedAt
+                ? Date.parse(a.finishedAt)
+                : Date.parse(a.createdAt);
+            const bTime = b.finishedAt
+                ? Date.parse(b.finishedAt)
+                : Date.parse(b.createdAt);
+            return bTime - aTime;
+        });
+    }
+
+    // Dashboard sections show a compact recent slice; the full lists live in
+    // the category views. 14 gives 2 neat rows on 7-column screens while keeping
+    // every section under the grid's FLAT_LIMIT (15), so Home mounts plain card
+    // grids with no virtualizer machinery.
+    const HOME_SECTION_LIMIT = 14;
+
+    let inProgressFitting = $derived.by(() => {
+        const budget = timeBudget;
+        if (budget === null) return [];
+        return inProgress.filter((item) => evaluateItem(item, budget).fits);
+    });
+
+    let upNextFitting = $derived.by(() => {
+        const budget = timeBudget;
+        if (budget === null) return [];
+        return upNext.filter((item) => evaluateItem(item, budget).fits);
+    });
+
+    let totalFitting = $derived(
+        inProgressFitting.length + upNextFitting.length,
+    );
+
+    let totalFinishable = $derived.by(() => {
+        const budget = timeBudget;
+        if (budget === null) return 0;
+        let count = 0;
+        for (const item of inProgressFitting) {
+            if (evaluateItem(item, budget).canFinishNow) count++;
+        }
+        for (const item of upNextFitting) {
+            if (evaluateItem(item, budget).canFinishNow) count++;
+        }
+        return count;
+    });
+
+    let customTimeValue = $state<number | string>("");
+    let customTimeUnit = $state<"min" | "h">("min");
+
+    function applyCustomTime(close?: () => void) {
+        const val =
+            typeof customTimeValue === "number"
+                ? customTimeValue
+                : parseFloat(String(customTimeValue));
+        if (!isNaN(val) && val > 0) {
+            timeBudget =
+                customTimeUnit === "h"
+                    ? Math.round(val * 60)
+                    : Math.round(val);
+            customTimeValue = "";
+            close?.();
+        }
+    }
+
+    const activeBudgetLabel = $derived.by(() => {
+        if (timeBudget === null) return "";
+        const opt = timeBudgetOptions.find((o) => o.value === timeBudget);
+        return opt ? opt.label : formatTimeBudgetChip(timeBudget, i18n.current);
+    });
+
+    let displayInProgress = $derived(
+        timeBudget !== null
+            ? sortBudgetItems(inProgressFitting, timeBudget, groupByType, sort).slice(0, HOME_SECTION_LIMIT)
+            : sortItems(inProgress, groupByType, sort).slice(0, HOME_SECTION_LIMIT),
+    );
+    let displayUpNext = $derived(
+        timeBudget !== null
+            ? sortBudgetItems(upNextFitting, timeBudget, groupByType, sort).slice(0, HOME_SECTION_LIMIT)
+            : sortItems(upNext, groupByType, sort).slice(0, HOME_SECTION_LIMIT),
+    );
     let displayRecentlyCompleted = $derived(
-        sortItems(recentlyCompleted, groupByType, sort),
+        timeBudget === null
+            ? sortItems(recentlyCompleted, groupByType, sort).slice(
+                  0,
+                  HOME_SECTION_LIMIT,
+              )
+            : [],
     );
 
     function typeKey(media: MediaItem): string {
@@ -189,6 +339,21 @@
         return () => {
             if (skeletonTimer) clearTimeout(skeletonTimer);
         };
+    });
+
+    // Страховка: карточка ещё под оверлеем «Синхронизация», но ни одной активной
+    // фоновой задачи нет — сигнал о завершении был потерян. Перезагружаем списки
+    // один раз, чтобы спиннер не застревал до F5.
+    let stuckReloadKey = 0;
+    $effect(() => {
+        if (jobsClient.activeCount > 0) return;
+        const hasStuck = [inProgress, upNext, recentlyCompleted].some((list) =>
+            list.some((item) => item.syncStatus === SYNC_STATUS.syncing),
+        );
+        if (!hasStuck) return;
+        if (stuckReloadKey === refreshKey) return;
+        stuckReloadKey = refreshKey;
+        refresh();
     });
 
     function sortFilters(value: LibrarySort) {
@@ -349,11 +514,28 @@
     }
 </script>
 
-{#snippet section(items: MediaItem[], title: string)}
+{#snippet section(items: MediaItem[], title: string, isProgressSection = false)}
     <section class="space-y-4">
-        <h2 class="text-[25px] font-bold tracking-wide text-white">
-            {title}
-        </h2>
+        <div class="flex items-center gap-3 flex-wrap">
+            <h2 class="text-[25px] font-bold tracking-wide text-white">
+                {title}
+            </h2>
+            <span
+                class="rounded-full bg-card-hover px-2.5 py-0.5 text-xs font-semibold tabular-nums text-muted"
+            >
+                {items.length}
+            </span>
+            {#if isProgressSection && staleCount > 0}
+                <button
+                    type="button"
+                    class="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-xs font-medium text-amber-400 hover:bg-amber-500/20 hover:border-amber-500/50 transition cursor-pointer"
+                    onclick={() => (showStaleModal = true)}
+                >
+                    <span>🕸</span>
+                    <span>{staleCount} {i18n.t.staleTriage.staleBadge}</span>
+                </button>
+            {/if}
+        </div>
         {#if groupByType}
             {#each groupByMediaType(items) as group (group.key)}
                 <div class="space-y-3">
@@ -369,6 +551,7 @@
                     </div>
                     <MediaGrid
                         items={group.items}
+                        {timeBudget}
                         {onOpen}
                         onProgress={updateProgress}
                         onProgressCommitted={onMediaChanged}
@@ -382,6 +565,7 @@
         {:else}
             <MediaGrid
                 {items}
+                {timeBudget}
                 {onOpen}
                 onProgress={updateProgress}
                 onProgressCommitted={onMediaChanged}
@@ -395,19 +579,108 @@
 {/snippet}
 
 <div class="space-y-8">
-    <header class="flex flex-wrap items-end justify-between gap-4">
+    <!-- Обычный заголовок вверху страницы -->
+    <div class="mb-2">
         <p
             class="text-xs font-semibold uppercase tracking-[0.18em] text-accent-soft"
         >
             {i18n.t.library.collectionLabel}
         </p>
-        {#if !loading && !loadError}
-            <div class="flex flex-wrap items-center gap-2">
+    </div>
+
+    <!-- Плавающий островок кнопок справа (только кнопки интерактивны) -->
+    {#if !loading && !loadError}
+        <div class="sticky top-2 z-30 pointer-events-none -mt-8 mb-4 flex justify-end">
+            <div
+                class="pointer-events-auto inline-flex items-center gap-2 rounded-xl border border-white/10 bg-[#12151c]/90 p-1.5 shadow-xl shadow-black/50 backdrop-blur-md"
+            >
+                <!-- Меню фильтра времени -->
+                <PopoverMenu
+                    id="home-time-budget"
+                    options={timeBudgetOptions}
+                    selected={timeBudget}
+                    onSelect={(val) => (timeBudget = val as TimeBudgetMinutes)}
+                    label={i18n.t.timeBudget.filterTitle}
+                    placement="bottom-end"
+                    openOnHover
+                    closeDelay={220}
+                >
+                    {#snippet trigger({ popoverTargetId, anchorName, isOpen })}
+                        {#if timeBudget !== null}
+                            <button
+                                type="button"
+                                popovertarget={popoverTargetId}
+                                popovertargetaction="toggle"
+                                style={isOpen ? `anchor-name: ${anchorName}` : undefined}
+                                class="tap inline-flex h-9 items-center gap-1.5 rounded-lg border border-accent/40 bg-accent/15 px-2.5 text-xs font-semibold text-accent-soft transition hover:bg-accent/25 has-[:popover-open]:ring-2 has-[:popover-open]:ring-indigo-500/40 cursor-pointer"
+                                title={i18n.t.timeBudget.filterTitle}
+                                aria-label={i18n.t.timeBudget.filterTitle}
+                            >
+                                <Clock3 size={16} stroke-width={2} aria-hidden="true" />
+                                <span>{formatTimeBudgetChip(timeBudget, i18n.current)}</span>
+                            </button>
+                        {:else}
+                            <button
+                                type="button"
+                                popovertarget={popoverTargetId}
+                                popovertargetaction="toggle"
+                                style={isOpen ? `anchor-name: ${anchorName}` : undefined}
+                                class="tap grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-white/10 bg-field text-muted transition hover:border-white/20 hover:text-ink has-[:popover-open]:ring-2 has-[:popover-open]:ring-indigo-500/40 cursor-pointer"
+                                title={i18n.t.timeBudget.filterTitle}
+                                aria-label={i18n.t.timeBudget.filterTitle}
+                            >
+                                <Clock3 size={18} stroke-width={2} aria-hidden="true" />
+                            </button>
+                        {/if}
+                    {/snippet}
+
+                    {#snippet footer({ close })}
+                        <form
+                            class="flex items-center gap-1.5"
+                            onsubmit={(e) => {
+                                e.preventDefault();
+                                applyCustomTime(close);
+                            }}
+                        >
+                            <input
+                                type="number"
+                                min="1"
+                                max="999"
+                                step="any"
+                                placeholder={i18n.t.timeBudget.customTimePlaceholder}
+                                bind:value={customTimeValue}
+                                class="h-7 w-16 rounded bg-canvas border border-white/10 px-2 text-xs text-ink outline-none focus:border-accent"
+                                onkeydown={(e) => {
+                                    if (e.key === "Enter") {
+                                        e.preventDefault();
+                                        applyCustomTime(close);
+                                    }
+                                }}
+                            />
+                            <select
+                                bind:value={customTimeUnit}
+                                class="h-7 rounded bg-canvas border border-white/10 px-1 text-xs text-ink outline-none focus:border-accent cursor-pointer"
+                            >
+                                <option value="min">{i18n.t.timeBudget.unitMin}</option>
+                                <option value="h">{i18n.t.timeBudget.unitHours}</option>
+                            </select>
+                            <button
+                                type="submit"
+                                class="tap h-7 rounded bg-accent px-2 text-xs font-medium text-white transition hover:bg-accent-hover cursor-pointer"
+                                title={i18n.t.timeBudget.applyCustomTime}
+                            >
+                                OK
+                            </button>
+                        </form>
+                    {/snippet}
+                </PopoverMenu>
+
+                <!-- Кнопка группировки -->
                 <button
                     type="button"
                     role="switch"
                     aria-checked={groupByType}
-                    class={`tap grid h-12 w-12 shrink-0 place-items-center rounded-lg border transition cursor-pointer ${
+                    class={`tap grid h-9 w-9 shrink-0 place-items-center rounded-lg border transition cursor-pointer ${
                         groupByType
                             ? "border-accent/40 bg-accent/15 text-accent-soft"
                             : "border-white/10 bg-field text-muted hover:text-ink"
@@ -416,9 +689,10 @@
                     title={i18n.t.views.groupByType}
                     aria-label={i18n.t.views.groupByType}
                 >
-                    <Layers size={22} stroke-width={2} aria-hidden="true" />
+                    <Layers size={18} stroke-width={2} aria-hidden="true" />
                 </button>
 
+                <!-- Меню сортировки -->
                 <PopoverMenu
                     id="home-sort"
                     options={sortOptions}
@@ -429,19 +703,19 @@
                     openOnHover
                     closeDelay={220}
                 >
-                    {#snippet trigger({ popoverTargetId, anchorName })}
+                    {#snippet trigger({ popoverTargetId, anchorName, isOpen })}
                         {@const SortIcon = SORT_ICONS[sort]}
                         <button
                             type="button"
                             popovertarget={popoverTargetId}
                             popovertargetaction="toggle"
-                            style="anchor-name: {anchorName}"
-                            class="tap grid h-12 w-12 shrink-0 place-items-center rounded-lg border border-white/10 bg-field text-muted transition hover:border-white/20 hover:text-ink has-[:popover-open]:ring-2 has-[:popover-open]:ring-indigo-500/40"
+                            style={isOpen ? `anchor-name: ${anchorName}` : undefined}
+                            class="tap grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-white/10 bg-field text-muted transition hover:border-white/20 hover:text-ink has-[:popover-open]:ring-2 has-[:popover-open]:ring-indigo-500/40"
                             title={i18n.t.sort.label}
                             aria-label={i18n.t.sort.label}
                         >
                             <SortIcon
-                                size={22}
+                                size={18}
                                 stroke-width={2}
                                 aria-hidden="true"
                             />
@@ -461,8 +735,31 @@
                     {/snippet}
                 </PopoverMenu>
             </div>
-        {/if}
-    </header>
+        </div>
+    {/if}
+
+    <!-- Сводка при активном фильтре времени -->
+    {#if !loading && !loadError && timeBudget !== null && totalFitting > 0}
+        <div
+            class="flex items-center justify-between gap-3 rounded-xl border border-accent/30 bg-accent/10 px-4 py-2.5 text-xs text-ink shadow-sm backdrop-blur-xs"
+        >
+            <div class="flex items-center gap-2 min-w-0">
+                <span class="grid h-6 w-6 shrink-0 place-items-center rounded-lg bg-accent/20 text-accent-soft">
+                    <Clock3 size={14} aria-hidden="true" />
+                </span>
+                <span class="font-medium truncate">
+                    {i18n.t.timeBudget.summary(totalFitting, totalFinishable)}
+                </span>
+            </div>
+            <button
+                type="button"
+                class="tap text-xs text-muted hover:text-white transition cursor-pointer shrink-0 font-medium underline underline-offset-2"
+                onclick={() => (timeBudget = null)}
+            >
+                {i18n.t.timeBudget.reset}
+            </button>
+        </div>
+    {/if}
 
     {#if loading}
         <MediaGrid items={[]} {loading} />
@@ -470,18 +767,50 @@
         <MediaGrid items={[]} error={loadError} onRetry={refresh} />
     {:else if totalItems === 0}
         <MediaGrid items={[]} />
+    {:else if timeBudget !== null && totalFitting === 0}
+        <div
+            class="flex min-h-60 flex-col items-center justify-center gap-3 rounded-xl border border-white/5 bg-surface/60 p-8 text-center"
+        >
+            <div class="grid h-12 w-12 place-items-center rounded-xl bg-card text-muted">
+                <Clock3 size={24} class="text-accent-soft" aria-hidden="true" />
+            </div>
+            <div>
+                <p class="font-semibold text-ink">{i18n.t.timeBudget.emptyTitle}</p>
+                <p class="mt-1 max-w-sm text-sm text-muted">
+                    {i18n.t.timeBudget.emptyHint(activeBudgetLabel)}
+                </p>
+            </div>
+            <button
+                type="button"
+                class="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-accent px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-accent-hover cursor-pointer"
+                onclick={() => (timeBudget = null)}
+            >
+                {i18n.t.timeBudget.reset}
+            </button>
+        </div>
     {:else}
         {#if displayInProgress.length > 0}
-            {@render section(displayInProgress, i18n.t.views.inProgress)}
+            {@render section(displayInProgress, i18n.t.views.inProgress, true)}
         {/if}
         {#if displayUpNext.length > 0}
-            {@render section(displayUpNext, i18n.t.views.upNext)}
+            {@render section(displayUpNext, i18n.t.views.upNext, false)}
         {/if}
-        {#if displayRecentlyCompleted.length > 0}
+        {#if timeBudget === null && displayRecentlyCompleted.length > 0}
             {@render section(
                 displayRecentlyCompleted,
                 i18n.t.views.recentlyCompleted,
+                false,
             )}
         {/if}
     {/if}
+
+    <StaleBacklogModal
+        isOpen={showStaleModal}
+        onClose={() => (showStaleModal = false)}
+        items={inProgress}
+        onMediaChanged={() => {
+            refresh();
+            onMediaChanged();
+        }}
+    />
 </div>

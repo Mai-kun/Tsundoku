@@ -22,9 +22,20 @@
         <img
             {src}
             {alt}
+            referrerpolicy="no-referrer"
             class="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
             loading="lazy"
             decoding="async"
+            fetchpriority="low"
+            onerror={(e) => {
+                const target = e.currentTarget as HTMLImageElement;
+                if (!target.dataset.retried && src) {
+                    target.dataset.retried = 'true';
+                    setTimeout(() => {
+                        target.src = src;
+                    }, 1200);
+                }
+            }}
         />
     {:else}
         <div
@@ -36,7 +47,7 @@
 
     {#if syncing}
         <div
-            class="absolute inset-0 z-[5] flex flex-col items-center justify-center gap-2 bg-black/55 backdrop-blur-[1px]"
+            class="absolute inset-0 z-[5] flex flex-col items-center justify-center gap-2 bg-black/80"
         >
             <LoaderCircle
                 size={22}

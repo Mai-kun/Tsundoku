@@ -19,11 +19,17 @@ public static class MediaItemUpdater
         var before = Snapshot(item);
 
         item.Title = request.Title ?? item.Title;
-        item.Score = request.Score ?? item.Score;
+        item.Score = request.ClearScore ? null : request.Score ?? item.Score;
+        item.DetailedScoreJson = request.ClearDetailedScore ? null : request.DetailedScoreJson ?? item.DetailedScoreJson;
         item.Notes = request.Notes ?? item.Notes;
+        item.QuotesJson = request.QuotesJson ?? item.QuotesJson;
         item.CoverUrl = request.CoverUrl ?? item.CoverUrl;
         item.StartedAt = request.StartedAt ?? item.StartedAt;
         item.FinishedAt = request.FinishedAt ?? item.FinishedAt;
+        if (request.LastActivityAt is { } lastActivity)
+        {
+            item.LastActivityAt = lastActivity;
+        }
         item.TranslatedSynopsis = request.TranslatedSynopsis ?? item.TranslatedSynopsis;
         item.TranslationLanguage = request.TranslationLanguage ?? item.TranslationLanguage;
         item.Genres = request.Genres ?? item.Genres;
@@ -39,9 +45,32 @@ public static class MediaItemUpdater
         item.AchievementsJson = request.AchievementsJson ?? item.AchievementsJson;
         item.RecommendationsJson = request.RecommendationsJson ?? item.RecommendationsJson;
 
+        if (request.ClearDropReason)
+        {
+            item.DropReason = null;
+            item.DropNotes = null;
+        }
+        else
+        {
+            if (request.DropReason is not null)
+            {
+                item.DropReason = string.IsNullOrWhiteSpace(request.DropReason) ? null : request.DropReason;
+            }
+
+            if (request.DropNotes is not null)
+            {
+                item.DropNotes = string.IsNullOrWhiteSpace(request.DropNotes) ? null : request.DropNotes;
+            }
+        }
+
         if (request.Status is { } status)
         {
             item.SetStatus(status);
+            if (status != MediaStatus.Dropped)
+            {
+                item.DropReason = null;
+                item.DropNotes = null;
+            }
         }
 
         ApplyTypeSpecific(item, request);
@@ -69,6 +98,7 @@ public static class MediaItemUpdater
     private static bool CarriesManualEdit(ManualFields before, UpdateMediaRequest request) =>
         (request.Title is { Length: > 0 } title && title != before.Title)
         || (request.Score is { } score && score != before.Score)
+        || (request.ClearScore && before.Score is not null)
         || (request.Notes is { Length: > 0 } notes && notes != before.Notes)
         || (request.StartedAt is { } startedAt && startedAt != before.StartedAt)
         || (request.FinishedAt is { } finishedAt && finishedAt != before.FinishedAt);

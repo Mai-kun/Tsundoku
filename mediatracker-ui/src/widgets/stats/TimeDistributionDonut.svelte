@@ -23,43 +23,43 @@
     const categories = $derived.by<CategorySlice[]>(() => [
         {
             id: "game",
-            label: "Игры",
+            label: i18n.t.stats.games,
             hours: stats.gameHours,
             color: "#6366f1",
         },
         {
             id: "series",
-            label: "Сериалы",
+            label: i18n.t.stats.series,
             hours: stats.seriesHours,
             color: "#06b6d4",
-            extraText: `${formatNumber(stats.totalEpisodesWatched)} эп.`,
+            extraText: `${formatNumber(stats.seriesEpisodesWatched ?? stats.totalEpisodesWatched)} ${i18n.t.stats.episodesShort}`,
         },
         {
             id: "movie",
-            label: "Фильмы",
+            label: i18n.t.stats.movies,
             hours: stats.movieHours,
             color: "#3b82f6",
         },
         {
             id: "anime",
-            label: "Аниме",
+            label: i18n.t.stats.anime,
             hours: stats.animeHours,
             color: "#a855f7",
-            extraText: `${formatNumber(stats.totalEpisodesWatched)} эп.`,
+            extraText: `${formatNumber(stats.animeEpisodesWatched ?? stats.totalEpisodesWatched)} ${i18n.t.stats.episodesShort}`,
         },
         {
             id: "book",
-            label: "Книги",
+            label: i18n.t.stats.books,
             hours: stats.bookHours,
             color: "#f59e0b",
-            extraText: `${formatNumber(stats.totalPagesRead)} стр.`,
+            extraText: `${formatNumber(stats.totalPagesRead)} ${i18n.t.stats.pagesShort}`,
         },
         {
             id: "manga",
-            label: "Манга",
+            label: i18n.t.stats.manga,
             hours: stats.mangaHours,
             color: "#10b981",
-            extraText: `${formatNumber(stats.totalChaptersRead)} гл.`,
+            extraText: `${formatNumber(stats.totalChaptersRead)} ${i18n.t.stats.chaptersShort}`,
         },
     ]);
 
@@ -101,7 +101,7 @@
     });
 </script>
 
-<div class="flex flex-col sm:flex-row items-center gap-6">
+<div class="flex flex-col sm:flex-row items-center justify-center gap-6 my-auto w-full">
     <div class="relative flex h-48 w-48 shrink-0 items-center justify-center">
         <svg
             viewBox="0 0 180 180"
@@ -137,10 +137,10 @@
 
         <div class="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
             <span class="text-2xl font-black tabular-nums tracking-tight text-ink">
-                {formatNumber(stats.totalHours)} ч.
+                {formatNumber(stats.totalHours)} {i18n.t.stats.hoursShort}
             </span>
             <span class="text-xs font-medium text-muted">
-                всего времени
+                {i18n.t.stats.totalTime}
             </span>
         </div>
     </div>
@@ -168,7 +168,7 @@
 
                 <div class="text-right shrink-0 pl-2">
                     <p class="text-xs font-semibold tabular-nums text-ink">
-                        {formatNumber(category.hours)} ч.
+                        {formatNumber(category.hours)} {i18n.t.stats.hoursShort}
                     </p>
                     <p class="text-[11px] tabular-nums text-muted">
                         {pct}%

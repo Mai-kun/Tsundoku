@@ -154,6 +154,7 @@ public sealed class BackupService(
             else
             {
                 cache.Remove(AdvancedStatsCalculator.CacheKey);
+                cache.Remove(TasteProfileCalculator.CacheKey);
                 cache.Remove(SourcePriorityService.PriorityCacheKey);
                 cache.Remove(SourcePriorityService.DisabledSourcesCacheKey);
             }

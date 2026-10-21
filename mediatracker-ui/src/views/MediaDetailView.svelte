@@ -21,6 +21,7 @@
     import { toRelatedEntry } from "$widgets/media-detail/externalMapping";
     import { findMatchingLocal } from "$widgets/media-detail/relatedMatching";
     import { showToast } from "$shared/ui/toast.svelte";
+    import { dropPromptState } from "$features/drop-reason/dropReasonPrompt.svelte";
     import {
         isTvShowDetail,
         MEDIA_STATUS,
@@ -1820,6 +1821,24 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
                 i18n.t.status.label + ": " + statusLabel(value),
                 "success",
             );
+            if (value === MEDIA_STATUS.dropped) {
+                dropPromptState.open({
+                    id: target.id,
+                    title: target.title,
+                    type: target.type,
+                    isAnime: (target as { isAnime?: boolean }).isAnime,
+                    dropReason: target.dropReason,
+                    dropNotes: target.dropNotes,
+                    onSaved: (reason, notes) => {
+                        target.dropReason = reason;
+                        target.dropNotes = notes;
+                        onUpdate();
+                    },
+                });
+            } else {
+                target.dropReason = null;
+                target.dropNotes = null;
+            }
             onUpdate();
         } catch (error) {
             statusValue = previous;

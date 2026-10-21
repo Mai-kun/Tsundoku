@@ -24,6 +24,7 @@ public sealed class ClearHistoryHandler(AppDbContext db, IMemoryCache cache) : I
             .SetProperty(m => m.StartedAt, (DateTime?)null)
             .SetProperty(m => m.FinishedAt, (DateTime?)null), ct);
         cache.Remove(AdvancedStatsCalculator.CacheKey);
+        cache.Remove(TasteProfileCalculator.CacheKey);
 
         return Result.Success();
     }

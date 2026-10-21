@@ -9,6 +9,7 @@ import type {
   MediaItem,
   MediaStats,
   AdvancedStats,
+  TasteProfile,
   MediaStatus,
   SearchScope,
   SourceInfo,
@@ -176,6 +177,9 @@ export function getStats(): Promise<MediaStats> {
 export function getAdvancedStats(signal?: AbortSignal): Promise<AdvancedStats> {
   return requestJson<AdvancedStats>(`${mediaEndpoint}/stats/advanced`, { signal });
 }
+export function getTasteProfile(signal?: AbortSignal): Promise<TasteProfile> {
+  return requestJson<TasteProfile>(`${mediaEndpoint}/stats/taste-profile`, { signal });
+}
 
 export function searchExternal(
   type: SearchScope,
@@ -256,10 +260,16 @@ export function setSeasonProgress(
   );
 }
 
-export function updateStatus(id: string, status: MediaStatus): Promise<void> {
+export function updateStatus(
+  id: string,
+  payload:
+    | MediaStatus
+    | { status: MediaStatus; dropReason?: string | null; dropNotes?: string | null },
+): Promise<void> {
+  const body = typeof payload === "number" ? { status: payload } : payload;
   return requestVoid(
     `${mediaEndpoint}/${id}/status`,
-    jsonOptions("PUT", { status }),
+    jsonOptions("PUT", body),
   );
 }
 

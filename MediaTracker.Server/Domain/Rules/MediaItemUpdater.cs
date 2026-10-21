@@ -45,9 +45,32 @@ public static class MediaItemUpdater
         item.AchievementsJson = request.AchievementsJson ?? item.AchievementsJson;
         item.RecommendationsJson = request.RecommendationsJson ?? item.RecommendationsJson;
 
+        if (request.ClearDropReason)
+        {
+            item.DropReason = null;
+            item.DropNotes = null;
+        }
+        else
+        {
+            if (request.DropReason is not null)
+            {
+                item.DropReason = string.IsNullOrWhiteSpace(request.DropReason) ? null : request.DropReason;
+            }
+
+            if (request.DropNotes is not null)
+            {
+                item.DropNotes = string.IsNullOrWhiteSpace(request.DropNotes) ? null : request.DropNotes;
+            }
+        }
+
         if (request.Status is { } status)
         {
             item.SetStatus(status);
+            if (status != MediaStatus.Dropped)
+            {
+                item.DropReason = null;
+                item.DropNotes = null;
+            }
         }
 
         ApplyTypeSpecific(item, request);

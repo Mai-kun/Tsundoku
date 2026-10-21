@@ -93,6 +93,7 @@ public sealed class UpdateSeasonProgressHandler(
         }
 
         cache.Remove(AdvancedStatsCalculator.CacheKey);
+        cache.Remove(TasteProfileCalculator.CacheKey);
         return Result.Success();
     }
 

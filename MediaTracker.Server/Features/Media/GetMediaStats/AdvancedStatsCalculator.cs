@@ -368,7 +368,7 @@ public static class AdvancedStatsCalculator
         };
     }
 
-    private static string GetMediaTypeName(MediaItem item) => item switch
+    internal static string GetMediaTypeName(MediaItem item) => item switch
     {
         VideoGame => "game",
         Book => "book",

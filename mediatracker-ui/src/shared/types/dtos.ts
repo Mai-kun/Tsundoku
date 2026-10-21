@@ -219,6 +219,9 @@ export interface UpdateMediaPayload {
   /** Explicit null means "not supplied"; these flags are what actually clear the value. */
   clearUserPlatform?: boolean;
   clearWatchedOn?: boolean;
+  clearDropReason?: boolean;
+  dropReason?: string | null;
+  dropNotes?: string | null;
   watchedOn?: string | null;
   releaseYear?: number | null;
   genres?: string | null;

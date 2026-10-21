@@ -35,6 +35,8 @@ public static class MediaDetailProjection
             StartedAt = listFields.StartedAt,
             FinishedAt = listFields.FinishedAt,
             LastActivityAt = listFields.LastActivityAt,
+            DropReason = listFields.DropReason,
+            DropNotes = listFields.DropNotes,
             ReleaseDate = listFields.ReleaseDate,
             ReleaseYear = listFields.ReleaseYear,
             WatchedOn = listFields.WatchedOn,

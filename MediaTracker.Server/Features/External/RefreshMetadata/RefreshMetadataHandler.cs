@@ -112,6 +112,7 @@ public sealed class RefreshMetadataHandler(
                     current.MarkUpdated();
                     await scopedDb.SaveChangesAsync(token);
                     cache.Remove(AdvancedStatsCalculator.CacheKey);
+                    cache.Remove(TasteProfileCalculator.CacheKey);
                 }
                 catch
                 {

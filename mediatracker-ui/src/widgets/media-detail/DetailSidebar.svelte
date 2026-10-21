@@ -1,13 +1,15 @@
 <script lang="ts">
-    import { CalendarDays, ChevronDown, ExternalLink, Image as ImageIcon, Link2, Pencil, RefreshCw, Sparkles, Star, Trash2 } from "$shared/ui/Icons.svelte";
+    import { Ban, CalendarDays, ChevronDown, ExternalLink, Image as ImageIcon, Link2, Pencil, RefreshCw, Sparkles, Star, Trash2 } from "$shared/ui/Icons.svelte";
     import ListPicker from "$features/lists/ListPicker.svelte";
     import MediaActivityModal from "./MediaActivityModal.svelte";
     import { errorMessage } from "$shared/api/api";
     import { fullSizeCoverUrl } from "$entities/media/model/coverUrl";
     import PopoverMenu from "$shared/ui/PopoverMenu.svelte";
     import { i18n } from "$shared/i18n/index.svelte";
-    import type { AppView, MediaDetail, MediaStatus } from "$shared/types";
+    import { MEDIA_STATUS, type AppView, type MediaDetail, type MediaStatus } from "$shared/types";
     import { statusLabel } from "$entities/media/model/mediaLabels";
+    import { getDropReasonLabel } from "$entities/media/model/dropReasons";
+    import { dropPromptState } from "$features/drop-reason/dropReasonPrompt.svelte";
     import {
         getCriteriaAxes,
         parseDetailedScore,
@@ -408,6 +410,39 @@
     {#if statusError}<p class="text-xs text-rose-300" role="alert">
             {errorMessage(statusError)}
         </p>{/if}
+
+    {#if media.status === MEDIA_STATUS.dropped}
+        <button
+            type="button"
+            class="tap flex w-full items-center justify-between gap-2 px-3 py-2 rounded-lg text-xs font-medium bg-rose-500/10 border border-rose-500/25 text-rose-300 hover:bg-rose-500/20 hover:border-rose-500/40 transition cursor-pointer group"
+            onclick={() => {
+                dropPromptState.open({
+                    id: media.id,
+                    title: media.title,
+                    type: media.type,
+                    isAnime: (media as { isAnime?: boolean }).isAnime,
+                    dropReason: media.dropReason,
+                    dropNotes: media.dropNotes,
+                    onSaved: (reason, notes) => {
+                        media.dropReason = reason;
+                        media.dropNotes = notes;
+                    },
+                });
+            }}
+            title={media.dropNotes ? `${getDropReasonLabel(media.dropReason ?? "unspecified", i18n.current)}: ${media.dropNotes}` : i18n.t.dropReason.changeReason}
+        >
+            <div class="flex items-center gap-1.5 min-w-0">
+                <Ban size={13} class="text-rose-400 shrink-0" aria-hidden="true" />
+                <span class="truncate">
+                    <span class="text-rose-400/80">{i18n.t.dropReason.badgePrefix}</span>{getDropReasonLabel(media.dropReason ?? "unspecified", i18n.current)}
+                </span>
+                {#if media.dropNotes}
+                    <span class="text-[11px] text-rose-300/60 truncate max-w-[130px]">({media.dropNotes})</span>
+                {/if}
+            </div>
+            <Pencil size={12} class="opacity-0 group-hover:opacity-100 transition text-rose-400 shrink-0" aria-hidden="true" />
+        </button>
+    {/if}
 
     {#if savedSummary !== null}
         <button

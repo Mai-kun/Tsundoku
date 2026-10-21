@@ -31,6 +31,7 @@ public sealed class DeleteHistoryEventHandler(AppDbContext db, IMemoryCache cach
         db.Events.Remove(entry);
         await db.SaveChangesAsync(ct);
         cache.Remove(AdvancedStatsCalculator.CacheKey);
+        cache.Remove(TasteProfileCalculator.CacheKey);
         return Result.Success();
     }
 }

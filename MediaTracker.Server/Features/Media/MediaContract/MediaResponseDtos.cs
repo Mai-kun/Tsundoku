@@ -26,6 +26,10 @@ public record MediaListDto
 
     public DateTime? LastActivityAt { get; init; }
 
+    public string? DropReason { get; init; }
+
+    public string? DropNotes { get; init; }
+
     public DateTime? ReleaseDate { get; init; }
 
     public int? ReleaseYear { get; init; }
@@ -415,6 +419,8 @@ public static class MediaResponseMapper
         StartedAt = item.StartedAt,
         FinishedAt = item.FinishedAt,
         LastActivityAt = item.LastActivityAt,
+        DropReason = item.DropReason,
+        DropNotes = item.DropNotes,
         ReleaseDate = item.ReleaseDate,
         ReleaseYear = item.ReleaseYear,
         WatchedOn = item.WatchedOn,

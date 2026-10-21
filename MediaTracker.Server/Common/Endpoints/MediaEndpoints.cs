@@ -81,6 +81,9 @@ public static class MediaEndpoints
         group.MapGet("/stats/advanced", ([FromServices] IGetMediaStatsHandler handler, CancellationToken ct) =>
             handler.HandleAdvancedAsync(ct).ToOk());
 
+        group.MapGet("/stats/taste-profile", ([FromServices] IGetMediaStatsHandler handler, CancellationToken ct) =>
+            handler.HandleTasteProfileAsync(ct).ToOk());
+
         group.MapGet("/creator-summary", (
                 string name,
                 string role,
@@ -122,7 +125,7 @@ public static class MediaEndpoints
                 UpdateStatusRequest request,
                 [FromServices] IUpdateStatusHandler handler,
                 CancellationToken ct) =>
-            handler.HandleAsync(new UpdateStatusCommand(id, request.Status), ct).ToNoContent());
+            handler.HandleAsync(new UpdateStatusCommand(id, request.Status, request.DropReason, request.DropNotes), ct).ToNoContent());
 
         group.MapPut("/{id:guid}/progress", (
                 Guid id,

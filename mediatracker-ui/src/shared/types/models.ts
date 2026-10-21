@@ -43,6 +43,8 @@ export interface MediaBase {
   startedAt: string | null;
   finishedAt: string | null;
   lastActivityAt?: string | null;
+  dropReason?: string | null;
+  dropNotes?: string | null;
   coverUrl: string | null;
   createdAt: string;
   /** Feeds the cover cache-buster on the server side. */
@@ -283,6 +285,81 @@ export interface AdvancedStats {
   topGenres: Array<{ genre: string; count: number; percentage: number }>;
   topGenresByType: Record<string, Array<{ genre: string; count: number; percentage: number }>>;
   dailyActivity: Record<string, number>;
+}
+
+export interface TastePersona {
+  title: string;
+  description: string;
+  icon: string;
+  traits: string[];
+}
+
+export interface SunkCost {
+  lowScoreHours: number;
+  percentageOfTotal: number;
+  titlesCount: number;
+  categoryBreakdown: Record<string, number>;
+}
+
+export interface DivergenceItem {
+  id: string;
+  title: string;
+  type: string;
+  coverUrl: string | null;
+  userScore: number;
+  worldRating: number;
+  delta: number;
+}
+
+export interface CriticalDivergence {
+  hiddenGem: DivergenceItem | null;
+  disappointment: DivergenceItem | null;
+}
+
+export interface GenreCompletionStat {
+  genre: string;
+  total: number;
+  completed: number;
+  dropped: number;
+  completionRate: number;
+  dropRate: number;
+}
+
+export interface EraAffinityStat {
+  era: string;
+  count: number;
+  percentage: number;
+}
+
+export interface RadarAxis {
+  genre: string;
+  volumeScore: number;
+  averageScore: number;
+}
+
+export interface DropReasonStat {
+  reason: string;
+  count: number;
+  percentage: number;
+}
+
+export interface DropAnalytics {
+  totalDropped: number;
+  averageDropProgressPercent: number;
+  earlyDropCount: number;
+  midDropCount: number;
+  lateDropCount: number;
+  topReasons: DropReasonStat[];
+}
+
+export interface TasteProfile {
+  persona: TastePersona;
+  sunkCost: SunkCost;
+  divergence: CriticalDivergence;
+  genreParadox: GenreCompletionStat[];
+  eraAffinity: EraAffinityStat[];
+  genreRadar: RadarAxis[];
+  dropAnalytics?: DropAnalytics;
 }
 
 

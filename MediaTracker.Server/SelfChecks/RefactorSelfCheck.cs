@@ -94,6 +94,8 @@ public static class RefactorSelfCheck
         CheckKitsuRatingMapping(failures);
         CheckSteamVerticalCovers(failures);
         CheckAdvancedStatsCalculation(failures);
+        CheckTasteProfileCalculations(failures);
+        CheckDropAnalyticsCalculations(failures);
         CheckAllMetadataProvidersSupportGenres(failures);
         CheckLetterboxdCsvImportParser(failures);
         CheckAniListImportParser(failures);
@@ -3149,6 +3151,232 @@ public static class RefactorSelfCheck
         {
             failures.Add($"{label}: expected <{expected}> but was <{actual}>");
         }
+    }
+
+    private static void CheckTasteProfileCalculations(List<string> failures)
+    {
+        var now = new DateTime(2026, 10, 7, 12, 0, 0, DateTimeKind.Utc);
+
+        var emptyStats = AdvancedStatsCalculator.Calculate([], now);
+        var emptyProfile = TasteProfileCalculator.Calculate([], emptyStats);
+        AssertEqual(failures, "archivist", emptyProfile.Persona.Icon, "taste empty persona icon");
+        AssertEqual(failures, 0.0, emptyProfile.SunkCost.LowScoreHours, "taste empty sunk cost hours");
+        AssertEqual(failures, 0, emptyProfile.SunkCost.TitlesCount, "taste empty sunk cost titles");
+        AssertEqual(failures, 0, emptyProfile.GenreRadar.Count, "taste empty radar axes");
+        AssertEqual(failures, 0, emptyProfile.GenreParadox.Count, "taste empty paradox");
+
+        var droppedGame = new VideoGame
+        {
+            Title = "Dropped Game",
+            Platform = "PC",
+            HoursPlayed = 30,
+            Score = 3,
+            Status = MediaStatus.Dropped,
+            Genres = "Action",
+        };
+
+        var lowScoreBook = new Book
+        {
+            Title = "Low Score Book",
+            Author = "Author 1",
+            CurrentPage = 120,
+            Score = 4,
+            Status = MediaStatus.InProgress,
+            Genres = "Fantasy",
+            ReleaseYear = 1995,
+        };
+
+        var gem = new Movie
+        {
+            Title = "Hidden Gem",
+            DurationMinutes = 120,
+            Score = 9,
+            ExternalRating = 6.8,
+            Status = MediaStatus.Completed,
+            Genres = "Sci-Fi",
+            ReleaseYear = 2015,
+        };
+
+        var disappointment = new Movie
+        {
+            Title = "Main Disappointment",
+            DurationMinutes = 90,
+            Score = 4,
+            ExternalRating = 9.5,
+            Status = MediaStatus.Completed,
+            Genres = "Drama",
+            ReleaseYear = 2023,
+        };
+
+        var extraDrama = new Movie
+        {
+            Title = "Drama Extra",
+            DurationMinutes = 90,
+            Score = 8,
+            ExternalRating = 7.0,
+            Status = MediaStatus.Completed,
+            Genres = "Drama",
+        };
+
+        var actionMovie = new Movie
+        {
+            Title = "Action In Progress",
+            DurationMinutes = 100,
+            Score = null,
+            Status = MediaStatus.InProgress,
+            Genres = "Action",
+        };
+
+        var items = new MediaItem[] { droppedGame, lowScoreBook, gem, disappointment, extraDrama, actionMovie };
+        var stats = AdvancedStatsCalculator.Calculate(items, now);
+        var profile = TasteProfileCalculator.Calculate(items, stats);
+
+        // Sunk cost: dropped game (30 h) + book in progress rated 4 (120 pages × 1.5 min = 3 h)
+        // + the movie rated 4 (90 min completed = 1.5 h).
+        AssertEqual(failures, 34.5, profile.SunkCost.LowScoreHours, "taste sunk cost hours");
+        AssertEqual(failures, 3, profile.SunkCost.TitlesCount, "taste sunk cost titles");
+        AssertEqual(failures, Math.Round(34.5 / stats.TotalHours * 100.0, 1), profile.SunkCost.PercentageOfTotal, "taste sunk cost percentage");
+        AssertEqual(failures, 3, profile.SunkCost.CategoryBreakdown.Count, "taste sunk cost category count");
+        AssertEqual(failures, 30.0, profile.SunkCost.CategoryBreakdown.GetValueOrDefault("game"), "taste sunk cost game hours");
+        AssertEqual(failures, 3.0, profile.SunkCost.CategoryBreakdown.GetValueOrDefault("book"), "taste sunk cost book hours");
+        AssertEqual(failures, 1.5, profile.SunkCost.CategoryBreakdown.GetValueOrDefault("movie"), "taste sunk cost movie hours");
+
+        // Divergence: gem = 9 vs 6.8 (+2.2), disappointment = 9.5 vs 4 (-5.5).
+        AssertTrue(failures, profile.Divergence.HiddenGem is not null, "taste hidden gem present");
+        AssertTrue(failures, profile.Divergence.Disappointment is not null, "taste disappointment present");
+        if (profile.Divergence.HiddenGem is { } foundGem)
+        {
+            AssertEqual(failures, "Hidden Gem", foundGem.Title, "taste hidden gem title");
+            AssertEqual(failures, "movie", foundGem.Type, "taste hidden gem type");
+            AssertEqual(failures, 9.0, foundGem.UserScore, "taste hidden gem user score");
+            AssertEqual(failures, 6.8, foundGem.WorldRating, "taste hidden gem world rating");
+            AssertEqual(failures, 2.2, foundGem.Delta, "taste hidden gem delta");
+        }
+
+        if (profile.Divergence.Disappointment is { } foundDisappointment)
+        {
+            AssertEqual(failures, "Main Disappointment", foundDisappointment.Title, "taste disappointment title");
+            AssertEqual(failures, -5.5, foundDisappointment.Delta, "taste disappointment delta");
+        }
+
+        // Radar: Action (game + movie) is the top genre with two tracked titles.
+        AssertEqual(failures, 4, profile.GenreRadar.Count, "taste radar axes count");
+        AssertEqual(failures, "Action", profile.GenreRadar[0].Genre, "taste radar top genre");
+        AssertEqual(failures, 100.0, profile.GenreRadar[0].VolumeScore, "taste radar top volume score");
+        AssertEqual(failures, 3.0, profile.GenreRadar[0].AverageScore, "taste radar top average score");
+
+        // Paradox: Drama (2 completed of 2) finishes, Action (1 dropped of 2) is abandoned halfway.
+        AssertEqual(failures, 2, profile.GenreParadox.Count, "taste paradox genres");
+        AssertEqual(failures, "Action", profile.GenreParadox[0].Genre, "taste paradox action genre");
+        AssertEqual(failures, 2, profile.GenreParadox[0].Total, "taste paradox action total");
+        AssertEqual(failures, 0.0, profile.GenreParadox[0].CompletionRate, "taste paradox action completion");
+        AssertEqual(failures, 50.0, profile.GenreParadox[0].DropRate, "taste paradox action drop");
+        AssertEqual(failures, "Drama", profile.GenreParadox[1].Genre, "taste paradox drama genre");
+        AssertEqual(failures, 100.0, profile.GenreParadox[1].CompletionRate, "taste paradox drama completion");
+
+        // Golden era: favorites are the three completed movies; 1995 vs 2015 both map to their own decade.
+        AssertEqual(failures, 2, profile.EraAffinity.Count, "taste era buckets");
+        AssertEqual(failures, "2010s", profile.EraAffinity[0].Era, "taste era first bucket");
+        AssertEqual(failures, 1, profile.EraAffinity[0].Count, "taste era first count");
+    }
+
+    private static void CheckDropAnalyticsCalculations(List<string> failures)
+    {
+        var now = new DateTime(2026, 10, 7, 12, 0, 0, DateTimeKind.Utc);
+        var emptyStats = AdvancedStatsCalculator.Calculate([], now);
+        var emptyProfile = TasteProfileCalculator.Calculate([], emptyStats);
+
+        AssertEqual(failures, 0, emptyProfile.DropAnalytics.TotalDropped, "empty drop analytics total");
+        AssertEqual(failures, 0.0, emptyProfile.DropAnalytics.AverageDropProgressPercent, "empty drop analytics avg");
+        AssertEqual(failures, 0, emptyProfile.DropAnalytics.EarlyDropCount, "empty drop analytics early");
+        AssertEqual(failures, 0, emptyProfile.DropAnalytics.MidDropCount, "empty drop analytics mid");
+        AssertEqual(failures, 0, emptyProfile.DropAnalytics.LateDropCount, "empty drop analytics late");
+        AssertEqual(failures, 0, emptyProfile.DropAnalytics.TopReasons.Count, "empty drop analytics reasons");
+
+        var droppedGame = new VideoGame
+        {
+            Title = "Hard Game",
+            Platform = "PC",
+            Status = MediaStatus.Dropped,
+            DropReason = "too_hard",
+            DropNotes = "Boss unbeatable",
+        };
+
+        var droppedBook = new Book
+        {
+            Title = "Boring Book",
+            Author = "Author",
+            TotalPages = 200,
+            CurrentPage = 100, // 50%
+            Status = MediaStatus.Dropped,
+            DropReason = "boring",
+        };
+
+        var droppedManga = new Manga
+        {
+            Title = "Late Manga",
+            TotalChapters = 10,
+            CurrentChapter = 8, // 80%
+            Status = MediaStatus.Dropped,
+            DropReason = "bad_plot",
+        };
+
+        var droppedShow = new TvShow
+        {
+            Title = "Early Show",
+            Status = MediaStatus.Dropped,
+            DropReason = "boring",
+            Seasons =
+            [
+                new TvSeason { Title = "Season 1", SeasonNumber = 1, TotalEpisodes = 10, CurrentEpisode = 1 }, // 10%
+            ],
+        };
+
+        var droppedMovie = new Movie
+        {
+            Title = "Unspecified Movie",
+            DurationMinutes = 120,
+            Status = MediaStatus.Dropped,
+            DropReason = null, // "unspecified"
+        };
+
+        var completedBook = new Book
+        {
+            Title = "Finished Book",
+            Author = "Author",
+            TotalPages = 300,
+            CurrentPage = 300,
+            Status = MediaStatus.Completed,
+            DropReason = "boring", // status is Completed, must NOT be counted
+        };
+
+        var items = new MediaItem[] { droppedGame, droppedBook, droppedManga, droppedShow, droppedMovie, completedBook };
+        var stats = AdvancedStatsCalculator.Calculate(items, now);
+        var profile = TasteProfileCalculator.Calculate(items, stats);
+
+        var dropAnalytics = profile.DropAnalytics;
+        AssertEqual(failures, 5, dropAnalytics.TotalDropped, "drop analytics total dropped");
+        // Progresses: Game (0%), Book (50%), Manga (80%), Show (10%), Movie (0%).
+        // Sum = 140. Avg = 140 / 5 = 28.0%
+        AssertEqual(failures, 28.0, dropAnalytics.AverageDropProgressPercent, "drop analytics avg progress");
+        AssertEqual(failures, 3, dropAnalytics.EarlyDropCount, "drop analytics early count (<20%)");
+        AssertEqual(failures, 1, dropAnalytics.MidDropCount, "drop analytics mid count (20-70%)");
+        AssertEqual(failures, 1, dropAnalytics.LateDropCount, "drop analytics late count (>70%)");
+
+        // Reasons: boring (2 = 40.0%), bad_plot (1 = 20.0%), too_hard (1 = 20.0%), unspecified (1 = 20.0%)
+        AssertEqual(failures, 4, dropAnalytics.TopReasons.Count, "drop analytics top reasons count");
+        AssertEqual(failures, "boring", dropAnalytics.TopReasons[0].Reason, "top reason 1");
+        AssertEqual(failures, 2, dropAnalytics.TopReasons[0].Count, "top reason 1 count");
+        AssertEqual(failures, 40.0, dropAnalytics.TopReasons[0].Percentage, "top reason 1 percentage");
+
+        var badPlot = dropAnalytics.TopReasons.FirstOrDefault(r => r.Reason == "bad_plot");
+        AssertTrue(failures, badPlot is not null, "bad_plot reason exists");
+        AssertEqual(failures, 1, badPlot?.Count ?? 0, "bad_plot count");
+        AssertEqual(failures, 20.0, badPlot?.Percentage ?? 0, "bad_plot percentage");
+
+        var unspecified = dropAnalytics.TopReasons.FirstOrDefault(r => r.Reason == "unspecified");
+        AssertTrue(failures, unspecified is not null, "unspecified reason exists for null drop reason");
+        AssertEqual(failures, 1, unspecified?.Count ?? 0, "unspecified count");
     }
 
     private static void CheckAdvancedStatsCalculation(List<string> failures)

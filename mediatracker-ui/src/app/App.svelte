@@ -7,6 +7,7 @@
     import CreateModal from "$features/create-media/CreateModal.svelte";
     import SearchModal from "$features/search-external/SearchModal.svelte";
     import SettingsModal from "$features/settings/SettingsModal.svelte";
+    import DropReasonModal from "$features/drop-reason/DropReasonModal.svelte";
     import CalendarView from "$views/CalendarView.svelte";
     import CategoryView, {
         type Category,
@@ -445,7 +446,7 @@
             onMediaChanged={mediaChanged}
         />
     {:else if renderedView === "stats"}
-        <StatsView refreshKey={mediaRevision} />
+        <StatsView refreshKey={mediaRevision} onOpenMedia={(mediaId) => openDetailById(mediaId)} />
     {:else if renderedView === "history"}
         <HistoryView
             refreshKey={mediaRevision}
@@ -476,3 +477,4 @@
     }}
 />
 <SettingsModal isOpen={isSettingsOpen} onClose={closeSettings} onImportCompleted={mediaChanged} onNavigateToList={navigateToList} />
+<DropReasonModal />

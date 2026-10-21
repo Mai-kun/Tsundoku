@@ -35,6 +35,7 @@ public sealed class DeleteMediaHandler(
         db.MediaItems.Remove(item);
         await db.SaveChangesAsync(ct);
         cache.Remove(AdvancedStatsCalculator.CacheKey);
+        cache.Remove(TasteProfileCalculator.CacheKey);
 
         return Result.Success();
     }

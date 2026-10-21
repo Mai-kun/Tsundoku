@@ -22,6 +22,10 @@ public abstract class MediaItem
 
     public string? Notes { get; set; }
 
+    public string? DropReason { get; set; }
+
+    public string? DropNotes { get; set; }
+
     public string? QuotesJson { get; set; }
 
     public string? Description { get; set; }
@@ -159,6 +163,12 @@ public abstract class MediaItem
     {
         var stamp = now ?? DateTime.UtcNow;
         Status = status;
+
+        if (status != MediaStatus.Dropped)
+        {
+            DropReason = null;
+            DropNotes = null;
+        }
 
         switch (status)
         {

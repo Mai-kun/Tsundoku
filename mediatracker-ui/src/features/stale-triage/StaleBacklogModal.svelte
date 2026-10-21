@@ -22,6 +22,7 @@
     import { cardTypeLabel } from "$entities/media/model/mediaLabels";
     import { getMedia, updateMedia, updateStatus, errorMessage } from "$shared/api/api";
     import { showToast } from "$shared/ui/toast.svelte";
+    import { dropPromptState } from "$features/drop-reason/dropReasonPrompt.svelte";
 
     interface Props {
         isOpen: boolean;
@@ -133,6 +134,17 @@
         try {
             await updateStatus(item.id, MEDIA_STATUS.dropped);
             onMediaChanged?.();
+            dropPromptState.open({
+                id: item.id,
+                title: item.title,
+                type: item.type,
+                isAnime: (item as { isAnime?: boolean }).isAnime,
+                dropReason: item.dropReason,
+                dropNotes: item.dropNotes,
+                onSaved: () => {
+                    onMediaChanged?.();
+                },
+            });
         } catch (e) {
             showToast(errorMessage(e), "error");
         }

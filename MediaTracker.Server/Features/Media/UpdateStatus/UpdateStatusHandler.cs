@@ -11,7 +11,7 @@ using Microsoft.Extensions.Caching.Memory;
 
 namespace MediaTracker.Server.Features.Media.UpdateStatus;
 
-public sealed record UpdateStatusCommand(Guid Id, MediaStatus Status);
+public sealed record UpdateStatusCommand(Guid Id, MediaStatus Status, string? DropReason = null, string? DropNotes = null);
 
 public interface IUpdateStatusHandler
 {
@@ -25,7 +25,14 @@ public sealed class UpdateStatusHandler(
 {
     public async Task<Result> HandleAsync(UpdateStatusCommand command, CancellationToken ct)
     {
-        var validation = await validator.ValidateAsync(new UpdateStatusRequest { Status = command.Status }, ct);
+        var validation = await validator.ValidateAsync(
+            new UpdateStatusRequest
+            {
+                Status = command.Status,
+                DropReason = command.DropReason,
+                DropNotes = command.DropNotes,
+            },
+            ct);
         if (validation.ToError() is { } validationError)
         {
             return Result.Failure(validationError);
@@ -45,6 +52,25 @@ public sealed class UpdateStatusHandler(
         // The entity owns the transition: it sets the timestamps, rewrites the type-specific counters
         // and completes or resets the show's seasons.
         item.ChangeStatus(command.Status);
+
+        if (command.Status == MediaStatus.Dropped)
+        {
+            if (previousStatus != MediaStatus.Dropped || command.DropReason is not null)
+            {
+                item.DropReason = string.IsNullOrWhiteSpace(command.DropReason) ? null : command.DropReason;
+            }
+
+            if (previousStatus != MediaStatus.Dropped || command.DropNotes is not null)
+            {
+                item.DropNotes = string.IsNullOrWhiteSpace(command.DropNotes) ? null : command.DropNotes;
+            }
+        }
+        else
+        {
+            item.DropReason = null;
+            item.DropNotes = null;
+        }
+
         item.MarkUpdated();
 
         if (item.Status != previousStatus)
@@ -55,6 +81,7 @@ public sealed class UpdateStatusHandler(
 
         await db.SaveChangesAsync(ct);
         cache.Remove(AdvancedStatsCalculator.CacheKey);
+        cache.Remove(TasteProfileCalculator.CacheKey);
         return Result.Success();
     }
 }

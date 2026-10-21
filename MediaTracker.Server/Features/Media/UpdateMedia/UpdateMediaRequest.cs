@@ -89,4 +89,10 @@ public sealed record UpdateMediaRequest
     public string? AchievementsJson { get; init; }
 
     public string? RecommendationsJson { get; init; }
+
+    public string? DropReason { get; init; }
+
+    public string? DropNotes { get; init; }
+
+    public bool ClearDropReason { get; init; }
 }

@@ -232,6 +232,12 @@ namespace MediaTracker.Server.Infrastructure.Persistence.Migrations
                     b.Property<string>("DetailedScoreJson")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("DropNotes")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DropReason")
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime?>("EndDate")
                         .HasColumnType("TEXT");
 

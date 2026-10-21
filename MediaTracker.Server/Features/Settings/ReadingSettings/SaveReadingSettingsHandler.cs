@@ -42,6 +42,7 @@ public sealed class SaveReadingSettingsHandler(AppDbContext db, IMemoryCache cac
             ct);
 
         cache.Remove(AdvancedStatsCalculator.CacheKey);
+        cache.Remove(TasteProfileCalculator.CacheKey);
 
         return Result<ReadingSettingsDto>.Success(command);
     }

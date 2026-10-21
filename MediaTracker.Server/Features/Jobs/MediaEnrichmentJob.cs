@@ -72,6 +72,7 @@ public static class MediaEnrichmentJob
             item.MarkUpdated();
             await db.SaveChangesAsync(jobCts.Token).ConfigureAwait(false);
             services.GetService<Microsoft.Extensions.Caching.Memory.IMemoryCache>()?.Remove(MediaTracker.Server.Features.Media.GetMediaStats.AdvancedStatsCalculator.CacheKey);
+            services.GetService<Microsoft.Extensions.Caching.Memory.IMemoryCache>()?.Remove(MediaTracker.Server.Features.Media.GetMediaStats.TasteProfileCalculator.CacheKey);
 
             // Last, and outside the metadata write: the Related tab is the one panel whose content is
             // not in the database, so leaving it to the first manual "load related" meant a freshly

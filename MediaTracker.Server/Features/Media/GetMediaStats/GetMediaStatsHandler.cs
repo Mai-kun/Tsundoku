@@ -13,6 +13,7 @@ public interface IGetMediaStatsHandler
 {
     Task<Result<MediaStatsDto>> HandleAsync(CancellationToken ct);
     Task<Result<AdvancedStatsDto>> HandleAdvancedAsync(CancellationToken ct);
+    Task<Result<TasteProfileDto>> HandleTasteProfileAsync(CancellationToken ct);
 }
 
 public sealed class GetMediaStatsHandler(AppDbContext db, IMemoryCache cache) : IGetMediaStatsHandler
@@ -78,6 +79,44 @@ public sealed class GetMediaStatsHandler(AppDbContext db, IMemoryCache cache) : 
             .Where(mediaEvent => mediaEvent.CreatedAt >= activityStart)
             .ToListAsync(ct);
 
+        var (bookMinutes, mangaMinutes) = await ReadReadingMinutesAsync(ct);
+
+        var stats = AdvancedStatsCalculator.Calculate(
+            items,
+            events: events,
+            bookPageMinutes: bookMinutes,
+            mangaChapterMinutes: mangaMinutes);
+        cache.Set(AdvancedStatsCalculator.CacheKey, stats, TimeSpan.FromMinutes(5));
+
+        return Result<AdvancedStatsDto>.Success(stats);
+    }
+
+    public async Task<Result<TasteProfileDto>> HandleTasteProfileAsync(CancellationToken ct)
+    {
+        if (cache.TryGetValue(TasteProfileCalculator.CacheKey, out TasteProfileDto? cached) && cached is not null)
+        {
+            return Result<TasteProfileDto>.Success(cached);
+        }
+
+        var advancedStats = await HandleAdvancedAsync(ct);
+        if (!advancedStats.IsSuccess)
+        {
+            return Result<TasteProfileDto>.Failure(advancedStats.Error!);
+        }
+
+        var items = await MediaItemGraph
+            .LoadNoTracking(db)
+            .ToListAsync(ct);
+        var (bookMinutes, mangaMinutes) = await ReadReadingMinutesAsync(ct);
+
+        var profile = TasteProfileCalculator.Calculate(items, advancedStats.Value!, bookMinutes, mangaMinutes);
+        cache.Set(TasteProfileCalculator.CacheKey, profile, TimeSpan.FromMinutes(5));
+
+        return Result<TasteProfileDto>.Success(profile);
+    }
+
+    private async Task<(double BookMinutes, double MangaMinutes)> ReadReadingMinutesAsync(CancellationToken ct)
+    {
         var bookVal = await AppSettingStore.ReadAsync(db, GetReadingSettingsHandler.BookPageMinutesKey, ct);
         var mangaVal = await AppSettingStore.ReadAsync(db, GetReadingSettingsHandler.MangaChapterMinutesKey, ct);
 
@@ -89,13 +128,6 @@ public sealed class GetMediaStatsHandler(AppDbContext db, IMemoryCache cache) : 
             ? m
             : GetReadingSettingsHandler.DefaultMangaChapterMinutes;
 
-        var stats = AdvancedStatsCalculator.Calculate(
-            items,
-            events: events,
-            bookPageMinutes: bookMinutes,
-            mangaChapterMinutes: mangaMinutes);
-        cache.Set(AdvancedStatsCalculator.CacheKey, stats, TimeSpan.FromMinutes(5));
-
-        return Result<AdvancedStatsDto>.Success(stats);
+        return (bookMinutes, mangaMinutes);
     }
 }

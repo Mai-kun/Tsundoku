@@ -1,5 +1,6 @@
 using MediaTracker.Server.Domain.Entities;
 using MediaTracker.Server.Features.Media.UpdateMedia;
+using MediaTracker.Server.Features.Media.GetMediaStats;
 
 namespace MediaTracker.Server.Domain.Rules;
 
@@ -32,7 +33,7 @@ public static class MediaItemUpdater
         }
         item.TranslatedSynopsis = request.TranslatedSynopsis ?? item.TranslatedSynopsis;
         item.TranslationLanguage = request.TranslationLanguage ?? item.TranslationLanguage;
-        item.Genres = request.Genres ?? item.Genres;
+        item.Genres = GenreNormalizer.NormalizeToCommaString(request.Genres) ?? item.Genres;
         item.Tags = request.Tags ?? item.Tags;
         item.UnlockedAchievements = request.UnlockedAchievements ?? item.UnlockedAchievements;
         item.WatchedOn = request.ClearWatchedOn ? null : request.WatchedOn ?? item.WatchedOn;

@@ -284,10 +284,10 @@ public sealed class ImportMediaHandler(
             modified = true;
         }
 
-        if (!string.IsNullOrWhiteSpace(parsed.Genres))
+        if (string.IsNullOrWhiteSpace(existing.Genres))
         {
             var healedGenres = GenreNormalizer.NormalizeToCommaString(parsed.Genres);
-            if (string.IsNullOrWhiteSpace(existing.Genres) && healedGenres is not null)
+            if (healedGenres is not null)
             {
                 existing.Genres = healedGenres;
                 modified = true;

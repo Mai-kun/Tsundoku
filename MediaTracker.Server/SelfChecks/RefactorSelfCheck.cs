@@ -43,6 +43,7 @@ public static class RefactorSelfCheck
         var failures = new List<string>();
 
         CheckSourceAliases(failures);
+        CheckGenreNormalization(failures);
         CheckSpanParsing(failures);
         CheckSourceRegistryIsSelfContained(failures);
         CheckExternalUrlDetection(failures);
@@ -3107,6 +3108,15 @@ public static class RefactorSelfCheck
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
             responder(request);
+    }
+
+    private static void CheckGenreNormalization(List<string> failures)
+    {
+        var expected = new[] { "Action", "Sci-Fi", "UnknownCustomGenre" };
+        AssertTrue(
+            failures,
+            expected.SequenceEqual(GenreNormalizer.NormalizeList(["Action", "Экшен", "боевик", "Sci-Fi", "Научная фантастика", "UnknownCustomGenre"])),
+            "GenreNormalizer collapses cross-provider duplicates instead of keeping both spellings");
     }
 
     private static void AssertTrue(List<string> failures, bool condition, string label)

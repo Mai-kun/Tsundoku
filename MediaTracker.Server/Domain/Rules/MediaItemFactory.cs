@@ -1,5 +1,6 @@
 using MediaTracker.Server.Domain.Entities;
 using MediaTracker.Server.Features.Media.CreateMedia;
+using MediaTracker.Server.Features.Media.GetMediaStats;
 
 namespace MediaTracker.Server.Domain.Rules;
 
@@ -111,7 +112,7 @@ public static class MediaItemFactory
         item.ReleaseStatus = !string.IsNullOrWhiteSpace(request.ReleaseStatus)
             ? request.ReleaseStatus
             : ReleaseStatusRules.FromDates(request.ReleaseDate, request.EndDate);
-        item.Genres = request.Genres;
+        item.Genres = GenreNormalizer.NormalizeToCommaString(request.Genres);
         item.Tags = request.Tags;
         item.UnlockedAchievements = request.UnlockedAchievements;
         item.UserPlatform = request.UserPlatform;

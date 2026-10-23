@@ -2,6 +2,7 @@ using System.Text.Json;
 using MediaTracker.Server.Domain.Entities;
 using MediaTracker.Server.Domain.Enums;
 using MediaTracker.Server.Infrastructure.ExternalApis;
+using MediaTracker.Server.Features.Media.GetMediaStats;
 
 namespace MediaTracker.Server.Features.Media.MediaContract;
 
@@ -458,7 +459,7 @@ public static class MediaResponseMapper
                 var parsed = JsonSerializer.Deserialize<List<string>>(genres);
                 if (parsed is { Count: > 0 })
                 {
-                    return parsed;
+                    return GenreNormalizer.NormalizeList(parsed);
                 }
             }
             catch
@@ -467,11 +468,9 @@ public static class MediaResponseMapper
             }
         }
 
-        return genres
-            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Where(g => !string.IsNullOrWhiteSpace(g))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        return GenreNormalizer.NormalizeList(
+            genres.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Where(g => !string.IsNullOrWhiteSpace(g)));
     }
 
     public static string GetType(MediaItem item) => item switch

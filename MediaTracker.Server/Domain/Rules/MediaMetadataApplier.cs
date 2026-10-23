@@ -3,6 +3,7 @@ using MediaTracker.Server.Domain.Entities;
 using MediaTracker.Server.Domain.Rules;
 using MediaTracker.Server.Infrastructure.ExternalApis;
 using MediaTracker.Server.Infrastructure.Storage;
+using MediaTracker.Server.Features.Media.GetMediaStats;
 
 namespace MediaTracker.Server.Domain.Rules;
 
@@ -365,9 +366,9 @@ public static class MediaMetadataApplier
 
     private static void ApplyGenres(MediaItem item, ExternalMediaDto external)
     {
-        if (external.Genres is { Count: > 0 } genres)
+        if (external.Genres is { Count: > 0 })
         {
-            item.Genres = string.Join(", ", genres);
+            item.Genres = GenreNormalizer.NormalizeToCommaString(external.Genres);
         }
     }
 
@@ -495,7 +496,7 @@ public static class MediaMetadataApplier
         DateTime.TryParse(value, out var parsed) ? parsed : null;
 
     private static string? JoinGenres(IReadOnlyList<string>? genres) =>
-        genres is { Count: > 0 } ? string.Join(", ", genres) : null;
+        GenreNormalizer.NormalizeToCommaString(genres);
 
     private static bool SetIfBlank(string? current, string? candidate, Action<string> assign)
     {

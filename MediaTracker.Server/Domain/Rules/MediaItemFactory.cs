@@ -116,5 +116,12 @@ public static class MediaItemFactory
         item.Tags = request.Tags;
         item.UnlockedAchievements = request.UnlockedAchievements;
         item.UserPlatform = request.UserPlatform;
+
+        // Runs last: the ongoing check needs the release status this method just derived.
+        if (AutoRefreshRules.ShouldScheduleRefresh(item))
+        {
+            item.AutoRefreshIntervalDays = AutoRefreshRules.BaseIntervalDays;
+            item.NextAutoRefreshAt = DateTime.UtcNow.AddDays(item.AutoRefreshIntervalDays);
+        }
     }
 }

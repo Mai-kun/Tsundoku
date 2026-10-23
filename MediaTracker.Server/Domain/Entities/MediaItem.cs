@@ -65,6 +65,14 @@ public abstract class MediaItem
 
     public string? ExternalRatingsJson { get; set; }
 
+    /// <summary>Scheduled date of the next background content check; null when none is planned.</summary>
+    public DateTime? NextAutoRefreshAt { get; set; }
+
+    /// <summary>Current interval between background checks, in days, per the adaptive progression.</summary>
+    public int AutoRefreshIntervalDays { get; set; } = 7;
+
+    public DateTime? LastAutoRefreshedAt { get; set; }
+
     public DateTime? ReleaseDate { get; set; }
 
     /// <summary>Year kept separately: sources that only know the year must not fabricate Jan 1.</summary>

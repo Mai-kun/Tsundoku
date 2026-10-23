@@ -97,6 +97,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             // indexes SQLite falls back to a full scan and a temp b-tree for the ORDER BY.
             entity.HasIndex(item => item.Status);
             entity.HasIndex(item => item.CreatedAt);
+            entity.HasIndex(item => item.NextAutoRefreshAt);
             entity.HasIndex("MediaType");
             entity.HasIndex(item => new { item.Status, item.CreatedAt });
             entity.HasIndex("MediaType", nameof(MediaItem.Status), nameof(MediaItem.CreatedAt));

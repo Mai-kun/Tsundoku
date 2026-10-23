@@ -248,6 +248,9 @@ namespace MediaTracker.Server.Infrastructure.Persistence.Migrations
                     b.Property<string>("AchievementsJson")
                         .HasColumnType("TEXT");
 
+                    b.Property<int>("AutoRefreshIntervalDays")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("CastJson")
                         .HasColumnType("TEXT");
 
@@ -311,9 +314,15 @@ namespace MediaTracker.Server.Infrastructure.Persistence.Migrations
                     b.Property<DateTime?>("LastActivityAt")
                         .HasColumnType("TEXT");
 
+                    b.Property<DateTime?>("LastAutoRefreshedAt")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("MediaType")
                         .IsRequired()
                         .HasMaxLength(13)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("NextAutoRefreshAt")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Notes")
@@ -399,6 +408,8 @@ namespace MediaTracker.Server.Infrastructure.Persistence.Migrations
                     b.HasIndex("FranchiseId");
 
                     b.HasIndex("MediaType");
+
+                    b.HasIndex("NextAutoRefreshAt");
 
                     b.HasIndex("Status");
 

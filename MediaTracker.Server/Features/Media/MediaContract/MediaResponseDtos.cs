@@ -98,6 +98,14 @@ public record MediaListDto
 
     public int? SeasonsCount { get; init; }
 
+    /// <summary>Next scheduled background content check, so the UI can show when a title is polled.</summary>
+    public DateTime? NextAutoRefreshAt { get; init; }
+
+    /// <summary>Current adaptive interval between auto-refresh checks, in days.</summary>
+    public int AutoRefreshIntervalDays { get; init; }
+
+    public DateTime? LastAutoRefreshedAt { get; init; }
+
     public string? ExternalId { get; init; }
 
     public string? ExternalSource { get; init; }
@@ -295,7 +303,6 @@ public static class MediaResponseMapper
             _ => throw new InvalidOperationException($"Unsupported media item '{item.GetType().Name}'."),
         };
     }
-
     public static MediaDetailDto ToDetailDto(MediaItem item)
     {
         var detail = CreateDetailDto(item);
@@ -361,6 +368,9 @@ public static class MediaResponseMapper
             Network = listFields.Network,
             TotalEpisodesWatched = listFields.TotalEpisodesWatched,
             SeasonsCount = listFields.SeasonsCount,
+            NextAutoRefreshAt = listFields.NextAutoRefreshAt,
+            AutoRefreshIntervalDays = listFields.AutoRefreshIntervalDays,
+            LastAutoRefreshedAt = listFields.LastAutoRefreshedAt,
             ExternalId = listFields.ExternalId,
             ExternalSource = listFields.ExternalSource,
             ExternalRating = listFields.ExternalRating,
@@ -443,6 +453,9 @@ public static class MediaResponseMapper
         Genres = ParseGenres(item.Genres),
         Tags = item.Tags,
         UserPlatform = item.UserPlatform,
+        NextAutoRefreshAt = item.NextAutoRefreshAt,
+        AutoRefreshIntervalDays = item.AutoRefreshIntervalDays,
+        LastAutoRefreshedAt = item.LastAutoRefreshedAt,
     };
 
     public static IReadOnlyList<string> ParseGenres(string? genres)

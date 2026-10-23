@@ -108,6 +108,7 @@ public static class RefactorSelfCheck
         CheckHistoryEventsFiltering(failures);
         CheckSmartListEvaluator(failures);
         CheckApiTokenHashingAndValidation(failures);
+        CheckAutoRefreshRules(failures);
 
         if (failures.Count == 0)
         {
@@ -3829,6 +3830,61 @@ public static class RefactorSelfCheck
         AssertTrue(failures, IsActive(noExpiry), "Token without expiry is active");
         AssertTrue(failures, IsActive(activeExpiry), "Token with future expiry is active");
         AssertFalse(failures, IsActive(expiredExpiry), "Token with past expiry is inactive/expired");
+    }
+
+    private static void CheckAutoRefreshRules(List<string> failures)
+    {
+        // Eligibility: ongoings stay scheduled, dropped and finished rows never come back.
+        var ongoingManga = new Manga { Title = "Berserk", ReleaseStatus = ReleaseStatusRules.Releasing };
+        var anime = new TvShow { Title = "Frieren", IsAnime = true };
+        var finishedMovie = new Movie { Title = "Кин-дза-дза", IsAnime = true, ReleaseStatus = ReleaseStatusRules.Finished };
+
+        AssertTrue(failures, AutoRefreshRules.ShouldScheduleRefresh(ongoingManga), "releasing manga is scheduled");
+        AssertTrue(failures, AutoRefreshRules.ShouldScheduleRefresh(anime), "a show is scheduled");
+        AssertTrue(failures, AutoRefreshRules.ShouldScheduleRefresh(new Movie { Title = "Аниме-фильм", IsAnime = true }), "an anime movie is scheduled");
+        AssertFalse(failures, AutoRefreshRules.ShouldScheduleRefresh(new Manga { Title = "Заброшена", Status = MediaStatus.Dropped }), "a dropped title is not scheduled");
+        AssertFalse(
+            failures,
+            AutoRefreshRules.ShouldScheduleRefresh(new Manga { Title = "Завершена", ReleaseStatus = ReleaseStatusRules.Finished }),
+            "a finished title is not scheduled");
+        AssertFalse(failures, AutoRefreshRules.ShouldScheduleRefresh(new VideoGame { Title = "Hollow Knight", Platform = "PC" }), "a game is never scheduled");
+        AssertFalse(failures, AutoRefreshRules.ShouldScheduleRefresh(new Book { Title = "Дюна", Author = "Ф. Герберт" }), "a book is never scheduled");
+        AssertFalse(
+            failures,
+            AutoRefreshRules.ShouldScheduleRefresh(new Movie { Title = "Обычный фильм" }),
+            "a live-action movie is never scheduled");
+        AssertFalse(
+            failures,
+            AutoRefreshRules.ShouldScheduleRefresh(finishedMovie),
+            "a finished anime movie is not scheduled");
+
+        // New content snaps the interval back to the base; nothing new grows it one step.
+        AssertEqual(failures, 7, AutoRefreshRules.CalculateNextInterval(7, true, null), "new content resets to the base interval");
+        AssertEqual(failures, 7, AutoRefreshRules.CalculateNextInterval(30, true, null), "new content resets even the longest interval");
+        AssertEqual(failures, 10, AutoRefreshRules.CalculateNextInterval(7, false, null), "quiet week steps 7 -> 10");
+        AssertEqual(failures, 14, AutoRefreshRules.CalculateNextInterval(10, false, null), "quiet week steps 10 -> 14");
+        AssertEqual(failures, 21, AutoRefreshRules.CalculateNextInterval(14, false, null), "quiet week steps 14 -> 21");
+        AssertEqual(failures, 30, AutoRefreshRules.CalculateNextInterval(21, false, null), "quiet week steps 21 -> 30");
+        AssertEqual(failures, 30, AutoRefreshRules.CalculateNextInterval(30, false, null), "the interval is capped at 30 days");
+        AssertEqual(failures, 45, AutoRefreshRules.CalculateNextInterval(7, false, "HIATUS"), "hiatus stretches to 45 days");
+        AssertEqual(failures, 45, AutoRefreshRules.CalculateNextInterval(30, true, "hiatus"), "hiatus wins over new content");
+
+        // The schedule writer: hiatus path, base reset and the finished stop.
+        var now = DateTime.UtcNow;
+        var hiatus = new Manga { Title = "Одноутро", ReleaseStatus = "HIATUS", AutoRefreshIntervalDays = 7 };
+        AutoRefreshRules.ApplyRefreshSchedule(hiatus, false, now);
+        AssertEqual(failures, 45, hiatus.AutoRefreshIntervalDays, "applied hiatus interval");
+        AssertEqual(failures, 45, (int)hiatus.NextAutoRefreshAt!.Value.Subtract(now).TotalDays, "hiatus schedules 45 days out");
+
+        var quiet = new Manga { Title = "Винланд", AutoRefreshIntervalDays = 21 };
+        AutoRefreshRules.ApplyRefreshSchedule(quiet, false, now);
+        AssertEqual(failures, 30, quiet.AutoRefreshIntervalDays, "a quiet poll grows the stored interval");
+        AssertTrue(failures, quiet.LastAutoRefreshedAt == now, "the poll is stamped");
+        AssertEqual(failures, 30, (int)quiet.NextAutoRefreshAt!.Value.Subtract(now).TotalDays, "the next check moves by the new interval");
+
+        var done = new TvShow { Title = "Окончено", ReleaseStatus = ReleaseStatusRules.Finished, AutoRefreshIntervalDays = 7 };
+        AutoRefreshRules.ApplyRefreshSchedule(done, false, now);
+        AssertTrue(failures, done.NextAutoRefreshAt is null, "a finished title drops its scheduled check");
     }
 
     private sealed class NoOpImageStorage : IImageStorageService

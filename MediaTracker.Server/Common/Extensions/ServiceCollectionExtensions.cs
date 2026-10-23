@@ -50,6 +50,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<JobManager>();
         services.AddSingleton<IJobManager>(services => services.GetRequiredService<JobManager>());
         services.AddHostedService<JobWorkerService>();
+        services.AddHostedService<Features.Jobs.AutoRefreshWorker>();
 
         services.AddHttpClient<IImageStorageService, ImageStorageService>(client =>
             client.Timeout = TimeSpan.FromSeconds(5))

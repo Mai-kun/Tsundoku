@@ -9,6 +9,7 @@ import {
 } from "$shared/types";
 import { statusLabel } from "$entities/media/model/mediaLabels";
 import type { EpisodeRow, ProgressInfo, SpecRow } from "./detailTypes";
+import { formatGenresList } from "$entities/media/model/genreLabel";
 
 /**
  * Season rows are synthesised from a count because most seasons arrive without an
@@ -640,7 +641,7 @@ export function specRows(item: MediaItem): SpecRow[] {
             break;
     }
 
-    const genreList = parseGenresList(item.genres);
+    const genreList = formatGenresList(parseGenresList(item.genres));
     rows.push({
         label: i18n.t.detail.genresLabel,
         value: genreList.length > 0 ? genreList.join(", ") : "—",

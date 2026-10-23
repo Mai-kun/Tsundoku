@@ -32,6 +32,7 @@ public abstract class MetadataProviderBase : IMetadataProvider
     public string Description => Source.Description;
     public IReadOnlyList<string> MediaTypes => Source.MediaTypes;
     public bool RequiresApiKey => Source.RequiresApiKey;
+    public bool OptionalApiKey => Source.OptionalApiKey;
     public bool IsDefault => Source.IsDefault;
 
     public abstract Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string query, CancellationToken ct);
@@ -74,6 +75,12 @@ public abstract class MetadataProviderBase : IMetadataProvider
     /// instead, which searches for the literal word "test" and reports OK whenever that search comes
     /// back without throwing — even for an API key the provider rejects.
     /// </summary>
+    /// <remarks>
+    /// A provider that returns an empty result set when its key is missing (RAWG, TMDb) must override
+    /// this — the base probe would report such a silent no-op as a healthy connection. The empty
+    /// check below is the second line of defence for any key-requiring provider added without its
+    /// own override.
+    /// </remarks>
     public virtual async Task<ConnectionTestResult> TestConnectionAsync(CancellationToken ct)
     {
         var sw = Stopwatch.StartNew();
@@ -81,8 +88,17 @@ public abstract class MetadataProviderBase : IMetadataProvider
         {
             using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             timeoutCts.CancelAfter(TimeSpan.FromSeconds(5));
-            _ = await SearchAsync("test", timeoutCts.Token);
+            var results = await SearchAsync("test", timeoutCts.Token);
             sw.Stop();
+
+            // A key-requiring provider that asks for a missing key answers with an empty list and no
+            // exception, which used to read as "reachable in 0 ms".
+            if (Source.RequiresApiKey && results.Count == 0)
+            {
+                return new ConnectionTestResult(false, (int)sw.ElapsedMilliseconds,
+                    "The probe search returned no results — check the configured API key");
+            }
+
             return new ConnectionTestResult(true, (int)sw.ElapsedMilliseconds, "OK");
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)

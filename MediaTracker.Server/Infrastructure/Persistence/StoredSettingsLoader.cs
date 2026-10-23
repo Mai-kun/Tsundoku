@@ -19,7 +19,7 @@ public sealed class StoredSettingsLoader(
 {
     public async Task LoadAsync(CancellationToken ct = default)
     {
-        foreach (var provider in providers.Where(p => p.RequiresApiKey).DistinctBy(p => p.Id))
+        foreach (var provider in providers.Where(p => p.RequiresApiKey || p.OptionalApiKey).DistinctBy(p => p.Id))
         {
             var setting = await db.Settings.FirstOrDefaultAsync(s => s.Key == $"ApiKey_{provider.Id}", ct);
             if (setting is null || string.IsNullOrWhiteSpace(setting.Value))

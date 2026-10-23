@@ -31,10 +31,12 @@ public sealed class SaveSourceKeyHandler(
         var provider = providers.FirstOrDefault(p =>
             p.Id.Equals(normalizedId, StringComparison.OrdinalIgnoreCase));
 
-        if (provider?.RequiresApiKey is false)
+        // Optional-key providers (Steam) may still store a key, so a missing provider match or a
+        // no-key provider is the only rejected case.
+        if (provider is null || (!provider.RequiresApiKey && !provider.OptionalApiKey))
         {
             return Result<SaveSourceKeyResponse>.Failure(
-                Error.Validation($"Source '{command.SourceId}' does not require an API key."));
+                Error.Validation($"Source '{command.SourceId}' does not accept an API key."));
         }
 
         var key = command.ApiKey?.Trim() ?? string.Empty;

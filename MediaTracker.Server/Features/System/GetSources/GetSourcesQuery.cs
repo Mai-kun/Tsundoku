@@ -8,6 +8,7 @@ public sealed record SourceInfo(
     string Description,
     string[] MediaTypes,
     bool RequiresApiKey,
+    bool OptionalApiKey,
     bool IsConfigured,
     bool HasKey,
     string? MaskedKey,

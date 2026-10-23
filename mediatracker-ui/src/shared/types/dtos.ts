@@ -242,6 +242,8 @@ export interface SourceInfo {
   description: string;
   mediaTypes: string[];
   requiresApiKey: boolean;
+  /** True when the source works without a key but can still use one (Steam). */
+  optionalApiKey: boolean;
   isConfigured: boolean;
   hasKey: boolean;
   maskedKey: string | null;

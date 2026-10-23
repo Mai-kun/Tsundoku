@@ -13,6 +13,7 @@ public sealed record MetadataSourceDescriptor(
     IReadOnlyList<string> MediaTypes,
     string BaseAddress,
     bool RequiresApiKey = false,
+    bool OptionalApiKey = false,
     bool IsDefault = false,
     int Priority = int.MaxValue,
     string? CanonicalName = null,
@@ -21,8 +22,8 @@ public sealed record MetadataSourceDescriptor(
 {
     /// <summary>
     /// Display name for a rating row. Usually <see cref="Name"/>, but a provider needs its own when
-    /// the settings label carries a qualifier the shorter rating label must not ("MyAnimeList (Jikan)"
-    /// in settings, "MyAnimeList" next to a score).
+    /// the settings label carries a qualifier the shorter rating label must not ("The Movie Database
+    /// (TMDb)" in settings, "TMDB" next to a score).
     /// </summary>
     public string RatingSourceName => string.IsNullOrWhiteSpace(CanonicalName) ? Name : CanonicalName;
 

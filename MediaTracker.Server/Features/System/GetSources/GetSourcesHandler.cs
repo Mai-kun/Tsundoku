@@ -18,7 +18,9 @@ public sealed class GetSourcesHandler(
             .Select(provider =>
             {
                 var key = options.Value.GetKey(provider.Id);
-                var hasKey = !provider.RequiresApiKey || !string.IsNullOrWhiteSpace(key);
+                // A provider that works without a key is always configured; HasKey only reflects
+                // whether an (optional) key was actually saved.
+                var hasKey = !string.IsNullOrWhiteSpace(key);
 
                 return new SourceInfo(
                     Id: provider.Id,
@@ -26,7 +28,8 @@ public sealed class GetSourcesHandler(
                     Description: provider.Description,
                     MediaTypes: [.. provider.MediaTypes],
                     RequiresApiKey: provider.RequiresApiKey,
-                    IsConfigured: hasKey,
+                    OptionalApiKey: provider.OptionalApiKey,
+                    IsConfigured: !provider.RequiresApiKey || hasKey,
                     HasKey: hasKey,
                     MaskedKey: ApiKeyMask.Mask(key),
                     IsEnabled: !disabled.Contains(provider.Id)

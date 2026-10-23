@@ -9,6 +9,7 @@ public interface IMetadataProvider
     string Description { get; }
     IReadOnlyList<string> MediaTypes { get; }
     bool RequiresApiKey { get; }
+    bool OptionalApiKey { get; }
     bool IsDefault { get; }
 
     Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string query, CancellationToken ct);

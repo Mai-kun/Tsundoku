@@ -989,6 +989,11 @@ export const translations = {
             filterAll: { ru: "Все типы", en: "All types" },
             noKeyRequired: { ru: "Ключ не требуется", en: "No API key needed" },
             keyRequired: { ru: "Требуется API ключ", en: "API key required" },
+            optionalKey: { ru: "Ключ необязателен", en: "API key optional" },
+            optionalKeyHint: {
+                ru: "Ключ необязателен (поиск, обложки и достижения работают без него). Нужен только для импорта вашей библиотеки по SteamID",
+                en: "API key is optional (search, covers & achievements work without it). Only needed for importing your library by SteamID",
+            },
             keyConfigured: { ru: "Ключ настроен (зашифрован в SQLite)", en: "API key configured (encrypted in SQLite)" },
             keyMissing: { ru: "Ключ не задан", en: "API key missing" },
             inputPlaceholder: { ru: "Введите API ключ...", en: "Enter API key..." },

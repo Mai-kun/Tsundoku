@@ -59,9 +59,6 @@ public sealed class GetExternalRelationsHandler(
         var isAnimeOrManga = query.Type is "anime" or "manga"
             || Mentions(query.Source, "anilist")
             || Mentions(query.Source, "shikimori")
-            || Mentions(query.Source, "myanimelist")
-            || Mentions(query.Source, "jikan")
-            || Mentions(query.Source, "mal")
             || Mentions(query.Source, "kitsu");
 
         // The frontend sends the bucket it used to pick sources from, so a film flagged as anime lands
@@ -75,9 +72,9 @@ public sealed class GetExternalRelationsHandler(
                 return Result<IReadOnlyList<ExternalRelationDto>>.Success([]);
             }
 
-            // Every anime/manga source in the dropdown is AniList looked up by a different id: MAL,
-            // Jikan and Shikimori all store MyAnimeList ids, so only a literal AniList pick is an
-            // AniList id. A MAL-shaped id sent as an AniList id silently matches the wrong title.
+            // Every anime/manga source in the dropdown stores someone else's id: Shikimori stores
+            // MyAnimeList ids, so only a literal AniList pick is an AniList id. A MAL-shaped id sent
+            // as an AniList id silently matches the wrong title.
             var idIsMal = !Mentions(query.Source, AniListMetadataProvider.Source.Id);
 
             if (wantsRecommendations)

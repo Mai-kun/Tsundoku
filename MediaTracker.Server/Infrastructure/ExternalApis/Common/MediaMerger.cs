@@ -1,5 +1,6 @@
 using System.Collections.Frozen;
 using MediaTracker.Server.Domain.Rules;
+using MediaTracker.Server.Features.Media.GetMediaStats;
 
 namespace MediaTracker.Server.Infrastructure.ExternalApis;
 
@@ -50,10 +51,10 @@ public static class MediaMerger
             return exactMatch;
         }
 
-        // Longest alias first: "thetvdb" must not be matched by the shorter "tvdb" of another entry,
-        // and enumerating the dictionary directly gave a non-deterministic winner between aliases
-        // that both appear in the input (e.g. "tvdb" is a substring of "thetvdb"). The comparison is
-        // ordinal-ignore-case rather than a lowercased haystack, which would allocate on every call.
+        // Longest alias first: longer aliases must not be beaten by a shorter match from another
+        // entry, and enumerating the dictionary directly gave a non-deterministic winner between
+        // aliases that both appear in the input. The comparison is ordinal-ignore-case rather than a
+        // lowercased haystack, which would allocate on every call.
         foreach (var (key, canonical) in CanonicalNamesByLength)
         {
             if (trimmed.Contains(key, StringComparison.OrdinalIgnoreCase))
@@ -150,7 +151,10 @@ public static class MediaMerger
             // Runtime was silently dropped here: a source without a runtime used to overwrite the
             // runtime the first source had already supplied, so the DB ended up with 0 minutes.
             RuntimeMinutes = primary.RuntimeMinutes ?? fallback.RuntimeMinutes,
-            Genres = primary.Genres?.Union(fallback.Genres ?? [], StringComparer.OrdinalIgnoreCase).Distinct(StringComparer.OrdinalIgnoreCase).ToList() ?? fallback.Genres ?? [],
+            // Union used to keep provider duplicates like "Action" + "Экшен" alive; the normalizer
+            // collapses them into one canonical genre.
+            Genres = GenreNormalizer.NormalizeList(
+                primary.Genres is { Count: > 0 } ? primary.Genres.Concat(fallback.Genres ?? []) : fallback.Genres),
             Tags = primary.Tags is { Count: > 0 } ? primary.Tags : fallback.Tags,
             // OEL can only come from the second source, so the plain "first wins" rule is wrong here.
             MangaFormat = MangaFormats.Pick(primary.MangaFormat, fallback.MangaFormat),
@@ -165,11 +169,11 @@ public static class MediaMerger
     /// Source-id fragments that pin a media type regardless of what the caller asked for. Static
     /// arrays rather than params: this runs once per source per enrichment, so no call may allocate.
     /// </summary>
-    private static readonly string[] GameSourceFragments = ["steam", "igdb"];
-    private static readonly string[] BookSourceFragments = ["google"];
+    private static readonly string[] GameSourceFragments = ["steam", "rawg"];
+    private static readonly string[] BookSourceFragments = ["openlibrary"];
     private static readonly string[] MangaSourceFragments = ["mangaupdates", "mangadex"];
-    private static readonly string[] AnimeSourceFragments = ["anilist", "jikan", "mal", "shikimori", "kitsu"];
-    private static readonly string[] MovieSourceFragments = ["kinopoisk", "imdb", "tvdb", "thetvdb"];
+    private static readonly string[] AnimeSourceFragments = ["anilist", "shikimori", "kitsu"];
+    private static readonly string[] MovieSourceFragments = ["kinopoisk", "imdb"];
 
     public static string NormalizeMediaType(string type, string? source = null)
     {

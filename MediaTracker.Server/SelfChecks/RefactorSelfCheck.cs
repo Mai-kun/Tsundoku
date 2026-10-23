@@ -507,21 +507,6 @@ public static class RefactorSelfCheck
 
     private static void CheckSourceAliases(List<string> failures)
     {
-        AssertEqual(failures, "jikan", MediaMerger.NormalizeSourceKey("MyAnimeList"), "MAL alias");
-        AssertEqual(failures, "jikan", MediaMerger.NormalizeSourceKey("mal"), "mal alias");
-        AssertEqual(failures, "thetvdb", MediaMerger.NormalizeSourceKey("TheTVDB"), "tvdb alias");
-        AssertEqual(
-            failures,
-            "thetvdb",
-            MediaMerger.NormalizeSourceKey("tvdb"),
-            "tvdb short alias"
-        );
-        AssertEqual(
-            failures,
-            "googlebooks",
-            MediaMerger.NormalizeSourceKey("google"),
-            "google alias"
-        );
         AssertEqual(
             failures,
             "tmdb",
@@ -540,18 +525,18 @@ public static class RefactorSelfCheck
             MediaMerger.NormalizeSourceKey("UnknownThing"),
             "unknown falls through"
         );
+        AssertEqual(
+            failures,
+            "mal",
+            MediaMerger.NormalizeSourceKey("mal"),
+            "removed sources fall through as plain keys"
+        );
 
         AssertEqual(
             failures,
-            "MyAnimeList",
-            MediaMerger.GetCanonicalSourceName("mal"),
+            "TMDB",
+            MediaMerger.GetCanonicalSourceName("The Movie Database"),
             "canonical exact"
-        );
-        AssertEqual(
-            failures,
-            "TheTVDB",
-            MediaMerger.GetCanonicalSourceName("thetvdb"),
-            "canonical longest-wins"
         );
         AssertEqual(
             failures,
@@ -627,31 +612,31 @@ public static class RefactorSelfCheck
         // exists to fill gaps for it. These two assertions pin the shipped order exactly.
         AssertEqual(
             failures,
-            "anilist,shikimori,kitsu,simkl,jikan",
+            "anilist,shikimori,kitsu,simkl",
             string.Join(',', SourcePriorityService.DefaultPriorities["anime"]),
             "anime cascade order"
         );
         AssertEqual(
             failures,
-            "tmdb,imdb,kinopoisk,simkl,thetvdb",
+            "tmdb,imdb,kinopoisk,simkl",
             string.Join(',', SourcePriorityService.DefaultPriorities["movie"]),
             "movie cascade order"
         );
         AssertEqual(
             failures,
-            "anilist,shikimori,kitsu,mangadex,mangaupdates,jikan",
+            "anilist,shikimori,kitsu,mangadex,mangaupdates",
             string.Join(',', SourcePriorityService.DefaultPriorities["manga"]),
             "manga cascade order"
         );
         AssertEqual(
             failures,
-            "rawg,steam,igdb",
+            "rawg,steam",
             string.Join(',', SourcePriorityService.DefaultPriorities["game"]),
             "game cascade order"
         );
         AssertEqual(
             failures,
-            "openlibrary,googlebooks",
+            "openlibrary",
             string.Join(',', SourcePriorityService.DefaultPriorities["book"]),
             "book cascade order"
         );
@@ -1892,7 +1877,6 @@ public static class RefactorSelfCheck
         var options = new ExternalApiOptions();
 
         options.SetKey("TMDB", "tmdb-secret");
-        options.SetKey("TheTVDB", "tvdb-secret");
         options.SetKey("steam", "steam-secret");
         options.SetKey("SomeCustomProvider", "custom-secret");
 
@@ -1903,12 +1887,6 @@ public static class RefactorSelfCheck
             options.GetKey("TMDB"),
             "built-in key resolves regardless of case"
         );
-        AssertEqual(
-            failures,
-            "tvdb-secret",
-            options.GetKey("thetvdb"),
-            "alias resolves to the same slot"
-        );
         AssertEqual(failures, "steam-secret", options.GetKey("steam"), "Steam key stored");
         AssertEqual(
             failures,
@@ -1918,11 +1896,11 @@ public static class RefactorSelfCheck
         );
         AssertEqual(failures, null, options.GetKey("unknown"), "unknown provider has no key");
 
-        options.SetKey(" igdb ", "igdb-secret");
+        options.SetKey(" somecustom ", "custom-secret");
         AssertEqual(
             failures,
-            "igdb-secret",
-            options.GetKey("igdb"),
+            "custom-secret",
+            options.GetKey("SomeCustomProvider"),
             "surrounding whitespace is trimmed"
         );
     }
@@ -3600,10 +3578,7 @@ public static class RefactorSelfCheck
                 KinopoiskApiKey = "test-key",
                 TmdbApiKey = "test-key",
                 RawgApiKey = "test-key",
-                IgdbApiKey = "test:secret",
-                SimklApiKey = "test-key",
-                TvdbApiKey = "test-key",
-                GoogleBooksApiKey = "test-key"
+                SimklApiKey = "test-key"
             });
 
             if (type == typeof(KinopoiskMetadataProvider))
@@ -3702,17 +3677,6 @@ public static class RefactorSelfCheck
                 return dto?.Genres is { Count: > 0 } && dto.Genres.Contains("Action");
             }
 
-            if (type == typeof(JikanMetadataProvider))
-            {
-                var factory = new StubHttpClientFactory(_ => Task.FromResult(new HttpResponseMessage
-                {
-                    Content = new StringContent("""{"data":{"mal_id":1,"title":"Cowboy Bebop","genres":[{"name":"Action"},{"name":"Sci-Fi"}]}}""")
-                }));
-                var provider = new JikanMetadataProvider(factory);
-                var dto = provider.GetDetailsAsync("1", "Cowboy Bebop", CancellationToken.None).GetAwaiter().GetResult();
-                return dto?.Genres is { Count: > 0 } && dto.Genres.Contains("Action");
-            }
-
             if (type == typeof(KitsuMetadataProvider))
             {
                 var factory = new StubHttpClientFactory(_ => Task.FromResult(new HttpResponseMessage
@@ -3722,32 +3686,6 @@ public static class RefactorSelfCheck
                 var provider = new KitsuMetadataProvider(factory);
                 var dto = provider.GetDetailsAsync("1", "Cowboy Bebop", CancellationToken.None).GetAwaiter().GetResult();
                 return dto?.Genres is { Count: > 0 } && dto.Genres.Contains("Action");
-            }
-
-            if (type == typeof(GoogleBooksMetadataProvider))
-            {
-                var factory = new StubHttpClientFactory(_ => Task.FromResult(new HttpResponseMessage
-                {
-                    Content = new StringContent("""{"id":"xyz","volumeInfo":{"title":"Dune","categories":["Fiction","Sci-Fi"]}}""")
-                }));
-                var provider = new GoogleBooksMetadataProvider(factory, apiOptions);
-                var dto = provider.GetDetailsAsync("xyz", "Dune", CancellationToken.None).GetAwaiter().GetResult();
-                return dto?.Genres is { Count: > 0 } && dto.Genres.Contains("Fiction");
-            }
-
-            if (type == typeof(IgdbMetadataProvider))
-            {
-                var factory = new StubHttpClientFactory(req =>
-                {
-                    if (req.RequestUri!.AbsoluteUri.Contains("token"))
-                    {
-                        return Task.FromResult(new HttpResponseMessage { Content = new StringContent("""{"access_token":"tok","expires_in":3600,"token_type":"bearer"}""") });
-                    }
-                    return Task.FromResult(new HttpResponseMessage { Content = new StringContent("""[{"id":10,"name":"Half-Life","genres":[{"id":1,"name":"Shooter"}]}]""") });
-                });
-                var provider = new IgdbMetadataProvider(factory, apiOptions);
-                var dtos = provider.SearchAsync("Half-Life", CancellationToken.None).GetAwaiter().GetResult();
-                return dtos.FirstOrDefault()?.Genres is { Count: > 0 } && dtos[0].Genres!.Contains("Shooter");
             }
 
             if (type == typeof(ImdbMetadataProvider))
@@ -3791,21 +3729,6 @@ public static class RefactorSelfCheck
                 var provider = new SimklMetadataProvider(factory, apiOptions);
                 var dto = provider.GetDetailsAsync("38714", "Breaking Bad", CancellationToken.None).GetAwaiter().GetResult();
                 return dto?.Genres is { Count: > 0 } && dto.Genres.Contains("drama");
-            }
-
-            if (type == typeof(TvdbMetadataProvider))
-            {
-                var factory = new StubHttpClientFactory(req =>
-                {
-                    if (req.RequestUri!.AbsoluteUri.Contains("login"))
-                    {
-                        return Task.FromResult(new HttpResponseMessage { Content = new StringContent("""{"data":{"token":"tok"}}""") });
-                    }
-                    return Task.FromResult(new HttpResponseMessage { Content = new StringContent("""{"data":[{"tvdb_id":"123","name":"Breaking Bad","genres":["Drama"]}]}""") });
-                });
-                var provider = new TvdbMetadataProvider(factory, apiOptions);
-                var dtos = provider.SearchAsync("Breaking Bad", CancellationToken.None).GetAwaiter().GetResult();
-                return dtos.FirstOrDefault()?.Genres is { Count: > 0 } && dtos[0].Genres!.Contains("Drama");
             }
 
             return false;

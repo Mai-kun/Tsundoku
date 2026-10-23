@@ -4,11 +4,8 @@ public sealed class ExternalApiOptions
 {
     public string TmdbApiKey { get; set; } = string.Empty;
     public string RawgApiKey { get; set; } = string.Empty;
-    public string GoogleBooksApiKey { get; set; } = string.Empty;
     public string SimklApiKey { get; set; } = string.Empty;
-    public string TvdbApiKey { get; set; } = string.Empty;
     public string KinopoiskApiKey { get; set; } = string.Empty;
-    public string IgdbApiKey { get; set; } = string.Empty;
     public string SteamApiKey { get; set; } = string.Empty;
 
     // OrdinalIgnoreCase already makes the lookup case-insensitive, so no lowercase copy of the id is
@@ -24,11 +21,8 @@ public sealed class ExternalApiOptions
 
         if (Is(id, "tmdb")) return TmdbApiKey;
         if (Is(id, "rawg")) return RawgApiKey;
-        if (Is(id, "googlebooks") || Is(id, "google")) return GoogleBooksApiKey;
         if (Is(id, "simkl")) return SimklApiKey;
-        if (Is(id, "tvdb") || Is(id, "thetvdb")) return TvdbApiKey;
         if (Is(id, "kinopoisk")) return KinopoiskApiKey;
-        if (Is(id, "igdb")) return IgdbApiKey;
         if (Is(id, "steam")) return SteamApiKey;
 
         return _customKeys.TryGetValue(id, out var key) ? key : null;
@@ -40,11 +34,8 @@ public sealed class ExternalApiOptions
 
         if (Is(id, "tmdb")) { TmdbApiKey = key; return; }
         if (Is(id, "rawg")) { RawgApiKey = key; return; }
-        if (Is(id, "googlebooks") || Is(id, "google")) { GoogleBooksApiKey = key; return; }
         if (Is(id, "simkl")) { SimklApiKey = key; return; }
-        if (Is(id, "tvdb") || Is(id, "thetvdb")) { TvdbApiKey = key; return; }
         if (Is(id, "kinopoisk")) { KinopoiskApiKey = key; return; }
-        if (Is(id, "igdb")) { IgdbApiKey = key; return; }
         if (Is(id, "steam")) { SteamApiKey = key; return; }
 
         _customKeys[id] = key;
@@ -54,11 +45,8 @@ public sealed class ExternalApiOptions
     {
         TmdbApiKey = string.Empty;
         RawgApiKey = string.Empty;
-        GoogleBooksApiKey = string.Empty;
         SimklApiKey = string.Empty;
-        TvdbApiKey = string.Empty;
         KinopoiskApiKey = string.Empty;
-        IgdbApiKey = string.Empty;
         SteamApiKey = string.Empty;
         _customKeys.Clear();
     }

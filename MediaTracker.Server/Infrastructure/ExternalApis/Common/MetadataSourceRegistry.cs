@@ -117,11 +117,14 @@ public static class MetadataSourceRegistry
     }
     /// <summary>
     /// HttpClient name == provider id. The old hand-written names disagreed with the ids in case and
-    /// spelling ("Tmdb" vs "tmdb", "TheTVDB" vs "thetvdb"), so every provider carried a literal that
+    /// spelling ("Tmdb" vs "tmdb"), so every provider carried a literal that
     /// could drift from its own id and quietly get a client with no BaseAddress.
     /// </summary>
     public static IServiceCollection ConfigureHttpClients(IServiceCollection services)
     {
+        // The per-call logger every external client pipes through (see ExternalHttpLoggingHandler).
+        services.AddTransient<ExternalHttpLoggingHandler>();
+
         foreach (var descriptor in All)
         {
             services.AddHttpClient(descriptor.Id, client =>
@@ -129,7 +132,7 @@ public static class MetadataSourceRegistry
                 client.BaseAddress = new Uri(descriptor.BaseAddress);
                 client.Timeout = ClientTimeout;
                 client.DefaultRequestHeaders.UserAgent.ParseAdd(descriptor.UserAgent ?? DefaultUserAgent);
-            });
+            }).AddHttpMessageHandler<ExternalHttpLoggingHandler>();
         }
 
         // Not a provider: the translation service has its own timeout and no base address.
@@ -137,7 +140,12 @@ public static class MetadataSourceRegistry
         {
             client.Timeout = TimeSpan.FromSeconds(8);
             client.DefaultRequestHeaders.UserAgent.ParseAdd(DefaultUserAgent);
-        });
+        }).AddHttpMessageHandler<ExternalHttpLoggingHandler>();
+
+        // Import endpoints (AniList profile / Steam URLs) carry absolute URLs without a base
+        // address but go through the same external traffic and the same logging treatment.
+        services.AddHttpClient("Import", client => client.Timeout = TimeSpan.FromSeconds(30))
+            .AddHttpMessageHandler<ExternalHttpLoggingHandler>();
 
         return services;
     }

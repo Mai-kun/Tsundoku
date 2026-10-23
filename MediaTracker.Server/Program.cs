@@ -123,7 +123,8 @@ try
 {
     var builder = WebApplication.CreateBuilder();
 
-    builder.Services.AddHttpClient("steam", client => client.Timeout = TimeSpan.FromSeconds(30));
+    builder.Services.AddHttpClient("steam", client => client.Timeout = TimeSpan.FromSeconds(30))
+        .AddHttpMessageHandler<ExternalHttpLoggingHandler>();
 
     builder.Host.UseSerilog();
 

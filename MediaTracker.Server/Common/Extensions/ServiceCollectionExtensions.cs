@@ -52,7 +52,8 @@ public static class ServiceCollectionExtensions
         services.AddHostedService<JobWorkerService>();
 
         services.AddHttpClient<IImageStorageService, ImageStorageService>(client =>
-            client.Timeout = TimeSpan.FromSeconds(5));
+            client.Timeout = TimeSpan.FromSeconds(5))
+            .AddHttpMessageHandler<ExternalHttpLoggingHandler>();
 
         services.AddScoped<IBackupService, BackupService>();
 

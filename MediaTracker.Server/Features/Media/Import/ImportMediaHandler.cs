@@ -9,6 +9,7 @@ using MediaTracker.Server.Domain.Rules;
 using MediaTracker.Server.Features.Media.Import.Parsers;
 using MediaTracker.Server.Infrastructure.ExternalApis;
 using MediaTracker.Server.Infrastructure.Persistence;
+using MediaTracker.Server.Features.Media.GetMediaStats;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
@@ -98,7 +99,8 @@ public sealed class ImportMediaHandler(
         if (string.IsNullOrWhiteSpace(username))
             return Result<ImportResultDto>.Failure(Error.Validation("Enter an AniList username."));
 
-        var client = clients.CreateClient();
+        // Named so the external-call logger (AddHttpMessageHandler on "Import") sees the traffic.
+        var client = clients.CreateClient("Import");
         var items = new List<ParsedMediaItemDto>();
         foreach (var type in new[] { "ANIME", "MANGA" })
         {
@@ -282,10 +284,14 @@ public sealed class ImportMediaHandler(
             modified = true;
         }
 
-        if (string.IsNullOrWhiteSpace(existing.Genres) && !string.IsNullOrWhiteSpace(parsed.Genres))
+        if (!string.IsNullOrWhiteSpace(parsed.Genres))
         {
-            existing.Genres = parsed.Genres;
-            modified = true;
+            var healedGenres = GenreNormalizer.NormalizeToCommaString(parsed.Genres);
+            if (string.IsNullOrWhiteSpace(existing.Genres) && healedGenres is not null)
+            {
+                existing.Genres = healedGenres;
+                modified = true;
+            }
         }
 
         var releaseDate = ParseDate(parsed.ReleaseDate);
@@ -451,7 +457,7 @@ public sealed class ImportMediaHandler(
         item.Score = dto.Score is >= 1 and <= 10 ? dto.Score : null;
         item.CoverUrl = dto.CoverUrl;
         item.Description = dto.Description;
-        item.Genres = dto.Genres;
+        item.Genres = GenreNormalizer.NormalizeToCommaString(dto.Genres) ?? item.Genres;
         var parsedReleaseDate = ParseDate(dto.ReleaseDate);
         item.SetReleaseDate(parsedReleaseDate, dto.ReleaseYear ?? ParseYear(dto.ReleaseDate));
         item.EndDate = ParseDate(dto.EndDate);

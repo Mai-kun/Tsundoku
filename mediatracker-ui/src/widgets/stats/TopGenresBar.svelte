@@ -1,6 +1,7 @@
 <script lang="ts">
     import { Sparkles } from "$shared/ui/Icons.svelte";
     import { i18n } from "$shared/i18n/index.svelte";
+    import { genreLabel } from "$entities/media/model/genreLabel";
 
     interface GenreItem {
         genre: string;
@@ -19,17 +20,6 @@
     const PALETTE = ["#f59e0b", "#06b6d4", "#6366f1", "#f43f5e", "#3b82f6", "#ec4899", "#10b981", "#8b5cf6"];
     const categories = ["all", "game", "movie", "series", "anime", "manga", "book"] as const;
     const displayGenres = $derived((selectedType === "all" ? genres : genresByType[selectedType] ?? []).slice(0, 8));
-
-    function genreLabel(genre: string): string {
-        const normalized = genre.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
-        const aliases: Record<string, string> = {
-            "sci fi": "sciFi", "slice of life": "sliceOfLife", "game show": "gameShow", "talk show": "talkShow",
-        };
-        const key = aliases[normalized] ?? normalized.replace(/\s+([a-z])/g, (_, letter: string) => letter.toUpperCase()).replace(/^([a-z])/, (_, letter: string) => letter.toLowerCase());
-        return key in i18n.t.stats.genres
-            ? i18n.t.stats.genres[key as keyof typeof i18n.t.stats.genres]
-            : genre;
-    }
 </script>
 
 <div class="bg-[#151a26] border border-white/5 rounded-xl p-5">

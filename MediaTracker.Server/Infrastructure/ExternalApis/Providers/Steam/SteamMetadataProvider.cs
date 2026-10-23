@@ -8,10 +8,11 @@ public sealed class SteamMetadataProvider(IHttpClientFactory httpClientFactory) 
     public static MetadataSourceDescriptor Source { get; } = new(
         Id: "steam",
         Name: "Steam",
-        Description: "PC games metadata and Steam Community reviews provider",
+        Description: "PC games metadata, store reviews & achievements (API key optional — only needed for Steam profile library import)",
         MediaTypes: ["game"],
         BaseAddress: "https://store.steampowered.com/api/",
-        RequiresApiKey: true,
+        RequiresApiKey: false,
+        OptionalApiKey: true,
         Priority: 2);
 
     public override async Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string query, CancellationToken ct)
@@ -200,101 +201,5 @@ public sealed class SteamMetadataProvider(IHttpClientFactory httpClientFactory) 
         if (genres?.Any(g => g.Id == "73" || g.Description?.Contains("Early Access", StringComparison.OrdinalIgnoreCase) == true) == true)
             return "Early Access";
         return "Full Release";
-    }
-
-    private sealed class SteamStoreSearchResponse
-    {
-        [JsonPropertyName("items")]
-        public List<SteamSearchItem>? Items { get; set; }
-    }
-
-    private sealed class SteamSearchItem
-    {
-        [JsonPropertyName("id")]
-        public long Id { get; set; }
-
-        [JsonPropertyName("name")]
-        public string Name { get; set; } = string.Empty;
-
-        [JsonPropertyName("tiny_image")]
-        public string? TinyImage { get; set; }
-
-        [JsonPropertyName("metascore")]
-        public string? Metascore { get; set; }
-    }
-
-    private sealed class SteamAppDetailsWrapper
-    {
-        [JsonPropertyName("success")]
-        public bool Success { get; set; }
-
-        [JsonPropertyName("data")]
-        public SteamAppDetails? Data { get; set; }
-    }
-
-    private sealed class SteamAppDetails
-    {
-        [JsonPropertyName("name")]
-        public string? Name { get; set; }
-
-        [JsonPropertyName("short_description")]
-        public string? ShortDescription { get; set; }
-
-        [JsonPropertyName("detailed_description")]
-        public string? DetailedDescription { get; set; }
-
-        [JsonPropertyName("header_image")]
-        public string? HeaderImage { get; set; }
-
-        [JsonPropertyName("developers")]
-        public List<string>? Developers { get; set; }
-
-        [JsonPropertyName("release_date")]
-        public SteamReleaseDate? ReleaseDate { get; set; }
-
-        [JsonPropertyName("genres")]
-        public List<SteamGenre>? Genres { get; set; }
-
-        [JsonPropertyName("metacritic")]
-        public SteamMetacritic? Metacritic { get; set; }
-    }
-
-    private sealed class SteamGenre
-    {
-        [JsonPropertyName("id")]
-        public string? Id { get; set; }
-
-        [JsonPropertyName("description")]
-        public string? Description { get; set; }
-    }
-
-    private sealed class SteamReleaseDate
-    {
-        [JsonPropertyName("date")]
-        public string? Date { get; set; }
-
-        [JsonPropertyName("coming_soon")]
-        public bool ComingSoon { get; set; }
-    }
-
-    private sealed class SteamMetacritic
-    {
-        [JsonPropertyName("score")]
-        public double? Score { get; set; }
-    }
-
-    private sealed class SteamReviewsResponse
-    {
-        [JsonPropertyName("query_summary")]
-        public SteamReviewSummary? QuerySummary { get; set; }
-    }
-
-    private sealed class SteamReviewSummary
-    {
-        [JsonPropertyName("total_reviews")]
-        public int TotalReviews { get; set; }
-
-        [JsonPropertyName("total_positive")]
-        public int TotalPositive { get; set; }
     }
 }

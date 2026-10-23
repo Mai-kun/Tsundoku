@@ -89,6 +89,7 @@ public sealed class MetadataAggregatorService(
             {
                 using var providerCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
                 providerCts.CancelAfter(SearchFallbackTimeout);
+                ExternalApiLog.Querying(logger, provider.Name, normalizedType, normalizedQuery);
                 var sw = Stopwatch.StartNew();
                 results = byCreator
                     ? await provider.SearchByCreatorAsync(normalizedQuery, providerCts.Token)
@@ -436,6 +437,7 @@ public sealed class MetadataAggregatorService(
             {
                 using var providerCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
                 providerCts.CancelAfter(SearchFallbackTimeout);
+                ExternalApiLog.Querying(logger, provider.Name, type, query);
                 var results = byCreator
                     ? await provider.SearchByCreatorAsync(query, providerCts.Token)
                     : await provider.SearchAsync(query, providerCts.Token);

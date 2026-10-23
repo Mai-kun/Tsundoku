@@ -2,11 +2,6 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace MediaTracker.Server.Infrastructure.ExternalApis;
 
-public interface IMetadataProviderResolver
-{
-    IMetadataProvider? Resolve(string type, string? source = null);
-}
-
 public sealed class MetadataProviderResolver(IServiceProvider serviceProvider) : IMetadataProviderResolver
 {
     public IMetadataProvider? Resolve(string type, string? source = null)

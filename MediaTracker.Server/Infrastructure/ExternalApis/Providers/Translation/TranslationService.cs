@@ -6,11 +6,6 @@ using Microsoft.Extensions.Caching.Memory;
 
 namespace MediaTracker.Server.Infrastructure.ExternalApis;
 
-public interface ITranslationService
-{
-    Task<string> TranslateAsync(string text, string targetLanguage, CancellationToken ct = default);
-}
-
 public sealed partial class TranslationService(
     IHttpClientFactory httpClientFactory,
     IMemoryCache cache,

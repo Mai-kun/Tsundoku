@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
@@ -24,6 +26,51 @@ public sealed partial class RawgMetadataProvider(
 
     [GeneratedRegex(@"store\.steampowered\.com/app/(\d+)", RegexOptions.IgnoreCase)]
     private static partial Regex SteamAppIdRegex();
+
+    /// <summary>Real endpoint probe: a missing key used to read as "reachable in 0 ms".</summary>
+    public override async Task<ConnectionTestResult> TestConnectionAsync(CancellationToken ct)
+    {
+        var apiKey = options.Value.RawgApiKey;
+        if (string.IsNullOrWhiteSpace(apiKey))
+        {
+            return new ConnectionTestResult(false, 0, "API-ключ RAWG не указан");
+        }
+
+        var sw = Stopwatch.StartNew();
+        try
+        {
+            var client = httpClientFactory.CreateClient(Id);
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            timeoutCts.CancelAfter(TimeSpan.FromSeconds(5));
+            using var resp = await client.GetAsync(
+                $"games?page_size=1&key={Uri.EscapeDataString(apiKey)}",
+                HttpCompletionOption.ResponseHeadersRead, timeoutCts.Token);
+            sw.Stop();
+
+            if (resp.IsSuccessStatusCode)
+            {
+                return new ConnectionTestResult(true, (int)sw.ElapsedMilliseconds, "OK");
+            }
+
+            if (resp.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+            {
+                return new ConnectionTestResult(false, (int)sw.ElapsedMilliseconds, "Недействительный API-ключ RAWG");
+            }
+
+            return new ConnectionTestResult(false, (int)sw.ElapsedMilliseconds,
+                $"RAWG вернул HTTP {(int)resp.StatusCode} ({resp.ReasonPhrase})");
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            sw.Stop();
+            return new ConnectionTestResult(false, (int)sw.ElapsedMilliseconds, "Таймаут — RAWG не отвечает");
+        }
+        catch (Exception ex)
+        {
+            sw.Stop();
+            return new ConnectionTestResult(false, (int)sw.ElapsedMilliseconds, ex.Message);
+        }
+    }
 
     public override async Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string query, CancellationToken ct)
     {
@@ -221,47 +268,4 @@ public sealed partial class RawgMetadataProvider(
         var names = entities?.Select(entity => entity.Name).Where(name => !string.IsNullOrWhiteSpace(name)).ToList();
         return names is { Count: > 0 } ? string.Join(", ", names) : null;
     }
-
-    private sealed record RawgResponse(List<RawgGame>? Results);
-
-    private sealed record RawgGame(
-        long Id,
-        string? Name,
-        [property: JsonPropertyName("name_original")] string? NameOriginal,
-        string? Released,
-        bool? Tba,
-        [property: JsonPropertyName("background_image")] string? BackgroundImage,
-        [property: JsonPropertyName("description_raw")] string? DescriptionRaw,
-        string? Description,
-        double? Rating,
-        [property: JsonPropertyName("ratings_count")] int? RatingsCount,
-        [property: JsonPropertyName("parent_platforms")] List<RawgParentPlatform>? ParentPlatforms,
-        [property: JsonPropertyName("genres")] List<RawgGenre>? Genres,
-        [property: JsonPropertyName("stores")] List<RawgGameStoreWrapper>? Stores,
-        // Present in the details payload only; search results leave it null.
-        [property: JsonPropertyName("developers")] List<RawgNamedEntity>? Developers);
-
-    private sealed record RawgGameStoreWrapper(
-        [property: JsonPropertyName("url")] string? Url,
-        [property: JsonPropertyName("store")] RawgStoreInfo? Store);
-
-    private sealed record RawgStoreInfo(
-        [property: JsonPropertyName("id")] long? Id,
-        [property: JsonPropertyName("name")] string? Name,
-        [property: JsonPropertyName("slug")] string? Slug,
-        [property: JsonPropertyName("domain")] string? Domain,
-        [property: JsonPropertyName("url")] string? Url);
-
-    private sealed record RawgStoresResponse(List<RawgStoreLink>? Results);
-
-    private sealed record RawgStoreLink(
-        [property: JsonPropertyName("url")] string? Url);
-
-    private sealed record RawgGenre(string? Name);
-
-    private sealed record RawgNamedEntity(string? Name);
-
-    private sealed record RawgParentPlatform(RawgPlatform? Platform);
-
-    private sealed record RawgPlatform(string? Name);
 }

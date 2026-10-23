@@ -130,34 +130,4 @@ public sealed class TmdbRelationService(
             return [];
         }
     }
-
-    private sealed class TmdbPage
-    {
-        public List<TmdbRelationItem>? Results { get; set; }
-    }
-
-    private sealed class TmdbRelationItem
-    {
-        [JsonPropertyName("id")]
-        public long? Id { get; set; }
-
-        [JsonPropertyName("title")]
-        public string? Title { get; set; }
-
-        [JsonPropertyName("poster_path")]
-        public string? PosterPath { get; set; }
-
-        [JsonPropertyName("release_date")]
-        public string? ReleaseDate { get; set; }
-
-        [JsonPropertyName("first_air_date")]
-        public string? FirstAirDate { get; set; }
-
-        [JsonPropertyName("vote_average")]
-        public double? VoteAverage { get; set; }
-
-        /// <summary>Films spell it "title", series spell it "name"; the mapper reads whichever is set.</summary>
-        public string? Name { get; set; }
-
-    }
 }

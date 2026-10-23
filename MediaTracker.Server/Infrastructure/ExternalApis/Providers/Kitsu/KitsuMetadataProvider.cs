@@ -149,22 +149,4 @@ public sealed class KitsuMetadataProvider(
             target.AddRange(s.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
         }
     }
-
-    private sealed record KitsuSearchResponse(List<KitsuData>? Data);
-    private sealed record KitsuSingleResponse(KitsuData? Data);
-    private sealed record KitsuData(string? Id, KitsuAttributes? Attributes);
-    private sealed record KitsuAttributes(
-        [property: JsonPropertyName("canonicalTitle")] string? CanonicalTitle,
-        [property: JsonPropertyName("synopsis")] string? Synopsis,
-        [property: JsonPropertyName("averageRating")] string? AverageRating,
-        [property: JsonPropertyName("userCount")] int? UserCount,
-        [property: JsonPropertyName("startDate")] string? StartDate,
-        [property: JsonPropertyName("endDate")] string? EndDate,
-        [property: JsonPropertyName("status")] string? Status,
-        [property: JsonPropertyName("posterImage")] KitsuPosterImage? PosterImage,
-        [property: JsonPropertyName("episodeCount")] int? EpisodeCount,
-        [property: JsonPropertyName("episodeLength")] int? EpisodeLength,
-        [property: JsonPropertyName("categories")] JsonElement? Categories,
-        [property: JsonPropertyName("genres")] JsonElement? Genres);
-    private sealed record KitsuPosterImage(string? Large, string? Original);
 }

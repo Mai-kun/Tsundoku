@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.DependencyInjection;
@@ -26,6 +28,51 @@ public sealed class TmdbMetadataProvider(
         Aliases: ["movie database"]);
 
     private readonly string mediaType = serviceKey?.StartsWith("movie", StringComparison.OrdinalIgnoreCase) is true ? "movie" : "tvshow";
+
+    /// <summary>Real endpoint probe: a missing or rejected key used to read as "reachable in 0 ms".</summary>
+    public override async Task<ConnectionTestResult> TestConnectionAsync(CancellationToken ct)
+    {
+        var apiKey = options.Value.TmdbApiKey;
+        if (string.IsNullOrWhiteSpace(apiKey))
+        {
+            return new ConnectionTestResult(false, 0, "API-ключ TMDb не указан");
+        }
+
+        var sw = Stopwatch.StartNew();
+        try
+        {
+            var client = httpClientFactory.CreateClient(Id);
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            timeoutCts.CancelAfter(TimeSpan.FromSeconds(5));
+            using var resp = await client.GetAsync(
+                $"configuration?api_key={Uri.EscapeDataString(apiKey)}",
+                HttpCompletionOption.ResponseHeadersRead, timeoutCts.Token);
+            sw.Stop();
+
+            if (resp.IsSuccessStatusCode)
+            {
+                return new ConnectionTestResult(true, (int)sw.ElapsedMilliseconds, "OK");
+            }
+
+            if (resp.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+            {
+                return new ConnectionTestResult(false, (int)sw.ElapsedMilliseconds, "Недействительный API-ключ TMDb");
+            }
+
+            return new ConnectionTestResult(false, (int)sw.ElapsedMilliseconds,
+                $"TMDb вернул HTTP {(int)resp.StatusCode} ({resp.ReasonPhrase})");
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            sw.Stop();
+            return new ConnectionTestResult(false, (int)sw.ElapsedMilliseconds, "Таймаут — TMDb не отвечает");
+        }
+        catch (Exception ex)
+        {
+            sw.Stop();
+            return new ConnectionTestResult(false, (int)sw.ElapsedMilliseconds, ex.Message);
+        }
+    }
 
     public override async Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string query, CancellationToken ct)
     {
@@ -188,52 +235,4 @@ public sealed class TmdbMetadataProvider(
 
     private static int? ParseYear(string? date) =>
         date is { Length: >= 4 } && int.TryParse(date[..4], out var year) ? year : null;
-
-    private sealed record TmdbResponse(List<TmdbItem>? Results);
-
-    private sealed record TmdbItem(
-        long Id,
-        string? Title,
-        [property: JsonPropertyName("original_title")] string? OriginalTitle,
-        string? Name,
-        [property: JsonPropertyName("original_name")] string? OriginalName,
-        string? Overview,
-        [property: JsonPropertyName("poster_path")] string? PosterPath,
-        [property: JsonPropertyName("release_date")] string? ReleaseDate,
-        [property: JsonPropertyName("first_air_date")] string? FirstAirDate,
-        [property: JsonPropertyName("last_air_date")] string? LastAirDate,
-        [property: JsonPropertyName("vote_average")] double? VoteAverage,
-        [property: JsonPropertyName("vote_count")] int? VoteCount,
-        [property: JsonPropertyName("runtime")] int? Runtime,
-        [property: JsonPropertyName("number_of_episodes")] int? NumberOfEpisodes,
-        [property: JsonPropertyName("status")] string? Status,
-        [property: JsonPropertyName("production_companies")] List<TmdbNamedItem>? ProductionCompanies,
-        [property: JsonPropertyName("networks")] List<TmdbNamedItem>? Networks,
-        [property: JsonPropertyName("genres")] List<TmdbNamedItem>? Genres,
-        [property: JsonPropertyName("original_language")] string? OriginalLanguage,
-        [property: JsonPropertyName("credits")] TmdbCredits? Credits,
-        [property: JsonPropertyName("videos")] TmdbVideos? Videos);
-
-    private sealed record TmdbVideos([property: JsonPropertyName("results")] List<TmdbVideo>? Results);
-
-    private sealed record TmdbVideo(string? Site, string? Type, string? Key);
-
-    private sealed record TmdbCredits(
-        [property: JsonPropertyName("cast")] List<TmdbCastMember>? Cast,
-        [property: JsonPropertyName("crew")] List<TmdbCrewMember>? Crew);
-
-    private sealed record TmdbCrewMember(
-        [property: JsonPropertyName("name")] string? Name,
-        [property: JsonPropertyName("job")] string? Job,
-        [property: JsonPropertyName("profile_path")] string? ProfilePath);
-
-    private sealed record TmdbCastMember(
-        [property: JsonPropertyName("name")] string? Name,
-        [property: JsonPropertyName("character")] string? Character,
-        [property: JsonPropertyName("profile_path")] string? ProfilePath);
-
-    private sealed record TmdbNamedItem(
-        [property: JsonPropertyName("id")] long Id,
-        [property: JsonPropertyName("name")] string? Name,
-        [property: JsonPropertyName("logo_path")] string? LogoPath);
 }

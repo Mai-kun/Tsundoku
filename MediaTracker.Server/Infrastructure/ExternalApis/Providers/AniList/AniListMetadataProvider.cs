@@ -1,5 +1,4 @@
 using System.Net.Http.Json;
-using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using MediaTracker.Server.Domain.Rules;
 using Microsoft.Extensions.DependencyInjection;
@@ -20,139 +19,12 @@ public sealed partial class AniListMetadataProvider(
         Priority: 1);
 
     private readonly string mediaType = serviceKey?.StartsWith("manga", StringComparison.OrdinalIgnoreCase) is true ? "manga" : "anime";
-
-    private const string MediaFields = """
-        id
-        type
-        format
-        title { romaji english native }
-        description(asHtml: false)
-        trailer { id site }
-        coverImage { extraLarge }
-        startDate { year month day }
-        endDate { year month day }
-        status
-        countryOfOrigin
-        duration
-        episodes
-        chapters
-        volumes
-        averageScore
-        meanScore
-        streamingEpisodes { title }
-        studios(isMain: true) { nodes { name } }
-        staff(perPage: 10, sort: [RELEVANCE, ID]) { edges { role node { name { full } image { large medium } } } }
-        characters(perPage: 12, sort: [ROLE, RELEVANCE, ID]) {
-          edges {
-            role
-            node { name { full } image { large medium } }
-            voiceActors(language: JAPANESE, sort: [RELEVANCE, ID]) { name { full } image { large medium } }
-          }
-        }
-        genres
-        """;
-
-    private const string GraphQLSearchQuery = $$"""
-        query Search($search: String, $type: MediaType) {
-          Page(perPage: 10) {
-            media(search: $search, type: $type, sort: SEARCH_MATCH) {
-              {{MediaFields}}
-            }
-          }
-        }
-        """;
-
-    /// <summary>A leaner field set for the studio/author listing: no cast or episodes, just the work.</summary>
-    private const string CreatorMediaFields = """
-        id
-        type
-        format
-        title { romaji english native }
-        description(asHtml: false)
-        coverImage { extraLarge }
-        startDate { year month day }
-        endDate { year month day }
-        status
-        countryOfOrigin
-        duration
-        episodes
-        chapters
-        volumes
-        averageScore
-        studios(isMain: true) { nodes { name } }
-        staff(perPage: 1) { edges { role node { name { full } } } }
-        """;
-
-    private const string GraphQLStudioSearchQuery = $$"""
-        query StudioWorks($search: String) {
-          Studio(search: $search) {
-            name
-            media(sort: POPULARITY_DESC, perPage: 15) {
-              nodes { {{CreatorMediaFields}} }
-            }
-          }
-        }
-        """;
-
-    private const string GraphQLStaffSearchQuery = $$"""
-        query StaffWorks($search: String) {
-          Staff(search: $search) {
-            name { full }
-            staffMedia(sort: POPULARITY_DESC, perPage: 15) {
-              nodes { {{CreatorMediaFields}} }
-            }
-          }
-        }
-        """;
-
-    private const string GraphQLDetailQuery = $$"""
-        query Detail($id: Int, $type: MediaType) {
-          Media(id: $id, type: $type) {
-            {{MediaFields}}
-          }
-        }
-        """;
-
-    private const string GraphQLRelationsQuery = $$"""
-        query Relations($id: Int, $idMal: Int, $search: String, $type: MediaType) {
-          Media(id: $id, idMal: $idMal, search: $search, type: $type) {
-            relations {
-              edges {
-                relationType
-                node {
-                  {{MediaFields}}
-                }
-              }
-            }
-          }
-        }
-        """;
-
-    private const string GraphQLRecommendationsQuery = $$"""
-        query Recommendations($id: Int, $idMal: Int, $search: String, $type: MediaType) {
-          Media(id: $id, idMal: $idMal, search: $search, type: $type) {
-            recommendations(sort: RATING_DESC, perPage: 12) {
-              nodes {
-                rating
-                mediaRecommendation {
-                  id
-                  type
-                  title { romaji english native }
-                  coverImage { extraLarge }
-                  averageScore
-                }
-              }
-            }
-          }
-        }
-        """;
-
     public override async Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string query, CancellationToken ct)
     {
         var client = httpClientFactory.CreateClient(Id);
         var payload = new
         {
-            query = GraphQLSearchQuery,
+            query = AniListGraphQlQueries.GraphQLSearchQuery,
             variables = new { search = query, type = mediaType == "anime" ? "ANIME" : "MANGA" },
         };
 
@@ -195,7 +67,7 @@ public sealed partial class AniListMetadataProvider(
         {
             var payload = new
             {
-                query = mediaType == "anime" ? GraphQLStudioSearchQuery : GraphQLStaffSearchQuery,
+                query = mediaType == "anime" ? AniListGraphQlQueries.GraphQLStudioSearchQuery : AniListGraphQlQueries.GraphQLStaffSearchQuery,
                 variables = new { search = clean },
             };
 
@@ -245,7 +117,7 @@ public sealed partial class AniListMetadataProvider(
             var client = httpClientFactory.CreateClient(Id);
             var payload = new
             {
-                query = GraphQLDetailQuery,
+                query = AniListGraphQlQueries.GraphQLDetailQuery,
                 variables = new { id, type = mediaType == "anime" ? "ANIME" : "MANGA" }
             };
 
@@ -282,15 +154,15 @@ public sealed partial class AniListMetadataProvider(
         CancellationToken ct)
     {
         var edges = (await QueryAsync<AniListRelationsResponse, AniListRelationsData>(
-                GraphQLRelationsQuery,
+                AniListGraphQlQueries.GraphQLRelationsQuery,
                 LookupVariables(externalId, externalIdIsMal, title),
                 ct)
             ?? (externalIdIsMal ? null : await QueryAsync<AniListRelationsResponse, AniListRelationsData>(
-                GraphQLRelationsQuery,
+                AniListGraphQlQueries.GraphQLRelationsQuery,
                 LookupVariables(externalId, true, title),
                 ct))
             ?? await QueryAsync<AniListRelationsResponse, AniListRelationsData>(
-                GraphQLRelationsQuery,
+                AniListGraphQlQueries.GraphQLRelationsQuery,
                 SearchOnly(title),
                 ct))?.Media?.Relations?.Edges ?? [];
 
@@ -321,15 +193,15 @@ public sealed partial class AniListMetadataProvider(
         CancellationToken ct)
     {
         var nodes = (await QueryAsync<AniListRecommendationsResponse, AniListRecommendationsData>(
-                GraphQLRecommendationsQuery,
+                AniListGraphQlQueries.GraphQLRecommendationsQuery,
                 LookupVariables(externalId, externalIdIsMal, title),
                 ct)
             ?? (externalIdIsMal ? null : await QueryAsync<AniListRecommendationsResponse, AniListRecommendationsData>(
-                GraphQLRecommendationsQuery,
+                AniListGraphQlQueries.GraphQLRecommendationsQuery,
                 LookupVariables(externalId, true, title),
                 ct))
             ?? await QueryAsync<AniListRecommendationsResponse, AniListRecommendationsData>(
-                GraphQLRecommendationsQuery,
+                AniListGraphQlQueries.GraphQLRecommendationsQuery,
                 SearchOnly(title),
                 ct))?.Media?.Recommendations?.Nodes ?? [];
 
@@ -398,12 +270,6 @@ public sealed partial class AniListMetadataProvider(
         {
             return null;
         }
-    }
-
-    private interface IAniListEnvelope<TData>
-        where TData : class
-    {
-        TData? Data { get; }
     }
 
     private static string NormalizeType(string? aniListType) =>
@@ -639,97 +505,4 @@ public sealed partial class AniListMetadataProvider(
         if (day is not { } d) return $"{y:D4}-{m:D2}";
         return $"{y:D4}-{m:D2}-{d:D2}";
     }
-
-    private sealed record AniListSearchResponse(AniListData? Data);
-    private sealed record AniListDetailResponse(AniListDetailData? Data);
-    private sealed record AniListDetailData(AniListMedia? Media);
-    private sealed record AniListData(AniListPage? Page);
-    private sealed record AniListPage(List<AniListMedia>? Media);
-
-    private sealed record AniListCreatorSearchResponse(AniListCreatorData? Data);
-    private sealed record AniListCreatorData(AniListStudioPayload? Studio, AniListStaffPayload? Staff);
-    private sealed record AniListStudioPayload(string? Name, AniListCreatorMediaConnection? Media);
-    private sealed record AniListStaffPayload(AniListName? Name, AniListCreatorMediaConnection? StaffMedia);
-    private sealed record AniListCreatorMediaConnection(List<AniListMedia>? Nodes);
-
-    private sealed record AniListRelationsResponse(AniListRelationsData? Data)
-        : IAniListEnvelope<AniListRelationsData>;
-
-    private sealed record AniListRelationsData(AniListRelationsPayload? Media);
-
-    private sealed record AniListRelationsPayload(AniListRelationEdges? Relations);
-
-    private sealed record AniListRelationEdges(List<AniListRelationEdge?>? Edges);
-
-    private sealed record AniListRelationEdge(string? RelationType, AniListMedia? Node);
-
-    private sealed record AniListRecommendationsResponse(AniListRecommendationsData? Data)
-        : IAniListEnvelope<AniListRecommendationsData>;
-
-    private sealed record AniListRecommendationsData(AniListRecommendationsPayload? Media);
-
-    private sealed record AniListRecommendationsPayload(AniListRecommendationNodes? Recommendations);
-
-    private sealed record AniListRecommendationNodes(List<AniListRecommendationNode?>? Nodes);
-
-    private sealed record AniListRecommendationNode(double? Rating, AniListRecommendedMedia? MediaRecommendation);
-
-    private sealed record AniListRecommendedMedia(
-        int Id,
-        string? Type,
-        AniListTitle? Title,
-        AniListCoverImage? CoverImage,
-        int? AverageScore);
-
-    private sealed record AniListMedia(
-        int Id,
-        string? Type,
-        string? Format,
-        AniListTitle? Title,
-        string? Description,
-        AniListTrailer? Trailer,
-        AniListCoverImage? CoverImage,
-        AniListDate? StartDate,
-        AniListDate? EndDate,
-        string? Status,
-        string? CountryOfOrigin,
-        int? Duration,
-        int? Episodes,
-        int? Chapters,
-        int? Volumes,
-        int? AverageScore,
-        int? MeanScore,
-        List<AniListStreamingEpisode>? StreamingEpisodes,
-        AniListStudios? Studios,
-        AniListStaff? Staff,
-        AniListCharacters? Characters,
-        List<string>? Genres);
-
-    private sealed record AniListStreamingEpisode(string? Title);
-    private sealed record AniListTrailer(string? Id, string? Site);
-    private sealed record AniListTitle(string? Romaji, string? English, string? Native);
-    private sealed record AniListCoverImage(string? ExtraLarge);
-    private sealed record AniListDate(int? Year, int? Month, int? Day);
-    private sealed record AniListStudios(List<AniListStudio>? Nodes);
-    private sealed record AniListStudio(string? Name);
-    private sealed record AniListStaff(List<AniListStaffEdge>? Edges);
-    private sealed record AniListStaffEdge(string? Role, AniListStaffNode? Node);
-    private sealed record AniListStaffNode(AniListName? Name, AniListCharacterImage? Image);
-    private sealed record AniListCharacters(List<AniListCharacterEdge>? Edges);
-    private sealed record AniListCharacterEdge(string? Role, AniListCharacter? Node, List<AniListVoiceActor>? VoiceActors);
-    private sealed record AniListCharacter(AniListName? Name, AniListCharacterImage? Image);
-    private sealed record AniListVoiceActor(AniListName? Name, AniListCharacterImage? Image);
-    private sealed record AniListCharacterImage(string? Large, string? Medium)
-    {
-        /// <summary>Large when the source has one: small portraits blur in the big people cards.</summary>
-        public string? Best => Large ?? Medium;
-    }
-    private sealed record AniListName(string? Full);
-
-    private sealed record KitsuSearchResponse(List<KitsuData>? Data);
-    private sealed record KitsuData(KitsuAttributes? Attributes);
-    private sealed record KitsuAttributes(
-        [property: JsonPropertyName("canonicalTitle")] string? CanonicalTitle,
-        [property: JsonPropertyName("averageRating")] string? AverageRating,
-        [property: JsonPropertyName("userCount")] int? UserCount);
 }

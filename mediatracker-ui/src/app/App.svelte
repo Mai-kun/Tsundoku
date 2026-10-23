@@ -458,7 +458,7 @@
             onOpenMedia={(mediaId) => openDetailById(mediaId)}
         />
     {:else if renderedView === "calendar"}
-        <CalendarView />
+        <CalendarView onOpenMedia={(id) => openDetailById(id)} />
     {/if}
 </AppShell>
 

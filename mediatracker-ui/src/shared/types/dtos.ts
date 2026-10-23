@@ -283,4 +283,30 @@ export interface CreateApiTokenResponse {
   rawToken: string;
 }
 
+export type CalendarEventKind = "auto_refresh" | "air_date" | "release";
+
+export interface CalendarItemDto {
+  mediaId: string;
+  title: string;
+  type: string;
+  coverUrl: string | null;
+  currentProgress: number | null;
+  totalCount: number | null;
+  kind: CalendarEventKind;
+  details: string | null;
+  episodeNumber: number | null;
+  seasonNumber: number | null;
+}
+
+export interface CalendarDayDto {
+  date: string; // "YYYY-MM-DD"
+  items: CalendarItemDto[];
+}
+
+export interface CalendarScheduleDto {
+  from: string;
+  to: string;
+  days: CalendarDayDto[];
+}
+
 

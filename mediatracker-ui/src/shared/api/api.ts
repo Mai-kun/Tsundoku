@@ -29,6 +29,7 @@ import type {
   AniListProfilePayload,
   CreatorRole,
   CreatorSummaryDto,
+  CalendarScheduleDto,
 } from "$shared/types";
 
 const mediaEndpoint = "/api/media";
@@ -553,6 +554,21 @@ export function getMediaRecommendations(
   return requestJson<ExternalRecommendation[]>(
     `/api/media/${id}/recommendations?${query.toString()}`,
     { method: "POST" },
+  );
+}
+
+export function getCalendar(
+  from?: string,
+  to?: string,
+  signal?: AbortSignal,
+): Promise<CalendarScheduleDto> {
+  const params = new URLSearchParams();
+  if (from) params.set("from", from);
+  if (to) params.set("to", to);
+  const query = params.toString();
+  return requestJson<CalendarScheduleDto>(
+    `${mediaEndpoint}/calendar${query ? `?${query}` : ""}`,
+    { signal },
   );
 }
 

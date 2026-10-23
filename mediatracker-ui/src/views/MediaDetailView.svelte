@@ -2210,6 +2210,11 @@ import RelinkSourceModal from "$widgets/media-detail/RelinkSourceModal.svelte";
                 {deleteBusy}
                 {deleteError}
                 onDelete={removeMedia}
+                onAutoRefreshed={(updated) => {
+                    media = updated;
+                    syncFrom(updated);
+                    onUpdate();
+                }}
                 {onNavigate}
                 specRows={specRows(media)}
                 syncing={isSyncing}

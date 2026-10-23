@@ -687,6 +687,16 @@ export const translations = {
     },
     detail: {
         eyebrow: { ru: "Карточка медиа", en: "Media details" },
+        autoRefreshTitle: { ru: "Автообновление", en: "Auto-refresh" },
+        autoRefreshInterval: {
+            ru: (days: number) => `раз в ${days} дн.`,
+            en: (days: number) => `every ${days} days`,
+        },
+        autoRefreshHiatus: { ru: "На паузе у автора", en: "On hiatus" },
+        autoRefreshFinished: { ru: "Релиз завершён", en: "Release finished" },
+        autoRefreshFinishedHint: { ru: "Автопроверка отключена", en: "Auto-check disabled" },
+        autoRefreshCheckNow: { ru: "Проверить обновления", en: "Check for updates" },
+        autoRefreshDone: { ru: "Автопроверка выполнена", en: "Auto-check finished" },
         progressTitle: { ru: "Ваш прогресс", en: "Your progress" },
         progressUnsupported: { ru: "Для этого типа прогресс не ведётся.", en: "Progress is not tracked for this type." },
         actionsTitle: { ru: "Действия", en: "Actions" },

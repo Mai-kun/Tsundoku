@@ -556,6 +556,13 @@ export function getMediaRecommendations(
   );
 }
 
+export function triggerAutoRefresh(mediaId: string): Promise<MediaDetail> {
+  return requestJson<MediaDetail>(
+    `${mediaEndpoint}/${mediaId}/auto-refresh/trigger`,
+    { method: "POST" },
+  );
+}
+
 export function getHistoryEvents(params?: { mediaId?: string; date?: string }): Promise<HistoryEvent[]> {
   const query = new URLSearchParams();
   if (params?.mediaId) query.set("mediaId", params.mediaId);

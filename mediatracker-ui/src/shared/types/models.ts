@@ -69,6 +69,12 @@ export interface MediaBase {
   genres?: string[] | string | null;
   tags?: string[] | string | null;
   userPlatform?: string | null;
+  /** Next scheduled background content check, so the UI can show when an ongoing is polled. */
+  nextAutoRefreshAt?: string | null;
+  /** Current adaptive interval between auto-refresh checks, in days. */
+  autoRefreshIntervalDays?: number | null;
+  /** When the last background check ran; null until the first one happened. */
+  lastAutoRefreshedAt?: string | null;
 }
 
 /**
@@ -107,6 +113,10 @@ export interface MediaDetailFields {
   recommendations?: ExternalRecommendation[];
   /** The user hand-edited this row, so a refresh has to ask instead of overwriting silently. */
   isCustomEdited?: boolean;
+  /** Auto-refresh cadence the calendar and the detail status block render. */
+  nextAutoRefreshAt?: string | null;
+  autoRefreshIntervalDays?: number | null;
+  lastAutoRefreshedAt?: string | null;
 }
 
 export interface GameMedia extends MediaBase {

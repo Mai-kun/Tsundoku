@@ -2,7 +2,8 @@
     import { Ban, CalendarDays, ChevronDown, ExternalLink, Image as ImageIcon, Link2, Pencil, RefreshCw, Sparkles, Star, Trash2 } from "$shared/ui/Icons.svelte";
     import ListPicker from "$features/lists/ListPicker.svelte";
     import MediaActivityModal from "./MediaActivityModal.svelte";
-    import { errorMessage } from "$shared/api/api";
+    import { errorMessage, triggerAutoRefresh } from "$shared/api/api";
+    import { showToast } from "$shared/ui/toast.svelte";
     import { fullSizeCoverUrl } from "$entities/media/model/coverUrl";
     import PopoverMenu from "$shared/ui/PopoverMenu.svelte";
     import { i18n } from "$shared/i18n/index.svelte";
@@ -63,6 +64,8 @@
         specRows: readonly SpecRow[];
         /** Background enrichment is still running: only the poster waits, the rest of the page does not. */
         syncing?: boolean;
+        /** Called with the fresh row after the user runs a one-click auto-check from the sidebar. */
+        onAutoRefreshed?: (media: MediaDetail) => void;
     }
 
     let {
@@ -101,6 +104,7 @@
         onNavigate,
         specRows,
         syncing = false,
+        onAutoRefreshed,
     }: Props = $props();
 
     let isActivityOpen = $state(false);
@@ -131,6 +135,30 @@
     const watchedOnMenuItems = $derived(
         watchedOnOptions.map((value) => ({ value, label: value })),
     );
+
+    const finishedRelease = $derived(
+        media.releaseStatus?.toUpperCase() === "FINISHED",
+    );
+    // Games and books are never polled server-side; the button only makes sense for ongoings.
+    const isOngoing = $derived(
+        media.type === "manga" || media.type === "tvshow" || !!media.nextAutoRefreshAt,
+    );
+
+    let autoRefreshBusy = $state(false);
+
+    async function handleAutoRefresh() {
+        if (autoRefreshBusy) return;
+        autoRefreshBusy = true;
+        try {
+            const updated = await triggerAutoRefresh(media.id);
+            onAutoRefreshed?.(updated);
+            showToast(i18n.t.detail.autoRefreshDone, "success");
+        } catch (error) {
+            showToast(errorMessage(error), "error");
+        } finally {
+            autoRefreshBusy = false;
+        }
+    }
 </script>
 
 <!-- Без lg:sticky: сайдбар выше окна (~1400px), и пересчёт sticky-нижней границы
@@ -535,6 +563,27 @@
                         </dd>
                     </div>
                 {/if}
+                {#if media.nextAutoRefreshAt && !finishedRelease}
+                    <!-- When the next background check runs, and at what cadence. -->
+                    <div class="flex items-center justify-between gap-3 py-2.5">
+                        <dt class="flex items-center gap-1.5 text-muted text-xs">
+                            <RefreshCw size={13} aria-hidden="true" />
+                            {i18n.t.detail.autoRefreshTitle}
+                        </dt>
+                        <dd class="flex flex-wrap items-center justify-end gap-1.5 font-medium text-white text-xs">
+                            {formatDate(media.nextAutoRefreshAt)}
+                            {#if media.releaseStatus?.toUpperCase() === "HIATUS"}
+                                <span class="rounded border border-amber-500/30 bg-amber-500/15 px-1.5 py-0.5 text-[11px] font-semibold text-amber-300">
+                                    {i18n.t.detail.autoRefreshHiatus}
+                                </span>
+                            {:else if media.autoRefreshIntervalDays}
+                                <span class="rounded border border-indigo-500/30 bg-indigo-500/15 px-1.5 py-0.5 text-[11px] font-semibold text-indigo-300">
+                                    {i18n.t.detail.autoRefreshInterval(media.autoRefreshIntervalDays)}
+                                </span>
+                            {/if}
+                        </dd>
+                    </div>
+                {/if}
                 {#if media.type === "movie" || media.type === "tvshow"}
                     <!-- Pick a known site or type your own; saved on change/blur. The sites come from
                          our PopoverMenu rather than a native <datalist>: the browser popup ignores the
@@ -681,6 +730,33 @@
             {#if refreshError}<p class="text-xs text-rose-300" role="alert">
                     {errorMessage(refreshError)}
                 </p>{/if}
+
+            {#if finishedRelease}
+                <!-- Calm notice: the server stops polling a finished release, so check-now is gone. -->
+                <div class="flex items-center gap-2 rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-3 py-2.5 text-xs font-medium text-emerald-300">
+                    <span aria-hidden="true">✓</span>
+                    <span>
+                        {i18n.t.detail.autoRefreshFinished}
+                        <span class="text-emerald-300/70">({i18n.t.detail.autoRefreshFinishedHint})</span>
+                    </span>
+                </div>
+            {:else if isOngoing}
+                <button
+                    type="button"
+                    class="flex w-full items-center gap-2.5 rounded-lg bg-surface/50 px-3 py-2.5 text-xs font-medium text-[var(--color-ink-dim)] transition hover:bg-[var(--color-panel-raised)] hover:text-white disabled:cursor-not-allowed disabled:opacity-70"
+                    disabled={autoRefreshBusy}
+                    onclick={() => void handleAutoRefresh()}
+                >
+                    <RefreshCw
+                        size={15}
+                        class={`text-[var(--color-accent-soft)] ${autoRefreshBusy ? "animate-spin" : ""}`}
+                        aria-hidden="true"
+                    />
+                    {autoRefreshBusy
+                        ? i18n.t.views.calendarChecking
+                        : i18n.t.detail.autoRefreshCheckNow}
+                </button>
+            {/if}
 
             <!-- Same gap-fill rules as the safe-merge branch of the refresh dialog, but the user
                  names the provider. Fills only empty fields, so it can never cost them data. -->

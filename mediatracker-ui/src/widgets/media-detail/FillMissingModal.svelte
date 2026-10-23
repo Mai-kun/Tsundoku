@@ -5,6 +5,7 @@
     import { errorMessage, getSources, getExternalDetails } from "$shared/api/api";
     import { i18n } from "$shared/i18n/index.svelte";
     import type { ExternalMedia, MediaDetail, MediaType, SourceInfo } from "$shared/types";
+    import { formatGenresList } from "$entities/media/model/genreLabel";
 
     interface Props {
         isOpen: boolean;
@@ -109,8 +110,12 @@
                 label: isRu ? "Жанры" : "Genres",
                 isEmpty: !media.genres || (Array.isArray(media.genres) ? media.genres.length === 0 : !media.genres.trim()),
                 getPreviewValue: (ext) => {
-                    if (Array.isArray(ext.genres) && ext.genres.length > 0) return ext.genres.slice(0, 3).join(", ");
-                    if (typeof ext.genres === "string" && ext.genres.trim()) return ext.genres.trim();
+                    if (Array.isArray(ext.genres) && ext.genres.length > 0) {
+                        return formatGenresList(ext.genres).slice(0, 3).join(", ");
+                    }
+                    if (typeof ext.genres === "string" && ext.genres.trim()) {
+                        return formatGenresList(ext.genres.split(",").map((g) => g.trim())).slice(0, 3).join(", ");
+                    }
                     return null;
                 },
             },

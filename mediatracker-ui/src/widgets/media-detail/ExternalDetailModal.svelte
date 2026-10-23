@@ -11,6 +11,7 @@
     import type { ExternalMedia, SearchMediaType } from "$shared/types";
     import { loadExternalDetails } from "$features/prefetch-details/externalDetailPrefetch";
     import { sourceBadgeClasses } from "$entities/media/model/mediaLabels";
+    import { formatGenresList } from "$entities/media/model/genreLabel";
     import { joinOriginalTitle } from "./detailFormatters";
 
     interface Props {
@@ -252,7 +253,7 @@
 
         rows.push({
             label: i18n.t.detail.genresLabel,
-            value: list(media.genres).join(", ") || empty,
+            value: formatGenresList(list(media.genres)).join(", ") || empty,
         });
         rows.push({
             label: i18n.t.detail.tagsLabel,

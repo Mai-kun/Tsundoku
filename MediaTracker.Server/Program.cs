@@ -6,6 +6,7 @@ using MediaTracker.Server.Common.Endpoints;
 using MediaTracker.Server.Common.Extensions;
 using MediaTracker.Server.Common.Middleware;
 using MediaTracker.Server.Features.Jobs;
+using MediaTracker.Server.Features.Media.Calendar;
 using MediaTracker.Server.Infrastructure.ExternalApis;
 using MediaTracker.Server.Infrastructure.Logging;
 using MediaTracker.Server.Infrastructure.Persistence;
@@ -311,6 +312,7 @@ try
     app.MapLogEndpoints();
     app.MapSettingsEndpoints();
     app.MapJobEndpoints();
+    app.MapCalendarEndpoints();
 
     app.MapFallback(async context =>
     {

@@ -22,6 +22,7 @@
         name: string;
         photoUrl: string | null;
         role: string | null;
+        isMain: boolean;
     }
 
     interface CastDisplay {
@@ -41,6 +42,8 @@
     const display = $derived.by((): CastDisplay | null => {
         if (cast.length === 0) return null;
 
+        const isMainRole = (raw?: string | null): boolean =>
+            raw?.trim().toUpperCase() === "MAIN";
         const roleLabel = (raw?: string | null): string | null => {
             const value = raw?.trim().toUpperCase();
             if (value === "MAIN") return i18n.t.detail.roleMain;
@@ -58,6 +61,7 @@
                     name: member.character ?? member.name,
                     photoUrl: member.characterImageUrl ?? member.photoUrl,
                     role: roleLabel(member.characterRole),
+                    isMain: isMainRole(member.characterRole),
                 };
                 const vaName = member.voiceActorName?.trim();
                 if (!vaName) {
@@ -89,6 +93,7 @@
                     name: member.character ?? member.name,
                     photoUrl: member.characterImageUrl ?? member.photoUrl,
                     role: roleLabel(member.characterRole),
+                    isMain: isMainRole(member.characterRole),
                     sub: roleLabel(member.characterRole) ?? member.name,
                 })),
             };
@@ -103,10 +108,17 @@
                 name: member.name,
                 photoUrl: member.photoUrl,
                 role: member.character,
+                isMain: false,
                 sub: member.character,
             })),
         };
     });
+
+    // Role chips: the main role gets the accent treatment so "Главный" stops blending in.
+    const badgeClass = (isMain: boolean): string =>
+        isMain
+            ? "inline-flex items-center rounded-md border border-accent/30 bg-accent/15 px-1.5 py-0.5 text-[10px] font-semibold text-accent-soft"
+            : "inline-flex items-center rounded-md border border-white/10 bg-white/[0.04] px-1.5 py-0.5 text-[10px] font-medium text-slate-400";
 </script>
 
 {#if display}
@@ -123,92 +135,111 @@
         </div>
 
         {#if display.voiceMode}
-            <!-- Voice actor ← character: the actor sits left, the dubbed characters right. -->
-            <div class={large ? "grid grid-cols-1 gap-3" : "grid grid-cols-1 gap-3 sm:grid-cols-2"}>
+            <!-- Voice cards are already two people wide (voice left, characters right),
+                 so one full-width column keeps both names unclipped. -->
+            <div class="grid grid-cols-1 gap-3">
                 {#each display.voices as voice (voice.name)}
                     <div
-                        class="flex items-center gap-3 border border-white/5 bg-white/[0.03] rounded-xl p-2.5 transition hover:bg-white/[0.06]"
+                        class="flex items-center justify-between gap-3 sm:gap-4 rounded-xl border border-white/[0.06] bg-white/[0.03] transition hover:border-white/10 hover:bg-white/[0.06] {large
+                            ? 'p-3.5'
+                            : 'p-2.5'}"
                     >
-                        {#if voice.photoUrl}
-                            <img
-                                src={voice.photoUrl}
-                                alt={voice.name}
-                                loading="lazy"
-                                referrerpolicy="no-referrer"
-                                class="{large
-                                    ? "w-16 h-20 sm:w-20 sm:h-24 shadow-md"
-                                    : "size-12"} shrink-0 rounded-xl object-cover ring-1 ring-white/10"
-                            />
-                        {:else}
-                            <span
-                                class="{large
-                                    ? "w-16 h-20 sm:w-20 sm:h-24 shadow-md"
-                                    : "size-12"} flex shrink-0 items-center justify-center rounded-xl bg-surface/60 text-muted ring-1 ring-white/10"
-                                ><User size={15} /></span
-                            >
-                        {/if}
-                        <div class="min-w-0 flex-1">
-                            <p
-                                class="{large
-                                    ? 'text-sm leading-snug line-clamp-2'
-                                    : 'truncate text-xs'} font-bold text-white"
-                                title={voice.name}
-                            >
-                                {voice.name}
-                            </p>
-                            <div class={large ? "flex flex-col gap-2" : "flex flex-wrap gap-2"}>
-                                {#each voice.characters as character (character.name)}
-                                    <div class="flex items-center gap-2">
-                                        <span class="text-muted text-xs" aria-hidden="true"
-                                            >→</span
+                        <!-- Voice actor, pinned to the left edge. -->
+                        <div class="flex min-w-0 flex-1 items-center gap-3">
+                            {#if voice.photoUrl}
+                                <img
+                                    src={voice.photoUrl}
+                                    alt={voice.name}
+                                    loading="lazy"
+                                    referrerpolicy="no-referrer"
+                                    class="{large
+                                        ? "w-16 h-20 sm:w-20 sm:h-24 shadow-md"
+                                        : "size-13 sm:size-14"} shrink-0 rounded-xl object-cover ring-1 ring-white/10"
+                                />
+                            {:else}
+                                <span
+                                    class="{large
+                                        ? "w-16 h-20 sm:w-20 sm:h-24 shadow-md"
+                                        : "size-13 sm:size-14"} flex shrink-0 items-center justify-center rounded-xl bg-surface/60 text-muted ring-1 ring-white/10"
+                                    ><User size={15} /></span
+                                >
+                            {/if}
+                            <div class="min-w-0 flex-1">
+                                <p
+                                    class="{large
+                                        ? 'text-sm'
+                                        : 'text-xs sm:text-[13px]'} font-bold text-white leading-snug line-clamp-2"
+                                    title={voice.name}
+                                >
+                                    {voice.name}
+                                </p>
+                                <p
+                                    class="mt-1 block text-[10px] font-semibold uppercase tracking-wider text-muted"
+                                >
+                                    {i18n.current === "ru" ? "Сэйю" : "Voice Actor"}
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Middle arrow: the visual "dubs" mark between the two halves. -->
+                        <span
+                            class="grid shrink-0 place-items-center rounded-full border border-white/[0.08] bg-white/[0.04] text-xs text-muted {large
+                                ? 'size-8'
+                                : 'size-6'}"
+                            aria-hidden="true"
+                        >→</span
+                        >
+
+                        <!-- Dubbed characters, pinned to the right edge. -->
+                        <div class="flex min-w-0 flex-1 flex-col gap-2 items-end">
+                            {#each voice.characters as character (character.name)}
+                                <div class="flex w-full items-center justify-end gap-3 text-right">
+                                    <div class="min-w-0 flex-1">
+                                        <p
+                                            class="{large
+                                                ? 'text-sm'
+                                                : 'text-xs sm:text-[13px]'} font-bold text-[var(--color-accent-soft)] leading-snug line-clamp-2"
+                                            title={character.name}
                                         >
-                                        {#if character.photoUrl}
-                                            <img
-                                                src={character.photoUrl}
-                                                alt={character.name}
-                                                loading="lazy"
-                                                referrerpolicy="no-referrer"
-                                                class="{large
-                                                    ? 'w-16 h-20 shadow-md'
-                                                    : 'size-10'} shrink-0 rounded-lg object-cover ring-1 ring-white/10"
-                                            />
-                                        {:else}
-                                            <span
-                                                class="{large
-                                                    ? 'w-16 h-20 rounded-xl'
-                                                    : 'size-10 rounded-lg'} flex shrink-0 items-center justify-center bg-surface/60 text-muted ring-1 ring-white/10"
-                                                ><User size={13} /></span
+                                            {character.name}
+                                        </p>
+                                        {#if character.role}
+                                            <span class="mt-1 max-w-full {badgeClass(character.isMain)}"
+                                                >{character.role}</span
                                             >
                                         {/if}
-                                        <span class="min-w-0">
-                                            <span
-                                                class="{large
-                                                    ? 'text-sm leading-snug line-clamp-2'
-                                                    : 'block truncate text-xs'} font-semibold text-[var(--color-accent-soft)]"
-                                                title={character.name}
-                                                >{character.name}</span
-                                            >
-                                            {#if character.role}
-                                                <span
-                                                    class="{large
-                                                        ? 'block text-xs leading-snug line-clamp-2'
-                                                        : 'block truncate text-[11px]'} text-muted"
-                                                    >{character.role}</span
-                                                >
-                                            {/if}
-                                        </span>
                                     </div>
-                                {/each}
-                            </div>
+                                    {#if character.photoUrl}
+                                        <img
+                                            src={character.photoUrl}
+                                            alt={character.name}
+                                            loading="lazy"
+                                            referrerpolicy="no-referrer"
+                                            class="{large
+                                                ? "w-16 h-20 sm:w-20 sm:h-24 shadow-md"
+                                                : "size-13 sm:size-14"} shrink-0 rounded-xl object-cover ring-1 ring-white/10"
+                                        />
+                                    {:else}
+                                        <span
+                                            class="{large
+                                                ? "w-16 h-20 sm:w-20 sm:h-24 shadow-md"
+                                                : "size-13 sm:size-14"} flex shrink-0 items-center justify-center rounded-xl bg-surface/60 text-muted ring-1 ring-white/10"
+                                            ><User size={13} /></span
+                                        >
+                                    {/if}
+                                </div>
+                            {/each}
                         </div>
                     </div>
                 {/each}
             </div>
         {:else}
-            <div class={large ? "grid grid-cols-1 gap-3" : "grid grid-cols-1 gap-3 sm:grid-cols-2"}>
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 {#each display.members as member (member.name + member.photoUrl)}
                     <div
-                        class="flex items-center gap-3 border border-white/5 bg-white/[0.03] rounded-xl p-2.5 transition hover:bg-white/[0.06]"
+                        class="flex items-center gap-3.5 rounded-xl border border-white/[0.06] bg-white/[0.03] transition hover:border-white/10 hover:bg-white/[0.06] {large
+                            ? 'p-3.5'
+                            : 'p-2.5'}"
                     >
                         {#if member.photoUrl}
                             <img
@@ -218,34 +249,29 @@
                                 referrerpolicy="no-referrer"
                                 class="{large
                                     ? 'w-16 h-20 sm:w-20 sm:h-24 shadow-md'
-                                    : 'size-13'} shrink-0 rounded-xl object-cover ring-1 ring-white/10"
+                                    : 'size-13 sm:size-14'} shrink-0 rounded-xl object-cover ring-1 ring-white/10"
                             />
                         {:else}
                             <span
                                 class="{large
                                     ? 'w-16 h-20 sm:w-20 sm:h-24 shadow-md'
-                                    : 'size-13'} flex shrink-0 items-center justify-center rounded-xl bg-surface/60 text-muted ring-1 ring-white/10"
+                                    : 'size-13 sm:size-14'} flex shrink-0 items-center justify-center rounded-xl bg-surface/60 text-muted ring-1 ring-white/10"
                                 ><User size={15} /></span
                             >
                         {/if}
                         <div class="min-w-0 flex-1">
                             <p
                                 class="{large
-                                    ? 'text-sm leading-snug line-clamp-2'
-                                    : 'truncate text-xs'} font-bold text-white"
+                                    ? 'text-sm'
+                                    : 'text-xs sm:text-[13px]'} font-bold text-white leading-snug line-clamp-2"
                                 title={member.name}
                             >
                                 {member.name}
                             </p>
                             {#if member.sub}
-                                <p
-                                    class="{large
-                                        ? 'text-xs font-medium mt-1'
-                                        : 'truncate text-[11px]'} text-muted"
-                                    title={member.sub}
+                                <span class="mt-1.5 max-w-full {badgeClass(member.isMain)}"
+                                    >{member.sub}</span
                                 >
-                                    {member.sub}
-                                </p>
                             {/if}
                         </div>
                     </div>

@@ -181,7 +181,11 @@
                 <PeopleSizeToggle {category} block="staff" />
             </div>
             {#each staff as person, idx (person.name + idx)}
-                <div class="flex {largeStaff ? 'gap-3' : 'min-w-0 items-center gap-2.5'}">
+                <div
+                    class="flex rounded-xl border border-white/5 bg-white/[0.03] p-2.5 transition hover:bg-white/[0.06] {largeStaff
+                        ? 'gap-3'
+                        : 'min-w-0 items-center gap-2.5'}"
+                >
                     {#if person.imageUrl}
                         <img
                             src={person.imageUrl}

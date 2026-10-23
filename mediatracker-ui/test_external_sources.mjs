@@ -30,7 +30,8 @@ for (const id of knownLive) {
 
 // An unreachable source must report failure. If it ever claims success again, the
 // swallow-the-exception bug is back.
-for (const id of ["tmdb", "jikan", "mangaupdates"]) {
+// jikan was removed with the Jikan source; the remaining dead list is key-independent.
+for (const id of ["tmdb", "mangaupdates"]) {
   const { body } = await testSource(id);
   assert(
     body.success === false,

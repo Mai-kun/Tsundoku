@@ -13,7 +13,7 @@ const RELATION_SOURCES: Record<string, readonly string[]> = {
     movie: ["tmdb"],
     tvshow: ["tmdb"],
     game: ["rawg"],
-    anime: ["anilist", "myanimelist", "jikan", "shikimori"],
+    anime: ["anilist", "shikimori"],
     manga: ["anilist", "mangadex"],
 };
 

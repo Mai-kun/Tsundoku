@@ -6,12 +6,12 @@ import type { RatingBadge } from "./detailTypes";
  * unavailable) so the header still shows the badges the user expects to see.
  */
 export const CATEGORY_EXPECTED_SOURCES: Record<string, string[]> = {
-    anime: ["AniList", "MyAnimeList"],
-    manga: ["AniList", "MangaDex", "MangaUpdates", "MyAnimeList"],
+    anime: ["AniList"],
+    manga: ["AniList", "MangaDex", "MangaUpdates"],
     movie: ["TMDB"],
     tvshow: ["TMDB"],
-    game: ["RAWG", "Steam", "IGDB"],
-    book: ["OpenLibrary", "Google Books"],
+    game: ["RAWG", "Steam"],
+    book: ["OpenLibrary"],
 };
 
 export interface RawRating {

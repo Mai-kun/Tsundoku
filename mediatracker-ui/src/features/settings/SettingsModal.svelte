@@ -348,12 +348,12 @@
     ];
 
     const defaultPriority: Record<string, string[]> = {
-        anime: ["anilist", "shikimori", "kitsu", "simkl", "jikan"],
-        manga: ["anilist", "shikimori", "mangadex", "mangaupdates", "jikan"],
-        movie: ["tmdb", "imdb", "kinopoisk", "simkl", "thetvdb"],
-        tvshow: ["tmdb", "imdb", "kinopoisk", "simkl", "thetvdb"],
-        game: ["rawg", "steam", "igdb"],
-        book: ["openlibrary", "googlebooks"],
+        anime: ["anilist", "shikimori", "kitsu", "simkl"],
+        manga: ["anilist", "shikimori", "mangadex", "mangaupdates"],
+        movie: ["tmdb", "imdb", "kinopoisk", "simkl"],
+        tvshow: ["tmdb", "imdb", "kinopoisk", "simkl"],
+        game: ["rawg", "steam"],
+        book: ["openlibrary"],
     };
 
     let sourcePriority = $state<Record<string, string[]>>({
@@ -535,7 +535,6 @@
     function getSourceName(id: string): string {
         const s = sources.find((x) => x.id === id);
         if (s) return s.name;
-        if (id === "jikan") return "MyAnimeList (Jikan)";
         if (id === "mangaupdates") return "MangaUpdates";
         if (id === "mangadex") return "MangaDex";
         if (id === "anilist") return "AniList";
@@ -543,38 +542,16 @@
         if (id === "rawg") return "RAWG";
         if (id === "openlibrary") return "OpenLibrary";
         if (id === "shikimori") return "Shikimori";
-        if (id === "googlebooks") return "Google Books";
         if (id === "steam") return "Steam";
         if (id === "imdb") return "IMDb";
         if (id === "simkl") return "Simkl";
-        if (id === "tvdb") return "TheTVDB";
         if (id === "kinopoisk") return "Кинопоиск";
-        if (id === "igdb") return "IGDB";
         return id;
     }
 
     function isSourceDisabled(id: string): boolean {
         const norm = id.toLowerCase().trim();
-        const s = sources.find((x) => {
-            const xId = x.id.toLowerCase().trim();
-            if (xId === norm) return true;
-            if (
-                (xId === "thetvdb" || xId === "tvdb") &&
-                (norm === "thetvdb" || norm === "tvdb")
-            )
-                return true;
-            if (
-                (xId === "jikan" || xId === "myanimelist" || xId === "mal") &&
-                (norm === "jikan" || norm === "myanimelist" || norm === "mal")
-            )
-                return true;
-            if (
-                (xId === "googlebooks" || xId === "google") &&
-                (norm === "googlebooks" || norm === "google")
-            )
-                return true;
-            return false;
-        });
+        const s = sources.find((x) => x.id.toLowerCase().trim() === norm);
         return s ? s.isEnabled === false : false;
     }
 </script>
@@ -797,7 +774,15 @@
                                                             .disabledBadge}
                                                     </span>
                                                 {/if}
-                                                {#if source.requiresApiKey}
+                                                {#if source.optionalApiKey && !source.requiresApiKey}
+                                                    <span
+                                                        class="inline-flex items-center gap-1 rounded bg-sky-500/15 px-2 py-0.5 text-[11px] font-semibold text-sky-400"
+                                                        title={i18n.t.settingsModal.sources.optionalKeyHint}
+                                                    >
+                                                        <Key size={12} />
+                                                        {i18n.t.settingsModal.sources.optionalKey}
+                                                    </span>
+                                                {:else if source.requiresApiKey}
                                                     {#if source.hasKey}
                                                         <span
                                                             class="inline-flex items-center gap-1 rounded bg-emerald-500/15 px-2 py-0.5 text-[11px] font-semibold text-emerald-400"
@@ -945,10 +930,18 @@
                                         </div>
                                     {/if}
 
-                                    {#if source.requiresApiKey}
+                                    {#if source.requiresApiKey || source.optionalApiKey}
                                         <div
                                             class="mt-3 border-t border-white/[0.07]/60 pt-3"
                                         >
+                                            {#if source.optionalApiKey && !source.requiresApiKey}
+                                                <p
+                                                    class="mb-2 flex items-start gap-1.5 text-xs text-muted"
+                                                >
+                                                    <Key size={12} class="mt-0.5 shrink-0 text-sky-400" />
+                                                    {i18n.t.settingsModal.sources.optionalKeyHint}
+                                                </p>
+                                            {/if}
                                             {#if source.maskedKey}
                                                 <div
                                                     class="mb-2 flex items-center gap-2 text-xs text-muted"

@@ -525,14 +525,14 @@
             <!-- Every row gets the same padding so the list reads as one even
                  rhythm; the first/last rows align with the panel's own padding
                  instead of adding 12px on only one side. -->
-            <dl class="divide-y divide-white/[0.06] text-sm">
+            <dl class="divide-y divide-white/[0.06] text-sm [&>*:first-child]:pt-0 [&>*:last-child]:pb-0">
                 <!-- Movies are watched as a single sitting: a start date and a raw
                      "current / total" counter say nothing there that the progress stepper
                      does not, so only the completion is kept. Every other type still needs
                      both rows — a series or a manga is started, then tracked over time. -->
                 {#if media.type !== "movie"}
                     <div
-                        class="flex items-center justify-between gap-3 py-2.5 first:pt-0"
+                        class="flex items-center justify-between gap-3 py-2.5"
                     >
                         <dt class="text-muted text-xs">
                             {i18n.t.detail.startedLabel}
@@ -544,7 +544,6 @@
                 {/if}
                 <div
                     class="flex items-center justify-between gap-3 py-2.5"
-                    class:first:pt-0={media.type === "movie"}
                 >
                     <dt class="text-muted text-xs">
                         {i18n.t.detail.endedLabel}
@@ -566,20 +565,17 @@
                 {#if media.nextAutoRefreshAt && !finishedRelease}
                     <!-- When the next background check runs, and at what cadence. -->
                     <div class="flex items-center justify-between gap-3 py-2.5">
-                        <dt class="flex items-center gap-1.5 text-muted text-xs">
-                            <RefreshCw size={13} aria-hidden="true" />
+                        <dt class="text-muted text-xs">
                             {i18n.t.detail.autoRefreshTitle}
                         </dt>
-                        <dd class="flex flex-wrap items-center justify-end gap-1.5 font-medium text-white text-xs">
-                            {formatDate(media.nextAutoRefreshAt)}
+                        <dd
+                            class="font-medium text-white text-xs cursor-help underline decoration-dotted decoration-white/25"
+                            title={formatDate(media.nextAutoRefreshAt)}
+                        >
                             {#if media.releaseStatus?.toUpperCase() === "HIATUS"}
-                                <span class="rounded border border-amber-500/30 bg-amber-500/15 px-1.5 py-0.5 text-[11px] font-semibold text-amber-300">
-                                    {i18n.t.detail.autoRefreshHiatus}
-                                </span>
+                                {i18n.t.detail.autoRefreshHiatus}
                             {:else if media.autoRefreshIntervalDays}
-                                <span class="rounded border border-indigo-500/30 bg-indigo-500/15 px-1.5 py-0.5 text-[11px] font-semibold text-indigo-300">
-                                    {i18n.t.detail.autoRefreshInterval(media.autoRefreshIntervalDays)}
-                                </span>
+                                {i18n.t.detail.autoRefreshInterval(media.autoRefreshIntervalDays)}
                             {/if}
                         </dd>
                     </div>
@@ -590,7 +586,7 @@
                          app palette and renders its own arrow, which is what the datalist arrow
                          pointed at. -->
                     <div
-                        class="flex items-center justify-between gap-3 py-2.5 last:pb-0"
+                        class="flex items-center justify-between gap-3 py-2.5"
                     >
                         <dt class="text-muted text-xs">
                             {i18n.t.detail.watchedOnLabel}
@@ -651,7 +647,7 @@
                 {/if}
 {#if media.type === "game"}
                     <div
-                        class="flex items-center justify-between gap-3 py-2.5 last:pb-0"
+                        class="flex items-center justify-between gap-3 py-2.5"
                     >
                         <dt class="text-muted text-xs">
                             {i18n.t.detailModal.platform}

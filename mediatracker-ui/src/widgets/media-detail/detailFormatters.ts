@@ -648,18 +648,12 @@ export function specRows(item: MediaItem): SpecRow[] {
         badges: genreList.length > 0 ? genreList : undefined,
     });
 
-    rows.push({ label: i18n.t.detail.source, value: dataSource(item) });
-
-    // The link row only appears when the source is one we can actually build a URL for, so the
-    // sidebar can never offer a link that leads somewhere else entirely.
     const link = providerLink(item);
-    if (link) {
-        rows.push({
-            label: i18n.t.detail.providerLabel,
-            value: link.name,
-            href: link.url,
-        });
-    }
+    rows.push({
+        label: i18n.t.detail.source,
+        value: link?.name ?? dataSource(item),
+        href: link?.url,
+    });
 
     return rows;
 }

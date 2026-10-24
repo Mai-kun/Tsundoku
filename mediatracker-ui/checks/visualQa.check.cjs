@@ -54,17 +54,31 @@ const VIEWPORTS = [
 
 ;(async () => {
   const library = await fetch(`${BASE}/api/media`).then((r) => r.json())
-  const firstOfType = (type) => library.find((m) => m.type === type)
+  const firstOfType = async (type) => {
+    const candidates = library.filter((m) => m.type === type)
+    for (const item of candidates) {
+      try {
+        const res = await fetch(`${BASE}/api/media/${item.id}`)
+        if (res.ok) return item
+      } catch {}
+    }
+    return null
+  }
+
+  const detailPages = []
+  for (const [name, type] of DETAIL_TYPES) {
+    const item = await firstOfType(type)
+    if (item) {
+      detailPages.push([name, `?view=detail&mediaId=${item.id}`])
+    }
+  }
 
   const PAGES = [
     ...VIEW_PAGES,
-    ...DETAIL_TYPES.map(([name, type]) => {
-      const item = firstOfType(type)
-      return item ? [name, `?view=detail&mediaId=${item.id}`] : null
-    }).filter(Boolean),
+    ...detailPages,
   ]
 
-  const missing = DETAIL_TYPES.filter(([, type]) => !firstOfType(type)).map(([name]) => name)
+  const missing = DETAIL_TYPES.filter(([name]) => !detailPages.some(([n]) => n === name)).map(([name]) => name)
   if (missing.length) console.log(`note: no library item for ${missing.join(', ')} - skipping those detail pages`)
 
   const launchOptions = {

@@ -33,7 +33,8 @@ public sealed record CalendarItemDto(
     string Kind,
     string? Details,
     int? EpisodeNumber,
-    int? SeasonNumber);
+    int? SeasonNumber,
+    bool IsAnime = false);
 
 public static class CalendarEndpoints
 {
@@ -100,7 +101,8 @@ public static class CalendarEndpoints
                         Kind: "auto_refresh",
                         Details: $"Проверка обновлений (раз в {item.AutoRefreshIntervalDays} дн.)",
                         EpisodeNumber: null,
-                        SeasonNumber: null))));
+                        SeasonNumber: null,
+                        IsAnime: item is TvShow { IsAnime: true } or Movie { IsAnime: true }))));
 
                 // 2. Episodes with a precise air date, parsed out of the season's stored episode list.
                 var shows = await db.TvShows
@@ -153,7 +155,8 @@ public static class CalendarEndpoints
                                     Kind: "air_date",
                                     Details: $"S{season.SeasonNumber} E{episode.Number}",
                                     EpisodeNumber: episode.Number,
-                                    SeasonNumber: season.SeasonNumber)));
+                                    SeasonNumber: season.SeasonNumber,
+                                    IsAnime: show.IsAnime)));
                         }
                     }
                 }
@@ -178,7 +181,8 @@ public static class CalendarEndpoints
                         Kind: "release",
                         Details: "Релиз",
                         EpisodeNumber: null,
-                        SeasonNumber: null))));
+                        SeasonNumber: null,
+                        IsAnime: item is TvShow { IsAnime: true } or Movie { IsAnime: true }))));
 
                 var schedule = new CalendarScheduleDto(
                     rangeStart,

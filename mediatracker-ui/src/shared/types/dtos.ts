@@ -296,6 +296,7 @@ export interface CalendarItemDto {
   details: string | null;
   episodeNumber: number | null;
   seasonNumber: number | null;
+  isAnime?: boolean;
 }
 
 export interface CalendarDayDto {

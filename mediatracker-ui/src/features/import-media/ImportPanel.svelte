@@ -5,20 +5,24 @@
         getSources,
         importAniListProfile,
         importFile,
+        importMangaLibProfile,
         importSteamProfile,
         saveSourceKey,
     } from "$shared/api/api";
     import type { CustomListSummary, ImportResultDto } from "$shared/types";
     import { i18n } from "$shared/i18n/index.svelte";
+    import { jobsClient } from "$shared/api/jobsClient.svelte";
     import {
         Check,
         CheckCircle2,
         ChevronDown,
         ChevronUp,
         Copy,
+        Download,
         ExternalLink,
         FileText,
         LoaderCircle,
+        Sparkles,
         Upload,
         X,
     } from "$shared/ui/Icons.svelte";
@@ -72,6 +76,31 @@
     let profileChecked = $state(false);
     let fileInputRef = $state<HTMLInputElement | null>(null);
 
+    // MangaLib (SocialLib) ecosystem
+    let mangalibMode = $state<"script" | "profile" | "file">("script");
+    let mangalibProfileUrl = $state("");
+    let mangalibToken = $state("");
+    let mangalibSites = $state<number[]>([1, 5, 3, 2, 4]);
+    let scriptCopied = $state(false);
+
+    const socialLibSites: { id: number; name: string; tag: string; type: string }[] = [
+        { id: 1, name: "MangaLib", tag: "Манга", type: "manga" },
+        { id: 5, name: "AnimeLib", tag: "Аниме", type: "anime" },
+        { id: 3, name: "RanobeLib", tag: "Ранобэ / Книги", type: "book" },
+        { id: 2, name: "SlashLib / YaoiLib", tag: "Слэш", type: "manga" },
+        { id: 4, name: "HentaiLib", tag: "18+", type: "manga" },
+    ];
+
+    function toggleSite(id: number) {
+        if (mangalibSites.includes(id)) {
+            if (mangalibSites.length > 1) {
+                mangalibSites = mangalibSites.filter((s) => s !== id);
+            }
+        } else {
+            mangalibSites = [...mangalibSites, id];
+        }
+    }
+
     const providers = $derived<
         {
             id: Provider;
@@ -93,7 +122,7 @@
             icon: "ML",
             title: "MangaLib",
             subtitle: i18n.t.importModal.subtitleMangalib,
-            accent: "#ff6740",
+            accent: "#ea580c",
         },
         {
             id: "mal",
@@ -237,6 +266,8 @@
             provider === "anilist" && anilistMode === "profile";
         const steamProfileMode =
             provider === "steam" && steamMode === "profile";
+        const mangalibProfileMode =
+            provider === "mangalib" && mangalibMode === "profile";
 
         if (anilistProfileMode) {
             if (!anilistUsername.trim()) {
@@ -246,6 +277,16 @@
         } else if (steamProfileMode) {
             if (!steamProfile.trim()) {
                 error = i18n.t.importModal.steamRequired;
+                return;
+            }
+        } else if (mangalibProfileMode) {
+            if (!mangalibProfileUrl.trim()) {
+                error = "Укажите ссылку на профиль или числовой ID пользователя SocialLib.";
+                return;
+            }
+        } else if (provider === "mangalib" && mangalibMode === "script") {
+            if (!file) {
+                void importFromClipboard();
                 return;
             }
         } else {
@@ -296,6 +337,14 @@
                     skipDuplicates,
                     ...listFields,
                 });
+            } else if (mangalibProfileMode) {
+                importTask = importMangaLibProfile({
+                    profileUrlOrId: mangalibProfileUrl.trim(),
+                    siteIds: mangalibSites,
+                    bearerToken: mangalibToken.trim() || undefined,
+                    skipDuplicates,
+                    ...listFields,
+                });
             } else {
                 const form = new FormData();
                 form.append("file", file!);
@@ -324,6 +373,412 @@
                 caught instanceof Error
                     ? caught.message
                     : i18n.t.importModal.failed;
+        } finally {
+            busy = false;
+        }
+    }
+
+    function generateSocialLibScript(siteIds: number[]): string {
+        const idsJson = JSON.stringify(siteIds);
+        return `(async () => {
+  console.clear();
+  let userId = null;
+  const urlMatch = window.location.pathname.match(/\\/(?:ru\\/)?user[s]?\\/(\\d+)/i) || window.location.pathname.match(/\\/user\\/(\\d+)/);
+  if (urlMatch) userId = urlMatch[1];
+
+  if (!userId) {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      const val = localStorage.getItem(key);
+      if (!val) continue;
+      try {
+        const parsed = JSON.parse(val);
+        if (parsed?.id && typeof parsed.id === "number") { userId = String(parsed.id); break; }
+        if (parsed?.user?.id) { userId = String(parsed.user.id); break; }
+        if (parsed?.userId) { userId = String(parsed.userId); break; }
+        if (parsed?.auth?.user?.id) { userId = String(parsed.auth.user.id); break; }
+      } catch {}
+    }
+  }
+  if (!userId && window.__DATA__?.user?.id) userId = String(window.__DATA__.user.id);
+  if (!userId && window.__INITIAL_STATE__?.user?.id) userId = String(window.__INITIAL_STATE__.user.id);
+
+  if (!userId) {
+    userId = prompt("Tsundoku: Введите числовой ID пользователя Lib (например: 123456):");
+    if (!userId) { console.error("Сбор отменен: не указан User ID."); return; }
+    userId = userId.trim().replace(/\\D+/g, "");
+  }
+
+  console.log("%c[Tsundoku SocialLib Collector]%c Запуск сбора закладок для User ID:", "color:#ff6740;font-weight:bold", "", userId);
+
+  // Токен у SocialLib хранится в localStorage.auth как JSON: { token: { access_token } }
+  const getAuthToken = () => {
+    // 1. localStorage.auth
+    try {
+      if (localStorage.auth) {
+        const auth = JSON.parse(localStorage.auth);
+        const token = auth?.token?.access_token || auth?.access_token || auth?.token;
+        if (token && typeof token === "string" && token.startsWith("eyJ")) return token;
+      }
+    } catch {}
+
+    // 2. localStorage.token
+    try {
+      if (localStorage.token) {
+        const t = JSON.parse(localStorage.token);
+        const token = t?.access_token || t?.token || t;
+        if (token && typeof token === "string" && token.startsWith("eyJ")) return token;
+      }
+    } catch {
+      if (typeof localStorage.token === "string" && localStorage.token.startsWith("eyJ")) return localStorage.token;
+    }
+
+    // 3. Сканируем все ключи localStorage на валидный JWT (eyJ...)
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        const val = localStorage.getItem(key);
+        if (!val) continue;
+        if (val.startsWith("eyJ") && val.includes(".")) return val.trim();
+        try {
+          const parsed = JSON.parse(val);
+          const match = JSON.stringify(parsed).match(/eyJ[a-zA-Z0-9_-]+\\.[a-zA-Z0-9_-]+\\.[a-zA-Z0-9_-]+/);
+          if (match) return match[0];
+        } catch {}
+      }
+    } catch {}
+
+    return null;
+  };
+  const token = getAuthToken();
+  console.log("Токен авторизации:", token ? \`✅ найден (\${token.slice(0, 15)}...)\` : "❌ не найден (гостевой режим, лимит 100 тайтлов)");
+
+  const allSites = [
+    { id: 1, name: "MangaLib", type: "manga" },
+    { id: 5, name: "AnimeLib", type: "anime" },
+    { id: 3, name: "RanobeLib", type: "book" },
+    { id: 2, name: "SlashLib", type: "manga" },
+    { id: 4, name: "HentaiLib", type: "manga" }
+  ];
+  const targetSiteIds = ${idsJson};
+  const selectedSites = allSites.filter(s => targetSiteIds.includes(s.id));
+
+  const allItems = [];
+  const counts = { 1: 0, 5: 0, 3: 0, 2: 0, 4: 0 };
+  const statusMap = { 1: "Читаю", 2: "В планах", 3: "Брошено", 4: "Прочитано", 5: "Любимые", 6: "Отложено" };
+
+  const processBookmark = (b, site, folderId, folderName) => {
+    const m = b.media || {};
+    const prog = b.item || b.progress || {};
+    const itemStatus = (b.status !== undefined && b.status !== null) ? b.status : (b.status_id || b.folder_id || folderId || 2);
+    const statusText = folderName || statusMap[itemStatus] || (typeof itemStatus === "string" ? itemStatus : null) || b.folder?.name || b.status_name;
+
+    let coverUrl = null;
+    if (typeof m.cover === "string") coverUrl = m.cover;
+    else if (m.cover?.default) coverUrl = m.cover.default;
+    else if (m.cover?.md) coverUrl = m.cover.md;
+    else if (b.cover) coverUrl = typeof b.cover === "string" ? b.cover : (b.cover?.default || b.cover?.md);
+
+    const genresList = Array.isArray(m.genres) ? m.genres.map(g => g?.name || g).filter(Boolean).join(", ") : (typeof m.genres === "string" ? m.genres : null);
+    const authorList = Array.isArray(m.authors) ? m.authors.map(a => a?.name || a).filter(Boolean).join(", ") : (typeof m.authors === "string" ? m.authors : (m.author || null));
+
+    allItems.push({
+      rus_name: m.rus_name || m.name || b.rus_name || b.name || "",
+      eng_name: m.eng_name || m.slug_url || b.eng_name || null,
+      type: site.type,
+      site_id: site.id,
+      status: statusText || itemStatus || "В планах",
+      status_id: typeof itemStatus === "number" ? itemStatus : folderId,
+      user_chapters: prog.number !== undefined ? Number(prog.number) : (b.user_chapters ?? 0),
+      total_chapters: m.chapters_count || m.episodes_count || b.total_chapters || null,
+      volumes: prog.volume !== undefined ? Number(prog.volume) : (b.volumes ?? null),
+      user_rating: b.user_rating || b.score || b.rating || null,
+      cover: coverUrl,
+      summary: m.summary || m.description || b.summary || null,
+      genres: genresList,
+      author: authorList
+    });
+    counts[site.id] = (counts[site.id] || 0) + 1;
+  };
+
+  const totalSites = selectedSites.length;
+  for (let sIdx = 0; sIdx < selectedSites.length; sIdx++) {
+    const site = selectedSites[sIdx];
+    const siteIdx = sIdx + 1;
+    const siteStartCount = counts[site.id] || 0;
+
+    console.log(\`%c[\${siteIdx}/\${totalSites}] \${site.name}%c: опрос папок...\`, "color:#ff6740;font-weight:bold", "");
+
+    const headers = {
+      "Accept": "application/json",
+      "Site-Id": String(site.id)
+    };
+    if (token) headers["Authorization"] = "Bearer " + token;
+
+    let folders = [];
+    try {
+      const foldersUrl = "https://api.cdnlibs.org/api/bookmarks/folder/" + encodeURIComponent(userId) + "?site_id=" + site.id;
+      const foldersRes = await fetch(foldersUrl, { headers });
+      if (foldersRes.ok) {
+        const foldersJson = await foldersRes.json();
+        const list = Array.isArray(foldersJson?.data) ? foldersJson.data : (Array.isArray(foldersJson) ? foldersJson : []);
+        if (list.length > 0) {
+          folders = list.map(f => ({
+            id: f.id,
+            name: f.name || f.slug || ("Папка " + f.id),
+            count: f.count ?? f.total ?? undefined
+          }));
+          for (const f of folders) {
+            statusMap[f.id] = f.name;
+          }
+        }
+      }
+    } catch (err) {
+      console.warn(\`Не удалось получить папки для \${site.name}:\`, err.message);
+    }
+
+    if (folders.length === 0) {
+      folders = [
+        { id: 1, name: "Читаю" },
+        { id: 2, name: "В планах" },
+        { id: 4, name: "Прочитано" },
+        { id: 3, name: "Брошено" },
+        { id: 6, name: "Отложено" },
+        { id: 5, name: "Любимые" }
+      ];
+    }
+
+    // Кастомные папки («Жду», «Удалено» и др.) — сканируем DOM бокового меню
+    // закладок на открытой странице и объединяем со списком API по уникальному id
+    try {
+      const domSeen = new Set(folders.map(f => f.id));
+      for (const el of document.querySelectorAll('a[href*="status="], a[href*="folder="], a[href*="bookmarks"]')) {
+        const href = el.getAttribute("href") || "";
+        const idMatch = href.match(/[?&](?:status|folder)=(\\d+)/);
+        const rawName = (el.textContent || "").trim();
+        if (!idMatch || !rawName) continue;
+        const id = Number(idMatch[1]);
+        if (domSeen.has(id)) continue;
+        domSeen.add(id);
+        const folder = { id: id, name: rawName.replace(/\\s*\\d+$/, "").trim() || ("Папка " + id) };
+        folders.push(folder);
+        statusMap[folder.id] = folder.name;
+      }
+    } catch {}
+
+    const foldersSummary = folders.map(f => f.count !== undefined ? \`\${f.name}: \${f.count}\` : f.name).join(", ");
+    console.log(\`📁 [\${site.name}] Найдено папок: \${folders.length} (\${foldersSummary})\`);
+
+    for (const folder of folders) {
+      let page = 1;
+      let folderCount = 0;
+      let totalExpected = null;
+      let maxPage = null;
+      let folderErrorRetries = 0;
+
+      // Честная бесконечная пагинация: у API SocialLib поля пагинации
+      // (last_page / total / per_page) приходят на верхнем уровне ответа, не в meta
+      while (true) {
+        const url = "https://api.cdnlibs.org/api/bookmarks?user_id=" + encodeURIComponent(userId) +
+          "&site_id=" + site.id +
+          "&status=" + folder.id +
+          "&page=" + page;
+
+        let res;
+        try {
+          res = await fetch(url, { headers });
+        } catch (fetchErr) {
+          console.error(\`Ошибка сети при запросе папки «\${folder.name}» (стр. \${page}):\`, fetchErr);
+          if (++folderErrorRetries <= 3) {
+            await new Promise(r => setTimeout(r, 1500));
+            continue;
+          }
+          break;
+        }
+
+        if (res.status === 429) {
+          console.warn("⚠️ Лимит запросов, ожидание 3 сек...");
+          await new Promise(r => setTimeout(r, 3000));
+          continue;
+        }
+
+        folderErrorRetries = 0;
+
+        if (!res.ok) {
+          if (res.status === 401 || res.status === 403) {
+            console.warn(\`\${site.name}: доступ ограничен (\${res.status})\`);
+          } else if (res.status === 422) {
+            const errDetail = await res.text();
+            console.warn(\`\${site.name} (папка «\${folder.name}» id:\${folder.id}): 422 detail:\`, errDetail);
+          }
+          break;
+        }
+
+        let json;
+        try {
+          json = await res.json();
+        } catch {
+          break;
+        }
+
+        const items = Array.isArray(json?.data) ? json.data : (Array.isArray(json) ? json : []);
+        if (items.length === 0) {
+          break;
+        }
+
+        // Пагинация может прийти в корне ответа ЛИБО внутри meta — проверяем оба места;
+        // если last_page нигде нет — считаем страницы из total и фактического размера страницы
+        totalExpected = json.total ?? json.meta?.total ?? json.meta?.pagination?.total ?? totalExpected;
+        maxPage = json.last_page ?? json.meta?.last_page ?? json.meta?.pagination?.total_pages ?? (totalExpected ? Math.ceil(totalExpected / items.length) : maxPage);
+
+        for (const b of items) {
+          processBookmark(b, site, folder.id, folder.name);
+        }
+        folderCount += items.length;
+
+        console.log(\`  ↳ Папка «\${folder.name}» (всего \${totalExpected ?? "?"}): стр. \${page}/\${maxPage ?? "?"} ✓ (+\${items.length} тайтлов, накоплено: \${folderCount})\`);
+
+        if (maxPage && page >= maxPage) {
+          break;
+        }
+
+        page++;
+        await new Promise(r => setTimeout(r, 250));
+      }
+
+      await new Promise(r => setTimeout(r, 200));
+    }
+
+    const siteTotal = (counts[site.id] || 0) - siteStartCount;
+    console.log(\`✔ \${site.name}: успешно собрано \${siteTotal} тайтлов.\`);
+  }
+
+  if (allItems.length === 0) {
+    console.log("Попытка fallback-сбора из DOM открытой страницы...");
+    const cardSelectors = [
+      'a[href*="/manga/"]',
+      'a[href*="/anime/"]',
+      'a[href*="/book/"]',
+      'a[href*="/ranobe/"]',
+      '[data-media-id]',
+      '.media-card',
+      '.bookmark-item',
+      '.hot-item'
+    ];
+    const elements = Array.from(document.querySelectorAll(cardSelectors.join(",")));
+    const seen = new Set();
+    for (const card of elements) {
+      const titleEl = card.querySelector('h3, h4, .media-card__title, [class*="title"], [class*="name"]') || (card.matches('h3, h4, a') ? card : null);
+      const title = titleEl ? titleEl.textContent.trim() : "";
+      if (!title || title.length < 2 || seen.has(title.toLowerCase())) continue;
+      seen.add(title.toLowerCase());
+
+      const img = card.querySelector('img') || (card.tagName === 'IMG' ? card : null);
+      const cover = img ? (img.currentSrc || img.src || img.getAttribute('data-src') || img.getAttribute('data-lazy')) : null;
+
+      let progress = 0;
+      const text = card.textContent || "";
+      const progMatch = text.match(/(?:глава|серия|том|гл\\.|сер\\.)\\s*(\\d+)/i) || text.match(/\\b(\\d+)\\s*\\/\\s*\\d+/);
+      if (progMatch) progress = parseInt(progMatch[1], 10) || 0;
+
+      let siteId = 1;
+      let type = "manga";
+      const href = card.getAttribute('href') || (card.closest('a')?.getAttribute('href')) || window.location.href;
+      if (href.includes("/anime") || window.location.hostname.includes("animelib")) { siteId = 5; type = "anime"; }
+      else if (href.includes("/book") || href.includes("/ranobe") || window.location.hostname.includes("ranobelib")) { siteId = 3; type = "book"; }
+      else if (window.location.hostname.includes("slashlib") || window.location.hostname.includes("yaoi")) { siteId = 2; type = "manga"; }
+      else if (window.location.hostname.includes("hentai")) { siteId = 4; type = "manga"; }
+
+      allItems.push({
+        rus_name: title,
+        type: type,
+        site_id: siteId,
+        status: "В планах",
+        user_chapters: progress,
+        cover: cover
+      });
+      counts[siteId] = (counts[siteId] || 0) + 1;
+    }
+  }
+
+  if (allItems.length === 0) {
+    console.warn("Закладки не найдены. Убедитесь, что вы авторизованы и открыли верный профиль.");
+    return;
+  }
+
+  const jsonStr = JSON.stringify(allItems, null, 2);
+  try {
+    if (typeof copy === "function") copy(jsonStr);
+    else if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(jsonStr);
+  } catch {}
+
+  try {
+    const blob = new Blob([jsonStr], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "tsundoku-sociallib.json";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
+  } catch {}
+
+  console.log("%c==================================================", "color:#10b981");
+  console.log(\`%c🎉 УСПЕШНО СОБРАНО: \${allItems.length} тайтлов!\`, "color:#10b981;font-weight:bold;font-size:13px;");
+  console.log(\`MangaLib: \${counts[1] || 0}, AnimeLib: \${counts[5] || 0}, RanobeLib: \${counts[3] || 0}, SlashLib: \${counts[2] || 0}, HentaiLib: \${counts[4] || 0}\`);
+  console.log("Данные скопированы в буфер обмена и скачан файл tsundoku-sociallib.json.");
+  console.log("👉 Вернитесь в Tsundoku и нажмите «Вставить из буфера и импортировать»!");
+  console.log("%c==================================================", "color:#10b981");
+})();`;
+    }
+
+    async function copySocialLibScript() {
+        const script = generateSocialLibScript(mangalibSites);
+        try {
+            await navigator.clipboard.writeText(script);
+            scriptCopied = true;
+            setTimeout(() => (scriptCopied = false), 2500);
+        } catch {
+            error = "Не удалось скопировать скрипт в буфер обмена";
+        }
+    }
+
+    async function importFromClipboard() {
+        if (busy) return;
+        error = "";
+        try {
+            if (!navigator.clipboard?.readText) {
+                error = "Буфер обмена недоступен в вашем браузере. Выберите способ «Файл» и загрузите сохраненный tsundoku-sociallib.json.";
+                return;
+            }
+            const text = await navigator.clipboard.readText();
+            if (!text || !text.trim()) {
+                error = "Буфер обмена пуст. Сначала скопируйте скрипт, выполните его в консоли любого Lib-сайта, а затем нажмите эту кнопку.";
+                return;
+            }
+            try {
+                JSON.parse(text);
+            } catch {
+                error = "В буфере обмена нет JSON данных закладок. Убедитесь, что скрипт в консоли завершил сбор.";
+                return;
+            }
+
+            busy = true;
+            const clipboardFile = new File([text], "tsundoku-sociallib.json", { type: "application/json" });
+            const form = new FormData();
+            form.append("file", clipboardFile);
+            form.append("provider", "mangalib");
+            form.append("skipDuplicates", String(skipDuplicates));
+            if (addToList && listMode === "existing" && targetListId)
+                form.append("targetListId", targetListId);
+            if (addToList && listMode === "new" && newListName.trim())
+                form.append("newListName", newListName.trim());
+
+            result = await importFile(form);
+            onImportCompleted?.();
+            void loadListsAndSources();
+        } catch (caught) {
+            error = caught instanceof Error ? caught.message : i18n.t.importModal.failed;
         } finally {
             busy = false;
         }
@@ -454,6 +909,13 @@
                         {i18n.t.importModal.openList}
                     </button>
                 {/if}
+                <button
+                    type="button"
+                    class="cursor-pointer rounded-lg border border-[#5844e0]/40 bg-[#5844e0]/15 px-4 py-2 text-sm font-semibold text-[#8f7fff] transition hover:bg-[#5844e0]/25 hover:text-white"
+                    onclick={() => jobsClient.openModal("jobs")}
+                >
+                    {i18n.t.backgroundJobs.openProcesses}
+                </button>
                 <button
                     type="button"
                     class="cursor-pointer rounded-lg border border-white/10 bg-field px-4 py-2 text-sm font-medium text-ink transition hover:bg-elevated hover:text-white"
@@ -862,6 +1324,282 @@
                             <ExternalLink size={12} />
                         </a>
                     </p>
+                </div>
+
+            <!-- MangaLib / SocialLib Ecosystem -->
+            {:else if provider === "mangalib"}
+                <div class="space-y-4">
+                    <!-- Site Selection Checkboxes -->
+                    <div class="rounded-xl border border-white/[0.08] bg-card/50 p-3.5 space-y-2.5">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-semibold uppercase tracking-wider text-muted">
+                                Сайты экосистемы SocialLib
+                            </span>
+                            <span class="text-[11px] text-orange-300 font-medium">
+                                Выбрано: {mangalibSites.length} из {socialLibSites.length}
+                            </span>
+                        </div>
+                        <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                            {#each socialLibSites as s (s.id)}
+                                {@const checked = mangalibSites.includes(s.id)}
+                                <button
+                                    type="button"
+                                    class={`flex items-center gap-2.5 transition rounded-xl p-3 text-left cursor-pointer ${
+                                        checked
+                                            ? "border border-orange-500/35 bg-orange-500/10 text-orange-200 ring-1 ring-orange-500/20"
+                                            : "border border-white/10 bg-white/[0.02] text-slate-400 hover:border-white/20 hover:text-white"
+                                    }`}
+                                    onclick={() => toggleSite(s.id)}
+                                >
+                                    <span
+                                        class={`grid h-4 w-4 shrink-0 place-items-center rounded border transition ${
+                                            checked
+                                                ? "border-orange-500 bg-orange-500 text-white"
+                                                : "border-white/30 bg-black/20"
+                                        }`}
+                                    >
+                                        {#if checked}
+                                            <Check size={12} strokeWidth={3} />
+                                        {/if}
+                                    </span>
+                                    <div class="min-w-0 flex-1">
+                                        <div class="truncate text-xs font-medium">{s.name}</div>
+                                        <div class="truncate text-[10px] text-muted">{s.tag}</div>
+                                    </div>
+                                </button>
+                            {/each}
+                        </div>
+                    </div>
+
+                    <!-- Mode Switcher Tabs -->
+                    <div class="flex gap-2" role="tablist">
+                        <button
+                            type="button"
+                            role="tab"
+                            aria-selected={mangalibMode === "script"}
+                            class={`flex-1 rounded-lg border px-3 py-2 text-xs font-medium transition cursor-pointer flex items-center justify-center gap-1.5 ${
+                                mangalibMode === "script"
+                                    ? "border border-orange-500/30 bg-orange-500/10 text-orange-200 font-semibold ring-1 ring-orange-500/20"
+                                    : "border-white/10 bg-card/60 text-muted hover:text-ink hover:bg-card"
+                            }`}
+                            onclick={() => {
+                                mangalibMode = "script";
+                                error = "";
+                            }}
+                        >
+                            <Sparkles size={14} class="text-orange-300" />
+                            <span>Мгновенный сборщик</span>
+                        </button>
+                        <button
+                            type="button"
+                            role="tab"
+                            aria-selected={mangalibMode === "profile"}
+                            class={`flex-1 rounded-lg border px-3 py-2 text-xs font-medium transition cursor-pointer ${
+                                mangalibMode === "profile"
+                                    ? "border border-orange-500/30 bg-orange-500/10 text-orange-200 font-semibold ring-1 ring-orange-500/20"
+                                    : "border-white/10 bg-card/60 text-muted hover:text-ink hover:bg-card"
+                            }`}
+                            onclick={() => {
+                                mangalibMode = "profile";
+                                error = "";
+                            }}
+                        >
+                            По ссылке / ID
+                        </button>
+                        <button
+                            type="button"
+                            role="tab"
+                            aria-selected={mangalibMode === "file"}
+                            class={`flex-1 rounded-lg border px-3 py-2 text-xs font-medium transition cursor-pointer ${
+                                mangalibMode === "file"
+                                    ? "border border-orange-500/30 bg-orange-500/10 text-orange-200 font-semibold ring-1 ring-orange-500/20"
+                                    : "border-white/10 bg-card/60 text-muted hover:text-ink hover:bg-card"
+                            }`}
+                            onclick={() => {
+                                mangalibMode = "file";
+                                error = "";
+                            }}
+                        >
+                            Файл .json / .csv
+                        </button>
+                    </div>
+
+                    <!-- Mode 1: Instant Collector Script + Clipboard 1-Click Import -->
+                    {#if mangalibMode === "script"}
+                        <div class="rounded-xl border border-white/[0.08] bg-card/50 p-4 space-y-4">
+                            <div class="space-y-1.5">
+                                <div class="flex items-center gap-2">
+                                    <span class="inline-flex items-center rounded-md border border-orange-500/30 bg-orange-500/15 px-2 py-0.5 text-xs font-semibold text-orange-300">
+                                        Рекомендуется
+                                    </span>
+                                    <h4 class="text-xs font-semibold text-white">
+                                        Сбор закладок за 1 секунду прямо из браузера
+                                    </h4>
+                                </div>
+                                <p class="text-xs text-muted leading-relaxed">
+                                    Обходит ограничения Cloudflare, моментально извлекая закладки со всех выбранных сайтов Lib с прогрессом, оценками и статусами.
+                                </p>
+                            </div>
+
+                            <!-- Instructions -->
+                            <ol class="space-y-2 rounded-lg border border-white/5 bg-black/30 p-3 text-xs text-ink/90">
+                                <li class="flex items-start gap-2">
+                                    <span class="grid h-4 w-4 shrink-0 place-items-center rounded-full bg-orange-500/20 text-[10px] font-bold text-orange-300">1</span>
+                                    <span>Откройте страницу своего профиля или закладок на любом сайте Lib (<a href="https://mangalib.me" target="_blank" rel="noreferrer" class="text-orange-300 underline hover:text-white">MangaLib</a>, <a href="https://animelib.org" target="_blank" rel="noreferrer" class="text-orange-300 underline hover:text-white">AnimeLib</a>, <a href="https://ranobelib.me" target="_blank" rel="noreferrer" class="text-orange-300 underline hover:text-white">RanobeLib</a>).</span>
+                                </li>
+                                <li class="flex items-start gap-2">
+                                    <span class="grid h-4 w-4 shrink-0 place-items-center rounded-full bg-orange-500/20 text-[10px] font-bold text-orange-300">2</span>
+                                    <span>Нажмите <strong>«Скопировать скрипт сбора»</strong> ниже, откройте консоль разработчика (<kbd class="rounded border border-white/20 bg-field px-1 font-mono text-[10px]">F12</kbd> → Console), вставьте и нажмите <kbd class="rounded border border-white/20 bg-field px-1 font-mono text-[10px]">Enter</kbd>.</span>
+                                </li>
+                                <li class="flex items-start gap-2">
+                                    <span class="grid h-4 w-4 shrink-0 place-items-center rounded-full bg-orange-500/20 text-[10px] font-bold text-orange-300">3</span>
+                                    <span>Вернитесь сюда и нажмите <strong>«Вставить из буфера и импортировать»</strong>.</span>
+                                </li>
+                            </ol>
+
+                            <!-- Actions -->
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                                <button
+                                    type="button"
+                                    class="inline-flex items-center justify-center gap-2 rounded-lg border border-white/10 bg-field px-4 py-2.5 text-sm font-medium text-slate-200 hover:border-orange-500/30 hover:bg-orange-500/10 hover:text-orange-200 transition cursor-pointer"
+                                    onclick={() => void copySocialLibScript()}
+                                >
+                                    {#if scriptCopied}
+                                        <Check size={16} class="text-emerald-400" />
+                                        <span class="text-emerald-300">Скрипт скопирован!</span>
+                                    {:else}
+                                        <Copy size={16} />
+                                        <span>Скопировать скрипт сбора</span>
+                                    {/if}
+                                </button>
+
+                                <button
+                                    type="button"
+                                    disabled={busy}
+                                    class="inline-flex items-center justify-center gap-2 rounded-lg bg-orange-600 hover:bg-orange-500 text-white font-semibold px-4 py-2.5 text-sm shadow-md transition cursor-pointer disabled:cursor-wait disabled:opacity-60"
+                                    onclick={() => void importFromClipboard()}
+                                >
+                                    {#if busy}
+                                        <LoaderCircle size={16} class="animate-spin" />
+                                        <span>Импортируем...</span>
+                                    {:else}
+                                        <Download size={16} />
+                                        <span>Вставить из буфера и импортировать</span>
+                                    {/if}
+                                </button>
+                            </div>
+                        </div>
+
+                    <!-- Mode 2: Direct Profile Import via Server -->
+                    {:else if mangalibMode === "profile"}
+                        <div class="rounded-xl border border-white/[0.08] bg-card/50 p-4 space-y-3.5">
+                            <div>
+                                <label
+                                    class="mb-1 block text-xs font-medium text-muted"
+                                    for="mangalib-profile"
+                                >
+                                    Ссылка на профиль или числовой ID пользователя
+                                </label>
+                                <input
+                                    id="mangalib-profile"
+                                    bind:value={mangalibProfileUrl}
+                                    placeholder="https://mangalib.me/ru/user/123456 или ID 123456"
+                                    class="w-full rounded-lg border border-white/10 bg-field px-3 py-2 text-sm text-ink outline-none transition focus:border-orange-500/60 focus:ring-1 focus:ring-orange-500/30"
+                                    onkeydown={(e) => {
+                                        if (e.key === "Enter") void runImport();
+                                    }}
+                                />
+                                <span class="mt-1 block text-[11px] text-muted">
+                                    Подходят ссылки любого из сайтов: mangalib.me, animelib.org, ranobelib.me, slashlib.me, hentailib.me.
+                                </span>
+                            </div>
+
+                            <div>
+                                <label
+                                    class="mb-1 block text-xs font-medium text-muted"
+                                    for="mangalib-token"
+                                >
+                                    Bearer токен авторизации (опционально)
+                                </label>
+                                <input
+                                    id="mangalib-token"
+                                    type="password"
+                                    bind:value={mangalibToken}
+                                    autocomplete="off"
+                                    placeholder="Нужен только если закладки скрыты настройками приватности"
+                                    class="w-full rounded-lg border border-white/10 bg-field px-3 py-2 text-sm text-ink outline-none transition focus:border-orange-500/60 focus:ring-1 focus:ring-orange-500/30"
+                                />
+                            </div>
+
+                            <p class="text-[11px] leading-relaxed text-muted/80">
+                                💡 Если прямой запрос к API заблокирован или возвращает ошибку, воспользуйтесь вкладкой «Мгновенный сборщик» — он работает прямо из вашего браузера.
+                            </p>
+                        </div>
+
+                    <!-- Mode 3: File Upload (.json / .csv / Lib to Shikimori) -->
+                    {:else}
+                        <div
+                            class={`relative flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-6 text-center transition cursor-pointer ${
+                                dragging
+                                    ? "border-accent bg-accent/10"
+                                    : file
+                                      ? "border-emerald-500/40 bg-emerald-500/5 hover:border-emerald-500/60"
+                                      : "border-white/15 bg-card/60 hover:border-white/30 hover:bg-card"
+                            }`}
+                            ondragover={(e) => {
+                                e.preventDefault();
+                                dragging = true;
+                            }}
+                            ondragleave={() => (dragging = false)}
+                            ondrop={handleDrop}
+                            onclick={() => fileInputRef?.click()}
+                            role="button"
+                            tabindex="0"
+                            onkeydown={(e) => {
+                                if (e.key === "Enter" || e.key === " ") fileInputRef?.click();
+                            }}
+                        >
+                            <input
+                                bind:this={fileInputRef}
+                                class="hidden"
+                                type="file"
+                                accept={fileAccept}
+                                onchange={(e) => pickFile(e.currentTarget.files?.[0])}
+                            />
+                            {#if file}
+                                <div class="flex flex-col items-center gap-2">
+                                    <div class="grid h-12 w-12 place-items-center rounded-full bg-emerald-500/20 text-emerald-400">
+                                        <FileText size={24} />
+                                    </div>
+                                    <div>
+                                        <p class="text-sm font-semibold text-ink">{file.name}</p>
+                                        <p class="text-xs text-muted">{(file.size / 1024).toFixed(1)} KB</p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        class="mt-1 cursor-pointer rounded-md border border-white/10 bg-field px-3 py-1 text-xs font-medium text-muted hover:bg-elevated hover:text-white"
+                                        onclick={(e) => {
+                                            e.stopPropagation();
+                                            file = null;
+                                            if (fileInputRef) fileInputRef.value = "";
+                                        }}
+                                    >
+                                        {i18n.t.importModal.changeFile}
+                                    </button>
+                                </div>
+                            {:else}
+                                <div class="grid h-11 w-11 place-items-center rounded-full bg-field text-muted mb-2">
+                                    <Upload size={20} />
+                                </div>
+                                <span class="block text-sm font-medium text-ink">
+                                    {i18n.t.importModal.dropFile}
+                                </span>
+                                <span class="mt-1 block text-xs text-muted">
+                                    Поддерживаются файлы tsundoku-sociallib.json, а также файлы старого скрипта Lib to Shikimori (.json / .csv)
+                                </span>
+                            {/if}
+                        </div>
+                    {/if}
                 </div>
 
             <!-- Custom File: Drag & Drop + Template Accordion -->

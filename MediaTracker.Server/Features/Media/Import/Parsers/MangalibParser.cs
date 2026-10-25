@@ -94,9 +94,22 @@ public static class MangalibParser
         var romaji = GetJsonString(elem, "eng_name", "target_title", "romaji", "romaji_name")
             ?? (hasMedia ? GetJsonString(media, "eng_name", "romaji") : null);
 
+        if (string.IsNullOrWhiteSpace(romaji) && !string.IsNullOrWhiteSpace(altName) && altName != title && MediaTitleHelper.IsLatin(altName))
+        {
+            romaji = altName;
+        }
+
+        if (!string.IsNullOrWhiteSpace(romaji) && romaji.Contains('-') && !romaji.Contains(' '))
+        {
+            romaji = romaji.Replace('-', ' ');
+        }
+
         // Status
-        var statusName = GetJsonString(elem, "folder_name", "status_name")
-            ?? (elem.TryGetProperty("folder", out var folderObj) && folderObj.ValueKind == JsonValueKind.Object ? GetJsonString(folderObj, "name") : null)
+        var folderName = GetJsonString(elem, "folder_name")
+            ?? (elem.TryGetProperty("folder", out var folderObj) && folderObj.ValueKind == JsonValueKind.Object ? GetJsonString(folderObj, "name") : null);
+
+        var statusName = folderName
+            ?? GetJsonString(elem, "status_name")
             ?? (elem.TryGetProperty("status", out var statusObj) && statusObj.ValueKind == JsonValueKind.Object ? GetJsonString(statusObj, "name") : null)
             ?? (elem.TryGetProperty("status", out var statusProp) && statusProp.ValueKind == JsonValueKind.String ? statusProp.GetString() : null);
 
@@ -104,6 +117,40 @@ public static class MangalibParser
             ?? (elem.TryGetProperty("folder", out folderObj) && folderObj.ValueKind == JsonValueKind.Object ? GetJsonString(folderObj, "id") : null)
             ?? (elem.TryGetProperty("status", out statusObj) && statusObj.ValueKind == JsonValueKind.Object ? GetJsonString(statusObj, "id") : null)
             ?? GetJsonString(elem, "status");
+
+        bool? isCustomFolder = null;
+        if (elem.TryGetProperty("is_custom_folder", out var customProp) &&
+            (customProp.ValueKind is JsonValueKind.True or JsonValueKind.False))
+        {
+            isCustomFolder = customProp.GetBoolean();
+        }
+
+        int? numCode = null;
+        if (!string.IsNullOrWhiteSpace(rawCode) && int.TryParse(rawCode.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedCode))
+        {
+            numCode = parsedCode;
+        }
+
+        if (!string.IsNullOrWhiteSpace(statusName) && IsStandardStatusName(statusName))
+        {
+            isCustomFolder = false;
+        }
+        else if (!isCustomFolder.HasValue)
+        {
+            if (numCode.HasValue)
+            {
+                isCustomFolder = numCode.Value is not (1 or 2 or 3 or 4 or 5 or 6);
+            }
+            else if (!string.IsNullOrWhiteSpace(statusName))
+            {
+                isCustomFolder = !IsStandardStatusName(statusName);
+            }
+        }
+
+        if (isCustomFolder == true)
+        {
+            folderName ??= statusName;
+        }
 
         var status = MapStatus(statusName, rawCode, defaultStatusId);
 
@@ -116,12 +163,15 @@ public static class MangalibParser
 
         var currentVol = hasProgress ? GetJsonInt(progress, "volume") : null;
         currentVol ??= GetJsonInt(elem, "volumes", "volume", "user_volumes");
+        var totalVol = hasMedia ? GetJsonInt(media, "volumes_count") : null;
+        totalVol ??= GetJsonInt(elem, "volumes_count", "total_volumes");
 
-        var total = hasMedia ? GetJsonInt(media, "chapters_count", "episodes_count", "chapters", "episodes") : null;
-        total ??= GetJsonInt(elem, "chapters", "total_chapters", "episodes_count", "chapters_count", "episodes", "totalCount");
+        var total = hasMedia ? GetJsonInt(media, "chap_count", "chapters_count", "episodes_count", "chapters", "episodes") : null;
+        total ??= GetJsonInt(elem, "chap_count", "chapters", "total_chapters", "episodes_count", "chapters_count", "episodes", "totalCount");
 
         // Score
-        var scoreVal = GetJsonInt(elem, "user_rating", "rating", "score");
+        var scoreVal = hasProgress ? GetJsonInt(progress, "rating", "score", "user_rating") : null;
+        scoreVal ??= GetJsonInt(elem, "user_rating", "rating", "score");
         var score = MapScore(scoreVal);
 
         // Cover
@@ -156,7 +206,10 @@ public static class MangalibParser
             Description: desc,
             Genres: genres,
             RomajiTitle: romaji,
-            CurrentVolumes: currentVol);
+            CurrentVolumes: currentVol,
+            TotalVolumes: totalVol,
+            FolderName: folderName,
+            IsCustomFolder: isCustomFolder);
     }
 
     private static IReadOnlyList<ParsedMediaItemDto> ParseCsv(string csv, int? defaultSiteId) =>
@@ -175,12 +228,39 @@ public static class MangalibParser
         var altName = Get(row, "name", "eng_name", "title", "target_title");
         var title = !string.IsNullOrWhiteSpace(rusName) ? rusName : altName;
 
-        var statusName = Get(row, "folder_name", "status_name");
+        var folderName = NullIfEmpty(Get(row, "folder_name"));
+        var statusName = folderName ?? NullIfEmpty(Get(row, "status_name")) ?? NullIfEmpty(Get(row, "status"));
         var rawStatus = Get(row, "status", "folder_id", "status_id");
         var status = MapStatus(statusName, rawStatus);
 
+        var isCustomStr = Get(row, "is_custom_folder");
+        bool? isCustomFolder = bool.TryParse(isCustomStr, out var bVal) ? bVal : null;
+        int? numCode = int.TryParse(rawStatus, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedCode) ? parsedCode : null;
+
+        if (!string.IsNullOrWhiteSpace(statusName) && IsStandardStatusName(statusName))
+        {
+            isCustomFolder = false;
+        }
+        else if (!isCustomFolder.HasValue)
+        {
+            if (numCode.HasValue)
+            {
+                isCustomFolder = numCode.Value is not (1 or 2 or 3 or 4 or 5 or 6);
+            }
+            else if (!string.IsNullOrWhiteSpace(statusName))
+            {
+                isCustomFolder = !IsStandardStatusName(statusName);
+            }
+        }
+
+        if (isCustomFolder == true)
+        {
+            folderName ??= statusName;
+        }
+
         var progress = Number(row, "user_chapters", "read_chapters", "chapters_read", "chapter", "episodes_read", "episodes_watched", "progress");
         var currentVol = Number(row, "volumes", "volume", "user_volumes");
+        var totalVol = Number(row, "total_volumes", "volumes_count");
         var total = Number(row, "chapters", "total_chapters", "episodes_count", "chapters_count", "episodes");
         var score = MapScore(Number(row, "user_rating", "rating", "score"));
 
@@ -205,7 +285,10 @@ public static class MangalibParser
             Description: desc,
             Genres: genres,
             RomajiTitle: romaji,
-            CurrentVolumes: currentVol);
+            CurrentVolumes: currentVol,
+            TotalVolumes: totalVol,
+            FolderName: folderName,
+            IsCustomFolder: isCustomFolder);
     }
 
     public static (string Type, string Source) DetermineTypeAndSource(int? siteId, string? rawType)
@@ -272,11 +355,14 @@ public static class MangalibParser
     private static MediaStatus? MatchStatusWord(string text)
     {
         var s = text.Trim().ToLowerInvariant();
-        if (s.Contains("читаю") || s.Contains("смотрю") || s == "reading" || s == "watching" || s == "in_progress" || s == "in progress")
+        if (s.Contains("читаю") || s.Contains("смотрю") || s.Contains("пересматрива") ||
+            s == "reading" || s == "watching" || s == "rewatching" || s == "in_progress" || s == "in progress")
             return MediaStatus.InProgress;
-        if (s.Contains("план") || s.Contains("запланировано") || s.Contains("буду") || s == "planned")
+        if (s.Contains("план") || s.Contains("запланировано") || s.Contains("буду") ||
+            s == "planned" || s == "plan_to_watch")
             return MediaStatus.Planned;
-        if (s.Contains("прочитано") || s.Contains("просмотрено") || s.Contains("любим") || s == "completed" || s == "finished" || s.Contains("favorite"))
+        if (s.Contains("прочитано") || s.Contains("просмотрено") || s.Contains("любим") ||
+            s == "completed" || s == "finished" || s.Contains("favorite") || s == "watched")
             return MediaStatus.Completed;
         if (s.Contains("брошен") || s.Contains("удален") || s == "dropped")
             return MediaStatus.Dropped;
@@ -284,6 +370,26 @@ public static class MangalibParser
             return MediaStatus.OnHold;
 
         return null;
+    }
+
+    public static bool IsStandardStatusName(string text)
+    {
+        var s = text.Trim().ToLowerInvariant();
+        if (s.Contains("читаю") || s.Contains("смотрю") || s.Contains("пересматрива") ||
+            s == "reading" || s == "watching" || s == "rewatching" || s == "in_progress" || s == "in progress")
+            return true;
+        if (s.Contains("план") || s.Contains("запланировано") || s.Contains("буду") ||
+            s == "planned" || s == "plan_to_watch")
+            return true;
+        if (s.Contains("прочитано") || s.Contains("просмотрено") || s.Contains("любим") ||
+            s == "completed" || s == "finished" || s.Contains("favorite") || s == "watched")
+            return true;
+        if (s.Contains("брошен") || s == "dropped")
+            return true;
+        if (s.Contains("отложен") || s == "on_hold" || s == "on hold" || s == "paused")
+            return true;
+
+        return false;
     }
 
     private static int? MapScore(int? value)

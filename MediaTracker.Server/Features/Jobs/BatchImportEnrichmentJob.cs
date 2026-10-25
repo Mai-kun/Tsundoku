@@ -203,30 +203,52 @@ public static class BatchImportEnrichmentJob
         string type,
         CancellationToken ct)
     {
-        var romaji = item switch
+        var rawRomaji = (item switch
         {
             Manga manga => manga.RomajiTitle,
             Movie movie => movie.RomajiTitle,
             TvShow show => show.RomajiTitle,
             _ => null,
-        };
+        })?.Trim();
 
-        var latin = new[] { romaji, item.OriginalTitle, MediaTitleHelper.ExtractLatinFromTitle(item.Title) }
-            .FirstOrDefault(MediaTitleHelper.IsLatin)?.Trim();
+        var latin = (!string.IsNullOrWhiteSpace(rawRomaji) ? rawRomaji : null)
+            ?? item.OriginalTitle?.Trim()
+            ?? MediaTitleHelper.ExtractLatinFromTitle(item.Title)?.Trim();
+
+        if (!string.IsNullOrWhiteSpace(latin) && latin.Contains('-') && !latin.Contains(' '))
+        {
+            latin = latin.Replace('-', ' ');
+        }
 
         var russian = MediaTitleHelper.CleanRussianTitle(item.Title);
         var searchTasks = new List<Task<IReadOnlyList<ExternalMediaDto>>>();
 
         if (type == "manga")
         {
+            // Always query all active manga providers (AniList + MangaDex + Shikimori).
+            // When RomajiTitle / Latin exists, strictly query AniList and MangaDex with it.
             if (!string.IsNullOrWhiteSpace(latin))
             {
                 searchTasks.Add(aggregator.SearchSourceAsync("manga", latin, "anilist", ct));
                 searchTasks.Add(aggregator.SearchSourceAsync("manga", latin, "mangadex", ct));
             }
+            else
+            {
+                searchTasks.Add(aggregator.SearchSourceAsync("manga", item.Title, "anilist", ct));
+                searchTasks.Add(aggregator.SearchSourceAsync("manga", item.Title, "mangadex", ct));
+            }
+
             if (MediaTitleHelper.IsCyrillic(russian))
             {
                 searchTasks.Add(aggregator.SearchSourceAsync("manga", russian, "shikimori", ct));
+            }
+            else if (!string.IsNullOrWhiteSpace(latin))
+            {
+                searchTasks.Add(aggregator.SearchSourceAsync("manga", latin, "shikimori", ct));
+            }
+            else
+            {
+                searchTasks.Add(aggregator.SearchSourceAsync("manga", item.Title, "shikimori", ct));
             }
         }
         else if (type == "anime")
@@ -235,9 +257,22 @@ public static class BatchImportEnrichmentJob
             {
                 searchTasks.Add(aggregator.SearchSourceAsync("anime", latin, "anilist", ct));
             }
+            else
+            {
+                searchTasks.Add(aggregator.SearchSourceAsync("anime", item.Title, "anilist", ct));
+            }
+
             if (MediaTitleHelper.IsCyrillic(russian))
             {
                 searchTasks.Add(aggregator.SearchSourceAsync("anime", russian, "shikimori", ct));
+            }
+            else if (!string.IsNullOrWhiteSpace(latin))
+            {
+                searchTasks.Add(aggregator.SearchSourceAsync("anime", latin, "shikimori", ct));
+            }
+            else
+            {
+                searchTasks.Add(aggregator.SearchSourceAsync("anime", item.Title, "shikimori", ct));
             }
         }
         else if (type is "movie" or "tvshow")
@@ -249,6 +284,10 @@ public static class BatchImportEnrichmentJob
             if (MediaTitleHelper.IsCyrillic(russian))
             {
                 searchTasks.Add(aggregator.SearchSourceAsync(type, russian, "kinopoisk", ct));
+            }
+            else if (!string.IsNullOrWhiteSpace(latin))
+            {
+                searchTasks.Add(aggregator.SearchSourceAsync(type, latin, "kinopoisk", ct));
             }
         }
 
@@ -265,7 +304,7 @@ public static class BatchImportEnrichmentJob
         {
             var romajiFromFallback = found
                 .Select(candidate => candidate.RomajiTitle ?? candidate.OriginalTitle)
-                .FirstOrDefault(MediaTitleHelper.IsLatin);
+                .FirstOrDefault(s => !string.IsNullOrWhiteSpace(s) && MediaTitleHelper.IsLatin(s));
 
             if (!string.IsNullOrWhiteSpace(romajiFromFallback))
             {
@@ -298,13 +337,16 @@ public static class BatchImportEnrichmentJob
                 var isAniListOrMangaDex = candidate.ExternalSource is not null &&
                     (candidate.ExternalSource.Equals("AniList", StringComparison.OrdinalIgnoreCase) ||
                      candidate.ExternalSource.Equals("MangaDex", StringComparison.OrdinalIgnoreCase));
-                if (!isAniListOrMangaDex) return 0;
                 var titleScore = Math.Max(
                     ImportMatchScorer.TitlePairScore(latin, candidate.Title),
                     Math.Max(
                         ImportMatchScorer.TitlePairScore(latin, candidate.RomajiTitle),
                         ImportMatchScorer.TitlePairScore(latin, candidate.OriginalTitle)));
-                return titleScore >= 60 ? 2 : (titleScore >= 40 ? 1 : 0);
+                if (isAniListOrMangaDex)
+                {
+                    return titleScore >= 60 ? 3 : (titleScore >= 40 ? 2 : 1);
+                }
+                return titleScore >= 60 ? 1 : 0;
             })
             .ToList();
     }

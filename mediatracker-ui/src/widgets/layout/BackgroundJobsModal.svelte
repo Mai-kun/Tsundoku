@@ -73,7 +73,7 @@
     }
 
     function getPreferredSearchQuery(item: PendingMatchItemDto): string {
-        return item.romajiTitle || extractLatin(item.title) || item.title;
+        return item.romajiTitle || item.title;
     }
 
     function emptySearch(item: PendingMatchItemDto): ManualSearch {
@@ -174,7 +174,6 @@
     async function resolveAllByPriority() {
         if (jobsClient.pendingCount === 0 || resolvingAll) return;
         resolvingAll = true;
-        jobsClient.modalTab = "jobs";
         try {
             const result = await resolveAllPendingMatchesByPriority();
             showToast(
@@ -186,6 +185,9 @@
             );
             // Weak rows stay in review on purpose: reread so they appear back in the list.
             await jobsClient.refreshPendingMatches();
+            if (jobsClient.pendingCount === 0) {
+                jobsClient.modalTab = "jobs";
+            }
         } catch (error) {
             showToast(errorMessage(error), "error");
         } finally {
@@ -327,7 +329,7 @@
             </div>
         </header>
 
-        <div class="thin-scroll min-h-0 flex-1 overflow-y-auto p-5">
+        <div class="thin-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain p-5">
             {#if jobsClient.modalTab === "jobs"}
                 {#if jobsClient.pendingCount > 0}
                     <div
@@ -462,24 +464,25 @@
                         type="button"
                         disabled={resolvingAll || jobsClient.pendingCount === 0}
                         class="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-accent/40 bg-accent/20 px-3.5 text-xs font-semibold text-accent-soft hover:bg-accent hover:text-white transition shadow-sm cursor-pointer whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-50"
-                        title="Автоматически привязать кандидатов с надежным совпадением по приоритету источников"
+                        title="Автоматически привязать кандидатов с надежным совпадением (балл ≥ 50)"
                         onclick={() => void resolveAllByPriority()}
                     >
                         {#if resolvingAll}
                             <LoaderCircle size={14} class="animate-spin" />
                         {/if}
-                        <span>{i18n.t.backgroundJobs.resolveAllPriority}</span>
+                        <span>⚡ {i18n.t.backgroundJobs.resolveAllPriority}</span>
                     </button>
                     <button
                         type="button"
                         disabled={dismissingAll || jobsClient.pendingCount === 0}
                         class="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-white/10 bg-field px-3.5 text-xs font-medium text-slate-300 hover:bg-white/10 hover:text-white transition cursor-pointer whitespace-nowrap disabled:cursor-wait disabled:opacity-50"
+                        title="Оставить все как есть (без привязки)"
                         onclick={() => void keepAll()}
                     >
                         {#if dismissingAll}
                             <LoaderCircle size={14} class="mr-1 inline animate-spin" />
                         {/if}
-                        {i18n.t.backgroundJobs.keepAll}
+                        <span>{i18n.t.backgroundJobs.keepAll}</span>
                     </button>
                 </div>
 
@@ -556,7 +559,7 @@
                                     <div class="flex shrink-0 items-center gap-1.5">
                                         <button
                                             type="button"
-                                            class="inline-flex size-8 items-center justify-center rounded-lg border border-white/10 bg-field text-slate-300 transition hover:bg-elevated hover:text-white cursor-pointer {search.open ? 'border-accent-soft text-accent-soft' : ''}"
+                                            class="inline-flex size-8 sm:size-9 items-center justify-center rounded-lg border border-white/10 bg-field text-slate-300 transition hover:bg-elevated hover:text-white cursor-pointer {search.open ? 'border-accent-soft text-accent-soft' : ''}"
                                             title="Искать вручную"
                                             aria-label={i18n.t.backgroundJobs.findManually}
                                             onclick={() => toggleSearch(item)}
@@ -565,7 +568,7 @@
                                         </button>
                                         <button
                                             type="button"
-                                            class="inline-flex size-8 items-center justify-center rounded-lg border border-white/10 bg-field text-slate-300 transition hover:bg-elevated hover:text-white cursor-pointer"
+                                            class="inline-flex size-8 sm:size-9 items-center justify-center rounded-lg border border-white/10 bg-field text-slate-300 transition hover:bg-elevated hover:text-white cursor-pointer"
                                             title="Оставить как есть (без привязки)"
                                             aria-label={i18n.t.backgroundJobs.keepAsIs}
                                             onclick={() => void keep(item)}
@@ -574,8 +577,8 @@
                                         </button>
                                         <button
                                             type="button"
-                                            class="inline-flex size-8 items-center justify-center rounded-lg border border-rose-500/20 bg-rose-500/10 text-rose-400 transition hover:border-rose-500/40 hover:bg-rose-500/20 cursor-pointer"
-                                            title="Удалить тайтл из библиотеки навсегда"
+                                            class="inline-flex size-8 sm:size-9 items-center justify-center rounded-lg border border-rose-500/20 bg-rose-500/10 text-rose-400 transition hover:border-rose-500/40 hover:bg-rose-500/20 cursor-pointer"
+                                            title="Удалить из библиотеки"
                                             aria-label={i18n.t.backgroundJobs.delete}
                                             onclick={() => handleDeleteItem(item.id)}
                                         >
@@ -601,10 +604,10 @@
                                                 <div class="absolute right-2 flex items-center gap-1">
                                                     <button
                                                         type="button"
-                                                        class="rounded px-1.5 py-0.5 text-[10px] font-semibold transition cursor-pointer {search.query === (item.romajiTitle || extractLatin(item.title)) ? 'bg-accent text-white' : 'bg-white/10 text-muted hover:text-white'}"
+                                                        class="rounded px-1.5 py-0.5 text-[10px] font-semibold transition cursor-pointer {search.query === (item.romajiTitle || item.title) ? 'bg-accent text-white' : 'bg-white/10 text-muted hover:text-white'}"
                                                         title="Искать по латинице / Romaji"
                                                         onclick={() => {
-                                                            search.query = item.romajiTitle || extractLatin(item.title) || "";
+                                                            search.query = item.romajiTitle || item.title;
                                                             void runSearch(item);
                                                         }}
                                                     >
@@ -653,7 +656,9 @@
                                     </p>
                                 {:else}
                                     <div
-                                        class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2 max-h-[380px] sm:max-h-[420px] overflow-y-auto thin-scroll pr-1.5"
+                                        class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2 {candidates.length > 4
+                                            ? 'max-h-[420px] overflow-y-auto overscroll-auto [overscroll-behavior:auto] pr-1.5'
+                                            : ''}"
                                     >
                                         {#each candidates as candidate (candidate.externalSource + candidate.externalId)}
                                             {@const key = candidate.externalSource + candidate.externalId}

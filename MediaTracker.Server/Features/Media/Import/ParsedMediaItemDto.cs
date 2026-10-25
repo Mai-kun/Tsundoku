@@ -29,13 +29,34 @@ public sealed record ParsedMediaItemDto(
     int? DurationMinutes = null,
     string? Platform = null,
     int? CurrentVolumes = null,
-    int? TotalVolumes = null);
+    int? TotalVolumes = null,
+    string? FolderName = null,
+    bool? IsCustomFolder = null);
 
-public sealed record ImportResultDto(int TotalFound, int ImportedCount, int SkippedDuplicates, Guid? TargetListId, string? TargetListName);
+public sealed record ImportResultDto(
+    int TotalFound,
+    int ImportedCount,
+    int SkippedDuplicates,
+    Guid? TargetListId,
+    string? TargetListName,
+    IReadOnlyList<string>? SkippedTitles = null);
 
 public sealed record SteamImportRequest(string? SteamId = null, string? ProfileUrl = null, bool SkipDuplicates = true, Guid? TargetListId = null, string? NewListName = null, string? SteamApiKey = null);
 
-public sealed record ImportFileRequest(IFormFile File, string Provider, bool SkipDuplicates = true, Guid? TargetListId = null, string? NewListName = null);
+public sealed record CustomFolderSetting(
+    string? Status = null,
+    bool CreateList = true,
+    bool Skip = false);
+
+public sealed record ImportFileRequest(
+    IFormFile File,
+    string Provider,
+    bool SkipDuplicates = true,
+    Guid? TargetListId = null,
+    string? NewListName = null,
+    bool CreateCustomLists = false,
+    MediaStatus? CustomFolderStatus = null,
+    string? CustomFolderConfigs = null);
 
 public sealed record AniListProfileRequest(string Username, bool SkipDuplicates = true, Guid? TargetListId = null, string? NewListName = null);
 

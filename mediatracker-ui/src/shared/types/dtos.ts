@@ -76,6 +76,7 @@ export interface ImportResultDto {
   skippedDuplicates: number;
   targetListId: string | null;
   targetListName: string | null;
+  skippedTitles?: string[];
 }
 
 export interface SteamImportPayload {

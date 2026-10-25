@@ -31,11 +31,28 @@ public static class MediaEndpoints
         group.MapPost("/import/file", async (
             [FromForm] IFormFile file, [FromForm] string provider, [FromForm] bool? skipDuplicates,
             [FromForm] Guid? targetListId, [FromForm] string? newListName,
+            [FromForm] bool? createCustomLists, [FromForm] string? customFolderStatus,
+            [FromForm] string? customFolderConfigs,
             [FromServices] ImportMediaHandler handler, CancellationToken ct) =>
         {
             try
             {
-                return Results.Ok(await handler.ImportFileAsync(new ImportFileRequest(file, provider, skipDuplicates ?? true, targetListId, newListName), ct));
+                MediaStatus? parsedStatus = null;
+                if (!string.IsNullOrWhiteSpace(customFolderStatus) &&
+                    Enum.TryParse<MediaStatus>(customFolderStatus, true, out var parsed))
+                {
+                    parsedStatus = parsed;
+                }
+
+                return Results.Ok(await handler.ImportFileAsync(new ImportFileRequest(
+                    file,
+                    provider,
+                    skipDuplicates ?? true,
+                    targetListId,
+                    newListName,
+                    createCustomLists ?? false,
+                    parsedStatus,
+                    customFolderConfigs), ct));
             }
             catch (FormatException error) { return Results.BadRequest(new { detail = error.Message }); }
             catch (HttpRequestException error) { return Results.BadRequest(new { detail = $"Steam request failed: {error.Message}" }); }

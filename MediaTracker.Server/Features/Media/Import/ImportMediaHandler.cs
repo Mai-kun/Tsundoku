@@ -54,7 +54,15 @@ public sealed class ImportMediaHandler(
         }
         catch (XmlException error) { throw new FormatException("The XML file is malformed.", error); }
         catch (JsonException error) { throw new FormatException("The JSON file is malformed.", error); }
-        return await ImportAsync(items, request.SkipDuplicates, request.TargetListId, request.NewListName, ct);
+        return await ImportAsync(
+            items,
+            request.SkipDuplicates,
+            request.TargetListId,
+            request.NewListName,
+            ct,
+            request.CreateCustomLists,
+            request.CustomFolderStatus,
+            request.CustomFolderConfigs);
     }
 
     public async Task<ImportResultDto> ImportSteamAsync(SteamImportRequest request, CancellationToken ct)
@@ -220,7 +228,7 @@ public sealed class ImportMediaHandler(
                 var page = 1;
                 while (page <= 50)
                 {
-                    var url = $"https://api.cdnlibs.org/api/bookmarks?user_id={Uri.EscapeDataString(userId)}&site_id={siteId}&status={statusId}&page={page}&limit=60";
+                    var url = $"https://api.cdnlibs.org/api/bookmarks?user_id={Uri.EscapeDataString(userId)}&site_id={siteId}&status={statusId}&page={page}&limit=60&fields[]=summary&fields[]=genres&fields[]=authors&fields[]=chap_count&fields[]=rate";
                     using var msg = CreateSocialLibMessage(url, siteId, request.BearerToken);
 
                     HttpResponseMessage? response = null;
@@ -355,7 +363,15 @@ public sealed class ImportMediaHandler(
         return [1, 2, 4, 3, 6, 5];
     }
 
-    private async Task<ImportResultDto> ImportAsync(IReadOnlyList<ParsedMediaItemDto> parsed, bool skipDuplicates, Guid? targetListId, string? newListName, CancellationToken ct)
+    private async Task<ImportResultDto> ImportAsync(
+        IReadOnlyList<ParsedMediaItemDto> parsed,
+        bool skipDuplicates,
+        Guid? targetListId,
+        string? newListName,
+        CancellationToken ct,
+        bool createCustomLists = false,
+        MediaStatus? customFolderStatus = null,
+        string? customFolderConfigs = null)
     {
         CustomList? list = null;
         if (!string.IsNullOrWhiteSpace(newListName))
@@ -367,6 +383,19 @@ public sealed class ImportMediaHandler(
         {
             list = await db.CustomLists.SingleOrDefaultAsync(value => value.Id == id, ct)
                 ?? throw new FormatException("The selected list does not exist.");
+        }
+
+        Dictionary<string, CustomFolderSetting>? folderConfigs = null;
+        if (!string.IsNullOrWhiteSpace(customFolderConfigs))
+        {
+            try
+            {
+                var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                folderConfigs = JsonSerializer.Deserialize<Dictionary<string, CustomFolderSetting>>(customFolderConfigs, options);
+            }
+            catch
+            {
+            }
         }
 
         var existing = await db.MediaItems.ToListAsync(ct);
@@ -397,8 +426,43 @@ public sealed class ImportMediaHandler(
 
         var toAdd = new List<MediaItem>();
         var duplicateCount = 0;
-        foreach (var dto in parsed)
+        var skippedTitles = new List<string>();
+        var customFolderAssignments = new List<(string FolderName, MediaItem Item)>();
+
+        foreach (var originalDto in parsed)
         {
+            var dto = originalDto;
+            CustomFolderSetting? folderSetting = null;
+            if (dto.IsCustomFolder == true && !string.IsNullOrWhiteSpace(dto.FolderName) && folderConfigs != null)
+            {
+                folderConfigs.TryGetValue(dto.FolderName.Trim(), out folderSetting);
+            }
+
+            if (folderSetting is { Skip: true })
+            {
+                continue;
+            }
+            if (folderSetting?.Status != null &&
+                (folderSetting.Status.Equals("skip", StringComparison.OrdinalIgnoreCase) ||
+                 folderSetting.Status.Equals("ignore", StringComparison.OrdinalIgnoreCase)))
+            {
+                continue;
+            }
+
+            if (folderSetting?.Status != null &&
+                Enum.TryParse<MediaStatus>(folderSetting.Status, true, out var customStatus))
+            {
+                dto = dto with { Status = customStatus };
+            }
+            else if (customFolderStatus.HasValue && dto.IsCustomFolder == true)
+            {
+                dto = dto with { Status = customFolderStatus.Value };
+            }
+
+            var shouldCreateList = folderSetting != null
+                ? folderSetting.CreateList
+                : createCustomLists;
+
             var externalKey = string.IsNullOrWhiteSpace(dto.ExternalId) ? null : $"{dto.ExternalSource}\u001f{dto.ExternalId}";
             var titleKey = $"{dto.Type}\u001f{dto.Title.Trim()}";
 
@@ -416,9 +480,25 @@ public sealed class ImportMediaHandler(
             if (match is not null)
             {
                 HealExisting(match, dto);
+                if (folderSetting?.Status != null &&
+                    Enum.TryParse<MediaStatus>(folderSetting.Status, true, out var customMatchStatus))
+                {
+                    match.Status = customMatchStatus;
+                }
+                else if (customFolderStatus.HasValue && dto.IsCustomFolder == true)
+                {
+                    match.Status = customFolderStatus.Value;
+                }
+
+                if (shouldCreateList && dto.IsCustomFolder == true && !string.IsNullOrWhiteSpace(dto.FolderName))
+                {
+                    customFolderAssignments.Add((dto.FolderName.Trim(), match));
+                }
+
                 if (skipDuplicates)
                 {
                     duplicateCount++;
+                    skippedTitles.Add(dto.Title);
                     continue;
                 }
             }
@@ -427,6 +507,11 @@ public sealed class ImportMediaHandler(
             toAdd.Add(item);
             if (externalKey is not null) byExternalKey.TryAdd(externalKey, item);
             byTitleKey.TryAdd(titleKey, item);
+
+            if (shouldCreateList && dto.IsCustomFolder == true && !string.IsNullOrWhiteSpace(dto.FolderName))
+            {
+                customFolderAssignments.Add((dto.FolderName.Trim(), item));
+            }
         }
 
         db.MediaItems.AddRange(toAdd);
@@ -436,6 +521,57 @@ public sealed class ImportMediaHandler(
             foreach (var item in toAdd) db.CustomListItems.Add(new CustomListItem { ListId = list.Id, List = list, MediaItem = item, Order = ++order });
             list.UpdatedAt = DateTime.UtcNow;
         }
+
+        if (customFolderAssignments.Count > 0)
+        {
+            var uniqueFolderNames = customFolderAssignments
+                .Select(x => x.FolderName)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            var existingLists = await db.CustomLists
+                .Include(l => l.Items)
+                .Where(l => uniqueFolderNames.Contains(l.Name))
+                .ToListAsync(ct);
+
+            var listMap = existingLists.ToDictionary(l => l.Name, StringComparer.OrdinalIgnoreCase);
+
+            foreach (var folderName in uniqueFolderNames)
+            {
+                if (!listMap.TryGetValue(folderName, out var customList))
+                {
+                    customList = new CustomList { Name = folderName, UpdatedAt = DateTime.UtcNow };
+                    db.CustomLists.Add(customList);
+                    listMap[folderName] = customList;
+                }
+            }
+
+            foreach (var group in customFolderAssignments.GroupBy(x => x.FolderName, StringComparer.OrdinalIgnoreCase))
+            {
+                var customList = listMap[group.Key];
+                var existingItemIds = new HashSet<Guid>(customList.Items.Select(ci => ci.MediaItemId));
+                var maxOrder = customList.Items.Count > 0 ? customList.Items.Max(ci => ci.Order) : -1;
+
+                var distinctItems = group.Select(x => x.Item).DistinctBy(x => x.Id).ToList();
+                foreach (var mediaItem in distinctItems)
+                {
+                    if (existingItemIds.Contains(mediaItem.Id)) continue;
+
+                    var listItem = new CustomListItem
+                    {
+                        ListId = customList.Id,
+                        List = customList,
+                        MediaItem = mediaItem,
+                        Order = ++maxOrder,
+                        AddedAt = DateTime.UtcNow
+                    };
+                    db.CustomListItems.Add(listItem);
+                    existingItemIds.Add(mediaItem.Id);
+                }
+                customList.UpdatedAt = DateTime.UtcNow;
+            }
+        }
+
         await db.SaveChangesAsync(ct);
 
         // Import parsers study hand-maintained lists, so new rows arrive with names and progress but
@@ -457,7 +593,7 @@ public sealed class ImportMediaHandler(
                 (sp, token, progress) => BatchImportEnrichmentJob.RunAsync(sp, [.. itemsToEnrich.Select(item => item.Id)], token, progress));
         }
 
-        return new ImportResultDto(parsed.Count, toAdd.Count, duplicateCount, list?.Id, list?.Name);
+        return new ImportResultDto(parsed.Count, toAdd.Count, duplicateCount, list?.Id, list?.Name, skippedTitles);
     }
 
     /// <summary>

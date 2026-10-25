@@ -314,6 +314,50 @@ public static class RefactorSelfCheck
             AssertEqual(failures, MediaStatus.OnHold, csv[0].Status, "MangaLib CSV отложено maps to on-hold");
             AssertEqual<int?>(failures, 8, csv[0].Score, "MangaLib CSV rating");
         }
+
+        var customFolderJson = """
+            [
+              { "rus_name": "Магическая битва", "folder_name": "Жду", "is_custom_folder": true, "status": "Жду" },
+              { "rus_name": "Наруто", "folder_name": "Читаю", "is_custom_folder": false, "status": 1 },
+              { "rus_name": "Атака титанов", "folder_name": "Смотрю", "status": "Смотрю", "is_custom_folder": true },
+              { "rus_name": "Евангелион", "folder_name": "Пересматриваю", "status": "Пересматриваю" },
+              { "rus_name": "Врата Штейна", "folder_name": "Запланировано", "status": "Запланировано" },
+              { "rus_name": "Кланнад", "folder_name": "Просмотрено", "status": "Просмотрено" },
+              { "rus_name": "Блич", "folder_name": "Отложено", "status": "Отложено" },
+              { "rus_name": "Гинтама", "folder_name": "Любимые", "status": "Любимые" },
+              { "rus_name": "Боруто", "folder_name": "Брошено", "status": "Брошено" }
+            ]
+            """;
+        var customParsed = MangalibParser.Parse(customFolderJson);
+        AssertEqual(failures, 9, customParsed.Count, "MangaLib custom and AnimeLib standard folders count");
+        if (customParsed.Count == 9)
+        {
+            AssertTrue(failures, customParsed[0].IsCustomFolder == true, "First item is custom folder");
+            AssertEqual(failures, "Жду", customParsed[0].FolderName, "First item folder name is Жду");
+            AssertTrue(failures, customParsed[1].IsCustomFolder == false, "Second item is standard folder");
+
+            // AnimeLib standard folders are never marked as custom:
+            AssertTrue(failures, customParsed[2].IsCustomFolder == false, "Смотрю is standard AnimeLib folder even if is_custom_folder was set");
+            AssertEqual(failures, MediaStatus.InProgress, customParsed[2].Status, "Смотрю is InProgress");
+
+            AssertTrue(failures, customParsed[3].IsCustomFolder == false, "Пересматриваю is standard AnimeLib folder");
+            AssertEqual(failures, MediaStatus.InProgress, customParsed[3].Status, "Пересматриваю is InProgress");
+
+            AssertTrue(failures, customParsed[4].IsCustomFolder == false, "Запланировано is standard AnimeLib folder");
+            AssertEqual(failures, MediaStatus.Planned, customParsed[4].Status, "Запланировано is Planned");
+
+            AssertTrue(failures, customParsed[5].IsCustomFolder == false, "Просмотрено is standard AnimeLib folder");
+            AssertEqual(failures, MediaStatus.Completed, customParsed[5].Status, "Просмотрено is Completed");
+
+            AssertTrue(failures, customParsed[6].IsCustomFolder == false, "Отложено is standard AnimeLib folder");
+            AssertEqual(failures, MediaStatus.OnHold, customParsed[6].Status, "Отложено is OnHold");
+
+            AssertTrue(failures, customParsed[7].IsCustomFolder == false, "Любимые is standard AnimeLib folder");
+            AssertEqual(failures, MediaStatus.Completed, customParsed[7].Status, "Любимые is Completed");
+
+            AssertTrue(failures, customParsed[8].IsCustomFolder == false, "Брошено is standard AnimeLib folder");
+            AssertEqual(failures, MediaStatus.Dropped, customParsed[8].Status, "Брошено is Dropped");
+        }
     }
 
     private static void CheckMangalibParser(List<string> failures)
@@ -597,6 +641,67 @@ public static class RefactorSelfCheck
         var healedGame = db.Games.Single(g => g.ExternalId == "367520");
         AssertEqual(failures, "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/367520/library_600x900.jpg", healedGame.CoverUrl, "Healed steam game has 600x900 cover");
         AssertEqual(failures, "PC", healedGame.Platform, "Healed steam game platform is PC");
+
+        // Now test custom folder import list creation and status assignment
+        var mangaLibJson = """
+            [
+              { "rus_name": "Человек-бензопила", "site_id": 1, "folder_name": "Жду", "is_custom_folder": true, "status": "Жду" }
+            ]
+            """;
+        var mlBytes = global::System.Text.Encoding.UTF8.GetBytes(mangaLibJson);
+        using var mlStream = new MemoryStream(mlBytes);
+        var mlFormFile = new FormFile(mlStream, 0, mlBytes.Length, "file", "tsundoku-sociallib.json");
+        handler.ImportFileAsync(new ImportFileRequest(
+            mlFormFile,
+            "mangalib",
+            SkipDuplicates: true,
+            CreateCustomLists: true,
+            CustomFolderStatus: MediaStatus.OnHold), CancellationToken.None).GetAwaiter().GetResult();
+
+        var customList = db.CustomLists.Include(l => l.Items).SingleOrDefault(l => l.Name == "Жду");
+        AssertTrue(failures, customList is not null, "Custom list 'Жду' created");
+        if (customList is not null)
+        {
+            AssertEqual(failures, 1, customList.Items.Count, "Custom list contains imported title");
+        }
+        var chainsaw = db.Manga.Single(m => m.Title == "Человек-бензопила");
+        AssertEqual(failures, MediaStatus.OnHold, chainsaw.Status, "Custom folder item status assigned OnHold");
+
+        // Now test per-folder custom folder configuration (including skip)
+        var perFolderJson = """
+            [
+              { "rus_name": "Магическая битва", "site_id": 1, "folder_name": "Жду продолжения", "is_custom_folder": true },
+              { "rus_name": "Удаленный тайтл", "site_id": 1, "folder_name": "Удалено", "is_custom_folder": true }
+            ]
+            """;
+        var perFolderBytes = global::System.Text.Encoding.UTF8.GetBytes(perFolderJson);
+        using var perFolderStream = new MemoryStream(perFolderBytes);
+        var perFolderFormFile = new FormFile(perFolderStream, 0, perFolderBytes.Length, "file", "tsundoku-sociallib.json");
+        var configsJson = """
+            {
+              "Жду продолжения": { "status": "Planned", "createList": true, "skip": false },
+              "Удалено": { "status": "Dropped", "createList": false, "skip": true }
+            }
+            """;
+        var perFolderResult = handler.ImportFileAsync(new ImportFileRequest(
+            perFolderFormFile,
+            "mangalib",
+            SkipDuplicates: true,
+            CustomFolderConfigs: configsJson), CancellationToken.None).GetAwaiter().GetResult();
+
+        AssertEqual(failures, 1, perFolderResult.ImportedCount, "Only non-skipped title was imported");
+        var jujutsu = db.Manga.SingleOrDefault(m => m.Title == "Магическая битва");
+        AssertTrue(failures, jujutsu is not null, "Магическая битва imported");
+        if (jujutsu is not null)
+        {
+            AssertEqual(failures, MediaStatus.Planned, jujutsu.Status, "Магическая битва has Planned status per custom folder config");
+        }
+        var deletedTitle = db.Manga.SingleOrDefault(m => m.Title == "Удаленный тайтл");
+        AssertTrue(failures, deletedTitle is null, "Удаленный тайтл was skipped and not created in DB");
+        var listJujutsu = db.CustomLists.Include(l => l.Items).SingleOrDefault(l => l.Name == "Жду продолжения");
+        AssertTrue(failures, listJujutsu is not null, "Custom list 'Жду продолжения' was created");
+        var listDeleted = db.CustomLists.SingleOrDefault(l => l.Name == "Удалено");
+        AssertTrue(failures, listDeleted is null, "Custom list 'Удалено' was NOT created because it was skipped");
     }
 
     private static void CheckHistoryEventsFiltering(List<string> failures)

@@ -8,6 +8,7 @@
     import SearchModal from "$features/search-external/SearchModal.svelte";
     import SettingsModal from "$features/settings/SettingsModal.svelte";
     import DropReasonModal from "$features/drop-reason/DropReasonModal.svelte";
+    import BackgroundJobsModal from "$widgets/layout/BackgroundJobsModal.svelte";
     import CalendarView from "$views/CalendarView.svelte";
     import CategoryView, {
         type Category,
@@ -483,3 +484,4 @@
 />
 <SettingsModal isOpen={isSettingsOpen} onClose={closeSettings} onImportCompleted={mediaChanged} onNavigateToList={navigateToList} />
 <DropReasonModal />
+<BackgroundJobsModal onMediaChanged={mediaChanged} />

@@ -13,6 +13,13 @@
         return () => jobsClient.disconnect();
     });
 
+    let popoverElement = $state<HTMLDivElement | null>(null);
+
+    function openProcesses(tab: "jobs" | "review") {
+        popoverElement?.hidePopover();
+        jobsClient.openModal(tab);
+    }
+
     function statusLabel(job: JobProgress): string {
         switch (job.status) {
             case "Queued":
@@ -54,11 +61,18 @@
             >
                 {jobsClient.activeCount}
             </span>
+        {:else if jobsClient.pendingCount > 0}
+            <span
+                class="absolute -right-1 -top-1 min-w-4 rounded-full bg-amber-500 px-1 text-[10px] font-bold leading-4 text-black tabular-nums"
+            >
+                {jobsClient.pendingCount}
+            </span>
         {/if}
     </button>
 
     <div
         id={popoverId}
+        bind:this={popoverElement}
         popover="auto"
         role="dialog"
         aria-label={i18n.t.activity.label}
@@ -79,6 +93,16 @@
                 </span>
             {/if}
         </div>
+
+        {#if jobsClient.pendingCount > 0}
+            <button
+                type="button"
+                class="mb-2 flex w-full cursor-pointer items-center justify-center gap-2 rounded-md bg-amber-500 px-3 py-2 text-xs font-bold text-black transition hover:bg-amber-400"
+                onclick={() => openProcesses("review")}
+            >
+                {i18n.t.backgroundJobs.pendingCount(jobsClient.pendingCount)}
+            </button>
+        {/if}
 
         {#if jobsClient.jobs.length === 0}
             <div class="px-1 py-6 text-center">
@@ -149,5 +173,13 @@
                 {/each}
             </ul>
         {/if}
+
+        <button
+            type="button"
+            class="mt-3 flex w-full cursor-pointer items-center justify-center gap-2 rounded-md border border-white/10 bg-field px-3 py-2 text-xs font-semibold text-ink transition hover:bg-elevated hover:text-white"
+            onclick={() => openProcesses("jobs")}
+        >
+            {i18n.t.backgroundJobs.openWindow}
+        </button>
     </div>
 </div>

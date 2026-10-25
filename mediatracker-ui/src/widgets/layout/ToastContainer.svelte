@@ -5,6 +5,14 @@
         type ToastType,
     } from "$shared/ui/toast.svelte";
 
+    let containerEl = $state<HTMLDivElement | null>(null);
+
+    // Native <dialog showModal()> lives in the browser Top Layer and outranks any z-index, so the
+    // container becomes a "manual" popover as well and is held open to share that Top Layer.
+    $effect(() => {
+        (containerEl as HTMLDivElement & { showPopover?: () => void })?.showPopover?.();
+    });
+
     const accentClasses: Record<ToastType, string> = {
         error: "text-[#d65563]",
         success: "text-emerald-400",
@@ -13,7 +21,9 @@
 </script>
 
 <div
-    class="pointer-events-none fixed bottom-5 right-5 z-50 flex flex-col gap-2 w-60 sm:w-72 text-[10px] sm:text-xs"
+    bind:this={containerEl}
+    popover="manual"
+    class="pointer-events-none fixed bottom-5 left-5 z-[99999] flex flex-col gap-2 w-60 sm:w-72 text-[10px] sm:text-xs"
     aria-live="polite"
     aria-atomic="false"
 >

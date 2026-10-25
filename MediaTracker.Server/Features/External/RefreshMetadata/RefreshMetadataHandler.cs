@@ -111,8 +111,8 @@ public sealed class RefreshMetadataHandler(
                     current.SyncStatus = SyncStatus.Ready;
                     current.MarkUpdated();
                     await scopedDb.SaveChangesAsync(token);
-                    cache.Remove(AdvancedStatsCalculator.CacheKey);
-                    cache.Remove(TasteProfileCalculator.CacheKey);
+                    AdvancedStatsCalculator.InvalidateCache(cache);
+                    TasteProfileCalculator.InvalidateCache(cache);
                 }
                 catch
                 {

@@ -91,8 +91,8 @@ public sealed class EnrichMetadataHandler(
                     if (changed)
                     {
                         current.MarkUpdated();
-                        cache.Remove(AdvancedStatsCalculator.CacheKey);
-                        cache.Remove(TasteProfileCalculator.CacheKey);
+                        AdvancedStatsCalculator.InvalidateCache(cache);
+                        TasteProfileCalculator.InvalidateCache(cache);
                     }
                     await scopedDb.SaveChangesAsync(token);
                 }

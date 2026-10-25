@@ -498,5 +498,6 @@ covers/
 *.err
 *.out
 bombardier.exe
+data/
 wwwroot/
 Python/

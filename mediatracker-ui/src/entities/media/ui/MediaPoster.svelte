@@ -18,7 +18,14 @@
         needsReview?: boolean;
     }
 
-    let { src, alt, badges, actions, syncing = false, needsReview = false }: Props = $props();
+    let {
+        src,
+        alt,
+        badges,
+        actions,
+        syncing = false,
+        needsReview = false,
+    }: Props = $props();
 
     /** A broken remote/проксирующий link is a "cover not found" case, not a retry loop forever. */
     let imgError = $state(false);
@@ -42,9 +49,9 @@
             onerror={(e) => {
                 const target = e.currentTarget as HTMLImageElement;
                 if (!target.dataset.retried && src) {
-                    target.dataset.retried = 'true';
+                    target.dataset.retried = "true";
                     setTimeout(() => {
-                        target.src = `${src}${src.includes('?') ? '&' : '?'}rety=${Date.now()}`;
+                        target.src = `${src}${src.includes("?") ? "&" : "?"}rety=${Date.now()}`;
                     }, 1200);
                     return;
                 }
@@ -81,7 +88,7 @@
                 jobsClient.openModal("review");
             }}
         >
-            <AlertTriangle size={11} aria-hidden="true" />
+            <AlertTriangle size={16} aria-hidden="true" />
             {i18n.t.backgroundJobs.refineBadge}
         </button>
     {/if}

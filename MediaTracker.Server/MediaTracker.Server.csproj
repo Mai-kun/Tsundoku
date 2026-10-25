@@ -17,7 +17,6 @@
         <AssemblyName>Tsundoku</AssemblyName>
         <RootNamespace>MediaTracker.Server</RootNamespace>
 
-        <GenerateEmbeddedFilesManifest>true</GenerateEmbeddedFilesManifest>
         <IsTransformWebConfigDisabled>true</IsTransformWebConfigDisabled>
         <GenerateStaticWebAssetsManifest>false</GenerateStaticWebAssetsManifest>
         <StaticWebAssetsEnabled>false</StaticWebAssetsEnabled>
@@ -53,17 +52,13 @@
     </ItemGroup>
 
     <ItemGroup>
-        <EmbeddedResource Include="wwwroot\**\*" Exclude="wwwroot\**\*.map" />
         <EmbeddedResource Include="appsettings.json" />
     </ItemGroup>
 
     <ItemGroup>
-        <Content Update="wwwroot\**\*" CopyToPublishDirectory="Never" />
-
+        <Content Update="wwwroot\**\*" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
         <Content Update="appsettings.json" CopyToPublishDirectory="Never" />
-
         <Content Update="web.config" CopyToPublishDirectory="Never" />
-
         <Content Update="appsettings.Development.json" CopyToPublishDirectory="Never" />
     </ItemGroup>
 
@@ -76,7 +71,6 @@
         </PackageReference>
         <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.12" />
         <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="10.0.12" />
-        <PackageReference Include="Microsoft.Extensions.FileProviders.Embedded" Version="10.0.12" />
         <PackageReference Include="Photino.NET" Version="4.0.16" />
         <PackageReference Include="Serilog.AspNetCore" Version="10.0.0" />
         <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />

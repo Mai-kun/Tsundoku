@@ -72,6 +72,7 @@ public static class RefactorSelfCheck
         CheckApiKeyLookup(failures);
         CheckCoverSizeLimit(failures);
         CheckCommandLineParsing(failures);
+        CheckAppPathsDatabaseSeparation(failures);
         CheckStaffAndCastSnapshots(failures);
         CheckKinopoiskEnumMapping(failures);
         CheckKinopoiskAirDateRange(failures);
@@ -2235,6 +2236,12 @@ public static class RefactorSelfCheck
             CommandLineOptions.Parse(["--migrate-only"]).MigrateOnly,
             "--migrate-only"
         );
+        AssertEqual(
+            failures,
+            true,
+            CommandLineOptions.Parse(["--dev"]).IsDevMode,
+            "--dev"
+        );
         AssertEqual(failures, true, CommandLineOptions.Parse(["--help"]).ShowHelp, "--help");
         AssertEqual(failures, true, CommandLineOptions.Parse(["-h"]).ShowHelp, "-h alias");
 
@@ -2273,6 +2280,54 @@ public static class RefactorSelfCheck
             CommandLineOptions.Parse(["--nope"]).Error is not null,
             "unknown option rejected"
         );
+    }
+
+    private static void CheckAppPathsDatabaseSeparation(List<string> failures)
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "tsundoku_selfcheck_" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var devPaths = new AppPaths(tempDir, isDevelopment: true);
+            AssertEqual(
+                failures,
+                Path.Combine(tempDir, "tracker.dev.db"),
+                devPaths.DatabaseFilePath,
+                "dev mode uses tracker.dev.db"
+            );
+            AssertEqual(
+                failures,
+                Path.Combine(tempDir, "covers"),
+                devPaths.CoversDirectory,
+                "dev mode covers directory is directly under data directory"
+            );
+            AssertEqual(
+                failures,
+                Path.Combine(tempDir, "media"),
+                devPaths.MediaDirectory,
+                "dev mode media directory is directly under data directory"
+            );
+            AssertEqual(
+                failures,
+                Path.Combine(tempDir, "logs"),
+                devPaths.LogsDirectory,
+                "dev mode logs directory is directly under data directory"
+            );
+
+            var releasePaths = new AppPaths(tempDir, isDevelopment: false);
+            AssertEqual(
+                failures,
+                Path.Combine(tempDir, "tracker.db"),
+                releasePaths.DatabaseFilePath,
+                "release mode uses tracker.db"
+            );
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                try { Directory.Delete(tempDir, recursive: true); } catch { }
+            }
+        }
     }
 
     /// <summary>

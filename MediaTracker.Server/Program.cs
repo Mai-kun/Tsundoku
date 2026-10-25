@@ -70,7 +70,12 @@ if (options.RunSelfCheck)
 
 if (options.Mode == TsundokuRunMode.GuiOnly)
 {
-    var guiPaths = CreateAppPaths(options);
+    var isDevMode = options.IsDevMode || string.Equals(
+        Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"),
+        "Development",
+        StringComparison.OrdinalIgnoreCase
+    );
+    var guiPaths = CreateAppPaths(options, isDevMode);
     if (OperatingSystem.IsWindows())
     {
         ConfigureWebView2(guiPaths);
@@ -108,7 +113,14 @@ if (options.Mode == TsundokuRunMode.GuiOnly)
 
 var isContainer = CommandLineOptions.IsRunningInContainer;
 
-var appPaths = CreateAppPaths(options);
+var builder = WebApplication.CreateBuilder();
+var isDevelopment = builder.Environment.IsDevelopment() || options.IsDevMode;
+if (options.IsDevMode)
+{
+    builder.Environment.EnvironmentName = Environments.Development;
+}
+
+var appPaths = CreateAppPaths(options, isDevelopment);
 
 if (OperatingSystem.IsWindows() && !options.IsHeadless && !options.MigrateOnly)
 {
@@ -121,10 +133,10 @@ else if (!OperatingSystem.IsWindows() && !options.IsHeadless && !options.Migrate
 
 ConfigureLogging(appPaths.LogsDirectory);
 
+Log.Information("Database path: {DatabasePath}", appPaths.DatabaseFilePath);
+
 try
 {
-    var builder = WebApplication.CreateBuilder();
-
     builder.Services.AddHttpClient("steam", client => client.Timeout = TimeSpan.FromSeconds(30))
         .AddHttpMessageHandler<ExternalHttpLoggingHandler>();
 
@@ -138,6 +150,20 @@ try
     builder.WebHost.UseUrls(listenUrl);
 
     builder.Services.AddSingleton(appPaths);
+
+    var seedCandidates = new[]
+    {
+        Path.Combine(AppContext.BaseDirectory, "seed.db"),
+        Path.Combine(AppContext.BaseDirectory, "tracker.seed.db"),
+        Path.Combine(AppContext.BaseDirectory, "tracker.release.db"),
+        "/usr/share/tsundoku/seed.db"
+    };
+    var seedPath = seedCandidates.FirstOrDefault(File.Exists);
+    if (!File.Exists(appPaths.DatabaseFilePath) && seedPath != null)
+    {
+        Log.Information("Initializing database from seed: {SeedPath} -> {TargetPath}", seedPath, appPaths.DatabaseFilePath);
+        File.Copy(seedPath, appPaths.DatabaseFilePath, overwrite: false);
+    }
 
     var connectionString = isContainer
         ? builder.Configuration.GetConnectionString("DefaultConnection")
@@ -235,18 +261,29 @@ try
     app.UseOpenApiUi(config => config.OpenApiSpecPath = "/openapi/v1.json");
     app.MapGet("/api/docs", () => Results.Redirect("/openapi-ui")).ExcludeFromDescription();
 
-    var embeddedProvider = new ManifestEmbeddedFileProvider(typeof(Program).Assembly, "wwwroot");
     var wwwrootCandidates = new[]
     {
+        // 1. Портативный запуск рядом с бинарником (для архивов, папки dist и Docker /app/wwwroot)
+        Path.Combine(AppContext.BaseDirectory, "wwwroot"),
+
+        // 2. Системный стандарт Linux (для будущих пакетов AUR / pacman / deb / rpm)
+        "/usr/share/tsundoku/wwwroot",
+        "/usr/lib/tsundoku/wwwroot",
+
+        // 3. Режим разработки (dotnet run): папка фронтенда внутри репозитория
         Path.Combine(builder.Environment.ContentRootPath, "wwwroot"),
         Path.Combine(builder.Environment.ContentRootPath, "MediaTracker.Server", "wwwroot"),
-        Path.Combine(AppContext.BaseDirectory, "wwwroot"),
+
+        // 4. Пользовательский оверрайд тем (бонус для кастомизации)
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Tsundoku", "custom-wwwroot")
     };
+
     var wwwrootPath = wwwrootCandidates.FirstOrDefault(Directory.Exists)
-        ?? Path.Combine(builder.Environment.ContentRootPath, "wwwroot");
-    IFileProvider staticFileProvider = Directory.Exists(wwwrootPath)
-        ? new CompositeFileProvider(new PhysicalFileProvider(wwwrootPath), embeddedProvider)
-        : embeddedProvider;
+        ?? Path.Combine(AppContext.BaseDirectory, "wwwroot");
+
+    Directory.CreateDirectory(wwwrootPath);
+    Log.Information("Static files path: {StaticFilesPath}", wwwrootPath);
+    IFileProvider staticFileProvider = new PhysicalFileProvider(wwwrootPath);
 
     var contentTypeProvider = new FileExtensionContentTypeProvider();
     contentTypeProvider.Mappings[".webmanifest"] = "application/manifest+json";
@@ -462,18 +499,9 @@ static void ConfigureLogging(string logsDirectory)
         .CreateLogger();
 }
 
-static AppPaths CreateAppPaths(CommandLineOptions options)
+static AppPaths CreateAppPaths(CommandLineOptions options, bool isDevelopment)
 {
-    var dataDirectory =
-        options.DataDirectory is { Length: > 0 } configuredDirectory
-            ? Path.GetFullPath(configuredDirectory)
-        : CommandLineOptions.IsRunningInContainer ? Directory.GetCurrentDirectory()
-        : Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "Tsundoku"
-        );
-
-    return new AppPaths(dataDirectory);
+    return AppPaths.Create(options, isDevelopment);
 }
 
 static void ConfigureWebView2(AppPaths appPaths)

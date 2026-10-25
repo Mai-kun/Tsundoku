@@ -24,6 +24,7 @@ public sealed class CommandLineOptions
     public bool MigrateOnly { get; private set; }
     public bool ShowHelp { get; private set; }
     public bool RunSelfCheck { get; private set; }
+    public bool IsDevMode { get; private set; }
     public string? Error { get; private set; }
 
     public bool IsHeadless => Mode == TsundokuRunMode.Headless;
@@ -58,6 +59,10 @@ public sealed class CommandLineOptions
 
                 case "--migrate-only":
                     options.MigrateOnly = true;
+                    break;
+
+                case "--dev":
+                    options.IsDevMode = true;
                     break;
 
                 case "--help":
@@ -168,6 +173,7 @@ public sealed class CommandLineOptions
               --port <number>, -p <number> Override the Kestrel listening port. Default: 5000
               --data-dir <path>            Base folder for tracker.db, logs and covers.
                                          Default: %LOCALAPPDATA%\Tsundoku (current directory in Docker)
+              --dev                        Force development mode (local ./data folder, tracker.dev.db).
               --migrate-only               Apply database migrations and exit with code 0.
               --help, -h                   Show this help and exit.
 

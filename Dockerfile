@@ -16,7 +16,7 @@ RUN dotnet publish MediaTracker.Server/MediaTracker.Server.csproj -c Release -o 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0-alpine AS final
 WORKDIR /app
 COPY --from=build /app/publish .
-RUN mkdir -p /app/data/covers
+RUN mkdir -p /app/data/covers /app/data/media /app/data/logs
 ENV HEADLESS=true
 ENV ASPNETCORE_URLS=http://+:5000
 EXPOSE 5000

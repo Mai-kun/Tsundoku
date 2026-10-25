@@ -7,7 +7,9 @@ using MediaTracker.Server.Domain.Entities;
 using MediaTracker.Server.Domain.Enums;
 using MediaTracker.Server.Domain.Rules;
 using MediaTracker.Server.Features.Media.Import.Parsers;
+using MediaTracker.Server.Features.Jobs;
 using MediaTracker.Server.Infrastructure.ExternalApis;
+using MediaTracker.Server.Infrastructure.Jobs;
 using MediaTracker.Server.Infrastructure.Persistence;
 using MediaTracker.Server.Features.Media.GetMediaStats;
 using Microsoft.EntityFrameworkCore;
@@ -19,7 +21,8 @@ public sealed class ImportMediaHandler(
     AppDbContext db,
     IHttpClientFactory clients,
     IConfiguration configuration,
-    IOptions<ExternalApiOptions> apiOptions)
+    IOptions<ExternalApiOptions> apiOptions,
+    IJobManager? jobs = null)
 {
     public async Task<ImportResultDto> ImportFileAsync(ImportFileRequest request, CancellationToken ct)
     {
@@ -183,6 +186,175 @@ public sealed class ImportMediaHandler(
         return null;
     }
 
+    /// <summary>
+    /// Direct SocialLib ecosystem import (MangaLib, AnimeLib, RanobeLib, SlashLib, HentaiLib).
+    /// Queries https://api.cdnlibs.org/api/bookmarks for each selected site_id.
+    /// </summary>
+    public async Task<Result<ImportResultDto>> ImportMangaLibProfileAsync(MangaLibProfileRequest request, CancellationToken ct)
+    {
+        var rawInput = request.ProfileUrlOrId?.Trim();
+        if (string.IsNullOrWhiteSpace(rawInput))
+            return Result<ImportResultDto>.Failure(Error.Validation("Укажите ссылку на профиль или числовой ID пользователя SocialLib."));
+
+        var userId = ExtractSocialLibUserId(rawInput);
+        if (string.IsNullOrWhiteSpace(userId))
+            return Result<ImportResultDto>.Failure(Error.Validation("Не удалось определить ID пользователя из указанной ссылки."));
+
+        var client = clients.CreateClient("Import");
+        var siteIds = request.SiteIds is { Length: > 0 } ? request.SiteIds : [1, 5, 3, 2, 4];
+        var allItems = new List<ParsedMediaItemDto>();
+        var totalSitesQueried = 0;
+        var authErrorCount = 0;
+        var statuses = new[] { 1, 2, 4, 3, 6, 5 };
+
+        foreach (var siteId in siteIds)
+        {
+            totalSitesQueried++;
+            var siteAuthError = false;
+            var siteFolderIds = await FetchSocialLibFolderIdsAsync(client, userId, siteId, request.BearerToken, ct);
+
+            foreach (var statusId in siteFolderIds)
+            {
+                if (siteAuthError) break;
+
+                var page = 1;
+                while (page <= 50)
+                {
+                    var url = $"https://api.cdnlibs.org/api/bookmarks?user_id={Uri.EscapeDataString(userId)}&site_id={siteId}&status={statusId}&page={page}&limit=60";
+                    using var msg = CreateSocialLibMessage(url, siteId, request.BearerToken);
+
+                    HttpResponseMessage? response = null;
+                    try
+                    {
+                        response = await client.SendAsync(msg, ct);
+                    }
+                    catch (HttpRequestException)
+                    {
+                        break;
+                    }
+
+                    using (response)
+                    {
+                        if ((int)response.StatusCode is 401 or 403)
+                        {
+                            authErrorCount++;
+                            siteAuthError = true;
+                            break;
+                        }
+
+                        if (!response.IsSuccessStatusCode)
+                            break;
+
+                        var json = await response.Content.ReadAsStringAsync(ct);
+                        IReadOnlyList<ParsedMediaItemDto> pageItems;
+                        try
+                        {
+                            pageItems = MangalibParser.Parse(json, defaultSiteId: siteId, defaultStatusId: statusId);
+                        }
+                        catch
+                        {
+                            break;
+                        }
+
+                        if (pageItems.Count == 0) break;
+
+                        allItems.AddRange(pageItems);
+                        if (pageItems.Count < 60) break;
+                        page++;
+                    }
+                }
+            }
+        }
+
+        if (allItems.Count == 0)
+        {
+            if (totalSitesQueried > 0 && authErrorCount == totalSitesQueried)
+            {
+                return Result<ImportResultDto>.Failure(Error.Validation("API SocialLib закрыт защитой Cloudflare или профиль приватный. Воспользуйтесь встроенным быстрым скриптом-сборщиком ниже (работает за 1 секунду прямо из браузера)!"));
+            }
+
+            return Result<ImportResultDto>.Failure(Error.Validation($"У пользователя {userId} не найдено закладок на выбранных сайтах SocialLib."));
+        }
+
+        var importResult = await ImportAsync(allItems, request.SkipDuplicates, request.TargetListId, request.NewListName, ct);
+        return Result<ImportResultDto>.Success(importResult);
+    }
+
+    private static string? ExtractSocialLibUserId(string input)
+    {
+        var trimmed = input.Trim();
+        if (trimmed.All(char.IsDigit) && trimmed.Length > 0)
+            return trimmed;
+
+        var match = Regex.Match(trimmed, @"/(?:ru/)?user[s]?/(\d+)", RegexOptions.IgnoreCase);
+        if (match.Success) return match.Groups[1].Value;
+
+        match = Regex.Match(trimmed, @"\buser[s]?/(\d+)", RegexOptions.IgnoreCase);
+        if (match.Success) return match.Groups[1].Value;
+
+        match = Regex.Match(trimmed, @"[?&]user_id=(\d+)", RegexOptions.IgnoreCase);
+        if (match.Success) return match.Groups[1].Value;
+
+        match = Regex.Match(trimmed, @"@(\d+)");
+        if (match.Success) return match.Groups[1].Value;
+
+        match = Regex.Match(trimmed, @"\b(\d{3,})\b");
+        if (match.Success) return match.Groups[1].Value;
+
+        return null;
+    }
+
+    private static HttpRequestMessage CreateSocialLibMessage(string url, int siteId, string? bearerToken)
+    {
+        var msg = new HttpRequestMessage(HttpMethod.Get, url);
+        msg.Headers.TryAddWithoutValidation("Site-Id", siteId.ToString(CultureInfo.InvariantCulture));
+        msg.Headers.TryAddWithoutValidation("Accept", "application/json");
+        msg.Headers.TryAddWithoutValidation("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+
+        if (!string.IsNullOrWhiteSpace(bearerToken))
+        {
+            var token = bearerToken.Trim();
+            if (token.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+                token = token["Bearer ".Length..].Trim();
+            msg.Headers.TryAddWithoutValidation("Authorization", $"Bearer {token}");
+        }
+
+        return msg;
+    }
+
+    private static async Task<IReadOnlyList<int>> FetchSocialLibFolderIdsAsync(HttpClient client, string userId, int siteId, string? bearerToken, CancellationToken ct)
+    {
+        try
+        {
+            var url = $"https://api.cdnlibs.org/api/bookmarks/folder/{Uri.EscapeDataString(userId)}?site_id={siteId}";
+            using var msg = CreateSocialLibMessage(url, siteId, bearerToken);
+            using var res = await client.SendAsync(msg, ct);
+            if (res.IsSuccessStatusCode)
+            {
+                var json = await res.Content.ReadAsStringAsync(ct);
+                using var doc = JsonDocument.Parse(json);
+                var root = doc.RootElement;
+                if (root.ValueKind == JsonValueKind.Object && root.TryGetProperty("data", out var data))
+                    root = data;
+                if (root.ValueKind == JsonValueKind.Array)
+                {
+                    var ids = new List<int>();
+                    foreach (var elem in root.EnumerateArray())
+                    {
+                        if (elem.TryGetProperty("id", out var idProp) && idProp.TryGetInt32(out var id))
+                            ids.Add(id);
+                    }
+                    if (ids.Count > 0) return ids;
+                }
+            }
+        }
+        catch
+        {
+        }
+
+        return [1, 2, 4, 3, 6, 5];
+    }
+
     private async Task<ImportResultDto> ImportAsync(IReadOnlyList<ParsedMediaItemDto> parsed, bool skipDuplicates, Guid? targetListId, string? newListName, CancellationToken ct)
     {
         CustomList? list = null;
@@ -265,8 +437,38 @@ public sealed class ImportMediaHandler(
             list.UpdatedAt = DateTime.UtcNow;
         }
         await db.SaveChangesAsync(ct);
+
+        // Import parsers study hand-maintained lists, so new rows arrive with names and progress but
+        // no poster, synopsis or genres. Mark those and hand the whole batch to one queued job: a
+        // single throttled walk through the aggregator instead of N parallel providers calls. The
+        // null check is just for the self-check harness, which builds the handler without the queue.
+        var itemsToEnrich = jobs is not null ? toAdd.Where(NeedsEnrichment).ToList() : [];
+        if (itemsToEnrich.Count > 0)
+        {
+            foreach (var item in itemsToEnrich)
+            {
+                item.SyncStatus = SyncStatus.Syncing;
+            }
+            await db.SaveChangesAsync(ct);
+
+            jobs!.Enqueue(
+                null,
+                $"Обогащение импорта ({itemsToEnrich.Count} тайтлов)",
+                (sp, token, progress) => BatchImportEnrichmentJob.RunAsync(sp, [.. itemsToEnrich.Select(item => item.Id)], token, progress));
+        }
+
         return new ImportResultDto(parsed.Count, toAdd.Count, duplicateCount, list?.Id, list?.Name);
     }
+
+    /// <summary>
+    /// Rows worth a background lookup: an AniList-profile import already carries cover, synopsis and
+    /// genres, so queueing it would only burn a pass. MangaLib / Custom / MAL / Goodreads / Steam rows
+    /// are missing at least one of those three, which is what the job is for.
+    /// </summary>
+    private static bool NeedsEnrichment(MediaItem item) =>
+        string.IsNullOrWhiteSpace(item.CoverUrl)
+        || string.IsNullOrWhiteSpace(item.Description)
+        || string.IsNullOrWhiteSpace(item.Genres);
 
     private static void HealExisting(MediaItem existing, ParsedMediaItemDto parsed)
     {
@@ -334,6 +536,12 @@ public sealed class ImportMediaHandler(
         {
             existing.ExternalId = parsed.ExternalId;
             existing.ExternalSource ??= parsed.ExternalSource;
+            modified = true;
+        }
+
+        if (string.IsNullOrWhiteSpace(existing.ImportSource) && !string.IsNullOrWhiteSpace(parsed.ExternalSource))
+        {
+            existing.ImportSource = parsed.ExternalSource;
             modified = true;
         }
 
@@ -466,6 +674,7 @@ public sealed class ImportMediaHandler(
             : ReleaseStatusRules.FromDates(item.ReleaseDate, item.EndDate);
         item.ExternalId = dto.ExternalId;
         item.ExternalSource = dto.ExternalSource;
+        item.ImportSource = dto.ExternalSource;
         item.ExternalRating = dto.Rating;
         item.ExternalRatingVotes = dto.RatingVotes;
         if (dto.Rating is > 0)

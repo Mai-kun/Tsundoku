@@ -38,3 +38,11 @@ public sealed record SteamImportRequest(string? SteamId = null, string? ProfileU
 public sealed record ImportFileRequest(IFormFile File, string Provider, bool SkipDuplicates = true, Guid? TargetListId = null, string? NewListName = null);
 
 public sealed record AniListProfileRequest(string Username, bool SkipDuplicates = true, Guid? TargetListId = null, string? NewListName = null);
+
+public sealed record MangaLibProfileRequest(
+    string ProfileUrlOrId,
+    int[]? SiteIds = null,
+    string? BearerToken = null,
+    bool SkipDuplicates = true,
+    Guid? TargetListId = null,
+    string? NewListName = null);

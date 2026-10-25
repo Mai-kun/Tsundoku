@@ -1,7 +1,9 @@
 <script lang="ts">
     import type { Snippet } from "svelte";
-    import { Image as ImageIcon, LoaderCircle } from "$shared/ui/Icons.svelte";
+    import Placeholder404 from "./Placeholder404.svelte";
+    import { AlertTriangle, LoaderCircle } from "$shared/ui/Icons.svelte";
     import { i18n } from "$shared/i18n/index.svelte";
+    import { jobsClient } from "$shared/api/jobsClient.svelte";
 
     interface Props {
         src: string | null;
@@ -12,13 +14,23 @@
         actions?: Snippet;
         /** Background enrichment is still filling this item in. The card stays clickable. */
         syncing?: boolean;
+        /** The matcher parked this title for manual confirmation; the badge opens the review tab. */
+        needsReview?: boolean;
     }
 
-    let { src, alt, badges, actions, syncing = false }: Props = $props();
+    let { src, alt, badges, actions, syncing = false, needsReview = false }: Props = $props();
+
+    /** A broken remote/проксирующий link is a "cover not found" case, not a retry loop forever. */
+    let imgError = $state(false);
+    $effect(() => {
+        // Reset on a new src: another sync may have repaired the cover.
+        void src;
+        imgError = false;
+    });
 </script>
 
 <div class="relative aspect-[3/4] overflow-hidden rounded-lg bg-canvas">
-    {#if src}
+    {#if src && !imgError}
         <img
             {src}
             {alt}
@@ -32,17 +44,15 @@
                 if (!target.dataset.retried && src) {
                     target.dataset.retried = 'true';
                     setTimeout(() => {
-                        target.src = src;
+                        target.src = `${src}${src.includes('?') ? '&' : '?'}rety=${Date.now()}`;
                     }, 1200);
+                    return;
                 }
+                imgError = true;
             }}
         />
     {:else}
-        <div
-            class="flex h-full items-center justify-center bg-gradient-to-br from-panel to-elevated text-muted"
-        >
-            <ImageIcon size={38} stroke-width={1.25} aria-hidden="true" />
-        </div>
+        <Placeholder404 />
     {/if}
 
     {#if syncing}
@@ -60,6 +70,20 @@
                 {i18n.t.activity.syncing}
             </span>
         </div>
+    {/if}
+
+    {#if needsReview}
+        <button
+            type="button"
+            class="absolute inset-x-2.5 bottom-2.5 z-20 inline-flex cursor-pointer items-center justify-center gap-1 rounded-md bg-amber-500/90 px-2.5 py-1 text-[11px] font-bold text-black shadow-lg transition hover:bg-amber-400"
+            onclick={(event) => {
+                event.stopPropagation();
+                jobsClient.openModal("review");
+            }}
+        >
+            <AlertTriangle size={11} aria-hidden="true" />
+            {i18n.t.backgroundJobs.refineBadge}
+        </button>
     {/if}
 
     <div

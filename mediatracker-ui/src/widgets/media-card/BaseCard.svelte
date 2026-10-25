@@ -77,6 +77,7 @@
         src={item.coverUrl}
         alt={item.title}
         syncing={item.syncStatus === SYNC_STATUS.syncing}
+        needsReview={item.syncStatus === SYNC_STATUS.needsReview}
     >
         {#snippet badges()}
             <MediaStatusBadge

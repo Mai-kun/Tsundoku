@@ -53,8 +53,8 @@ public sealed class UpdateProgressHandler(
         {
             var next = book!.TotalPages > 0 ? Math.Min(progress, book.TotalPages) : progress;
             await RecordProgressAsync(command.Id, $"{book.CurrentPage} стр.", $"{next} стр.", ct);
-            cache.Remove(AdvancedStatsCalculator.CacheKey);
-            cache.Remove(TasteProfileCalculator.CacheKey);
+            AdvancedStatsCalculator.InvalidateCache(cache);
+            TasteProfileCalculator.InvalidateCache(cache);
             return Result.Success();
         }
 
@@ -74,8 +74,8 @@ public sealed class UpdateProgressHandler(
         {
             var next = manga!.TotalChapters is > 0 ? Math.Min(progress, manga.TotalChapters.Value) : progress;
             await RecordProgressAsync(command.Id, $"{manga.CurrentChapter} гл.", $"{next} гл.", ct);
-            cache.Remove(AdvancedStatsCalculator.CacheKey);
-            cache.Remove(TasteProfileCalculator.CacheKey);
+            AdvancedStatsCalculator.InvalidateCache(cache);
+            TasteProfileCalculator.InvalidateCache(cache);
             return Result.Success();
         }
 
@@ -92,8 +92,8 @@ public sealed class UpdateProgressHandler(
         if (gameRows > 0)
         {
             await RecordProgressAsync(command.Id, $"{game ?? 0} ч.", $"{progress} ч.", ct);
-            cache.Remove(AdvancedStatsCalculator.CacheKey);
-            cache.Remove(TasteProfileCalculator.CacheKey);
+            AdvancedStatsCalculator.InvalidateCache(cache);
+            TasteProfileCalculator.InvalidateCache(cache);
             return Result.Success();
         }
 

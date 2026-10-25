@@ -728,14 +728,31 @@ export const translations = {
     more: { ru: "Больше", en: "More" },
     tabSummary: { ru: "Сводка", en: "Summary" },
     tabTaste: { ru: "Профиль вкуса", en: "Taste profile" },
+    scopeCompleted: { ru: "✓ Только завершённые", en: "Completed only" },
+    scopeAll: { ru: "⚡ Все с прогрессом", en: "All with progress" },
     taste: {
       personaBadge: { ru: "Архетип вкуса", en: "Taste archetype" },
       personas: {
         critic: {
           title: { ru: "Строгий критик", en: "Strict Critic" },
           description: {
-            ru: "Вы держите свою медиатеку на самых высоких стандартах: немногим удается вас впечатлить, и даже любимцы всего мира получают скептический прищур. Ваша библиотека — это суд, и большинство подсудимых уходят с вердиктом ниже семи.",
-            en: "You hold your library to sky-high standards: few titles manage to impress you, and even the world's favorites earn a skeptical squint. Your shelf is a courtroom — and most defendants leave with a verdict below seven.",
+            ru: "Вы держите свою медиатеку на самых высоких стандартах: немногим удается вас впечатлить, и даже признанные шедевры получают скептический прищур. Ваша библиотека — это зал суда, где проходной балл нужно заслужить кровью и потом.",
+            en: "You hold your library to sky-high standards: few titles manage to impress you, and even acclaimed masterpieces earn a skeptical squint. Your collection is a courtroom where passing marks must be hard-won.",
+          },
+          traits: {
+            ru: ["Высокие стандарты", "Честные оценки", "Неподкупный вкус"],
+            en: ["High standards", "Honest reviews", "Uncompromising taste"],
+          },
+        },
+        enthusiast: {
+          title: { ru: "Щедрый вдохновитель", en: "Generous Enthusiast" },
+          description: {
+            ru: "Вы умеете искренне влюбляться в произведения и щедро одариваете авторов девятками и десятками. Для вас искусство — это источник восторга и сопереживания, а не повод для препарирования чужих ошибок.",
+            en: "You fall in love with stories whole-heartedly and hand out top scores with infectious joy. For you, media is a wellspring of empathy and delight rather than an exercise in finding flaws.",
+          },
+          traits: {
+            ru: ["Искренний восторг", "Высокие оценки", "Открытое сердце"],
+            en: ["Pure enthusiasm", "Generous marks", "Open heart"],
           },
         },
         perfectionist: {
@@ -744,15 +761,122 @@ export const translations = {
             en: "Perfectionist Completer",
           },
           description: {
-            ru: "Вы не оставляете историю на середине: начав — завершаете. Бросить тайтл для вас почти недопустимая слабость, а прогресс-бары медиатеки — памятник дисциплине.",
-            en: "You never leave a story half-read: if you start something, you finish it. Dropping a title is a defeat you almost never allow yourself, and your progress bars are a monument to discipline.",
+            ru: "Вы не оставляете историю на середине: начав — доводите до финала. Бросить тайтл для вас почти недопустимая капитуляция, а заполненные шкалы прогресса — памятник железной дисциплине.",
+            en: "You never leave a story half-told: once started, you see it through. Dropping a title feels unthinkable, and your completed progress bars stand as a monument to iron discipline.",
+          },
+          traits: {
+            ru: ["Доводит до конца", "Не бросает начатое", "Железный фокус"],
+            en: ["Finisher", "Never DNFs", "Iron focus"],
+          },
+        },
+        tsundoku_master: {
+          title: { ru: "Хранитель Цундоку", en: "Tsundoku Master" },
+          description: {
+            ru: "Азарт собирательства опережает скорость потребления: ваш вишлист и бэклог превратились в сокровищницу бесконечных возможностей. Вы коллекционируете потенциальные миры быстрее, чем успеваете их исследовать.",
+            en: "The thrill of discovery outpaces the clock: your backlog is a grand treasury of endless possibilities. You collect promised adventures faster than reality allows you to experience them.",
+          },
+          traits: {
+            ru: ["Бесконечный бэклог", "Охотник за сокровищами", "Мечтатель"],
+            en: ["Infinite backlog", "Treasure hunter", "Dreamer"],
+          },
+        },
+        manga_reader: {
+          title: { ru: "Исследователь манги", en: "Manga Digger" },
+          description: {
+            ru: "Черно-белые фреймы, сканлейт и ритм раскадровки — ваша главная стихия. Вы поглощаете сотни глав залпом, читаете справа налево на автомате и живете в предвкушении еженедельных клиффхэнгеров.",
+            en: "Ink, panels, and dynamic pacing define your media life. You devour hundreds of chapters in a single sitting, effortlessly scan right-to-left, and thrive on weekly cliffhangers.",
+          },
+          traits: {
+            ru: ["Охотник за главами", "Знаток манхвы", "Визуальный темп"],
+            en: ["Chapter hunter", "Manhwa connoisseur", "Visual pacing"],
           },
         },
         otaku: {
-          title: { ru: "Отаку-исследователь", en: "Otaku Explorer" },
+          title: { ru: "Аниме-синефил", en: "Anime Cinephile" },
           description: {
-            ru: "Аниме и манга забирают львиную долю ваших часов: вы быстрее перетекаете между студиями и главами манги, чем между полками и стримингами. Ваша карта вкуса нарисована сэйю, опенингами и клиффхэнгерами.",
-            en: "Anime and manga clearly dominate your hours: you drift between studios and manga chapters faster than between shelves and streaming services. Your taste map is drawn by voice actors, opening songs and chapter cliffhangers.",
+            ru: "Аниме забирает ключевые часы вашего отдыха: вы ориентируетесь в студиях, различаете почерк аниматоров сакуги и узнаете любимых сэйю с первой реплики. Ваша карта вкуса нарисована культовыми опенингами и сезонными онгоингами.",
+            en: "Anime claims the crown in your free time: you track visionary directors, celebrate sakuga animation, and recognize favorite voice actors instantly. Your world is mapped by iconic openings and seasonal premieres.",
+          },
+          traits: {
+            ru: ["Фокус на аниме", "Знаток студий", "Сакуга-эстет"],
+            en: ["Anime focus", "Studio connoisseur", "Sakuga lover"],
+          },
+        },
+        gamer: {
+          title: { ru: "Хардкорный геймер", en: "Hardcore Gamer" },
+          description: {
+            ru: "Интерактивный опыт для вас превыше пассивного созерцания. Вы погружаетесь в механики, оттачиваете скилл и проводите десятки часов в комплексных виртуальных вселенных, проверяя мир на прочность.",
+            en: "Interactive experiences trump passive watching every time. You dive into deep gameplay loops, master complex systems, and spend dozens of hours exploring virtual worlds.",
+          },
+          traits: {
+            ru: ["Глубокое погружение", "Мастер механик", "Интерактивность"],
+            en: ["Deep immersion", "Mechanics master", "Interactive focus"],
+          },
+        },
+        bookworm: {
+          title: { ru: "Литературный эстет", en: "Literary Bookworm" },
+          description: {
+            ru: "Вы цените силу печатного слова, глубокие монологи и неспешное развитие авторской мысли. В мире быстрого медиа вы остаетесь верны шелесту страниц, экранам ридеров и силе воображения.",
+            en: "You revere the written word, deep character monologues, and narrative depth. Amidst rapid-fire media, you stay true to the quiet majesty of great literature.",
+          },
+          traits: {
+            ru: ["Сила слова", "Вдумчивое чтение", "Богатое воображение"],
+            en: ["Power of prose", "Mindful reading", "Rich imagination"],
+          },
+        },
+        cinephile: {
+          title: { ru: "Киноман-эстет", en: "Cinephile Connoisseur" },
+          description: {
+            ru: "Кинематограф для вас — высшая форма драматического искусства. Вы чутки к композиции кадра, режиссерскому видению и актерской игре, отдавая предпочтение законченным полуторачасовым высказываниям.",
+            en: "Cinema is the purest stage for your dramatic sensibilities. You appreciate framing, lighting, and directorial vision delivered within a focused feature film.",
+          },
+          traits: {
+            ru: ["Визуальный язык", "Авторское кино", "Режиссерский почерк"],
+            en: ["Visual language", "Auteur cinema", "Directorial style"],
+          },
+        },
+        serial_binger: {
+          title: { ru: "Сериальный марафонец", en: "Serial Binger" },
+          description: {
+            ru: "Вы любите масштабные арки персонажей, которые раскрываются на протяжении нескольких сезонов. Кнопка «Следующая серия» нажимается сама собой, а выходные легко растворяются в захватывающих теледрамах.",
+            en: "You love sprawling narrative arcs that unfold across multiple seasons. The 'Next Episode' prompt is an irresistible reflex, and whole weekends happily vanish into compelling serialized television.",
+          },
+          traits: {
+            ru: ["Запоем по сезонам", "Сюжетные арки", "Телеман"],
+            en: ["Season binger", "Complex plotlines", "Serial enthusiast"],
+          },
+        },
+        dark_philosopher: {
+          title: { ru: "Сэйнэн-мыслитель", en: "Seinen Philosopher" },
+          description: {
+            ru: "Вас манят мрачные сюжеты, психологическое напряжение, неоднозначные антигерои и экзистенциальные дилеммы. Вы ищете в историях не легкое утешение, а честный разговор о человеческой природе.",
+            en: "You gravitate toward psychological tension, morally grey antiheroes, existential quandaries, and dark suspense, exploring the shadows of the human condition.",
+          },
+          traits: {
+            ru: ["Мрачный реализм", "Психологизм", "Философский подтекст"],
+            en: ["Grim realism", "Psychological depth", "Philosophical nuance"],
+          },
+        },
+        cozy_hedonist: {
+          title: { ru: "Уютный гедонист", en: "Cozy Hedonist" },
+          description: {
+            ru: "Повседневность, мягкий юмор и романтика — ваше идеальное убежище после шумного дня. Вы цените душевное тепло, неторопливый темп и комфортную атмосферу, возвращающую веру в добро.",
+            en: "Slice of life, warm humor, and gentle romance are your sanctuary. You cherish comforting atmospheres, unhurried pacing, and heartfelt stories that restore your peace of mind.",
+          },
+          traits: {
+            ru: ["Уютная атмосфера", "Доброта историй", "Антистресс"],
+            en: ["Cozy vibes", "Warmhearted tales", "Stress-free comfort"],
+          },
+        },
+        action_junkie: {
+          title: { ru: "Адреналиновый искатель", en: "Action Junkie" },
+          description: {
+            ru: "Вы живете ради захватывающего экшена, головокружительного драйва и кульминационных битв. Чем выше ставки, динамичнее монтаж и острее интрига — тем сильнее бьется ваше сердце.",
+            en: "You live for breathtaking spectacles, pulsing adrenaline, and climactic showdowns where stakes and tempo are pushed to the limit.",
+          },
+          traits: {
+            ru: ["Высокий темп", "Драйв и зрелищность", "Боевой дух"],
+            en: ["High tempo", "Kinetic spectacle", "Fighting spirit"],
           },
         },
         visionary: {
@@ -761,34 +885,83 @@ export const translations = {
             ru: "Фантастика и киберпанк лидируют в вашей коллекции: вас тянет в миры, где мегакорпорации, звездные корабли и слабости человеческой природы сталкиваются лбами. Ваш любимый вопрос — «а что будет дальше?».",
             en: 'Science fiction and cyberpunk lead your collection: you gravitate to worlds where megacorporations, starships and human weakness collide. Your favorite question is "and what happens next?".',
           },
+          traits: {
+            ru: ["Жанры будущего", "Технологии и космос", "Широкий горизонт"],
+            en: ["Future genres", "Tech and space", "Expansive horizons"],
+          },
         },
         omnivore: {
           title: { ru: "Культурный омнивор", en: "Cultural Omnivore" },
           description: {
-            ru: "Вы пробуете все, что предлагает индустрия: игры, кино, сериалы, книги и манга делят ваши вечера пополам. Каждому формату достается шанс, и ваши рамки вкуса объективно широки.",
-            en: "You taste everything the culture industry serves: games, cinema, series, books and manga share your evenings evenly. Every format gets its chance, and few are wasted on you.",
+            ru: "Вы пробуете все, что предлагает индустрия: игры, кино, сериалы, книги и манга делят ваше время в гармоничном балансе. Ни один формат не держит монополию, и ваши культурные горизонты по-настоящему безграничны.",
+            en: "You taste everything the culture industry serves: games, cinema, series, books, and manga share your time in harmonic balance. No single medium holds a monopoly, giving you truly expansive cultural horizons.",
+          },
+          traits: {
+            ru: ["Все форматы", "Без жанровых рамок", "Энциклопедичность"],
+            en: ["All formats", "No genre limits", "Eclectic appetite"],
           },
         },
         archivist: {
           title: { ru: "Вдумчивый архивариус", en: "Thoughtful Archivist" },
           description: {
-            ru: "Вы движетесь в своем темпе: медленнее, глубже, без погони за хайпом. Библиотека растет капля за каплей — значит, каждый тайтл в ней выбран осознанно.",
-            en: "You move at your own pace: slower, deeper, without chasing hype. Your library grows drop by drop, which means every title you own was chosen consciously.",
+            ru: "Вы движетесь в своем темпе: медленнее, глубже, без погони за хайпом. Библиотека растет капля за каплей — значит, каждый тайтл в ней выбран осознанно и бережно сохранен.",
+            en: "You move at your own pace: slower, deeper, without chasing trends. Your library grows drop by drop, meaning every title was chosen mindfully and preserved with care.",
+          },
+          traits: {
+            ru: ["Спокойный темп", "Глубина, а не скорость", "Осознанный выбор"],
+            en: ["Mindful pace", "Depth over speed", "Intentional curation"],
           },
         },
       },
       traits: {
         high_standards: { ru: "Высокие стандарты", en: "High standards" },
         honest_reviews: { ru: "Честные оценки", en: "Honest reviews" },
+        uncompromising_taste: { ru: "Неподкупный вкус", en: "Uncompromising taste" },
+        pure_enthusiasm: { ru: "Искренний восторг", en: "Pure enthusiasm" },
+        generous_marks: { ru: "Высокие оценки", en: "Generous marks" },
+        open_heart: { ru: "Открытое сердце", en: "Open heart" },
         finisher: { ru: "Доводит до конца", en: "Finisher" },
         no_dnf: { ru: "Не бросает начатое", en: "Never DNFs" },
+        iron_focus: { ru: "Железный фокус", en: "Iron focus" },
+        infinite_backlog: { ru: "Бесконечный бэклог", en: "Infinite backlog" },
+        treasure_hunter: { ru: "Охотник за сокровищами", en: "Treasure hunter" },
+        dreamer: { ru: "Мечтатель", en: "Dreamer" },
+        chapter_hunter: { ru: "Охотник за главами", en: "Chapter hunter" },
+        manhwa_connoisseur: { ru: "Знаток манхвы", en: "Manhwa connoisseur" },
+        visual_pacing: { ru: "Визуальный темп", en: "Visual pacing" },
         anime_focus: { ru: "Фокус на аниме", en: "Anime focus" },
-        deep_dive: { ru: "Глубокое погружение", en: "Deep diver" },
-        sci_fi_lead: { ru: "Жанры будущего", en: "Genres of the future" },
+        studio_connoisseur: { ru: "Знаток студий", en: "Studio connoisseur" },
+        sakuga_lover: { ru: "Сакуга-эстет", en: "Sakuga lover" },
+        deep_immersion: { ru: "Глубокое погружение", en: "Deep immersion" },
+        mechanics_master: { ru: "Мастер механик", en: "Mechanics master" },
+        interactive_focus: { ru: "Интерактивность", en: "Interactive focus" },
+        power_of_prose: { ru: "Сила слова", en: "Power of prose" },
+        mindful_reading: { ru: "Вдумчивое чтение", en: "Mindful reading" },
+        rich_imagination: { ru: "Богатое воображение", en: "Rich imagination" },
+        visual_language: { ru: "Визуальный язык", en: "Visual language" },
+        auteur_cinema: { ru: "Авторское кино", en: "Auteur cinema" },
+        directorial_style: { ru: "Режиссерский почерк", en: "Directorial style" },
+        season_binger: { ru: "Запоем по сезонам", en: "Season binger" },
+        complex_plotlines: { ru: "Сюжетные арки", en: "Complex plotlines" },
+        serial_enthusiast: { ru: "Телеман", en: "Serial enthusiast" },
+        grim_realism: { ru: "Мрачный реализм", en: "Grim realism" },
+        psychological_depth: { ru: "Психологизм", en: "Psychological depth" },
+        philosophical_nuance: { ru: "Философский подтекст", en: "Philosophical nuance" },
+        cozy_vibes: { ru: "Уютная атмосфера", en: "Cozy vibes" },
+        warmhearted_tales: { ru: "Доброта историй", en: "Warmhearted tales" },
+        stress_free_comfort: { ru: "Антистресс", en: "Stress-free comfort" },
+        high_tempo: { ru: "Высокий темп", en: "High tempo" },
+        kinetic_spectacle: { ru: "Драйв и зрелищность", en: "Kinetic spectacle" },
+        fighting_spirit: { ru: "Боевой дух", en: "Fighting spirit" },
+        future_genres: { ru: "Жанры будущего", en: "Genres of the future" },
+        tech_and_space: { ru: "Технологии и космос", en: "Tech and space" },
+        expansive_horizons: { ru: "Широкий горизонт", en: "Expansive horizons" },
         all_formats: { ru: "Все форматы", en: "All formats" },
-        no_limits: { ru: "Без жанровых рамок", en: "No genre boundaries" },
+        no_genre_limits: { ru: "Без жанровых рамок", en: "No genre limits" },
+        eclectic_appetite: { ru: "Энциклопедичность", en: "Eclectic appetite" },
         mindful_pace: { ru: "Спокойный темп", en: "Mindful pace" },
-        depth_first: { ru: "Глубина, а не скорость", en: "Depth over speed" },
+        depth_over_speed: { ru: "Глубина, а не скорость", en: "Depth over speed" },
+        intentional_curation: { ru: "Осознанный выбор", en: "Intentional curation" },
       },
       radarTitle: { ru: "Радар вкуса", en: "Taste radar" },
       radarHint: {
@@ -1616,6 +1789,180 @@ export const translations = {
     importAnother: { ru: "Импортировать ещё", en: "Import another" },
     optionsTitle: { ru: "Опции импорта", en: "Import options" },
     sourceTitle: { ru: "Выбор источника", en: "Source selection" },
+    socialLibSites: {
+      ru: "Сайты экосистемы SocialLib",
+      en: "SocialLib Ecosystem Sites",
+    },
+    mangaLibSub: { ru: "Манга", en: "Manga" },
+    animeLibSub: { ru: "Аниме", en: "Anime" },
+    ranobeLibSub: { ru: "Ранобэ / Книги", en: "Light Novels / Books" },
+    slashLibSub: { ru: "Слэш", en: "Slash" },
+    hentaiLibSub: { ru: "18+", en: "18+" },
+    listsToImport: {
+      ru: "Какие списки импортировать:",
+      en: "Lists to import:",
+    },
+    reading: { ru: "Читаю", en: "Reading" },
+    planned: { ru: "В планах", en: "Plan to read" },
+    completed: { ru: "Прочитано", en: "Completed" },
+    favorites: { ru: "Любимые", en: "Favorites" },
+    dropped: { ru: "Брошено", en: "Dropped" },
+    customFolders: {
+      ru: "Пользовательские папки",
+      en: "Custom folders",
+    },
+    readingWatching: {
+      ru: "Читаю / Смотрю",
+      en: "Reading / Watching",
+    },
+    onHoldWaiting: {
+      ru: "Отложено / Жду",
+      en: "On Hold / Waiting",
+    },
+    droppedRemoved: {
+      ru: "Брошено / Удалено",
+      en: "Dropped / Removed",
+    },
+    instantCollector: {
+      ru: "Мгновенный сборщик",
+      en: "Instant Collector",
+    },
+    fileJsonCsv: {
+      ru: "Файл .json / .csv",
+      en: "File .json / .csv",
+    },
+    recommended: {
+      ru: "Рекомендуется",
+      en: "Recommended",
+    },
+    instantCollectorTitle: {
+      ru: "Сбор закладок за 1 секунду прямо из браузера",
+      en: "1-second bookmarks export directly from your browser",
+    },
+    instantCollectorDesc: {
+      ru: "Обходит ограничения Cloudflare, моментально извлекая закладки со всех выбранных сайтов Lib с прогрессом, оценками и статусами.",
+      en: "Bypasses Cloudflare restrictions, instantly exporting bookmarks from all chosen Lib sites with progress, scores, and statuses.",
+    },
+    oneClickNoF12: {
+      ru: "1 клик без F12",
+      en: "1 click without F12",
+    },
+    bookmarkletButton: {
+      ru: "Кнопка-букмарклет для браузера",
+      en: "Browser bookmarklet button",
+    },
+    linkCopied: {
+      ru: "Ссылка скопирована!",
+      en: "Link copied!",
+    },
+    copyBookmarkletLink: {
+      ru: "Скопировать ссылку букмарклета",
+      en: "Copy bookmarklet link",
+    },
+    bookmarkletInstruction: {
+      ru: "Перетащите эту кнопку на панель закладок вашего браузера",
+      en: "Drag this button to your browser bookmarks bar",
+    },
+    bookmarkletInstructionSuffix: {
+      ru: ". Затем откройте любую страницу MangaLib, AnimeLib или RanobeLib и просто кликните по закладке!",
+      en: ". Then open any page on MangaLib, AnimeLib, or RanobeLib and just click the bookmark!",
+    },
+    bookmarkletDragTooltip: {
+      ru: "Зажмите и перетащите на панель закладок браузера (Ctrl+Shift+B)",
+      en: "Click and drag to browser bookmarks bar (Ctrl+Shift+B)",
+    },
+    bookmarkletDragAlert: {
+      ru: "📌 Перетащите эту кнопку мышкой на панель закладок браузера (Ctrl+Shift+B)!\n\nИли нажмите «Скопировать ссылку букмарклета» справа и создайте закладку вручную.",
+      en: "📌 Drag this button to your browser bookmarks bar (Ctrl+Shift+B)!\n\nOr click 'Copy bookmarklet link' on the right to create the bookmark manually.",
+    },
+    bookmarkletButtonText: {
+      ru: "📥 Tsundoku Импорт (перетащите в закладки)",
+      en: "📥 Tsundoku Import (drag to bookmarks)",
+    },
+    bookmarkletDragHint: {
+      ru: "← зажмите и потяните на панель закладок",
+      en: "← drag and drop to your bookmarks bar",
+    },
+    step1Text: {
+      ru: "Откройте страницу своего профиля или закладок на любом сайте Lib",
+      en: "Open your profile or bookmarks page on any Lib website",
+    },
+    step2TextPre: {
+      ru: "Нажмите на закладку в браузере (или откройте консоль",
+      en: "Click the bookmark in your browser (or open dev console with",
+    },
+    step2TextMid: {
+      ru: ", вставьте скрипт и нажмите",
+      en: ", paste the script, and press",
+    },
+    step2TextPost: {
+      ru: "). Букмарклет моментально выгрузит закладки.",
+      en: "). The bookmarklet will instantly dump bookmarks.",
+    },
+    step3TextPre: {
+      ru: "Если прямое сохранение заблокировано браузером — данные уже скопированы в буфер обмена: просто нажмите",
+      en: "If direct upload was blocked by the browser, the data is already copied to clipboard: simply click",
+    },
+    step3TextBtn: {
+      ru: "«Вставить из буфера и импортировать»",
+      en: "\"Paste from clipboard and import\"",
+    },
+    step3TextPost: {
+      ru: "ниже.",
+      en: "below.",
+    },
+    scriptCopied: {
+      ru: "Скрипт скопирован!",
+      en: "Script copied!",
+    },
+    copyCollectorScript: {
+      ru: "Скопировать скрипт сбора",
+      en: "Copy collector script",
+    },
+    importingStatus: {
+      ru: "Импортируем...",
+      en: "Importing...",
+    },
+    pasteAndImport: {
+      ru: "Вставить из буфера и импортировать",
+      en: "Paste from clipboard and import",
+    },
+    selectedOf: {
+      ru: (selected: number, total: number) => `Выбрано: ${selected} из ${total}`,
+      en: (selected: number, total: number) => `Selected: ${selected} of ${total}`,
+    },
+    copyBookmarkletFailed: {
+      ru: "Не удалось скопировать букмарклет в буфер обмена",
+      en: "Failed to copy bookmarklet to clipboard",
+    },
+    copyScriptFailed: {
+      ru: "Не удалось скопировать скрипт в буфер обмена",
+      en: "Failed to copy script to clipboard",
+    },
+    clipboardUnavailable: {
+      ru: "Буфер обмена недоступен в вашем браузере. Выберите способ «Файл» и загрузите сохраненный tsundoku-sociallib.json.",
+      en: "Clipboard is unavailable in your browser. Choose 'File' tab and upload your tsundoku-sociallib.json.",
+    },
+    clipboardEmpty: {
+      ru: "Буфер обмена пуст. Сначала скопируйте скрипт, выполните его в консоли любого Lib-сайта, а затем нажмите эту кнопку.",
+      en: "Clipboard is empty. Copy and run the script on any Lib website first, then click this button.",
+    },
+    clipboardNoJson: {
+      ru: "В буфере обмена нет JSON данных закладок. Убедитесь, что скрипт в консоли завершил сбор.",
+      en: "Clipboard does not contain valid bookmark JSON. Make sure the collector script completed.",
+    },
+    skippedDuplicatesWithCount: {
+      ru: (count: number) => `Пропущено дубликатов: ${count}`,
+      en: (count: number) => `Duplicates skipped: ${count}`,
+    },
+    duplicatesWithTitles: {
+      ru: (titles: string) => `Дубликаты: ${titles}`,
+      en: (titles: string) => `Duplicates: ${titles}`,
+    },
+    customFolderDefaultName: {
+      ru: "Пользовательская папка",
+      en: "Custom folder",
+    },
   },
   settingsModal: {
     title: { ru: "Настройки", en: "Settings" },
@@ -2108,8 +2455,8 @@ export const translations = {
 } as const;
 
 type Leaf = {
-  ru: string | ((...args: never[]) => string);
-  en: string | ((...args: never[]) => string);
+  ru: string | ((...args: never[]) => string) | readonly string[] | string[];
+  en: string | ((...args: never[]) => string) | readonly string[] | string[];
 };
 
 /** Strips the pair wrapper, leaving the shape the UI actually indexes into. */
@@ -2122,8 +2469,10 @@ type Unpair<T> = T extends Leaf
 /** Literal types widened so the resolved dictionary stays assignable and IDE-completable. */
 type Widen<T> = T extends string
   ? string
-  : T extends (...args: infer A) => infer R
-    ? (...args: A) => Widen<R>
-    : { [K in keyof T]: Widen<T[K]> };
+  : T extends readonly (infer E)[]
+    ? string[]
+    : T extends (...args: infer A) => infer R
+      ? (...args: A) => Widen<R>
+      : { [K in keyof T]: Widen<T[K]> };
 
 export type Dictionary = Widen<Unpair<typeof translations>>;

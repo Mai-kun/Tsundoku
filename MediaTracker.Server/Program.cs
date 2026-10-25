@@ -263,16 +263,16 @@ try
 
     var wwwrootCandidates = new[]
     {
-        // 1. Портативный запуск рядом с бинарником (для архивов, папки dist и Docker /app/wwwroot)
-        Path.Combine(AppContext.BaseDirectory, "wwwroot"),
-
-        // 2. Системный стандарт Linux (для будущих пакетов AUR / pacman / deb / rpm)
-        "/usr/share/tsundoku/wwwroot",
-        "/usr/lib/tsundoku/wwwroot",
-
-        // 3. Режим разработки (dotnet run): папка фронтенда внутри репозитория
+        // 1. Режим разработки (dotnet run): папка фронтенда внутри репозитория
         Path.Combine(builder.Environment.ContentRootPath, "wwwroot"),
         Path.Combine(builder.Environment.ContentRootPath, "MediaTracker.Server", "wwwroot"),
+
+        // 2. Портативный запуск рядом с бинарником (для архивов, папки dist и Docker /app/wwwroot)
+        Path.Combine(AppContext.BaseDirectory, "wwwroot"),
+
+        // 3. Системный стандарт Linux (для будущих пакетов AUR / pacman / deb / rpm)
+        "/usr/share/tsundoku/wwwroot",
+        "/usr/lib/tsundoku/wwwroot",
 
         // 4. Пользовательский оверрайд тем (бонус для кастомизации)
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Tsundoku", "custom-wwwroot")

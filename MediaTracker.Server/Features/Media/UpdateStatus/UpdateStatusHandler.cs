@@ -80,8 +80,8 @@ public sealed class UpdateStatusHandler(
         }
 
         await db.SaveChangesAsync(ct);
-        cache.Remove(AdvancedStatsCalculator.CacheKey);
-        cache.Remove(TasteProfileCalculator.CacheKey);
+        AdvancedStatsCalculator.InvalidateCache(cache);
+        TasteProfileCalculator.InvalidateCache(cache);
         return Result.Success();
     }
 }

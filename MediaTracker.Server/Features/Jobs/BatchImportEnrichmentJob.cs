@@ -138,8 +138,8 @@ public static class BatchImportEnrichmentJob
         CancellationToken ct)
     {
         var type = AggregatorTypes.Resolve(item);
-        var candidates = await FindCandidatesAsync(aggregator, item, type, ct);
         var priorities = await services.GetRequiredService<ISourcePriorityService>().GetPrioritiesAsync(type, ct);
+        var candidates = await FindCandidatesAsync(aggregator, item, type, priorities, ct);
         var verdict = ImportMatchScorer.EvaluateCandidates(item, candidates, priorities);
 
         switch (verdict.Kind)
@@ -195,12 +195,15 @@ public static class BatchImportEnrichmentJob
     /// <summary>
     /// Search for one title: parallel fan-out across key providers. If a Latin / Romaji title exists,
     /// AniList and MangaDex are queried strictly by that Latin title, while Russian providers (Shikimori / Kinopoisk)
-    /// are queried with the Russian/Cyrillic title. Results are merged and prioritized for exact Romaji hits.
+    /// are queried with the Russian/Cyrillic title. From every source only the top 4 matches are kept,
+    /// and the merged list is sorted strictly by the source position in <paramref name="sourcePriorities"/>
+    /// and then by match score, so candidates from the first source (AniList) always surface first.
     /// </summary>
     private static async Task<IReadOnlyList<ExternalMediaDto>> FindCandidatesAsync(
         MetadataAggregatorService aggregator,
         MediaItem item,
         string type,
+        IReadOnlyList<string> sourcePriorities,
         CancellationToken ct)
     {
         var rawRomaji = (item switch
@@ -221,7 +224,10 @@ public static class BatchImportEnrichmentJob
         }
 
         var russian = MediaTitleHelper.CleanRussianTitle(item.Title);
-        var searchTasks = new List<Task<IReadOnlyList<ExternalMediaDto>>>();
+        var searchTasks = new List<(string Source, Task<IReadOnlyList<ExternalMediaDto>> Task)>();
+
+        void Add(string source, Task<IReadOnlyList<ExternalMediaDto>> task) =>
+            searchTasks.Add((source, task));
 
         if (type == "manga")
         {
@@ -229,125 +235,162 @@ public static class BatchImportEnrichmentJob
             // When RomajiTitle / Latin exists, strictly query AniList and MangaDex with it.
             if (!string.IsNullOrWhiteSpace(latin))
             {
-                searchTasks.Add(aggregator.SearchSourceAsync("manga", latin, "anilist", ct));
-                searchTasks.Add(aggregator.SearchSourceAsync("manga", latin, "mangadex", ct));
+                Add("anilist", aggregator.SearchSourceAsync("manga", latin, "anilist", ct));
+                Add("mangadex", aggregator.SearchSourceAsync("manga", latin, "mangadex", ct));
             }
             else
             {
-                searchTasks.Add(aggregator.SearchSourceAsync("manga", item.Title, "anilist", ct));
-                searchTasks.Add(aggregator.SearchSourceAsync("manga", item.Title, "mangadex", ct));
+                Add("anilist", aggregator.SearchSourceAsync("manga", item.Title, "anilist", ct));
+                Add("mangadex", aggregator.SearchSourceAsync("manga", item.Title, "mangadex", ct));
             }
 
             if (MediaTitleHelper.IsCyrillic(russian))
             {
-                searchTasks.Add(aggregator.SearchSourceAsync("manga", russian, "shikimori", ct));
+                Add("shikimori", aggregator.SearchSourceAsync("manga", russian, "shikimori", ct));
             }
             else if (!string.IsNullOrWhiteSpace(latin))
             {
-                searchTasks.Add(aggregator.SearchSourceAsync("manga", latin, "shikimori", ct));
+                Add("shikimori", aggregator.SearchSourceAsync("manga", latin, "shikimori", ct));
             }
             else
             {
-                searchTasks.Add(aggregator.SearchSourceAsync("manga", item.Title, "shikimori", ct));
+                Add("shikimori", aggregator.SearchSourceAsync("manga", item.Title, "shikimori", ct));
             }
         }
         else if (type == "anime")
         {
             if (!string.IsNullOrWhiteSpace(latin))
             {
-                searchTasks.Add(aggregator.SearchSourceAsync("anime", latin, "anilist", ct));
+                Add("anilist", aggregator.SearchSourceAsync("anime", latin, "anilist", ct));
             }
             else
             {
-                searchTasks.Add(aggregator.SearchSourceAsync("anime", item.Title, "anilist", ct));
+                Add("anilist", aggregator.SearchSourceAsync("anime", item.Title, "anilist", ct));
             }
 
             if (MediaTitleHelper.IsCyrillic(russian))
             {
-                searchTasks.Add(aggregator.SearchSourceAsync("anime", russian, "shikimori", ct));
+                Add("shikimori", aggregator.SearchSourceAsync("anime", russian, "shikimori", ct));
             }
             else if (!string.IsNullOrWhiteSpace(latin))
             {
-                searchTasks.Add(aggregator.SearchSourceAsync("anime", latin, "shikimori", ct));
+                Add("shikimori", aggregator.SearchSourceAsync("anime", latin, "shikimori", ct));
             }
             else
             {
-                searchTasks.Add(aggregator.SearchSourceAsync("anime", item.Title, "shikimori", ct));
+                Add("shikimori", aggregator.SearchSourceAsync("anime", item.Title, "shikimori", ct));
             }
         }
         else if (type is "movie" or "tvshow")
         {
             if (!string.IsNullOrWhiteSpace(latin))
             {
-                searchTasks.Add(aggregator.SearchSourceAsync(type, latin, "tmdb", ct));
+                Add("tmdb", aggregator.SearchSourceAsync(type, latin, "tmdb", ct));
             }
             if (MediaTitleHelper.IsCyrillic(russian))
             {
-                searchTasks.Add(aggregator.SearchSourceAsync(type, russian, "kinopoisk", ct));
+                Add("kinopoisk", aggregator.SearchSourceAsync(type, russian, "kinopoisk", ct));
             }
             else if (!string.IsNullOrWhiteSpace(latin))
             {
-                searchTasks.Add(aggregator.SearchSourceAsync(type, latin, "kinopoisk", ct));
+                Add("kinopoisk", aggregator.SearchSourceAsync(type, latin, "kinopoisk", ct));
             }
         }
 
         if (searchTasks.Count == 0)
         {
-            searchTasks.Add(aggregator.SearchAsync(type, latin ?? item.Title, ct).AsTask());
+            Add("", aggregator.SearchAsync(type, latin ?? item.Title, ct).AsTask());
         }
 
-        var resultsGroups = await Task.WhenAll(searchTasks);
-        var found = new List<ExternalMediaDto>(resultsGroups.SelectMany(g => g));
+        var primary = await Task.WhenAll(searchTasks.Select(task => task.Task));
+
+        var collected = new List<(string Source, ExternalMediaDto Dto)>();
+        for (var i = 0; i < primary.Length; i++)
+        {
+            foreach (var dto in primary[i])
+            {
+                if (!string.IsNullOrWhiteSpace(dto.ExternalId))
+                {
+                    collected.Add((searchTasks[i].Source, dto));
+                }
+            }
+        }
 
         // Cyrillic-only roundtrip: if no Latin title was known, but Shikimori returned candidates with Romaji
-        if (found.Count > 0 && string.IsNullOrWhiteSpace(latin) && type is "anime" or "manga")
+        if (collected.Count > 0 && string.IsNullOrWhiteSpace(latin) && type is "anime" or "manga")
         {
-            var romajiFromFallback = found
-                .Select(candidate => candidate.RomajiTitle ?? candidate.OriginalTitle)
+            var romajiFromFallback = collected
+                .Select(candidate => candidate.Dto.RomajiTitle ?? candidate.Dto.OriginalTitle)
                 .FirstOrDefault(s => !string.IsNullOrWhiteSpace(s) && MediaTitleHelper.IsLatin(s));
 
             if (!string.IsNullOrWhiteSpace(romajiFromFallback))
             {
-                var secondaryTasks = new List<Task<IReadOnlyList<ExternalMediaDto>>>
+                var secondary = new List<(string Source, Task<IReadOnlyList<ExternalMediaDto>> Task)>
                 {
-                    aggregator.SearchSourceAsync(type, romajiFromFallback, "anilist", ct)
+                    ("anilist", aggregator.SearchSourceAsync(type, romajiFromFallback, "anilist", ct)),
                 };
                 if (type == "manga")
                 {
-                    secondaryTasks.Add(aggregator.SearchSourceAsync("manga", romajiFromFallback, "mangadex", ct));
+                    secondary.Add(("mangadex", aggregator.SearchSourceAsync("manga", romajiFromFallback, "mangadex", ct)));
                 }
 
-                var secondaryResults = await Task.WhenAll(secondaryTasks);
-                found.AddRange(secondaryResults.SelectMany(g => g));
+                var secondaryResults = await Task.WhenAll(secondary.Select(task => task.Task));
+                for (var i = 0; i < secondaryResults.Length; i++)
+                {
+                    foreach (var dto in secondaryResults[i])
+                    {
+                        if (!string.IsNullOrWhiteSpace(dto.ExternalId))
+                        {
+                            collected.Add((secondary[i].Source, dto));
+                        }
+                    }
+                }
             }
         }
 
-        if (found.Count == 0)
+        if (collected.Count == 0)
         {
             var fallback = await aggregator.SearchAsync(type, item.Title, ct);
-            found.AddRange(fallback);
+            foreach (var dto in fallback)
+            {
+                if (!string.IsNullOrWhiteSpace(dto.ExternalId))
+                {
+                    collected.Add((string.Empty, dto));
+                }
+            }
         }
 
-        return found
-            .Where(candidate => !string.IsNullOrWhiteSpace(candidate.ExternalId))
-            .DistinctBy(candidate => $"{candidate.ExternalSource}\u001f{candidate.ExternalId}", StringComparer.OrdinalIgnoreCase)
-            .OrderByDescending(candidate =>
+        var rank = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        for (var i = 0; i < sourcePriorities.Count; i++)
+        {
+            rank.TryAdd(sourcePriorities[i], i);
+        }
+
+        var scored = collected
+            .Select(candidate =>
             {
-                if (string.IsNullOrWhiteSpace(latin)) return 0;
-                var isAniListOrMangaDex = candidate.ExternalSource is not null &&
-                    (candidate.ExternalSource.Equals("AniList", StringComparison.OrdinalIgnoreCase) ||
-                     candidate.ExternalSource.Equals("MangaDex", StringComparison.OrdinalIgnoreCase));
-                var titleScore = Math.Max(
-                    ImportMatchScorer.TitlePairScore(latin, candidate.Title),
-                    Math.Max(
-                        ImportMatchScorer.TitlePairScore(latin, candidate.RomajiTitle),
-                        ImportMatchScorer.TitlePairScore(latin, candidate.OriginalTitle)));
-                if (isAniListOrMangaDex)
-                {
-                    return titleScore >= 60 ? 3 : (titleScore >= 40 ? 2 : 1);
-                }
-                return titleScore >= 60 ? 1 : 0;
+                var src = !string.IsNullOrWhiteSpace(candidate.Source) ? candidate.Source : candidate.Dto.ExternalSource;
+                return (
+                    Source: src ?? string.Empty,
+                    candidate.Dto,
+                    Score: ImportMatchScorer.ScoreCandidate(item, candidate.Dto),
+                    SourceRank: rank.TryGetValue(src ?? string.Empty, out var r) ? r : int.MaxValue
+                );
             })
+            .ToList();
+
+        // До 4 лучших результатов от каждого источника.
+        var capped = scored
+            .GroupBy(candidate => candidate.Source, StringComparer.OrdinalIgnoreCase)
+            .SelectMany(group => group.OrderByDescending(candidate => candidate.Score).Take(4))
+            .ToList();
+
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        return capped
+            .Where(candidate => seen.Add($"{candidate.Dto.ExternalSource}\u001f{candidate.Dto.ExternalId}"))
+            .OrderBy(candidate => candidate.SourceRank)
+            .ThenByDescending(candidate => candidate.Score)
+            .Select(candidate => candidate.Dto)
             .ToList();
     }
 
@@ -361,7 +404,7 @@ public static class BatchImportEnrichmentJob
     private static void EvictStatsCaches(IServiceProvider services)
     {
         var cache = services.GetService<Microsoft.Extensions.Caching.Memory.IMemoryCache>();
-        cache?.Remove(AdvancedStatsCalculator.CacheKey);
-        cache?.Remove(TasteProfileCalculator.CacheKey);
+        AdvancedStatsCalculator.InvalidateCache(cache);
+        TasteProfileCalculator.InvalidateCache(cache);
     }
 }

@@ -124,13 +124,19 @@ public static class MediaEndpoints
             .WithTags("Аналитика / Stats")
             .WithSummary("Базовая статистика медиатеки");
 
-        group.MapGet("/stats/advanced", ([FromServices] IGetMediaStatsHandler handler, CancellationToken ct) =>
-            handler.HandleAdvancedAsync(ct).ToOk())
+        group.MapGet("/stats/advanced", (
+                [FromQuery] string? scope,
+                [FromServices] IGetMediaStatsHandler handler,
+                CancellationToken ct) =>
+            handler.HandleAdvancedAsync(scope, ct).ToOk())
             .WithTags("Аналитика / Stats")
             .WithSummary("Продвинутая аналитика, стрик и тепловая карта");
 
-        group.MapGet("/stats/taste-profile", ([FromServices] IGetMediaStatsHandler handler, CancellationToken ct) =>
-            handler.HandleTasteProfileAsync(ct).ToOk())
+        group.MapGet("/stats/taste-profile", (
+                [FromQuery] string? scope,
+                [FromServices] IGetMediaStatsHandler handler,
+                CancellationToken ct) =>
+            handler.HandleTasteProfileAsync(scope, ct).ToOk())
             .WithTags("Аналитика / Stats")
             .WithSummary("Психологический профиль вкуса")
             .WithDescription("Возвращает культурный архетип, SVG-радар жанров, синдром потерянного времени, критический диссонанс и анатомию дропа.");

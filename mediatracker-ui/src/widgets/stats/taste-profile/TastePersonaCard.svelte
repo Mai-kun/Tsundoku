@@ -1,5 +1,21 @@
 <script lang="ts">
-    import { Archive, Compass, Layers, ListChecks, Scale, Sparkles, Tv } from "$shared/ui/Icons.svelte";
+    import {
+        Archive,
+        Bookmark,
+        BookOpen,
+        Boxes,
+        Clapperboard,
+        Compass,
+        Film,
+        Flame,
+        Gamepad2,
+        Heart,
+        Layers,
+        ListChecks,
+        Scale,
+        Sparkles,
+        Tv,
+    } from "$shared/ui/Icons.svelte";
     import { i18n } from "$shared/i18n/index.svelte";
     import type { TastePersona } from "$shared/types";
 
@@ -11,8 +27,18 @@
 
     const ICONS: Record<string, typeof Sparkles> = {
         critic: Scale,
+        enthusiast: Sparkles,
         perfectionist: ListChecks,
+        tsundoku_master: Boxes,
+        manga_reader: BookOpen,
         otaku: Tv,
+        gamer: Gamepad2,
+        bookworm: Bookmark,
+        cinephile: Film,
+        serial_binger: Clapperboard,
+        dark_philosopher: Compass,
+        cozy_hedonist: Heart,
+        action_junkie: Flame,
         visionary: Compass,
         omnivore: Layers,
         archivist: Archive,
@@ -28,6 +54,10 @@
     function traitLabel(trait: string): string {
         return i18n.t.stats.taste.traits[trait as keyof typeof i18n.t.stats.taste.traits] ?? trait;
     }
+
+    const traits = $derived<string[]>(
+        copy?.traits ?? persona.traits.map(traitLabel)
+    );
 </script>
 
 <div
@@ -44,9 +74,9 @@
             <h2 class="mt-1 text-2xl font-bold tracking-tight text-white">{title}</h2>
             <p class="mt-2 max-w-2xl text-sm leading-relaxed text-slate-300">{description}</p>
             <div class="mt-4 flex flex-wrap justify-center gap-2 sm:justify-start">
-                {#each persona.traits as trait (trait)}
+                {#each traits as trait (trait)}
                     <span class="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-slate-200">
-                        {traitLabel(trait)}
+                        {trait}
                     </span>
                 {/each}
             </div>

@@ -12,8 +12,8 @@ namespace MediaTracker.Server.Features.Media.GetMediaStats;
 public interface IGetMediaStatsHandler
 {
     Task<Result<MediaStatsDto>> HandleAsync(CancellationToken ct);
-    Task<Result<AdvancedStatsDto>> HandleAdvancedAsync(CancellationToken ct);
-    Task<Result<TasteProfileDto>> HandleTasteProfileAsync(CancellationToken ct);
+    Task<Result<AdvancedStatsDto>> HandleAdvancedAsync(string? scope = "completed", CancellationToken ct = default);
+    Task<Result<TasteProfileDto>> HandleTasteProfileAsync(string? scope = "completed", CancellationToken ct = default);
 }
 
 public sealed class GetMediaStatsHandler(AppDbContext db, IMemoryCache cache) : IGetMediaStatsHandler
@@ -62,9 +62,12 @@ public sealed class GetMediaStatsHandler(AppDbContext db, IMemoryCache cache) : 
         return Result<MediaStatsDto>.Success(stats);
     }
 
-    public async Task<Result<AdvancedStatsDto>> HandleAdvancedAsync(CancellationToken ct)
+    public async Task<Result<AdvancedStatsDto>> HandleAdvancedAsync(string? scope = "completed", CancellationToken ct = default)
     {
-        if (cache.TryGetValue(AdvancedStatsCalculator.CacheKey, out AdvancedStatsDto? cached) && cached is not null)
+        var onlyCompleted = !string.Equals(scope, "all", StringComparison.OrdinalIgnoreCase);
+        var cacheKey = onlyCompleted ? AdvancedStatsCalculator.CacheKeyCompleted : AdvancedStatsCalculator.CacheKeyAll;
+
+        if (cache.TryGetValue(cacheKey, out AdvancedStatsDto? cached) && cached is not null)
         {
             return Result<AdvancedStatsDto>.Success(cached);
         }
@@ -85,20 +88,24 @@ public sealed class GetMediaStatsHandler(AppDbContext db, IMemoryCache cache) : 
             items,
             events: events,
             bookPageMinutes: bookMinutes,
-            mangaChapterMinutes: mangaMinutes);
-        cache.Set(AdvancedStatsCalculator.CacheKey, stats, TimeSpan.FromMinutes(5));
+            mangaChapterMinutes: mangaMinutes,
+            onlyCompleted: onlyCompleted);
+        cache.Set(cacheKey, stats, TimeSpan.FromMinutes(5));
 
         return Result<AdvancedStatsDto>.Success(stats);
     }
 
-    public async Task<Result<TasteProfileDto>> HandleTasteProfileAsync(CancellationToken ct)
+    public async Task<Result<TasteProfileDto>> HandleTasteProfileAsync(string? scope = "completed", CancellationToken ct = default)
     {
-        if (cache.TryGetValue(TasteProfileCalculator.CacheKey, out TasteProfileDto? cached) && cached is not null)
+        var onlyCompleted = !string.Equals(scope, "all", StringComparison.OrdinalIgnoreCase);
+        var cacheKey = onlyCompleted ? TasteProfileCalculator.CacheKeyCompleted : TasteProfileCalculator.CacheKeyAll;
+
+        if (cache.TryGetValue(cacheKey, out TasteProfileDto? cached) && cached is not null)
         {
             return Result<TasteProfileDto>.Success(cached);
         }
 
-        var advancedStats = await HandleAdvancedAsync(ct);
+        var advancedStats = await HandleAdvancedAsync(scope, ct);
         if (!advancedStats.IsSuccess)
         {
             return Result<TasteProfileDto>.Failure(advancedStats.Error!);
@@ -109,8 +116,8 @@ public sealed class GetMediaStatsHandler(AppDbContext db, IMemoryCache cache) : 
             .ToListAsync(ct);
         var (bookMinutes, mangaMinutes) = await ReadReadingMinutesAsync(ct);
 
-        var profile = TasteProfileCalculator.Calculate(items, advancedStats.Value!, bookMinutes, mangaMinutes);
-        cache.Set(TasteProfileCalculator.CacheKey, profile, TimeSpan.FromMinutes(5));
+        var profile = TasteProfileCalculator.Calculate(items, advancedStats.Value!, bookMinutes, mangaMinutes, onlyCompleted: onlyCompleted);
+        cache.Set(cacheKey, profile, TimeSpan.FromMinutes(5));
 
         return Result<TasteProfileDto>.Success(profile);
     }

@@ -92,8 +92,8 @@ public sealed class UpdateSeasonProgressHandler(
                 .ExecuteUpdateAsync(s => s.SetProperty(item => item.LastActivityAt, DateTime.UtcNow), ct);
         }
 
-        cache.Remove(AdvancedStatsCalculator.CacheKey);
-        cache.Remove(TasteProfileCalculator.CacheKey);
+        AdvancedStatsCalculator.InvalidateCache(cache);
+        TasteProfileCalculator.InvalidateCache(cache);
         return Result.Success();
     }
 

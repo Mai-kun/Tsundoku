@@ -348,19 +348,10 @@
        cancelled jobs also settle the row (it stays with syncStatus=failed), so they count too. The
        detail screen refreshes itself, but the signal still fires: HomeView and CategoryView live in
        keep-alive containers and only hear about the change through their refreshKey. */
-    const settledJobIds = new Set<string>();
-    const isFinalJob = (job: JobProgress) =>
-        job.status === "Completed" || job.status === "Failed" || job.status === "Cancelled";
     $effect(() => {
-        const settled = jobsClient.jobs.filter(isFinalJob);
-
-        let fired = false;
-        for (const job of settled) {
-            if (settledJobIds.has(job.jobId)) continue;
-            settledJobIds.add(job.jobId);
-            fired = true;
-        }
-        if (fired) mediaChanged();
+        return jobsClient.onJobSettled(() => {
+            mediaChanged();
+        });
     });
 
     function openDetailById(id: string) {

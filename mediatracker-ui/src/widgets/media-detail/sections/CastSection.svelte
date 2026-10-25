@@ -2,6 +2,7 @@
     import { i18n } from "$shared/i18n/index.svelte";
     import type { CastMember, MediaDetail } from "$shared/types";
     import { User } from "$shared/ui/Icons.svelte";
+    import ImageLightbox from "$shared/ui/ImageLightbox.svelte";
     import { uiSettings } from "$shared/utils/uiSettings.svelte";
     import PeopleSizeToggle from "./PeopleSizeToggle.svelte";
 
@@ -119,6 +120,8 @@
         isMain
             ? "inline-flex items-center rounded-md border border-accent/30 bg-accent/15 px-1.5 py-0.5 text-[10px] font-semibold text-accent-soft"
             : "inline-flex items-center rounded-md border border-white/10 bg-white/[0.04] px-1.5 py-0.5 text-[10px] font-medium text-slate-400";
+
+    let activeLightboxUrl = $state<string | null>(null);
 </script>
 
 {#if display}
@@ -147,15 +150,22 @@
                         <!-- Voice actor, pinned to the left edge. -->
                         <div class="flex min-w-0 flex-1 items-center gap-3">
                             {#if voice.photoUrl}
-                                <img
-                                    src={voice.photoUrl}
-                                    alt={voice.name}
-                                    loading="lazy"
-                                    referrerpolicy="no-referrer"
-                                    class="{large
-                                        ? "w-16 h-20 sm:w-20 sm:h-24 shadow-md"
-                                        : "size-13 sm:size-14"} shrink-0 rounded-xl object-cover ring-1 ring-white/10"
-                                />
+                                <button
+                                    type="button"
+                                    class="cursor-pointer p-0 border-0 bg-transparent text-left shrink-0"
+                                    onclick={() => (activeLightboxUrl = voice.photoUrl)}
+                                    aria-label={`Увеличить фото: ${voice.name}`}
+                                >
+                                    <img
+                                        src={voice.photoUrl}
+                                        alt={voice.name}
+                                        loading="lazy"
+                                        referrerpolicy="no-referrer"
+                                        class="{large
+                                            ? "w-16 h-20 sm:w-20 sm:h-24 shadow-md"
+                                            : "size-13 sm:size-14"} shrink-0 rounded-xl object-cover ring-1 ring-white/10"
+                                    />
+                                </button>
                             {:else}
                                 <span
                                     class="{large
@@ -210,15 +220,22 @@
                                         {/if}
                                     </div>
                                     {#if character.photoUrl}
-                                        <img
-                                            src={character.photoUrl}
-                                            alt={character.name}
-                                            loading="lazy"
-                                            referrerpolicy="no-referrer"
-                                            class="{large
-                                                ? "w-16 h-20 sm:w-20 sm:h-24 shadow-md"
-                                                : "size-13 sm:size-14"} shrink-0 rounded-xl object-cover ring-1 ring-white/10"
-                                        />
+                                        <button
+                                            type="button"
+                                            class="cursor-pointer p-0 border-0 bg-transparent text-left shrink-0"
+                                            onclick={() => (activeLightboxUrl = character.photoUrl)}
+                                            aria-label={`Увеличить фото: ${character.name}`}
+                                        >
+                                            <img
+                                                src={character.photoUrl}
+                                                alt={character.name}
+                                                loading="lazy"
+                                                referrerpolicy="no-referrer"
+                                                class="{large
+                                                    ? "w-16 h-20 sm:w-20 sm:h-24 shadow-md"
+                                                    : "size-13 sm:size-14"} shrink-0 rounded-xl object-cover ring-1 ring-white/10"
+                                            />
+                                        </button>
                                     {:else}
                                         <span
                                             class="{large
@@ -242,15 +259,22 @@
                             : 'p-2.5'}"
                     >
                         {#if member.photoUrl}
-                            <img
-                                src={member.photoUrl}
-                                alt={member.name}
-                                loading="lazy"
-                                referrerpolicy="no-referrer"
-                                class="{large
-                                    ? 'w-16 h-20 sm:w-20 sm:h-24 shadow-md'
-                                    : 'size-13 sm:size-14'} shrink-0 rounded-xl object-cover ring-1 ring-white/10"
-                            />
+                            <button
+                                type="button"
+                                class="cursor-pointer p-0 border-0 bg-transparent text-left shrink-0"
+                                onclick={() => (activeLightboxUrl = member.photoUrl)}
+                                aria-label={`Увеличить фото: ${member.name}`}
+                            >
+                                <img
+                                    src={member.photoUrl}
+                                    alt={member.name}
+                                    loading="lazy"
+                                    referrerpolicy="no-referrer"
+                                    class="{large
+                                        ? 'w-16 h-20 sm:w-20 sm:h-24 shadow-md'
+                                        : 'size-13 sm:size-14'} shrink-0 rounded-xl object-cover ring-1 ring-white/10"
+                                />
+                            </button>
                         {:else}
                             <span
                                 class="{large
@@ -280,3 +304,5 @@
         {/if}
     </section>
 {/if}
+
+<ImageLightbox url={activeLightboxUrl} onclose={() => (activeLightboxUrl = null)} />

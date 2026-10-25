@@ -179,11 +179,13 @@ export function getStats(): Promise<MediaStats> {
   return requestJson<MediaStats>(`${mediaEndpoint}/stats`);
 }
 
-export function getAdvancedStats(signal?: AbortSignal): Promise<AdvancedStats> {
-  return requestJson<AdvancedStats>(`${mediaEndpoint}/stats/advanced`, { signal });
+export function getAdvancedStats(scope: string = "completed", signal?: AbortSignal): Promise<AdvancedStats> {
+  const query = scope ? `?scope=${encodeURIComponent(scope)}` : "";
+  return requestJson<AdvancedStats>(`${mediaEndpoint}/stats/advanced${query}`, { signal });
 }
-export function getTasteProfile(signal?: AbortSignal): Promise<TasteProfile> {
-  return requestJson<TasteProfile>(`${mediaEndpoint}/stats/taste-profile`, { signal });
+export function getTasteProfile(scope: string = "completed", signal?: AbortSignal): Promise<TasteProfile> {
+  const query = scope ? `?scope=${encodeURIComponent(scope)}` : "";
+  return requestJson<TasteProfile>(`${mediaEndpoint}/stats/taste-profile${query}`, { signal });
 }
 
 export function searchExternal(

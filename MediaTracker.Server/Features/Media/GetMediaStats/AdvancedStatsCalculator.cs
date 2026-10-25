@@ -6,13 +6,24 @@ namespace MediaTracker.Server.Features.Media.GetMediaStats;
 public static class AdvancedStatsCalculator
 {
     public const string CacheKey = "stats:advanced";
+    public const string CacheKeyCompleted = "stats:advanced:completed";
+    public const string CacheKeyAll = "stats:advanced:all";
+
+    public static void InvalidateCache(Microsoft.Extensions.Caching.Memory.IMemoryCache? cache)
+    {
+        if (cache is null) return;
+        cache.Remove(CacheKey);
+        cache.Remove(CacheKeyCompleted);
+        cache.Remove(CacheKeyAll);
+    }
 
     public static AdvancedStatsDto Calculate(
         IReadOnlyCollection<MediaItem> items,
         DateTime? now = null,
         IEnumerable<MediaEvent>? events = null,
         double bookPageMinutes = 1.5,
-        double mangaChapterMinutes = 6.0)
+        double mangaChapterMinutes = 6.0,
+        bool onlyCompleted = true)
     {
         var refTime = now ?? DateTime.UtcNow;
 
@@ -25,7 +36,11 @@ public static class AdvancedStatsCalculator
         double gameHours = 0;
         foreach (var game in items.OfType<VideoGame>())
         {
-            if (game.Status != MediaStatus.Planned)
+            var isEligible = onlyCompleted
+                ? game.Status == MediaStatus.Completed
+                : game.Status != MediaStatus.Planned;
+
+            if (isEligible)
             {
                 gameHours += game.HoursPlayed ?? 0;
             }
@@ -35,17 +50,31 @@ public static class AdvancedStatsCalculator
         double animeMovieHours = 0;
         foreach (var movie in items.OfType<Movie>())
         {
-            var duration = movie.Status == MediaStatus.Completed
-                ? movie.DurationMinutes > 0 ? movie.DurationMinutes : 90
-                : 0;
-
-            if (movie.IsAnime)
+            var duration = 0;
+            if (onlyCompleted)
             {
-                animeMovieHours += duration / 60.0;
+                if (movie.Status == MediaStatus.Completed)
+                {
+                    duration = movie.DurationMinutes > 0 ? movie.DurationMinutes : 90;
+                }
             }
-            else
+            else if (movie.Status != MediaStatus.Planned)
             {
-                movieHours += duration / 60.0;
+                duration = movie.DurationMinutes > 0
+                    ? movie.DurationMinutes
+                    : (movie.Status == MediaStatus.Completed ? 90 : 0);
+            }
+
+            if (duration > 0)
+            {
+                if (movie.IsAnime)
+                {
+                    animeMovieHours += duration / 60.0;
+                }
+                else
+                {
+                    movieHours += duration / 60.0;
+                }
             }
         }
 
@@ -56,7 +85,16 @@ public static class AdvancedStatsCalculator
 
         foreach (var show in items.OfType<TvShow>())
         {
-            var episodesWatched = show.Status == MediaStatus.Planned ? 0 : show.TotalEpisodesWatched;
+            var isEligible = onlyCompleted
+                ? show.Status == MediaStatus.Completed
+                : show.Status != MediaStatus.Planned;
+
+            if (!isEligible)
+            {
+                continue;
+            }
+
+            var episodesWatched = show.TotalEpisodesWatched;
             if (show.Status == MediaStatus.Completed && episodesWatched == 0)
             {
                 episodesWatched = show.TotalEpisodesCount;
@@ -82,7 +120,11 @@ public static class AdvancedStatsCalculator
         var totalPagesRead = 0;
         foreach (var book in items.OfType<Book>())
         {
-            if (book.Status == MediaStatus.Planned)
+            var isEligible = onlyCompleted
+                ? book.Status == MediaStatus.Completed
+                : book.Status != MediaStatus.Planned;
+
+            if (!isEligible)
             {
                 continue;
             }
@@ -100,27 +142,40 @@ public static class AdvancedStatsCalculator
         var totalChaptersRead = 0;
         foreach (var manga in items.OfType<Manga>())
         {
-            if (manga.Status == MediaStatus.Planned)
+            var isEligible = onlyCompleted
+                ? manga.Status == MediaStatus.Completed
+                : manga.Status != MediaStatus.Planned;
+
+            if (!isEligible)
             {
                 continue;
             }
 
-            totalChaptersRead += manga.CurrentChapter;
             if (manga.Status == MediaStatus.Completed)
             {
+                var chapters = manga.TotalChapters is > 0
+                    ? manga.TotalChapters.Value
+                    : manga.CurrentChapter > 0 ? manga.CurrentChapter : 0;
+                totalChaptersRead += chapters;
                 mangaHours += manga.TotalChapters is > 0
                     ? (manga.TotalChapters.Value * mangaChapterMinutes) / 60.0
                     : manga.TotalVolumes is > 0
                         ? (manga.TotalVolumes.Value * 50.0) / 60.0
-                        : 0;
+                        : chapters > 0
+                            ? (chapters * mangaChapterMinutes) / 60.0
+                            : 0;
             }
-            else if (manga.CurrentChapter > 0)
+            else
             {
-                mangaHours += (manga.CurrentChapter * mangaChapterMinutes) / 60.0;
-            }
-            else if (manga.CurrentVolume > 0)
-            {
-                mangaHours += (manga.CurrentVolume * 50.0) / 60.0;
+                totalChaptersRead += manga.CurrentChapter;
+                if (manga.CurrentChapter > 0)
+                {
+                    mangaHours += (manga.CurrentChapter * mangaChapterMinutes) / 60.0;
+                }
+                else if (manga.CurrentVolume > 0)
+                {
+                    mangaHours += (manga.CurrentVolume * 50.0) / 60.0;
+                }
             }
         }
 
@@ -136,7 +191,11 @@ public static class AdvancedStatsCalculator
         var scoredItems = new List<(MediaItem Item, int Score)>();
         foreach (var item in items)
         {
-            if (item.Score is >= 1 and <= 10)
+            var isEligible = onlyCompleted
+                ? item.Status == MediaStatus.Completed
+                : item.Status != MediaStatus.Planned;
+
+            if (isEligible && item.Score is >= 1 and <= 10)
             {
                 scoreDistribution[item.Score.Value]++;
                 scoredItems.Add((item, item.Score.Value));
@@ -234,19 +293,17 @@ public static class AdvancedStatsCalculator
 
         foreach (var item in items)
         {
-            if (string.IsNullOrWhiteSpace(item.Genres))
+            var isEligible = onlyCompleted
+                ? item.Status == MediaStatus.Completed
+                : item.Status != MediaStatus.Planned;
+
+            if (!isEligible || string.IsNullOrWhiteSpace(item.Genres))
             {
                 continue;
             }
 
-            var genres = item.Genres.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            foreach (var genre in genres)
+            foreach (var genre in GenreNormalizer.ExtractGenres(item.Genres))
             {
-                if (string.IsNullOrWhiteSpace(genre))
-                {
-                    continue;
-                }
-
                 var normalized = GenreNormalizer.Normalize(genre);
                 if (string.IsNullOrWhiteSpace(normalized))
                 {
@@ -271,7 +328,11 @@ public static class AdvancedStatsCalculator
         var genreCountsByType = new Dictionary<string, Dictionary<string, int>>(StringComparer.OrdinalIgnoreCase);
         foreach (var item in items)
         {
-            if (string.IsNullOrWhiteSpace(item.Genres))
+            var isEligible = onlyCompleted
+                ? item.Status == MediaStatus.Completed
+                : item.Status != MediaStatus.Planned;
+
+            if (!isEligible || string.IsNullOrWhiteSpace(item.Genres))
             {
                 continue;
             }
@@ -283,7 +344,7 @@ public static class AdvancedStatsCalculator
                 genreCountsByType[type] = counts;
             }
 
-            foreach (var genre in item.Genres.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            foreach (var genre in GenreNormalizer.ExtractGenres(item.Genres))
             {
                 var normalized = GenreNormalizer.Normalize(genre);
                 if (!string.IsNullOrWhiteSpace(normalized))

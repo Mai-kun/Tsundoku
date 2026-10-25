@@ -6,6 +6,7 @@
     import { showToast } from "$shared/ui/toast.svelte";
     import { fullSizeCoverUrl } from "$entities/media/model/coverUrl";
     import MediaCoverPlaceholder from "$shared/ui/MediaCoverPlaceholder.svelte";
+    import ImageLightbox from "$shared/ui/ImageLightbox.svelte";
     import PopoverMenu from "$shared/ui/PopoverMenu.svelte";
     import { i18n } from "$shared/i18n/index.svelte";
     import { MEDIA_STATUS, type AppView, type MediaDetail, type MediaStatus } from "$shared/types";
@@ -153,6 +154,7 @@
     );
 
     let autoRefreshBusy = $state(false);
+    let activeLightboxUrl = $state<string | null>(null);
 
     async function handleAutoRefresh() {
         if (autoRefreshBusy) return;
@@ -192,13 +194,24 @@
                 </p>
             </div>
         {:else if media.coverUrl && !imgError}
-            <img
-                src={fullSizeCoverUrl(media.coverUrl)}
-                alt={media.title}
-                referrerpolicy="no-referrer"
-                class="h-full w-full object-cover object-top"
-                onerror={() => (imgError = true)}
-            />
+            <button
+                type="button"
+                class="h-full w-full cursor-pointer text-left block p-0 border-0 bg-transparent"
+                onclick={() => {
+                    const cover = media.coverUrl;
+                    if (cover) activeLightboxUrl = fullSizeCoverUrl(cover);
+                }}
+                title="Увеличить постер"
+                aria-label="Увеличить постер"
+            >
+                <img
+                    src={fullSizeCoverUrl(media.coverUrl)}
+                    alt={media.title}
+                    referrerpolicy="no-referrer"
+                    class="h-full w-full object-cover object-top"
+                    onerror={() => (imgError = true)}
+                />
+            </button>
         {:else}
             <MediaCoverPlaceholder />
         {/if}
@@ -887,3 +900,5 @@
     title={media.title}
     onClose={() => (isActivityOpen = false)}
 />
+
+<ImageLightbox url={activeLightboxUrl} onclose={() => (activeLightboxUrl = null)} />

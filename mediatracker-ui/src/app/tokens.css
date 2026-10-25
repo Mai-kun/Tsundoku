@@ -1,0 +1,59 @@
+:root {
+  /* Базовые цвета палитры Steam Deck Dark */
+  --color-canvas: #0d0f14;
+  --color-surface: #12151c;
+  --color-card: #151a26;
+  --color-accent: #5844e0;
+  --color-accent-soft: #a5b4fc;
+
+  /* Фирменные градиенты */
+  --gradient-accent: linear-gradient(135deg, #5844e0 0%, #818cf8 100%);
+  --gradient-card: linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.01) 100%);
+  --gradient-glow: radial-gradient(circle at 50% 0%, rgba(88, 68, 224, 0.15) 0%, transparent 70%);
+
+  /* Тонкие границы */
+  --color-panel-border: rgba(255, 255, 255, 0.06);
+
+  /* --- Import Provider Themes --- */
+  /* MangaLib / SocialLib (Pale terracotta/orange) */
+  --color-import-mangalib-accent: #ea580c;
+  --color-import-mangalib-border: rgba(249, 115, 22, 0.2);
+  --color-import-mangalib-surface: rgba(249, 115, 22, 0.05);
+  --color-import-mangalib-text: #fdba74;
+
+  /* Letterboxd (Film Emerald) */
+  --color-import-letterboxd-accent: #00e054;
+  --color-import-letterboxd-border: rgba(0, 224, 84, 0.2);
+  --color-import-letterboxd-surface: rgba(0, 224, 84, 0.05);
+  --color-import-letterboxd-text: #86efac;
+
+  /* Goodreads (Book Warm Gold/Tan) */
+  --color-import-goodreads-accent: #d6a858;
+  --color-import-goodreads-border: rgba(214, 168, 88, 0.2);
+  --color-import-goodreads-surface: rgba(214, 168, 88, 0.05);
+  --color-import-goodreads-text: #fde68a;
+
+  /* Steam (Steam Sky Blue) */
+  --color-import-steam-accent: #66c0f4;
+  --color-import-steam-border: rgba(102, 192, 244, 0.2);
+  --color-import-steam-surface: rgba(102, 192, 244, 0.05);
+  --color-import-steam-text: #bae6fd;
+
+  /* AniList (AniList Cyan) */
+  --color-import-anilist-accent: #02a9ff;
+  --color-import-anilist-border: rgba(2, 169, 255, 0.2);
+  --color-import-anilist-surface: rgba(2, 169, 255, 0.05);
+  --color-import-anilist-text: #7dd3fc;
+
+  /* Shikimori & MAL (Navy Indigo) */
+  --color-import-shikimori-accent: #688ce4;
+  --color-import-shikimori-border: rgba(104, 140, 228, 0.2);
+  --color-import-shikimori-surface: rgba(104, 140, 228, 0.05);
+  --color-import-shikimori-text: #c7d2fe;
+
+  /* Custom / Universal (Tsundoku Purple) */
+  --color-import-custom-accent: #5844e0;
+  --color-import-custom-border: rgba(88, 68, 224, 0.2);
+  --color-import-custom-surface: rgba(88, 68, 224, 0.05);
+  --color-import-custom-text: #a5b4fc;
+}

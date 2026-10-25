@@ -1,4 +1,5 @@
 using System.Text.Json;
+using MediaTracker.Server.Features.Media.GetMediaStats;
 using MediaTracker.Server.Domain.Entities;
 using MediaTracker.Server.Domain.Enums;
 using MediaTracker.Server.Domain.Rules;
@@ -71,8 +72,8 @@ public static class MediaEnrichmentJob
             item.SyncStatus = SyncStatus.Ready;
             item.MarkUpdated();
             await db.SaveChangesAsync(jobCts.Token).ConfigureAwait(false);
-            services.GetService<Microsoft.Extensions.Caching.Memory.IMemoryCache>()?.Remove(MediaTracker.Server.Features.Media.GetMediaStats.AdvancedStatsCalculator.CacheKey);
-            services.GetService<Microsoft.Extensions.Caching.Memory.IMemoryCache>()?.Remove(MediaTracker.Server.Features.Media.GetMediaStats.TasteProfileCalculator.CacheKey);
+            AdvancedStatsCalculator.InvalidateCache(services.GetService<Microsoft.Extensions.Caching.Memory.IMemoryCache>());
+            TasteProfileCalculator.InvalidateCache(services.GetService<Microsoft.Extensions.Caching.Memory.IMemoryCache>());
 
             // Last, and outside the metadata write: the Related tab is the one panel whose content is
             // not in the database, so leaving it to the first manual "load related" meant a freshly

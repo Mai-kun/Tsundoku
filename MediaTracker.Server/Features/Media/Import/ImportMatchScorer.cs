@@ -129,9 +129,34 @@ public static class ImportMatchScorer
             return MatchVerdict.NoMatch();
         }
 
-        var ranked = candidates
+        var rankBySource = sourcePriorities is { Count: > 0 } ? BuildSourceRank(sourcePriorities) : null;
+        var topSource = sourcePriorities is { Count: > 0 } ? sourcePriorities[0] : null;
+
+        var scored = candidates
             .Select(candidate => new ScoredCandidate(candidate, ScoreCandidate(item, candidate)))
-            .OrderByDescending(scored => scored.Score)
+            .ToList();
+
+        // Победа приоритетного источника при автовыборе: кандидат из первого источника в
+        // настройках (например, AniList) с надёжным баллом (>= 60) автоматически побеждает любого
+        // кандидата из более низких источников (например, Shikimori), даже если у того числовой
+        // балл формально выше.
+        if (topSource is not null)
+        {
+            var primary = scored
+                .Where(scored => string.Equals(scored.Candidate.ExternalSource, topSource, StringComparison.OrdinalIgnoreCase))
+                .OrderByDescending(scored => scored.Score)
+                .FirstOrDefault();
+            if (primary is not null && primary.Score >= ConfidentAloneScore)
+            {
+                return MatchVerdict.Confident(primary.Candidate);
+            }
+        }
+
+        // Строгая сортировка кандидатов: 1) индекс источника в sourcePriorities,
+        // 2) внутри одного источника — по баллу совпадения.
+        var ranked = scored
+            .OrderBy(scored => rankBySource is not null && scored.Candidate.ExternalSource is not null && rankBySource.TryGetValue(scored.Candidate.ExternalSource, out var rank) ? rank : int.MaxValue)
+            .ThenByDescending(scored => scored.Score)
             .ToList();
 
         var best = ranked[0];
@@ -153,7 +178,7 @@ public static class ImportMatchScorer
                 return MatchVerdict.Confident(tieBroken);
             }
 
-            return MatchVerdict.Ambiguous([.. ranked.Take(5).Select(scored => scored.Candidate)]);
+            return MatchVerdict.Ambiguous([.. ranked.Take(12).Select(scored => scored.Candidate)]);
         }
 
         var aloneButStrong = best.Score >= ConfidentAloneScore && best.Score - runnerUp >= NearMissGap;
@@ -162,7 +187,18 @@ public static class ImportMatchScorer
             return MatchVerdict.Confident(best.Candidate);
         }
 
-        return MatchVerdict.Ambiguous([.. ranked.Take(5).Select(scored => scored.Candidate)]);
+        return MatchVerdict.Ambiguous([.. ranked.Take(12).Select(scored => scored.Candidate)]);
+    }
+
+    private static Dictionary<string, int> BuildSourceRank(IReadOnlyList<string> sourcePriorities)
+    {
+        var rank = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        for (var i = 0; i < sourcePriorities.Count; i++)
+        {
+            rank.TryAdd(sourcePriorities[i], i);
+        }
+
+        return rank;
     }
 
     /// <summary>

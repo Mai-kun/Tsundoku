@@ -54,6 +54,9 @@ class UiSettingsService {
         per block (cast vs staff), so switching an anime's cast never touches the manga staff view. */
     castSizeByCategory = $state<PeopleSizeMap>(readStoredMap(CAST_SIZE_BY_CATEGORY_KEY));
     staffSizeByCategory = $state<PeopleSizeMap>(readStoredMap(STAFF_SIZE_BY_CATEGORY_KEY));
+    statsScope = $state<"completed" | "all">(
+        typeof localStorage !== "undefined" && localStorage.getItem("stats_scope") === "all" ? "all" : "completed"
+    );
     isLoaded = $state<boolean>(false);
 
     constructor() {
@@ -113,6 +116,13 @@ class UiSettingsService {
     setStaffSize(category: string, size: PeopleCardSize): void {
         this.staffSizeByCategory = { ...this.staffSizeByCategory, [category]: size };
         writeStoredMap(STAFF_SIZE_BY_CATEGORY_KEY, this.staffSizeByCategory);
+    }
+
+    setStatsScope(scope: "completed" | "all"): void {
+        this.statsScope = scope;
+        if (typeof localStorage !== "undefined") {
+            localStorage.setItem("stats_scope", scope);
+        }
     }
 
     async load(): Promise<void> {

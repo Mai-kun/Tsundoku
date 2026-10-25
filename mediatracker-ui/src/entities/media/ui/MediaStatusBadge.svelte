@@ -13,6 +13,9 @@
 
     let { id, status, onSelect }: Props = $props();
 
+    const instanceId = Math.random().toString(36).slice(2, 8);
+    const popoverMenuId = $derived(`${id}-${instanceId}`);
+
     const statusOptions: readonly MediaStatus[] = [
         MEDIA_STATUS.planned,
         MEDIA_STATUS.inProgress,
@@ -27,7 +30,7 @@
 </script>
 
 <PopoverMenu
-    {id}
+    id={popoverMenuId}
     options={statusMenuItems}
     selected={status}
     onSelect={(value) => onSelect(value as MediaStatus)}

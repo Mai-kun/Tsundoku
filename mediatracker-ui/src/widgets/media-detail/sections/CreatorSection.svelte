@@ -5,6 +5,7 @@
     import { BookOpen, Clapperboard, Gamepad2, Search } from "$shared/ui/Icons.svelte";
     import { uiSettings } from "$shared/utils/uiSettings.svelte";
     import PeopleSizeToggle from "./PeopleSizeToggle.svelte";
+    import ImageLightbox from "$shared/ui/ImageLightbox.svelte";
 
     interface Props {
         creatorName: string;
@@ -37,6 +38,7 @@
 
     let summary = $state<Awaited<ReturnType<typeof getCreatorSummary>>>(null);
     let loading = $state(true);
+    let activeLightboxUrl = $state<string | null>(null);
 
     $effect(() => {
         const name = creatorName;
@@ -106,13 +108,20 @@
             <!-- Слева: стильный квадрат size-10 + мелкий лейбл + крупное имя -->
             <div class="flex min-w-0 items-center gap-3">
                 {#if imageUrl}
-                    <img
-                        src={imageUrl}
-                        alt={creatorName}
-                        loading="lazy"
-                        referrerpolicy="no-referrer"
-                        class="size-10 shrink-0 rounded-xl bg-accent/15 border border-accent/30 object-cover"
-                    />
+                    <button
+                        type="button"
+                        class="cursor-pointer p-0 border-0 bg-transparent text-left shrink-0"
+                        onclick={() => (activeLightboxUrl = imageUrl)}
+                        aria-label={`Увеличить фото: ${creatorName}`}
+                    >
+                        <img
+                            src={imageUrl}
+                            alt={creatorName}
+                            loading="lazy"
+                            referrerpolicy="no-referrer"
+                            class="size-10 shrink-0 rounded-xl bg-accent/15 border border-accent/30 object-cover"
+                        />
+                    </button>
                 {:else}
                     {@const IconComponent = getCreatorIcon()}
                     <div class="size-10 shrink-0 rounded-xl bg-accent/15 border border-accent/30 text-accent-soft grid place-items-center">
@@ -187,15 +196,22 @@
                         : 'min-w-0 items-center gap-2.5'}"
                 >
                     {#if person.imageUrl}
-                        <img
-                            src={person.imageUrl}
-                            alt={person.name}
-                            loading="lazy"
-                            referrerpolicy="no-referrer"
-                            class="{largeStaff
-                                ? 'w-16 h-20 rounded-xl shadow-md'
-                                : 'size-10 rounded-lg'} shrink-0 bg-white/5 object-cover ring-1 ring-white/10"
-                        />
+                        <button
+                            type="button"
+                            class="cursor-pointer p-0 border-0 bg-transparent text-left shrink-0"
+                            onclick={() => (activeLightboxUrl = person.imageUrl)}
+                            aria-label={`Увеличить фото: ${person.name}`}
+                        >
+                            <img
+                                src={person.imageUrl}
+                                alt={person.name}
+                                loading="lazy"
+                                referrerpolicy="no-referrer"
+                                class="{largeStaff
+                                    ? 'w-16 h-20 rounded-xl shadow-md'
+                                    : 'size-10 rounded-lg'} shrink-0 bg-white/5 object-cover ring-1 ring-white/10"
+                            />
+                        </button>
                     {:else}
                         <span
                             class="{largeStaff
@@ -275,3 +291,5 @@
         </div>
     {/if}
 </section>
+
+<ImageLightbox url={activeLightboxUrl} onclose={() => (activeLightboxUrl = null)} />

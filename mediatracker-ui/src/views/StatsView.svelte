@@ -2,6 +2,7 @@
     import { BarChart3, RefreshCw, Sparkles } from "$shared/ui/Icons.svelte";
     import { errorMessage, getAdvancedStats, getTasteProfile } from "$shared/api/api";
     import { i18n } from "$shared/i18n/index.svelte";
+    import { uiSettings } from "$shared/utils/uiSettings.svelte";
     import type { AdvancedStats, TasteProfile } from "$shared/types";
     import StatsHeroBanner from "$widgets/stats/StatsHeroBanner.svelte";
     import TimeDistributionDonut from "$widgets/stats/TimeDistributionDonut.svelte";
@@ -38,16 +39,20 @@
 
     $effect(() => {
         void refreshKey;
-        void loadStats(++requestSequence);
+        const currentScope = uiSettings.statsScope;
+        void loadStats(++requestSequence, currentScope);
     });
 
-    async function loadStats(sequence: number) {
+    async function loadStats(sequence: number, scope: string = uiSettings.statsScope) {
         loading = true;
         loadError = null;
         profileError = null;
 
         try {
-            const [nextStats, nextProfile] = await Promise.allSettled([getAdvancedStats(), getTasteProfile()]);
+            const [nextStats, nextProfile] = await Promise.allSettled([
+                getAdvancedStats(scope),
+                getTasteProfile(scope),
+            ]);
             if (sequence !== requestSequence) {
                 return;
             }
@@ -77,20 +82,25 @@
     }
 
     function retry() {
-        void loadStats(++requestSequence);
+        void loadStats(++requestSequence, uiSettings.statsScope);
+    }
+
+    function setScope(scope: "completed" | "all") {
+        if (uiSettings.statsScope === scope) return;
+        uiSettings.setStatsScope(scope);
     }
 </script>
 
 <div class="mx-auto max-w-6xl space-y-6">
-    <div class="flex justify-center">
-        <div class="grid w-full max-w-md grid-cols-2 gap-1 rounded-xl bg-white/[0.03] p-1" role="tablist" aria-label={i18n.t.stats.title}>
+    <div class="flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div class="grid w-full sm:w-auto grid-cols-2 gap-1 rounded-xl bg-white/[0.03] p-1 border border-white/5" role="tablist" aria-label={i18n.t.stats.title}>
             <button
                 type="button"
                 role="tab"
                 aria-selected={activeTab === "summary"}
-                class="flex h-9 items-center justify-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors duration-200 {activeTab ===
+                class="flex h-9 items-center justify-center gap-2 rounded-lg px-4 text-sm font-medium transition-colors duration-200 cursor-pointer {activeTab ===
                 'summary'
-                    ? 'bg-[#5844e0]/30 text-white'
+                    ? 'bg-[#5844e0]/30 text-white font-semibold'
                     : 'text-slate-400 hover:text-white'}"
                 onclick={() => (activeTab = "summary")}
             >
@@ -101,14 +111,41 @@
                 type="button"
                 role="tab"
                 aria-selected={activeTab === "taste"}
-                class="flex h-9 items-center justify-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors duration-200 {activeTab ===
+                class="flex h-9 items-center justify-center gap-2 rounded-lg px-4 text-sm font-medium transition-colors duration-200 cursor-pointer {activeTab ===
                 'taste'
-                    ? 'bg-[#5844e0]/30 text-white'
+                    ? 'bg-[#5844e0]/30 text-white font-semibold'
                     : 'text-slate-400 hover:text-white'}"
                 onclick={() => (activeTab = "taste")}
             >
                 <Sparkles class="size-4" aria-hidden="true" />
                 {i18n.t.stats.tabTaste}
+            </button>
+        </div>
+
+        <div class="grid w-full sm:w-auto grid-cols-2 gap-1 rounded-xl bg-white/[0.03] p-1 border border-white/5" role="radiogroup" aria-label="Accounting scope">
+            <button
+                type="button"
+                role="radio"
+                aria-checked={uiSettings.statsScope === "completed"}
+                class="flex h-9 items-center justify-center gap-1.5 rounded-lg px-3 text-xs font-medium transition-colors duration-200 cursor-pointer {uiSettings.statsScope ===
+                'completed'
+                    ? 'bg-emerald-500/20 text-emerald-300 font-semibold shadow-xs'
+                    : 'text-slate-400 hover:text-white'}"
+                onclick={() => setScope("completed")}
+            >
+                {i18n.t.stats.scopeCompleted}
+            </button>
+            <button
+                type="button"
+                role="radio"
+                aria-checked={uiSettings.statsScope === "all"}
+                class="flex h-9 items-center justify-center gap-1.5 rounded-lg px-3 text-xs font-medium transition-colors duration-200 cursor-pointer {uiSettings.statsScope ===
+                'all'
+                    ? 'bg-amber-500/20 text-amber-300 font-semibold shadow-xs'
+                    : 'text-slate-400 hover:text-white'}"
+                onclick={() => setScope("all")}
+            >
+                {i18n.t.stats.scopeAll}
             </button>
         </div>
     </div>

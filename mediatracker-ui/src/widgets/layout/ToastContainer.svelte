@@ -8,9 +8,18 @@
     let containerEl = $state<HTMLDivElement | null>(null);
 
     // Native <dialog showModal()> lives in the browser Top Layer and outranks any z-index, so the
-    // container becomes a "manual" popover as well and is held open to share that Top Layer.
+    // container becomes a "manual" popover as well when toasts are present to share that Top Layer.
     $effect(() => {
-        (containerEl as HTMLDivElement & { showPopover?: () => void })?.showPopover?.();
+        if (!containerEl) return;
+        if (toastStore.items.length > 0) {
+            try {
+                containerEl.showPopover?.();
+            } catch {}
+        } else {
+            try {
+                containerEl.hidePopover?.();
+            } catch {}
+        }
     });
 
     const accentClasses: Record<ToastType, string> = {
@@ -23,7 +32,8 @@
 <div
     bind:this={containerEl}
     popover="manual"
-    class="pointer-events-none fixed bottom-5 left-5 z-[99999] flex flex-col gap-2 w-60 sm:w-72 text-[10px] sm:text-xs"
+    class="pointer-events-none z-[99999] flex flex-col gap-2 w-72 sm:w-80"
+    style="position: fixed; inset: auto; bottom: 1.25rem; right: 1.25rem; left: auto; top: auto; margin: 0;"
     aria-live="polite"
     aria-atomic="false"
 >

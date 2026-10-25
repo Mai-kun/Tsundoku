@@ -42,7 +42,7 @@
     </div>
 
     <div class="overflow-x-auto pb-2">
-        <div class="grid min-w-[760px] grid-rows-7 grid-flow-col grid-cols-[repeat(53,minmax(0,1fr))] gap-1" aria-label={i18n.t.stats.heatmapTitle}>
+        <div class="grid min-w-[760px] grid-rows-7 grid-flow-col grid-cols-[repeat(53,minmax(0,1fr))] gap-1 m-0.5" aria-label={i18n.t.stats.heatmapTitle}>
             {#each cells as cell, index (cell?.iso ?? `empty-${index}`)}
                 {#if cell}
                     <div

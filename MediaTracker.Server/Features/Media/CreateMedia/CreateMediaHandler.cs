@@ -65,8 +65,8 @@ public sealed class CreateMediaHandler(
         db.Add(item);
         db.Events.Add(MediaEventRecorder.Added(item));
         await db.SaveChangesAsync(ct);
-        cache.Remove(AdvancedStatsCalculator.CacheKey);
-        cache.Remove(TasteProfileCalculator.CacheKey);
+        AdvancedStatsCalculator.InvalidateCache(cache);
+        TasteProfileCalculator.InvalidateCache(cache);
 
         if (deferEnrichment)
         {

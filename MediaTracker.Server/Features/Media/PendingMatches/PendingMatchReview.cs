@@ -223,8 +223,8 @@ internal static class PendingMatchEnrichment
                     token,
                     season => scopedDb.Entry(season).State = EntityState.Added);
 
-                cache.Remove(AdvancedStatsCalculator.CacheKey);
-                cache.Remove(TasteProfileCalculator.CacheKey);
+                AdvancedStatsCalculator.InvalidateCache(cache);
+                TasteProfileCalculator.InvalidateCache(cache);
             }
             catch (Exception ex)
             {

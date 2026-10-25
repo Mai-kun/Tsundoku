@@ -23,8 +23,8 @@ public sealed class ClearHistoryHandler(AppDbContext db, IMemoryCache cache) : I
         await db.MediaItems.ExecuteUpdateAsync(s => s
             .SetProperty(m => m.StartedAt, (DateTime?)null)
             .SetProperty(m => m.FinishedAt, (DateTime?)null), ct);
-        cache.Remove(AdvancedStatsCalculator.CacheKey);
-        cache.Remove(TasteProfileCalculator.CacheKey);
+        AdvancedStatsCalculator.InvalidateCache(cache);
+        TasteProfileCalculator.InvalidateCache(cache);
 
         return Result.Success();
     }

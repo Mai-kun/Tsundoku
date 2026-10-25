@@ -41,8 +41,8 @@ public sealed class SaveReadingSettingsHandler(AppDbContext db, IMemoryCache cac
             command.MangaChapterMinutes.ToString("0.0#", CultureInfo.InvariantCulture),
             ct);
 
-        cache.Remove(AdvancedStatsCalculator.CacheKey);
-        cache.Remove(TasteProfileCalculator.CacheKey);
+        AdvancedStatsCalculator.InvalidateCache(cache);
+        TasteProfileCalculator.InvalidateCache(cache);
 
         return Result<ReadingSettingsDto>.Success(command);
     }

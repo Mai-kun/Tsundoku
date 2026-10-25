@@ -19,6 +19,7 @@
         resolveAllPendingMatchesByPriority,
         resolvePendingMatch,
         searchExternal,
+        getSourcePriority,
     } from "$shared/api/api";
     import { showToast } from "$shared/ui/toast.svelte";
     import { i18n } from "$shared/i18n/index.svelte";
@@ -48,6 +49,25 @@
     /** A candidate cover that failed once shows the 404-tan instead of a broken image icon. */
     let candidateImgErrors = $state<Record<string, boolean>>({});
 
+    const defaultPriorities: Record<string, string[]> = {
+        anime: ["anilist", "shikimori", "kitsu", "simkl"],
+        manga: ["anilist", "mangadex", "shikimori", "mangaupdates", "kitsu"],
+        movie: ["tmdb", "kinopoisk", "imdb", "simkl"],
+        tvshow: ["tmdb", "kinopoisk", "imdb", "simkl"],
+        book: ["openlibrary"],
+        game: ["steam", "rawg"],
+    };
+
+    let sourcePriorities = $state<Record<string, string[]>>({});
+
+    $effect(() => {
+        void getSourcePriority()
+            .then((p) => {
+                if (p) sourcePriorities = p;
+            })
+            .catch(() => {});
+    });
+
     // The review tab only exists while there is something to review; a list emptied elsewhere
     // (job finished, all resolved) must not strand the modal on an empty tab.
     $effect(() => {
@@ -70,6 +90,47 @@
         const match = title.match(/^([^\(]+)\s*\([^)]*[a-zA-Z][^)]*\)/);
         if (match && /[а-яА-ЯёЁ]/.test(match[1])) return match[1].trim();
         return title.trim();
+    }
+
+    function scoreCandidate(item: PendingMatchItemDto, cand: ExternalMedia): number {
+        const norm = (s: string | null | undefined) =>
+            (s ?? "").toLowerCase().replace(/[^a-z0-9а-яё]/gi, "");
+
+        const targets = [item.title, item.romajiTitle].map(norm).filter(Boolean);
+        const candTitles = [cand.title, cand.originalTitle, cand.romajiTitle].map(norm).filter(Boolean);
+        let best = 0;
+        for (const t of targets) {
+            for (const c of candTitles) {
+                if (t === c) {
+                    best = Math.max(best, 60);
+                } else if (t.length >= 5 && (t.includes(c) || c.includes(t))) {
+                    best = Math.max(best, 40);
+                }
+            }
+        }
+        if (item.releaseYear && cand.releaseYear && Math.abs(item.releaseYear - cand.releaseYear) <= 1) {
+            best += 20;
+        }
+        return best;
+    }
+
+    function sortCandidates(list: ExternalMedia[], item: PendingMatchItemDto): ExternalMedia[] {
+        const priorities = (sourcePriorities[item.type]?.length
+            ? sourcePriorities[item.type]
+            : defaultPriorities[item.type] || []).map((s) => s.toLowerCase());
+
+        const getRank = (source: string | null | undefined) => {
+            if (!source) return 999;
+            const idx = priorities.indexOf(source.toLowerCase());
+            return idx >= 0 ? idx : 999;
+        };
+
+        return [...list].sort((a, b) => {
+            const rankA = getRank(a.externalSource);
+            const rankB = getRank(b.externalSource);
+            if (rankA !== rankB) return rankA - rankB;
+            return scoreCandidate(item, b) - scoreCandidate(item, a);
+        });
     }
 
     function getPreferredSearchQuery(item: PendingMatchItemDto): string {
@@ -110,11 +171,50 @@
 
         search.loading = true;
         try {
-            const results = await searchExternal(
-                item.type as Parameters<typeof searchExternal>[0],
-                search.query,
-            );
-            search.results = results;
+            const priorities = (sourcePriorities[item.type]?.length
+                ? sourcePriorities[item.type]
+                : defaultPriorities[item.type] || []);
+
+            const activeSources = priorities.slice(0, 3);
+            const latin = extractLatin(search.query);
+            const russian = extractRussian(search.query);
+
+            if (activeSources.length > 0) {
+                const searchPromises = activeSources.map((source) => {
+                    let q = search.query;
+                    if ((source === "anilist" || source === "mangadex") && (latin || item.romajiTitle)) {
+                        q = latin || item.romajiTitle || search.query;
+                    } else if ((source === "shikimori" || source === "kinopoisk") && (russian || item.title)) {
+                        q = russian || item.title || search.query;
+                    }
+                    return searchExternal(
+                        item.type as Parameters<typeof searchExternal>[0],
+                        q,
+                        undefined,
+                        source,
+                    ).catch(() => [] as ExternalMedia[]);
+                });
+
+                const perSourceResults = await Promise.all(searchPromises);
+                const collected: ExternalMedia[] = [];
+                const seen = new Set<string>();
+                for (const list of perSourceResults) {
+                    for (const cand of list.slice(0, 4)) {
+                        const key = `${cand.externalSource}:${cand.externalId}`;
+                        if (!seen.has(key)) {
+                            seen.add(key);
+                            collected.push(cand);
+                        }
+                    }
+                }
+                search.results = sortCandidates(collected, item);
+            } else {
+                const results = await searchExternal(
+                    item.type as Parameters<typeof searchExternal>[0],
+                    search.query,
+                );
+                search.results = sortCandidates(results.slice(0, 4), item);
+            }
         } catch (error) {
             showToast(errorMessage(error), "error");
         } finally {
@@ -124,7 +224,8 @@
 
     function candidatesFor(item: PendingMatchItemDto): ExternalMedia[] {
         const search = manualSearches[item.id];
-        return search?.results ?? item.candidates ?? [];
+        const raw = search?.results ?? item.candidates ?? [];
+        return sortCandidates(raw, item);
     }
 
     function resolve(

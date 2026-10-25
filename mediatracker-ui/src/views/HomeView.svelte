@@ -647,7 +647,8 @@
                                 min="1"
                                 max="999"
                                 step="any"
-                                placeholder={i18n.t.timeBudget.customTimePlaceholder}
+                                aria-label={i18n.t.timeBudget.customTimePlaceholder}
+                                title={i18n.t.timeBudget.customTimePlaceholder}
                                 bind:value={customTimeValue}
                                 class="h-7 w-16 rounded bg-canvas border border-white/10 px-2 text-xs text-ink outline-none focus:border-accent"
                                 onkeydown={(e) => {

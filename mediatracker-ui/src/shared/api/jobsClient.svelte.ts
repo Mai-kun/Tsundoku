@@ -33,6 +33,12 @@ class JobsClient {
     #evictionTimers = new Map<string, ReturnType<typeof setTimeout>>();
     #pendingRefreshedAt = 0;
     #pendingSequence = 0;
+    #jobSettledListeners = new Set<(job: JobProgress) => void>();
+
+    onJobSettled(cb: (job: JobProgress) => void): () => void {
+        this.#jobSettledListeners.add(cb);
+        return () => this.#jobSettledListeners.delete(cb);
+    }
 
     connect() {
         // The socket is opened lazily so importing this module never touches the network from a
@@ -108,6 +114,18 @@ class JobsClient {
             this.jobs = this.jobs.map((entry) =>
                 entry.jobId === job.jobId ? job : entry,
             );
+        }
+
+        const wasTerminal = previous !== null && !isActive(previous);
+        const nowTerminal = !isActive(job);
+        if (nowTerminal && !wasTerminal) {
+            for (const listener of this.#jobSettledListeners) {
+                try {
+                    listener(job);
+                } catch (e) {
+                    console.error("Error in jobSettled listener", e);
+                }
+            }
         }
 
         const settled = previous !== null && isActive(previous) !== isActive(job);

@@ -3529,8 +3529,13 @@ public static class RefactorSelfCheck
         };
 
         var items = new MediaItem[] { droppedGame, lowScoreBook, gem, disappointment, extraDrama, actionMovie };
-        var stats = AdvancedStatsCalculator.Calculate(items, now);
-        var profile = TasteProfileCalculator.Calculate(items, stats);
+        var stats = AdvancedStatsCalculator.Calculate(items, now, onlyCompleted: false);
+        var profile = TasteProfileCalculator.Calculate(items, stats, onlyCompleted: false);
+
+        var completedStats = AdvancedStatsCalculator.Calculate(items, now, onlyCompleted: true);
+        var completedProfile = TasteProfileCalculator.Calculate(items, completedStats, onlyCompleted: true);
+        AssertEqual(failures, 1.5, completedProfile.SunkCost.LowScoreHours, "completedProfile sunk cost hours (only completed movie)");
+        AssertEqual(failures, 1, completedProfile.SunkCost.TitlesCount, "completedProfile sunk cost titles");
 
         // Sunk cost: dropped game (30 h) + book in progress rated 4 (120 pages × 1.5 min = 3 h)
         // + the movie rated 4 (90 min completed = 1.5 h).
@@ -3579,6 +3584,115 @@ public static class RefactorSelfCheck
         AssertEqual(failures, 2, profile.EraAffinity.Count, "taste era buckets");
         AssertEqual(failures, "2010s", profile.EraAffinity[0].Era, "taste era first bucket");
         AssertEqual(failures, 1, profile.EraAffinity[0].Count, "taste era first count");
+
+        // 1. Manga reader archetype test (pure manga reader should get manga_reader, not otaku)
+        var mangaReaderItems = new List<MediaItem>();
+        for (var i = 0; i < 15; i++)
+        {
+            mangaReaderItems.Add(new Manga
+            {
+                Title = $"Completed Manga {i}",
+                TotalChapters = 50,
+                CurrentChapter = 50,
+                Status = MediaStatus.Completed,
+                Genres = "[\"Action\", \"Shounen\"]",
+                ReleaseYear = 2020 + (i % 3),
+            });
+        }
+        for (var i = 0; i < 10; i++)
+        {
+            mangaReaderItems.Add(new Manga
+            {
+                Title = $"Ongoing Manga {i}",
+                TotalChapters = 100,
+                CurrentChapter = 30,
+                Status = MediaStatus.InProgress,
+                Genres = "[\"Action\", \"Shounen\"]",
+                ReleaseYear = 2021,
+            });
+        }
+        // Add 2 small anime to verify otaku does NOT trigger
+        mangaReaderItems.Add(new TvShow
+        {
+            Title = "Small Anime 1",
+            IsAnime = true,
+            Status = MediaStatus.Completed,
+            Genres = "Comedy",
+            ReleaseYear = 2022,
+            Seasons =
+            [
+                new TvSeason { SeasonNumber = 1, Title = "S1", CurrentEpisode = 12, TotalEpisodes = 12 }
+            ],
+        });
+        mangaReaderItems.Add(new TvShow
+        {
+            Title = "Small Anime 2",
+            IsAnime = true,
+            Status = MediaStatus.Completed,
+            Genres = "Comedy",
+            ReleaseYear = 2023,
+            Seasons =
+            [
+                new TvSeason { SeasonNumber = 1, Title = "S1", CurrentEpisode = 12, TotalEpisodes = 12 }
+            ],
+        });
+
+        var mangaStats = AdvancedStatsCalculator.Calculate(mangaReaderItems, now, onlyCompleted: true);
+        var mangaProfile = TasteProfileCalculator.Calculate(mangaReaderItems, mangaStats, onlyCompleted: true);
+
+        AssertEqual(failures, "manga_reader", mangaProfile.Persona.Icon, "manga reader persona icon should be manga_reader, not otaku");
+        AssertTrue(failures, mangaProfile.Persona.Icon != "otaku", "manga reader persona icon must not be otaku");
+
+        // 2. Verify EraAffinity, GenreRadar, and TopGenres are populated and non-empty when onlyCompleted = true
+        AssertTrue(failures, mangaStats.TopGenres.Count > 0, "TopGenres must not be empty when onlyCompleted = true");
+        AssertTrue(failures, mangaProfile.GenreRadar.Count > 0, "GenreRadar must not be empty when onlyCompleted = true");
+        AssertTrue(failures, mangaProfile.EraAffinity.Count > 0, "EraAffinity must not be empty when onlyCompleted = true");
+        AssertTrue(failures, mangaProfile.GenreParadox.Count > 0, "GenreParadox must not be empty when onlyCompleted = true");
+
+        // 3. Verify EraAffinity extracts year from ReleaseDate, FinishedAt, CreatedAt and includes completed titles without score >= 8
+        var eraFallbackItems = new List<MediaItem>
+        {
+            new Movie
+            {
+                Title = "ReleaseDate Movie",
+                Status = MediaStatus.Completed,
+                Score = 4, // Score < 8
+                ReleaseYear = null,
+                ReleaseDate = new DateTime(1994, 6, 1),
+                Genres = "Drama",
+            },
+            new Book
+            {
+                Title = "FinishedAt Book",
+                Author = "Author",
+                Status = MediaStatus.Completed,
+                Score = null, // No score
+                ReleaseYear = null,
+                ReleaseDate = null,
+                FinishedAt = new DateTime(2004, 8, 15),
+                Genres = "Fantasy",
+            },
+            new VideoGame
+            {
+                Title = "CreatedAt Game",
+                Platform = "PC",
+                Status = MediaStatus.Completed,
+                Score = 5,
+                ReleaseYear = null,
+                ReleaseDate = null,
+                FinishedAt = null,
+                CreatedAt = new DateTime(1985, 2, 10),
+                Genres = "Action",
+            },
+        };
+
+        var eraStats = AdvancedStatsCalculator.Calculate(eraFallbackItems, now, onlyCompleted: true);
+        var eraProfile = TasteProfileCalculator.Calculate(eraFallbackItems, eraStats, onlyCompleted: true);
+
+        AssertEqual(failures, 3, eraProfile.EraAffinity.Count, "EraAffinity must contain 3 buckets from fallbacks");
+        AssertTrue(failures, eraProfile.EraAffinity.Any(e => e.Era == "1980s"), "EraAffinity has 1980s from CreatedAt fallback");
+        AssertTrue(failures, eraProfile.EraAffinity.Any(e => e.Era == "1990s"), "EraAffinity has 1990s from ReleaseDate fallback");
+        AssertTrue(failures, eraProfile.EraAffinity.Any(e => e.Era == "2000s"), "EraAffinity has 2000s from FinishedAt fallback");
     }
 
     private static void CheckDropAnalyticsCalculations(List<string> failures)
@@ -3820,7 +3934,15 @@ public static class RefactorSelfCheck
         };
 
         var items = new MediaItem[] { game, plannedGame, movie1, movie2, series, anime, plannedShow, book, plannedBook, manga, plannedManga };
-        var stats = AdvancedStatsCalculator.Calculate(items, now);
+        var stats = AdvancedStatsCalculator.Calculate(items, now, onlyCompleted: false);
+
+        var completedStats = AdvancedStatsCalculator.Calculate(items, now, onlyCompleted: true);
+        AssertEqual(failures, 22.0, completedStats.TotalHours, "completed stats TotalHours");
+        AssertEqual(failures, 20.0, completedStats.GameHours, "completed stats GameHours");
+        AssertEqual(failures, 2.0, completedStats.MovieHours, "completed stats MovieHours");
+        AssertEqual(failures, 0.0, completedStats.SeriesHours, "completed stats SeriesHours");
+        AssertEqual(failures, 0.0, completedStats.AnimeHours, "completed stats AnimeHours");
+        AssertEqual(failures, 8.5, completedStats.AverageScore, "completed stats AverageScore");
 
         AssertEqual(failures, 11, stats.TotalTitles, "stats TotalTitles");
         AssertEqual(failures, 2, stats.CompletedTitles, "stats CompletedTitles");
@@ -4328,6 +4450,41 @@ public static class RefactorSelfCheck
             failures,
             ImportMatchScorer.TitlePairScore("Berserk", "Black Clover") == 0,
             "unrelated names score zero");
+
+        // 5. Priority source auto-win: candidate from source #1 (AniList) with reliable score (>= 60)
+        // automatically beats lower source (Shikimori), even if Shikimori has a formally higher score.
+        var roseMansion = new Manga
+        {
+            Title = "Добро пожаловать в особняк роз (Welcome To The Rose Mansion)",
+            RomajiTitle = "Welcome To The Rose Mansion",
+            ReleaseYear = 2023,
+        };
+
+        var anilistCand = new ExternalMediaDto
+        {
+            ExternalId = "al-1",
+            ExternalSource = "anilist",
+            Title = "Welcome To The Rose Mansion",
+            RomajiTitle = "Welcome To The Rose Mansion",
+            Type = "manga",
+        };
+
+        var shikimoriCand = new ExternalMediaDto
+        {
+            ExternalId = "shiki-1",
+            ExternalSource = "shikimori",
+            Title = "Добро пожаловать в особняк роз",
+            ReleaseYear = 2023,
+            Type = "manga",
+        };
+
+        var roseVerdict = ImportMatchScorer.EvaluateCandidates(
+            roseMansion,
+            [shikimoriCand, anilistCand],
+            ["anilist", "mangadex", "shikimori"]);
+
+        AssertTrue(failures, roseVerdict.Kind == MatchVerdictKind.Confident, "priority source with score >= 60 wins");
+        AssertEqual(failures, "anilist", roseVerdict.Winner?.ExternalSource, "anilist wins over higher-scoring shikimori");
     }
 
     private static void CheckPendingMatchApplier(List<string> failures)

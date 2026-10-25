@@ -22,6 +22,50 @@ public static class GenreNormalizer
         return Aliases.GetValueOrDefault(key, value);
     }
 
+    public static IEnumerable<string> ExtractGenres(string? genresRaw)
+    {
+        if (string.IsNullOrWhiteSpace(genresRaw)) yield break;
+        var raw = genresRaw.Trim();
+        if (raw.StartsWith('[') && raw.EndsWith(']'))
+        {
+            List<string>? list = null;
+            try
+            {
+                list = global::System.Text.Json.JsonSerializer.Deserialize<List<string>>(raw);
+            }
+            catch
+            {
+                // Fall back to delimiter-based splitting if not valid JSON
+            }
+
+            if (list != null)
+            {
+                foreach (var g in list)
+                {
+                    if (!string.IsNullOrWhiteSpace(g))
+                    {
+                        var trimmed = g.Trim().Trim('"', '\'');
+                        if (!string.IsNullOrWhiteSpace(trimmed))
+                        {
+                            yield return trimmed;
+                        }
+                    }
+                }
+                yield break;
+            }
+        }
+
+        var parts = raw.Split([',', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        foreach (var part in parts)
+        {
+            var cleaned = part.Trim().Trim('[', ']', '"', '\'', ' ');
+            if (!string.IsNullOrWhiteSpace(cleaned))
+            {
+                yield return cleaned;
+            }
+        }
+    }
+
     /// <summary>Normalizes each entry, drops blanks and dedupes (case-insensitive), preserving order.</summary>
     public static IReadOnlyList<string> NormalizeList(IEnumerable<string>? rawGenres)
     {
@@ -51,8 +95,7 @@ public static class GenreNormalizer
             return null;
         }
 
-        return NormalizeToCommaString(
-            rawCommaSeparated.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+        return NormalizeToCommaString(ExtractGenres(rawCommaSeparated));
     }
 
     private static Dictionary<string, string> BuildAliases()

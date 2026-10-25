@@ -109,6 +109,10 @@ export const translations = {
         calendarNextMonth: { ru: "Следующий месяц", en: "Next month" },
         calendarCurrentMonth: { ru: "Текущий месяц", en: "Current month" },
         calendarAllDays: { ru: "Все дни", en: "All days" },
+        calendarReset: { ru: "Сбросить", en: "Reset" },
+        calendarCellModePosters: { ru: "Обложки", en: "Covers" },
+        calendarCellModeIcons: { ru: "Значки", en: "Icons" },
+        calendarCheckUpdatesTooltip: { ru: "Проверить обновления", en: "Check for updates" },
         listsTitle: { ru: "Списки", en: "Lists" },
         listsHint: {
             ru: "Здесь появятся ваши собственные коллекции: собранные вручную подборки, сезоны, избранное и очереди на просмотр.",
@@ -1002,10 +1006,10 @@ export const translations = {
         skipped: { ru: "Пропущено дубликатов", en: "Duplicates skipped" },
         openList: { ru: "Перейти в список", en: "Open list" },
         subtitleAnilist: { ru: "JSON или профиль пользователя", en: "JSON or user profile" },
-        subtitleMangalib: { ru: "JSON или CSV из скриптов", en: "JSON or CSV from scripts" },
+        subtitleMangalib: { ru: "MangaLib / AnimeLib / RanobeLib", en: "MangaLib / AnimeLib / RanobeLib" },
         subtitleCustom: { ru: "Универсальный JSON / CSV", en: "Universal JSON / CSV" },
         helpAnilist: { ru: "AniList: Settings → Account → Export Data. Либо введите никнейм профиля — список загрузится через публичный API.", en: "AniList: Settings → Account → Export Data — or enter a profile username to fetch it via the public API." },
-        helpMangalib: { ru: "Поддерживает файлы экспорта популярных скриптов и расширений для MangaLib", en: "Supports export files from popular MangaLib scripts and extensions" },
+        helpMangalib: { ru: "Быстрый импорт закладок всей экосистемы SocialLib (MangaLib, AnimeLib, RanobeLib, SlashLib, HentaiLib)", en: "Fast import for the entire SocialLib ecosystem (MangaLib, AnimeLib, RanobeLib, SlashLib, HentaiLib)" },
         helpCustom: { ru: "Импортируйте собственный JSON или CSV с колонками: title, type, status, score, progress, totalCount, author / studio / director, releaseYear.", en: "Import your own JSON or CSV with the columns: title, type, status, score, progress, totalCount, author / studio / director, releaseYear." },
         anilistFileTab: { ru: "Загрузить JSON-файл", en: "Upload JSON file" },
         anilistProfileTab: { ru: "По никнейму профиля", en: "By profile username" },
@@ -1212,6 +1216,7 @@ export const translations = {
         open: { ru: "Открыть фоновые процессы", en: "Open background processes" },
         syncing: { ru: "Синхронизация", en: "Syncing" },
         loadingCover: { ru: "Загрузка обложки…", en: "Loading cover…" },
+        coverMissing: { ru: "Обложка не найдена", en: "Cover not found" },
         loadingSeasons: { ru: "Загрузка сезонов…", en: "Loading seasons…" },
         empty: { ru: "Нет активных задач", en: "No active tasks" },
         emptyHint: {
@@ -1226,6 +1231,84 @@ export const translations = {
         cancelAria: {
             ru: (title: string) => `Отменить синхронизацию «${title}»`,
             en: (title: string) => `Cancel sync of "${title}"`,
+        },
+    },
+    backgroundJobs: {
+        openWindow: { ru: "Открыть окно процессов", en: "Open processes window" },
+        pendingCount: {
+            ru: (count: number) => `Требуют уточнения: ${count}`,
+            en: (count: number) => `Needs review: ${count}`,
+        },
+        banner: {
+            ru: (count: number) =>
+                `⚠ Найдено тайтлов, где алгоритм сомневается в точном совпадении: ${count}`,
+            en: (count: number) =>
+                `⚠ Titles found where the match algorithm is not fully confident: ${count}`,
+        },
+        gotoReview: { ru: "Перейти к выбору →", en: "Go to review →" },
+        tabQueue: { ru: "Очередь задач", en: "Task queue" },
+        tabReview: { ru: "Требуют уточнения", en: "Needs review" },
+        reviewIntro: {
+            ru: "Для этих тайтлов найдено несколько похожих вариантов или нет 100% уверенности. Выберите правильное совпадение или оставьте запись без привязки.",
+            en: "Several similar options were found for these titles, or there is no full confidence. Pick the correct match or leave the entry unlinked.",
+        },
+        keepAll: { ru: "Оставить все как есть", en: "Keep all as is" },
+        resolveAllPriority: {
+            ru: "⚡ Выбрать все по приоритету",
+            en: "⚡ Pick all by priority",
+        },
+        resolvedByPriorityToast: {
+            ru: (applied: number, skipped: number) =>
+                `Автоматически применено ${applied} совпадений. Пропущено ${skipped} тайтлов со слабыми совпадениями.`,
+            en: (applied: number, skipped: number) =>
+                `Applied ${applied} matches automatically. Skipped ${skipped} titles with weak matches.`,
+        },
+        delete: { ru: "Удалить", en: "Delete" },
+        deletedToast: {
+            ru: "Тайтл удален из библиотеки",
+            en: "Title removed from the library",
+        },
+        yourEntryPrompt: {
+            ru: "Ваша импортированная запись — выберите подходящее совпадение из списка ниже:",
+            en: "Your imported entry — pick the matching title from the list below:",
+        },
+        findManually: { ru: "Найти вручную", en: "Find manually" },
+        keepAsIs: { ru: "Оставить как есть", en: "Keep as is" },
+        searchPlaceholder: {
+            ru: "Введите альтернативное название и нажмите Enter…",
+            en: "Type an alternative title and press Enter…",
+        },
+        suggestions: { ru: "Результаты ручного поиска", en: "Manual search results" },
+        noCandidates: {
+            ru: "Точных совпадений не найдено. Воспользуйтесь кнопкой «Найти вручную» или оставьте запись как есть.",
+            en: "No exact matches found. Use the \"Find manually\" button or keep the entry as is.",
+        },
+        choose: { ru: "✓ Выбрать", en: "✓ Choose" },
+        refineBadge: { ru: "⚠ Уточнить", en: "⚠ Review" },
+        openProcesses: { ru: "Открыть фоновые процессы", en: "Open background processes" },
+        progress: {
+            ru: (current: number, total: number) => `Прогресс: ${current} / ${total}`,
+            en: (current: number, total: number) => `Progress: ${current} / ${total}`,
+        },
+        resolvedToast: {
+            ru: (title: string) => `«${title}» привязан к выбранному источнику.`,
+            en: (title: string) => `"${title}" was linked to the chosen source.`,
+        },
+        resolvedAsyncToast: {
+            ru: "Выбор сохранен. Данные обновляются в фоне.",
+            en: "Choice saved. Data refreshes in the background.",
+        },
+        throttleNotice: {
+            ru: "Обогащение выполняется с безопасными паузами (2.5 сек между тайтлами), чтобы AniList, MangaDex и Shikimori не заблокировали ваш IP-адрес за спам запросами. Процесс идет автономно в фоне — вы можете закрыть это окно и продолжать пользоваться трекером.",
+            en: "Enrichment runs with safe pauses (2.5 s between titles) so AniList, MangaDex and Shikimori never ban your IP for request spam. The process runs autonomously in the background — you can close this window and keep using the tracker.",
+        },
+        remainingMin: {
+            ru: (min: number) => `~${min} мин. осталось`,
+            en: (min: number) => `~${min} min remaining`,
+        },
+        keptToast: {
+            ru: (count: number) => `Тайтлов оставлено без привязки: ${count}.`,
+            en: (count: number) => `Titles left unlinked: ${count}.`,
         },
     },
     timeBudget: {

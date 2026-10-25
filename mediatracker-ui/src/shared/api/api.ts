@@ -27,9 +27,11 @@ import type {
   ImportResultDto,
   SteamImportPayload,
   AniListProfilePayload,
+  MangaLibProfilePayload,
   CreatorRole,
   CreatorSummaryDto,
   CalendarScheduleDto,
+  PendingMatchItemDto,
 } from "$shared/types";
 
 const mediaEndpoint = "/api/media";
@@ -290,6 +292,10 @@ export function importSteamProfile(payload: SteamImportPayload): Promise<ImportR
 
 export function importAniListProfile(payload: AniListProfilePayload): Promise<ImportResultDto> {
   return requestJson<ImportResultDto>(`${mediaEndpoint}/import/anilist-profile`, jsonOptions("POST", payload));
+}
+
+export function importMangaLibProfile(payload: MangaLibProfilePayload): Promise<ImportResultDto> {
+  return requestJson<ImportResultDto>(`${mediaEndpoint}/import/mangalib-profile`, jsonOptions("POST", payload));
 }
 
 
@@ -575,6 +581,44 @@ export function getCalendar(
 export function triggerAutoRefresh(mediaId: string): Promise<MediaDetail> {
   return requestJson<MediaDetail>(
     `${mediaEndpoint}/${mediaId}/auto-refresh/trigger`,
+    { method: "POST" },
+  );
+}
+
+/** Library rows the enrichment job parked in `NeedsReview`, each with its candidate matches. */
+export function getPendingMatches(): Promise<PendingMatchItemDto[]> {
+  return requestJson<PendingMatchItemDto[]>(
+    `${mediaEndpoint}/pending-matches`,
+  );
+}
+
+/** Applies the candidate the user confirmed and returns the enriched row. */
+export function resolvePendingMatch(
+  id: string,
+  payload: { externalId: string; source: string; type?: string; title?: string },
+): Promise<MediaDetail> {
+  return requestJson<MediaDetail>(
+    `${mediaEndpoint}/${id}/resolve-match`,
+    jsonOptions("POST", payload),
+  );
+}
+
+/** Skips one review row: candidates are wiped, the row goes back to Ready. */
+export function dismissPendingMatch(id: string): Promise<void> {
+  return requestVoid(`${mediaEndpoint}/${id}/dismiss-match`, { method: "POST" });
+}
+
+/** Skips every review row at once. */
+export function dismissAllPendingMatches(): Promise<void> {
+  return requestVoid(`${mediaEndpoint}/dismiss-all-matches`, {
+    method: "POST",
+  });
+}
+
+/** Auto-picks the top candidate of every review row that scans strong enough; weak rows stay in review. */
+export function resolveAllPendingMatchesByPriority(): Promise<{ resolvedCount: number; skippedCount: number }> {
+  return requestJson<{ resolvedCount: number; skippedCount: number }>(
+    `${mediaEndpoint}/resolve-all-by-priority`,
     { method: "POST" },
   );
 }

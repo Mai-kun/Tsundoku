@@ -1,5 +1,24 @@
 import type { MediaStatus } from "./enums";
-import type { MediaItem } from "./models";
+import type { ExternalMedia, MediaItem } from "./models";
+
+/**
+ * One row of the "review ambiguous matches" screen (`GET /api/media/pending-matches`): the library
+ * title the user imported plus the candidates the scorer could not decide between. Mirrors
+ * `PendingMatchReviewDto` on the server.
+ */
+export interface PendingMatchItemDto {
+  id: string;
+  title: string;
+  romajiTitle?: string | null;
+  originalTitle?: string | null;
+  type: string;
+  isAnime?: boolean;
+  releaseYear?: number | null;
+  author?: string | null;
+  currentProgress?: number | null;
+  totalCount?: number | null;
+  candidates: ExternalMedia[];
+}
 
 export interface CustomListSummary {
   id: string;
@@ -76,6 +95,15 @@ export interface AniListProfilePayload {
   skipDuplicates?: boolean;
 }
 
+export interface MangaLibProfilePayload {
+  profileUrlOrId: string;
+  siteIds?: number[];
+  bearerToken?: string;
+  skipDuplicates?: boolean;
+  targetListId?: string;
+  newListName?: string;
+}
+
 interface CreateMediaBase {
   title: string;
   status: MediaStatus;
@@ -89,6 +117,7 @@ interface CreateMediaBase {
   franchiseOrder?: number | null;
   externalId?: string | null;
   externalSource?: string | null;
+  importSource?: string | null;
   externalRating?: number | null;
   externalRatingVotes?: number | null;
   externalRatingsJson?: string | null;

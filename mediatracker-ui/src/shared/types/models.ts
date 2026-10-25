@@ -37,7 +37,7 @@ export interface MediaBase {
   type: MediaType;
   title: string;
   status: MediaStatus;
-  /** 1 while the background enrichment of a search hit is still filling this row in. */
+  /** 1 while the background enrichment of a search hit is still filling this row in; 3 when it found ambiguous matches and parked the row for review. */
   syncStatus?: SyncStatus;
   score: number | null;
   startedAt: string | null;
@@ -54,6 +54,7 @@ export interface MediaBase {
   franchiseOrder: number | null;
   externalId?: string | null;
   externalSource?: string | null;
+  importSource?: string | null;
   externalRating?: number | null;
   externalRatingVotes?: number | null;
   translationLanguage?: string | null;
@@ -106,6 +107,13 @@ export interface MediaDetailFields {
   achievementsJson?: string | null;
   recommendationsJson?: string | null;
   recommendationsUpdatedAt?: string | null;
+  /**
+   * Ambiguous candidates the import enrichment could not decide between (NeedsReview). The user's
+   * verdict lands through resolve-match / dismiss-match and clears this list.
+   */
+  pendingMatchesJson?: string | null;
+  /** The same candidates, already parsed by the server. */
+  pendingMatches?: ExternalMedia[] | null;
   /**
    * The cached recommendations, already parsed by the server. The tab renders this, so a reload shows
    * the list straight away instead of the panel having to issue a request of its own.

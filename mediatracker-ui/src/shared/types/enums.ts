@@ -2,6 +2,8 @@ export const SYNC_STATUS = {
   ready: 0,
   syncing: 1,
   failed: 2,
+  /** Ambiguous matches found; the user has to pick one or skip. */
+  needsReview: 3,
 } as const;
 
 export type SyncStatus = (typeof SYNC_STATUS)[keyof typeof SYNC_STATUS];

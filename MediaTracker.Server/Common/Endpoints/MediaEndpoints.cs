@@ -14,6 +14,7 @@ using MediaTracker.Server.Features.Media.GetMediaList;
 using MediaTracker.Server.Features.Media.GetMediaStats;
 using MediaTracker.Server.Features.Media.GetRecommendations;
 using MediaTracker.Server.Features.Media.Import;
+using MediaTracker.Server.Features.Media.PendingMatches;
 using MediaTracker.Server.Features.Media.UpdateMedia;
 using MediaTracker.Server.Features.Media.UpdateProgress;
 using MediaTracker.Server.Features.Media.UpdateStatus;
@@ -68,6 +69,22 @@ public static class MediaEndpoints
         })
         .WithTags("Импорт / Import")
         .WithSummary("Импорт аниме и манги по никнейму AniList");
+
+        group.MapPost("/import/mangalib-profile", async (
+            MangaLibProfileRequest request, [FromServices] ImportMediaHandler handler, CancellationToken ct) =>
+        {
+            try
+            {
+                var result = await handler.ImportMangaLibProfileAsync(request, ct);
+                return result.TryGetValue(out var imported)
+                    ? Results.Ok(imported)
+                    : Results.BadRequest(new { detail = result.Error?.Message ?? "Import failed." });
+            }
+            catch (FormatException error) { return Results.BadRequest(new { detail = error.Message }); }
+            catch (HttpRequestException error) { return Results.BadRequest(new { detail = $"SocialLib request failed: {error.Message}" }); }
+        })
+        .WithTags("Импорт / Import")
+        .WithSummary("Импорт закладок по профилю SocialLib (MangaLib / AnimeLib / RanobeLib и др.)");
 
 
         group.MapGet("/", (
@@ -206,6 +223,54 @@ public static class MediaEndpoints
             .WithTags("Медиатека / Media")
             .WithSummary("Сменить внешний источник (Re-link)")
             .WithDescription("Принудительно перепривязывает тайтл к другому провайдеру по указанному ExternalId.");
+
+        // Ambiguous import matches: the enrichment job parked rows here (NeedsReview) for the user to
+        // confirm, skip or resolve by hand. There is no {id:guid} to collide with, since that route
+        // is guid-constrained and these literals are not.
+        group.MapGet("/pending-matches", async (
+                [FromServices] IGetPendingMatchesHandler handler,
+                CancellationToken ct) =>
+            Results.Ok(await handler.HandleAsync(ct)))
+            .WithTags("Медиатека / Media")
+            .WithSummary("Тайтлы, ожидающие подтверждения совпадения")
+            .WithDescription("Все строки библиотеки в статусе NeedsReview: что импортировано и какие кандидаты нашлись.");
+
+        group.MapPost("/{id:guid}/resolve-match", (
+                Guid id,
+                ResolveMatchRequest request,
+                [FromServices] IResolveMatchHandler handler,
+                CancellationToken ct) =>
+            handler.HandleAsync(new ResolveMatchCommand(id, request), ct).ToOk())
+            .WithTags("Медиатека / Media")
+            .WithSummary("Подтвердить совпадение из списка кандидатов")
+            .WithDescription("Скачивает полные данные выбранного кандидата, применяет метаданные (прогресс и оценка не трогаются) и возвращает обновлённый тайтл.");
+
+        group.MapPost("/resolve-all-by-priority", async (
+                [FromServices] IResolveAllByPriorityHandler handler,
+                CancellationToken ct) =>
+            Results.Ok(await handler.HandleAsync(ct)))
+            .WithTags("Медиатека / Media")
+            .WithSummary("Выбрать первого кандидата во всех спорных тайтлах")
+            .WithDescription("Для каждого NeedsReview тайтла берёт лучшего кандидата, ставит Syncing и запускает фоновое обогащение; возвращает число выбранных строк.");
+
+        group.MapPost("/{id:guid}/dismiss-match", async (
+                Guid id,
+                [FromServices] IDismissMatchHandler handler,
+                CancellationToken ct) =>
+            await handler.HandleAsync(new DismissMatchCommand(id), ct)
+                ? Results.NoContent()
+                : Results.NotFound(new { detail = $"Media item '{id}' was not found." }))
+            .WithTags("Медиатека / Media")
+            .WithSummary("Оставить тайтл без привязки")
+            .WithDescription("Убирает спорных кандидатов и возвращает тайтл в статус Ready без изменения данных.");
+
+        group.MapPost("/dismiss-all-matches", async (
+                [FromServices] IDismissAllMatchesHandler handler,
+                CancellationToken ct) =>
+            Results.Ok(new { dismissed = await handler.HandleAsync(ct) }))
+            .WithTags("Медиатека / Media")
+            .WithSummary("Отклонить все спорные совпадения разом")
+            .WithDescription("Переводит все NeedsReview тайтлы в Ready и очищает их списки кандидатов.");
 
         // Recommendations live on the row, so this one endpoint both fetches and replays: a call inside the
         // 30-day window is answered from SQLite without the provider being contacted at all.

@@ -102,6 +102,7 @@ public static class RefactorSelfCheck
         CheckLetterboxdCsvImportParser(failures);
         CheckAniListImportParser(failures);
         CheckMangalibImportParser(failures);
+        CheckMangalibParser(failures);
         CheckCustomImportParser(failures);
         CheckSteamLibraryImportParser(failures);
         CheckImportHealing(failures);
@@ -109,6 +110,8 @@ public static class RefactorSelfCheck
         CheckSmartListEvaluator(failures);
         CheckApiTokenHashingAndValidation(failures);
         CheckAutoRefreshRules(failures);
+        CheckImportMatchScorer(failures);
+        CheckPendingMatchApplier(failures);
 
         if (failures.Count == 0)
         {
@@ -310,6 +313,153 @@ public static class RefactorSelfCheck
         {
             AssertEqual(failures, MediaStatus.OnHold, csv[0].Status, "MangaLib CSV отложено maps to on-hold");
             AssertEqual<int?>(failures, 8, csv[0].Score, "MangaLib CSV rating");
+        }
+    }
+
+    private static void CheckMangalibParser(List<string> failures)
+    {
+        // 1. Check site_id mapping (1 -> manga, 5 -> anime, 3 -> book, 2 & 4 -> manga)
+        var sitesJson = """
+            [
+              { "rus_name": "Манга", "site_id": 1 },
+              { "rus_name": "Аниме", "site_id": 5 },
+              { "rus_name": "Ранобэ", "site_id": 3 },
+              { "rus_name": "Слэш", "site_id": 2 },
+              { "rus_name": "Хентай", "site_id": 4 }
+            ]
+            """;
+        var sitesParsed = MangalibParser.Parse(sitesJson);
+        AssertEqual(failures, 5, sitesParsed.Count, "Sites parsed count");
+        if (sitesParsed.Count == 5)
+        {
+            AssertEqual(failures, "manga", sitesParsed[0].Type, "site_id 1 is manga");
+            AssertEqual(failures, "MangaLib", sitesParsed[0].ExternalSource, "site_id 1 is MangaLib");
+
+            AssertEqual(failures, "anime", sitesParsed[1].Type, "site_id 5 is anime");
+            AssertEqual(failures, "AnimeLib", sitesParsed[1].ExternalSource, "site_id 5 is AnimeLib");
+
+            AssertEqual(failures, "book", sitesParsed[2].Type, "site_id 3 is book");
+            AssertEqual(failures, "RanobeLib", sitesParsed[2].ExternalSource, "site_id 3 is RanobeLib");
+
+            AssertEqual(failures, "manga", sitesParsed[3].Type, "site_id 2 is manga");
+            AssertEqual(failures, "SlashLib", sitesParsed[3].ExternalSource, "site_id 2 is SlashLib");
+
+            AssertEqual(failures, "manga", sitesParsed[4].Type, "site_id 4 is manga");
+            AssertEqual(failures, "HentaiLib", sitesParsed[4].ExternalSource, "site_id 4 is HentaiLib");
+        }
+
+        // 2. Check api.cdnlibs.org format (nested 'media', 'item' and folder object)
+        var cdnlibsJson = """
+            {
+              "data": [
+                {
+                  "media_id": 999,
+                  "status": 1,
+                  "folder_name": "Читаю",
+                  "user_rating": 8,
+                  "item": { "number": "42.5", "volume": 5 },
+                  "media": {
+                    "rus_name": "Магическая битва",
+                    "eng_name": "Jujutsu Kaisen",
+                    "site": 1,
+                    "slug_url": "jujutsu-kaisen",
+                    "chapters_count": 271,
+                    "cover": { "default": "https://cover.imglib.info/default.jpg", "md": "https://cover.imglib.info/md.jpg" }
+                  }
+                }
+              ]
+            }
+            """;
+        var cdnParsed = MangalibParser.Parse(cdnlibsJson);
+        AssertEqual(failures, 1, cdnParsed.Count, "cdnlibs data array entry count");
+        if (cdnParsed.Count == 1)
+        {
+            var item = cdnParsed[0];
+            AssertEqual(failures, "Магическая битва", item.Title, "cdnlibs rus_name");
+            AssertEqual(failures, "Jujutsu Kaisen", item.RomajiTitle, "cdnlibs eng_name");
+            AssertEqual(failures, "manga", item.Type, "cdnlibs media.site 1 type");
+            AssertEqual(failures, MediaStatus.InProgress, item.Status, "cdnlibs status 1 maps to InProgress");
+            AssertEqual<int?>(failures, 42, item.CurrentProgress, "cdnlibs item.number parsed to int");
+            AssertEqual<int?>(failures, 5, item.CurrentVolumes, "cdnlibs item.volume");
+            AssertEqual<int?>(failures, 271, item.TotalCount, "cdnlibs media.chapters_count");
+            AssertEqual<int?>(failures, 8, item.Score, "cdnlibs user_rating");
+            AssertEqual(failures, "https://cover.imglib.info/default.jpg", item.CoverUrl, "cdnlibs cover default");
+            AssertEqual(failures, "jujutsu-kaisen", item.ExternalId, "cdnlibs slug_url");
+        }
+
+        // 3. Check Tsundoku collector flat format
+        var tsundokuJson = """
+            [
+              {
+                "rus_name": "Атака титанов",
+                "eng_name": "Attack on Titan",
+                "type": "anime",
+                "site_id": 5,
+                "status": "Просмотрено",
+                "user_chapters": 87,
+                "total_chapters": 87,
+                "volumes": null,
+                "user_rating": 10,
+                "cover": "https://example.com/aot.jpg",
+                "summary": "Человечество ведет борьбу за выживание",
+                "genres": "Экшен, Драма",
+                "author": "Хадзимэ Исаяма"
+              }
+            ]
+            """;
+        var tsunParsed = MangalibParser.Parse(tsundokuJson);
+        AssertEqual(failures, 1, tsunParsed.Count, "Tsundoku collector entry count");
+        if (tsunParsed.Count == 1)
+        {
+            var item = tsunParsed[0];
+            AssertEqual(failures, "Атака титанов", item.Title, "Tsundoku rus_name");
+            AssertEqual(failures, "Attack on Titan", item.RomajiTitle, "Tsundoku eng_name");
+            AssertEqual(failures, "anime", item.Type, "Tsundoku type anime");
+            AssertEqual(failures, "AnimeLib", item.ExternalSource, "Tsundoku source AnimeLib");
+            AssertEqual(failures, MediaStatus.Completed, item.Status, "Tsundoku status Просмотрено");
+            AssertEqual<int?>(failures, 87, item.CurrentProgress, "Tsundoku user_chapters");
+            AssertEqual<int?>(failures, 87, item.TotalCount, "Tsundoku total_chapters");
+            AssertEqual<int?>(failures, 10, item.Score, "Tsundoku user_rating");
+            AssertEqual(failures, "https://example.com/aot.jpg", item.CoverUrl, "Tsundoku cover");
+            AssertEqual(failures, "Человечество ведет борьбу за выживание", item.Description, "Tsundoku summary");
+            AssertEqual(failures, "Экшен, Драма", item.Genres, "Tsundoku genres");
+            AssertEqual(failures, "Хадзимэ Исаяма", item.Author, "Tsundoku author");
+        }
+
+        // 4. Check Lib to Shikimori format
+        var shikimoriJson = """
+            [
+              {
+                "target_title_ru": "Врата Штейна",
+                "target_title": "Steins;Gate",
+                "target_id": "steins-gate",
+                "status": "completed",
+                "chapters": 24,
+                "volumes": 0,
+                "score": 9
+              }
+            ]
+            """;
+        var shikiParsed = MangalibParser.Parse(shikimoriJson);
+        AssertEqual(failures, 1, shikiParsed.Count, "Lib to Shikimori entry count");
+        if (shikiParsed.Count == 1)
+        {
+            var item = shikiParsed[0];
+            AssertEqual(failures, "Врата Штейна", item.Title, "Lib to Shikimori target_title_ru");
+            AssertEqual(failures, "Steins;Gate", item.RomajiTitle, "Lib to Shikimori target_title");
+            AssertEqual(failures, "steins-gate", item.ExternalId, "Lib to Shikimori target_id");
+            AssertEqual(failures, MediaStatus.Completed, item.Status, "Lib to Shikimori status completed");
+            AssertEqual<int?>(failures, 24, item.TotalCount, "Lib to Shikimori chapters");
+            AssertEqual<int?>(failures, 9, item.Score, "Lib to Shikimori score");
+        }
+
+        // 5. Check defaultStatusId fallback (when status is omitted in item)
+        var noStatusJson = """[ { "name": "Solo Leveling", "site_id": 1 } ]""";
+        var withDefaultStatus = MangalibParser.Parse(noStatusJson, defaultStatusId: 1);
+        AssertEqual(failures, 1, withDefaultStatus.Count, "no-status json parsed");
+        if (withDefaultStatus.Count == 1)
+        {
+            AssertEqual(failures, MediaStatus.InProgress, withDefaultStatus[0].Status, "defaultStatusId 1 maps to InProgress");
         }
     }
 
@@ -3899,5 +4049,185 @@ public static class RefactorSelfCheck
         public void DeleteCover(string? localCoverUrl) { }
 
         public void DeleteMediaFolder(Guid mediaId) { }
+    }
+
+    private static void CheckImportMatchScorer(List<string> failures)
+    {
+        ExternalMediaDto Candidate(string title, string? romaji, int? year, string? author = null, int? chapters = null) =>
+            new()
+            {
+                ExternalId = title,
+                Title = title,
+                RomajiTitle = romaji,
+                ReleaseYear = year,
+                Author = author,
+                Chapters = chapters,
+                Type = "manga",
+            };
+
+        // 1. Exact romaji title + the same year: one clear winner over a similar-but-wrong hit.
+        var gachiakuta = new Manga
+        {
+            Title = "Гачиакута",
+            RomajiTitle = "Gachiakuta",
+            Author = "Kei Urana",
+            ReleaseYear = 2025,
+            TotalChapters = 40,
+        };
+
+        var confidentVerdict = ImportMatchScorer.EvaluateCandidates(
+            gachiakuta,
+            [
+                Candidate("Gachiakuta", "Gachiakuta", 2025, "Kei Urana", 40),
+                Candidate("Gachiakuta, «Падшие» из Бездны", null, 2021, "Kei Urana", 55),
+            ]);
+
+        AssertTrue(failures, confidentVerdict.Kind == MatchVerdictKind.Confident, "exact romaji + year is confident");
+        AssertEqual(failures, "Gachiakuta", confidentVerdict.Winner?.Title, "confident picks the exact title");
+
+        // 2. Two candidates that both look plausible: the decision belongs to the user.
+        var ambiguousVerdict = ImportMatchScorer.EvaluateCandidates(
+            new Manga { Title = "Мастера меча онлайн", RomajiTitle = "Sword Art Online", ReleaseYear = 2016 },
+            [
+                Candidate("Sword Art Online: Progressive", "Sword Art Online: Progressive", 2016),
+                Candidate("Sword Art Online: Girls Ops", "Sword Art Online: Girls Ops", 2016),
+            ]);
+
+        AssertTrue(failures, ambiguousVerdict.Kind == MatchVerdictKind.Ambiguous, "two close candidates are ambiguous");
+        AssertEqual(failures, 2, ambiguousVerdict.Candidates.Count, "ambiguous keeps both candidates");
+
+        // 3. Same-source near-duplicates AND cross-source ties: the cross-source case is settled by
+        // the user's source priorities instead of forcing a manual round.
+        ExternalMediaDto Sourced(string source) => new()
+        {
+            ExternalId = source,
+            ExternalSource = source,
+            Title = "Gachiakuta",
+            RomajiTitle = "Gachiakuta",
+            ReleaseYear = 2025,
+            Author = "Kei Urana",
+            Chapters = 40,
+            Type = "manga",
+        };
+
+        var sameSourceTie = ImportMatchScorer.EvaluateCandidates(
+            gachiakuta,
+            [
+                Sourced("mangadex"),
+                new()
+                {
+                    ExternalId = "mangadex2",
+                    ExternalSource = "MangaDex",
+                    Title = "Gachiakuta",
+                    RomajiTitle = "Gachiakuta",
+                    ReleaseYear = 2025,
+                    Author = "Kei Urana",
+                    Chapters = 40,
+                    Type = "manga",
+                },
+            ]);
+
+        AssertTrue(failures, sameSourceTie.Kind == MatchVerdictKind.Ambiguous, "same-source tie still needs the user");
+
+        var crossSourceTie = ImportMatchScorer.EvaluateCandidates(
+            gachiakuta,
+            [Sourced("mangadex"), Sourced("anilist")],
+            ["anilist", "mangadex", "shikimori"]);
+
+        AssertTrue(failures, crossSourceTie.Kind == MatchVerdictKind.Confident, "cross-source tie resolves by source priority");
+        AssertEqual(failures, "anilist", crossSourceTie.Winner?.ExternalSource, "tie-break picks the higher-priority source");
+
+        var noPrioritiesTie = ImportMatchScorer.EvaluateCandidates(
+            gachiakuta,
+            [Sourced("mangadex"), Sourced("anilist")]);
+
+        AssertTrue(failures, noPrioritiesTie.Kind == MatchVerdictKind.Ambiguous, "tie without known priorities stays ambiguous");
+
+        // 4. Nothing remotely similar: no match.
+        var noMatchVerdict = ImportMatchScorer.EvaluateCandidates(
+            new Manga { Title = "Восхождение в тени", RomajiTitle = "Kage no Jitsuryokusha" },
+            [
+                Candidate("Berserk of Gluttony", "Berserk of Gluttony", 2022),
+                Candidate("Blue lock", "Blue lock", 2018),
+            ]);
+
+        AssertTrue(failures, noMatchVerdict.Kind == MatchVerdictKind.NoMatch, "unrelated titles never match");
+
+        // 4. The scoring inputs themselves.
+        AssertEqual(
+            failures,
+            60,
+            ImportMatchScorer.TitlePairScore("Клинок, рассекающий демонов", "Клинок, рассекающий демонов!"),
+            "punctuation is stripped for the exact hit");
+        AssertEqual(
+            failures,
+            40,
+            ImportMatchScorer.TitlePairScore("One Piece", "One Piece. Chapter 1080"),
+            "containment of a full name is a partial hit");
+        AssertTrue(
+            failures,
+            ImportMatchScorer.TitlePairScore("Berserk", "Black Clover") == 0,
+            "unrelated names score zero");
+    }
+
+    private static void CheckPendingMatchApplier(List<string> failures)
+    {
+        using var connection = new SqliteConnection("DataSource=:memory:");
+        connection.Open();
+        var options = new DbContextOptionsBuilder<AppDbContext>().UseSqlite(connection).Options;
+        using var db = new AppDbContext(options);
+        db.Database.EnsureCreated();
+
+        var item = new Manga
+        {
+            Title = "Магия и мускулы",
+            CurrentChapter = 42,
+            CurrentVolume = 4,
+            Score = 9,
+            Notes = "User personal note",
+            ExternalSource = "MangaLib",
+            ImportSource = "MangaLib",
+            CoverUrl = "https://cover.imglib.info/broken.jpg",
+            SyncStatus = SyncStatus.NeedsReview,
+            PendingMatchesJson = "[]"
+        };
+        item.SetStatus(MediaStatus.InProgress);
+        db.Manga.Add(item);
+        db.SaveChanges();
+
+        var candidate = new ExternalMediaDto
+        {
+            ExternalId = "114963",
+            ExternalSource = "AniList",
+            Title = "MASHLE",
+            RomajiTitle = "Mashle: Magic and Muscles",
+            OriginalTitle = "マッシュル -MASHLE-",
+            Description = "Magic and muscles synopsis",
+            CoverUrl = "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/b114963.jpg",
+            Type = "manga",
+            TotalCount = 162,
+            Chapters = 162,
+            Volumes = 18,
+            ReleaseStatus = "Finished"
+        };
+
+        var applied = PendingMatchApplier.ApplyAsync(db, item, candidate, new NoOpImageStorage(), CancellationToken.None)
+            .GetAwaiter().GetResult();
+
+        AssertTrue(failures, applied, "PendingMatchApplier succeeds");
+        AssertEqual(failures, "Магия и мускулы", item.Title, "Cyrillic title is preserved");
+        AssertEqual(failures, "Mashle: Magic and Muscles", item.RomajiTitle, "candidate RomajiTitle is mapped");
+        AssertEqual(failures, "マッシュル -MASHLE-", item.OriginalTitle, "candidate OriginalTitle is mapped");
+        AssertEqual(failures, 42, item.CurrentChapter, "user chapter progress is preserved");
+        AssertEqual(failures, 4, item.CurrentVolume, "user volume progress is preserved");
+        AssertEqual(failures, 162, item.TotalChapters, "total chapters from candidate are applied");
+        AssertEqual(failures, 18, item.TotalVolumes, "total volumes from candidate are applied");
+        AssertEqual(failures, MediaStatus.InProgress, item.Status, "user status is preserved");
+        AssertEqual(failures, 9, item.Score, "user score is preserved");
+        AssertEqual(failures, "User personal note", item.Notes, "user notes are preserved");
+        AssertEqual(failures, "AniList", item.ExternalSource, "external source is updated to candidate");
+        AssertEqual(failures, "MangaLib", item.ImportSource, "import source is preserved");
+        AssertEqual(failures, SyncStatus.Ready, item.SyncStatus, "sync status becomes Ready");
+        AssertEqual(failures, null, item.PendingMatchesJson, "pending matches json cleared");
     }
 }

@@ -5,6 +5,7 @@ using MediaTracker.Server.Common.Cli;
 using MediaTracker.Server.Common.Endpoints;
 using MediaTracker.Server.Common.Extensions;
 using MediaTracker.Server.Common.Middleware;
+using MediaTracker.Server.Domain.Enums;
 using MediaTracker.Server.Features.Jobs;
 using MediaTracker.Server.Features.Media.Calendar;
 using MediaTracker.Server.Infrastructure.ExternalApis;
@@ -525,6 +526,14 @@ static async Task InitializeDatabaseAsync(WebApplication app)
     }
 
     await scope.ServiceProvider.GetRequiredService<StoredSettingsLoader>().LoadAsync();
+
+    // Self-heal at startup: rows parked in Syncing by a cancelled or crashed session (an in-memory
+    // job queue does not survive a restart) would show a forever-spinning "синхронизация" badge.
+    await db.MediaItems
+        .Where(m => m.SyncStatus == SyncStatus.Syncing)
+        .ExecuteUpdateAsync(s => s
+            .SetProperty(m => m.SyncStatus, SyncStatus.Ready)
+            .SetProperty(m => m.UpdatedAt, DateTime.UtcNow));
 }
 
 static void StartBackgroundFranchiseBackfill(WebApplication app)

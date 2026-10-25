@@ -1,14 +1,23 @@
 <script lang="ts">
     import {
+        BookOpen,
         CalendarDays,
         ChevronDown,
         ChevronLeft,
         ChevronRight,
+        Clapperboard,
+        Film,
+        Gamepad2,
+        Image,
+        Layers,
         LayoutGrid,
+        Library,
         List,
         Play,
         RefreshCw,
+        RotateCcw,
         Sparkles,
+        Tv,
     } from "$shared/ui/Icons.svelte";
     import PopoverMenu from "$shared/ui/PopoverMenu.svelte";
     import { i18n } from "$shared/i18n/index.svelte";
@@ -23,10 +32,16 @@
     let { onOpenMedia }: Props = $props();
 
     type ViewMode = "feed" | "grid";
+    type CellMode = "posters" | "icons";
     type KindFilter = "all" | "no_auto_refresh" | "auto_refresh" | "air_date" | "release";
     type TypeFilter = "all" | "manga" | "anime" | "tvshow" | "movie" | "game" | "book";
 
     let mode = $state<ViewMode>("feed");
+    let cellMode = $state<CellMode>(
+        typeof localStorage !== "undefined" && localStorage.getItem("calendar_cell_mode") === "icons"
+            ? "icons"
+            : "posters",
+    );
     let viewYear = $state(new Date().getFullYear());
     let viewMonthIndex = $state(new Date().getMonth());
     let calendarRevision = $state(0);
@@ -38,8 +53,19 @@
     let isLoading = $state(false);
     let loadError = $state<unknown>(null);
 
-    const todayStr = localIso(new Date());
-    const tomorrowStr = localIso(new Date(Date.now() + 24 * 60 * 60 * 1000));
+    function getTodayIso(): string {
+        const now = new Date();
+        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    }
+
+    function getTomorrowIso(): string {
+        const d = new Date();
+        d.setDate(d.getDate() + 1);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    }
+
+    const todayStr = getTodayIso();
+    const tomorrowStr = getTomorrowIso();
 
     // Colours shared by the feed badges and the grid dots, per spec.
     const KIND_CHIP: Record<CalendarEventKind, string> = {
@@ -126,7 +152,20 @@
         const now = new Date();
         viewYear = now.getFullYear();
         viewMonthIndex = now.getMonth();
+        selectedDay = getTodayIso();
+    }
+
+    function resetFilters() {
+        typeFilter = "all";
+        kindFilter = "all";
         selectedDay = null;
+    }
+
+    function setCellMode(newCellMode: CellMode) {
+        cellMode = newCellMode;
+        try {
+            localStorage.setItem("calendar_cell_mode", newCellMode);
+        } catch {}
     }
 
     function setMode(newMode: ViewMode) {
@@ -221,6 +260,8 @@
         }
     }
 
+    const handleCheckNow = checkNow;
+
     // Filtered view: every consumer (feed, grid, empty state) reads this one map.
     const itemsByDate = $derived.by(() => {
         const map = new Map<string, CalendarItemDto[]>();
@@ -238,6 +279,10 @@
         if (selectedDay) return entries.filter(([date]) => date === selectedDay);
         return entries;
     });
+
+    const hasActiveFilters = $derived(
+        typeFilter !== "all" || kindFilter !== "all" || selectedDay !== null,
+    );
 
     const gridCells = $derived.by(() => {
         const first = new Date(viewYear, viewMonthIndex, 1);
@@ -404,9 +449,138 @@
         }
         return count === 1 ? "1 event" : `${count} events`;
     }
+
+    function getItemIconSpec(item: CalendarItemDto) {
+        if (item.isAnime || item.type === "anime") {
+            return {
+                icon: Clapperboard,
+                classes: "bg-purple-500/15 text-purple-300 border-purple-500/30",
+            };
+        }
+        switch (item.type) {
+            case "manga":
+                return {
+                    icon: Library,
+                    classes: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
+                };
+            case "tvshow":
+                return {
+                    icon: Tv,
+                    classes: "bg-sky-500/15 text-sky-300 border-sky-500/30",
+                };
+            case "movie":
+                return {
+                    icon: Film,
+                    classes: "bg-amber-500/15 text-amber-300 border-amber-500/30",
+                };
+            case "game":
+                return {
+                    icon: Gamepad2,
+                    classes: "bg-indigo-500/15 text-indigo-300 border-indigo-500/30",
+                };
+            case "book":
+                return {
+                    icon: BookOpen,
+                    classes: "bg-rose-500/15 text-rose-300 border-rose-500/30",
+                };
+            default:
+                return {
+                    icon: Sparkles,
+                    classes: "bg-slate-500/15 text-slate-300 border-slate-500/30",
+                };
+        }
+    }
+
+    function formatTypeAndProgress(item: CalendarItemDto): string {
+        const label = typeLabel(item);
+        const progress = formatItemProgress(item);
+        return progress ? `${label} · ${progress}` : label;
+    }
+
+    function formatEventShortLabel(item: CalendarItemDto): string {
+        if (item.kind === "release") {
+            return i18n.current === "ru" ? "Релиз" : "Release";
+        }
+        if (item.kind === "air_date") {
+            return (
+                item.details ||
+                (item.seasonNumber && item.episodeNumber
+                    ? `S${item.seasonNumber} E${item.episodeNumber}`
+                    : (i18n.current === "ru" ? "Серия" : "Ep."))
+            );
+        }
+        const match = item.details?.match(/\d+/);
+        const days = match ? match[0] : "7";
+        return i18n.current === "ru" ? `раз в ${days} дн.` : `every ${days} d.`;
+    }
+
+    function groupDayItems(items: CalendarItemDto[]) {
+        const releases: CalendarItemDto[] = [];
+        const airDates: CalendarItemDto[] = [];
+        const autoRefreshMap = new Map<string, { label: string; daysNum: number; items: CalendarItemDto[] }>();
+
+        for (const item of items) {
+            if (item.kind === "release") {
+                releases.push(item);
+            } else if (item.kind === "air_date") {
+                airDates.push(item);
+            } else if (item.kind === "auto_refresh") {
+                const match = item.details?.match(/\d+/);
+                const daysNum = match ? parseInt(match[0], 10) : 7;
+                const key = `interval_${daysNum}`;
+                const label = i18n.current === "ru"
+                    ? `Проверка обновлений · раз в ${daysNum} дн.`
+                    : `Update checks · every ${daysNum} d.`;
+
+                let group = autoRefreshMap.get(key);
+                if (!group) {
+                    group = { label, daysNum, items: [] };
+                    autoRefreshMap.set(key, group);
+                }
+                group.items.push(item);
+            }
+        }
+
+        const autoRefreshGroups = [...autoRefreshMap.values()].sort((a, b) => a.daysNum - b.daysNum);
+
+        return { releases, airDates, autoRefreshGroups };
+    }
 </script>
 
-{#snippet renderItemCard(item: CalendarItemDto, compact = false)}
+{#snippet renderItemTooltip(item: CalendarItemDto)}
+    <div
+        class="pointer-events-none invisible opacity-0 group-hover/item:visible group-hover/item:opacity-100 transition-all duration-150 absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 w-56 rounded-xl border border-white/10 bg-[#181b24] p-2.5 shadow-2xl shadow-black/80 text-left"
+    >
+        {#if item.kind === "auto_refresh"}
+            <span class="inline-flex items-center gap-1 rounded-full border border-indigo-500/30 bg-indigo-500/15 px-2 py-0.5 text-[10px] font-semibold text-indigo-300">
+                <span>🔄</span>
+                <span>{i18n.current === "ru" ? "Автообновление" : "Auto-check"}</span>
+            </span>
+        {:else if item.kind === "air_date"}
+            <span class="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold text-emerald-300">
+                <span>🎬</span>
+                <span>{i18n.current === "ru" ? "Выход серии" : "Episode"}</span>
+            </span>
+        {:else}
+            <span class="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold text-amber-300">
+                <span>🚀</span>
+                <span>{i18n.current === "ru" ? "Релиз" : "Release"}</span>
+            </span>
+        {/if}
+        <p class="mt-1 text-xs font-bold text-white leading-snug line-clamp-2">{item.title}</p>
+        <p class="mt-0.5 text-[11px] text-slate-400">
+            {typeLabel(item)}
+            {#if formatItemProgress(item)}
+                · {formatItemProgress(item)}
+            {/if}
+            {#if item.details}
+                · {item.details}
+            {/if}
+        </p>
+    </div>
+{/snippet}
+
+{#snippet renderItemCard(item: CalendarItemDto, compact = false, hideDetails = false)}
     <div
         class={`group flex items-center gap-3 rounded-xl border border-white/[0.06] bg-card transition hover:border-white/[0.12] hover:bg-field/60 ${
             compact ? "p-2.5" : "p-3"
@@ -445,16 +619,16 @@
                             <span class="text-muted/50"> · </span><span class="font-mono tabular-nums">{formatItemProgress(item)}</span>
                         {/if}
                     </p>
-                    {#if item.details}
+                    {#if item.details && !hideDetails}
                         <p class="mt-0.5 text-[11px] text-muted truncate">{item.details}</p>
                     {/if}
                 {:else}
                     <p class="text-sm sm:text-base font-semibold text-ink truncate">{item.title}</p>
                     <div class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs">
                         <span class="font-medium text-slate-300">
-                            {typeLabel(item)}{#if formatItemProgress(item)} <span class="text-muted/50">·</span> <span class="font-mono tabular-nums">{formatItemProgress(item)}</span>{/if}
+                            {typeLabel(item)}{#if formatItemProgress(item)}<span class="text-muted/50"> · </span><span class="font-mono tabular-nums">{formatItemProgress(item)}</span>{/if}
                         </span>
-                        {#if item.details}
+                        {#if item.details && !hideDetails}
                             <span class="text-muted/80">
                                 <span class="text-muted/50 mr-2">·</span>{item.details}
                             </span>
@@ -479,164 +653,279 @@
             {#if item.kind === "auto_refresh"}
                 <button
                     type="button"
-                    class={`tap flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-indigo-500/30 bg-indigo-500/15 text-xs font-semibold text-indigo-300 transition hover:bg-indigo-500/25 disabled:cursor-not-allowed disabled:opacity-70 ${
-                        compact ? "px-2.5 py-1.5 h-8" : "px-3.5 py-2 h-9"
-                    }`}
+                    class="tap size-8 sm:size-9 shrink-0 grid place-items-center rounded-lg border border-indigo-500/30 bg-indigo-500/15 text-indigo-300 transition hover:bg-indigo-500/25 hover:text-white cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     disabled={Boolean(checkingIds[item.mediaId])}
+                    title={checkingIds[item.mediaId] ? i18n.t.views.calendarChecking : i18n.t.views.calendarCheckUpdatesTooltip}
                     aria-label={i18n.t.views.calendarCheckNow}
-                    onclick={() => void checkNow(item)}
+                    onclick={(e) => {
+                        e.stopPropagation();
+                        void handleCheckNow(item);
+                    }}
                 >
                     <RefreshCw
-                        size={compact ? 12 : 13}
+                        size={15}
                         class={checkingIds[item.mediaId] ? "animate-spin" : ""}
                         aria-hidden="true"
                     />
-                    <span>
-                        {checkingIds[item.mediaId]
-                            ? i18n.t.views.calendarChecking
-                            : i18n.t.views.calendarCheckNow}
-                    </span>
                 </button>
             {/if}
         </div>
     </div>
 {/snippet}
 
+{#snippet renderFeedCard(item: CalendarItemDto)}
+    <div
+        role="button"
+        tabindex="0"
+        class="group relative flex flex-col rounded-xl border border-white/[0.05] bg-card p-2.5 shadow-lg transition hover:border-white/[0.12] hover:bg-card-hover cursor-pointer text-left"
+        onclick={() => onOpenMedia?.(item.mediaId)}
+        onkeydown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onOpenMedia?.(item.mediaId);
+            }
+        }}
+    >
+        <!-- Poster -->
+        <div class="aspect-[3/4] relative overflow-hidden rounded-lg bg-canvas">
+            {#if item.coverUrl}
+                <img
+                    src={item.coverUrl}
+                    alt={item.title}
+                    loading="lazy"
+                    referrerpolicy="no-referrer"
+                    class="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
+                />
+            {:else}
+                <div class="grid h-full place-items-center text-muted">
+                    <CalendarDays size={28} aria-hidden="true" />
+                </div>
+            {/if}
+
+            <!-- Refresh button top-right (for auto_refresh) -->
+            {#if item.kind === "auto_refresh"}
+                <button
+                    type="button"
+                    class="tap grid size-7 sm:size-8 place-items-center rounded-lg border border-white/15 bg-[#0d0f14]/85 text-indigo-300 backdrop-blur-md transition hover:border-accent hover:bg-accent hover:text-white shadow-md cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 absolute right-2 top-2 z-10"
+                    disabled={Boolean(checkingIds[item.mediaId])}
+                    title={checkingIds[item.mediaId] ? i18n.t.views.calendarChecking : i18n.t.views.calendarCheckUpdatesTooltip}
+                    aria-label={i18n.t.views.calendarCheckNow}
+                    onclick={(e) => {
+                        e.stopPropagation();
+                        void handleCheckNow(item);
+                    }}
+                >
+                    <RefreshCw
+                        size={14}
+                        class={checkingIds[item.mediaId] ? "animate-spin" : ""}
+                        aria-hidden="true"
+                    />
+                </button>
+            {/if}
+        </div>
+
+        <!-- Details block under poster -->
+        <div class="pt-2.5 px-0.5 flex flex-col flex-1 justify-between min-w-0">
+            <div class="min-w-0">
+                <p class="truncate text-sm font-semibold text-ink" title={item.title}>
+                    {item.title}
+                </p>
+                <p class="mt-0.5 truncate text-xs text-muted">
+                    {formatTypeAndProgress(item)}
+                </p>
+            </div>
+
+            <div class="mt-2 flex items-center justify-between gap-2 rounded-md bg-canvas px-2.5 py-1.5 text-xs">
+                <span class="text-muted">
+                    {item.kind === "auto_refresh"
+                        ? (i18n.current === "ru" ? "Проверка" : "Check")
+                        : item.kind === "air_date"
+                          ? (i18n.current === "ru" ? "Эпизод" : "Episode")
+                          : (i18n.current === "ru" ? "Событие" : "Event")}
+                </span>
+                <span class="font-semibold tabular-nums {item.kind === 'auto_refresh' ? 'text-indigo-300' : item.kind === 'air_date' ? 'text-emerald-300' : 'text-amber-300'}">
+                    {formatEventShortLabel(item)}
+                </span>
+            </div>
+        </div>
+    </div>
+{/snippet}
+
 <div class="w-full space-y-6">
-    <div>
-        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-accent-soft">
-            {i18n.t.navigation.calendar}
-        </p>
-        <h2 class="mt-1 text-2xl font-bold tracking-tight text-ink">
-            {i18n.t.views.calendarTitle}
-        </h2>
-        <p class="mt-2 text-sm text-muted">{i18n.t.views.calendarSubtitle}</p>
-    </div>
-
-    <!-- Month navigation + view toggle -->
+    <!-- Compact control panel (Month navigation, filters, reset, view modes) -->
     <div class="flex flex-wrap items-center justify-between gap-3">
-        <div class="flex items-center gap-1.5">
-            <button
-                type="button"
-                class="tap grid h-9 w-9 place-items-center rounded-lg border border-white/[0.08] bg-card text-muted transition hover:text-white"
-                onclick={() => shiftMonth(-1)}
-                title={i18n.t.views.calendarPrevMonth}
-                aria-label={i18n.t.views.calendarPrevMonth}
-            >
-                <ChevronLeft size={17} aria-hidden="true" />
-            </button>
-            <button
-                type="button"
-                class="tap h-9 rounded-lg px-3 text-sm font-semibold text-white transition hover:bg-white/5"
-                class:opacity-60={isCurrentMonth}
-                onclick={goToday}
-                title={i18n.t.views.calendarCurrentMonth}
-                aria-label={i18n.t.views.calendarCurrentMonth}
-            >
-                {monthLabel}
-            </button>
-            <button
-                type="button"
-                class="tap grid h-9 w-9 place-items-center rounded-lg border border-white/[0.08] bg-card text-muted transition hover:text-white"
-                onclick={() => shiftMonth(1)}
-                title={i18n.t.views.calendarNextMonth}
-                aria-label={i18n.t.views.calendarNextMonth}
-            >
-                <ChevronRight size={17} aria-hidden="true" />
-            </button>
-        </div>
-
-        <div class="flex items-center gap-1 rounded-lg border border-white/[0.08] bg-card p-1">
-            <button
-                type="button"
-                class={`tap flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-semibold transition ${
-                    mode === "grid"
-                        ? "bg-accent/15 text-accent-soft"
-                        : "text-muted hover:text-white"
-                }`}
-                onclick={() => setMode("grid")}
-            >
-                <LayoutGrid size={15} aria-hidden="true" />
-                {i18n.t.views.calendarViewMonth}
-            </button>
-            <button
-                type="button"
-                class={`tap flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-semibold transition ${
-                    mode === "feed"
-                        ? "bg-accent/15 text-accent-soft"
-                        : "text-muted hover:text-white"
-                }`}
-                onclick={() => setMode("feed")}
-            >
-                <List size={15} aria-hidden="true" />
-                {i18n.t.views.calendarViewFeed}
-            </button>
-        </div>
-    </div>
-
-    <!-- Filters: media categories dropdown, then event kinds dropdown -->
-    <div class="flex flex-wrap items-center gap-2.5">
-        <PopoverMenu
-            id="calendar-category"
-            options={categoryOptions}
-            selected={typeFilter}
-            onSelect={(val) => (typeFilter = val as TypeFilter)}
-            label={i18n.t.views.calendarCategoryLabel}
-            placement="bottom-start"
-            openOnHover
-            closeDelay={200}
-        >
-            {#snippet trigger({ popoverTargetId, anchorName, isOpen })}
+        <!-- Left: Month navigation + Filters + Reset -->
+        <div class="flex flex-wrap items-center gap-2 sm:gap-2.5">
+            <div class="flex items-center gap-1.5">
                 <button
                     type="button"
-                    popovertarget={popoverTargetId}
-                    popovertargetaction="toggle"
-                    style={isOpen ? `anchor-name: ${anchorName}` : undefined}
-                    class="tap flex h-9 shrink-0 items-center gap-2 rounded-lg border border-white/10 bg-field px-3 text-xs font-semibold text-ink transition hover:border-white/20 has-[:popover-open]:ring-2 has-[:popover-open]:ring-indigo-500/40"
+                    class="tap grid h-9 w-9 place-items-center rounded-lg border border-white/[0.08] bg-card text-muted transition hover:text-white"
+                    onclick={() => shiftMonth(-1)}
+                    title={i18n.t.views.calendarPrevMonth}
+                    aria-label={i18n.t.views.calendarPrevMonth}
                 >
-                    <span class="truncate">{categoryOptions.find((o) => o.value === typeFilter)?.label ?? i18n.t.views.calendarFilterAllCategories}</span>
-                    <ChevronDown size={14} class="shrink-0 text-muted" aria-hidden="true" />
+                    <ChevronLeft size={17} aria-hidden="true" />
                 </button>
-            {/snippet}
-        </PopoverMenu>
-
-        <PopoverMenu
-            id="calendar-kind"
-            options={eventKindOptions}
-            selected={kindFilter}
-            onSelect={(val) => (kindFilter = val as KindFilter)}
-            label={i18n.t.views.calendarEventKindLabel}
-            placement="bottom-start"
-            openOnHover
-            closeDelay={200}
-        >
-            {#snippet trigger({ popoverTargetId, anchorName, isOpen })}
                 <button
                     type="button"
-                    popovertarget={popoverTargetId}
-                    popovertargetaction="toggle"
-                    style={isOpen ? `anchor-name: ${anchorName}` : undefined}
-                    class="tap flex h-9 shrink-0 items-center gap-2 rounded-lg border border-white/10 bg-field px-3 text-xs font-semibold text-ink transition hover:border-white/20 has-[:popover-open]:ring-2 has-[:popover-open]:ring-indigo-500/40"
+                    class="tap h-9 rounded-lg px-3 text-sm font-semibold text-white transition hover:bg-white/5"
+                    class:opacity-60={isCurrentMonth}
+                    onclick={goToday}
+                    title={i18n.t.views.calendarCurrentMonth}
+                    aria-label={i18n.t.views.calendarCurrentMonth}
                 >
-                    <span class="truncate">{eventKindOptions.find((o) => o.value === kindFilter)?.label ?? i18n.t.views.calendarFilterAllEvents}</span>
-                    <ChevronDown size={14} class="shrink-0 text-muted" aria-hidden="true" />
+                    {monthLabel}
                 </button>
-            {/snippet}
-        </PopoverMenu>
+                <button
+                    type="button"
+                    class="tap grid h-9 w-9 place-items-center rounded-lg border border-white/[0.08] bg-card text-muted transition hover:text-white"
+                    onclick={() => shiftMonth(1)}
+                    title={i18n.t.views.calendarNextMonth}
+                    aria-label={i18n.t.views.calendarNextMonth}
+                >
+                    <ChevronRight size={17} aria-hidden="true" />
+                </button>
+            </div>
+
+            <PopoverMenu
+                id="calendar-category"
+                options={categoryOptions}
+                selected={typeFilter}
+                onSelect={(val) => (typeFilter = val as TypeFilter)}
+                label={i18n.t.views.calendarCategoryLabel}
+                placement="bottom-start"
+                openOnHover
+                closeDelay={200}
+            >
+                {#snippet trigger({ popoverTargetId, anchorName, isOpen })}
+                    <button
+                        type="button"
+                        popovertarget={popoverTargetId}
+                        popovertargetaction="toggle"
+                        style={isOpen ? `anchor-name: ${anchorName}` : undefined}
+                        class="tap flex h-9 shrink-0 items-center gap-2 rounded-lg border border-white/10 bg-field px-3 text-xs font-semibold text-ink transition hover:border-white/20 has-[:popover-open]:ring-2 has-[:popover-open]:ring-indigo-500/40"
+                    >
+                        <span class="truncate">{categoryOptions.find((o) => o.value === typeFilter)?.label ?? i18n.t.views.calendarFilterAllCategories}</span>
+                        <ChevronDown size={14} class="shrink-0 text-muted" aria-hidden="true" />
+                    </button>
+                {/snippet}
+            </PopoverMenu>
+
+            <PopoverMenu
+                id="calendar-kind"
+                options={eventKindOptions}
+                selected={kindFilter}
+                onSelect={(val) => (kindFilter = val as KindFilter)}
+                label={i18n.t.views.calendarEventKindLabel}
+                placement="bottom-start"
+                openOnHover
+                closeDelay={200}
+            >
+                {#snippet trigger({ popoverTargetId, anchorName, isOpen })}
+                    <button
+                        type="button"
+                        popovertarget={popoverTargetId}
+                        popovertargetaction="toggle"
+                        style={isOpen ? `anchor-name: ${anchorName}` : undefined}
+                        class="tap flex h-9 shrink-0 items-center gap-2 rounded-lg border border-white/10 bg-field px-3 text-xs font-semibold text-ink transition hover:border-white/20 has-[:popover-open]:ring-2 has-[:popover-open]:ring-indigo-500/40"
+                    >
+                        <span class="truncate">{eventKindOptions.find((o) => o.value === kindFilter)?.label ?? i18n.t.views.calendarFilterAllEvents}</span>
+                        <ChevronDown size={14} class="shrink-0 text-muted" aria-hidden="true" />
+                    </button>
+                {/snippet}
+            </PopoverMenu>
+
+            {#if hasActiveFilters}
+                <button
+                    type="button"
+                    class="tap inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-white/10 bg-field px-3 text-xs font-semibold text-muted transition hover:border-white/20 hover:text-white"
+                    onclick={resetFilters}
+                    title={i18n.t.views.calendarReset}
+                >
+                    <RotateCcw size={13} aria-hidden="true" />
+                    <span>{i18n.t.views.calendarReset}</span>
+                </button>
+            {/if}
+        </div>
+
+        <!-- Right: Cell Mode Switcher (Posters / Icons) + View Mode Switcher (Grid / Feed) -->
+        <div class="flex flex-wrap items-center gap-2">
+            {#if mode === "grid"}
+                <div class="flex items-center gap-1 rounded-lg border border-white/[0.08] bg-card p-1">
+                    <button
+                        type="button"
+                        class={`tap flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-semibold transition ${
+                            cellMode === "posters"
+                                ? "bg-accent/15 text-accent-soft"
+                                : "text-muted hover:text-white"
+                        }`}
+                        onclick={() => setCellMode("posters")}
+                        title={i18n.t.views.calendarCellModePosters}
+                    >
+                        <Image size={15} aria-hidden="true" />
+                        <span class="hidden sm:inline">{i18n.t.views.calendarCellModePosters}</span>
+                    </button>
+                    <button
+                        type="button"
+                        class={`tap flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-semibold transition ${
+                            cellMode === "icons"
+                                ? "bg-accent/15 text-accent-soft"
+                                : "text-muted hover:text-white"
+                        }`}
+                        onclick={() => setCellMode("icons")}
+                        title={i18n.t.views.calendarCellModeIcons}
+                    >
+                        <Layers size={15} aria-hidden="true" />
+                        <span class="hidden sm:inline">{i18n.t.views.calendarCellModeIcons}</span>
+                    </button>
+                </div>
+            {/if}
+
+            <div class="flex items-center gap-1 rounded-lg border border-white/[0.08] bg-card p-1">
+                <button
+                    type="button"
+                    class={`tap flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-semibold transition ${
+                        mode === "grid"
+                            ? "bg-accent/15 text-accent-soft"
+                            : "text-muted hover:text-white"
+                    }`}
+                    onclick={() => setMode("grid")}
+                >
+                    <LayoutGrid size={15} aria-hidden="true" />
+                    {i18n.t.views.calendarViewMonth}
+                </button>
+                <button
+                    type="button"
+                    class={`tap flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-semibold transition ${
+                        mode === "feed"
+                            ? "bg-accent/15 text-accent-soft"
+                            : "text-muted hover:text-white"
+                    }`}
+                    onclick={() => setMode("feed")}
+                >
+                    <List size={15} aria-hidden="true" />
+                    {i18n.t.views.calendarViewFeed}
+                </button>
+            </div>
+        </div>
     </div>
 
     {#if isLoading}
         {#if mode === "feed"}
-            <div class="mt-6 space-y-4" aria-hidden="true">
-                {#each Array(6) as _, index (index)}
-                    <div class="flex items-center gap-3 rounded-xl border border-white/[0.06] bg-card p-2.5 sm:p-3 animate-pulse">
-                        <div class="aspect-[2/3] w-14 sm:w-16 shrink-0 rounded-lg bg-white/5"></div>
-                        <div class="w-full space-y-2">
-                            <div class="h-4 w-1/3 rounded bg-white/5"></div>
-                            <div class="h-3 w-1/2 rounded bg-white/5"></div>
+            <div class="mt-6 space-y-6" aria-hidden="true">
+                <div class="h-5 w-40 rounded bg-white/5 animate-pulse"></div>
+                <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7">
+                    {#each Array(7) as _, index (index)}
+                        <div class="flex flex-col rounded-xl border border-white/[0.05] bg-card p-2.5 animate-pulse space-y-2.5">
+                            <div class="aspect-[3/4] w-full rounded-lg bg-white/5"></div>
+                            <div class="space-y-1.5 px-0.5">
+                                <div class="h-4 w-3/4 rounded bg-white/5"></div>
+                                <div class="h-3 w-1/2 rounded bg-white/5"></div>
+                            </div>
+                            <div class="h-7 w-full rounded-md bg-white/5"></div>
                         </div>
-                    </div>
-                {/each}
+                    {/each}
+                </div>
             </div>
         {:else}
             <div class="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[1fr_400px] xl:grid-cols-[1fr_440px] items-start" aria-hidden="true">
@@ -682,7 +971,7 @@
             <div class="space-y-1.5 min-w-0">
                 <div class="grid grid-cols-7 gap-1.5">
                     {#each weekdays as weekday, index (index)}
-                        <div class="text-center text-[11px] font-semibold uppercase tracking-wide text-muted py-1">
+                        <div class="text-xs sm:text-[13px] font-bold uppercase tracking-wider text-[#94A3B8] py-2 text-center">
                             {weekday}
                         </div>
                     {/each}
@@ -692,9 +981,9 @@
                         {@const isToday = cell.date === todayStr}
                         {#if !cell.inMonth}
                             <div
-                                class="flex min-h-28 sm:min-h-32 flex-col gap-1 rounded-xl border border-white/[0.03] bg-[#12151c]/20 p-2 text-left opacity-45 pointer-events-none"
+                                class="relative flex min-h-28 sm:min-h-32 flex-col rounded-xl border border-white/[0.03] bg-[#12151c]/20 p-2 text-left opacity-45 pointer-events-none"
                             >
-                                <span class="text-[11px] font-semibold tabular-nums px-0.5 text-muted/60">
+                                <span class="absolute left-2.5 top-2 text-[11px] font-semibold tabular-nums px-0.5 text-muted/60">
                                     {cell.dayOfMonth}
                                 </span>
                             </div>
@@ -702,7 +991,7 @@
                             <!-- svelte-ignore a11y_click_events_have_key_events -->
                             <!-- svelte-ignore a11y_no_static_element_interactions -->
                             <div
-                                class={`flex min-h-28 sm:min-h-32 flex-col gap-1 rounded-xl border p-2 text-left transition cursor-pointer ${
+                                class={`relative hover:z-20 flex min-h-28 sm:min-h-32 items-center justify-center rounded-xl border p-2 text-left transition cursor-pointer ${
                                     isSelected
                                         ? "border-accent/40 ring-2 ring-accent bg-accent/[0.04]"
                                         : cellItems.length > 0
@@ -713,10 +1002,10 @@
                                     selectedDay = cell.date;
                                 }}
                             >
-                                <div class="flex items-center justify-between w-full">
+                                <div class="absolute inset-x-2.5 top-2 z-10 flex items-center justify-between pointer-events-none">
                                     <button
                                         type="button"
-                                        class="tap -m-1 rounded-md p-1 transition hover:bg-white/10"
+                                        class="tap -m-1 rounded-md p-1 transition hover:bg-white/10 pointer-events-auto"
                                         onclick={(e) => {
                                             e.stopPropagation();
                                             selectedDay = cell.date;
@@ -734,45 +1023,54 @@
                                         {/if}
                                     </button>
                                     {#if cellItems.length > 3}
-                                        <span class="rounded-full bg-accent/15 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-accent-soft ring-1 ring-accent/30">
+                                        <span class="rounded-full bg-accent/15 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-accent-soft ring-1 ring-accent/30 pointer-events-auto">
                                             +{cellItems.length - 3}
-                                        </span>
-                                    {:else if cellItems.length > 0}
-                                        <span class="text-[10px] font-semibold tabular-nums text-muted/60">
-                                            {cellItems.length}
                                         </span>
                                     {/if}
                                 </div>
 
                                 {#if cellItems.length > 0}
-                                    <div class="grid grid-cols-3 gap-1.5 mt-1.5 w-full">
-                                        {#each cellItems.slice(0, 3) as item (item.kind + item.mediaId + (item.episodeNumber ?? ""))}
-                                            <div
-                                                class={`aspect-[2/3] w-full max-w-[54px] overflow-hidden rounded-md shadow-sm ring-1 transition hover:scale-105 ${
-                                                    item.kind === "auto_refresh"
-                                                        ? "ring-indigo-400/50"
-                                                        : item.kind === "air_date"
-                                                            ? "ring-emerald-400/60"
-                                                            : "ring-amber-400/60"
-                                                }`}
-                                                title={`${item.title}${item.details ? ` — ${item.details}` : ""}`}
-                                            >
-                                                {#if item.coverUrl}
-                                                    <img
-                                                        src={item.coverUrl}
-                                                        alt={item.title}
-                                                        loading="lazy"
-                                                        referrerpolicy="no-referrer"
-                                                        class="h-full w-full object-cover object-top"
-                                                    />
-                                                {:else}
-                                                    <div class="grid h-full place-items-center bg-white/5 text-muted">
-                                                        <CalendarDays size={12} aria-hidden="true" />
+                                    {#if cellMode === "icons"}
+                                        <div class="flex flex-wrap items-center justify-center gap-1.5 w-full px-1">
+                                            {#each cellItems.slice(0, 3) as item (item.kind + item.mediaId + (item.episodeNumber ?? ""))}
+                                                {@const spec = getItemIconSpec(item)}
+                                                {@const IconComp = spec.icon}
+                                                <div class="group/item relative shrink-0 transition-all duration-200 ease-out hover:z-30">
+                                                    <div
+                                                        class={`size-8 rounded-lg border grid place-items-center shadow-sm transition-all duration-150 hover:scale-110 hover:shadow-md ${spec.classes}`}
+                                                    >
+                                                        <IconComp size={16} aria-hidden="true" />
                                                     </div>
-                                                {/if}
-                                            </div>
-                                        {/each}
-                                    </div>
+                                                    {@render renderItemTooltip(item)}
+                                                </div>
+                                            {/each}
+                                        </div>
+                                    {:else}
+                                        <div class="flex items-center justify-center -space-x-3.5 sm:-space-x-4 w-full px-1">
+                                            {#each cellItems.slice(0, 3) as item (item.kind + item.mediaId + (item.episodeNumber ?? ""))}
+                                                <div class="group/item relative shrink-0 transition-all duration-200 ease-out hover:z-30">
+                                                    <div
+                                                        class="h-14 w-10 sm:h-16 sm:w-11 aspect-[2/3] rounded-lg object-cover shadow-md ring-1 ring-white/15 transition-all duration-200 ease-out hover:scale-125 hover:-translate-y-1 hover:shadow-xl hover:ring-2 hover:ring-accent overflow-hidden bg-white/5"
+                                                    >
+                                                        {#if item.coverUrl}
+                                                            <img
+                                                                src={item.coverUrl}
+                                                                alt={item.title}
+                                                                loading="lazy"
+                                                                referrerpolicy="no-referrer"
+                                                                class="h-full w-full object-cover object-top"
+                                                            />
+                                                        {:else}
+                                                            <div class="grid h-full place-items-center text-muted">
+                                                                <CalendarDays size={14} aria-hidden="true" />
+                                                            </div>
+                                                        {/if}
+                                                    </div>
+                                                    {@render renderItemTooltip(item)}
+                                                </div>
+                                            {/each}
+                                        </div>
+                                    {/if}
                                 {/if}
                             </div>
                         {/if}
@@ -812,9 +1110,57 @@
                             <p>{i18n.current === "ru" ? "В этот день нет запланированных событий" : "No scheduled events on this date"}</p>
                         </div>
                     {:else}
-                        <div class="space-y-2">
-                            {#each selectedItems as item (item.kind + item.mediaId + (item.episodeNumber ?? ""))}
-                                {@render renderItemCard(item, true)}
+                        {@const grouped = groupDayItems(selectedItems)}
+                        <div class="space-y-4">
+                            {#if grouped.releases.length > 0}
+                                <div class="space-y-2">
+                                    <div class="flex items-center gap-1.5 px-0.5 text-xs font-bold uppercase tracking-wider text-amber-400">
+                                        <Sparkles size={13} aria-hidden="true" />
+                                        <span>{i18n.t.views.calendarFilterOnlyRelease}</span>
+                                        <span class="ml-auto text-[11px] font-semibold text-muted tabular-nums">
+                                            {grouped.releases.length}
+                                        </span>
+                                    </div>
+                                    <div class="space-y-2">
+                                        {#each grouped.releases as item (item.kind + item.mediaId + (item.episodeNumber ?? ""))}
+                                            {@render renderItemCard(item, true, false)}
+                                        {/each}
+                                    </div>
+                                </div>
+                            {/if}
+
+                            {#if grouped.airDates.length > 0}
+                                <div class="space-y-2">
+                                    <div class="flex items-center gap-1.5 px-0.5 text-xs font-bold uppercase tracking-wider text-emerald-400">
+                                        <Play size={13} aria-hidden="true" />
+                                        <span>{i18n.t.views.calendarFilterOnlyAirDate}</span>
+                                        <span class="ml-auto text-[11px] font-semibold text-muted tabular-nums">
+                                            {grouped.airDates.length}
+                                        </span>
+                                    </div>
+                                    <div class="space-y-2">
+                                        {#each grouped.airDates as item (item.kind + item.mediaId + (item.episodeNumber ?? ""))}
+                                            {@render renderItemCard(item, true, false)}
+                                        {/each}
+                                    </div>
+                                </div>
+                            {/if}
+
+                            {#each grouped.autoRefreshGroups as group (group.label)}
+                                <div class="space-y-2">
+                                    <div class="flex items-center gap-1.5 px-0.5 text-xs font-bold uppercase tracking-wider text-indigo-400">
+                                        <RefreshCw size={13} aria-hidden="true" />
+                                        <span>{group.label}</span>
+                                        <span class="ml-auto text-[11px] font-semibold text-muted tabular-nums">
+                                            {group.items.length}
+                                        </span>
+                                    </div>
+                                    <div class="space-y-2">
+                                        {#each group.items as item (item.kind + item.mediaId + (item.episodeNumber ?? ""))}
+                                            {@render renderItemCard(item, true, true)}
+                                        {/each}
+                                    </div>
+                                </div>
                             {/each}
                         </div>
                     {/if}
@@ -828,8 +1174,8 @@
     {:else}
         <div class="space-y-6">
             {#each visibleDays as [date, items] (date)}
-                <section>
-                    <header class="mb-2 flex items-center justify-between gap-2">
+                <section class="space-y-3">
+                    <header class="flex items-center justify-between gap-2">
                         <div class="flex items-center gap-2">
                             <h3 class="text-sm font-bold capitalize text-ink">{dayHeading(date)}</h3>
                             {#if date === todayStr}
@@ -841,6 +1187,7 @@
                                     {i18n.t.views.calendarTomorrow}
                                 </span>
                             {/if}
+                            <span class="text-xs text-muted">· {formatEventsCount(items.length)}</span>
                         </div>
                         {#if selectedDay}
                             <button
@@ -853,9 +1200,9 @@
                             </button>
                         {/if}
                     </header>
-                    <div class="space-y-2">
+                    <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7">
                         {#each items as item (item.kind + item.mediaId + (item.episodeNumber ?? ""))}
-                            {@render renderItemCard(item, false)}
+                            {@render renderFeedCard(item)}
                         {/each}
                     </div>
                 </section>

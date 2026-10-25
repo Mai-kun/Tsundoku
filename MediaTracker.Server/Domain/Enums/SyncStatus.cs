@@ -10,4 +10,6 @@ public enum SyncStatus
     Ready = 0,
     Syncing = 1,
     Failed = 2,
+    /// <summary>Found ambiguous matches; the user has to pick one (or keep the row as-is).</summary>
+    NeedsReview = 3,
 }

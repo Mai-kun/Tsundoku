@@ -110,11 +110,16 @@ public record MediaListDto
 
     public string? ExternalSource { get; init; }
 
+    public string? ImportSource { get; init; }
+
     public double? ExternalRating { get; init; }
 
     public int? ExternalRatingVotes { get; init; }
 
     public string? TranslationLanguage { get; init; }
+
+    /// <summary>Serialised ambiguous-match candidates; non-null only on a NeedsReview row.</summary>
+    public string? PendingMatchesJson { get; init; }
 
     public IReadOnlyList<string> Genres { get; init; } = [];
 
@@ -183,6 +188,9 @@ public sealed record MediaDetailDto : MediaListDto
     public IReadOnlyList<TvSeasonDto>? Seasons { get; init; }
 
     public IReadOnlyList<CastMemberDto> Cast { get; init; } = [];
+
+    /// <summary>The ambiguous-match candidates, already parsed so the review UI has a typed list.</summary>
+    public IReadOnlyList<ExternalMediaDto> PendingMatches { get; init; } = [];
 
     /// <summary>Native/romanized title, shown under the main headline on the detail screen.</summary>
     public string? OriginalTitle { get; init; }
@@ -373,12 +381,15 @@ public static class MediaResponseMapper
             LastAutoRefreshedAt = listFields.LastAutoRefreshedAt,
             ExternalId = listFields.ExternalId,
             ExternalSource = listFields.ExternalSource,
+            ImportSource = listFields.ImportSource,
             ExternalRating = listFields.ExternalRating,
             ExternalRatingVotes = listFields.ExternalRatingVotes,
             TranslationLanguage = listFields.TranslationLanguage,
             Genres = listFields.Genres,
             Tags = listFields.Tags,
             UserPlatform = listFields.UserPlatform,
+            PendingMatchesJson = listFields.PendingMatchesJson,
+            PendingMatches = MediaJsonCache.Deserialize<ExternalMediaDto>(item.PendingMatchesJson),
             Notes = item.Notes,
             DetailedScoreJson = item.DetailedScoreJson,
             QuotesJson = item.QuotesJson,
@@ -447,12 +458,14 @@ public static class MediaResponseMapper
         FranchiseOrder = item.FranchiseOrder,
         ExternalId = item.ExternalId,
         ExternalSource = item.ExternalSource,
+        ImportSource = item.ImportSource,
         ExternalRating = item.ExternalRating,
         ExternalRatingVotes = item.ExternalRatingVotes,
         TranslationLanguage = item.TranslationLanguage,
         Genres = ParseGenres(item.Genres),
         Tags = item.Tags,
         UserPlatform = item.UserPlatform,
+        PendingMatchesJson = item.PendingMatchesJson,
         NextAutoRefreshAt = item.NextAutoRefreshAt,
         AutoRefreshIntervalDays = item.AutoRefreshIntervalDays,
         LastAutoRefreshedAt = item.LastAutoRefreshedAt,

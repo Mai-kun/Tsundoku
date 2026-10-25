@@ -59,6 +59,9 @@ public abstract class MediaItem
 
     public string? ExternalSource { get; set; }
 
+    /// <summary>Original source of the imported title (e.g. MangaLib, Letterboxd, MAL).</summary>
+    public string? ImportSource { get; set; }
+
     public double? ExternalRating { get; set; }
 
     public int? ExternalRatingVotes { get; set; }
@@ -115,6 +118,12 @@ public abstract class MediaItem
     /// back; the payload is per-item and only the detail screen reads it.
     /// </summary>
     public string? RelatedMediaJson { get; set; }
+
+    /// <summary>
+    /// Serialised list of ambiguous candidate matches the enrichment job could not pick between;
+    /// non-null only while <see cref="SyncStatus"/> is NeedsReview.
+    /// </summary>
+    public string? PendingMatchesJson { get; set; }
 
     /// <summary>Which source produced <see cref="RelatedMediaJson"/>; null while nothing is cached.</summary>
     public string? RelatedSource { get; set; }

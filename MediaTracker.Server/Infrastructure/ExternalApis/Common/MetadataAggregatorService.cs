@@ -421,15 +421,19 @@ public sealed class MetadataAggregatorService(
         string type, string query, CancellationToken ct, bool byCreator = false)
     {
         var prioritySources = await priorityService.GetPrioritiesAsync(type, ct);
+        if (prioritySources.Count == 0)
+        {
+            return [];
+        }
 
-        foreach (var source in prioritySources)
+        var tasks = prioritySources.Select(async source =>
         {
             ct.ThrowIfCancellationRequested();
 
             var provider = providerResolver.Resolve(type, source);
             if (provider is null)
             {
-                continue;
+                return (IReadOnlyList<ExternalMediaDto>)[];
             }
 
             var sw = Stopwatch.StartNew();
@@ -442,10 +446,7 @@ public sealed class MetadataAggregatorService(
                     ? await provider.SearchByCreatorAsync(query, providerCts.Token)
                     : await provider.SearchAsync(query, providerCts.Token);
                 ExternalApiLog.Returned(logger, provider.Name, results.Count, sw.ElapsedMilliseconds);
-                if (results.Count > 0)
-                {
-                    return results;
-                }
+                return results;
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
@@ -453,12 +454,29 @@ public sealed class MetadataAggregatorService(
             }
             catch (Exception ex)
             {
-                ExternalApiLog.Failed(logger, source, ex, $"fallback search '{query}'");
-                logger.LogDebug(ex, "[Aggregator] Search fallback: source '{Source}' failed for '{Query}': {Message}", source, query, ex.Message);
+                ExternalApiLog.Failed(logger, source, ex, $"search '{query}'");
+                logger.LogDebug(ex, "[Aggregator] Search: source '{Source}' failed for '{Query}': {Message}", source, query, ex.Message);
+                return [];
+            }
+        });
+
+        var resultsArray = await Task.WhenAll(tasks);
+        var allResults = new List<ExternalMediaDto>();
+        var seenIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var list in resultsArray)
+        {
+            foreach (var r in list)
+            {
+                var key = $"{r.ExternalSource}:{r.ExternalId}";
+                if (seenIds.Add(key))
+                {
+                    allResults.Add(r);
+                }
             }
         }
 
-        return [];
+        return allResults;
     }
 
     private async Task<IReadOnlyList<ExternalMediaDto>> SearchAllAsync(string query, CancellationToken ct, bool byCreator = false)

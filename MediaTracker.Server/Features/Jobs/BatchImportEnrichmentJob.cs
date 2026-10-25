@@ -193,11 +193,9 @@ public static class BatchImportEnrichmentJob
     }
 
     /// <summary>
-    /// Search for one title: the romaji/original Latin spelling first (what AniList and MangaDex
-    /// actually index), the stored title only when the Latin lookup finds nothing. A Cyrillic-only
-    /// title that finds nothing there gets one extra pass through a Russian-friendly source, and a
-    /// romaji it hands back is searched in the main sources — that round-trip is what turns
-    /// "Гачиакута" into a match.
+    /// Search for one title: parallel fan-out across key providers. If a Latin / Romaji title exists,
+    /// AniList and MangaDex are queried strictly by that Latin title, while Russian providers (Shikimori / Kinopoisk)
+    /// are queried with the Russian/Cyrillic title. Results are merged and prioritized for exact Romaji hits.
     /// </summary>
     private static async Task<IReadOnlyList<ExternalMediaDto>> FindCandidatesAsync(
         MetadataAggregatorService aggregator,
@@ -212,51 +210,104 @@ public static class BatchImportEnrichmentJob
             TvShow show => show.RomajiTitle,
             _ => null,
         };
-        var latin = new[] { romaji, item.OriginalTitle, item.Title }.FirstOrDefault(IsLatin);
-        var found = new List<ExternalMediaDto>();
 
-        // The romaji/eng_name spelling is what AniList and MangaDex actually index, so that pass
-        // runs FIRST and, while it finds anything, the (often Cyrillic) stored title is not searched
-        // at all: a common Russian word on Shikimori returns piles of wrong manga that bury the
-        // exact romaji hit. An imported RomajiTitle is never overwritten by search results — the
-        // applier only fills blanks (SetIfBlank) and the worker never writes back candidate names.
-        if (latin is not null)
+        var latin = new[] { romaji, item.OriginalTitle, MediaTitleHelper.ExtractLatinFromTitle(item.Title) }
+            .FirstOrDefault(MediaTitleHelper.IsLatin)?.Trim();
+
+        var russian = MediaTitleHelper.CleanRussianTitle(item.Title);
+        var searchTasks = new List<Task<IReadOnlyList<ExternalMediaDto>>>();
+
+        if (type == "manga")
         {
-            found.AddRange(await aggregator.SearchAsync(type, latin, ct));
-        }
-
-        if (found.Count == 0 && item.Title != latin)
-        {
-            found.AddRange(await aggregator.SearchAsync(type, item.Title, ct));
-        }
-
-        if (found.Count == 0 && IsCyrillic(item.Title) && type is "anime" or "manga")
-        {
-            var fallbackSource = type == "manga" ? "mangadex" : "shikimori";
-            var russianSearch = await aggregator.SearchSourceAsync(type, item.Title, fallbackSource, ct);
-            found.AddRange(russianSearch);
-
-            var romajiFromFallback = russianSearch
-                .Select(candidate => candidate.RomajiTitle ?? candidate.OriginalTitle)
-                .FirstOrDefault(IsLatin);
-            if (romajiFromFallback is not null)
+            if (!string.IsNullOrWhiteSpace(latin))
             {
-                found.AddRange(await aggregator.SearchAsync(type, romajiFromFallback, ct));
+                searchTasks.Add(aggregator.SearchSourceAsync("manga", latin, "anilist", ct));
+                searchTasks.Add(aggregator.SearchSourceAsync("manga", latin, "mangadex", ct));
             }
+            if (MediaTitleHelper.IsCyrillic(russian))
+            {
+                searchTasks.Add(aggregator.SearchSourceAsync("manga", russian, "shikimori", ct));
+            }
+        }
+        else if (type == "anime")
+        {
+            if (!string.IsNullOrWhiteSpace(latin))
+            {
+                searchTasks.Add(aggregator.SearchSourceAsync("anime", latin, "anilist", ct));
+            }
+            if (MediaTitleHelper.IsCyrillic(russian))
+            {
+                searchTasks.Add(aggregator.SearchSourceAsync("anime", russian, "shikimori", ct));
+            }
+        }
+        else if (type is "movie" or "tvshow")
+        {
+            if (!string.IsNullOrWhiteSpace(latin))
+            {
+                searchTasks.Add(aggregator.SearchSourceAsync(type, latin, "tmdb", ct));
+            }
+            if (MediaTitleHelper.IsCyrillic(russian))
+            {
+                searchTasks.Add(aggregator.SearchSourceAsync(type, russian, "kinopoisk", ct));
+            }
+        }
+
+        if (searchTasks.Count == 0)
+        {
+            searchTasks.Add(aggregator.SearchAsync(type, latin ?? item.Title, ct).AsTask());
+        }
+
+        var resultsGroups = await Task.WhenAll(searchTasks);
+        var found = new List<ExternalMediaDto>(resultsGroups.SelectMany(g => g));
+
+        // Cyrillic-only roundtrip: if no Latin title was known, but Shikimori returned candidates with Romaji
+        if (found.Count > 0 && string.IsNullOrWhiteSpace(latin) && type is "anime" or "manga")
+        {
+            var romajiFromFallback = found
+                .Select(candidate => candidate.RomajiTitle ?? candidate.OriginalTitle)
+                .FirstOrDefault(MediaTitleHelper.IsLatin);
+
+            if (!string.IsNullOrWhiteSpace(romajiFromFallback))
+            {
+                var secondaryTasks = new List<Task<IReadOnlyList<ExternalMediaDto>>>
+                {
+                    aggregator.SearchSourceAsync(type, romajiFromFallback, "anilist", ct)
+                };
+                if (type == "manga")
+                {
+                    secondaryTasks.Add(aggregator.SearchSourceAsync("manga", romajiFromFallback, "mangadex", ct));
+                }
+
+                var secondaryResults = await Task.WhenAll(secondaryTasks);
+                found.AddRange(secondaryResults.SelectMany(g => g));
+            }
+        }
+
+        if (found.Count == 0)
+        {
+            var fallback = await aggregator.SearchAsync(type, item.Title, ct);
+            found.AddRange(fallback);
         }
 
         return found
             .Where(candidate => !string.IsNullOrWhiteSpace(candidate.ExternalId))
             .DistinctBy(candidate => $"{candidate.ExternalSource}\u001f{candidate.ExternalId}", StringComparer.OrdinalIgnoreCase)
+            .OrderByDescending(candidate =>
+            {
+                if (string.IsNullOrWhiteSpace(latin)) return 0;
+                var isAniListOrMangaDex = candidate.ExternalSource is not null &&
+                    (candidate.ExternalSource.Equals("AniList", StringComparison.OrdinalIgnoreCase) ||
+                     candidate.ExternalSource.Equals("MangaDex", StringComparison.OrdinalIgnoreCase));
+                if (!isAniListOrMangaDex) return 0;
+                var titleScore = Math.Max(
+                    ImportMatchScorer.TitlePairScore(latin, candidate.Title),
+                    Math.Max(
+                        ImportMatchScorer.TitlePairScore(latin, candidate.RomajiTitle),
+                        ImportMatchScorer.TitlePairScore(latin, candidate.OriginalTitle)));
+                return titleScore >= 60 ? 2 : (titleScore >= 40 ? 1 : 0);
+            })
             .ToList();
     }
-
-    /// <summary>Providers index romaji/English, so a Latin string is worth a direct search.</summary>
-    private static bool IsLatin(string? value) =>
-        !string.IsNullOrWhiteSpace(value) && value.Any(char.IsLetter) && !value.Any(c => char.IsBetween(c, '\u0400', '\u04FF'));
-
-    private static bool IsCyrillic(string? value) =>
-        !string.IsNullOrWhiteSpace(value) && value.Any(c => char.IsBetween(c, '\u0400', '\u04FF'));
 
     private static Task<MediaItem?> LoadAsync(AppDbContext db, Guid mediaId, CancellationToken ct) =>
         db.MediaItems

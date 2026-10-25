@@ -57,13 +57,13 @@ public sealed class GetPendingMatchesHandler(AppDbContext db) : IGetPendingMatch
     {
         Id = item.Id,
         Title = item.Title,
-        RomajiTitle = item switch
+        RomajiTitle = (item switch
         {
             Manga manga => manga.RomajiTitle,
             Movie movie => movie.RomajiTitle,
             TvShow show => show.RomajiTitle,
             _ => null,
-        },
+        }) ?? MediaTitleHelper.ExtractLatinFromTitle(item.Title),
         Type = MediaResponseMapper.GetType(item),
         IsAnime = item switch { Movie movie => movie.IsAnime, TvShow show => show.IsAnime, _ => null },
         ReleaseYear = item.ReleaseYear,

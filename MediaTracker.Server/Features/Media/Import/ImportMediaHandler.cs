@@ -654,11 +654,11 @@ public sealed class ImportMediaHandler(
         MediaItem item = dto.Type switch
         {
             "book" => new Book { Title = dto.Title, Author = dto.Author ?? "", TotalPages = Math.Max(0, dto.TotalCount ?? 0), CurrentPage = dto.Status == MediaStatus.Completed ? Math.Max(0, dto.TotalCount ?? 0) : 0 },
-            "manga" => new Manga { Title = dto.Title, Author = dto.Author, RomajiTitle = dto.RomajiTitle, TotalChapters = dto.TotalCount is > 0 ? dto.TotalCount : null, CurrentChapter = Math.Max(0, dto.CurrentProgress ?? 0), CurrentVolume = Math.Max(0, dto.CurrentVolumes ?? 0), TotalVolumes = dto.TotalVolumes is > 0 ? dto.TotalVolumes : null },
+            "manga" => new Manga { Title = dto.Title, Author = dto.Author, RomajiTitle = dto.RomajiTitle ?? MediaTitleHelper.ExtractLatinFromTitle(dto.Title), TotalChapters = dto.TotalCount is > 0 ? dto.TotalCount : null, CurrentChapter = Math.Max(0, dto.CurrentProgress ?? 0), CurrentVolume = Math.Max(0, dto.CurrentVolumes ?? 0), TotalVolumes = dto.TotalVolumes is > 0 ? dto.TotalVolumes : null },
             "game" => new VideoGame { Title = dto.Title, Platform = dto.Platform ?? "PC", Studio = dto.Studio, HoursPlayed = Math.Max(0, dto.CurrentProgress ?? 0) },
             "anime" => CreateAnime(dto),
-            "movie" => new Movie { Title = dto.Title, Studio = dto.Studio, Director = dto.Director, RomajiTitle = dto.RomajiTitle, DurationMinutes = dto.DurationMinutes ?? 0 },
-            "tvshow" => new TvShow { Title = dto.Title, Studio = dto.Studio, RomajiTitle = dto.RomajiTitle, EpisodeDurationMinutes = dto.DurationMinutes is > 0 ? dto.DurationMinutes : null },
+            "movie" => new Movie { Title = dto.Title, Studio = dto.Studio, Director = dto.Director, RomajiTitle = dto.RomajiTitle ?? MediaTitleHelper.ExtractLatinFromTitle(dto.Title), DurationMinutes = dto.DurationMinutes ?? 0 },
+            "tvshow" => new TvShow { Title = dto.Title, Studio = dto.Studio, RomajiTitle = dto.RomajiTitle ?? MediaTitleHelper.ExtractLatinFromTitle(dto.Title), EpisodeDurationMinutes = dto.DurationMinutes is > 0 ? dto.DurationMinutes : null },
             _ => throw new FormatException($"Unsupported media type: {dto.Type}")
         };
         item.SetStatus(dto.Status);
@@ -694,7 +694,7 @@ public sealed class ImportMediaHandler(
             Title = dto.Title,
             IsAnime = true,
             Studio = dto.Studio,
-            RomajiTitle = dto.RomajiTitle,
+            RomajiTitle = dto.RomajiTitle ?? MediaTitleHelper.ExtractLatinFromTitle(dto.Title),
             EpisodeDurationMinutes = dto.DurationMinutes is > 0 ? dto.DurationMinutes : null
         };
         var season = TvSeason.CreateFirst(Math.Max(0, dto.TotalCount ?? 0), null, dto.Status, show.Id);

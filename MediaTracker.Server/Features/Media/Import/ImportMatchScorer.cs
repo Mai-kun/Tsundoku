@@ -278,18 +278,30 @@ public static class ImportMatchScorer
             .Select(token => token.ToLowerInvariant())
             .ToList();
 
-    private static IEnumerable<string?> ItemTitles(MediaItem item) =>
-    [
-        item.Title,
-        item switch
+    private static IEnumerable<string?> ItemTitles(MediaItem item)
+    {
+        yield return item.Title;
+        yield return item switch
         {
             Manga manga => manga.RomajiTitle,
             Movie movie => movie.RomajiTitle,
             TvShow show => show.RomajiTitle,
             _ => null,
-        },
-        item.OriginalTitle,
-    ];
+        };
+        yield return item.OriginalTitle;
+
+        var extractedLatin = MediaTitleHelper.ExtractLatinFromTitle(item.Title);
+        if (!string.IsNullOrWhiteSpace(extractedLatin))
+        {
+            yield return extractedLatin;
+        }
+
+        var cleanedRussian = MediaTitleHelper.CleanRussianTitle(item.Title);
+        if (!string.IsNullOrWhiteSpace(cleanedRussian) && cleanedRussian != item.Title)
+        {
+            yield return cleanedRussian;
+        }
+    }
 
     private static IEnumerable<string?> CandidateTitles(ExternalMediaDto candidate) =>
         [candidate.Title, candidate.RomajiTitle, candidate.OriginalTitle];

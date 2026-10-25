@@ -206,7 +206,7 @@ try
             "DevCorsPolicy",
             policy =>
             {
-                policy.WithOrigins("http://localhost:5173").AllowAnyHeader().AllowAnyMethod();
+                policy.SetIsOriginAllowed(_ => true).AllowAnyHeader().AllowAnyMethod();
             }
         );
     });
@@ -229,10 +229,7 @@ try
 
     app.UseExceptionHandler();
 
-    if (app.Environment.IsDevelopment())
-    {
-        app.UseCors("DevCorsPolicy");
-    }
+    app.UseCors("DevCorsPolicy");
 
     app.MapOpenApi();
     app.UseOpenApiUi(config => config.OpenApiSpecPath = "/openapi/v1.json");

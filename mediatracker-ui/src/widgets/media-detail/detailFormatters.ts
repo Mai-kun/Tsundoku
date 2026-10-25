@@ -649,10 +649,20 @@ export function specRows(item: MediaItem): SpecRow[] {
     });
 
     const link = providerLink(item);
+    const targetSource = link?.name ?? (item.externalSource || dataSource(item));
+    const importSrc = item.importSource?.trim();
+    const showLineage = Boolean(
+        importSrc &&
+        item.externalSource &&
+        importSrc.toLowerCase() !== item.externalSource.toLowerCase() &&
+        importSrc.toLowerCase() !== targetSource.toLowerCase()
+    );
+
     rows.push({
         label: i18n.t.detail.source,
-        value: link?.name ?? dataSource(item),
+        value: targetSource,
         href: link?.url,
+        importSource: showLineage ? importSrc : undefined,
     });
 
     return rows;

@@ -5,6 +5,7 @@
     import { errorMessage, triggerAutoRefresh } from "$shared/api/api";
     import { showToast } from "$shared/ui/toast.svelte";
     import { fullSizeCoverUrl } from "$entities/media/model/coverUrl";
+    import MediaCoverPlaceholder from "$shared/ui/MediaCoverPlaceholder.svelte";
     import PopoverMenu from "$shared/ui/PopoverMenu.svelte";
     import { i18n } from "$shared/i18n/index.svelte";
     import { MEDIA_STATUS, type AppView, type MediaDetail, type MediaStatus } from "$shared/types";
@@ -25,6 +26,7 @@
         /** Absolute URL when the value is a link; the sidebar renders an anchor instead of plain text. */
         href?: string;
         badges?: readonly string[];
+        importSource?: string;
     }
 
     interface Props {
@@ -111,6 +113,12 @@
     let detailedExpanded = $state(false);
     let detailedDraft = $state<DetailedScoreMap>({});
     let lastMediaJson = $state<string | null | undefined>(undefined);
+    let imgError = $state(false);
+
+    $effect(() => {
+        void media.coverUrl;
+        imgError = false;
+    });
 
     $effect(() => {
         if (media.detailedScoreJson !== lastMediaJson) {
@@ -139,9 +147,9 @@
     const finishedRelease = $derived(
         media.releaseStatus?.toUpperCase() === "FINISHED",
     );
-    // Games and books are never polled server-side; the button only makes sense for ongoings.
+    // Games and books are never polled server-side; the button only makes sense for active ongoings.
     const isOngoing = $derived(
-        media.type === "manga" || media.type === "tvshow" || !!media.nextAutoRefreshAt,
+        !finishedRelease && (media.type === "manga" || media.type === "tvshow" || !!media.nextAutoRefreshAt),
     );
 
     let autoRefreshBusy = $state(false);
@@ -183,17 +191,16 @@
                     {i18n.t.activity.loadingCover}
                 </p>
             </div>
-        {:else if media.coverUrl}
+        {:else if media.coverUrl && !imgError}
             <img
                 src={fullSizeCoverUrl(media.coverUrl)}
                 alt={media.title}
                 referrerpolicy="no-referrer"
                 class="h-full w-full object-cover object-top"
+                onerror={() => (imgError = true)}
             />
         {:else}
-            <div class="grid h-full place-items-center text-muted">
-                <ImageIcon size={40} stroke-width={1.25} aria-hidden="true" />
-            </div>
+            <MediaCoverPlaceholder />
         {/if}
     </div>
 
@@ -727,16 +734,7 @@
                     {errorMessage(refreshError)}
                 </p>{/if}
 
-            {#if finishedRelease}
-                <!-- Calm notice: the server stops polling a finished release, so check-now is gone. -->
-                <div class="flex items-center gap-2 rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-3 py-2.5 text-xs font-medium text-emerald-300">
-                    <span aria-hidden="true">✓</span>
-                    <span>
-                        {i18n.t.detail.autoRefreshFinished}
-                        <span class="text-emerald-300/70">({i18n.t.detail.autoRefreshFinishedHint})</span>
-                    </span>
-                </div>
-            {:else if isOngoing}
+            {#if isOngoing}
                 <button
                     type="button"
                     class="flex w-full items-center gap-2.5 rounded-lg bg-surface/50 px-3 py-2.5 text-xs font-medium text-[var(--color-ink-dim)] transition hover:bg-[var(--color-panel-raised)] hover:text-white disabled:cursor-not-allowed disabled:opacity-70"
@@ -847,6 +845,9 @@
                         </dt>
                         <dd class="text-right text-xs font-medium text-white">
                             {#if row.href}
+                                {#if row.importSource}
+                                    <span class="text-zinc-400">{row.importSource} · </span>
+                                {/if}
                                 <a
                                     href={row.href}
                                     target="_blank"
@@ -867,6 +868,9 @@
                                     {/each}
                                 </div>
                             {:else}
+                                {#if row.importSource}
+                                    <span class="text-zinc-400">{row.importSource} · </span>
+                                {/if}
                                 {row.value}
                             {/if}
                         </dd>

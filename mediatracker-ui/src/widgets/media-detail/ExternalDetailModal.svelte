@@ -1,6 +1,6 @@
-﻿<script lang="ts">
+<script lang="ts">
     import type { Snippet } from "svelte";
-    import { Image as ImageIcon, LoaderCircle, X } from "$shared/ui/Icons.svelte";
+    import { LoaderCircle, X } from "$shared/ui/Icons.svelte";
     import { errorMessage, translateText } from "$shared/api/api";
     import Modal from "$shared/ui/Modal.svelte";
     import DetailHeader, {
@@ -8,6 +8,7 @@
     } from "./DetailHeader.svelte";
     import { i18n } from "$shared/i18n/index.svelte";
     import { showToast } from "$shared/ui/toast.svelte";
+    import MediaCoverPlaceholder from "$shared/ui/MediaCoverPlaceholder.svelte";
     import type { ExternalMedia, SearchMediaType } from "$shared/types";
     import { loadExternalDetails } from "$features/prefetch-details/externalDetailPrefetch";
     import { sourceBadgeClasses } from "$entities/media/model/mediaLabels";
@@ -34,6 +35,11 @@
     let isSynopsisTranslated = $state(false);
     let translatingSynopsis = $state(false);
     let translatedSynopsis = $state<string | null>(null);
+    let imgError = $state(false);
+    $effect(() => {
+        void media.coverUrl;
+        imgError = false;
+    });
 
     // Details win field by field: the search hit can carry a cover or title the
     // aggregator knows better, and the reverse is just as common.
@@ -356,23 +362,16 @@
                         <div
                             class="mx-auto aspect-[2/3] w-40 overflow-hidden rounded-xl border border-white/[0.06] bg-[var(--color-panel-line)] shadow-lg lg:w-full"
                         >
-                            {#if media.coverUrl}
+                            {#if media.coverUrl && !imgError}
                                 <img
                                     src={media.coverUrl}
                                     alt={media.title}
                                     class="h-full w-full object-cover"
                                     decoding="async"
+                                    onerror={() => (imgError = true)}
                                 />
                             {:else}
-                                <div
-                                    class="grid h-full place-items-center text-muted"
-                                >
-                                    <ImageIcon
-                                        size={32}
-                                        stroke-width={1.25}
-                                        aria-hidden="true"
-                                    />
-                                </div>
+                                <MediaCoverPlaceholder />
                             {/if}
                         </div>
 

@@ -13,6 +13,7 @@ export interface SpecRow {
     /** Absolute URL when the value is a link; the sidebar renders an anchor instead of plain text. */
     href?: string;
     badges?: readonly string[];
+    importSource?: string;
 }
 
 export interface EpisodeRow {

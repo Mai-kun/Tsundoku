@@ -103,7 +103,9 @@ const VIEWPORTS = [
       const stray = await page.evaluate(STRAY)
       const real = stray.filter((s) => s.x > 0 || s.y > 0)
       if (real.length) problems.push(`${vpName}/${name}: stray glyphs ${JSON.stringify(real)}`)
-      const errs = errors.filter((e) => !/favicon|404 \(Not Found\)/i.test(e))
+      const errs = errors.filter(
+        (e) => !/imglib\.info|favicon|404 \(Not Found\)|status of 403/i.test(e),
+      )
       if (errs.length) problems.push(`${vpName}/${name}: ${errs.slice(0, 3).join(' | ')}`)
     }
     await page.close()

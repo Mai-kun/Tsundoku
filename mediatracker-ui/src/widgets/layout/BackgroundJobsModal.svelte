@@ -56,8 +56,28 @@
         }
     });
 
-    function emptySearch(title: string): ManualSearch {
-        return { open: false, query: title, results: null, loading: false };
+    function extractLatin(title: string): string | null {
+        if (!title) return null;
+        const match = title.match(/\(([^)]*[a-zA-Z]{2,}[^)]*)\)/);
+        if (match) return match[1].trim();
+        const isLatin = !/[а-яА-ЯёЁ]/.test(title) && /[a-zA-Z]/.test(title);
+        if (isLatin) return title.trim();
+        return null;
+    }
+
+    function extractRussian(title: string): string {
+        if (!title) return "";
+        const match = title.match(/^([^\(]+)\s*\([^)]*[a-zA-Z][^)]*\)/);
+        if (match && /[а-яА-ЯёЁ]/.test(match[1])) return match[1].trim();
+        return title.trim();
+    }
+
+    function getPreferredSearchQuery(item: PendingMatchItemDto): string {
+        return item.romajiTitle || extractLatin(item.title) || item.title;
+    }
+
+    function emptySearch(item: PendingMatchItemDto): ManualSearch {
+        return { open: false, query: getPreferredSearchQuery(item), results: null, loading: false };
     }
 
     function toggleSearch(item: PendingMatchItemDto) {
@@ -66,8 +86,23 @@
             existing.open = !existing.open;
             return;
         }
-        manualSearches[item.id] = { ...emptySearch(item.title), open: true };
+        manualSearches[item.id] = { ...emptySearch(item), open: true };
     }
+
+    // When an item has 0 candidates, automatically open manual search with its preferred Latin/Romaji query
+    $effect(() => {
+        for (const item of jobsClient.pendingMatches) {
+            if ((!item.candidates || item.candidates.length === 0) && !manualSearches[item.id]) {
+                manualSearches[item.id] = {
+                    open: true,
+                    query: getPreferredSearchQuery(item),
+                    results: null,
+                    loading: false,
+                };
+                void runSearch(item);
+            }
+        }
+    });
 
     async function runSearch(item: PendingMatchItemDto) {
         const search = manualSearches[item.id];
@@ -425,15 +460,20 @@
                     </p>
                     <button
                         type="button"
-                        class="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-accent/40 bg-accent/20 px-3.5 py-1.5 text-xs font-semibold text-accent-soft shadow-sm transition hover:bg-accent hover:text-white"
+                        disabled={resolvingAll || jobsClient.pendingCount === 0}
+                        class="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-accent/40 bg-accent/20 px-3.5 text-xs font-semibold text-accent-soft hover:bg-accent hover:text-white transition shadow-sm cursor-pointer whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-50"
+                        title="Автоматически привязать кандидатов с надежным совпадением по приоритету источников"
                         onclick={() => void resolveAllByPriority()}
                     >
-                        {i18n.t.backgroundJobs.resolveAllPriority}
+                        {#if resolvingAll}
+                            <LoaderCircle size={14} class="animate-spin" />
+                        {/if}
+                        <span>{i18n.t.backgroundJobs.resolveAllPriority}</span>
                     </button>
                     <button
                         type="button"
                         disabled={dismissingAll || jobsClient.pendingCount === 0}
-                        class="shrink-0 cursor-pointer rounded-lg border border-white/10 bg-field px-3.5 py-1.5 text-xs font-medium text-ink transition hover:bg-elevated hover:text-white disabled:cursor-wait disabled:opacity-50"
+                        class="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-white/10 bg-field px-3.5 text-xs font-medium text-slate-300 hover:bg-white/10 hover:text-white transition cursor-pointer whitespace-nowrap disabled:cursor-wait disabled:opacity-50"
                         onclick={() => void keepAll()}
                     >
                         {#if dismissingAll}
@@ -462,7 +502,7 @@
                 {:else}
                     <ul class="space-y-4">
                         {#each jobsClient.pendingMatches as item (item.id)}
-                            {@const search = manualSearches[item.id] ?? emptySearch(item.title)}
+                            {@const search = manualSearches[item.id] ?? emptySearch(item)}
                             {@const candidates = candidatesFor(item)}
                             <li class="rounded-xl border border-white/[0.08] bg-card/60 p-4">
                                 <div
@@ -513,50 +553,81 @@
                                             {/if}
                                         </div>
                                     </div>
-                                    <div class="flex shrink-0 gap-2">
+                                    <div class="flex shrink-0 items-center gap-1.5">
                                         <button
                                             type="button"
-                                            class="inline-flex items-center gap-1.5 rounded-lg border border-rose-500/25 bg-rose-500/10 px-2.5 py-1.5 text-xs font-medium text-rose-300 transition hover:border-rose-500/40 hover:bg-rose-500/20 cursor-pointer"
-                                            title="Удалить этот тайтл из библиотеки навсегда"
-                                            onclick={() => handleDeleteItem(item.id)}
-                                        >
-                                            <Trash2 size={13} aria-hidden="true" />
-                                            <span>{i18n.t.backgroundJobs.delete}</span>
-                                        </button>
-                                        <button
-                                            type="button"
-                                            class="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-white/10 bg-field px-3 py-1.5 text-xs font-medium text-ink transition hover:bg-elevated hover:text-white"
+                                            class="inline-flex size-8 items-center justify-center rounded-lg border border-white/10 bg-field text-slate-300 transition hover:bg-elevated hover:text-white cursor-pointer {search.open ? 'border-accent-soft text-accent-soft' : ''}"
+                                            title="Искать вручную"
+                                            aria-label={i18n.t.backgroundJobs.findManually}
                                             onclick={() => toggleSearch(item)}
                                         >
-                                            <Search size={13} aria-hidden="true" />
-                                            {i18n.t.backgroundJobs.findManually}
+                                            <Search size={15} aria-hidden="true" />
                                         </button>
                                         <button
                                             type="button"
-                                            class="cursor-pointer rounded-lg border border-white/10 px-3 py-1.5 text-xs text-muted transition hover:bg-white/5 hover:text-ink"
+                                            class="inline-flex size-8 items-center justify-center rounded-lg border border-white/10 bg-field text-slate-300 transition hover:bg-elevated hover:text-white cursor-pointer"
+                                            title="Оставить как есть (без привязки)"
+                                            aria-label={i18n.t.backgroundJobs.keepAsIs}
                                             onclick={() => void keep(item)}
                                         >
-                                            {i18n.t.backgroundJobs.keepAsIs}
+                                            <X size={15} aria-hidden="true" />
+                                        </button>
+                                        <button
+                                            type="button"
+                                            class="inline-flex size-8 items-center justify-center rounded-lg border border-rose-500/20 bg-rose-500/10 text-rose-400 transition hover:border-rose-500/40 hover:bg-rose-500/20 cursor-pointer"
+                                            title="Удалить тайтл из библиотеки навсегда"
+                                            aria-label={i18n.t.backgroundJobs.delete}
+                                            onclick={() => handleDeleteItem(item.id)}
+                                        >
+                                            <Trash2 size={15} aria-hidden="true" />
                                         </button>
                                     </div>
                                 </div>
 
                                 {#if search.open}
-                                    <div class="mt-3 flex gap-2">
-                                        <input
-                                            type="search"
-                                            bind:value={search.query}
-                                            placeholder={i18n.t.backgroundJobs.searchPlaceholder}
-                                            class="min-w-0 flex-1 rounded-lg border border-white/10 bg-field px-3 py-2 text-sm text-ink outline-none transition focus:border-accent-soft focus:ring-1 focus:ring-accent-soft"
-                                            onkeydown={(event) => {
-                                                if (event.key === "Enter")
-                                                    void runSearch(item);
-                                            }}
-                                        />
+                                    <div class="mt-3 flex items-center gap-2">
+                                        <div class="relative flex min-w-0 flex-1 items-center">
+                                            <input
+                                                type="search"
+                                                bind:value={search.query}
+                                                placeholder={i18n.t.backgroundJobs.searchPlaceholder}
+                                                class="w-full rounded-lg border border-white/10 bg-field px-3 py-2 pr-20 text-sm text-ink outline-none transition focus:border-accent-soft focus:ring-1 focus:ring-accent-soft"
+                                                onkeydown={(event) => {
+                                                    if (event.key === "Enter")
+                                                        void runSearch(item);
+                                                }}
+                                            />
+                                            {#if item.romajiTitle || extractLatin(item.title)}
+                                                <div class="absolute right-2 flex items-center gap-1">
+                                                    <button
+                                                        type="button"
+                                                        class="rounded px-1.5 py-0.5 text-[10px] font-semibold transition cursor-pointer {search.query === (item.romajiTitle || extractLatin(item.title)) ? 'bg-accent text-white' : 'bg-white/10 text-muted hover:text-white'}"
+                                                        title="Искать по латинице / Romaji"
+                                                        onclick={() => {
+                                                            search.query = item.romajiTitle || extractLatin(item.title) || "";
+                                                            void runSearch(item);
+                                                        }}
+                                                    >
+                                                        EN
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        class="rounded px-1.5 py-0.5 text-[10px] font-semibold transition cursor-pointer {search.query === extractRussian(item.title) ? 'bg-accent text-white' : 'bg-white/10 text-muted hover:text-white'}"
+                                                        title="Искать по русскому названию"
+                                                        onclick={() => {
+                                                            search.query = extractRussian(item.title);
+                                                            void runSearch(item);
+                                                        }}
+                                                    >
+                                                        RU
+                                                    </button>
+                                                </div>
+                                            {/if}
+                                        </div>
                                         <button
                                             type="button"
                                             disabled={search.loading}
-                                            class="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-accent px-3.5 py-2 text-sm font-semibold text-white transition hover:bg-accent-hover disabled:cursor-wait disabled:opacity-60"
+                                            class="inline-flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-lg bg-accent text-white transition hover:bg-accent-hover disabled:cursor-wait disabled:opacity-60"
                                             onclick={() => void runSearch(item)}
                                         >
                                             {#if search.loading}
@@ -582,7 +653,7 @@
                                     </p>
                                 {:else}
                                     <div
-                                        class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2"
+                                        class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2 max-h-[380px] sm:max-h-[420px] overflow-y-auto thin-scroll pr-1.5"
                                     >
                                         {#each candidates as candidate (candidate.externalSource + candidate.externalId)}
                                             {@const key = candidate.externalSource + candidate.externalId}

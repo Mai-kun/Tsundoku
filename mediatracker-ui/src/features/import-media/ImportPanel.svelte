@@ -5,7 +5,6 @@
         getSources,
         importAniListProfile,
         importFile,
-        importMangaLibProfile,
         importSteamProfile,
         saveSourceKey,
     } from "$shared/api/api";
@@ -77,9 +76,7 @@
     let fileInputRef = $state<HTMLInputElement | null>(null);
 
     // MangaLib (SocialLib) ecosystem
-    let mangalibMode = $state<"script" | "profile" | "file">("script");
-    let mangalibProfileUrl = $state("");
-    let mangalibToken = $state("");
+    let mangalibMode = $state<"collector" | "file">("collector");
     let mangalibSites = $state<number[]>([1, 5, 3, 2, 4]);
     let scriptCopied = $state(false);
 
@@ -266,8 +263,6 @@
             provider === "anilist" && anilistMode === "profile";
         const steamProfileMode =
             provider === "steam" && steamMode === "profile";
-        const mangalibProfileMode =
-            provider === "mangalib" && mangalibMode === "profile";
 
         if (anilistProfileMode) {
             if (!anilistUsername.trim()) {
@@ -279,12 +274,7 @@
                 error = i18n.t.importModal.steamRequired;
                 return;
             }
-        } else if (mangalibProfileMode) {
-            if (!mangalibProfileUrl.trim()) {
-                error = "Укажите ссылку на профиль или числовой ID пользователя SocialLib.";
-                return;
-            }
-        } else if (provider === "mangalib" && mangalibMode === "script") {
+        } else if (provider === "mangalib" && mangalibMode === "collector") {
             if (!file) {
                 void importFromClipboard();
                 return;
@@ -334,14 +324,6 @@
                         ? { steamId: value }
                         : { profileUrl: value }),
                     steamApiKey: steamApiKey.trim() || undefined,
-                    skipDuplicates,
-                    ...listFields,
-                });
-            } else if (mangalibProfileMode) {
-                importTask = importMangaLibProfile({
-                    profileUrlOrId: mangalibProfileUrl.trim(),
-                    siteIds: mangalibSites,
-                    bearerToken: mangalibToken.trim() || undefined,
                     skipDuplicates,
                     ...listFields,
                 });
@@ -723,13 +705,57 @@
     URL.revokeObjectURL(a.href);
   } catch {}
 
+  let directUploaded = false;
+  try {
+    const blob = new Blob([jsonStr], { type: "application/json" });
+    const formData = new FormData();
+    formData.append("file", blob, "tsundoku-sociallib.json");
+    formData.append("provider", "mangalib");
+    formData.append("skipDuplicates", "true");
+    const resp = await fetch("http://localhost:5000/api/media/import/file", {
+      method: "POST",
+      body: formData
+    });
+    if (resp.ok) {
+      directUploaded = true;
+    }
+  } catch {}
+
   console.log("%c==================================================", "color:#10b981");
   console.log(\`%c🎉 УСПЕШНО СОБРАНО: \${allItems.length} тайтлов!\`, "color:#10b981;font-weight:bold;font-size:13px;");
   console.log(\`MangaLib: \${counts[1] || 0}, AnimeLib: \${counts[5] || 0}, RanobeLib: \${counts[3] || 0}, SlashLib: \${counts[2] || 0}, HentaiLib: \${counts[4] || 0}\`);
   console.log("Данные скопированы в буфер обмена и скачан файл tsundoku-sociallib.json.");
   console.log("👉 Вернитесь в Tsundoku и нажмите «Вставить из буфера и импортировать»!");
   console.log("%c==================================================", "color:#10b981");
+
+  if (directUploaded) {
+    alert("🎉 Успешно! Собрано " + allItems.length + " закладок и напрямую отправлено в Tsundoku! Проверьте библиотеку.");
+  } else {
+    alert("✅ Собрано " + allItems.length + " закладок! Скопировано в буфер обмена — откройте Tsundoku и нажмите «Вставить из буфера и импортировать»!");
+  }
 })();`;
+    }
+
+    function toBookmarkletUrl(script: string): string {
+        const cleaned = script
+            .replace(/\/\/[^\n\r]*/g, "")
+            .replace(/[\n\r\t]+/g, " ")
+            .replace(/\s{2,}/g, " ")
+            .trim();
+        return `javascript:(async function(){${cleaned}})();`;
+    }
+
+    let bookmarkletUrl = $derived(toBookmarkletUrl(generateSocialLibScript(mangalibSites)));
+    let bookmarkletCopied = $state(false);
+
+    async function copyBookmarkletUrl() {
+        try {
+            await navigator.clipboard.writeText(bookmarkletUrl);
+            bookmarkletCopied = true;
+            setTimeout(() => (bookmarkletCopied = false), 2500);
+        } catch {
+            error = "Не удалось скопировать букмарклет в буфер обмена";
+        }
     }
 
     async function copySocialLibScript() {
@@ -1376,35 +1402,19 @@
                         <button
                             type="button"
                             role="tab"
-                            aria-selected={mangalibMode === "script"}
+                            aria-selected={mangalibMode === "collector"}
                             class={`flex-1 rounded-lg border px-3 py-2 text-xs font-medium transition cursor-pointer flex items-center justify-center gap-1.5 ${
-                                mangalibMode === "script"
+                                mangalibMode === "collector"
                                     ? "border border-orange-500/30 bg-orange-500/10 text-orange-200 font-semibold ring-1 ring-orange-500/20"
                                     : "border-white/10 bg-card/60 text-muted hover:text-ink hover:bg-card"
                             }`}
                             onclick={() => {
-                                mangalibMode = "script";
+                                mangalibMode = "collector";
                                 error = "";
                             }}
                         >
                             <Sparkles size={14} class="text-orange-300" />
-                            <span>Мгновенный сборщик</span>
-                        </button>
-                        <button
-                            type="button"
-                            role="tab"
-                            aria-selected={mangalibMode === "profile"}
-                            class={`flex-1 rounded-lg border px-3 py-2 text-xs font-medium transition cursor-pointer ${
-                                mangalibMode === "profile"
-                                    ? "border border-orange-500/30 bg-orange-500/10 text-orange-200 font-semibold ring-1 ring-orange-500/20"
-                                    : "border-white/10 bg-card/60 text-muted hover:text-ink hover:bg-card"
-                            }`}
-                            onclick={() => {
-                                mangalibMode = "profile";
-                                error = "";
-                            }}
-                        >
-                            По ссылке / ID
+                            <span>⚡ Мгновенный сборщик</span>
                         </button>
                         <button
                             type="button"
@@ -1425,35 +1435,80 @@
                     </div>
 
                     <!-- Mode 1: Instant Collector Script + Clipboard 1-Click Import -->
-                    {#if mangalibMode === "script"}
+                    {#if mangalibMode === "collector"}
                         <div class="rounded-xl border border-white/[0.08] bg-card/50 p-4 space-y-4">
                             <div class="space-y-1.5">
                                 <div class="flex items-center gap-2">
                                     <span class="inline-flex items-center rounded-md border border-orange-500/30 bg-orange-500/15 px-2 py-0.5 text-xs font-semibold text-orange-300">
                                         Рекомендуется
                                     </span>
-                                    <h4 class="text-xs font-semibold text-white">
+                                    <h4 class="text-sm font-semibold text-white">
                                         Сбор закладок за 1 секунду прямо из браузера
                                     </h4>
                                 </div>
-                                <p class="text-xs text-muted leading-relaxed">
+                                <p class="text-sm text-slate-300 leading-relaxed mt-2">
                                     Обходит ограничения Cloudflare, моментально извлекая закладки со всех выбранных сайтов Lib с прогрессом, оценками и статусами.
                                 </p>
                             </div>
 
+                            <!-- Bookmarklet Banner: 1-Click Import without F12 -->
+                            <div class="rounded-xl border border-orange-500/30 bg-gradient-to-r from-orange-500/15 via-orange-500/10 to-transparent p-4 space-y-3">
+                                <div class="flex flex-wrap items-center justify-between gap-2">
+                                    <div class="flex items-center gap-2">
+                                        <span class="inline-flex items-center rounded-md border border-orange-500/30 bg-orange-500/20 px-2 py-0.5 text-xs font-bold text-orange-300">
+                                            1 клик без F12
+                                        </span>
+                                        <h4 class="text-sm font-bold text-white">
+                                            Кнопка-букмарклет для браузера
+                                        </h4>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        class="text-xs text-orange-300 hover:text-white underline cursor-pointer"
+                                        onclick={() => void copyBookmarkletUrl()}
+                                    >
+                                        {#if bookmarkletCopied}
+                                            <span class="text-emerald-400 font-medium">Ссылка скопирована!</span>
+                                        {:else}
+                                            Скопировать ссылку букмарклета
+                                        {/if}
+                                    </button>
+                                </div>
+                                <p class="text-sm text-slate-300 leading-relaxed">
+                                    Перетащите эту кнопку на панель закладок вашего браузера (<kbd class="rounded border border-white/10 bg-canvas px-1.5 py-0.5 text-xs font-mono text-slate-300">Ctrl+Shift+B</kbd>). Затем откройте любую страницу MangaLib, AnimeLib или RanobeLib и <strong>просто кликните по закладке</strong>!
+                                </p>
+                                <div class="flex flex-wrap items-center gap-3 pt-1">
+                                    <a
+                                        href={bookmarkletUrl}
+                                        draggable="true"
+                                        class="inline-flex cursor-grab active:cursor-grabbing items-center gap-2 rounded-lg border-2 border-dashed border-orange-500/60 bg-orange-500/20 hover:bg-orange-500/30 px-4 py-2.5 text-xs font-bold text-orange-200 shadow-md transition hover:scale-[1.02] active:scale-95 select-none"
+                                        title="Зажмите и перетащите на панель закладок браузера (Ctrl+Shift+B)"
+                                        onclick={(e) => {
+                                            e.preventDefault();
+                                            alert("📌 Перетащите эту кнопку мышкой на панель закладок браузера (Ctrl+Shift+B)!\n\nИли нажмите «Скопировать ссылку букмарклета» справа и создайте закладку вручную.");
+                                        }}
+                                    >
+                                        <span>📥 Tsundoku Импорт (перетащите в закладки)</span>
+                                    </a>
+                                    <span class="text-xs text-muted">
+                                        ← зажмите и потяните на панель закладок
+                                    </span>
+                                </div>
+                            </div>
+
                             <!-- Instructions -->
-                            <ol class="space-y-2 rounded-lg border border-white/5 bg-black/30 p-3 text-xs text-ink/90">
-                                <li class="flex items-start gap-2">
-                                    <span class="grid h-4 w-4 shrink-0 place-items-center rounded-full bg-orange-500/20 text-[10px] font-bold text-orange-300">1</span>
-                                    <span>Откройте страницу своего профиля или закладок на любом сайте Lib (<a href="https://mangalib.me" target="_blank" rel="noreferrer" class="text-orange-300 underline hover:text-white">MangaLib</a>, <a href="https://animelib.org" target="_blank" rel="noreferrer" class="text-orange-300 underline hover:text-white">AnimeLib</a>, <a href="https://ranobelib.me" target="_blank" rel="noreferrer" class="text-orange-300 underline hover:text-white">RanobeLib</a>).</span>
+                            <ol class="space-y-3 rounded-lg border border-white/5 bg-black/30 p-3.5 text-sm text-slate-200 leading-normal">
+                                <li class="flex items-start gap-2.5">
+                                    <span class="size-6 shrink-0 grid place-items-center rounded-full bg-orange-500/20 text-orange-300 font-bold text-xs">1</span>
+                                    <span>Откройте страницу своего профиля или закладок на любом сайте Lib (<a href="https://mangalib.me" target="_blank" rel="noreferrer" class="text-orange-300 hover:text-orange-200 hover:underline font-medium">MangaLib</a>, <a href="https://animelib.org" target="_blank" rel="noreferrer" class="text-orange-300 hover:text-orange-200 hover:underline font-medium">AnimeLib</a>, <a href="https://ranobelib.me" target="_blank" rel="noreferrer" class="text-orange-300 hover:text-orange-200 hover:underline font-medium">RanobeLib</a>).</span>
                                 </li>
-                                <li class="flex items-start gap-2">
-                                    <span class="grid h-4 w-4 shrink-0 place-items-center rounded-full bg-orange-500/20 text-[10px] font-bold text-orange-300">2</span>
-                                    <span>Нажмите <strong>«Скопировать скрипт сбора»</strong> ниже, откройте консоль разработчика (<kbd class="rounded border border-white/20 bg-field px-1 font-mono text-[10px]">F12</kbd> → Console), вставьте и нажмите <kbd class="rounded border border-white/20 bg-field px-1 font-mono text-[10px]">Enter</kbd>.</span>
+                                <li class="flex items-start gap-2.5">
+                                    <span class="size-6 shrink-0 grid place-items-center rounded-full bg-orange-500/20 text-orange-300 font-bold text-xs">2</span>
+                                    <span>Нажмите на закладку в браузере (или откройте консоль <kbd class="rounded border border-white/10 bg-canvas px-1.5 py-0.5 text-xs font-mono text-slate-300">F12</kbd>, вставьте скрипт и нажмите <kbd class="rounded border border-white/10 bg-canvas px-1.5 py-0.5 text-xs font-mono text-slate-300">Enter</kbd>). Букмарклет моментально выгрузит закладки.</span>
                                 </li>
-                                <li class="flex items-start gap-2">
-                                    <span class="grid h-4 w-4 shrink-0 place-items-center rounded-full bg-orange-500/20 text-[10px] font-bold text-orange-300">3</span>
-                                    <span>Вернитесь сюда и нажмите <strong>«Вставить из буфера и импортировать»</strong>.</span>
+                                <li class="flex items-start gap-2.5">
+                                    <span class="size-6 shrink-0 grid place-items-center rounded-full bg-orange-500/20 text-orange-300 font-bold text-xs">3</span>
+                                    <span>Если прямое сохранение заблокировано браузером — данные уже скопированы в буфер обмена: просто нажмите <strong>«Вставить из буфера и импортировать»</strong> ниже.</span>
                                 </li>
                             </ol>
 
@@ -1490,53 +1545,7 @@
                             </div>
                         </div>
 
-                    <!-- Mode 2: Direct Profile Import via Server -->
-                    {:else if mangalibMode === "profile"}
-                        <div class="rounded-xl border border-white/[0.08] bg-card/50 p-4 space-y-3.5">
-                            <div>
-                                <label
-                                    class="mb-1 block text-xs font-medium text-muted"
-                                    for="mangalib-profile"
-                                >
-                                    Ссылка на профиль или числовой ID пользователя
-                                </label>
-                                <input
-                                    id="mangalib-profile"
-                                    bind:value={mangalibProfileUrl}
-                                    placeholder="https://mangalib.me/ru/user/123456 или ID 123456"
-                                    class="w-full rounded-lg border border-white/10 bg-field px-3 py-2 text-sm text-ink outline-none transition focus:border-orange-500/60 focus:ring-1 focus:ring-orange-500/30"
-                                    onkeydown={(e) => {
-                                        if (e.key === "Enter") void runImport();
-                                    }}
-                                />
-                                <span class="mt-1 block text-[11px] text-muted">
-                                    Подходят ссылки любого из сайтов: mangalib.me, animelib.org, ranobelib.me, slashlib.me, hentailib.me.
-                                </span>
-                            </div>
-
-                            <div>
-                                <label
-                                    class="mb-1 block text-xs font-medium text-muted"
-                                    for="mangalib-token"
-                                >
-                                    Bearer токен авторизации (опционально)
-                                </label>
-                                <input
-                                    id="mangalib-token"
-                                    type="password"
-                                    bind:value={mangalibToken}
-                                    autocomplete="off"
-                                    placeholder="Нужен только если закладки скрыты настройками приватности"
-                                    class="w-full rounded-lg border border-white/10 bg-field px-3 py-2 text-sm text-ink outline-none transition focus:border-orange-500/60 focus:ring-1 focus:ring-orange-500/30"
-                                />
-                            </div>
-
-                            <p class="text-[11px] leading-relaxed text-muted/80">
-                                💡 Если прямой запрос к API заблокирован или возвращает ошибку, воспользуйтесь вкладкой «Мгновенный сборщик» — он работает прямо из вашего браузера.
-                            </p>
-                        </div>
-
-                    <!-- Mode 3: File Upload (.json / .csv / Lib to Shikimori) -->
+                    <!-- Mode 2: File Upload (.json / .csv / Lib to Shikimori) -->
                     {:else}
                         <div
                             class={`relative flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-6 text-center transition cursor-pointer ${

@@ -1,0 +1,43 @@
+root = true
+
+[*.cs]
+dotnet_analyzer_diagnostic.category-Naming.severity = none
+dotnet_analyzer_diagnostic.category-Usage.severity = none
+dotnet_analyzer_diagnostic.category-Design.severity = none
+dotnet_analyzer_diagnostic.category-Globalization.severity = none
+dotnet_analyzer_diagnostic.category-Reliability.severity = none
+dotnet_analyzer_diagnostic.category-Interoperability.severity = none
+
+# Global suppressions for non-performance rules
+dotnet_diagnostic.CA1000.severity = none
+dotnet_diagnostic.CA1068.severity = none
+dotnet_diagnostic.CA1304.severity = none
+dotnet_diagnostic.CA1305.severity = none
+dotnet_diagnostic.CA1310.severity = none
+dotnet_diagnostic.CA1311.severity = none
+dotnet_diagnostic.CA1711.severity = none
+dotnet_diagnostic.CA1716.severity = none
+dotnet_diagnostic.CA2016.severity = none
+dotnet_diagnostic.CA2254.severity = none
+dotnet_diagnostic.CA1848.severity = none
+dotnet_diagnostic.CA1861.severity = none
+dotnet_diagnostic.CA1862.severity = suggestion
+dotnet_diagnostic.CA1873.severity = none
+
+# Performance Rules: explicitly configured per requirements
+dotnet_diagnostic.CA1805.severity = suggestion
+dotnet_diagnostic.CA1806.severity = suggestion
+dotnet_diagnostic.CA1822.severity = suggestion
+dotnet_diagnostic.CA1826.severity = suggestion
+dotnet_diagnostic.CA1827.severity = suggestion
+dotnet_diagnostic.CA1828.severity = suggestion
+dotnet_diagnostic.CA1829.severity = suggestion
+dotnet_diagnostic.CA1850.severity = suggestion
+dotnet_diagnostic.CA1852.severity = suggestion
+dotnet_diagnostic.CA1854.severity = suggestion
+dotnet_diagnostic.CA1859.severity = suggestion
+dotnet_diagnostic.CA1860.severity = suggestion
+dotnet_diagnostic.CA1869.severity = suggestion
+
+[**/Migrations/**.cs]
+dotnet_analyzer_diagnostic.severity = none

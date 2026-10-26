@@ -1,0 +1,16 @@
+{
+  "plugins": ["stylelint-high-performance-animation"],
+  "rules": {
+    "plugin/no-low-performance-animation-properties": [
+      true,
+      {
+        "ignoreProperties": ["background-color", "color", "border-color", "outline-color"]
+      }
+    ],
+    "declaration-property-value-disallowed-list": {
+      "backdrop-filter": ["/blur\\((2[5-9]|[3-9]\\d|\\d{3,})px\\)/"],
+      "filter": ["/blur\\((2[5-9]|[3-9]\\d|\\d{3,})px\\)/"],
+      "/^transition/": ["/\\bwidth\\b/", "/\\bheight\\b/", "/\\btop\\b/", "/\\bleft\\b/", "/\\bmargin\\b/", "/\\bpadding\\b/", "/\\bbox-shadow\\b/"]
+    }
+  }
+}

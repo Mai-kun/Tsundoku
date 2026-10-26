@@ -1,0 +1,24 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "entry": [
+    "checks/**/*.ts",
+    "checks/**/*.cjs",
+    "public/sw.js",
+    "src/shared/utils/reactivityDebug.svelte.ts"
+  ],
+  "project": [
+    "src/**/*.{ts,svelte}",
+    "checks/**/*.{ts,cjs}"
+  ],
+  "ignoreDependencies": [
+    "daisyui",
+    "tailwindcss",
+    "playwright",
+    "playwright-core",
+    "lucide-svelte"
+  ],
+  "ignoreExportsUsedInFile": true,
+  "rules": {
+    "exports": "warn"
+  }
+}

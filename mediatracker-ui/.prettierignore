@@ -1,0 +1,5 @@
+node_modules
+dist
+../MediaTracker.Server/wwwroot
+../reports
+*.check.cjs

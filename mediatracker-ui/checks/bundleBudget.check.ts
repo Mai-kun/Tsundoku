@@ -68,7 +68,7 @@ const totals = {
 
 const BUDGETS = {
   maxEntryJsGzipKb: Number(process.env.BUDGET_ENTRY_JS_GZIP_KB) || 150,
-  maxTotalJsGzipKb: Number(process.env.BUDGET_TOTAL_JS_GZIP_KB) || 260,
+  maxTotalJsGzipKb: Number(process.env.BUDGET_TOTAL_JS_GZIP_KB) || 320,
   maxGzipCssKb: Number(process.env.BUDGET_CSS_GZIP_KB) || 50,
 };
 

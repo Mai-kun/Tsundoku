@@ -349,7 +349,6 @@
   import DetailSidebar from "$widgets/media-detail/DetailSidebar.svelte";
   import DetailTabs from "$widgets/media-detail/DetailTabs.svelte";
   import OverviewTab from "$widgets/media-detail/tabs/OverviewTab.svelte";
-  import RecommendationsTab from "$widgets/media-detail/tabs/RecommendationsTab.svelte";
   import SyncRowsSkeleton from "$widgets/media-detail/SyncRowsSkeleton.svelte";
   import { jobsClient } from "$shared/api/jobsClient.svelte";
 
@@ -2153,7 +2152,9 @@
             />
           {/await}
         {:else if activeSubTab === "recommendations"}
-          <RecommendationsTab items={recommendations} />
+          {#await import("$widgets/media-detail/tabs/RecommendationsTab.svelte") then { default: RecommendationsTab }}
+            <RecommendationsTab items={recommendations} />
+          {/await}
         {/if}
 
         <!-- The whole section is tab-gated: the season banner must not leak into Related/Recommendations. -->

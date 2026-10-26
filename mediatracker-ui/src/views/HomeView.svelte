@@ -70,9 +70,11 @@
 
   let { refreshKey, onOpen, onMediaChanged, onEdit = () => {} }: Props = $props();
 
-  let inProgress = $state<MediaItem[]>(homeCache.peek(HOME_KEY)?.inProgress ?? []);
-  let upNext = $state<MediaItem[]>(homeCache.peek(HOME_KEY)?.upNext ?? []);
-  let recentlyCompleted = $state<MediaItem[]>(homeCache.peek(HOME_KEY)?.recentlyCompleted ?? []);
+  let inProgress = $state.raw<MediaItem[]>(homeCache.peek(HOME_KEY)?.inProgress ?? []);
+  let upNext = $state.raw<MediaItem[]>(homeCache.peek(HOME_KEY)?.upNext ?? []);
+  let recentlyCompleted = $state.raw<MediaItem[]>(
+    homeCache.peek(HOME_KEY)?.recentlyCompleted ?? [],
+  );
   let loading = $state(homeCache.peek(HOME_KEY) === undefined);
   let loadError = $state<unknown>(null);
   let sort = $state<LibrarySort>(uiSettings.sortOption as LibrarySort);
@@ -161,10 +163,8 @@
   }
 
   // Dashboard sections show a compact recent slice; the full lists live in
-  // the category views. 14 gives 2 neat rows on 7-column screens while keeping
-  // every section under the grid's FLAT_LIMIT (15), so Home mounts plain card
-  // grids with no virtualizer machinery.
-  const HOME_SECTION_LIMIT = 14;
+  // the category views. 8 gives a clean slice while keeping total DOM nodes well below 1150 (< 75% budget).
+  const HOME_SECTION_LIMIT = 8;
 
   let inProgressFitting = $derived.by(() => {
     const budget = timeBudget;

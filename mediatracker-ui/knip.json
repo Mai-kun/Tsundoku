@@ -1,6 +1,8 @@
 {
   "$schema": "https://unpkg.com/knip@5/schema.json",
   "entry": [
+    "index.html",
+    "src/app/main.ts",
     "checks/**/*.ts",
     "checks/**/*.cjs",
     "public/sw.js",
@@ -15,7 +17,14 @@
     "tailwindcss",
     "playwright",
     "playwright-core",
-    "lucide-svelte"
+    "lucide-svelte",
+    "@types/pixelmatch",
+    "html-validate",
+    "stylelint-config-standard",
+    "svelte-eslint-parser"
+  ],
+  "ignoreBinaries": [
+    "renice"
   ],
   "ignoreExportsUsedInFile": true,
   "rules": {

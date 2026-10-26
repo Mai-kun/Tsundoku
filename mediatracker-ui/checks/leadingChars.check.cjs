@@ -18,6 +18,13 @@ const offenders = []
 // that real mojibake is full of.
 const cp1251 = new TextDecoder('windows-1251', { fatal: false })
 
+// Precompute cp1251 byte-to-char mapping once instead of running 128 decodes per character.
+const charToCp1251 = new Map()
+for (let b = 0x80; b < 0x100; b++) {
+  const ch = cp1251.decode(Uint8Array.of(b))
+  if (ch) charToCp1251.set(ch.codePointAt(0), b)
+}
+
 const walk = (dir) => {
   for (const name of readdirSync(dir)) {
     const full = join(dir, name)
@@ -39,16 +46,8 @@ const cp1251Encode = (text) => {
       bytes.push(cp)
       continue
     }
-    // Build the cp1251 high half by decoding each byte back to a character.
-    let mapped = -1
-    for (let b = 0x80; b < 0x100; b++) {
-      const back = cp1251.decode(Uint8Array.of(b))
-      if (back && back.codePointAt(0) === cp) {
-        mapped = b
-        break
-      }
-    }
-    if (mapped === -1) return null
+    const mapped = charToCp1251.get(cp)
+    if (mapped === undefined) return null
     bytes.push(mapped)
   }
   return Buffer.from(bytes)

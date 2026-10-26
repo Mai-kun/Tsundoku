@@ -51,7 +51,7 @@
     {/if}
   </div>
 
-  <ul class="space-y-1.5 list-none p-0 m-0" aria-label={i18n.t.stats.ratingDistribution}>
+  <ul class="m-0 list-none space-y-1.5 p-0" aria-label={i18n.t.stats.ratingDistribution}>
     {#each distribution as { score, count } (score)}
       {@const pct = (count / maxCount) * 100}
       <li class="flex items-center gap-2.5 text-xs">

@@ -14,6 +14,7 @@ export function loadMediaDetail(id: string): Promise<MediaDetail> {
 }
 
 export function prefetchMediaDetail(id: string): void {
+  void import("$views/MediaDetailView.svelte");
   void loadMediaDetail(id).catch(() => {
     // Префетч best-effort: ошибка уйдёт пользователю при реальном открытии.
   });

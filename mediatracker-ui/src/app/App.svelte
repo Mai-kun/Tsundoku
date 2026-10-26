@@ -4,10 +4,9 @@
   import AppShell from "$widgets/layout/AppShell.svelte";
   import Header from "$widgets/layout/Header.svelte";
   import Sidebar from "$widgets/layout/Sidebar.svelte";
-  import DropReasonModal from "$features/drop-reason/DropReasonModal.svelte";
+  import { dropPromptState } from "$features/drop-reason/dropReasonPrompt.svelte";
   import CategoryView, { type Category } from "$views/CategoryView.svelte";
   import HomeView from "$views/HomeView.svelte";
-  import MediaDetailView from "$views/MediaDetailView.svelte";
   import { i18n } from "$shared/i18n/index.svelte";
   import { uiSettings } from "$shared/utils/uiSettings.svelte";
   import { bumpGridLayout } from "$widgets/media-grid/gridLayout.svelte";
@@ -380,16 +379,18 @@
   {/if}
 
   {#if renderedView === "detail" && selectedMediaId}
-    <MediaDetailView
-      mediaId={selectedMediaId}
-      refreshKey={mediaRevision}
-      onBack={closeDetail}
-      onUpdate={mediaChanged}
-      onDelete={deleteFromDetail}
-      onEdit={openEdit}
-      onOpenRelated={openDetail}
-      onSearch={(context) => openSearch(context)}
-    />
+    {#await import("$views/MediaDetailView.svelte") then { default: MediaDetailView }}
+      <MediaDetailView
+        mediaId={selectedMediaId}
+        refreshKey={mediaRevision}
+        onBack={closeDetail}
+        onUpdate={mediaChanged}
+        onDelete={deleteFromDetail}
+        onEdit={openEdit}
+        onOpenRelated={openDetail}
+        onSearch={(context) => openSearch(context)}
+      />
+    {/await}
   {:else if renderedView === "seasons" && selectedMediaId}
     {#await import("$views/ShowSeasonsView.svelte") then { default: ShowSeasonsView }}
       <ShowSeasonsView
@@ -451,7 +452,11 @@
     />
   {/await}
 {/if}
-<DropReasonModal />
+{#if dropPromptState.target !== null}
+  {#await import("$features/drop-reason/DropReasonModal.svelte") then { default: DropReasonModal }}
+    <DropReasonModal />
+  {/await}
+{/if}
 {#if jobsClient.isModalOpen}
   {#await import("$widgets/layout/BackgroundJobsModal.svelte") then { default: BackgroundJobsModal }}
     <BackgroundJobsModal onMediaChanged={mediaChanged} />

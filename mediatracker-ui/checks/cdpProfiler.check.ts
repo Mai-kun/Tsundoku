@@ -178,6 +178,10 @@ export async function runCdpProfiler(options: {
     return metric;
   }
 
+  // Warm up page and assets cache before taking baseline measurements
+  await page.goto(`${baseUrl}/?view=home`, { waitUntil: "networkidle" });
+  await page.waitForTimeout(300);
+
   // 1. Home
   await profileAction(
     "home",

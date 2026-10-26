@@ -113,6 +113,7 @@ public static class RefactorSelfCheck
         CheckAutoRefreshRules(failures);
         CheckImportMatchScorer(failures);
         CheckPendingMatchApplier(failures);
+        CheckSqliteQueryPlans(failures);
 
         if (failures.Count == 0)
         {
@@ -4546,5 +4547,94 @@ public static class RefactorSelfCheck
         AssertEqual(failures, "MangaLib", item.ImportSource, "import source is preserved");
         AssertEqual(failures, SyncStatus.Ready, item.SyncStatus, "sync status becomes Ready");
         AssertEqual(failures, null, item.PendingMatchesJson, "pending matches json cleared");
+    }
+
+    private static void CheckSqliteQueryPlans(List<string> failures)
+    {
+        using var connection = new SqliteConnection("DataSource=:memory:");
+        connection.Open();
+        var options = new DbContextOptionsBuilder<AppDbContext>().UseSqlite(connection).Options;
+        using var db = new AppDbContext(options);
+        db.Database.EnsureCreated();
+
+        var queries = new (string Name, string Sql)[]
+        {
+            ("Library Filter & Sort by Status/Date", "EXPLAIN QUERY PLAN SELECT * FROM MediaItems WHERE Status = 1 ORDER BY CreatedAt DESC;"),
+            ("Category & Status Filter", "EXPLAIN QUERY PLAN SELECT * FROM MediaItems WHERE MediaType = 'Game' AND Status = 1 ORDER BY CreatedAt DESC;"),
+            ("History Events Feed", "EXPLAIN QUERY PLAN SELECT * FROM Events ORDER BY CreatedAt DESC LIMIT 500;"),
+            ("Auto-refresh Queue", "EXPLAIN QUERY PLAN SELECT * FROM MediaItems WHERE NextAutoRefreshAt IS NOT NULL AND NextAutoRefreshAt <= '2026-10-26T00:00:00' ORDER BY NextAutoRefreshAt ASC;"),
+            ("Custom List Items Lookup", "EXPLAIN QUERY PLAN SELECT * FROM CustomListItems WHERE ListId = '00000000-0000-0000-0000-000000000000';")
+        };
+
+        var planResults = new List<object>();
+
+        foreach (var (name, sql) in queries)
+        {
+            using var cmd = connection.CreateCommand();
+            cmd.CommandText = sql;
+            using var reader = cmd.ExecuteReader();
+
+            var details = new List<string>();
+            while (reader.Read())
+            {
+                var detail = reader["detail"]?.ToString() ?? string.Empty;
+                details.Add(detail);
+            }
+
+            var planText = string.Join("; ", details);
+
+            var usesIndex = details.Exists(d => d.Contains("USING INDEX", StringComparison.OrdinalIgnoreCase) ||
+                                                d.Contains("USING COVERING INDEX", StringComparison.OrdinalIgnoreCase));
+            var tableScan = details.Exists(d => d.StartsWith("SCAN", StringComparison.OrdinalIgnoreCase) &&
+                                                !d.Contains("USING INDEX", StringComparison.OrdinalIgnoreCase) &&
+                                                !d.Contains("USING COVERING INDEX", StringComparison.OrdinalIgnoreCase));
+
+            AssertTrue(failures, usesIndex, $"Query '{name}' should use index: {planText}");
+            AssertFalse(failures, tableScan, $"Query '{name}' must not do full table scan: {planText}");
+
+            planResults.Add(new
+            {
+                name,
+                sql,
+                plan = details,
+                usesIndex,
+                fullScan = tableScan
+            });
+        }
+
+        try
+        {
+            var reportsDir = ResolveReportsDir();
+            var reportPath = Path.Combine(reportsDir, "sqlite-query-plans.json");
+            var json = JsonSerializer.Serialize(new
+            {
+                timestamp = DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture),
+                auditedQueries = planResults.Count,
+                allIndexed = failures.Count == 0,
+                queries = planResults
+            }, new JsonSerializerOptions { WriteIndented = true });
+            File.WriteAllText(reportPath, json);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[RefactorSelfCheck] Warning: Failed to write sqlite-query-plans.json: {ex.Message}");
+        }
+    }
+
+    private static string ResolveReportsDir()
+    {
+        var dir = new DirectoryInfo(Directory.GetCurrentDirectory());
+        while (dir != null)
+        {
+            var target = Path.Combine(dir.FullName, "reports");
+            if (Directory.Exists(target)) return target;
+            if (File.Exists(Path.Combine(dir.FullName, "Tsundoku.sln")) || Directory.Exists(Path.Combine(dir.FullName, ".git")))
+            {
+                Directory.CreateDirectory(target);
+                return target;
+            }
+            dir = dir.Parent;
+        }
+        return Directory.GetCurrentDirectory();
     }
 }

@@ -1,3 +1,5 @@
+using System.Text;
+
 namespace MediaTracker.Server.Features.Media.GetMediaStats;
 
 /// <summary>
@@ -18,8 +20,38 @@ public static class GenreNormalizer
             return value;
         }
 
-        var key = string.Join(' ', value.ToLowerInvariant().Replace('-', ' ').Split(' ', StringSplitOptions.RemoveEmptyEntries));
+        var key = BuildLookupKey(value);
         return Aliases.GetValueOrDefault(key, value);
+    }
+
+    internal static string BuildLookupKey(string value)
+    {
+        var sb = new StringBuilder(value.Length);
+        var inWhitespace = true;
+        for (var i = 0; i < value.Length; i++)
+        {
+            var ch = value[i];
+            if (ch is ' ' or '-' or '\t' or '\r' or '\n')
+            {
+                if (!inWhitespace)
+                {
+                    sb.Append(' ');
+                    inWhitespace = true;
+                }
+            }
+            else
+            {
+                sb.Append(char.ToLowerInvariant(ch));
+                inWhitespace = false;
+            }
+        }
+
+        if (sb.Length > 0 && sb[^1] == ' ')
+        {
+            sb.Length--;
+        }
+
+        return sb.ToString();
     }
 
     public static IEnumerable<string> ExtractGenres(string? genresRaw)
@@ -106,7 +138,7 @@ public static class GenreNormalizer
         {
             foreach (var alias in values.Append(canonical))
             {
-                var key = string.Join(' ', alias.ToLowerInvariant().Replace('-', ' ').Split(' ', StringSplitOptions.RemoveEmptyEntries));
+                var key = BuildLookupKey(alias);
                 aliases[key] = canonical;
             }
         }

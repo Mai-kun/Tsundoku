@@ -71,12 +71,16 @@ public static class ImportMatchScorer
     {
         int best = 0;
 
+        ReadOnlySpan<string?> candTitles = [candidate.Title, candidate.RomajiTitle, candidate.OriginalTitle];
+
         // Every stored name against every source name, so a romaji row can match an English hit and
         // vice versa; the title heuristics take the single best pair rather than stacking.
         foreach (var itemName in ItemTitles(item))
         {
-            foreach (var candName in CandidateTitles(candidate))
+            if (string.IsNullOrWhiteSpace(itemName)) continue;
+            foreach (var candName in candTitles)
             {
+                if (string.IsNullOrWhiteSpace(candName)) continue;
                 var score = TitlePairScore(itemName, candName);
                 if (score > best)
                 {
@@ -282,11 +286,11 @@ public static class ImportMatchScorer
         }
 
         var builder = new StringBuilder(value.Length);
-        foreach (var ch in value.ToLowerInvariant())
+        foreach (var rawCh in value)
         {
-            if (char.IsLetterOrDigit(ch))
+            if (char.IsLetterOrDigit(rawCh))
             {
-                builder.Append(ch);
+                builder.Append(char.ToLowerInvariant(rawCh));
             }
         }
 
@@ -303,16 +307,27 @@ public static class ImportMatchScorer
             return 0;
         }
 
-        var hits = a.Count(token => b.Contains(token));
+        var hits = 0;
+        for (var i = 0; i < a.Count; i++)
+        {
+            if (b.Contains(a[i])) hits++;
+        }
         return hits / (double)Math.Min(a.Count, b.Count);
     }
 
-    private static List<string> Tokens(string value) =>
-        value
-            .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Where(token => token.Length >= 2)
-            .Select(token => token.ToLowerInvariant())
-            .ToList();
+    private static List<string> Tokens(string value)
+    {
+        var parts = value.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var list = new List<string>(parts.Length);
+        foreach (var part in parts)
+        {
+            if (part.Length >= 2)
+            {
+                list.Add(part.ToLowerInvariant());
+            }
+        }
+        return list;
+    }
 
     private static IEnumerable<string?> ItemTitles(MediaItem item)
     {

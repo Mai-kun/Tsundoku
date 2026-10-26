@@ -21,6 +21,11 @@
         <GenerateStaticWebAssetsManifest>false</GenerateStaticWebAssetsManifest>
         <StaticWebAssetsEnabled>false</StaticWebAssetsEnabled>
 
+        <AnalysisLevel>latest-recommended</AnalysisLevel>
+        <AnalysisMode>None</AnalysisMode>
+        <AnalysisModePerformance>Recommended</AnalysisModePerformance>
+        <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+
         <!-- NuGet audit silenced for ImageSharp, pinned at 3.1.12: the five 2026 GHSA
              advisories (NU1902 medium / NU1903 high) are patched only in 4.1.2, and the
              4.x line refuses to build Release without a Six Labors license key.

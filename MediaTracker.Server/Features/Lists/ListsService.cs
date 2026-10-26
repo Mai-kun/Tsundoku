@@ -115,11 +115,13 @@ public sealed class ListsService(AppDbContext db)
         var now = DateTime.UtcNow;
         var list = new CustomList
         {
-            Name = request.Name.Trim(), Description = request.Description?.Trim(),
+            Name = request.Name.Trim(),
+            Description = request.Description?.Trim(),
             Icon = string.IsNullOrWhiteSpace(request.Icon) ? "list" : request.Icon,
             Color = request.Color,
             SmartQueryJson = string.IsNullOrWhiteSpace(request.SmartQueryJson) ? null : request.SmartQueryJson,
-            CreatedAt = now, UpdatedAt = now,
+            CreatedAt = now,
+            UpdatedAt = now,
         };
         db.CustomLists.Add(list);
         await db.SaveChangesAsync(ct);
@@ -158,7 +160,10 @@ public sealed class ListsService(AppDbContext db)
             .Select(item => (int?)item.Order).MaxAsync(ct) ?? -1;
         db.CustomListItems.Add(new CustomListItem
         {
-            ListId = listId, MediaItemId = mediaId, Order = order + 1, AddedAt = DateTime.UtcNow,
+            ListId = listId,
+            MediaItemId = mediaId,
+            Order = order + 1,
+            AddedAt = DateTime.UtcNow,
         });
         var list = await db.CustomLists.FindAsync([listId], ct);
         if (list is not null) list.UpdatedAt = DateTime.UtcNow;

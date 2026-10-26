@@ -314,7 +314,8 @@ public sealed partial class AniListMetadataProvider(
         string? endDate = FormatPartialDate(item.EndDate?.Year, item.EndDate?.Month, item.EndDate?.Day);
 
         return new ExternalMediaDto
-        {            ExternalId = item.Id.ToString(),
+        {
+            ExternalId = item.Id.ToString(),
             ExternalSource = "AniList",
             Title = item.Title?.English ?? item.Title?.Romaji ?? item.Title?.Native ?? string.Empty,
             OriginalTitle = item.Title?.Native ?? item.Title?.Romaji,

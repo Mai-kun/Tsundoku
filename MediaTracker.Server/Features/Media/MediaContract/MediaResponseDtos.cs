@@ -478,7 +478,13 @@ public static class MediaResponseMapper
             return [];
         }
 
-        if (genres.TrimStart().StartsWith('['))
+        var span = genres.AsSpan().Trim();
+        if (span.IsEmpty)
+        {
+            return [];
+        }
+
+        if (span.StartsWith("["))
         {
             try
             {
@@ -494,9 +500,14 @@ public static class MediaResponseMapper
             }
         }
 
-        return GenreNormalizer.NormalizeList(
-            genres.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .Where(g => !string.IsNullOrWhiteSpace(g)));
+        if (!span.Contains(','))
+        {
+            var single = GenreNormalizer.Normalize(span.ToString());
+            return string.IsNullOrWhiteSpace(single) ? [] : [single];
+        }
+
+        var parts = genres.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return parts.Length == 0 ? [] : GenreNormalizer.NormalizeList(parts);
     }
 
     public static string GetType(MediaItem item) => item switch

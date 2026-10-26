@@ -77,57 +77,57 @@ public sealed class CommandLineOptions
 
                 case "--port":
                 case "-p":
-                {
-                    if (!TryTakeValue(args, ref i, out var rawPort))
                     {
-                        return options.WithError($"Missing value for '{arg}'.");
-                    }
+                        if (!TryTakeValue(args, ref i, out var rawPort))
+                        {
+                            return options.WithError($"Missing value for '{arg}'.");
+                        }
 
-                    if (!int.TryParse(rawPort, out var port) || port is < 1 or > 65535)
-                    {
-                        return options.WithError(
-                            $"Invalid port '{rawPort}'. Expected a number between 1 and 65535."
-                        );
-                    }
+                        if (!int.TryParse(rawPort, out var port) || port is < 1 or > 65535)
+                        {
+                            return options.WithError(
+                                $"Invalid port '{rawPort}'. Expected a number between 1 and 65535."
+                            );
+                        }
 
-                    options.Port = port;
-                    break;
-                }
+                        options.Port = port;
+                        break;
+                    }
 
                 case "--server-url":
-                {
-                    if (!TryTakeValue(args, ref i, out var serverUrl))
                     {
-                        return options.WithError($"Missing value for '{arg}'.");
-                    }
+                        if (!TryTakeValue(args, ref i, out var serverUrl))
+                        {
+                            return options.WithError($"Missing value for '{arg}'.");
+                        }
 
-                    if (
-                        !Uri.TryCreate(serverUrl, UriKind.Absolute, out var parsed)
-                        || (
-                            parsed.Scheme != Uri.UriSchemeHttp
-                            && parsed.Scheme != Uri.UriSchemeHttps
+                        if (
+                            !Uri.TryCreate(serverUrl, UriKind.Absolute, out var parsed)
+                            || (
+                                parsed.Scheme != Uri.UriSchemeHttp
+                                && parsed.Scheme != Uri.UriSchemeHttps
+                            )
                         )
-                    )
-                    {
-                        return options.WithError(
-                            $"Invalid --server-url '{serverUrl}'. Expected an absolute http(s) URL."
-                        );
-                    }
+                        {
+                            return options.WithError(
+                                $"Invalid --server-url '{serverUrl}'. Expected an absolute http(s) URL."
+                            );
+                        }
 
-                    options.ServerUrl = serverUrl.TrimEnd('/');
-                    break;
-                }
+                        options.ServerUrl = serverUrl.TrimEnd('/');
+                        break;
+                    }
 
                 case "--data-dir":
-                {
-                    if (!TryTakeValue(args, ref i, out var dataDirectory))
                     {
-                        return options.WithError($"Missing value for '{arg}'.");
-                    }
+                        if (!TryTakeValue(args, ref i, out var dataDirectory))
+                        {
+                            return options.WithError($"Missing value for '{arg}'.");
+                        }
 
-                    options.DataDirectory = dataDirectory;
-                    break;
-                }
+                        options.DataDirectory = dataDirectory;
+                        break;
+                    }
 
                 default:
                     if (arg.StartsWith('-'))

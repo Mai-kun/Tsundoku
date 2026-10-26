@@ -72,6 +72,7 @@ public static class CalendarEndpoints
                 var windowStart = rangeStart.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
                 var windowEnd = rangeEnd.ToDateTime(TimeOnly.MaxValue, DateTimeKind.Utc);
                 var scheduled = await db.MediaItems
+                    .AsNoTracking()
                     .Where(m => m.NextAutoRefreshAt != null
                              && m.NextAutoRefreshAt >= windowStart
                              && m.NextAutoRefreshAt <= windowEnd)
@@ -106,6 +107,7 @@ public static class CalendarEndpoints
 
                 // 2. Episodes with a precise air date, parsed out of the season's stored episode list.
                 var shows = await db.TvShows
+                    .AsNoTracking()
                     .Include(show => show.Seasons)
                     .Where(show => show.Seasons.Any(season => season.EpisodesData != null))
                     .ToListAsync(ct);
@@ -163,6 +165,7 @@ public static class CalendarEndpoints
 
                 // 3. Planned titles whose release date lands inside the window.
                 var upcoming = await db.MediaItems
+                    .AsNoTracking()
                     .Where(m => m.Status == MediaStatus.Planned
                              && m.ReleaseDate != null
                              && m.ReleaseDate >= windowStart

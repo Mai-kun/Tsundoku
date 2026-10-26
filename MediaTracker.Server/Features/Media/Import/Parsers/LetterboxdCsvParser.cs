@@ -15,5 +15,5 @@ public static class LetterboxdCsvParser
         return new ParsedMediaItemDto(name, "movie", MediaStatus.Completed, score, ReleaseYear: year, WatchedAt: watched, ExternalId: Get(row, "Letterboxd URI"), ExternalSource: "letterboxd");
     }).Where(item => !string.IsNullOrWhiteSpace(item.Title)).ToArray();
 
-    private static string Get(Dictionary<string,string> row, params string[] keys) => keys.Select(key => row.GetValueOrDefault(key, "")).FirstOrDefault(value => !string.IsNullOrWhiteSpace(value)) ?? "";
+    private static string Get(Dictionary<string, string> row, params string[] keys) => keys.Select(key => row.GetValueOrDefault(key, "")).FirstOrDefault(value => !string.IsNullOrWhiteSpace(value)) ?? "";
 }

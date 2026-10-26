@@ -2,7 +2,7 @@ namespace MediaTracker.Server.Infrastructure.ExternalApis;
 
 internal static class AniListGraphQlQueries
 {
-internal const string MediaFields = """
+    internal const string MediaFields = """
     id
     type
     format
@@ -33,7 +33,7 @@ internal const string MediaFields = """
     genres
     """;
 
-internal const string GraphQLSearchQuery = $$"""
+    internal const string GraphQLSearchQuery = $$"""
     query Search($search: String, $type: MediaType) {
       Page(perPage: 10) {
         media(search: $search, type: $type, sort: SEARCH_MATCH) {
@@ -43,8 +43,8 @@ internal const string GraphQLSearchQuery = $$"""
     }
     """;
 
-/// <summary>A leaner field set for the studio/author listing: no cast or episodes, just the work.</summary>
-internal const string CreatorMediaFields = """
+    /// <summary>A leaner field set for the studio/author listing: no cast or episodes, just the work.</summary>
+    internal const string CreatorMediaFields = """
     id
     type
     format
@@ -64,7 +64,7 @@ internal const string CreatorMediaFields = """
     staff(perPage: 1) { edges { role node { name { full } } } }
     """;
 
-internal const string GraphQLStudioSearchQuery = $$"""
+    internal const string GraphQLStudioSearchQuery = $$"""
     query StudioWorks($search: String) {
       Studio(search: $search) {
         name
@@ -75,7 +75,7 @@ internal const string GraphQLStudioSearchQuery = $$"""
     }
     """;
 
-internal const string GraphQLStaffSearchQuery = $$"""
+    internal const string GraphQLStaffSearchQuery = $$"""
     query StaffWorks($search: String) {
       Staff(search: $search) {
         name { full }
@@ -86,7 +86,7 @@ internal const string GraphQLStaffSearchQuery = $$"""
     }
     """;
 
-internal const string GraphQLDetailQuery = $$"""
+    internal const string GraphQLDetailQuery = $$"""
     query Detail($id: Int, $type: MediaType) {
       Media(id: $id, type: $type) {
         {{MediaFields}}
@@ -94,7 +94,7 @@ internal const string GraphQLDetailQuery = $$"""
     }
     """;
 
-internal const string GraphQLRelationsQuery = $$"""
+    internal const string GraphQLRelationsQuery = $$"""
     query Relations($id: Int, $idMal: Int, $search: String, $type: MediaType) {
       Media(id: $id, idMal: $idMal, search: $search, type: $type) {
         relations {
@@ -109,7 +109,7 @@ internal const string GraphQLRelationsQuery = $$"""
     }
     """;
 
-internal const string GraphQLRecommendationsQuery = $$"""
+    internal const string GraphQLRecommendationsQuery = $$"""
     query Recommendations($id: Int, $idMal: Int, $search: String, $type: MediaType) {
       Media(id: $id, idMal: $idMal, search: $search, type: $type) {
         recommendations(sort: RATING_DESC, perPage: 12) {

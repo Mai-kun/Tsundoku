@@ -868,8 +868,13 @@ public sealed class ImportMediaHandler(
 
     private static string GetType(MediaItem item) => item switch
     {
-        Book => "book", Manga => "manga", VideoGame => "game",
-        Movie movie when movie.IsAnime => "anime", TvShow show when show.IsAnime => "anime",
-        Movie => "movie", TvShow => "tvshow", _ => ""
+        Book => "book",
+        Manga => "manga",
+        VideoGame => "game",
+        Movie movie when movie.IsAnime => "anime",
+        TvShow show when show.IsAnime => "anime",
+        Movie => "movie",
+        TvShow => "tvshow",
+        _ => ""
     };
 }

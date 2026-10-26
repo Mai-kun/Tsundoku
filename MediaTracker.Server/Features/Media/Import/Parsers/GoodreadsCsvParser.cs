@@ -14,6 +14,6 @@ public static class GoodreadsCsvParser
             TotalCount: Number(row, "Number of Pages"), Author: Get(row, "Author"), ExternalId: Get(row, "Book Id"), ExternalSource: "goodreads");
     }).Where(item => !string.IsNullOrWhiteSpace(item.Title)).ToArray();
 
-    private static string Get(Dictionary<string,string> row, string key) => row.GetValueOrDefault(key, "");
-    private static int? Number(Dictionary<string,string> row, string key) => int.TryParse(Get(row,key), NumberStyles.Integer, CultureInfo.InvariantCulture, out var n) ? n : null;
+    private static string Get(Dictionary<string, string> row, string key) => row.GetValueOrDefault(key, "");
+    private static int? Number(Dictionary<string, string> row, string key) => int.TryParse(Get(row, key), NumberStyles.Integer, CultureInfo.InvariantCulture, out var n) ? n : null;
 }

@@ -1,0 +1,14 @@
+{
+  "name": "tsundoku-perf-audit",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Tsundoku automated performance & quality audit orchestration",
+  "type": "module",
+  "scripts": {
+    "fix": "node scripts/audit-runner.mjs fix",
+    "audit": "node scripts/audit-runner.mjs audit",
+    "visual": "node scripts/audit-runner.mjs visual",
+    "visual:approve": "node scripts/audit-runner.mjs visual:approve",
+    "report": "node scripts/generate-audit-report.mjs"
+  }
+}

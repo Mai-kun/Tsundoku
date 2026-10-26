@@ -171,6 +171,32 @@ async function runLoadTest(baseUrl, durationMs = 6000) {
   };
 }
 
+function normalizeMethodName(rawName) {
+  let name = rawName
+    .replace(/^Tsundoku!/, "")
+    .replace(/^MediaTracker\.Server\./, "");
+
+  // Remove parameter lists for clean grouping
+  const parenIdx = name.indexOf("(");
+  if (parenIdx !== -1) {
+    name = name.slice(0, parenIdx);
+  }
+
+  // Handle async state machine wrappers:
+  // e.g. SomeClass+<MethodAsync>d__2.MoveNext -> SomeClass.MethodAsync
+  name = name.replace(/\+<([a-zA-Z0-9_]+)>d__\d+\.MoveNext$/, ".$1");
+  // e.g. SomeClass+<>c+<<Method>b__0_0>d.MoveNext -> SomeClass.Method
+  name = name.replace(/\+<>c\+<<([a-zA-Z0-9_]+)>b__\w+>d\.MoveNext$/, ".$1");
+  // e.g. SomeClass+<>c.<Method>b__0_0 -> SomeClass.Method
+  name = name.replace(/\+<>c\.<([a-zA-Z0-9_]+)>b__\w+$/, ".$1");
+  // Clean up any remaining .MoveNext
+  name = name.replace(/\.MoveNext$/, "");
+  // Clean up duplicated dots
+  name = name.replace(/\.\.+/g, ".");
+
+  return name;
+}
+
 function parseSpeedscope(speedscopePath) {
   if (!fs.existsSync(speedscopePath)) {
     console.warn(`Speedscope file not found at ${speedscopePath}`);
@@ -221,34 +247,64 @@ function parseSpeedscope(speedscopePath) {
     }
   }
 
-  const appMethods = [];
+  // Group and deduplicate frames by normalized method name
+  const canonicalMap = new Map();
+
   for (let idx = 0; idx < frames.length; idx++) {
     const rawName = frames[idx].name || "";
-    // Filter out process root and noise
-    if (rawName.startsWith("Process64") || rawName.includes("Program.<Main>")) continue;
+    // Filter out process root, generic framework infrastructure and pass-through middleware
+    if (
+      rawName.startsWith("Process64") ||
+      rawName.includes("Program.<Main>") ||
+      rawName.includes("ApiKeyAuthMiddleware") ||
+      rawName.includes("AsyncTaskMethodBuilder") ||
+      rawName.includes("ExecutionContext") ||
+      rawName.includes("TaskFactory")
+    ) {
+      continue;
+    }
 
     const isOurApp = rawName.includes("MediaTracker.Server") || rawName.includes("Tsundoku!");
     if (!isOurApp) continue;
 
     const selfMs = selfTimeMap.get(idx) || 0;
     const totalMs = totalTimeMap.get(idx) || 0;
-    if (selfMs > 0 || totalMs > 0) {
-      // Clean readable display name
-      const cleanName = rawName
-        .replace(/^Tsundoku!/, "")
-        .replace(/^MediaTracker\.Server\./, "");
+    if (selfMs <= 0 && totalMs <= 0) continue;
 
-      appMethods.push({
-        frameIndex: idx,
-        name: cleanName,
-        rawName,
-        selfMs: Math.round(selfMs * 10) / 10,
-        totalMs: Math.round(totalMs * 10) / 10,
-        totalPercent: globalTotalDuration > 0 ? Math.round((totalMs / globalTotalDuration) * 1000) / 10 : 0,
+    const canonicalName = normalizeMethodName(rawName);
+
+    if (!canonicalMap.has(canonicalName)) {
+      canonicalMap.set(canonicalName, {
+        name: canonicalName,
+        selfMs: 0,
+        maxTotalMs: 0,
       });
+    }
+
+    const entry = canonicalMap.get(canonicalName);
+    entry.selfMs += selfMs;
+    if (totalMs > entry.maxTotalMs) {
+      entry.maxTotalMs = totalMs;
     }
   }
 
+  const appMethods = [];
+  for (const entry of canonicalMap.values()) {
+    const totalMs = Math.round(entry.maxTotalMs * 10) / 10;
+    const selfMs = Math.round(entry.selfMs * 10) / 10;
+    const totalPercent = globalTotalDuration > 0
+      ? Math.round((entry.maxTotalMs / globalTotalDuration) * 1000) / 10
+      : 0;
+
+    appMethods.push({
+      name: entry.name,
+      selfMs,
+      totalMs,
+      totalPercent,
+    });
+  }
+
+  // Sort by Total Time, then Self Time
   appMethods.sort((a, b) => b.totalMs - a.totalMs || b.selfMs - a.selfMs);
   return appMethods.slice(0, 10);
 }

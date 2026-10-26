@@ -1,0 +1,97 @@
+version: '3'
+
+tasks:
+  fix:
+    desc: 'Fast fix & sanity check contour (~3-5s)'
+    cmds:
+      - npm --prefix mediatracker-ui run format:fix
+      - dotnet format --verify-no-changes || dotnet format
+      - npm --prefix mediatracker-ui run check
+      - npm --prefix mediatracker-ui run lint:es
+      - npm --prefix mediatracker-ui run lint:css
+      - npm --prefix mediatracker-ui run check:html
+      - npm --prefix mediatracker-ui run check:deslop
+      - npm --prefix mediatracker-ui run check:state-raw
+      - npm --prefix mediatracker-ui run check:perf-marks
+      - npm --prefix mediatracker-ui run check:deadcode
+      - npm --prefix mediatracker-ui run check:i18n
+      - npm --prefix mediatracker-ui run check:leading-chars
+      - dotnet run --project MediaTracker.Server/MediaTracker.Server.csproj --no-build -- --selfcheck
+
+  build-ui:
+    desc: 'Build frontend and verify bundle budget'
+    sources:
+      - 'mediatracker-ui/src/**/*'
+      - 'mediatracker-ui/package.json'
+      - 'mediatracker-ui/vite.config.ts'
+    generates:
+      - 'reports/bundle-summary.json'
+      - 'reports/bundle-stats.html'
+    method: checksum
+    cmds:
+      - npm --prefix mediatracker-ui run check:bundle
+
+  browser-suite:
+    desc: 'Run Playwright browser suite (CDP, geometry, a11y, snapshots)'
+    sources:
+      - 'mediatracker-ui/src/**/*'
+      - 'mediatracker-ui/checks/**/*'
+    generates:
+      - 'reports/browser-suite-summary.json'
+      - 'reports/cdp-performance.json'
+      - 'reports/layout-geometry.json'
+      - 'reports/axe-accessibility.json'
+      - 'reports/visual-snapshots.json'
+    method: checksum
+    cmds:
+      - npm --prefix mediatracker-ui run check:browser-suite
+
+  benchmarks:
+    desc: 'Run BenchmarkDotNet microprofiling suite'
+    sources:
+      - 'MediaTracker.Server/**/*.cs'
+      - 'MediaTracker.Benchmarks/**/*.cs'
+      - 'MediaTracker.Benchmarks/MediaTracker.Benchmarks.csproj'
+    generates:
+      - 'reports/benchmarks-summary.json'
+      - 'reports/sqlite-query-plans.json'
+    method: checksum
+    cmds:
+      - node scripts/run-benchmarks.mjs
+
+  profile-backend:
+    desc: 'Run backend macroprofiling under concurrency load with EventPipe'
+    sources:
+      - 'MediaTracker.Server/**/*.cs'
+      - 'MediaTracker.Server/MediaTracker.Server.csproj'
+    generates:
+      - 'reports/backend-profile-summary.json'
+    method: checksum
+    cmds:
+      - node scripts/profile-backend.mjs
+
+  report:
+    desc: 'Generate unified audit report (AUDIT_REPORT.md and reports/audit-report.html)'
+    cmds:
+      - node scripts/generate-audit-report.mjs
+
+  audit:
+    desc: 'Full autonomous audit pipeline'
+    cmds:
+      - task: fix
+      - task: build-ui
+      - task: browser-suite
+      - task: benchmarks
+      - task: profile-backend
+      - task: report
+
+  visual:
+    desc: 'Run BackstopJS visual regression test'
+    cmds:
+      - npm --prefix mediatracker-ui run visual:test
+      - node scripts/generate-audit-report.mjs
+
+  visual:approve:
+    desc: 'Approve BackstopJS visual regression reference snapshots'
+    cmds:
+      - npm --prefix mediatracker-ui run visual:approve

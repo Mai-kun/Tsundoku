@@ -13,12 +13,7 @@
 </script>
 
 <Modal {isOpen} {onClose} size="xl" labelledBy="import-modal-title">
-  <div class="h-full flex flex-col min-h-0 p-6 overflow-y-auto thin-scroll">
-    <ImportPanel
-      {onImportCompleted}
-      {onNavigateToList}
-      {onClose}
-      showCloseButton={true}
-    />
+  <div class="thin-scroll flex h-full min-h-0 flex-col overflow-y-auto p-6">
+    <ImportPanel {onImportCompleted} {onNavigateToList} {onClose} showCloseButton={true} />
   </div>
 </Modal>

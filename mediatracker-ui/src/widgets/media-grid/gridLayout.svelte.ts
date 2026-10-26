@@ -12,12 +12,12 @@ import { untrack } from "svelte";
 let version = $state(0);
 
 export function bumpGridLayout(): void {
-    // untrack the read: `version++` inside a caller's $effect would otherwise
-    // subscribe that effect to the very signal it writes, which Svelte rejects
-    // as effect_update_depth_exceeded.
-    version = untrack(() => version) + 1;
+  // untrack the read: `version++` inside a caller's $effect would otherwise
+  // subscribe that effect to the very signal it writes, which Svelte rejects
+  // as effect_update_depth_exceeded.
+  version = untrack(() => version) + 1;
 }
 
 export function gridLayoutVersion(): number {
-    return version;
+  return version;
 }

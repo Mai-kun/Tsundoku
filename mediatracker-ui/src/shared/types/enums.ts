@@ -36,15 +36,7 @@ export type MediaType = "game" | "movie" | "tvshow" | "book" | "manga";
 export type SearchMediaType = MediaType | "anime";
 export type SearchScope = SearchMediaType | "all";
 export type AppView =
-  | "home"
-  | MediaType
-  | "anime"
-  | "stats"
-  | "lists"
-  | "history"
-  | "calendar"
-  | "seasons"
-  | "detail";
+  "home" | MediaType | "anime" | "stats" | "lists" | "history" | "calendar" | "seasons" | "detail";
 export type SortBy = "createdAt" | "score" | "title";
 export type SortOrder = "asc" | "desc";
 
@@ -55,4 +47,3 @@ export type HistoryEventType =
   | "ProgressChanged"
   | "Deleted"
   | "AchievementUnlocked";
-

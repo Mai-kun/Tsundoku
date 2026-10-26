@@ -1,1 +1,1 @@
-export { genreLabel, formatGenresList } from "$entities/media/model/genreLabel";
+export { genreLabel } from "$entities/media/model/genreLabel";

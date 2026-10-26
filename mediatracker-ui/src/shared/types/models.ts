@@ -217,8 +217,7 @@ export interface TvShowDetail extends TvShowMedia, MediaDetailFields {
 }
 
 /** What GET /api/media returns: the light card shape. */
-export type MediaItem =
-  GameMedia | BookMedia | MangaMedia | MovieMedia | TvShowMedia;
+export type MediaItem = GameMedia | BookMedia | MangaMedia | MovieMedia | TvShowMedia;
 
 /**
  * What GET /api/media/{id} returns. Spelling out the four variants (instead of deriving them from
@@ -380,7 +379,6 @@ export interface TasteProfile {
   dropAnalytics?: DropAnalytics;
 }
 
-
 export interface ExternalMedia {
   externalId: string;
   externalSource?: string | null;
@@ -423,15 +421,11 @@ export interface MediaFilters {
   sortOrder?: SortOrder;
 }
 
-export function isTvShowDetail(
-  item: MediaItem | MediaDetail,
-): item is TvShowDetail {
+export function isTvShowDetail(item: MediaItem | MediaDetail): item is TvShowDetail {
   return item.type === "tvshow" && "seasons" in item;
 }
 
-export function isMangaDetail(
-  item: MediaItem | MediaDetail,
-): item is MangaDetail {
+export function isMangaDetail(item: MediaItem | MediaDetail): item is MangaDetail {
   return item.type === "manga";
 }
 
@@ -477,7 +471,7 @@ export interface HistoryEvent {
   id: string;
   mediaId: string;
   /** Serialised by name ("StatusChanged"), matching the HistoryEventType union. */
-    type: HistoryEventType;
+  type: HistoryEventType;
   oldValue: string | null;
   newValue: string | null;
   createdAt: string;

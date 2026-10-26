@@ -27,7 +27,8 @@ export function toRelatedEntry(relation: ExternalRelation): RelatedEntry {
     endDate: media.endDate ?? null,
     releaseStatus: media.releaseStatus ?? null,
     score,
-    ratings: score && media.externalSource ? [{ source: media.externalSource, rating: score }] : null,
+    ratings:
+      score && media.externalSource ? [{ source: media.externalSource, rating: score }] : null,
     description: media.description ?? null,
     trailerVideoId: media.trailerVideoId ?? null,
     duration: media.runtimeMinutes ?? null,

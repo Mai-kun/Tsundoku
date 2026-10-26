@@ -187,10 +187,8 @@ export const translations = {
     },
     listDelete: { ru: "Удалить список", en: "Delete list" },
     listConfirmDelete: {
-      ru: (name: string) =>
-        `Удалить список «${name}»? Тайтлы останутся в медиатеке.`,
-      en: (name: string) =>
-        `Delete “${name}”? Its titles will stay in your library.`,
+      ru: (name: string) => `Удалить список «${name}»? Тайтлы останутся в медиатеке.`,
+      en: (name: string) => `Delete “${name}”? Its titles will stay in your library.`,
     },
     listDeleted: { ru: "Список удалён", en: "List deleted" },
     listAdded: {
@@ -411,10 +409,8 @@ export const translations = {
       en: (count: number) => `${count} ${count === 1 ? "title" : "titles"}`,
     },
     completedOf: {
-      ru: (completed: number, total: number) =>
-        `Завершено: ${completed} из ${total}`,
-      en: (completed: number, total: number) =>
-        `Completed: ${completed} of ${total}`,
+      ru: (completed: number, total: number) => `Завершено: ${completed} из ${total}`,
+      en: (completed: number, total: number) => `Completed: ${completed} of ${total}`,
     },
     averageScore: { ru: "Средний балл", en: "Average score" },
     otherWorks: {
@@ -461,14 +457,11 @@ export const translations = {
     booksCompleted: { ru: "Прочитано книг", en: "Books read" },
     moviesCompleted: { ru: "Просмотрено фильмов", en: "Movies watched" },
     heroTitle: {
-      ru: (hours: string, titles: string) =>
-        `Вы провели ${hours} ч. за ${titles} тайтлами.`,
-      en: (hours: string, titles: string) =>
-        `You spent ${hours} hours across ${titles} titles.`,
+      ru: (hours: string, titles: string) => `Вы провели ${hours} ч. за ${titles} тайтлами.`,
+      en: (hours: string, titles: string) => `You spent ${hours} hours across ${titles} titles.`,
     },
     heroSubtitle: {
-      ru: (days: string) =>
-        `Это ${days} дн. непрерывных историй, миров и приключений.`,
+      ru: (days: string) => `Это ${days} дн. непрерывных историй, миров и приключений.`,
       en: (days: string) => `${days} days of stories, worlds, and adventures.`,
     },
     activityStreak: { ru: "Стрик активности", en: "Activity streak" },
@@ -654,17 +647,13 @@ export const translations = {
     inProgress: { ru: "В процессе", en: "In progress" },
     planned: { ru: "В планах", en: "Planned" },
     segmentTooltip: {
-      ru: (label: string, count: number, percent: number) =>
-        `${label}: ${count} (${percent}%)`,
-      en: (label: string, count: number, percent: number) =>
-        `${label}: ${count} (${percent}%)`,
+      ru: (label: string, count: number, percent: number) => `${label}: ${count} (${percent}%)`,
+      en: (label: string, count: number, percent: number) => `${label}: ${count} (${percent}%)`,
     },
     achievements: { ru: "Достижения медиатеки", en: "Library achievements" },
     unlockedCount: {
-      ru: (count: number, percent: number) =>
-        `${count} из 6 разблокировано (${percent}%)`,
-      en: (count: number, percent: number) =>
-        `${count} of 6 unlocked (${percent}%)`,
+      ru: (count: number, percent: number) => `${count} из 6 разблокировано (${percent}%)`,
+      en: (count: number, percent: number) => `${count} of 6 unlocked (${percent}%)`,
     },
     unlocked: { ru: "РАЗБЛОКИРОВАНО ✓", en: "UNLOCKED ✓" },
     progress: { ru: "Прогресс", en: "Progress" },
@@ -1035,10 +1024,8 @@ export const translations = {
         midDrop: { ru: "В середине (20–70%)", en: "Midway (20–70%)" },
         lateDrop: { ru: "В шаге от финала (>70%)", en: "Near the end (>70%)" },
         avgDropText: {
-          ru: (avg: number | string) =>
-            `В среднем вы бросаете произведения на ${avg}% пути`,
-          en: (avg: number | string) =>
-            `On average, you drop titles at ${avg}% of progress`,
+          ru: (avg: number | string) => `В среднем вы бросаете произведения на ${avg}% пути`,
+          en: (avg: number | string) => `On average, you drop titles at ${avg}% of progress`,
         },
         topReasonsTitle: { ru: "Топ причин дропа", en: "Top drop reasons" },
         insight: {
@@ -1132,10 +1119,8 @@ export const translations = {
       en: (hours: number) => `${hours} h`,
     },
     episodes: {
-      ru: (current: number, total: number) =>
-        `${current} / ${total > 0 ? total : "—"} эп.`,
-      en: (current: number, total: number) =>
-        `${current} / ${total > 0 ? total : "—"} ep.`,
+      ru: (current: number, total: number) => `${current} / ${total > 0 ? total : "—"} эп.`,
+      en: (current: number, total: number) => `${current} / ${total > 0 ? total : "—"} ep.`,
     },
     movie: {
       ru: (minutes: number) => `${minutes} мин.`,
@@ -1749,10 +1734,8 @@ export const translations = {
       en: "Create matching lists in Tsundoku and add these titles there",
     },
     customFoldersCreateListFor: {
-      ru: (folder: string) =>
-        `Создать список «${folder}» в Tsundoku и добавить туда эти тайтлы`,
-      en: (folder: string) =>
-        `Create «${folder}» list in Tsundoku and add these titles there`,
+      ru: (folder: string) => `Создать список «${folder}» в Tsundoku и добавить туда эти тайтлы`,
+      en: (folder: string) => `Create «${folder}» list in Tsundoku and add these titles there`,
     },
     customFolderCountLabel: {
       ru: (count: number) => {
@@ -1760,8 +1743,7 @@ export const translations = {
         const rem100 = count % 100;
         let word = "тайтлов";
         if (rem10 === 1 && rem100 !== 11) word = "тайтл";
-        else if (rem10 >= 2 && rem10 <= 4 && (rem100 < 10 || rem100 >= 20))
-          word = "тайтла";
+        else if (rem10 >= 2 && rem10 <= 4 && (rem100 < 10 || rem100 >= 20)) word = "тайтла";
         return `${count} ${word}`;
       },
       en: (count: number) => `${count} ${count === 1 ? "title" : "titles"}`,
@@ -1905,7 +1887,7 @@ export const translations = {
     },
     step3TextBtn: {
       ru: "«Вставить из буфера и импортировать»",
-      en: "\"Paste from clipboard and import\"",
+      en: '"Paste from clipboard and import"',
     },
     step3TextPost: {
       ru: "ниже.",
@@ -2390,10 +2372,8 @@ export const translations = {
       en: (count: number) => `Stale items found: ${count}`,
     },
     daysInactive: {
-      ru: (days: number, date: string) =>
-        `⏱ Без активности: ${days} дн. (с ${date})`,
-      en: (days: number, date: string) =>
-        `⏱ Inactive: ${days} d (since ${date})`,
+      ru: (days: number, date: string) => `⏱ Без активности: ${days} дн. (с ${date})`,
+      en: (days: number, date: string) => `⏱ Inactive: ${days} d (since ${date})`,
     },
     actionFocus: {
       ru: "В фокус",

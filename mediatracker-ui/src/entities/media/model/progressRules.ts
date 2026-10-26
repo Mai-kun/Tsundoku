@@ -1,9 +1,12 @@
-import { MEDIA_STATUS, type BookMedia, type GameMedia, type MangaMedia, type MediaItem } from "$shared/types";
+import {
+  MEDIA_STATUS,
+  type BookMedia,
+  type GameMedia,
+  type MangaMedia,
+  type MediaItem,
+} from "$shared/types";
 
-export function clampProgress(
-  current: number,
-  total: number | null | undefined,
-): number {
+export function clampProgress(current: number, total: number | null | undefined): number {
   const safeCurrent = Math.max(current, 0);
   return total !== null && total !== undefined && total > 0
     ? Math.min(safeCurrent, total)
@@ -42,11 +45,6 @@ export function supportsProgressStepper(item: MediaItem): boolean {
 }
 
 /** Next value after a +/- press, clamped to the known total (never below zero). */
-export function nextCardProgress(
-  item: MediaItem,
-  current: number,
-  delta: number,
-): number {
+export function nextCardProgress(item: MediaItem, current: number, delta: number): number {
   return clampProgress(current + delta, cardProgressTotal(item));
 }
-

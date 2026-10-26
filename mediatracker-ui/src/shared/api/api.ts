@@ -50,11 +50,7 @@ export class ApiError extends Error {
   readonly detail: string;
   readonly validationErrors: ValidationErrors;
 
-  constructor(
-    status: number,
-    detail = "",
-    validationErrors: ValidationErrors = {},
-  ) {
+  constructor(status: number, detail = "", validationErrors: ValidationErrors = {}) {
     super(detail || "API request failed");
     this.name = "ApiError";
     this.status = status;
@@ -82,8 +78,7 @@ function readProblemDetails(value: unknown): ProblemDetails {
   const errors = isRecord(value.errors)
     ? Object.fromEntries(
         Object.entries(value.errors).flatMap(([key, messages]) =>
-          Array.isArray(messages) &&
-          messages.every((message) => typeof message === "string")
+          Array.isArray(messages) && messages.every((message) => typeof message === "string")
             ? [[key, messages]]
             : [],
         ),
@@ -100,17 +95,10 @@ function readProblemDetails(value: unknown): ProblemDetails {
 async function throwApiError(response: Response): Promise<never> {
   const payload: unknown = await response.json().catch(() => null);
   const problem = readProblemDetails(payload);
-  throw new ApiError(
-    response.status,
-    problem.detail || problem.title || "",
-    problem.errors,
-  );
+  throw new ApiError(response.status, problem.detail || problem.title || "", problem.errors);
 }
 
-async function requestJson<T>(
-  url: string,
-  options: RequestInit = {},
-): Promise<T> {
+async function requestJson<T>(url: string, options: RequestInit = {}): Promise<T> {
   const response = await fetch(url, options);
 
   if (!response.ok) {
@@ -120,10 +108,7 @@ async function requestJson<T>(
   return (await response.json()) as unknown as T;
 }
 
-async function requestVoid(
-  url: string,
-  options: RequestInit = {},
-): Promise<void> {
+async function requestVoid(url: string, options: RequestInit = {}): Promise<void> {
   const response = await fetch(url, options);
 
   if (!response.ok) {
@@ -154,9 +139,7 @@ export function getMedia(filters: MediaFilters = {}): Promise<MediaItem[]> {
   }
 
   const query = params.toString();
-  return requestJson<MediaItem[]>(
-    `${mediaEndpoint}${query ? `?${query}` : ""}`,
-  );
+  return requestJson<MediaItem[]>(`${mediaEndpoint}${query ? `?${query}` : ""}`);
 }
 
 export function getMediaItem(id: string): Promise<MediaDetail> {
@@ -179,11 +162,17 @@ export function getStats(): Promise<MediaStats> {
   return requestJson<MediaStats>(`${mediaEndpoint}/stats`);
 }
 
-export function getAdvancedStats(scope: string = "completed", signal?: AbortSignal): Promise<AdvancedStats> {
+export function getAdvancedStats(
+  scope: string = "completed",
+  signal?: AbortSignal,
+): Promise<AdvancedStats> {
   const query = scope ? `?scope=${encodeURIComponent(scope)}` : "";
   return requestJson<AdvancedStats>(`${mediaEndpoint}/stats/advanced${query}`, { signal });
 }
-export function getTasteProfile(scope: string = "completed", signal?: AbortSignal): Promise<TasteProfile> {
+export function getTasteProfile(
+  scope: string = "completed",
+  signal?: AbortSignal,
+): Promise<TasteProfile> {
   const query = scope ? `?scope=${encodeURIComponent(scope)}` : "";
   return requestJson<TasteProfile>(`${mediaEndpoint}/stats/taste-profile${query}`, { signal });
 }
@@ -201,10 +190,9 @@ export function searchExternal(
   });
   if (source) params.set("source", source);
   if (byCreator) params.set("byCreator", "true");
-  return requestJson<ExternalMedia[]>(
-    `${externalEndpoint}/search?${params.toString()}`,
-    { signal },
-  );
+  return requestJson<ExternalMedia[]>(`${externalEndpoint}/search?${params.toString()}`, {
+    signal,
+  });
 }
 
 export function getExternalDetails(
@@ -225,14 +213,8 @@ export function createMedia(payload: CreateMediaPayload): Promise<MediaDetail> {
   return requestJson<MediaDetail>(mediaEndpoint, jsonOptions("POST", payload));
 }
 
-export function updateMedia(
-  id: string,
-  payload: UpdateMediaPayload,
-): Promise<MediaDetail> {
-  return requestJson<MediaDetail>(
-    `${mediaEndpoint}/${id}`,
-    jsonOptions("PUT", payload),
-  );
+export function updateMedia(id: string, payload: UpdateMediaPayload): Promise<MediaDetail> {
+  return requestJson<MediaDetail>(`${mediaEndpoint}/${id}`, jsonOptions("PUT", payload));
 }
 
 /**
@@ -247,37 +229,21 @@ export function enrichMedia(id: string, source?: string): Promise<MediaDetail> {
   });
 }
 
-export function setProgress(
-  id: string,
-  currentProgress: number,
-): Promise<void> {
-  return requestVoid(
-    `${mediaEndpoint}/${id}/progress`,
-    jsonOptions("PUT", { currentProgress }),
-  );
+export function setProgress(id: string, currentProgress: number): Promise<void> {
+  return requestVoid(`${mediaEndpoint}/${id}/progress`, jsonOptions("PUT", { currentProgress }));
 }
 
-export function setSeasonProgress(
-  id: string,
-  currentEpisode: number,
-): Promise<void> {
-  return requestVoid(
-    `/api/seasons/${id}/progress`,
-    jsonOptions("PUT", { currentEpisode }),
-  );
+export function setSeasonProgress(id: string, currentEpisode: number): Promise<void> {
+  return requestVoid(`/api/seasons/${id}/progress`, jsonOptions("PUT", { currentEpisode }));
 }
 
 export function updateStatus(
   id: string,
   payload:
-    | MediaStatus
-    | { status: MediaStatus; dropReason?: string | null; dropNotes?: string | null },
+    MediaStatus | { status: MediaStatus; dropReason?: string | null; dropNotes?: string | null },
 ): Promise<void> {
   const body = typeof payload === "number" ? { status: payload } : payload;
-  return requestVoid(
-    `${mediaEndpoint}/${id}/status`,
-    jsonOptions("PUT", body),
-  );
+  return requestVoid(`${mediaEndpoint}/${id}/status`, jsonOptions("PUT", body));
 }
 
 export function deleteMedia(id: string): Promise<void> {
@@ -285,21 +251,32 @@ export function deleteMedia(id: string): Promise<void> {
 }
 
 export function importFile(formData: FormData): Promise<ImportResultDto> {
-  return requestJson<ImportResultDto>(`${mediaEndpoint}/import/file`, { method: "POST", body: formData });
+  return requestJson<ImportResultDto>(`${mediaEndpoint}/import/file`, {
+    method: "POST",
+    body: formData,
+  });
 }
 
 export function importSteamProfile(payload: SteamImportPayload): Promise<ImportResultDto> {
-  return requestJson<ImportResultDto>(`${mediaEndpoint}/import/steam`, jsonOptions("POST", payload));
+  return requestJson<ImportResultDto>(
+    `${mediaEndpoint}/import/steam`,
+    jsonOptions("POST", payload),
+  );
 }
 
 export function importAniListProfile(payload: AniListProfilePayload): Promise<ImportResultDto> {
-  return requestJson<ImportResultDto>(`${mediaEndpoint}/import/anilist-profile`, jsonOptions("POST", payload));
+  return requestJson<ImportResultDto>(
+    `${mediaEndpoint}/import/anilist-profile`,
+    jsonOptions("POST", payload),
+  );
 }
 
 export function importMangaLibProfile(payload: MangaLibProfilePayload): Promise<ImportResultDto> {
-  return requestJson<ImportResultDto>(`${mediaEndpoint}/import/mangalib-profile`, jsonOptions("POST", payload));
+  return requestJson<ImportResultDto>(
+    `${mediaEndpoint}/import/mangalib-profile`,
+    jsonOptions("POST", payload),
+  );
 }
-
 
 export function getLists(): Promise<CustomListSummary[]> {
   return requestJson<CustomListSummary[]>("/api/lists");
@@ -337,10 +314,7 @@ export function getListsForMedia(mediaId: string): Promise<string[]> {
  * Re-reads the provider. `fillMissing` turns the overwrite into a gap fill, which is what the
  * "keep my edits" branch of the refresh dialog sends.
  */
-export function refreshMetadata(
-  id: string,
-  fillMissing = false,
-): Promise<MediaDetail> {
+export function refreshMetadata(id: string, fillMissing = false): Promise<MediaDetail> {
   return requestJson<MediaDetail>(`${mediaEndpoint}/${id}/refresh`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -388,19 +362,13 @@ export function toggleSourceEnabled(
   enabled: boolean,
 ): Promise<{ success: boolean; isEnabled: boolean }> {
   invalidateSourcesCache();
-  return requestJson(
-    `/api/settings/sources/${sourceId}/toggle`,
-    jsonOptions("PUT", { enabled }),
-  );
+  return requestJson(`/api/settings/sources/${sourceId}/toggle`, jsonOptions("PUT", { enabled }));
 }
 
-export function testSourceConnection(
-  sourceId: string,
-): Promise<ConnectionTestResult> {
-  return requestJson<ConnectionTestResult>(
-    `/api/settings/sources/${sourceId}/test`,
-    { method: "POST" },
-  );
+export function testSourceConnection(sourceId: string): Promise<ConnectionTestResult> {
+  return requestJson<ConnectionTestResult>(`/api/settings/sources/${sourceId}/test`, {
+    method: "POST",
+  });
 }
 
 export function saveSourceKey(
@@ -408,10 +376,7 @@ export function saveSourceKey(
   apiKey: string,
 ): Promise<{ success: boolean; hasKey: boolean; maskedKey: string | null }> {
   invalidateSourcesCache();
-  return requestJson(
-    `/api/settings/sources/${sourceId}/key`,
-    jsonOptions("PUT", { apiKey }),
-  );
+  return requestJson(`/api/settings/sources/${sourceId}/key`, jsonOptions("PUT", { apiKey }));
 }
 
 export function getCategoryOrder(): Promise<string[]> {
@@ -433,14 +398,11 @@ export function getSourcePriority(): Promise<Record<string, string[]>> {
 export function saveSourcePriority(
   priority: Record<string, string[]>,
 ): Promise<Record<string, string[]>> {
-  return requestJson<Record<string, string[]>>(
-    "/api/settings/source-priority",
-    {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(priority),
-    },
-  );
+  return requestJson<Record<string, string[]>>("/api/settings/source-priority", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(priority),
+  });
 }
 
 export interface ReadingSettings {
@@ -452,9 +414,7 @@ export function getReadingSettings(): Promise<ReadingSettings> {
   return requestJson<ReadingSettings>("/api/settings/reading");
 }
 
-export function saveReadingSettings(
-  settings: ReadingSettings,
-): Promise<ReadingSettings> {
+export function saveReadingSettings(settings: ReadingSettings): Promise<ReadingSettings> {
   return requestJson<ReadingSettings>("/api/settings/reading", {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -502,9 +462,7 @@ export function getGameRelated(params: {
   if (params.title) query.set("title", params.title);
   if (params.externalSource) query.set("externalSource", params.externalSource);
   if (params.externalId) query.set("externalId", params.externalId);
-  return requestJson<GameRelatedItem[]>(
-    `/api/external/games/related?${query.toString()}`,
-  );
+  return requestJson<GameRelatedItem[]>(`/api/external/games/related?${query.toString()}`);
 }
 
 export function getGameRecommendations(params: {
@@ -518,9 +476,7 @@ export function getGameRecommendations(params: {
   if (params.title) query.set("title", params.title);
   if (params.externalSource) query.set("externalSource", params.externalSource);
   if (params.externalId) query.set("externalId", params.externalId);
-  return requestJson<GameRelatedItem[]>(
-    `/api/external/games/recommendations?${query.toString()}`,
-  );
+  return requestJson<GameRelatedItem[]>(`/api/external/games/recommendations?${query.toString()}`);
 }
 
 /**
@@ -540,9 +496,7 @@ export function getExternalRelations(params: {
   if (params.title) query.set("title", params.title);
   query.set("source", params.source);
   query.set("kind", params.kind);
-  return requestJson<ExternalRelation[]>(
-    `/api/external/relations?${query.toString()}`,
-  );
+  return requestJson<ExternalRelation[]>(`/api/external/relations?${query.toString()}`);
 }
 
 /**
@@ -574,24 +528,20 @@ export function getCalendar(
   if (from) params.set("from", from);
   if (to) params.set("to", to);
   const query = params.toString();
-  return requestJson<CalendarScheduleDto>(
-    `${mediaEndpoint}/calendar${query ? `?${query}` : ""}`,
-    { signal },
-  );
+  return requestJson<CalendarScheduleDto>(`${mediaEndpoint}/calendar${query ? `?${query}` : ""}`, {
+    signal,
+  });
 }
 
 export function triggerAutoRefresh(mediaId: string): Promise<MediaDetail> {
-  return requestJson<MediaDetail>(
-    `${mediaEndpoint}/${mediaId}/auto-refresh/trigger`,
-    { method: "POST" },
-  );
+  return requestJson<MediaDetail>(`${mediaEndpoint}/${mediaId}/auto-refresh/trigger`, {
+    method: "POST",
+  });
 }
 
 /** Library rows the enrichment job parked in `NeedsReview`, each with its candidate matches. */
 export function getPendingMatches(): Promise<PendingMatchItemDto[]> {
-  return requestJson<PendingMatchItemDto[]>(
-    `${mediaEndpoint}/pending-matches`,
-  );
+  return requestJson<PendingMatchItemDto[]>(`${mediaEndpoint}/pending-matches`);
 }
 
 /** Applies the candidate the user confirmed and returns the enriched row. */
@@ -618,14 +568,20 @@ export function dismissAllPendingMatches(): Promise<void> {
 }
 
 /** Auto-picks the top candidate of every review row that scans strong enough; weak rows stay in review. */
-export function resolveAllPendingMatchesByPriority(): Promise<{ resolvedCount: number; skippedCount: number }> {
+export function resolveAllPendingMatchesByPriority(): Promise<{
+  resolvedCount: number;
+  skippedCount: number;
+}> {
   return requestJson<{ resolvedCount: number; skippedCount: number }>(
     `${mediaEndpoint}/resolve-all-by-priority`,
     { method: "POST" },
   );
 }
 
-export function getHistoryEvents(params?: { mediaId?: string; date?: string }): Promise<HistoryEvent[]> {
+export function getHistoryEvents(params?: {
+  mediaId?: string;
+  date?: string;
+}): Promise<HistoryEvent[]> {
   const query = new URLSearchParams();
   if (params?.mediaId) query.set("mediaId", params.mediaId);
   if (params?.date) query.set("date", params.date);
@@ -665,10 +621,7 @@ export async function restoreBackup(file: File): Promise<void> {
 }
 
 export function resetAllData(keepApiKeys: boolean = true): Promise<void> {
-  return requestVoid(
-    "/api/settings/reset",
-    jsonOptions("POST", { keepApiKeys }),
-  );
+  return requestVoid("/api/settings/reset", jsonOptions("POST", { keepApiKeys }));
 }
 
 export function getApiTokens(): Promise<ApiTokenSummary[]> {

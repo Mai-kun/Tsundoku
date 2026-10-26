@@ -7,10 +7,10 @@
  * legacy `/covers/...` row) is returned untouched: those have no sibling file to switch to.
  */
 export function fullSizeCoverUrl(coverUrl: string): string {
-    return coverUrl.replace(
-        /\/media-assets\/([^/]+)\/cover\/thumb\.webp(\?.*)?$/,
-        "/media-assets/$1/cover/original.webp$2",
-    );
+  return coverUrl.replace(
+    /\/media-assets\/([^/]+)\/cover\/thumb\.webp(\?.*)?$/,
+    "/media-assets/$1/cover/original.webp$2",
+  );
 }
 
 /**
@@ -19,10 +19,6 @@ export function fullSizeCoverUrl(coverUrl: string): string {
  * prefilled into the field.
  */
 export function isValidCoverUrl(value: string): boolean {
-    const trimmed = value.trim();
-    return (
-        trimmed === "" ||
-        trimmed.startsWith("/") ||
-        /^https?:\/\/\S+$/i.test(trimmed)
-    );
+  const trimmed = value.trim();
+  return trimmed === "" || trimmed.startsWith("/") || /^https?:\/\/\S+$/i.test(trimmed);
 }

@@ -4,5 +4,5 @@
 // notification is simply delivered on the next frame — so the client reporter
 // must not forward it to the server.
 export function isIgnorableClientError(message: string): boolean {
-    return message.includes("ResizeObserver loop");
+  return message.includes("ResizeObserver loop");
 }

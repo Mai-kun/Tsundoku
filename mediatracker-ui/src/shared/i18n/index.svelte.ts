@@ -1,6 +1,6 @@
 import { translations, type Dictionary, type Locale } from "./translations";
 
-export type { Dictionary, Locale } from "./translations";
+export type { Locale } from "./translations";
 
 export const locales: readonly Locale[] = ["ru", "en"];
 

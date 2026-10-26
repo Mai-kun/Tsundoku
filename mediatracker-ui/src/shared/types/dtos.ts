@@ -339,5 +339,3 @@ export interface CalendarScheduleDto {
   to: string;
   days: CalendarDayDto[];
 }
-
-

@@ -11,7 +11,7 @@ const detailsCache = createPrefetchCache<ExternalMedia>(DETAILS_TTL_MS);
 
 /** Ключ кэша: один и тот же тайтл из разных источников — это разные запросы. */
 function detailsKey(type: string, item: ExternalMedia): string {
-    return `${type}:${item.externalSource ?? ""}:${item.externalId || item.title}`;
+  return `${type}:${item.externalSource ?? ""}:${item.externalId || item.title}`;
 }
 
 /**
@@ -23,18 +23,15 @@ function detailsKey(type: string, item: ExternalMedia): string {
  * из результата поиска.
  */
 export async function loadExternalDetails(
-    type: SearchMediaType,
-    item: ExternalMedia,
+  type: SearchMediaType,
+  item: ExternalMedia,
 ): Promise<ExternalMedia> {
-    return detailsCache.load(detailsKey(type, item), () =>
-        getExternalDetails(
-            type,
-            item.externalId,
-            item.title,
-            item.externalSource ?? undefined,
-        ).then((result) => {
-            if (!result) throw new Error("External details unavailable");
-            return result;
-        }),
-    );
+  return detailsCache.load(detailsKey(type, item), () =>
+    getExternalDetails(type, item.externalId, item.title, item.externalSource ?? undefined).then(
+      (result) => {
+        if (!result) throw new Error("External details unavailable");
+        return result;
+      },
+    ),
+  );
 }

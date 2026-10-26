@@ -17,8 +17,7 @@ function sendClientLog(message: string, stack?: string, url?: string) {
 window.addEventListener("error", (event) => {
   const message = event.message || "Script error";
   if (isIgnorableClientError(message)) return;
-  const stack =
-    event.error?.stack || `${event.filename}:${event.lineno}:${event.colno}`;
+  const stack = event.error?.stack || `${event.filename}:${event.lineno}:${event.colno}`;
   sendClientLog(message, stack, window.location.href);
 });
 

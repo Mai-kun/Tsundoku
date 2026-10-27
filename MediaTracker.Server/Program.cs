@@ -553,58 +553,22 @@ static async Task InitializeDatabaseAsync(WebApplication app)
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     var appPaths = app.Services.GetRequiredService<AppPaths>();
 
-    var pendingMigrations = await db.Database.GetPendingMigrationsAsync();
+    // Стандартный подход EF Core: просто вызываем MigrateAsync.
+    // Если база данных пуста, EF создаст её и применит миграции.
+    // Если база существует, EF проверит таблицу __EFMigrationsHistory и доприменит всё, чего нет.
     
-    // Check for existing database with old migrations
-    var connection = db.Database.GetDbConnection();
-    await connection.OpenAsync();
-    using var command = connection.CreateCommand();
-    command.CommandText = "SELECT count(*) FROM sqlite_master WHERE type='table' AND name='MediaItems';";
-    var hasMediaItemsTable = (long)(await command.ExecuteScalarAsync() ?? 0) > 0;
+    // SQLite не требует сложных проверок таблиц: MigrateAsync сам создаст нужные таблицы (включая Settings),
+    // если их нет, и обновит существующие до актуального состояния.
     
-    command.CommandText = "SELECT count(*) FROM sqlite_master WHERE type='table' AND name='__EFMigrationsHistory';";
-    var hasHistoryTable = (long)(await command.ExecuteScalarAsync() ?? 0) > 0;
-    
-    bool isOldDatabase = hasMediaItemsTable && hasHistoryTable;
-
-    if (isOldDatabase)
+    try
     {
-        command.CommandText = "SELECT count(*) FROM __EFMigrationsHistory WHERE MigrationId LIKE '%_InitialCreate';";
-        var hasInitialCreate = (long)(await command.ExecuteScalarAsync() ?? 0) > 0;
-        
-        if (!hasInitialCreate)
-        {
-            Log.Information("Detected old database structure. Synchronizing migration history...");
-            // Clear history and add InitialCreate
-            command.CommandText = "DELETE FROM __EFMigrationsHistory;";
-            await command.ExecuteNonQueryAsync();
-            
-            var migrationId = db.Database.GetMigrations().First() + "_InitialCreate";
-            command.CommandText = $"INSERT INTO __EFMigrationsHistory (MigrationId, ProductVersion) VALUES ('{migrationId}', '10.0.0');";
-            await command.ExecuteNonQueryAsync();
-            
-            // Refresh pending migrations list
-            pendingMigrations = await db.Database.GetPendingMigrationsAsync();
-        }
-    }
-
-    if (pendingMigrations.Any())
-    {
-        var backupDir = Path.Combine(appPaths.DataDirectory, "backups");
-        Directory.CreateDirectory(backupDir);
-        var backupPath = Path.Combine(backupDir, $"tracker_pre_migration_{DateTime.UtcNow:yyyyMMdd_HHmmss}.db");
-        File.Copy(appPaths.DatabaseFilePath, backupPath, overwrite: true);
-        
-        var backups = Directory.GetFiles(backupDir, "tracker_pre_migration_*.db")
-            .OrderByDescending(File.GetCreationTime)
-            .Skip(5);
-        foreach(var b in backups) File.Delete(b);
-
-        Log.Information(
-            "Applying {Count} pending database migration(s)...",
-            pendingMigrations.Count()
-        );
+        Log.Information("Applying database migrations...");
         await db.Database.MigrateAsync();
+    }
+    catch (Exception ex)
+    {
+        Log.Error(ex, "Failed to apply database migrations.");
+        throw;
     }
 
     await scope.ServiceProvider.GetRequiredService<StoredSettingsLoader>().LoadAsync();

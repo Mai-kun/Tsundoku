@@ -19,6 +19,14 @@ public sealed class StoredSettingsLoader(
 {
     public async Task LoadAsync(CancellationToken ct = default)
     {
+        var connection = db.Database.GetDbConnection();
+        if (connection.State != System.Data.ConnectionState.Open) await connection.OpenAsync(ct);
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT count(*) FROM sqlite_master WHERE type='table' AND name='Settings';";
+        var settingsTableExists = (long)(await command.ExecuteScalarAsync(ct) ?? 0) > 0;
+        
+        if (!settingsTableExists) return;
+
         foreach (var provider in providers.Where(p => p.RequiresApiKey || p.OptionalApiKey).DistinctBy(p => p.Id))
         {
             var setting = await db.Settings.AsNoTracking().FirstOrDefaultAsync(s => s.Key == $"ApiKey_{provider.Id}", ct);

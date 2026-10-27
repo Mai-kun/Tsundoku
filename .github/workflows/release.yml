@@ -78,6 +78,11 @@ jobs:
           npm ci
           npm run build
 
+      - name: Copy Frontend to wwwroot
+        run: |
+          mkdir -p MediaTracker.Server/wwwroot
+          cp -r mediatracker-ui/dist/* MediaTracker.Server/wwwroot/
+
       - name: Publish Server
         run: |
           VERSION=${{ steps.version.outputs.version }}

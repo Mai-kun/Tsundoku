@@ -553,9 +553,41 @@ static async Task InitializeDatabaseAsync(WebApplication app)
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     var appPaths = app.Services.GetRequiredService<AppPaths>();
 
-    // Only run the full migration pipeline when there are actually pending migrations;
-    // on an up-to-date database GetPendingMigrationsAsync short-circuits cheaply.
     var pendingMigrations = await db.Database.GetPendingMigrationsAsync();
+    
+    // Check for existing database with old migrations
+    var connection = db.Database.GetDbConnection();
+    await connection.OpenAsync();
+    using var command = connection.CreateCommand();
+    command.CommandText = "SELECT count(*) FROM sqlite_master WHERE type='table' AND name='MediaItems';";
+    var hasMediaItemsTable = (long)(await command.ExecuteScalarAsync() ?? 0) > 0;
+    
+    command.CommandText = "SELECT count(*) FROM sqlite_master WHERE type='table' AND name='__EFMigrationsHistory';";
+    var hasHistoryTable = (long)(await command.ExecuteScalarAsync() ?? 0) > 0;
+    
+    bool isOldDatabase = hasMediaItemsTable && hasHistoryTable;
+
+    if (isOldDatabase)
+    {
+        command.CommandText = "SELECT count(*) FROM __EFMigrationsHistory WHERE MigrationId LIKE '%_InitialCreate';";
+        var hasInitialCreate = (long)(await command.ExecuteScalarAsync() ?? 0) > 0;
+        
+        if (!hasInitialCreate)
+        {
+            Log.Information("Detected old database structure. Synchronizing migration history...");
+            // Clear history and add InitialCreate
+            command.CommandText = "DELETE FROM __EFMigrationsHistory;";
+            await command.ExecuteNonQueryAsync();
+            
+            var migrationId = db.Database.GetMigrations().First() + "_InitialCreate";
+            command.CommandText = $"INSERT INTO __EFMigrationsHistory (MigrationId, ProductVersion) VALUES ('{migrationId}', '10.0.0');";
+            await command.ExecuteNonQueryAsync();
+            
+            // Refresh pending migrations list
+            pendingMigrations = await db.Database.GetPendingMigrationsAsync();
+        }
+    }
+
     if (pendingMigrations.Any())
     {
         var backupDir = Path.Combine(appPaths.DataDirectory, "backups");

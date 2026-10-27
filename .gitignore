@@ -34,6 +34,7 @@ bld/
 [Oo]bj/
 [Ll]og/
 [Ll]ogs/
+!**/Features/Logs/**
 
 # Visual Studio 2015/2017 cache/options directory
 .vs/
@@ -504,3 +505,5 @@ Python/
 
 reports/
 .worktrees/
+!MediaTracker.Server/Features/Logs/**
+

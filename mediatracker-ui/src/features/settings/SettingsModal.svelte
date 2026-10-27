@@ -44,6 +44,8 @@
     toggleSourceEnabled,
     checkAppUpdate,
     applyAppUpdate,
+    getStorageSettings,
+    saveStorageSettings,
   } from "$shared/api/api";
   import { showToast } from "$shared/ui/toast.svelte";
   import { i18n } from "$shared/i18n/index.svelte";
@@ -66,7 +68,7 @@ import type { UpdateCheckResult } from "$shared/api/api";
 
   let { isOpen, onClose, onImportCompleted, onNavigateToList }: Props = $props();
 
-  type Tab = "sources" | "search" | "backup" | "import" | "reading" | "apiTokens" | "update";
+  type Tab = "sources" | "search" | "backup" | "import" | "reading" | "apiTokens" | "update" | "storage";
   let activeTab = $state<Tab>("sources");
 
   let tokens = $state<ApiTokenSummary[]>([]);
@@ -696,6 +698,19 @@ import type { UpdateCheckResult } from "$shared/api/api";
         >
           <RefreshCw size={16} />
           <span>{i18n.t.settingsModal.tabs.update}</span>
+        </button>
+
+        <button
+          type="button"
+          class={`tap flex w-full cursor-pointer items-center gap-3 rounded-lg px-3.5 py-2.5 text-left text-xs transition ${
+            activeTab === "storage"
+              ? "border border-[#5844e0]/30 bg-[#5844e0]/15 font-semibold text-[#a5b4fc] shadow-sm"
+              : "text-muted border border-transparent font-medium hover:bg-white/5 hover:text-white"
+          }`}
+          onclick={() => (activeTab = "storage")}
+        >
+          <FolderInput size={16} />
+          <span>{i18n.t.settingsModal.tabs.storage}</span>
         </button>
 
       </nav>

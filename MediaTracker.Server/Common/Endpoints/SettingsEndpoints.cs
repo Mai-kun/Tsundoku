@@ -1,4 +1,7 @@
+using System.Diagnostics;
+using System.Text.Json;
 using MediaTracker.Server.Common.Http;
+using MediaTracker.Server.Infrastructure.Storage;
 using MediaTracker.Server.Features.Settings.ApiTokens;
 using MediaTracker.Server.Features.Settings.GetCategoryOrder;
 using MediaTracker.Server.Features.Settings.GetSourcePriority;
@@ -11,7 +14,9 @@ using MediaTracker.Server.Features.Settings.TestSource;
 using MediaTracker.Server.Features.Settings.ToggleSource;
 using MediaTracker.Server.Features.System.GetSources;
 using MediaTracker.Server.Features.System.Updates;
+using MediaTracker.Server.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace MediaTracker.Server.Common.Endpoints;
 
@@ -166,6 +171,85 @@ public static class SettingsEndpoints
             .WithTags("Настройки / Settings")
             .WithSummary("Проверка обновлений");
 
+        group.MapGet("/storage", ([FromServices] AppPaths appPaths) => {
+            var appDir = AppContext.BaseDirectory;
+            var configPath = Path.Combine(appDir, "storage.json");
+            var mode = "default";
+            if (File.Exists(configPath)) {
+                var config = JsonSerializer.Deserialize<StorageConfig>(File.ReadAllText(configPath));
+                mode = config?.Mode ?? "default";
+            }
+            return Results.Ok(new {
+                Mode = mode,
+                DataDirectory = appPaths.DataDirectory,
+                PortableDirectory = Path.Combine(appDir, "data"),
+                DefaultDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Tsundoku"),
+                IsFirstRunSetupRequired = appPaths.IsFirstRunSetupRequired
+            });
+        }).WithTags("Настройки / Settings").WithSummary("Получить настройки хранилища");
+
+        group.MapPost("/storage", async (
+            [FromBody] StorageRequest request,
+            [FromServices] AppPaths currentPaths,
+            [FromServices] AppDbContext dbContext,
+            [FromServices] IHostApplicationLifetime hostLifetime) =>
+            {
+                var appDir = AppContext.BaseDirectory;
+                var configPath = Path.Combine(appDir, "storage.json");
+                
+                string targetDataDir = request.Mode switch
+                {
+                    "portable" => Path.Combine(appDir, "data"),
+                    "custom" => request.CustomPath ?? throw new ArgumentException("CustomPath required for custom mode"),
+                    _ => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Tsundoku")
+                };
+
+                if (request.MigrateExistingData && targetDataDir != currentPaths.DataDirectory)
+                {
+                    Directory.CreateDirectory(targetDataDir);
+
+                    // 1. Database
+                    if (File.Exists(currentPaths.DatabaseFilePath))
+                    {
+                        var targetDbPath = Path.Combine(targetDataDir, Path.GetFileName(currentPaths.DatabaseFilePath));
+                        var escapedTargetDbPath = targetDbPath.Replace("'", "''");
+                        await dbContext.Database.ExecuteSqlRawAsync($"VACUUM INTO '{escapedTargetDbPath}';");
+                    }
+
+                    // 2. Media and Covers
+                    foreach (var dir in new[] { currentPaths.MediaDirectory, currentPaths.CoversDirectory })
+                    {
+                        if (Directory.Exists(dir))
+                        {
+                            var targetSubDir = Path.Combine(targetDataDir, Path.GetFileName(dir));
+                            Directory.CreateDirectory(targetSubDir);
+                            CopyDirectory(dir, targetSubDir);
+                        }
+                    }
+
+                    // 3. Secret Key
+                    var oldSecretKey = Path.Combine(currentPaths.DataDirectory, ".secret.key");
+                    if (File.Exists(oldSecretKey))
+                    {
+                        File.Copy(oldSecretKey, Path.Combine(targetDataDir, ".secret.key"), overwrite: true);
+                    }
+                }
+
+                var config = new StorageConfig { Mode = request.Mode, CustomPath = request.CustomPath };
+                File.WriteAllText(configPath, JsonSerializer.Serialize(config));
+                
+                Task.Run(() => {
+                    Thread.Sleep(1000);
+                    var startInfo = new ProcessStartInfo(Environment.ProcessPath!, string.Join(" ", Environment.GetCommandLineArgs().Skip(1)))
+                    {
+                        UseShellExecute = true
+                    };
+                    Process.Start(startInfo);
+                    hostLifetime.StopApplication();
+                });
+                return Results.Accepted();
+            }).WithTags("Настройки / Settings").WithSummary("Сохранить настройки хранилища");
+
         group.MapPost("/update/apply", async (
             [FromServices] IUpdateService updateService,
             CancellationToken ct) => 
@@ -178,8 +262,17 @@ public static class SettingsEndpoints
 
         return app;
     }
+
+    private static void CopyDirectory(string sourceDir, string targetDir)
+    {
+        Directory.CreateDirectory(targetDir);
+        foreach (var file in Directory.GetFiles(sourceDir))
+            File.Copy(file, Path.Combine(targetDir, Path.GetFileName(file)), overwrite: true);
+        foreach (var directory in Directory.GetDirectories(sourceDir))
+            CopyDirectory(directory, Path.Combine(targetDir, Path.GetFileName(directory)));
+    }
 }
 
+public sealed record StorageRequest(string Mode, string? CustomPath, bool MigrateExistingData);
 public sealed record ToggleSourceRequest(bool Enabled);
-
 public sealed record UpdateKeyRequest(string? ApiKey);

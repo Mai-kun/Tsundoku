@@ -478,3 +478,17 @@ export interface HistoryEvent {
   /** Null once the media is deleted. */
   title: string | null;
 }
+
+export interface StorageSettings {
+  mode: "default" | "portable" | "custom";
+  defaultDirectory: string;
+  portableDirectory: string;
+  customPath: string;
+  isFirstRunSetupRequired: boolean;
+}
+
+export interface StorageRequest {
+  mode: "default" | "portable" | "custom";
+  customPath: string;
+  migrateExistingData: boolean;
+}

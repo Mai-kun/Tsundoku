@@ -72,7 +72,7 @@ export function formatHistoryEventLabel(event: HistoryEvent): string {
     }
 
     case "AchievementUnlocked":
-      return `${i18n.t.views.achievementPrefix} ${event.newValue ?? ""}`.trim();
+      return `${i18n.t.stats.achievements} ${event.newValue ?? ""}`.trim();
 
     default: {
       const parts: string[] = [event.type];

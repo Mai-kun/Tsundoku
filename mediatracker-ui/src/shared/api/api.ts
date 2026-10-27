@@ -32,6 +32,8 @@ import type {
   CreatorSummaryDto,
   CalendarScheduleDto,
   PendingMatchItemDto,
+  StorageSettings,
+  StorageRequest,
 } from "$shared/types";
 
 const mediaEndpoint = "/api/media";
@@ -661,5 +663,13 @@ export function checkAppUpdate(): Promise<UpdateCheckResult> {
 
 export function applyAppUpdate(): Promise<void> {
   return requestVoid("/api/settings/update/apply", { method: "POST" });
+}
+
+export function getStorageSettings(): Promise<StorageSettings> {
+  return requestJson<StorageSettings>("/api/settings/storage");
+}
+
+export function saveStorageSettings(payload: StorageRequest): Promise<void> {
+  return requestVoid("/api/settings/storage", jsonOptions("POST", payload));
 }
 

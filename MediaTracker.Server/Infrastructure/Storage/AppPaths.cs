@@ -1,9 +1,18 @@
+using System.Text.Json;
 using MediaTracker.Server.Common.Cli;
 
 namespace MediaTracker.Server.Infrastructure.Storage;
 
+public sealed class StorageConfig
+{
+    public string Mode { get; set; } = "default";
+    public string? CustomPath { get; set; }
+}
+
 public sealed class AppPaths
 {
+    public bool IsFirstRunSetupRequired { get; }
+
     public AppPaths(string dataDirectory, bool isDevelopment = false)
     {
         DataDirectory = dataDirectory;
@@ -34,6 +43,10 @@ public sealed class AppPaths
         Directory.CreateDirectory(CoversDirectory);
         Directory.CreateDirectory(MediaDirectory);
         Directory.CreateDirectory(LogsDirectory);
+        
+        IsFirstRunSetupRequired = !isDevelopment && !CommandLineOptions.IsRunningInContainer && 
+                                  !File.Exists(Path.Combine(AppContext.BaseDirectory, "storage.json")) && 
+                                  !File.Exists(DatabaseFilePath);
     }
 
     public bool IsDevelopment { get; }
@@ -53,10 +66,23 @@ public sealed class AppPaths
     public static AppPaths Create(CommandLineOptions options, bool isDevelopment)
     {
         string dataDirectory;
+        var appDir = AppContext.BaseDirectory;
+        var storageConfigPath = Path.Combine(appDir, "storage.json");
 
         if (options.DataDirectory is { Length: > 0 } configuredDirectory)
         {
             dataDirectory = Path.GetFullPath(configuredDirectory);
+        }
+        else if (!isDevelopment && !CommandLineOptions.IsRunningInContainer && File.Exists(storageConfigPath))
+        {
+            var config = JsonSerializer.Deserialize<StorageConfig>(File.ReadAllText(storageConfigPath)) ?? new();
+            if (config.Mode == "portable") dataDirectory = Path.Combine(appDir, "data");
+            else if (config.Mode == "custom" && !string.IsNullOrEmpty(config.CustomPath)) dataDirectory = Path.GetFullPath(config.CustomPath);
+            else dataDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Tsundoku");
+        }
+        else if (!isDevelopment && !CommandLineOptions.IsRunningInContainer && File.Exists(Path.Combine(appDir, ".portable")))
+        {
+            dataDirectory = Path.Combine(appDir, "data");
         }
         else if (isDevelopment)
         {

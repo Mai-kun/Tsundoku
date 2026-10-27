@@ -1,6 +1,7 @@
 <script lang="ts">
   import { deleteMedia } from "$shared/api/api";
   import { jobsClient } from "$shared/api/jobsClient.svelte";
+  import FirstRunStorageModal from "$features/settings/FirstRunStorageModal.svelte";
   import AppShell from "$widgets/layout/AppShell.svelte";
   import Header from "$widgets/layout/Header.svelte";
   import Sidebar from "$widgets/layout/Sidebar.svelte";
@@ -462,3 +463,5 @@
     <BackgroundJobsModal onMediaChanged={mediaChanged} />
   {/await}
 {/if}
+
+<FirstRunStorageModal />

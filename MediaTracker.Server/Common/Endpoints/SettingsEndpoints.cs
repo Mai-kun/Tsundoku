@@ -10,6 +10,7 @@ using MediaTracker.Server.Features.Settings.ResetData;
 using MediaTracker.Server.Features.Settings.TestSource;
 using MediaTracker.Server.Features.Settings.ToggleSource;
 using MediaTracker.Server.Features.System.GetSources;
+using MediaTracker.Server.Features.System.Updates;
 using Microsoft.AspNetCore.Mvc;
 
 namespace MediaTracker.Server.Common.Endpoints;
@@ -158,6 +159,22 @@ public static class SettingsEndpoints
         .WithTags("Настройки / Settings")
         .WithSummary("Восстановление из резервной копии")
         .WithDescription("Принимает ZIP-архив бэкапа и восстанавливает базу данных и медиафайлы.");
+
+        group.MapGet("/update/check", async (
+            [FromServices] IUpdateService updateService,
+            CancellationToken ct) => Results.Ok(await updateService.CheckForUpdatesAsync(ct)))
+            .WithTags("Настройки / Settings")
+            .WithSummary("Проверка обновлений");
+
+        group.MapPost("/update/apply", async (
+            [FromServices] IUpdateService updateService,
+            CancellationToken ct) => 
+            {
+                await updateService.ApplyUpdateAsync(ct);
+                return Results.Accepted();
+            })
+            .WithTags("Настройки / Settings")
+            .WithSummary("Применить обновление");
 
         return app;
     }

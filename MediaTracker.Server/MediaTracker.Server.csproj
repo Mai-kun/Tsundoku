@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
     <PropertyGroup>
+        <Version>1.0.0</Version>
         <OutputType Condition="'$(OS)' == 'Windows_NT'">WinExe</OutputType>
         <OutputType Condition="'$(OS)' != 'Windows_NT'">Exe</OutputType>
         <TargetFramework>net10.0</TargetFramework>

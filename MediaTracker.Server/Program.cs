@@ -8,6 +8,7 @@ using MediaTracker.Server.Common.Middleware;
 using MediaTracker.Server.Domain.Enums;
 using MediaTracker.Server.Features.Jobs;
 using MediaTracker.Server.Features.Media.Calendar;
+using MediaTracker.Server.Features.System.Updates;
 using MediaTracker.Server.Infrastructure.ExternalApis;
 using MediaTracker.Server.Infrastructure.Logging;
 using MediaTracker.Server.Infrastructure.Persistence;
@@ -122,6 +123,18 @@ if (options.IsDevMode)
 
 var appPaths = CreateAppPaths(options, isDevelopment);
 
+// Clean up old binaries
+string[] oldBinaries = { "Tsundoku.old", "Tsundoku.exe.old" };
+foreach (var oldBinary in oldBinaries)
+{
+    try
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, oldBinary);
+        if (File.Exists(path)) File.Delete(path);
+    }
+    catch { /* Ignore */ }
+}
+
 if (OperatingSystem.IsWindows() && !options.IsHeadless && !options.MigrateOnly)
 {
     ConfigureWebView2(appPaths);
@@ -150,6 +163,7 @@ try
     builder.WebHost.UseUrls(listenUrl);
 
     builder.Services.AddSingleton(appPaths);
+    builder.Services.AddScoped<IUpdateService, UpdateService>();
 
     var seedCandidates = new[]
     {
@@ -537,12 +551,23 @@ static async Task InitializeDatabaseAsync(WebApplication app)
 {
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    var appPaths = app.Services.GetRequiredService<AppPaths>();
 
     // Only run the full migration pipeline when there are actually pending migrations;
     // on an up-to-date database GetPendingMigrationsAsync short-circuits cheaply.
     var pendingMigrations = await db.Database.GetPendingMigrationsAsync();
     if (pendingMigrations.Any())
     {
+        var backupDir = Path.Combine(appPaths.DataDirectory, "backups");
+        Directory.CreateDirectory(backupDir);
+        var backupPath = Path.Combine(backupDir, $"tracker_pre_migration_{DateTime.UtcNow:yyyyMMdd_HHmmss}.db");
+        File.Copy(appPaths.DatabaseFilePath, backupPath, overwrite: true);
+        
+        var backups = Directory.GetFiles(backupDir, "tracker_pre_migration_*.db")
+            .OrderByDescending(File.GetCreationTime)
+            .Skip(5);
+        foreach(var b in backups) File.Delete(b);
+
         Log.Information(
             "Applying {Count} pending database migration(s)...",
             pendingMigrations.Count()

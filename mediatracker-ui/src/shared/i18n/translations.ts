@@ -1955,6 +1955,7 @@ export const translations = {
       import: { ru: "Импорт", en: "Import" },
       reading: { ru: "Темп чтения", en: "Reading Speed" },
       apiTokens: { ru: "API и доступ", en: "API & Access" },
+      update: { ru: "Обновление", en: "Updates" },
     },
     sources: {
       title: { ru: "Поддерживаемые источники", en: "Supported Sources" },

@@ -42,6 +42,8 @@
     saveSourcePriority,
     testSourceConnection,
     toggleSourceEnabled,
+    checkAppUpdate,
+    applyAppUpdate,
   } from "$shared/api/api";
   import { showToast } from "$shared/ui/toast.svelte";
   import { i18n } from "$shared/i18n/index.svelte";
@@ -53,6 +55,7 @@
     CreateApiTokenResponse,
     SourceInfo,
   } from "$shared/types";
+import type { UpdateCheckResult } from "$shared/api/api";
 
   interface Props {
     isOpen: boolean;
@@ -63,7 +66,7 @@
 
   let { isOpen, onClose, onImportCompleted, onNavigateToList }: Props = $props();
 
-  type Tab = "sources" | "search" | "backup" | "import" | "reading" | "apiTokens";
+  type Tab = "sources" | "search" | "backup" | "import" | "reading" | "apiTokens" | "update";
   let activeTab = $state<Tab>("sources");
 
   let tokens = $state<ApiTokenSummary[]>([]);
@@ -79,12 +82,47 @@
   let hasCopiedToken = $state(false);
 
   let tokenToRevoke = $state<ApiTokenSummary | null>(null);
+  let updateCheck = $state<UpdateCheckResult | null>(null);
+  let isCheckingUpdate = $state(false);
+  let isApplyingUpdate = $state(false);
 
   $effect(() => {
     if (isOpen && activeTab === "apiTokens") {
       loadTokens();
     }
+    if (isOpen && activeTab === "update") {
+        handleCheckUpdate();
+    }
   });
+
+  async function handleCheckUpdate() {
+    isCheckingUpdate = true;
+    try {
+      updateCheck = await checkAppUpdate();
+    } catch (e) {
+      showToast(errorMessage(e), "error");
+    } finally {
+      isCheckingUpdate = false;
+    }
+  }
+
+  async function handleApplyUpdate() {
+    isApplyingUpdate = true;
+    try {
+      await applyAppUpdate();
+      showToast("Обновление применено, сервер перезапускается...", "success");
+      const interval = setInterval(async () => {
+        try {
+          await checkAppUpdate();
+          window.location.reload();
+          clearInterval(interval);
+        } catch { /* ignored, still down */ }
+      }, 1500);
+    } catch (e) {
+      showToast(errorMessage(e), "error");
+      isApplyingUpdate = false;
+    }
+  }
 
   async function loadTokens() {
     isLoadingTokens = true;
@@ -650,15 +688,16 @@
         <button
           type="button"
           class={`tap flex w-full cursor-pointer items-center gap-3 rounded-lg px-3.5 py-2.5 text-left text-xs transition ${
-            activeTab === "apiTokens"
+            activeTab === "update"
               ? "border border-[#5844e0]/30 bg-[#5844e0]/15 font-semibold text-[#a5b4fc] shadow-sm"
               : "text-muted border border-transparent font-medium hover:bg-white/5 hover:text-white"
           }`}
-          onclick={() => (activeTab = "apiTokens")}
+          onclick={() => (activeTab = "update")}
         >
-          <Key size={16} />
-          <span>{i18n.t.settingsModal.tabs.apiTokens}</span>
+          <RefreshCw size={16} />
+          <span>{i18n.t.settingsModal.tabs.update}</span>
         </button>
+
       </nav>
 
       <!-- Right content area -->
@@ -1232,6 +1271,28 @@
                 </button>
               </div>
             </div>
+          </section>
+        {:else if activeTab === "update"}
+          <section class="space-y-6">
+            <h3 class="text-ink text-base font-bold">Обновление</h3>
+            {#if isCheckingUpdate}
+                <div class="flex items-center gap-2 text-muted text-sm"><LoaderCircle class="animate-spin" size={16} /> Проверка...</div>
+            {:else if updateCheck}
+                <div class="space-y-2">
+                    <p class="text-sm">Версия: {updateCheck.currentVersion}</p>
+                    {#if updateCheck.isUpdateAvailable}
+                        <p class="text-emerald-400 font-bold">Доступна версия {updateCheck.latestVersion}</p>
+                        <button onclick={handleApplyUpdate} disabled={isApplyingUpdate} class="bg-accent px-4 py-2 rounded text-white text-xs font-semibold">Обновить и перезапустить</button>
+                        {#if updateCheck.releaseNotes}
+                           <div class="mt-4 bg-black/20 p-4 rounded text-xs text-muted whitespace-pre-wrap">{updateCheck.releaseNotes}</div>
+                        {/if}
+                    {:else if updateCheck.isUpdateAvailable}
+                        <p class="text-rose-400 text-xs">Обновление доступно, но автообновление недоступно.</p>
+                    {:else}
+                        <p class="text-muted text-sm">Установлена актуальная версия.</p>
+                    {/if}
+                </div>
+            {/if}
           </section>
         {:else if activeTab === "apiTokens"}
           <section class="space-y-6">

@@ -641,3 +641,25 @@ export function createApiToken(
 export function revokeApiToken(id: string): Promise<void> {
   return requestVoid(`/api/settings/tokens/${id}`, { method: "DELETE" });
 }
+
+export interface UpdateCheckResult {
+  currentVersion: string;
+  latestVersion?: string;
+  isUpdateAvailable: boolean;
+  canSelfUpdate: boolean;
+  releaseTitle?: string;
+  releaseNotes?: string;
+  publishedAt?: string;
+  releaseUrl?: string;
+  downloadUrl?: string;
+  assetSizeBytes?: number;
+}
+
+export function checkAppUpdate(): Promise<UpdateCheckResult> {
+  return requestJson<UpdateCheckResult>("/api/settings/update/check");
+}
+
+export function applyAppUpdate(): Promise<void> {
+  return requestVoid("/api/settings/update/apply", { method: "POST" });
+}
+

@@ -1,7 +1,7 @@
 {
   "name": "mediatracker-ui",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "check:orphans": "node --experimental-strip-types checks/static/orphanChecks.check.ts",

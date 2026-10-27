@@ -25,7 +25,9 @@ mkdir -p "$INSTALL_DIR"
 # 1.5. Скачивание и установка
 echo "Загрузка последней версии..."
 REPO=${REPO:-"mai-kun/tsundoku"}
-DOWNLOAD_URL=$(curl -s https://api.github.com/repos/$REPO/releases/latest | grep -o 'https://[^"]*tsundoku-linux-x64\.zip')
+# Используем tr -d '\r' чтобы убрать скрытые символы переноса, которые могут ломать URL
+DOWNLOAD_URL=$(curl -s https://api.github.com/repos/$REPO/releases/latest | grep -o 'https://[^"]*tsundoku-linux-x64\.zip' | head -n 1 | tr -d '\r')
+echo "URL: $DOWNLOAD_URL"
 curl -L "$DOWNLOAD_URL" -o /tmp/tsundoku-linux-x64.zip
 unzip -o /tmp/tsundoku-linux-x64.zip -d "$INSTALL_DIR"
 chmod +x "$INSTALL_DIR/Tsundoku"

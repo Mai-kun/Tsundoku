@@ -11,6 +11,10 @@ public sealed class StorageConfig
 
 public sealed class AppPaths
 {
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true
+    };
     public bool IsFirstRunSetupRequired { get; }
 
     public AppPaths(string dataDirectory, bool isDevelopment = false)
@@ -75,7 +79,7 @@ public sealed class AppPaths
         }
         else if (!isDevelopment && !CommandLineOptions.IsRunningInContainer && File.Exists(storageConfigPath))
         {
-            var config = JsonSerializer.Deserialize<StorageConfig>(File.ReadAllText(storageConfigPath)) ?? new();
+            var config = JsonSerializer.Deserialize<StorageConfig>(File.ReadAllText(storageConfigPath), JsonOptions) ?? new();
             var mode = config.Mode?.ToLowerInvariant() switch
             {
                 "p" or "portable" => "portable",

@@ -61,7 +61,8 @@
   }
 </script>
 
-<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_noninteractive_element_interactions -->
+<!-- svelte-ignore a11y_click_events_have_key_events -->
+<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <article
   class="media-card group bg-card hover:bg-card-hover relative cursor-pointer rounded-xl border border-white/[0.05] p-2.5 shadow-lg focus-within:ring-2 focus-within:ring-indigo-500/30 hover:border-white/[0.1]"
   onclick={(event) => {

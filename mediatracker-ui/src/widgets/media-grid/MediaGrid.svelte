@@ -128,7 +128,7 @@
       scrollMargin = margin;
     } else {
       virtualizerInstance?.setOptions({
-        count: rows.length,
+        count: rowCount,
         scrollMargin: margin,
       });
     }

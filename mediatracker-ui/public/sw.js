@@ -9,11 +9,17 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Для API-запросов и не-GET запросов всегда идем в сеть
+  // Пропускаем не-GET запросы и API
   if (event.request.method !== 'GET' || event.request.url.includes('/api/')) {
     return;
   }
-  // Network-First стратегия (свежий контент всегда приоритетен)
+  
+  // КРИТИЧНО: Не перехватываем внешние CDN обложек (MangaLib, TMDb, AniList и т.д.),
+  // чтобы браузер запрашивал их напрямую с нативным referrerpolicy="no-referrer"
+  if (!event.request.url.startsWith(self.location.origin)) {
+    return;
+  }
+
   event.respondWith(
     fetch(event.request).catch(() => caches.match(event.request))
   );

@@ -1,0 +1,312 @@
+{
+  "testSuite": "BackstopJS",
+  "tests": [
+    {
+      "pair": {
+        "reference": "../../../mediatracker-ui/checks/harness/backstop_data/bitmaps_reference/mediatracker_visual_Home_View_0__0_mobile.png",
+        "test": "../../../mediatracker-ui/checks/harness/backstop_data/bitmaps_test/20261027-021332/mediatracker_visual_Home_View_0__0_mobile.png",
+        "selector": "",
+        "fileName": "mediatracker_visual_Home_View_0__0_mobile.png",
+        "label": "Home View",
+        "requireSameDimensions": true,
+        "misMatchThreshold": 0.1,
+        "url": "http://127.0.0.1:5173/?view=home",
+        "expect": 0,
+        "viewportLabel": "mobile",
+        "engineErrorMsg": "page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:5173/?view=home\nCall log:\n  - navigating to \"http://127.0.0.1:5173/?view=home\", waiting until \"load\"\n",
+        "error": "Reference file not found /home/maikun/HDD/Projects/tsundoku-perf-audit/mediatracker-ui/checks/harness/backstop_data/bitmaps_reference/mediatracker_visual_Home_View_0__0_mobile.png"
+      },
+      "status": "fail"
+    },
+    {
+      "pair": {
+        "reference": "../../../mediatracker-ui/checks/harness/backstop_data/bitmaps_reference/mediatracker_visual_Home_View_0__1_tablet.png",
+        "test": "../../../mediatracker-ui/checks/harness/backstop_data/bitmaps_test/20261027-021332/mediatracker_visual_Home_View_0__1_tablet.png",
+        "selector": "",
+        "fileName": "mediatracker_visual_Home_View_0__1_tablet.png",
+        "label": "Home View",
+        "requireSameDimensions": true,
+        "misMatchThreshold": 0.1,
+        "url": "http://127.0.0.1:5173/?view=home",
+        "expect": 0,
+        "viewportLabel": "tablet",
+        "engineErrorMsg": "page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:5173/?view=home\nCall log:\n  - navigating to \"http://127.0.0.1:5173/?view=home\", waiting until \"load\"\n",
+        "error": "Reference file not found /home/maikun/HDD/Projects/tsundoku-perf-audit/mediatracker-ui/checks/harness/backstop_data/bitmaps_reference/mediatracker_visual_Home_View_0__1_tablet.png"
+      },
+      "status": "fail"
+    },
+    {
+      "pair": {
+        "reference": "../../../mediatracker-ui/checks/harness/backstop_data/bitmaps_reference/mediatracker_visual_Home_View_0__2_desktop.png",
+        "test": "../../../mediatracker-ui/checks/harness/backstop_data/bitmaps_test/20261027-021332/mediatracker_visual_Home_View_0__2_desktop.png",
+        "selector": "",
+        "fileName": "mediatracker_visual_Home_View_0__2_desktop.png",
+        "label": "Home View",
+        "requireSameDimensions": true,
+        "misMatchThreshold": 0.1,
+        "url": "http://127.0.0.1:5173/?view=home",
+        "expect": 0,
+        "viewportLabel": "desktop",
+        "engineErrorMsg": "page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:5173/?view=home\nCall log:\n  - navigating to \"http://127.0.0.1:5173/?view=home\", waiting until \"load\"\n",
+        "error": "Reference file not found /home/maikun/HDD/Projects/tsundoku-perf-audit/mediatracker-ui/checks/harness/backstop_data/bitmaps_reference/mediatracker_visual_Home_View_0__2_desktop.png"
+      },
+      "status": "fail"
+    },
+    {
+      "pair": {
+        "reference": "../../../mediatracker-ui/checks/harness/backstop_data/bitmaps_reference/mediatracker_visual_Category_Game_View_0__0_mobile.png",
+        "test": "../../../mediatracker-ui/checks/harness/backstop_data/bitmaps_test/20261027-021332/mediatracker_visual_Category_Game_View_0__0_mobile.png",
+        "selector": "",
+        "fileName": "mediatracker_visual_Category_Game_View_0__0_mobile.png",
+        "label": "Category Game View",
+        "requireSameDimensions": true,
+        "misMatchThreshold": 0.1,
+        "url": "http://127.0.0.1:5173/?view=game",
+        "expect": 0,
+        "viewportLabel": "mobile",
+        "engineErrorMsg": "page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:5173/?view=game\nCall log:\n  - navigating to \"http://127.0.0.1:5173/?view=game\", waiting until \"load\"\n",
+        "error": "Reference file not found /home/maikun/HDD/Projects/tsundoku-perf-audit/mediatracker-ui/checks/harness/backstop_data/bitmaps_reference/mediatracker_visual_Category_Game_View_0__0_mobile.png"
+      },
+      "status": "fail"
+    },
+    {
+      "pair": {
+        "reference": "../../../mediatracker-ui/checks/harness/backstop_data/bitmaps_reference/mediatracker_visual_Category_Game_View_0__1_tablet.png",
+        "test": "../../../mediatracker-ui/checks/harness/backstop_data/bitmaps_test/20261027-021332/mediatracker_visual_Category_Game_View_0__1_tablet.png",
+        "selector": "",
+        "fileName": "mediatracker_visual_Category_Game_View_0__1_tablet.png",
+        "label": "Category Game View",
+        "requireSameDimensions": true,
+        "misMatchThreshold": 0.1,
+        "url": "http://127.0.0.1:5173/?view=game",
+        "expect": 0,
+        "viewportLabel": "tablet",
+        "engineErrorMsg": "page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:5173/?view=game\nCall log:\n  - navigating to \"http://127.0.0.1:5173/?view=game\", waiting until \"load\"\n",
+        "error": "Reference file not found /home/maikun/HDD/Projects/tsundoku-perf-audit/mediatracker-ui/checks/harness/backstop_data/bitmaps_reference/mediatracker_visual_Category_Game_View_0__1_tablet.png"
+      },
+      "status": "fail"
+    },
+    {
+      "pair": {
+        "reference": "../../../mediatracker-ui/checks/harness/backstop_data/bitmaps_reference/mediatracker_visual_Category_Game_View_0__2_desktop.png",
+        "test": "../../../mediatracker-ui/checks/harness/backstop_data/bitmaps_test/20261027-021332/mediatracker_visual_Category_Game_View_0__2_desktop.png",
+        "selector": "",
+        "fileName": "mediatracker_visual_Category_Game_View_0__2_desktop.png",
+        "label": "Category Game View",
+        "requireSameDimensions": true,
+        "misMatchThreshold": 0.1,
+        "url": "http://127.0.0.1:5173/?view=game",
+        "expect": 0,
+        "viewportLabel": "desktop",
+        "engineErrorMsg": "page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:5173/?view=game\nCall log:\n  - navigating to \"http://127.0.0.1:5173/?view=game\", waiting until \"load\"\n",
+        "error": "Reference file not found /home/maikun/HDD/Projects/tsundoku-perf-audit/mediatracker-ui/checks/harness/backstop_data/bitmaps_reference/mediatracker_visual_Category_Game_View_0__2_desktop.png"
+      },
+      "status": "fail"
+    },
+    {
+      "pair": {
+        "reference": "../../../mediatracker-ui/checks/harness/backstop_data/bitmaps_reference/mediatracker_visual_Stats_Summary_View_0__0_mobile.png",
+        "test": "../../../mediatracker-ui/checks/harness/backstop_data/bitmaps_test/20261027-021332/mediatracker_visual_Stats_Summary_View_0__0_mobile.png",
+        "selector": "",
+        "fileName": "mediatracker_visual_Stats_Summary_View_0__0_mobile.png",
+        "label": "Stats Summary View",
+        "requireSameDimensions": true,
+        "misMatchThreshold": 0.1,
+        "url": "http://127.0.0.1:5173/?view=stats",
+        "expect": 0,
+        "viewportLabel": "mobile",
+        "engineErrorMsg": "page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:5173/?view=stats\nCall log:\n  - navigating to \"http://127.0.0.1:5173/?view=stats\", waiting until \"load\"\n",
+        "error": "Reference file not found /home/maikun/HDD/Projects/tsundoku-perf-audit/mediatracker-ui/checks/harness/backstop_data/bitmaps_reference/mediatracker_visual_Stats_Summary_View_0__0_mobile.png"
+      },
+      "status": "fail"
+    },
+    {
+      "pair": {
+        "reference": "../../../mediatracker-ui/checks/harness/backstop_data/bitmaps_reference/mediatracker_visual_Stats_Summary_View_0__1_tablet.png",
+        "test": "../../../mediatracker-ui/checks/harness/backstop_data/bitmaps_test/20261027-021332/mediatracker_visual_Stats_Summary_View_0__1_tablet.png",
+        "selector": "",
+        "fileName": "mediatracker_visual_Stats_Summary_View_0__1_tablet.png",
+        "label": "Stats Summary View",
+        "requireSameDimensions": true,
+        "misMatchThreshold": 0.1,
+        "url": "http://127.0.0.1:5173/?view=stats",
+        "expect": 0,
+        "viewportLabel": "tablet",
+        "engineErrorMsg": "page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:5173/?view=stats\nCall log:\n  - navigating to \"http://127.0.0.1:5173/?view=stats\", waiting until \"load\"\n",
+        "error": "Reference file not found /home/maikun/HDD/Projects/tsundoku-perf-audit/mediatracker-ui/checks/harness/backstop_data/bitmaps_reference/mediatracker_visual_Stats_Summary_View_0__1_tablet.png"
+      },
+      "status": "fail"
+    },
+    {
+      "pair": {
+        "reference": "../../../mediatracker-ui/checks/harness/backstop_data/bitmaps_reference/mediatracker_visual_Stats_Summary_View_0__2_desktop.png",
+        "test": "../../../mediatracker-ui/checks/harness/backstop_data/bitmaps_test/20261027-021332/mediatracker_visual_Stats_Summary_View_0__2_desktop.png",
+        "selector": "",
+        "fileName": "mediatracker_visual_Stats_Summary_View_0__2_desktop.png",
+        "label": "Stats Summary View",
+        "requireSameDimensions": true,
+        "misMatchThreshold": 0.1,
+        "url": "http://127.0.0.1:5173/?view=stats",
+        "expect": 0,
+        "viewportLabel": "desktop",
+        "engineErrorMsg": "page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:5173/?view=stats\nCall log:\n  - navigating to \"http://127.0.0.1:5173/?view=stats\", waiting until \"load\"\n",
+        "error": "Reference file not found /home/maikun/HDD/Projects/tsundoku-perf-audit/mediatracker-ui/checks/harness/backstop_data/bitmaps_reference/mediatracker_visual_Stats_Summary_View_0__2_desktop.png"
+      },
+      "status": "fail"
+    },
+    {
+      "pair": {
+        "reference": "../../../mediatracker-ui/checks/harness/backstop_data/bitmaps_reference/mediatracker_visual_Lists_View_0__0_mobile.png",
+        "test": "../../../mediatracker-ui/checks/harness/backstop_data/bitmaps_test/20261027-021332/mediatracker_visual_Lists_View_0__0_mobile.png",
+        "selector": "",
+        "fileName": "mediatracker_visual_Lists_View_0__0_mobile.png",
+        "label": "Lists View",
+        "requireSameDimensions": true,
+        "misMatchThreshold": 0.1,
+        "url": "http://127.0.0.1:5173/?view=lists",
+        "expect": 0,
+        "viewportLabel": "mobile",
+        "engineErrorMsg": "page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:5173/?view=lists\nCall log:\n  - navigating to \"http://127.0.0.1:5173/?view=lists\", waiting until \"load\"\n",
+        "error": "Reference file not found /home/maikun/HDD/Projects/tsundoku-perf-audit/mediatracker-ui/checks/harness/backstop_data/bitmaps_reference/mediatracker_visual_Lists_View_0__0_mobile.png"
+      },
+      "status": "fail"
+    },
+    {
+      "pair": {
+        "reference": "../../../mediatracker-ui/checks/harness/backstop_data/bitmaps_reference/mediatracker_visual_Lists_View_0__1_tablet.png",
+        "test": "../../../mediatracker-ui/checks/harness/backstop_data/bitmaps_test/20261027-021332/mediatracker_visual_Lists_View_0__1_tablet.png",
+        "selector": "",
+        "fileName": "mediatracker_visual_Lists_View_0__1_tablet.png",
+        "label": "Lists View",
+        "requireSameDimensions": true,
+        "misMatchThreshold": 0.1,
+        "url": "http://127.0.0.1:5173/?view=lists",
+        "expect": 0,
+        "viewportLabel": "tablet",
+        "engineErrorMsg": "page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:5173/?view=lists\nCall log:\n  - navigating to \"http://127.0.0.1:5173/?view=lists\", waiting until \"load\"\n",
+        "error": "Reference file not found /home/maikun/HDD/Projects/tsundoku-perf-audit/mediatracker-ui/checks/harness/backstop_data/bitmaps_reference/mediatracker_visual_Lists_View_0__1_tablet.png"
+      },
+      "status": "fail"
+    },
+    {
+      "pair": {
+        "reference": "../../../mediatracker-ui/checks/harness/backstop_data/bitmaps_reference/mediatracker_visual_Lists_View_0__2_desktop.png",
+        "test": "../../../mediatracker-ui/checks/harness/backstop_data/bitmaps_test/20261027-021332/mediatracker_visual_Lists_View_0__2_desktop.png",
+        "selector": "",
+        "fileName": "mediatracker_visual_Lists_View_0__2_desktop.png",
+        "label": "Lists View",
+        "requireSameDimensions": true,
+        "misMatchThreshold": 0.1,
+        "url": "http://127.0.0.1:5173/?view=lists",
+        "expect": 0,
+        "viewportLabel": "desktop",
+        "engineErrorMsg": "page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:5173/?view=lists\nCall log:\n  - navigating to \"http://127.0.0.1:5173/?view=lists\", waiting until \"load\"\n",
+        "error": "Reference file not found /home/maikun/HDD/Projects/tsundoku-perf-audit/mediatracker-ui/checks/harness/backstop_data/bitmaps_reference/mediatracker_visual_Lists_View_0__2_desktop.png"
+      },
+      "status": "fail"
+    },
+    {
+      "pair": {
+        "reference": "../../../mediatracker-ui/checks/harness/backstop_data/bitmaps_reference/mediatracker_visual_History_Chronicle_View_0__0_mobile.png",
+        "test": "../../../mediatracker-ui/checks/harness/backstop_data/bitmaps_test/20261027-021332/mediatracker_visual_History_Chronicle_View_0__0_mobile.png",
+        "selector": "",
+        "fileName": "mediatracker_visual_History_Chronicle_View_0__0_mobile.png",
+        "label": "History Chronicle View",
+        "requireSameDimensions": true,
+        "misMatchThreshold": 0.1,
+        "url": "http://127.0.0.1:5173/?view=history",
+        "expect": 0,
+        "viewportLabel": "mobile",
+        "engineErrorMsg": "page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:5173/?view=history\nCall log:\n  - navigating to \"http://127.0.0.1:5173/?view=history\", waiting until \"load\"\n",
+        "error": "Reference file not found /home/maikun/HDD/Projects/tsundoku-perf-audit/mediatracker-ui/checks/harness/backstop_data/bitmaps_reference/mediatracker_visual_History_Chronicle_View_0__0_mobile.png"
+      },
+      "status": "fail"
+    },
+    {
+      "pair": {
+        "reference": "../../../mediatracker-ui/checks/harness/backstop_data/bitmaps_reference/mediatracker_visual_History_Chronicle_View_0__1_tablet.png",
+        "test": "../../../mediatracker-ui/checks/harness/backstop_data/bitmaps_test/20261027-021332/mediatracker_visual_History_Chronicle_View_0__1_tablet.png",
+        "selector": "",
+        "fileName": "mediatracker_visual_History_Chronicle_View_0__1_tablet.png",
+        "label": "History Chronicle View",
+        "requireSameDimensions": true,
+        "misMatchThreshold": 0.1,
+        "url": "http://127.0.0.1:5173/?view=history",
+        "expect": 0,
+        "viewportLabel": "tablet",
+        "engineErrorMsg": "page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:5173/?view=history\nCall log:\n  - navigating to \"http://127.0.0.1:5173/?view=history\", waiting until \"load\"\n",
+        "error": "Reference file not found /home/maikun/HDD/Projects/tsundoku-perf-audit/mediatracker-ui/checks/harness/backstop_data/bitmaps_reference/mediatracker_visual_History_Chronicle_View_0__1_tablet.png"
+      },
+      "status": "fail"
+    },
+    {
+      "pair": {
+        "reference": "../../../mediatracker-ui/checks/harness/backstop_data/bitmaps_reference/mediatracker_visual_History_Chronicle_View_0__2_desktop.png",
+        "test": "../../../mediatracker-ui/checks/harness/backstop_data/bitmaps_test/20261027-021332/mediatracker_visual_History_Chronicle_View_0__2_desktop.png",
+        "selector": "",
+        "fileName": "mediatracker_visual_History_Chronicle_View_0__2_desktop.png",
+        "label": "History Chronicle View",
+        "requireSameDimensions": true,
+        "misMatchThreshold": 0.1,
+        "url": "http://127.0.0.1:5173/?view=history",
+        "expect": 0,
+        "viewportLabel": "desktop",
+        "engineErrorMsg": "page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:5173/?view=history\nCall log:\n  - navigating to \"http://127.0.0.1:5173/?view=history\", waiting until \"load\"\n",
+        "error": "Reference file not found /home/maikun/HDD/Projects/tsundoku-perf-audit/mediatracker-ui/checks/harness/backstop_data/bitmaps_reference/mediatracker_visual_History_Chronicle_View_0__2_desktop.png"
+      },
+      "status": "fail"
+    },
+    {
+      "pair": {
+        "reference": "../../../mediatracker-ui/checks/harness/backstop_data/bitmaps_reference/mediatracker_visual_Calendar_View_0__0_mobile.png",
+        "test": "../../../mediatracker-ui/checks/harness/backstop_data/bitmaps_test/20261027-021332/mediatracker_visual_Calendar_View_0__0_mobile.png",
+        "selector": "",
+        "fileName": "mediatracker_visual_Calendar_View_0__0_mobile.png",
+        "label": "Calendar View",
+        "requireSameDimensions": true,
+        "misMatchThreshold": 0.1,
+        "url": "http://127.0.0.1:5173/?view=calendar",
+        "expect": 0,
+        "viewportLabel": "mobile",
+        "engineErrorMsg": "page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:5173/?view=calendar\nCall log:\n  - navigating to \"http://127.0.0.1:5173/?view=calendar\", waiting until \"load\"\n",
+        "error": "Reference file not found /home/maikun/HDD/Projects/tsundoku-perf-audit/mediatracker-ui/checks/harness/backstop_data/bitmaps_reference/mediatracker_visual_Calendar_View_0__0_mobile.png"
+      },
+      "status": "fail"
+    },
+    {
+      "pair": {
+        "reference": "../../../mediatracker-ui/checks/harness/backstop_data/bitmaps_reference/mediatracker_visual_Calendar_View_0__1_tablet.png",
+        "test": "../../../mediatracker-ui/checks/harness/backstop_data/bitmaps_test/20261027-021332/mediatracker_visual_Calendar_View_0__1_tablet.png",
+        "selector": "",
+        "fileName": "mediatracker_visual_Calendar_View_0__1_tablet.png",
+        "label": "Calendar View",
+        "requireSameDimensions": true,
+        "misMatchThreshold": 0.1,
+        "url": "http://127.0.0.1:5173/?view=calendar",
+        "expect": 0,
+        "viewportLabel": "tablet",
+        "engineErrorMsg": "page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:5173/?view=calendar\nCall log:\n  - navigating to \"http://127.0.0.1:5173/?view=calendar\", waiting until \"load\"\n",
+        "error": "Reference file not found /home/maikun/HDD/Projects/tsundoku-perf-audit/mediatracker-ui/checks/harness/backstop_data/bitmaps_reference/mediatracker_visual_Calendar_View_0__1_tablet.png"
+      },
+      "status": "fail"
+    },
+    {
+      "pair": {
+        "reference": "../../../mediatracker-ui/checks/harness/backstop_data/bitmaps_reference/mediatracker_visual_Calendar_View_0__2_desktop.png",
+        "test": "../../../mediatracker-ui/checks/harness/backstop_data/bitmaps_test/20261027-021332/mediatracker_visual_Calendar_View_0__2_desktop.png",
+        "selector": "",
+        "fileName": "mediatracker_visual_Calendar_View_0__2_desktop.png",
+        "label": "Calendar View",
+        "requireSameDimensions": true,
+        "misMatchThreshold": 0.1,
+        "url": "http://127.0.0.1:5173/?view=calendar",
+        "expect": 0,
+        "viewportLabel": "desktop",
+        "engineErrorMsg": "page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:5173/?view=calendar\nCall log:\n  - navigating to \"http://127.0.0.1:5173/?view=calendar\", waiting until \"load\"\n",
+        "error": "Reference file not found /home/maikun/HDD/Projects/tsundoku-perf-audit/mediatracker-ui/checks/harness/backstop_data/bitmaps_reference/mediatracker_visual_Calendar_View_0__2_desktop.png"
+      },
+      "status": "fail"
+    }
+  ],
+  "id": "mediatracker_visual"
+}

@@ -1,0 +1,422 @@
+{
+  "testSuite": "BackstopJS",
+  "tests": [
+    {
+      "pair": {
+        "reference": "../../../mediatracker-ui/checks/backstop_data/bitmaps_reference/mediatracker_visual_Home_View_0_document_0_mobile.png",
+        "test": "../../../mediatracker-ui/checks/backstop_data/bitmaps_test/20261026-233614/mediatracker_visual_Home_View_0_document_0_mobile.png",
+        "selector": "document",
+        "fileName": "mediatracker_visual_Home_View_0_document_0_mobile.png",
+        "label": "Home View",
+        "requireSameDimensions": true,
+        "misMatchThreshold": 0.1,
+        "url": "http://127.0.0.1:37893/?view=home",
+        "expect": 0,
+        "viewportLabel": "mobile",
+        "diff": {
+          "isSameDimensions": true,
+          "dimensionDifference": {
+            "width": 0,
+            "height": 0
+          },
+          "misMatchPercentage": "0.00"
+        }
+      },
+      "status": "pass"
+    },
+    {
+      "pair": {
+        "reference": "../../../mediatracker-ui/checks/backstop_data/bitmaps_reference/mediatracker_visual_Home_View_0_document_1_tablet.png",
+        "test": "../../../mediatracker-ui/checks/backstop_data/bitmaps_test/20261026-233614/mediatracker_visual_Home_View_0_document_1_tablet.png",
+        "selector": "document",
+        "fileName": "mediatracker_visual_Home_View_0_document_1_tablet.png",
+        "label": "Home View",
+        "requireSameDimensions": true,
+        "misMatchThreshold": 0.1,
+        "url": "http://127.0.0.1:37893/?view=home",
+        "expect": 0,
+        "viewportLabel": "tablet",
+        "diff": {
+          "isSameDimensions": true,
+          "dimensionDifference": {
+            "width": 0,
+            "height": 0
+          },
+          "misMatchPercentage": "0.00"
+        }
+      },
+      "status": "pass"
+    },
+    {
+      "pair": {
+        "reference": "../../../mediatracker-ui/checks/backstop_data/bitmaps_reference/mediatracker_visual_Home_View_0_document_2_desktop.png",
+        "test": "../../../mediatracker-ui/checks/backstop_data/bitmaps_test/20261026-233614/mediatracker_visual_Home_View_0_document_2_desktop.png",
+        "selector": "document",
+        "fileName": "mediatracker_visual_Home_View_0_document_2_desktop.png",
+        "label": "Home View",
+        "requireSameDimensions": true,
+        "misMatchThreshold": 0.1,
+        "url": "http://127.0.0.1:37893/?view=home",
+        "expect": 0,
+        "viewportLabel": "desktop",
+        "diff": {
+          "isSameDimensions": true,
+          "dimensionDifference": {
+            "width": 0,
+            "height": 0
+          },
+          "misMatchPercentage": "0.00"
+        }
+      },
+      "status": "pass"
+    },
+    {
+      "pair": {
+        "reference": "../../../mediatracker-ui/checks/backstop_data/bitmaps_reference/mediatracker_visual_Category_Game_View_0_document_0_mobile.png",
+        "test": "../../../mediatracker-ui/checks/backstop_data/bitmaps_test/20261026-233614/mediatracker_visual_Category_Game_View_0_document_0_mobile.png",
+        "selector": "document",
+        "fileName": "mediatracker_visual_Category_Game_View_0_document_0_mobile.png",
+        "label": "Category Game View",
+        "requireSameDimensions": true,
+        "misMatchThreshold": 0.1,
+        "url": "http://127.0.0.1:37893/?view=game",
+        "expect": 0,
+        "viewportLabel": "mobile",
+        "diff": {
+          "isSameDimensions": true,
+          "dimensionDifference": {
+            "width": 0,
+            "height": 0
+          },
+          "misMatchPercentage": "0.00"
+        }
+      },
+      "status": "pass"
+    },
+    {
+      "pair": {
+        "reference": "../../../mediatracker-ui/checks/backstop_data/bitmaps_reference/mediatracker_visual_Category_Game_View_0_document_1_tablet.png",
+        "test": "../../../mediatracker-ui/checks/backstop_data/bitmaps_test/20261026-233614/mediatracker_visual_Category_Game_View_0_document_1_tablet.png",
+        "selector": "document",
+        "fileName": "mediatracker_visual_Category_Game_View_0_document_1_tablet.png",
+        "label": "Category Game View",
+        "requireSameDimensions": true,
+        "misMatchThreshold": 0.1,
+        "url": "http://127.0.0.1:37893/?view=game",
+        "expect": 0,
+        "viewportLabel": "tablet",
+        "diff": {
+          "isSameDimensions": true,
+          "dimensionDifference": {
+            "width": 0,
+            "height": 0
+          },
+          "misMatchPercentage": "0.00"
+        }
+      },
+      "status": "pass"
+    },
+    {
+      "pair": {
+        "reference": "../../../mediatracker-ui/checks/backstop_data/bitmaps_reference/mediatracker_visual_Category_Game_View_0_document_2_desktop.png",
+        "test": "../../../mediatracker-ui/checks/backstop_data/bitmaps_test/20261026-233614/mediatracker_visual_Category_Game_View_0_document_2_desktop.png",
+        "selector": "document",
+        "fileName": "mediatracker_visual_Category_Game_View_0_document_2_desktop.png",
+        "label": "Category Game View",
+        "requireSameDimensions": true,
+        "misMatchThreshold": 0.1,
+        "url": "http://127.0.0.1:37893/?view=game",
+        "expect": 0,
+        "viewportLabel": "desktop",
+        "diff": {
+          "isSameDimensions": true,
+          "dimensionDifference": {
+            "width": 0,
+            "height": 0
+          },
+          "misMatchPercentage": "0.00"
+        }
+      },
+      "status": "pass"
+    },
+    {
+      "pair": {
+        "reference": "../../../mediatracker-ui/checks/backstop_data/bitmaps_reference/mediatracker_visual_Stats_Summary_View_0_document_0_mobile.png",
+        "test": "../../../mediatracker-ui/checks/backstop_data/bitmaps_test/20261026-233614/mediatracker_visual_Stats_Summary_View_0_document_0_mobile.png",
+        "selector": "document",
+        "fileName": "mediatracker_visual_Stats_Summary_View_0_document_0_mobile.png",
+        "label": "Stats Summary View",
+        "requireSameDimensions": true,
+        "misMatchThreshold": 0.1,
+        "url": "http://127.0.0.1:37893/?view=stats",
+        "expect": 0,
+        "viewportLabel": "mobile",
+        "diff": {
+          "isSameDimensions": true,
+          "dimensionDifference": {
+            "width": 0,
+            "height": 0
+          },
+          "misMatchPercentage": "0.00"
+        }
+      },
+      "status": "pass"
+    },
+    {
+      "pair": {
+        "reference": "../../../mediatracker-ui/checks/backstop_data/bitmaps_reference/mediatracker_visual_Stats_Summary_View_0_document_1_tablet.png",
+        "test": "../../../mediatracker-ui/checks/backstop_data/bitmaps_test/20261026-233614/mediatracker_visual_Stats_Summary_View_0_document_1_tablet.png",
+        "selector": "document",
+        "fileName": "mediatracker_visual_Stats_Summary_View_0_document_1_tablet.png",
+        "label": "Stats Summary View",
+        "requireSameDimensions": true,
+        "misMatchThreshold": 0.1,
+        "url": "http://127.0.0.1:37893/?view=stats",
+        "expect": 0,
+        "viewportLabel": "tablet",
+        "diff": {
+          "isSameDimensions": true,
+          "dimensionDifference": {
+            "width": 0,
+            "height": 0
+          },
+          "misMatchPercentage": "0.00"
+        }
+      },
+      "status": "pass"
+    },
+    {
+      "pair": {
+        "reference": "../../../mediatracker-ui/checks/backstop_data/bitmaps_reference/mediatracker_visual_Stats_Summary_View_0_document_2_desktop.png",
+        "test": "../../../mediatracker-ui/checks/backstop_data/bitmaps_test/20261026-233614/mediatracker_visual_Stats_Summary_View_0_document_2_desktop.png",
+        "selector": "document",
+        "fileName": "mediatracker_visual_Stats_Summary_View_0_document_2_desktop.png",
+        "label": "Stats Summary View",
+        "requireSameDimensions": true,
+        "misMatchThreshold": 0.1,
+        "url": "http://127.0.0.1:37893/?view=stats",
+        "expect": 0,
+        "viewportLabel": "desktop",
+        "diff": {
+          "isSameDimensions": true,
+          "dimensionDifference": {
+            "width": 0,
+            "height": 0
+          },
+          "rawMisMatchPercentage": 0,
+          "misMatchPercentage": "0.00",
+          "analysisTime": 39
+        }
+      },
+      "status": "pass"
+    },
+    {
+      "pair": {
+        "reference": "../../../mediatracker-ui/checks/backstop_data/bitmaps_reference/mediatracker_visual_Lists_View_0_document_0_mobile.png",
+        "test": "../../../mediatracker-ui/checks/backstop_data/bitmaps_test/20261026-233614/mediatracker_visual_Lists_View_0_document_0_mobile.png",
+        "selector": "document",
+        "fileName": "mediatracker_visual_Lists_View_0_document_0_mobile.png",
+        "label": "Lists View",
+        "requireSameDimensions": true,
+        "misMatchThreshold": 0.1,
+        "url": "http://127.0.0.1:37893/?view=lists",
+        "expect": 0,
+        "viewportLabel": "mobile",
+        "diff": {
+          "isSameDimensions": true,
+          "dimensionDifference": {
+            "width": 0,
+            "height": 0
+          },
+          "misMatchPercentage": "0.00"
+        }
+      },
+      "status": "pass"
+    },
+    {
+      "pair": {
+        "reference": "../../../mediatracker-ui/checks/backstop_data/bitmaps_reference/mediatracker_visual_Lists_View_0_document_1_tablet.png",
+        "test": "../../../mediatracker-ui/checks/backstop_data/bitmaps_test/20261026-233614/mediatracker_visual_Lists_View_0_document_1_tablet.png",
+        "selector": "document",
+        "fileName": "mediatracker_visual_Lists_View_0_document_1_tablet.png",
+        "label": "Lists View",
+        "requireSameDimensions": true,
+        "misMatchThreshold": 0.1,
+        "url": "http://127.0.0.1:37893/?view=lists",
+        "expect": 0,
+        "viewportLabel": "tablet",
+        "diff": {
+          "isSameDimensions": true,
+          "dimensionDifference": {
+            "width": 0,
+            "height": 0
+          },
+          "misMatchPercentage": "0.00"
+        }
+      },
+      "status": "pass"
+    },
+    {
+      "pair": {
+        "reference": "../../../mediatracker-ui/checks/backstop_data/bitmaps_reference/mediatracker_visual_Lists_View_0_document_2_desktop.png",
+        "test": "../../../mediatracker-ui/checks/backstop_data/bitmaps_test/20261026-233614/mediatracker_visual_Lists_View_0_document_2_desktop.png",
+        "selector": "document",
+        "fileName": "mediatracker_visual_Lists_View_0_document_2_desktop.png",
+        "label": "Lists View",
+        "requireSameDimensions": true,
+        "misMatchThreshold": 0.1,
+        "url": "http://127.0.0.1:37893/?view=lists",
+        "expect": 0,
+        "viewportLabel": "desktop",
+        "diff": {
+          "isSameDimensions": true,
+          "dimensionDifference": {
+            "width": 0,
+            "height": 0
+          },
+          "misMatchPercentage": "0.00"
+        }
+      },
+      "status": "pass"
+    },
+    {
+      "pair": {
+        "reference": "../../../mediatracker-ui/checks/backstop_data/bitmaps_reference/mediatracker_visual_History_Chronicle_View_0_document_0_mobile.png",
+        "test": "../../../mediatracker-ui/checks/backstop_data/bitmaps_test/20261026-233614/mediatracker_visual_History_Chronicle_View_0_document_0_mobile.png",
+        "selector": "document",
+        "fileName": "mediatracker_visual_History_Chronicle_View_0_document_0_mobile.png",
+        "label": "History Chronicle View",
+        "requireSameDimensions": true,
+        "misMatchThreshold": 0.1,
+        "url": "http://127.0.0.1:37893/?view=history",
+        "expect": 0,
+        "viewportLabel": "mobile",
+        "diff": {
+          "isSameDimensions": true,
+          "dimensionDifference": {
+            "width": 0,
+            "height": 0
+          },
+          "misMatchPercentage": "0.00"
+        }
+      },
+      "status": "pass"
+    },
+    {
+      "pair": {
+        "reference": "../../../mediatracker-ui/checks/backstop_data/bitmaps_reference/mediatracker_visual_History_Chronicle_View_0_document_1_tablet.png",
+        "test": "../../../mediatracker-ui/checks/backstop_data/bitmaps_test/20261026-233614/mediatracker_visual_History_Chronicle_View_0_document_1_tablet.png",
+        "selector": "document",
+        "fileName": "mediatracker_visual_History_Chronicle_View_0_document_1_tablet.png",
+        "label": "History Chronicle View",
+        "requireSameDimensions": true,
+        "misMatchThreshold": 0.1,
+        "url": "http://127.0.0.1:37893/?view=history",
+        "expect": 0,
+        "viewportLabel": "tablet",
+        "diff": {
+          "isSameDimensions": true,
+          "dimensionDifference": {
+            "width": 0,
+            "height": 0
+          },
+          "misMatchPercentage": "0.00"
+        }
+      },
+      "status": "pass"
+    },
+    {
+      "pair": {
+        "reference": "../../../mediatracker-ui/checks/backstop_data/bitmaps_reference/mediatracker_visual_History_Chronicle_View_0_document_2_desktop.png",
+        "test": "../../../mediatracker-ui/checks/backstop_data/bitmaps_test/20261026-233614/mediatracker_visual_History_Chronicle_View_0_document_2_desktop.png",
+        "selector": "document",
+        "fileName": "mediatracker_visual_History_Chronicle_View_0_document_2_desktop.png",
+        "label": "History Chronicle View",
+        "requireSameDimensions": true,
+        "misMatchThreshold": 0.1,
+        "url": "http://127.0.0.1:37893/?view=history",
+        "expect": 0,
+        "viewportLabel": "desktop",
+        "diff": {
+          "isSameDimensions": true,
+          "dimensionDifference": {
+            "width": 0,
+            "height": 0
+          },
+          "misMatchPercentage": "0.00"
+        }
+      },
+      "status": "pass"
+    },
+    {
+      "pair": {
+        "reference": "../../../mediatracker-ui/checks/backstop_data/bitmaps_reference/mediatracker_visual_Calendar_View_0_document_0_mobile.png",
+        "test": "../../../mediatracker-ui/checks/backstop_data/bitmaps_test/20261026-233614/mediatracker_visual_Calendar_View_0_document_0_mobile.png",
+        "selector": "document",
+        "fileName": "mediatracker_visual_Calendar_View_0_document_0_mobile.png",
+        "label": "Calendar View",
+        "requireSameDimensions": true,
+        "misMatchThreshold": 0.1,
+        "url": "http://127.0.0.1:37893/?view=calendar",
+        "expect": 0,
+        "viewportLabel": "mobile",
+        "diff": {
+          "isSameDimensions": true,
+          "dimensionDifference": {
+            "width": 0,
+            "height": 0
+          },
+          "misMatchPercentage": "0.00"
+        }
+      },
+      "status": "pass"
+    },
+    {
+      "pair": {
+        "reference": "../../../mediatracker-ui/checks/backstop_data/bitmaps_reference/mediatracker_visual_Calendar_View_0_document_1_tablet.png",
+        "test": "../../../mediatracker-ui/checks/backstop_data/bitmaps_test/20261026-233614/mediatracker_visual_Calendar_View_0_document_1_tablet.png",
+        "selector": "document",
+        "fileName": "mediatracker_visual_Calendar_View_0_document_1_tablet.png",
+        "label": "Calendar View",
+        "requireSameDimensions": true,
+        "misMatchThreshold": 0.1,
+        "url": "http://127.0.0.1:37893/?view=calendar",
+        "expect": 0,
+        "viewportLabel": "tablet",
+        "diff": {
+          "isSameDimensions": true,
+          "dimensionDifference": {
+            "width": 0,
+            "height": 0
+          },
+          "misMatchPercentage": "0.00"
+        }
+      },
+      "status": "pass"
+    },
+    {
+      "pair": {
+        "reference": "../../../mediatracker-ui/checks/backstop_data/bitmaps_reference/mediatracker_visual_Calendar_View_0_document_2_desktop.png",
+        "test": "../../../mediatracker-ui/checks/backstop_data/bitmaps_test/20261026-233614/mediatracker_visual_Calendar_View_0_document_2_desktop.png",
+        "selector": "document",
+        "fileName": "mediatracker_visual_Calendar_View_0_document_2_desktop.png",
+        "label": "Calendar View",
+        "requireSameDimensions": true,
+        "misMatchThreshold": 0.1,
+        "url": "http://127.0.0.1:37893/?view=calendar",
+        "expect": 0,
+        "viewportLabel": "desktop",
+        "diff": {
+          "isSameDimensions": true,
+          "dimensionDifference": {
+            "width": 0,
+            "height": 0
+          },
+          "misMatchPercentage": "0.00"
+        }
+      },
+      "status": "pass"
+    }
+  ],
+  "id": "mediatracker_visual"
+}

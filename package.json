@@ -12,6 +12,7 @@
     "smells": "node scripts/inspect-code-smells.mjs",
     "visual": "node scripts/audit-runner.mjs visual",
     "visual:approve": "node scripts/audit-runner.mjs visual:approve",
+    "check:orphans": "npm --prefix mediatracker-ui run check:orphans",
     "report": "node scripts/generate-audit-report.mjs",
     "review:ai": "node scripts/ai-ui-review.mjs",
     "test:stress": "node scripts/stress-test.mjs"

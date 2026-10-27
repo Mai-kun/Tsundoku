@@ -141,7 +141,8 @@ public class BusinessLogicGapTests : IDisposable
 
     private static AdvancedStatsDto EmptyAdvanced() => new()
     {
-        TotalTitles = 0, TotalHours = 0,
+        TotalTitles = 0,
+        TotalHours = 0,
     };
 
     [Fact]
@@ -162,18 +163,31 @@ public class BusinessLogicGapTests : IDisposable
         var now = new DateTime(2026, 10, 7, 12, 0, 0, DateTimeKind.Utc);
         var low = new VideoGame
         {
-            Title = "Boring Game", Platform = "PC", Status = MediaStatus.Completed,
-            Score = 3, HoursPlayed = 30, Genres = "RPG", FinishedAt = now,
+            Title = "Boring Game",
+            Platform = "PC",
+            Status = MediaStatus.Completed,
+            Score = 3,
+            HoursPlayed = 30,
+            Genres = "RPG",
+            FinishedAt = now,
         };
         var dropped = new VideoGame
         {
-            Title = "Dropped Game", Platform = "PC", Status = MediaStatus.Dropped,
-            HoursPlayed = 10, Genres = "Comedy",
+            Title = "Dropped Game",
+            Platform = "PC",
+            Status = MediaStatus.Dropped,
+            HoursPlayed = 10,
+            Genres = "Comedy",
         };
         var loved = new VideoGame
         {
-            Title = "Loved Game", Platform = "PC", Status = MediaStatus.Completed,
-            Score = 10, HoursPlayed = 100, Genres = "RPG", FinishedAt = now,
+            Title = "Loved Game",
+            Platform = "PC",
+            Status = MediaStatus.Completed,
+            Score = 10,
+            HoursPlayed = 100,
+            Genres = "RPG",
+            FinishedAt = now,
         };
 
         var advanced = new AdvancedStatsDto { TotalTitles = 3, TotalHours = 140 };

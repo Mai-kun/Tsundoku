@@ -14,15 +14,15 @@ public class MediaItemUpdaterTests
     public void Apply_UpdateMediaRequest_ShouldApplyFields()
     {
         var item = new TestMediaItem { Title = "Original" };
-        var request = new UpdateMediaRequest 
-        { 
-            Title = "Updated", 
+        var request = new UpdateMediaRequest
+        {
+            Title = "Updated",
             Score = 5,
             ClearScore = true
         };
-        
+
         MediaItemUpdater.Apply(item, request);
-        
+
         item.Title.Should().Be("Updated");
         item.Score.Should().BeNull();
         item.IsCustomEdited.Should().BeTrue();

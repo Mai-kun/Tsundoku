@@ -31,21 +31,21 @@ public static class Program
         var options = new DbContextOptionsBuilder<AppDbContext>()
             .UseSqlite($"Data Source={dbPath}")
             .Options;
-            
+
         using var db = new AppDbContext(options);
         await db.Database.EnsureDeletedAsync();
         await db.Database.EnsureCreatedAsync();
 
         using var conn = new SqliteConnection($"Data Source={dbPath}");
         await conn.OpenAsync();
-        
+
         var sw = Stopwatch.StartNew();
         var transaction = (SqliteTransaction)await conn.BeginTransactionAsync();
-        
+
         var command = conn.CreateCommand();
         command.Transaction = transaction;
         command.CommandText = "INSERT INTO MediaItems (Id, Title, Status, CreatedAt, UpdatedAt, MediaType, SyncStatus, AutoRefreshIntervalDays, IsCustomEdited) VALUES (@id, @title, @status, @createdAt, @updatedAt, @disc, @sync, @refresh, @custom)";
-        
+
         var idParam = command.CreateParameter(); idParam.ParameterName = "@id"; command.Parameters.Add(idParam);
         var titleParam = command.CreateParameter(); titleParam.ParameterName = "@title"; command.Parameters.Add(titleParam);
         var statusParam = command.CreateParameter(); statusParam.ParameterName = "@status"; command.Parameters.Add(statusParam);
@@ -70,10 +70,11 @@ public static class Program
             syncParam.Value = 0; // SyncStatus.Ready is 0
             refreshParam.Value = 7;
             customParam.Value = 0; // false
-            
+
             await command.ExecuteNonQueryAsync();
-            
-            if (i > 0 && i % 5000 == 0) {
+
+            if (i > 0 && i % 5000 == 0)
+            {
                 await transaction.CommitAsync();
                 await transaction.DisposeAsync();
                 transaction = (SqliteTransaction)await conn.BeginTransactionAsync();

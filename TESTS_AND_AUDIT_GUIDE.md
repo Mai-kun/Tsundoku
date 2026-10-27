@@ -1,54 +1,81 @@
-# TESTS AND AUDIT GUIDE
+# Тестирование и Аудит: Tsundoku
 
-This document provides a comprehensive overview of the testing, auditing, and performance verification processes for the MediaTracker project.
+Добро пожаловать в полное руководство по обеспечению качества Tsundoku. Наша система гарантирует стабильность через многоуровневый автоматизированный пайплайн.
 
-## 1. Quick Start
+## Оглавление
+1. [Архитектурный обзор](#1-архитектурный-обзор)
+2. [Запуск через Taskfile](#2-запуск-через-taskfile-go-task)
+3. [Запуск через NPM](#3-запуск-через-npm-альтернатива)
+4. [Каталог статических проверок](#4-каталог-статических-проверок-checksstatic)
+5. [Тестирование и профилирование](#5-тестирование-и-профилирование)
+6. [Тонкая настройка](#6-тонкая-настройка)
 
-| Command | Description |
+---
+
+## 1. Архитектурный обзор
+
+Мы используем двухконтурную систему аудита:
+
+1.  **Fast Path (`task fix` / `npm run fix`)** — *~14 секунд*:
+    *   Быстрая проверка критической целостности: сиротские файлы, контракты DTO, бюджеты.
+    *   Использует инкрементальные проверки.
+2.  **Full Audit Path (`task audit` / `npm run audit`)** — *~2 минуты*:
+    *   Полный цикл тестов, профилирования и генерации отчетов.
+    *   Использует **SHA-256 кэширование** для пропуска неизмененных модулей.
+
+---
+
+## 2. Запуск через Taskfile (Go Task)
+
+**Установка:** `brew install go-task/tap/go-task` (macOS), `scoop install task` (Windows) или скачайте бинарник с [taskfile.dev](https://taskfile.dev/).
+
+| Команда | Описание |
 | :--- | :--- |
-| `npm run fix` | Runs code fixers and formatters. |
-| `npm test` | Runs all tests (Unit, Integration, E2E). |
-| `npm run audit` | Runs all static, performance, and accessibility checks. |
-| `npm run visual` | Executes visual regression testing suite. |
-| `npm run security` | Runs security vulnerability scans. |
+| `task fix` | Быстрая статика и контракты |
+| `task test` | Запуск всех тестов (C# + TS) |
+| `task audit` | Полный глубокий аудит с кэшированием |
+| `task visual` | Запуск визуальных регрессионных тестов |
+| `task report` | Генерация итогового отчета |
 
-## 2. Catalog of Checks and Tests
+---
 
-### Static Contours (`checks/static/*`)
-- `bundleBudget.check.ts`: Enforces JS/CSS bundle size budgets.
-- `contractDrift.check.ts`: Checks for API contract inconsistencies.
-- `deslopAndUiMath.check.ts`: AI-based detector for UI bloat and complexity.
-- `htmlValidate.check.ts`: Validates HTML structure against standards.
-- `i18nHardcode.check.ts`: Finds hardcoded strings missing i18n keys.
-- `i18nParity.check.ts`: Ensures all translations exist across languages.
-- `leadingChars.check.ts`: Validates leading character constraints.
-- `orphanChecks.check.ts`: Detects unused assets/code.
-- `stateRaw.check.ts`: Checks for raw state usage in UI components.
+## 3. Запуск через NPM (Альтернатива)
 
-### Audit and Profiling (`checks/audit/*`)
-- `browserSuite.runner.ts`: Runs browser-based automated tests.
-- `cdpProfiler.check.ts`: Profiles performance using Chrome DevTools Protocol.
-- `layoutGeometry.check.ts`: Validates layout stability and geometry.
-- `axeAccessibility.check.ts`: Accessibility audit using Axe.
-- `visualSnapshots.check.ts`: Takes visual snapshots for regression testing.
-- `webVitals.check.ts`: Monitors Core Web Vitals.
-- `runBackstop.check.ts`: Runs BackstopJS for visual regression.
+| Команда | Описание |
+| :--- | :--- |
+| `npm run fix` | Аналог `task fix` |
+| `npm test` | Аналог `task test` |
+| `npm run audit` | Аналог `task audit` |
+| `npm run review:ai` | ИИ-ревью UI (скриншоты + Gemini) |
 
-### E2E Scenarios (`checks/e2e/*`)
-- Various files (`cards`, `categorySwitch`, `seasons`, etc.) implementing user journey testing.
+---
 
-### Backend (`MediaTracker.Tests`)
-- xUnit-based unit and `WebApplicationFactory` integration tests.
+## 4. Каталог статических проверок (`checks/static/*`)
 
-### Frontend (`mediatracker-ui/src/**/__tests__/*`)
-- Vitest unit and integration suites.
+| Команда | Проверка |
+| :--- | :--- |
+| `npm run check:bundle` | Контроль бюджетов Gzip (js/css) |
+| `npm run check:contract-drift` | Синхронность C# DTO и TS-типов |
+| `npm run check:deslop` | Поиск AI-штампов и математика верстки |
+| `npm run check:i18n` | Поиск хардкода и симметрия ключей |
 
-## 3. Guide to Configuring Rules
+*(Полный список доступен в `package.json`)*
 
-### Budgets
-- **Bundle Sizes**: Modify `mediatracker-ui/checks/static/bundleBudget.check.ts`.
-- **Latency/Performance**: Modify `scripts/measure-api-payloads.mjs` and `mediatracker-ui/checks/audit/cdpProfiler.check.ts`.
+---
 
-### AI De-slop Detector
-- Logic resides in `checks/static/deslopAndUiMath.check.ts`.
-- Rules are governed by the overarching project configuration and `SKILL.md` instructions.
+## 5. Тестирование и профилирование
+
+### Бэкенд (C#)
+*   **Тесты:** `dotnet test MediaTracker.Tests/MediaTracker.Tests.csproj`
+*   **Самоаудит (SQLite):** `dotnet run --project MediaTracker.Server -- --selfcheck`
+
+### Фронтенд (Vitest)
+*   **Юнит:** `npm --prefix mediatracker-ui run test:unit`
+*   **Покрытие:** `npm --prefix mediatracker-ui run test:coverage`
+
+---
+
+## 6. Тонкая настройка
+
+*   **Бюджеты:** Настройка порогов в `bundleBudget.check.ts`.
+*   **Правила дизайна:** Редактируйте `SKILL.md` (Design System) и `deslopAndUiMath.check.ts` (AI De-slop правила).

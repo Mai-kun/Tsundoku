@@ -114,11 +114,24 @@
   ]);
 
   let statusGroups = $derived.by(() => {
+    const buckets: Record<string, MediaItem[]> = {
+      [MEDIA_STATUS.inProgress]: [],
+      [MEDIA_STATUS.planned]: [],
+      [MEDIA_STATUS.completed]: [],
+      [MEDIA_STATUS.onHold]: [],
+      [MEDIA_STATUS.dropped]: [],
+    };
+    for (let i = 0; i < filteredItems.length; i++) {
+      const item = filteredItems[i];
+      if (buckets[item.status]) {
+        buckets[item.status].push(item);
+      }
+    }
     return statusSections
       .map((sec) => ({
         status: sec.status,
         title: sec.title,
-        items: filteredItems.filter((item) => item.status === sec.status),
+        items: buckets[sec.status] || [],
       }))
       .filter((sec) => (status === "all" ? sec.items.length > 0 : sec.status === status));
   });

@@ -67,12 +67,7 @@
   });
 
   let columnsCount = $derived(columnsForWidth(viewportWidth));
-  let rows = $derived.by(() => {
-    markStart("tsundoku:grid:chunkRows");
-    const res = chunkIntoRows(items, columnsCount);
-    markEnd("tsundoku:grid:chunkRows");
-    return res;
-  });
+  let rowCount = $derived(Math.ceil(items.length / columnsCount));
   let shouldVirtualize = $derived(items.length >= FLAT_LIMIT);
 
   // Rows are positioned from a single height per breakpoint instead of
@@ -88,11 +83,11 @@
   // from an effect that reads $virtualizer - hence the imperative handle.
   // count is a deliberate initial snapshot; $effect.pre below keeps it synced.
   const virtualizer = createVirtualizer<HTMLElement, HTMLDivElement>({
-    count: untrack(() => rows.length),
+    count: untrack(() => rowCount),
     getScrollElement: () => document.getElementById("main-scroll"),
     estimateSize: () => rowHeight,
     gap: ROW_GAP,
-    overscan: 4,
+    overscan: 8,
     initialOffset: () => document.getElementById("main-scroll")?.scrollTop ?? 0,
     scrollMargin: 0,
   });
@@ -144,7 +139,7 @@
   // version and let sibling margins recompute. Also runs on unmount via
   // onDestroy below.
   $effect(() => {
-    rows.length;
+    rowCount;
     rowHeight;
     bumpGridLayout();
   });
@@ -155,7 +150,7 @@
   // keeps virtual items and `rows` consistent within a single flush.
   $effect.pre(() => {
     virtualizerInstance?.setOptions({
-      count: rows.length,
+      count: rowCount,
       scrollMargin,
     });
   });
@@ -170,7 +165,7 @@
     const el = containerEl;
     if (!el) return;
     columnsCount;
-    rows.length;
+    rowCount;
     const firstRow = el.querySelector<HTMLDivElement>(":scope > div");
     if (!firstRow) return;
     const correctRowHeight = () => {
@@ -282,12 +277,13 @@
     style="position: relative; height: {$virtualizer.getTotalSize()}px; width: 100%;"
   >
     {#each $virtualizer.getVirtualItems() as virtualRow (virtualRow.index)}
+      {@const startIdx = virtualRow.index * columnsCount}
       <div
         style="position: absolute; top: 0; left: 0; width: 100%; transform: translateY({virtualRow.start -
-          $virtualizer.options.scrollMargin}px); will-change: transform; contain: layout;"
+          $virtualizer.options.scrollMargin}px); will-change: transform; contain: layout paint; contain: layout;"
         class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-7"
       >
-        {#each rows[virtualRow.index] ?? [] as item (item.id)}
+        {#each items.slice(startIdx, startIdx + columnsCount) as item (item.id)}
           {@render card(item)}
         {/each}
       </div>

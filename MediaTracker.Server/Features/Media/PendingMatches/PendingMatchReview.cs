@@ -44,6 +44,7 @@ public sealed class GetPendingMatchesHandler(AppDbContext db) : IGetPendingMatch
     public async Task<IReadOnlyList<PendingMatchReviewDto>> HandleAsync(CancellationToken ct)
     {
         var items = await db.MediaItems
+            .AsNoTracking()
             .Include(media => ((TvShow)media).Seasons.OrderBy(season => season.SeasonNumber))
             .AsSplitQuery()
             .Where(media => media.SyncStatus == SyncStatus.NeedsReview)

@@ -19,6 +19,8 @@ public sealed class SqliteConnectionInterceptor : DbConnectionInterceptor
 
         /// <summary>Negative means kibibytes rather than pages: about 64 MB of page cache.</summary>
         public const int CacheSizeKibibytes = -64000;
+
+        public const int MmapSize = 268435456; // 256 MB memory-mapped I/O
     }
 
     // journal_mode is a persistent property of the database file, not of a connection, so re-running
@@ -26,7 +28,8 @@ public sealed class SqliteConnectionInterceptor : DbConnectionInterceptor
     public static readonly string ConnectionPragmas =
         $"PRAGMA synchronous = {Pragmas.Synchronous}; " +
         $"PRAGMA busy_timeout = {Pragmas.BusyTimeoutMilliseconds}; " +
-        $"PRAGMA cache_size = {Pragmas.CacheSizeKibibytes};";
+        $"PRAGMA cache_size = {Pragmas.CacheSizeKibibytes}; " +
+        $"PRAGMA mmap_size = {Pragmas.MmapSize};";
 
     public static readonly string JournalPragma = $"PRAGMA journal_mode = {Pragmas.JournalMode};";
 

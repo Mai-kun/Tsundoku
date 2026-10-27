@@ -186,6 +186,6 @@ public sealed class ListsService(AppDbContext db)
     public Task<List<Guid>> GetListsForMediaAsync(Guid mediaId, CancellationToken ct) =>
         db.CustomListItems.AsNoTracking().Where(item => item.MediaItemId == mediaId)
             .Select(item => item.ListId)
-            .Join(db.CustomLists.Where(l => l.SmartQueryJson == null), id => id, l => l.Id, (id, _) => id)
+            .Join(db.CustomLists.AsNoTracking().Where(l => l.SmartQueryJson == null), id => id, l => l.Id, (id, _) => id)
             .ToListAsync(ct);
 }

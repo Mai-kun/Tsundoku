@@ -87,6 +87,10 @@
         <PackageReference Include="OpenApiUi" Version="2.0.5" />
     </ItemGroup>
 
+    <ItemGroup>
+        <InternalsVisibleTo Include="MediaTracker.Tests" />
+    </ItemGroup>
+
     <!-- Close any running instance of Tsundoku on Windows before publish so locked files don't fail bundle generation -->
     <Target Name="CloseRunningTsundoku" BeforeTargets="BeforePublish;PrepareForPublish" Condition="'$(OS)' == 'Windows_NT'">
         <Exec Command="taskkill /F /IM Tsundoku.exe 2&gt;nul || exit 0" ContinueOnError="true" IgnoreExitCode="true" />

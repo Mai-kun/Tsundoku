@@ -1,4 +1,5 @@
 <Solution>
   <Project Path="MediaTracker.Server/MediaTracker.Server.csproj" />
   <Project Path="MediaTracker.Benchmarks/MediaTracker.Benchmarks.csproj" />
+  <Project Path="MediaTracker.Tests/MediaTracker.Tests.csproj" />
 </Solution>

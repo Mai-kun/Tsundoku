@@ -21,7 +21,7 @@ public sealed class StoredSettingsLoader(
     {
         foreach (var provider in providers.Where(p => p.RequiresApiKey || p.OptionalApiKey).DistinctBy(p => p.Id))
         {
-            var setting = await db.Settings.FirstOrDefaultAsync(s => s.Key == $"ApiKey_{provider.Id}", ct);
+            var setting = await db.Settings.AsNoTracking().FirstOrDefaultAsync(s => s.Key == $"ApiKey_{provider.Id}", ct);
             if (setting is null || string.IsNullOrWhiteSpace(setting.Value))
             {
                 continue;

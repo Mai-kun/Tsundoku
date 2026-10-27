@@ -30,7 +30,7 @@
 </script>
 
 <div class="bg-canvas relative aspect-[3/4] overflow-hidden rounded-lg">
-  {#if src && !imgError}
+  {#if src && src.startsWith('/') && !imgError}
     <img
       {src}
       {alt}

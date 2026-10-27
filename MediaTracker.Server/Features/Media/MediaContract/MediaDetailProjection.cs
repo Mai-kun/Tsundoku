@@ -88,7 +88,7 @@ public static class MediaDetailProjection
             QuotesJson = item.QuotesJson,
             Description = item.Description,
             TrailerVideoId = item.TrailerVideoId,
-            CreatorImageUrl = item.CreatorImageUrl,
+            CreatorImageUrl = (item.CreatorImageUrl != null && item.CreatorImageUrl.StartsWith('/')) ? item.CreatorImageUrl : null,
             ExternalRatingsJson = item.ExternalRatingsJson,
             TranslatedSynopsis = item.TranslatedSynopsis,
             UnlockedAchievements = item.UnlockedAchievements,

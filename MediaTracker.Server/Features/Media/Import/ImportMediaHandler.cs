@@ -603,6 +603,7 @@ public sealed class ImportMediaHandler(
     /// </summary>
     private static bool NeedsEnrichment(MediaItem item) =>
         string.IsNullOrWhiteSpace(item.CoverUrl)
+        || MediaMetadataApplier.IsExternalUrl(item.CoverUrl)
         || string.IsNullOrWhiteSpace(item.Description)
         || string.IsNullOrWhiteSpace(item.Genres);
 

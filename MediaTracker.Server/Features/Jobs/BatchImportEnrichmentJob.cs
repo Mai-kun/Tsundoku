@@ -1,3 +1,4 @@
+using MediaTracker.Server.Domain.Rules;
 using MediaTracker.Server.Domain.Entities;
 using MediaTracker.Server.Domain.Enums;
 using MediaTracker.Server.Features.External.RefreshMetadata;
@@ -169,6 +170,12 @@ public static class BatchImportEnrichmentJob
         }
 
         item.MarkUpdated();
+
+        if (MediaMetadataApplier.IsExternalUrl(item.CoverUrl))
+        {
+            item.CoverUrl = await imageStorage.SaveCoverAsync(item.CoverUrl!, item.Id, ct);
+        }
+
         await db.SaveChangesAsync(ct);
         return verdict is { Kind: MatchVerdictKind.Ambiguous } ? MatchVerdictKind.Ambiguous : MatchVerdictKind.NoMatch;
     }

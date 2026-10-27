@@ -559,6 +559,12 @@ static async Task InitializeDatabaseAsync(WebApplication app)
         .ExecuteUpdateAsync(s => s
             .SetProperty(m => m.SyncStatus, SyncStatus.Ready)
             .SetProperty(m => m.UpdatedAt, DateTime.UtcNow));
+
+    await db.MediaItems
+        .Where(m => m.CoverUrl != null && (m.CoverUrl.StartsWith("http://") || m.CoverUrl.StartsWith("https://")))
+        .ExecuteUpdateAsync(s => s
+            .SetProperty(m => m.CoverUrl, (string?)null)
+            .SetProperty(m => m.UpdatedAt, DateTime.UtcNow));
 }
 
 static void StartBackgroundFranchiseBackfill(WebApplication app)

@@ -168,9 +168,11 @@ public static class MediaMetadataApplier
 
         modified |= SetIfBlank(item.Description, external.Description, value => item.Description = value);
         modified |= SetIfBlank(item.TrailerVideoId, external.TrailerVideoId, value => item.TrailerVideoId = value);
-        // No image storage on this path, so the remote URL is kept: the browser loads it directly and
-        // the next full refresh swaps it for the locally stored copy.
-        modified |= SetIfBlank(item.CreatorImageUrl, external.CreatorImageUrl, value => item.CreatorImageUrl = value);
+        // No image storage on this path, so external URLs are skipped and MUST be saved by the next full refresh.
+        if (!IsExternalUrl(external.CreatorImageUrl))
+        {
+            modified |= SetIfBlank(item.CreatorImageUrl, external.CreatorImageUrl, value => item.CreatorImageUrl = value);
+        }
         modified |= SetIfBlank(item.Genres, JoinGenres(external.Genres), value => item.Genres = value);
         modified |= ApplyDisplayGaps(item, external, trackNewSeason);
 

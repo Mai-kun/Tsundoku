@@ -450,7 +450,7 @@ public static class MediaResponseMapper
         ReleaseStatus = item.ReleaseStatus,
         OriginalLanguage = item.OriginalLanguage,
         CountryOfOrigin = item.CountryOfOrigin,
-        CoverUrl = item.CoverUrl != null ? $"{item.CoverUrl}?v={item.UpdatedAt.Ticks}" : null,
+        CoverUrl = (item.CoverUrl != null && item.CoverUrl.StartsWith('/')) ? $"{item.CoverUrl}?v={item.UpdatedAt.Ticks}" : null,
         CreatedAt = item.CreatedAt,
         UpdatedAt = item.UpdatedAt,
         FranchiseId = item.FranchiseId,

@@ -46,7 +46,7 @@ public sealed class ImageStorageService(
             if (IsOversized(response))
             {
                 logger.LogWarning("Cover image at {ExternalUrl} exceeds size limit of {MaxBytes} bytes", externalUrl, MaxCoverSizeBytes);
-                return externalUrl;
+                return null;
             }
 
             // One path, one URL: <title>/<folder>/... is exactly what the returned URL and the
@@ -88,11 +88,11 @@ public sealed class ImageStorageService(
             sw.Stop();
             logger.LogWarning(
                 ex,
-                "[Storage] Failed to download cover for {MediaId} from {ExternalUrl} after {ElapsedMs}ms, keeping external URL",
+                "[Storage] Failed to download cover for {MediaId} from {ExternalUrl} after {ElapsedMs}ms, discarding",
                 itemId,
                 externalUrl,
                 sw.ElapsedMilliseconds);
-            return externalUrl;
+            return null;
         }
     }
 

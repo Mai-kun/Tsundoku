@@ -4,6 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "check:orphans": "node --experimental-strip-types checks/static/orphanChecks.check.ts",
     "dev": "vite",
     "build": "vite build",
     "format:fix": "prettier --write \"src/**/*.{ts,svelte,css}\" && node --experimental-strip-types checks/deslopAndUiMath.check.ts --fix",

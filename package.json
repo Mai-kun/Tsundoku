@@ -5,10 +5,23 @@
   "description": "Tsundoku automated performance & quality audit orchestration",
   "type": "module",
   "scripts": {
+    "test": "node scripts/audit-runner.mjs test",
+    "security": "node scripts/audit-runner.mjs security",
     "fix": "node scripts/audit-runner.mjs fix",
     "audit": "node scripts/audit-runner.mjs audit",
+    "smells": "node scripts/inspect-code-smells.mjs",
     "visual": "node scripts/audit-runner.mjs visual",
     "visual:approve": "node scripts/audit-runner.mjs visual:approve",
-    "report": "node scripts/generate-audit-report.mjs"
+    "report": "node scripts/generate-audit-report.mjs",
+    "review:ai": "node scripts/ai-ui-review.mjs",
+    "test:stress": "node scripts/stress-test.mjs"
+  },
+  "devDependencies": {
+    "@google/genai": "^2.31.0",
+    "dotenv": "^18.0.9",
+    "marked": "^18.1.2",
+    "playwright": "^1.64.1",
+    "sharp": "^0.35.5",
+    "undici": "^8.12.3"
   }
 }

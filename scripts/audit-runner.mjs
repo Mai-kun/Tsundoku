@@ -119,8 +119,35 @@ console.log(`⚡ Tsundoku Audit Runner: '${command}'`);
 console.log(`======================================================`);
 
 switch (command) {
+  case "test": {
+    console.log(`\n▶ Запуск тестового контура бэкенда и фронтенда с покрытием...`);
+    // 1. C# unit & integration tests with coverlet
+    run("dotnet", [
+      "test",
+      "MediaTracker.Tests/MediaTracker.Tests.csproj",
+      "--settings",
+      "MediaTracker.Tests/coverlet.runsettings",
+      "--collect:XPlat Code Coverage",
+      "--results-directory",
+      "./reports/coverage",
+    ], {
+      env: { ...process.env, HEADLESS: "true" }
+    });
+    run("node", ["scripts/parse-backend-coverage.mjs"]);
+
+    // 2. Frontend Vitest unit tests with coverage
+    run("npm", ["--prefix", "mediatracker-ui", "run", "test:coverage"]);
+    break;
+  }
+
   case "fix": {
     console.log(`\n▶ Запуск быстрого контура автофикса и статических проверок...`);
+    // -1. Orphan check
+    run("npm", ["--prefix", "mediatracker-ui", "run", "check:orphans"]);
+
+    // 0. Micro-optimization code smells auto-fix
+    run("node", ["scripts/inspect-code-smells.mjs", "--fix"]);
+
     // 1. Frontend format fix
     run("npm", ["--prefix", "mediatracker-ui", "run", "format:fix"]);
 
@@ -142,8 +169,8 @@ switch (command) {
       run("dotnet", ["run", "--project", "MediaTracker.Server/MediaTracker.Server.csproj", "--no-build", "--", "--selfcheck"]);
     }
 
-    // 3. Parallel execution of all 10 independent frontend checks
-    console.log(`\n🚀 [parallel] Запуск 10 статических проверок фронтенда параллельно...`);
+    // 3. Parallel execution of all 12 independent frontend checks
+    console.log(`\n🚀 [parallel] Запуск 12 статических проверок фронтенда параллельно...`);
     const pStart = Date.now();
     try {
       await Promise.all([
@@ -156,10 +183,12 @@ switch (command) {
         runAsync("npm", ["--prefix", "mediatracker-ui", "run", "check:perf-marks"]),
         runAsync("npm", ["--prefix", "mediatracker-ui", "run", "check:deadcode"]),
         runAsync("npm", ["--prefix", "mediatracker-ui", "run", "check:i18n"]),
+        runAsync("npm", ["--prefix", "mediatracker-ui", "run", "check:i18n-parity"]),
+        runAsync("npm", ["--prefix", "mediatracker-ui", "run", "check:contract-drift"]),
         runAsync("npm", ["--prefix", "mediatracker-ui", "run", "check:leading-chars"]),
       ]);
       const pDur = ((Date.now() - pStart) / 1000).toFixed(2);
-      console.log(`✨ [parallel-done] Все 10 проверок фронтенда завершены за ${pDur}s`);
+      console.log(`✨ [parallel-done] Все 12 проверок фронтенда завершены за ${pDur}s`);
     } catch (err) {
       console.error(`❌ Ошибка в параллельных проверках:`, err.message);
       process.exit(1);
@@ -167,19 +196,41 @@ switch (command) {
     break;
   }
 
+  case "security": {
+    console.log(`\n▶ Запуск контура аудита безопасности (NuGet, NPM, Secrets)...`);
+    run("node", ["scripts/security-audit.mjs"]);
+    break;
+  }
+
   case "audit": {
     console.log(`\n▶ Запуск полного автономного комбайна аудита...`);
+
+    if (process.argv.includes("--with-ai")) {
+      run("node", ["scripts/ai-ui-review.mjs"]);
+    }
 
     // 1. Fast checks
     run("node", ["scripts/audit-runner.mjs", "fix"]);
 
-    // 2. Build frontend and verify bundle budget
+    // 2. Micro-optimizations code smells inspection
+    run("node", ["scripts/inspect-code-smells.mjs"]);
+
+    // 3. Security audit (NuGet, NPM, Secrets)
+    run("node", ["scripts/security-audit.mjs"]);
+
+    // 4. Build frontend and verify bundle budget
     run("npm", ["--prefix", "mediatracker-ui", "run", "check:bundle"]);
 
-    // 3. Browser suite (Playwright CDP, geometry, a11y, snapshots)
+    // 5. Browser suite (Playwright CDP, geometry, a11y, snapshots, Core Web Vitals)
     run("npm", ["--prefix", "mediatracker-ui", "run", "check:browser-suite"]);
 
-    // 4. Checksum check for C# benchmarks and macroprofiling
+    // 6. Network API wire payload & compression measurement (500 items)
+    run("node", ["--experimental-strip-types", "scripts/measure-api-payloads.mjs"]);
+
+    // 7. SQLite health & fragmentation inspection
+    run("node", ["scripts/inspect-sqlite-health.mjs"]);
+
+    // 8. Checksum check for C# benchmarks and macroprofiling
     const csharpHash = getCsharpChecksum();
     const manifest = loadCacheManifest();
     const cachedHash = manifest.csharpChecksum;
@@ -208,7 +259,10 @@ switch (command) {
     manifest.csharpFixChecksum = csharpHash;
     saveCacheManifest(manifest);
 
-    // 5. Generate summary report
+    // 5. Test Suite & Code Coverage
+    run("node", ["scripts/audit-runner.mjs", "test"]);
+
+    // 6. Generate summary report
     run("node", ["scripts/generate-audit-report.mjs"]);
     break;
   }
@@ -234,7 +288,7 @@ switch (command) {
 
   default:
     console.error(`Неизвестная команда: ${command}`);
-    console.log(`Использование: node scripts/audit-runner.mjs [fix | audit | visual | visual:approve | report]`);
+    console.log(`Использование: node scripts/audit-runner.mjs [fix | test | security | audit | visual | visual:approve | report]`);
     process.exit(1);
 }
 

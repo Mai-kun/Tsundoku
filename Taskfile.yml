@@ -15,6 +15,8 @@ tasks:
       - npm --prefix mediatracker-ui run check:perf-marks
       - npm --prefix mediatracker-ui run check:deadcode
       - npm --prefix mediatracker-ui run check:i18n
+      - npm --prefix mediatracker-ui run check:i18n-parity
+      - npm --prefix mediatracker-ui run check:contract-drift
       - npm --prefix mediatracker-ui run check:leading-chars
       - dotnet run --project MediaTracker.Server/MediaTracker.Server.csproj --no-build -- --selfcheck
 
@@ -70,6 +72,28 @@ tasks:
     cmds:
       - node scripts/profile-backend.mjs
 
+  security:
+    desc: 'Run multi-layer security audit (NuGet CVEs, NPM prod dependencies, Secret Leak Scan)'
+    cmds:
+      - node scripts/security-audit.mjs
+
+  sqlite-health:
+    desc: 'Inspect SQLite database health, page fragmentation, and WAL'
+    cmds:
+      - node scripts/inspect-sqlite-health.mjs
+
+  api-payloads:
+    desc: 'Measure API wire payload sizes (Raw, Gzip, Brotli) and server latency'
+    cmds:
+      - node --experimental-strip-types scripts/measure-api-payloads.mjs
+
+  test:
+    desc: 'Run backend & frontend unit/integration test suites with code coverage'
+    cmds:
+      - HEADLESS=true dotnet test MediaTracker.Tests/MediaTracker.Tests.csproj --collect:"XPlat Code Coverage" --results-directory ./reports/coverage
+      - node scripts/parse-backend-coverage.mjs
+      - npm --prefix mediatracker-ui run test:coverage
+
   report:
     desc: 'Generate unified audit report (AUDIT_REPORT.md and reports/audit-report.html)'
     cmds:
@@ -79,8 +103,12 @@ tasks:
     desc: 'Full autonomous audit pipeline'
     cmds:
       - task: fix
+      - task: security
+      - task: test
       - task: build-ui
       - task: browser-suite
+      - task: api-payloads
+      - task: sqlite-health
       - task: benchmarks
       - task: profile-backend
       - task: report

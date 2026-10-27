@@ -72,16 +72,11 @@ jobs:
           echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
           echo "tag=$TAG" >> $GITHUB_OUTPUT
 
-      - name: Build UI
-        run: |
-          cd mediatracker-ui
-          npm ci
-          npm run build
+      - name: Install Frontend Dependencies
+        run: npm --prefix mediatracker-ui ci
 
-      - name: Copy Frontend to wwwroot
-        run: |
-          mkdir -p MediaTracker.Server/wwwroot
-          cp -r mediatracker-ui/dist/* MediaTracker.Server/wwwroot/
+      - name: Build Frontend
+        run: npm --prefix mediatracker-ui run build
 
       - name: Publish Server
         run: |

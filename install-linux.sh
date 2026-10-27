@@ -22,6 +22,15 @@ case "$OPTION1" in
 esac
 mkdir -p "$INSTALL_DIR"
 
+# 1.5. Скачивание и установка
+echo "Загрузка последней версии..."
+REPO=${REPO:-"mai-kun/tsundoku"}
+DOWNLOAD_URL=$(curl -s https://api.github.com/repos/$REPO/releases/latest | grep "browser_download_url.*tsundoku-linux-x64.zip" | cut -d : -f 2,3 | tr -d \")
+curl -L "$DOWNLOAD_URL" -o /tmp/tsundoku-linux-x64.zip
+unzip -o /tmp/tsundoku-linux-x64.zip -d "$INSTALL_DIR"
+chmod +x "$INSTALL_DIR/Tsundoku"
+rm /tmp/tsundoku-linux-x64.zip
+
 # 2. Выбор режима хранения
 echo -e "\nГде хранить базу данных и обложки?"
 echo "  1) Рядом с программой — Портативный режим [по умолчанию]"

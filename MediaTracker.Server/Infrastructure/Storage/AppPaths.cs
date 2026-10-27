@@ -76,8 +76,14 @@ public sealed class AppPaths
         else if (!isDevelopment && !CommandLineOptions.IsRunningInContainer && File.Exists(storageConfigPath))
         {
             var config = JsonSerializer.Deserialize<StorageConfig>(File.ReadAllText(storageConfigPath)) ?? new();
-            if (config.Mode == "portable") dataDirectory = Path.Combine(appDir, "data");
-            else if (config.Mode == "custom" && !string.IsNullOrEmpty(config.CustomPath)) dataDirectory = Path.GetFullPath(config.CustomPath);
+            var mode = config.Mode?.ToLowerInvariant() switch
+            {
+                "p" or "portable" => "portable",
+                "c" or "custom" => "custom",
+                _ => "default"
+            };
+            if (mode == "portable") dataDirectory = Path.Combine(appDir, "data");
+            else if (mode == "custom" && !string.IsNullOrEmpty(config.CustomPath)) dataDirectory = Path.GetFullPath(config.CustomPath);
             else dataDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Tsundoku");
         }
         else if (!isDevelopment && !CommandLineOptions.IsRunningInContainer && File.Exists(Path.Combine(appDir, ".portable")))

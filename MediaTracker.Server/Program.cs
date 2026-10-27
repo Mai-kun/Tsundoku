@@ -553,23 +553,10 @@ static async Task InitializeDatabaseAsync(WebApplication app)
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     var appPaths = app.Services.GetRequiredService<AppPaths>();
 
-    // Стандартный подход EF Core: просто вызываем MigrateAsync.
-    // Если база данных пуста, EF создаст её и применит миграции.
-    // Если база существует, EF проверит таблицу __EFMigrationsHistory и доприменит всё, чего нет.
-    
-    // SQLite не требует сложных проверок таблиц: MigrateAsync сам создаст нужные таблицы (включая Settings),
-    // если их нет, и обновит существующие до актуального состояния.
-    
-    try
-    {
-        Log.Information("Applying database migrations...");
-        await db.Database.MigrateAsync();
-    }
-    catch (Exception ex)
-    {
-        Log.Error(ex, "Failed to apply database migrations.");
-        throw;
-    }
+    // Применяем миграции безусловно при каждом старте.
+    // Если база актуальна, EF Core проверит метаданные и вернёт управление мгновенно.
+    Log.Information("Checking and applying database migrations...");
+    await db.Database.MigrateAsync();
 
     await scope.ServiceProvider.GetRequiredService<StoredSettingsLoader>().LoadAsync();
 

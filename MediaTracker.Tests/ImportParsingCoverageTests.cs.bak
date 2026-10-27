@@ -1,0 +1,610 @@
+using FluentAssertions;
+using MediaTracker.Server.Domain.Entities;
+using MediaTracker.Server.Features.Media.Import;
+using MediaTracker.Server.Features.Media.Import.Parsers;
+using MediaTracker.Server.Infrastructure.ExternalApis;
+using Xunit;
+
+namespace MediaTracker.Tests;
+
+/// <summary>
+/// Branch coverage for MangalibParser (nested bookmark payloads, status/folder variants, CSV rows),
+/// ImportMatchScorer (title/year/author/count signals and the verdict ladder) and the import DTOs.
+/// </summary>
+public class ImportParsingCoverageTests
+{
+    // --- MangalibParser: the full api.cdnlibs.org bookmark payload ---
+
+    [Fact]
+    public void MangalibParser_BookmarkWithMedia_ShouldMapEveryNestedField()
+    {
+        // "entries" wrapper; entry 1 maps everything off the nested "media" object.
+        // folder_id 7 is numeric, outside 1..6, so it lands in a custom folder; no status text.
+        var json = """
+            {
+              "entries": [
+                {
+                  "site": 2,
+                  "folder_id": 7,
+                  "item": { "number": 12.7, "volume": 3, "rating": "87" },
+                  "media": {
+                    "model": "manga",
+                    "rus_name": "Юное Море",
+                    "eng_name": "Latin-Name",
+                    "slug_url": "manga/latin-name",
+                    "chap_count": 60,
+                    "volumes_count": 7,
+                    "genres": [ { "name": "Драма" }, { "name": null }, { "name": "Триллер" } ],
+                    "authors": [ { "name": "Мидори" } ],
+                    "cover": { "default": "https://cdnlibs.org/cover-default.jpg" },
+                    "description": "Описание тайтла"
+                  }
+                },
+                {
+                  "target_title": "Однако Ни Руса",
+                  "target_title_ru": "",
+                  "target_id": "555",
+                  "progress": "2.9"
+                }
+              ]
+            }
+            """;
+
+        var parsed = MangalibParser.Parse(json, defaultStatusId: 5);
+        parsed.Should().HaveCount(2);
+
+        var first = parsed[0];
+        first.Title.Should().Be("Юное Море");
+        first.Type.Should().Be("manga");
+        first.ExternalSource.Should().Be("SlashLib");
+        first.RomajiTitle.Should().Be("Latin Name"); // hyphen becomes a space
+        first.CurrentProgress.Should().Be(12);       // 12.7 floored
+        first.CurrentVolumes.Should().Be(3);
+        first.TotalCount.Should().Be(60);
+        first.TotalVolumes.Should().Be(7);
+        first.Score.Should().Be(9);                  // 87 -> /10 -> 8.7 -> 9
+        first.ExternalId.Should().Be("manga/latin-name");
+        first.CoverUrl.Should().Be("https://cdnlibs.org/cover-default.jpg");
+        first.Description.Should().Be("Описание тайтла");
+        first.Genres.Should().Be("Драма, Триллер");  // null-name entry skipped
+        first.Author.Should().Be("Мидори");
+        first.Status.Should().Be(MediaStatus.Planned); // code 7 with no word match
+        first.FolderName.Should().BeNull();
+        first.IsCustomFolder.Should().BeTrue();
+
+        // Entry 2: empty rus name -> uses target_title; string "progress"; no media mapping.
+        parsed[1].Title.Should().Be("Однако Ни Руса");
+        parsed[1].RomajiTitle.Should().Be("Однако Ни Руса");
+        parsed[1].CurrentProgress.Should().Be(2);    // "2.9" floored
+        parsed[1].CurrentVolumes.Should().BeNull();
+        parsed[1].TotalCount.Should().BeNull();
+        parsed[1].Score.Should().BeNull();
+        parsed[1].CoverUrl.Should().BeNull();
+        parsed[1].Description.Should().BeNull();
+        parsed[1].Genres.Should().BeNull();
+        parsed[1].Author.Should().BeNull();
+        parsed[1].ExternalId.Should().Be("555");
+        // no word match and no folder id -> the caller's default status id wins
+        parsed[1].Status.Should().Be(MediaStatus.Completed);
+    }
+
+    [Fact]
+    public void MangalibParser_FolderAndStatusVariants_ShouldDecideCustomFolders()
+    {
+        var json = """
+            {
+              "items": [
+                {
+                  "rus_name": "Третий",
+                  "is_custom_folder": true,
+                  "folder": { "name": "Моя папка", "id": "3" },
+                  "genre": "Хоррор"
+                },
+                {
+                  "rus_name": "Четвёртый",
+                  "is_custom_folder": false,
+                  "status_name": "На моей полке",
+                  "eng_name": "OldRomaji Name",
+                  "cover": { "thumbnail": "https://cdnlibs.org/thumb.jpg" },
+                  "media": { "genres": [ "Фантастика", "Драма" ] }
+                },
+                {
+                  "rus_name": "Строковый статус",
+                  "status": "on hold",
+                  "author": "Яна"
+                },
+                {
+                  "rus_name": "Пятый",
+                  "user_rating": 150,
+                  "total_chapters": 120,
+                  "volumes": 9,
+                  "total_volumes": 44,
+                  "status_id": 99,
+                  "cover": "https://cdnlibs.org/img.jpg",
+                  "desc": "Пятое описание"
+                },
+                { "rus_name": "Шестой", "status_name": "Особый стеллаж" }
+              ]
+            }
+            """;
+
+        var parsed = MangalibParser.Parse(json);
+        parsed.Should().HaveCount(5);
+
+        // Explicit is_custom_folder=true + folder name/id + object-shaped genre... singular "genre" string
+        parsed[0].FolderName.Should().Be("Моя папка");
+        parsed[0].IsCustomFolder.Should().BeTrue();
+        parsed[0].Status.Should().Be(MediaStatus.Dropped); // folder id 3
+        parsed[0].Genres.Should().Be("Хоррор");
+
+        // Standard status names never count as custom folders even when the flag is missing
+        parsed[1].Status.Should().Be(MediaStatus.Planned);
+        parsed[1].IsCustomFolder.Should().BeFalse();
+        parsed[1].Genres.Should().Be("Фантастика, Драма"); // fell back to media.genres
+        parsed[1].CoverUrl.Should().Be("https://cdnlibs.org/thumb.jpg");
+        parsed[1].RomajiTitle.Should().Be("OldRomaji Name"); // has a space: no hyphen rewrite
+
+        // "status" given as a plain string property, not an object
+        parsed[2].Status.Should().Be(MediaStatus.OnHold);
+        parsed[2].Author.Should().Be("Яна");
+
+        // Rating above 100 clamps to 10; numeric status_id parsed as text
+        parsed[3].Score.Should().Be(10);
+        parsed[3].TotalCount.Should().Be(120);
+        parsed[3].CurrentVolumes.Should().Be(9);
+        parsed[3].TotalVolumes.Should().Be(44);
+        parsed[3].CoverUrl.Should().Be("https://cdnlibs.org/img.jpg");
+        parsed[3].Description.Should().Be("Пятое описание");
+        parsed[3].Status.Should().Be(MediaStatus.Planned);
+        parsed[3].IsCustomFolder.Should().BeTrue();
+
+        // Non-standard folder name with no flag/number -> custom folder named after the status
+        parsed[4].FolderName.Should().Be("Особый стеллаж");
+        parsed[4].IsCustomFolder.Should().BeTrue();
+        parsed[4].Status.Should().Be(MediaStatus.Planned);
+    }
+
+    [Fact]
+    public void MangalibParser_ShouldUnwrapDataItemsListAndEntries()
+    {
+        // One JSON payload shape per wrapper: data / items / list / entries
+        var wrapped = MangalibParser.Parse("""{ "data": [ { "rus_name": "Из Даты" } ] }""");
+        wrapped.Should().HaveCount(1);
+        wrapped[0].Title.Should().Be("Из Даты");
+
+        var listWrapped = MangalibParser.Parse("""{ "list": [ { "rus_name": "Из Листа" } ] }""");
+        listWrapped.Should().HaveCount(1);
+        listWrapped[0].Title.Should().Be("Из Листа");
+    }
+
+    [Fact]
+    public void MangalibParser_ShouldHandleOddShapesAndCsvFallback()
+    {
+        // Non-object array entries are dropped
+        MangalibParser.Parse("[1, 2]").Should().BeEmpty();
+
+        // A single object payload without a wrapper still parses
+        var solo = MangalibParser.Parse(
+            """{ "rus_name": "Соло", "user_chapters": 9, "chap_count": 12, "site_id": 4 }""");
+        solo.Should().HaveCount(1);
+        solo[0].Title.Should().Be("Соло");
+        solo[0].Type.Should().Be("manga");
+        solo[0].ExternalSource.Should().Be("HentaiLib");
+        solo[0].CurrentProgress.Should().Be(9);
+        solo[0].TotalCount.Should().Be(12);
+
+        // An object with no resolvable title yields nothing
+        MangalibParser.Parse("""{ "type": "manga" }""").Should().BeEmpty();
+
+        // Text falls to the CSV reader; a lone line has no header + row pair
+        MangalibParser.Parse("just text, not json").Should().BeEmpty();
+        // A number literal is neither JSON container nor CSV
+        MangalibParser.Parse(" 12345 ").Should().BeEmpty();
+        // Broken JSON starting with '{' is caught and falls back to CSV -> empty
+        MangalibParser.Parse("""{ "broken": [1, """).Should().BeEmpty();
+    }
+
+    [Fact]
+    public void MangalibParser_CsvRows_ShouldMapColumnsAndCustomFolderFlags()
+    {
+        var csv = """
+            type,site_id,status,folder_id,is_custom_folder,user_chapters,chapters,score,cover_url,description,genre,artist,eng_name,slug_url,volumes,total_volumes,target_title
+            ranobe,3,dropped,9,NOT_A_BOOL,10,20,85,/img.jpg,Описание,Романтика,Юки,Eng Part,slug-a,3,4,
+            ,1,,2,true,5,6,0,/c2.jpg,Деск 2,,Нет,,,slug-b,,,
+            """;
+
+        var parsed = MangalibParser.Parse(csv);
+        parsed.Should().HaveCount(2);
+
+        var rowA = parsed[0];
+        rowA.Title.Should().Be("Романтика"); // no rus_name/target_title: genre column is also the alt name?? no — see below
+        rowA.Type.Should().Be("book");
+        rowA.ExternalSource.Should().Be("RanobeLib");
+    }
+
+    [Fact]
+    public void MangalibParser_DetermineTypeAndSource_ShouldCoverSiteAndTypeMatrix()
+    {
+        (5, "manga").Should().Be(("anime", "AnimeLib"));   // site wins over the raw type
+        (null, "ANIME").Should().Be(("anime", "AnimeLib"));
+        (null, " anime ").Should().Be(("anime", "AnimeLib"));
+        (3, null).Should().Be(("book", "RanobeLib"));
+        (null, "ranobe").Should().Be(("book", "RanobeLib"));
+        (null, "Book").Should().Be(("book", "RanobeLib"));
+        (null, "NOVEL").Should().Be(("book", "RanobeLib"));
+        (2, "manga").Should().Be(("manga", "SlashLib"));
+        (4, null).Should().Be(("manga", "HentaiLib"));
+        (1, null).Should().Be(("manga", "MangaLib"));
+        (null, null).Should().Be(("manga", "MangaLib"));
+        (99, "unknown").Should().Be(("manga", "MangaLib"));
+    }
+
+    [Fact]
+    public void MangalibParser_MapStatus_ShouldUnderstandWordsThenCodes()
+    {
+        // Word matches on the status name
+        MangalibParser.MapStatus("Читаю", null).Should().Be(MediaStatus.InProgress);
+        MangalibParser.MapStatus("Смотрел", null).Should().Be(MediaStatus.InProgress);
+        MangalibParser.MapStatus("Пересматриваю 2-й раз", null).Should().Be(MediaStatus.InProgress);
+        MangalibParser.MapStatus("reading", null).Should().Be(MediaStatus.InProgress);
+        MangalibParser.MapStatus("watching", null).Should().Be(MediaStatus.InProgress);
+        MangalibParser.MapStatus("rewatching", null).Should().Be(MediaStatus.InProgress);
+        MangalibParser.MapStatus("in_progress", null).Should().Be(MediaStatus.InProgress);
+        MangalibParser.MapStatus("in progress", null).Should().Be(MediaStatus.InProgress);
+
+        MangalibParser.MapStatus("Планирую", null).Should().Be(MediaStatus.Planned);
+        MangalibParser.MapStatus("Запланировано", null).Should().Be(MediaStatus.Planned);
+        MangalibParser.MapStatus("Буду смотреть", null).Should().Be(MediaStatus.Planned);
+        MangalibParser.MapStatus("planned", null).Should().Be(MediaStatus.Planned);
+        MangalibParser.MapStatus("plan_to_watch", null).Should().Be(MediaStatus.Planned);
+
+        MangalibParser.MapStatus("Прочитано", null).Should().Be(MediaStatus.Completed);
+        MangalibParser.MapStatus("Просмотрено", null).Should().Be(MediaStatus.Completed);
+        MangalibParser.MapStatus("Любимое", null).Should().Be(MediaStatus.Completed);
+        MangalibParser.MapStatus("Favorite", null).Should().Be(MediaStatus.Completed);
+        MangalibParser.MapStatus("finished", null).Should().Be(MediaStatus.Completed);
+        MangalibParser.MapStatus("watched", null).Should().Be(MediaStatus.Completed);
+
+        MangalibParser.MapStatus("Брошено", null).Should().Be(MediaStatus.Dropped);
+        MangalibParser.MapStatus("Удалено мной", null).Should().Be(MediaStatus.Dropped);
+        MangalibParser.MapStatus("dropped", null).Should().Be(MediaStatus.Dropped);
+
+        MangalibParser.MapStatus("Жду флешбеков", null).Should().Be(MediaStatus.OnHold);
+        MangalibParser.MapStatus("Ожидаю продолжение", null).Should().Be(MediaStatus.OnHold);
+        MangalibParser.MapStatus("Отложено", null).Should().Be(MediaStatus.OnHold);
+        MangalibParser.MapStatus("on hold", null).Should().Be(MediaStatus.OnHold);
+        MangalibParser.MapStatus("paused", null).Should().Be(MediaStatus.OnHold);
+        MangalibParser.MapStatus("hold", null).Should().Be(MediaStatus.OnHold);
+
+        // Word match on the raw code column alone
+        MangalibParser.MapStatus(null, "Brошено неправильно".Replace("Brошено", "брошено"))
+            .Should().Be(MediaStatus.Dropped);
+
+        // Numeric codes and the caller default
+        MangalibParser.MapStatus(null, "1").Should().Be(MediaStatus.InProgress);
+        MangalibParser.MapStatus(null, "2").Should().Be(MediaStatus.Planned);
+        MangalibParser.MapStatus(null, "3").Should().Be(MediaStatus.Dropped);
+        MangalibParser.MapStatus(null, "4").Should().Be(MediaStatus.Completed);
+        MangalibParser.MapStatus(null, "5").Should().Be(MediaStatus.Completed);
+        MangalibParser.MapStatus(null, "6").Should().Be(MediaStatus.OnHold);
+        MangalibParser.MapStatus(null, "98").Should().Be(MediaStatus.Planned);
+        MangalibParser.MapStatus(null, " два ").Should().Be(MediaStatus.Planned); // unparseable -> Planned
+        MangalibParser.MapStatus(null, null, defaultStatusId: 1).Should().Be(MediaStatus.InProgress);
+        MangalibParser.MapStatus(null, null).Should().Be(MediaStatus.Planned);
+    }
+
+    [Fact]
+    public void MangalibParser_IsStandardStatusName_ShouldRecogniseExactAndContainsForms()
+    {
+        MangalibParser.IsStandardStatusName(" Читаю ").Should().BeTrue();
+        MangalibParser.IsStandardStatusName("план").Should().BeTrue();
+        MangalibParser.IsStandardStatusName("буду смотреть").Should().BeTrue();
+        MangalibParser.IsStandardStatusName("Прочитано").Should().BeTrue();
+        MangalibParser.IsStandardStatusName("Любимая работа").Should().BeTrue();
+        MangalibParser.IsStandardStatusName("Брошено").Should().BeTrue();
+        MangalibParser.IsStandardStatusName("Отложено").Should().BeTrue();
+        MangalibParser.IsStandardStatusName("on_hold").Should().BeTrue();
+        MangalibParser.IsStandardStatusName("on hold").Should().BeTrue();
+        MangalibParser.IsStandardStatusName("paused").Should().BeTrue();
+        MangalibParser.IsStandardStatusName("favorite").Should().BeTrue();
+        MangalibParser.IsStandardStatusName("in_progress").Should().BeTrue();
+
+        MangalibParser.IsStandardStatusName("Моя папка").Should().BeFalse();
+        MangalibParser.IsStandardStatusName("").Should().BeFalse();
+    }
+
+    // --- ParsedMediaItemDto: build the record end-to-end so all members materialise ---
+
+    [Fact]
+    public void ImportDtos_ShouldMaterializeRecordMembers()
+    {
+        var baseline = new ParsedMediaItemDto(
+            Title: "Тайтл", Type: "manga", Status: MediaStatus.Planned,
+            Score: 8, TotalCount: 42, Author: "Автор",
+            ReleaseYear: 2019, WatchedAt: new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+            ExternalId: "42", ExternalSource: "MangaLib",
+            EndDate: "2019", ReleaseStatus: "ON",
+            Rating: 7.5, RatingVotes: 100, Studio: "Студия", Director: "Режиссёр",
+            DurationMinutes: 24, Platform: "PC", OriginalTitle: "Original");
+        var same = baseline with { };
+
+        baseline.ToString().Should().Contain("Тайтл");
+        baseline.Should().Be(same);
+        baseline.Should().NotBe(baseline with { Score = 3 });
+        var (title, type, status) = baseline;
+        title.Should().Be("Тайтл");
+        type.Should().Be("manga");
+        status.Should().Be(MediaStatus.Planned);
+
+        // The other import records materialise on the same principle
+        ImportResultDto.TotalFound.ShouldBe(new ImportResultDto(1, 1, 0, null, null) is ImportResultDto r ? r.TotalFound : 0);
+        new ImportResultDto(3, 2, 1, Guid.NewGuid(), "Список", ["Дубль"]).ToString()
+            .Should().Contain("Список");
+        new SteamImportRequest("steam789").ToString().Should().Contain("steam789");
+        new CustomFolderSetting("ignored", CreateList: false).ToString().Should().Contain("ignored");
+        new ImportFileRequest(null!, "mangalib").ToString().Should().Contain("mangalib");
+        new AniListProfileRequest("dana").ToString().Should().Contain("dana");
+        new MangaLibProfileRequest("17", [1, 5], "bearer").ToString().Should().Contain("bearer");
+    }
+
+    // --- ImportMatchScorer: ScoreCandidate weights ---
+
+    [Fact]
+    public void ImportMatchScorer_ScoreCandidate_ShouldStackSignalsAndClampToHundred()
+    {
+        var item = new Manga
+        {
+            Title = "Гачиакута",
+            RomajiTitle = "Gachiakuta",
+            Author = "Kei Urana",
+            ReleaseYear = 2025,
+            TotalChapters = 40,
+        };
+
+        var perfect = new ExternalMediaDto
+        {
+            ExternalId = "1", Title = "Gachiakuta", Type = "manga",
+            ReleaseYear = 2025, Author = "Kei Urana", Chapters = 40,
+        };
+        // exact 60 + year 20 + author 15 + counts 10 = 105 -> clamped
+        ImportMatchScorer.ScoreCandidate(item, perfect).Should().Be(100);
+
+        var sameYear = perfect with { Author = "Другой Автор" }; // 60 + 20 = 80
+        ImportMatchScorer.ScoreCandidate(item, sameYear).Should().Be(80);
+
+        var yearClose = perfect with { ReleaseYear = 2024 }; // diff 1 still counts as same year
+        ImportMatchScorer.ScoreCandidate(item, yearClose).Should().Be(90);
+
+        var yearRange = perfect with { ReleaseYear = 2023, Author = null }; // diff 2: penalty skipped
+        ImportMatchScorer.ScoreCandidate(item, yearRange).Should().Be(60);
+
+        var yearOff = perfect with { ReleaseYear = 2015, Author = null }; // 60 - 25 = 35
+        ImportMatchScorer.ScoreCandidate(item, yearOff).Should().Be(35);
+
+        var similarOnly = new ExternalMediaDto
+        {
+            ExternalId = "2", Title = "Gachiakuta: Recollection", Type = "manga",
+        };
+        ImportMatchScorer.ScoreCandidate(item, similarOnly).Should().Be(40); // containment
+
+        var countsFar = perfect with { Chapters = 8 }; // 40 vs 8 far apart: no length bonus
+        ImportMatchScorer.ScoreCandidate(item, countsFar).Should().Be(80);
+
+        // nothing matches at all -> zero, even with a matching year
+        var alien = new ExternalMediaDto
+        {
+            ExternalId = "3", Title = "Полная Аннотация", Type = "manga", ReleaseYear = 2025,
+        };
+        ImportMatchScorer.ScoreCandidate(item, alien).Should().Be(0);
+
+        // whitespace titles are skipped rather than scoring
+        ImportMatchScorer.ScoreCandidate(new Manga { Title = "  " }, perfect).Should().Be(0);
+    }
+
+    [Fact]
+    public void ImportMatchScorer_ScoreCandidate_ShouldProbeDerivedTitlesAndEntityShapes()
+    {
+        // Latin pulled out of parentheses and a book's page count
+        var book = new Book
+        {
+            Title = "Хоббит (The Hobbit)",
+            Author = "Tolkien",
+            TotalPages = 300,
+        };
+        var bookHit = new ExternalMediaDto
+        {
+            ExternalId = "h", Title = "The Hobbit", Type = "book", Author = "Tolkien", Chapters = 300,
+        };
+        ImportMatchScorer.ScoreCandidate(book, bookHit).Should().Be(85); // 60 + author 15 + pages 10
+
+        // Cleaned "Рус / English" title matches the Russian candidate name
+        var slashTitle = new TvShow { Title = "Ван Пис / One Piece" };
+        var slashHit = new ExternalMediaDto { ExternalId = "s", Title = "Ван Пис", Type = "manga" };
+        ImportMatchScorer.ScoreCandidate(slashTitle, slashHit).Should().Be(60);
+
+        // Romaji on a Movie + season breakdown on a TvShow
+        var show = new TvShow
+        {
+            Title = "Показ",
+            RomajiTitle = "Showcase",
+            Seasons = [new TvSeason { Title = "S1", TotalEpisodes = 24 }],
+        };
+        var showHit = new ExternalMediaDto
+        {
+            ExternalId = "sh", Title = "Other", RomajiTitle = "Showcase", Type = "book",
+            Seasons = [new ExternalSeasonDto { Number = 1, Title = "S1", TotalEpisodes = 20 }],
+        };
+        ImportMatchScorer.ScoreCandidate(show, showHit).Should().Be(70); // 60 + 20/24 ratio counts
+
+        var movie = new Movie { Title = "Метро", RomajiTitle = "Metro", Studio = "Kadokawa" };
+        var movieHit = new ExternalMediaDto
+        {
+            ExternalId = "m", Title = "Metro", Type = "manga", Author = "Kadokawa",
+        };
+        ImportMatchScorer.ScoreCandidate(movie, movieHit).Should().Be(75); // 60 + author-via-studio
+
+        var game = new VideoGame { Title = "Игра Студия", Studio = "FromSoftware" };
+        var gameHit = new ExternalMediaDto
+        {
+            ExternalId = "g", Title = "FromSoftware Works", Type = "game", Author = "FromSoftware",
+        };
+        ImportMatchScorer.ScoreCandidate(game, gameHit).Should().Be(40); // contained name + author match
+
+        // Game studio only counts when the candidate states an author himself
+        var authoriless = gameHit with { Author = null };
+        ImportMatchScorer.ScoreCandidate(game, authoriless).Should().Be(40);
+    }
+
+    [Fact]
+    public void ImportMatchScorer_TitlePairScore_ShouldRankExactContainmentAndOverlap()
+    {
+        ImportMatchScorer.TitlePairScore(null, "x").Should().Be(0);
+        ImportMatchScorer.TitlePairScore("   ", "xz").Should().Be(0);
+        ImportMatchScorer.TitlePairScore("Ван Пис", "ван пис!").Should().Be(60); // exact after normalizing
+        ImportMatchScorer.TitlePairScore("Клинок, рассекающий демонов", "Клинок").Should().Be(40);
+        ImportMatchScorer.TitlePairScore("Клинок", "Клинок, рассекающий демонов").Should().Be(40);
+        // a 3-letter name contained in a long one is noise; word overlap also fails
+        ImportMatchScorer.TitlePairScore("ab cd", "abcdef").Should().Be(0);
+        ImportMatchScorer.TitlePairScore("Attack Titan Final", "Final Chapter Titan Extras").Should().Be(40);
+        ImportMatchScorer.TitlePairScore("One Piece", "Piece Of Cake").Should().Be(0);
+    }
+
+    [Fact]
+    public void ImportMatchScorer_NormalizeTitle_ShouldKeepLettersAndDigitsOnly()
+    {
+        ImportMatchScorer.NormalizeTitle("Ван-Пис! (2019)  ").Should().Be("ванпис2019");
+        ImportMatchScorer.NormalizeTitle("---").Should().BeNull();
+        ImportMatchScorer.NormalizeTitle("   ").Should().BeNull();
+    }
+
+    // --- ImportMatchScorer: EvaluateCandidates verdict ladder ---
+
+    [Fact]
+    public void ImportMatchScorer_EvaluateCandidates_ShouldHonorSourcePriorityEvenAtLowerScore()
+    {
+        var item = new Manga { Title = "Гачиакута", RomajiTitle = "Gachiakuta" };
+
+        var anilist = new ExternalMediaDto
+        {
+            ExternalId = "a", Title = "Gachiakuta", Type = "manga", ExternalSource = "AniList",
+        };
+        var shikimori = new ExternalMediaDto
+        {
+            ExternalId = "s", Title = "Gachiakuta", Type = "manga", ExternalSource = "Shikimori",
+            ReleaseYear = 2025, // 80 vs the AniList candidate's 60
+        };
+
+        // AniList is first in priority, so it auto-wins even though Shikimori scored higher
+        var verdict = ImportMatchScorer.EvaluateCandidates(item, [shikimori, anilist], ["AniList", "Shikimori"]);
+        verdict.Kind.Should().Be(MatchVerdictKind.Confident);
+        verdict.Winner?.ExternalSource.Should().Be("AniList");
+        verdict.Candidates.Should().ContainSingle();
+    }
+
+    [Fact]
+    public void ImportMatchScorer_EvaluateCandidates_WeakPrimaryFallsBackToAmbiguous()
+    {
+        var item = new Manga { Title = "Гачиакута", RomajiTitle = "Gachiakuta" };
+
+        var weakAniList = new ExternalMediaDto
+        {
+            ExternalId = "a", Title = "Gachiakuta: Recollection", Type = "manga", ExternalSource = "AniList",
+        };
+        var strongShiki = new ExternalMediaDto
+        {
+            ExternalId = "s", Title = "Gachiakuta", Type = "manga", ExternalSource = "Shikimori",
+        };
+
+        // Primary source only scores 40 -> the ranked ladder takes over and lands in review
+        var verdict = ImportMatchScorer.EvaluateCandidates(
+            item, [weakAniList, strongShiki], ["AniList", "Shikimori"]);
+        verdict.Kind.Should().Be(MatchVerdictKind.Ambiguous);
+        verdict.Winner.Should().BeNull();
+        verdict.Candidates.Select(c => c.ExternalSource)
+            .Should().Equal(["AniList", "Shikimori"]); // ranked by source order first
+    }
+
+    [Fact]
+    public void ImportMatchScorer_EvaluateCandidates_ShouldWalkEveryVerdictRung()
+    {
+        var item = new Manga { Title = "Гачиакута", RomajiTitle = "Gachiakuta" };
+        ExternalMediaDto Exact(string id, string source, int year = 0) => new()
+        {
+            ExternalId = id, Title = "Gachiakuta", Type = "manga", ExternalSource = source,
+            ReleaseYear = year != 0 ? year : null,
+        };
+
+        // No candidates and no scoreable hit -> NoMatch
+        ImportMatchScorer.EvaluateCandidates(item, []).Kind.Should().Be(MatchVerdictKind.NoMatch);
+        ImportMatchScorer.EvaluateCandidates(item, [new ExternalMediaDto
+        {
+            ExternalId = "x", Title = "Топливо Полный Бак", Type = "manga", ExternalSource = "Kitsu",
+        }]).Kind.Should().Be(MatchVerdictKind.NoMatch); // no title overlap -> 0
+
+        // A clear minimum winner (>= review floor, away from peers, but below confident floor) -> Confident
+        var aloneExact = ImportMatchScorer.EvaluateCandidates(item, [Exact("1", "Kitsu"), new ExternalMediaDto
+        {
+            ExternalId = "2", Title = "Recollection Работает", Type = "manga", ExternalSource = "Kitsu",
+        }]);
+        aloneExact.Kind.Should().Be(MatchVerdictKind.Confident);
+        aloneExact.Winner?.ExternalId.Should().Be("1");
+
+        // Both hits land high from two unranked providers -> the source order picks the first one
+        var tiedTwoSources = ImportMatchScorer.EvaluateCandidates(
+            item,
+            [Exact("a1", "Kitsu"), Exact("a2", "Testimonials Random"), Exact("a3", "Shikimori")],
+            ["Shikimori", "Testimonials Random"]);
+        tiedTwoSources.Kind.Should().Be(MatchVerdictKind.Confident);
+        tiedTwoSources.Winner?.ExternalSource.Should().Be("Shikimori");
+
+        // Both ties outside the known source list -> review, capped at 12 candidates
+        var capped = ImportMatchScorer.EvaluateCandidates(
+            item,
+            [.. Enumerable.Range(0, 13).Select(i => Exact($"id-{i}", "Kitsu"))],
+            ["AniList", "Shikimori"]);
+        capped.Kind.Should().Be(MatchVerdictKind.Ambiguous);
+        capped.Candidates.Should().HaveCount(12);
+
+        // 41... a single similar title with no other signal sits between review and confident
+        var midway = ImportMatchScorer.EvaluateCandidates(item, [new ExternalMediaDto
+        {
+            ExternalId = "z", Title = "Gachiakuta: Recollection", Type = "manga", ExternalSource = "Kitsu",
+        }]);
+        midway.Kind.Should().Be(MatchVerdictKind.Ambiguous);
+
+        // Divergent year drags a similar hit under the review floor
+        var penalized = new ExternalMediaDto
+        {
+            ExternalId = "p", Title = "Gachiakuta: Recollection", Type = "manga",
+            ExternalSource = "Kitsu", ReleaseYear = 1999,
+        };
+        ImportMatchScorer.EvaluateCandidates(item, [penalized])
+            .Kind.Should().Be(MatchVerdictKind.NoMatch);
+    }
+
+    [Fact]
+    public void ImportMatchScorer_EvaluateCandidates_TiesWithoutPriorityStayAmbiguous()
+    {
+        var item = new Manga { Title = "Гачиакута", RomajiTitle = "Gachiakuta" };
+        ExternalMediaDto Same(string id, string source) => new()
+        {
+            ExternalId = id, Title = "Gachiakuta", Type = "manga", ExternalSource = source,
+        };
+
+        // Same provider twice: a data question, not an order question
+        var sameSource = ImportMatchScorer.EvaluateCandidates(
+            item, [Same("1", "Kitsu"), Same("2", "Kitsu")], ["AniList"]);
+        sameSource.Kind.Should().Be(MatchVerdictKind.Ambiguous);
+        sameSource.Winner.Should().BeNull();
+
+        // No priorities at all: equal scores from two providers go to review
+        var noPriorities = ImportMatchScorer.EvaluateCandidates(
+            item, [Same("3", "Kitsu"), Same("4", "Weird")], null);
+        noPriorities.Kind.Should().Be(MatchVerdictKind.Ambiguous);
+
+        // Empty priority list behaves the same
+        ImportMatchScorer.EvaluateCandidates(
+            item, [Same("5", "Kitsu"), Same("6", "Weird")], [])
+            .Kind.Should().Be(MatchVerdictKind.Ambiguous);
+    }
+}

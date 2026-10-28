@@ -15,10 +15,13 @@ using MediaTracker.Server.Features.Media.GetMediaList;
 using MediaTracker.Server.Features.Media.GetMediaStats;
 using MediaTracker.Server.Features.Media.GetRecommendations;
 using MediaTracker.Server.Features.Media.Import;
+using MediaTracker.Server.Features.Media.ManageCovers;
+using MediaTracker.Server.Features.Media.MediaContract;
 using MediaTracker.Server.Features.Media.PendingMatches;
 using MediaTracker.Server.Features.Media.UpdateMedia;
 using MediaTracker.Server.Features.Media.UpdateProgress;
 using MediaTracker.Server.Features.Media.UpdateStatus;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
 namespace MediaTracker.Server.Common.Endpoints;
@@ -318,6 +321,65 @@ public static class MediaEndpoints
             .WithTags("Медиатека / Media")
             .WithSummary("Удалить тайтл и его ассеты");
 
+        // Cover gallery: one POST accepts both a JSON body (add by URL) and a multipart form (upload
+        // a file), because the modal's two input paths share the same "add a variant" verb.
+        group.MapPost("/{id:guid}/covers", async (
+                Guid id,
+                HttpRequest httpRequest,
+                [FromServices] ICoverManager coverManager,
+                CancellationToken ct) =>
+        {
+            if (httpRequest.HasFormContentType)
+            {
+                var form = await httpRequest.ReadFormAsync(ct);
+                var file = form.Files["file"] ?? form.Files.FirstOrDefault();
+                if (file is null || file.Length == 0)
+                {
+                    return CoverEndpointHelpers.BadCoverRequest("The multipart form must contain a non-empty 'file'.");
+                }
+
+                var source = CoverEndpointHelpers.ReadFormValue(form, "source");
+                var setAsActive = string.Equals(CoverEndpointHelpers.ReadFormValue(form, "setAsActive"), "true", StringComparison.OrdinalIgnoreCase);
+                return await coverManager
+                    .AddFromFileAsync(new AddCoverFileCommand(id, file.OpenReadStream(), source, setAsActive), ct)
+                    .ToOk();
+            }
+
+            var body = await httpRequest.ReadFromJsonAsync<AddCoverRequest>(cancellationToken: ct);
+            if (body is null || string.IsNullOrWhiteSpace(body.Url))
+            {
+                return CoverEndpointHelpers.BadCoverRequest("The request body must contain a 'url'.");
+            }
+
+            return await coverManager
+                .AddByUrlAsync(new AddCoverByUrlCommand(id, body.Url, body.Source, body.SetAsActive), ct)
+                .ToOk();
+        })
+        .DisableAntiforgery()
+        .WithTags("Медиатека / Media")
+        .WithSummary("Добавить обложку в галерею тайтла")
+        .WithDescription("Принимает JSON { url, source?, setAsActive? } или multipart/form-data с полем 'file'. Скачивает и сохраняет обложку как новый вариант и возвращает обновлённый тайтл.");
+
+        group.MapPut("/{id:guid}/covers/{coverId}/select", (
+                Guid id,
+                string coverId,
+                [FromServices] ICoverManager coverManager,
+                CancellationToken ct) =>
+            coverManager.SelectAsync(new SelectCoverCommand(id, coverId), ct).ToOk())
+            .WithTags("Медиатека / Media")
+            .WithSummary("Сделать обложку активной")
+            .WithDescription("Назначает выбранный вариант активным постером тайтла и возвращает обновлённый тайтл.");
+
+        group.MapDelete("/{id:guid}/covers/{coverId}", (
+                Guid id,
+                string coverId,
+                [FromServices] ICoverManager coverManager,
+                CancellationToken ct) =>
+            coverManager.DeleteAsync(new DeleteCoverCommand(id, coverId), ct).ToOk())
+            .WithTags("Медиатека / Media")
+            .WithSummary("Удалить обложку из галереи")
+            .WithDescription("Удаляет вариант из списка и с диска. Если удаляли активную обложку, активной становится следующая оставшаяся.");
+
         var historyGroup = app.MapGroup("/api/history");
 
         historyGroup.MapGet("/", (Guid? mediaId, DateOnly? date, [FromServices] IGetHistoryEventsHandler handler, CancellationToken ct) =>
@@ -346,3 +408,16 @@ public static class MediaEndpoints
 public sealed record RefreshMetadataRequest(bool FillMissing = false);
 
 public sealed record EnrichMetadataRequest(string? Source = null);
+
+internal static class CoverEndpointHelpers
+{
+    internal static ProblemHttpResult BadCoverRequest(string message) =>
+        TypedResults.Problem(HttpResultMapper.CreateProblem(
+            MediaTracker.Server.Domain.Common.Error.Validation(message)));
+
+    internal static string? ReadFormValue(IFormCollection form, string key)
+    {
+        var value = form[key].ToString();
+        return string.IsNullOrWhiteSpace(value) ? null : value;
+    }
+}

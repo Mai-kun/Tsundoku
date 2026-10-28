@@ -53,7 +53,18 @@ public sealed class CreateMediaHandler(
         }
         else if (MediaMetadataApplier.IsExternalUrl(item.CoverUrl))
         {
-            item.CoverUrl = await imageStorage.SaveCoverAsync(item.CoverUrl!, item.Id, ct);
+            // A hand-created row starts its gallery right away: the first cover is variant #1, so
+            // later refreshes add to it instead of replacing the only poster the row has.
+            var variant = await imageStorage.SaveCoverVariantAsync(item.CoverUrl!, item.Id, item.ExternalSource, ct);
+            if (variant is not null)
+            {
+                item.CoversJson = MediaCoverCollection.Serialize([variant]);
+                item.CoverUrl = variant.ThumbUrl;
+            }
+            else
+            {
+                item.CoverUrl = await imageStorage.SaveCoverAsync(item.CoverUrl!, item.Id, ct);
+            }
         }
 
         MediaCollectionSeeder.SeedPlaceholderSeasons(item, request);

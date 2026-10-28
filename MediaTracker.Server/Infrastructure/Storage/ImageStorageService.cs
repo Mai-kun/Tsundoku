@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using MediaTracker.Server.Features.Media.MediaContract;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats.Webp;
 using SixLabors.ImageSharp.Processing;
@@ -102,6 +103,116 @@ public sealed class ImageStorageService(
     /// </summary>
     private bool IsOversized(HttpResponseMessage response) =>
         response.Content.Headers.ContentLength is { } declared && declared > MaxCoverSizeBytes;
+
+    /// <summary>Variant ids are folder names; only a short hex chunk must ever reach the filesystem.</summary>
+    private static bool IsSafeCoverId(string coverId) =>
+        coverId.Length > 0 && coverId.Length <= 40 && coverId.All(char.IsAsciiLetterOrDigit);
+
+    public async Task<MediaCoverItemDto?> SaveCoverVariantAsync(
+        string externalUrl,
+        Guid itemId,
+        string? source = null,
+        CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(externalUrl))
+        {
+            return null;
+        }
+
+        var sw = Stopwatch.StartNew();
+        try
+        {
+            using var response = await httpClient.GetAsync(externalUrl, HttpCompletionOption.ResponseHeadersRead, ct);
+            response.EnsureSuccessStatusCode();
+
+            if (IsOversized(response))
+            {
+                logger.LogWarning("Cover image at {ExternalUrl} exceeds size limit of {MaxBytes} bytes", externalUrl, MaxCoverSizeBytes);
+                return null;
+            }
+
+            await using var sourceStream = await response.Content.ReadAsStreamAsync(ct);
+            return await SaveCoverVariantAsync(sourceStream, itemId, source, ct);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException or ImageFormatException or OversizedCoverException)
+        {
+            sw.Stop();
+            logger.LogWarning(
+                ex,
+                "[Storage] Failed to download cover variant for {MediaId} from {ExternalUrl} after {ElapsedMs}ms, keeping current covers",
+                itemId,
+                externalUrl,
+                sw.ElapsedMilliseconds);
+            return null;
+        }
+    }
+
+    public async Task<MediaCoverItemDto?> SaveCoverVariantAsync(
+        Stream content,
+        Guid itemId,
+        string? source = null,
+        CancellationToken ct = default)
+    {
+        try
+        {
+            // A short hex chunk keeps the folder name short and cannot escape the media directory.
+            var coverId = Guid.NewGuid().ToString("N")[..10];
+            var variantDirectory = Path.Combine(appPaths.MediaDirectory, itemId.ToString(), "covers", coverId);
+            Directory.CreateDirectory(variantDirectory);
+
+            using var image = await Image.LoadAsync(LimitStream(content), ct);
+
+            await SaveWebpAsync(image, Path.Combine(variantDirectory, "original.webp"), MaxOriginalWidth, OriginalQuality, ct);
+            await SaveWebpAsync(image, Path.Combine(variantDirectory, "thumb.webp"), MaxThumbWidth, ThumbQuality, ct);
+
+            logger.LogInformation(
+                "[Storage] Saved cover variant {CoverId} for {MediaId} ({SizeKb} KB)",
+                coverId,
+                itemId,
+                new FileInfo(Path.Combine(variantDirectory, "original.webp")).Length / 1024);
+
+            return new MediaCoverItemDto(
+                coverId,
+                $"{MediaAssetsRoutePrefix}{itemId}/covers/{coverId}/thumb.webp",
+                $"{MediaAssetsRoutePrefix}{itemId}/covers/{coverId}/original.webp",
+                source,
+                DateTime.UtcNow);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException or ImageFormatException or OversizedCoverException)
+        {
+            logger.LogWarning(ex, "[Storage] Failed to store cover variant for {MediaId}, discarding", itemId);
+            return null;
+        }
+    }
+
+    public void DeleteCoverVariant(Guid itemId, string coverId)
+    {
+        if (!IsSafeCoverId(coverId))
+        {
+            return;
+        }
+
+        var root = Path.GetFullPath(appPaths.MediaDirectory);
+        var variantFolder = Path.GetFullPath(Path.Combine(root, itemId.ToString(), "covers", coverId));
+
+        if (!variantFolder.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        if (Directory.Exists(variantFolder))
+        {
+            Directory.Delete(variantFolder, recursive: true);
+        }
+    }
 
     private static Stream LimitStream(Stream source) =>
         new SizeLimitedStream(source, MaxCoverSizeBytes);

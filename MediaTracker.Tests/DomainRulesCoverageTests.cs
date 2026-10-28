@@ -5,6 +5,7 @@ using MediaTracker.Server.Domain.Entities;
 using MediaTracker.Server.Domain.Enums;
 using MediaTracker.Server.Domain.Rules;
 using MediaTracker.Server.Features.Media.CreateMedia;
+using MediaTracker.Server.Features.Media.MediaContract;
 using MediaTracker.Server.Features.Media.UpdateMedia;
 using MediaTracker.Server.Infrastructure.ExternalApis;
 using MediaTracker.Server.Infrastructure.Storage;
@@ -40,6 +41,26 @@ public class DomainRulesCoverageTests
     {
         public Task<string?> SaveCoverAsync(string externalUrl, Guid itemId, CancellationToken ct = default, string folder = "cover")
             => Task.FromResult<string?>($"local/{itemId}/{folder}.webp");
+
+        public Task<MediaCoverItemDto?> SaveCoverVariantAsync(
+            string externalUrl, Guid itemId, string? source = null, CancellationToken ct = default) =>
+            Task.FromResult<MediaCoverItemDto?>(new MediaCoverItemDto(
+                "v1",
+                $"/media-assets/{itemId}/covers/v1/thumb.webp",
+                $"/media-assets/{itemId}/covers/v1/original.webp",
+                source,
+                DateTime.UtcNow));
+
+        public Task<MediaCoverItemDto?> SaveCoverVariantAsync(
+            Stream content, Guid itemId, string? source = null, CancellationToken ct = default) =>
+            Task.FromResult<MediaCoverItemDto?>(new MediaCoverItemDto(
+                "v1",
+                $"/media-assets/{itemId}/covers/v1/thumb.webp",
+                $"/media-assets/{itemId}/covers/v1/original.webp",
+                source,
+                DateTime.UtcNow));
+
+        public void DeleteCoverVariant(Guid itemId, string coverId) { }
 
         public void DeleteCover(string? localCoverUrl) { }
 

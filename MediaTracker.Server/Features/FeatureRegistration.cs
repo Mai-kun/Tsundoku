@@ -22,6 +22,7 @@ using MediaTracker.Server.Features.Media.GetMediaList;
 using MediaTracker.Server.Features.Media.GetMediaStats;
 using MediaTracker.Server.Features.Media.GetRecommendations;
 using MediaTracker.Server.Features.Media.Import;
+using MediaTracker.Server.Features.Media.ManageCovers;
 using MediaTracker.Server.Features.Media.PendingMatches;
 using MediaTracker.Server.Features.Media.UpdateMedia;
 using MediaTracker.Server.Features.Media.UpdateProgress;
@@ -65,6 +66,7 @@ public static partial class FeatureRegistration
         services.AddScoped<IUpdateStatusHandler, UpdateStatusHandler>();
         services.AddScoped<IUpdateProgressHandler, UpdateProgressHandler>();
         services.AddScoped<IDeleteMediaHandler, DeleteMediaHandler>();
+        services.AddScoped<ICoverManager, CoverManager>();
         services.AddScoped<ImportMediaHandler>();
         services.AddScoped<IGetPendingMatchesHandler, GetPendingMatchesHandler>();
         services.AddScoped<IResolveMatchHandler, ResolveMatchHandler>();

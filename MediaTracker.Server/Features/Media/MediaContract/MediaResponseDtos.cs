@@ -187,6 +187,9 @@ public sealed record MediaDetailDto : MediaListDto
     /// </summary>
     public bool IsCustomEdited { get; init; }
 
+    /// <summary>The title's saved cover variants, already parsed so the cover manager renders them as-is.</summary>
+    public IReadOnlyList<MediaCoverItemDto> Covers { get; init; } = [];
+
     public IReadOnlyList<TvSeasonDto>? Seasons { get; init; }
 
     public IReadOnlyList<CastMemberDto> Cast { get; init; } = [];
@@ -407,6 +410,7 @@ public static class MediaResponseMapper
             RecommendationsUpdatedAt = item.RecommendationsUpdatedAt,
             Recommendations = MediaJsonCache.Deserialize<ExternalRecommendationDto>(item.RecommendationsJson),
             IsCustomEdited = item.IsCustomEdited,
+            Covers = MediaCoverCollection.Parse(item.CoversJson),
             Cast = MediaJsonCache.Deserialize<CastMemberDto>(item.CastJson),
             CreatorImageUrl = item.CreatorImageUrl,
             OriginalTitle = item.OriginalTitle,

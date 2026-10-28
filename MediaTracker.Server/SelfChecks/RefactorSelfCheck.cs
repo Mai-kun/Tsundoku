@@ -1602,6 +1602,16 @@ public static class RefactorSelfCheck
         public Task<string?> SaveCoverAsync(string url, Guid mediaId, CancellationToken ct, string folder = "cover") =>
             Task.FromResult<string?>(null);
 
+        public Task<Features.Media.MediaContract.MediaCoverItemDto?> SaveCoverVariantAsync(
+            string externalUrl, Guid itemId, string? source = null, CancellationToken ct = default) =>
+            Task.FromResult<Features.Media.MediaContract.MediaCoverItemDto?>(null);
+
+        public Task<Features.Media.MediaContract.MediaCoverItemDto?> SaveCoverVariantAsync(
+            Stream content, Guid itemId, string? source = null, CancellationToken ct = default) =>
+            Task.FromResult<Features.Media.MediaContract.MediaCoverItemDto?>(null);
+
+        public void DeleteCoverVariant(Guid itemId, string coverId) { }
+
         public void DeleteCover(string? path) { }
 
         public void DeleteMediaFolder(Guid mediaId) { }
@@ -4385,6 +4395,16 @@ public static class RefactorSelfCheck
             CancellationToken ct = default,
             string folder = "cover"
         ) => Task.FromResult<string?>(externalUrl);
+
+        public Task<Features.Media.MediaContract.MediaCoverItemDto?> SaveCoverVariantAsync(
+            string externalUrl, Guid itemId, string? source = null, CancellationToken ct = default) =>
+            Task.FromResult<Features.Media.MediaContract.MediaCoverItemDto?>(null);
+
+        public Task<Features.Media.MediaContract.MediaCoverItemDto?> SaveCoverVariantAsync(
+            Stream content, Guid itemId, string? source = null, CancellationToken ct = default) =>
+            Task.FromResult<Features.Media.MediaContract.MediaCoverItemDto?>(null);
+
+        public void DeleteCoverVariant(Guid itemId, string coverId) { }
 
         public void DeleteCover(string? localCoverUrl) { }
 

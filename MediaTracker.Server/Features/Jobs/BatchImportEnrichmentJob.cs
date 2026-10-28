@@ -175,7 +175,20 @@ public static class BatchImportEnrichmentJob
 
         if (MediaMetadataApplier.IsExternalUrl(item.CoverUrl))
         {
-            item.CoverUrl = await imageStorage.SaveCoverAsync(item.CoverUrl!, item.Id, ct);
+            // Imported rows get a gallery from the start, so the resolved match adds a variant
+            // instead of overwriting whatever the import had already staged.
+            MediaCoverCollection.EnsureLegacyCoverRegistered(item);
+            var variant = await imageStorage.SaveCoverVariantAsync(item.CoverUrl!, item.Id, item.ExternalSource, ct);
+            if (variant is not null)
+            {
+                var covers = MediaCoverCollection.Parse(item.CoversJson);
+                covers.Add(variant);
+                item.CoversJson = MediaCoverCollection.Serialize(covers);
+                if (item.CoverUrl is null || !item.IsCustomEdited)
+                {
+                    item.CoverUrl = variant.ThumbUrl;
+                }
+            }
         }
 
         await db.UpdateMediaItemAsync(item, ct);

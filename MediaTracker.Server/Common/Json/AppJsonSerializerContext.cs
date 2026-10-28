@@ -51,7 +51,11 @@ namespace MediaTracker.Server.Common.Json;
 [JsonSerializable(typeof(IReadOnlyList<MediaListDto>))]
 [JsonSerializable(typeof(List<MediaListDto>))]
 [JsonSerializable(typeof(IReadOnlyList<MediaDetailDto>))]
+[JsonSerializable(typeof(MediaCoverItemDto))]
+[JsonSerializable(typeof(List<MediaCoverItemDto>))]
+[JsonSerializable(typeof(IReadOnlyList<MediaCoverItemDto>))]
 // --- Minimal API: requests ---
+[JsonSerializable(typeof(AddCoverRequest))]
 [JsonSerializable(typeof(CreateMediaRequest))]
 [JsonSerializable(typeof(UpdateMediaRequest))]
 [JsonSerializable(typeof(UpdateStatusRequest))]

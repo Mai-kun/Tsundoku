@@ -313,6 +313,14 @@ public sealed class DatabaseFieldPreservationTests
         item.Description = $"Description {k}";
         item.TrailerVideoId = $"trailer-{k}";
         item.CoverUrl = $"/covers/{k}.webp";
+        item.CoversJson = MediaCoverCollection.Serialize([
+            new MediaCoverItemDto(
+                $"cover-{k}",
+                $"/media-assets/{item.Id}/covers/cover-{k}/thumb.webp",
+                $"/media-assets/{item.Id}/covers/cover-{k}/original.webp",
+                "custom",
+                T5)
+        ]);
         item.CreatorImageUrl = $"/creators/{k}.webp";
         item.SyncStatus = syncStatus;
         item.CreatedAt = T4;
@@ -449,6 +457,13 @@ public sealed class DatabaseFieldPreservationTests
         Assert.True(d.IsCustomEdited);
         Assert.Equal($"Original Title {k}", d.OriginalTitle);
         Assert.Equal(e.StaffJson, d.StaffJson);
+
+        var cover = Assert.Single(d.Covers);
+        Assert.Equal($"cover-{k}", cover.Id);
+        Assert.Equal($"/media-assets/{e.Id}/covers/cover-{k}/thumb.webp", cover.ThumbUrl);
+        Assert.Equal($"/media-assets/{e.Id}/covers/cover-{k}/original.webp", cover.OriginalUrl);
+        Assert.Equal("custom", cover.Source);
+        Assert.Equal(T5, cover.AddedAt);
 
         var cast = Assert.Single(d.Cast);
         Assert.Equal($"Cast Name {k}", cast.Name);
@@ -1569,6 +1584,28 @@ public sealed class DatabaseFieldPreservationTests
         public Task<string?> SaveCoverAsync(
             string externalUrl, Guid itemId, CancellationToken ct = default, string folder = "cover") =>
             Task.FromResult<string?>($"/covers/{itemId}.webp");
+
+        public Task<MediaCoverItemDto?> SaveCoverVariantAsync(
+            string externalUrl, Guid itemId, string? source = null, CancellationToken ct = default) =>
+            Task.FromResult<MediaCoverItemDto?>(new MediaCoverItemDto(
+                "v1",
+                $"/media-assets/{itemId}/covers/v1/thumb.webp",
+                $"/media-assets/{itemId}/covers/v1/original.webp",
+                source,
+                DateTime.UtcNow));
+
+        public Task<MediaCoverItemDto?> SaveCoverVariantAsync(
+            Stream content, Guid itemId, string? source = null, CancellationToken ct = default) =>
+            Task.FromResult<MediaCoverItemDto?>(new MediaCoverItemDto(
+                "v1",
+                $"/media-assets/{itemId}/covers/v1/thumb.webp",
+                $"/media-assets/{itemId}/covers/v1/original.webp",
+                source,
+                DateTime.UtcNow));
+
+        public void DeleteCoverVariant(Guid itemId, string coverId)
+        {
+        }
 
         public void DeleteCover(string? localCoverUrl)
         {

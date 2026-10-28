@@ -36,6 +36,34 @@ public static class SqliteSchemaInitializer
         using var cmd = connection.CreateCommand();
         cmd.CommandText = SchemaSql;
         await cmd.ExecuteNonQueryAsync(ct);
+
+        await MigrateAsync(connection, ct);
+    }
+
+    /// <summary>
+    /// Column additions for databases created before the matching CREATE TABLE existed. CREATE TABLE
+    /// IF NOT EXISTS cannot touch an already-materialised table, so each added column is checked for
+    /// with PRAGMA table_info and appended with ALTER TABLE when missing.
+    /// </summary>
+    private static async Task MigrateAsync(DbConnection connection, CancellationToken ct)
+    {
+        var existingColumns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        using (var infoCmd = connection.CreateCommand())
+        {
+            infoCmd.CommandText = "PRAGMA table_info(MediaItems);";
+            using var reader = await infoCmd.ExecuteReaderAsync(ct);
+            while (await reader.ReadAsync(ct))
+            {
+                existingColumns.Add(reader.GetString(1));
+            }
+        }
+
+        if (!existingColumns.Contains("CoversJson"))
+        {
+            using var alterCmd = connection.CreateCommand();
+            alterCmd.CommandText = "ALTER TABLE MediaItems ADD COLUMN CoversJson TEXT NULL;";
+            await alterCmd.ExecuteNonQueryAsync(ct);
+        }
     }
 
     private const string SchemaSql = @"
@@ -89,6 +117,7 @@ CREATE TABLE IF NOT EXISTS MediaItems (
     Description TEXT,
     TrailerVideoId TEXT,
     CoverUrl TEXT,
+    CoversJson TEXT NULL,
     CreatorImageUrl TEXT,
     SyncStatus INTEGER NOT NULL,
     CreatedAt TEXT NOT NULL,

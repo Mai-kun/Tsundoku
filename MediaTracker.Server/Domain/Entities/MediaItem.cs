@@ -36,6 +36,14 @@ public abstract class MediaItem
     public string? CoverUrl { get; set; }
 
     /// <summary>
+    /// The title's cover gallery, serialised as a list of <see cref="MediaTracker.Server.Features.Media.MediaContract.MediaCoverItemDto"/>
+    /// (one entry per downloaded variant). The active poster is still <see cref="CoverUrl"/>, so rows
+    /// written before the gallery existed keep working; the list only grows and is what the cover
+    /// manager renders.
+    /// </summary>
+    public string? CoversJson { get; set; }
+
+    /// <summary>
     /// Local path to the director's photo or the studio's logo, when a provider had one. Null is the
     /// normal case, and the UI falls back to a role icon rather than reserving space for nothing.
     /// </summary>

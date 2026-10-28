@@ -25,6 +25,7 @@ public sealed class MediaItemRow
     public string? Description { get; set; }
     public string? TrailerVideoId { get; set; }
     public string? CoverUrl { get; set; }
+    public string? CoversJson { get; set; }
     public string? CreatorImageUrl { get; set; }
     public SyncStatus SyncStatus { get; set; }
     public DateTime CreatedAt { get; set; }
@@ -170,6 +171,7 @@ public sealed class MediaItemRow
         item.Description = Description;
         item.TrailerVideoId = TrailerVideoId;
         item.CoverUrl = CoverUrl;
+        item.CoversJson = CoversJson;
         item.CreatorImageUrl = CreatorImageUrl;
         item.SyncStatus = SyncStatus;
         item.CreatedAt = CreatedAt;
@@ -235,6 +237,7 @@ public sealed class MediaItemRow
             Description = item.Description,
             TrailerVideoId = item.TrailerVideoId,
             CoverUrl = item.CoverUrl,
+            CoversJson = item.CoversJson,
             CreatorImageUrl = item.CreatorImageUrl,
             SyncStatus = item.SyncStatus,
             CreatedAt = item.CreatedAt,

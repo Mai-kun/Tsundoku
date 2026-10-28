@@ -1,6 +1,7 @@
 using System.Text.Json;
 using MediaTracker.Server.Domain.Entities;
 using MediaTracker.Server.Domain.Rules;
+using MediaTracker.Server.Features.Media.MediaContract;
 using MediaTracker.Server.Infrastructure.ExternalApis;
 using MediaTracker.Server.Infrastructure.Storage;
 using MediaTracker.Server.Features.Media.GetMediaStats;
@@ -106,7 +107,23 @@ public static class MediaMetadataApplier
 
         if (IsExternalUrl(external.CoverUrl))
         {
-            item.CoverUrl = await imageStorage.SaveCoverAsync(external.CoverUrl!, item.Id, ct);
+            // The poster a pre-gallery row already has must survive as gallery entry #1 before a
+            // variant is appended, or the first refresh would orphan the only copy of it.
+            MediaCoverCollection.EnsureLegacyCoverRegistered(item);
+
+            var variant = await imageStorage.SaveCoverVariantAsync(external.CoverUrl!, item.Id, external.ExternalSource, ct);
+            if (variant is not null)
+            {
+                var covers = MediaCoverCollection.Parse(item.CoversJson);
+                covers.Add(variant);
+                item.CoversJson = MediaCoverCollection.Serialize(covers);
+
+                // A failed download no longer clears the stored cover either: the gallery only grows.
+                if (item.CoverUrl is null || !item.IsCustomEdited)
+                {
+                    item.CoverUrl = variant.ThumbUrl;
+                }
+            }
         }
 
         // Only written when the source had one: a provider without a creator photo must not erase the

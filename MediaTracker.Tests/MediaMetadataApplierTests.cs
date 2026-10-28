@@ -1,6 +1,7 @@
 using FluentAssertions;
 using MediaTracker.Server.Domain.Entities;
 using MediaTracker.Server.Domain.Rules;
+using MediaTracker.Server.Features.Media.MediaContract;
 using MediaTracker.Server.Infrastructure.ExternalApis;
 using Xunit;
 
@@ -263,6 +264,26 @@ public class MediaMetadataApplierTests
         public Task<string?> SaveCoverAsync(string externalUrl, Guid itemId, CancellationToken ct = default, string folder = "cover")
             => Task.FromResult<string?>($"local/{itemId}/{folder}.webp");
 
+        public Task<MediaCoverItemDto?> SaveCoverVariantAsync(
+            string externalUrl, Guid itemId, string? source = null, CancellationToken ct = default) =>
+            Task.FromResult<MediaCoverItemDto?>(new MediaCoverItemDto(
+                "v1",
+                $"/media-assets/{itemId}/covers/v1/thumb.webp",
+                $"/media-assets/{itemId}/covers/v1/original.webp",
+                source,
+                DateTime.UtcNow));
+
+        public Task<MediaCoverItemDto?> SaveCoverVariantAsync(
+            Stream content, Guid itemId, string? source = null, CancellationToken ct = default) =>
+            Task.FromResult<MediaCoverItemDto?>(new MediaCoverItemDto(
+                "v1",
+                $"/media-assets/{itemId}/covers/v1/thumb.webp",
+                $"/media-assets/{itemId}/covers/v1/original.webp",
+                source,
+                DateTime.UtcNow));
+
+        public void DeleteCoverVariant(Guid itemId, string coverId) { }
+
         public void DeleteCover(string? localCoverUrl) { }
 
         public void DeleteMediaFolder(Guid mediaId) { }
@@ -307,7 +328,8 @@ public class MediaMetadataApplierTests
 
         movie.Title.Should().Be("Dune");
         movie.Description.Should().Be("Provider synopsis");
-        movie.CoverUrl.Should().Be($"local/{movie.Id}/cover.webp");
+        movie.CoverUrl.Should().Be($"/media-assets/{movie.Id}/covers/v1/thumb.webp");
+        movie.CoversJson.Should().NotBeNullOrEmpty();
         movie.ExternalId.Should().Be("123");
         movie.ExternalSource.Should().Be("TMDb");
         movie.ExternalRating.Should().Be(8.4);

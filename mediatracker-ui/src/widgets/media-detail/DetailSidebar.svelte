@@ -219,7 +219,7 @@
 
       <button
         type="button"
-        class="absolute top-2 right-2 z-10 flex items-center gap-1.5 rounded-lg border border-white/20 bg-black/70 px-2.5 py-1 text-xs font-semibold text-white shadow-md backdrop-blur-md transition hover:bg-black/90 hover:border-white/40 opacity-80 group-hover:opacity-100"
+        class="absolute top-2 right-2 z-10 flex items-center gap-1.5 rounded-lg border border-white/20 bg-black/70 px-2.5 py-1 text-xs font-semibold text-white opacity-80 shadow-md backdrop-blur-md transition group-hover:opacity-100 hover:border-white/40 hover:bg-black/90"
         onclick={(e) => {
           e.stopPropagation();
           isCoverManagerOpen = true;
@@ -230,7 +230,7 @@
         <ImageIcon size={13} aria-hidden="true" />
         <span>{i18n.t.coversModal.openCovers}</span>
         {#if media.covers && media.covers.length > 1}
-          <span class="rounded bg-indigo-500/80 px-1.5 py-0.2 text-[10px] font-bold">
+          <span class="py-0.2 rounded bg-indigo-500/80 px-1.5 text-[10px] font-bold">
             {media.covers.length}
           </span>
         {/if}
@@ -239,7 +239,7 @@
       <MediaCoverPlaceholder />
       <button
         type="button"
-        class="absolute top-2 right-2 z-10 flex items-center gap-1.5 rounded-lg border border-white/20 bg-black/70 px-2.5 py-1 text-xs font-semibold text-white shadow-md backdrop-blur-md transition hover:bg-black/90 hover:border-white/40"
+        class="absolute top-2 right-2 z-10 flex items-center gap-1.5 rounded-lg border border-white/20 bg-black/70 px-2.5 py-1 text-xs font-semibold text-white shadow-md backdrop-blur-md transition hover:border-white/40 hover:bg-black/90"
         onclick={(e) => {
           e.stopPropagation();
           isCoverManagerOpen = true;
@@ -830,7 +830,9 @@
           <span>{i18n.t.coversModal.openCovers}</span>
         </div>
         {#if media.covers && media.covers.length > 1}
-          <span class="rounded-full bg-indigo-500/20 px-2 py-0.5 text-[10px] font-semibold text-indigo-400">
+          <span
+            class="rounded-full bg-indigo-500/20 px-2 py-0.5 text-[10px] font-semibold text-indigo-400"
+          >
             {media.covers.length}
           </span>
         {/if}

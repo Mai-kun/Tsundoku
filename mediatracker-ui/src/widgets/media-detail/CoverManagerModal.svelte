@@ -133,7 +133,9 @@
 <Modal {isOpen} {onClose} labelledBy="cover-manager-title" size="lg">
   <div class="flex max-h-[85vh] flex-col overflow-hidden">
     <!-- Header -->
-    <header class="flex shrink-0 items-center justify-between border-b border-white/[0.08] px-5 py-4">
+    <header
+      class="flex shrink-0 items-center justify-between border-b border-white/[0.08] px-5 py-4"
+    >
       <div class="flex items-center gap-2">
         <ImageIcon size={18} class="text-[var(--color-accent-soft)]" aria-hidden="true" />
         <h2 id="cover-manager-title" class="text-base font-bold text-white">
@@ -158,10 +160,15 @@
     <!-- Add cover section -->
     <div class="shrink-0 border-b border-white/[0.08] bg-black/20 p-4">
       <div class="flex flex-wrap items-center justify-between gap-3 pb-3">
-        <div class="flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 p-0.5 text-xs">
+        <div
+          class="flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 p-0.5 text-xs"
+        >
           <button
             type="button"
-            class="flex items-center gap-1.5 rounded-md px-3 py-1.5 font-medium transition {addMode === 'url' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'}"
+            class="flex items-center gap-1.5 rounded-md px-3 py-1.5 font-medium transition {addMode ===
+            'url'
+              ? 'bg-indigo-600 text-white'
+              : 'text-slate-400 hover:text-white'}"
             onclick={() => (addMode = "url")}
           >
             <Link2 size={13} aria-hidden="true" />
@@ -169,7 +176,10 @@
           </button>
           <button
             type="button"
-            class="flex items-center gap-1.5 rounded-md px-3 py-1.5 font-medium transition {addMode === 'file' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'}"
+            class="flex items-center gap-1.5 rounded-md px-3 py-1.5 font-medium transition {addMode ===
+            'file'
+              ? 'bg-indigo-600 text-white'
+              : 'text-slate-400 hover:text-white'}"
             onclick={() => (addMode = "file")}
           >
             <Upload size={13} aria-hidden="true" />
@@ -177,7 +187,7 @@
           </button>
         </div>
 
-        <label class="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+        <label class="flex cursor-pointer items-center gap-2 text-xs text-slate-300">
           <input
             type="checkbox"
             bind:checked={setAsActive}
@@ -199,7 +209,7 @@
             type="url"
             bind:value={urlInput}
             placeholder={i18n.t.coversModal.urlPlaceholder}
-            class="h-9 flex-1 rounded-lg border border-white/10 bg-[#1c202b] px-3 text-xs text-white outline-none focus:border-indigo-500/60 placeholder:text-slate-500"
+            class="h-9 flex-1 rounded-lg border border-white/10 bg-[#1c202b] px-3 text-xs text-white outline-none placeholder:text-slate-500 focus:border-indigo-500/60"
             disabled={busy}
           />
           <button
@@ -267,7 +277,9 @@
       {:else if covers.length === 0 && media.coverUrl}
         <!-- Fallback if covers array is empty but title has a single legacy coverUrl -->
         <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
-          <div class="group relative flex flex-col overflow-hidden rounded-xl border border-indigo-500/50 bg-[#191e2b] shadow-md ring-2 ring-indigo-500/30">
+          <div
+            class="group relative flex flex-col overflow-hidden rounded-xl border border-indigo-500/50 bg-[#191e2b] shadow-md ring-2 ring-indigo-500/30"
+          >
             <div class="aspect-[2/3] w-full overflow-hidden bg-black/30">
               <img
                 src={fullSizeCoverUrl(media.coverUrl)}
@@ -275,7 +287,9 @@
                 class="h-full w-full object-cover"
               />
             </div>
-            <div class="absolute top-2 left-2 flex items-center gap-1 rounded bg-emerald-600/90 px-2 py-0.5 text-[10px] font-bold text-white shadow backdrop-blur-sm">
+            <div
+              class="absolute top-2 left-2 flex items-center gap-1 rounded bg-emerald-600/90 px-2 py-0.5 text-[10px] font-bold text-white shadow backdrop-blur-sm"
+            >
               <Check size={11} aria-hidden="true" />
               <span>{i18n.t.coversModal.activeBadge}</span>
             </div>
@@ -301,20 +315,26 @@
 
               <!-- Top status badges -->
               {#if active}
-                <div class="absolute top-2 left-2 flex items-center gap-1 rounded bg-emerald-600/90 px-2 py-0.5 text-[10px] font-bold text-white shadow backdrop-blur-sm">
+                <div
+                  class="absolute top-2 left-2 flex items-center gap-1 rounded bg-emerald-600/90 px-2 py-0.5 text-[10px] font-bold text-white shadow backdrop-blur-sm"
+                >
                   <Check size={11} aria-hidden="true" />
                   <span>{i18n.t.coversModal.activeBadge}</span>
                 </div>
               {/if}
 
               {#if cover.source}
-                <div class="absolute bottom-12 left-2 rounded bg-black/70 px-1.5 py-0.5 text-[10px] font-medium text-slate-300 backdrop-blur-sm">
+                <div
+                  class="absolute bottom-12 left-2 rounded bg-black/70 px-1.5 py-0.5 text-[10px] font-medium text-slate-300 backdrop-blur-sm"
+                >
                   {cover.source}
                 </div>
               {/if}
 
               <!-- Actions bar -->
-              <div class="flex items-center justify-between border-t border-white/[0.06] bg-[#141822] p-2">
+              <div
+                class="flex items-center justify-between border-t border-white/[0.06] bg-[#141822] p-2"
+              >
                 {#if active}
                   <span class="text-[11px] font-semibold text-emerald-400">
                     {i18n.t.coversModal.selected}
@@ -322,7 +342,7 @@
                 {:else}
                   <button
                     type="button"
-                    class="rounded bg-indigo-600/30 border border-indigo-500/40 px-2.5 py-1 text-xs font-semibold text-indigo-300 transition hover:bg-indigo-600 hover:text-white disabled:opacity-50"
+                    class="rounded border border-indigo-500/40 bg-indigo-600/30 px-2.5 py-1 text-xs font-semibold text-indigo-300 transition hover:bg-indigo-600 hover:text-white disabled:opacity-50"
                     disabled={busy}
                     onclick={() => void handleSelect(cover.id)}
                   >

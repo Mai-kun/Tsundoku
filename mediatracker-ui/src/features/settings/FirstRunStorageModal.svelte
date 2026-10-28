@@ -11,23 +11,29 @@
   let isOpen = $state(false);
 
   onMount(async () => {
-    settings = await getStorageSettings();
-    isOpen = settings.isFirstRunSetupRequired;
-    loading = false;
+    try {
+      settings = await getStorageSettings();
+      isOpen = Boolean(settings?.isFirstRunSetupRequired);
+    } catch (e) {
+      console.error("Failed to load storage settings:", e);
+      isOpen = false;
+    } finally {
+      loading = false;
+    }
   });
 
   async function handleSave() {
-    await saveStorageSettings({ 
-      mode: mode as "default" | "portable" | "custom", 
-      customPath, 
-      migrateExistingData: true 
+    await saveStorageSettings({
+      mode: mode as "default" | "portable" | "custom",
+      customPath,
+      migrateExistingData: true,
     });
     window.location.reload();
   }
 </script>
 
 {#if isOpen}
-  <Modal {isOpen} onClose={() => {}}>
+  <Modal {isOpen} onClose={() => (isOpen = false)}>
     <h2 class="text-white">{i18n.t.settings.storageSetupRequired}</h2>
     {#if loading}
       <p class="text-white">{i18n.t.common.loading}</p>
@@ -55,5 +61,10 @@
 {/if}
 
 <style>
-  .options { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+  .options {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
 </style>

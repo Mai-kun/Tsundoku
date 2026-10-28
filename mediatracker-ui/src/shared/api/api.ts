@@ -712,4 +712,3 @@ export function getStorageSettings(): Promise<StorageSettings> {
 export function saveStorageSettings(payload: StorageRequest): Promise<void> {
   return requestVoid("/api/settings/storage", jsonOptions("POST", payload));
 }
-

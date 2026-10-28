@@ -57,7 +57,7 @@
     CreateApiTokenResponse,
     SourceInfo,
   } from "$shared/types";
-import type { UpdateCheckResult } from "$shared/api/api";
+  import type { UpdateCheckResult } from "$shared/api/api";
 
   interface Props {
     isOpen: boolean;
@@ -68,7 +68,8 @@ import type { UpdateCheckResult } from "$shared/api/api";
 
   let { isOpen, onClose, onImportCompleted, onNavigateToList }: Props = $props();
 
-  type Tab = "sources" | "search" | "backup" | "import" | "reading" | "apiTokens" | "update" | "storage";
+  type Tab =
+    "sources" | "search" | "backup" | "import" | "reading" | "apiTokens" | "update" | "storage";
   let activeTab = $state<Tab>("sources");
 
   let tokens = $state<ApiTokenSummary[]>([]);
@@ -93,7 +94,7 @@ import type { UpdateCheckResult } from "$shared/api/api";
       loadTokens();
     }
     if (isOpen && activeTab === "update") {
-        handleCheckUpdate();
+      handleCheckUpdate();
     }
   });
 
@@ -118,7 +119,9 @@ import type { UpdateCheckResult } from "$shared/api/api";
           await checkAppUpdate();
           window.location.reload();
           clearInterval(interval);
-        } catch { /* ignored, still down */ }
+        } catch {
+          /* ignored, still down */
+        }
       }, 1500);
     } catch (e) {
       showToast(errorMessage(e), "error");
@@ -712,7 +715,6 @@ import type { UpdateCheckResult } from "$shared/api/api";
           <FolderInput size={16} />
           <span>{i18n.t.settingsModal.tabs.storage}</span>
         </button>
-
       </nav>
 
       <!-- Right content area -->
@@ -1291,22 +1293,37 @@ import type { UpdateCheckResult } from "$shared/api/api";
           <section class="space-y-6">
             <h3 class="text-ink text-base font-bold">Обновление</h3>
             {#if isCheckingUpdate}
-                <div class="flex items-center gap-2 text-muted text-sm"><LoaderCircle class="animate-spin" size={16} /> Проверка...</div>
+              <div class="text-muted flex items-center gap-2 text-sm">
+                <LoaderCircle class="animate-spin" size={16} /> Проверка...
+              </div>
             {:else if updateCheck}
-                <div class="space-y-2">
-                    <p class="text-sm">Версия: {updateCheck.currentVersion}</p>
-                    {#if updateCheck.isUpdateAvailable}
-                        <p class="text-emerald-400 font-bold">Доступна версия {updateCheck.latestVersion}</p>
-                        <button onclick={handleApplyUpdate} disabled={isApplyingUpdate} class="bg-accent px-4 py-2 rounded text-white text-xs font-semibold">Обновить и перезапустить</button>
-                        {#if updateCheck.releaseNotes}
-                           <div class="mt-4 bg-black/20 p-4 rounded text-xs text-muted whitespace-pre-wrap">{updateCheck.releaseNotes}</div>
-                        {/if}
-                    {:else if updateCheck.isUpdateAvailable}
-                        <p class="text-rose-400 text-xs">Обновление доступно, но автообновление недоступно.</p>
-                    {:else}
-                        <p class="text-muted text-sm">Установлена актуальная версия.</p>
-                    {/if}
-                </div>
+              <div class="space-y-2">
+                <p class="text-sm">Версия: {updateCheck.currentVersion}</p>
+                {#if updateCheck.isUpdateAvailable}
+                  <p class="font-bold text-emerald-400">
+                    Доступна версия {updateCheck.latestVersion}
+                  </p>
+                  <button
+                    onclick={handleApplyUpdate}
+                    disabled={isApplyingUpdate}
+                    class="bg-accent rounded px-4 py-2 text-xs font-semibold text-white"
+                    >Обновить и перезапустить</button
+                  >
+                  {#if updateCheck.releaseNotes}
+                    <div
+                      class="text-muted mt-4 rounded bg-black/20 p-4 text-xs whitespace-pre-wrap"
+                    >
+                      {updateCheck.releaseNotes}
+                    </div>
+                  {/if}
+                {:else if updateCheck.isUpdateAvailable}
+                  <p class="text-xs text-rose-400">
+                    Обновление доступно, но автообновление недоступно.
+                  </p>
+                {:else}
+                  <p class="text-muted text-sm">Установлена актуальная версия.</p>
+                {/if}
+              </div>
             {/if}
           </section>
         {:else if activeTab === "apiTokens"}

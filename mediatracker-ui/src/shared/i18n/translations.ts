@@ -367,12 +367,21 @@ export const translations = {
     readPrefix: { ru: "Прочитано:", en: "Read:" },
     scorePrefix: { ru: "Оценка:", en: "Score:" },
     storageTitle: { ru: "Где хранить данные?", en: "Where to store data?" },
-    storageMigrate: { ru: "Перенести текущую базу и обложки", en: "Migrate existing database and covers" },
+    storageMigrate: {
+      ru: "Перенести текущую базу и обложки",
+      en: "Migrate existing database and covers",
+    },
   },
   settings: {
-    storageSetupRequired: { ru: "Добро пожаловать в Tsundoku! Где хранить ваши данные?", en: "Welcome to Tsundoku! Where to store your data?" },
+    storageSetupRequired: {
+      ru: "Добро пожаловать в Tsundoku! Где хранить ваши данные?",
+      en: "Welcome to Tsundoku! Where to store your data?",
+    },
     storageDefault: { ru: "По умолчанию (Системная папка)", en: "Default (System folder)" },
-    storagePortable: { ru: "Рядом с программой (Portable-режим)", en: "Near application (Portable mode)" },
+    storagePortable: {
+      ru: "Рядом с программой (Portable-режим)",
+      en: "Near application (Portable mode)",
+    },
     storageCustom: { ru: "Свой путь", en: "Custom path" },
     storageConfirm: { ru: "Начать", en: "Start" },
   },
@@ -1980,7 +1989,8 @@ export const translations = {
   },
   settingsModal: {
     title: { ru: "Настройки", en: "Settings" },
-    tabs: { storage: { ru: "Хранилище", en: "Storage" },
+    tabs: {
+      storage: { ru: "Хранилище", en: "Storage" },
       sources: { ru: "Источники", en: "Sources" },
       search: { ru: "Поиск", en: "Search" },
       backup: { ru: "Резервная копия", en: "Backup" },

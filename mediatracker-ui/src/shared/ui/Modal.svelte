@@ -27,9 +27,11 @@
     if (!dialog) return;
 
     if (isOpen && !dialog.open) {
+      pressedOnBackdrop = false;
       dialog.showModal();
     } else if (!isOpen && dialog.open) {
       closingProgrammatically = true;
+      pressedOnBackdrop = false;
       dialog.close();
       closingProgrammatically = false;
     }
@@ -60,7 +62,7 @@
   bind:this={dialogElement}
   aria-labelledby={labelledBy}
   class="z-40 m-auto w-full {size === 'search'
-    ? 'w-[95vw] sm:w-[80vw] max-w-[80vw] h-[85vh] sm:h-[80vh] max-h-[80vh]'
+    ? 'w-[95vw] sm:w-[80vw] max-w-[95vw] sm:max-w-[80vw] h-[85vh] sm:h-[80vh] max-h-[85vh] sm:max-h-[80vh]'
     : size === 'xl'
       ? 'h-[86vh] max-h-[90vh] w-[90vw] max-w-7xl'
       : size === 'lg'
@@ -75,7 +77,7 @@
        surface itself, otherwise page content bleeds through the text. -->
   <div
     class="overflow-hidden rounded-xl border border-white/[0.08] bg-[#151a26] shadow-2xl shadow-black/60 {size ===
-    'xl' || size === 'search'
+      'xl' || size === 'search'
       ? 'flex h-full min-h-0 flex-col'
       : ''}"
   >

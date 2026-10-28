@@ -354,6 +354,8 @@
   {#if renderedView === "lists"}
     {#await import("$views/ListsView.svelte") then { default: ListsView }}
       <ListsView onOpen={openDetail} onImportCompleted={mediaChanged} />
+    {:catch error}
+      {@const _ = console.error("Failed to load view/modal:", error)}
     {/await}
   {/if}
 
@@ -391,6 +393,8 @@
         onOpenRelated={openDetail}
         onSearch={(context) => openSearch(context)}
       />
+    {:catch error}
+      {@const _ = console.error("Failed to load view/modal:", error)}
     {/await}
   {:else if renderedView === "seasons" && selectedMediaId}
     {#await import("$views/ShowSeasonsView.svelte") then { default: ShowSeasonsView }}
@@ -400,18 +404,26 @@
         onBack={closeDetail}
         onMediaChanged={mediaChanged}
       />
+    {:catch error}
+      {@const _ = console.error("Failed to load view/modal:", error)}
     {/await}
   {:else if renderedView === "stats"}
     {#await import("$views/StatsView.svelte") then { default: StatsView }}
       <StatsView refreshKey={mediaRevision} onOpenMedia={(mediaId) => openDetailById(mediaId)} />
+    {:catch error}
+      {@const _ = console.error("Failed to load view/modal:", error)}
     {/await}
   {:else if renderedView === "history"}
     {#await import("$views/HistoryView.svelte") then { default: HistoryView }}
       <HistoryView refreshKey={mediaRevision} onOpenMedia={(mediaId) => openDetailById(mediaId)} />
+    {:catch error}
+      {@const _ = console.error("Failed to load view/modal:", error)}
     {/await}
   {:else if renderedView === "calendar"}
     {#await import("$views/CalendarView.svelte") then { default: CalendarView }}
       <CalendarView onOpenMedia={(id) => openDetailById(id)} />
+    {:catch error}
+      {@const _ = console.error("Failed to load view/modal:", error)}
     {/await}
   {/if}
 </AppShell>
@@ -424,6 +436,8 @@
       onClose={closeCreate}
       onCreated={handleCreated}
     />
+  {:catch error}
+    {@const _ = console.error("Failed to load view/modal:", error)}
   {/await}
 {/if}
 {#if isSearchOpen}
@@ -441,6 +455,8 @@
         openDetailById(id);
       }}
     />
+  {:catch error}
+    {@const _ = console.error("Failed to load view/modal:", error)}
   {/await}
 {/if}
 {#if isSettingsOpen}
@@ -451,16 +467,22 @@
       onImportCompleted={mediaChanged}
       onNavigateToList={navigateToList}
     />
+  {:catch error}
+    {@const _ = console.error("Failed to load view/modal:", error)}
   {/await}
 {/if}
 {#if dropPromptState.target !== null}
   {#await import("$features/drop-reason/DropReasonModal.svelte") then { default: DropReasonModal }}
     <DropReasonModal />
+  {:catch error}
+    {@const _ = console.error("Failed to load view/modal:", error)}
   {/await}
 {/if}
 {#if jobsClient.isModalOpen}
   {#await import("$widgets/layout/BackgroundJobsModal.svelte") then { default: BackgroundJobsModal }}
     <BackgroundJobsModal onMediaChanged={mediaChanged} />
+  {:catch error}
+    {@const _ = console.error("Failed to load view/modal:", error)}
   {/await}
 {/if}
 

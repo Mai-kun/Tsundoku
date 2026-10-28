@@ -89,7 +89,7 @@ public static class AdvancedStatsCalculator
         {
             var isEligible = onlyCompleted
                 ? show.Status == MediaStatus.Completed
-                
+
                 : true;
 
             if (!isEligible)
@@ -125,7 +125,7 @@ public static class AdvancedStatsCalculator
         {
             var isEligible = onlyCompleted
                 ? book.Status == MediaStatus.Completed
-                
+
                 : true;
 
             if (!isEligible)
@@ -148,7 +148,7 @@ public static class AdvancedStatsCalculator
         {
             var isEligible = onlyCompleted
                 ? manga.Status == MediaStatus.Completed
-                
+
                 : true;
 
             if (!isEligible)
@@ -198,7 +198,7 @@ public static class AdvancedStatsCalculator
         {
             var isEligible = onlyCompleted
                 ? item.Status == MediaStatus.Completed
-                
+
                 : true;
 
             if (isEligible && item.Score is >= 1 and <= 10)
@@ -301,7 +301,7 @@ public static class AdvancedStatsCalculator
         {
             var isEligible = onlyCompleted
                 ? item.Status == MediaStatus.Completed
-                
+
                 : true;
 
             if (!isEligible || string.IsNullOrWhiteSpace(item.Genres))
@@ -337,7 +337,7 @@ public static class AdvancedStatsCalculator
         {
             var isEligible = onlyCompleted
                 ? item.Status == MediaStatus.Completed
-                
+
                 : true;
 
             if (!isEligible || string.IsNullOrWhiteSpace(item.Genres))

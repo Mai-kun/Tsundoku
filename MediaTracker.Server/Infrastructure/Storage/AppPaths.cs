@@ -50,9 +50,9 @@ public sealed class AppPaths
         Directory.CreateDirectory(CoversDirectory);
         Directory.CreateDirectory(MediaDirectory);
         Directory.CreateDirectory(LogsDirectory);
-        
-        IsFirstRunSetupRequired = !isDevelopment && !CommandLineOptions.IsRunningInContainer && 
-                                  !File.Exists(Path.Combine(AppContext.BaseDirectory, "storage.json")) && 
+
+        IsFirstRunSetupRequired = !isDevelopment && !CommandLineOptions.IsRunningInContainer &&
+                                  !File.Exists(Path.Combine(AppContext.BaseDirectory, "storage.json")) &&
                                   !File.Exists(DatabaseFilePath);
     }
 

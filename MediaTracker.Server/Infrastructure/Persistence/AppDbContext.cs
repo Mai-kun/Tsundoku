@@ -1546,12 +1546,12 @@ public sealed class AppDbContext : IDisposable, IAsyncDisposable
             return predicate is null ? all.FirstOrDefault() : all.FirstOrDefault(predicate.Compile());
         }
 
-        public async Task<T> SingleOrDefaultAsync(Expression<Func<T, bool>>? predicate = null, CancellationToken ct = default)
+        public async Task<T?> SingleOrDefaultAsync(Expression<Func<T, bool>>? predicate = null, CancellationToken ct = default)
         {
             var all = await _loader(ct);
             return predicate is null ? all.SingleOrDefault() : all.SingleOrDefault(predicate.Compile());
         }
-        public T SingleOrDefault(Expression<Func<T, bool>>? predicate = null)
+        public T? SingleOrDefault(Expression<Func<T, bool>>? predicate = null)
         {
             var all = _loader(CancellationToken.None).GetAwaiter().GetResult();
             return predicate is null ? all.SingleOrDefault() : all.SingleOrDefault(predicate.Compile());

@@ -171,11 +171,13 @@ public static class SettingsEndpoints
             .WithTags("Настройки / Settings")
             .WithSummary("Проверка обновлений");
 
-        group.MapGet("/storage", ([FromServices] AppPaths appPaths) => {
+        group.MapGet("/storage", ([FromServices] AppPaths appPaths) =>
+        {
             var appDir = AppContext.BaseDirectory;
             var configPath = Path.Combine(appDir, "storage.json");
             var mode = "default";
-            if (File.Exists(configPath)) {
+            if (File.Exists(configPath))
+            {
                 var config = JsonSerializer.Deserialize(File.ReadAllText(configPath), AppJsonSerializerContext.Default.StorageConfig);
                 mode = config?.Mode ?? "default";
             }
@@ -195,7 +197,7 @@ public static class SettingsEndpoints
             {
                 var appDir = AppContext.BaseDirectory;
                 var configPath = Path.Combine(appDir, "storage.json");
-                
+
                 string targetDataDir = request.Mode switch
                 {
                     "portable" => Path.Combine(appDir, "data"),
@@ -240,8 +242,9 @@ public static class SettingsEndpoints
 
                 var config = new StorageConfig { Mode = request.Mode, CustomPath = request.CustomPath };
                 File.WriteAllText(configPath, JsonSerializer.Serialize(config, AppJsonSerializerContext.Default.StorageConfig));
-                
-                Task.Run(() => {
+
+                Task.Run(() =>
+                {
                     Thread.Sleep(1000);
                     var startInfo = new ProcessStartInfo(Environment.ProcessPath!, string.Join(" ", Environment.GetCommandLineArgs().Skip(1)))
                     {
@@ -255,7 +258,7 @@ public static class SettingsEndpoints
 
         group.MapPost("/update/apply", async (
             [FromServices] IUpdateService updateService,
-            CancellationToken ct) => 
+            CancellationToken ct) =>
             {
                 await updateService.ApplyUpdateAsync(ct);
                 return Results.Accepted();

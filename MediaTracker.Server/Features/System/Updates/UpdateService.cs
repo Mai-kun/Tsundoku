@@ -37,12 +37,12 @@ public sealed class UpdateService(
 
         var currentVersion = Assembly.GetEntryAssembly()?.GetName().Version ?? new Version(0, 0, 0);
         var latestVersion = Version.TryParse(release.tag_name.TrimStart('v'), out var v) ? v : new Version(0, 0, 0);
-        
+
         var isUpdateAvailable = latestVersion > currentVersion;
-        
+
         var assetName = OperatingSystem.IsLinux() ? "tsundoku-linux-x64.zip" : "tsundoku-win-x64.zip";
         var asset = release.assets.FirstOrDefault(a => a.name == assetName);
-        
+
         var canSelfUpdate = !CommandLineOptions.IsRunningInContainer && asset != null;
 
         return new UpdateCheckResultDto(
@@ -77,13 +77,13 @@ public sealed class UpdateService(
         var tempDir = Path.Combine(Path.GetTempPath(), $"tsundoku_update_{Guid.NewGuid():N}");
         Directory.CreateDirectory(tempDir);
         var zipPath = Path.Combine(tempDir, "update.zip");
-        
+
         var client = httpClientFactory.CreateClient();
         var response = await client.GetAsync(check.DownloadUrl, ct);
         await using var fs = File.Create(zipPath);
         await response.Content.CopyToAsync(fs, ct);
         fs.Close();
-        
+
         // 2 & 3. Install: binaries and wwwroot update, user data stays byte-for-byte intact.
         UpdatePayloadApplier.ApplyZip(zipPath, AppContext.BaseDirectory, OperatingSystem.IsWindows());
 

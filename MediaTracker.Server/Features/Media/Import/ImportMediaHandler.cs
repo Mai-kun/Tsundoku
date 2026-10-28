@@ -420,8 +420,8 @@ public sealed class ImportMediaHandler(
                 byTitleKey.TryAdd($"{type}\u001f{romaji.Trim()}", item);
             }
         }
-    var toAdd = new List<MediaItem>();
-    var healedMatches = new List<MediaItem>();
+        var toAdd = new List<MediaItem>();
+        var healedMatches = new List<MediaItem>();
         var duplicateCount = 0;
         var skippedTitles = new List<string>();
         var customFolderAssignments = new List<(string FolderName, MediaItem Item)>();

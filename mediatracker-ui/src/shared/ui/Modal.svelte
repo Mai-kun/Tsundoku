@@ -5,8 +5,8 @@
     isOpen: boolean;
     onClose: () => void;
     labelledBy?: string;
-    /** `md` — обычная модалка. `lg` — широкая панель (превью деталей). `xl` — расширенная модалка (настройки и т.д.). */
-    size?: "md" | "lg" | "xl";
+    /** `md` — обычная модалка. `lg` — широкая панель (превью деталей). `xl` — расширенная модалка (настройки и т.д.). `search` — модалка поиска на 80% экрана. */
+    size?: "md" | "lg" | "xl" | "search";
     children: Snippet;
   }
 
@@ -59,11 +59,13 @@
 <dialog
   bind:this={dialogElement}
   aria-labelledby={labelledBy}
-  class="z-40 m-auto w-full {size === 'xl'
-    ? 'h-[86vh] max-h-[90vh] w-[90vw] max-w-7xl'
-    : size === 'lg'
-      ? 'max-w-5xl'
-      : 'max-w-2xl'} text-ink overflow-visible border-0 bg-transparent p-4 backdrop:bg-black/70 backdrop:backdrop-blur-sm"
+  class="z-40 m-auto w-full {size === 'search'
+    ? 'w-[95vw] sm:w-[80vw] max-w-[80vw] h-[85vh] sm:h-[80vh] max-h-[80vh]'
+    : size === 'xl'
+      ? 'h-[86vh] max-h-[90vh] w-[90vw] max-w-7xl'
+      : size === 'lg'
+        ? 'max-w-5xl'
+        : 'max-w-2xl'} text-ink overflow-visible border-0 bg-transparent p-4 backdrop:bg-black/70 backdrop:backdrop-blur-sm"
   onclose={handleNativeClose}
   oncancel={handleCancel}
   onmousedown={handleMouseDown}
@@ -73,11 +75,11 @@
        surface itself, otherwise page content bleeds through the text. -->
   <div
     class="overflow-hidden rounded-xl border border-white/[0.08] bg-[#151a26] shadow-2xl shadow-black/60 {size ===
-    'xl'
+    'xl' || size === 'search'
       ? 'flex h-full min-h-0 flex-col'
       : ''}"
   >
-    <div class={size === "xl" ? "flex h-full min-h-0 flex-col" : ""}>
+    <div class={size === "xl" || size === "search" ? "flex h-full min-h-0 flex-col" : ""}>
       {@render children()}
     </div>
   </div>

@@ -591,8 +591,8 @@
   }
 </script>
 
-<Modal {isOpen} {onClose} labelledBy="search-title">
-  <div class="flex max-h-[85vh] min-h-[60vh] flex-col">
+<Modal {isOpen} {onClose} labelledBy="search-title" size="search">
+  <div class="flex h-full min-h-0 flex-col">
     <header class="flex shrink-0 items-start justify-between gap-4 px-5 pt-5 pb-4 sm:px-6">
       <div>
         <p class="text-accent-soft text-xs font-semibold tracking-[0.18em] uppercase">

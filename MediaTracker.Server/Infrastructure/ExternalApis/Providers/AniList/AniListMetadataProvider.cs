@@ -1,5 +1,6 @@
 using System.Net.Http.Json;
 using System.Text.RegularExpressions;
+using MediaTracker.Server.Common.Json;
 using MediaTracker.Server.Domain.Rules;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -7,7 +8,7 @@ namespace MediaTracker.Server.Infrastructure.ExternalApis;
 
 public sealed partial class AniListMetadataProvider(
     IHttpClientFactory httpClientFactory,
-    [ServiceKey] string? serviceKey = null) : MetadataProviderBase
+    [ServiceKey] string? serviceKey = null) : MetadataProviderBase(Source)
 {
     public static MetadataSourceDescriptor Source { get; } = new(
         Id: "anilist",
@@ -22,16 +23,15 @@ public sealed partial class AniListMetadataProvider(
     public override async Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string query, CancellationToken ct)
     {
         var client = httpClientFactory.CreateClient(Id);
-        var payload = new
-        {
-            query = AniListGraphQlQueries.GraphQLSearchQuery,
-            variables = new { search = query, type = mediaType == "anime" ? "ANIME" : "MANGA" },
-        };
+        var payload = new AniListGraphQlPayload(
+            AniListGraphQlQueries.GraphQLSearchQuery,
+            new AniListVariables(mediaType == "anime" ? "ANIME" : "MANGA", Search: query));
 
-        using var response = await client.PostAsJsonAsync("", payload, ct);
+        using var response = await client.PostAsJsonAsync(
+            "", payload, AppJsonSerializerContext.Default.AniListGraphQlPayload, ct);
         response.EnsureSuccessStatusCode();
 
-        var result = await response.Content.ReadFromJsonAsync<AniListSearchResponse>(ct);
+        var result = await response.Content.ReadFromJsonAsync(AppJsonSerializerContext.Default.AniListSearchResponse, ct);
         if (result?.Data?.Page?.Media is not { Count: > 0 } mediaList)
         {
             return [];
@@ -65,16 +65,15 @@ public sealed partial class AniListMetadataProvider(
 
         try
         {
-            var payload = new
-            {
-                query = mediaType == "anime" ? AniListGraphQlQueries.GraphQLStudioSearchQuery : AniListGraphQlQueries.GraphQLStaffSearchQuery,
-                variables = new { search = clean },
-            };
+            var payload = new AniListGraphQlPayload(
+                mediaType == "anime" ? AniListGraphQlQueries.GraphQLStudioSearchQuery : AniListGraphQlQueries.GraphQLStaffSearchQuery,
+                new AniListVariables(mediaType == "anime" ? "ANIME" : "MANGA", Search: clean));
 
-            using var response = await httpClientFactory.CreateClient(Id).PostAsJsonAsync("", payload, ct);
+            using var response = await httpClientFactory.CreateClient(Id).PostAsJsonAsync(
+                "", payload, AppJsonSerializerContext.Default.AniListGraphQlPayload, ct);
             response.EnsureSuccessStatusCode();
 
-            var data = (await response.Content.ReadFromJsonAsync<AniListCreatorSearchResponse>(ct))?.Data;
+            var data = (await response.Content.ReadFromJsonAsync(AppJsonSerializerContext.Default.AniListCreatorSearchResponse, ct))?.Data;
             var isAnime = mediaType == "anime";
             var nodes = isAnime ? data?.Studio?.Media?.Nodes : data?.Staff?.StaffMedia?.Nodes;
 
@@ -115,16 +114,15 @@ public sealed partial class AniListMetadataProvider(
         if (int.TryParse(externalId, out var id))
         {
             var client = httpClientFactory.CreateClient(Id);
-            var payload = new
-            {
-                query = AniListGraphQlQueries.GraphQLDetailQuery,
-                variables = new { id, type = mediaType == "anime" ? "ANIME" : "MANGA" }
-            };
+            var payload = new AniListGraphQlPayload(
+                AniListGraphQlQueries.GraphQLDetailQuery,
+                new AniListVariables(mediaType == "anime" ? "ANIME" : "MANGA", Id: id));
 
-            using var response = await client.PostAsJsonAsync("", payload, ct);
+            using var response = await client.PostAsJsonAsync(
+                "", payload, AppJsonSerializerContext.Default.AniListGraphQlPayload, ct);
             if (response.IsSuccessStatusCode)
             {
-                var result = await response.Content.ReadFromJsonAsync<AniListDetailResponse>(ct);
+                var result = await response.Content.ReadFromJsonAsync(AppJsonSerializerContext.Default.AniListDetailResponse, ct);
                 if (result?.Data?.Media is { } item)
                 {
                     var dto = MapItem(item);
@@ -229,19 +227,14 @@ public sealed partial class AniListMetadataProvider(
     /// The id lookup wins when the row carries one; <c>search</c> is always sent alongside it so a miss
     /// can be retried by title instead of reporting the title as having nothing.
     /// </summary>
-    private Dictionary<string, object> LookupVariables(string? externalId, bool externalIdIsMal, string? title)
-    {
-        var variables = new Dictionary<string, object> { ["type"] = GraphQlType, ["search"] = title ?? string.Empty };
-        if (int.TryParse(externalId, out var numeric))
-        {
-            variables[externalIdIsMal ? "idMal" : "id"] = numeric;
-        }
+    private AniListVariables LookupVariables(string? externalId, bool externalIdIsMal, string? title) =>
+        int.TryParse(externalId, out var numeric)
+            ? externalIdIsMal
+                ? new AniListVariables(GraphQlType, Search: title, IdMal: numeric)
+                : new AniListVariables(GraphQlType, Search: title, Id: numeric)
+            : new AniListVariables(GraphQlType, Search: title);
 
-        return variables;
-    }
-
-    private Dictionary<string, object> SearchOnly(string? title) =>
-        new() { ["type"] = GraphQlType, ["search"] = title ?? string.Empty };
+    private AniListVariables SearchOnly(string? title) => new(GraphQlType, Search: title);
 
     /// <summary>
     /// One GraphQL round trip, or null when the provider could not be reached. AniList answers 200 with
@@ -250,7 +243,7 @@ public sealed partial class AniListMetadataProvider(
     /// </summary>
     private async Task<TData?> QueryAsync<TResponse, TData>(
         string query,
-        Dictionary<string, object> variables,
+        AniListVariables variables,
         CancellationToken ct)
         where TResponse : class, IAniListEnvelope<TData>
         where TData : class
@@ -259,11 +252,12 @@ public sealed partial class AniListMetadataProvider(
         {
             using var response = await httpClientFactory.CreateClient(Id).PostAsJsonAsync(
                 "",
-                new { query, variables },
+                new AniListGraphQlPayload(query, variables),
+                AppJsonSerializerContext.Default.AniListGraphQlPayload,
                 ct);
 
             return response.IsSuccessStatusCode
-                ? (await response.Content.ReadFromJsonAsync<TResponse>(ct))?.Data
+                ? (await response.Content.ReadFromJsonAsync(AppJsonSerializerContext.GetTypeInfo<TResponse>(), ct))?.Data
                 : null;
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
@@ -458,8 +452,9 @@ public sealed partial class AniListMetadataProvider(
                 using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
                 cts.CancelAfter(TimeSpan.FromSeconds(2));
                 var queryTitle = !string.IsNullOrWhiteSpace(dto.OriginalTitle) ? dto.OriginalTitle : dto.Title;
-                var res = await client.GetFromJsonAsync<KitsuSearchResponse>(
-                    $"edge/anime?filter[text]={Uri.EscapeDataString(queryTitle)}&page[limit]=1", cts.Token);
+                var res = await client.GetFromJsonAsync(
+                    $"edge/anime?filter[text]={Uri.EscapeDataString(queryTitle)}&page[limit]=1",
+                    AppJsonSerializerContext.Default.KitsuSearchResponse, cts.Token);
 
                 if (res?.Data?.FirstOrDefault()?.Attributes is { } attr &&
                     !string.IsNullOrWhiteSpace(attr.AverageRating) &&

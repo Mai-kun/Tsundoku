@@ -1,4 +1,5 @@
 using System.Text.Json;
+using MediaTracker.Server.Common.Json;
 
 namespace MediaTracker.Server.Domain.Rules;
 
@@ -8,12 +9,8 @@ namespace MediaTracker.Server.Domain.Rules;
 /// </summary>
 public static class MediaRatingSerializer
 {
-    private static readonly JsonSerializerOptions CamelCaseJsonOptions = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-    };
-
-    public static JsonSerializerOptions JsonOptions => CamelCaseJsonOptions;
+    /// <summary>The stored row shape: lowercase <c>source/score/votes</c> keys under the camelCase policy.</summary>
+    internal sealed record MediaRatingRow(string Source, double Score, int? Votes);
 
     /// <summary>
     /// Reading needs case-insensitive matching, writing does not. The payload is camelCase, and
@@ -21,12 +18,10 @@ public static class MediaRatingSerializer
     /// plain read silently produced rows whose source was null.
     /// </summary>
     public static JsonSerializerOptions ReadOptions { get; } =
-        new() { PropertyNameCaseInsensitive = true };
+        new(AppJsonSerializerContext.Default.Options) { PropertyNameCaseInsensitive = true };
 
     public static string Serialize(IEnumerable<RatingSnapshot> ratings) =>
-        JsonSerializer.Serialize(
-            ratings.Select(rating => new { source = rating.Source, score = rating.Rating, votes = rating.Votes }),
-            CamelCaseJsonOptions);
+        JsonSerializer.Serialize(ratings.Select(rating => new MediaRatingRow(rating.Source, rating.Rating, rating.Votes)).ToList(), AppJsonSerializerContext.Default.ListMediaRatingRow);
 }
 
 public sealed record RatingSnapshot(string Source, double Rating, int? Votes);

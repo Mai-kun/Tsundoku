@@ -3,7 +3,6 @@ using MediaTracker.Server.Domain.Entities;
 using MediaTracker.Server.Domain.Enums;
 using MediaTracker.Server.Features.Lists;
 using MediaTracker.Server.Infrastructure.Persistence;
-using Microsoft.EntityFrameworkCore;
 using Xunit;
 
 namespace MediaTracker.Tests;
@@ -13,10 +12,7 @@ public class ListsServiceTests
     private static (ListsService Service, AppDbContext Db) CreateService()
     {
         var dbPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.db");
-        var options = new DbContextOptionsBuilder<AppDbContext>()
-            .UseSqlite($"Data Source={dbPath}")
-            .Options;
-        var db = new AppDbContext(options);
+        var db = new AppDbContext($"Data Source={dbPath}");
         db.Database.EnsureCreated();
         return (new ListsService(db), db);
     }

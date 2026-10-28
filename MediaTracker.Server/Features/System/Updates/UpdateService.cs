@@ -5,8 +5,8 @@ using System.Runtime.InteropServices;
 using MediaTracker.Server.Common.Cli;
 using MediaTracker.Server.Infrastructure.Persistence;
 using MediaTracker.Server.Infrastructure.Storage;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using MediaTracker.Server.Common.Json;
 
 namespace MediaTracker.Server.Features.System.Updates;
 
@@ -32,7 +32,7 @@ public sealed class UpdateService(
         var response = await client.GetAsync($"https://api.github.com/repos/{repo}/releases/latest", ct);
         if (!response.IsSuccessStatusCode) return new UpdateCheckResultDto(Assembly.GetEntryAssembly()?.GetName().Version?.ToString() ?? "0.0.0", null, false, false, null, null, null, null, null, null);
 
-        var release = await response.Content.ReadFromJsonAsync<GitHubReleaseDto>(cancellationToken: ct);
+        var release = await response.Content.ReadFromJsonAsync(AppJsonSerializerContext.Default.GitHubReleaseDto, cancellationToken: ct);
         if (release is null) return new UpdateCheckResultDto(Assembly.GetEntryAssembly()?.GetName().Version?.ToString() ?? "0.0.0", null, false, false, null, null, null, null, null, null);
 
         var currentVersion = Assembly.GetEntryAssembly()?.GetName().Version ?? new Version(0, 0, 0);
@@ -67,7 +67,11 @@ public sealed class UpdateService(
         var backupDir = Path.Combine(appPaths.DataDirectory, "backups");
         Directory.CreateDirectory(backupDir);
         var backupPath = Path.Combine(backupDir, $"tracker_pre_update_{DateTime.UtcNow:yyyyMMdd_HHmmss}.db");
-        await dbContext.Database.ExecuteSqlRawAsync($"VACUUM INTO '{backupPath}'");
+        var conn = dbContext.Connection;
+        if (conn.State != global::System.Data.ConnectionState.Open) await conn.OpenAsync();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = $"VACUUM INTO '{backupPath.Replace("'", "''")}';";
+        await cmd.ExecuteNonQueryAsync();
 
         // 2. Download and Extract
         var tempDir = Path.Combine(Path.GetTempPath(), $"tsundoku_update_{Guid.NewGuid():N}");

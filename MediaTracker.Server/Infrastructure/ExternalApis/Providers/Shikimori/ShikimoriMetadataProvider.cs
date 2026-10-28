@@ -1,12 +1,13 @@
 using System.Globalization;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.DependencyInjection;
+using MediaTracker.Server.Common.Json;
 
 namespace MediaTracker.Server.Infrastructure.ExternalApis;
 
 public sealed class ShikimoriMetadataProvider(
     IHttpClientFactory httpClientFactory,
-    [ServiceKey] string? serviceKey = null) : MetadataProviderBase
+    [ServiceKey] string? serviceKey = null) : MetadataProviderBase(Source)
 {
     public static MetadataSourceDescriptor Source { get; } = new(
         Id: "shikimori",
@@ -28,7 +29,7 @@ public sealed class ShikimoriMetadataProvider(
 
         try
         {
-            var items = await client.GetFromJsonAsync<List<ShikimoriItem>>(endpoint, ct);
+            var items = await client.GetFromJsonAsync(endpoint, AppJsonSerializerContext.Default.ListShikimoriItem, ct);
             if (items is null || items.Count == 0)
             {
                 return [];
@@ -49,7 +50,7 @@ public sealed class ShikimoriMetadataProvider(
 
         try
         {
-            var item = await client.GetFromJsonAsync<ShikimoriItem>(endpoint, ct);
+            var item = await client.GetFromJsonAsync(endpoint, AppJsonSerializerContext.Default.ShikimoriItem, ct);
             if (item is null)
             {
                 return null;

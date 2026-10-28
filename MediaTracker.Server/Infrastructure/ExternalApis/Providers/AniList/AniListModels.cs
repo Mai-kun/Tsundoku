@@ -91,3 +91,17 @@ internal sealed record AniListCharacterImage(string? Large, string? Medium)
     public string? Best => Large ?? Medium;
 }
 internal sealed record AniListName(string? Full);
+
+/// <summary>GraphQL request body: the query text plus a typed variables set.</summary>
+internal sealed record AniListGraphQlPayload(string Query, AniListVariables Variables);
+
+/// <summary>
+/// The variable shapes AniList queries use. Nullable members are omitted by the serializer
+/// (WhenWritingNull), so a variables object only carries the fields its query declares.
+/// </summary>
+internal sealed record AniListVariables(string Type, string? Search = null, int? Id = null, int? IdMal = null);
+
+/// <summary>The AniList-profile import query: variables carry the username instead of an id/search.</summary>
+internal sealed record AniListProfileGraphQlPayload(string Query, AniListProfileVariables Variables);
+
+internal sealed record AniListProfileVariables(string UserName, string Type);

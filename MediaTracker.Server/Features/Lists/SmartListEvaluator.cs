@@ -2,6 +2,8 @@ using System.Text.Json;
 using MediaTracker.Server.Domain.Entities;
 using MediaTracker.Server.Features.Media.GetMediaStats;
 
+using MediaTracker.Server.Common.Json;
+
 namespace MediaTracker.Server.Features.Lists;
 
 public sealed record SmartListQueryDto
@@ -32,7 +34,7 @@ public static class SmartListEvaluator
     public static SmartListQueryDto? ParseQuery(string? json)
     {
         if (string.IsNullOrWhiteSpace(json)) return null;
-        try { return JsonSerializer.Deserialize<SmartListQueryDto>(json, JsonOpts); }
+        try { return JsonSerializer.Deserialize(json, AppJsonSerializerContext.Default.SmartListQueryDto); }
         catch { return null; }
     }
 

@@ -12,7 +12,7 @@ public sealed record GetGameAchievementsQuery(
 
 public interface IGetGameAchievementsHandler
 {
-    Task<Result<object>> HandleAsync(GetGameAchievementsQuery query, CancellationToken ct);
+    Task<Result<GameAchievementsResponse>> HandleAsync(GetGameAchievementsQuery query, CancellationToken ct);
 }
 
 /// <summary>
@@ -21,7 +21,7 @@ public interface IGetGameAchievementsHandler
 /// </summary>
 public sealed class GetGameAchievementsHandler(RawgGameService gameService) : IGetGameAchievementsHandler
 {
-    public async Task<Result<object>> HandleAsync(GetGameAchievementsQuery query, CancellationToken ct)
+    public async Task<Result<GameAchievementsResponse>> HandleAsync(GetGameAchievementsQuery query, CancellationToken ct)
     {
         var achievements = await gameService.GetAchievementsAsync(
             query.SteamAppId,
@@ -31,6 +31,6 @@ public sealed class GetGameAchievementsHandler(RawgGameService gameService) : IG
             query.ExternalId,
             ct);
 
-        return Result<object>.Success(achievements);
+        return Result<GameAchievementsResponse>.Success(achievements);
     }
 }

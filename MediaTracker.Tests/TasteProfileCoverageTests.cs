@@ -4,7 +4,6 @@ using MediaTracker.Server.Domain.Enums;
 using MediaTracker.Server.Features.Media.GetMediaStats;
 using MediaTracker.Server.Features.Settings.ReadingSettings;
 using MediaTracker.Server.Infrastructure.Persistence;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Xunit;
 
@@ -50,6 +49,14 @@ public class TasteProfileCoverageTests
         => Enumerable.Range(0, count)
             .Select(i => new Movie { Title = $"{genre} {i}", Status = status, Genres = genre })
             .ToList();
+
+    /// <summary>Show helper with an explicit (low) score so the title qualifies as sunk cost.</summary>
+    private static TvShow ScoredShow(int watched, int total, int score, bool isAnime = false)
+    {
+        var show = Show(watched, total, isAnime);
+        show.Score = score;
+        return show;
+    }
 
     private static TvShow Show(int watched, int total, bool isAnime = false)
         => new()
@@ -110,9 +117,9 @@ public class TasteProfileCoverageTests
             new Movie { Title = "M nodur", Status = MediaStatus.Completed, Score = 1 },
             new Movie { Title = "M 120", Status = MediaStatus.Completed, Score = 4, DurationMinutes = 120 },
             // Completed show: watched episodes from seasons, no episode duration -> 45-minute fallback
-            Show(watched: 10, total: 20),
-            // Completed show with zero watched episodes -> falls back to the total episode count
-            Show(watched: 0, total: 12, isAnime: true),
+            ScoredShow(10, 20, 2),
+            // Completed show with zero watched episodes -> falls back to the total episode count (5 × 24 min)
+            ScoredShow(0, 5, 3, isAnime: true),
             // In-progress book -> pages read from CurrentPage
             new Book { Title = "B inprog", Author = "A", Status = MediaStatus.InProgress, Score = 2, CurrentPage = 100 },
             // Completed book -> pages read from TotalPages
@@ -200,7 +207,8 @@ public class TasteProfileCoverageTests
         // With onlyCompleted = true every non-completed candidate drops out
         var completedScope = TasteProfileCalculator.Calculate(items, Stats(), onlyCompleted: true);
         completedScope.Divergence.HiddenGem.Should().BeNull();
-        completedScope.Divergence.Disappointment.Should().BeSameAs(allScope.Divergence.Disappointment);
+        // Same title survives both scopes (record value equality; each Calculate builds fresh DTOs).
+        completedScope.Divergence.Disappointment.Should().Be(allScope.Divergence.Disappointment);
 
         // Only moderate scores -> both slots stay empty
         var neutral = new List<MediaItem>
@@ -469,11 +477,8 @@ public class TasteProfileCoverageTests
             new Book { Title = "B clamp", Author = "A", Status = MediaStatus.Dropped, DropReason = "Too slow", CurrentPage = 500, TotalPages = 200 },    // clamps to 100% late
             new Manga { Title = "Mg mid", Status = MediaStatus.Dropped, DropReason = "Boring", CurrentChapter = 50, TotalChapters = 100 },                // 50% mid
             new Manga { Title = "Mg early", Status = MediaStatus.Dropped, DropReason = null, CurrentChapter = 0, TotalChapters = 100 },                   // 0% early, unspecified
-            Show(watched: 9, total: 10) with { }, // placeholder replaced below
         };
 
-        // Rebuild the list explicitly: shows cannot be mutated by object initializer here
-        items.RemoveAt(items.Count - 1);
         var lateShow = Show(watched: 9, total: 10);
         lateShow.SetStatus(MediaStatus.Dropped);
         lateShow.DropReason = "Boring";
@@ -507,10 +512,7 @@ public class GetMediaStatsHandlerTests
     private static AppDbContext CreateContext()
     {
         var dbPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.db");
-        var options = new DbContextOptionsBuilder<AppDbContext>()
-            .UseSqlite($"Data Source={dbPath}")
-            .Options;
-        var db = new AppDbContext(options);
+        var db = new AppDbContext($"Data Source={dbPath}");
         db.Database.EnsureCreated();
         return db;
     }

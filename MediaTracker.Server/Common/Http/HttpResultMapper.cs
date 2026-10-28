@@ -1,3 +1,4 @@
+using MediaTracker.Server.Common.Json;
 using MediaTracker.Server.Domain.Common;
 using Microsoft.AspNetCore.Mvc;
 
@@ -32,6 +33,7 @@ public static class HttpResultMapper
 
             ErrorType.Unavailable => Results.Json(
                 ProblemDetailsFactory.Create(error, StatusCodes.Status502BadGateway),
+                AppJsonSerializerContext.Default.ProblemDetails,
                 statusCode: StatusCodes.Status502BadGateway),
 
             _ => Results.Problem(CreateProblem(error)),

@@ -5,7 +5,6 @@ using MediaTracker.Server.Features.External.RefreshMetadata;
 using MediaTracker.Server.Features.Jobs;
 using MediaTracker.Server.Infrastructure.ExternalApis;
 using MediaTracker.Server.Infrastructure.Persistence;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace MediaTracker.Server.Features.Jobs;
@@ -82,18 +81,18 @@ public static class AutoRefreshRunner
         }
 
         // Safe merge: never wipes a field the user typed, only fills what the row still lacks.
-        MediaMetadataApplier.ApplyIfMissing(item, external, season => db.Entry(season).State = EntityState.Added);
+        MediaMetadataApplier.ApplyIfMissing(item, external, _ => { });
 
         if (hasNewContent)
         {
             if (item is Manga && newChapters is > 0 && oldChapters is int chapters && newChapters > chapters)
             {
-                db.Events.Add(MediaEventRecorder.ProgressChanged(item, $"{chapters} гл.", $"{newChapters} гл."));
+                await db.InsertMediaEventAsync(MediaEventRecorder.ProgressChanged(item, $"{chapters} гл.", $"{newChapters} гл."), ct);
             }
 
             if (item is TvShow && newEpisodes > 0 && newEpisodes > oldEpisodes)
             {
-                db.Events.Add(MediaEventRecorder.ProgressChanged(item, $"{oldEpisodes} эп.", $"{newEpisodes} эп."));
+                await db.InsertMediaEventAsync(MediaEventRecorder.ProgressChanged(item, $"{oldEpisodes} эп.", $"{newEpisodes} эп."), ct);
             }
 
             logger.LogInformation(logTag + " New content detected for '{Title}'!", item.Title);
@@ -101,7 +100,7 @@ public static class AutoRefreshRunner
 
         AutoRefreshRules.ApplyRefreshSchedule(item, hasNewContent, DateTime.UtcNow);
         item.MarkUpdated();
-        await db.SaveChangesAsync(ct);
+        await db.UpdateMediaItemAsync(item, ct);
 
         return new AutoRefreshOutcome(true, hasNewContent);
     }
@@ -121,7 +120,7 @@ public static class AutoRefreshRunner
 
         item.NextAutoRefreshAt = DateTime.UtcNow.AddDays(1);
         item.MarkUpdated();
-        await db.SaveChangesAsync(ct);
+        await db.UpdateMediaItemAsync(item, ct);
         return new AutoRefreshOutcome(false, false);
     }
 }

@@ -1,5 +1,8 @@
 using System.Text;
 
+using System.Text.Json;
+using MediaTracker.Server.Common.Json;
+
 namespace MediaTracker.Server.Features.Media.GetMediaStats;
 
 /// <summary>
@@ -63,7 +66,7 @@ public static class GenreNormalizer
             List<string>? list = null;
             try
             {
-                list = global::System.Text.Json.JsonSerializer.Deserialize<List<string>>(raw);
+                list = JsonSerializer.Deserialize(raw, AppJsonSerializerContext.Default.ListString);
             }
             catch
             {

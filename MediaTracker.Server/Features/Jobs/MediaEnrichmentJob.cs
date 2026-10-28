@@ -1,4 +1,5 @@
 using System.Text.Json;
+using MediaTracker.Server.Common.Json;
 using MediaTracker.Server.Features.Media.GetMediaStats;
 using MediaTracker.Server.Domain.Entities;
 using MediaTracker.Server.Domain.Enums;
@@ -9,7 +10,6 @@ using MediaTracker.Server.Features.External.RefreshMetadata;
 using MediaTracker.Server.Infrastructure.ExternalApis;
 using MediaTracker.Server.Infrastructure.Persistence;
 using MediaTracker.Server.Infrastructure.Storage;
-using Microsoft.EntityFrameworkCore;
 
 namespace MediaTracker.Server.Features.Jobs;
 
@@ -64,14 +64,14 @@ public static class MediaEnrichmentJob
             if (await ApplyAsync(db, item, external, services, jobCts.Token).ConfigureAwait(false))
             {
                 item.MarkUpdated();
-                await db.SaveChangesAsync(jobCts.Token).ConfigureAwait(false);
+                await db.UpdateMediaItemAsync(item, jobCts.Token).ConfigureAwait(false);
             }
 
             Report(progress, 90, "Сохранение сезонов и глав");
 
             item.SyncStatus = SyncStatus.Ready;
             item.MarkUpdated();
-            await db.SaveChangesAsync(jobCts.Token).ConfigureAwait(false);
+            await db.UpdateMediaItemAsync(item, jobCts.Token).ConfigureAwait(false);
             AdvancedStatsCalculator.InvalidateCache(services.GetService<Microsoft.Extensions.Caching.Memory.IMemoryCache>());
             TasteProfileCalculator.InvalidateCache(services.GetService<Microsoft.Extensions.Caching.Memory.IMemoryCache>());
 
@@ -106,7 +106,7 @@ public static class MediaEnrichmentJob
         {
             item.SyncStatus = SyncStatus.Failed;
             item.MarkUpdated();
-            await db.SaveChangesAsync(CancellationToken.None).ConfigureAwait(false);
+            await db.UpdateMediaItemAsync(item, CancellationToken.None).ConfigureAwait(false);
         }
         catch
         {
@@ -146,13 +146,11 @@ public static class MediaEnrichmentJob
                 return;
             }
 
-            item.RelatedMediaJson = JsonSerializer.Serialize(
-                related,
-                new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+            item.RelatedMediaJson = JsonSerializer.Serialize(related, AppJsonSerializerContext.Default.IReadOnlyListExternalRelationDto);
             item.RelatedSource = item.ExternalSource;
             item.MarkUpdated();
             await services.GetRequiredService<AppDbContext>()
-                .SaveChangesAsync(CancellationToken.None)
+                .UpdateMediaItemAsync(item, CancellationToken.None)
                 .ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
@@ -197,14 +195,11 @@ public static class MediaEnrichmentJob
                 return;
             }
 
-            // Same shape the panel already reads back: { total, items: [{ name, description, iconUrl }] }.
-            item.AchievementsJson = JsonSerializer.Serialize(
-                new { total = result.TotalCount, items = result.Achievements },
-                new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+            item.AchievementsJson = JsonSerializer.Serialize(new CachedAchievementsPayload(result.TotalCount, result.Achievements), AppJsonSerializerContext.Default.CachedAchievementsPayload);
 
             item.MarkUpdated();
             await services.GetRequiredService<AppDbContext>()
-                .SaveChangesAsync(CancellationToken.None)
+                .UpdateMediaItemAsync(item, CancellationToken.None)
                 .ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
@@ -214,12 +209,7 @@ public static class MediaEnrichmentJob
     }
 
     private static Task<MediaItem?> LoadAsync(AppDbContext db, Guid mediaId) =>
-        db.MediaItems
-            .Include(media => media.Franchise)
-            .Include(media => ((TvShow)media).Seasons.OrderBy(season => season.SeasonNumber))
-            .Include(media => ((Manga)media).Volumes.OrderBy(volume => volume.VolumeNumber))
-            .AsSplitQuery()
-            .SingleOrDefaultAsync(media => media.Id == mediaId);
+        db.LoadMediaItemAsync(mediaId);
 
     /// <summary>
     /// Overwrites the display fields from the provider and swaps the remote cover for a local WebP.
@@ -237,15 +227,12 @@ public static class MediaEnrichmentJob
             return false;
         }
 
-        // The applier has no context, so the seam for marking a brand-new season or volume as Added
-        // comes from the caller: EF would otherwise save it as an UPDATE against a row that was never
-        // inserted.
         await MediaMetadataApplier.ApplyOverwriteAsync(
             item,
             external,
             services.GetRequiredService<IImageStorageService>(),
             ct,
-            season => db.Entry(season).State = EntityState.Added).ConfigureAwait(false);
+            _ => { }).ConfigureAwait(false);
 
         return true;
     }
@@ -262,3 +249,6 @@ public static class MediaEnrichmentJob
             DateTime.MinValue,
             null));
 }
+
+/// <summary>The stored shape of <c>AchievementsJson</c>: <c>{"total":N,"items":[...]}</c>.</summary>
+public sealed record CachedAchievementsPayload(int Total, IReadOnlyList<GameAchievementItem> Items);

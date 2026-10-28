@@ -1,4 +1,5 @@
 using MediaTracker.Server.Common.Http;
+using MediaTracker.Server.Common.Json;
 using MediaTracker.Server.Domain.Entities;
 using MediaTracker.Server.Features.External.EnrichMetadata;
 using MediaTracker.Server.Features.External.RefreshMetadata;
@@ -54,8 +55,8 @@ public static class MediaEndpoints
                     parsedStatus,
                     customFolderConfigs), ct));
             }
-            catch (FormatException error) { return Results.BadRequest(new { detail = error.Message }); }
-            catch (HttpRequestException error) { return Results.BadRequest(new { detail = $"Steam request failed: {error.Message}" }); }
+            catch (FormatException error) { return Results.BadRequest(new ApiErrorDetail(error.Message)); }
+            catch (HttpRequestException error) { return Results.BadRequest(new ApiErrorDetail($"Steam request failed: {error.Message}")); }
         }).DisableAntiforgery()
         .WithTags("Импорт / Import")
         .WithSummary("Пакетный импорт из файла")
@@ -65,8 +66,8 @@ public static class MediaEndpoints
             SteamImportRequest request, [FromServices] ImportMediaHandler handler, CancellationToken ct) =>
         {
             try { return Results.Ok(await handler.ImportSteamAsync(request, ct)); }
-            catch (FormatException error) { return Results.BadRequest(new { detail = error.Message }); }
-            catch (HttpRequestException error) { return Results.BadRequest(new { detail = $"Steam request failed: {error.Message}" }); }
+            catch (FormatException error) { return Results.BadRequest(new ApiErrorDetail(error.Message)); }
+            catch (HttpRequestException error) { return Results.BadRequest(new ApiErrorDetail($"Steam request failed: {error.Message}")); }
         })
         .WithTags("Импорт / Import")
         .WithSummary("Импорт игр по профилю SteamID");
@@ -79,10 +80,10 @@ public static class MediaEndpoints
                 var result = await handler.ImportAniListProfileAsync(request, ct);
                 return result.TryGetValue(out var imported)
                     ? Results.Ok(imported)
-                    : Results.BadRequest(new { detail = result.Error?.Message ?? "Import failed." });
+                    : Results.BadRequest(new ApiErrorDetail(result.Error?.Message ?? "Import failed."));
             }
-            catch (FormatException error) { return Results.BadRequest(new { detail = error.Message }); }
-            catch (HttpRequestException error) { return Results.BadRequest(new { detail = $"AniList request failed: {error.Message}" }); }
+            catch (FormatException error) { return Results.BadRequest(new ApiErrorDetail(error.Message)); }
+            catch (HttpRequestException error) { return Results.BadRequest(new ApiErrorDetail($"AniList request failed: {error.Message}")); }
         })
         .WithTags("Импорт / Import")
         .WithSummary("Импорт аниме и манги по никнейму AniList");
@@ -95,10 +96,10 @@ public static class MediaEndpoints
                 var result = await handler.ImportMangaLibProfileAsync(request, ct);
                 return result.TryGetValue(out var imported)
                     ? Results.Ok(imported)
-                    : Results.BadRequest(new { detail = result.Error?.Message ?? "Import failed." });
+                    : Results.BadRequest(new ApiErrorDetail(result.Error?.Message ?? "Import failed."));
             }
-            catch (FormatException error) { return Results.BadRequest(new { detail = error.Message }); }
-            catch (HttpRequestException error) { return Results.BadRequest(new { detail = $"SocialLib request failed: {error.Message}" }); }
+            catch (FormatException error) { return Results.BadRequest(new ApiErrorDetail(error.Message)); }
+            catch (HttpRequestException error) { return Results.BadRequest(new ApiErrorDetail($"SocialLib request failed: {error.Message}")); }
         })
         .WithTags("Импорт / Import")
         .WithSummary("Импорт закладок по профилю SocialLib (MangaLib / AnimeLib / RanobeLib и др.)");
@@ -282,7 +283,7 @@ public static class MediaEndpoints
                 CancellationToken ct) =>
             await handler.HandleAsync(new DismissMatchCommand(id), ct)
                 ? Results.NoContent()
-                : Results.NotFound(new { detail = $"Media item '{id}' was not found." }))
+                : Results.NotFound(new ApiErrorDetail($"Media item '{id}' was not found.")))
             .WithTags("Медиатека / Media")
             .WithSummary("Оставить тайтл без привязки")
             .WithDescription("Убирает спорных кандидатов и возвращает тайтл в статус Ready без изменения данных.");
@@ -290,7 +291,7 @@ public static class MediaEndpoints
         group.MapPost("/dismiss-all-matches", async (
                 [FromServices] IDismissAllMatchesHandler handler,
                 CancellationToken ct) =>
-            Results.Ok(new { dismissed = await handler.HandleAsync(ct) }))
+            Results.Ok(new DismissedCount(await handler.HandleAsync(ct))))
             .WithTags("Медиатека / Media")
             .WithSummary("Отклонить все спорные совпадения разом")
             .WithDescription("Переводит все NeedsReview тайтлы в Ready и очищает их списки кандидатов.");

@@ -11,12 +11,12 @@ public sealed record GetGameRecommendationsQuery(
 
 public interface IGetGameRecommendationsHandler
 {
-    Task<Result<object>> HandleAsync(GetGameRecommendationsQuery query, CancellationToken ct);
+    Task<Result<IReadOnlyList<GameRelatedItem>>> HandleAsync(GetGameRecommendationsQuery query, CancellationToken ct);
 }
 
 public sealed class GetGameRecommendationsHandler(RawgGameService gameService) : IGetGameRecommendationsHandler
 {
-    public async Task<Result<object>> HandleAsync(GetGameRecommendationsQuery query, CancellationToken ct)
+    public async Task<Result<IReadOnlyList<GameRelatedItem>>> HandleAsync(GetGameRecommendationsQuery query, CancellationToken ct)
     {
         var recommendations = await gameService.GetRecommendationsAsync(
             query.RawgId,
@@ -25,6 +25,6 @@ public sealed class GetGameRecommendationsHandler(RawgGameService gameService) :
             query.ExternalId,
             ct);
 
-        return Result<object>.Success(recommendations);
+        return Result<IReadOnlyList<GameRelatedItem>>.Success(recommendations);
     }
 }

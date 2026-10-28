@@ -1,3 +1,4 @@
+using Dapper;
 using FluentValidation;
 using MediaTracker.Server.Common.Http;
 using MediaTracker.Server.Domain.Common;
@@ -6,7 +7,6 @@ using MediaTracker.Server.Domain.Enums;
 using MediaTracker.Server.Features.Media.GetMediaStats;
 using MediaTracker.Server.Features.Media.UpdateProgress;
 using MediaTracker.Server.Infrastructure.Persistence;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 
 namespace MediaTracker.Server.Features.Media.UpdateProgress;
@@ -37,61 +37,49 @@ public sealed class UpdateProgressHandler(
         var progress = Math.Max(command.CurrentProgress, 0);
         var now = DateTime.UtcNow;
 
-        var book = await db.Books.AsNoTracking().Where(x => x.Id == command.Id)
-            .Select(x => new { x.CurrentPage, x.TotalPages }).FirstOrDefaultAsync(ct);
-        var bookRows = await db.Books
-            .Where(x => x.Id == command.Id)
-            .ExecuteUpdateAsync(
-                s => s
-                    .SetProperty(
-                        x => x.CurrentPage,
-                        x => x.TotalPages > 0 && progress > x.TotalPages ? x.TotalPages : progress)
-                    .SetProperty(x => x.LastActivityAt, now),
-                ct);
-
-        if (bookRows > 0)
+        // --- Book ---
+        var idStr = command.Id.ToString().ToUpperInvariant();
+        var book = await db.Connection.QueryFirstOrDefaultAsync<MediaItemRow>(
+            "SELECT Id, CurrentPage, TotalPages FROM MediaItems WHERE Id = @id AND MediaType = 'Book'",
+            new { id = idStr });
+        if (book is not null)
         {
-            var next = book!.TotalPages > 0 ? Math.Min(progress, book.TotalPages) : progress;
-            await RecordProgressAsync(command.Id, $"{book.CurrentPage} стр.", $"{next} стр.", ct);
+            var next = book.TotalPages > 0 && progress > book.TotalPages ? book.TotalPages : progress;
+            await db.Connection.ExecuteAsync(
+                "UPDATE MediaItems SET CurrentPage = @next, LastActivityAt = @now WHERE Id = @id",
+                new { next, now, id = idStr });
+            await RecordProgressAsync(db, command.Id, $"{book.CurrentPage} стр.", $"{next} стр.", ct);
             AdvancedStatsCalculator.InvalidateCache(cache);
             TasteProfileCalculator.InvalidateCache(cache);
             return Result.Success();
         }
 
-        var manga = await db.Manga.AsNoTracking().Where(x => x.Id == command.Id)
-            .Select(x => new { x.CurrentChapter, x.TotalChapters }).FirstOrDefaultAsync(ct);
-        var mangaRows = await db.Manga
-            .Where(x => x.Id == command.Id)
-            .ExecuteUpdateAsync(
-                s => s
-                    .SetProperty(
-                        x => x.CurrentChapter,
-                        x => x.TotalChapters != null && progress > x.TotalChapters ? x.TotalChapters : progress)
-                    .SetProperty(x => x.LastActivityAt, now),
-                ct);
-
-        if (mangaRows > 0)
+        // --- Manga ---
+        var manga = await db.Connection.QueryFirstOrDefaultAsync<MediaItemRow>(
+            "SELECT Id, CurrentChapter, TotalChapters FROM MediaItems WHERE Id = @id AND MediaType = 'Manga'",
+            new { id = idStr });
+        if (manga is not null)
         {
-            var next = manga!.TotalChapters is > 0 ? Math.Min(progress, manga.TotalChapters.Value) : progress;
-            await RecordProgressAsync(command.Id, $"{manga.CurrentChapter} гл.", $"{next} гл.", ct);
+            var next = manga.TotalChapters is > 0 && progress > manga.TotalChapters ? manga.TotalChapters : progress;
+            await db.Connection.ExecuteAsync(
+                "UPDATE MediaItems SET CurrentChapter = @next, LastActivityAt = @now WHERE Id = @id",
+                new { next, now, id = idStr });
+            await RecordProgressAsync(db, command.Id, $"{manga.CurrentChapter} гл.", $"{next} гл.", ct);
             AdvancedStatsCalculator.InvalidateCache(cache);
             TasteProfileCalculator.InvalidateCache(cache);
             return Result.Success();
         }
 
-        var game = await db.Games.AsNoTracking().Where(x => x.Id == command.Id)
-            .Select(x => x.HoursPlayed).FirstOrDefaultAsync(ct);
-        var gameRows = await db.Games
-            .Where(x => x.Id == command.Id)
-            .ExecuteUpdateAsync(
-                s => s
-                    .SetProperty(x => x.HoursPlayed, progress)
-                    .SetProperty(x => x.LastActivityAt, now),
-                ct);
-
-        if (gameRows > 0)
+        // --- VideoGame ---
+        var game = await db.Connection.QueryFirstOrDefaultAsync<MediaItemRow>(
+            "SELECT Id, HoursPlayed FROM MediaItems WHERE Id = @id AND MediaType = 'Game'",
+            new { id = idStr });
+        if (game is not null)
         {
-            await RecordProgressAsync(command.Id, $"{game ?? 0} ч.", $"{progress} ч.", ct);
+            await db.Connection.ExecuteAsync(
+                "UPDATE MediaItems SET HoursPlayed = @progress, LastActivityAt = @now WHERE Id = @id",
+                new { progress, now, id = idStr });
+            await RecordProgressAsync(db, command.Id, $"{game.HoursPlayed ?? 0} ч.", $"{progress} ч.", ct);
             AdvancedStatsCalculator.InvalidateCache(cache);
             TasteProfileCalculator.InvalidateCache(cache);
             return Result.Success();
@@ -100,21 +88,17 @@ public sealed class UpdateProgressHandler(
         return Result.Failure(Error.Unsupported("Progress is not supported for this media type."));
     }
 
-    private async Task RecordProgressAsync(Guid mediaId, string? oldValue, string newValue, CancellationToken ct)
+    private static async Task RecordProgressAsync(AppDbContext db, Guid mediaId, string? oldValue, string newValue, CancellationToken ct)
     {
-        if (oldValue == newValue)
-        {
-            return;
-        }
+        if (oldValue == newValue) return;
 
-        db.Events.Add(new MediaEvent
+        await db.InsertMediaEventAsync(new MediaEvent
         {
             MediaId = mediaId,
             Type = MediaEventType.ProgressChanged,
             OldValue = oldValue,
             NewValue = newValue,
             CreatedAt = DateTime.UtcNow
-        });
-        await db.SaveChangesAsync(ct);
+        }, ct);
     }
 }

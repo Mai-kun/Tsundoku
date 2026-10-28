@@ -221,7 +221,7 @@ public class DomainRulesCoverageTests
         movie.CastJson.Should().Be("user cast"); // enrich never replaces what the user has
         movie.StaffJson.Should().Contain("Villeneuve");
         movie.TrailerVideoId.Should().Be("abc123");
-        movie.CreatorImageUrl.Should().Be("https://cdn/logo.png"); // no image storage on this path
+        movie.CreatorImageUrl.Should().BeNull(); // enrich stores no external creator image link
         movie.Description.Should().Be("Provider text");
         movie.OriginalLanguage.Should().Be("en");
         movie.CountryOfOrigin.Should().Be("US");
@@ -385,7 +385,7 @@ public class DomainRulesCoverageTests
         manga.LastActivityAt.Should().Be(stamp);
         manga.TranslatedSynopsis.Should().Be("ts");
         manga.TranslationLanguage.Should().Be("ru");
-        manga.Genres.Should().Be("Sci-Fi,RPG");
+        manga.Genres.Should().Be("Sci-Fi, RPG");
         manga.Tags.Should().Be("t1,t2");
         manga.UnlockedAchievements.Should().Be("ach");
         manga.WatchedOn.Should().Be("Kinopoisk");
@@ -423,6 +423,9 @@ public class DomainRulesCoverageTests
             ClearDetailedScore = true,
             ClearWatchedOn = true,
             ClearUserPlatform = true,
+            // blank drop fields are explicit empties in the request body
+            DropReason = "",
+            DropNotes = "",
         };
 
         MediaItemUpdater.Apply(item, request);

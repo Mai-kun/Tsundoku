@@ -1,7 +1,8 @@
 using System.Text.RegularExpressions;
+using Dapper;
 using MediaTracker.Server.Infrastructure.Persistence;
 using MediaTracker.Server.Domain.Entities;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.Data.Sqlite;
 
 namespace MediaTracker.Server.Infrastructure.Persistence.Franchises;
 
@@ -45,12 +46,16 @@ public sealed partial class FranchiseService : IFranchiseService
 
     public async Task AutoBackfillFranchisesAsync(AppDbContext db, CancellationToken ct = default)
     {
-        var unlinked = await db.MediaItems.Where(m => m.FranchiseId == null).ToListAsync(ct);
+        var conn = db.Connection;
+        if (conn.State != System.Data.ConnectionState.Open) await conn.OpenAsync(ct);
+
+        var unlinked = await db.LoadMediaItemsAsync(null, null, null, null, null, null, ct);
+        unlinked = unlinked.Where(m => m.FranchiseId == null).ToList();
         if (unlinked.Count == 0) return;
 
-        // Load the whole franchise table once: the loop below runs per inferred name, and a
-        // FirstOrDefaultAsync per group turned startup backfill into an N+1 query storm.
-        var knownFranchises = await db.Franchises.ToDictionaryAsync(f => f.Name.ToLower(), StringComparer.Ordinal, ct);
+        // Load the whole franchise table once
+        var knownFranchises = (await db.GetAllFranchisesAsync(ct))
+            .ToDictionary(f => f.Name.ToLower(), StringComparer.Ordinal);
 
         var groups = unlinked
             .Select(m => new { Item = m, FranchiseName = InferFranchiseName(m.Title) })
@@ -73,7 +78,7 @@ public sealed partial class FranchiseService : IFranchiseService
             {
                 franchise = new Franchise { Id = Guid.NewGuid(), Name = inferredName };
                 knownFranchises[grp.Key] = franchise;
-                db.Franchises.Add(franchise);
+                await db.CreateFranchiseAsync(franchise, ct);
             }
 
             foreach (var x in grp)
@@ -87,7 +92,11 @@ public sealed partial class FranchiseService : IFranchiseService
             }
         }
 
-        await db.SaveChangesAsync(ct);
+        // Persist all updated items
+        foreach (var item in unlinked.Where(m => m.FranchiseId.HasValue))
+        {
+            await db.UpdateMediaItemAsync(item, ct);
+        }
     }
 
     public async Task LinkFranchiseOnCreateAsync(AppDbContext db, MediaItem item, string? requestedFranchiseName, CancellationToken ct = default)
@@ -102,7 +111,7 @@ public sealed partial class FranchiseService : IFranchiseService
         }
 
         var lowerFranchiseName = franchiseName.ToLower();
-        var franchise = await db.Franchises.FirstOrDefaultAsync(f => f.Name.ToLower() == lowerFranchiseName, ct);
+        var franchise = await db.GetFranchiseByNameAsync(franchiseName, ct);
 
         if (franchise is not null)
         {
@@ -111,24 +120,27 @@ public sealed partial class FranchiseService : IFranchiseService
             return;
         }
 
-        var siblingExists = await db.MediaItems.AnyAsync(
-            m => m.Title.ToLower() == lowerFranchiseName || (m.Franchise != null && m.Franchise.Name.ToLower() == lowerFranchiseName),
-            ct);
+        var conn = db.Connection;
+        if (conn.State != global::System.Data.ConnectionState.Open) await conn.OpenAsync(ct);
+
+        var siblingExists = await conn.ExecuteScalarAsync<int>(
+            "SELECT COUNT(*) FROM MediaItems WHERE LOWER(Title) = @name OR FranchiseId IN (SELECT Id FROM Franchises WHERE LOWER(Name) = @name);",
+            new { name = lowerFranchiseName, id = Guid.Empty.ToString().ToUpperInvariant() }) > 0;
 
         if (siblingExists || !string.IsNullOrWhiteSpace(requestedFranchiseName))
         {
             franchise = new Franchise { Id = Guid.NewGuid(), Name = franchiseName };
-            db.Franchises.Add(franchise);
+            await db.CreateFranchiseAsync(franchise, ct);
             item.FranchiseId = franchise.Id;
             item.Franchise = franchise;
 
-            var siblingItem = await db.MediaItems.FirstOrDefaultAsync(
-                m => m.FranchiseId == null && m.Title.ToLower() == lowerFranchiseName,
-                ct);
-
+            var siblingItem = await conn.QueryFirstOrDefaultAsync<MediaItemRow>(
+                "SELECT * FROM MediaItems WHERE FranchiseId IS NULL AND LOWER(Title) = @name;",
+                new { name = lowerFranchiseName });
             if (siblingItem is not null)
             {
-                siblingItem.FranchiseId = franchise.Id;
+                siblingItem.FranchiseId = franchise.Id.ToString().ToUpperInvariant();
+                await db.UpdateMediaItemAsync(siblingItem.ToEntity(), ct);
             }
         }
     }
@@ -148,12 +160,12 @@ public sealed partial class FranchiseService : IFranchiseService
 
         var trimmedName = requestedFranchiseName.Trim();
         var lowerName = trimmedName.ToLower();
-        var franchise = await db.Franchises.FirstOrDefaultAsync(f => f.Name.ToLower() == lowerName, ct);
+        var franchise = await db.GetFranchiseByNameAsync(trimmedName, ct);
 
         if (franchise is null)
         {
             franchise = new Franchise { Id = Guid.NewGuid(), Name = trimmedName };
-            db.Franchises.Add(franchise);
+            await db.CreateFranchiseAsync(franchise, ct);
         }
 
         item.FranchiseId = franchise.Id;

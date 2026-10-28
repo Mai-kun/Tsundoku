@@ -2,13 +2,12 @@ using System.Text.Json;
 using MediaTracker.Server.Infrastructure.Jobs;
 using Microsoft.AspNetCore.Mvc;
 
+using MediaTracker.Server.Common.Json;
+
 namespace MediaTracker.Server.Features.Jobs;
 
 public static class JobEndpoints
 {
-    /// <summary>Web defaults: camelCase property names, to match what GET /api/jobs returns.</summary>
-    private static readonly JsonSerializerOptions StreamJson = new(JsonSerializerDefaults.Web);
-
     public static IEndpointRouteBuilder MapJobEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/jobs");
@@ -57,5 +56,5 @@ public static class JobEndpoints
     }
 
     private static Task WriteAsync(HttpResponse response, JobProgressDto job, CancellationToken ct) =>
-        response.WriteAsync($"data: {JsonSerializer.Serialize(job, StreamJson)}\n\n", ct);
+        response.WriteAsync($"data: {JsonSerializer.Serialize(job, AppJsonSerializerContext.Default.JobProgressDto)}\n\n", ct);
 }

@@ -191,9 +191,9 @@ public static class TasteProfileCalculator
             })
             .ToList();
 
-        // Hidden gem: my score is higher than the world's and mine deserved it (8+).
+        // Hidden gem: my score is higher than the world's by a full point and mine deserved it (8+).
         var gem = scored
-            .Where(x => x.UserScore >= 8)
+            .Where(x => x.UserScore >= 8 && x.Delta >= 1.0)
             .OrderByDescending(x => x.Delta)
             .Select(x => ToDivergenceItem(x.Item, x.UserScore, x.WorldRating, x.Delta))
             .FirstOrDefault();

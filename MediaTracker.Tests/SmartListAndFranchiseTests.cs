@@ -4,7 +4,6 @@ using MediaTracker.Server.Domain.Enums;
 using MediaTracker.Server.Features.Lists;
 using MediaTracker.Server.Infrastructure.Persistence;
 using MediaTracker.Server.Infrastructure.Persistence.Franchises;
-using Microsoft.EntityFrameworkCore;
 using Xunit;
 
 namespace MediaTracker.Tests;
@@ -14,10 +13,7 @@ public class SmartListAndFranchiseTests
 {
     private static AppDbContext CreateContext()
     {
-        var options = new Microsoft.EntityFrameworkCore.DbContextOptionsBuilder<AppDbContext>()
-            .UseSqlite($"Data Source={Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.db")}")
-            .Options;
-        var db = new AppDbContext(options);
+        var db = new AppDbContext($"Data Source={Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.db")}");
         db.Database.EnsureCreated();
         return db;
     }

@@ -36,6 +36,12 @@ public sealed class CommandLineOptions
             StringComparison.OrdinalIgnoreCase
         );
 
+    /// <summary>
+    /// Host-provided arguments (WebApplicationFactory / dotnet test inject --environment, --applicationName,
+    /// --contentRoot). They configure the generic host and are not Tsundoku options, so they are skipped.
+    /// </summary>
+    private static readonly string[] HostOnlyArgs = ["--environment", "--applicationName", "--contentRoot"];
+
     public static CommandLineOptions Parse(string[] args)
     {
         var options = new CommandLineOptions();
@@ -44,6 +50,16 @@ public sealed class CommandLineOptions
         for (var i = 0; i < args.Length; i++)
         {
             var arg = args[i];
+
+            if (HostOnlyArgs.Contains(arg.Split('=')[0], StringComparer.OrdinalIgnoreCase))
+            {
+                // Value may be attached (--environment=Development) or separate (--environment Development).
+                if (!arg.Contains('=') && i + 1 < args.Length && !args[i + 1].StartsWith('-'))
+                {
+                    i++;
+                }
+                continue;
+            }
 
             switch (arg)
             {

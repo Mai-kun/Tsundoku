@@ -1,66 +1,22 @@
-using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace MediaTracker.Server.Infrastructure.ExternalApis;
 
 /// <summary>
 /// The single place that knows every external source. Providers declare themselves through a static
-/// <see cref="MetadataSourceDescriptor"/>; this registry discovers them by scanning the assembly and
-/// derives the named HttpClient, the keyed DI registrations, the cascade priority list and the alias
-/// tables. Adding a source is one new provider file — no hand-maintained list can forget it.
+/// <see cref="MetadataSourceDescriptor"/>; the <see cref="RegistrationGenerator"/> builds the list of
+/// all <c>Provider.Source</c> values at compile time, so no assembly scanning or
+/// <see cref="Assembly.GetTypes()"/> is needed at runtime.
 /// </summary>
-public static class MetadataSourceRegistry
+public static partial class MetadataSourceRegistry
 {
     private const string DefaultUserAgent =
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 Tsundoku/1.0";
 
     private static readonly TimeSpan ClientTimeout = TimeSpan.FromSeconds(4);
 
-    /// <summary>
-    /// Scanned once behind a <see cref="Lazy{T}"/>: this is reflection over the provider assembly, so
-    /// it must not run per lookup.
-    /// </summary>
-    private static readonly Lazy<IReadOnlyList<MetadataSourceDescriptor>> Sources = new(Discover);
-
-    public static IReadOnlyList<MetadataSourceDescriptor> All => Sources.Value;
-
-    private static IEnumerable<Type> DiscoverTypes() =>
-        typeof(IMetadataProvider).Assembly
-            .GetTypes()
-            .Where(t => !t.IsAbstract && !t.IsInterface && typeof(IMetadataProvider).IsAssignableFrom(t));
-
-    private static MetadataSourceDescriptor Describe(Type type) =>
-        (MetadataSourceDescriptor)type
-            .GetProperty("Source", BindingFlags.Public | BindingFlags.Static)!
-            .GetValue(null)!;
-
-    private static IReadOnlyList<MetadataSourceDescriptor> Discover()
-    {
-        var descriptors = new List<MetadataSourceDescriptor>();
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var type in DiscoverTypes())
-        {
-            var descriptor = Describe(type);
-
-            // Ids key the DI registrations, so a duplicate is a hard startup error rather than a
-            // source that silently shadows another one depending on scan order.
-            if (!seen.Add(descriptor.Id))
-            {
-                throw new InvalidOperationException(
-                    $"Two metadata providers declare the id '{descriptor.Id}'. Ids must be unique.");
-            }
-
-            descriptors.Add(descriptor);
-        }
-
-        if (descriptors.Count == 0)
-        {
-            throw new InvalidOperationException("No IMetadataProvider implementations were found.");
-        }
-
-        return descriptors;
-    }
+    /// <summary>All discovered provider descriptors, populated at module initialization by the generator.</summary>
+    public static IReadOnlyList<MetadataSourceDescriptor> All => GeneratedSources;
 
     /// <summary>
     /// Cascade order per media type, lowest <see cref="MetadataSourceDescriptor.Priority"/> first.
@@ -115,10 +71,9 @@ public static class MetadataSourceRegistry
 
         return map;
     }
+
     /// <summary>
-    /// HttpClient name == provider id. The old hand-written names disagreed with the ids in case and
-    /// spelling ("Tmdb" vs "tmdb"), so every provider carried a literal that
-    /// could drift from its own id and quietly get a client with no BaseAddress.
+    /// HttpClient name == provider id. Driven by the generated descriptor list instead of reflection.
     /// </summary>
     public static IServiceCollection ConfigureHttpClients(IServiceCollection services)
     {
@@ -150,63 +105,13 @@ public static class MetadataSourceRegistry
         return services;
     }
 
+    /// <summary>
+    /// Registers every discovered provider with the container. Delegates to the generated
+    /// <see cref="AddGeneratedProviders(IServiceCollection)"/> so no <see cref="Assembly.GetTypes()"/>
+    /// or <see cref="MethodInfo.MakeGenericMethod(Type[])"/> is needed at runtime.
+    /// </summary>
     public static IServiceCollection AddProviders(IServiceCollection services)
     {
-        foreach (var type in DiscoverTypes())
-        {
-            var descriptor = Describe(type);
-
-            Register(services, type, descriptor.Id);
-
-            foreach (var mediaType in descriptor.MediaTypes)
-            {
-                Register(services, type, $"{mediaType}:{descriptor.Id}");
-
-                // The bare media type is what the aggregator resolves when the caller names no source.
-                if (descriptor.IsDefault)
-                {
-                    Register(services, type, mediaType);
-                }
-            }
-        }
-
-        return services;
+        return AddGeneratedProviders(services);
     }
-
-    private static void Register(IServiceCollection services, Type implementationType, string key)
-    {
-        // The unkeyed registration is what SettingsEndpoints enumerates to list sources in the UI.
-        services.AddTransient(typeof(IMetadataProvider), implementationType);
-
-        // Providers are discovered at runtime, but the only public API that binds an implementation
-        // *Type* to a service key is the generic AddKeyedTransient<TService, TImpl>. Registering through
-        // the container's own descriptor (rather than an ActivatorUtilities factory) is what keeps
-        // [ServiceKey] injection working — providers read that key to tell "anime" from "manga".
-        RegisterKeyed
-            .MakeGenericMethod(typeof(IMetadataProvider), implementationType)
-            .Invoke(null, [services, key]);
-    }
-
-    private static readonly MethodInfo RegisterKeyed = typeof(ServiceCollectionServiceExtensions)
-        .GetMethods(BindingFlags.Public | BindingFlags.Static)
-        .Single(method =>
-        {
-            if (!method.Name.Equals("AddKeyedTransient", StringComparison.Ordinal))
-            {
-                return false;
-            }
-
-            // On the open generic definition the arguments are still generic *parameters*, so they must
-            // be matched as parameters — comparing against typeof(IMetadataProvider) never matches.
-            var args = method.GetGenericArguments();
-            if (args.Length != 2 || !args[0].IsGenericParameter)
-            {
-                return false;
-            }
-
-            var parameters = method.GetParameters();
-            return parameters.Length == 2
-                && parameters[0].ParameterType == typeof(IServiceCollection)
-                && parameters[1].ParameterType == typeof(object);
-        });
 }

@@ -8,7 +8,6 @@ using MediaTracker.Server.Features.Media.MediaContract;
 using MediaTracker.Server.Infrastructure.ExternalApis;
 using MediaTracker.Server.Infrastructure.Persistence;
 using MediaTracker.Server.Infrastructure.Storage;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace MediaTracker.Server.Features.Jobs;
@@ -85,7 +84,7 @@ public static class BatchImportEnrichmentJob
                     // One broken title must not sink the batch: mark it and keep draining.
                     item.SyncStatus = SyncStatus.Failed;
                     item.MarkUpdated();
-                    await db.SaveChangesAsync(CancellationToken.None);
+                    await db.UpdateMediaItemAsync(item, CancellationToken.None);
                     services.GetRequiredService<ILoggerFactory>()
                         .CreateLogger("BatchImportEnrichmentJob")
                         .LogWarning(error, "[BatchImportEnrichment] '{Title}' failed: {Message}", item.Title, error.Message);
@@ -95,18 +94,21 @@ public static class BatchImportEnrichmentJob
         catch (OperationCanceledException)
         {
             // The queue cancelled us (user or shutdown). Anything still parked in Syncing would spin
-            // forever otherwise, so every not-yet-processed row goes back to a calm Ready. The reset
-            // runs as a direct UPDATE on a fresh scope with an always-alive token: the tracked-entity
-            // SaveChanges path was unreliable once cancellation had already poisoned the context.
+            // forever otherwise, so every not-yet-processed row goes back to a calm Ready.
             try
             {
                 using var cleanupScope = services.CreateScope();
                 var cleanupDb = cleanupScope.ServiceProvider.GetRequiredService<AppDbContext>();
-                await cleanupDb.MediaItems
-                    .Where(m => mediaIds.Contains(m.Id) && m.SyncStatus == SyncStatus.Syncing)
-                    .ExecuteUpdateAsync(s => s
-                        .SetProperty(m => m.SyncStatus, SyncStatus.Ready)
-                        .SetProperty(m => m.UpdatedAt, DateTime.UtcNow), CancellationToken.None);
+                foreach (var mediaId in mediaIds)
+                {
+                    var item = await cleanupDb.LoadMediaItemAsync(mediaId, CancellationToken.None);
+                    if (item is not null && item.SyncStatus == SyncStatus.Syncing)
+                    {
+                        item.SyncStatus = SyncStatus.Ready;
+                        item.MarkUpdated();
+                        await cleanupDb.UpdateMediaItemAsync(item, CancellationToken.None);
+                    }
+                }
             }
             catch (Exception cleanupError)
             {
@@ -176,7 +178,7 @@ public static class BatchImportEnrichmentJob
             item.CoverUrl = await imageStorage.SaveCoverAsync(item.CoverUrl!, item.Id, ct);
         }
 
-        await db.SaveChangesAsync(ct);
+        await db.UpdateMediaItemAsync(item, ct);
         return verdict is { Kind: MatchVerdictKind.Ambiguous } ? MatchVerdictKind.Ambiguous : MatchVerdictKind.NoMatch;
     }
 
@@ -196,15 +198,11 @@ public static class BatchImportEnrichmentJob
             return false;
         }
 
-        return await PendingMatchApplier.ApplyAsync(db, item, full, imageStorage, ct, season => db.Entry(season).State = EntityState.Added);
+        return await PendingMatchApplier.ApplyAsync(db, item, full, imageStorage, ct, _ => { });
     }
 
     /// <summary>
-    /// Search for one title: parallel fan-out across key providers. If a Latin / Romaji title exists,
-    /// AniList and MangaDex are queried strictly by that Latin title, while Russian providers (Shikimori / Kinopoisk)
-    /// are queried with the Russian/Cyrillic title. From every source only the top 4 matches are kept,
-    /// and the merged list is sorted strictly by the source position in <paramref name="sourcePriorities"/>
-    /// and then by match score, so candidates from the first source (AniList) always surface first.
+    /// Search for one title: parallel fan-out across key providers.
     /// </summary>
     private static async Task<IReadOnlyList<ExternalMediaDto>> FindCandidatesAsync(
         MetadataAggregatorService aggregator,
@@ -238,8 +236,6 @@ public static class BatchImportEnrichmentJob
 
         if (type == "manga")
         {
-            // Always query all active manga providers (AniList + MangaDex + Shikimori).
-            // When RomajiTitle / Latin exists, strictly query AniList and MangaDex with it.
             if (!string.IsNullOrWhiteSpace(latin))
             {
                 Add("anilist", aggregator.SearchSourceAsync("manga", latin, "anilist", ct));
@@ -323,7 +319,7 @@ public static class BatchImportEnrichmentJob
             }
         }
 
-        // Cyrillic-only roundtrip: if no Latin title was known, but Shikimori returned candidates with Romaji
+        // Cyrillic-only roundtrip
         if (collected.Count > 0 && string.IsNullOrWhiteSpace(latin) && type is "anime" or "manga")
         {
             var romajiFromFallback = collected
@@ -386,7 +382,6 @@ public static class BatchImportEnrichmentJob
             })
             .ToList();
 
-        // До 4 лучших результатов от каждого источника.
         var capped = scored
             .GroupBy(candidate => candidate.Source, StringComparer.OrdinalIgnoreCase)
             .SelectMany(group => group.OrderByDescending(candidate => candidate.Score).Take(4))
@@ -402,11 +397,7 @@ public static class BatchImportEnrichmentJob
     }
 
     private static Task<MediaItem?> LoadAsync(AppDbContext db, Guid mediaId, CancellationToken ct) =>
-        db.MediaItems
-            .Include(media => ((TvShow)media).Seasons.OrderBy(season => season.SeasonNumber))
-            .Include(media => ((Manga)media).Volumes.OrderBy(volume => volume.VolumeNumber))
-            .AsSplitQuery()
-            .SingleOrDefaultAsync(media => media.Id == mediaId, ct);
+        db.LoadMediaItemAsync(mediaId, ct);
 
     private static void EvictStatsCaches(IServiceProvider services)
     {

@@ -2,7 +2,7 @@ namespace MediaTracker.Server.Features.Media.GetMediaStats;
 
 public sealed record MediaStatsDto
 {
-    public int TotalItems { get; init; }
+    public long TotalItems { get; init; }
 
     public int CompletedItems { get; init; }
 

@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text.Json.Serialization;
 using MediaTracker.Server.Common.Cli;
+using MediaTracker.Server.Common.Json;
 using MediaTracker.Server.Common.Endpoints;
 using MediaTracker.Server.Common.Extensions;
 using MediaTracker.Server.Common.Middleware;
@@ -16,9 +17,10 @@ using MediaTracker.Server.Infrastructure.Persistence.Franchises;
 using MediaTracker.Server.Infrastructure.Security;
 using MediaTracker.Server.Infrastructure.Storage;
 using MediaTracker.Server.SelfChecks;
+using Dapper;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.AspNetCore.StaticFiles;
-using Microsoft.EntityFrameworkCore;
+
 using Microsoft.Extensions.FileProviders;
 using Serilog;
 using Serilog.Events;
@@ -66,7 +68,7 @@ if (options.Error is { } cliError)
 if (options.RunSelfCheck)
 {
     ConsoleOutput.Attach();
-    return RefactorSelfCheck.Run() == 0 ? 0 : 1;
+    return await RefactorSelfCheck.Run() == 0 ? 0 : 1;
 }
 
 if (options.Mode == TsundokuRunMode.GuiOnly)
@@ -189,6 +191,8 @@ try
     builder.Services.ConfigureHttpJsonOptions(options =>
     {
         options.SerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+        // Reflection-free metadata first; the reflection resolver stays as a fallback.
+        options.SerializerOptions.TypeInfoResolverChain.Insert(0, AppJsonSerializerContext.Default);
     });
 
     builder.Services.AddOpenApi(options =>
@@ -553,26 +557,24 @@ static async Task InitializeDatabaseAsync(WebApplication app)
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     var appPaths = app.Services.GetRequiredService<AppPaths>();
 
-    // Применяем миграции безусловно при каждом старте.
-    // Если база актуальна, EF Core проверит метаданные и вернёт управление мгновенно.
-    Log.Information("Checking and applying database migrations...");
-    await db.Database.MigrateAsync();
+    // Initialize the schema using Dapper-based initializer (no EF Core migrations).
+    Log.Information("Checking and initializing database schema...");
+    await db.EnsureSchemaAsync();
 
     await scope.ServiceProvider.GetRequiredService<StoredSettingsLoader>().LoadAsync();
 
     // Self-heal at startup: rows parked in Syncing by a cancelled or crashed session (an in-memory
     // job queue does not survive a restart) would show a forever-spinning "синхронизация" badge.
-    await db.MediaItems
-        .Where(m => m.SyncStatus == SyncStatus.Syncing)
-        .ExecuteUpdateAsync(s => s
-            .SetProperty(m => m.SyncStatus, SyncStatus.Ready)
-            .SetProperty(m => m.UpdatedAt, DateTime.UtcNow));
+    var conn = db.Connection;
+    if (conn.State != global::System.Data.ConnectionState.Open) await conn.OpenAsync();
+    await conn.ExecuteAsync(
+        "UPDATE MediaItems SET SyncStatus = @ready, UpdatedAt = @now WHERE SyncStatus = @syncing;",
+        new { ready = (int)SyncStatus.Ready, syncing = (int)SyncStatus.Syncing, now = DateTime.UtcNow });
 
-    await db.MediaItems
-        .Where(m => m.CoverUrl != null && (m.CoverUrl.StartsWith("http://") || m.CoverUrl.StartsWith("https://")))
-        .ExecuteUpdateAsync(s => s
-            .SetProperty(m => m.CoverUrl, (string?)null)
-            .SetProperty(m => m.UpdatedAt, DateTime.UtcNow));
+    // Strip external (http(s)) cover URLs so they get re-downloaded from the provider.
+    await conn.ExecuteAsync(
+        "UPDATE MediaItems SET CoverUrl = NULL, UpdatedAt = @now WHERE CoverUrl IS NOT NULL AND (CoverUrl LIKE 'http://%' OR CoverUrl LIKE 'https://%');",
+        new { now = DateTime.UtcNow });
 }
 
 static void StartBackgroundFranchiseBackfill(WebApplication app)

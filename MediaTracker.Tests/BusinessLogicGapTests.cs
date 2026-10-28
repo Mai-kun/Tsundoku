@@ -255,7 +255,7 @@ public class BusinessLogicGapTests : IDisposable
 
         var url = await service.SaveCoverAsync("https://example.com/missing.png", Guid.NewGuid());
 
-        url.Should().Be("https://example.com/missing.png");
+        url.Should().BeNull(); // a failed download leaves no external fallback link
         (await service.SaveCoverAsync("   ", Guid.NewGuid(), folder: "cover")).Should().Be("   ");
     }
 
@@ -271,7 +271,7 @@ public class BusinessLogicGapTests : IDisposable
 
         var url = await service.SaveCoverAsync("https://example.com/huge.png", Guid.NewGuid());
 
-        url.Should().Be("https://example.com/huge.png");
+        url.Should().BeNull(); // oversized covers are rejected, not passed through
     }
 
     [Fact]
@@ -287,7 +287,7 @@ public class BusinessLogicGapTests : IDisposable
 
         var url = await service.SaveCoverAsync("https://example.com/huge.png", Guid.NewGuid());
 
-        url.Should().Be("https://example.com/huge.png");
+        url.Should().BeNull(); // oversized covers are rejected, not passed through
     }
 
     private sealed class HeaderOnlyHandler(long declaredLength) : HttpMessageHandler

@@ -5,6 +5,7 @@ using System.Text.Json.Serialization;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using MediaTracker.Server.Common.Json;
 
 namespace MediaTracker.Server.Infrastructure.ExternalApis;
 
@@ -12,7 +13,7 @@ public sealed class TmdbMetadataProvider(
     IHttpClientFactory httpClientFactory,
     IOptions<ExternalApiOptions> options,
     ILogger<TmdbMetadataProvider> logger,
-    [ServiceKey] string? serviceKey = null) : MetadataProviderBase
+    [ServiceKey] string? serviceKey = null) : MetadataProviderBase(Source)
 {
     public static MetadataSourceDescriptor Source { get; } = new(
         Id: "tmdb",
@@ -89,8 +90,7 @@ public sealed class TmdbMetadataProvider(
 
         try
         {
-            var result = await client.GetFromJsonAsync<TmdbResponse>(
-                $"{searchPath}?query={Uri.EscapeDataString(query)}&api_key={Uri.EscapeDataString(apiKey)}", ct);
+            var result = await client.GetFromJsonAsync($"{searchPath}?query={Uri.EscapeDataString(query)}&api_key={Uri.EscapeDataString(apiKey)}", AppJsonSerializerContext.Default.TmdbResponse, ct);
 
             if (result?.Results is not { Count: > 0 } results)
             {
@@ -127,8 +127,9 @@ public sealed class TmdbMetadataProvider(
                 var client = httpClientFactory.CreateClient(Id);
                 var isMovie = mediaType == "movie";
                 var detailPath = isMovie ? $"movie/{id}" : $"tv/{id}";
-                var item = await client.GetFromJsonAsync<TmdbItem>(
-                    $"{detailPath}?api_key={Uri.EscapeDataString(apiKey)}&append_to_response=credits,videos", ct);
+                var item = await client.GetFromJsonAsync(
+                    $"{detailPath}?api_key={Uri.EscapeDataString(apiKey)}&append_to_response=credits,videos",
+                    AppJsonSerializerContext.Default.TmdbItem, ct);
 
                 if (item is not null)
                 {

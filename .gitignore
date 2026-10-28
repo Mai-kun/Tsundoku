@@ -507,3 +507,7 @@ reports/
 .worktrees/
 !MediaTracker.Server/Features/Logs/**
 
+
+# Benchmark fixtures live under a Data/ folder that the blanket data/ rule would swallow
+!MediaTracker.Benchmarks/Data/
+!MediaTracker.Benchmarks/Data/**

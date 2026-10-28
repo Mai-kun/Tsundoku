@@ -2,10 +2,11 @@ using System.Collections.Frozen;
 using System.Text.Json;
 using MediaTracker.Server.Infrastructure.Persistence;
 using MediaTracker.Server.Domain.Entities;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+
+using MediaTracker.Server.Common.Json;
 
 namespace MediaTracker.Server.Infrastructure.ExternalApis;
 
@@ -69,10 +70,10 @@ public sealed class SourcePriorityService(
             {
                 using var scope = scopeFactory.CreateScope();
                 var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-                var setting = await db.Settings.AsNoTracking().FirstOrDefaultAsync(s => s.Key == "SourcePriority", ct);
-                if (setting is not null && !string.IsNullOrWhiteSpace(setting.Value))
+                var value = await db.GetSettingAsync("SourcePriority", ct);
+                if (value is not null && !string.IsNullOrWhiteSpace(value))
                 {
-                    var dict = JsonSerializer.Deserialize<Dictionary<string, string[]>>(setting.Value);
+                    var dict = JsonSerializer.Deserialize(value, AppJsonSerializerContext.Default.DictionaryStringStringArray);
                     if (dict is not null)
                     {
                         cache.Set(PriorityCacheKey, dict, CacheDuration);
@@ -115,10 +116,10 @@ public sealed class SourcePriorityService(
         {
             using var scope = scopeFactory.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            var setting = await db.Settings.AsNoTracking().FirstOrDefaultAsync(s => s.Key == "DisabledSources", ct);
-            if (setting is not null && !string.IsNullOrWhiteSpace(setting.Value))
+            var value = await db.GetSettingAsync("DisabledSources", ct);
+            if (value is not null && !string.IsNullOrWhiteSpace(value))
             {
-                var list = JsonSerializer.Deserialize<List<string>>(setting.Value);
+                var list = JsonSerializer.Deserialize(value, AppJsonSerializerContext.Default.ListString);
                 if (list is not null)
                 {
                     // The set below compares OrdinalIgnoreCase, so the entries keep their original casing and no
@@ -149,14 +150,14 @@ public sealed class SourcePriorityService(
 
         using var scope = scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        var setting = await db.Settings.FirstOrDefaultAsync(s => s.Key == "DisabledSources", ct);
+        var value = await db.GetSettingAsync("DisabledSources", ct);
 
         var list = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        if (setting is not null && !string.IsNullOrWhiteSpace(setting.Value))
+        if (value is not null && !string.IsNullOrWhiteSpace(value))
         {
             try
             {
-                var parsed = JsonSerializer.Deserialize<List<string>>(setting.Value);
+                var parsed = JsonSerializer.Deserialize(value, AppJsonSerializerContext.Default.ListString);
                 if (parsed is not null)
                 {
                     foreach (var s in parsed) list.Add(s);
@@ -175,24 +176,8 @@ public sealed class SourcePriorityService(
             list.Add(normId);
         }
 
-        var json = JsonSerializer.Serialize(list);
-        if (setting is null)
-        {
-            setting = new AppSetting
-            {
-                Key = "DisabledSources",
-                Value = json,
-                UpdatedAt = DateTime.UtcNow
-            };
-            db.Settings.Add(setting);
-        }
-        else
-        {
-            setting.Value = json;
-            setting.UpdatedAt = DateTime.UtcNow;
-        }
-
-        await db.SaveChangesAsync(ct);
+        var json = JsonSerializer.Serialize(list, AppJsonSerializerContext.Default.HashSetString);
+        await db.SetSettingAsync("DisabledSources", json, ct);
         cache.Set(DisabledSourcesCacheKey, list, CacheDuration);
         cache.Remove(PriorityCacheKey);
         BumpVersion();

@@ -1,4 +1,6 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
 using MediaTracker.Server.Domain.Entities;
 using MediaTracker.Server.Domain.Enums;
 using MediaTracker.Server.Domain.Rules;
@@ -8,7 +10,7 @@ using MediaTracker.Server.Features.Media.MediaContract;
 using MediaTracker.Server.Infrastructure.ExternalApis;
 using MediaTracker.Server.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.Data.Sqlite;
 
 namespace MediaTracker.Server.Features.Media.Calendar;
 
@@ -68,20 +70,31 @@ public static class CalendarEndpoints
 
                 var items = new List<(DateOnly Date, CalendarItemDto Item)>();
 
-                // 1. Scheduled auto-refresh checks: the date is the poll itself, not real content.
+                var conn = db.Connection;
+                if (conn.State != global::System.Data.ConnectionState.Open) await conn.OpenAsync(ct);
+
+                // 1. Scheduled auto-refresh checks.
                 var windowStart = rangeStart.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
                 var windowEnd = rangeEnd.ToDateTime(TimeOnly.MaxValue, DateTimeKind.Utc);
-                var scheduled = await db.MediaItems
-                    .AsNoTracking()
-                    .Where(m => m.NextAutoRefreshAt != null
-                             && m.NextAutoRefreshAt >= windowStart
-                             && m.NextAutoRefreshAt <= windowEnd)
-                    .OrderBy(m => m.NextAutoRefreshAt)
-                    .ToListAsync(ct);
 
-                items.AddRange(scheduled.Select(item => (
-                    Date: DateOnly.FromDateTime(item.NextAutoRefreshAt!.Value),
-                    Item: new CalendarItemDto(
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = """
+                    SELECT * FROM MediaItems
+                    WHERE NextAutoRefreshAt IS NOT NULL
+                      AND NextAutoRefreshAt >= @start AND NextAutoRefreshAt <= @end
+                    ORDER BY NextAutoRefreshAt;
+                    """;
+                cmd.Parameters.Add(new SqliteParameter("@start", windowStart.ToString("o")));
+                cmd.Parameters.Add(new SqliteParameter("@end", windowEnd.ToString("o")));
+                using var reader = await cmd.ExecuteReaderAsync(ct);
+                while (await reader.ReadAsync(ct))
+                {
+                    var row = AppDbContext.ReadMediaItemRow(reader);
+                    var item = row.ToEntity();
+                    var nextAutoRefresh = reader.IsDBNull(reader.GetOrdinal("NextAutoRefreshAt")) ? (DateTime?)null : reader.GetDateTime(reader.GetOrdinal("NextAutoRefreshAt"));
+                    if (nextAutoRefresh is not { } dt) continue;
+
+                    items.Add((DateOnly.FromDateTime(dt), new CalendarItemDto(
                         item.Id,
                         item.Title,
                         MediaResponseMapper.GetType(item),
@@ -103,38 +116,42 @@ public static class CalendarEndpoints
                         Details: $"Проверка обновлений (раз в {item.AutoRefreshIntervalDays} дн.)",
                         EpisodeNumber: null,
                         SeasonNumber: null,
-                        IsAnime: item is TvShow { IsAnime: true } or Movie { IsAnime: true }))));
+                        IsAnime: item is TvShow { IsAnime: true } or Movie { IsAnime: true })));
+                }
 
                 // 2. Episodes with a precise air date, parsed out of the season's stored episode list.
-                var shows = await db.TvShows
-                    .AsNoTracking()
-                    .Include(show => show.Seasons)
-                    .Where(show => show.Seasons.Any(season => season.EpisodesData != null))
-                    .ToListAsync(ct);
-
-                foreach (var show in shows)
+                using var cmd2 = conn.CreateCommand();
+                cmd2.CommandText = "SELECT Id, Title, CoverUrl FROM MediaItems WHERE MediaType = 'TvShow';";
+                using var reader2 = await cmd2.ExecuteReaderAsync(ct);
+                while (await reader2.ReadAsync(ct))
                 {
-                    var watched = show.Seasons.Sum(season => season.CurrentEpisode);
-                    var total = show.TotalEpisodesCount;
+                    var showId = Guid.Parse(reader2.GetString(reader2.GetOrdinal("Id")));
+                    var showTitle = reader2.GetString(reader2.GetOrdinal("Title"));
+                    var showCoverUrl = reader2.IsDBNull(reader2.GetOrdinal("CoverUrl")) ? null : reader2.GetString(reader2.GetOrdinal("CoverUrl"));
 
-                    foreach (var season in show.Seasons.Where(season => season.EpisodesData != null))
+                    using var seasonsCmd = conn.CreateCommand();
+                    seasonsCmd.CommandText = "SELECT * FROM TvSeasons WHERE TvShowId = @showId AND EpisodesData IS NOT NULL;";
+                    seasonsCmd.Parameters.Add(new SqliteParameter("@showId", showId.ToString().ToUpperInvariant()));
+                    using var seasonsReader = await seasonsCmd.ExecuteReaderAsync(ct);
+                    while (await seasonsReader.ReadAsync(ct))
                     {
+                        var seasonNumber = seasonsReader.GetInt32(seasonsReader.GetOrdinal("SeasonNumber"));
+                        var episodesData = seasonsReader.IsDBNull(seasonsReader.GetOrdinal("EpisodesData")) ? null : seasonsReader.GetString(seasonsReader.GetOrdinal("EpisodesData"));
+                        if (episodesData is null) continue;
+
                         List<ExternalEpisodeDto>? episodes;
                         try
                         {
-                            episodes = JsonSerializer.Deserialize<List<ExternalEpisodeDto>>(
-                                season.EpisodesData ?? "[]",
-                                MediaRatingSerializer.ReadOptions);
+                            episodes = JsonSerializer.Deserialize(
+                                episodesData,
+                                (JsonTypeInfo<List<ExternalEpisodeDto>>)MediaRatingSerializer.ReadOptions.GetTypeInfo(typeof(List<ExternalEpisodeDto>)));
                         }
                         catch (JsonException)
                         {
                             continue;
                         }
 
-                        if (episodes is null)
-                        {
-                            continue;
-                        }
+                        if (episodes is null) continue;
 
                         foreach (var episode in episodes)
                         {
@@ -145,47 +162,57 @@ public static class CalendarEndpoints
                                 continue;
                             }
 
-                            items.Add((
-                                day.Value,
-                                new CalendarItemDto(
-                                    show.Id,
-                                    show.Title,
-                                    "tvshow",
-                                    show.CoverUrl,
-                                    watched,
-                                    total,
-                                    Kind: "air_date",
-                                    Details: $"S{season.SeasonNumber} E{episode.Number}",
-                                    EpisodeNumber: episode.Number,
-                                    SeasonNumber: season.SeasonNumber,
-                                    IsAnime: show.IsAnime)));
+                            items.Add((day.Value, new CalendarItemDto(
+                                showId,
+                                showTitle,
+                                "tvshow",
+                                showCoverUrl,
+                                null,
+                                null,
+                                Kind: "air_date",
+                                Details: $"S{seasonNumber} E{episode.Number}",
+                                EpisodeNumber: episode.Number,
+                                SeasonNumber: seasonNumber,
+                                IsAnime: false)));
                         }
                     }
                 }
 
                 // 3. Planned titles whose release date lands inside the window.
-                var upcoming = await db.MediaItems
-                    .AsNoTracking()
-                    .Where(m => m.Status == MediaStatus.Planned
-                             && m.ReleaseDate != null
-                             && m.ReleaseDate >= windowStart
-                             && m.ReleaseDate <= windowEnd)
-                    .ToListAsync(ct);
+                using var cmd3 = conn.CreateCommand();
+                cmd3.CommandText = """
+                    SELECT * FROM MediaItems
+                    WHERE Status = @planned
+                      AND ReleaseDate IS NOT NULL
+                      AND ReleaseDate >= @start AND ReleaseDate <= @end;
+                    """;
+                // A local prevents the constant-0 overload trap: `new SqliteParameter(name, (int)X)`
+                // with X==0 binds to the (string, SqliteType) ctor, leaving Value null.
+                var plannedStatus = (int)MediaStatus.Planned;
+                cmd3.Parameters.Add(new SqliteParameter("@planned", plannedStatus));
+                cmd3.Parameters.Add(new SqliteParameter("@start", windowStart.ToString("o")));
+                cmd3.Parameters.Add(new SqliteParameter("@end", windowEnd.ToString("o")));
+                using var reader3 = await cmd3.ExecuteReaderAsync(ct);
+                while (await reader3.ReadAsync(ct))
+                {
+                    var row = AppDbContext.ReadMediaItemRow(reader3);
+                    var item = row.ToEntity();
+                    var releaseDate = reader3.IsDBNull(reader3.GetOrdinal("ReleaseDate")) ? (DateTime?)null : reader3.GetDateTime(reader3.GetOrdinal("ReleaseDate"));
+                    if (releaseDate is not { } rd) continue;
 
-                items.AddRange(upcoming.Select(item => (
-                    Date: DateOnly.FromDateTime(item.ReleaseDate!.Value),
-                    Item: new CalendarItemDto(
+                    items.Add((DateOnly.FromDateTime(rd), new CalendarItemDto(
                         item.Id,
                         item.Title,
                         MediaResponseMapper.GetType(item),
                         item.CoverUrl,
-                        CurrentProgress: null,
-                        TotalCount: null,
+                        null,
+                        null,
                         Kind: "release",
                         Details: "Релиз",
                         EpisodeNumber: null,
                         SeasonNumber: null,
-                        IsAnime: item is TvShow { IsAnime: true } or Movie { IsAnime: true }))));
+                        IsAnime: item is TvShow { IsAnime: true } or Movie { IsAnime: true })));
+                }
 
                 var schedule = new CalendarScheduleDto(
                     rangeStart,
@@ -214,11 +241,7 @@ public static class CalendarEndpoints
                 [FromServices] ILoggerFactory loggerFactory,
                 CancellationToken ct) =>
             {
-                var item = await db.MediaItems
-                    .Include(media => (media as TvShow)!.Seasons)
-                    .Include(media => (media as Manga)!.Volumes)
-                    .AsSplitQuery()
-                    .SingleOrDefaultAsync(media => media.Id == id, ct);
+                var item = await db.LoadMediaItemAsync(id, ct);
 
                 if (item is null)
                 {

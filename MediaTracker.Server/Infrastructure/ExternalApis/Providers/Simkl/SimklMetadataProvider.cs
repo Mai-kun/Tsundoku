@@ -4,6 +4,7 @@ using System.Net;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using MediaTracker.Server.Common.Json;
 
 namespace MediaTracker.Server.Infrastructure.ExternalApis;
 
@@ -11,7 +12,7 @@ public sealed class SimklMetadataProvider(
     IHttpClientFactory httpClientFactory,
     IOptions<ExternalApiOptions> options,
     [ServiceKey] string? serviceKey = null,
-    ILogger<SimklMetadataProvider>? logger = null) : MetadataProviderBase
+    ILogger<SimklMetadataProvider>? logger = null) : MetadataProviderBase(Source)
 {
     public static MetadataSourceDescriptor Source { get; } = new(
         Id: "simkl",
@@ -83,7 +84,7 @@ public sealed class SimklMetadataProvider(
                 return [];
             }
 
-            var items = await resp.Content.ReadFromJsonAsync<List<SimklItem>>(cancellationToken: ct);
+            var items = await resp.Content.ReadFromJsonAsync(AppJsonSerializerContext.Default.ListSimklItem, cancellationToken: ct);
             if (items is null || items.Count == 0)
             {
                 ExternalApiLog.Returned(logger, Name, 0, sw.ElapsedMilliseconds);
@@ -174,7 +175,7 @@ public sealed class SimklMetadataProvider(
             using var resp = await client.SendAsync(request, ct);
             if (!resp.IsSuccessStatusCode) return null;
 
-            var item = await resp.Content.ReadFromJsonAsync<SimklItem>(cancellationToken: ct);
+            var item = await resp.Content.ReadFromJsonAsync(AppJsonSerializerContext.Default.SimklItem, cancellationToken: ct);
             return item is null ? null : MapItem(item, _mediaType);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)

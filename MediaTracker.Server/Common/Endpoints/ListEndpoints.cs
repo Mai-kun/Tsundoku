@@ -1,4 +1,5 @@
 using FluentValidation;
+using MediaTracker.Server.Common.Json;
 using MediaTracker.Server.Features.Lists;
 using Microsoft.AspNetCore.Mvc;
 
@@ -26,7 +27,7 @@ public static class ListEndpoints
             var validation = await validator.ValidateAsync(request, ct);
             if (!validation.IsValid) return Results.ValidationProblem(validation.ToDictionary());
             var id = await service.CreateAsync(request, ct);
-            return Results.Created($"/api/lists/{id}", new { id });
+            return Results.Created($"/api/lists/{id}", new CreatedEntityId(id));
         })
         .WithTags("Коллекции / Lists")
         .WithSummary("Создать обычный или умный список с правилами");

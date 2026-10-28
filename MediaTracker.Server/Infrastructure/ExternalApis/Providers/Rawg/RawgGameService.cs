@@ -6,6 +6,8 @@ using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using Microsoft.Extensions.Options;
 
+using MediaTracker.Server.Common.Json;
+
 namespace MediaTracker.Server.Infrastructure.ExternalApis;
 
 public sealed record GameAchievementItem(string Name, string? Description, string? IconUrl);
@@ -496,7 +498,7 @@ public sealed partial class RawgGameService(
     }
 
     private Task<T?> GetAsync<T>(string url, CancellationToken ct) =>
-        httpClientFactory.CreateClient().GetFromJsonAsync<T>(WithApiKey(url), ct);
+        httpClientFactory.CreateClient().GetFromJsonAsync(WithApiKey(url), AppJsonSerializerContext.GetTypeInfo<T>(), ct);
 
     private string WithApiKey(string url)
     {

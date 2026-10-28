@@ -99,3 +99,6 @@ internal sealed class MuAssociatedTitle
     [JsonPropertyName("title")]
     public string? Title { get; set; }
 }
+
+/// <summary>POST /v1/series/search request body.</summary>
+internal sealed record MuSearchRequest(string Search, string Stype, int Perpage);

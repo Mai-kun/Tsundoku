@@ -1,7 +1,8 @@
+using Dapper;
 using MediaTracker.Server.Domain.Common;
 using MediaTracker.Server.Features.Media.GetMediaStats;
 using MediaTracker.Server.Infrastructure.Persistence;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Caching.Memory;
 
 namespace MediaTracker.Server.Features.History.ClearHistory;
@@ -19,10 +20,12 @@ public sealed class ClearHistoryHandler(AppDbContext db, IMemoryCache cache) : I
 {
     public async Task<Result> HandleAsync(CancellationToken ct)
     {
-        await db.Events.ExecuteDeleteAsync(ct);
-        await db.MediaItems.ExecuteUpdateAsync(s => s
-            .SetProperty(m => m.StartedAt, (DateTime?)null)
-            .SetProperty(m => m.FinishedAt, (DateTime?)null), ct);
+        var conn = db.Connection;
+        if (conn.State != global::System.Data.ConnectionState.Open) await conn.OpenAsync(ct);
+
+        await conn.ExecuteAsync("DELETE FROM Events;");
+        await conn.ExecuteAsync("UPDATE MediaItems SET StartedAt = NULL, FinishedAt = NULL;");
+
         AdvancedStatsCalculator.InvalidateCache(cache);
         TasteProfileCalculator.InvalidateCache(cache);
 

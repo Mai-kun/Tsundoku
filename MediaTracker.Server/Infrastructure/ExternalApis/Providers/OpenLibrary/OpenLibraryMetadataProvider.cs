@@ -2,12 +2,13 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Net.Http.Json;
 using System.Text.Json.Serialization;
+using MediaTracker.Server.Common.Json;
 
 namespace MediaTracker.Server.Infrastructure.ExternalApis;
 
 public sealed class OpenLibraryMetadataProvider(
     IHttpClientFactory httpClientFactory,
-    ILogger<OpenLibraryMetadataProvider>? logger = null) : MetadataProviderBase
+    ILogger<OpenLibraryMetadataProvider>? logger = null) : MetadataProviderBase(Source)
 {
     public static MetadataSourceDescriptor Source { get; } = new(
         Id: "openlibrary",
@@ -36,7 +37,7 @@ public sealed class OpenLibraryMetadataProvider(
         {
             ExternalApiLog.Querying(logger, Name, "book", query);
             var sw = Stopwatch.StartNew();
-            var result = await client.GetFromJsonAsync<OpenLibraryResponse>(endpoint, ct);
+            var result = await client.GetFromJsonAsync(endpoint, AppJsonSerializerContext.Default.OpenLibraryResponse, ct);
 
             if (result?.Docs is not { Count: > 0 } docs)
             {
@@ -73,7 +74,7 @@ public sealed class OpenLibraryMetadataProvider(
         {
             ExternalApiLog.Querying(logger, Name, "book author", clean);
             var sw = Stopwatch.StartNew();
-            var result = await client.GetFromJsonAsync<OpenLibraryResponse>(endpoint, ct);
+            var result = await client.GetFromJsonAsync(endpoint, AppJsonSerializerContext.Default.OpenLibraryResponse, ct);
 
             var mapped = result?.Docs is { Count: > 0 } docs ? docs.ConvertAll(MapDoc) : [];
             ExternalApiLog.Returned(logger, Name, mapped.Count, sw.ElapsedMilliseconds);

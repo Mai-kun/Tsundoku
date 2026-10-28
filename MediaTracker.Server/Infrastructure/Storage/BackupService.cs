@@ -5,7 +5,6 @@ using MediaTracker.Server.Features.Media.GetMediaStats;
 using MediaTracker.Server.Infrastructure.ExternalApis;
 using MediaTracker.Server.Infrastructure.Persistence;
 using Microsoft.Data.Sqlite;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 
 namespace MediaTracker.Server.Infrastructure.Storage;
@@ -32,7 +31,11 @@ public sealed class BackupService(
             }
 
             var escapedPath = tempDbPath.Replace("'", "''");
-            await db.Database.ExecuteSqlRawAsync(string.Format("VACUUM INTO '{0}';", escapedPath), ct);
+            var conn = db.Connection;
+            if (conn.State != global::System.Data.ConnectionState.Open) await conn.OpenAsync(ct);
+            using var vacuumCmd = conn.CreateCommand();
+            vacuumCmd.CommandText = $"VACUUM INTO '{escapedPath}';";
+            await vacuumCmd.ExecuteNonQueryAsync(ct);
 
             using (var zipArchive = ZipFile.Open(tempZipPath, ZipArchiveMode.Create))
             {

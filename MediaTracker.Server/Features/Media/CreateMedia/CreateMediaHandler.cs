@@ -12,7 +12,6 @@ using MediaTracker.Server.Infrastructure.Jobs;
 using MediaTracker.Server.Infrastructure.Persistence.Franchises;
 using MediaTracker.Server.Infrastructure.Persistence;
 using MediaTracker.Server.Infrastructure.Storage;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 
 namespace MediaTracker.Server.Features.Media.CreateMedia;
@@ -62,9 +61,19 @@ public sealed class CreateMediaHandler(
         await franchiseService.LinkFranchiseOnCreateAsync(db, item, request.FranchiseName, ct);
 
         item.LastActivityAt = DateTime.UtcNow;
-        db.Add(item);
-        db.Events.Add(MediaEventRecorder.Added(item));
-        await db.SaveChangesAsync(ct);
+
+        await db.InsertMediaItemAsync(item, ct);
+        await db.InsertMediaEventAsync(MediaEventRecorder.Added(item), ct);
+
+        // Persist placeholder seasons created by the seeder.
+        if (item is TvShow show)
+        {
+            foreach (var season in show.Seasons)
+            {
+                await db.InsertTvSeasonAsync(season, ct);
+            }
+        }
+
         AdvancedStatsCalculator.InvalidateCache(cache);
         TasteProfileCalculator.InvalidateCache(cache);
 

@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Text.Json;
 using MediaTracker.Server.Common.Http;
+using MediaTracker.Server.Common.Json;
 using MediaTracker.Server.Infrastructure.Storage;
 using MediaTracker.Server.Features.Settings.ApiTokens;
 using MediaTracker.Server.Features.Settings.GetCategoryOrder;
@@ -16,7 +17,6 @@ using MediaTracker.Server.Features.System.GetSources;
 using MediaTracker.Server.Features.System.Updates;
 using MediaTracker.Server.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace MediaTracker.Server.Common.Endpoints;
 
@@ -176,16 +176,15 @@ public static class SettingsEndpoints
             var configPath = Path.Combine(appDir, "storage.json");
             var mode = "default";
             if (File.Exists(configPath)) {
-                var config = JsonSerializer.Deserialize<StorageConfig>(File.ReadAllText(configPath));
+                var config = JsonSerializer.Deserialize(File.ReadAllText(configPath), AppJsonSerializerContext.Default.StorageConfig);
                 mode = config?.Mode ?? "default";
             }
-            return Results.Ok(new {
-                Mode = mode,
-                DataDirectory = appPaths.DataDirectory,
-                PortableDirectory = Path.Combine(appDir, "data"),
-                DefaultDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Tsundoku"),
-                IsFirstRunSetupRequired = appPaths.IsFirstRunSetupRequired
-            });
+            return Results.Ok(new StorageInfoResponse(
+                mode,
+                appPaths.DataDirectory,
+                Path.Combine(appDir, "data"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Tsundoku"),
+                appPaths.IsFirstRunSetupRequired));
         }).WithTags("Настройки / Settings").WithSummary("Получить настройки хранилища");
 
         group.MapPost("/storage", async (
@@ -213,7 +212,11 @@ public static class SettingsEndpoints
                     {
                         var targetDbPath = Path.Combine(targetDataDir, Path.GetFileName(currentPaths.DatabaseFilePath));
                         var escapedTargetDbPath = targetDbPath.Replace("'", "''");
-                        await dbContext.Database.ExecuteSqlRawAsync($"VACUUM INTO '{escapedTargetDbPath}';");
+                        var conn2 = dbContext.Connection;
+                        if (conn2.State != global::System.Data.ConnectionState.Open) await conn2.OpenAsync();
+                        using var vacuumCmd = conn2.CreateCommand();
+                        vacuumCmd.CommandText = $"VACUUM INTO '{escapedTargetDbPath}';";
+                        await vacuumCmd.ExecuteNonQueryAsync();
                     }
 
                     // 2. Media and Covers
@@ -236,7 +239,7 @@ public static class SettingsEndpoints
                 }
 
                 var config = new StorageConfig { Mode = request.Mode, CustomPath = request.CustomPath };
-                File.WriteAllText(configPath, JsonSerializer.Serialize(config));
+                File.WriteAllText(configPath, JsonSerializer.Serialize(config, AppJsonSerializerContext.Default.StorageConfig));
                 
                 Task.Run(() => {
                     Thread.Sleep(1000);

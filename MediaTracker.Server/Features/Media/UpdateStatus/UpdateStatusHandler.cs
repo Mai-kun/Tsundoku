@@ -6,7 +6,6 @@ using MediaTracker.Server.Features.Media.GetMediaDetail;
 using MediaTracker.Server.Features.Media.GetMediaStats;
 using MediaTracker.Server.Features.Media.UpdateStatus;
 using MediaTracker.Server.Infrastructure.Persistence;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 
 namespace MediaTracker.Server.Features.Media.UpdateStatus;
@@ -38,9 +37,7 @@ public sealed class UpdateStatusHandler(
             return Result.Failure(validationError);
         }
 
-        var item = await MediaItemGraph
-            .LoadTracked(db)
-            .SingleOrDefaultAsync(media => media.Id == command.Id, ct);
+        var item = await db.LoadMediaItemAsync(command.Id, ct);
 
         if (item is null)
         {
@@ -73,13 +70,20 @@ public sealed class UpdateStatusHandler(
 
         item.MarkUpdated();
 
+        var events = new List<MediaEvent>();
         if (item.Status != previousStatus)
         {
             item.LastActivityAt = DateTime.UtcNow;
-            db.Events.Add(MediaEventRecorder.StatusChanged(item, previousStatus, item.Status));
+            events.Add(MediaEventRecorder.StatusChanged(item, previousStatus, item.Status));
         }
 
-        await db.SaveChangesAsync(ct);
+        await db.UpdateMediaItemAsync(item, ct);
+
+        foreach (var evt in events)
+        {
+            await db.InsertMediaEventAsync(evt, ct);
+        }
+
         AdvancedStatsCalculator.InvalidateCache(cache);
         TasteProfileCalculator.InvalidateCache(cache);
         return Result.Success();

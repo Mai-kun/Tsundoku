@@ -45,8 +45,7 @@ public sealed class CreateApiTokenHandler(AppDbContext db) : ICreateApiTokenHand
             ExpiresAt = expiresAt
         };
 
-        db.ApiTokens.Add(tokenEntity);
-        await db.SaveChangesAsync(ct);
+        await db.CreateApiTokenAsync(tokenEntity, ct);
 
         return Result<CreatedApiTokenResponse>.Success(new CreatedApiTokenResponse(
             tokenEntity.Id,

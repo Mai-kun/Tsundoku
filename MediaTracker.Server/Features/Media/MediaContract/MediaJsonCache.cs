@@ -1,4 +1,5 @@
 using System.Text.Json;
+using MediaTracker.Server.Common.Json;
 
 namespace MediaTracker.Server.Features.Media.MediaContract;
 
@@ -9,9 +10,8 @@ namespace MediaTracker.Server.Features.Media.MediaContract;
 /// </summary>
 public static class MediaJsonCache
 {
-    private static readonly JsonSerializerOptions Options = new(JsonSerializerDefaults.Web);
-
-    public static string Serialize<T>(IReadOnlyList<T> value) => JsonSerializer.Serialize(value, Options);
+    public static string Serialize<T>(IReadOnlyList<T> value) =>
+        JsonSerializer.Serialize(value, AppJsonSerializerContext.GetTypeInfo<IReadOnlyList<T>>());
 
     /// <summary>
     /// A blob that no longer parses reads as empty rather than throwing: the only sensible response is
@@ -26,7 +26,7 @@ public static class MediaJsonCache
 
         try
         {
-            return JsonSerializer.Deserialize<List<T>>(json, Options) ?? [];
+            return JsonSerializer.Deserialize(json, AppJsonSerializerContext.GetTypeInfo<List<T>>()) ?? [];
         }
         catch (JsonException)
         {

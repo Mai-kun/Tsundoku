@@ -3,12 +3,13 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.DependencyInjection;
+using MediaTracker.Server.Common.Json;
 
 namespace MediaTracker.Server.Infrastructure.ExternalApis;
 
 public sealed class KitsuMetadataProvider(
     IHttpClientFactory httpClientFactory,
-    [ServiceKey] string? serviceKey = null) : MetadataProviderBase
+    [ServiceKey] string? serviceKey = null) : MetadataProviderBase(Source)
 {
     public static MetadataSourceDescriptor Source { get; } = new(
         Id: "kitsu",
@@ -25,8 +26,7 @@ public sealed class KitsuMetadataProvider(
         var client = httpClientFactory.CreateClient(Id);
         try
         {
-            var res = await client.GetFromJsonAsync<KitsuSearchResponse>(
-                $"edge/{mediaType}?filter%5Btext%5D={Uri.EscapeDataString(query)}&page%5Blimit%5D=10", ct);
+            var res = await client.GetFromJsonAsync($"edge/{mediaType}?filter%5Btext%5D={Uri.EscapeDataString(query)}&page%5Blimit%5D=10", AppJsonSerializerContext.Default.KitsuSearchResponse, ct);
 
             if (res?.Data is not { Count: > 0 } data)
             {
@@ -46,7 +46,7 @@ public sealed class KitsuMetadataProvider(
         var client = httpClientFactory.CreateClient(Id);
         try
         {
-            var res = await client.GetFromJsonAsync<KitsuSingleResponse>($"edge/{mediaType}/{Uri.EscapeDataString(externalId)}", ct);
+            var res = await client.GetFromJsonAsync($"edge/{mediaType}/{Uri.EscapeDataString(externalId)}", AppJsonSerializerContext.Default.KitsuSingleResponse, ct);
             if (res?.Data is not null)
             {
                 return MapItem(res.Data);

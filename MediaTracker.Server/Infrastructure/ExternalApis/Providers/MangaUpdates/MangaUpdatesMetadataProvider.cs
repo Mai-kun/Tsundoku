@@ -1,11 +1,12 @@
 using System.Net.Http.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.DependencyInjection;
+using MediaTracker.Server.Common.Json;
 
 namespace MediaTracker.Server.Infrastructure.ExternalApis;
 
 public sealed class MangaUpdatesMetadataProvider(
-    IHttpClientFactory httpClientFactory) : MetadataProviderBase
+    IHttpClientFactory httpClientFactory) : MetadataProviderBase(Source)
 {
     public static MetadataSourceDescriptor Source { get; } = new(
         Id: "mangaupdates",
@@ -18,22 +19,18 @@ public sealed class MangaUpdatesMetadataProvider(
     public override async Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string query, CancellationToken ct)
     {
         var client = httpClientFactory.CreateClient(Id);
-        var requestPayload = new
-        {
-            search = query,
-            stype = "title",
-            perpage = 10
-        };
+        var requestPayload = new MuSearchRequest(query, "title", 10);
 
         try
         {
-            var res = await client.PostAsJsonAsync("series/search", requestPayload, ct);
+            var res = await client.PostAsJsonAsync(
+                "series/search", requestPayload, AppJsonSerializerContext.Default.MuSearchRequest, ct);
             if (!res.IsSuccessStatusCode)
             {
                 return [];
             }
 
-            var response = await res.Content.ReadFromJsonAsync<MuSearchResponse>(cancellationToken: ct);
+            var response = await res.Content.ReadFromJsonAsync(AppJsonSerializerContext.Default.MuSearchResponse, cancellationToken: ct);
             if (response?.Results is null || response.Results.Count == 0)
             {
                 return [];
@@ -55,7 +52,7 @@ public sealed class MangaUpdatesMetadataProvider(
 
         try
         {
-            var response = await client.GetFromJsonAsync<MuSeriesRecord>($"series/{externalId}", ct);
+            var response = await client.GetFromJsonAsync($"series/{externalId}", AppJsonSerializerContext.Default.MuSeriesRecord, ct);
             if (response is null)
             {
                 return null;

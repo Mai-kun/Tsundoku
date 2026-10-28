@@ -4,6 +4,8 @@ using MediaTracker.Server.Domain.Enums;
 using MediaTracker.Server.Infrastructure.ExternalApis;
 using MediaTracker.Server.Features.Media.GetMediaStats;
 
+using MediaTracker.Server.Common.Json;
+
 namespace MediaTracker.Server.Features.Media.MediaContract;
 
 public record MediaListDto
@@ -488,7 +490,7 @@ public static class MediaResponseMapper
         {
             try
             {
-                var parsed = JsonSerializer.Deserialize<List<string>>(genres);
+                var parsed = JsonSerializer.Deserialize(genres, AppJsonSerializerContext.Default.ListString);
                 if (parsed is { Count: > 0 })
                 {
                     return GenreNormalizer.NormalizeList(parsed);

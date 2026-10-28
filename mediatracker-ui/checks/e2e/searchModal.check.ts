@@ -45,8 +45,9 @@ async function selectCategoryOption(dialog, page, pattern) {
     check('search input receives focus', await initialSearchInput.evaluate((input) => document.activeElement === input));
     await page.keyboard.press('Escape');
     await searchDialog.waitFor({ state: 'hidden' });
-    const closedDialog = page.locator('dialog').first();
-    check('Escape closes the search dialog', !(await closedDialog.evaluate((d) => d.open)));
+    const dialogCount = await page.locator('dialog').count();
+    const isStillOpen = dialogCount > 0 ? await page.locator('dialog').first().evaluate((d) => d.open) : false;
+    check('Escape closes the search dialog', !isStillOpen);
 
     // 2. The header button opens the same dialog.
     await page.locator('dialog[open]').waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});

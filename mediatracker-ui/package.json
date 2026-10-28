@@ -25,6 +25,7 @@
     "check:relink": "node checks/relink.check.cjs",
     "check:score-stack": "node checks/scoreStack.check.cjs",
     "check:search-modal": "node --experimental-strip-types checks/e2e/searchModal.check.ts",
+    "check:tools-and-search": "node --experimental-strip-types checks/e2e/toolsAndSearch.check.ts",
     "check:seasons": "node checks/seasons.check.cjs",
     "check:tokens": "node checks/tokens.check.cjs",
     "check:virtual-grid": "node checks/virtualGrid.check.cjs",

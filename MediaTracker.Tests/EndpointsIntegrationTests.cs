@@ -7,7 +7,6 @@ using MediaTracker.Server.Domain.Enums;
 using MediaTracker.Server.Features.Media.Calendar;
 using MediaTracker.Server.Features.Seasons.UpdateSeasonProgress;
 using MediaTracker.Server.Infrastructure.Persistence;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;

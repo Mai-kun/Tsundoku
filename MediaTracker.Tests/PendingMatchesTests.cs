@@ -6,7 +6,6 @@ using MediaTracker.Server.Features.Media.MediaContract;
 using MediaTracker.Server.Features.Media.PendingMatches;
 using MediaTracker.Server.Infrastructure.ExternalApis;
 using MediaTracker.Server.Infrastructure.Persistence;
-using Microsoft.EntityFrameworkCore;
 using Xunit;
 
 namespace MediaTracker.Tests;
@@ -15,10 +14,7 @@ public class PendingMatchesTests
 {
     private static AppDbContext CreateContext()
     {
-        var options = new DbContextOptionsBuilder<AppDbContext>()
-            .UseSqlite($"Data Source={Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.db")}")
-            .Options;
-        var db = new AppDbContext(options);
+        var db = new AppDbContext($"Data Source={Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.db")}");
         db.Database.EnsureCreated();
         return db;
     }

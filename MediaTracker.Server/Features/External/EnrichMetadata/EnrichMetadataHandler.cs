@@ -9,7 +9,6 @@ using MediaTracker.Server.Features.Media.MediaContract;
 using MediaTracker.Server.Infrastructure.ExternalApis;
 using MediaTracker.Server.Infrastructure.Jobs;
 using MediaTracker.Server.Infrastructure.Persistence;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 
@@ -29,11 +28,7 @@ public sealed class EnrichMetadataHandler(
 {
     public async Task<Result<MediaDetailDto>> HandleAsync(EnrichMetadataCommand command, CancellationToken ct)
     {
-        var item = await db.MediaItems
-            .Include(media => media.Franchise)
-            .Include(media => ((TvShow)media).Seasons.OrderBy(season => season.SeasonNumber))
-            .AsSplitQuery()
-            .SingleOrDefaultAsync(media => media.Id == command.MediaId, ct);
+        var item = await db.LoadMediaItemAsync(command.MediaId, ct);
 
         if (item is null)
         {
@@ -42,7 +37,7 @@ public sealed class EnrichMetadataHandler(
         }
 
         item.SyncStatus = SyncStatus.Syncing;
-        await db.SaveChangesAsync(ct);
+        await db.UpdateMediaItemAsync(item, ct);
 
         jobs.Enqueue(
             item.Id,
@@ -53,12 +48,7 @@ public sealed class EnrichMetadataHandler(
                 var aggregator = sp.GetRequiredService<MetadataAggregatorService>();
                 var cache = sp.GetRequiredService<IMemoryCache>();
 
-                var current = await scopedDb.MediaItems
-                    .Include(media => media.Franchise)
-                    .Include(media => ((TvShow)media).Seasons.OrderBy(season => season.SeasonNumber))
-                    .Include(media => ((Manga)media).Volumes.OrderBy(volume => volume.VolumeNumber))
-                    .AsSplitQuery()
-                    .SingleOrDefaultAsync(media => media.Id == command.MediaId, token);
+                var current = await scopedDb.LoadMediaItemAsync(command.MediaId, token);
 
                 if (current is null) return;
 
@@ -82,7 +72,7 @@ public sealed class EnrichMetadataHandler(
                         && MediaMetadataApplier.ApplyIfMissing(
                             current,
                             external,
-                            season => scopedDb.Entry(season).State = EntityState.Added);
+                            _ => { });
 
                     progress.Report(new JobProgressDto(
                         Guid.Empty, null, string.Empty, 90, "Сохранение", JobStatus.Running, DateTime.MinValue, null));
@@ -94,14 +84,14 @@ public sealed class EnrichMetadataHandler(
                         AdvancedStatsCalculator.InvalidateCache(cache);
                         TasteProfileCalculator.InvalidateCache(cache);
                     }
-                    await scopedDb.SaveChangesAsync(token);
+                    await scopedDb.UpdateMediaItemAsync(current, token);
                 }
                 catch (Exception ex)
                 {
                     try
                     {
                         current.SyncStatus = SyncStatus.Ready;
-                        await scopedDb.SaveChangesAsync(CancellationToken.None);
+                        await scopedDb.UpdateMediaItemAsync(current, CancellationToken.None);
                     }
                     catch
                     {

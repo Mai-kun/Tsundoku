@@ -1,4 +1,5 @@
 using System.Text.Json;
+using MediaTracker.Server.Common.Json;
 
 namespace MediaTracker.Server.Features.Settings;
 
@@ -14,7 +15,7 @@ public static class JsonSettings
 
         try
         {
-            return JsonSerializer.Deserialize<T>(json);
+            return JsonSerializer.Deserialize(json, AppJsonSerializerContext.GetTypeInfo<T>());
         }
         catch (JsonException)
         {
@@ -22,5 +23,5 @@ public static class JsonSettings
         }
     }
 
-    public static string Serialize<T>(T value) => JsonSerializer.Serialize(value);
+    public static string Serialize<T>(T value) => JsonSerializer.Serialize(value, AppJsonSerializerContext.GetTypeInfo<T>());
 }

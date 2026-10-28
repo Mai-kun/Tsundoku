@@ -45,13 +45,13 @@ namespace MediaTracker.Server.Features;
 /// Registers every vertical slice. The list is explicit on purpose: a slice whose handler is not
 /// registered fails at startup, not on the first request that happens to hit it.
 /// </summary>
-public static class FeatureRegistration
+public static partial class FeatureRegistration
 {
     public static IServiceCollection AddFeatures(this IServiceCollection services)
     {
-        services.AddValidatorsFromAssemblyContaining<CreateMediaHandler>(
-            ServiceLifetime.Scoped,
-            includeInternalTypes: true);
+        // Validators are registered by the generated AddGeneratedValidators (see MediaTracker.Generators),
+        // replacing the reflection-based AddValidatorsFromAssemblyContaining.
+        services.AddGeneratedValidators();
 
         // Media
         services.AddScoped<ListsService>();

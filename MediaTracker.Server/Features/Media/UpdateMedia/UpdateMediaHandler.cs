@@ -2,15 +2,14 @@ using FluentValidation;
 using MediaTracker.Server.Common.Http;
 using MediaTracker.Server.Domain.Common;
 using MediaTracker.Server.Domain.Entities;
-using MediaTracker.Server.Domain.Rules;
 using MediaTracker.Server.Domain.Enums;
+using MediaTracker.Server.Domain.Rules;
 using MediaTracker.Server.Infrastructure.Persistence.Franchises;
 using MediaTracker.Server.Features.Media.GetMediaDetail;
 using MediaTracker.Server.Features.Media.GetMediaStats;
 using MediaTracker.Server.Features.Media.MediaContract;
 using MediaTracker.Server.Features.Media.UpdateMedia;
 using MediaTracker.Server.Infrastructure.Persistence;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using System.Globalization;
 
@@ -39,9 +38,7 @@ public sealed class UpdateMediaHandler(
             return Result<MediaDetailDto>.Failure(validationError);
         }
 
-        var item = await MediaItemGraph
-            .LoadTracked(db)
-            .SingleOrDefaultAsync(media => media.Id == command.Id, ct);
+        var item = await db.LoadMediaItemAsync(command.Id, ct);
 
         if (item is null)
         {
@@ -56,7 +53,8 @@ public sealed class UpdateMediaHandler(
         MediaItemUpdater.Apply(item, request);
         await franchiseService.LinkFranchiseOnUpdateAsync(db, item, request.FranchiseId, request.FranchiseName, ct);
 
-        RecordEvents(item, previousStatus, previousScore, previousAchievements, previousProgress, db);
+        var events = new List<MediaEvent>();
+        RecordEvents(item, previousStatus, previousScore, previousAchievements, previousProgress, events, command.Id);
 
         var currentProgress = GetProgressValue(item);
         if (request.LastActivityAt is null && (item.Status != previousStatus || item.Score != previousScore || currentProgress != previousProgress))
@@ -65,7 +63,31 @@ public sealed class UpdateMediaHandler(
         }
 
         item.MarkUpdated();
-        await db.SaveChangesAsync(ct);
+
+        await db.UpdateMediaItemAsync(item, ct);
+
+        // Insert events recorded during the update.
+        foreach (var evt in events)
+        {
+            await db.InsertMediaEventAsync(evt, ct);
+        }
+
+        // Persist season/volume changes.
+        if (item is TvShow show)
+        {
+            foreach (var season in show.Seasons)
+            {
+                await db.InsertTvSeasonAsync(season, ct);
+            }
+        }
+        if (item is Manga manga)
+        {
+            foreach (var volume in manga.Volumes)
+            {
+                await db.InsertMangaVolumeAsync(volume, ct);
+            }
+        }
+
         AdvancedStatsCalculator.InvalidateCache(cache);
         TasteProfileCalculator.InvalidateCache(cache);
 
@@ -78,27 +100,28 @@ public sealed class UpdateMediaHandler(
         int? previousScore,
         string? previousAchievements,
         string? previousProgress,
-        AppDbContext db)
+        List<MediaEvent> events,
+        Guid mediaId)
     {
         if (item.Status != previousStatus)
         {
-            db.Events.Add(MediaEventRecorder.StatusChanged(item, previousStatus, item.Status));
+            events.Add(MediaEventRecorder.StatusChanged(item, previousStatus, item.Status));
         }
 
         if (item.Score != previousScore)
         {
-            db.Events.Add(MediaEventRecorder.ScoreChanged(item, previousScore, item.Score));
+            events.Add(MediaEventRecorder.ScoreChanged(item, previousScore, item.Score));
         }
 
         var currentProgress = GetProgressValue(item);
         if (currentProgress != previousProgress)
         {
-            db.Events.Add(MediaEventRecorder.ProgressChanged(item, previousProgress, currentProgress));
+            events.Add(MediaEventRecorder.ProgressChanged(item, previousProgress, currentProgress));
         }
 
         foreach (var name in MediaAchievements.NewlyUnlocked(previousAchievements, item.UnlockedAchievements))
         {
-            db.Events.Add(MediaEventRecorder.AchievementUnlocked(item, name));
+            events.Add(MediaEventRecorder.AchievementUnlocked(item, name));
         }
     }
 

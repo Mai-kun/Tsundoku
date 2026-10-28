@@ -36,6 +36,8 @@ public static class AdvancedStatsCalculator
         double gameHours = 0;
         foreach (var game in items.OfType<VideoGame>())
         {
+            // A planned game carries no real playtime, so it stays out even in the "all" scope;
+            // progress-driven media (book pages, manga chapters) keep counting there.
             var isEligible = onlyCompleted
                 ? game.Status == MediaStatus.Completed
                 : game.Status != MediaStatus.Planned;
@@ -87,7 +89,8 @@ public static class AdvancedStatsCalculator
         {
             var isEligible = onlyCompleted
                 ? show.Status == MediaStatus.Completed
-                : show.Status != MediaStatus.Planned;
+                
+                : true;
 
             if (!isEligible)
             {
@@ -122,7 +125,8 @@ public static class AdvancedStatsCalculator
         {
             var isEligible = onlyCompleted
                 ? book.Status == MediaStatus.Completed
-                : book.Status != MediaStatus.Planned;
+                
+                : true;
 
             if (!isEligible)
             {
@@ -144,7 +148,8 @@ public static class AdvancedStatsCalculator
         {
             var isEligible = onlyCompleted
                 ? manga.Status == MediaStatus.Completed
-                : manga.Status != MediaStatus.Planned;
+                
+                : true;
 
             if (!isEligible)
             {
@@ -193,7 +198,8 @@ public static class AdvancedStatsCalculator
         {
             var isEligible = onlyCompleted
                 ? item.Status == MediaStatus.Completed
-                : item.Status != MediaStatus.Planned;
+                
+                : true;
 
             if (isEligible && item.Score is >= 1 and <= 10)
             {
@@ -295,7 +301,8 @@ public static class AdvancedStatsCalculator
         {
             var isEligible = onlyCompleted
                 ? item.Status == MediaStatus.Completed
-                : item.Status != MediaStatus.Planned;
+                
+                : true;
 
             if (!isEligible || string.IsNullOrWhiteSpace(item.Genres))
             {
@@ -330,7 +337,8 @@ public static class AdvancedStatsCalculator
         {
             var isEligible = onlyCompleted
                 ? item.Status == MediaStatus.Completed
-                : item.Status != MediaStatus.Planned;
+                
+                : true;
 
             if (!isEligible || string.IsNullOrWhiteSpace(item.Genres))
             {

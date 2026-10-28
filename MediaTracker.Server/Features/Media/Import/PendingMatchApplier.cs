@@ -112,7 +112,7 @@ public static class PendingMatchApplier
         item.SyncStatus = SyncStatus.Ready;
         item.PendingMatchesJson = null;
         item.MarkUpdated();
-        await db.SaveChangesAsync(ct);
+        await db.UpdateMediaItemAsync(item, ct);
 
         return true;
     }

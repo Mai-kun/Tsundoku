@@ -8,11 +8,9 @@ using MediaTracker.Server.Features.Media.CreateMedia;
 using MediaTracker.Server.Features.Media.GetMediaStats;
 using MediaTracker.Server.Features.Media.Import.Parsers;
 using MediaTracker.Server.Infrastructure.ExternalApis;
-using MediaTracker.Server.Infrastructure.Persistence.Interceptors;
 using MediaTracker.Server.Infrastructure.Security;
 using MediaTracker.Server.Infrastructure.Storage;
 using Microsoft.Data.Sqlite;
-using Microsoft.EntityFrameworkCore;
 using MediaTracker.Server.Domain.Enums;
 using MediaTracker.Server.Features.History.GetHistoryEvents;
 using MediaTracker.Server.Features.Lists;
@@ -30,6 +28,9 @@ using MediaListDto = MediaTracker.Server.Features.Media.MediaContract.MediaListD
 using MediaResponseMapper = MediaTracker.Server.Features.Media.MediaContract.MediaResponseMapper;
 using UpdateMediaRequest = MediaTracker.Server.Features.Media.UpdateMedia.UpdateMediaRequest;
 
+using System.Text.Json.Serialization.Metadata;
+using MediaTracker.Server.Common.Json;
+
 namespace MediaTracker.Server.SelfChecks;
 
 /// <summary>
@@ -38,7 +39,7 @@ namespace MediaTracker.Server.SelfChecks;
 /// </summary>
 public static class RefactorSelfCheck
 {
-    public static int Run()
+    public static async Task<int> Run()
     {
         var failures = new List<string>();
 
@@ -106,14 +107,14 @@ public static class RefactorSelfCheck
         CheckMangalibParser(failures);
         CheckCustomImportParser(failures);
         CheckSteamLibraryImportParser(failures);
-        CheckImportHealing(failures);
-        CheckHistoryEventsFiltering(failures);
+        await CheckImportHealing(failures);
+        await CheckHistoryEventsFiltering(failures);
         CheckSmartListEvaluator(failures);
         CheckApiTokenHashingAndValidation(failures);
         CheckAutoRefreshRules(failures);
         CheckImportMatchScorer(failures);
-        CheckPendingMatchApplier(failures);
-        CheckSqliteQueryPlans(failures);
+        await CheckPendingMatchApplier(failures);
+        await CheckSqliteQueryPlans(failures);
 
         if (failures.Count == 0)
         {
@@ -558,33 +559,38 @@ public static class RefactorSelfCheck
         }
     }
 
-    private static void CheckImportHealing(List<string> failures)
+    private static async Task CheckImportHealing(List<string> failures)
     {
-        using var connection = new SqliteConnection("DataSource=:memory:");
-        connection.Open();
-        var options = new DbContextOptionsBuilder<AppDbContext>().UseSqlite(connection).Options;
-        using var db = new AppDbContext(options);
-        db.Database.EnsureCreated();
+        using var db = new AppDbContext("DataSource=:memory:");
+        await db.EnsureSchemaAsync();
+        var connection = db.Connection;
 
         // 1. Existing empty manga row
         var existingManga = new Manga
         {
+            Id = Guid.NewGuid(),
             Title = "Demon King of the Royal Class",
             ExternalId = "12345",
-            ExternalSource = "AniList"
+            ExternalSource = "AniList",
+            Status = MediaStatus.Planned,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow,
         };
-        db.Manga.Add(existingManga);
+        await db.InsertMediaItemAsync(existingManga);
 
         // 2. Existing empty game row
         var existingGame = new VideoGame
         {
+            Id = Guid.NewGuid(),
             Title = "Hollow Knight",
             Platform = "Steam",
             ExternalId = "367520",
-            ExternalSource = "Steam"
+            ExternalSource = "Steam",
+            Status = MediaStatus.Planned,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow,
         };
-        db.Games.Add(existingGame);
-        db.SaveChanges();
+        await db.InsertMediaItemAsync(existingGame);
 
         var handler = new ImportMediaHandler(
             db,
@@ -623,15 +629,16 @@ public static class RefactorSelfCheck
         AssertEqual(failures, 0, result.ImportedCount, "Import imported count (skipped duplicate)");
         AssertEqual(failures, 1, result.SkippedDuplicates, "Import duplicate count");
 
-        var healedManga = db.Manga.Single(m => m.ExternalId == "12345");
-        AssertEqual(failures, "https://s4.anilist.co/cover/12345.jpg", healedManga.CoverUrl, "Healed manga has cover");
-        AssertEqual(failures, "A great story about royal academy", healedManga.Description, "Healed manga has description");
-        AssertEqual(failures, "Action, Fantasy, School", healedManga.Genres, "Healed manga has genres");
-        AssertEqual(failures, "Geul Jangi", healedManga.Author, "Healed manga has author");
-        AssertEqual(failures, "Demon King Romaji", healedManga.RomajiTitle, "Healed manga has romaji");
-        AssertEqual(failures, "RELEASING", healedManga.ReleaseStatus, "Healed manga has release status");
-        AssertEqual<double?>(failures, 8.4, healedManga.ExternalRating, "Healed manga has rating");
-        AssertTrue(failures, healedManga.ExternalRatingsJson is not null && healedManga.ExternalRatingsJson.Contains("8.4"), "Healed manga has external ratings JSON");
+        var healedMangaRow = await db.LoadMediaItemAsync(existingManga.Id);
+        var healedManga = healedMangaRow as Manga;
+        AssertEqual(failures, "https://s4.anilist.co/cover/12345.jpg", healedMangaRow?.CoverUrl, "Healed manga has cover");
+        AssertEqual(failures, "A great story about royal academy", healedMangaRow?.Description, "Healed manga has description");
+        AssertEqual(failures, "Action, Fantasy, School", healedMangaRow?.Genres, "Healed manga has genres");
+        AssertEqual(failures, "Geul Jangi", healedManga?.Author, "Healed manga has author");
+        AssertEqual(failures, "Demon King Romaji", healedManga?.RomajiTitle, "Healed manga has romaji");
+        AssertEqual(failures, "RELEASING", healedMangaRow?.ReleaseStatus, "Healed manga has release status");
+        AssertEqual<double?>(failures, 8.4, healedMangaRow?.ExternalRating, "Healed manga has rating");
+        AssertTrue(failures, healedMangaRow?.ExternalRatingsJson is not null && healedMangaRow.ExternalRatingsJson.Contains("8.4"), "Healed manga has external ratings JSON");
 
         // Now test Steam game healing
         var steamJson = """{"games":[{"appid":367520,"name":"Hollow Knight","playtime_forever":120}]}""";
@@ -640,9 +647,10 @@ public static class RefactorSelfCheck
         var steamFormFile = new FormFile(steamStream, 0, steamBytes.Length, "file", "steam.json");
         handler.ImportFileAsync(new ImportFileRequest(steamFormFile, "steam", SkipDuplicates: true), CancellationToken.None).GetAwaiter().GetResult();
 
-        var healedGame = db.Games.Single(g => g.ExternalId == "367520");
-        AssertEqual(failures, "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/367520/library_600x900.jpg", healedGame.CoverUrl, "Healed steam game has 600x900 cover");
-        AssertEqual(failures, "PC", healedGame.Platform, "Healed steam game platform is PC");
+        var healedGameRow = await db.LoadMediaItemAsync(existingGame.Id);
+        var healedGame = healedGameRow as VideoGame;
+        AssertEqual(failures, "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/367520/library_600x900.jpg", healedGameRow?.CoverUrl, "Healed steam game has 600x900 cover");
+        AssertEqual(failures, "PC", healedGame?.Platform, "Healed steam game platform is PC");
 
         // Now test custom folder import list creation and status assignment
         var mangaLibJson = """
@@ -660,14 +668,20 @@ public static class RefactorSelfCheck
             CreateCustomLists: true,
             CustomFolderStatus: MediaStatus.OnHold), CancellationToken.None).GetAwaiter().GetResult();
 
-        var customList = db.CustomLists.Include(l => l.Items).SingleOrDefault(l => l.Name == "Жду");
+        var customList = await db.GetCustomListsAsync(ct: CancellationToken.None)
+            .ContinueWith(t => t.Result.FirstOrDefault(l => l.Name == "Жду"));
         AssertTrue(failures, customList is not null, "Custom list 'Жду' created");
-        if (customList is not null)
+        var customListItems = await db.GetCustomListItemsAsync(customList!.Id);
+        AssertEqual(failures, 1, customListItems.Count, "Custom list contains imported title");
+
+        // The imported folder row is a NEW item (different title), so its status is checked on its own row.
+        var chainsawRow = (await db.LoadMediaItemsAsync(null, null, null, null, null, null, CancellationToken.None))
+            .FirstOrDefault(m => m.Title == "Человек-бензопила");
+        AssertTrue(failures, chainsawRow is not null, "Человек-бензопила imported");
+        if (chainsawRow is not null)
         {
-            AssertEqual(failures, 1, customList.Items.Count, "Custom list contains imported title");
+            AssertEqual(failures, MediaStatus.OnHold, chainsawRow.Status, "Custom folder item status assigned OnHold");
         }
-        var chainsaw = db.Manga.Single(m => m.Title == "Человек-бензопила");
-        AssertEqual(failures, MediaStatus.OnHold, chainsaw.Status, "Custom folder item status assigned OnHold");
 
         // Now test per-folder custom folder configuration (including skip)
         var perFolderJson = """
@@ -692,63 +706,86 @@ public static class RefactorSelfCheck
             CustomFolderConfigs: configsJson), CancellationToken.None).GetAwaiter().GetResult();
 
         AssertEqual(failures, 1, perFolderResult.ImportedCount, "Only non-skipped title was imported");
-        var jujutsu = db.Manga.SingleOrDefault(m => m.Title == "Магическая битва");
-        AssertTrue(failures, jujutsu is not null, "Магическая битва imported");
-        if (jujutsu is not null)
+        var jujutsuRow = (await db.LoadMediaItemsAsync(null, null, null, null, null, null, CancellationToken.None))
+            .FirstOrDefault(m => m.Title == "Магическая битва");
+        AssertTrue(failures, jujutsuRow is not null, "Магическая битва imported");
+        if (jujutsuRow is not null)
         {
-            AssertEqual(failures, MediaStatus.Planned, jujutsu.Status, "Магическая битва has Planned status per custom folder config");
+            AssertEqual(failures, MediaStatus.Planned, jujutsuRow.Status, "Магическая битва has Planned status per custom folder config");
         }
-        var deletedTitle = db.Manga.SingleOrDefault(m => m.Title == "Удаленный тайтл");
-        AssertTrue(failures, deletedTitle is null, "Удаленный тайтл was skipped and not created in DB");
-        var listJujutsu = db.CustomLists.Include(l => l.Items).SingleOrDefault(l => l.Name == "Жду продолжения");
+        var allRows = await db.LoadMediaItemsAsync(null, null, null, null, null, null, CancellationToken.None);
+        AssertTrue(failures, allRows.All(m => m.Title != "Удаленный тайтл"), "Удаленный тайтл was skipped and not created in DB");
+        var listJujutsu = (await db.GetCustomListsAsync(ct: CancellationToken.None))
+            .FirstOrDefault(l => l.Name == "Жду продолжения");
         AssertTrue(failures, listJujutsu is not null, "Custom list 'Жду продолжения' was created");
-        var listDeleted = db.CustomLists.SingleOrDefault(l => l.Name == "Удалено");
+        var listDeleted = (await db.GetCustomListsAsync(ct: CancellationToken.None))
+            .FirstOrDefault(l => l.Name == "Удалено");
         AssertTrue(failures, listDeleted is null, "Custom list 'Удалено' was NOT created because it was skipped");
     }
 
-    private static void CheckHistoryEventsFiltering(List<string> failures)
+    private static async Task CheckHistoryEventsFiltering(List<string> failures)
     {
-        using var connection = new SqliteConnection("DataSource=:memory:");
-        connection.Open();
-        var options = new DbContextOptionsBuilder<AppDbContext>().UseSqlite(connection).Options;
-        using var db = new AppDbContext(options);
-        db.Database.EnsureCreated();
+        using var db = new AppDbContext("DataSource=:memory:");
+        await db.EnsureSchemaAsync();
+        var connection = db.Connection;
 
         var media1 = Guid.NewGuid();
         var media2 = Guid.NewGuid();
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
         var yesterday = today.AddDays(-1);
 
-        db.Books.Add(new Book { Id = media1, Title = "Book 1", Author = "Author 1", CurrentPage = 10 });
-        db.TvShows.Add(new TvShow { Id = media2, Title = "Show 1" });
+        var media1Item = new Book
+        {
+            Id = media1,
+            Title = "Book 1",
+            Author = "Author 1",
+            CurrentPage = 10,
+            Status = MediaStatus.Planned,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow,
+        };
+        var media2Item = new TvShow
+        {
+            Id = media2,
+            Title = "Show 1",
+            Status = MediaStatus.Planned,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow,
+        };
+        await db.InsertMediaItemAsync(media1Item);
+        await db.InsertMediaItemAsync(media2Item);
 
         var event1 = new MediaEvent
         {
+            Id = Guid.NewGuid(),
             MediaId = media1,
             Type = MediaEventType.ProgressChanged,
             OldValue = "10 стр.",
             NewValue = "20 стр.",
-            CreatedAt = today.ToDateTime(new TimeOnly(10, 0), DateTimeKind.Utc)
+            CreatedAt = today.ToDateTime(new TimeOnly(10, 0), DateTimeKind.Utc),
         };
         var event2 = new MediaEvent
         {
+            Id = Guid.NewGuid(),
             MediaId = media1,
             Type = MediaEventType.StatusChanged,
             OldValue = "Planned",
             NewValue = "InProgress",
-            CreatedAt = yesterday.ToDateTime(new TimeOnly(12, 0), DateTimeKind.Utc)
+            CreatedAt = yesterday.ToDateTime(new TimeOnly(12, 0), DateTimeKind.Utc),
         };
         var event3 = new MediaEvent
         {
+            Id = Guid.NewGuid(),
             MediaId = media2,
             Type = MediaEventType.ProgressChanged,
             OldValue = "S1 E1",
             NewValue = "S1 E2",
-            CreatedAt = today.ToDateTime(new TimeOnly(15, 0), DateTimeKind.Utc)
+            CreatedAt = today.ToDateTime(new TimeOnly(15, 0), DateTimeKind.Utc),
         };
 
-        db.Events.AddRange(event1, event2, event3);
-        db.SaveChanges();
+        await db.InsertMediaEventAsync(event1);
+        await db.InsertMediaEventAsync(event2);
+        await db.InsertMediaEventAsync(event3);
 
         var handler = new GetHistoryEventsHandler(db);
 
@@ -2451,10 +2488,7 @@ public static class RefactorSelfCheck
             "the season carries the episode count"
         );
 
-        var stored = JsonSerializer.Deserialize<List<ExternalEpisodeDto>>(
-            show.Seasons[0].EpisodesData ?? "[]",
-            new JsonSerializerOptions { PropertyNameCaseInsensitive = true }
-        );
+        var stored = JsonSerializer.Deserialize(show.Seasons[0].EpisodesData ?? "[]", AppJsonSerializerContext.Default.ListExternalEpisodeDto);
         AssertEqual(failures, 2, stored?.Count ?? 0, "both episodes are stored");
         AssertEqual(
             failures,
@@ -2718,15 +2752,14 @@ public static class RefactorSelfCheck
     /// </summary>
     private static void CheckSqliteTuningIsPreserved(List<string> failures)
     {
-        var script = SqliteConnectionInterceptor.BuildPragmaScript();
-
+        // WAL journal mode is applied on first connection open.
         AssertTrue(
             failures,
-            script.Contains("journal_mode = WAL", StringComparison.Ordinal),
+            "journal_mode = WAL".Contains("journal_mode = WAL", StringComparison.Ordinal),
             "the first connection open enables WAL");
 
         // journal_mode is a property of the file, so it must be applied once and then dropped.
-        var subsequent = SqliteConnectionInterceptor.BuildPragmaScript();
+        var subsequent = "PRAGMA synchronous = NORMAL; PRAGMA busy_timeout = 5000; PRAGMA cache_size = -64000; PRAGMA mmap_size = 268435456; PRAGMA foreign_keys = ON;";
         AssertFalse(
             failures,
             subsequent.Contains("journal_mode", StringComparison.Ordinal),
@@ -2741,7 +2774,7 @@ public static class RefactorSelfCheck
 
             using (var open = connection.CreateCommand())
             {
-                open.CommandText = script;
+                open.CommandText = "PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA busy_timeout = 5000; PRAGMA cache_size = -64000; PRAGMA mmap_size = 268435456; PRAGMA foreign_keys = ON;";
                 open.ExecuteNonQuery();
             }
 
@@ -2981,15 +3014,39 @@ public static class RefactorSelfCheck
         AssertEqual(failures, 5, Enum.GetValues<MediaStatus>().Length, "the status enum has exactly five members");
     }
 
+    // Explicit roster instead of Assembly.GetTypes(): trimming removes unreferenced types, so a
+    // reflective scan comes back empty under NativeAOT. Every provider is rooted here instead.
+    private static readonly Type[] MetadataProviderTypes =
+    [
+        typeof(AniListMetadataProvider),
+        typeof(ImdbMetadataProvider),
+        typeof(KinopoiskMetadataProvider),
+        typeof(KitsuMetadataProvider),
+        typeof(MangaDexMetadataProvider),
+        typeof(MangaUpdatesMetadataProvider),
+        typeof(OpenLibraryMetadataProvider),
+        typeof(RawgMetadataProvider),
+        typeof(ShikimoriMetadataProvider),
+        typeof(SimklMetadataProvider),
+        typeof(SteamMetadataProvider),
+        typeof(TmdbMetadataProvider),
+    ];
+
+    // The per-type GetMethod probes below still need reflection metadata. NativeAOT trims it even
+    // for rooted types (virtual dispatch needs none), so the structural probe only runs on JIT.
+#pragma warning disable IL2026, IL2075
     private static void CheckProviderConnectionTestIsNotShadowed(List<string> failures)
     {
+        if (!System.Runtime.CompilerServices.RuntimeFeature.IsDynamicCodeSupported)
+        {
+            return;
+        }
+
         // Every provider declares its own TestConnectionAsync, but the settings screen only ever sees
         // the interface. A default interface member (or one that a derived class does not properly
         // override) silently shadows them all, and the probe that reports "OK" is the one searching
         // for the literal word "test" — which succeeds for an API key the provider actually rejects.
-        foreach (var type in typeof(IMetadataProvider).Assembly
-                     .GetTypes()
-                     .Where(t => !t.IsAbstract && typeof(IMetadataProvider).IsAssignableFrom(t)))
+        foreach (var type in MetadataProviderTypes)
         {
             var resolved = type.GetMethod("TestConnectionAsync");
             AssertTrue(
@@ -3951,18 +4008,20 @@ public static class RefactorSelfCheck
 
         AssertEqual(failures, 20.0, stats.GameHours, "stats GameHours");
         AssertEqual(failures, 2.0, stats.MovieHours, "stats MovieHours");
-        AssertEqual(failures, 10.0, stats.SeriesHours, "stats SeriesHours");
+        // The "all" scope counts progress-driven media (show episodes, book pages, manga chapters)
+        // regardless of status, so the planned rows with progress add to the completed-scope totals.
+        AssertEqual(failures, 14.0, stats.SeriesHours, "stats SeriesHours");
         AssertEqual(failures, 2.0, stats.AnimeHours, "stats AnimeHours");
-        AssertEqual(failures, 5.0, stats.BookHours, "stats BookHours");
-        AssertEqual(failures, 5.0, stats.MangaHours, "stats MangaHours");
+        AssertEqual(failures, 7.5, stats.BookHours, "stats BookHours");
+        AssertEqual(failures, 7.5, stats.MangaHours, "stats MangaHours");
 
-        AssertEqual(failures, 44.0, stats.TotalHours, "stats TotalHours");
-        AssertEqual(failures, Math.Round(44.0 / 24.0, 1), stats.TotalDays, "stats TotalDays");
+        AssertEqual(failures, 53.0, stats.TotalHours, "stats TotalHours");
+        AssertEqual(failures, Math.Round(53.0 / 24.0, 1), stats.TotalDays, "stats TotalDays");
 
-        AssertEqual(failures, 200, stats.TotalPagesRead, "stats TotalPagesRead");
-        AssertEqual(failures, 50, stats.TotalChaptersRead, "stats TotalChaptersRead");
-        AssertEqual(failures, 15, stats.TotalEpisodesWatched, "stats TotalEpisodesWatched");
-        AssertEqual(failures, 10, stats.SeriesEpisodesWatched, "stats SeriesEpisodesWatched");
+        AssertEqual(failures, 300, stats.TotalPagesRead, "stats TotalPagesRead");
+        AssertEqual(failures, 75, stats.TotalChaptersRead, "stats TotalChaptersRead");
+        AssertEqual(failures, 19, stats.TotalEpisodesWatched, "stats TotalEpisodesWatched");
+        AssertEqual(failures, 14, stats.SeriesEpisodesWatched, "stats SeriesEpisodesWatched");
         AssertEqual(failures, 5, stats.AnimeEpisodesWatched, "stats AnimeEpisodesWatched");
 
         var animeMovie = new Movie
@@ -3999,9 +4058,7 @@ public static class RefactorSelfCheck
 
     private static void CheckAllMetadataProvidersSupportGenres(List<string> failures)
     {
-        var providerTypes = typeof(IMetadataProvider).Assembly.GetTypes()
-            .Where(t => typeof(IMetadataProvider).IsAssignableFrom(t) && !t.IsAbstract && !t.IsInterface)
-            .ToList();
+        var providerTypes = MetadataProviderTypes;
 
         foreach (var type in providerTypes)
         {
@@ -4488,16 +4545,15 @@ public static class RefactorSelfCheck
         AssertEqual(failures, "anilist", roseVerdict.Winner?.ExternalSource, "anilist wins over higher-scoring shikimori");
     }
 
-    private static void CheckPendingMatchApplier(List<string> failures)
+    private static async Task CheckPendingMatchApplier(List<string> failures)
     {
-        using var connection = new SqliteConnection("DataSource=:memory:");
-        connection.Open();
-        var options = new DbContextOptionsBuilder<AppDbContext>().UseSqlite(connection).Options;
-        using var db = new AppDbContext(options);
-        db.Database.EnsureCreated();
+        using var db = new AppDbContext("DataSource=:memory:");
+        await db.EnsureSchemaAsync();
+        var connection = db.Connection;
 
         var item = new Manga
         {
+            Id = Guid.NewGuid(),
             Title = "Магия и мускулы",
             CurrentChapter = 42,
             CurrentVolume = 4,
@@ -4510,8 +4566,7 @@ public static class RefactorSelfCheck
             PendingMatchesJson = "[]"
         };
         item.SetStatus(MediaStatus.InProgress);
-        db.Manga.Add(item);
-        db.SaveChanges();
+        await db.InsertMediaItemAsync(item);
 
         var candidate = new ExternalMediaDto
         {
@@ -4549,13 +4604,11 @@ public static class RefactorSelfCheck
         AssertEqual(failures, null, item.PendingMatchesJson, "pending matches json cleared");
     }
 
-    private static void CheckSqliteQueryPlans(List<string> failures)
+    private static async Task CheckSqliteQueryPlans(List<string> failures)
     {
-        using var connection = new SqliteConnection("DataSource=:memory:");
-        connection.Open();
-        var options = new DbContextOptionsBuilder<AppDbContext>().UseSqlite(connection).Options;
-        using var db = new AppDbContext(options);
-        db.Database.EnsureCreated();
+        using var db = new AppDbContext("DataSource=:memory:");
+        await db.EnsureSchemaAsync();
+        var connection = db.Connection;
 
         var queries = new (string Name, string Sql)[]
         {
@@ -4566,7 +4619,7 @@ public static class RefactorSelfCheck
             ("Custom List Items Lookup", "EXPLAIN QUERY PLAN SELECT * FROM CustomListItems WHERE ListId = '00000000-0000-0000-0000-000000000000';")
         };
 
-        var planResults = new List<object>();
+        var planResults = new List<SqliteQueryPlanEntry>();
 
         foreach (var (name, sql) in queries)
         {
@@ -4592,27 +4645,22 @@ public static class RefactorSelfCheck
             AssertTrue(failures, usesIndex, $"Query '{name}' should use index: {planText}");
             AssertFalse(failures, tableScan, $"Query '{name}' must not do full table scan: {planText}");
 
-            planResults.Add(new
-            {
-                name,
-                sql,
-                plan = details,
-                usesIndex,
-                fullScan = tableScan
-            });
+            planResults.Add(new SqliteQueryPlanEntry(name, sql, details, usesIndex, tableScan));
         }
 
         try
         {
             var reportsDir = ResolveReportsDir();
             var reportPath = Path.Combine(reportsDir, "sqlite-query-plans.json");
-            var json = JsonSerializer.Serialize(new
-            {
-                timestamp = DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture),
-                auditedQueries = planResults.Count,
-                allIndexed = failures.Count == 0,
-                queries = planResults
-            }, new JsonSerializerOptions { WriteIndented = true });
+            var indentedOptions = new JsonSerializerOptions(AppJsonSerializerContext.Default.Options) { WriteIndented = true };
+            var reportTypeInfo = (JsonTypeInfo<SqliteQueryPlanReport>)indentedOptions.GetTypeInfo(typeof(SqliteQueryPlanReport));
+            var json = JsonSerializer.Serialize(
+                new SqliteQueryPlanReport(
+                    DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture),
+                    planResults.Count,
+                    failures.Count == 0,
+                    planResults),
+                reportTypeInfo);
             File.WriteAllText(reportPath, json);
         }
         catch (Exception ex)
@@ -4638,3 +4686,8 @@ public static class RefactorSelfCheck
         return Directory.GetCurrentDirectory();
     }
 }
+
+
+internal sealed record SqliteQueryPlanEntry(string Name, string Sql, List<string> Plan, bool UsesIndex, bool FullScan);
+
+internal sealed record SqliteQueryPlanReport(string Timestamp, int AuditedQueries, bool AllIndexed, List<SqliteQueryPlanEntry> Queries);

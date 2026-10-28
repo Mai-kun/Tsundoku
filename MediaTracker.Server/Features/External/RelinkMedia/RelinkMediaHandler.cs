@@ -8,7 +8,6 @@ using MediaTracker.Server.Features.Media.MediaContract;
 using MediaTracker.Server.Infrastructure.ExternalApis;
 using MediaTracker.Server.Infrastructure.Persistence;
 using MediaTracker.Server.Infrastructure.Storage;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 
 namespace MediaTracker.Server.Features.External.RelinkMedia;
@@ -40,9 +39,7 @@ public sealed class RelinkMediaHandler(
                 Error.Validation("externalId, source and type are all required."));
         }
 
-        var item = await MediaItemGraph
-            .LoadTracked(db)
-            .SingleOrDefaultAsync(media => media.Id == command.MediaId, ct);
+        var item = await db.LoadMediaItemAsync(command.MediaId, ct);
 
         if (item is null)
         {
@@ -76,14 +73,14 @@ public sealed class RelinkMediaHandler(
             external,
             imageStorage,
             ct,
-            season => db.Entry(season).State = EntityState.Added);
+            trackNewSeason: null);
 
         // The cached relations were fetched through the old provider for a different entity id.
         item.RelatedMediaJson = null;
         item.RelatedSource = null;
 
         item.MarkUpdated();
-        await db.SaveChangesAsync(ct);
+        await db.UpdateMediaItemAsync(item, ct);
         AdvancedStatsCalculator.InvalidateCache(cache);
         TasteProfileCalculator.InvalidateCache(cache);
 

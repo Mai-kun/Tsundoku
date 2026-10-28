@@ -23,9 +23,19 @@
         <StaticWebAssetsEnabled>false</StaticWebAssetsEnabled>
 
         <AnalysisLevel>latest-recommended</AnalysisLevel>
-        <AnalysisMode>None</AnalysisMode>
+        <AnalysisMode>All</AnalysisMode>
+        <InterceptorsNamespaces>$(InterceptorsNamespaces);Dapper.AOT</InterceptorsNamespaces>
         <AnalysisModePerformance>Recommended</AnalysisModePerformance>
         <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+
+        <!-- Stage 3 (NativeAOT): surface reflection-based JSON / trim / single-file hazards at build time. -->
+        <IsAotCompatible>true</IsAotCompatible>
+        <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
+        <EnableSingleFileAnalyzer>true</EnableSingleFileAnalyzer>
+        <EnableAotAnalyzer>true</EnableAotAnalyzer>
+        <!-- Minimal API Request Delegate Generator: intercepts Map* calls so RequestDelegateFactory
+             reflection (IL2026/IL3050 on MapGet/MapPost/...) disappears under AOT. -->
+        <EnableRequestDelegateGenerator>true</EnableRequestDelegateGenerator>
 
         <!-- NuGet audit silenced for ImageSharp, pinned at 3.1.12: the five 2026 GHSA
              advisories (NU1902 medium / NU1903 high) are patched only in 4.1.2, and the
@@ -37,14 +47,11 @@
     </PropertyGroup>
 
     <PropertyGroup Condition="'$(Configuration)' == 'Release' and ('$(RuntimeIdentifier)' == 'win-x64' or '$(RuntimeIdentifier)' == 'linux-x64')">
-        <SelfContained>true</SelfContained>
-        <PublishSingleFile>true</PublishSingleFile>
-        <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
-        <!-- R2R doubles assembly size (IL + native image); .NET 10 QuickJIT starts fast enough without it. -->
-        <PublishReadyToRun>false</PublishReadyToRun>
-        <!-- Without R2R the self-contained bundle is still ~110 MB; Brotli-compressing it brings the
-             single file to ~80 MB. Assemblies are extracted to the versioned temp dir on first run. -->
-        <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+        <!-- Stage 4 (NativeAOT): fully ahead-of-time compiled binary. Self-contained, single file and
+             compression are inherent to AOT publishing; the old PublishSingleFile switches conflict. -->
+        <PublishAot>true</PublishAot>
+        <StripSymbols>true</StripSymbols>
+        <OptimizationPreference>Speed</OptimizationPreference>
 
         <DebugType>None</DebugType>
         <DebugSymbols>false</DebugSymbols>
@@ -69,13 +76,11 @@
     </ItemGroup>
 
     <ItemGroup>
+        <PackageReference Include="Dapper" Version="2.1.66" />
+        <PackageReference Include="Dapper.AOT" Version="1.1.0" />
         <PackageReference Include="FluentValidation" Version="12.1.1" />
         <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
-        <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.12">
-            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-            <PrivateAssets>all</PrivateAssets>
-        </PackageReference>
-        <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.12" />
+        <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.12" />
         <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="10.0.12" />
         <PackageReference Include="Photino.NET" Version="4.0.16" />
         <PackageReference Include="Serilog.AspNetCore" Version="10.0.0" />
@@ -90,6 +95,10 @@
 
     <ItemGroup>
         <InternalsVisibleTo Include="MediaTracker.Tests" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\MediaTracker.Generators\MediaTracker.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
     </ItemGroup>
 
     <!-- Close any running instance of Tsundoku on Windows before publish so locked files don't fail bundle generation -->

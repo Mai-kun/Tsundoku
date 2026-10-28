@@ -3,10 +3,8 @@ using MediaTracker.Server.Infrastructure.ExternalApis;
 using MediaTracker.Server.Infrastructure.Jobs;
 using MediaTracker.Server.Infrastructure.Persistence;
 using MediaTracker.Server.Infrastructure.Persistence.Franchises;
-using MediaTracker.Server.Infrastructure.Persistence.Interceptors;
 using MediaTracker.Server.Infrastructure.Security;
 using MediaTracker.Server.Infrastructure.Storage;
-using Microsoft.EntityFrameworkCore;
 
 namespace MediaTracker.Server.Common.Extensions;
 
@@ -24,13 +22,7 @@ public static class ServiceCollectionExtensions
         this IServiceCollection services,
         string connectionString)
     {
-        // SplitQuery: one SQL round trip per include branch instead of one JOIN whose columns
-        // multiply across every collection include, which EF flags with MultipleCollectionIncludeWarning.
-        services.AddDbContext<AppDbContext>(options =>
-            options
-                .UseSqlite(connectionString, sqlite =>
-                    sqlite.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery))
-                .AddInterceptors(new SqliteConnectionInterceptor()));
+        services.AddScoped<AppDbContext>(sp => new AppDbContext(connectionString));
 
         services.AddFeatures();
 

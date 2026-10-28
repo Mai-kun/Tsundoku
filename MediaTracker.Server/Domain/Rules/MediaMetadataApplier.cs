@@ -5,6 +5,8 @@ using MediaTracker.Server.Infrastructure.ExternalApis;
 using MediaTracker.Server.Infrastructure.Storage;
 using MediaTracker.Server.Features.Media.GetMediaStats;
 
+using MediaTracker.Server.Common.Json;
+
 namespace MediaTracker.Server.Domain.Rules;
 
 /// <summary>
@@ -33,9 +35,7 @@ public static class MediaMetadataApplier
         List<RatingSnapshot> kept;
         try
         {
-            var stored = JsonSerializer.Deserialize<List<StoredRating>>(
-                item.ExternalRatingsJson,
-                MediaRatingSerializer.ReadOptions);
+            var stored = JsonSerializer.Deserialize(item.ExternalRatingsJson, AppJsonSerializerContext.Default.ListStoredRating);
             kept =
             [
                 .. stored?
@@ -79,7 +79,7 @@ public static class MediaMetadataApplier
         || disabled.Contains(MediaMerger.GetCanonicalSourceName(source));
 
     /// <summary>Persisted casing varies by provider, so both spellings are accepted.</summary>
-    private sealed record StoredRating(string Source, double Score, int? Votes);
+    internal sealed record StoredRating(string Source, double Score, int? Votes);
 
     /// <summary>Persisted shape is <c>source/score/votes</c>; that is the field name the UI reads first.</summary>
     public static string SerializeRatings(IReadOnlyList<ExternalRatingDto> ratings) =>
@@ -126,9 +126,9 @@ public static class MediaMetadataApplier
         item.ExternalRatingVotes = external.RatingVotes;
         item.OriginalLanguage = external.OriginalLanguage;
         item.CountryOfOrigin = external.CountryOfOrigin;
-        item.CastJson = external.Cast is { Count: > 0 } cast ? JsonSerializer.Serialize(cast, MediaRatingSerializer.JsonOptions) : null;
+        item.CastJson = external.Cast is { Count: > 0 } cast ? JsonSerializer.Serialize(cast, AppJsonSerializerContext.Default.IReadOnlyListCastMemberDto) : null;
         item.OriginalTitle = external.OriginalTitle;
-        item.StaffJson = external.Staff is { Count: > 0 } staff ? JsonSerializer.Serialize(staff, MediaRatingSerializer.JsonOptions) : null;
+        item.StaffJson = external.Staff is { Count: > 0 } staff ? JsonSerializer.Serialize(staff, AppJsonSerializerContext.Default.IReadOnlyListExternalStaffMemberDto) : null;
 
         if (external.Ratings is { Count: > 0 } ratings)
         {
@@ -157,12 +157,12 @@ public static class MediaMetadataApplier
         modified |= SetIfBlank(item.CountryOfOrigin, external.CountryOfOrigin, value => item.CountryOfOrigin = value);
         if (string.IsNullOrWhiteSpace(item.CastJson) && external.Cast is { Count: > 0 } cast)
         {
-            item.CastJson = JsonSerializer.Serialize(cast, MediaRatingSerializer.JsonOptions);
+            item.CastJson = JsonSerializer.Serialize(cast, AppJsonSerializerContext.Default.IReadOnlyListCastMemberDto);
             modified = true;
         }
         modified |= SetIfBlank(item.OriginalTitle, external.OriginalTitle, value => item.OriginalTitle = value);
         modified |= SetIfBlank(item.StaffJson, external.Staff is { Count: > 0 } staff
-            ? JsonSerializer.Serialize(staff, MediaRatingSerializer.JsonOptions)
+            ? JsonSerializer.Serialize(staff, AppJsonSerializerContext.Default.IReadOnlyListExternalStaffMemberDto)
             : null, value => item.StaffJson = value);
         modified |= ApplyMangaGaps(item, external);
 
@@ -297,7 +297,7 @@ public static class MediaMetadataApplier
 
         var season = TvSeason.CreateFirst(
             totalEpisodes,
-            episodes is null ? null : JsonSerializer.Serialize(episodes, MediaRatingSerializer.JsonOptions),
+            episodes is null ? null : JsonSerializer.Serialize(episodes, AppJsonSerializerContext.Default.IReadOnlyListExternalEpisodeDto),
             show.Status,
             show.Id);
 
@@ -450,7 +450,7 @@ public static class MediaMetadataApplier
         }
 
         var totalEpisodes = external.TotalCount ?? episodes.Count;
-        var episodesJson = JsonSerializer.Serialize(episodes, MediaRatingSerializer.JsonOptions);
+        var episodesJson = JsonSerializer.Serialize(episodes, AppJsonSerializerContext.Default.IReadOnlyListExternalEpisodeDto);
 
         var firstSeason = show.Seasons.FirstOrDefault();
         if (firstSeason is null)
@@ -477,7 +477,7 @@ public static class MediaMetadataApplier
         foreach (var external in seasons.Where(season => season.TotalEpisodes > 0))
         {
             var episodesJson = external.Episodes is { Count: > 0 } list
-                ? JsonSerializer.Serialize(list, MediaRatingSerializer.JsonOptions)
+                ? JsonSerializer.Serialize(list, AppJsonSerializerContext.Default.IReadOnlyListExternalEpisodeDto)
                 : null;
 
             var existing = show.Seasons.FirstOrDefault(season => season.SeasonNumber == external.Number);

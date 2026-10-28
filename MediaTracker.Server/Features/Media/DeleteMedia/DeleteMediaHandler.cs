@@ -3,7 +3,6 @@ using MediaTracker.Server.Domain.Entities;
 using MediaTracker.Server.Features.Media.GetMediaStats;
 using MediaTracker.Server.Infrastructure.Persistence;
 using MediaTracker.Server.Infrastructure.Storage;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 
 namespace MediaTracker.Server.Features.Media.DeleteMedia;
@@ -22,7 +21,7 @@ public sealed class DeleteMediaHandler(
 {
     public async Task<Result> HandleAsync(DeleteMediaCommand command, CancellationToken ct)
     {
-        var item = await db.MediaItems.SingleOrDefaultAsync(media => media.Id == command.Id, ct);
+        var item = await db.LoadMediaItemAsync(command.Id, ct);
 
         if (item is null)
         {
@@ -32,8 +31,7 @@ public sealed class DeleteMediaHandler(
         imageStorage.DeleteCover(item.CoverUrl);
         imageStorage.DeleteMediaFolder(item.Id);
 
-        db.MediaItems.Remove(item);
-        await db.SaveChangesAsync(ct);
+        await db.DeleteMediaItemAsync(command.Id, ct);
         AdvancedStatsCalculator.InvalidateCache(cache);
         TasteProfileCalculator.InvalidateCache(cache);
 

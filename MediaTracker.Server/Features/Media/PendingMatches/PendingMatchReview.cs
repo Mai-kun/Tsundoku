@@ -1,3 +1,4 @@
+using Dapper;
 using MediaTracker.Server.Domain.Common;
 using MediaTracker.Server.Domain.Entities;
 using MediaTracker.Server.Domain.Enums;
@@ -10,7 +11,7 @@ using MediaTracker.Server.Infrastructure.ExternalApis;
 using MediaTracker.Server.Infrastructure.Jobs;
 using MediaTracker.Server.Infrastructure.Persistence;
 using MediaTracker.Server.Infrastructure.Storage;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 
@@ -43,13 +44,29 @@ public sealed class GetPendingMatchesHandler(AppDbContext db) : IGetPendingMatch
 {
     public async Task<IReadOnlyList<PendingMatchReviewDto>> HandleAsync(CancellationToken ct)
     {
-        var items = await db.MediaItems
-            .AsNoTracking()
-            .Include(media => ((TvShow)media).Seasons.OrderBy(season => season.SeasonNumber))
-            .AsSplitQuery()
-            .Where(media => media.SyncStatus == SyncStatus.NeedsReview)
-            .OrderBy(media => media.CreatedAt)
-            .ToListAsync(ct);
+        var conn = db.Connection;
+        if (conn.State != global::System.Data.ConnectionState.Open) await conn.OpenAsync(ct);
+
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = """
+            SELECT * FROM MediaItems
+            WHERE SyncStatus = @syncStatus
+            ORDER BY CreatedAt;
+            """;
+        cmd.Parameters.Add(new SqliteParameter("@syncStatus", (int)SyncStatus.NeedsReview));
+        using var reader = await cmd.ExecuteReaderAsync(ct);
+        var items = new List<MediaItem>();
+        while (await reader.ReadAsync(ct))
+        {
+            var row = AppDbContext.ReadMediaItemRow(reader);
+            var item = row.ToEntity();
+            if (row.MediaType == SqliteSchemaInitializer.MediaTypes.TvShow && item is TvShow show)
+            {
+                // CurrentProgress/TotalCount are summed from the season list; raw rows carry no seasons.
+                show.Seasons = await AppDbContext.LoadTvSeasons(conn, row.Id, ct);
+            }
+            items.Add(item);
+        }
 
         return [.. items.Select(ToDto)];
     }
@@ -126,7 +143,7 @@ public sealed class ResolveMatchHandler(
             return Result<MediaDetailDto>.Failure(Error.Validation("ExternalId and Source are required."));
         }
 
-        var item = await LoadAsync(db, command.MediaId, ct);
+        var item = await db.LoadMediaItemAsync(command.MediaId, ct);
         if (item is null)
         {
             return Result<MediaDetailDto>.Failure(
@@ -140,7 +157,7 @@ public sealed class ResolveMatchHandler(
         item.SyncStatus = SyncStatus.Syncing;
         item.PendingMatchesJson = null;
         item.MarkUpdated();
-        await db.SaveChangesAsync(ct);
+        await db.UpdateMediaItemAsync(item, ct);
 
         jobs?.Enqueue(
             item.Id,
@@ -155,14 +172,6 @@ public sealed class ResolveMatchHandler(
 
         return Result<MediaDetailDto>.Success(MediaDetailProjection.ToDetailDto(item));
     }
-
-    private static Task<MediaItem?> LoadAsync(AppDbContext db, Guid mediaId, CancellationToken ct) =>
-        db.MediaItems
-            .Include(media => media.Franchise)
-            .Include(media => ((TvShow)media).Seasons.OrderBy(season => season.SeasonNumber))
-            .Include(media => ((Manga)media).Volumes.OrderBy(volume => volume.VolumeNumber))
-            .AsSplitQuery()
-            .SingleOrDefaultAsync(media => media.Id == mediaId, ct);
 }
 
 /// <summary>
@@ -186,12 +195,7 @@ internal static class PendingMatchEnrichment
             var imageStorage = sp.GetRequiredService<IImageStorageService>();
             var cache = sp.GetRequiredService<IMemoryCache>();
 
-            var current = await scopedDb.MediaItems
-                .Include(media => media.Franchise)
-                .Include(media => ((TvShow)media).Seasons.OrderBy(season => season.SeasonNumber))
-                .Include(media => ((Manga)media).Volumes.OrderBy(volume => volume.VolumeNumber))
-                .AsSplitQuery()
-                .SingleOrDefaultAsync(media => media.Id == mediaId, token);
+            var current = await scopedDb.LoadMediaItemAsync(mediaId, token);
 
             if (current is null) return;
 
@@ -222,7 +226,7 @@ internal static class PendingMatchEnrichment
                     details,
                     imageStorage,
                     token,
-                    season => scopedDb.Entry(season).State = EntityState.Added);
+                    _ => { });
 
                 AdvancedStatsCalculator.InvalidateCache(cache);
                 TasteProfileCalculator.InvalidateCache(cache);
@@ -233,7 +237,7 @@ internal static class PendingMatchEnrichment
                 {
                     current.SyncStatus = SyncStatus.Failed;
                     current.MarkUpdated();
-                    await scopedDb.SaveChangesAsync(CancellationToken.None);
+                    await scopedDb.UpdateMediaItemAsync(current, CancellationToken.None);
                 }
                 catch
                 {
@@ -289,9 +293,21 @@ public sealed class ResolveAllByPriorityHandler(AppDbContext db, IJobManager? jo
 
     public async Task<ResolveAllByPriorityResult> HandleAsync(CancellationToken ct)
     {
-        var pending = await db.MediaItems
-            .Where(media => media.SyncStatus == SyncStatus.NeedsReview)
-            .ToListAsync(ct);
+        var conn = db.Connection;
+        if (conn.State != global::System.Data.ConnectionState.Open) await conn.OpenAsync(ct);
+
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = """
+            SELECT * FROM MediaItems
+            WHERE SyncStatus = @syncStatus;
+            """;
+        cmd.Parameters.Add(new SqliteParameter("@syncStatus", (int)SyncStatus.NeedsReview));
+        using var reader = await cmd.ExecuteReaderAsync(ct);
+        var pending = new List<MediaItem>();
+        while (await reader.ReadAsync(ct))
+        {
+            pending.Add(AppDbContext.ReadMediaItemRow(reader).ToEntity());
+        }
 
         var queued = new List<(MediaItem Item, ExternalMediaDto Top)>();
 
@@ -316,7 +332,10 @@ public sealed class ResolveAllByPriorityHandler(AppDbContext db, IJobManager? jo
             queued.Add((item, top));
         }
 
-        await db.SaveChangesAsync(ct);
+        foreach (var (item, _) in queued)
+        {
+            await db.UpdateMediaItemAsync(item, ct);
+        }
 
         foreach (var (item, top) in queued)
         {
@@ -347,14 +366,21 @@ public sealed class DismissMatchHandler(AppDbContext db) : IDismissMatchHandler
 {
     public async Task<bool> HandleAsync(DismissMatchCommand command, CancellationToken ct)
     {
-        var item = await db.MediaItems.SingleOrDefaultAsync(media => media.Id == command.MediaId, ct);
-        if (item is null)
+        var conn = db.Connection;
+        if (conn.State != global::System.Data.ConnectionState.Open) await conn.OpenAsync(ct);
+
+        var itemRow = await conn.QueryFirstOrDefaultAsync<MediaItemRow>(
+            "SELECT * FROM MediaItems WHERE Id = @id;",
+            new { id = command.MediaId.ToString().ToUpperInvariant() });
+
+        if (itemRow is null)
         {
             return false;
         }
 
-        PendingMatchApplier.Dismiss(item);
-        await db.SaveChangesAsync(ct);
+        var mediaItem = itemRow.ToEntity();
+        PendingMatchApplier.Dismiss(mediaItem);
+        await db.UpdateMediaItemAsync(mediaItem, ct);
         return true;
     }
 }
@@ -372,16 +398,28 @@ public sealed class DismissAllMatchesHandler(AppDbContext db) : IDismissAllMatch
 {
     public async Task<int> HandleAsync(CancellationToken ct)
     {
-        var pending = await db.MediaItems
-            .Where(media => media.SyncStatus == SyncStatus.NeedsReview)
-            .ToListAsync(ct);
+        var conn = db.Connection;
+        if (conn.State != global::System.Data.ConnectionState.Open) await conn.OpenAsync(ct);
+
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = """
+            SELECT * FROM MediaItems
+            WHERE SyncStatus = @syncStatus;
+            """;
+        cmd.Parameters.Add(new SqliteParameter("@syncStatus", (int)SyncStatus.NeedsReview));
+        using var reader = await cmd.ExecuteReaderAsync(ct);
+        var pending = new List<MediaItem>();
+        while (await reader.ReadAsync(ct))
+        {
+            pending.Add(AppDbContext.ReadMediaItemRow(reader).ToEntity());
+        }
 
         foreach (var item in pending)
         {
             PendingMatchApplier.Dismiss(item);
+            await db.UpdateMediaItemAsync(item, ct);
         }
 
-        await db.SaveChangesAsync(ct);
         return pending.Count;
     }
 }

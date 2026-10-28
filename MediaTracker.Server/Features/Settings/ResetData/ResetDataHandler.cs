@@ -1,8 +1,9 @@
+using Dapper;
 using MediaTracker.Server.Domain.Common;
 using MediaTracker.Server.Infrastructure.ExternalApis;
 using MediaTracker.Server.Infrastructure.Persistence;
 using MediaTracker.Server.Infrastructure.Storage;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 
@@ -23,30 +24,37 @@ public sealed class ResetDataHandler(
 {
     public async Task<Result> HandleAsync(ResetDataRequest request, CancellationToken ct)
     {
-        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        var conn = db.Connection;
+        if (conn.State != global::System.Data.ConnectionState.Open) await conn.OpenAsync(ct);
+        using var tx = conn.BeginTransaction();
 
-        await db.CustomListItems.ExecuteDeleteAsync(ct);
-        await db.CustomLists.ExecuteDeleteAsync(ct);
-        await db.Events.ExecuteDeleteAsync(ct);
-        await db.TvSeasons.ExecuteDeleteAsync(ct);
-        await db.MangaVolumes.ExecuteDeleteAsync(ct);
-        await db.MediaItems.ExecuteDeleteAsync(ct);
-        await db.Franchises.ExecuteDeleteAsync(ct);
-
-        if (request.KeepApiKeys)
+        try
         {
-            await db.Settings
-                .Where(setting => setting.Key == "SourcePriority"
-                    || setting.Key == "DisabledSources"
-                    || setting.Key == "SearchCategoryOrder")
-                .ExecuteDeleteAsync(ct);
-        }
-        else
-        {
-            await db.Settings.ExecuteDeleteAsync(ct);
-        }
+            await conn.ExecuteAsync("DELETE FROM CustomListItems;");
+            await conn.ExecuteAsync("DELETE FROM CustomLists;");
+            await conn.ExecuteAsync("DELETE FROM Events;");
+            await conn.ExecuteAsync("DELETE FROM TvSeasons;");
+            await conn.ExecuteAsync("DELETE FROM MangaVolumes;");
+            await conn.ExecuteAsync("DELETE FROM MediaItems;");
+            await conn.ExecuteAsync("DELETE FROM Franchises;");
 
-        await transaction.CommitAsync(ct);
+            if (request.KeepApiKeys)
+            {
+                await conn.ExecuteAsync(
+                    "DELETE FROM Settings WHERE Key IN ('SourcePriority', 'DisabledSources', 'SearchCategoryOrder');");
+            }
+            else
+            {
+                await conn.ExecuteAsync("DELETE FROM Settings;");
+            }
+
+            tx.Commit();
+        }
+        catch
+        {
+            tx.Rollback();
+            throw;
+        }
 
         if (!request.KeepApiKeys)
         {
@@ -56,7 +64,7 @@ public sealed class ResetDataHandler(
         ResetDirectory(appPaths.MediaDirectory);
         ResetDirectory(appPaths.CoversDirectory);
 
-        await db.Database.ExecuteSqlRawAsync("VACUUM;", ct);
+        await conn.ExecuteAsync("VACUUM;");
 
         if (cache is MemoryCache memoryCache)
         {

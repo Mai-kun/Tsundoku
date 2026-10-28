@@ -1,11 +1,9 @@
 using MediaTracker.Server.Domain.Common;
 using MediaTracker.Server.Domain.Entities;
 using MediaTracker.Server.Features.External.GetExternalRelations;
-using MediaTracker.Server.Features.Media.GetMediaDetail;
 using MediaTracker.Server.Features.Media.MediaContract;
 using MediaTracker.Server.Infrastructure.ExternalApis;
 using MediaTracker.Server.Infrastructure.Persistence;
-using Microsoft.EntityFrameworkCore;
 
 namespace MediaTracker.Server.Features.Media.GetRecommendations;
 
@@ -38,9 +36,7 @@ public sealed class GetRecommendationsHandler(
         GetRecommendationsCommand command,
         CancellationToken ct)
     {
-        var item = await MediaItemGraph
-            .LoadTracked(db)
-            .SingleOrDefaultAsync(media => media.Id == command.MediaId, ct);
+        var item = await db.LoadMediaItemAsync(command.MediaId, ct);
 
         if (item is null)
         {
@@ -64,7 +60,7 @@ public sealed class GetRecommendationsHandler(
         // An empty result is stored too. Without the timestamp it would leave the row looking never
         // fetched, and every later open would re-ask a source that has nothing to give.
         item.CacheRecommendations(MediaJsonCache.Serialize(recommendations), now);
-        await db.SaveChangesAsync(ct);
+        await db.UpdateMediaItemAsync(item, ct);
 
         return Result<IReadOnlyList<ExternalRecommendationDto>>.Success(recommendations);
     }

@@ -1,5 +1,8 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
 using MediaTracker.Server.Common.Cli;
+using MediaTracker.Server.Common.Json;
 
 namespace MediaTracker.Server.Infrastructure.Storage;
 
@@ -79,7 +82,7 @@ public sealed class AppPaths
         }
         else if (!isDevelopment && !CommandLineOptions.IsRunningInContainer && File.Exists(storageConfigPath))
         {
-            var config = JsonSerializer.Deserialize<StorageConfig>(File.ReadAllText(storageConfigPath), JsonOptions) ?? new();
+            var config = JsonSerializer.Deserialize(File.ReadAllText(storageConfigPath), AppJsonSerializerContext.Default.StorageConfig) ?? new();
             var mode = config.Mode?.ToLowerInvariant() switch
             {
                 "p" or "portable" => "portable",

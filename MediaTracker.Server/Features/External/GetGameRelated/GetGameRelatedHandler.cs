@@ -11,12 +11,12 @@ public sealed record GetGameRelatedQuery(
 
 public interface IGetGameRelatedHandler
 {
-    Task<Result<object>> HandleAsync(GetGameRelatedQuery query, CancellationToken ct);
+    Task<Result<IReadOnlyList<GameRelatedItem>>> HandleAsync(GetGameRelatedQuery query, CancellationToken ct);
 }
 
 public sealed class GetGameRelatedHandler(RawgGameService gameService) : IGetGameRelatedHandler
 {
-    public async Task<Result<object>> HandleAsync(GetGameRelatedQuery query, CancellationToken ct)
+    public async Task<Result<IReadOnlyList<GameRelatedItem>>> HandleAsync(GetGameRelatedQuery query, CancellationToken ct)
     {
         var related = await gameService.GetRelatedAsync(
             query.RawgId,
@@ -25,6 +25,6 @@ public sealed class GetGameRelatedHandler(RawgGameService gameService) : IGetGam
             query.ExternalId,
             ct);
 
-        return Result<object>.Success(related);
+        return Result<IReadOnlyList<GameRelatedItem>>.Success(related);
     }
 }

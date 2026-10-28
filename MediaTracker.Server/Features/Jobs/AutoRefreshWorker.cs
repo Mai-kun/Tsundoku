@@ -3,7 +3,6 @@ using MediaTracker.Server.Domain.Enums;
 using MediaTracker.Server.Domain.Rules;
 using MediaTracker.Server.Infrastructure.ExternalApis;
 using MediaTracker.Server.Infrastructure.Persistence;
-using Microsoft.EntityFrameworkCore;
 
 namespace MediaTracker.Server.Features.Jobs;
 
@@ -68,16 +67,31 @@ public sealed class AutoRefreshWorker(
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var aggregator = scope.ServiceProvider.GetRequiredService<MetadataAggregatorService>();
 
-        var overdue = await db.MediaItems
-            .Include(m => (m as TvShow)!.Seasons)
-            .Include(m => (m as Manga)!.Volumes)
-            .Where(m => m.NextAutoRefreshAt != null
-                     && m.NextAutoRefreshAt <= DateTime.UtcNow
-                     && m.ReleaseStatus != ReleaseStatusRules.Finished
-                     && m.Status != MediaStatus.Dropped)
-            .OrderBy(m => m.NextAutoRefreshAt)
-            .Take(BatchSize)
-            .ToListAsync(ct);
+        var conn = db.Connection;
+        if (conn.State != global::System.Data.ConnectionState.Open) await conn.OpenAsync(ct);
+
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = """
+            SELECT * FROM MediaItems
+            WHERE NextAutoRefreshAt IS NOT NULL
+              AND NextAutoRefreshAt <= @now
+              AND ReleaseStatus != @finished
+              AND Status != @dropped
+            ORDER BY NextAutoRefreshAt
+            LIMIT @batchSize;
+            """;
+        cmd.Parameters.Add(new Microsoft.Data.Sqlite.SqliteParameter("@now", DateTime.UtcNow.ToString("o")));
+        cmd.Parameters.Add(new Microsoft.Data.Sqlite.SqliteParameter("@finished", ReleaseStatusRules.Finished));
+        cmd.Parameters.Add(new Microsoft.Data.Sqlite.SqliteParameter("@dropped", (int)MediaStatus.Dropped));
+        cmd.Parameters.Add(new Microsoft.Data.Sqlite.SqliteParameter("@batchSize", BatchSize));
+
+        using var reader = await cmd.ExecuteReaderAsync(ct);
+        var overdue = new List<MediaItem>();
+        while (await reader.ReadAsync(ct))
+        {
+            var row = AppDbContext.ReadMediaItemRow(reader);
+            overdue.Add(row.ToEntity());
+        }
 
         foreach (var item in overdue)
         {

@@ -12,8 +12,9 @@ using MediaTracker.Server.Infrastructure.ExternalApis;
 using MediaTracker.Server.Infrastructure.Jobs;
 using MediaTracker.Server.Infrastructure.Persistence;
 using MediaTracker.Server.Features.Media.GetMediaStats;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+
+using MediaTracker.Server.Common.Json;
 
 namespace MediaTracker.Server.Features.Media.Import;
 
@@ -115,11 +116,9 @@ public sealed class ImportMediaHandler(
         var items = new List<ParsedMediaItemDto>();
         foreach (var type in new[] { "ANIME", "MANGA" })
         {
-            var payload = JsonSerializer.Serialize(new
-            {
-                query = "query ($userName: String, $type: MediaType) { MediaListCollection(userName: $userName, type: $type) { lists { entries { progress status score media { id type format title { romaji english native } description coverImage { extraLarge large } startDate { year month day } endDate { year month day } status averageScore genres chapters volumes episodes } } } } }",
-                variables = new { userName = username, type }
-            });
+            var payload = JsonSerializer.Serialize(new AniListProfileGraphQlPayload(
+                    "query ($userName: String, $type: MediaType) { MediaListCollection(userName: $userName, type: $type) { lists { entries { progress status score media { id type format title { romaji english native } description coverImage { extraLarge large } startDate { year month day } endDate { year month day } status averageScore genres chapters volumes episodes } } } } }",
+                    new AniListProfileVariables(username, type)), AppJsonSerializerContext.Default.AniListProfileGraphQlPayload);
             using var content = new StringContent(payload, global::System.Text.Encoding.UTF8, "application/json");
             using var response = await client.PostAsync("https://graphql.anilist.co", content, ct);
             var json = await response.Content.ReadAsStringAsync(ct);
@@ -377,11 +376,11 @@ public sealed class ImportMediaHandler(
         if (!string.IsNullOrWhiteSpace(newListName))
         {
             list = new CustomList { Name = newListName.Trim(), UpdatedAt = DateTime.UtcNow };
-            db.CustomLists.Add(list);
+            await db.CreateCustomListAsync(list, ct);
         }
         else if (targetListId is { } id)
         {
-            list = await db.CustomLists.SingleOrDefaultAsync(value => value.Id == id, ct)
+            list = await db.GetCustomListAsync(id, ct)
                 ?? throw new FormatException("The selected list does not exist.");
         }
 
@@ -390,16 +389,14 @@ public sealed class ImportMediaHandler(
         {
             try
             {
-                var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-                folderConfigs = JsonSerializer.Deserialize<Dictionary<string, CustomFolderSetting>>(customFolderConfigs, options);
+                folderConfigs = JsonSerializer.Deserialize(customFolderConfigs, AppJsonSerializerContext.Default.DictionaryStringCustomFolderSetting);
             }
             catch
             {
             }
         }
 
-        var existing = await db.MediaItems.ToListAsync(ct);
-        await db.TvShows.Include(s => s.Seasons).LoadAsync(ct);
+        var existing = await db.LoadMediaItemsAsync(null, null, null, null, null, null, ct);
 
         var byExternalKey = existing
             .Where(item => !string.IsNullOrWhiteSpace(item.ExternalId))
@@ -423,8 +420,8 @@ public sealed class ImportMediaHandler(
                 byTitleKey.TryAdd($"{type}\u001f{romaji.Trim()}", item);
             }
         }
-
-        var toAdd = new List<MediaItem>();
+    var toAdd = new List<MediaItem>();
+    var healedMatches = new List<MediaItem>();
         var duplicateCount = 0;
         var skippedTitles = new List<string>();
         var customFolderAssignments = new List<(string FolderName, MediaItem Item)>();
@@ -480,6 +477,7 @@ public sealed class ImportMediaHandler(
             if (match is not null)
             {
                 HealExisting(match, dto);
+                healedMatches.Add(match);
                 if (folderSetting?.Status != null &&
                     Enum.TryParse<MediaStatus>(folderSetting.Status, true, out var customMatchStatus))
                 {
@@ -514,12 +512,19 @@ public sealed class ImportMediaHandler(
             }
         }
 
-        db.MediaItems.AddRange(toAdd);
+        foreach (var item in toAdd) await db.InsertMediaItemAsync(item, ct);
+        // HealExisting mutates matched rows in place; without EF change tracking the writes are explicit.
+        foreach (var healed in healedMatches.DistinctBy(m => m.Id)) await db.UpdateMediaItemAsync(healed, ct);
         if (list is not null)
         {
-            var order = await db.CustomListItems.Where(item => item.ListId == list.Id).Select(item => (int?)item.Order).MaxAsync(ct) ?? -1;
-            foreach (var item in toAdd) db.CustomListItems.Add(new CustomListItem { ListId = list.Id, List = list, MediaItem = item, Order = ++order });
+            var existingItems = await db.GetCustomListItemsAsync(list.Id, ct);
+            var order = existingItems.Count > 0 ? existingItems.Max(i => i.Order) : -1;
+            foreach (var item in toAdd)
+            {
+                await db.AddCustomListItemAsync(list.Id, item.Id, ct);
+            }
             list.UpdatedAt = DateTime.UtcNow;
+            await db.UpdateCustomListAsync(list, ct);
         }
 
         if (customFolderAssignments.Count > 0)
@@ -529,10 +534,9 @@ public sealed class ImportMediaHandler(
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
-            var existingLists = await db.CustomLists
-                .Include(l => l.Items)
+            var existingLists = (await db.GetCustomListsAsync(ct))
                 .Where(l => uniqueFolderNames.Contains(l.Name))
-                .ToListAsync(ct);
+                .ToList();
 
             var listMap = existingLists.ToDictionary(l => l.Name, StringComparer.OrdinalIgnoreCase);
 
@@ -541,7 +545,7 @@ public sealed class ImportMediaHandler(
                 if (!listMap.TryGetValue(folderName, out var customList))
                 {
                     customList = new CustomList { Name = folderName, UpdatedAt = DateTime.UtcNow };
-                    db.CustomLists.Add(customList);
+                    await db.CreateCustomListAsync(customList, ct);
                     listMap[folderName] = customList;
                 }
             }
@@ -557,22 +561,12 @@ public sealed class ImportMediaHandler(
                 {
                     if (existingItemIds.Contains(mediaItem.Id)) continue;
 
-                    var listItem = new CustomListItem
-                    {
-                        ListId = customList.Id,
-                        List = customList,
-                        MediaItem = mediaItem,
-                        Order = ++maxOrder,
-                        AddedAt = DateTime.UtcNow
-                    };
-                    db.CustomListItems.Add(listItem);
+                    await db.AddCustomListItemAsync(customList.Id, mediaItem.Id, ct);
                     existingItemIds.Add(mediaItem.Id);
                 }
                 customList.UpdatedAt = DateTime.UtcNow;
             }
         }
-
-        await db.SaveChangesAsync(ct);
 
         // Import parsers study hand-maintained lists, so new rows arrive with names and progress but
         // no poster, synopsis or genres. Mark those and hand the whole batch to one queued job: a
@@ -585,8 +579,6 @@ public sealed class ImportMediaHandler(
             {
                 item.SyncStatus = SyncStatus.Syncing;
             }
-            await db.SaveChangesAsync(ct);
-
             jobs!.Enqueue(
                 null,
                 $"Обогащение импорта ({itemsToEnrich.Count} тайтлов)",
@@ -847,8 +839,8 @@ public sealed class ImportMediaHandler(
     {
         var src = string.IsNullOrWhiteSpace(source) ? "Unknown" : source;
         return votes.HasValue
-            ? JsonSerializer.Serialize(new[] { new { source = src, score, votes = votes.Value } }, MediaRatingSerializer.JsonOptions)
-            : JsonSerializer.Serialize(new[] { new { source = src, score } }, MediaRatingSerializer.JsonOptions);
+            ? JsonSerializer.Serialize(new List<MediaRatingSerializer.MediaRatingRow> { new(src, score, votes.Value) }, AppJsonSerializerContext.Default.ListMediaRatingRow)
+            : JsonSerializer.Serialize(new List<MediaRatingSerializer.MediaRatingRow> { new(src, score, null) }, AppJsonSerializerContext.Default.ListMediaRatingRow);
     }
 
     private static DateTime? ParseDate(string? value)

@@ -1,7 +1,6 @@
 using MediaTracker.Server.Domain.Common;
 using MediaTracker.Server.Features.Media.GetMediaStats;
 using MediaTracker.Server.Infrastructure.Persistence;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 
 namespace MediaTracker.Server.Features.History.DeleteHistoryEvent;
@@ -21,15 +20,12 @@ public sealed class DeleteHistoryEventHandler(AppDbContext db, IMemoryCache cach
 {
     public async Task<Result> HandleAsync(DeleteHistoryEventCommand command, CancellationToken ct)
     {
-        var entry = await db.Events.FindAsync([command.EventId], ct);
-
-        if (entry is null)
+        var rows = await db.DeleteMediaEventAsync(command.EventId, ct);
+        if (rows == 0)
         {
             return Result.Failure(Error.NotFound($"History entry '{command.EventId}' was not found."));
         }
 
-        db.Events.Remove(entry);
-        await db.SaveChangesAsync(ct);
         AdvancedStatsCalculator.InvalidateCache(cache);
         TasteProfileCalculator.InvalidateCache(cache);
         return Result.Success();

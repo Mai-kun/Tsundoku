@@ -1,3 +1,4 @@
+# --- Frontend ---
 FROM node:22-alpine AS frontend
 WORKDIR /app/frontend
 COPY mediatracker-ui/package*.json ./
@@ -5,19 +6,22 @@ RUN npm ci
 COPY mediatracker-ui/ ./
 RUN npm run build
 
+# --- NativeAOT build: needs clang, make and zlib headers for the ILC linker step ---
 FROM mcr.microsoft.com/dotnet/sdk:10.0-alpine AS build
+RUN apk add --no-cache clang build-base zlib-dev
 WORKDIR /app
 COPY MediaTracker.Server/MediaTracker.Server.csproj MediaTracker.Server/
 RUN dotnet restore MediaTracker.Server/MediaTracker.Server.csproj
 COPY MediaTracker.Server/ MediaTracker.Server/
 COPY --from=frontend /app/MediaTracker.Server/wwwroot/ MediaTracker.Server/wwwroot/
-RUN dotnet publish MediaTracker.Server/MediaTracker.Server.csproj -c Release -o /app/publish
+RUN dotnet publish MediaTracker.Server/MediaTracker.Server.csproj -c Release -r linux-x64 -o /app/publish
 
-FROM mcr.microsoft.com/dotnet/aspnet:10.0-alpine AS final
+# --- Final: native binary needs no runtime, only its native dependencies ---
+FROM mcr.microsoft.com/dotnet/runtime-deps:10.0-alpine AS final
 WORKDIR /app
 COPY --from=build /app/publish .
 RUN mkdir -p /app/data/covers /app/data/media /app/data/logs
 ENV HEADLESS=true
 ENV ASPNETCORE_URLS=http://+:5000
 EXPOSE 5000
-ENTRYPOINT ["dotnet", "Tsundoku.dll"]
+ENTRYPOINT ["./Tsundoku"]

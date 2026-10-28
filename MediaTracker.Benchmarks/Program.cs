@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using Microsoft.Data.Sqlite;
-using Microsoft.EntityFrameworkCore;
 using MediaTracker.Server.Infrastructure.Persistence;
 using BenchmarkDotNet.Running;
 
@@ -28,12 +27,9 @@ public static class Program
 
     private static async Task SeedDb(int count, string dbPath)
     {
-        var options = new DbContextOptionsBuilder<AppDbContext>()
-            .UseSqlite($"Data Source={dbPath}")
-            .Options;
+        if (File.Exists(dbPath)) File.Delete(dbPath);
 
-        using var db = new AppDbContext(options);
-        await db.Database.EnsureDeletedAsync();
+        using var db = new AppDbContext($"Data Source={dbPath}");
         await db.Database.EnsureCreatedAsync();
 
         using var conn = new SqliteConnection($"Data Source={dbPath}");

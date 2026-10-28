@@ -29,11 +29,26 @@ REPO=${REPO:-"mai-kun/tsundoku"}
 DOWNLOAD_URL=$(curl -s https://api.github.com/repos/$REPO/releases/latest | grep -o 'https://[^"]*tsundoku-linux-x64\.zip' | head -n 1 | tr -d '\r')
 echo "URL: $DOWNLOAD_URL"
 curl -L "$DOWNLOAD_URL" -o /tmp/tsundoku-linux-x64.zip
-unzip -o /tmp/tsundoku-linux-x64.zip -d "$INSTALL_DIR"
+
+# 1.6. Полная замена wwwroot: старые чанки ассетов не должны накапливаться между
+# обновлениями. Удаляем только wwwroot — ничего вне этой папки не трогаем.
+# Пользовательские данные (storage.json, .portable, data/, *.db, .secret.key) в релизный
+# zip не входят и unzip -o их не перезаписывает.
+if [[ -d "$INSTALL_DIR/wwwroot" ]]; then
+    echo "Очистка старого wwwroot..."
+    rm -rf "$INSTALL_DIR/wwwroot"
+fi
+
+unzip -o /tmp/tsundoku-linux-x64.zip -d "$INSTALL_DIR" -x "storage.json" ".portable" ".secret.key" "data/*" "*.db" "*.db-wal" "*.db-shm"
 chmod +x "$INSTALL_DIR/Tsundoku"
 rm /tmp/tsundoku-linux-x64.zip
 
-# 2. Выбор режима хранения
+# 2. Выбор режима хранения (только при первой установке — повторный запуск
+# установки не должен перезаписывать уже выбранный режим)
+if [[ -f "$INSTALL_DIR/storage.json" ]]; then
+    echo -e "\nНайден существующий storage.json — режим хранения сохранён."
+    MODE=""
+else
 echo -e "\nГде хранить базу данных и обложки?"
 echo "  1) Рядом с программой — Портативный режим [по умолчанию]"
 echo "  2) В системной папке (~/.local/share/Tsundoku)"
@@ -45,15 +60,18 @@ case "$OPTION2" in
     3) MODE="custom"; read -p "Введите путь к данным: " DATA_PATH ;;
     *) MODE="portable"; DATA_PATH="$INSTALL_DIR/data" ;;
 esac
-
-# Запись конфигурации
-mkdir -p "$(eval echo $DATA_PATH)"
-if [[ "$MODE" == "custom" ]]; then
-    JSON="{\"mode\":\"$MODE\",\"customPath\":\"$(eval echo $DATA_PATH)\"}"
-else
-    JSON="{\"mode\":\"$MODE\"}"
 fi
-echo "$JSON" > "$INSTALL_DIR/storage.json"
+
+# Запись конфигурации (только когда режим был выбран сейчас)
+if [[ -n "$MODE" ]]; then
+    mkdir -p "$(eval echo $DATA_PATH)"
+    if [[ "$MODE" == "custom" ]]; then
+        JSON="{\"mode\":\"$MODE\",\"customPath\":\"$(eval echo $DATA_PATH)\"}"
+    else
+        JSON="{\"mode\":\"$MODE\"}"
+    fi
+    echo "$JSON" > "$INSTALL_DIR/storage.json"
+fi
 
 # Ярлык
 mkdir -p "$HOME/.local/share/applications"
@@ -67,7 +85,9 @@ DESKTOP
 
 echo -e "\n=== Установка завершена ==="
 echo "Программа: $INSTALL_DIR"
-echo "Данные: $(eval echo $DATA_PATH)"
+if [[ -n "$MODE" ]]; then
+    echo "Данные: $(eval echo $DATA_PATH)"
+fi
 echo "Ярлык: ~/.local/share/applications/tsundoku.desktop"
 
 read -p "Запустить Tsundoku прямо сейчас? [Y/n]: " RUN

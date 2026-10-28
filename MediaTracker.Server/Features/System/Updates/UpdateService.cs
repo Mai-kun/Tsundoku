@@ -84,30 +84,10 @@ public sealed class UpdateService(
         await response.Content.CopyToAsync(fs, ct);
         fs.Close();
         
-        ZipFile.ExtractToDirectory(zipPath, tempDir);
+        // 2 & 3. Install: binaries and wwwroot update, user data stays byte-for-byte intact.
+        UpdatePayloadApplier.ApplyZip(zipPath, AppContext.BaseDirectory, OperatingSystem.IsWindows());
 
-        // 3. Move files
-        var exeName = OperatingSystem.IsWindows() ? "Tsundoku.exe" : "Tsundoku";
-        var oldExe = Path.Combine(AppContext.BaseDirectory, exeName + ".old");
-        var currentExe = Path.Combine(AppContext.BaseDirectory, exeName);
-        
-        if (File.Exists(oldExe)) File.Delete(oldExe);
-        File.Move(currentExe, oldExe, overwrite: true);
-        
-        File.Copy(Path.Combine(tempDir, exeName), currentExe, overwrite: true);
-        if (!OperatingSystem.IsWindows())
-        {
-            File.SetUnixFileMode(currentExe, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute | UnixFileMode.GroupRead | UnixFileMode.GroupExecute | UnixFileMode.OtherRead | UnixFileMode.OtherExecute);
-        }
-
-        // Copy wwwroot
-        var newWwwroot = Path.Combine(tempDir, "wwwroot");
-        var destWwwroot = Path.Combine(AppContext.BaseDirectory, "wwwroot");
-        if (Directory.Exists(newWwwroot))
-        {
-            if (Directory.Exists(destWwwroot)) Directory.Delete(destWwwroot, true);
-            Directory.Move(newWwwroot, destWwwroot);
-        }
+        logger.LogInformation("[Update] Applied release {Version}, restarting", check.LatestVersion);
 
         // 4. Restart
         Task.Run(() =>
@@ -120,6 +100,162 @@ public sealed class UpdateService(
             Process.Start(startInfo);
             hostLifetime.StopApplication();
         }, CancellationToken.None);
+    }
+}
+
+/// <summary>
+/// Installs an extracted release payload into the app directory. The rules are strict on purpose:
+/// <list type="bullet">
+/// <item>the executable, every native library and the whole <c>wwwroot</c> folder are replaced —
+/// stale chunks must not survive inside wwwroot;</item>
+/// <item>anything user-owned (<c>storage.json</c>, <c>.portable</c>, <c>data/</c>, databases, the
+/// secret key) is never copied over and never deleted, even if the payload carried it.</item>
+/// </list>
+/// </summary>
+internal static class UpdatePayloadApplier
+{
+    private static readonly string[] ProtectedFileNames =
+    [
+        "storage.json",
+        ".portable",
+        ".secret.key",
+    ];
+
+    private static readonly string[] ProtectedFileExtensions =
+    [
+        ".db",
+        ".db-wal",
+        ".db-shm",
+    ];
+
+    public static void ApplyZip(string zipPath, string baseDir, bool isWindows)
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "tsundoku_update_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            ZipFile.ExtractToDirectory(zipPath, tempDir);
+            Apply(tempDir, baseDir, isWindows);
+        }
+        finally
+        {
+            try
+            {
+                if (Directory.Exists(tempDir))
+                {
+                    Directory.Delete(tempDir, recursive: true);
+                }
+            }
+            catch
+            {
+                // Best-effort cleanup of temp directory.
+            }
+        }
+    }
+
+    public static void Apply(string extractedDir, string baseDir, bool isWindows)
+    {
+        var exeName = isWindows ? "Tsundoku.exe" : "Tsundoku";
+
+        // 1. Executable: a running process cannot overwrite its own binary on Windows, so the old
+        //    one is renamed aside first and cleaned up on the next update.
+        var oldExe = Path.Combine(baseDir, exeName + ".old");
+        if (File.Exists(oldExe))
+        {
+            File.Delete(oldExe);
+        }
+
+        var newExe = Path.Combine(extractedDir, exeName);
+        if (File.Exists(newExe))
+        {
+            var currentExe = Path.Combine(baseDir, exeName);
+            if (File.Exists(currentExe))
+            {
+                File.Move(currentExe, oldExe, overwrite: true);
+            }
+
+            File.Copy(newExe, currentExe, overwrite: true);
+            if (!isWindows)
+            {
+                File.SetUnixFileMode(
+                    currentExe,
+                    UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute
+                    | UnixFileMode.GroupRead | UnixFileMode.GroupExecute
+                    | UnixFileMode.OtherRead | UnixFileMode.OtherExecute);
+            }
+        }
+
+        // 2. wwwroot is replaced wholesale: leftover asset chunks from the old build would keep
+        //    being served forever. The copy stays inside wwwroot and touches nothing else.
+        var newWwwroot = Path.Combine(extractedDir, "wwwroot");
+        var destWwwroot = Path.Combine(baseDir, "wwwroot");
+        if (Directory.Exists(newWwwroot))
+        {
+            if (Directory.Exists(destWwwroot))
+            {
+                Directory.Delete(destWwwroot, recursive: true);
+            }
+
+            CopyDirectory(newWwwroot, destWwwroot);
+        }
+
+        // 3. Everything else in the payload (native libraries, locales, configs) is copied over,
+        //    except user-owned files which are skipped no matter what the payload claims.
+        foreach (var source in Directory.EnumerateFiles(extractedDir, "*", SearchOption.AllDirectories))
+        {
+            var relative = Path.GetRelativePath(extractedDir, source);
+            var normalized = relative.Replace('\\', '/');
+            if (IsProtected(relative)
+                || string.Equals(relative, exeName, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(relative, "update.zip", StringComparison.OrdinalIgnoreCase)
+                || normalized.StartsWith("wwwroot/", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(normalized, "wwwroot", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var destination = Path.Combine(baseDir, relative);
+            Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+            File.Copy(source, destination, overwrite: true);
+        }
+    }
+
+    /// <summary>
+    /// User-owned paths. Matched on the payload-relative name, so a release that accidentally
+    /// packaged a <c>tracker.db</c> still cannot clobber the user's data.
+    /// </summary>
+    internal static bool IsProtected(string relativePath)
+    {
+        var normalized = relativePath.Replace('\\', '/').TrimStart('/');
+        var segments = normalized.Split('/');
+
+        if (string.Equals(segments[0], "data", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        var fileName = segments[^1];
+        if (ProtectedFileNames.Contains(fileName, StringComparer.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return ProtectedFileExtensions.Any(ext => fileName.EndsWith(ext, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static void CopyDirectory(string sourceDir, string destDir)
+    {
+        Directory.CreateDirectory(destDir);
+
+        foreach (var directory in Directory.EnumerateDirectories(sourceDir, "*", SearchOption.AllDirectories))
+        {
+            Directory.CreateDirectory(Path.Combine(destDir, Path.GetRelativePath(sourceDir, directory)));
+        }
+
+        foreach (var file in Directory.EnumerateFiles(sourceDir, "*", SearchOption.AllDirectories))
+        {
+            File.Copy(file, Path.Combine(destDir, Path.GetRelativePath(sourceDir, file)), overwrite: true);
+        }
     }
 }
 

@@ -3,11 +3,12 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using MediaTracker.Server.Domain.Rules;
 using Microsoft.Extensions.DependencyInjection;
+using MediaTracker.Server.Common.Json;
 
 namespace MediaTracker.Server.Infrastructure.ExternalApis;
 
 public sealed class MangaDexMetadataProvider(
-    IHttpClientFactory httpClientFactory) : MetadataProviderBase
+    IHttpClientFactory httpClientFactory) : MetadataProviderBase(Source)
 {
     public static MetadataSourceDescriptor Source { get; } = new(
         Id: "mangadex",
@@ -25,7 +26,7 @@ public sealed class MangaDexMetadataProvider(
 
         try
         {
-            var res = await client.GetFromJsonAsync<MdMangaListResponse>(url, ct);
+            var res = await client.GetFromJsonAsync(url, AppJsonSerializerContext.Default.MdMangaListResponse, ct);
             if (res?.Data is null || res.Data.Count == 0)
             {
                 return [];
@@ -52,7 +53,7 @@ public sealed class MangaDexMetadataProvider(
             MdMangaData? manga = null;
             if (Guid.TryParse(externalId, out _))
             {
-                var res = await client.GetFromJsonAsync<MdMangaSingleResponse>($"manga/{externalId}?includes[]=cover_art&includes[]=author&includes[]=artist", ct);
+                var res = await client.GetFromJsonAsync($"manga/{externalId}?includes[]=cover_art&includes[]=author&includes[]=artist", AppJsonSerializerContext.Default.MdMangaSingleResponse, ct);
                 manga = res?.Data;
             }
 
@@ -63,7 +64,7 @@ public sealed class MangaDexMetadataProvider(
                             ?? (searchList.Count > 0 ? searchList[0] : null);
                 if (match is not null && Guid.TryParse(match.ExternalId, out _))
                 {
-                    var res = await client.GetFromJsonAsync<MdMangaSingleResponse>($"manga/{match.ExternalId}?includes[]=cover_art&includes[]=author&includes[]=artist", ct);
+                    var res = await client.GetFromJsonAsync($"manga/{match.ExternalId}?includes[]=cover_art&includes[]=author&includes[]=artist", AppJsonSerializerContext.Default.MdMangaSingleResponse, ct);
                     manga = res?.Data;
                 }
             }
@@ -107,8 +108,7 @@ public sealed class MangaDexMetadataProvider(
                 return [];
             }
 
-            var res = await client.GetFromJsonAsync<MdMangaSingleResponse>(
-                $"manga/{mangaId}?includes[]=manga", ct);
+            var res = await client.GetFromJsonAsync($"manga/{mangaId}?includes[]=manga", AppJsonSerializerContext.Default.MdMangaSingleResponse, ct);
 
             // Order is kept as MangaDex reported it so prequels and sequels stay in reading order
             // rather than being alphabetised; the same id reached twice is only kept once.
@@ -194,8 +194,7 @@ public sealed class MangaDexMetadataProvider(
 
         try
         {
-            var res = await client.GetFromJsonAsync<MdMangaListResponse>(
-                $"manga?title={Uri.EscapeDataString(title)}&limit=10", ct);
+            var res = await client.GetFromJsonAsync($"manga?title={Uri.EscapeDataString(title)}&limit=10", AppJsonSerializerContext.Default.MdMangaListResponse, ct);
             foreach (var manga in res?.Data ?? [])
             {
                 var label = manga.Attributes?.Title?.Values
@@ -237,8 +236,7 @@ public sealed class MangaDexMetadataProvider(
             {
                 var chunk = ids.Skip(offset).Take(chunkSize).ToList();
                 var query = string.Join("&", chunk.Select(id => $"ids[]={id}"));
-                var res = await client.GetFromJsonAsync<MdMangaListResponse>(
-                    $"manga?{query}&includes[]=cover_art&limit={chunkSize}", ct);
+                var res = await client.GetFromJsonAsync($"manga?{query}&includes[]=cover_art&limit={chunkSize}", AppJsonSerializerContext.Default.MdMangaListResponse, ct);
 
                 foreach (var manga in res?.Data ?? [])
                 {
@@ -271,7 +269,7 @@ public sealed class MangaDexMetadataProvider(
         try
         {
             var query = string.Join("&", ids.Select(id => $"manga[]={id}"));
-            var res = await client.GetFromJsonAsync<MdStatisticsResponse>($"statistics/manga?{query}", ct);
+            var res = await client.GetFromJsonAsync($"statistics/manga?{query}", AppJsonSerializerContext.Default.MdStatisticsResponse, ct);
             return res?.Statistics ?? [];
         }
         catch

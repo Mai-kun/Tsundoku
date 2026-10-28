@@ -5,13 +5,14 @@ using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using MediaTracker.Server.Common.Json;
 
 namespace MediaTracker.Server.Infrastructure.ExternalApis;
 
 public sealed partial class RawgMetadataProvider(
     IHttpClientFactory httpClientFactory,
     IOptions<ExternalApiOptions> options,
-    ILogger<RawgMetadataProvider> logger) : MetadataProviderBase
+    ILogger<RawgMetadataProvider> logger) : MetadataProviderBase(Source)
 {
     public static MetadataSourceDescriptor Source { get; } = new(
         Id: "rawg",
@@ -85,8 +86,7 @@ public sealed partial class RawgMetadataProvider(
 
         try
         {
-            var result = await client.GetFromJsonAsync<RawgResponse>(
-                $"games?search={Uri.EscapeDataString(query)}&key={Uri.EscapeDataString(apiKey)}&page_size=10", ct);
+            var result = await client.GetFromJsonAsync($"games?search={Uri.EscapeDataString(query)}&key={Uri.EscapeDataString(apiKey)}&page_size=10", AppJsonSerializerContext.Default.RawgResponse, ct);
 
             if (result?.Results is not { Count: > 0 } results)
             {
@@ -119,8 +119,7 @@ public sealed partial class RawgMetadataProvider(
             try
             {
                 var client = httpClientFactory.CreateClient(Id);
-                var item = await client.GetFromJsonAsync<RawgGame>(
-                    $"games/{id}?key={Uri.EscapeDataString(apiKey)}", ct);
+                var item = await client.GetFromJsonAsync($"games/{id}?key={Uri.EscapeDataString(apiKey)}", AppJsonSerializerContext.Default.RawgGame, ct);
 
                 if (item is not null)
                 {
@@ -215,8 +214,7 @@ public sealed partial class RawgMetadataProvider(
     {
         try
         {
-            var storesResponse = await client.GetFromJsonAsync<RawgStoresResponse>(
-                $"games/{gameId}/stores?key={Uri.EscapeDataString(apiKey)}", ct);
+            var storesResponse = await client.GetFromJsonAsync($"games/{gameId}/stores?key={Uri.EscapeDataString(apiKey)}", AppJsonSerializerContext.Default.RawgStoresResponse, ct);
 
             if (storesResponse?.Results is { Count: > 0 } results)
             {

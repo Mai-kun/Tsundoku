@@ -1,6 +1,7 @@
 using System.Net.Http.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Options;
+using MediaTracker.Server.Common.Json;
 
 namespace MediaTracker.Server.Infrastructure.ExternalApis;
 
@@ -79,8 +80,7 @@ public sealed class TmdbRelationService(
         {
             var search = await httpClientFactory
                 .CreateClient(TmdbMetadataProvider.Source.Id)
-                .GetFromJsonAsync<TmdbPage>(
-                    $"{searchPath}?query={Uri.EscapeDataString(title)}&api_key={Uri.EscapeDataString(ApiKey)}",
+                .GetFromJsonAsync($"{searchPath}?query={Uri.EscapeDataString(title)}&api_key={Uri.EscapeDataString(ApiKey)}", AppJsonSerializerContext.Default.TmdbPage,
                     ct);
 
             return search?.Results?.FirstOrDefault()?.Id?.ToString();
@@ -102,8 +102,7 @@ public sealed class TmdbRelationService(
         {
             var root = await httpClientFactory
                 .CreateClient(TmdbMetadataProvider.Source.Id)
-                .GetFromJsonAsync<TmdbPage>(
-                    $"{mediaType}/{id}/{path}?api_key={Uri.EscapeDataString(ApiKey)}",
+                .GetFromJsonAsync($"{mediaType}/{id}/{path}?api_key={Uri.EscapeDataString(ApiKey)}", AppJsonSerializerContext.Default.TmdbPage,
                     ct);
 
             return

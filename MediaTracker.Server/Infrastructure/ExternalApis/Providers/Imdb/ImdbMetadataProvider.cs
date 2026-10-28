@@ -4,6 +4,7 @@ using System.Net;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using MediaTracker.Server.Common.Utilities;
+using MediaTracker.Server.Common.Json;
 
 namespace MediaTracker.Server.Infrastructure.ExternalApis;
 
@@ -12,7 +13,7 @@ public sealed class ImdbMetadataProvider(
     // The key carries the requested type ("movie" / "tvshow"), so a search in the Films tab can be
     // filtered to films only instead of returning the whole mixed suggestion pool for both tabs.
     [ServiceKey] string? serviceKey = null,
-    ILogger<ImdbMetadataProvider>? logger = null) : MetadataProviderBase
+    ILogger<ImdbMetadataProvider>? logger = null) : MetadataProviderBase(Source)
 {
     public static MetadataSourceDescriptor Source { get; } = new(
         Id: "imdb",
@@ -41,7 +42,7 @@ public sealed class ImdbMetadataProvider(
         {
             ExternalApiLog.Querying(logger, Name, "movie/tvshow", clean);
             var sw = Stopwatch.StartNew();
-            var res = await client.GetFromJsonAsync<ImdbSuggestionResponse>(endpoint, ct);
+            var res = await client.GetFromJsonAsync(endpoint, AppJsonSerializerContext.Default.ImdbSuggestionResponse, ct);
             if (res?.D is null || res.D.Count == 0)
             {
                 ExternalApiLog.Returned(logger, Name, 0, sw.ElapsedMilliseconds);
@@ -151,17 +152,17 @@ public sealed class ImdbMetadataProvider(
             var client = httpClientFactory.CreateClient(Id);
             if (typedUrl is not null)
             {
-                var typed = await client.GetFromJsonAsync<CinemetaResponse>(typedUrl, ct);
+                var typed = await client.GetFromJsonAsync(typedUrl, AppJsonSerializerContext.Default.CinemetaResponse, ct);
                 return typed?.Meta;
             }
 
-            var series = await client.GetFromJsonAsync<CinemetaResponse>($"{CinemetaMetaUrl}/series/{externalId}.json", ct);
+            var series = await client.GetFromJsonAsync($"{CinemetaMetaUrl}/series/{externalId}.json", AppJsonSerializerContext.Default.CinemetaResponse, ct);
             if (series?.Meta is not null)
             {
                 return series.Meta;
             }
 
-            var movie = await client.GetFromJsonAsync<CinemetaResponse>($"{CinemetaMetaUrl}/movie/{externalId}.json", ct);
+            var movie = await client.GetFromJsonAsync($"{CinemetaMetaUrl}/movie/{externalId}.json", AppJsonSerializerContext.Default.CinemetaResponse, ct);
             return movie?.Meta;
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)

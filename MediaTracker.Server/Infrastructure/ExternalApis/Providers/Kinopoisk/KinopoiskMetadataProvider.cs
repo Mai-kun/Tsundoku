@@ -5,6 +5,7 @@ using System.Text.Json.Serialization;
 using MediaTracker.Server.Common.Utilities;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using MediaTracker.Server.Common.Json;
 
 namespace MediaTracker.Server.Infrastructure.ExternalApis;
 
@@ -12,7 +13,7 @@ public sealed class KinopoiskMetadataProvider(
     IHttpClientFactory httpClientFactory,
     IOptions<ExternalApiOptions> options,
     [ServiceKey] string? serviceKey = null
-) : MetadataProviderBase
+) : MetadataProviderBase(Source)
 {
     public static MetadataSourceDescriptor Source { get; } = new(
         Id: "kinopoisk",
@@ -53,7 +54,7 @@ public sealed class KinopoiskMetadataProvider(
             if (!resp.IsSuccessStatusCode)
                 return [];
 
-            var body = await resp.Content.ReadFromJsonAsync<KinopoiskSearchResponse>(ct);
+            var body = await resp.Content.ReadFromJsonAsync(AppJsonSerializerContext.Default.KinopoiskSearchResponse, ct);
             if (body?.Films is null || body.Films.Count == 0)
                 return [];
 
@@ -100,7 +101,7 @@ public sealed class KinopoiskMetadataProvider(
             if (!resp.IsSuccessStatusCode)
                 return null;
 
-            var item = await resp.Content.ReadFromJsonAsync<KinopoiskDetailItem>(ct);
+            var item = await resp.Content.ReadFromJsonAsync(AppJsonSerializerContext.Default.KinopoiskDetailItem, ct);
             if (item is null)
                 return null;
 
@@ -143,7 +144,7 @@ public sealed class KinopoiskMetadataProvider(
             if (!resp.IsSuccessStatusCode)
                 return [];
 
-            var body = await resp.Content.ReadFromJsonAsync<KinopoiskSeasonsResponse>(ct);
+            var body = await resp.Content.ReadFromJsonAsync(AppJsonSerializerContext.Default.KinopoiskSeasonsResponse, ct);
             if (body?.Items is not { Count: > 0 })
                 return [];
 
@@ -199,7 +200,7 @@ public sealed class KinopoiskMetadataProvider(
             using var resp = await client.SendAsync(req, ct);
             if (!resp.IsSuccessStatusCode) return (null, null);
 
-            var staff = await resp.Content.ReadFromJsonAsync<List<KinopoiskStaffMember>>(ct);
+            var staff = await resp.Content.ReadFromJsonAsync(AppJsonSerializerContext.Default.ListKinopoiskStaffMember, ct);
             if (staff is null or { Count: 0 }) return (null, null);
 
             var director = staff
@@ -234,7 +235,7 @@ public sealed class KinopoiskMetadataProvider(
             using var resp = await client.SendAsync(req, ct);
             if (!resp.IsSuccessStatusCode) return null;
 
-            var body = await resp.Content.ReadFromJsonAsync<KinopoiskVideosResponse>(ct);
+            var body = await resp.Content.ReadFromJsonAsync(AppJsonSerializerContext.Default.KinopoiskVideosResponse, ct);
             var yt = body?.Items?.FirstOrDefault(v =>
                 !string.IsNullOrWhiteSpace(v.Url) && v.Url.Contains("youtube", StringComparison.OrdinalIgnoreCase));
             if (yt?.Url is null) return null;

@@ -1,9 +1,10 @@
 using System.Globalization;
 using System.Text.Json.Serialization;
+using MediaTracker.Server.Common.Json;
 
 namespace MediaTracker.Server.Infrastructure.ExternalApis;
 
-public sealed class SteamMetadataProvider(IHttpClientFactory httpClientFactory) : MetadataProviderBase
+public sealed class SteamMetadataProvider(IHttpClientFactory httpClientFactory) : MetadataProviderBase(Source)
 {
     public static MetadataSourceDescriptor Source { get; } = new(
         Id: "steam",
@@ -22,7 +23,7 @@ public sealed class SteamMetadataProvider(IHttpClientFactory httpClientFactory) 
 
         try
         {
-            var res = await client.GetFromJsonAsync<SteamStoreSearchResponse>(endpoint, ct);
+            var res = await client.GetFromJsonAsync(endpoint, AppJsonSerializerContext.Default.SteamStoreSearchResponse, ct);
             if (res?.Items is null || res.Items.Count == 0)
             {
                 return [];
@@ -43,7 +44,7 @@ public sealed class SteamMetadataProvider(IHttpClientFactory httpClientFactory) 
 
         try
         {
-            var dict = await client.GetFromJsonAsync<Dictionary<string, SteamAppDetailsWrapper>>(endpoint, ct);
+            var dict = await client.GetFromJsonAsync(endpoint, AppJsonSerializerContext.Default.DictionaryStringSteamAppDetailsWrapper, ct);
             if (dict is null || !dict.TryGetValue(externalId, out var wrapper) || wrapper.Data is null || !wrapper.Success)
             {
                 return null;
@@ -55,8 +56,7 @@ public sealed class SteamMetadataProvider(IHttpClientFactory httpClientFactory) 
             {
                 using var reviewsCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
                 reviewsCts.CancelAfter(TimeSpan.FromSeconds(5));
-                var reviewsRes = await client.GetFromJsonAsync<SteamReviewsResponse>(
-                    $"https://store.steampowered.com/appreviews/{externalId}?json=1&purchase_type=all&language=all", reviewsCts.Token);
+                var reviewsRes = await client.GetFromJsonAsync($"https://store.steampowered.com/appreviews/{externalId}?json=1&purchase_type=all&language=all", AppJsonSerializerContext.Default.SteamReviewsResponse, reviewsCts.Token);
 
                 if (reviewsRes?.QuerySummary is { TotalReviews: > 0 } summary)
                 {

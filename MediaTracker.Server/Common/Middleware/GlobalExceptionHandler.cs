@@ -2,6 +2,9 @@ using MediaTracker.Server.Infrastructure.ExternalApis;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 
+using System.Text.Json;
+using MediaTracker.Server.Common.Json;
+
 namespace MediaTracker.Server.Common.Middleware;
 
 public sealed class GlobalExceptionHandler(
@@ -58,13 +61,17 @@ public sealed class GlobalExceptionHandler(
         httpContext.Response.StatusCode = status;
         httpContext.Response.ContentType = "application/problem+json";
 
-        await httpContext.Response.WriteAsJsonAsync(new ProblemDetails
-        {
-            Title = title,
-            Status = status,
-            // Outside development the message may carry upstream or file-system detail, so it stays hidden.
-            Detail = environment.IsDevelopment() ? detail : null,
-            Instance = httpContext.Request.Path,
-        }, cancellationToken);
+        await httpContext.Response.WriteAsync(
+            JsonSerializer.Serialize(
+                new ProblemDetails
+                {
+                    Title = title,
+                    Status = status,
+                    // Outside development the message may carry upstream or file-system detail, so it stays hidden.
+                    Detail = environment.IsDevelopment() ? detail : null,
+                    Instance = httpContext.Request.Path,
+                },
+                AppJsonSerializerContext.Default.ProblemDetails),
+            cancellationToken);
     }
 }

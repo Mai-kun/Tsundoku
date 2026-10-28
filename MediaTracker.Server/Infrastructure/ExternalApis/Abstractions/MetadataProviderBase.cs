@@ -1,39 +1,34 @@
-using System.Collections.Concurrent;
 using System.Diagnostics;
-using System.Reflection;
 
 namespace MediaTracker.Server.Infrastructure.ExternalApis;
 
 /// <summary>
-/// Base for every provider: the six descriptive properties are read straight off the type's
-/// <c>static MetadataSourceDescriptor Source</c>, so a provider declares its own metadata once instead
-/// of restating it as instance members that could disagree with it.
+/// Base for every provider. The <see cref="MetadataSourceDescriptor"/> is passed directly through the
+/// protected constructor (no reflection, no <c>GetProperty("Source")</c>). Each provider declares its
+/// own descriptor once and passes it to the base.
 /// </summary>
 /// <remarks>
-/// The descriptor is a static member rather than a static abstract interface member because
+/// The descriptor is a constructor argument rather than a static abstract interface member because
 /// <c>static abstract</c> makes <see cref="IMetadataProvider"/> unusable as a minimal-API service
 /// parameter, which is how SettingsEndpoints enumerates the sources for the settings UI.
 /// </remarks>
 public abstract class MetadataProviderBase : IMetadataProvider
 {
-    // One reflection read per provider type, not per instance: keyed DI builds a fresh transient for
-    // every resolve, so this sits on the hot path of both search and details.
-    private static readonly ConcurrentDictionary<Type, MetadataSourceDescriptor> Cache = new();
+    private readonly MetadataSourceDescriptor _source;
 
-    private static MetadataSourceDescriptor SourceOf(Type type) =>
-        Cache.GetOrAdd(type, t => (MetadataSourceDescriptor)t
-            .GetProperty("Source", BindingFlags.Public | BindingFlags.Static)!
-            .GetValue(null)!);
+    /// <summary>Pass the provider's declared <see cref="MetadataSourceDescriptor"/> directly, no reflection.</summary>
+    protected MetadataProviderBase(MetadataSourceDescriptor source)
+    {
+        _source = source;
+    }
 
-    private MetadataSourceDescriptor Source => SourceOf(GetType());
-
-    public string Id => Source.Id;
-    public string Name => Source.Name;
-    public string Description => Source.Description;
-    public IReadOnlyList<string> MediaTypes => Source.MediaTypes;
-    public bool RequiresApiKey => Source.RequiresApiKey;
-    public bool OptionalApiKey => Source.OptionalApiKey;
-    public bool IsDefault => Source.IsDefault;
+    public string Id => _source.Id;
+    public string Name => _source.Name;
+    public string Description => _source.Description;
+    public IReadOnlyList<string> MediaTypes => _source.MediaTypes;
+    public bool RequiresApiKey => _source.RequiresApiKey;
+    public bool OptionalApiKey => _source.OptionalApiKey;
+    public bool IsDefault => _source.IsDefault;
 
     public abstract Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string query, CancellationToken ct);
     public abstract Task<ExternalMediaDto?> GetDetailsAsync(string externalId, string title, CancellationToken ct);
@@ -93,7 +88,7 @@ public abstract class MetadataProviderBase : IMetadataProvider
 
             // A key-requiring provider that asks for a missing key answers with an empty list and no
             // exception, which used to read as "reachable in 0 ms".
-            if (Source.RequiresApiKey && results.Count == 0)
+            if (_source.RequiresApiKey && results.Count == 0)
             {
                 return new ConnectionTestResult(false, (int)sw.ElapsedMilliseconds,
                     "The probe search returned no results — check the configured API key");

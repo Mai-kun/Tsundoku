@@ -1,7 +1,8 @@
 using System.Net;
 using MediaTracker.Server.Infrastructure.Persistence;
-using Microsoft.EntityFrameworkCore;
 using Serilog;
+
+using MediaTracker.Server.Common.Json;
 
 namespace MediaTracker.Server.Infrastructure.Security;
 
@@ -62,11 +63,9 @@ public sealed class ApiKeyAuthMiddleware(RequestDelegate next)
         var tokenHash = ApiTokenHelper.ComputeHash(token);
         var db = context.RequestServices.GetRequiredService<AppDbContext>();
 
-        var apiToken = await db.ApiTokens
-            .AsNoTracking()
-            .FirstOrDefaultAsync(t => t.TokenHash == tokenHash && (t.ExpiresAt == null || t.ExpiresAt > DateTime.UtcNow));
+        var apiToken = await db.GetApiTokenByHashAsync(tokenHash, default);
 
-        if (apiToken is null)
+        if (apiToken is null || apiToken.ExpiresAt is { } exp && exp <= DateTime.UtcNow)
         {
             await ReturnUnauthorizedAsync(context, "Invalid or expired API token");
             return;
@@ -83,9 +82,7 @@ public sealed class ApiKeyAuthMiddleware(RequestDelegate next)
                 {
                     using var scope = scopeFactory.CreateScope();
                     var scopeDb = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-                    await scopeDb.ApiTokens
-                        .Where(t => t.Id == tokenId)
-                        .ExecuteUpdateAsync(s => s.SetProperty(t => t.LastUsedAt, DateTime.UtcNow));
+                    await scopeDb.UpdateApiTokenLastUsedAsync(tokenId, DateTime.UtcNow);
                 }
                 catch (Exception ex)
                 {
@@ -121,6 +118,6 @@ public sealed class ApiKeyAuthMiddleware(RequestDelegate next)
     {
         context.Response.StatusCode = StatusCodes.Status401Unauthorized;
         context.Response.ContentType = "application/json; charset=utf-8";
-        await context.Response.WriteAsJsonAsync(new { detail });
+        await context.Response.WriteAsJsonAsync(new ApiErrorDetail(detail), AppJsonSerializerContext.Default.ApiErrorDetail);
     }
 }

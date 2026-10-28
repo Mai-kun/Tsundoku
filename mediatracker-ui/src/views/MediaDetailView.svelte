@@ -2055,6 +2055,11 @@
           syncFrom(updated);
           onUpdate();
         }}
+        onMediaUpdated={(updated) => {
+          media = updated;
+          syncFrom(updated);
+          onUpdate();
+        }}
         {onNavigate}
         specRows={specRows(media)}
         syncing={isSyncing}

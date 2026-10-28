@@ -78,11 +78,20 @@ export interface MediaBase {
   lastAutoRefreshedAt?: string | null;
 }
 
+export interface MediaCoverItem {
+  id: string;
+  thumbUrl: string;
+  originalUrl: string;
+  source?: string | null;
+  addedAt: string;
+}
+
 /**
  * Payload the list endpoint deliberately omits: these are only read by the detail screen, so
  * carrying them for every item in the library was the bulk of the JSON list response.
  */
 export interface MediaDetailFields {
+  covers?: MediaCoverItem[];
   notes: string | null;
   detailedScoreJson?: string | null;
   quotesJson?: string | null;

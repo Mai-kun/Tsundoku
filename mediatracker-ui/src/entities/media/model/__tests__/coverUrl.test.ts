@@ -6,11 +6,17 @@ describe("coverUrl", () => {
     expect(fullSizeCoverUrl("/media-assets/2f1c0b3a/cover/thumb.webp")).toBe(
       "/media-assets/2f1c0b3a/cover/original.webp",
     );
+    expect(fullSizeCoverUrl("/media-assets/2f1c0b3a/covers/c123abc/thumb.webp")).toBe(
+      "/media-assets/2f1c0b3a/covers/c123abc/original.webp",
+    );
   });
 
   it("preserves query string when swapping to original", () => {
     expect(fullSizeCoverUrl("/media-assets/2f1c0b3a/cover/thumb.webp?v=3")).toBe(
       "/media-assets/2f1c0b3a/cover/original.webp?v=3",
+    );
+    expect(fullSizeCoverUrl("/media-assets/2f1c0b3a/covers/c123abc/thumb.webp?v=3")).toBe(
+      "/media-assets/2f1c0b3a/covers/c123abc/original.webp?v=3",
     );
   });
 

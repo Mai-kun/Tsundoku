@@ -8,8 +8,8 @@
  */
 export function fullSizeCoverUrl(coverUrl: string): string {
   return coverUrl.replace(
-    /\/media-assets\/([^/]+)\/cover\/thumb\.webp(\?.*)?$/,
-    "/media-assets/$1/cover/original.webp$2",
+    /\/media-assets\/([^/]+)\/(cover|covers\/[^/]+)\/thumb\.webp(\?.*)?$/,
+    "/media-assets/$1/$2/original.webp$3",
   );
 }
 

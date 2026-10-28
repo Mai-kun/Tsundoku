@@ -70,6 +70,7 @@ function walkDir(dir, fileList = []) {
     } else if (entry.isFile()) {
       if ((entry.name.endsWith('.svelte') || entry.name.endsWith('.ts')) &&
           !entry.name.endsWith('.d.ts') &&
+          !entry.name.endsWith('.test.ts') &&
           entry.name !== 'translations.ts') {
         fileList.push(fullPath);
       }

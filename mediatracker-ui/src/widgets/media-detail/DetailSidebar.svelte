@@ -14,6 +14,7 @@
   } from "$shared/ui/Icons.svelte";
   import ListPicker from "$features/lists/ListPicker.svelte";
   import MediaActivityModal from "./MediaActivityModal.svelte";
+  import CoverManagerModal from "./CoverManagerModal.svelte";
   import { errorMessage, triggerAutoRefresh } from "$shared/api/api";
   import { showToast } from "$shared/ui/toast.svelte";
   import { fullSizeCoverUrl } from "$entities/media/model/coverUrl";
@@ -81,6 +82,7 @@
     syncing?: boolean;
     /** Called with the fresh row after the user runs a one-click auto-check from the sidebar. */
     onAutoRefreshed?: (media: MediaDetail) => void;
+    onMediaUpdated?: (media: MediaDetail) => void;
   }
 
   let {
@@ -120,8 +122,10 @@
     specRows,
     syncing = false,
     onAutoRefreshed,
+    onMediaUpdated,
   }: Props = $props();
 
+  let isCoverManagerOpen = $state(false);
   let isActivityOpen = $state(false);
   let detailedExpanded = $state(false);
   let detailedDraft = $state<DetailedScoreMap>({});
@@ -182,7 +186,7 @@
      при изменении высоты правой колонки дёргал постер вверх-вниз. -->
 <aside class="w-full space-y-6 lg:w-80 lg:shrink-0 lg:self-start" data-widget="detail-sidebar">
   <div
-    class="aspect-[2/3] w-full overflow-hidden rounded-xl border border-white/[0.06] bg-[var(--color-panel-line)] shadow-lg"
+    class="group relative aspect-[2/3] w-full overflow-hidden rounded-xl border border-white/[0.06] bg-[var(--color-panel-line)] shadow-lg"
   >
     {#if syncing && !media.coverUrl}
       <div
@@ -212,8 +216,40 @@
           onerror={() => (imgError = true)}
         />
       </button>
+
+      <button
+        type="button"
+        class="absolute top-2 right-2 z-10 flex items-center gap-1.5 rounded-lg border border-white/20 bg-black/70 px-2.5 py-1 text-xs font-semibold text-white shadow-md backdrop-blur-md transition hover:bg-black/90 hover:border-white/40 opacity-80 group-hover:opacity-100"
+        onclick={(e) => {
+          e.stopPropagation();
+          isCoverManagerOpen = true;
+        }}
+        title={i18n.t.coversModal.openCovers}
+        aria-label={i18n.t.coversModal.openCovers}
+      >
+        <ImageIcon size={13} aria-hidden="true" />
+        <span>{i18n.t.coversModal.openCovers}</span>
+        {#if media.covers && media.covers.length > 1}
+          <span class="rounded bg-indigo-500/80 px-1.5 py-0.2 text-[10px] font-bold">
+            {media.covers.length}
+          </span>
+        {/if}
+      </button>
     {:else}
       <MediaCoverPlaceholder />
+      <button
+        type="button"
+        class="absolute top-2 right-2 z-10 flex items-center gap-1.5 rounded-lg border border-white/20 bg-black/70 px-2.5 py-1 text-xs font-semibold text-white shadow-md backdrop-blur-md transition hover:bg-black/90 hover:border-white/40"
+        onclick={(e) => {
+          e.stopPropagation();
+          isCoverManagerOpen = true;
+        }}
+        title={i18n.t.coversModal.openCovers}
+        aria-label={i18n.t.coversModal.openCovers}
+      >
+        <ImageIcon size={13} aria-hidden="true" />
+        <span>{i18n.t.coversModal.openCovers}</span>
+      </button>
     {/if}
   </div>
 
@@ -783,6 +819,23 @@
         {i18n.t.detail.changeSource}
       </button>
 
+      <!-- Cover Gallery Manager -->
+      <button
+        type="button"
+        class="bg-surface/50 flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-xs font-medium text-[var(--color-ink-dim)] transition hover:bg-[var(--color-panel-raised)] hover:text-white"
+        onclick={() => (isCoverManagerOpen = true)}
+      >
+        <div class="flex items-center gap-2.5">
+          <ImageIcon size={15} class="text-[var(--color-accent-soft)]" aria-hidden="true" />
+          <span>{i18n.t.coversModal.openCovers}</span>
+        </div>
+        {#if media.covers && media.covers.length > 1}
+          <span class="rounded-full bg-indigo-500/20 px-2 py-0.5 text-[10px] font-semibold text-indigo-400">
+            {media.covers.length}
+          </span>
+        {/if}
+      </button>
+
       <ListPicker mediaId={media.id} />
 
       <button
@@ -875,3 +928,14 @@
 />
 
 <ImageLightbox url={activeLightboxUrl} onclose={() => (activeLightboxUrl = null)} />
+
+<CoverManagerModal
+  isOpen={isCoverManagerOpen}
+  {media}
+  onClose={() => (isCoverManagerOpen = false)}
+  onUpdate={(updated) => {
+    media = updated;
+    onAutoRefreshed?.(updated);
+    onMediaUpdated?.(updated);
+  }}
+/>

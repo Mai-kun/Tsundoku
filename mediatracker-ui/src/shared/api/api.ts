@@ -252,6 +252,46 @@ export function deleteMedia(id: string): Promise<void> {
   return requestVoid(`${mediaEndpoint}/${id}`, { method: "DELETE" });
 }
 
+export function addCoverByUrl(
+  id: string,
+  url: string,
+  source?: string | null,
+  setAsActive: boolean = false,
+): Promise<MediaDetail> {
+  return requestJson<MediaDetail>(
+    `${mediaEndpoint}/${id}/covers`,
+    jsonOptions("POST", { url, source: source ?? null, setAsActive }),
+  );
+}
+
+export function addCoverByFile(
+  id: string,
+  file: File | Blob,
+  source?: string | null,
+  setAsActive: boolean = false,
+): Promise<MediaDetail> {
+  const formData = new FormData();
+  formData.append("file", file);
+  if (source) formData.append("source", source);
+  if (setAsActive) formData.append("setAsActive", "true");
+  return requestJson<MediaDetail>(`${mediaEndpoint}/${id}/covers`, {
+    method: "POST",
+    body: formData,
+  });
+}
+
+export function selectCover(id: string, coverId: string): Promise<MediaDetail> {
+  return requestJson<MediaDetail>(`${mediaEndpoint}/${id}/covers/${coverId}/select`, {
+    method: "PUT",
+  });
+}
+
+export function deleteCover(id: string, coverId: string): Promise<MediaDetail> {
+  return requestJson<MediaDetail>(`${mediaEndpoint}/${id}/covers/${coverId}`, {
+    method: "DELETE",
+  });
+}
+
 export function importFile(formData: FormData): Promise<ImportResultDto> {
   return requestJson<ImportResultDto>(`${mediaEndpoint}/import/file`, {
     method: "POST",

@@ -1,3 +1,8 @@
+<script module lang="ts">
+  const CYRILLIC_RE = /[а-яА-ЯёЁ]/;
+  const LATIN_LETTER_RE = /[a-zA-Z]/;
+</script>
+
 <script lang="ts">
   import Modal from "$shared/ui/Modal.svelte";
   import Placeholder404 from "$entities/media/ui/Placeholder404.svelte";
@@ -9,7 +14,7 @@
     Search,
     Trash2,
     X,
-  } from "$shared/ui/Icons.svelte";
+  } from "$shared/ui/Icons";
   import { jobsClient } from "$shared/api/jobsClient.svelte";
   import {
     deleteMedia,
@@ -76,7 +81,7 @@
     if (!title) return null;
     const match = title.match(/\(([^)]*[a-zA-Z]{2,}[^)]*)\)/);
     if (match) return match[1].trim();
-    const isLatin = !/[а-яА-ЯёЁ]/.test(title) && /[a-zA-Z]/.test(title);
+    const isLatin = !CYRILLIC_RE.test(title) && LATIN_LETTER_RE.test(title);
     if (isLatin) return title.trim();
     return null;
   }
@@ -84,7 +89,7 @@
   function extractRussian(title: string): string {
     if (!title) return "";
     const match = title.match(/^([^\(]+)\s*\([^)]*[a-zA-Z][^)]*\)/);
-    if (match && /[а-яА-ЯёЁ]/.test(match[1])) return match[1].trim();
+    if (match && CYRILLIC_RE.test(match[1])) return match[1].trim();
     return title.trim();
   }
 

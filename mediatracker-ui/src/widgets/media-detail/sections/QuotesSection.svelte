@@ -1,6 +1,6 @@
 <script lang="ts">
   import { i18n } from "$shared/i18n/index.svelte";
-  import { Plus, Quote, Trash2 } from "$shared/ui/Icons.svelte";
+  import { Plus, Quote, Trash2 } from "$shared/ui/Icons";
   import { updateMedia, errorMessage } from "$shared/api/api";
   import { showToast } from "$shared/ui/toast.svelte";
   import type { MediaDetail, MediaQuote } from "$shared/types";

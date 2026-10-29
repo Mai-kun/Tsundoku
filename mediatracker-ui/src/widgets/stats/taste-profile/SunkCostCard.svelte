@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Hourglass } from "$shared/ui/Icons.svelte";
+  import { Hourglass } from "$shared/ui/Icons";
   import { i18n } from "$shared/i18n/index.svelte";
   import type { SunkCost } from "$shared/types";
 

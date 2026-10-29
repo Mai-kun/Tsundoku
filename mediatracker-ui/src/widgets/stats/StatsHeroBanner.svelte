@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Flame, Star, CheckCircle2 } from "$shared/ui/Icons.svelte";
+  import { Flame, Star, CheckCircle2 } from "$shared/ui/Icons";
   import { i18n } from "$shared/i18n/index.svelte";
   import type { AdvancedStats } from "$shared/types";
 

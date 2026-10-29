@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { CalendarDays } from "$shared/ui/Icons.svelte";
+  import { CalendarDays } from "$shared/ui/Icons";
   import { i18n } from "$shared/i18n/index.svelte";
 
   interface MonthlyCompletionItem {

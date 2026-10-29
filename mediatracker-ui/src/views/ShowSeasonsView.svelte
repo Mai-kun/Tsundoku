@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { ArrowLeft, RefreshCw } from "$shared/ui/Icons.svelte";
+  import { ArrowLeft, RefreshCw } from "$shared/ui/Icons";
   import { errorMessage, getMediaItem, setSeasonProgress } from "$shared/api/api";
   import { i18n } from "$shared/i18n/index.svelte";
   import { isTvShowDetail, type TvShowDetail } from "$shared/types";

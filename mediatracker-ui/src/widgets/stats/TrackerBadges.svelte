@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Crown, BookOpen, Flame, Clock, Star, Compass, Trophy } from "$shared/ui/Icons.svelte";
+  import { Crown, BookOpen, Flame, Clock, Star, Compass, Trophy } from "$shared/ui/Icons";
   import { i18n } from "$shared/i18n/index.svelte";
   import type { AdvancedStats } from "$shared/types";
 

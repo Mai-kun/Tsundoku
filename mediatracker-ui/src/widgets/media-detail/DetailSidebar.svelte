@@ -11,10 +11,8 @@
     Sparkles,
     Star,
     Trash2,
-  } from "$shared/ui/Icons.svelte";
+  } from "$shared/ui/Icons";
   import ListPicker from "$features/lists/ListPicker.svelte";
-  import MediaActivityModal from "./MediaActivityModal.svelte";
-  import CoverManagerModal from "./CoverManagerModal.svelte";
   import { errorMessage, triggerAutoRefresh } from "$shared/api/api";
   import { showToast } from "$shared/ui/toast.svelte";
   import { fullSizeCoverUrl } from "$entities/media/model/coverUrl";
@@ -209,7 +207,7 @@
         aria-label="Увеличить постер"
       >
         <img
-          src={fullSizeCoverUrl(media.coverUrl)}
+          src={media.coverUrl}
           alt={media.title}
           referrerpolicy="no-referrer"
           class="h-full w-full object-cover object-top"
@@ -219,7 +217,7 @@
 
       <button
         type="button"
-        class="absolute top-2 right-2 z-10 flex items-center gap-1.5 rounded-lg border border-white/20 bg-black/70 px-2.5 py-1 text-xs font-semibold text-white opacity-80 shadow-md backdrop-blur-md transition group-hover:opacity-100 hover:border-white/40 hover:bg-black/90"
+        class="absolute top-2 right-2 z-10 flex items-center gap-1.5 rounded-lg border border-white/20 bg-black/70 px-2.5 py-1 text-xs font-semibold text-white opacity-80 shadow-md transition group-hover:opacity-100 hover:border-white/40 hover:bg-black/90"
         onclick={(e) => {
           e.stopPropagation();
           isCoverManagerOpen = true;
@@ -239,7 +237,7 @@
       <MediaCoverPlaceholder />
       <button
         type="button"
-        class="absolute top-2 right-2 z-10 flex items-center gap-1.5 rounded-lg border border-white/20 bg-black/70 px-2.5 py-1 text-xs font-semibold text-white shadow-md backdrop-blur-md transition hover:border-white/40 hover:bg-black/90"
+        class="absolute top-2 right-2 z-10 flex items-center gap-1.5 rounded-lg border border-white/20 bg-black/70 px-2.5 py-1 text-xs font-semibold text-white shadow-md transition hover:border-white/40 hover:bg-black/90"
         onclick={(e) => {
           e.stopPropagation();
           isCoverManagerOpen = true;
@@ -922,22 +920,32 @@
   </div>
 </aside>
 
-<MediaActivityModal
-  isOpen={isActivityOpen}
-  mediaId={media.id}
-  title={media.title}
-  onClose={() => (isActivityOpen = false)}
-/>
+{#if isActivityOpen}
+  {#await import("./MediaActivityModal.svelte") then { default: MediaActivityModal }}
+    <MediaActivityModal
+      isOpen={isActivityOpen}
+      mediaId={media.id}
+      title={media.title}
+      onClose={() => (isActivityOpen = false)}
+    />
+  {/await}
+{/if}
 
-<ImageLightbox url={activeLightboxUrl} onclose={() => (activeLightboxUrl = null)} />
+{#if activeLightboxUrl}
+  <ImageLightbox url={activeLightboxUrl} onclose={() => (activeLightboxUrl = null)} />
+{/if}
 
-<CoverManagerModal
-  isOpen={isCoverManagerOpen}
-  {media}
-  onClose={() => (isCoverManagerOpen = false)}
-  onUpdate={(updated) => {
-    media = updated;
-    onAutoRefreshed?.(updated);
-    onMediaUpdated?.(updated);
-  }}
-/>
+{#if isCoverManagerOpen}
+  {#await import("./CoverManagerModal.svelte") then { default: CoverManagerModal }}
+    <CoverManagerModal
+      isOpen={isCoverManagerOpen}
+      {media}
+      onClose={() => (isCoverManagerOpen = false)}
+      onUpdate={(updated) => {
+        media = updated;
+        onAutoRefreshed?.(updated);
+        onMediaUpdated?.(updated);
+      }}
+    />
+  {/await}
+{/if}

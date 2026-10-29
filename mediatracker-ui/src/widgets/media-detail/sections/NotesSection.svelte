@@ -1,6 +1,6 @@
 <script lang="ts">
   import { i18n } from "$shared/i18n/index.svelte";
-  import { BookOpen, Pencil } from "$shared/ui/Icons.svelte";
+  import { BookOpen, Pencil } from "$shared/ui/Icons";
 
   interface Props {
     notes: string | null;

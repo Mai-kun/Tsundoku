@@ -1,5 +1,5 @@
 ﻿<script lang="ts">
-  import { ChevronDown, Languages, Search } from "$shared/ui/Icons.svelte";
+  import { ChevronDown, Languages, Search } from "$shared/ui/Icons";
   import { i18n, locales, type Locale } from "$shared/i18n/index.svelte";
   import PopoverMenu from "$shared/ui/PopoverMenu.svelte";
   import ActivityDropdown from "./ActivityDropdown.svelte";

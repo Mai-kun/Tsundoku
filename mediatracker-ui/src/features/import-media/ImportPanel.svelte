@@ -1,3 +1,20 @@
+<script module lang="ts">
+  // Matching patterns using unicode escapes to avoid raw Cyrillic literals
+  const ON_HOLD_RE =
+    /(?:\u0436\u0434\u0443|\u043e\u0436\u0438\u0434|\u043f\u0430\u0443\u0437|\u043e\u0442\u043b\u043e\u0436|hold|wait|pause)/i;
+  const DROPPED_RE =
+    /(?:\u0443\u0434\u0430\u043b\u0435\u043d|\u0434\u0440\u043e\u043f|\u0431\u0440\u043e\u0448|drop)/i;
+  const READING_RE =
+    /(?:\u0447\u0438\u0442\u0430\u044e|\u0441\u043c\u043e\u0442\u0440\u0443|\u043f\u0435\u0440\u0435\u0441\u043c\u0430\u0442\u0440|reading|watching|rewatching|in_progress|in progress)/i;
+  const PLANNED_RE =
+    /(?:\u043f\u043b\u0430\u043d|\u0437\u0430\u043f\u043b\u0430\u043d\u0438\u0440\u043e\u0432\u0430\u043d\u043e|\u0431\u0443\u0434\u0443|planned|plan_to_watch)/i;
+  const COMPLETED_RE =
+    /(?:\u043f\u0440\u043e\u0447\u0438\u0442\u0430\u043d\u043e|\u043f\u0440\u043e\u0441\u043c\u043e\u0442\u0440\u0435\u043d\u043e|completed|finished|watched)/i;
+  const FAVORITE_RE = /(?:\u043b\u044e\u0431\u0438\u043c|favorite)/i;
+  const NUMERIC_ID_RE = /^\d+$/;
+  const STEAM_ID_RE = /^\d{17}$/;
+</script>
+
 <script lang="ts">
   import { onMount } from "svelte";
   import {
@@ -27,7 +44,7 @@
     Sparkles,
     Upload,
     X,
-  } from "$shared/ui/Icons.svelte";
+  } from "$shared/ui/Icons";
 
   interface Props {
     onImportCompleted?: () => void;
@@ -64,7 +81,7 @@
   let skipDuplicates = $state(true);
   let addToList = $state(false);
   let listMode = $state<"new" | "existing">("new");
-  let lists = $state<CustomListSummary[]>([]);
+  let lists = $state.raw<CustomListSummary[]>([]);
   let targetListId = $state("");
   let newListName = $state("");
   let busy = $state(false);
@@ -123,7 +140,7 @@
   }
 
   let showCustomFolderModal = $state(false);
-  let pendingCustomFolders = $state<CustomFolderItem[]>([]);
+  let pendingCustomFolders = $state.raw<CustomFolderItem[]>([]);
 
   let customFolderStatusOptions = $derived<PopoverOption<CustomFolderStatus>[]>([
     { value: "Planned", label: i18n.t.importModal.statusPlanned },
@@ -160,19 +177,6 @@
     pendingCustomFolders = [];
     busy = false;
   }
-
-  // Matching patterns using unicode escapes to avoid raw Cyrillic literals
-  const ON_HOLD_RE =
-    /(?:\u0436\u0434\u0443|\u043E\u0436\u0438\u0434|\u043F\u0430\u0443\u0437|\u043E\u0442\u043B\u043E\u0436|hold|wait|pause)/i;
-  const DROPPED_RE =
-    /(?:\u0443\u0434\u0430\u043B\u0435\u043D|\u0434\u0440\u043E\u043F|\u0431\u0440\u043E\u0448|drop)/i;
-  const READING_RE =
-    /(?:\u0447\u0438\u0442\u0430\u044E|\u0441\u043C\u043E\u0442\u0440\u044E|\u043F\u0435\u0440\u0435\u0441\u043C\u0430\u0442\u0440|reading|watching|rewatching|in_progress|in progress)/i;
-  const PLANNED_RE =
-    /(?:\u043F\u043B\u0430\u043D|\u0437\u0430\u043F\u043B\u0430\u043D\u0438\u0440\u043E\u0432\u0430\u043D\u043E|\u0431\u0443\u0434\u0443|planned|plan_to_watch)/i;
-  const COMPLETED_RE =
-    /(?:\u043F\u0440\u043E\u0447\u0438\u0442\u0430\u043D\u043E|\u043F\u0440\u043E\u0441\u043C\u043E\u0442\u0440\u0435\u043D\u043E|completed|finished|watched)/i;
-  const FAVORITE_RE = /(?:\u043B\u044E\u0431\u0438\u043C|favorite)/i;
 
   function getDefaultStatusForFolder(name: string): CustomFolderStatus {
     const s = name.trim().toLowerCase();
@@ -382,7 +386,7 @@
     if (ON_HOLD_RE.test(name)) return 6;
     if (
       typeof rawStatus === "number" ||
-      (typeof rawStatus === "string" && /^\d+$/.test(rawStatus))
+      (typeof rawStatus === "string" && NUMERIC_ID_RE.test(rawStatus))
     ) {
       const num = Number(rawStatus);
       if (num >= 1 && num <= 5) return num;
@@ -666,7 +670,7 @@
       } else if (steamProfileMode) {
         const value = steamProfile.trim();
         importTask = importSteamProfile({
-          ...(/^\d{17}$/.test(value) ? { steamId: value } : { profileUrl: value }),
+          ...(STEAM_ID_RE.test(value) ? { steamId: value } : { profileUrl: value }),
           steamApiKey: steamApiKey.trim() || undefined,
           skipDuplicates,
           ...listFields,
@@ -855,22 +859,22 @@
   const isStandardName = (name) => {
     if (!name) return false;
     const s = String(name).toLowerCase().trim();
-    return /(?:\u0447\u0438\u0442\u0430\u044E|\u0441\u043C\u043E\u0442\u0440\u044E|\u043F\u0435\u0440\u0435\u0441\u043C\u0430\u0442\u0440|reading|watching|rewatching|in_progress|in progress)/i.test(s) ||
-      /(?:\u043F\u043B\u0430\u043D|\u0437\u0430\u043F\u043B\u0430\u043D\u0438\u0440\u043E\u0432\u0430\u043D\u043E|\u0431\u0443\u0434\u0443|planned|plan_to_watch)/i.test(s) ||
-      /(?:\u043F\u0440\u043E\u0447\u0438\u0442\u0430\u043D\u043E|\u043F\u0440\u043E\u0441\u043C\u043E\u0442\u0440\u0435\u043D\u043E|completed|watched)/i.test(s) ||
-      /(?:\u043B\u044E\u0431\u0438\u043C|favorite)/i.test(s) ||
-      /(?:\u043E\u0442\u043B\u043E\u0436|hold|pause)/i.test(s) ||
-      /(?:\u0443\u0434\u0430\u043B\u0435\u043D|\u0431\u0440\u043E\u0448|dropped)/i.test(s);
+    return READING_RE.test(s) ||
+      PLANNED_RE.test(s) ||
+      COMPLETED_RE.test(s) ||
+      FAVORITE_RE.test(s) ||
+      ON_HOLD_RE.test(s) ||
+      DROPPED_RE.test(s);
   };
 
   const statusToCode = (statusId, statusName) => {
     const s = String(statusName || "").toLowerCase();
-    if (/(?:\u0443\u0434\u0430\u043B\u0435\u043D|\u0431\u0440\u043E\u0448|dropped)/i.test(s)) return 3;
-    if (/(?:\u0447\u0438\u0442\u0430\u044E|\u0441\u043C\u043E\u0442\u0440\u044E|\u043F\u0435\u0440\u0435\u0441\u043C\u0430\u0442\u0440|reading|watching|rewatching)/i.test(s)) return 1;
-    if (/(?:\u043F\u043B\u0430\u043D|\u0437\u0430\u043F\u043B\u0430\u043D\u0438\u0440\u043E\u0432\u0430\u043D\u043E|planned)/i.test(s)) return 2;
-    if (/(?:\u043F\u0440\u043E\u0447\u0438\u0442\u0430\u043D\u043E|\u043F\u0440\u043E\u0441\u043C\u043E\u0442\u0440\u0435\u043D\u043E|completed|watched)/i.test(s)) return 4;
-    if (/(?:\u043B\u044E\u0431\u0438\u043C|favorite)/i.test(s)) return 5;
-    if (/(?:\u043E\u0442\u043B\u043E\u0436|hold)/i.test(s)) return 6;
+    if (DROPPED_RE.test(s)) return 3;
+    if (READING_RE.test(s)) return 1;
+    if (PLANNED_RE.test(s)) return 2;
+    if (COMPLETED_RE.test(s)) return 4;
+    if (FAVORITE_RE.test(s)) return 5;
+    if (ON_HOLD_RE.test(s)) return 6;
     if (typeof statusId === "number") {
       if (statusId >= 1 && statusId <= 6) return statusId;
       return 6;

@@ -1,7 +1,8 @@
 <script lang="ts">
-  import { Bookmark, Flame, Heart, List, Sparkles, Star, X } from "$shared/ui/Icons.svelte";
+  import { Bookmark, Flame, Heart, List, Sparkles, Star, X } from "$shared/ui/Icons";
   import { createList, errorMessage, getMedia, updateList } from "$shared/api/api";
   import { fullSizeCoverUrl } from "$entities/media/model/coverUrl";
+  import MediaCoverPlaceholder from "$shared/ui/MediaCoverPlaceholder.svelte";
   import type {
     CustomListSummary,
     CreateListPayload,
@@ -29,8 +30,8 @@
   let lastOpen = false;
   let listType = $state<"manual" | "smart">("manual");
   let smartQuery = $state<SmartListQuery>({});
-  let allMedia = $state<MediaItem[]>([]);
-  let matchedItems = $state<MediaItem[]>([]);
+  let allMedia = $state.raw<MediaItem[]>([]);
+  let matchedItems = $state.raw<MediaItem[]>([]);
 
   const colors = ["#5844e0", "#3b82f6", "#10b981", "#f59e0b", "#ec4899", "#06b6d4"];
   const icons = [
@@ -231,14 +232,15 @@
                       alt={item.title}
                       title={item.title}
                       class="aspect-[2/3] h-8 shrink-0 rounded object-cover shadow ring-1 ring-white/10"
+                      onerror={(e) => {
+                        const target = e.currentTarget as HTMLImageElement;
+                        target.src = "";
+                      }}
                     />
                   {:else}
-                    <div
-                      class="bg-elevated text-muted grid aspect-[2/3] h-8 w-5 shrink-0 place-items-center rounded text-[9px] ring-1 ring-white/10"
-                      title={item.title}
-                    >
-                      ?
-                    </div>
+                    <MediaCoverPlaceholder
+                      class="aspect-[2/3] h-8 shrink-0 rounded object-cover shadow ring-1 ring-white/10"
+                    />
                   {/if}
                 {/each}
               </div>

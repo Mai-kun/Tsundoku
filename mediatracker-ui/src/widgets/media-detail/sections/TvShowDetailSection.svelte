@@ -9,7 +9,7 @@
     List,
     Play,
     RotateCcw,
-  } from "$shared/ui/Icons.svelte";
+  } from "$shared/ui/Icons";
   import { errorMessage } from "$shared/api/api";
   import { i18n } from "$shared/i18n/index.svelte";
   import type { TvSeason } from "$shared/types";

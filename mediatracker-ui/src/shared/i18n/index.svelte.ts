@@ -41,16 +41,13 @@ function buildDictionary(locale: Locale): Dictionary {
   return resolve(translations) as Dictionary;
 }
 
-const dictionaries: Record<Locale, Dictionary> = {
-  ru: buildDictionary("ru"),
-  en: buildDictionary("en"),
-};
+const dictionaries: Partial<Record<Locale, Dictionary>> = {};
 
 class I18nService {
   current = $state<Locale>(readStoredLocale());
 
   get t(): Dictionary {
-    return dictionaries[this.current];
+    return (dictionaries[this.current] ??= buildDictionary(this.current));
   }
 
   setLocale(locale: Locale) {

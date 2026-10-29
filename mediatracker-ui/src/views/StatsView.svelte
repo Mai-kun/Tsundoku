@@ -1,6 +1,6 @@
 <script lang="ts">
   import { markStart, markEnd } from "$shared/utils/perfMarks";
-  import { BarChart3, RefreshCw, Sparkles } from "$shared/ui/Icons.svelte";
+  import { BarChart3, RefreshCw, Sparkles } from "$shared/ui/Icons";
   import { errorMessage, getAdvancedStats, getTasteProfile } from "$shared/api/api";
   import { i18n } from "$shared/i18n/index.svelte";
   import { uiSettings } from "$shared/utils/uiSettings.svelte";

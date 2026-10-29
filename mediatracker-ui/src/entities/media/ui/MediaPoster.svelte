@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
   import Placeholder404 from "./Placeholder404.svelte";
-  import { AlertTriangle, LoaderCircle } from "$shared/ui/Icons.svelte";
+  import { AlertTriangle, LoaderCircle } from "$shared/ui/Icons";
   import { i18n } from "$shared/i18n/index.svelte";
   import { jobsClient } from "$shared/api/jobsClient.svelte";
 

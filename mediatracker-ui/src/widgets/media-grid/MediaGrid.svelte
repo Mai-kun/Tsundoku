@@ -3,7 +3,7 @@
   import { markStart, markEnd } from "$shared/utils/perfMarks";
   import { createVirtualizer } from "@tanstack/svelte-virtual";
   import type { SvelteVirtualizer } from "@tanstack/svelte-virtual";
-  import { Inbox, RefreshCw, X } from "$shared/ui/Icons.svelte";
+  import { Inbox, RefreshCw, X } from "$shared/ui/Icons";
   import { errorMessage } from "$shared/api/api";
   import { i18n } from "$shared/i18n/index.svelte";
   import type { MediaItem } from "$shared/types";
@@ -87,7 +87,7 @@
     getScrollElement: () => document.getElementById("main-scroll"),
     estimateSize: () => rowHeight,
     gap: ROW_GAP,
-    overscan: 8,
+    overscan: 3,
     initialOffset: () => document.getElementById("main-scroll")?.scrollTop ?? 0,
     scrollMargin: 0,
   });
@@ -134,25 +134,44 @@
     }
   });
 
-  // A grid's footprint on the page (row count, corrected row height) shifts
-  // every grid below it, so its own recompute is not enough: bump the shared
-  // version and let sibling margins recompute. Also runs on unmount via
-  // onDestroy below.
+  // A grid's footprint on the page (row count, corrected row height, breakpoint width)
+  // shifts every grid below it, so sibling margins must recompute. The observer only
+  // fires on a real size change; a bump never changes count/rowHeight, so it cannot
+  // feed back into the virtualizer.
   $effect(() => {
-    rowCount;
-    rowHeight;
+    const el = containerEl;
+    if (!el || el.offsetParent === null) return;
+
+    let lastWidth = el.clientWidth;
+    let lastHeight = el.clientHeight;
+    const ro = new ResizeObserver(([entry]) => {
+      const width = entry.contentRect.width;
+      const height = entry.contentRect.height;
+      if (Math.abs(width - lastWidth) < 0.5 && Math.abs(height - lastHeight) < 0.5) return;
+      lastWidth = width;
+      lastHeight = height;
+      bumpGridLayout();
+    });
+    ro.observe(el);
+    // Register the grid's presence on the page once; unmount bumps again via onDestroy.
     bumpGridLayout();
+    return () => ro.disconnect();
   });
 
   onDestroy(() => bumpGridLayout());
 
-  // $effect.pre: setOptions forces a store emit, so running it pre-render
-  // keeps virtual items and `rows` consistent within a single flush.
+  // $effect.pre: setOptions merges options but does not recalculate the visible
+  // range or re-emit subscribers unless the scroll element itself changed. Run it
+  // pre-render and force a range recalculation + store emit via _willUpdate, so
+  // `$virtualizer` reflects a new `count`/`scrollMargin` (e.g. after a category
+  // switch) within the same flush instead of going stale. Reads `rowCount` (and
+  // through it `items`), so the virtualizer tracks item list changes.
   $effect.pre(() => {
     virtualizerInstance?.setOptions({
       count: rowCount,
       scrollMargin,
     });
+    (virtualizerInstance as any)?._willUpdate?.();
   });
 
   // Row-height correction, once per breakpoint: the table seed paints the
@@ -163,7 +182,7 @@
   // virtualizer.measure() anywhere on the mount path.
   $effect(() => {
     const el = containerEl;
-    if (!el) return;
+    if (!el || el.offsetParent === null) return;
     columnsCount;
     rowCount;
     const firstRow = el.querySelector<HTMLDivElement>(":scope > div");
@@ -271,24 +290,38 @@
     </div>
   </div>
 {:else if shouldVirtualize}
-  <div
-    bind:this={containerEl}
-    data-virtual-grid
-    style="position: relative; height: {$virtualizer.getTotalSize()}px; width: 100%;"
-  >
-    {#each $virtualizer.getVirtualItems() as virtualRow (virtualRow.index)}
-      {@const startIdx = virtualRow.index * columnsCount}
-      <div
-        style="position: absolute; top: 0; left: 0; width: 100%; transform: translateY({virtualRow.start -
-          $virtualizer.options.scrollMargin}px); will-change: transform; contain: layout;"
-        class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-7"
-      >
-        {#each items.slice(startIdx, startIdx + columnsCount) as item (item.id)}
-          {@render card(item)}
-        {/each}
-      </div>
-    {/each}
-  </div>
+  {@const virtualItems = $virtualizer.getVirtualItems()}
+  {#if items.length > 0 && virtualItems.length === 0}
+    <!-- Safety net: the virtualizer range was not (re)calculated (stale store
+         after an options change). Render the visible slice flat instead of
+         leaving the screen blank while items exist in state. -->
+    <div
+      class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-7"
+    >
+      {#each items as item (item.id)}
+        {@render card(item)}
+      {/each}
+    </div>
+  {:else}
+    <div
+      bind:this={containerEl}
+      data-virtual-grid
+      style="position: relative; height: {$virtualizer.getTotalSize()}px; width: 100%;"
+    >
+      {#each virtualItems as virtualRow (virtualRow.index)}
+        {@const startIdx = virtualRow.index * columnsCount}
+        <div
+          style="position: absolute; top: 0; left: 0; width: 100%; transform: translateY({virtualRow.start -
+            $virtualizer.options.scrollMargin}px); will-change: transform; contain: layout paint;"
+          class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-7"
+        >
+          {#each items.slice(startIdx, startIdx + columnsCount) as item (item.id)}
+            {@render card(item)}
+          {/each}
+        </div>
+      {/each}
+    </div>
+  {/if}
 {:else}
   <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-7">
     {#each items as item (item.id)}

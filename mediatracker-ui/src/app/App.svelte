@@ -6,7 +6,8 @@
   import Header from "$widgets/layout/Header.svelte";
   import Sidebar from "$widgets/layout/Sidebar.svelte";
   import { dropPromptState } from "$features/drop-reason/dropReasonPrompt.svelte";
-  import CategoryView, { type Category } from "$views/CategoryView.svelte";
+  import CategoryView from "$views/CategoryView.svelte";
+  import type { Category } from "$views/categoryModel";
   import HomeView from "$views/HomeView.svelte";
   import { i18n } from "$shared/i18n/index.svelte";
   import { uiSettings } from "$shared/utils/uiSettings.svelte";
@@ -77,7 +78,20 @@
 
   $effect(() => {
     const syncFromHistory = () => {
+      // A modal is open: the Back/Forward button must only close the modal,
+      // never navigate the background view or scroll it.
+      if (isModalOpen()) {
+        closeAllModals();
+        return;
+      }
+
       const nextRoute = readRoute();
+      // Popping the modal state we pushed leaves the URL (and thus the route)
+      // unchanged, so nothing actually navigated: don't scroll or swap views.
+      if (nextRoute.view === activeView && nextRoute.mediaId === selectedMediaId) {
+        return;
+      }
+
       activeView = nextRoute.view;
       selectedMediaId = nextRoute.mediaId;
       switchView(nextRoute.view);
@@ -240,21 +254,59 @@
     requestAnimationFrame(() => trigger?.focus());
   }
 
+  /** Pushes a modal entry onto the history stack so the Back button closes the
+   *  modal instead of navigating the background screen. The URL is unchanged. */
+  function pushModalState() {
+    window.history.pushState({ modalOpen: true }, "");
+  }
+
+  /** Pops the modal entry pushed by pushModalState. Only call from a close
+   *  path that already set its is*Open flag to false. */
+  function popModalState() {
+    if (window.history.state?.modalOpen) {
+      window.history.back();
+    }
+  }
+
+  function isModalOpen() {
+    return (
+      isSearchOpen ||
+      isSettingsOpen ||
+      isCreateOpen ||
+      jobsClient.isModalOpen ||
+      dropPromptState.target !== null
+    );
+  }
+
+  /** Closes every app-level modal without touching the route or scroll. */
+  function closeAllModals() {
+    isSearchOpen = false;
+    isSettingsOpen = false;
+    isCreateOpen = false;
+    editingItem = null;
+    jobsClient.closeModal();
+    dropPromptState.close();
+    restoreModalFocus();
+  }
+
   function openCreate() {
     rememberTrigger();
     editingItem = null;
     isCreateOpen = true;
+    pushModalState();
   }
 
   function openEdit(item: MediaItem) {
     rememberTrigger();
     editingItem = item;
     isCreateOpen = true;
+    pushModalState();
   }
 
   function closeCreate() {
     isCreateOpen = false;
     editingItem = null;
+    popModalState();
     restoreModalFocus();
   }
 
@@ -272,20 +324,24 @@
       initialSearchByCreator = Boolean(context.byCreator);
     }
     isSearchOpen = true;
+    pushModalState();
   }
 
   function closeSearch() {
     isSearchOpen = false;
+    popModalState();
     restoreModalFocus();
   }
 
   function openSettings() {
     rememberTrigger();
     isSettingsOpen = true;
+    pushModalState();
   }
 
   function closeSettings() {
     isSettingsOpen = false;
+    popModalState();
     restoreModalFocus();
   }
 
@@ -297,7 +353,7 @@
     navigate("lists");
     const url = new URL(window.location.href);
     url.searchParams.set("listId", id);
-    window.history.replaceState(null, "", url);
+    window.history.pushState(null, "", url);
   }
 
   function handleCreated(_: MediaItem) {
@@ -370,14 +426,16 @@
 
   {#if activeCategory !== null}
     <div class:hidden={renderedView === null || !isCategory(renderedView)}>
-      <CategoryView
-        category={activeCategory}
-        active={renderedView !== null && isCategory(renderedView)}
-        refreshKey={mediaRevision}
-        onOpen={openDetail}
-        onMediaChanged={mediaChanged}
-        onEdit={openEdit}
-      />
+      {#key activeCategory}
+        <CategoryView
+          category={activeCategory}
+          active={renderedView !== null && isCategory(renderedView)}
+          refreshKey={mediaRevision}
+          onOpen={openDetail}
+          onMediaChanged={mediaChanged}
+          onEdit={openEdit}
+        />
+      {/key}
     </div>
   {/if}
 

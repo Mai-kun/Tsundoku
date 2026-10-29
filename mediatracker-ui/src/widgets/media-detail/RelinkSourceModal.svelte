@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Image as ImageIcon, Link2, LoaderCircle, Search, X } from "$shared/ui/Icons.svelte";
+  import { Image as ImageIcon, Link2, LoaderCircle, Search, X } from "$shared/ui/Icons";
   import { errorMessage, getSources, relinkMedia, searchExternal } from "$shared/api/api";
   import { i18n } from "$shared/i18n/index.svelte";
   import Modal from "$shared/ui/Modal.svelte";
@@ -50,7 +50,7 @@
   const scope = $derived<SearchScope>(SEARCHABLE.has(type) ? (type as SearchScope) : "all");
 
   /** Providers the user can pick from; resolved once from the settings endpoint. */
-  let providers = $state<SourceInfo[]>([]);
+  let providers = $state.raw<SourceInfo[]>([]);
   let provider = $state("");
 
   $effect(() => {
@@ -90,7 +90,7 @@
   });
 
   let query = $state("");
-  let results = $state<ExternalMedia[]>([]);
+  let results = $state.raw<ExternalMedia[]>([]);
   let searching = $state(false);
   let searchError = $state<unknown>(null);
   let linkingId = $state("");

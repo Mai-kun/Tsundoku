@@ -58,12 +58,18 @@ class JobsClient {
   openModal(tab: "jobs" | "review" = "jobs") {
     this.modalTab = tab;
     this.isModalOpen = true;
+    // Push a modal entry so the browser Back button closes this modal instead of navigating the
+    // view beneath it.
+    window.history.pushState({ modalOpen: true }, "");
     // The review list goes stale while the modal is closed; opening is the cheap moment to reread.
     void this.refreshPendingMatches();
   }
 
   closeModal() {
     this.isModalOpen = false;
+    if (window.history.state?.modalOpen) {
+      window.history.back();
+    }
   }
 
   /** Removes one resolved/skipped title from the review list without a round trip. */

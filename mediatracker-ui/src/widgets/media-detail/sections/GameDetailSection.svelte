@@ -1,12 +1,5 @@
 <script lang="ts">
-  import {
-    Check,
-    ChevronLeft,
-    ChevronRight,
-    LoaderCircle,
-    Trophy,
-    X,
-  } from "$shared/ui/Icons.svelte";
+  import { Check, ChevronLeft, ChevronRight, LoaderCircle, Trophy, X } from "$shared/ui/Icons";
   import { errorMessage } from "$shared/api/api";
   import CircularCounter from "$shared/ui/CircularCounter.svelte";
   import { i18n } from "$shared/i18n/index.svelte";

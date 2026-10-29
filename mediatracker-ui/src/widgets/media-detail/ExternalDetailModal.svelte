@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
-  import { LoaderCircle, X } from "$shared/ui/Icons.svelte";
+  import { LoaderCircle, X } from "$shared/ui/Icons";
   import { errorMessage, translateText } from "$shared/api/api";
   import Modal from "$shared/ui/Modal.svelte";
   import DetailHeader, { type RatingBadge } from "./DetailHeader.svelte";

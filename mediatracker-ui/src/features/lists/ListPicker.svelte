@@ -9,7 +9,7 @@
   import CreateListModal from "$features/lists/CreateListModal.svelte";
   import { i18n } from "$shared/i18n/index.svelte";
   import { showToast } from "$shared/ui/toast.svelte";
-  import { List, Plus } from "$shared/ui/Icons.svelte";
+  import { List, Plus } from "$shared/ui/Icons";
   import type { CustomListSummary } from "$shared/types";
   import Modal from "$shared/ui/Modal.svelte";
 
@@ -20,7 +20,7 @@
   let open = $state(false);
   let createOpen = $state(false);
   let loading = $state(false);
-  let lists = $state<CustomListSummary[]>([]);
+  let lists = $state.raw<CustomListSummary[]>([]);
   let included = $state<string[]>([]);
   let busyIds = $state<string[]>([]);
 

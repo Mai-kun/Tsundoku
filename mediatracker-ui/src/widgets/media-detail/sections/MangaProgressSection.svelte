@@ -1,7 +1,7 @@
 <script lang="ts">
   import { i18n } from "$shared/i18n/index.svelte";
   import { uiSettings } from "$shared/utils/uiSettings.svelte";
-  import { Clock, Minus, Plus } from "$shared/ui/Icons.svelte";
+  import { Clock, Minus, Plus } from "$shared/ui/Icons";
   import { formatNumber } from "$entities/media/model/mediaLabels";
   import { errorMessage } from "$shared/api/api";
   import type { ProgressInfo } from "../detailTypes";

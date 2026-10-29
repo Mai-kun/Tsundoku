@@ -8,7 +8,7 @@
     Search,
     Star,
     X,
-  } from "$shared/ui/Icons.svelte";
+  } from "$shared/ui/Icons";
   import { untrack } from "svelte";
   import {
     createMedia,
@@ -24,7 +24,7 @@
   import Modal from "$shared/ui/Modal.svelte";
   import PopoverMenu from "$shared/ui/PopoverMenu.svelte";
   import ExternalDetailModal from "$widgets/media-detail/ExternalDetailModal.svelte";
-  import { ChevronDown } from "$shared/ui/Icons.svelte";
+  import { ChevronDown } from "$shared/ui/Icons";
   import {
     MEDIA_STATUS,
     type CreateMediaPayload,
@@ -36,7 +36,7 @@
 
   const categories = ["all", "anime", "manga", "movie", "tvshow", "game", "book"] as const;
   const minQueryLength = 2;
-  const debounceDelay = 500;
+  const debounceDelay = 220;
   const fallbackPlatform = "PC";
 
   type SearchCategory = (typeof categories)[number];
@@ -68,7 +68,7 @@
 
   let query = $state("");
   let activeType = $state<SearchCategory>(untrack(() => initialType));
-  let results = $state<ExternalMedia[]>([]);
+  let results = $state.raw<ExternalMedia[]>([]);
   let searching = $state(false);
   let searchError = $state<unknown>(null);
   let addError = $state<unknown>(null);
@@ -82,7 +82,7 @@
   let loadingByCategory = $state<Record<string, boolean>>({});
   let requestSequence = 0;
   let searchController: AbortController | null = null;
-  let availableSources = $state<SourceInfo[]>([]);
+  let availableSources = $state.raw<SourceInfo[]>([]);
   // "" = "All / by priority"; a concrete id pins the search to one source.
   let selectedSource = $state("");
   // The creator chip: a studio/author name restricting the search to their works.

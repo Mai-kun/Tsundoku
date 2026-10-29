@@ -13,7 +13,7 @@
 </script>
 
 <script lang="ts">
-  import { Clock3, Layers } from "$shared/ui/Icons.svelte";
+  import { Clock3, Layers } from "$shared/ui/Icons";
   import {
     deleteMedia,
     getMedia,

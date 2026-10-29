@@ -28,7 +28,7 @@
     Trash2,
     Trophy,
     X,
-  } from "$shared/ui/Icons.svelte";
+  } from "$shared/ui/Icons";
   import {
     createMedia,
     enrichMedia,
@@ -395,7 +395,7 @@
   let episodeSortOrder = $state<"asc" | "desc">("asc");
   let synopsisExpanded = $state(false);
   let userRatingPopoverOpen = $state(false);
-  let availableSources = $state<SourceInfo[]>([]);
+  let availableSources = $state.raw<SourceInfo[]>([]);
 
   /* Hover-opened rating menu: the close is deferred so the cursor can cross
        the gap between the star button and the score grid. */
@@ -434,7 +434,7 @@
       .catch(() => {});
   });
 
-  let related = $state<RelatedEntry[]>([]);
+  let related = $state.raw<RelatedEntry[]>([]);
   let relatedLoading = $state(false);
   let relatedError = $state<unknown>(null);
   let relatedSequence = 0;
@@ -524,7 +524,7 @@
     });
   });
 
-  let recommendations = $state<RecommendationItem[]>([]);
+  let recommendations = $state.raw<RecommendationItem[]>([]);
 
   let deleteBusy = $state(false);
   let deleteError = $state<unknown>(null);
@@ -1059,7 +1059,7 @@
     }
   }
 
-  let gameAchievements = $state<GameAchievementItem[]>([]);
+  let gameAchievements = $state.raw<GameAchievementItem[]>([]);
   let gameAchievementsTotal = $state(0);
   let gameAchievementsLoading = $state(false);
 
@@ -2255,7 +2255,10 @@
       {mediaId}
       title={media?.title ?? ""}
       {originalTitle}
-      type={media?.type ?? "all"}
+      type={(media?.type === "tvshow" || media?.type === "movie") &&
+      (media as { isAnime?: boolean }).isAnime
+        ? "anime"
+        : (media?.type ?? "all")}
       currentSource={media?.externalSource ?? null}
       onClose={() => (relinkOpen = false)}
       onRelinked={applyRelinked}

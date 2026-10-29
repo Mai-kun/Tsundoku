@@ -15,7 +15,7 @@
     Scale,
     Sparkles,
     Tv,
-  } from "$shared/ui/Icons.svelte";
+  } from "$shared/ui/Icons";
   import { i18n } from "$shared/i18n/index.svelte";
   import type { TastePersona } from "$shared/types";
 

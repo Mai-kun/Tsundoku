@@ -1,14 +1,6 @@
 <script lang="ts">
   import Modal from "$shared/ui/Modal.svelte";
-  import {
-    Hourglass,
-    X,
-    Flame,
-    Pause,
-    Ban,
-    Bookmark,
-    Image as ImageIcon,
-  } from "$shared/ui/Icons.svelte";
+  import { Hourglass, X, Flame, Pause, Ban, Bookmark, Image as ImageIcon } from "$shared/ui/Icons";
   import { i18n } from "$shared/i18n/index.svelte";
   import { MEDIA_STATUS, type MediaItem } from "$shared/types";
   import {
@@ -31,7 +23,7 @@
   let { isOpen, onClose, items, onMediaChanged }: Props = $props();
 
   let threshold = $state<StaleThresholdDays>(180);
-  let allInProgress = $state<MediaItem[]>([]);
+  let allInProgress = $state.raw<MediaItem[]>([]);
   let loading = $state(false);
 
   $effect(() => {

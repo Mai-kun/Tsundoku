@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Ban, Trash2, X } from "$shared/ui/Icons.svelte";
+  import { Ban, Trash2, X } from "$shared/ui/Icons";
   import Modal from "$shared/ui/Modal.svelte";
   import { updateStatus, errorMessage } from "$shared/api/api";
   import { i18n } from "$shared/i18n/index.svelte";

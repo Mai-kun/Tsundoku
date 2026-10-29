@@ -23,7 +23,7 @@
     ShieldCheck,
     Trash2,
     X,
-  } from "$shared/ui/Icons.svelte";
+  } from "$shared/ui/Icons";
   import { onMount } from "svelte";
   import { uiSettings } from "$shared/utils/uiSettings.svelte";
   import {
@@ -56,6 +56,7 @@
     ConnectionTestResult,
     CreateApiTokenResponse,
     SourceInfo,
+    StorageSettings,
   } from "$shared/types";
   import type { UpdateCheckResult } from "$shared/api/api";
 
@@ -95,6 +96,9 @@
     }
     if (isOpen && activeTab === "update") {
       handleCheckUpdate();
+    }
+    if (isOpen && activeTab === "storage") {
+      loadStorage();
     }
   });
 
@@ -226,6 +230,46 @@
       month: "short",
       day: "numeric",
     });
+  }
+
+  let storage = $state<StorageSettings | null>(null);
+  let storageMode = $state<"default" | "portable" | "custom">("default");
+  let customPathInput = $state("");
+  let migrateExistingData = $state(false);
+  let isSavingStorage = $state(false);
+  let storageError = $state<unknown>(null);
+
+  async function loadStorage() {
+    try {
+      storage = await getStorageSettings();
+      storageMode = storage.mode;
+      customPathInput = storage.customPath ?? "";
+      migrateExistingData = false;
+      storageError = null;
+    } catch (e) {
+      storageError = e;
+      console.error("Failed to load storage settings:", e);
+    }
+  }
+
+  async function handleSaveStorage() {
+    if (isSavingStorage) return;
+    isSavingStorage = true;
+    try {
+      await saveStorageSettings({
+        mode: storageMode,
+        customPath: customPathInput.trim() || "",
+        migrateExistingData,
+      });
+      showToast(i18n.t.settingsModal.storage.savedToast, "success");
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
+    } catch (e) {
+      showToast(errorMessage(e), "error");
+    } finally {
+      isSavingStorage = false;
+    }
   }
 
   let readingBookPageMinutes = $state(uiSettings.bookPageMinutes);
@@ -362,7 +406,7 @@
     }
   }
 
-  let sources = $state<SourceInfo[]>([]);
+  let sources = $state.raw<SourceInfo[]>([]);
   let sourcesLoading = $state(false);
   let sourcesError = $state<unknown>(null);
 
@@ -1324,6 +1368,126 @@
                 {:else}
                   <p class="text-muted text-sm">Установлена актуальная версия.</p>
                 {/if}
+              </div>
+            {/if}
+          </section>
+        {:else if activeTab === "storage"}
+          <section class="space-y-6">
+            <div>
+              <h3 class="text-ink text-base font-bold">
+                {i18n.t.settingsModal.storage.title}
+              </h3>
+              <p class="text-muted mt-1 text-xs leading-relaxed">
+                {i18n.t.settingsModal.storage.description}
+              </p>
+            </div>
+
+            {#if storageError}
+              <p class="rounded-lg bg-rose-400/10 p-3 text-xs text-rose-300">
+                {errorMessage(storageError)}
+              </p>
+            {:else if storage}
+              <div class="bg-card space-y-5 rounded-lg border border-white/[0.08] p-5">
+                <div class="space-y-2">
+                  <span class="block text-xs font-semibold text-slate-300">
+                    {i18n.t.settingsModal.storage.title}
+                  </span>
+                  <div class="space-y-1.5">
+                    <label
+                      class="flex cursor-pointer items-center gap-2 text-sm text-slate-200 hover:text-white"
+                    >
+                      <input
+                        type="radio"
+                        bind:group={storageMode}
+                        value="default"
+                        class="accent-accent-soft shrink-0"
+                      />
+                      <span>{i18n.t.settingsModal.storage.modeDefault}</span>
+                    </label>
+                    <label
+                      class="flex cursor-pointer items-center gap-2 text-sm text-slate-200 hover:text-white"
+                    >
+                      <input
+                        type="radio"
+                        bind:group={storageMode}
+                        value="portable"
+                        class="accent-accent-soft shrink-0"
+                      />
+                      <span>{i18n.t.settingsModal.storage.modePortable}</span>
+                    </label>
+                    <label
+                      class="flex cursor-pointer items-center gap-2 text-sm text-slate-200 hover:text-white"
+                    >
+                      <input
+                        type="radio"
+                        bind:group={storageMode}
+                        value="custom"
+                        class="accent-accent-soft shrink-0"
+                      />
+                      <span>{i18n.t.settingsModal.storage.modeCustom}</span>
+                    </label>
+                  </div>
+                </div>
+
+                {#if storageMode === "custom"}
+                  <div class="space-y-1.5">
+                    <label
+                      for="custom-path-input"
+                      class="block text-xs font-semibold text-slate-300"
+                    >
+                      {i18n.t.settingsModal.storage.customPathLabel}
+                    </label>
+                    <input
+                      id="custom-path-input"
+                      type="text"
+                      bind:value={customPathInput}
+                      placeholder={i18n.t.settingsModal.storage.customPathPlaceholder}
+                      class="bg-field text-ink focus:border-accent-soft focus:ring-accent-soft w-full rounded-lg border border-white/10 px-3 py-2 text-sm transition outline-none focus:ring-1"
+                    />
+                  </div>
+                {/if}
+
+                <label class="flex cursor-pointer items-center gap-2 text-sm text-slate-200">
+                  <input
+                    type="checkbox"
+                    bind:checked={migrateExistingData}
+                    class="accent-accent-soft shrink-0"
+                  />
+                  {i18n.t.settingsModal.storage.migrateLabel}
+                </label>
+
+                <div class="space-y-1.5 border-t border-white/[0.05] pt-3">
+                  <div class="flex justify-between text-xs">
+                    <span class="text-muted">{i18n.t.settingsModal.storage.dbPathLabel}</span>
+                    <span class="text-ink max-w-xs truncate font-mono"
+                      >{storage.defaultDirectory}</span
+                    >
+                  </div>
+                  <div class="flex justify-between text-xs">
+                    <span class="text-muted">{i18n.t.settingsModal.storage.coversPathLabel}</span>
+                    <span class="text-ink max-w-xs truncate font-mono"
+                      >{storage.portableDirectory}</span
+                    >
+                  </div>
+                  <div class="flex justify-between text-xs">
+                    <span class="text-muted">{i18n.t.settingsModal.storage.logsPathLabel}</span>
+                    <span class="text-ink max-w-xs truncate font-mono"
+                      >{storage.defaultDirectory}</span
+                    >
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  disabled={isSavingStorage}
+                  class="bg-accent hover:bg-accent-hover inline-flex cursor-pointer items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-50"
+                  onclick={handleSaveStorage}
+                >
+                  {#if isSavingStorage}
+                    <LoaderCircle size={15} class="animate-spin" />
+                  {/if}
+                  {i18n.t.settingsModal.storage.saveButton}
+                </button>
               </div>
             {/if}
           </section>

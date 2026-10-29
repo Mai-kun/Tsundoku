@@ -1,4 +1,4 @@
-import { Flag, Play, Plus, Star, Trash2 } from "$shared/ui/Icons.svelte";
+import { Flag, Play, Plus, Star, Trash2 } from "$shared/ui/Icons";
 import { i18n } from "$shared/i18n/index.svelte";
 import type { HistoryEvent, HistoryEventType } from "$shared/types";
 

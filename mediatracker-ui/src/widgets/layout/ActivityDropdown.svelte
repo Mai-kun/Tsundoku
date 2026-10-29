@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Activity, X } from "$shared/ui/Icons.svelte";
+  import { Activity, X } from "$shared/ui/Icons";
   import { jobsClient } from "$shared/api/jobsClient.svelte";
   import { i18n } from "$shared/i18n/index.svelte";
   import type { JobProgress } from "$shared/types";

@@ -215,7 +215,7 @@
           <!-- Сериалы и аниме: расширенный блок с аналитикой времени просмотра -->
           <TvShowProgressSection
             {media}
-            totalEpisodes={support.total ?? 0}
+            totalEpisodes={(media as { totalEpisodesCount: number }).totalEpisodesCount}
             watchedEpisodes={progressValue}
             progress={support}
             value={progressValue}
@@ -257,14 +257,20 @@
 
       <!-- 5. БЛОК ЦИТАТ: для книг, манги или тайтлов с сохраненными цитатами -->
       {#if showQuotes}
-        <div class="order-5 min-w-0">
+        <div
+          class="order-5 min-w-0"
+          style="contain-intrinsic-size: 0 250px; content-visibility: auto;"
+        >
           <QuotesSection {media} />
         </div>
       {/if}
 
       <!-- 7. БЛОК ЗАМЕТОК: closes the left column, which is what balances its height
                  against cast + creator on the right. -->
-      <div class="order-7 min-w-0">
+      <div
+        class="order-7 min-w-0"
+        style="contain-intrinsic-size: 0 250px; content-visibility: auto;"
+      >
         <NotesSection notes={media.notes} {onEdit} />
       </div>
     </div>

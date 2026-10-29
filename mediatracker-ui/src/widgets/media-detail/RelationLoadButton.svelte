@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { ChevronDown, Link2, LoaderCircle } from "$shared/ui/Icons.svelte";
+  import { ChevronDown, Link2, LoaderCircle } from "$shared/ui/Icons";
   import { i18n } from "$shared/i18n/index.svelte";
   import PopoverMenu from "$shared/ui/PopoverMenu.svelte";
   import {

@@ -10,7 +10,7 @@
     Star,
     Trash2,
     Layers,
-  } from "$shared/ui/Icons.svelte";
+  } from "$shared/ui/Icons";
   import {
     deleteList,
     errorMessage,
@@ -19,6 +19,7 @@
     removeMediaFromList,
   } from "$shared/api/api";
   import { fullSizeCoverUrl } from "$entities/media/model/coverUrl";
+  import MediaCoverPlaceholder from "$shared/ui/MediaCoverPlaceholder.svelte";
   import CreateListModal from "$features/lists/CreateListModal.svelte";
   import MediaGrid from "$widgets/media-grid/MediaGrid.svelte";
   import { i18n } from "$shared/i18n/index.svelte";
@@ -39,6 +40,12 @@
   let modalOpen = $state(false);
   let importOpen = $state(false);
   let editing = $state<CustomListSummary | null>(null);
+  let brokenCovers = $state<Set<string>>(new Set());
+
+  // Svelte 5 does not re-render on Set#add mutation, so reassign the set to trigger reactivity.
+  function markBroken(url: string) {
+    brokenCovers = new Set(brokenCovers).add(url);
+  }
   const iconComponents = {
     list: List,
     bookmark: Bookmark,
@@ -71,8 +78,9 @@
     try {
       selected = await getListDetail(list.id);
       const url = new URL(window.location.href);
+      url.searchParams.set("view", "lists");
       url.searchParams.set("listId", list.id);
-      window.history.replaceState(null, "", url);
+      window.history.pushState({ listId: list.id }, "", url);
     } catch (caught) {
       error = errorMessage(caught);
     } finally {
@@ -89,7 +97,14 @@
     selected = null;
     const url = new URL(window.location.href);
     url.searchParams.delete("listId");
-    window.history.replaceState(null, "", url);
+    // Pushing an entry on "Back" creates duplicate stack entries and traps the user, so go back
+    // when we arrived via a pushed list state, otherwise replace the URL without adding forward
+    // history.
+    if (window.history.state?.listId) {
+      window.history.back();
+    } else {
+      window.history.replaceState(null, "", url);
+    }
   }
 
   async function removeList(list: CustomListSummary) {
@@ -138,6 +153,19 @@
 
   $effect(() => {
     void loadLists();
+
+    const onPopState = () => {
+      const params = new URLSearchParams(window.location.search);
+      const listId = params.get("listId");
+      if (!listId && selected) {
+        selected = null;
+      } else if (listId && (!selected || selected.id !== listId)) {
+        const found = lists.find((l) => l.id === listId);
+        if (found) void openList(found);
+      }
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
   });
 </script>
 
@@ -324,7 +352,7 @@
                 {:else if list.previewCovers.length === 1}
                   {@const cover = list.previewCovers[0]}
                   <div class="flex h-full w-full items-center justify-center">
-                    {#if cover}
+                    {#if cover && !brokenCovers.has(cover)}
                       <img
                         src={fullSizeCoverUrl(cover)}
                         alt=""
@@ -336,29 +364,45 @@
                         alt=""
                         loading="lazy"
                         class="z-10 aspect-[2/3] h-36 rounded-lg object-cover shadow-2xl ring-1 shadow-black/90 ring-white/10"
+                        onerror={(e) => {
+                          const target = e.currentTarget as HTMLImageElement;
+                          markBroken(cover);
+                          target.src = "";
+                        }}
+                      />
+                    {:else if cover}
+                      <MediaCoverPlaceholder
+                        class="z-10 aspect-[2/3] h-36 rounded-lg shadow-2xl ring-1 shadow-black/90 ring-white/10"
                       />
                     {:else}
-                      <div
+                      <MediaCoverPlaceholder
                         class="z-10 aspect-[2/3] h-36 rounded-lg shadow-2xl ring-1 shadow-black/90 ring-white/10"
-                        style={`background:${list.color ?? "#5844e0"}`}
-                      ></div>
+                      />
                     {/if}
                   </div>
                 {:else}
                   <div class="flex h-full w-full items-center justify-center -space-x-5 px-4">
                     {#each list.previewCovers as cover, index (`${index}-${cover}`)}
-                      {#if cover}
+                      {#if cover && !brokenCovers.has(cover)}
                         <img
                           src={fullSizeCoverUrl(cover)}
                           alt=""
                           loading="lazy"
                           class="aspect-[2/3] h-32 shrink-0 rounded-lg object-cover shadow-xl ring-1 shadow-black/80 ring-white/10 transition-transform hover:z-20 hover:scale-105 sm:h-36"
+                          onerror={(e) => {
+                            const target = e.currentTarget as HTMLImageElement;
+                            markBroken(cover);
+                            target.src = "";
+                          }}
+                        />
+                      {:else if cover}
+                        <MediaCoverPlaceholder
+                          class="aspect-[2/3] h-32 shrink-0 rounded-lg shadow-xl ring-1 shadow-black/80 ring-white/10 transition-transform hover:z-20 hover:scale-105 sm:h-36"
                         />
                       {:else}
-                        <div
+                        <MediaCoverPlaceholder
                           class="aspect-[2/3] h-32 shrink-0 rounded-lg shadow-xl ring-1 shadow-black/80 ring-white/10 transition-transform hover:z-20 hover:scale-105 sm:h-36"
-                          style={`background:${list.color ?? "#5844e0"}`}
-                        ></div>
+                        />
                       {/if}
                     {/each}
                   </div>

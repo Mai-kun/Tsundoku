@@ -14,7 +14,7 @@
     Plus,
     Settings,
     Tv,
-  } from "$shared/ui/Icons.svelte";
+  } from "$shared/ui/Icons";
   import { i18n } from "$shared/i18n/index.svelte";
   import type { AppView } from "$shared/types";
 

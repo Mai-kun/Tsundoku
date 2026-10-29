@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Minus, Plus } from "$shared/ui/Icons.svelte";
+  import { Minus, Plus } from "$shared/ui/Icons";
   import { errorMessage } from "$shared/api/api";
   import { i18n } from "$shared/i18n/index.svelte";
   import { formatNumber } from "$entities/media/model/mediaLabels";

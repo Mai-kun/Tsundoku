@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Bookmark, Check, Pause, Play, X } from "$shared/ui/Icons.svelte";
+  import { Bookmark, Check, Pause, Play, X } from "$shared/ui/Icons";
   import { i18n } from "$shared/i18n/index.svelte";
   import { MEDIA_STATUS, type MediaStatus } from "$shared/types";
   import PopoverMenu from "$shared/ui/PopoverMenu.svelte";

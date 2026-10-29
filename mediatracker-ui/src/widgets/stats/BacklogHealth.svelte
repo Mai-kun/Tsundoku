@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Scale } from "$shared/ui/Icons.svelte";
+  import { Scale } from "$shared/ui/Icons";
   import { i18n } from "$shared/i18n/index.svelte";
   import type { AdvancedStats } from "$shared/types";
   import StaleBacklogModal from "$features/stale-triage/StaleBacklogModal.svelte";

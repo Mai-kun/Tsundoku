@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Image, Sparkles } from "$shared/ui/Icons.svelte";
+  import { Image, Sparkles } from "$shared/ui/Icons";
   import { i18n } from "$shared/i18n/index.svelte";
   import type { CriticalDivergence, DivergenceItem } from "$shared/types";
 

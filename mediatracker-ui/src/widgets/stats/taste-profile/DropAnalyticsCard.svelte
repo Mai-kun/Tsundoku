@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Ban } from "$shared/ui/Icons.svelte";
+  import { Ban } from "$shared/ui/Icons";
   import { i18n } from "$shared/i18n/index.svelte";
   import type { DropAnalytics } from "$shared/types";
   import { getDropReasonLabel } from "$entities/media/model/dropReasons";

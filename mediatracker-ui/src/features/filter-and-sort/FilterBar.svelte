@@ -9,7 +9,7 @@
     Type,
     Search,
     SlidersHorizontal,
-  } from "$shared/ui/Icons.svelte";
+  } from "$shared/ui/Icons";
 
   export type LibrarySort = "newest" | "oldest" | "rating" | "title";
   export type GroupBy = "status" | "franchise" | "all";
@@ -32,7 +32,7 @@
 
 <script lang="ts">
   import { i18n } from "$shared/i18n/index.svelte";
-  import { ChevronDown } from "$shared/ui/Icons.svelte";
+  import { ChevronDown } from "$shared/ui/Icons";
   import { MEDIA_STATUS, type MediaStatus, type StatusFilter } from "$shared/types";
   import PopoverMenu from "$shared/ui/PopoverMenu.svelte";
 
@@ -86,9 +86,19 @@
     }
   }
 
-  function handleSearch(event: Event) {
-    onSearchChange((event.currentTarget as HTMLInputElement).value);
+  let searchDebounce: ReturnType<typeof setTimeout> | null = null;
+
+  function debouncedSearch(event: Event) {
+    if (searchDebounce) clearTimeout(searchDebounce);
+    searchDebounce = setTimeout(() => {
+      onSearchChange((event.currentTarget as HTMLInputElement).value);
+      searchDebounce = null;
+    }, 300);
   }
+
+  $effect(() => () => {
+    if (searchDebounce) clearTimeout(searchDebounce);
+  });
 
   /* The status select carries the status id as the option value, the label in the trigger. */
   function handleStatus(value: string) {
@@ -203,7 +213,7 @@
           class="bg-field text-ink placeholder:text-muted h-10 w-full rounded-lg border border-white/10 pr-2.5 pl-9 text-sm outline-none focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/30"
           value={search}
           placeholder={i18n.t.header.searchButton}
-          oninput={handleSearch}
+          oninput={debouncedSearch}
         />
       </label>
       <PopoverMenu

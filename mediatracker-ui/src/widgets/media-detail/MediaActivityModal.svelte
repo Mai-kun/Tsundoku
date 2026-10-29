@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { History, LoaderCircle, RefreshCw, X, Trash2 } from "$shared/ui/Icons.svelte";
+  import { History, LoaderCircle, RefreshCw, X, Trash2 } from "$shared/ui/Icons";
   import Modal from "$shared/ui/Modal.svelte";
   import { deleteHistoryEvent, errorMessage, getHistoryEvents } from "$shared/api/api";
   import { showToast } from "$shared/ui/toast.svelte";
@@ -22,7 +22,7 @@
   let { isOpen, mediaId, title, onClose }: Props = $props();
 
   let selectedDate = $state("");
-  let events = $state<HistoryEvent[]>([]);
+  let events = $state.raw<HistoryEvent[]>([]);
   let loading = $state(false);
   let loadError = $state<unknown>(null);
   let deletingId = $state<string | null>(null);

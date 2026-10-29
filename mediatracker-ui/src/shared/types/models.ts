@@ -492,7 +492,7 @@ export interface StorageSettings {
   mode: "default" | "portable" | "custom";
   defaultDirectory: string;
   portableDirectory: string;
-  customPath: string;
+  customPath: string | null;
   isFirstRunSetupRequired: boolean;
 }
 

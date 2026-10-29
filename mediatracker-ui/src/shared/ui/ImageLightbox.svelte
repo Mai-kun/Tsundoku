@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { X } from "$shared/ui/Icons.svelte";
+  import { X } from "$shared/ui/Icons";
 
   interface Props {
     url?: string | null;

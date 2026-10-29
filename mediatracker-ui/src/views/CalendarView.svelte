@@ -18,11 +18,12 @@
     RotateCcw,
     Sparkles,
     Tv,
-  } from "$shared/ui/Icons.svelte";
+  } from "$shared/ui/Icons";
   import PopoverMenu from "$shared/ui/PopoverMenu.svelte";
   import { i18n } from "$shared/i18n/index.svelte";
   import { errorMessage, getCalendar, triggerAutoRefresh } from "$shared/api/api";
   import { showToast } from "$shared/ui/toast.svelte";
+  import MediaCoverPlaceholder from "$shared/ui/MediaCoverPlaceholder.svelte";
   import type {
     CalendarDayDto,
     CalendarEventKind,
@@ -57,6 +58,12 @@
   let schedule = $state<CalendarScheduleDto | null>(null);
   let isLoading = $state(false);
   let loadError = $state<unknown>(null);
+  let brokenCovers = $state<Set<string>>(new Set());
+
+  // Svelte 5 does not re-render on Set#add mutation, so reassign the set to trigger reactivity.
+  function markBroken(url: string) {
+    brokenCovers = new Set(brokenCovers).add(url);
+  }
 
   function getTodayIso(): string {
     const now = new Date();
@@ -621,18 +628,23 @@
           compact ? "w-12 sm:w-14" : "w-16 sm:w-20"
         }`}
       >
-        {#if item.coverUrl}
+        {#if item.coverUrl && !brokenCovers.has(item.coverUrl)}
           <img
             src={item.coverUrl}
             alt={item.title}
             loading="lazy"
             referrerpolicy="no-referrer"
             class="h-full w-full object-cover object-top"
+            onerror={(e) => {
+              const target = e.currentTarget as HTMLImageElement;
+              markBroken(item.coverUrl!);
+              target.src = "";
+            }}
           />
         {:else}
-          <div class="text-muted grid h-full place-items-center">
-            <CalendarDays size={compact ? 16 : 20} aria-hidden="true" />
-          </div>
+          <MediaCoverPlaceholder
+            class={`h-full w-full object-cover object-top ${compact ? "size-12 sm:size-14" : "size-16 sm:size-20"}`}
+          />
         {/if}
       </div>
       <div class="min-w-0 flex-1">
@@ -719,18 +731,23 @@
   >
     <!-- Poster -->
     <div class="bg-canvas relative aspect-[3/4] overflow-hidden rounded-lg">
-      {#if item.coverUrl}
+      {#if item.coverUrl && !brokenCovers.has(item.coverUrl)}
         <img
           src={item.coverUrl}
           alt={item.title}
           loading="lazy"
           referrerpolicy="no-referrer"
           class="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
+          onerror={(e) => {
+            const target = e.currentTarget as HTMLImageElement;
+            markBroken(item.coverUrl!);
+            target.src = "";
+          }}
         />
       {:else}
-        <div class="text-muted grid h-full place-items-center">
-          <CalendarDays size={28} aria-hidden="true" />
-        </div>
+        <MediaCoverPlaceholder
+          class="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
+        />
       {/if}
 
       <!-- Refresh button top-right (for auto_refresh) -->
@@ -1134,18 +1151,23 @@
                           <div
                             class="hover:ring-accent aspect-[2/3] h-14 w-10 overflow-hidden rounded-lg bg-white/5 object-cover shadow-md ring-1 ring-white/15 transition-transform duration-200 ease-out hover:-translate-y-1 hover:scale-[1.03] hover:shadow-xl hover:ring-2 sm:h-16 sm:w-11"
                           >
-                            {#if item.coverUrl}
+                            {#if item.coverUrl && !brokenCovers.has(item.coverUrl)}
                               <img
                                 src={item.coverUrl}
                                 alt={item.title}
                                 loading="lazy"
                                 referrerpolicy="no-referrer"
                                 class="h-full w-full object-cover object-top"
+                                onerror={(e) => {
+                                  const target = e.currentTarget as HTMLImageElement;
+                                  markBroken(item.coverUrl!);
+                                  target.src = "";
+                                }}
                               />
                             {:else}
-                              <div class="text-muted grid h-full place-items-center">
-                                <CalendarDays size={14} aria-hidden="true" />
-                              </div>
+                              <MediaCoverPlaceholder
+                                class="h-full w-full object-cover object-top"
+                              />
                             {/if}
                           </div>
                           {@render renderItemTooltip(item)}

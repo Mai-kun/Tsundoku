@@ -1,7 +1,7 @@
 <script lang="ts">
   import { uiSettings, type PeopleCardSize } from "$shared/utils/uiSettings.svelte";
   import { i18n } from "$shared/i18n/index.svelte";
-  import { LayoutGrid, List } from "$shared/ui/Icons.svelte";
+  import { LayoutGrid, List } from "$shared/ui/Icons";
 
   interface Props {
     /** Storage key (media category): anime / manga / movie / tvshow / game / book. */

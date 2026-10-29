@@ -1,6 +1,6 @@
 <script lang="ts">
   import { i18n } from "$shared/i18n/index.svelte";
-  import { Check, Clapperboard, Clock, Eye, Pencil } from "$shared/ui/Icons.svelte";
+  import { Check, Clapperboard, Clock, Eye, Pencil } from "$shared/ui/Icons";
   import type { MediaDetail } from "$shared/types";
   import type { MediaStatus } from "$shared/types/enums";
 

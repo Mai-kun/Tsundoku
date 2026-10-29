@@ -1,7 +1,7 @@
 <script lang="ts">
   import { i18n } from "$shared/i18n/index.svelte";
   import type { CastMember, MediaDetail } from "$shared/types";
-  import { User } from "$shared/ui/Icons.svelte";
+  import { User } from "$shared/ui/Icons";
   import ImageLightbox from "$shared/ui/ImageLightbox.svelte";
   import { uiSettings } from "$shared/utils/uiSettings.svelte";
   import PeopleSizeToggle from "./PeopleSizeToggle.svelte";

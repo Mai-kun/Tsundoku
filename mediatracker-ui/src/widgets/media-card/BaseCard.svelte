@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
-  import { Trash2 } from "$shared/ui/Icons.svelte";
+  import { Trash2 } from "$shared/ui/Icons";
   import { errorMessage } from "$shared/api/api";
   import { i18n } from "$shared/i18n/index.svelte";
   import type { MediaItem, MediaStatus } from "$shared/types";

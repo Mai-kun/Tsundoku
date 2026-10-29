@@ -2180,6 +2180,31 @@ export const translations = {
         en: "Media library reset successfully",
       },
     },
+    storage: {
+      title: { ru: "Место хранения данных", en: "Data Storage" },
+      description: {
+        ru: "Выберите, где приложение хранит базу данных, обложки и логи. Изменение вступает в силу после перезапуска.",
+        en: "Choose where the app stores the database, covers, and logs. Changes take effect after restart.",
+      },
+      modeDefault: { ru: "По умолчанию (системная папка)", en: "Default (system folder)" },
+      modePortable: { ru: "Рядом с программой (portable)", en: "Near application (portable)" },
+      modeCustom: { ru: "Свой путь", en: "Custom path" },
+      customPathLabel: { ru: "Путь к данным", en: "Data path" },
+      customPathPlaceholder: { ru: "/путь/к/данным", en: "/path/to/data" },
+      migrateLabel: {
+        ru: "Перенести существующие данные в новое место",
+        en: "Migrate existing data to new location",
+      },
+      dbPathLabel: { ru: "База данных:", en: "Database:" },
+      coversPathLabel: { ru: "Обложки:", en: "Covers:" },
+      logsPathLabel: { ru: "Логи:", en: "Logs:" },
+      saveButton: { ru: "Сохранить и перезапустить", en: "Save and Restart" },
+      saving: { ru: "Сохранение...", en: "Saving..." },
+      savedToast: {
+        ru: "Настройки сохранены. Приложение перезапустится...",
+        en: "Settings saved. The app will restart...",
+      },
+    },
     reading: {
       title: { ru: "Темп чтения", en: "Reading Speed" },
       description: {

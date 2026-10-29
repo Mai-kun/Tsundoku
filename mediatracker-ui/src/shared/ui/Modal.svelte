@@ -67,7 +67,8 @@
       ? 'h-[86vh] max-h-[90vh] w-[90vw] max-w-7xl'
       : size === 'lg'
         ? 'max-w-5xl'
-        : 'max-w-2xl'} text-ink overflow-visible border-0 bg-transparent p-4 backdrop:bg-black/70 backdrop:backdrop-blur-sm"
+        : 'max-w-2xl'} text-ink overflow-visible border-0 bg-transparent p-4 backdrop:bg-[#090b10]/80"
+  style="contain: layout style;"
   onclose={handleNativeClose}
   oncancel={handleCancel}
   onmousedown={handleMouseDown}

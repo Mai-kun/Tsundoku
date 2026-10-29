@@ -9,7 +9,7 @@ import { visualizer } from "rollup-plugin-visualizer";
 const apiTarget = process.env.MT_API_TARGET ?? "http://localhost:5000";
 
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [
     svelte(),
     tailwindcss(),
@@ -39,8 +39,14 @@ export default defineConfig({
   build: {
     outDir: "../MediaTracker.Server/wwwroot",
     emptyOutDir: true,
+    esbuild: {
+      drop: mode === "production" ? ["console", "debugger"] : [],
+      legalComments: "none",
+    },
     rollupOptions: {
       output: {
+        // One vendor chunk only; let Rollup place app code so detail sub-modals
+        // aren't split into multiple tiny 2 KB chunks.
         manualChunks(id) {
           if (id.includes("node_modules")) {
             return "vendor";
@@ -60,4 +66,4 @@ export default defineConfig({
       "/media-assets": apiTarget,
     },
   },
-});
+}));

@@ -1,10 +1,10 @@
 <script lang="ts">
   import { i18n } from "$shared/i18n/index.svelte";
-  import { Clock, Minus, Plus } from "$shared/ui/Icons.svelte";
+  import { Clock, Minus, Plus } from "$shared/ui/Icons";
   import { formatNumber } from "$entities/media/model/mediaLabels";
   import { errorMessage } from "$shared/api/api";
   import type { ProgressInfo } from "../detailTypes";
-  import type { MediaDetail, TvShowMedia } from "$shared/types";
+  import type { MediaDetail, TvShowMedia, TvSeason } from "$shared/types";
 
   interface Props {
     media: MediaDetail;
@@ -33,6 +33,15 @@
   const tvMedia = $derived(media as unknown as TvShowMedia);
   const duration = $derived(tvMedia.episodeDurationMinutes || tvMedia.durationMinutes || 24);
   const DAILY_PACE = 2;
+
+  /** All seasons of the show, when the detail payload carried them. */
+  const seasons = $derived((media as { seasons?: TvSeason[] }).seasons ?? []);
+  /** "Season 1: 220 · Season 2: 280" — shown only when the total spans several seasons. */
+  const seasonBreakdown = $derived(
+    seasons.length > 1
+      ? seasons.map((s) => `Season ${s.seasonNumber}: ${formatNumber(s.totalEpisodes)}`).join(" · ")
+      : null,
+  );
 
   const effectiveTotal = $derived(totalEpisodes > 0 ? totalEpisodes : (progress.total ?? 0));
   const effectiveWatched = $derived(value);
@@ -158,6 +167,12 @@
           >
             {Math.round(percent)}%
           </span>
+        {/if}
+        {#if seasonBreakdown}
+          <div class="text-muted mt-0.5 text-[11px]">
+            {isRu ? "Всего серий" : "Total episodes"}: {formatNumber(effectiveTotal)}
+            ({seasonBreakdown})
+          </div>
         {/if}
       </div>
     </div>

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Check } from "$shared/ui/Icons.svelte";
+  import { Check } from "$shared/ui/Icons";
   import type { Snippet } from "svelte";
 
   export interface PopoverOption<T> {

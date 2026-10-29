@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Minus, Plus } from "$shared/ui/Icons.svelte";
+  import { Minus, Plus } from "$shared/ui/Icons";
   import { untrack } from "svelte";
 
   interface Props {

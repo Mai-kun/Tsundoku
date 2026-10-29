@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Image as ImageIcon, Minus, Plus } from "$shared/ui/Icons.svelte";
+  import { Image as ImageIcon, Minus, Plus } from "$shared/ui/Icons";
   import { untrack } from "svelte";
   import { errorMessage } from "$shared/api/api";
   import { i18n } from "$shared/i18n/index.svelte";

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { ChevronDown, LoaderCircle, Sparkles } from "$shared/ui/Icons.svelte";
+  import { ChevronDown, LoaderCircle, Sparkles } from "$shared/ui/Icons";
   import Modal from "$shared/ui/Modal.svelte";
   import PopoverMenu from "$shared/ui/PopoverMenu.svelte";
   import { errorMessage, getSources, getExternalDetails } from "$shared/api/api";
@@ -27,7 +27,7 @@
     onClose,
   }: Props = $props();
 
-  let sources = $state<SourceInfo[]>([]);
+  let sources = $state.raw<SourceInfo[]>([]);
   let source = $state("");
   let loadError = $state<string | null>(null);
 

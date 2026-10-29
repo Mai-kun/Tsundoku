@@ -1,6 +1,6 @@
 <script lang="ts">
   import { i18n } from "$shared/i18n/index.svelte";
-  import { Library } from "$shared/ui/Icons.svelte";
+  import { Library } from "$shared/ui/Icons";
   import type { BookMedia, MediaDetailFields } from "$shared/types";
 
   interface Props {

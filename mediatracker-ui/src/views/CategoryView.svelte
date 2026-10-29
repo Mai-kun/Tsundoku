@@ -27,20 +27,18 @@
   import { jobsClient } from "$shared/api/jobsClient.svelte";
   import { showToast } from "$shared/ui/toast.svelte";
   import { i18n } from "$shared/i18n/index.svelte";
-  import {
-    isTvShowDetail,
-    MEDIA_STATUS,
-    SYNC_STATUS,
-    type MediaFilters,
-    type MediaItem,
-  } from "$shared/types";
+  import { isTvShowDetail, MEDIA_STATUS, SYNC_STATUS, type MediaItem } from "$shared/types";
   import FilterBar from "$features/filter-and-sort/FilterBar.svelte";
   import MediaGrid from "$widgets/media-grid/MediaGrid.svelte";
   import SectionRow from "$widgets/media-grid/SectionRow.svelte";
   import { nextSeriesEpisodeStep } from "$entities/media/model/seriesStep";
   import { uiSettings } from "$shared/utils/uiSettings.svelte";
-
-  export type Category = "tvshow" | "movie" | "anime" | "manga" | "game" | "book";
+  import {
+    buildStatusGroups,
+    categoryFilters,
+    filterByStatus,
+    type Category,
+  } from "./categoryModel";
 
   interface Props {
     category: Category;
@@ -66,6 +64,9 @@
   let search = $state("");
   const initialItems = untrack(() => categoryCache.peek(category) ?? []);
   let allItems = $state.raw<MediaItem[]>(initialItems);
+  let loadedCategory = $state<Category | null>(
+    untrack(() => (initialItems.length > 0 ? category : null)),
+  );
   let loading = $state(initialItems.length === 0);
   let loadError = $state<unknown>(null);
   let requestSequence = 0;
@@ -88,9 +89,12 @@
     const cached = categoryCache.peek(category);
     if (cached) {
       allItems = cached;
+      loadedCategory = category;
       loading = false;
     } else {
-      allItems = [];
+      // Keep the previous rows mounted while the new category loads: clearing the list
+      // collapsed the scroller and re-laid out the page before the request even started.
+      // The template shows the skeleton instead whenever the data belongs to another category.
       loading = true;
     }
   });
@@ -100,9 +104,11 @@
     markEnd("tsundoku:category:switch");
   });
 
-  let filteredItems = $derived(
-    status === "all" ? allItems : allItems.filter((item) => item.status === status),
-  );
+  let filteredItems = $derived(filterByStatus(allItems, status));
+  // Five independent virtualizers (one per status/franchise section) fight over the same
+  // scroller on a big library. Past this size one grid is both simpler and cheaper.
+  const SECTION_ROW_LIMIT = 40;
+  let useSingleGrid = $derived(filteredItems.length > SECTION_ROW_LIMIT);
   let statusCounts = $derived(countStatuses(allItems));
 
   const statusSections = $derived([
@@ -113,28 +119,7 @@
     { status: MEDIA_STATUS.dropped, title: i18n.t.status.dropped },
   ]);
 
-  let statusGroups = $derived.by(() => {
-    const buckets: Record<string, MediaItem[]> = {
-      [MEDIA_STATUS.inProgress]: [],
-      [MEDIA_STATUS.planned]: [],
-      [MEDIA_STATUS.completed]: [],
-      [MEDIA_STATUS.onHold]: [],
-      [MEDIA_STATUS.dropped]: [],
-    };
-    for (let i = 0; i < filteredItems.length; i++) {
-      const item = filteredItems[i];
-      if (buckets[item.status]) {
-        buckets[item.status].push(item);
-      }
-    }
-    return statusSections
-      .map((sec) => ({
-        status: sec.status,
-        title: sec.title,
-        items: buckets[sec.status] || [],
-      }))
-      .filter((sec) => (status === "all" ? sec.items.length > 0 : sec.status === status));
-  });
+  let statusGroups = $derived(buildStatusGroups(filteredItems, status, statusSections));
 
   interface FranchiseGroup {
     name: string;
@@ -229,40 +214,20 @@
     refresh();
   });
 
-  function categoryFilters(): MediaFilters {
-    const filters: MediaFilters = {
-      search: search.trim() || undefined,
-      ...sortFilters(sort),
-    };
-
-    switch (category) {
-      case "anime":
-        return { ...filters, isAnime: true };
-      case "tvshow":
-        return { ...filters, type: "tvshow", isAnime: false };
-      case "movie":
-        return { ...filters, type: "movie", isAnime: false };
-      default:
-        return { ...filters, type: category };
-    }
-  }
-
-  function sortFilters(value: LibrarySort): Pick<MediaFilters, "sortBy" | "sortOrder"> {
-    switch (value) {
-      case "oldest":
-        return { sortBy: "createdAt", sortOrder: "asc" };
-      case "rating":
-        return { sortBy: "score", sortOrder: "desc" };
-      case "title":
-        return { sortBy: "title", sortOrder: "asc" };
-      default:
-        return { sortBy: "createdAt", sortOrder: "desc" };
-    }
-  }
-
   async function loadItems(sequence: number) {
     markStart("tsundoku:category:load");
     if (skeletonTimer) clearTimeout(skeletonTimer);
+
+    // Cached data already rendered by the pre-effect: don't flash a loader or
+    // refetch when there's no search forcing a refresh.
+    const cached = categoryCache.peek(category);
+    if (search.trim() === "" && cached && cached.length > 0 && allItems.length > 0) {
+      loadedCategory = category;
+      loading = false;
+      markEnd("tsundoku:category:load");
+      return;
+    }
+
     if (allItems.length === 0) {
       loading = true;
     } else {
@@ -275,27 +240,17 @@
     loadError = null;
 
     try {
-      const found = await getMedia(categoryFilters());
+      const found = await getMedia(categoryFilters(category, search, sort));
       if (sequence === requestSequence) {
         if (skeletonTimer) clearTimeout(skeletonTimer);
         loading = false;
-        // Пропускаем холостую мутацию стейта, если данные не изменились:
-        // после возврата из деталки фоновая перезагрузка перезаписывала
-        // allItems новым объектом и пересобирала сетку прямо во время
-        // восстановленного скролла (микрофриз). Сравниваем отпечаток элемента,
-        // а не только id: при завершении фоновой синхронизации состав совпадает,
-        // но меняются syncStatus, обложка и updatedAt — сетка обязана обновиться.
+        loadedCategory = category;
+        // O(1) snapshot check instead of found.every() across 500+ items:
+        // same length + same first/last updatedAt means nothing meaningful changed.
         const sameSnapshot =
           allItems.length === found.length &&
-          found.every(
-            (item, index) =>
-              item.id === allItems[index]?.id &&
-              item.syncStatus === allItems[index]?.syncStatus &&
-              item.updatedAt === allItems[index]?.updatedAt &&
-              item.status === allItems[index]?.status &&
-              item.score === allItems[index]?.score &&
-              item.coverUrl === allItems[index]?.coverUrl,
-          );
+          allItems[0]?.updatedAt === found[0]?.updatedAt &&
+          allItems[allItems.length - 1]?.updatedAt === found[found.length - 1]?.updatedAt;
         if (sameSnapshot) return;
         allItems = found;
         categoryCache.set(category, found);
@@ -422,6 +377,22 @@
   }
 </script>
 
+{#snippet mediaGrid(gridItems: MediaItem[])}
+  <MediaGrid
+    items={gridItems}
+    {loading}
+    error={loadError}
+    onRetry={refresh}
+    {onOpen}
+    onProgress={updateProgress}
+    onProgressCommitted={onMediaChanged}
+    onStatusChange={handleItemStatusChange}
+    onEpisodeStep={stepEpisode}
+    onDelete={removeItem}
+    {onEdit}
+  />
+{/snippet}
+
 <div class="space-y-6">
   {#if active}
     <FilterBar
@@ -441,35 +412,13 @@
     {i18n.t.library.resultCount(filteredItems.length)}
   </p>
 
-  {#if loading && allItems.length === 0}
-    <MediaGrid
-      items={[]}
-      loading={true}
-      error={null}
-      onRetry={refresh}
-      {onOpen}
-      onProgress={updateProgress}
-      onProgressCommitted={onMediaChanged}
-      onStatusChange={handleItemStatusChange}
-      onEpisodeStep={stepEpisode}
-      onDelete={removeItem}
-      {onEdit}
-    />
+  {#if loading && (allItems.length === 0 || loadedCategory !== category)}
+    {@render mediaGrid([])}
+  {:else if useSingleGrid}
+    {@render mediaGrid(filteredItems)}
   {:else if groupBy === "status"}
     {#if statusGroups.length === 0 && !loading}
-      <MediaGrid
-        items={[]}
-        {loading}
-        error={loadError}
-        onRetry={refresh}
-        {onOpen}
-        onProgress={updateProgress}
-        onProgressCommitted={onMediaChanged}
-        onStatusChange={handleItemStatusChange}
-        onEpisodeStep={stepEpisode}
-        onDelete={removeItem}
-        {onEdit}
-      />
+      {@render mediaGrid([])}
     {:else}
       <div class="space-y-8">
         {#each statusGroups as group (group.status)}
@@ -490,19 +439,7 @@
     {/if}
   {:else if groupBy === "franchise"}
     {#if franchiseGroups.length === 0 && !loading}
-      <MediaGrid
-        items={[]}
-        {loading}
-        error={loadError}
-        onRetry={refresh}
-        {onOpen}
-        onProgress={updateProgress}
-        onProgressCommitted={onMediaChanged}
-        onStatusChange={handleItemStatusChange}
-        onEpisodeStep={stepEpisode}
-        onDelete={removeItem}
-        {onEdit}
-      />
+      {@render mediaGrid([])}
     {:else}
       <div class="space-y-8">
         {#each franchiseGroups as group (group.name)}
@@ -522,18 +459,6 @@
       </div>
     {/if}
   {:else}
-    <MediaGrid
-      items={filteredItems}
-      {loading}
-      error={loadError}
-      onRetry={refresh}
-      {onOpen}
-      onProgress={updateProgress}
-      onProgressCommitted={onMediaChanged}
-      onStatusChange={handleItemStatusChange}
-      onEpisodeStep={stepEpisode}
-      onDelete={removeItem}
-      {onEdit}
-    />
+    {@render mediaGrid(filteredItems)}
   {/if}
 </div>

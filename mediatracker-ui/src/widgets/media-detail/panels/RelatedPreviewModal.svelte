@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Image as ImageIcon, LoaderCircle, Plus, Star, X } from "$shared/ui/Icons.svelte";
+  import { Image as ImageIcon, LoaderCircle, Plus, Star, X } from "$shared/ui/Icons";
   import Modal from "$shared/ui/Modal.svelte";
   import { i18n } from "$shared/i18n/index.svelte";
   import { MEDIA_STATUS, type MediaStatus } from "$shared/types";

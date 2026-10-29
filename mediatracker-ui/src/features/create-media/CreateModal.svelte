@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { X } from "$shared/ui/Icons.svelte";
+  import { X } from "$shared/ui/Icons";
   import { createMedia, errorMessage, updateMedia } from "$shared/api/api";
   import { isValidCoverUrl } from "$entities/media/model/coverUrl";
   import Modal from "$shared/ui/Modal.svelte";

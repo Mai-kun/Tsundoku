@@ -1,8 +1,12 @@
+<script module lang="ts">
+  const DEVELOPER_RE = /разработчик|developer/i;
+</script>
+
 <script lang="ts">
   import { getCreatorSummary } from "$shared/api/api";
   import { i18n } from "$shared/i18n/index.svelte";
   import type { CreatorRole, MediaItem, StaffMember } from "$shared/types";
-  import { BookOpen, Clapperboard, Gamepad2, Search } from "$shared/ui/Icons.svelte";
+  import { BookOpen, Clapperboard, Gamepad2, Search } from "$shared/ui/Icons";
   import { uiSettings } from "$shared/utils/uiSettings.svelte";
   import PeopleSizeToggle from "./PeopleSizeToggle.svelte";
   import ImageLightbox from "$shared/ui/ImageLightbox.svelte";
@@ -85,7 +89,7 @@
   });
 
   function getCreatorIcon() {
-    if (mediaType === "game" || (label && /разработчик|developer/i.test(label))) return Gamepad2;
+    if (mediaType === "game" || (label && DEVELOPER_RE.test(label))) return Gamepad2;
     if (mediaType === "book" || mediaType === "manga" || role === "author") return BookOpen;
     return Clapperboard;
   }

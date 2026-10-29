@@ -8,7 +8,7 @@
     Trash2,
     Flag,
     Trophy,
-  } from "$shared/ui/Icons.svelte";
+  } from "$shared/ui/Icons";
   import {
     clearAllHistory,
     deleteHistoryEvent,

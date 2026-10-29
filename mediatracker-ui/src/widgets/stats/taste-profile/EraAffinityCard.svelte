@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Crown } from "$shared/ui/Icons.svelte";
+  import { Crown } from "$shared/ui/Icons";
   import { i18n } from "$shared/i18n/index.svelte";
   import type { EraAffinityStat } from "$shared/types";
 

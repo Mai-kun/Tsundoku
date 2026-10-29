@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Scale } from "$shared/ui/Icons.svelte";
+  import { Scale } from "$shared/ui/Icons";
   import { i18n } from "$shared/i18n/index.svelte";
   import type { GenreCompletionStat } from "$shared/types";
   import { genreLabel } from "./genreLabel";

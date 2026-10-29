@@ -9,7 +9,7 @@
     Trash2,
     Upload,
     X,
-  } from "$shared/ui/Icons.svelte";
+  } from "$shared/ui/Icons";
   import {
     addCoverByFile,
     addCoverByUrl,
@@ -340,15 +340,18 @@
           {#each covers as cover (cover.id)}
             {@const active = isActiveCover(cover)}
             <div
+              style="contain: layout paint"
               class="group relative flex flex-col overflow-hidden rounded-xl border bg-[#191e2b] shadow-md transition {active
                 ? 'border-emerald-500/60 ring-2 ring-emerald-500/30'
                 : 'border-white/10 hover:border-white/20'}"
             >
               <div class="aspect-[2/3] w-full overflow-hidden bg-black/30">
                 <img
-                  src={fullSizeCoverUrl(cover.thumbUrl)}
+                  src={cover.thumbUrl}
                   alt={cover.source ?? media.title}
                   loading="lazy"
+                  decoding="async"
+                  referrerpolicy="no-referrer"
                   class="h-full w-full object-cover transition duration-200 group-hover:scale-105"
                 />
               </div>

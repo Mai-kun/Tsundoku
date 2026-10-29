@@ -1,6 +1,6 @@
 <script lang="ts">
   import { i18n } from "$shared/i18n/index.svelte";
-  import { Film, Play } from "$shared/ui/Icons.svelte";
+  import { Film, Play } from "$shared/ui/Icons";
 
   interface Props {
     trailerVideoId: string | null;

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { ChevronDown, Languages, Star } from "$shared/ui/Icons.svelte";
+  import { ChevronDown, Languages, Star } from "$shared/ui/Icons";
   import { i18n } from "$shared/i18n/index.svelte";
 
   export interface RatingBadge {

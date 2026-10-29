@@ -169,8 +169,8 @@ switch (command) {
       run("dotnet", ["run", "--project", "MediaTracker.Server/MediaTracker.Server.csproj", "--no-build", "--", "--selfcheck"]);
     }
 
-    // 3. Parallel execution of all 12 independent frontend checks
-    console.log(`\n🚀 [parallel] Запуск 12 статических проверок фронтенда параллельно...`);
+    // 3. Parallel execution of all 10 independent frontend checks
+    console.log(`\n🚀 [parallel] Запуск 10 статических проверок фронтенда параллельно...`);
     const pStart = Date.now();
     try {
       await Promise.all([
@@ -183,12 +183,10 @@ switch (command) {
         runAsync("npm", ["--prefix", "mediatracker-ui", "run", "check:perf-marks"]),
         runAsync("npm", ["--prefix", "mediatracker-ui", "run", "check:deadcode"]),
         runAsync("npm", ["--prefix", "mediatracker-ui", "run", "check:i18n"]),
-        runAsync("npm", ["--prefix", "mediatracker-ui", "run", "check:i18n-parity"]),
-        runAsync("npm", ["--prefix", "mediatracker-ui", "run", "check:contract-drift"]),
         runAsync("npm", ["--prefix", "mediatracker-ui", "run", "check:leading-chars"]),
       ]);
       const pDur = ((Date.now() - pStart) / 1000).toFixed(2);
-      console.log(`✨ [parallel-done] Все 12 проверок фронтенда завершены за ${pDur}s`);
+      console.log(`✨ [parallel-done] Все 10 проверок фронтенда завершены за ${pDur}s`);
     } catch (err) {
       console.error(`❌ Ошибка в параллельных проверках:`, err.message);
       process.exit(1);

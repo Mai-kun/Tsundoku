@@ -13,8 +13,10 @@
   import MediaStatusBadge from "$entities/media/ui/MediaStatusBadge.svelte";
   import type { MediaItem } from "$shared/types";
   import RelationLoadButton from "$widgets/media-detail/RelationLoadButton.svelte";
+  import { availableRelationSources } from "$widgets/media-detail/relationSources";
   import {
     formatMediaDisplayType,
+    isAnime,
     relatedStatusClasses,
   } from "$widgets/media-detail/detailFormatters";
   import type {
@@ -54,6 +56,49 @@
     onOpen,
     onLoadFrom,
   }: Props = $props();
+
+  let autoLoadedMediaId = $state("");
+
+  $effect(() => {
+    if (
+      !media?.id ||
+      autoLoadedMediaId === media.id ||
+      loading ||
+      error ||
+      (related?.length ?? 0) > 0
+    ) {
+      return;
+    }
+
+    autoLoadedMediaId = media.id;
+    const currentMedia = media;
+    void availableRelationSources(currentMedia).then((list) => {
+      if (loading || error || (related?.length ?? 0) > 0 || currentMedia.id !== media.id) return;
+      const defaultSource =
+        list.find(
+          (s) =>
+            currentMedia.relatedSource &&
+            (s.id.toLowerCase() === currentMedia.relatedSource.toLowerCase() ||
+              s.label.toLowerCase() === currentMedia.relatedSource.toLowerCase()),
+        )?.id ??
+        list.find(
+          (s) =>
+            currentMedia.externalSource &&
+            (s.id.toLowerCase() === currentMedia.externalSource.toLowerCase() ||
+              s.label.toLowerCase() === currentMedia.externalSource.toLowerCase()),
+        )?.id ??
+        list[0]?.id ??
+        (isAnime(currentMedia) || currentMedia.type === "manga"
+          ? "anilist"
+          : currentMedia.type === "game"
+            ? "rawg"
+            : "tmdb");
+
+      if (defaultSource) {
+        onLoadFrom(defaultSource);
+      }
+    });
+  });
 
   const VIEWS: ReadonlyArray<{
     mode: RelatedViewMode;

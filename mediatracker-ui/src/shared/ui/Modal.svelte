@@ -62,7 +62,7 @@
   bind:this={dialogElement}
   aria-labelledby={labelledBy}
   class="z-40 m-auto w-full {size === 'search'
-    ? 'w-[95vw] sm:w-[80vw] max-w-[95vw] sm:max-w-[80vw] h-[85vh] sm:h-[80vh] max-h-[85vh] sm:max-h-[80vh]'
+    ? 'h-[85vh] max-h-[85vh] w-[95vw] max-w-[95vw] sm:h-[80vh] sm:max-h-[80vh] sm:w-[80vw] sm:max-w-[80vw]'
     : size === 'xl'
       ? 'h-[86vh] max-h-[90vh] w-[90vw] max-w-7xl'
       : size === 'lg'

@@ -280,8 +280,7 @@
       {@const startIdx = virtualRow.index * columnsCount}
       <div
         style="position: absolute; top: 0; left: 0; width: 100%; transform: translateY({virtualRow.start -
-          $virtualizer.options
-            .scrollMargin}px); will-change: transform; contain: layout paint; contain: layout;"
+          $virtualizer.options.scrollMargin}px); will-change: transform; contain: layout;"
         class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-7"
       >
         {#each items.slice(startIdx, startIdx + columnsCount) as item (item.id)}

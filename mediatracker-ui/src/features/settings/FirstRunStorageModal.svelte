@@ -55,7 +55,9 @@
           <input type="text" bind:value={customPath} placeholder="/path/to/data" />
         {/if}
       </div>
-      <button onclick={handleSave} class="text-white">{i18n.t.settings.storageConfirm}</button>
+      <button type="button" onclick={handleSave} class="text-white"
+        >{i18n.t.settings.storageConfirm}</button
+      >
     {/if}
   </Modal>
 {/if}

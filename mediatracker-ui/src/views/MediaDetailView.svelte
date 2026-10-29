@@ -48,6 +48,7 @@
   } from "$shared/api/api";
   import { i18n } from "$shared/i18n/index.svelte";
   import { toRelatedEntry } from "$widgets/media-detail/externalMapping";
+  import { availableRelationSources } from "$widgets/media-detail/relationSources";
   import { findMatchingLocal } from "$widgets/media-detail/relatedMatching";
   import { showToast } from "$shared/ui/toast.svelte";
   import { dropPromptState } from "$features/drop-reason/dropReasonPrompt.svelte";
@@ -449,11 +450,44 @@
       !relatedLoading &&
       !relatedError
     ) {
-      const initialSource = media.relatedSource || (isAnime(media) ? "anilist" : null);
-      if (initialSource) {
-        lastRelatedSource = initialSource;
-        void loadRelated(media, initialSource);
-      }
+      const currentMedia = media;
+      void availableRelationSources(currentMedia).then((list) => {
+        if (
+          activeSubTab !== "related" ||
+          !media ||
+          media.id !== currentMedia.id ||
+          (related?.length ?? 0) > 0 ||
+          relatedLoading ||
+          relatedError
+        ) {
+          return;
+        }
+
+        const defaultSource =
+          list.find(
+            (s) =>
+              currentMedia.relatedSource &&
+              (s.id.toLowerCase() === currentMedia.relatedSource.toLowerCase() ||
+                s.label.toLowerCase() === currentMedia.relatedSource.toLowerCase()),
+          )?.id ??
+          list.find(
+            (s) =>
+              currentMedia.externalSource &&
+              (s.id.toLowerCase() === currentMedia.externalSource.toLowerCase() ||
+                s.label.toLowerCase() === currentMedia.externalSource.toLowerCase()),
+          )?.id ??
+          list[0]?.id ??
+          (isAnime(currentMedia) || currentMedia.type === "manga"
+            ? "anilist"
+            : currentMedia.type === "game"
+              ? "rawg"
+              : "tmdb");
+
+        if (defaultSource) {
+          lastRelatedSource = defaultSource;
+          void loadRelated(currentMedia, defaultSource);
+        }
+      });
     }
   });
   let previewRelatedItem = $state<RelatedEntry | null>(null);

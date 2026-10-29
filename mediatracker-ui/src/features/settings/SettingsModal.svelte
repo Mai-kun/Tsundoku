@@ -1299,11 +1299,12 @@
             {:else if updateCheck}
               <div class="space-y-2">
                 <p class="text-sm">Версия: {updateCheck.currentVersion}</p>
-                {#if updateCheck.isUpdateAvailable}
+                {#if updateCheck.isUpdateAvailable && updateCheck.canSelfUpdate}
                   <p class="font-bold text-emerald-400">
                     Доступна версия {updateCheck.latestVersion}
                   </p>
                   <button
+                    type="button"
                     onclick={handleApplyUpdate}
                     disabled={isApplyingUpdate}
                     class="bg-accent rounded px-4 py-2 text-xs font-semibold text-white"

@@ -43,7 +43,7 @@
              Upgrade path: bump to 4.1.2, take the free community key from
              licensing.sixlabors.com (or a sixlabors.lic file), then drop NU1902/NU1903
              from this list. -->
-        <NoWarn>$(NoWarn);NU1902;NU1903;NETSDK1194;IL2026;IL3050</NoWarn>
+        <NoWarn>$(NoWarn);NU1902;NU1903;NETSDK1194;IL2026;IL3050;CA1707;CA1720</NoWarn>
     </PropertyGroup>
 
     <PropertyGroup Condition="'$(Configuration)' == 'Release' and ('$(RuntimeIdentifier)' == 'win-x64' or '$(RuntimeIdentifier)' == 'linux-x64')">

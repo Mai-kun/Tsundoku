@@ -100,6 +100,15 @@ public static class AutoRefreshRunner
 
         AutoRefreshRules.ApplyRefreshSchedule(item, hasNewContent, DateTime.UtcNow);
         item.MarkUpdated();
+
+        if (item is TvShow tvShowItem)
+        {
+            foreach (var season in tvShowItem.Seasons)
+            {
+                await db.InsertTvSeasonAsync(season, ct);
+            }
+        }
+
         await db.UpdateMediaItemAsync(item, ct);
 
         return new AutoRefreshOutcome(true, hasNewContent);

@@ -112,6 +112,15 @@ public static class PendingMatchApplier
         item.SyncStatus = SyncStatus.Ready;
         item.PendingMatchesJson = null;
         item.MarkUpdated();
+
+        if (item is TvShow show)
+        {
+            foreach (var season in show.Seasons)
+            {
+                await db.InsertTvSeasonAsync(season, ct);
+            }
+        }
+
         await db.UpdateMediaItemAsync(item, ct);
 
         return true;

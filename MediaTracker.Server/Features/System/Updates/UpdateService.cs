@@ -90,7 +90,7 @@ public sealed class UpdateService(
         logger.LogInformation("[Update] Applied release {Version}, restarting", check.LatestVersion);
 
         // 4. Restart
-        Task.Run(() =>
+        _ = Task.Run(() =>
         {
             Thread.Sleep(1000);
             var startInfo = new ProcessStartInfo(Environment.ProcessPath!, string.Join(" ", Environment.GetCommandLineArgs().Skip(1)))

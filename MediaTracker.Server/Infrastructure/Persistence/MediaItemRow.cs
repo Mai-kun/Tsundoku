@@ -124,7 +124,7 @@ public sealed class MediaItemRow
             SqliteSchemaInitializer.MediaTypes.Manga => (MediaItem)new Manga
             {
                 Title = Title,
-                Author = Author ?? string.Empty,
+                Author = Author ?? Manga_Author ?? string.Empty,
                 RomajiTitle = Manga_RomajiTitle,
                 Format = Manga_Format,
                 CurrentVolume = CurrentVolume ?? 0,
@@ -139,7 +139,7 @@ public sealed class MediaItemRow
                 DurationMinutes = DurationMinutes ?? 0,
                 Director = Director,
                 IsAnime = Movie_IsAnime ?? false,
-                Studio = Movie_Studio,
+                Studio = Movie_Studio ?? Studio,
                 RomajiTitle = Movie_RomajiTitle,
             },
             SqliteSchemaInitializer.MediaTypes.TvShow => (MediaItem)new TvShow
@@ -147,7 +147,7 @@ public sealed class MediaItemRow
                 Title = Title,
                 Network = Network,
                 IsAnime = TvShow_IsAnime ?? false,
-                Studio = TvShow_Studio,
+                Studio = TvShow_Studio ?? Studio,
                 RomajiTitle = TvShow_RomajiTitle,
                 EpisodeDurationMinutes = TvShow_EpisodeDurationMinutes,
                 Seasons = seasons ?? [],
@@ -308,7 +308,7 @@ public sealed class MediaItemRow
             TvShow_EpisodeDurationMinutes = item is TvShow tv9 ? tv9.EpisodeDurationMinutes : null,
             Platform = item is VideoGame g ? g.Platform : null,
             HoursPlayed = item is VideoGame g2 ? g2.HoursPlayed : null,
-            Studio = item is VideoGame g3 ? g3.Studio : null,
+            Studio = item is VideoGame g3 ? g3.Studio : item is TvShow tvStudio ? tvStudio.Studio : item is Movie mvStudio ? mvStudio.Studio : null,
         };
     }
 }

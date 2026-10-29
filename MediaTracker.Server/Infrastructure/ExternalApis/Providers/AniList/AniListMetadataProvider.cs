@@ -266,6 +266,31 @@ public sealed partial class AniListMetadataProvider(
         }
     }
 
+    private static string ResolveItemType(AniListMedia item, string fallbackType)
+    {
+        if (string.Equals(item.Type, "MANGA", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(item.Format, "MANGA", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(item.Format, "NOVEL", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(item.Format, "ONE_SHOT", StringComparison.OrdinalIgnoreCase))
+        {
+            return "manga";
+        }
+
+        if (string.Equals(item.Type, "ANIME", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(item.Format, "TV", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(item.Format, "TV_SHORT", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(item.Format, "MOVIE", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(item.Format, "SPECIAL", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(item.Format, "OVA", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(item.Format, "ONA", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(item.Format, "MUSIC", StringComparison.OrdinalIgnoreCase))
+        {
+            return "anime";
+        }
+
+        return fallbackType;
+    }
+
     private static string NormalizeType(string? aniListType) =>
         aniListType?.Equals("MANGA", StringComparison.OrdinalIgnoreCase) is true ? "manga" : "anime";
 
@@ -273,6 +298,7 @@ public sealed partial class AniListMetadataProvider(
 
     private ExternalMediaDto MapItem(AniListMedia item, string type)
     {
+        var itemType = ResolveItemType(item, type);
         var primaryRating = item.AverageScore is { } score && score > 0
             ? Math.Round(score / 10.0, 1)
             : (double?)null;
@@ -326,21 +352,21 @@ public sealed partial class AniListMetadataProvider(
             ReleaseStatus = item.Status,
             CountryOfOrigin = item.CountryOfOrigin,
             RuntimeMinutes = item.Duration,
-            Type = type,
+            Type = itemType,
             Format = item.Format,
-            Author = type == "manga"
+            Author = itemType == "manga"
                 ? (item.Staff?.Edges?.FirstOrDefault(e => e.Role?.Contains("Story", StringComparison.OrdinalIgnoreCase) is true || e.Role?.Contains("Art", StringComparison.OrdinalIgnoreCase) is true)?.Node?.Name?.Full
                    ?? item.Staff?.Edges?.FirstOrDefault()?.Node?.Name?.Full)
                 : null,
             Studio = item.Studios?.Nodes?.FirstOrDefault()?.Name,
-            TotalCount = type == "anime" ? item.Episodes : (item.Chapters ?? item.Volumes),
+            TotalCount = itemType == "anime" ? item.Episodes : (item.Chapters ?? item.Volumes),
             Chapters = item.Chapters,
             Volumes = item.Volumes,
-            MangaFormat = type == "manga" ? MangaFormats.FromCountryOfOrigin(item.CountryOfOrigin) : null,
+            MangaFormat = itemType == "manga" ? MangaFormats.FromCountryOfOrigin(item.CountryOfOrigin) : null,
             Staff = MapStaff(item.Staff),
             Rating = primaryRating,
             Ratings = ratings,
-            Cast = MapCast(item.Characters, type),
+            Cast = MapCast(item.Characters, itemType),
             Genres = item.Genres is { Count: > 0 } genres ? [.. genres.Where(g => !string.IsNullOrWhiteSpace(g))] : null,
             Episodes = episodes
         };

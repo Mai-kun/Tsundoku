@@ -243,7 +243,7 @@ public static class SettingsEndpoints
                 var config = new StorageConfig { Mode = request.Mode, CustomPath = request.CustomPath };
                 File.WriteAllText(configPath, JsonSerializer.Serialize(config, AppJsonSerializerContext.Default.StorageConfig));
 
-                Task.Run(() =>
+                _ = Task.Run(() =>
                 {
                     Thread.Sleep(1000);
                     var startInfo = new ProcessStartInfo(Environment.ProcessPath!, string.Join(" ", Environment.GetCommandLineArgs().Skip(1)))

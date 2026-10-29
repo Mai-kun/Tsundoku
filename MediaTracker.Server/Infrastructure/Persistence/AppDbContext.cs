@@ -426,7 +426,9 @@ public sealed class AppDbContext : IDisposable, IAsyncDisposable
             IsCustomEdited = reader.GetBoolean(reader.GetOrdinal("IsCustomEdited")),
             MediaType = reader.GetString(reader.GetOrdinal("MediaType")),
             Author = reader.GetString(reader.GetOrdinal("MediaType")) == SqliteSchemaInitializer.MediaTypes.Manga
-                ? (reader.IsDBNull(reader.GetOrdinal("Manga_Author")) ? null : reader.GetString(reader.GetOrdinal("Manga_Author")))
+                ? (reader.IsDBNull(reader.GetOrdinal("Manga_Author"))
+                    ? (reader.IsDBNull(reader.GetOrdinal("Author")) ? null : reader.GetString(reader.GetOrdinal("Author")))
+                    : reader.GetString(reader.GetOrdinal("Manga_Author")))
                 : (reader.IsDBNull(reader.GetOrdinal("Author")) ? null : reader.GetString(reader.GetOrdinal("Author"))),
             CurrentPage = reader.IsDBNull(reader.GetOrdinal("CurrentPage")) ? null : reader.GetInt32(reader.GetOrdinal("CurrentPage")),
             TotalPages = reader.IsDBNull(reader.GetOrdinal("TotalPages")) ? null : reader.GetInt32(reader.GetOrdinal("TotalPages")),
@@ -540,7 +542,7 @@ public sealed class AppDbContext : IDisposable, IAsyncDisposable
 
         if (!string.IsNullOrEmpty(mediaType))
         {
-            sb.Append(" AND LOWER(m.MediaType) = LOWER(@p").Append(paramIndex).Append(")");
+            sb.Append(" AND LOWER(m.MediaType) = LOWER(@p").Append(paramIndex).Append(')');
             cmd.Parameters.Add(new SqliteParameter($"@p{paramIndex}", mediaType));
             paramIndex++;
         }
@@ -566,7 +568,7 @@ public sealed class AppDbContext : IDisposable, IAsyncDisposable
             sb.Append(" AND (m.Title LIKE @p").Append(paramIndex);
             sb.Append(" OR f.Name LIKE @p").Append(paramIndex + 1);
             sb.Append(" OR m.Movie_RomajiTitle LIKE @p").Append(paramIndex + 2);
-            sb.Append(" OR m.TvShow_RomajiTitle LIKE @p").Append(paramIndex + 3).Append(")");
+            sb.Append(" OR m.TvShow_RomajiTitle LIKE @p").Append(paramIndex + 3).Append(')');
             cmd.Parameters.Add(new SqliteParameter($"@p{paramIndex}", $"%{search}%"));
             cmd.Parameters.Add(new SqliteParameter($"@p{paramIndex + 1}", $"%{search}%"));
             cmd.Parameters.Add(new SqliteParameter($"@p{paramIndex + 2}", $"%{search}%"));

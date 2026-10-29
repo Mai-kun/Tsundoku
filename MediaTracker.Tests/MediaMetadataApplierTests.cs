@@ -127,7 +127,7 @@ public class MediaMetadataApplierTests
     [Fact]
     public void ApplyIfMissing_ShouldFillBookGaps()
     {
-        var book = new Book { Title = "The Hobbit", Author = null };
+        var book = new Book { Title = "The Hobbit", Author = null! };
         var external = new ExternalMediaDto
         {
             ExternalId = "b1",

@@ -63,6 +63,13 @@ public static class MediaEnrichmentJob
 
             if (await ApplyAsync(db, item, external, services, jobCts.Token).ConfigureAwait(false))
             {
+                if (item is TvShow show)
+                {
+                    foreach (var season in show.Seasons)
+                    {
+                        await db.InsertTvSeasonAsync(season, jobCts.Token).ConfigureAwait(false);
+                    }
+                }
                 item.MarkUpdated();
                 await db.UpdateMediaItemAsync(item, jobCts.Token).ConfigureAwait(false);
             }
@@ -86,6 +93,8 @@ public static class MediaEnrichmentJob
             {
                 await CacheAchievementsAsync(services, item, external?.SteamAppId, jobCts.Token).ConfigureAwait(false);
             }
+
+            await db.UpdateMediaItemAsync(item, jobCts.Token).ConfigureAwait(false);
 
             Report(progress, 100, "Готово");
         }

@@ -91,6 +91,14 @@ public sealed class RefreshMetadataHandler(
                         current.IsCustomEdited = false;
                     }
 
+                    if (current is TvShow show)
+                    {
+                        foreach (var season in show.Seasons)
+                        {
+                            await scopedDb.InsertTvSeasonAsync(season, token);
+                        }
+                    }
+
                     MediaMetadataApplier.RemoveDisabledRatings(
                         current,
                         await priorityService.GetDisabledSourcesAsync(token));

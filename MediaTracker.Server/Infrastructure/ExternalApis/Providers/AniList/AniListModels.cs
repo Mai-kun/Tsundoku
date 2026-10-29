@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace MediaTracker.Server.Infrastructure.ExternalApis;
 
 internal interface IAniListEnvelope<TData>
@@ -99,7 +101,11 @@ internal sealed record AniListGraphQlPayload(string Query, AniListVariables Vari
 /// The variable shapes AniList queries use. Nullable members are omitted by the serializer
 /// (WhenWritingNull), so a variables object only carries the fields its query declares.
 /// </summary>
-internal sealed record AniListVariables(string Type, string? Search = null, int? Id = null, int? IdMal = null);
+internal sealed record AniListVariables(
+    [property: JsonPropertyName("type")] string? Type = null,
+    [property: JsonPropertyName("search")] string? Search = null,
+    [property: JsonPropertyName("id")] int? Id = null,
+    [property: JsonPropertyName("idMal")] int? IdMal = null);
 
 /// <summary>The AniList-profile import query: variables carry the username instead of an id/search.</summary>
 internal sealed record AniListProfileGraphQlPayload(string Query, AniListProfileVariables Variables);

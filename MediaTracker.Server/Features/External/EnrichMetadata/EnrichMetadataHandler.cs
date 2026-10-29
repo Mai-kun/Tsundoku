@@ -80,6 +80,13 @@ public sealed class EnrichMetadataHandler(
                     current.SyncStatus = SyncStatus.Ready;
                     if (changed)
                     {
+                        if (current is TvShow show)
+                        {
+                            foreach (var season in show.Seasons)
+                            {
+                                await scopedDb.InsertTvSeasonAsync(season, token);
+                            }
+                        }
                         current.MarkUpdated();
                         AdvancedStatsCalculator.InvalidateCache(cache);
                         TasteProfileCalculator.InvalidateCache(cache);

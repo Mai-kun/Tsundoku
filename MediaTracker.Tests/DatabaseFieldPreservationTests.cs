@@ -1271,10 +1271,10 @@ public sealed class DatabaseFieldPreservationTests
         Assert.NotNull(movie.LastActivityAt);
 
         var statusEvent = Assert.Single(
-            (await db.Events.ToListAsync())
-                .Where(e => e.Id != catalog.MediaEvent.Id
-                    && e.MediaId == catalog.Movie.Id
-                    && e.Type == MediaEventType.StatusChanged));
+            await db.Events.ToListAsync(),
+            e => e.Id != catalog.MediaEvent.Id
+                && e.MediaId == catalog.Movie.Id
+                && e.Type == MediaEventType.StatusChanged);
         Assert.Equal(MediaStatus.InProgress.ToString(), statusEvent.OldValue);
         Assert.Equal(MediaStatus.Dropped.ToString(), statusEvent.NewValue);
     }

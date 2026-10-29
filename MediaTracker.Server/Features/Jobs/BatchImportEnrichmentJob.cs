@@ -148,6 +148,7 @@ public static class BatchImportEnrichmentJob
         switch (verdict.Kind)
         {
             case MatchVerdictKind.Confident when await ApplyWinnerAsync(services, db, aggregator, imageStorage, item, verdict.Winner!, type, ct):
+                await CollectStrictCandidateCoversAsync(item, candidates, verdict.Winner!, imageStorage, db, ct);
                 return MatchVerdictKind.Confident;
 
             case MatchVerdictKind.Confident:
@@ -212,6 +213,52 @@ public static class BatchImportEnrichmentJob
         }
 
         return await PendingMatchApplier.ApplyAsync(db, item, full, imageStorage, ct, _ => { });
+    }
+
+    private static async Task CollectStrictCandidateCoversAsync(
+        MediaItem item,
+        IReadOnlyList<ExternalMediaDto> candidates,
+        ExternalMediaDto winner,
+        IImageStorageService imageStorage,
+        AppDbContext db,
+        CancellationToken ct)
+    {
+        var otherCandidates = candidates
+            .Where(c => c != winner && !string.IsNullOrWhiteSpace(c.CoverUrl) && MediaMetadataApplier.IsExternalUrl(c.CoverUrl))
+            .ToList();
+
+        if (otherCandidates.Count == 0) return;
+
+        MediaCoverCollection.EnsureLegacyCoverRegistered(item);
+        var covers = MediaCoverCollection.Parse(item.CoversJson);
+        var addedAny = false;
+
+        foreach (var candidate in otherCandidates)
+        {
+            if (!StrictCoverMatcher.IsStrictMatch(item, candidate))
+            {
+                continue;
+            }
+
+            if (covers.Any(c => string.Equals(c.Source, candidate.ExternalSource, StringComparison.OrdinalIgnoreCase)))
+            {
+                continue;
+            }
+
+            var variant = await imageStorage.SaveCoverVariantAsync(candidate.CoverUrl!, item.Id, candidate.ExternalSource, ct);
+            if (variant is not null)
+            {
+                covers.Add(variant);
+                addedAny = true;
+            }
+        }
+
+        if (addedAny)
+        {
+            item.CoversJson = MediaCoverCollection.Serialize(covers);
+            item.MarkUpdated();
+            await db.UpdateMediaItemAsync(item, ct);
+        }
     }
 
     /// <summary>

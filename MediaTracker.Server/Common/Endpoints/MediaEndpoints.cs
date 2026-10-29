@@ -63,7 +63,7 @@ public static class MediaEndpoints
         }).DisableAntiforgery()
         .WithTags("Импорт / Import")
         .WithSummary("Пакетный импорт из файла")
-        .WithDescription("Поддерживает форматы MAL/Shikimori (XML/JSON), Letterboxd (CSV), Goodreads (CSV), Steam (JSON), MangaLib (JSON/CSV) и Custom (JSON/CSV).");
+        .WithDescription("Поддерживает форматы MAL/Shikimori (XML/JSON), Letterboxd (CSV), Goodreads (CSV), Steam (JSON), MangaLib (JSON/CSV), Anixart (CSV) и Custom (JSON/CSV).");
 
         group.MapPost("/import/steam", async (
             SteamImportRequest request, [FromServices] ImportMediaHandler handler, CancellationToken ct) =>
@@ -379,6 +379,15 @@ public static class MediaEndpoints
             .WithTags("Медиатека / Media")
             .WithSummary("Удалить обложку из галереи")
             .WithDescription("Удаляет вариант из списка и с диска. Если удаляли активную обложку, активной становится следующая оставшаяся.");
+
+        group.MapPost("/{id:guid}/covers/fetch-volumes", (
+                Guid id,
+                [FromServices] ICoverManager coverManager,
+                CancellationToken ct) =>
+            coverManager.FetchVolumesAsync(id, ct).ToOk())
+            .WithTags("Медиатека / Media")
+            .WithSummary("Загрузить обложки томов MangaDex")
+            .WithDescription("Для манги с подтверждённым MangaDex ID запрашивает официальные обложки томов и сохраняет их в галерею вариантов.");
 
         var historyGroup = app.MapGroup("/api/history");
 

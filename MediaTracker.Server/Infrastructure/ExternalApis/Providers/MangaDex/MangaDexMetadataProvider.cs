@@ -176,7 +176,7 @@ public sealed class MangaDexMetadataProvider(
     };
 
     /// <summary>The MangaDex uuid when the row has one, otherwise a title lookup for rows added elsewhere.</summary>
-    private static async Task<string?> ResolveMangaIdAsync(
+    internal static async Task<string?> ResolveMangaIdAsync(
         HttpClient client,
         string? externalId,
         string? title,

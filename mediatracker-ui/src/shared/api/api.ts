@@ -292,6 +292,12 @@ export function deleteCover(id: string, coverId: string): Promise<MediaDetail> {
   });
 }
 
+export function fetchVolumeCovers(id: string): Promise<MediaDetail> {
+  return requestJson<MediaDetail>(`${mediaEndpoint}/${id}/covers/fetch-volumes`, {
+    method: "POST",
+  });
+}
+
 export function importFile(formData: FormData): Promise<ImportResultDto> {
   return requestJson<ImportResultDto>(`${mediaEndpoint}/import/file`, {
     method: "POST",

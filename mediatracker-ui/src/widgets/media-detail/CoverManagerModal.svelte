@@ -1,5 +1,6 @@
 <script lang="ts">
   import {
+    BookOpen,
     Check,
     Image as ImageIcon,
     Link2,
@@ -14,6 +15,7 @@
     addCoverByUrl,
     deleteCover,
     errorMessage,
+    fetchVolumeCovers,
     selectCover,
   } from "$shared/api/api";
   import { i18n } from "$shared/i18n/index.svelte";
@@ -38,6 +40,7 @@
   let setAsActive = $state(true);
 
   let busy = $state(false);
+  let fetchingVolumes = $state(false);
   let actionId = $state<string | null>(null);
   let error = $state<unknown>(null);
   let deletingId = $state<string | null>(null);
@@ -128,6 +131,23 @@
       actionId = null;
     }
   }
+
+  async function handleFetchVolumes() {
+    if (busy) return;
+    busy = true;
+    fetchingVolumes = true;
+    error = null;
+    try {
+      const updated = await fetchVolumeCovers(media.id);
+      onUpdate(updated);
+      showToast(i18n.t.coversModal.volumesLoaded, "success");
+    } catch (err) {
+      error = err;
+    } finally {
+      busy = false;
+      fetchingVolumes = false;
+    }
+  }
 </script>
 
 <Modal {isOpen} {onClose} labelledBy="cover-manager-title" size="lg">
@@ -160,31 +180,51 @@
     <!-- Add cover section -->
     <div class="shrink-0 border-b border-white/[0.08] bg-black/20 p-4">
       <div class="flex flex-wrap items-center justify-between gap-3 pb-3">
-        <div
-          class="flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 p-0.5 text-xs"
-        >
-          <button
-            type="button"
-            class="flex items-center gap-1.5 rounded-md px-3 py-1.5 font-medium transition {addMode ===
-            'url'
-              ? 'bg-indigo-600 text-white'
-              : 'text-slate-400 hover:text-white'}"
-            onclick={() => (addMode = "url")}
+        <div class="flex flex-wrap items-center gap-2">
+          <div
+            class="flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 p-0.5 text-xs"
           >
-            <Link2 size={13} aria-hidden="true" />
-            {i18n.t.coversModal.addByUrl}
-          </button>
-          <button
-            type="button"
-            class="flex items-center gap-1.5 rounded-md px-3 py-1.5 font-medium transition {addMode ===
-            'file'
-              ? 'bg-indigo-600 text-white'
-              : 'text-slate-400 hover:text-white'}"
-            onclick={() => (addMode = "file")}
-          >
-            <Upload size={13} aria-hidden="true" />
-            {i18n.t.coversModal.uploadFile}
-          </button>
+            <button
+              type="button"
+              class="flex items-center gap-1.5 rounded-md px-3 py-1.5 font-medium transition {addMode ===
+              'url'
+                ? 'bg-indigo-600 text-white'
+                : 'text-slate-400 hover:text-white'}"
+              onclick={() => (addMode = "url")}
+            >
+              <Link2 size={13} aria-hidden="true" />
+              {i18n.t.coversModal.addByUrl}
+            </button>
+            <button
+              type="button"
+              class="flex items-center gap-1.5 rounded-md px-3 py-1.5 font-medium transition {addMode ===
+              'file'
+                ? 'bg-indigo-600 text-white'
+                : 'text-slate-400 hover:text-white'}"
+              onclick={() => (addMode = "file")}
+            >
+              <Upload size={13} aria-hidden="true" />
+              {i18n.t.coversModal.uploadFile}
+            </button>
+          </div>
+
+          {#if media.type === "manga"}
+            <button
+              type="button"
+              class="flex items-center gap-1.5 rounded-lg border border-indigo-500/30 bg-indigo-500/10 px-3 py-1.5 text-xs font-medium text-indigo-300 transition hover:bg-indigo-500/20 hover:text-white disabled:opacity-50"
+              disabled={busy}
+              onclick={() => void handleFetchVolumes()}
+              title={i18n.t.coversModal.fetchVolumes}
+            >
+              {#if fetchingVolumes}
+                <LoaderCircle size={13} class="animate-spin" aria-hidden="true" />
+                <span>{i18n.t.coversModal.fetchingVolumes}</span>
+              {:else}
+                <BookOpen size={13} aria-hidden="true" />
+                <span>{i18n.t.coversModal.fetchVolumes}</span>
+              {/if}
+            </button>
+          {/if}
         </div>
 
         <label class="flex cursor-pointer items-center gap-2 text-xs text-slate-300">

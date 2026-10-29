@@ -121,3 +121,34 @@ internal sealed class MdRating
     [JsonPropertyName("distribution")]
     public Dictionary<string, int>? Distribution { get; set; }
 }
+
+internal sealed class MdCoverListResponse
+{
+    [JsonPropertyName("data")]
+    public List<MdCoverData>? Data { get; set; }
+}
+
+internal sealed class MdCoverData
+{
+    [JsonPropertyName("id")]
+    public string Id { get; set; } = string.Empty;
+
+    [JsonPropertyName("type")]
+    public string Type { get; set; } = string.Empty;
+
+    [JsonPropertyName("attributes")]
+    public MdCoverAttributes? Attributes { get; set; }
+}
+
+internal sealed class MdCoverAttributes
+{
+    [JsonPropertyName("volume")]
+    public string? Volume { get; set; }
+
+    [JsonPropertyName("fileName")]
+    public string? FileName { get; set; }
+
+    [JsonPropertyName("locale")]
+    public string? Locale { get; set; }
+}
+

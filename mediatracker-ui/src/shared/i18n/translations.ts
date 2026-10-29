@@ -1288,6 +1288,9 @@ export const translations = {
     coverUploaded: { ru: "Обложка загружена", en: "Cover uploaded" },
     coverSelected: { ru: "Обложка выбрана", en: "Cover selected" },
     coverDeleted: { ru: "Обложка удалена", en: "Cover deleted" },
+    fetchVolumes: { ru: "Обложки томов", en: "Volume covers" },
+    fetchingVolumes: { ru: "Загрузка томов…", en: "Fetching volumes…" },
+    volumesLoaded: { ru: "Обложки томов загружены", en: "Volume covers loaded" },
   },
   detailModal: {
     typeLabel: { ru: "Тип", en: "Type" },
@@ -1729,6 +1732,22 @@ export const translations = {
       ru: "Универсальный JSON / CSV",
       en: "Universal JSON / CSV",
     },
+    subtitleAnixart: {
+      ru: "Экспорт аниме в CSV",
+      en: "Anime CSV export",
+    },
+    helpAnixart: {
+      ru: "Экспортируйте закладки из мобильного приложения Anixart в формате CSV и загрузите файл сюда.",
+      en: "Export bookmarks from the Anixart mobile app as a CSV file and upload it here.",
+    },
+    anixartFavoritesCheckbox: {
+      ru: "Создать кастомный список «Избранное» для избранных тайтлов",
+      en: "Create a custom 'Favorites' list for starred titles",
+    },
+    anixartUnwatchingStatusLabel: {
+      ru: 'Статус для тайтлов с пометкой "Не смотрю" (только в Избранном)',
+      en: "Status for titles marked 'Not watching' (Favorites only)",
+    },
     helpAnilist: {
       ru: "AniList: Settings → Account → Export Data. Либо введите никнейм профиля — список загрузится через публичный API.",
       en: "AniList: Settings → Account → Export Data — or enter a profile username to fetch it via the public API.",
@@ -1791,6 +1810,7 @@ export const translations = {
     },
     continueImport: { ru: "Продолжить импорт", en: "Continue import" },
     statusPlanned: { ru: "В планах", en: "Planned" },
+    statusCompleted: { ru: "Просмотрено", en: "Completed" },
     statusOnHold: { ru: "На паузе", en: "On Hold" },
     statusInProgress: { ru: "В процессе", en: "In Progress" },
     statusDropped: { ru: "Брошено", en: "Dropped" },

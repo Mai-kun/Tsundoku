@@ -156,6 +156,7 @@ namespace MediaTracker.Server.Common.Json;
 [JsonSerializable(typeof(MdMangaListResponse))]
 [JsonSerializable(typeof(MdMangaSingleResponse))]
 [JsonSerializable(typeof(MdStatisticsResponse))]
+[JsonSerializable(typeof(MdCoverListResponse))]
 [JsonSerializable(typeof(KitsuSearchResponse))]
 [JsonSerializable(typeof(KitsuSingleResponse))]
 [JsonSerializable(typeof(SteamStoreSearchResponse))]

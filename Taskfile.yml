@@ -90,7 +90,10 @@ tasks:
   test:
     desc: 'Run backend & frontend unit/integration test suites with code coverage'
     cmds:
-      - HEADLESS=true dotnet test MediaTracker.Tests/MediaTracker.Tests.csproj --collect:"XPlat Code Coverage" --results-directory ./reports/coverage
+      # coverlet.collector 6.0.4's VSTest datacollector ignores assembly Include filtering at
+      # collection time, so the product-assembly filter is applied at parse time in
+      # scripts/parse-backend-coverage.mjs (excludes NuGet/framework sources under /_1/).
+      - HEADLESS=true dotnet test MediaTracker.Tests/MediaTracker.Tests.csproj --collect:"XPlat Code Coverage;Format=cobertura" --results-directory ./reports/coverage -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Include="[Tsundoku]*"
       - node scripts/parse-backend-coverage.mjs
       - npm --prefix mediatracker-ui run test:coverage
 

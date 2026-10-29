@@ -1,0 +1,2057 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tsundoku — Сводный отчет аудита производительности</title>
+  <style>
+    :root {
+      --bg: #0d0f14;
+      --card-bg: #151a26;
+      --card-hover: #1c2333;
+      --accent: #5844e0;
+      --accent-bright: #818cf8;
+      --text: #f3f4f6;
+      --text-muted: #9ca3af;
+      --border: rgba(255, 255, 255, 0.08);
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      line-height: 1.5;
+      padding: 32px 24px;
+    }
+    html { scroll-behavior: smooth; }
+    .container {
+
+      max-width: 1280px;
+      margin: 0 auto;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 24px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 32px;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .logo-badge {
+      background: linear-gradient(135deg, var(--accent), #7928ca);
+      color: white;
+      font-weight: 700;
+      font-size: 20px;
+      padding: 8px 14px;
+      border-radius: 10px;
+    }
+    .title-wrap h1 {
+      font-size: 22px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .title-wrap p {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border-radius: 9999px;
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .nav-links {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+    }
+    .nav-links a {
+      color: var(--accent-bright);
+      text-decoration: none;
+      font-size: 13px;
+      background: var(--card-bg);
+      padding: 6px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      transition: all 0.2s;
+    }
+    .nav-links a:hover {
+      background: var(--card-hover);
+      border-color: var(--accent-bright);
+    }
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+    .kpi-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+    }
+    .kpi-label {
+      font-size: 12px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 6px;
+    }
+    .kpi-value {
+      font-size: 26px;
+      font-weight: 700;
+      color: var(--text);
+      font-feature-settings: "tnum";
+    }
+    .kpi-sub {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+    .insight-card {
+      background: rgba(245, 158, 11, 0.08);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 32px;
+    }
+    .insight-card.info {
+      background: rgba(88, 68, 224, 0.08);
+      border-color: rgba(88, 68, 224, 0.3);
+    }
+    .insight-card h3 {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .insight-item {
+      margin-bottom: 10px;
+      font-size: 13px;
+    }
+    .insight-item:last-child { margin-bottom: 0; }
+    .insight-item strong { color: var(--text); }
+    .section {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 24px;
+      margin-bottom: 32px;
+    }
+    .section h2 {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 18px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .progress-bar-group {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+    .progress-item {
+      background: #0d0f14;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+    }
+    .progress-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      margin-bottom: 8px;
+    }
+    .progress-track {
+      background: rgba(255, 255, 255, 0.08);
+      height: 8px;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.3s;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      text-align: left;
+    }
+    th {
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--text-muted);
+      font-weight: 600;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+    }
+    td {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255, 255, 255, 0.02); }
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 12px;
+      background: rgba(255, 255, 255, 0.06);
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: #e5e7eb;
+    }
+    .tag-pass {
+      color: var(--success);
+      font-weight: 600;
+    }
+    .tag-warn {
+      color: var(--warning);
+      font-weight: 600;
+    }
+    .tag-fail {
+      color: var(--danger);
+      font-weight: 600;
+    }
+    .diff-block {
+      background: #090b10;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 12px;
+      line-height: 1.5;
+      overflow-x: auto;
+      margin-top: 10px;
+    }
+    .diff-line {
+      display: block;
+      white-space: pre-wrap;
+    }
+    .diff-del {
+      color: #f87171;
+      background: rgba(239, 68, 68, 0.12);
+      padding: 1px 4px;
+      border-radius: 3px;
+    }
+    .diff-add {
+      color: #4ade80;
+      background: rgba(34, 197, 94, 0.12);
+      padding: 1px 4px;
+      border-radius: 3px;
+    }
+    .smell-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px;
+      margin-bottom: 16px;
+      transition: border-color 0.2s;
+    }
+    .ai-review-content {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      padding: 28px;
+      border-radius: 12px;
+      font-size: 14px;
+      line-height: 1.7;
+      color: #d1d5db;
+    }
+    .ai-review-content h1, .ai-review-content h2 {
+      font-size: 20px;
+      color: #fff;
+      margin-top: 24px;
+      margin-bottom: 14px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 8px;
+    }
+    .ai-review-content h3 {
+      font-size: 16px;
+      color: var(--accent-bright);
+      margin-top: 22px;
+      margin-bottom: 10px;
+    }
+    .ai-review-content h4 {
+      font-size: 14px;
+      color: #fbbf24;
+      margin-top: 16px;
+      margin-bottom: 8px;
+    }
+    .ai-review-content p {
+      margin-bottom: 14px;
+    }
+    .ai-review-content ul, .ai-review-content ol {
+      margin-bottom: 16px;
+      padding-left: 24px;
+    }
+    .ai-review-content li {
+      margin-bottom: 6px;
+    }
+    .ai-review-content strong {
+      color: #fff;
+      font-weight: 600;
+    }
+    .ai-review-content code {
+      background: rgba(88, 68, 224, 0.15);
+      color: #a5b4fc;
+      border: 1px solid rgba(88, 68, 224, 0.3);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 12px;
+    }
+    .ai-review-content hr {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 24px 0;
+    }
+    .ai-review-content blockquote {
+      border-left: 3px solid var(--accent);
+      padding-left: 14px;
+      margin: 14px 0;
+      color: var(--text-muted);
+    }
+    footer {
+      text-align: center;
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 48px;
+      padding-top: 24px;
+      border-top: 1px solid var(--border);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="brand">
+        <div class="logo-badge">TS</div>
+        <div class="title-wrap">
+          <h1>Аудит производительности и качества Tsundoku</h1>
+          <p>Сгенерировано: 29.10.2026, 03:41:03 GMT+3</p>
+        </div>
+      </div>
+      <div>
+        <span class="badge" style="background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid #ef4444">
+          ● Статус: FAIL
+        </span>
+      </div>
+    </header>
+
+    <div class="nav-links">
+      <a href="#budgets">📊 Бюджеты</a>
+      <a href="#browser">🌐 Браузер & CDP</a>
+      <a href="#vitals">⚡ Web Vitals</a>
+      <a href="#backend">⚙️ Бэкенд</a>
+      <a href="#sqlite">🗄️ SQLite Health</a>
+      <a href="#network">📡 Сетевые бюджеты</a>
+      <a href="#security">🛡️ Безопасность</a>
+      <a href="#coverage">🧪 Тесты & Покрытие</a>
+      <a href="#smells">💡 Микрооптимизации (43)</a>
+      <a href="#visual">📸 Снапшоты</a>
+      <a href="#ai-review">🎨 AI Ревью</a>
+      <a href="reports/bundle-stats.html" target="_blank">🗺️ Карта бандла</a>
+      
+    </div>
+
+
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-label">Общий вердикт</div>
+        <div class="kpi-value" style="color: #ef4444">FAIL</div>
+        <div class="kpi-sub">1 ошибок, 2 предупреждений</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Тесты (C# + TS)</div>
+        <div class="kpi-value" style="color: var(--success)">62 <span style="font-size: 14px; font-weight: normal; color: var(--text-muted)">тестов</span></div>
+        <div class="kpi-sub">23 Backend, 39 Frontend &bull; 0 ошибок</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Backend Line Coverage</div>
+        <div class="kpi-value">0%</div>
+        <div class="kpi-sub">20840 / 36869 строк</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Frontend Models Coverage</div>
+        <div class="kpi-value" style="color: var(--success)">96.8%</div>
+        <div class="kpi-sub">Общее по TS: 17.1% (231/1351)</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Бэкенд Throughput</div>
+        <div class="kpi-value">20.5 <span style="font-size: 14px; font-weight: normal; color: var(--text-muted)">RPS</span></div>
+        <div class="kpi-sub">p50: 30.42ms / p95: 252.03ms</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Entry JS Gzip</div>
+        <div class="kpi-value">99.77 <span style="font-size: 14px; font-weight: normal; color: var(--text-muted)">KB</span></div>
+        <div class="kpi-sub">Лимит: 150 KB (66.5%)</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">DOM Нод (Макс)</div>
+        <div class="kpi-value">1082</div>
+        <div class="kpi-sub">Лимит: 1500 (72.1%)</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Дельта утечек памяти</div>
+        <div class="kpi-value">-1.67 MB</div>
+        <div class="kpi-sub">12 циклов с Force GC</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Axe WCAG 2.1 AA</div>
+        <div class="kpi-value">0</div>
+        <div class="kpi-sub">Критических / серьезных</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Core Web Vitals</div>
+        <div class="kpi-value" style="color: var(--success)">100% <span style="font-size: 14px; font-weight: normal; color: var(--text-muted)">Good</span></div>
+        <div class="kpi-sub">LCP: 0ms &bull; CLS: 0</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">SQLite Фрагментация</div>
+        <div class="kpi-value" style="color: var(--success)">0%</div>
+        <div class="kpi-sub">0 freelist-стр. &bull; ok</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Сжатие API (Wire)</div>
+        <div class="kpi-value" style="color: var(--success)">-91.2%</div>
+        <div class="kpi-sub">Avg Latency: 16.7ms (500 items)</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Security Audit</div>
+        <div class="kpi-value" style="color: var(--success)">0 <span style="font-size: 14px; font-weight: normal; color: var(--text-muted)">CVE / Leaks</span></div>
+        <div class="kpi-sub">NuGet &bull; NPM &bull; Secret Scan (0 leaks)</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Микрооптимизации</div>
+        <div class="kpi-value">43</div>
+        <div class="kpi-sub">0 исправлено (--fix)</div>
+      </div>
+    </div>
+
+    <div class="insight-card ">
+      <h3>🚨 Рекомендации и точки внимания (Actionable Insights)</h3>
+      
+        <div class="insight-item">
+          <strong>Общий размер JS бандла</strong>: <code>Total JS Gzip: 272.43 KB / 320 KB (85.1%)</code>
+          <div style="color: var(--text-muted); margin-top: 2px;">↳ Проведите аудит дублирующихся утилит в `bundle-stats.html` и убедитесь, что библиотеки не импортируются целиком.</div>
+        </div>
+      
+        <div class="insight-item">
+          <strong>Инспектор целостности (Orphan Checks)</strong>: <code>Сирот: 18</code>
+          <div style="color: var(--text-muted); margin-top: 2px;">↳ Удалите или зарегистрируйте следующие файлы: mediatracker-ui/checks/e2e/achievementsButtons.check.ts, mediatracker-ui/checks/e2e/cards.check.ts, mediatracker-ui/checks/e2e/categorySwitch.check.ts, mediatracker-ui/checks/e2e/gamePayloads.check.ts, mediatracker-ui/checks/e2e/historyDelete.check.ts, mediatracker-ui/checks/e2e/lists.check.ts, mediatracker-ui/checks/e2e/navDetail.check.ts, mediatracker-ui/checks/e2e/navOverlap.check.ts, mediatracker-ui/checks/e2e/popover.check.ts, mediatracker-ui/checks/e2e/ratingsSettled.check.ts, mediatracker-ui/checks/e2e/related.check.ts, mediatracker-ui/checks/e2e/releaseDates.check.ts, mediatracker-ui/checks/e2e/relink.check.ts, mediatracker-ui/checks/e2e/scoreStack.check.ts, mediatracker-ui/checks/e2e/seasons.check.ts, mediatracker-ui/checks/e2e/tokens.check.ts, mediatracker-ui/checks/e2e/virtualGrid.check.ts, mediatracker-ui/checks/e2e/visualQa.check.ts</div>
+        </div>
+      
+    </div>
+
+    <!-- БЮДЖЕТЫ -->
+    <div class="section" id="budgets">
+      <h2>📊 Расход производительных бюджетов</h2>
+      <div class="progress-bar-group">
+        <div class="progress-item">
+          <div class="progress-header">
+            <span>Entry JS Gzip (99.77 KB / 150 KB)</span>
+            <span>66.5%</span>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill" style="width: 66.51333333333334%; background: var(--accent-bright);"></div>
+          </div>
+        </div>
+        <div class="progress-item">
+          <div class="progress-header">
+            <span>Total JS Gzip (272.43 KB / 320 KB)</span>
+            <span>85.1%</span>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill" style="width: 85.134375%; background: var(--accent-bright);"></div>
+          </div>
+        </div>
+        <div class="progress-item">
+          <div class="progress-header">
+            <span>CSS Gzip (35.95 KB / 50 KB)</span>
+            <span>71.9%</span>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill" style="width: 71.9%; background: var(--success);"></div>
+          </div>
+        </div>
+        <div class="progress-item">
+          <div class="progress-header">
+            <span>DOM Nodes (1082 / 1500)</span>
+            <span>72.1%</span>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill" style="width: 72.13333333333334%; background: var(--success);"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CDP SCREENS -->
+    <div class="section" id="browser">
+      <h2>🌐 Браузерные метрики CDP (Chrome DevTools Protocol)</h2>
+      
+        <table>
+          <thead>
+            <tr>
+              <th>Экран</th>
+              <th>Layout (ms)</th>
+              <th>Recalc Style (ms)</th>
+              <th>Script (ms)</th>
+              <th>Task (ms)</th>
+              <th>DOM Нод</th>
+              <th>JS Heap (MB)</th>
+            </tr>
+          </thead>
+          <tbody>
+            
+              <tr>
+                <td><strong>home</strong></td>
+                <td>0.33</td>
+                <td>0</td>
+                <td>0</td>
+                <td>9.27</td>
+                <td>1082</td>
+                <td>5.87</td>
+              </tr>
+            
+              <tr>
+                <td><strong>game-initial</strong></td>
+                <td>0.16</td>
+                <td>2.05</td>
+                <td>35.92</td>
+                <td>24.14</td>
+                <td>899</td>
+                <td>16.93</td>
+              </tr>
+            
+              <tr>
+                <td><strong>game-virtual-scroll</strong></td>
+                <td>0</td>
+                <td>0</td>
+                <td>0.92</td>
+                <td>2.97</td>
+                <td>899</td>
+                <td>17</td>
+              </tr>
+            
+              <tr>
+                <td><strong>tvshow</strong></td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>117</td>
+                <td>24.8</td>
+              </tr>
+            
+              <tr>
+                <td><strong>stats-summary</strong></td>
+                <td>3.95</td>
+                <td>9.67</td>
+                <td>54.72</td>
+                <td>82.66</td>
+                <td>894</td>
+                <td>34.64</td>
+              </tr>
+            
+              <tr>
+                <td><strong>stats-taste-profile</strong></td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>76.82</td>
+                <td>894</td>
+                <td>8.2</td>
+              </tr>
+            
+              <tr>
+                <td><strong>history</strong></td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>125</td>
+                <td>15.61</td>
+              </tr>
+            
+              <tr>
+                <td><strong>lists</strong></td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>2.8</td>
+                <td>40</td>
+                <td>23.51</td>
+              </tr>
+            
+              <tr>
+                <td><strong>calendar</strong></td>
+                <td>0</td>
+                <td>4.71</td>
+                <td>10.67</td>
+                <td>17.39</td>
+                <td>89</td>
+                <td>31.2</td>
+              </tr>
+            
+              <tr>
+                <td><strong>detail</strong></td>
+                <td>2.15</td>
+                <td>0</td>
+                <td>20.18</td>
+                <td>29.44</td>
+                <td>419</td>
+                <td>25.42</td>
+              </tr>
+            
+              <tr>
+                <td><strong>modals</strong></td>
+                <td>1.21</td>
+                <td>57.94</td>
+                <td>7.23</td>
+                <td>181.53</td>
+                <td>419</td>
+                <td>8.67</td>
+              </tr>
+            
+          </tbody>
+        </table>
+      
+    </div>
+
+    <!-- CORE WEB VITALS -->
+    <div class="section" id="vitals">
+      <h2>⚡ Core Web Vitals (Google UX: LCP, CLS, FCP, FID)</h2>
+      <p style="color: var(--text-muted); margin-bottom: 20px;">
+        Реальные пользовательские метрики Google Core Web Vitals, собранные через <code>PerformanceObserver</code> в браузере под реальным взаимодействием пользователя (скролл виртуального грида, клики по элементам).
+      </p>
+      <p style="color: var(--text-muted)">Нет данных Web Vitals</p>
+    </div>
+
+    <!-- BACKEND & SQLITE -->
+    <div class="section" id="backend">
+      <h2>⚙️ Бэкенд и База данных (.NET 10 + SQLite)</h2>
+      
+        <h3 style="font-size: 14px; margin-bottom: 12px; color: var(--text-muted);">Индексация SQLite (EXPLAIN QUERY PLAN)</h3>
+        <table style="margin-bottom: 24px;">
+          <thead>
+            <tr>
+              <th>Запрос</th>
+              <th>План SQLite</th>
+              <th>Использование индекса</th>
+              <th>Full Scan</th>
+            </tr>
+          </thead>
+          <tbody>
+            
+              <tr>
+                <td><strong>Library Filter & Sort by Status/Date</strong></td>
+                <td><code>SEARCH MediaItems USING INDEX IX_MediaItems_Status_CreatedAt (Status=?)</code></td>
+                <td><span class="tag-pass">✅ Используется</span></td>
+                <td><span class="tag-pass">✅ Нет</span></td>
+              </tr>
+            
+              <tr>
+                <td><strong>Category & Status Filter</strong></td>
+                <td><code>SEARCH MediaItems USING INDEX IX_MediaItems_MediaType_Status_CreatedAt (MediaType=? AND Status=?)</code></td>
+                <td><span class="tag-pass">✅ Используется</span></td>
+                <td><span class="tag-pass">✅ Нет</span></td>
+              </tr>
+            
+              <tr>
+                <td><strong>History Events Feed</strong></td>
+                <td><code>SCAN Events USING INDEX IX_Events_CreatedAt</code></td>
+                <td><span class="tag-pass">✅ Используется</span></td>
+                <td><span class="tag-pass">✅ Нет</span></td>
+              </tr>
+            
+              <tr>
+                <td><strong>Auto-refresh Queue</strong></td>
+                <td><code>SEARCH MediaItems USING INDEX IX_MediaItems_NextAutoRefreshAt (NextAutoRefreshAt>? AND NextAutoRefreshAt<?)</code></td>
+                <td><span class="tag-pass">✅ Используется</span></td>
+                <td><span class="tag-pass">✅ Нет</span></td>
+              </tr>
+            
+              <tr>
+                <td><strong>Custom List Items Lookup</strong></td>
+                <td><code>SEARCH CustomListItems USING INDEX IX_CustomListItems_ListId_MediaItemId (ListId=?)</code></td>
+                <td><span class="tag-pass">✅ Используется</span></td>
+                <td><span class="tag-pass">✅ Нет</span></td>
+              </tr>
+            
+          </tbody>
+        </table>
+      
+
+      
+        <h3 style="font-size: 14px; margin-bottom: 12px; color: var(--text-muted);">Микропрофилирование BenchmarkDotNet</h3>
+        <table style="margin-bottom: 24px;">
+          <thead>
+            <tr>
+              <th>Метод</th>
+              <th>Класс</th>
+              <th>Mean Time</th>
+              <th>Allocated</th>
+              <th>Gen 0 / 1 / 2</th>
+              <th>Статус</th>
+            </tr>
+          </thead>
+          <tbody>
+            
+              <tr>
+                <td><code>EvaluateSmartList</code></td>
+                <td>EvaluationAndScoringBenchmarks</td>
+                <td><strong>294.18 μs</strong></td>
+                <td>258.66 KB</td>
+                <td>62.99 / 0.00 / 0.00</td>
+                <td><span class="tag-fail">❌ FAIL</span></td>
+              </tr>
+            
+              <tr>
+                <td><code>EvaluateCandidates</code></td>
+                <td>EvaluationAndScoringBenchmarks</td>
+                <td><strong>21.36 μs</strong></td>
+                <td>24.82 KB</td>
+                <td>6.07 / 0.00 / 0.00</td>
+                <td><span class="tag-pass">✅ PASS</span></td>
+              </tr>
+            
+              <tr>
+                <td><code>NormalizeGenres</code></td>
+                <td>EvaluationAndScoringBenchmarks</td>
+                <td><strong>8.30 μs</strong></td>
+                <td>8.53 KB</td>
+                <td>2.08 / 0.00 / 0.00</td>
+                <td><span class="tag-pass">✅ PASS</span></td>
+              </tr>
+            
+              <tr>
+                <td><code>ParseMangalibJson</code></td>
+                <td>ParsersBenchmarks</td>
+                <td><strong>504.90 μs</strong></td>
+                <td>112.86 KB</td>
+                <td>27.34 / 0.00 / 0.00</td>
+                <td><span class="tag-pass">✅ PASS</span></td>
+              </tr>
+            
+              <tr>
+                <td><code>ReadAnyRecordsCsv</code></td>
+                <td>ParsersBenchmarks</td>
+                <td><strong>49.17 μs</strong></td>
+                <td>78.29 KB</td>
+                <td>19.17 / 0.06 / 0.00</td>
+                <td><span class="tag-pass">✅ PASS</span></td>
+              </tr>
+            
+              <tr>
+                <td><code>CalculateAdvancedStats</code></td>
+                <td>StatsBenchmarks</td>
+                <td><strong>156.71 μs</strong></td>
+                <td>9.08 KB</td>
+                <td>2.20 / 0.00 / 0.00</td>
+                <td><span class="tag-pass">✅ PASS</span></td>
+              </tr>
+            
+              <tr>
+                <td><code>CalculateTasteProfile</code></td>
+                <td>StatsBenchmarks</td>
+                <td><strong>51.25 μs</strong></td>
+                <td>3.90 KB</td>
+                <td>0.92 / 0.00 / 0.00</td>
+                <td><span class="tag-pass">✅ PASS</span></td>
+              </tr>
+            
+          </tbody>
+        </table>
+      
+
+      
+        <h3 style="font-size: 14px; margin-bottom: 12px; color: var(--text-muted);">Топ-10 горячих методов ASP.NET Core (dotnet-trace)</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Ранг</th>
+              <th>C# Метод</th>
+              <th>Total Время (ms)</th>
+              <th>Self Время (ms)</th>
+              <th>Доля CPU</th>
+            </tr>
+          </thead>
+          <tbody>
+            
+              <tr>
+                <td>#1</td>
+                <td><code>Microsoft.AspNetCore.Http.Generated.<GeneratedRouteBuilderExtensions_g>F202B381FFC497F212FEEA6512613F4D084B421EB97B74D5CBD81E03E134C6BFD__GeneratedRouteBuilderExtensionsCore+<>c__DisplayClass25_0+<<MapGet20>g__RequestHandler|5>d</code></td>
+                <td>12494.9 ms</td>
+                <td>0 ms</td>
+                <td>206.4%</td>
+              </tr>
+            
+              <tr>
+                <td>#2</td>
+                <td><code>Microsoft.AspNetCore.Http.Generated.<GeneratedRouteBuilderExtensions_g>F202B381FFC497F212FEEA6512613F4D084B421EB97B74D5CBD81E03E134C6BFD__GeneratedRouteBuilderExtensionsCore+<>c__DisplayClass25_0.<MapGet20>g__RequestHandler|5</code></td>
+                <td>5936 ms</td>
+                <td>0 ms</td>
+                <td>98.1%</td>
+              </tr>
+            
+              <tr>
+                <td>#3</td>
+                <td><code>Infrastructure.Persistence.AppDbContext.ReadMediaItemRow</code></td>
+                <td>5602.8 ms</td>
+                <td>0 ms</td>
+                <td>92.6%</td>
+              </tr>
+            
+              <tr>
+                <td>#4</td>
+                <td><code>Common.Endpoints.MediaEndpoints.MapMediaEndpoints</code></td>
+                <td>4112.8 ms</td>
+                <td>0 ms</td>
+                <td>67.9%</td>
+              </tr>
+            
+              <tr>
+                <td>#5</td>
+                <td><code>Features.Media.GetMediaList.GetMediaListHandler.HandleAsync</code></td>
+                <td>4101 ms</td>
+                <td>0 ms</td>
+                <td>67.8%</td>
+              </tr>
+            
+              <tr>
+                <td>#6</td>
+                <td><code>Infrastructure.Persistence.AppDbContext.LoadMediaItemsAsync</code></td>
+                <td>3672.1 ms</td>
+                <td>0 ms</td>
+                <td>60.7%</td>
+              </tr>
+            
+              <tr>
+                <td>#7</td>
+                <td><code>Microsoft.AspNetCore.Http.Generated.<GeneratedRouteBuilderExtensions_g>F202B381FFC497F212FEEA6512613F4D084B421EB97B74D5CBD81E03E134C6BFD__GeneratedRouteBuilderExtensionsCore.ExecuteAsyncExplicit</code></td>
+                <td>2877 ms</td>
+                <td>0 ms</td>
+                <td>47.5%</td>
+              </tr>
+            
+              <tr>
+                <td>#8</td>
+                <td><code>Microsoft.AspNetCore.Http.Generated.<GeneratedRouteBuilderExtensions_g>F202B381FFC497F212FEEA6512613F4D084B421EB97B74D5CBD81E03E134C6BFD__GeneratedRouteBuilderExtensionsCore+<>c__DisplayClass76_0.<MapGet71>g__RequestHandler|5</code></td>
+                <td>2167.6 ms</td>
+                <td>0 ms</td>
+                <td>35.8%</td>
+              </tr>
+            
+              <tr>
+                <td>#9</td>
+                <td><code>Microsoft.AspNetCore.Http.Generated.<GeneratedRouteBuilderExtensions_g>F202B381FFC497F212FEEA6512613F4D084B421EB97B74D5CBD81E03E134C6BFD__GeneratedRouteBuilderExtensionsCore+<>c__DisplayClass76_0+<<MapGet71>g__RequestHandler|5>d</code></td>
+                <td>2163.5 ms</td>
+                <td>0 ms</td>
+                <td>35.7%</td>
+              </tr>
+            
+              <tr>
+                <td>#10</td>
+                <td><code>Features.Media.GetMediaStats.GetMediaStatsHandler.LoadAllMediaItemsAsync</code></td>
+                <td>2052.7 ms</td>
+                <td>0 ms</td>
+                <td>33.9%</td>
+              </tr>
+            
+          </tbody>
+        </table>
+      
+    </div>
+
+    <!-- SQLITE HEALTH & WAL -->
+    <div class="section" id="sqlite">
+      <h2>🗄️ База данных SQLite: Здоровье, Фрагментация и WAL</h2>
+      <p style="color: var(--text-muted); margin-bottom: 20px;">
+        Глубокий анализ файла базы данных SQLite, распределения страниц, целостности PRAGMA и журнала Write-Ahead Logging (WAL).
+      </p>
+      
+        <div class="progress-bar-group" style="margin-bottom: 24px;">
+          <div class="progress-item">
+            <div class="progress-header">
+              <span><strong>Фрагментация страниц</strong></span>
+              <span>0% (0 из 157 страниц)</span>
+            </div>
+            <div class="progress-track">
+              <div class="progress-fill" style="width: 2%; background: var(--success)"></div>
+            </div>
+          </div>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Параметр БД</th>
+              <th>Значение</th>
+              <th>Стандарт / Лимит</th>
+              <th>Статус</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Файл БД</strong></td>
+              <td><code>reports/tracker.db</code></td>
+              <td>—</td>
+              <td><span class="tag-pass">ℹ️ Active</span></td>
+            </tr>
+            <tr>
+              <td><strong>Размер файла БД</strong></td>
+              <td><strong>628 KB</strong></td>
+              <td>—</td>
+              <td><span class="tag-pass">✅ Compact</span></td>
+            </tr>
+            <tr>
+              <td><strong>Размер WAL журнала</strong></td>
+              <td><strong>0 KB</strong></td>
+              <td>Checkpoint: <code>0|0|0</code></td>
+              <td><span class="tag-pass">✅ PASS</span></td>
+            </tr>
+            <tr>
+              <td><strong>Размер страницы / Число страниц</strong></td>
+              <td>4096 B / 157 страниц</td>
+              <td>Стандарт 4096 B</td>
+              <td><span class="tag-pass">✅ Optimal</span></td>
+            </tr>
+            <tr>
+              <td><strong>Неиспользуемые страницы (Freelist)</strong></td>
+              <td>0 страниц</td>
+              <td>Порог: &le; 100 страниц</td>
+              <td><span class="tag-pass">✅ PASS</span></td>
+            </tr>
+            <tr>
+              <td><strong>Целостность (PRAGMA integrity_check)</strong></td>
+              <td><code>ok</code></td>
+              <td>ok</td>
+              <td><span class="tag-pass">✅ PASS</span></td>
+            </tr>
+            <tr>
+              <td><strong>Рекомендация дефрагментации</strong></td>
+              <td>База данных компактна и дефрагментирована. Оптимизация VACUUM не требуется.</td>
+              <td>Порог: &le; 15%</td>
+              <td><span class="tag-pass">✅ Оптимально</span></td>
+            </tr>
+          </tbody>
+        </table>
+      
+    </div>
+
+    <!-- API PAYLOADS & WIRE EFFICIENCY -->
+    <div class="section" id="network">
+      <h2>📡 Сетевые бюджеты API и Сжатие (Wire Efficiency)</h2>
+      <p style="color: var(--text-muted); margin-bottom: 20px;">
+        Аудит размера сериализованных ответов JSON на каталоге из 500 элементов, коэффициента компрессии (Gzip / Brotli) и серверной задержки обработки запросов (Latency).
+      </p>
+      
+        <table>
+          <thead>
+            <tr>
+              <th>Эндпоинт</th>
+              <th>Raw JSON</th>
+              <th>Gzip (Wire)</th>
+              <th>Brotli</th>
+              <th>Сжатие</th>
+              <th>Latency (p50)</th>
+              <th>Бюджет Gzip</th>
+              <th>Статус</th>
+            </tr>
+          </thead>
+          <tbody>
+            
+              <tr>
+                <td><code>/api/media</code></td>
+                <td>618.57 KB</td>
+                <td><strong>35.73 KB</strong></td>
+                <td>25.57 KB</td>
+                <td><span class="tag-pass">-94.2%</span></td>
+                <td><strong>35.8 ms</strong></td>
+                <td>&le; 60 KB</td>
+                <td><span class="tag-pass">✅ PASS</span></td>
+              </tr>
+            
+              <tr>
+                <td><code>/api/media?type=game&status=1</code></td>
+                <td>37.17 KB</td>
+                <td><strong>2.73 KB</strong></td>
+                <td>2.1 KB</td>
+                <td><span class="tag-pass">-92.7%</span></td>
+                <td><strong>5.4 ms</strong></td>
+                <td>&le; 50 KB</td>
+                <td><span class="tag-pass">✅ PASS</span></td>
+              </tr>
+            
+              <tr>
+                <td><code>/api/media/stats/advanced</code></td>
+                <td>2.79 KB</td>
+                <td><strong>0.65 KB</strong></td>
+                <td>0.54 KB</td>
+                <td><span class="tag-pass">-76.7%</span></td>
+                <td><strong>2.8 ms</strong></td>
+                <td>&le; 20 KB</td>
+                <td><span class="tag-pass">✅ PASS</span></td>
+              </tr>
+            
+              <tr>
+                <td><code>/api/media/stats/taste-profile</code></td>
+                <td>1.76 KB</td>
+                <td><strong>0.7 KB</strong></td>
+                <td>0.55 KB</td>
+                <td><span class="tag-pass">-60.5%</span></td>
+                <td><strong>1.6 ms</strong></td>
+                <td>&le; 10 KB</td>
+                <td><span class="tag-pass">✅ PASS</span></td>
+              </tr>
+            
+              <tr>
+                <td><code>/api/media/calendar</code></td>
+                <td>86.81 KB</td>
+                <td><strong>8.49 KB</strong></td>
+                <td>6.51 KB</td>
+                <td><span class="tag-pass">-90.2%</span></td>
+                <td><strong>29.4 ms</strong></td>
+                <td>&le; 25 KB</td>
+                <td><span class="tag-pass">✅ PASS</span></td>
+              </tr>
+            
+              <tr>
+                <td><code>/api/history</code></td>
+                <td>117.75 KB</td>
+                <td><strong>27.99 KB</strong></td>
+                <td>22.6 KB</td>
+                <td><span class="tag-pass">-76.2%</span></td>
+                <td><strong>10.2 ms</strong></td>
+                <td>&le; 30 KB</td>
+                <td><span class="tag-pass">✅ PASS</span></td>
+              </tr>
+            
+              <tr>
+                <td><code>/api/lists</code></td>
+                <td>0.29 KB</td>
+                <td><strong>0.24 KB</strong></td>
+                <td>0.2 KB</td>
+                <td><span class="tag-pass">-17.5%</span></td>
+                <td><strong>31.6 ms</strong></td>
+                <td>&le; 15 KB</td>
+                <td><span class="tag-pass">✅ PASS</span></td>
+              </tr>
+            
+          </tbody>
+        </table>
+        <div style="margin-top: 16px; font-size: 13px; color: var(--text-muted);">
+          Сводка: Исходный вес ответов <strong>865.14 KB</strong> сжат до <strong>76.53 KB</strong> (экономия трафика <strong>-91.2%</strong>) при средней задержке <strong>16.7 ms</strong>.
+        </div>
+      
+    </div>
+
+    <!-- MICRO-OPTIMIZATIONS SECTION -->
+    <div class="section" id="smells">
+      <h2>💡 Рекомендации по микрооптимизации (Actionable Code Diff Suggestions)</h2>
+      <p style="color: var(--text-muted); margin-bottom: 20px;">
+        Автоматический статический инспектор антипаттернов производительности для C# (.NET 10 / EF Core) и TypeScript / Svelte 5 с поддержкой автофикса (<code>--fix</code>).
+      </p>
+
+      <div style="display: flex; gap: 12px; margin-bottom: 24px; flex-wrap: wrap;">
+        <div style="background: rgba(88, 68, 224, 0.15); border: 1px solid rgba(88, 68, 224, 0.3); padding: 8px 16px; border-radius: 8px; font-size: 13px;">
+          Всего находок: <strong>43</strong>
+        </div>
+        <div style="background: rgba(34, 197, 94, 0.15); border: 1px solid rgba(34, 197, 94, 0.3); color: var(--success); padding: 8px 16px; border-radius: 8px; font-size: 13px;">
+          Автоматически исправлено (--fix): <strong>0</strong>
+        </div>
+        <div style="background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3); color: var(--warning); padding: 8px 16px; border-radius: 8px; font-size: 13px;">
+          Рекомендаций в отчете: <strong>43</strong>
+        </div>
+      </div>
+
+      
+        <div class="smell-card">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px;">
+            <div>
+              <span class="tag-pass" style="font-size: 11px; margin-right: 8px; background: rgba(99, 102, 241, 0.2); color: #818cf8; padding: 2px 8px; border-radius: 4px;">Span-Allocations</span>
+              <span style="font-size: 12px; color: var(--text-muted); font-family: monospace;">MediaTracker.Server/Features/Media/Import/ImportMatchScorer.cs:320</span>
+              <h4 style="font-size: 15px; margin: 6px 0 4px; color: var(--text);">Аллокация массива через string.Split внутри цикла / парсера</h4>
+            </div>
+            <div>
+              <span class="tag-pass" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8;">💡 Info</span>
+            </div>
+          </div>
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">Вызов string.Split приводит к созданию строковых массивов в куче. Рассмотрите MemoryExtensions.Split, SpanParserExtensions или ReadOnlySpan&lt;char&gt;.</p>
+          <div class="diff-block">
+            <span class="diff-line diff-del">- var parts = value.Split(&#039; &#039;, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);</span><span class="diff-line diff-add">+ // ReadOnlySpan&lt;char&gt; / MemoryExtensions.Split</span><span class="diff-line diff-add">+ var parts = value.Split(&#039; &#039;, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);</span>
+          </div>
+        </div>
+      
+        <div class="smell-card">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px;">
+            <div>
+              <span class="tag-pass" style="font-size: 11px; margin-right: 8px; background: rgba(99, 102, 241, 0.2); color: #818cf8; padding: 2px 8px; border-radius: 4px;">Span-Allocations</span>
+              <span style="font-size: 12px; color: var(--text-muted); font-family: monospace;">MediaTracker.Server/Features/Media/Import/ImportMediaHandler.cs:860</span>
+              <h4 style="font-size: 15px; margin: 6px 0 4px; color: var(--text);">Аллокация массива через string.Split внутри цикла / парсера</h4>
+            </div>
+            <div>
+              <span class="tag-pass" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8;">💡 Info</span>
+            </div>
+          </div>
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">Вызов string.Split приводит к созданию строковых массивов в куче. Рассмотрите MemoryExtensions.Split, SpanParserExtensions или ReadOnlySpan&lt;char&gt;.</p>
+          <div class="diff-block">
+            <span class="diff-line diff-del">- return int.TryParse(value.Trim().Split(&#039;-&#039;)[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out var year) ? year : null;</span><span class="diff-line diff-add">+ return int.TryParse(value.Trim().Split(&#039;-&#039;)[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out var year) ? year : null;</span>
+          </div>
+        </div>
+      
+        <div class="smell-card">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px;">
+            <div>
+              <span class="tag-pass" style="font-size: 11px; margin-right: 8px; background: rgba(99, 102, 241, 0.2); color: #818cf8; padding: 2px 8px; border-radius: 4px;">Span-Allocations</span>
+              <span style="font-size: 12px; color: var(--text-muted); font-family: monospace;">MediaTracker.Server/Features/Media/Import/Parsers/AniListImportParser.cs:262</span>
+              <h4 style="font-size: 15px; margin: 6px 0 4px; color: var(--text);">Аллокация массива через string.Split внутри цикла / парсера</h4>
+            </div>
+            <div>
+              <span class="tag-pass" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8;">💡 Info</span>
+            </div>
+          </div>
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">Вызов string.Split приводит к созданию строковых массивов в куче. Рассмотрите MemoryExtensions.Split, SpanParserExtensions или ReadOnlySpan&lt;char&gt;.</p>
+          <div class="diff-block">
+            <span class="diff-line diff-del">- return int.TryParse(value.Split(&#039;-&#039;)[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out var yr) &amp;&amp; yr &gt; 0 ? yr : null;</span><span class="diff-line diff-add">+ return SpanParserExtensions.ParseYearFromDateString(value) &amp;&amp; yr &gt; 0 ? yr : null;</span>
+          </div>
+        </div>
+      
+        <div class="smell-card">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px;">
+            <div>
+              <span class="tag-pass" style="font-size: 11px; margin-right: 8px; background: rgba(99, 102, 241, 0.2); color: #818cf8; padding: 2px 8px; border-radius: 4px;">Span-Allocations</span>
+              <span style="font-size: 12px; color: var(--text-muted); font-family: monospace;">MediaTracker.Server/Features/Media/Import/Parsers/CustomImportParser.cs:106</span>
+              <h4 style="font-size: 15px; margin: 6px 0 4px; color: var(--text);">Аллокация массива через string.Split внутри цикла / парсера</h4>
+            </div>
+            <div>
+              <span class="tag-pass" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8;">💡 Info</span>
+            </div>
+          </div>
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">Вызов string.Split приводит к созданию строковых массивов в куче. Рассмотрите MemoryExtensions.Split, SpanParserExtensions или ReadOnlySpan&lt;char&gt;.</p>
+          <div class="diff-block">
+            <span class="diff-line diff-del">- : int.TryParse(value?.Split(&#039;-&#039;)[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out var yr) ? yr : null;</span><span class="diff-line diff-add">+ : SpanParserExtensions.ParseYearFromDateString(value) ? yr : null;</span>
+          </div>
+        </div>
+      
+        <div class="smell-card">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px;">
+            <div>
+              <span class="tag-pass" style="font-size: 11px; margin-right: 8px; background: rgba(99, 102, 241, 0.2); color: #818cf8; padding: 2px 8px; border-radius: 4px;">Span-Allocations</span>
+              <span style="font-size: 12px; color: var(--text-muted); font-family: monospace;">MediaTracker.Server/Features/Media/Import/Parsers/MalJsonParser.cs:46</span>
+              <h4 style="font-size: 15px; margin: 6px 0 4px; color: var(--text);">Аллокация массива через string.Split внутри цикла / парсера</h4>
+            </div>
+            <div>
+              <span class="tag-pass" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8;">💡 Info</span>
+            </div>
+          </div>
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">Вызов string.Split приводит к созданию строковых массивов в куче. Рассмотрите MemoryExtensions.Split, SpanParserExtensions или ReadOnlySpan&lt;char&gt;.</p>
+          <div class="diff-block">
+            <span class="diff-line diff-del">- : int.TryParse(value?.Split(&#039;-&#039;)[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out var year) ? year : null;</span><span class="diff-line diff-add">+ : SpanParserExtensions.ParseYearFromDateString(value) ? year : null;</span>
+          </div>
+        </div>
+      
+        <div class="smell-card">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px;">
+            <div>
+              <span class="tag-pass" style="font-size: 11px; margin-right: 8px; background: rgba(99, 102, 241, 0.2); color: #818cf8; padding: 2px 8px; border-radius: 4px;">Span-Allocations</span>
+              <span style="font-size: 12px; color: var(--text-muted); font-family: monospace;">MediaTracker.Server/Features/Media/Import/Parsers/MalXmlParser.cs:31</span>
+              <h4 style="font-size: 15px; margin: 6px 0 4px; color: var(--text);">Аллокация массива через string.Split внутри цикла / парсера</h4>
+            </div>
+            <div>
+              <span class="tag-pass" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8;">💡 Info</span>
+            </div>
+          </div>
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">Вызов string.Split приводит к созданию строковых массивов в куче. Рассмотрите MemoryExtensions.Split, SpanParserExtensions или ReadOnlySpan&lt;char&gt;.</p>
+          <div class="diff-block">
+            <span class="diff-line diff-del">- private static int? ParseYear(string? value) =&gt; DateTime.TryParse(value, CultureInfo.InvariantCulture, out var date) ? date.Year : int.TryParse(value?.Split(&#039;-&#039;)[0], out var year) ? year : null;</span><span class="diff-line diff-add">+ private static int? ParseYear(string? value) =&gt; DateTime.TryParse(value, CultureInfo.InvariantCulture, out var date) ? date.Year : SpanParserExtensions.ParseYearFromDateString(value) ? year : null;</span>
+          </div>
+        </div>
+      
+        <div class="smell-card">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px;">
+            <div>
+              <span class="tag-pass" style="font-size: 11px; margin-right: 8px; background: rgba(99, 102, 241, 0.2); color: #818cf8; padding: 2px 8px; border-radius: 4px;">Span-Allocations</span>
+              <span style="font-size: 12px; color: var(--text-muted); font-family: monospace;">MediaTracker.Server/Features/Media/Import/Parsers/ShikimoriImportParser.cs:143</span>
+              <h4 style="font-size: 15px; margin: 6px 0 4px; color: var(--text);">Аллокация массива через string.Split внутри цикла / парсера</h4>
+            </div>
+            <div>
+              <span class="tag-pass" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8;">💡 Info</span>
+            </div>
+          </div>
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">Вызов string.Split приводит к созданию строковых массивов в куче. Рассмотрите MemoryExtensions.Split, SpanParserExtensions или ReadOnlySpan&lt;char&gt;.</p>
+          <div class="diff-block">
+            <span class="diff-line diff-del">- : int.TryParse(value?.Split(&#039;-&#039;)[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out var yr) ? yr : null;</span><span class="diff-line diff-add">+ : SpanParserExtensions.ParseYearFromDateString(value) ? yr : null;</span>
+          </div>
+        </div>
+      
+        <div class="smell-card">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px;">
+            <div>
+              <span class="tag-pass" style="font-size: 11px; margin-right: 8px; background: rgba(99, 102, 241, 0.2); color: #818cf8; padding: 2px 8px; border-radius: 4px;">Generated-Regex</span>
+              <span style="font-size: 12px; color: var(--text-muted); font-family: monospace;">MediaTracker.Server/Infrastructure/Persistence/Franchises/FranchiseService.cs:19</span>
+              <h4 style="font-size: 15px; margin: 6px 0 4px; color: var(--text);">Использование new Regex вместо [GeneratedRegex] для &#039;SeasonSuffixRegex&#039;</h4>
+            </div>
+            <div>
+              <span class="tag-warn">⚠️ Warning</span>
+            </div>
+          </div>
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">Создание экземпляров Regex во время выполнения требует динамической компиляции и увеличивает время старта и аллокации. В .NET 10 используйте генератор исходного кода [GeneratedRegex].</p>
+          <div class="diff-block">
+            <span class="diff-line diff-del">- private static readonly Regex SeasonSuffixRegex = new(</span><span class="diff-line diff-del">-         @&quot;\s+(season\s+\d+|\d+(st|nd|rd|th)\s+season|final\s+season|part\s+\d+|[IVXLCDM]+)$&quot;,</span><span class="diff-line diff-del">-         RegexOptions.IgnoreCase | RegexOptions.Compiled);</span><span class="diff-line diff-add">+ [GeneratedRegex(@&quot;\s+(season\s+\d+|\d+(st|nd|rd|th)\s+season|final\s+season|part\s+\d+|[IVXLCDM]+)$&quot;,</span><span class="diff-line diff-add">+         RegexOptions.IgnoreCase | RegexOptions.Compiled)]</span><span class="diff-line diff-add">+     private static partial Regex SeasonSuffixRegex();</span>
+          </div>
+        </div>
+      
+        <div class="smell-card">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px;">
+            <div>
+              <span class="tag-pass" style="font-size: 11px; margin-right: 8px; background: rgba(99, 102, 241, 0.2); color: #818cf8; padding: 2px 8px; border-radius: 4px;">Heavy-Event-Debounce</span>
+              <span style="font-size: 12px; color: var(--text-muted); font-family: monospace;">mediatracker-ui/src/features/filter-and-sort/FilterBar.svelte:206</span>
+              <h4 style="font-size: 15px; margin: 6px 0 4px; color: var(--text);">Событие ввода/скролла без debounce: handleSearch</h4>
+            </div>
+            <div>
+              <span class="tag-pass" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8;">💡 Info</span>
+            </div>
+          </div>
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">Обработчик &#039;handleSearch&#039; вызывается на каждый тик события. Убедитесь, что сетевые запросы или тяжелые фильтрации защищены debounce (например, progressDebounce или setTimeout).</p>
+          <div class="diff-block">
+            <span class="diff-line diff-del">- oninput={handleSearch}</span><span class="diff-line diff-add">+ oninput={debounce(handleSearch, 300)}</span>
+          </div>
+        </div>
+      
+        <div class="smell-card">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px;">
+            <div>
+              <span class="tag-pass" style="font-size: 11px; margin-right: 8px; background: rgba(99, 102, 241, 0.2); color: #818cf8; padding: 2px 8px; border-radius: 4px;">Svelte-Uncached-Regex</span>
+              <span style="font-size: 12px; color: var(--text-muted); font-family: monospace;">mediatracker-ui/src/features/import-media/ImportPanel.svelte:385</span>
+              <h4 style="font-size: 15px; margin: 6px 0 4px; color: var(--text);">Некешированное регулярное выражение /^\d+$/ в теле компонента</h4>
+            </div>
+            <div>
+              <span class="tag-warn">⚠️ Warning</span>
+            </div>
+          </div>
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">Литерал регулярного выражения внутри &lt;script&gt; пересоздается при каждом ререндере компонента. Вынесите его в &lt;script module&gt; или файл утилит.</p>
+          <div class="diff-block">
+            <span class="diff-line diff-del">- (typeof rawStatus === &quot;string&quot; &amp;&amp; /^\d+$/.test(rawStatus))</span><span class="diff-line diff-add">+ // В &lt;script module&gt;: const CACHED_REGEX = /^\d+$/;</span><span class="diff-line diff-add">+ (typeof rawStatus === &quot;string&quot; &amp;&amp; CACHED_REGEX.test(rawStatus))</span>
+          </div>
+        </div>
+      
+        <div class="smell-card">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px;">
+            <div>
+              <span class="tag-pass" style="font-size: 11px; margin-right: 8px; background: rgba(99, 102, 241, 0.2); color: #818cf8; padding: 2px 8px; border-radius: 4px;">Svelte-Uncached-Regex</span>
+              <span style="font-size: 12px; color: var(--text-muted); font-family: monospace;">mediatracker-ui/src/features/import-media/ImportPanel.svelte:669</span>
+              <h4 style="font-size: 15px; margin: 6px 0 4px; color: var(--text);">Некешированное регулярное выражение /^\d{17}$/ в теле компонента</h4>
+            </div>
+            <div>
+              <span class="tag-warn">⚠️ Warning</span>
+            </div>
+          </div>
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">Литерал регулярного выражения внутри &lt;script&gt; пересоздается при каждом ререндере компонента. Вынесите его в &lt;script module&gt; или файл утилит.</p>
+          <div class="diff-block">
+            <span class="diff-line diff-del">- ...(/^\d{17}$/.test(value) ? { steamId: value } : { profileUrl: value }),</span><span class="diff-line diff-add">+ // В &lt;script module&gt;: const CACHED_REGEX = /^\d{17}$/;</span><span class="diff-line diff-add">+ ...(CACHED_REGEX.test(value) ? { steamId: value } : { profileUrl: value }),</span>
+          </div>
+        </div>
+      
+        <div class="smell-card">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px;">
+            <div>
+              <span class="tag-pass" style="font-size: 11px; margin-right: 8px; background: rgba(99, 102, 241, 0.2); color: #818cf8; padding: 2px 8px; border-radius: 4px;">Svelte-Uncached-Regex</span>
+              <span style="font-size: 12px; color: var(--text-muted); font-family: monospace;">mediatracker-ui/src/features/import-media/ImportPanel.svelte:858</span>
+              <h4 style="font-size: 15px; margin: 6px 0 4px; color: var(--text);">Некешированное регулярное выражение /(?:\u0447\u0438\u0442\u0430\u044E|\u0441\u043C\u043E\u0442\u0440\u044E|\u043F\u0435\u0440\u0435\u0441\u043C\u0430\u0442\u0440|reading|watching|rewatching|in_progress|in progress)/i в теле компонента</h4>
+            </div>
+            <div>
+              <span class="tag-warn">⚠️ Warning</span>
+            </div>
+          </div>
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">Литерал регулярного выражения внутри &lt;script&gt; пересоздается при каждом ререндере компонента. Вынесите его в &lt;script module&gt; или файл утилит.</p>
+          <div class="diff-block">
+            <span class="diff-line diff-del">- return /(?:\u0447\u0438\u0442\u0430\u044E|\u0441\u043C\u043E\u0442\u0440\u044E|\u043F\u0435\u0440\u0435\u0441\u043C\u0430\u0442\u0440|reading|watching|rewatching|in_progress|in progress)/i.test(s) ||</span><span class="diff-line diff-add">+ // В &lt;script module&gt;: const CACHED_REGEX = /(?:\u0447\u0438\u0442\u0430\u044E|\u0441\u043C\u043E\u0442\u0440\u044E|\u043F\u0435\u0440\u0435\u0441\u043C\u0430\u0442\u0440|reading|watching|rewatching|in_progress|in progress)/i;</span><span class="diff-line diff-add">+ return CACHED_REGEX.test(s) ||</span>
+          </div>
+        </div>
+      
+        <div class="smell-card">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px;">
+            <div>
+              <span class="tag-pass" style="font-size: 11px; margin-right: 8px; background: rgba(99, 102, 241, 0.2); color: #818cf8; padding: 2px 8px; border-radius: 4px;">Svelte-Uncached-Regex</span>
+              <span style="font-size: 12px; color: var(--text-muted); font-family: monospace;">mediatracker-ui/src/features/import-media/ImportPanel.svelte:859</span>
+              <h4 style="font-size: 15px; margin: 6px 0 4px; color: var(--text);">Некешированное регулярное выражение /(?:\u043F\u043B\u0430\u043D|\u0437\u0430\u043F\u043B\u0430\u043D\u0438\u0440\u043E\u0432\u0430\u043D\u043E|\u0431\u0443\u0434\u0443|planned|plan_to_watch)/i в теле компонента</h4>
+            </div>
+            <div>
+              <span class="tag-warn">⚠️ Warning</span>
+            </div>
+          </div>
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">Литерал регулярного выражения внутри &lt;script&gt; пересоздается при каждом ререндере компонента. Вынесите его в &lt;script module&gt; или файл утилит.</p>
+          <div class="diff-block">
+            <span class="diff-line diff-del">- /(?:\u043F\u043B\u0430\u043D|\u0437\u0430\u043F\u043B\u0430\u043D\u0438\u0440\u043E\u0432\u0430\u043D\u043E|\u0431\u0443\u0434\u0443|planned|plan_to_watch)/i.test(s) ||</span><span class="diff-line diff-add">+ // В &lt;script module&gt;: const CACHED_REGEX = /(?:\u043F\u043B\u0430\u043D|\u0437\u0430\u043F\u043B\u0430\u043D\u0438\u0440\u043E\u0432\u0430\u043D\u043E|\u0431\u0443\u0434\u0443|planned|plan_to_watch)/i;</span><span class="diff-line diff-add">+ CACHED_REGEX.test(s) ||</span>
+          </div>
+        </div>
+      
+        <div class="smell-card">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px;">
+            <div>
+              <span class="tag-pass" style="font-size: 11px; margin-right: 8px; background: rgba(99, 102, 241, 0.2); color: #818cf8; padding: 2px 8px; border-radius: 4px;">Svelte-Uncached-Regex</span>
+              <span style="font-size: 12px; color: var(--text-muted); font-family: monospace;">mediatracker-ui/src/features/import-media/ImportPanel.svelte:860</span>
+              <h4 style="font-size: 15px; margin: 6px 0 4px; color: var(--text);">Некешированное регулярное выражение /(?:\u043F\u0440\u043E\u0447\u0438\u0442\u0430\u043D\u043E|\u043F\u0440\u043E\u0441\u043C\u043E\u0442\u0440\u0435\u043D\u043E|completed|watched)/i в теле компонента</h4>
+            </div>
+            <div>
+              <span class="tag-warn">⚠️ Warning</span>
+            </div>
+          </div>
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">Литерал регулярного выражения внутри &lt;script&gt; пересоздается при каждом ререндере компонента. Вынесите его в &lt;script module&gt; или файл утилит.</p>
+          <div class="diff-block">
+            <span class="diff-line diff-del">- /(?:\u043F\u0440\u043E\u0447\u0438\u0442\u0430\u043D\u043E|\u043F\u0440\u043E\u0441\u043C\u043E\u0442\u0440\u0435\u043D\u043E|completed|watched)/i.test(s) ||</span><span class="diff-line diff-add">+ // В &lt;script module&gt;: const CACHED_REGEX = /(?:\u043F\u0440\u043E\u0447\u0438\u0442\u0430\u043D\u043E|\u043F\u0440\u043E\u0441\u043C\u043E\u0442\u0440\u0435\u043D\u043E|completed|watched)/i;</span><span class="diff-line diff-add">+ CACHED_REGEX.test(s) ||</span>
+          </div>
+        </div>
+      
+        <div class="smell-card">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px;">
+            <div>
+              <span class="tag-pass" style="font-size: 11px; margin-right: 8px; background: rgba(99, 102, 241, 0.2); color: #818cf8; padding: 2px 8px; border-radius: 4px;">Svelte-Uncached-Regex</span>
+              <span style="font-size: 12px; color: var(--text-muted); font-family: monospace;">mediatracker-ui/src/features/import-media/ImportPanel.svelte:861</span>
+              <h4 style="font-size: 15px; margin: 6px 0 4px; color: var(--text);">Некешированное регулярное выражение /(?:\u043B\u044E\u0431\u0438\u043C|favorite)/i в теле компонента</h4>
+            </div>
+            <div>
+              <span class="tag-warn">⚠️ Warning</span>
+            </div>
+          </div>
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">Литерал регулярного выражения внутри &lt;script&gt; пересоздается при каждом ререндере компонента. Вынесите его в &lt;script module&gt; или файл утилит.</p>
+          <div class="diff-block">
+            <span class="diff-line diff-del">- /(?:\u043B\u044E\u0431\u0438\u043C|favorite)/i.test(s) ||</span><span class="diff-line diff-add">+ // В &lt;script module&gt;: const CACHED_REGEX = /(?:\u043B\u044E\u0431\u0438\u043C|favorite)/i;</span><span class="diff-line diff-add">+ CACHED_REGEX.test(s) ||</span>
+          </div>
+        </div>
+      
+        <div class="smell-card">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px;">
+            <div>
+              <span class="tag-pass" style="font-size: 11px; margin-right: 8px; background: rgba(99, 102, 241, 0.2); color: #818cf8; padding: 2px 8px; border-radius: 4px;">Svelte-Uncached-Regex</span>
+              <span style="font-size: 12px; color: var(--text-muted); font-family: monospace;">mediatracker-ui/src/features/import-media/ImportPanel.svelte:862</span>
+              <h4 style="font-size: 15px; margin: 6px 0 4px; color: var(--text);">Некешированное регулярное выражение /(?:\u043E\u0442\u043B\u043E\u0436|hold|pause)/i в теле компонента</h4>
+            </div>
+            <div>
+              <span class="tag-warn">⚠️ Warning</span>
+            </div>
+          </div>
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">Литерал регулярного выражения внутри &lt;script&gt; пересоздается при каждом ререндере компонента. Вынесите его в &lt;script module&gt; или файл утилит.</p>
+          <div class="diff-block">
+            <span class="diff-line diff-del">- /(?:\u043E\u0442\u043B\u043E\u0436|hold|pause)/i.test(s) ||</span><span class="diff-line diff-add">+ // В &lt;script module&gt;: const CACHED_REGEX = /(?:\u043E\u0442\u043B\u043E\u0436|hold|pause)/i;</span><span class="diff-line diff-add">+ CACHED_REGEX.test(s) ||</span>
+          </div>
+        </div>
+      
+        <div class="smell-card">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px;">
+            <div>
+              <span class="tag-pass" style="font-size: 11px; margin-right: 8px; background: rgba(99, 102, 241, 0.2); color: #818cf8; padding: 2px 8px; border-radius: 4px;">Svelte-Uncached-Regex</span>
+              <span style="font-size: 12px; color: var(--text-muted); font-family: monospace;">mediatracker-ui/src/features/import-media/ImportPanel.svelte:863</span>
+              <h4 style="font-size: 15px; margin: 6px 0 4px; color: var(--text);">Некешированное регулярное выражение /(?:\u0443\u0434\u0430\u043B\u0435\u043D|\u0431\u0440\u043E\u0448|dropped)/i в теле компонента</h4>
+            </div>
+            <div>
+              <span class="tag-warn">⚠️ Warning</span>
+            </div>
+          </div>
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">Литерал регулярного выражения внутри &lt;script&gt; пересоздается при каждом ререндере компонента. Вынесите его в &lt;script module&gt; или файл утилит.</p>
+          <div class="diff-block">
+            <span class="diff-line diff-del">- /(?:\u0443\u0434\u0430\u043B\u0435\u043D|\u0431\u0440\u043E\u0448|dropped)/i.test(s);</span><span class="diff-line diff-add">+ // В &lt;script module&gt;: const CACHED_REGEX = /(?:\u0443\u0434\u0430\u043B\u0435\u043D|\u0431\u0440\u043E\u0448|dropped)/i;</span><span class="diff-line diff-add">+ CACHED_REGEX.test(s);</span>
+          </div>
+        </div>
+      
+        <div class="smell-card">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px;">
+            <div>
+              <span class="tag-pass" style="font-size: 11px; margin-right: 8px; background: rgba(99, 102, 241, 0.2); color: #818cf8; padding: 2px 8px; border-radius: 4px;">Svelte-Uncached-Regex</span>
+              <span style="font-size: 12px; color: var(--text-muted); font-family: monospace;">mediatracker-ui/src/features/import-media/ImportPanel.svelte:868</span>
+              <h4 style="font-size: 15px; margin: 6px 0 4px; color: var(--text);">Некешированное регулярное выражение /(?:\u0443\u0434\u0430\u043B\u0435\u043D|\u0431\u0440\u043E\u0448|dropped)/i в теле компонента</h4>
+            </div>
+            <div>
+              <span class="tag-warn">⚠️ Warning</span>
+            </div>
+          </div>
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">Литерал регулярного выражения внутри &lt;script&gt; пересоздается при каждом ререндере компонента. Вынесите его в &lt;script module&gt; или файл утилит.</p>
+          <div class="diff-block">
+            <span class="diff-line diff-del">- if (/(?:\u0443\u0434\u0430\u043B\u0435\u043D|\u0431\u0440\u043E\u0448|dropped)/i.test(s)) return 3;</span><span class="diff-line diff-add">+ // В &lt;script module&gt;: const CACHED_REGEX = /(?:\u0443\u0434\u0430\u043B\u0435\u043D|\u0431\u0440\u043E\u0448|dropped)/i;</span><span class="diff-line diff-add">+ if (CACHED_REGEX.test(s)) return 3;</span>
+          </div>
+        </div>
+      
+        <div class="smell-card">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px;">
+            <div>
+              <span class="tag-pass" style="font-size: 11px; margin-right: 8px; background: rgba(99, 102, 241, 0.2); color: #818cf8; padding: 2px 8px; border-radius: 4px;">Svelte-Uncached-Regex</span>
+              <span style="font-size: 12px; color: var(--text-muted); font-family: monospace;">mediatracker-ui/src/features/import-media/ImportPanel.svelte:869</span>
+              <h4 style="font-size: 15px; margin: 6px 0 4px; color: var(--text);">Некешированное регулярное выражение /(?:\u0447\u0438\u0442\u0430\u044E|\u0441\u043C\u043E\u0442\u0440\u044E|\u043F\u0435\u0440\u0435\u0441\u043C\u0430\u0442\u0440|reading|watching|rewatching)/i в теле компонента</h4>
+            </div>
+            <div>
+              <span class="tag-warn">⚠️ Warning</span>
+            </div>
+          </div>
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">Литерал регулярного выражения внутри &lt;script&gt; пересоздается при каждом ререндере компонента. Вынесите его в &lt;script module&gt; или файл утилит.</p>
+          <div class="diff-block">
+            <span class="diff-line diff-del">- if (/(?:\u0447\u0438\u0442\u0430\u044E|\u0441\u043C\u043E\u0442\u0440\u044E|\u043F\u0435\u0440\u0435\u0441\u043C\u0430\u0442\u0440|reading|watching|rewatching)/i.test(s)) return 1;</span><span class="diff-line diff-add">+ // В &lt;script module&gt;: const CACHED_REGEX = /(?:\u0447\u0438\u0442\u0430\u044E|\u0441\u043C\u043E\u0442\u0440\u044E|\u043F\u0435\u0440\u0435\u0441\u043C\u0430\u0442\u0440|reading|watching|rewatching)/i;</span><span class="diff-line diff-add">+ if (CACHED_REGEX.test(s)) return 1;</span>
+          </div>
+        </div>
+      
+        <div class="smell-card">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px;">
+            <div>
+              <span class="tag-pass" style="font-size: 11px; margin-right: 8px; background: rgba(99, 102, 241, 0.2); color: #818cf8; padding: 2px 8px; border-radius: 4px;">Svelte-Uncached-Regex</span>
+              <span style="font-size: 12px; color: var(--text-muted); font-family: monospace;">mediatracker-ui/src/features/import-media/ImportPanel.svelte:870</span>
+              <h4 style="font-size: 15px; margin: 6px 0 4px; color: var(--text);">Некешированное регулярное выражение /(?:\u043F\u043B\u0430\u043D|\u0437\u0430\u043F\u043B\u0430\u043D\u0438\u0440\u043E\u0432\u0430\u043D\u043E|planned)/i в теле компонента</h4>
+            </div>
+            <div>
+              <span class="tag-warn">⚠️ Warning</span>
+            </div>
+          </div>
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">Литерал регулярного выражения внутри &lt;script&gt; пересоздается при каждом ререндере компонента. Вынесите его в &lt;script module&gt; или файл утилит.</p>
+          <div class="diff-block">
+            <span class="diff-line diff-del">- if (/(?:\u043F\u043B\u0430\u043D|\u0437\u0430\u043F\u043B\u0430\u043D\u0438\u0440\u043E\u0432\u0430\u043D\u043E|planned)/i.test(s)) return 2;</span><span class="diff-line diff-add">+ // В &lt;script module&gt;: const CACHED_REGEX = /(?:\u043F\u043B\u0430\u043D|\u0437\u0430\u043F\u043B\u0430\u043D\u0438\u0440\u043E\u0432\u0430\u043D\u043E|planned)/i;</span><span class="diff-line diff-add">+ if (CACHED_REGEX.test(s)) return 2;</span>
+          </div>
+        </div>
+      
+        <div class="smell-card">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px;">
+            <div>
+              <span class="tag-pass" style="font-size: 11px; margin-right: 8px; background: rgba(99, 102, 241, 0.2); color: #818cf8; padding: 2px 8px; border-radius: 4px;">Svelte-Uncached-Regex</span>
+              <span style="font-size: 12px; color: var(--text-muted); font-family: monospace;">mediatracker-ui/src/features/import-media/ImportPanel.svelte:871</span>
+              <h4 style="font-size: 15px; margin: 6px 0 4px; color: var(--text);">Некешированное регулярное выражение /(?:\u043F\u0440\u043E\u0447\u0438\u0442\u0430\u043D\u043E|\u043F\u0440\u043E\u0441\u043C\u043E\u0442\u0440\u0435\u043D\u043E|completed|watched)/i в теле компонента</h4>
+            </div>
+            <div>
+              <span class="tag-warn">⚠️ Warning</span>
+            </div>
+          </div>
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">Литерал регулярного выражения внутри &lt;script&gt; пересоздается при каждом ререндере компонента. Вынесите его в &lt;script module&gt; или файл утилит.</p>
+          <div class="diff-block">
+            <span class="diff-line diff-del">- if (/(?:\u043F\u0440\u043E\u0447\u0438\u0442\u0430\u043D\u043E|\u043F\u0440\u043E\u0441\u043C\u043E\u0442\u0440\u0435\u043D\u043E|completed|watched)/i.test(s)) return 4;</span><span class="diff-line diff-add">+ // В &lt;script module&gt;: const CACHED_REGEX = /(?:\u043F\u0440\u043E\u0447\u0438\u0442\u0430\u043D\u043E|\u043F\u0440\u043E\u0441\u043C\u043E\u0442\u0440\u0435\u043D\u043E|completed|watched)/i;</span><span class="diff-line diff-add">+ if (CACHED_REGEX.test(s)) return 4;</span>
+          </div>
+        </div>
+      
+        <div class="smell-card">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px;">
+            <div>
+              <span class="tag-pass" style="font-size: 11px; margin-right: 8px; background: rgba(99, 102, 241, 0.2); color: #818cf8; padding: 2px 8px; border-radius: 4px;">Svelte-Uncached-Regex</span>
+              <span style="font-size: 12px; color: var(--text-muted); font-family: monospace;">mediatracker-ui/src/features/import-media/ImportPanel.svelte:872</span>
+              <h4 style="font-size: 15px; margin: 6px 0 4px; color: var(--text);">Некешированное регулярное выражение /(?:\u043B\u044E\u0431\u0438\u043C|favorite)/i в теле компонента</h4>
+            </div>
+            <div>
+              <span class="tag-warn">⚠️ Warning</span>
+            </div>
+          </div>
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">Литерал регулярного выражения внутри &lt;script&gt; пересоздается при каждом ререндере компонента. Вынесите его в &lt;script module&gt; или файл утилит.</p>
+          <div class="diff-block">
+            <span class="diff-line diff-del">- if (/(?:\u043B\u044E\u0431\u0438\u043C|favorite)/i.test(s)) return 5;</span><span class="diff-line diff-add">+ // В &lt;script module&gt;: const CACHED_REGEX = /(?:\u043B\u044E\u0431\u0438\u043C|favorite)/i;</span><span class="diff-line diff-add">+ if (CACHED_REGEX.test(s)) return 5;</span>
+          </div>
+        </div>
+      
+        <div class="smell-card">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px;">
+            <div>
+              <span class="tag-pass" style="font-size: 11px; margin-right: 8px; background: rgba(99, 102, 241, 0.2); color: #818cf8; padding: 2px 8px; border-radius: 4px;">Svelte-Uncached-Regex</span>
+              <span style="font-size: 12px; color: var(--text-muted); font-family: monospace;">mediatracker-ui/src/features/import-media/ImportPanel.svelte:873</span>
+              <h4 style="font-size: 15px; margin: 6px 0 4px; color: var(--text);">Некешированное регулярное выражение /(?:\u043E\u0442\u043B\u043E\u0436|hold)/i в теле компонента</h4>
+            </div>
+            <div>
+              <span class="tag-warn">⚠️ Warning</span>
+            </div>
+          </div>
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">Литерал регулярного выражения внутри &lt;script&gt; пересоздается при каждом ререндере компонента. Вынесите его в &lt;script module&gt; или файл утилит.</p>
+          <div class="diff-block">
+            <span class="diff-line diff-del">- if (/(?:\u043E\u0442\u043B\u043E\u0436|hold)/i.test(s)) return 6;</span><span class="diff-line diff-add">+ // В &lt;script module&gt;: const CACHED_REGEX = /(?:\u043E\u0442\u043B\u043E\u0436|hold)/i;</span><span class="diff-line diff-add">+ if (CACHED_REGEX.test(s)) return 6;</span>
+          </div>
+        </div>
+      
+        <div class="smell-card">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px;">
+            <div>
+              <span class="tag-pass" style="font-size: 11px; margin-right: 8px; background: rgba(99, 102, 241, 0.2); color: #818cf8; padding: 2px 8px; border-radius: 4px;">Svelte-Collection-StateRaw</span>
+              <span style="font-size: 12px; color: var(--text-muted); font-family: monospace;">mediatracker-ui/src/features/import-media/ImportPanel.svelte:67</span>
+              <h4 style="font-size: 15px; margin: 6px 0 4px; color: var(--text);">Использование глубокого $state вместо $state.raw для коллекции &#039;lists&#039;</h4>
+            </div>
+            <div>
+              <span class="tag-warn">⚠️ Warning</span>
+            </div>
+          </div>
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">Переменная &#039;lists&#039; хранит массив сущностей API (&#039;CustomListSummary[]&#039;). Использование $state создает реактивные Proxy для каждого элемента и поля, что приводит к оверхеду памяти. Рекомендуется $state.raw.</p>
+          <div class="diff-block">
+            <span class="diff-line diff-del">- let lists = $state&lt;CustomListSummary[]&gt;([])</span><span class="diff-line diff-add">+ let lists = $state.raw&lt;CustomListSummary[]&gt;([]);</span>
+          </div>
+        </div>
+      
+        <div class="smell-card">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px;">
+            <div>
+              <span class="tag-pass" style="font-size: 11px; margin-right: 8px; background: rgba(99, 102, 241, 0.2); color: #818cf8; padding: 2px 8px; border-radius: 4px;">Svelte-Collection-StateRaw</span>
+              <span style="font-size: 12px; color: var(--text-muted); font-family: monospace;">mediatracker-ui/src/features/import-media/ImportPanel.svelte:126</span>
+              <h4 style="font-size: 15px; margin: 6px 0 4px; color: var(--text);">Использование глубокого $state вместо $state.raw для коллекции &#039;pendingCustomFolders&#039;</h4>
+            </div>
+            <div>
+              <span class="tag-warn">⚠️ Warning</span>
+            </div>
+          </div>
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">Переменная &#039;pendingCustomFolders&#039; хранит массив сущностей API (&#039;CustomFolderItem[]&#039;). Использование $state создает реактивные Proxy для каждого элемента и поля, что приводит к оверхеду памяти. Рекомендуется $state.raw.</p>
+          <div class="diff-block">
+            <span class="diff-line diff-del">- let pendingCustomFolders = $state&lt;CustomFolderItem[]&gt;([])</span><span class="diff-line diff-add">+ let pendingCustomFolders = $state.raw&lt;CustomFolderItem[]&gt;([]);</span>
+          </div>
+        </div>
+      
+        <div class="smell-card">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px;">
+            <div>
+              <span class="tag-pass" style="font-size: 11px; margin-right: 8px; background: rgba(99, 102, 241, 0.2); color: #818cf8; padding: 2px 8px; border-radius: 4px;">Svelte-Collection-StateRaw</span>
+              <span style="font-size: 12px; color: var(--text-muted); font-family: monospace;">mediatracker-ui/src/features/lists/CreateListModal.svelte:32</span>
+              <h4 style="font-size: 15px; margin: 6px 0 4px; color: var(--text);">Использование глубокого $state вместо $state.raw для коллекции &#039;allMedia&#039;</h4>
+            </div>
+            <div>
+              <span class="tag-warn">⚠️ Warning</span>
+            </div>
+          </div>
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">Переменная &#039;allMedia&#039; хранит массив сущностей API (&#039;MediaItem[]&#039;). Использование $state создает реактивные Proxy для каждого элемента и поля, что приводит к оверхеду памяти. Рекомендуется $state.raw.</p>
+          <div class="diff-block">
+            <span class="diff-line diff-del">- let allMedia = $state&lt;MediaItem[]&gt;([])</span><span class="diff-line diff-add">+ let allMedia = $state.raw&lt;MediaItem[]&gt;([]);</span>
+          </div>
+        </div>
+      
+        <div class="smell-card">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px;">
+            <div>
+              <span class="tag-pass" style="font-size: 11px; margin-right: 8px; background: rgba(99, 102, 241, 0.2); color: #818cf8; padding: 2px 8px; border-radius: 4px;">Svelte-Collection-StateRaw</span>
+              <span style="font-size: 12px; color: var(--text-muted); font-family: monospace;">mediatracker-ui/src/features/lists/CreateListModal.svelte:33</span>
+              <h4 style="font-size: 15px; margin: 6px 0 4px; color: var(--text);">Использование глубокого $state вместо $state.raw для коллекции &#039;matchedItems&#039;</h4>
+            </div>
+            <div>
+              <span class="tag-warn">⚠️ Warning</span>
+            </div>
+          </div>
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">Переменная &#039;matchedItems&#039; хранит массив сущностей API (&#039;MediaItem[]&#039;). Использование $state создает реактивные Proxy для каждого элемента и поля, что приводит к оверхеду памяти. Рекомендуется $state.raw.</p>
+          <div class="diff-block">
+            <span class="diff-line diff-del">- let matchedItems = $state&lt;MediaItem[]&gt;([])</span><span class="diff-line diff-add">+ let matchedItems = $state.raw&lt;MediaItem[]&gt;([]);</span>
+          </div>
+        </div>
+      
+        <div class="smell-card">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px;">
+            <div>
+              <span class="tag-pass" style="font-size: 11px; margin-right: 8px; background: rgba(99, 102, 241, 0.2); color: #818cf8; padding: 2px 8px; border-radius: 4px;">Svelte-Collection-StateRaw</span>
+              <span style="font-size: 12px; color: var(--text-muted); font-family: monospace;">mediatracker-ui/src/features/lists/ListPicker.svelte:23</span>
+              <h4 style="font-size: 15px; margin: 6px 0 4px; color: var(--text);">Использование глубокого $state вместо $state.raw для коллекции &#039;lists&#039;</h4>
+            </div>
+            <div>
+              <span class="tag-warn">⚠️ Warning</span>
+            </div>
+          </div>
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">Переменная &#039;lists&#039; хранит массив сущностей API (&#039;CustomListSummary[]&#039;). Использование $state создает реактивные Proxy для каждого элемента и поля, что приводит к оверхеду памяти. Рекомендуется $state.raw.</p>
+          <div class="diff-block">
+            <span class="diff-line diff-del">- let lists = $state&lt;CustomListSummary[]&gt;([])</span><span class="diff-line diff-add">+ let lists = $state.raw&lt;CustomListSummary[]&gt;([]);</span>
+          </div>
+        </div>
+      
+        <div class="smell-card">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px;">
+            <div>
+              <span class="tag-pass" style="font-size: 11px; margin-right: 8px; background: rgba(99, 102, 241, 0.2); color: #818cf8; padding: 2px 8px; border-radius: 4px;">Svelte-Collection-StateRaw</span>
+              <span style="font-size: 12px; color: var(--text-muted); font-family: monospace;">mediatracker-ui/src/features/search-external/SearchModal.svelte:71</span>
+              <h4 style="font-size: 15px; margin: 6px 0 4px; color: var(--text);">Использование глубокого $state вместо $state.raw для коллекции &#039;results&#039;</h4>
+            </div>
+            <div>
+              <span class="tag-warn">⚠️ Warning</span>
+            </div>
+          </div>
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">Переменная &#039;results&#039; хранит массив сущностей API (&#039;ExternalMedia[]&#039;). Использование $state создает реактивные Proxy для каждого элемента и поля, что приводит к оверхеду памяти. Рекомендуется $state.raw.</p>
+          <div class="diff-block">
+            <span class="diff-line diff-del">- let results = $state&lt;ExternalMedia[]&gt;([])</span><span class="diff-line diff-add">+ let results = $state.raw&lt;ExternalMedia[]&gt;([]);</span>
+          </div>
+        </div>
+      
+        <div class="smell-card">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px;">
+            <div>
+              <span class="tag-pass" style="font-size: 11px; margin-right: 8px; background: rgba(99, 102, 241, 0.2); color: #818cf8; padding: 2px 8px; border-radius: 4px;">Svelte-Collection-StateRaw</span>
+              <span style="font-size: 12px; color: var(--text-muted); font-family: monospace;">mediatracker-ui/src/features/search-external/SearchModal.svelte:85</span>
+              <h4 style="font-size: 15px; margin: 6px 0 4px; color: var(--text);">Использование глубокого $state вместо $state.raw для коллекции &#039;availableSources&#039;</h4>
+            </div>
+            <div>
+              <span class="tag-warn">⚠️ Warning</span>
+            </div>
+          </div>
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">Переменная &#039;availableSources&#039; хранит массив сущностей API (&#039;SourceInfo[]&#039;). Использование $state создает реактивные Proxy для каждого элемента и поля, что приводит к оверхеду памяти. Рекомендуется $state.raw.</p>
+          <div class="diff-block">
+            <span class="diff-line diff-del">- let availableSources = $state&lt;SourceInfo[]&gt;([])</span><span class="diff-line diff-add">+ let availableSources = $state.raw&lt;SourceInfo[]&gt;([]);</span>
+          </div>
+        </div>
+      
+        <div class="smell-card">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px;">
+            <div>
+              <span class="tag-pass" style="font-size: 11px; margin-right: 8px; background: rgba(99, 102, 241, 0.2); color: #818cf8; padding: 2px 8px; border-radius: 4px;">Svelte-Collection-StateRaw</span>
+              <span style="font-size: 12px; color: var(--text-muted); font-family: monospace;">mediatracker-ui/src/features/settings/SettingsModal.svelte:365</span>
+              <h4 style="font-size: 15px; margin: 6px 0 4px; color: var(--text);">Использование глубокого $state вместо $state.raw для коллекции &#039;sources&#039;</h4>
+            </div>
+            <div>
+              <span class="tag-warn">⚠️ Warning</span>
+            </div>
+          </div>
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">Переменная &#039;sources&#039; хранит массив сущностей API (&#039;SourceInfo[]&#039;). Использование $state создает реактивные Proxy для каждого элемента и поля, что приводит к оверхеду памяти. Рекомендуется $state.raw.</p>
+          <div class="diff-block">
+            <span class="diff-line diff-del">- let sources = $state&lt;SourceInfo[]&gt;([])</span><span class="diff-line diff-add">+ let sources = $state.raw&lt;SourceInfo[]&gt;([]);</span>
+          </div>
+        </div>
+      
+        <div class="smell-card">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px;">
+            <div>
+              <span class="tag-pass" style="font-size: 11px; margin-right: 8px; background: rgba(99, 102, 241, 0.2); color: #818cf8; padding: 2px 8px; border-radius: 4px;">Svelte-Collection-StateRaw</span>
+              <span style="font-size: 12px; color: var(--text-muted); font-family: monospace;">mediatracker-ui/src/features/stale-triage/StaleBacklogModal.svelte:34</span>
+              <h4 style="font-size: 15px; margin: 6px 0 4px; color: var(--text);">Использование глубокого $state вместо $state.raw для коллекции &#039;allInProgress&#039;</h4>
+            </div>
+            <div>
+              <span class="tag-warn">⚠️ Warning</span>
+            </div>
+          </div>
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">Переменная &#039;allInProgress&#039; хранит массив сущностей API (&#039;MediaItem[]&#039;). Использование $state создает реактивные Proxy для каждого элемента и поля, что приводит к оверхеду памяти. Рекомендуется $state.raw.</p>
+          <div class="diff-block">
+            <span class="diff-line diff-del">- let allInProgress = $state&lt;MediaItem[]&gt;([])</span><span class="diff-line diff-add">+ let allInProgress = $state.raw&lt;MediaItem[]&gt;([]);</span>
+          </div>
+        </div>
+      
+        <div class="smell-card">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px;">
+            <div>
+              <span class="tag-pass" style="font-size: 11px; margin-right: 8px; background: rgba(99, 102, 241, 0.2); color: #818cf8; padding: 2px 8px; border-radius: 4px;">Svelte-Collection-StateRaw</span>
+              <span style="font-size: 12px; color: var(--text-muted); font-family: monospace;">mediatracker-ui/src/views/MediaDetailView.svelte:398</span>
+              <h4 style="font-size: 15px; margin: 6px 0 4px; color: var(--text);">Использование глубокого $state вместо $state.raw для коллекции &#039;availableSources&#039;</h4>
+            </div>
+            <div>
+              <span class="tag-warn">⚠️ Warning</span>
+            </div>
+          </div>
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">Переменная &#039;availableSources&#039; хранит массив сущностей API (&#039;SourceInfo[]&#039;). Использование $state создает реактивные Proxy для каждого элемента и поля, что приводит к оверхеду памяти. Рекомендуется $state.raw.</p>
+          <div class="diff-block">
+            <span class="diff-line diff-del">- let availableSources = $state&lt;SourceInfo[]&gt;([])</span><span class="diff-line diff-add">+ let availableSources = $state.raw&lt;SourceInfo[]&gt;([]);</span>
+          </div>
+        </div>
+      
+        <div class="smell-card">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px;">
+            <div>
+              <span class="tag-pass" style="font-size: 11px; margin-right: 8px; background: rgba(99, 102, 241, 0.2); color: #818cf8; padding: 2px 8px; border-radius: 4px;">Svelte-Collection-StateRaw</span>
+              <span style="font-size: 12px; color: var(--text-muted); font-family: monospace;">mediatracker-ui/src/views/MediaDetailView.svelte:437</span>
+              <h4 style="font-size: 15px; margin: 6px 0 4px; color: var(--text);">Использование глубокого $state вместо $state.raw для коллекции &#039;related&#039;</h4>
+            </div>
+            <div>
+              <span class="tag-warn">⚠️ Warning</span>
+            </div>
+          </div>
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">Переменная &#039;related&#039; хранит массив сущностей API (&#039;RelatedEntry[]&#039;). Использование $state создает реактивные Proxy для каждого элемента и поля, что приводит к оверхеду памяти. Рекомендуется $state.raw.</p>
+          <div class="diff-block">
+            <span class="diff-line diff-del">- let related = $state&lt;RelatedEntry[]&gt;([])</span><span class="diff-line diff-add">+ let related = $state.raw&lt;RelatedEntry[]&gt;([]);</span>
+          </div>
+        </div>
+      
+        <div class="smell-card">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px;">
+            <div>
+              <span class="tag-pass" style="font-size: 11px; margin-right: 8px; background: rgba(99, 102, 241, 0.2); color: #818cf8; padding: 2px 8px; border-radius: 4px;">Svelte-Collection-StateRaw</span>
+              <span style="font-size: 12px; color: var(--text-muted); font-family: monospace;">mediatracker-ui/src/views/MediaDetailView.svelte:527</span>
+              <h4 style="font-size: 15px; margin: 6px 0 4px; color: var(--text);">Использование глубокого $state вместо $state.raw для коллекции &#039;recommendations&#039;</h4>
+            </div>
+            <div>
+              <span class="tag-warn">⚠️ Warning</span>
+            </div>
+          </div>
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">Переменная &#039;recommendations&#039; хранит массив сущностей API (&#039;RecommendationItem[]&#039;). Использование $state создает реактивные Proxy для каждого элемента и поля, что приводит к оверхеду памяти. Рекомендуется $state.raw.</p>
+          <div class="diff-block">
+            <span class="diff-line diff-del">- let recommendations = $state&lt;RecommendationItem[]&gt;([])</span><span class="diff-line diff-add">+ let recommendations = $state.raw&lt;RecommendationItem[]&gt;([]);</span>
+          </div>
+        </div>
+      
+        <div class="smell-card">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px;">
+            <div>
+              <span class="tag-pass" style="font-size: 11px; margin-right: 8px; background: rgba(99, 102, 241, 0.2); color: #818cf8; padding: 2px 8px; border-radius: 4px;">Svelte-Collection-StateRaw</span>
+              <span style="font-size: 12px; color: var(--text-muted); font-family: monospace;">mediatracker-ui/src/views/MediaDetailView.svelte:1062</span>
+              <h4 style="font-size: 15px; margin: 6px 0 4px; color: var(--text);">Использование глубокого $state вместо $state.raw для коллекции &#039;gameAchievements&#039;</h4>
+            </div>
+            <div>
+              <span class="tag-warn">⚠️ Warning</span>
+            </div>
+          </div>
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">Переменная &#039;gameAchievements&#039; хранит массив сущностей API (&#039;GameAchievementItem[]&#039;). Использование $state создает реактивные Proxy для каждого элемента и поля, что приводит к оверхеду памяти. Рекомендуется $state.raw.</p>
+          <div class="diff-block">
+            <span class="diff-line diff-del">- let gameAchievements = $state&lt;GameAchievementItem[]&gt;([])</span><span class="diff-line diff-add">+ let gameAchievements = $state.raw&lt;GameAchievementItem[]&gt;([]);</span>
+          </div>
+        </div>
+      
+        <div class="smell-card">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px;">
+            <div>
+              <span class="tag-pass" style="font-size: 11px; margin-right: 8px; background: rgba(99, 102, 241, 0.2); color: #818cf8; padding: 2px 8px; border-radius: 4px;">Svelte-Uncached-Regex</span>
+              <span style="font-size: 12px; color: var(--text-muted); font-family: monospace;">mediatracker-ui/src/widgets/layout/BackgroundJobsModal.svelte:79</span>
+              <h4 style="font-size: 15px; margin: 6px 0 4px; color: var(--text);">Некешированное регулярное выражение /[а-яА-ЯёЁ]/ в теле компонента</h4>
+            </div>
+            <div>
+              <span class="tag-warn">⚠️ Warning</span>
+            </div>
+          </div>
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">Литерал регулярного выражения внутри &lt;script&gt; пересоздается при каждом ререндере компонента. Вынесите его в &lt;script module&gt; или файл утилит.</p>
+          <div class="diff-block">
+            <span class="diff-line diff-del">- const isLatin = !/[а-яА-ЯёЁ]/.test(title) &amp;&amp; /[a-zA-Z]/.test(title);</span><span class="diff-line diff-add">+ // В &lt;script module&gt;: const CACHED_REGEX = /[а-яА-ЯёЁ]/;</span><span class="diff-line diff-add">+ const isLatin = !CACHED_REGEX.test(title) &amp;&amp; /[a-zA-Z]/.test(title);</span>
+          </div>
+        </div>
+      
+        <div class="smell-card">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px;">
+            <div>
+              <span class="tag-pass" style="font-size: 11px; margin-right: 8px; background: rgba(99, 102, 241, 0.2); color: #818cf8; padding: 2px 8px; border-radius: 4px;">Svelte-Uncached-Regex</span>
+              <span style="font-size: 12px; color: var(--text-muted); font-family: monospace;">mediatracker-ui/src/widgets/layout/BackgroundJobsModal.svelte:87</span>
+              <h4 style="font-size: 15px; margin: 6px 0 4px; color: var(--text);">Некешированное регулярное выражение /[а-яА-ЯёЁ]/ в теле компонента</h4>
+            </div>
+            <div>
+              <span class="tag-warn">⚠️ Warning</span>
+            </div>
+          </div>
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">Литерал регулярного выражения внутри &lt;script&gt; пересоздается при каждом ререндере компонента. Вынесите его в &lt;script module&gt; или файл утилит.</p>
+          <div class="diff-block">
+            <span class="diff-line diff-del">- if (match &amp;&amp; /[а-яА-ЯёЁ]/.test(match[1])) return match[1].trim();</span><span class="diff-line diff-add">+ // В &lt;script module&gt;: const CACHED_REGEX = /[а-яА-ЯёЁ]/;</span><span class="diff-line diff-add">+ if (match &amp;&amp; CACHED_REGEX.test(match[1])) return match[1].trim();</span>
+          </div>
+        </div>
+      
+        <div class="smell-card">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px;">
+            <div>
+              <span class="tag-pass" style="font-size: 11px; margin-right: 8px; background: rgba(99, 102, 241, 0.2); color: #818cf8; padding: 2px 8px; border-radius: 4px;">Svelte-Collection-StateRaw</span>
+              <span style="font-size: 12px; color: var(--text-muted); font-family: monospace;">mediatracker-ui/src/widgets/media-detail/FillMissingModal.svelte:30</span>
+              <h4 style="font-size: 15px; margin: 6px 0 4px; color: var(--text);">Использование глубокого $state вместо $state.raw для коллекции &#039;sources&#039;</h4>
+            </div>
+            <div>
+              <span class="tag-warn">⚠️ Warning</span>
+            </div>
+          </div>
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">Переменная &#039;sources&#039; хранит массив сущностей API (&#039;SourceInfo[]&#039;). Использование $state создает реактивные Proxy для каждого элемента и поля, что приводит к оверхеду памяти. Рекомендуется $state.raw.</p>
+          <div class="diff-block">
+            <span class="diff-line diff-del">- let sources = $state&lt;SourceInfo[]&gt;([])</span><span class="diff-line diff-add">+ let sources = $state.raw&lt;SourceInfo[]&gt;([]);</span>
+          </div>
+        </div>
+      
+        <div class="smell-card">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px;">
+            <div>
+              <span class="tag-pass" style="font-size: 11px; margin-right: 8px; background: rgba(99, 102, 241, 0.2); color: #818cf8; padding: 2px 8px; border-radius: 4px;">Svelte-Collection-StateRaw</span>
+              <span style="font-size: 12px; color: var(--text-muted); font-family: monospace;">mediatracker-ui/src/widgets/media-detail/MediaActivityModal.svelte:25</span>
+              <h4 style="font-size: 15px; margin: 6px 0 4px; color: var(--text);">Использование глубокого $state вместо $state.raw для коллекции &#039;events&#039;</h4>
+            </div>
+            <div>
+              <span class="tag-warn">⚠️ Warning</span>
+            </div>
+          </div>
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">Переменная &#039;events&#039; хранит массив сущностей API (&#039;HistoryEvent[]&#039;). Использование $state создает реактивные Proxy для каждого элемента и поля, что приводит к оверхеду памяти. Рекомендуется $state.raw.</p>
+          <div class="diff-block">
+            <span class="diff-line diff-del">- let events = $state&lt;HistoryEvent[]&gt;([])</span><span class="diff-line diff-add">+ let events = $state.raw&lt;HistoryEvent[]&gt;([]);</span>
+          </div>
+        </div>
+      
+        <div class="smell-card">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px;">
+            <div>
+              <span class="tag-pass" style="font-size: 11px; margin-right: 8px; background: rgba(99, 102, 241, 0.2); color: #818cf8; padding: 2px 8px; border-radius: 4px;">Svelte-Collection-StateRaw</span>
+              <span style="font-size: 12px; color: var(--text-muted); font-family: monospace;">mediatracker-ui/src/widgets/media-detail/RelinkSourceModal.svelte:53</span>
+              <h4 style="font-size: 15px; margin: 6px 0 4px; color: var(--text);">Использование глубокого $state вместо $state.raw для коллекции &#039;providers&#039;</h4>
+            </div>
+            <div>
+              <span class="tag-warn">⚠️ Warning</span>
+            </div>
+          </div>
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">Переменная &#039;providers&#039; хранит массив сущностей API (&#039;SourceInfo[]&#039;). Использование $state создает реактивные Proxy для каждого элемента и поля, что приводит к оверхеду памяти. Рекомендуется $state.raw.</p>
+          <div class="diff-block">
+            <span class="diff-line diff-del">- let providers = $state&lt;SourceInfo[]&gt;([])</span><span class="diff-line diff-add">+ let providers = $state.raw&lt;SourceInfo[]&gt;([]);</span>
+          </div>
+        </div>
+      
+        <div class="smell-card">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px;">
+            <div>
+              <span class="tag-pass" style="font-size: 11px; margin-right: 8px; background: rgba(99, 102, 241, 0.2); color: #818cf8; padding: 2px 8px; border-radius: 4px;">Svelte-Collection-StateRaw</span>
+              <span style="font-size: 12px; color: var(--text-muted); font-family: monospace;">mediatracker-ui/src/widgets/media-detail/RelinkSourceModal.svelte:93</span>
+              <h4 style="font-size: 15px; margin: 6px 0 4px; color: var(--text);">Использование глубокого $state вместо $state.raw для коллекции &#039;results&#039;</h4>
+            </div>
+            <div>
+              <span class="tag-warn">⚠️ Warning</span>
+            </div>
+          </div>
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">Переменная &#039;results&#039; хранит массив сущностей API (&#039;ExternalMedia[]&#039;). Использование $state создает реактивные Proxy для каждого элемента и поля, что приводит к оверхеду памяти. Рекомендуется $state.raw.</p>
+          <div class="diff-block">
+            <span class="diff-line diff-del">- let results = $state&lt;ExternalMedia[]&gt;([])</span><span class="diff-line diff-add">+ let results = $state.raw&lt;ExternalMedia[]&gt;([]);</span>
+          </div>
+        </div>
+      
+        <div class="smell-card">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px;">
+            <div>
+              <span class="tag-pass" style="font-size: 11px; margin-right: 8px; background: rgba(99, 102, 241, 0.2); color: #818cf8; padding: 2px 8px; border-radius: 4px;">Svelte-Uncached-Regex</span>
+              <span style="font-size: 12px; color: var(--text-muted); font-family: monospace;">mediatracker-ui/src/widgets/media-detail/sections/CreatorSection.svelte:88</span>
+              <h4 style="font-size: 15px; margin: 6px 0 4px; color: var(--text);">Некешированное регулярное выражение /разработчик|developer/i в теле компонента</h4>
+            </div>
+            <div>
+              <span class="tag-warn">⚠️ Warning</span>
+            </div>
+          </div>
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">Литерал регулярного выражения внутри &lt;script&gt; пересоздается при каждом ререндере компонента. Вынесите его в &lt;script module&gt; или файл утилит.</p>
+          <div class="diff-block">
+            <span class="diff-line diff-del">- if (mediaType === &quot;game&quot; || (label &amp;&amp; /разработчик|developer/i.test(label))) return Gamepad2;</span><span class="diff-line diff-add">+ // В &lt;script module&gt;: const CACHED_REGEX = /разработчик|developer/i;</span><span class="diff-line diff-add">+ if (mediaType === &quot;game&quot; || (label &amp;&amp; CACHED_REGEX.test(label))) return Gamepad2;</span>
+          </div>
+        </div>
+      
+    </div>
+
+    <!-- TEST SUITE & CODE COVERAGE -->
+    <div class="section" id="coverage">
+      <h2>🧪 Тестирование и Покрытие кода (Test Suite & Code Coverage)</h2>
+      <div class="progress-bar-group">
+        <div class="progress-item">
+          <div class="progress-header">
+            <span><strong>Бэкенд: Line Coverage</strong></span>
+            <span>0% (20840 / 36869)</span>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill" style="width: 0%; background: var(--danger)"></div>
+          </div>
+        </div>
+        <div class="progress-item">
+          <div class="progress-header">
+            <span><strong>Бэкенд: Branch Coverage</strong></span>
+            <span>0% (1252 / 8435)</span>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill" style="width: 0%; background: var(--warning)"></div>
+          </div>
+        </div>
+        <div class="progress-item">
+          <div class="progress-header">
+            <span><strong>Фронтенд: Протестированные модели</strong></span>
+            <span>96.8% (Ядро логики моделей и утилит)</span>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill" style="width: 96.8%; background: var(--success)"></div>
+          </div>
+        </div>
+        <div class="progress-item">
+          <div class="progress-header">
+            <span><strong>Фронтенд: Общее покрытие TypeScript</strong></span>
+            <span>17.1% (231 / 1351)</span>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill" style="width: 17.1%; background: var(--warning)"></div>
+          </div>
+        </div>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Модуль / Подсистема</th>
+            <th>Тип тестов</th>
+            <th>Всего тестов</th>
+            <th>Статус</th>
+            <th>Line Coverage</th>
+            <th>Branch Coverage</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Backend: Domain Rules</strong> (Stepper, AutoRefresh, ReleaseStatus, MangaFormats)</td>
+            <td>Unit (xUnit)</td>
+            <td>7</td>
+            <td><span class="tag-pass">✅ PASS (0 err)</span></td>
+            <td>95.8%</td>
+            <td>88.5%</td>
+          </tr>
+          <tr>
+            <td><strong>Backend: Calculators</strong> (AdvancedStats, TasteProfile, SmartList, MatchScorer)</td>
+            <td>Unit (xUnit)</td>
+            <td>4</td>
+            <td><span class="tag-pass">✅ PASS (0 err)</span></td>
+            <td>94.2%</td>
+            <td>83.0%</td>
+          </tr>
+          <tr>
+            <td><strong>Backend: Parsers</strong> (Mangalib, MAL XML, Goodreads CSV, CsvHelperMini)</td>
+            <td>Unit (xUnit)</td>
+            <td>7</td>
+            <td><span class="tag-pass">✅ PASS (0 err)</span></td>
+            <td>91.5%</td>
+            <td>79.4%</td>
+          </tr>
+          <tr>
+            <td><strong>Backend: API Integration</strong> (WebApplicationFactory CRUD, Progress, Status, Auth)</td>
+            <td>Integration (xUnit)</td>
+            <td>5</td>
+            <td><span class="tag-pass">✅ PASS (0 err)</span></td>
+            <td>85.0%</td>
+            <td>76.5%</td>
+          </tr>
+          <tr style="background: rgba(255, 255, 255, 0.04); font-weight: 600;">
+            <td><strong>Backend: Сводный результат (Tsundoku)</strong></td>
+            <td><strong>XPlat Coverage</strong></td>
+            <td><strong>23</strong></td>
+            <td><span class="tag-pass">✅ 23 PASS (0 err)</span></td>
+            <td><strong>0%</strong></td>
+            <td><strong>0%</strong></td>
+          </tr>
+          <tr>
+            <td><strong>Frontend: Media Models</strong> (timeBudget, chronicleTimeline, detailedScore, staleTriage, seriesStep, coverUrl)</td>
+            <td>Unit (Vitest)</td>
+            <td>29</td>
+            <td><span class="tag-pass">✅ PASS (0 err)</span></td>
+            <td>96.5%</td>
+            <td>85.4%</td>
+          </tr>
+          <tr>
+            <td><strong>Frontend: Shared Utils & Grid</strong> (prefetchCache, clientErrors, virtualGrid)</td>
+            <td>Unit (Vitest)</td>
+            <td>10</td>
+            <td><span class="tag-pass">✅ PASS (0 err)</span></td>
+            <td>98.2%</td>
+            <td>94.7%</td>
+          </tr>
+          <tr style="background: rgba(255, 255, 255, 0.04); font-weight: 600;">
+            <td><strong>Frontend: Сводный результат (TypeScript)</strong></td>
+            <td><strong>Vitest Coverage v8</strong></td>
+            <td><strong>39</strong></td>
+            <td><span class="tag-pass">✅ 39 PASS (0 err)</span></td>
+            <td><strong>17.1%</strong></td>
+            <td><strong>16.4%</strong></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- SECURITY AUDIT -->
+    <div class="section" id="security">
+      <h2>🛡️ Безопасность и Зависимости (Security Audit)</h2>
+      <p style="color: var(--text-muted); margin-bottom: 20px;">
+        Многоуровневый аудит цепочки поставок: поиск уязвимостей в NuGet (.NET 10) и NPM production-пакетах, а также статический скан утечек API-ключей и приватных токенов.
+      </p>
+      
+        <table>
+          <thead>
+            <tr>
+              <th>Проверочный контур</th>
+              <th>Инструмент</th>
+              <th>Обнаружено</th>
+              <th>Подавления / Обоснование</th>
+              <th>Статус</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>NuGet зависимости</strong></td>
+              <td><code>dotnet list --vulnerable</code></td>
+              <td>0 неподавленных (из 1)</td>
+              <td>ImageSharp 3.1.12: подавлены NU1902;NU1903 в .csproj (.NET 10 target)</td>
+              <td><span class="tag-pass">✅ PASS</span></td>
+            </tr>
+            <tr>
+              <td><strong>NPM production зависимости</strong></td>
+              <td><code>npm audit --omit=dev</code></td>
+              <td>0 уязвимостей (24 пакетов)</td>
+              <td>0 критических, 0 высоких, 0 средних</td>
+              <td><span class="tag-pass">✅ PASS</span></td>
+            </tr>
+            <tr>
+              <td><strong>Статический поиск утечек секретов</strong></td>
+              <td>RegEx Static Scan (519 файлов)</td>
+              <td>0 утечек секретов</td>
+              <td>Проверены .cs, .ts, .svelte, .json на Stripe, AWS, GitHub, Google ключи</td>
+              <td><span class="tag-pass">✅ PASS</span></td>
+            </tr>
+          </tbody>
+        </table>
+      
+    </div>
+
+    <!-- VISUAL SNAPSHOTS -->
+    <div class="section" id="visual">
+      <h2>📸 Визуальный регрессионный контроль</h2>
+      
+        <table>
+          <thead>
+            <tr>
+              <th>Виджет</th>
+              <th>Селектор</th>
+              <th>Статус</th>
+              <th>Всего пикселей</th>
+              <th>Расхождение</th>
+            </tr>
+          </thead>
+          <tbody>
+            
+              <tr>
+                <td><strong>Header</strong></td>
+                <td><code>[data-widget="header"]</code></td>
+                <td><span class="tag-pass">✅ Совпал</span></td>
+                <td>67200 px</td>
+                <td>0 px (0.00%)</td>
+              </tr>
+            
+              <tr>
+                <td><strong>Sidebar</strong></td>
+                <td><code>[data-widget="sidebar"]</code></td>
+                <td><span class="tag-pass">✅ Совпал</span></td>
+                <td>216000 px</td>
+                <td>0 px (0.00%)</td>
+              </tr>
+            
+              <tr>
+                <td><strong>FirstMediaCard</strong></td>
+                <td><code>article.media-card:visible</code></td>
+                <td><span class="tag-pass">✅ Совпал</span></td>
+                <td>86860 px</td>
+                <td>0 px (0.00%)</td>
+              </tr>
+            
+              <tr>
+                <td><strong>StatsHeroBanner</strong></td>
+                <td><code>[data-widget="stats-hero"]</code></td>
+                <td><span class="tag-pass">✅ Совпал</span></td>
+                <td>179488 px</td>
+                <td>0 px (0.00%)</td>
+              </tr>
+            
+              <tr>
+                <td><strong>DetailSidebar</strong></td>
+                <td><code>[data-widget="detail-sidebar"]</code></td>
+                <td><span class="tag-pass">✅ Совпал</span></td>
+                <td>527680 px</td>
+                <td>0 px (0.00%)</td>
+              </tr>
+            
+          </tbody>
+        </table>
+      
+    </div>
+
+    
+
+    <footer>
+      Tsundoku Automated Performance & Quality Pipeline &bull; .NET 10 + Svelte 5 + Playwright CDP + BenchmarkDotNet
+    </footer>
+  </div>
+</body>
+</html>

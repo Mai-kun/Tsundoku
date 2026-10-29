@@ -67,6 +67,9 @@
     "check:deadcode": "knip",
     "visual:approve": "node --experimental-strip-types checks/runBackstop.ts reference",
     "visual:test": "node --experimental-strip-types checks/runBackstop.ts test",
+    "test": "vitest run",
+    "test:unit": "vitest run",
+    "test:coverage": "vitest run",
     "preview": "vite preview"
   },
   "devDependencies": {

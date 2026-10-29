@@ -18,12 +18,19 @@ public sealed class AppPaths
     {
         PropertyNameCaseInsensitive = true
     };
-    public bool IsFirstRunSetupRequired { get; }
+    private readonly bool _hasExplicitDataDir;
 
-    public AppPaths(string dataDirectory, bool isDevelopment = false)
+    public bool IsFirstRunSetupRequired => !IsDevelopment &&
+                                           !CommandLineOptions.IsRunningInContainer &&
+                                           !_hasExplicitDataDir &&
+                                           !File.Exists(Path.Combine(AppContext.BaseDirectory, "storage.json")) &&
+                                           !File.Exists(DatabaseFilePath);
+
+    public AppPaths(string dataDirectory, bool isDevelopment = false, bool hasExplicitDataDir = false)
     {
         DataDirectory = dataDirectory;
         IsDevelopment = isDevelopment;
+        _hasExplicitDataDir = hasExplicitDataDir;
 
         var dbFileName = isDevelopment ? "tracker.dev.db" : "tracker.db";
         DatabaseFilePath = Path.Combine(dataDirectory, dbFileName);
@@ -50,10 +57,6 @@ public sealed class AppPaths
         Directory.CreateDirectory(CoversDirectory);
         Directory.CreateDirectory(MediaDirectory);
         Directory.CreateDirectory(LogsDirectory);
-
-        IsFirstRunSetupRequired = !isDevelopment && !CommandLineOptions.IsRunningInContainer &&
-                                  !File.Exists(Path.Combine(AppContext.BaseDirectory, "storage.json")) &&
-                                  !File.Exists(DatabaseFilePath);
     }
 
     public bool IsDevelopment { get; }
@@ -75,10 +78,12 @@ public sealed class AppPaths
         string dataDirectory;
         var appDir = AppContext.BaseDirectory;
         var storageConfigPath = Path.Combine(appDir, "storage.json");
+        var hasExplicitDir = false;
 
         if (options.DataDirectory is { Length: > 0 } configuredDirectory)
         {
             dataDirectory = Path.GetFullPath(configuredDirectory);
+            hasExplicitDir = true;
         }
         else if (!isDevelopment && !CommandLineOptions.IsRunningInContainer && File.Exists(storageConfigPath))
         {
@@ -121,6 +126,6 @@ public sealed class AppPaths
             );
         }
 
-        return new AppPaths(dataDirectory, isDevelopment);
+        return new AppPaths(dataDirectory, isDevelopment, hasExplicitDir);
     }
 }

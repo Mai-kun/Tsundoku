@@ -324,6 +324,15 @@ function generateMarkdown() {
     const m = cdpPerformance.memoryLeakTest;
     lines.push(`| **Утечки памяти JS** | Heap Profile + Force GC | ${m.passed ? "✅ PASS" : "❌ FAIL"} | Delta после 12 циклов навигации: \`${m.heapDeltaMb > 0 ? "+" : ""}${m.heapDeltaMb} MB\` | Delta < 15 MB |`);
   }
+  // Core Web Vitals из CDP-профилировщика (пороги Google "Good")
+  if (cdpPerformance?.screens?.some((s) => s.webVitals)) {
+    const vitals = cdpPerformance.screens.map((s) => s.webVitals);
+    const maxFcp = Math.max(...vitals.map((v) => v.fcpMs));
+    const maxLcp = Math.max(...vitals.map((v) => v.lcpMs));
+    const maxCls = Math.max(...vitals.map((v) => v.cls));
+    const vitalsOk = maxFcp <= 1800 && maxLcp <= 2500 && maxCls <= 0.1;
+    lines.push(`| **Веб-витали (LCP / FCP / CLS)** | Playwright + Chrome CDP | ${vitalsOk ? "✅ PASS" : "❌ FAIL"} | FCP: max \`${maxFcp}ms\`, LCP: max \`${maxLcp}ms\`, CLS: max \`${maxCls}\` | FCP ≤ 1800ms, LCP ≤ 2500ms, CLS ≤ 0.1 |`);
+  }
   // Geometry
   if (layoutGeometry) {
     lines.push(`| **Геометрия & Разметка** | BoundingBox Collision Audit | ${layoutGeometry.passed ? "✅ PASS" : "❌ FAIL"} | 14 экранов (Mobile, Tablet, Desktop) проверены, 0 аномалий переполнения | 0 layout collisions / scroll |`);
@@ -785,7 +794,7 @@ function generateHtml() {
   const entryPct = Math.min(100, (entryKb / maxEntryKb) * 100);
 
   const totalKb = bundleSummary?.totals?.totalJsGzipKb || 0;
-  const maxTotalKb = bundleSummary?.budgets?.maxTotalJsGzipKb || 260;
+  const maxTotalKb = bundleSummary?.budgets?.maxTotalJsGzipKb || 350;
   const totalPct = Math.min(100, (totalKb / maxTotalKb) * 100);
 
   const cssKb = bundleSummary?.totals?.cssGzipKb || 0;

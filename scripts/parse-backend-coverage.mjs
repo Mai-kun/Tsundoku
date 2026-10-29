@@ -57,10 +57,28 @@ export function parseBackendCoverage(coverageXmlPath) {
   const classRegex = /<class\s+[^>]*filename="([^"]+)"[^>]*>([\s\S]*?)<\/class>/gi;
   const fileLines = new Map(); // filename -> Map(lineNumber -> hits)
 
+  // Coverage collection instruments the product assembly (Tsundoku / MediaTracker.Server)
+  // plus referenced framework/NuGet content files (e.g. /_1/microsoft.codeanalysis/**).
+  // Filter to product-assembly sources only so coverage reflects genuine application lines.
+  function isProductFile(filename) {
+    if (!filename) return false;
+    // NuGet content / framework files live under /_1/ -> not product code.
+    if (filename.startsWith('/_1/') || filename.startsWith('_1/')) return false;
+    // Absolute paths: keep only sources within this repository.
+    if (filename.startsWith('/') || /^[A-Za-z]:[\\/]/.test(filename)) {
+      return filename.startsWith(rootDir);
+    }
+    // Relative paths (e.g. Common/..., Domain/...) are MediaTracker.Server product sources.
+    return true;
+  }
+
   let classMatch;
   while ((classMatch = classRegex.exec(content)) !== null) {
     const filename = classMatch[1];
     if (filename.startsWith('obj/') || filename.startsWith('obj\\')) {
+      continue;
+    }
+    if (!isProductFile(filename)) {
       continue;
     }
 
@@ -110,9 +128,9 @@ export function parseBackendCoverage(coverageXmlPath) {
 
   return {
     lineRate,
-    lineCoveragePercent: Math.round(lineRate * 1000) / 10,
+    lineCoveragePercent: linesValid > 0 ? parseFloat(((linesCovered / linesValid) * 100).toFixed(1)) : 0,
     branchRate,
-    branchCoveragePercent: Math.round(branchRate * 1000) / 10,
+    branchCoveragePercent: branchesValid > 0 ? parseFloat(((branchesCovered / branchesValid) * 100).toFixed(1)) : 0,
     linesCovered,
     linesValid,
     branchesCovered,

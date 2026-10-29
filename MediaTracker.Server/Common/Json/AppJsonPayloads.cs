@@ -17,4 +17,5 @@ public sealed record StorageInfoResponse(
     string DataDirectory,
     string PortableDirectory,
     string DefaultDirectory,
+    string? CustomPath,
     bool IsFirstRunSetupRequired);

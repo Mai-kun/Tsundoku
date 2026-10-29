@@ -120,14 +120,9 @@ public static class MediaMerger
     {
         return primary with
         {
-            Chapters = BestCount(primary.Chapters, fallback.Chapters),
-            Volumes = BestCount(primary.Volumes, fallback.Volumes),
-            TotalCount = BestCount(
-                primary.TotalCount,
-                fallback.TotalCount,
-                primary.Chapters,
-                fallback.Chapters,
-                fallback.Volumes),
+            Chapters = primary.Chapters is > 0 ? primary.Chapters : fallback.Chapters,
+            Volumes = primary.Volumes is > 0 ? primary.Volumes : fallback.Volumes,
+            TotalCount = primary.TotalCount is > 0 ? primary.TotalCount : fallback.TotalCount,
             Author = FirstNonEmpty(primary.Author, fallback.Author),
             Studio = FirstNonEmpty(primary.Studio, fallback.Studio),
             // Cast and trailer come only from the sources that track them (TMDb, AniList); the IMDb
@@ -262,30 +257,5 @@ public static class MediaMerger
     private static string? FirstNonEmpty(string? first, string? second)
     {
         return !string.IsNullOrWhiteSpace(first) ? first : second;
-    }
-
-    /// <summary>
-    /// Picks the count to keep when two sources disagree.
-    ///
-    /// Coalescing on nullability alone was the bug behind "Гл. 0 / —" on an ongoing series: an
-    /// ongoing source reports either no count at all or only the latest chapter, and neither was
-    /// allowed to lose the final total another source already knew (386 for Berserk). A count that
-    /// is missing or zero is not an answer, so the largest real one wins and the result is null only
-    /// when nobody knows.
-    /// </summary>
-    private static int? BestCount(params int?[] candidates)
-    {
-        int? best = null;
-        foreach (var candidate in candidates)
-        {
-            if (candidate is not > 0)
-            {
-                continue;
-            }
-
-            best = best is null || candidate > best ? candidate : best;
-        }
-
-        return best;
     }
 }

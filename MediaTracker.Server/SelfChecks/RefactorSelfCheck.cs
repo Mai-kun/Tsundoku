@@ -48,6 +48,7 @@ public static class RefactorSelfCheck
         CheckSpanParsing(failures);
         CheckSourceRegistryIsSelfContained(failures);
         CheckExternalUrlDetection(failures);
+        CheckCoverRefreshDoesNotDuplicate(failures);
         CheckRatingsSerialization(failures);
         CheckMangaGapEnrichment(failures);
         CheckMangaFormatFromSources(failures);
@@ -963,6 +964,94 @@ public static class RefactorSelfCheck
         AssertFalse(failures, MediaMetadataApplier.IsExternalUrl(null), "null is not external");
     }
 
+    private static void CheckCoverRefreshDoesNotDuplicate(List<string> failures)
+    {
+        var storage = new CountingImageStorage();
+        var external = new ExternalMediaDto
+        {
+            ExternalId = "1",
+            Title = "Дюна",
+            Type = "movie",
+            ExternalSource = "tmdb",
+            CoverUrl = "https://cdn.example/dune.jpg",
+        };
+        var item = new Movie { Title = "Дюна" };
+
+        MediaMetadataApplier
+            .ApplyOverwriteAsync(item, external, storage, CancellationToken.None)
+            .GetAwaiter()
+            .GetResult();
+        MediaMetadataApplier
+            .ApplyOverwriteAsync(item, external, storage, CancellationToken.None)
+            .GetAwaiter()
+            .GetResult();
+
+        AssertEqual(failures, 1, storage.Downloads, "a repeated refresh downloads the source cover once");
+        AssertEqual(
+            failures,
+            1,
+            Features.Media.MediaContract.MediaCoverCollection.Parse(item.CoversJson).Count,
+            "a repeated refresh keeps one variant per source");
+
+        // An entry that still holds the external URL is the same cover, not a new one.
+        var legacy = new Movie
+        {
+            Title = "Дюна",
+            CoversJson = Features.Media.MediaContract.MediaCoverCollection.Serialize([
+                new Features.Media.MediaContract.MediaCoverItemDto(
+                    "external",
+                    external.CoverUrl!,
+                    external.CoverUrl!,
+                    "tmdb",
+                    DateTime.UtcNow),
+            ]),
+        };
+        MediaMetadataApplier
+            .ApplyOverwriteAsync(legacy, external, storage, CancellationToken.None)
+            .GetAwaiter()
+            .GetResult();
+
+        AssertEqual(failures, 1, storage.Downloads, "an entry with the same URL is not downloaded again");
+    }
+
+    private sealed class CountingImageStorage : IImageStorageService
+    {
+        public int Downloads { get; private set; }
+
+        public Task<string?> SaveCoverAsync(
+            string externalUrl,
+            Guid itemId,
+            CancellationToken ct = default,
+            string folder = "cover"
+        ) => Task.FromResult<string?>(externalUrl);
+
+        public Task<Features.Media.MediaContract.MediaCoverItemDto?> SaveCoverVariantAsync(
+            string externalUrl, Guid itemId, string? source = null, CancellationToken ct = default)
+        {
+            Downloads++;
+            var coverId = Guid.NewGuid().ToString("N")[..10];
+            return Task.FromResult<Features.Media.MediaContract.MediaCoverItemDto?>(new(
+                coverId,
+                $"/media-assets/{itemId}/covers/{coverId}/thumb.webp",
+                $"/media-assets/{itemId}/covers/{coverId}/original.webp",
+                source,
+                DateTime.UtcNow));
+        }
+
+        public Task<Features.Media.MediaContract.MediaCoverItemDto?> SaveCoverVariantAsync(
+            Stream content, Guid itemId, string? source = null, CancellationToken ct = default)
+        {
+            Downloads++;
+            return Task.FromResult<Features.Media.MediaContract.MediaCoverItemDto?>(null);
+        }
+
+        public void DeleteCoverVariant(Guid itemId, string coverId) { }
+
+        public void DeleteCover(string? localCoverUrl) { }
+
+        public void DeleteMediaFolder(Guid mediaId) { }
+    }
+
     private static void CheckRatingsSerialization(List<string> failures)
     {
         var json = MediaMetadataApplier.SerializeRatings([
@@ -1421,9 +1510,9 @@ public static class RefactorSelfCheck
             ongoingWithCount with { TotalCount = null, Chapters = null });
         AssertEqual(
             failures,
-            364,
+            null,
             fromChapters.TotalCount,
-            "merge falls back to a known chapter count when no total is reported"
+            "merge reports no total when neither source reports one"
         );
     }
 

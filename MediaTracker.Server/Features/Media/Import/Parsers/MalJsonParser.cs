@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
+using MediaTracker.Server.Common.Utilities;
 using MediaTracker.Server.Domain.Entities;
 
 namespace MediaTracker.Server.Features.Media.Import.Parsers;
@@ -43,5 +44,5 @@ public static class MalJsonParser
 
     private static int? ParseYear(string? value) => DateTime.TryParse(value, CultureInfo.InvariantCulture, out var date)
         ? date.Year
-        : int.TryParse(value?.Split('-')[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out var year) ? year : null;
+        : SpanParserExtensions.ParseYearFromDateString(value.AsSpan().Trim());
 }

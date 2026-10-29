@@ -43,7 +43,7 @@ public static class PendingMatchApplier
         var preservedRussianTitle = IsCyrillic(item.Title) ? item.Title : null;
 
         // 2. Full metadata overwrite (downloads official cover as WebP, fills synopsis, totals, cast, ratings, etc.)
-        await MediaMetadataApplier.ApplyOverwriteAsync(item, match, imageStorage, ct, trackNewSeason);
+        await MediaMetadataApplier.ApplyOverwriteAsync(item, match, imageStorage, ct, trackNewSeason, fillMissing: false);
 
         // 3. Restore user progress, status, score and notes
         item.SetStatus(userStatus);

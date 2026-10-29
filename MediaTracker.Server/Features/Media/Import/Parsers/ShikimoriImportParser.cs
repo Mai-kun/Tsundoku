@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using MediaTracker.Server.Common.Utilities;
 using MediaTracker.Server.Domain.Entities;
 
 namespace MediaTracker.Server.Features.Media.Import.Parsers;
@@ -140,7 +141,7 @@ public static class ShikimoriImportParser
 
     private static int? ParseYear(string? value) => DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.None, out var date)
         ? date.Year
-        : int.TryParse(value?.Split('-')[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out var yr) ? yr : null;
+        : SpanParserExtensions.ParseYearFromDateString(value.AsSpan().Trim());
 
     private static string? String(JsonElement el, string key) =>
         el.ValueKind == JsonValueKind.Object && el.TryGetProperty(key, out var v) ? v.ToString() : null;

@@ -73,7 +73,8 @@ public sealed class RelinkMediaHandler(
             external,
             imageStorage,
             ct,
-            trackNewSeason: null);
+            trackNewSeason: null,
+            fillMissing: false);
 
         // The cached relations were fetched through the old provider for a different entity id.
         item.RelatedMediaJson = null;

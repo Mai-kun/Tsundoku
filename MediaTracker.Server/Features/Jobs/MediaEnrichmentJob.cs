@@ -241,7 +241,8 @@ public static class MediaEnrichmentJob
             external,
             services.GetRequiredService<IImageStorageService>(),
             ct,
-            _ => { }).ConfigureAwait(false);
+            _ => { },
+            fillMissing: false).ConfigureAwait(false);
 
         return true;
     }

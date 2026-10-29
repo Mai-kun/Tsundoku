@@ -317,13 +317,19 @@ public static class ImportMatchScorer
 
     private static List<string> Tokens(string value)
     {
-        var parts = value.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        var list = new List<string>(parts.Length);
-        foreach (var part in parts)
+        var list = new List<string>();
+        var span = value.AsSpan();
+        var start = 0;
+        for (var i = 0; i <= span.Length; i++)
         {
-            if (part.Length >= 2)
+            if (i == span.Length || span[i] == ' ')
             {
-                list.Add(part.ToLowerInvariant());
+                var token = span[start..i].Trim();
+                if (!token.IsEmpty && token.Length >= 2)
+                {
+                    list.Add(token.ToString().ToLowerInvariant());
+                }
+                start = i + 1;
             }
         }
         return list;

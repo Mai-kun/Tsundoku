@@ -16,6 +16,8 @@ using Microsoft.Extensions.Options;
 
 using MediaTracker.Server.Common.Json;
 
+using MediaTracker.Server.Common.Utilities;
+
 namespace MediaTracker.Server.Features.Media.Import;
 
 public sealed class ImportMediaHandler(
@@ -857,7 +859,7 @@ public sealed class ImportMediaHandler(
         if (string.IsNullOrWhiteSpace(value)) return null;
         if (DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.None, out var date) && value.Trim().Length >= 8)
             return date.Year;
-        return int.TryParse(value.Trim().Split('-')[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out var year) ? year : null;
+        return SpanParserExtensions.ParseYearFromDateString(value.AsSpan().Trim());
     }
 
     private static string GetType(MediaItem item) => item switch

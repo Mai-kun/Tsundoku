@@ -1,4 +1,5 @@
 using System.Globalization;
+using MediaTracker.Server.Common.Utilities;
 using MediaTracker.Server.Domain.Entities;
 
 namespace MediaTracker.Server.Features.Media.Import.Parsers;
@@ -103,5 +104,5 @@ public static class CustomImportParser
 
     private static int? ParseYear(string? value) => DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.None, out var date)
         ? date.Year
-        : int.TryParse(value?.Split('-')[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out var yr) ? yr : null;
+        : SpanParserExtensions.ParseYearFromDateString(value.AsSpan().Trim());
 }

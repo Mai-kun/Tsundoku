@@ -178,16 +178,18 @@ public static class BatchImportEnrichmentJob
         {
             // Imported rows get a gallery from the start, so the resolved match adds a variant
             // instead of overwriting whatever the import had already staged.
-            MediaCoverCollection.EnsureLegacyCoverRegistered(item);
-            var variant = await imageStorage.SaveCoverVariantAsync(item.CoverUrl!, item.Id, item.ExternalSource, ct);
-            if (variant is not null)
+            var covers = MediaCoverCollection.EnsureLegacyCoverRegistered(item);
+            if (MediaCoverCollection.FindExisting(covers, item.ExternalSource, item.CoverUrl) is null)
             {
-                var covers = MediaCoverCollection.Parse(item.CoversJson);
-                covers.Add(variant);
-                item.CoversJson = MediaCoverCollection.Serialize(covers);
-                if (item.CoverUrl is null || !item.IsCustomEdited)
+                var variant = await imageStorage.SaveCoverVariantAsync(item.CoverUrl!, item.Id, item.ExternalSource, ct);
+                if (variant is not null)
                 {
-                    item.CoverUrl = variant.ThumbUrl;
+                    covers.Add(variant);
+                    item.CoversJson = MediaCoverCollection.Serialize(covers);
+                    if (item.CoverUrl is null || !item.IsCustomEdited)
+                    {
+                        item.CoverUrl = variant.ThumbUrl;
+                    }
                 }
             }
         }
@@ -240,7 +242,7 @@ public static class BatchImportEnrichmentJob
                 continue;
             }
 
-            if (covers.Any(c => string.Equals(c.Source, candidate.ExternalSource, StringComparison.OrdinalIgnoreCase)))
+            if (MediaCoverCollection.FindExisting(covers, candidate.ExternalSource, candidate.CoverUrl) is not null)
             {
                 continue;
             }

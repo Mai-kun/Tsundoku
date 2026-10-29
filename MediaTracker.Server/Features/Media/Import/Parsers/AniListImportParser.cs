@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using MediaTracker.Server.Domain.Entities;
+using MediaTracker.Server.Common.Utilities;
 using Serilog;
 
 namespace MediaTracker.Server.Features.Media.Import.Parsers;
@@ -259,7 +260,7 @@ public static class AniListImportParser
         if (string.IsNullOrWhiteSpace(value)) return null;
         if (DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.None, out var date))
             return date.Year;
-        return int.TryParse(value.Split('-')[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out var yr) && yr > 0 ? yr : null;
+        return SpanParserExtensions.ParseYearFromDateString(value.AsSpan().Trim());
     }
 
     private static string? ExtractStudio(JsonElement media)

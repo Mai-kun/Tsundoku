@@ -34,6 +34,20 @@ public static class MediaCoverCollection
             : JsonSerializer.Serialize(covers, AppJsonSerializerContext.Default.IReadOnlyListMediaCoverItemDto);
 
     /// <summary>
+    /// An entry is a duplicate when it came from the same provider or still holds the exact URL we
+    /// are about to download. A blank source never matches: the legacy entry has none.
+    /// </summary>
+    public static MediaCoverItemDto? FindExisting(
+        IReadOnlyList<MediaCoverItemDto> covers,
+        string? source,
+        string? url) =>
+        covers.FirstOrDefault(cover =>
+            (!string.IsNullOrWhiteSpace(source)
+                && string.Equals(cover.Source, source, StringComparison.OrdinalIgnoreCase))
+            || (!string.IsNullOrWhiteSpace(url)
+                && string.Equals(cover.ThumbUrl, url, StringComparison.OrdinalIgnoreCase)));
+
+    /// <summary>
     /// A title that got its cover before the gallery existed has the files on disk but an empty
     /// <c>CoversJson</c>. Registers that legacy cover as the first gallery entry so switching to a
     /// newer variant (or deleting it) cannot orphan the only poster the row has.

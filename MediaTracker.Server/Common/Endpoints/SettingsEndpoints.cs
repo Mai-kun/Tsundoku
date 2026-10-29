@@ -176,16 +176,19 @@ public static class SettingsEndpoints
             var appDir = AppContext.BaseDirectory;
             var configPath = Path.Combine(appDir, "storage.json");
             var mode = "default";
+            string? customPath = null;
             if (File.Exists(configPath))
             {
                 var config = JsonSerializer.Deserialize(File.ReadAllText(configPath), AppJsonSerializerContext.Default.StorageConfig);
                 mode = config?.Mode ?? "default";
+                customPath = config?.CustomPath;
             }
             return Results.Ok(new StorageInfoResponse(
                 mode,
                 appPaths.DataDirectory,
                 Path.Combine(appDir, "data"),
                 Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Tsundoku"),
+                customPath,
                 appPaths.IsFirstRunSetupRequired));
         }).WithTags("Настройки / Settings").WithSummary("Получить настройки хранилища");
 

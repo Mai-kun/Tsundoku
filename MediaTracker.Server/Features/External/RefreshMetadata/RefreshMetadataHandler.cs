@@ -86,7 +86,8 @@ public sealed class RefreshMetadataHandler(
                             external,
                             imageStorage,
                             token,
-                            _ => { });
+                            _ => { },
+                            fillMissing: false);
 
                         current.IsCustomEdited = false;
                     }

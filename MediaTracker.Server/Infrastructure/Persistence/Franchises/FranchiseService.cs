@@ -16,9 +16,8 @@ public interface IFranchiseService
 
 public sealed partial class FranchiseService : IFranchiseService
 {
-    private static readonly Regex SeasonSuffixRegex = new(
-        @"\s+(season\s+\d+|\d+(st|nd|rd|th)\s+season|final\s+season|part\s+\d+|[IVXLCDM]+)$",
-        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    [GeneratedRegex(@"\s+(season\s+\d+|\d+(st|nd|rd|th)\s+season|final\s+season|part\s+\d+|[IVXLCDM]+)$", RegexOptions.IgnoreCase)]
+    private static partial Regex SeasonSuffixRegex();
 
     public string? InferFranchiseName(string? title)
     {
@@ -35,7 +34,7 @@ public sealed partial class FranchiseService : IFranchiseService
             }
         }
 
-        var match = SeasonSuffixRegex.Replace(clean, "").Trim();
+        var match = SeasonSuffixRegex().Replace(clean, "").Trim();
         if (match.Length >= 3 && match != clean)
         {
             return match;

@@ -42,125 +42,177 @@ public static class SmartListEvaluator
         IEnumerable<MediaItem> allItems,
         SmartListQueryDto query)
     {
-        IEnumerable<MediaItem> result = allItems;
+        // Single allocation: one list built in one pass, then sorted in place.
+        var filtered = new List<MediaItem>(allItems is ICollection<MediaItem> col ? col.Count : 128);
 
-        // Categories
-        if (query.Categories is { Count: > 0 } cats)
-        {
-            result = result.Where(item => MatchesCategory(item, cats));
-        }
-
-        // Statuses
-        if (query.Statuses is { Count: > 0 } statuses)
-        {
-            result = result.Where(item => statuses.Contains(item.Status));
-        }
-
-        // Score filters
-        if (query.OnlyUnrated == true)
-        {
-            result = result.Where(item => item.Score is null or <= 0);
-        }
-        else
-        {
-            if (query.MinScore is { } min)
-                result = result.Where(item => item.Score >= min);
-            if (query.MaxScore is { } max)
-                result = result.Where(item => item.Score <= max);
-        }
-
-        // External rating
-        if (query.MinExternalRating is { } minExt)
-            result = result.Where(item => item.ExternalRating >= minExt);
-
-        // Genres — intersection after normalizing
+        // Pre-compute target genres once (normalized, OrdinalIgnoreCase lookup).
+        HashSet<string>? targetGenres = null;
         if (query.Genres is { Count: > 0 } genres)
         {
-            var normalizedQuery = genres.Select(GenreNormalizer.Normalize).ToHashSet(StringComparer.OrdinalIgnoreCase);
-            result = result.Where(item =>
+            targetGenres = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var g in genres)
             {
-                if (string.IsNullOrWhiteSpace(item.Genres)) return false;
-                var itemGenres = item.Genres.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                    .Select(GenreNormalizer.Normalize);
-                return itemGenres.Any(g => normalizedQuery.Contains(g));
-            });
+                targetGenres.Add(GenreNormalizer.Normalize(g));
+            }
         }
 
-        // Release year
-        if (query.ReleaseYearFrom is { } yearFrom)
-            result = result.Where(item => (item.ReleaseYear ?? item.ReleaseDate?.Year) >= yearFrom);
-        if (query.ReleaseYearTo is { } yearTo)
-            result = result.Where(item => (item.ReleaseYear ?? item.ReleaseDate?.Year) <= yearTo);
+        // Caches normalized item-genre strings within this call so repeated genres are
+        // normalized once instead of once-per-item (Normalize allocates a StringBuilder + string).
+        Dictionary<string, string>? genreNormCache = null;
 
-        // Volume limits
-        if (query.MaxDurationMinutes is { } maxDur)
-        {
-            result = result.Where(item => item switch
-            {
-                Movie m => m.DurationMinutes > 0 && m.DurationMinutes <= maxDur,
-                TvShow t => (t.EpisodeDurationMinutes ?? 24) <= maxDur,
-                _ => true,
-            });
-        }
-        if (query.MaxEpisodes is { } maxEp)
-        {
-            result = result.Where(item => item switch
-            {
-                TvShow t => t.TotalEpisodesCount > 0 && t.TotalEpisodesCount <= maxEp,
-                _ => true,
-            });
-        }
-        if (query.MaxPages is { } maxPg)
-        {
-            result = result.Where(item => item switch
-            {
-                Book b => b.TotalPages > 0 && b.TotalPages <= maxPg,
-                _ => true,
-            });
-        }
-        if (query.MaxChapters is { } maxCh)
-        {
-            result = result.Where(item => item switch
-            {
-                Manga mg => mg.TotalChapters is > 0 && mg.TotalChapters <= maxCh,
-                _ => true,
-            });
-        }
-
-        // Creator
-        if (!string.IsNullOrWhiteSpace(query.CreatorContains))
-        {
-            var needle = query.CreatorContains.Trim();
-            result = result.Where(item => ContainsCreator(item, needle));
-        }
-
-        // Sort
+        // Resolve sort direction and key selector up front so the loop is branch-free.
         bool desc = !string.Equals(query.SortOrder, "asc", StringComparison.OrdinalIgnoreCase);
-        result = query.SortBy switch
+
+        bool onlyUnrated = query.OnlyUnrated == true;
+        int? minScore = query.MinScore;
+        int? maxScore = query.MaxScore;
+        double? minExt = query.MinExternalRating;
+        int? yearFrom = query.ReleaseYearFrom;
+        int? yearTo = query.ReleaseYearTo;
+        int? maxDur = query.MaxDurationMinutes;
+        int? maxEp = query.MaxEpisodes;
+        int? maxPg = query.MaxPages;
+        int? maxCh = query.MaxChapters;
+        string? creatorNeedle = string.IsNullOrWhiteSpace(query.CreatorContains) ? null : query.CreatorContains.Trim();
+
+        foreach (var item in allItems)
         {
-            "score" => desc
-                ? result.OrderByDescending(item => item.Score ?? 0)
-                : result.OrderBy(item => item.Score ?? 0),
-            "externalRating" => desc
-                ? result.OrderByDescending(item => item.ExternalRating ?? 0)
-                : result.OrderBy(item => item.ExternalRating ?? 0),
-            "releaseYear" => desc
-                ? result.OrderByDescending(item => item.ReleaseYear ?? item.ReleaseDate?.Year ?? 0)
-                : result.OrderBy(item => item.ReleaseYear ?? item.ReleaseDate?.Year ?? 0),
-            "createdAt" => desc
-                ? result.OrderByDescending(item => item.CreatedAt)
-                : result.OrderBy(item => item.CreatedAt),
-            "title" => desc
-                ? result.OrderByDescending(item => item.Title, StringComparer.OrdinalIgnoreCase)
-                : result.OrderBy(item => item.Title, StringComparer.OrdinalIgnoreCase),
-            _ => result.OrderByDescending(item => item.CreatedAt),
-        };
+            // Categories
+            if (query.Categories is { Count: > 0 } cats && !MatchesCategory(item, cats)) continue;
+
+            // Statuses
+            if (query.Statuses is { Count: > 0 } statuses && !statuses.Contains(item.Status)) continue;
+
+            // Score
+            if (onlyUnrated)
+            {
+                if (item.Score is not null and > 0) continue;
+            }
+            else
+            {
+                if (minScore is { } min && (item.Score is null || item.Score < min)) continue;
+                if (maxScore is { } max && (item.Score is null || item.Score > max)) continue;
+            }
+
+            // External rating
+            if (minExt is { } minExtVal && (item.ExternalRating is null || item.ExternalRating < minExtVal)) continue;
+
+            // Genres — intersection against pre-normalized target set. Inline scan over ','/';'
+            // segments avoids ExtractGenres' per-part string[] and Trim allocations; normalization
+            // results are cached so each unique genre string is normalized once.
+            if (targetGenres is not null)
+            {
+                var itemGenres = item.Genres;
+                if (string.IsNullOrWhiteSpace(itemGenres)) continue;
+                bool genreMatch = false;
+                int start = 0;
+                for (int i = 0; i <= itemGenres.Length; i++)
+                {
+                    if (i == itemGenres.Length || itemGenres[i] is ',' or ';')
+                    {
+                        var segment = itemGenres.AsSpan(start, i - start).Trim();
+                        if (!segment.IsEmpty)
+                        {
+                            string normalized;
+                            if (genreNormCache is null) genreNormCache = new();
+                            var raw = segment.ToString();
+                            if (!genreNormCache.TryGetValue(raw, out string? cached))
+                            {
+                                normalized = GenreNormalizer.Normalize(raw);
+                                genreNormCache[raw] = normalized;
+                            }
+                            else
+                            {
+                                normalized = cached ?? string.Empty;
+                            }
+                            if (targetGenres.Contains(normalized))
+                            {
+                                genreMatch = true;
+                                break;
+                            }
+                        }
+                        start = i + 1;
+                    }
+                }
+                if (!genreMatch) continue;
+            }
+
+            // Release year
+            var itemYear = item.ReleaseYear ?? item.ReleaseDate?.Year;
+            if (yearFrom is { } yf && itemYear < yf) continue;
+            if (yearTo is { } yt && itemYear > yt) continue;
+
+            // Volume limits
+            if (maxDur is { } md)
+            {
+                bool durOk = item switch
+                {
+                    Movie m => m.DurationMinutes > 0 && m.DurationMinutes <= md,
+                    TvShow t => (t.EpisodeDurationMinutes ?? 24) <= md,
+                    _ => true,
+                };
+                if (!durOk) continue;
+            }
+            if (maxEp is { } me)
+            {
+                bool epOk = item switch
+                {
+                    TvShow t => t.TotalEpisodesCount > 0 && t.TotalEpisodesCount <= me,
+                    _ => true,
+                };
+                if (!epOk) continue;
+            }
+            if (maxPg is { } mp)
+            {
+                bool pgOk = item switch
+                {
+                    Book b => b.TotalPages > 0 && b.TotalPages <= mp,
+                    _ => true,
+                };
+                if (!pgOk) continue;
+            }
+            if (maxCh is { } mc)
+            {
+                bool chOk = item switch
+                {
+                    Manga mg => mg.TotalChapters is > 0 && mg.TotalChapters <= mc,
+                    _ => true,
+                };
+                if (!chOk) continue;
+            }
+
+            // Creator
+            if (creatorNeedle is not null && !ContainsCreator(item, creatorNeedle)) continue;
+
+            filtered.Add(item);
+        }
+
+        // In-place sort — no OrderedEnumerable or delegate allocations.
+        Sort(filtered, query.SortBy, desc);
 
         // Limit
-        if (query.Limit is > 0 and var limit)
-            result = result.Take(limit);
+        if (query.Limit is > 0 and var limit && limit < filtered.Count)
+        {
+            filtered.RemoveRange(limit, filtered.Count - limit);
+        }
 
-        return result.ToList();
+        return filtered;
+    }
+
+    private static void Sort(List<MediaItem> filtered, string? sortBy, bool desc)
+    {
+        // Null-safe comparison: nulls sort as 0, matching the original OrderBy(... ?? 0) semantics.
+        int dir = desc ? -1 : 1;
+        int cmp(MediaItem x, MediaItem y) => sortBy switch
+        {
+            "score" => dir * (x.Score ?? 0).CompareTo(y.Score ?? 0),
+            "externalRating" => dir * (x.ExternalRating ?? 0).CompareTo(y.ExternalRating ?? 0),
+            "releaseYear" => dir * (x.ReleaseYear ?? x.ReleaseDate?.Year ?? 0).CompareTo(y.ReleaseYear ?? y.ReleaseDate?.Year ?? 0),
+            "createdAt" => dir * x.CreatedAt.CompareTo(y.CreatedAt),
+            "title" => dir * string.Compare(x.Title ?? string.Empty, y.Title ?? string.Empty, StringComparison.OrdinalIgnoreCase),
+            _ => dir * x.CreatedAt.CompareTo(y.CreatedAt),
+        };
+        filtered.Sort(cmp);
     }
 
     private static bool MatchesCategory(MediaItem item, List<string> cats)
@@ -197,4 +249,5 @@ public static class SmartListEvaluator
         static bool Contains(string? field, string needle) =>
             field is not null && field.Contains(needle, StringComparison.OrdinalIgnoreCase);
     }
+
 }

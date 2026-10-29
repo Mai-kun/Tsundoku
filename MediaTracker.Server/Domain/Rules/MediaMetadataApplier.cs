@@ -98,7 +98,8 @@ public static class MediaMetadataApplier
         ExternalMediaDto external,
         IImageStorageService imageStorage,
         CancellationToken ct,
-        Action<TvSeason>? trackNewSeason = null)
+        Action<TvSeason>? trackNewSeason = null,
+        bool fillMissing = true)
     {
         item.Title = external.Title;
 
@@ -109,19 +110,38 @@ public static class MediaMetadataApplier
         {
             // The poster a pre-gallery row already has must survive as gallery entry #1 before a
             // variant is appended, or the first refresh would orphan the only copy of it.
-            MediaCoverCollection.EnsureLegacyCoverRegistered(item);
+            var covers = MediaCoverCollection.EnsureLegacyCoverRegistered(item);
 
-            var variant = await imageStorage.SaveCoverVariantAsync(external.CoverUrl!, item.Id, external.ExternalSource, ct);
-            if (variant is not null)
+            // A cover from this source already in the gallery.
+            var existing = covers.FirstOrDefault(cover =>
+                !string.IsNullOrWhiteSpace(cover.Source)
+                && string.Equals(cover.Source, external.ExternalSource, StringComparison.OrdinalIgnoreCase));
+
+            if (existing is not null && fillMissing)
             {
-                var covers = MediaCoverCollection.Parse(item.CoversJson);
-                covers.Add(variant);
-                item.CoversJson = MediaCoverCollection.Serialize(covers);
-
-                // A failed download no longer clears the stored cover either: the gallery only grows.
-                if (item.CoverUrl is null || !item.IsCustomEdited)
+                // Enrichment gap-fill: preserve the existing cover, do not re-download.
+            }
+            else
+            {
+                // Full refresh (or no existing variant yet): download the new variant first, and
+                // only then remove the old same-source variant so a failed download never clears
+                // the cover the row already has.
+                var variant = await imageStorage.SaveCoverVariantAsync(external.CoverUrl!, item.Id, external.ExternalSource, ct);
+                if (variant is not null)
                 {
-                    item.CoverUrl = variant.ThumbUrl;
+                    if (existing is not null)
+                    {
+                        imageStorage.DeleteCoverVariant(item.Id, existing.Id);
+                        covers.Remove(existing);
+                    }
+                    covers.Add(variant);
+                    item.CoversJson = MediaCoverCollection.Serialize(covers);
+
+                    // A failed download no longer clears the stored cover either: the gallery only grows.
+                    if (item.CoverUrl is null || !item.IsCustomEdited)
+                    {
+                        item.CoverUrl = variant.ThumbUrl;
+                    }
                 }
             }
         }

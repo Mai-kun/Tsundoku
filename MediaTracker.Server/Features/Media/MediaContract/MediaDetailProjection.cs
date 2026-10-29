@@ -69,6 +69,8 @@ public static class MediaDetailProjection
             Studio = listFields.Studio,
             RomajiTitle = listFields.RomajiTitle,
             MangaFormat = listFields.MangaFormat,
+            // The series-wide total: TvShow.TotalEpisodesCount rolls up Seasons.Sum(s => s.TotalEpisodes),
+            // so the detail DTO reports the whole-show count (e.g. 500), not a single season's.
             TotalEpisodesCount = listFields.TotalEpisodesCount,
             Network = listFields.Network,
             TotalEpisodesWatched = listFields.TotalEpisodesWatched,

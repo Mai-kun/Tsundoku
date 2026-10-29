@@ -366,100 +366,204 @@ public sealed class AppDbContext : IDisposable, IAsyncDisposable
         return row.ToEntity(franchise, seasons, volumes);
     }
 
+    /// <summary>Pre-cached column ordinals for MediaItems rows.</summary>
+    internal readonly struct MediaItemOrdinals(DbDataReader reader)
+    {
+        public readonly int Id = reader.GetOrdinal("Id");
+        public readonly int Title = reader.GetOrdinal("Title");
+        public readonly int Status = reader.GetOrdinal("Status");
+        public readonly int Score = reader.GetOrdinal("Score");
+        public readonly int DetailedScoreJson = reader.GetOrdinal("DetailedScoreJson");
+        public readonly int StartedAt = reader.GetOrdinal("StartedAt");
+        public readonly int FinishedAt = reader.GetOrdinal("FinishedAt");
+        public readonly int LastActivityAt = reader.GetOrdinal("LastActivityAt");
+        public readonly int Notes = reader.GetOrdinal("Notes");
+        public readonly int DropReason = reader.GetOrdinal("DropReason");
+        public readonly int DropNotes = reader.GetOrdinal("DropNotes");
+        public readonly int QuotesJson = reader.GetOrdinal("QuotesJson");
+        public readonly int Description = reader.GetOrdinal("Description");
+        public readonly int TrailerVideoId = reader.GetOrdinal("TrailerVideoId");
+        public readonly int CoverUrl = reader.GetOrdinal("CoverUrl");
+        public readonly int CoversJson = reader.GetOrdinal("CoversJson");
+        public readonly int CreatorImageUrl = reader.GetOrdinal("CreatorImageUrl");
+        public readonly int SyncStatus = reader.GetOrdinal("SyncStatus");
+        public readonly int CreatedAt = reader.GetOrdinal("CreatedAt");
+        public readonly int UpdatedAt = reader.GetOrdinal("UpdatedAt");
+        public readonly int FranchiseId = reader.GetOrdinal("FranchiseId");
+        public readonly int FranchiseOrder = reader.GetOrdinal("FranchiseOrder");
+        public readonly int ExternalId = reader.GetOrdinal("ExternalId");
+        public readonly int ExternalSource = reader.GetOrdinal("ExternalSource");
+        public readonly int ImportSource = reader.GetOrdinal("ImportSource");
+        public readonly int ExternalRating = reader.GetOrdinal("ExternalRating");
+        public readonly int ExternalRatingVotes = reader.GetOrdinal("ExternalRatingVotes");
+        public readonly int ExternalRatingsJson = reader.GetOrdinal("ExternalRatingsJson");
+        public readonly int NextAutoRefreshAt = reader.GetOrdinal("NextAutoRefreshAt");
+        public readonly int AutoRefreshIntervalDays = reader.GetOrdinal("AutoRefreshIntervalDays");
+        public readonly int LastAutoRefreshedAt = reader.GetOrdinal("LastAutoRefreshedAt");
+        public readonly int ReleaseDate = reader.GetOrdinal("ReleaseDate");
+        public readonly int ReleaseYear = reader.GetOrdinal("ReleaseYear");
+        public readonly int EndDate = reader.GetOrdinal("EndDate");
+        public readonly int WatchedOn = reader.GetOrdinal("WatchedOn");
+        public readonly int ReleaseStatus = reader.GetOrdinal("ReleaseStatus");
+        public readonly int OriginalLanguage = reader.GetOrdinal("OriginalLanguage");
+        public readonly int CountryOfOrigin = reader.GetOrdinal("CountryOfOrigin");
+        public readonly int OriginalTitle = reader.GetOrdinal("OriginalTitle");
+        public readonly int CastJson = reader.GetOrdinal("CastJson");
+        public readonly int StaffJson = reader.GetOrdinal("StaffJson");
+        public readonly int TranslatedSynopsis = reader.GetOrdinal("TranslatedSynopsis");
+        public readonly int TranslationLanguage = reader.GetOrdinal("TranslationLanguage");
+        public readonly int Genres = reader.GetOrdinal("Genres");
+        public readonly int Tags = reader.GetOrdinal("Tags");
+        public readonly int UnlockedAchievements = reader.GetOrdinal("UnlockedAchievements");
+        public readonly int UserPlatform = reader.GetOrdinal("UserPlatform");
+        public readonly int RelatedMediaJson = reader.GetOrdinal("RelatedMediaJson");
+        public readonly int PendingMatchesJson = reader.GetOrdinal("PendingMatchesJson");
+        public readonly int RelatedSource = reader.GetOrdinal("RelatedSource");
+        public readonly int AchievementsJson = reader.GetOrdinal("AchievementsJson");
+        public readonly int RecommendationsJson = reader.GetOrdinal("RecommendationsJson");
+        public readonly int RecommendationsUpdatedAt = reader.GetOrdinal("RecommendationsUpdatedAt");
+        public readonly int IsCustomEdited = reader.GetOrdinal("IsCustomEdited");
+        public readonly int MediaType = reader.GetOrdinal("MediaType");
+        public readonly int Manga_Author = reader.GetOrdinal("Manga_Author");
+        public readonly int Manga_RomajiTitle = reader.GetOrdinal("Manga_RomajiTitle");
+        public readonly int Manga_Format = reader.GetOrdinal("Manga_Format");
+        public readonly int CurrentVolume = reader.GetOrdinal("CurrentVolume");
+        public readonly int Manga_TotalVolumes = reader.GetOrdinal("Manga_TotalVolumes");
+        public readonly int Author = reader.GetOrdinal("Author");
+        public readonly int CurrentPage = reader.GetOrdinal("CurrentPage");
+        public readonly int TotalPages = reader.GetOrdinal("TotalPages");
+        public readonly int CurrentChapter = reader.GetOrdinal("CurrentChapter");
+        public readonly int TotalChapters = reader.GetOrdinal("TotalChapters");
+        public readonly int DurationMinutes = reader.GetOrdinal("DurationMinutes");
+        public readonly int Director = reader.GetOrdinal("Director");
+        public readonly int Movie_IsAnime = reader.GetOrdinal("Movie_IsAnime");
+        public readonly int Movie_Studio = reader.GetOrdinal("Movie_Studio");
+        public readonly int Movie_RomajiTitle = reader.GetOrdinal("Movie_RomajiTitle");
+        public readonly int Network = reader.GetOrdinal("Network");
+        public readonly int TvShow_IsAnime = reader.GetOrdinal("TvShow_IsAnime");
+        public readonly int TvShow_Studio = reader.GetOrdinal("TvShow_Studio");
+        public readonly int TvShow_RomajiTitle = reader.GetOrdinal("TvShow_RomajiTitle");
+        public readonly int TvShow_EpisodeDurationMinutes = reader.GetOrdinal("TvShow_EpisodeDurationMinutes");
+        public readonly int Platform = reader.GetOrdinal("Platform");
+        public readonly int HoursPlayed = reader.GetOrdinal("HoursPlayed");
+        public readonly int Studio = reader.GetOrdinal("Studio");
+    }
+
     internal static MediaItemRow ReadMediaItemRow(DbDataReader reader)
+    {
+        return ReadMediaItemRow(reader, new MediaItemOrdinals(reader));
+    }
+
+    internal static MediaItemRow ReadMediaItemRow(DbDataReader reader, in MediaItemOrdinals ordinals)
     {
         return new MediaItemRow
         {
-            Id = reader.GetString(reader.GetOrdinal("Id")),
-            Title = reader.GetString(reader.GetOrdinal("Title")),
-            Status = reader.GetInt32(reader.GetOrdinal("Status")),
-            Score = reader.IsDBNull(reader.GetOrdinal("Score")) ? null : reader.GetInt32(reader.GetOrdinal("Score")),
-            DetailedScoreJson = reader.IsDBNull(reader.GetOrdinal("DetailedScoreJson")) ? null : reader.GetString(reader.GetOrdinal("DetailedScoreJson")),
-            StartedAt = ReadNullableDateTime(reader, "StartedAt"),
-            FinishedAt = ReadNullableDateTime(reader, "FinishedAt"),
-            LastActivityAt = ReadNullableDateTime(reader, "LastActivityAt"),
-            Notes = reader.IsDBNull(reader.GetOrdinal("Notes")) ? null : reader.GetString(reader.GetOrdinal("Notes")),
-            DropReason = reader.IsDBNull(reader.GetOrdinal("DropReason")) ? null : reader.GetString(reader.GetOrdinal("DropReason")),
-            DropNotes = reader.IsDBNull(reader.GetOrdinal("DropNotes")) ? null : reader.GetString(reader.GetOrdinal("DropNotes")),
-            QuotesJson = reader.IsDBNull(reader.GetOrdinal("QuotesJson")) ? null : reader.GetString(reader.GetOrdinal("QuotesJson")),
-            Description = reader.IsDBNull(reader.GetOrdinal("Description")) ? null : reader.GetString(reader.GetOrdinal("Description")),
-            TrailerVideoId = reader.IsDBNull(reader.GetOrdinal("TrailerVideoId")) ? null : reader.GetString(reader.GetOrdinal("TrailerVideoId")),
-            CoverUrl = reader.IsDBNull(reader.GetOrdinal("CoverUrl")) ? null : reader.GetString(reader.GetOrdinal("CoverUrl")),
-            CoversJson = reader.IsDBNull(reader.GetOrdinal("CoversJson")) ? null : reader.GetString(reader.GetOrdinal("CoversJson")),
-            CreatorImageUrl = reader.IsDBNull(reader.GetOrdinal("CreatorImageUrl")) ? null : reader.GetString(reader.GetOrdinal("CreatorImageUrl")),
-            SyncStatus = (SyncStatus)reader.GetInt32(reader.GetOrdinal("SyncStatus")),
-            CreatedAt = reader.GetDateTime(reader.GetOrdinal("CreatedAt")),
-            UpdatedAt = reader.GetDateTime(reader.GetOrdinal("UpdatedAt")),
-            FranchiseId = reader.IsDBNull(reader.GetOrdinal("FranchiseId")) ? null : reader.GetString(reader.GetOrdinal("FranchiseId")),
-            FranchiseOrder = reader.IsDBNull(reader.GetOrdinal("FranchiseOrder")) ? null : reader.GetInt32(reader.GetOrdinal("FranchiseOrder")),
-            ExternalId = reader.IsDBNull(reader.GetOrdinal("ExternalId")) ? null : reader.GetString(reader.GetOrdinal("ExternalId")),
-            ExternalSource = reader.IsDBNull(reader.GetOrdinal("ExternalSource")) ? null : reader.GetString(reader.GetOrdinal("ExternalSource")),
-            ImportSource = reader.IsDBNull(reader.GetOrdinal("ImportSource")) ? null : reader.GetString(reader.GetOrdinal("ImportSource")),
-            ExternalRating = reader.IsDBNull(reader.GetOrdinal("ExternalRating")) ? null : reader.GetDouble(reader.GetOrdinal("ExternalRating")),
-            ExternalRatingVotes = reader.IsDBNull(reader.GetOrdinal("ExternalRatingVotes")) ? null : reader.GetInt32(reader.GetOrdinal("ExternalRatingVotes")),
-            ExternalRatingsJson = reader.IsDBNull(reader.GetOrdinal("ExternalRatingsJson")) ? null : reader.GetString(reader.GetOrdinal("ExternalRatingsJson")),
-            NextAutoRefreshAt = ReadNullableDateTime(reader, "NextAutoRefreshAt"),
-            AutoRefreshIntervalDays = reader.GetInt32(reader.GetOrdinal("AutoRefreshIntervalDays")),
-            LastAutoRefreshedAt = ReadNullableDateTime(reader, "LastAutoRefreshedAt"),
-            ReleaseDate = ReadNullableDateTime(reader, "ReleaseDate"),
-            ReleaseYear = reader.IsDBNull(reader.GetOrdinal("ReleaseYear")) ? null : reader.GetInt32(reader.GetOrdinal("ReleaseYear")),
-            EndDate = ReadNullableDateTime(reader, "EndDate"),
-            WatchedOn = reader.IsDBNull(reader.GetOrdinal("WatchedOn")) ? null : reader.GetString(reader.GetOrdinal("WatchedOn")),
-            ReleaseStatus = reader.IsDBNull(reader.GetOrdinal("ReleaseStatus")) ? null : reader.GetString(reader.GetOrdinal("ReleaseStatus")),
-            OriginalLanguage = reader.IsDBNull(reader.GetOrdinal("OriginalLanguage")) ? null : reader.GetString(reader.GetOrdinal("OriginalLanguage")),
-            CountryOfOrigin = reader.IsDBNull(reader.GetOrdinal("CountryOfOrigin")) ? null : reader.GetString(reader.GetOrdinal("CountryOfOrigin")),
-            OriginalTitle = reader.IsDBNull(reader.GetOrdinal("OriginalTitle")) ? null : reader.GetString(reader.GetOrdinal("OriginalTitle")),
-            CastJson = reader.IsDBNull(reader.GetOrdinal("CastJson")) ? null : reader.GetString(reader.GetOrdinal("CastJson")),
-            StaffJson = reader.IsDBNull(reader.GetOrdinal("StaffJson")) ? null : reader.GetString(reader.GetOrdinal("StaffJson")),
-            TranslatedSynopsis = reader.IsDBNull(reader.GetOrdinal("TranslatedSynopsis")) ? null : reader.GetString(reader.GetOrdinal("TranslatedSynopsis")),
-            TranslationLanguage = reader.IsDBNull(reader.GetOrdinal("TranslationLanguage")) ? null : reader.GetString(reader.GetOrdinal("TranslationLanguage")),
-            Genres = reader.IsDBNull(reader.GetOrdinal("Genres")) ? null : reader.GetString(reader.GetOrdinal("Genres")),
-            Tags = reader.IsDBNull(reader.GetOrdinal("Tags")) ? null : reader.GetString(reader.GetOrdinal("Tags")),
-            UnlockedAchievements = reader.IsDBNull(reader.GetOrdinal("UnlockedAchievements")) ? null : reader.GetString(reader.GetOrdinal("UnlockedAchievements")),
-            UserPlatform = reader.IsDBNull(reader.GetOrdinal("UserPlatform")) ? null : reader.GetString(reader.GetOrdinal("UserPlatform")),
-            RelatedMediaJson = reader.IsDBNull(reader.GetOrdinal("RelatedMediaJson")) ? null : reader.GetString(reader.GetOrdinal("RelatedMediaJson")),
-            PendingMatchesJson = reader.IsDBNull(reader.GetOrdinal("PendingMatchesJson")) ? null : reader.GetString(reader.GetOrdinal("PendingMatchesJson")),
-            RelatedSource = reader.IsDBNull(reader.GetOrdinal("RelatedSource")) ? null : reader.GetString(reader.GetOrdinal("RelatedSource")),
-            AchievementsJson = reader.IsDBNull(reader.GetOrdinal("AchievementsJson")) ? null : reader.GetString(reader.GetOrdinal("AchievementsJson")),
-            RecommendationsJson = reader.IsDBNull(reader.GetOrdinal("RecommendationsJson")) ? null : reader.GetString(reader.GetOrdinal("RecommendationsJson")),
-            RecommendationsUpdatedAt = ReadNullableDateTime(reader, "RecommendationsUpdatedAt"),
-            IsCustomEdited = reader.GetBoolean(reader.GetOrdinal("IsCustomEdited")),
-            MediaType = reader.GetString(reader.GetOrdinal("MediaType")),
-            Author = reader.GetString(reader.GetOrdinal("MediaType")) == SqliteSchemaInitializer.MediaTypes.Manga
-                ? (reader.IsDBNull(reader.GetOrdinal("Manga_Author"))
-                    ? (reader.IsDBNull(reader.GetOrdinal("Author")) ? null : reader.GetString(reader.GetOrdinal("Author")))
-                    : reader.GetString(reader.GetOrdinal("Manga_Author")))
-                : (reader.IsDBNull(reader.GetOrdinal("Author")) ? null : reader.GetString(reader.GetOrdinal("Author"))),
-            CurrentPage = reader.IsDBNull(reader.GetOrdinal("CurrentPage")) ? null : reader.GetInt32(reader.GetOrdinal("CurrentPage")),
-            TotalPages = reader.IsDBNull(reader.GetOrdinal("TotalPages")) ? null : reader.GetInt32(reader.GetOrdinal("TotalPages")),
-            CurrentChapter = reader.IsDBNull(reader.GetOrdinal("CurrentChapter")) ? null : reader.GetInt32(reader.GetOrdinal("CurrentChapter")),
-            TotalChapters = reader.IsDBNull(reader.GetOrdinal("TotalChapters")) ? null : reader.GetInt32(reader.GetOrdinal("TotalChapters")),
-            Manga_Author = reader.IsDBNull(reader.GetOrdinal("Manga_Author")) ? null : reader.GetString(reader.GetOrdinal("Manga_Author")),
-            Manga_RomajiTitle = reader.IsDBNull(reader.GetOrdinal("Manga_RomajiTitle")) ? null : reader.GetString(reader.GetOrdinal("Manga_RomajiTitle")),
-            Manga_Format = reader.IsDBNull(reader.GetOrdinal("Manga_Format")) ? null : reader.GetString(reader.GetOrdinal("Manga_Format")),
-            CurrentVolume = reader.IsDBNull(reader.GetOrdinal("CurrentVolume")) ? null : reader.GetInt32(reader.GetOrdinal("CurrentVolume")),
-            Manga_TotalVolumes = reader.IsDBNull(reader.GetOrdinal("Manga_TotalVolumes")) ? null : reader.GetInt32(reader.GetOrdinal("Manga_TotalVolumes")),
-            DurationMinutes = reader.IsDBNull(reader.GetOrdinal("DurationMinutes")) ? null : reader.GetInt32(reader.GetOrdinal("DurationMinutes")),
-            Director = reader.IsDBNull(reader.GetOrdinal("Director")) ? null : reader.GetString(reader.GetOrdinal("Director")),
-            Movie_IsAnime = reader.IsDBNull(reader.GetOrdinal("Movie_IsAnime")) ? null : reader.GetBoolean(reader.GetOrdinal("Movie_IsAnime")),
-            Movie_Studio = reader.IsDBNull(reader.GetOrdinal("Movie_Studio")) ? null : reader.GetString(reader.GetOrdinal("Movie_Studio")),
-            Movie_RomajiTitle = reader.IsDBNull(reader.GetOrdinal("Movie_RomajiTitle")) ? null : reader.GetString(reader.GetOrdinal("Movie_RomajiTitle")),
-            Network = reader.IsDBNull(reader.GetOrdinal("Network")) ? null : reader.GetString(reader.GetOrdinal("Network")),
-            TvShow_IsAnime = reader.IsDBNull(reader.GetOrdinal("TvShow_IsAnime")) ? null : reader.GetBoolean(reader.GetOrdinal("TvShow_IsAnime")),
-            TvShow_Studio = reader.IsDBNull(reader.GetOrdinal("TvShow_Studio")) ? null : reader.GetString(reader.GetOrdinal("TvShow_Studio")),
-            TvShow_RomajiTitle = reader.IsDBNull(reader.GetOrdinal("TvShow_RomajiTitle")) ? null : reader.GetString(reader.GetOrdinal("TvShow_RomajiTitle")),
-            TvShow_EpisodeDurationMinutes = reader.IsDBNull(reader.GetOrdinal("TvShow_EpisodeDurationMinutes")) ? null : reader.GetInt32(reader.GetOrdinal("TvShow_EpisodeDurationMinutes")),
-            Platform = reader.IsDBNull(reader.GetOrdinal("Platform")) ? null : reader.GetString(reader.GetOrdinal("Platform")),
-            HoursPlayed = reader.IsDBNull(reader.GetOrdinal("HoursPlayed")) ? null : reader.GetInt32(reader.GetOrdinal("HoursPlayed")),
-            Studio = reader.IsDBNull(reader.GetOrdinal("Studio")) ? null : reader.GetString(reader.GetOrdinal("Studio")),
+            Id = reader.GetString(ordinals.Id),
+            Title = reader.GetString(ordinals.Title),
+            Status = reader.GetInt32(ordinals.Status),
+            Score = reader.IsDBNull(ordinals.Score) ? null : reader.GetInt32(ordinals.Score),
+            DetailedScoreJson = reader.IsDBNull(ordinals.DetailedScoreJson) ? null : reader.GetString(ordinals.DetailedScoreJson),
+            StartedAt = ReadNullableDateTime(reader, ordinals.StartedAt),
+            FinishedAt = ReadNullableDateTime(reader, ordinals.FinishedAt),
+            LastActivityAt = ReadNullableDateTime(reader, ordinals.LastActivityAt),
+            Notes = reader.IsDBNull(ordinals.Notes) ? null : reader.GetString(ordinals.Notes),
+            DropReason = reader.IsDBNull(ordinals.DropReason) ? null : reader.GetString(ordinals.DropReason),
+            DropNotes = reader.IsDBNull(ordinals.DropNotes) ? null : reader.GetString(ordinals.DropNotes),
+            QuotesJson = reader.IsDBNull(ordinals.QuotesJson) ? null : reader.GetString(ordinals.QuotesJson),
+            Description = reader.IsDBNull(ordinals.Description) ? null : reader.GetString(ordinals.Description),
+            TrailerVideoId = reader.IsDBNull(ordinals.TrailerVideoId) ? null : reader.GetString(ordinals.TrailerVideoId),
+            CoverUrl = reader.IsDBNull(ordinals.CoverUrl) ? null : reader.GetString(ordinals.CoverUrl),
+            CoversJson = reader.IsDBNull(ordinals.CoversJson) ? null : reader.GetString(ordinals.CoversJson),
+            CreatorImageUrl = reader.IsDBNull(ordinals.CreatorImageUrl) ? null : reader.GetString(ordinals.CreatorImageUrl),
+            SyncStatus = (SyncStatus)reader.GetInt32(ordinals.SyncStatus),
+            CreatedAt = reader.GetDateTime(ordinals.CreatedAt),
+            UpdatedAt = reader.GetDateTime(ordinals.UpdatedAt),
+            FranchiseId = reader.IsDBNull(ordinals.FranchiseId) ? null : reader.GetString(ordinals.FranchiseId),
+            FranchiseOrder = reader.IsDBNull(ordinals.FranchiseOrder) ? null : reader.GetInt32(ordinals.FranchiseOrder),
+            ExternalId = reader.IsDBNull(ordinals.ExternalId) ? null : reader.GetString(ordinals.ExternalId),
+            ExternalSource = reader.IsDBNull(ordinals.ExternalSource) ? null : reader.GetString(ordinals.ExternalSource),
+            ImportSource = reader.IsDBNull(ordinals.ImportSource) ? null : reader.GetString(ordinals.ImportSource),
+            ExternalRating = reader.IsDBNull(ordinals.ExternalRating) ? null : reader.GetDouble(ordinals.ExternalRating),
+            ExternalRatingVotes = reader.IsDBNull(ordinals.ExternalRatingVotes) ? null : reader.GetInt32(ordinals.ExternalRatingVotes),
+            ExternalRatingsJson = reader.IsDBNull(ordinals.ExternalRatingsJson) ? null : reader.GetString(ordinals.ExternalRatingsJson),
+            NextAutoRefreshAt = ReadNullableDateTime(reader, ordinals.NextAutoRefreshAt),
+            AutoRefreshIntervalDays = reader.GetInt32(ordinals.AutoRefreshIntervalDays),
+            LastAutoRefreshedAt = ReadNullableDateTime(reader, ordinals.LastAutoRefreshedAt),
+            ReleaseDate = ReadNullableDateTime(reader, ordinals.ReleaseDate),
+            ReleaseYear = reader.IsDBNull(ordinals.ReleaseYear) ? null : reader.GetInt32(ordinals.ReleaseYear),
+            EndDate = ReadNullableDateTime(reader, ordinals.EndDate),
+            WatchedOn = reader.IsDBNull(ordinals.WatchedOn) ? null : reader.GetString(ordinals.WatchedOn),
+            ReleaseStatus = reader.IsDBNull(ordinals.ReleaseStatus) ? null : reader.GetString(ordinals.ReleaseStatus),
+            OriginalLanguage = reader.IsDBNull(ordinals.OriginalLanguage) ? null : reader.GetString(ordinals.OriginalLanguage),
+            CountryOfOrigin = reader.IsDBNull(ordinals.CountryOfOrigin) ? null : reader.GetString(ordinals.CountryOfOrigin),
+            OriginalTitle = reader.IsDBNull(ordinals.OriginalTitle) ? null : reader.GetString(ordinals.OriginalTitle),
+            CastJson = reader.IsDBNull(ordinals.CastJson) ? null : reader.GetString(ordinals.CastJson),
+            StaffJson = reader.IsDBNull(ordinals.StaffJson) ? null : reader.GetString(ordinals.StaffJson),
+            TranslatedSynopsis = reader.IsDBNull(ordinals.TranslatedSynopsis) ? null : reader.GetString(ordinals.TranslatedSynopsis),
+            TranslationLanguage = reader.IsDBNull(ordinals.TranslationLanguage) ? null : reader.GetString(ordinals.TranslationLanguage),
+            Genres = reader.IsDBNull(ordinals.Genres) ? null : reader.GetString(ordinals.Genres),
+            Tags = reader.IsDBNull(ordinals.Tags) ? null : reader.GetString(ordinals.Tags),
+            UnlockedAchievements = reader.IsDBNull(ordinals.UnlockedAchievements) ? null : reader.GetString(ordinals.UnlockedAchievements),
+            UserPlatform = reader.IsDBNull(ordinals.UserPlatform) ? null : reader.GetString(ordinals.UserPlatform),
+            RelatedMediaJson = reader.IsDBNull(ordinals.RelatedMediaJson) ? null : reader.GetString(ordinals.RelatedMediaJson),
+            PendingMatchesJson = reader.IsDBNull(ordinals.PendingMatchesJson) ? null : reader.GetString(ordinals.PendingMatchesJson),
+            RelatedSource = reader.IsDBNull(ordinals.RelatedSource) ? null : reader.GetString(ordinals.RelatedSource),
+            AchievementsJson = reader.IsDBNull(ordinals.AchievementsJson) ? null : reader.GetString(ordinals.AchievementsJson),
+            RecommendationsJson = reader.IsDBNull(ordinals.RecommendationsJson) ? null : reader.GetString(ordinals.RecommendationsJson),
+            RecommendationsUpdatedAt = ReadNullableDateTime(reader, ordinals.RecommendationsUpdatedAt),
+            IsCustomEdited = reader.GetBoolean(ordinals.IsCustomEdited),
+            MediaType = NormalizeMediaType(reader.GetString(ordinals.MediaType)),
+            Author = NormalizeMediaType(reader.GetString(ordinals.MediaType)) == SqliteSchemaInitializer.MediaTypes.Manga
+                ? (reader.IsDBNull(ordinals.Manga_Author)
+                    ? (reader.IsDBNull(ordinals.Author) ? null : reader.GetString(ordinals.Author))
+                    : reader.GetString(ordinals.Manga_Author))
+                : (reader.IsDBNull(ordinals.Author) ? null : reader.GetString(ordinals.Author)),
+            CurrentPage = reader.IsDBNull(ordinals.CurrentPage) ? null : reader.GetInt32(ordinals.CurrentPage),
+            TotalPages = reader.IsDBNull(ordinals.TotalPages) ? null : reader.GetInt32(ordinals.TotalPages),
+            CurrentChapter = reader.IsDBNull(ordinals.CurrentChapter) ? null : reader.GetInt32(ordinals.CurrentChapter),
+            TotalChapters = reader.IsDBNull(ordinals.TotalChapters) ? null : reader.GetInt32(ordinals.TotalChapters),
+            Manga_Author = reader.IsDBNull(ordinals.Manga_Author) ? null : reader.GetString(ordinals.Manga_Author),
+            Manga_RomajiTitle = reader.IsDBNull(ordinals.Manga_RomajiTitle) ? null : reader.GetString(ordinals.Manga_RomajiTitle),
+            Manga_Format = reader.IsDBNull(ordinals.Manga_Format) ? null : reader.GetString(ordinals.Manga_Format),
+            CurrentVolume = reader.IsDBNull(ordinals.CurrentVolume) ? null : reader.GetInt32(ordinals.CurrentVolume),
+            Manga_TotalVolumes = reader.IsDBNull(ordinals.Manga_TotalVolumes) ? null : reader.GetInt32(ordinals.Manga_TotalVolumes),
+            DurationMinutes = reader.IsDBNull(ordinals.DurationMinutes) ? null : reader.GetInt32(ordinals.DurationMinutes),
+            Director = reader.IsDBNull(ordinals.Director) ? null : reader.GetString(ordinals.Director),
+            Movie_IsAnime = reader.IsDBNull(ordinals.Movie_IsAnime) ? null : reader.GetBoolean(ordinals.Movie_IsAnime),
+            Movie_Studio = reader.IsDBNull(ordinals.Movie_Studio) ? null : reader.GetString(ordinals.Movie_Studio),
+            Movie_RomajiTitle = reader.IsDBNull(ordinals.Movie_RomajiTitle) ? null : reader.GetString(ordinals.Movie_RomajiTitle),
+            Network = reader.IsDBNull(ordinals.Network) ? null : reader.GetString(ordinals.Network),
+            TvShow_IsAnime = reader.IsDBNull(ordinals.TvShow_IsAnime) ? null : reader.GetBoolean(ordinals.TvShow_IsAnime),
+            TvShow_Studio = reader.IsDBNull(ordinals.TvShow_Studio) ? null : reader.GetString(ordinals.TvShow_Studio),
+            TvShow_RomajiTitle = reader.IsDBNull(ordinals.TvShow_RomajiTitle) ? null : reader.GetString(ordinals.TvShow_RomajiTitle),
+            TvShow_EpisodeDurationMinutes = reader.IsDBNull(ordinals.TvShow_EpisodeDurationMinutes) ? null : reader.GetInt32(ordinals.TvShow_EpisodeDurationMinutes),
+            Platform = reader.IsDBNull(ordinals.Platform) ? null : reader.GetString(ordinals.Platform),
+            HoursPlayed = reader.IsDBNull(ordinals.HoursPlayed) ? null : reader.GetInt32(ordinals.HoursPlayed),
+            Studio = reader.IsDBNull(ordinals.Studio) ? null : reader.GetString(ordinals.Studio),
         };
     }
 
     private static DateTime? ReadNullableDateTime(DbDataReader reader, string columnName)
     {
-        var ordinal = reader.GetOrdinal(columnName);
+        return ReadNullableDateTime(reader, reader.GetOrdinal(columnName));
+    }
+
+    private static DateTime? ReadNullableDateTime(DbDataReader reader, int ordinal)
+    {
         return reader.IsDBNull(ordinal) ? null : reader.GetDateTime(ordinal);
     }
+
+    // Older rows / imports can carry "manga", "MOVIE", etc. The rest of the code switches on the
+    // canonical spelling, so normalise once at the read boundary.
+    private static string NormalizeMediaType(string value) => value.Trim().ToLowerInvariant() switch
+    {
+        "game" => SqliteSchemaInitializer.MediaTypes.Game,
+        "book" => SqliteSchemaInitializer.MediaTypes.Book,
+        "manga" => SqliteSchemaInitializer.MediaTypes.Manga,
+        "movie" => SqliteSchemaInitializer.MediaTypes.Movie,
+        "tvshow" => SqliteSchemaInitializer.MediaTypes.TvShow,
+        _ => value,
+    };
 
     internal static async Task<List<TvSeason>> LoadTvSeasons(DbConnection conn, string tvShowId, CancellationToken ct)
     {
@@ -556,11 +660,11 @@ public sealed class AppDbContext : IDisposable, IAsyncDisposable
 
         if (isAnime is { } anime)
         {
-            sb.Append(" AND ((m.MediaType = 'Movie' AND m.Movie_IsAnime = @p").Append(paramIndex);
-            sb.Append(") OR (m.MediaType = 'TvShow' AND m.TvShow_IsAnime = @p").Append(paramIndex + 1).Append("))");
-            cmd.Parameters.Add(new SqliteParameter($"@p{paramIndex}", anime ? 1 : 0));
-            cmd.Parameters.Add(new SqliteParameter($"@p{paramIndex + 1}", anime ? 1 : 0));
-            paramIndex += 2;
+            // The type columns are nullable, so "not anime" must treat NULL as false; a plain
+            // equality would silently drop rows that never had the flag written.
+            sb.Append(anime
+                ? " AND (m.Movie_IsAnime = 1 OR m.TvShow_IsAnime = 1)"
+                : " AND (COALESCE(m.Movie_IsAnime, 0) = 0 AND COALESCE(m.TvShow_IsAnime, 0) = 0)");
         }
 
         if (!string.IsNullOrWhiteSpace(search))
@@ -589,9 +693,10 @@ public sealed class AppDbContext : IDisposable, IAsyncDisposable
         using var reader = await cmd.ExecuteReaderAsync(ct);
 
         var rows = new List<MediaItemRow>();
+        var ordinals = new MediaItemOrdinals(reader);
         while (await reader.ReadAsync(ct))
         {
-            rows.Add(ReadMediaItemRow(reader));
+            rows.Add(ReadMediaItemRow(reader, in ordinals));
         }
 
         // Collect distinct franchise IDs and load in one batch.
@@ -617,90 +722,75 @@ public sealed class AppDbContext : IDisposable, IAsyncDisposable
             }
         }
 
-        // Load seasons for TvShow rows.
-        var tvShowIds = rows.Where(r => r.MediaType == SqliteSchemaInitializer.MediaTypes.TvShow).Select(r => r.Id.ToUpperInvariant()).Distinct().ToList();
-        var seasonsByShow = new Dictionary<string, List<TvSeason>>(StringComparer.OrdinalIgnoreCase);
-        if (tvShowIds.Count > 0)
+        // Manga keeps scalar chapter/volume columns directly on the MediaItems row, so its
+        // volumes are intentionally NOT loaded here (that caused N round-trips and freezes for
+        // large manga categories). TvShow.TotalEpisodesCount / TotalEpisodesWatched / Seasons.Count
+        // are COMPUTED from the Seasons list, not stored flat, so load all TV-show seasons in ONE
+        // batched query instead of per-show round-trips.
+        var seasonMap = new Dictionary<string, List<TvSeason>>(StringComparer.OrdinalIgnoreCase);
+        var showIds = rows.Where(r => r.MediaType == SqliteSchemaInitializer.MediaTypes.TvShow)
+            .Select(r => r.Id.ToUpperInvariant()).Distinct().ToList();
+        if (showIds.Count > 0)
         {
-            var seasCmd = conn.CreateCommand();
-            seasCmd.CommandText = $"SELECT * FROM TvSeasons WHERE TvShowId IN ({string.Join(",", tvShowIds.Select((_, i) => $"@sid{i}"))}) ORDER BY TvShowId, SeasonNumber";
-            for (var i = 0; i < tvShowIds.Count; i++)
-                seasCmd.Parameters.Add(new SqliteParameter($"@sid{i}", tvShowIds[i]));
-            using var seasReader = await seasCmd.ExecuteReaderAsync(ct);
-            while (await seasReader.ReadAsync(ct))
-            {
-                var key = seasReader.GetString(seasReader.GetOrdinal("TvShowId")).ToUpperInvariant();
-                if (!seasonsByShow.TryGetValue(key, out var list))
-                {
-                    list = new List<TvSeason>();
-                    seasonsByShow[key] = list;
-                }
-                list.Add(new TvSeason
-                {
-                    Id = Guid.Parse(seasReader.GetString(seasReader.GetOrdinal("Id"))),
-                    SeasonNumber = seasReader.GetInt32(seasReader.GetOrdinal("SeasonNumber")),
-                    Title = seasReader.GetString(seasReader.GetOrdinal("Title")),
-                    CoverUrl = seasReader.IsDBNull(seasReader.GetOrdinal("CoverUrl")) ? null : seasReader.GetString(seasReader.GetOrdinal("CoverUrl")),
-                    CurrentEpisode = seasReader.GetInt32(seasReader.GetOrdinal("CurrentEpisode")),
-                    TotalEpisodes = seasReader.GetInt32(seasReader.GetOrdinal("TotalEpisodes")),
-                    Status = (MediaStatus)seasReader.GetInt32(seasReader.GetOrdinal("Status")),
-                    Score = seasReader.IsDBNull(seasReader.GetOrdinal("Score")) ? null : seasReader.GetInt32(seasReader.GetOrdinal("Score")),
-                    Notes = seasReader.IsDBNull(seasReader.GetOrdinal("Notes")) ? null : seasReader.GetString(seasReader.GetOrdinal("Notes")),
-                    AirDate = ReadNullableDateTime(seasReader, "AirDate"),
-                    EpisodesData = seasReader.IsDBNull(seasReader.GetOrdinal("EpisodesData")) ? null : seasReader.GetString(seasReader.GetOrdinal("EpisodesData")),
-                    TvShowId = Guid.Parse(seasReader.GetString(seasReader.GetOrdinal("TvShowId"))),
-                });
-            }
-        }
-
-        // Load volumes for Manga rows.
-        var mangaIds = rows.Where(r => r.MediaType == SqliteSchemaInitializer.MediaTypes.Manga).Select(r => r.Id.ToUpperInvariant()).Distinct().ToList();
-        var volumesByManga = new Dictionary<string, List<MangaVolume>>(StringComparer.OrdinalIgnoreCase);
-        if (mangaIds.Count > 0)
-        {
-            var volCmd = conn.CreateCommand();
-            volCmd.CommandText = $"SELECT * FROM MangaVolumes WHERE MangaId IN ({string.Join(",", mangaIds.Select((_, i) => $"@vid{i}"))}) ORDER BY MangaId, VolumeNumber";
-            for (var i = 0; i < mangaIds.Count; i++)
-                volCmd.Parameters.Add(new SqliteParameter($"@vid{i}", mangaIds[i]));
-            using var volReader = await volCmd.ExecuteReaderAsync(ct);
-            while (await volReader.ReadAsync(ct))
-            {
-                var key = volReader.GetString(volReader.GetOrdinal("MangaId")).ToUpperInvariant();
-                if (!volumesByManga.TryGetValue(key, out var list))
-                {
-                    list = new List<MangaVolume>();
-                    volumesByManga[key] = list;
-                }
-                list.Add(new MangaVolume
-                {
-                    Id = Guid.Parse(volReader.GetString(volReader.GetOrdinal("Id"))),
-                    VolumeNumber = volReader.GetInt32(volReader.GetOrdinal("VolumeNumber")),
-                    Title = volReader.GetString(volReader.GetOrdinal("Title")),
-                    CoverUrl = volReader.IsDBNull(volReader.GetOrdinal("CoverUrl")) ? null : volReader.GetString(volReader.GetOrdinal("CoverUrl")),
-                    CurrentPage = volReader.GetInt32(volReader.GetOrdinal("CurrentPage")),
-                    TotalPages = volReader.GetInt32(volReader.GetOrdinal("TotalPages")),
-                    CurrentChapter = volReader.GetInt32(volReader.GetOrdinal("CurrentChapter")),
-                    TotalChapters = volReader.GetInt32(volReader.GetOrdinal("TotalChapters")),
-                    Status = (MediaStatus)volReader.GetInt32(volReader.GetOrdinal("Status")),
-                    Score = volReader.IsDBNull(volReader.GetOrdinal("Score")) ? null : volReader.GetInt32(volReader.GetOrdinal("Score")),
-                    Notes = volReader.IsDBNull(volReader.GetOrdinal("Notes")) ? null : volReader.GetString(volReader.GetOrdinal("Notes")),
-                    ReleaseDate = ReadNullableDateTime(volReader, "ReleaseDate"),
-                    MangaId = Guid.Parse(volReader.GetString(volReader.GetOrdinal("MangaId"))),
-                });
-            }
+            seasonMap = await LoadTvSeasonsBatch(conn, showIds, ct);
         }
 
         var items = new List<MediaItem>(rows.Count);
         foreach (var row in rows)
         {
-            var itemKey = row.Id.ToUpperInvariant();
             var franchise = row.FranchiseId != null && franchises.TryGetValue(row.FranchiseId.ToUpperInvariant(), out var f) ? f : null;
-            var seasons = row.MediaType == SqliteSchemaInitializer.MediaTypes.TvShow && seasonsByShow.TryGetValue(itemKey, out var seasList) ? seasList : null;
-            var volumes = row.MediaType == SqliteSchemaInitializer.MediaTypes.Manga && volumesByManga.TryGetValue(itemKey, out var v) ? v : null;
-            items.Add(row.ToEntity(franchise, seasons, volumes));
+            List<TvSeason>? seasons = null;
+            if (row.MediaType == SqliteSchemaInitializer.MediaTypes.TvShow &&
+                seasonMap.TryGetValue(row.Id.ToUpperInvariant(), out var found))
+            {
+                seasons = found;
+            }
+            items.Add(row.ToEntity(franchise, seasons, null));
         }
 
         return items;
+    }
+
+    /// <summary>Loads seasons for many TV shows in one batched query, chunked to stay inside
+    /// SQLite's parameter limit.</summary>
+    private static async Task<Dictionary<string, List<TvSeason>>> LoadTvSeasonsBatch(
+        DbConnection conn, IReadOnlyList<string> tvShowIds, CancellationToken ct)
+    {
+        var result = new Dictionary<string, List<TvSeason>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var chunk in tvShowIds.Chunk(500))
+        {
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = $"SELECT * FROM TvSeasons WHERE TvShowId IN ({string.Join(",", chunk.Select((_, i) => $"@sid{i}"))}) ORDER BY TvShowId, SeasonNumber;";
+            for (var i = 0; i < chunk.Length; i++)
+                cmd.Parameters.Add(new SqliteParameter($"@sid{i}", chunk[i]));
+            using var reader = await cmd.ExecuteReaderAsync(ct);
+            while (await reader.ReadAsync(ct))
+            {
+                var season = new TvSeason
+                {
+                    Id = Guid.Parse(reader.GetString(reader.GetOrdinal("Id"))),
+                    SeasonNumber = reader.GetInt32(reader.GetOrdinal("SeasonNumber")),
+                    Title = reader.GetString(reader.GetOrdinal("Title")),
+                    CoverUrl = reader.IsDBNull(reader.GetOrdinal("CoverUrl")) ? null : reader.GetString(reader.GetOrdinal("CoverUrl")),
+                    CurrentEpisode = reader.GetInt32(reader.GetOrdinal("CurrentEpisode")),
+                    TotalEpisodes = reader.GetInt32(reader.GetOrdinal("TotalEpisodes")),
+                    Status = (MediaStatus)reader.GetInt32(reader.GetOrdinal("Status")),
+                    Score = reader.IsDBNull(reader.GetOrdinal("Score")) ? null : reader.GetInt32(reader.GetOrdinal("Score")),
+                    Notes = reader.IsDBNull(reader.GetOrdinal("Notes")) ? null : reader.GetString(reader.GetOrdinal("Notes")),
+                    AirDate = ReadNullableDateTime(reader, "AirDate"),
+                    EpisodesData = reader.IsDBNull(reader.GetOrdinal("EpisodesData")) ? null : reader.GetString(reader.GetOrdinal("EpisodesData")),
+                    TvShowId = Guid.Parse(reader.GetString(reader.GetOrdinal("TvShowId"))),
+                };
+                var key = season.TvShowId.ToString().ToUpperInvariant();
+                if (!result.TryGetValue(key, out var list))
+                {
+                    list = [];
+                    result[key] = list;
+                }
+                list.Add(season);
+            }
+        }
+        return result;
     }
 
     /// <summary>Inserts a media item row (entity must already have Id set).</summary>

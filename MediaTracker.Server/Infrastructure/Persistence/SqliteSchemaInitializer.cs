@@ -156,7 +156,7 @@ CREATE TABLE IF NOT EXISTS MediaItems (
     RecommendationsJson TEXT,
     RecommendationsUpdatedAt TEXT,
     IsCustomEdited INTEGER NOT NULL,
-    MediaType TEXT NOT NULL,
+    MediaType TEXT NOT NULL COLLATE NOCASE,
     Author TEXT,
     CurrentPage INTEGER,
     TotalPages INTEGER,

@@ -571,10 +571,9 @@ static async Task InitializeDatabaseAsync(WebApplication app)
         "UPDATE MediaItems SET SyncStatus = @ready, UpdatedAt = @now WHERE SyncStatus = @syncing;",
         new { ready = (int)SyncStatus.Ready, syncing = (int)SyncStatus.Syncing, now = DateTime.UtcNow });
 
-    // Strip external (http(s)) cover URLs so they get re-downloaded from the provider.
-    await conn.ExecuteAsync(
-        "UPDATE MediaItems SET CoverUrl = NULL, UpdatedAt = @now WHERE CoverUrl IS NOT NULL AND (CoverUrl LIKE 'http://%' OR CoverUrl LIKE 'https://%');",
-        new { now = DateTime.UtcNow });
+    // External cover URLs are kept as the fallback until ImageStorageService successfully downloads
+    // and saves a local WebP variant. Nullifying them on startup would wipe covers that can never be
+    // restored (offline restart, in-progress import), so this is intentionally not done here.
 }
 
 static void StartBackgroundFranchiseBackfill(WebApplication app)

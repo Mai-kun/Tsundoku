@@ -791,7 +791,8 @@ public sealed class DatabaseFieldPreservationTests
 
         Assert.All(inProgress.Value, item => Assert.Equal(MediaStatus.InProgress, item.Status));
         Assert.All(anime.Value, item => Assert.True(item.IsAnime));
-        Assert.All(notAnime.Value, item => Assert.False(item.IsAnime));
+        // Non-movie/tvshow rows have NULL anime flags, which the filter now treats as "not anime".
+        Assert.DoesNotContain(notAnime.Value, item => item.IsAnime == true);
         Assert.Contains(anime.Value, item => item.Type == "movie");
         Assert.Contains(anime.Value, item => item.Type == "tvshow");
         Assert.Contains(notAnime.Value, item => item.Type == "movie");

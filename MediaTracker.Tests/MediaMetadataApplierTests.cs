@@ -261,17 +261,22 @@ public class MediaMetadataApplierTests
 
     private sealed class StubImageStorage : MediaTracker.Server.Infrastructure.Storage.IImageStorageService
     {
+        public List<string> SavedUrls = [];
+
         public Task<string?> SaveCoverAsync(string externalUrl, Guid itemId, CancellationToken ct = default, string folder = "cover")
             => Task.FromResult<string?>($"local/{itemId}/{folder}.webp");
 
         public Task<MediaCoverItemDto?> SaveCoverVariantAsync(
-            string externalUrl, Guid itemId, string? source = null, CancellationToken ct = default) =>
-            Task.FromResult<MediaCoverItemDto?>(new MediaCoverItemDto(
+            string externalUrl, Guid itemId, string? source = null, CancellationToken ct = default)
+        {
+            SavedUrls.Add(externalUrl);
+            return Task.FromResult<MediaCoverItemDto?>(new MediaCoverItemDto(
                 "v1",
                 $"/media-assets/{itemId}/covers/v1/thumb.webp",
                 $"/media-assets/{itemId}/covers/v1/original.webp",
                 source,
                 DateTime.UtcNow));
+        }
 
         public Task<MediaCoverItemDto?> SaveCoverVariantAsync(
             Stream content, Guid itemId, string? source = null, CancellationToken ct = default) =>
@@ -369,5 +374,29 @@ public class MediaMetadataApplierTests
         manga.Score.Should().Be(9);
         manga.Status.Should().Be(MediaStatus.Completed);
         manga.ExternalRating.Should().Be(6.1);
+    }
+
+    [Fact]
+    public async Task ApplyOverwrite_ShouldNotDuplicateCover_WhenRefreshedTwiceWithSameSource()
+    {
+        var movie = new Movie { Title = "Old" };
+        var external = new ExternalMediaDto
+        {
+            ExternalId = "e",
+            Title = "New",
+            Type = "movie",
+            ExternalSource = "TMDb",
+            CoverUrl = "https://cdn/dune.jpg",
+        };
+        var storage = new StubImageStorage();
+
+        await MediaMetadataApplier.ApplyOverwriteAsync(movie, external, storage, CancellationToken.None);
+        await MediaMetadataApplier.ApplyOverwriteAsync(movie, external, storage, CancellationToken.None);
+
+        var covers = MediaCoverCollection.Parse(movie.CoversJson);
+        covers.Should().HaveCount(1);
+        covers[0].Source.Should().Be("TMDb");
+        // The source's URL did not change, so the cover must not be re-downloaded.
+        storage.SavedUrls.Should().HaveCount(1);
     }
 }

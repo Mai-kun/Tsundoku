@@ -39,7 +39,15 @@
   let { onImportCompleted, onNavigateToList, onClose, showCloseButton = false }: Props = $props();
 
   type Provider =
-    "anilist" | "mangalib" | "mal" | "shikimori" | "letterboxd" | "goodreads" | "steam" | "custom";
+    | "anilist"
+    | "mangalib"
+    | "mal"
+    | "shikimori"
+    | "letterboxd"
+    | "goodreads"
+    | "steam"
+    | "anixart"
+    | "custom";
 
   let provider = $state<Provider>("anilist");
   let file = $state<File | null>(null);
@@ -121,6 +129,22 @@
     { value: "Planned", label: i18n.t.importModal.statusPlanned },
     { value: "OnHold", label: i18n.t.importModal.statusOnHold },
     { value: "InProgress", label: i18n.t.importModal.statusInProgress },
+    { value: "Dropped", label: i18n.t.importModal.statusDropped },
+    { value: "skip", label: i18n.t.importModal.statusSkip },
+  ]);
+
+  let anixartCreateFavoritesList = $state(true);
+  let anixartUnwatchingStatus = $state<
+    "Planned" | "Completed" | "InProgress" | "OnHold" | "Dropped" | "skip"
+  >("Planned");
+
+  const anixartUnwatchingStatusOptions = $derived<
+    PopoverOption<"Planned" | "Completed" | "InProgress" | "OnHold" | "Dropped" | "skip">[]
+  >([
+    { value: "Planned", label: i18n.t.importModal.statusPlanned },
+    { value: "Completed", label: i18n.t.importModal.statusCompleted },
+    { value: "InProgress", label: i18n.t.importModal.statusInProgress },
+    { value: "OnHold", label: i18n.t.importModal.statusOnHold },
     { value: "Dropped", label: i18n.t.importModal.statusDropped },
     { value: "skip", label: i18n.t.importModal.statusSkip },
   ]);
@@ -475,6 +499,16 @@
       text: "var(--color-import-steam-text)",
     },
     {
+      id: "anixart",
+      icon: "AX",
+      title: "Anixart",
+      subtitle: i18n.t.importModal.subtitleAnixart,
+      accent: "#a855f7",
+      border: "rgba(168, 85, 247, 0.3)",
+      surface: "rgba(168, 85, 247, 0.1)",
+      text: "#c084fc",
+    },
+    {
       id: "custom",
       icon: "{ }",
       title: i18n.t.importModal.customTitle,
@@ -491,7 +525,7 @@
   const fileAccept = $derived(
     provider === "mal" || provider === "shikimori"
       ? ".xml,.json"
-      : provider === "letterboxd" || provider === "goodreads"
+      : provider === "letterboxd" || provider === "goodreads" || provider === "anixart"
         ? ".csv"
         : provider === "steam" || provider === "anilist"
           ? ".json"
@@ -501,7 +535,7 @@
   const allowedExtensions = $derived(
     provider === "mal" || provider === "shikimori"
       ? ["xml", "json"]
-      : provider === "letterboxd" || provider === "goodreads"
+      : provider === "letterboxd" || provider === "goodreads" || provider === "anixart"
         ? ["csv"]
         : provider === "steam" || provider === "anilist"
           ? ["json"]
@@ -517,6 +551,7 @@
       steam: i18n.t.importModal.helpSteam,
       anilist: i18n.t.importModal.helpAnilist,
       mangalib: i18n.t.importModal.helpMangalib,
+      anixart: i18n.t.importModal.helpAnixart,
       custom: i18n.t.importModal.helpCustom,
     }[provider],
   );
@@ -699,6 +734,12 @@
         form.append("skipDuplicates", String(skipDuplicates));
         if (addToList && listMode === "existing") form.append("targetListId", targetListId);
         if (addToList && listMode === "new") form.append("newListName", newListName.trim());
+        if (provider === "anixart") {
+          form.append("createCustomLists", String(anixartCreateFavoritesList));
+          if (anixartUnwatchingStatus !== "skip") {
+            form.append("customFolderStatus", anixartUnwatchingStatus);
+          }
+        }
         importTask = importFile(form);
       }
 
@@ -2488,8 +2529,36 @@
         </div>
       {/if}
 
+      {#if provider === "anixart"}
+        <div class="space-y-3 rounded-xl border border-purple-500/20 bg-purple-500/5 p-3.5">
+          <label class="text-ink flex cursor-pointer items-center gap-2.5 text-sm select-none">
+            <input
+              type="checkbox"
+              bind:checked={anixartCreateFavoritesList}
+              class="rounded border-white/20 accent-purple-500"
+            />
+            <span>{i18n.t.importModal.anixartFavoritesCheckbox}</span>
+          </label>
+
+          <div class="space-y-1.5 pt-1">
+            <label for="anixart-unwatching-status" class="text-muted block text-xs font-medium">
+              {i18n.t.importModal.anixartUnwatchingStatusLabel}
+            </label>
+            <select
+              id="anixart-unwatching-status"
+              bind:value={anixartUnwatchingStatus}
+              class="bg-field text-ink w-full cursor-pointer rounded-lg border border-white/10 px-3 py-2 text-sm transition outline-none focus:border-purple-500/50"
+            >
+              {#each anixartUnwatchingStatusOptions as opt}
+                <option value={opt.value}>{opt.label}</option>
+              {/each}
+            </select>
+          </div>
+        </div>
+      {/if}
+
       <!-- Folder Selection Filter (Common Options) -->
-      {#if provider !== "mangalib"}
+      {#if provider !== "mangalib" && provider !== "anixart"}
         <div class="space-y-2 border-t border-white/5 pt-2">
           <div class="flex items-center justify-between">
             <h3

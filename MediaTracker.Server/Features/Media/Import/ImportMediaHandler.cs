@@ -49,6 +49,7 @@ public sealed class ImportMediaHandler(
                 "steam" => SteamLibraryParser.Parse(content),
                 "anilist" => AniListImportParser.Parse(content, request.File.FileName.Contains("manga", StringComparison.OrdinalIgnoreCase)),
                 "mangalib" => MangalibParser.Parse(content),
+                "anixart" => AnixartCsvParser.Parse(content, request.CustomFolderStatus, request.CreateCustomLists),
                 "custom" => CustomImportParser.Parse(content),
                 _ => throw new FormatException("Unsupported import provider.")
             };
@@ -62,7 +63,7 @@ public sealed class ImportMediaHandler(
             request.NewListName,
             ct,
             request.CreateCustomLists,
-            request.CustomFolderStatus,
+            provider == "anixart" ? null : request.CustomFolderStatus,
             request.CustomFolderConfigs);
     }
 

@@ -48,6 +48,15 @@ tasks:
     cmds:
       - npm --prefix mediatracker-ui run check:browser-suite
 
+  check:jank:
+    desc: 'Run Playwright jank audit (long-task detection during interactions)'
+    sources:
+      - 'mediatracker-ui/src/**/*'
+      - 'mediatracker-ui/checks/e2e/jankAudit.check.ts'
+    method: checksum
+    cmds:
+      - npm --prefix mediatracker-ui run check:jank
+
   benchmarks:
     desc: 'Run BenchmarkDotNet microprofiling suite'
     sources:

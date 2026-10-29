@@ -19,6 +19,7 @@ export interface ScreenCdpMetric {
   jsHeapUsedMb: number;
   tsundokuPerfMarks: Record<string, number>;
   measures: Array<{ name: string; duration: number }>;
+  webVitals: { fcpMs: number; lcpMs: number; cls: number };
 }
 
 export interface CdpReport {
@@ -77,6 +78,38 @@ async function getRawMetrics(cdp: CDPSession): Promise<RawCdpMetrics> {
   };
 }
 
+// Google Core Web Vitals (FCP, LCP, CLS) captured in-page via PerformanceObserver.
+// Buffered observers capture entries from the start of the current navigation.
+async function collectWebVitals(page: Page): Promise<{ fcp: number; lcp: number; cls: number }> {
+  return page.evaluate(() => {
+    return new Promise<{ fcp: number; lcp: number; cls: number }>((resolve) => {
+      let fcp = 0, lcp = 0, cls = 0;
+      new PerformanceObserver((entryList) => {
+        for (const entry of entryList.getEntriesByName('first-contentful-paint')) {
+          fcp = Math.round(entry.startTime);
+        }
+      }).observe({ type: 'paint', buffered: true });
+
+      new PerformanceObserver((entryList) => {
+        const entries = entryList.getEntries();
+        if (entries.length > 0) {
+          lcp = Math.round(entries[entries.length - 1].startTime);
+        }
+      }).observe({ type: 'largest-contentful-paint', buffered: true });
+
+      new PerformanceObserver((entryList) => {
+        for (const entry of entryList.getEntries()) {
+          if (!(entry as any).hadRecentInput) {
+            cls += (entry as any).value;
+          }
+        }
+      }).observe({ type: 'layout-shift', buffered: true });
+
+      setTimeout(() => resolve({ fcp, lcp, cls: parseFloat(cls.toFixed(3)) }), 1000);
+    });
+  });
+}
+
 export async function runCdpProfiler(options: {
   page: Page;
   baseUrl: string;
@@ -130,6 +163,8 @@ export async function runCdpProfiler(options: {
       return { perf, measures, scrollerNodes, totalDomNodes };
     });
 
+    const webVitals = await collectWebVitals(page);
+
     const layoutDelta = Math.max(0, after.layoutDuration - before.layoutDuration);
     const recalcDelta = Math.max(0, after.recalcStyleDuration - before.recalcStyleDuration);
     const scriptDelta = Math.max(0, after.scriptDuration - before.scriptDuration);
@@ -173,6 +208,7 @@ export async function runCdpProfiler(options: {
       jsHeapUsedMb: heapMb,
       tsundokuPerfMarks: perfData.perf,
       measures: perfData.measures,
+      webVitals: { fcpMs: webVitals.fcp, lcpMs: webVitals.lcp, cls: webVitals.cls },
     };
     screens.push(metric);
     return metric;

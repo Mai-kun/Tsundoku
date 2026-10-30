@@ -32,11 +32,7 @@
 </script>
 
 <BaseCard {item} {timeHint} {onOpen} {onStatusChange} {onProgressCommitted} {onDelete}>
-  <CardTitleBlock
-    title={item.title}
-    subtitle={platform ?? i18n.t.types.game}
-    onOpen={() => onOpen(item)}
-  />
+  <CardTitleBlock title={item.title} subtitle={platform ?? i18n.t.types.game} />
 
   {#if showProgress}
     <CardProgressBar label={i18n.t.card.hours(progress.value)} ratio={null} />

@@ -8,6 +8,8 @@
   interface Props {
     src: string | null;
     alt: string;
+    /** Optional child content rendered inside the poster. */
+    children?: Snippet;
     /** Status + score cluster, rendered inside the poster's top-left corner. */
     badges?: Snippet;
     /** Destructive/secondary actions, rendered top-right and revealed on hover. */

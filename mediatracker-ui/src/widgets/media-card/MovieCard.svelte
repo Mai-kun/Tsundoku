@@ -18,11 +18,7 @@
 </script>
 
 <BaseCard {item} {timeHint} {onOpen} {onStatusChange} {onProgressCommitted} {onDelete}>
-  <CardTitleBlock
-    title={item.title}
-    subtitle={item.director?.trim() || i18n.t.types.movie}
-    onOpen={() => onOpen(item)}
-  />
+  <CardTitleBlock title={item.title} subtitle={item.director?.trim() || i18n.t.types.movie} />
 
   {#if showProgress}
     <CardProgressBar label={i18n.t.card.movie(item.durationMinutes)} ratio={null} />

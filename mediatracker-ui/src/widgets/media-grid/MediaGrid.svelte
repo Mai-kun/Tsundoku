@@ -87,7 +87,7 @@
     getScrollElement: () => document.getElementById("main-scroll"),
     estimateSize: () => rowHeight,
     gap: ROW_GAP,
-    overscan: 3,
+    overscan: 1,
     initialOffset: () => document.getElementById("main-scroll")?.scrollTop ?? 0,
     scrollMargin: 0,
   });

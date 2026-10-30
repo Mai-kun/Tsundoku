@@ -224,30 +224,32 @@
   onpointerenter={cancelPendingClose}
   onpointerleave={scheduleClose}
 >
-  {#each options as option (String(option.value))}
-    <button
-      type="button"
-      role="option"
-      aria-selected={option.value === selected}
-      class="tap hover:text-ink flex w-full items-center justify-between gap-3 rounded-sm px-3 py-2 text-left text-sm transition hover:bg-white/5 {option.value ===
-      selected
-        ? 'text-accent-soft'
-        : 'text-muted'} {optionClass}"
-      onclick={() => select(option.value)}
-    >
-      {#if renderOption}
-        {@render renderOption({ option, selected: option.value === selected })}
-      {:else}
-        <span class="truncate">{option.label}</span>
-        {#if option.value === selected}
-          <Check size={14} class="text-accent-soft shrink-0" aria-hidden="true" />
+  {#if isOpen}
+    {#each options as option (String(option.value))}
+      <button
+        type="button"
+        role="option"
+        aria-selected={option.value === selected}
+        class="tap hover:text-ink flex w-full items-center justify-between gap-3 rounded-sm px-3 py-2 text-left text-sm transition hover:bg-white/5 {option.value ===
+        selected
+          ? 'text-accent-soft'
+          : 'text-muted'} {optionClass}"
+        onclick={() => select(option.value)}
+      >
+        {#if renderOption}
+          {@render renderOption({ option, selected: option.value === selected })}
+        {:else}
+          <span class="truncate">{option.label}</span>
+          {#if option.value === selected}
+            <Check size={14} class="text-accent-soft shrink-0" aria-hidden="true" />
+          {/if}
         {/if}
-      {/if}
-    </button>
-  {/each}
-  {#if footer}
-    <div class="mt-1 border-t border-white/10 px-1.5 pt-1.5 pb-1">
-      {@render footer({ close: () => popoverEl?.hidePopover() })}
-    </div>
+      </button>
+    {/each}
+    {#if footer}
+      <div class="mt-1 border-t border-white/10 px-1.5 pt-1.5 pb-1">
+        {@render footer({ close: () => popoverEl?.hidePopover() })}
+      </div>
+    {/if}
   {/if}
 </div>

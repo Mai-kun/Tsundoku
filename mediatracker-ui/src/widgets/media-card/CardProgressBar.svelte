@@ -10,6 +10,4 @@
   let { label, ratio, reserveSpace = false }: Props = $props();
 </script>
 
-<div class="text-muted flex items-center justify-between gap-2 space-y-1.5 text-xs">
-  <span>{label}</span>
-</div>
+<div class="text-muted truncate text-xs">{label}</div>

@@ -240,7 +240,7 @@
     loadError = null;
 
     try {
-      const found = await getMedia(categoryFilters(category, search, sort));
+      const found = await getMedia({ ...categoryFilters(category, search, sort), limit: 500 });
       if (sequence === requestSequence) {
         if (skeletonTimer) clearTimeout(skeletonTimer);
         loading = false;

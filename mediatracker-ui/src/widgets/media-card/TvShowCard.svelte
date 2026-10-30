@@ -51,7 +51,7 @@
 </script>
 
 <BaseCard {item} {timeHint} {onOpen} {onStatusChange} {onProgressCommitted} {onDelete}>
-  <CardTitleBlock title={item.title} {subtitle} onOpen={() => onOpen(item)} />
+  <CardTitleBlock title={item.title} {subtitle} />
 
   {#if showProgress}
     <CardProgressBar

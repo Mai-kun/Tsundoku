@@ -344,9 +344,9 @@
     try {
       const sortParams = sortFilters(sort);
       const [active, planned, completed] = await Promise.all([
-        getMedia({ status: MEDIA_STATUS.inProgress, ...sortParams }),
-        getMedia({ status: MEDIA_STATUS.planned, ...sortParams }),
-        getMedia({ status: MEDIA_STATUS.completed, ...sortParams }),
+        getMedia({ status: MEDIA_STATUS.inProgress, limit: 16, ...sortParams }),
+        getMedia({ status: MEDIA_STATUS.planned, limit: 16, ...sortParams }),
+        getMedia({ status: MEDIA_STATUS.completed, limit: 16, ...sortParams }),
       ]);
 
       if (sequence === requestSequence) {

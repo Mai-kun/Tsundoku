@@ -428,6 +428,8 @@ export interface MediaFilters {
   search?: string;
   sortBy?: SortBy;
   sortOrder?: SortOrder;
+  limit?: number;
+  offset?: number;
 }
 
 export function isTvShowDetail(item: MediaItem | MediaDetail): item is TvShowDetail {

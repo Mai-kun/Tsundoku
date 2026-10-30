@@ -87,19 +87,21 @@
       <MediaScoreBadge score={item.score} />
     {/snippet}
 
-    {#snippet actions()}
-      <button
-        type="button"
-        class="tap grid h-7 w-7 cursor-pointer place-items-center rounded-full border border-white/[0.06] bg-black/80 text-white/70 opacity-0 shadow-md transition group-hover:opacity-100 hover:border-rose-500/40 hover:bg-rose-600 hover:text-white focus:opacity-100"
-        aria-label={i18n.t.card.deleteAria(item.title)}
-        onclick={(event) => {
-          event.stopPropagation();
-          void removeItem();
-        }}
-      >
-        <Trash2 size={14} aria-hidden="true" />
-      </button>
-    {/snippet}
+    {#if onDelete}
+      {#snippet actions()}
+        <button
+          type="button"
+          class="tap grid h-7 w-7 cursor-pointer place-items-center rounded-full border border-white/[0.06] bg-black/80 text-white/70 opacity-0 shadow-md transition group-hover:opacity-100 hover:border-rose-500/40 hover:bg-rose-600 hover:text-white focus:opacity-100"
+          aria-label={i18n.t.card.deleteAria(item.title)}
+          onclick={(event) => {
+            event.stopPropagation();
+            void removeItem();
+          }}
+        >
+          <Trash2 size={14} aria-hidden="true" />
+        </button>
+      {/snippet}
+    {/if}
   </MediaPoster>
 
   <div class="relative z-10 min-w-0 space-y-2.5 px-0.5 pt-3 pb-1">

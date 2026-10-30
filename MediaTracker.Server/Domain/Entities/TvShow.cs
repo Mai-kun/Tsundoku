@@ -18,6 +18,8 @@ public class TvShow : MediaItem
 
     public int TotalEpisodesCount => Seasons.Sum(season => season.TotalEpisodes);
 
+    public int SeasonsCount => Seasons.Count;
+
     public bool AllSeasonsCompleted => Seasons.Count > 0 && Seasons.All(season => season.IsCompleted);
 
     /// <summary>

@@ -108,7 +108,7 @@ public static class MediaEndpoints
         .WithSummary("Импорт закладок по профилю SocialLib (MangaLib / AnimeLib / RanobeLib и др.)");
 
 
-        group.MapGet("/", (
+        group.MapGet("/", async (
                 [FromServices] IGetMediaListHandler handler,
                 string? type,
                 MediaStatus? status,
@@ -116,9 +116,12 @@ public static class MediaEndpoints
                 string? search,
                 string? sortBy,
                 string? sortOrder,
+                int? limit,
+                int? offset,
                 CancellationToken ct) =>
-            handler.HandleAsync(new GetMediaListQuery(type, status, isAnime, search, sortBy, sortOrder), ct)
-                .ToOk())
+            {
+                return await handler.HandleAsync(new GetMediaListQuery(type, status, isAnime, search, sortBy, sortOrder, limit, offset), ct).ToOk();
+            })
             .WithTags("Медиатека / Media")
             .WithSummary("Список тайтлов медиатеки")
             .WithDescription("Возвращает плоский список медиа с поддержкой фильтрации по типу, статусу, аниме-признаку, текстовому поиску и сортировке.");

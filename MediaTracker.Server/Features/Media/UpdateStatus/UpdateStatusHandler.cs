@@ -3,6 +3,7 @@ using MediaTracker.Server.Common.Http;
 using MediaTracker.Server.Domain.Common;
 using MediaTracker.Server.Domain.Entities;
 using MediaTracker.Server.Features.Media.GetMediaDetail;
+using MediaTracker.Server.Features.Media.GetMediaList;
 using MediaTracker.Server.Features.Media.GetMediaStats;
 using MediaTracker.Server.Features.Media.UpdateStatus;
 using MediaTracker.Server.Infrastructure.Persistence;
@@ -86,6 +87,7 @@ public sealed class UpdateStatusHandler(
 
         AdvancedStatsCalculator.InvalidateCache(cache);
         TasteProfileCalculator.InvalidateCache(cache);
+        MediaListCache.Invalidate();
         return Result.Success();
     }
 }

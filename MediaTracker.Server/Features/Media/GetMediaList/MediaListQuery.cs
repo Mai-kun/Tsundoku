@@ -9,4 +9,6 @@ public sealed record GetMediaListQuery(
     bool? IsAnime = null,
     string? Search = null,
     string? SortBy = "createdAt",
-    string? SortOrder = "desc");
+    string? SortOrder = "desc",
+    int? Limit = null,
+    int? Offset = null);

@@ -1,5 +1,6 @@
 using MediaTracker.Server.Domain.Common;
 using MediaTracker.Server.Domain.Entities;
+using MediaTracker.Server.Features.Media.GetMediaList;
 using MediaTracker.Server.Features.Media.GetMediaStats;
 using MediaTracker.Server.Infrastructure.Persistence;
 using MediaTracker.Server.Infrastructure.Storage;
@@ -34,6 +35,7 @@ public sealed class DeleteMediaHandler(
         await db.DeleteMediaItemAsync(command.Id, ct);
         AdvancedStatsCalculator.InvalidateCache(cache);
         TasteProfileCalculator.InvalidateCache(cache);
+        MediaListCache.Invalidate();
 
         return Result.Success();
     }

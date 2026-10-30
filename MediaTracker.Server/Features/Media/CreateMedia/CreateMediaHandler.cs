@@ -6,6 +6,7 @@ using MediaTracker.Server.Domain.Enums;
 using MediaTracker.Server.Domain.Rules;
 using MediaTracker.Server.Features.Jobs;
 using MediaTracker.Server.Features.Media.CreateMedia;
+using MediaTracker.Server.Features.Media.GetMediaList;
 using MediaTracker.Server.Features.Media.GetMediaStats;
 using MediaTracker.Server.Features.Media.MediaContract;
 using MediaTracker.Server.Infrastructure.Jobs;
@@ -87,6 +88,7 @@ public sealed class CreateMediaHandler(
 
         AdvancedStatsCalculator.InvalidateCache(cache);
         TasteProfileCalculator.InvalidateCache(cache);
+        MediaListCache.Invalidate();
 
         if (deferEnrichment)
         {

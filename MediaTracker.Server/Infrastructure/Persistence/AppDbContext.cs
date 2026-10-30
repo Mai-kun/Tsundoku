@@ -630,8 +630,15 @@ public sealed class AppDbContext : IDisposable, IAsyncDisposable
         string? search,
         string? sortBy,
         string? sortOrder,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        int? limit = null,
+        int? offset = null)
     {
+        // Server-side safety default: cap payloads so a missing client limit can never
+        // serialize a multi-hundred-megabyte JSON string that blows past V8's string limit.
+        var effectiveLimit = limit is > 0 ? Math.Min(limit.Value, 2000) : 500;
+        var effectiveOffset = offset ?? 0;
+
         var conn = Connection;
         if (conn.State != System.Data.ConnectionState.Open) await conn.OpenAsync(ct);
         await EnsureSchemaAsync(ct);
@@ -688,6 +695,9 @@ public sealed class AppDbContext : IDisposable, IAsyncDisposable
         };
         var orderDir = string.Equals(sortOrder, "asc", StringComparison.OrdinalIgnoreCase) ? "ASC" : "DESC";
         sb.Append(" ORDER BY ").Append(orderBy).Append(' ').Append(orderDir);
+        sb.Append(" LIMIT @limit OFFSET @offset;");
+        cmd.Parameters.Add(new SqliteParameter("@limit", effectiveLimit));
+        cmd.Parameters.Add(new SqliteParameter("@offset", effectiveOffset));
 
         cmd.CommandText = sb.ToString();
         using var reader = await cmd.ExecuteReaderAsync(ct);

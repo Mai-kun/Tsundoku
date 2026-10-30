@@ -6,6 +6,7 @@ using MediaTracker.Server.Domain.Enums;
 using MediaTracker.Server.Domain.Rules;
 using MediaTracker.Server.Infrastructure.Persistence.Franchises;
 using MediaTracker.Server.Features.Media.GetMediaDetail;
+using MediaTracker.Server.Features.Media.GetMediaList;
 using MediaTracker.Server.Features.Media.GetMediaStats;
 using MediaTracker.Server.Features.Media.MediaContract;
 using MediaTracker.Server.Features.Media.UpdateMedia;
@@ -90,6 +91,7 @@ public sealed class UpdateMediaHandler(
 
         AdvancedStatsCalculator.InvalidateCache(cache);
         TasteProfileCalculator.InvalidateCache(cache);
+        MediaListCache.Invalidate();
 
         return Result<MediaDetailDto>.Success(MediaDetailProjection.ToDetailDto(item));
     }

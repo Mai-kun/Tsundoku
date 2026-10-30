@@ -52,6 +52,24 @@ const webVitals = loadJson("web-vitals.json");
 const securityAudit = loadJson("security-audit.json");
 const orphanChecks = loadJson("orphan-checks.json");
 const aiUiReview = loadJson("ai-ui-review.json");
+
+// Latest stress-test result (carries the 144 Hz high-refresh metrics).
+function latestStressResult() {
+  const stressDir = path.join(reportsDir, "stress");
+  if (!fs.existsSync(stressDir)) return null;
+  const files = fs
+    .readdirSync(stressDir)
+    .filter((f) => f.startsWith("result-") && f.endsWith(".json"));
+  if (files.length === 0) return null;
+  files.sort((a, b) => {
+    const pa = path.join(stressDir, a);
+    const pb = path.join(stressDir, b);
+    return fs.statSync(pb).mtimeMs - fs.statSync(pa).mtimeMs;
+  });
+  return loadJson(path.join("stress", files[0]));
+}
+const stressSummary = latestStressResult();
+
 const backLine = backendCoverage?.lineCoveragePercent ?? 56.5;
 const backBranch = backendCoverage?.branchCoveragePercent ?? 14.8;
 const frontLine = frontendCoverage?.lineCoveragePercent ?? 17.1;
@@ -318,6 +336,14 @@ function generateMarkdown() {
   if (cdpPerformance) {
     const h = cdpPerformance.heaviestScreen || {};
     lines.push(`| **Браузерный рендеринг** | Playwright + Chrome CDP | ${cdpPerformance.passed ? "✅ PASS" : "❌ FAIL"} | Layout: max \`${h.maxLayoutMs}ms\` (${h.byLayout}), Nodes: max \`${h.maxNodes}\` (${h.byNodes}) | Layout ≤ 120ms, Nodes ≤ 1500 |`);
+  }
+  // High-refresh (144 Hz) rendering from the stress-test runner.
+  if (stressSummary) {
+    const hfFps = stressSummary.avgScrollFps ?? 0;
+    const hfP95 = stressSummary.frameTimeP95Ms ?? 0;
+    const hfDropped = stressSummary.droppedFrames144Count ?? 0;
+    const hfPass = hfFps >= 55 && hfP95 <= 8.3;
+    lines.push(`| **Плавность рендеринга (144Hz)** | Playwright + rAF Frame Budget | ${hfPass ? "✅ PASS" : "❌ FAIL"} | FPS: \`${hfFps}\`, P95 кадр: \`${hfP95}ms\`, Пропусков: \`${hfDropped}\` | FPS ≥ 120 (или ≥ 55), P95 кадр ≤ 8.3ms |`);
   }
   // Memory leak
   if (cdpPerformance?.memoryLeakTest) {
@@ -1260,6 +1286,13 @@ function generateHtml() {
         <div class="kpi-value">${smellsRemaining}</div>
         <div class="kpi-sub">${smellsFixed} исправлено (--fix)</div>
       </div>
+      ${stressSummary ? `
+      <div class="kpi-card">
+        <div class="kpi-label">Плавность рендеринга (144Hz)</div>
+        <div class="kpi-value" style="color: ${stressSummary.avgScrollFps >= 55 && stressSummary.frameTimeP95Ms <= 8.3 ? 'var(--success)' : 'var(--danger)'}">${stressSummary.avgScrollFps ?? 0} FPS</div>
+        <div class="kpi-sub">P95 кадр: ${stressSummary.frameTimeP95Ms ?? 0}ms &bull; Пропусков 144Hz: ${stressSummary.droppedFrames144Count ?? 0}</div>
+      </div>
+      ` : ''}
     </div>
 
     <div class="insight-card ${warnings.length === 0 && failures.length === 0 ? "info" : ""}">

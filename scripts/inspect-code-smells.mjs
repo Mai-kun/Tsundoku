@@ -530,6 +530,75 @@ for (const filePath of uiFiles) {
       }
     }
   }
+
+  // RULE 8: Layout-Thrashing-Pattern (144 Hz frame budget = 6.94 ms)
+  if (filePath.endsWith(".svelte") || filePath.endsWith(".ts")) {
+    const baseName = path.basename(filePath);
+    const ignoreList = ["virtualGrid.ts", "PopoverMenu.svelte"];
+    if (!ignoreList.includes(baseName)) {
+      const readRe = /\.getBoundingClientRect\s*\(|\.(?:scrollTop|offsetHeight|offsetWidth|clientHeight|clientWidth|scrollHeight|scrollWidth)\b/;
+      const writeRe = /\.\s*style\s*\.|\.setAttribute\s*\(\s*['"]style['"]\s*,|\.scrollTop\s*=|style\s*=/;
+      const deferRe = /requestAnimationFrame|\$effect|setTimeout|ResizeObserver|\$effect\.pre|\$effect\.snapshot/;
+
+      // Split content into top-level function bodies (rough brace scan).
+      let depth = 0;
+      let fnStart = -1;
+      let inFn = false;
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const open = (line.match(/\{/g) || []).length;
+        const close = (line.match(/\}/g) || []).length;
+        if (!inFn) {
+          // Detect a function-like declaration start.
+          if (/(?:function\s+\w+|const\s+\w+\s*[:=]\s*(?:\([^)]*\)\s*)?=>|async\s+function\s+\w+|[\w$]+\s*[:=]\s*(?:\([^)]*\)\s*)?=>)\s*$|\{/.test(line) && /function|=>/.test(line)) {
+            fnStart = i;
+            inFn = true;
+          }
+        }
+        depth += open - close;
+        if (inFn && depth === 0) {
+          const body = lines.slice(fnStart, i + 1).join("\n");
+          const bodyStartLine = fnStart + 1;
+          fnStart = -1;
+          inFn = false;
+          depth = 0;
+
+          // Deferred callbacks never force a synchronous reflow.
+          if (deferRe.test(body)) continue;
+
+          const reads = body.match(readRe);
+          const writes = body.match(writeRe);
+          if (reads && writes) {
+            // Order check: first read index must precede first write index.
+            let firstRead = Infinity;
+            let firstWrite = Infinity;
+            for (const r of reads) {
+              const idx = body.indexOf(r);
+              if (idx >= 0 && idx < firstRead) firstRead = idx;
+            }
+            for (const w of writes) {
+              const idx = body.indexOf(w);
+              if (idx >= 0 && idx < firstWrite) firstWrite = idx;
+            }
+            if (firstRead < firstWrite) {
+              addFinding({
+                file: relPath,
+                line: bodyStartLine,
+                ruleId: "Layout-Thrashing-Pattern",
+                severity: "warning",
+                title: "Forced synchronous reflow (layout thrashing) внутри функции",
+                description: `Функция читает свойства макета (${reads.join(", ")}) и сразу же записывает стили (${writes.join(", ")}) в том же синхронном потоке. При 144 Hz (бюджет кадра 6.94 ms) принудительный пересчет макета ломает плавность скролла. Разделяйте фазы чтения и записи, оберните запись в requestAnimationFrame или вынесите в $effect.`,
+                currentCode: body.trim().slice(0, 200),
+                suggestedCode: `// Чтение макета в одной фазе, запись стилей — в requestAnimationFrame / $effect:\nrequestAnimationFrame(() => {\n  // ...запись стилей...\n});`,
+                diff: makeUnifiedDiff(body.trim().slice(0, 200), "//(requestAnimationFrame around writes)"),
+                fixed: false,
+              });
+            }
+          }
+        }
+      }
+    }
+  }
 }
 
 // ==========================================

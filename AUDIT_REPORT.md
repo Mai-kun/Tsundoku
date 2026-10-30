@@ -1,36 +1,37 @@
 # 📊 Сводный отчет комплексного аудита производительности и качества (Tsundoku)
 
-**Статус:** **`PASS`** | **Дата генерации:** 29.10.2026, 23:51:58 GMT+3 (`2026-10-29T20:51:58.998Z`)
+**Статус:** **`PASS`** | **Дата генерации:** 30.10.2026, 04:02:38 GMT+3 (`2026-10-30T01:02:38.843Z`)
 
 ## 🎯 Общий вердикт (Executive Summary)
 
 | Проверочный контур | Инструмент / Метод | Статус | Ключевой результат / Метрика | Бюджет / Порог |
 | :--- | :--- | :---: | :--- | :--- |
-| **Сборка фронтенда** | Vite 8 + Rollup | ✅ PASS | Entry: `100.39 KB`, Total: `276.83 KB`, CSS: `35.99 KB` (Gzip) | Entry ≤ 150 KB, Total ≤ 350 KB |
+| **Сборка фронтенда** | Vite 8 + Rollup | ✅ PASS | Entry: `100.14 KB`, Total: `276.62 KB`, CSS: `35.96 KB` (Gzip) | Entry ≤ 150 KB, Total ≤ 350 KB |
 | **Качество верстки и De-slop** | HTML-Validate + AST De-slop | ✅ PASS | Scanned: `103` files, 0 issues remaining | 0 structural errors, 0 slop patterns |
 | **Reactivity & Svelte 5** | $state.raw Audit | ✅ PASS | 7 primary collections on `$state.raw` (no proxy overhead) | 0 unneeded deep proxies |
 | **База данных & Индексы** | SQLite `EXPLAIN QUERY PLAN` | ✅ PASS | 5/5 ключевых запросов покрыты индексами, 0 Full Table Scans | 100% indexed queries |
 | **Алгоритмы C# (Микро)** | BenchmarkDotNet v0.14 | ✅ PASS | 7 бенчмарков (скоринг, парсеры CSV/JSON, стат-профиль) уложились в бюджет | 0 SLA & allocation violations |
-| **Бэкенд под нагрузкой** | `dotnet-trace` + EventPipe | ✅ PASS | Throughput: `16.4 RPS`, p50: `31.53ms`, p95: `2023.39ms`, Heap: `40.53MB` | 0 error responses, p95 < 1000ms |
-| **Браузерный рендеринг** | Playwright + Chrome CDP | ✅ PASS | Layout: max `2.44ms` (stats-summary), Nodes: max `1082` (home) | Layout ≤ 120ms, Nodes ≤ 1500 |
-| **Утечки памяти JS** | Heap Profile + Force GC | ✅ PASS | Delta после 12 циклов навигации: `-1.53 MB` | Delta < 15 MB |
-| **Веб-витали (LCP / FCP / CLS)** | Playwright + Chrome CDP | ✅ PASS | FCP: max `112ms`, LCP: max `208ms`, CLS: max `0.002` | FCP ≤ 1800ms, LCP ≤ 2500ms, CLS ≤ 0.1 |
+| **Бэкенд под нагрузкой** | `dotnet-trace` + EventPipe | ✅ PASS | Throughput: `21.9 RPS`, p50: `21.23ms`, p95: `632.7ms`, Heap: `40.53MB` | 0 error responses, p95 < 1000ms |
+| **Браузерный рендеринг** | Playwright + Chrome CDP | ✅ PASS | Layout: max `4.6ms` (stats-summary), Nodes: max `895` (stats-summary) | Layout ≤ 120ms, Nodes ≤ 1500 |
+| **Плавность рендеринга (144Hz)** | Playwright + rAF Frame Budget | ✅ PASS | FPS: `2461`, P95 кадр: `0.7ms`, Пропусков: `0` | FPS ≥ 120 (или ≥ 55), P95 кадр ≤ 8.3ms |
+| **Утечки памяти JS** | Heap Profile + Force GC | ✅ PASS | Delta после 12 циклов навигации: `-1.61 MB` | Delta < 15 MB |
+| **Веб-витали (LCP / FCP / CLS)** | Playwright + Chrome CDP | ✅ PASS | FCP: max `116ms`, LCP: max `252ms`, CLS: max `0.002` | FCP ≤ 1800ms, LCP ≤ 2500ms, CLS ≤ 0.1 |
 | **Геометрия & Разметка** | BoundingBox Collision Audit | ✅ PASS | 14 экранов (Mobile, Tablet, Desktop) проверены, 0 аномалий переполнения | 0 layout collisions / scroll |
 | **Доступность (WCAG 2.1 AA)** | Axe-core Playwright | ✅ PASS | 7 экранов проверены, 0 critical/serious нарушений | 0 critical/serious violations |
 | **Снапшоты виджетов** | Pixelmatch (0.1 threshold) | ✅ PASS | 5/5 ключевых виджетов совпали с эталонами (0 px drift) | 100% visual match |
 | **Тестирование и Покрытие кода** | xUnit + Coverlet + Vitest (v8) | ✅ PASS | Backend: `23/23 tests` (Line `0%`, Branch `0%`) | Frontend: `39/39 tests` (Model/Utils: `92-100%`, Overall: `17.1%`) | 0 test failures, 100% Passing Suite |
 | **База данных SQLite (Здоровье)** | PRAGMA Integrity & Freelist | ✅ PASS | Размер: `624 KB`, WAL: `0 KB`, Фрагментация: `0%`, Целостность: `ok` | Фрагментация ≤ 15%, Freelist ≤ 100 страниц, Integrity: ok |
-| **Сетевые бюджеты API (Wire)** | Gzip & Brotli Wire Profiler | ✅ PASS | Каталог 500 элементов: `35.76 KB` Gzip (Raw: `618.59 KB`), сжатие: `91.2%`, средняя задержка: `15.3ms` | /api/media Gzip ≤ 120 KB, Latency ≤ 150ms |
+| **Сетевые бюджеты API (Wire)** | Gzip & Brotli Wire Profiler | ✅ PASS | Каталог 500 элементов: `35.69 KB` Gzip (Raw: `618.57 KB`), сжатие: `91.2%`, средняя задержка: `13.4ms` | /api/media Gzip ≤ 120 KB, Latency ≤ 150ms |
 | **Безопасность и Зависимости** | dotnet list + npm audit + Secrets | ✅ PASS | NuGet: `0 уязвимостей` (ImageSharp подавлен), NPM prod: `0 уязвимостей`, Secret Scan: `0 утечек` (`525 файлов`) | 0 unsuppressed CVEs, 0 secret leaks |
 | **Целостность тестового набора** | Static Orphan Scanner | ✅ PASS | Диск: `82`, Зарегистрировано: `82`, Сирот: `0` | 0 orphaned files |
 
 ## 🚨 Требует внимания / Рекомендации (Actionable Insights)
 
-- 💡 **Самый тяжелый Lazy-чанк: MediaDetailView-BU_q2Pmv.js**: `40.07 KB Gzip (152.08 KB raw)`
+- 💡 **Самый тяжелый Lazy-чанк: MediaDetailView-1K-8U2O9.js**: `40.12 KB Gzip (152.21 KB raw)`
   - **Действие**: Оптимально изолирован в асинхронный чанк и загружается только при переходе на экран.
-- 💡 **Самый требовательный экран по Layout: 'stats-summary'**: `LayoutDuration: 2.44 ms`
+- 💡 **Самый требовательный экран по Layout: 'stats-summary'**: `LayoutDuration: 4.6 ms`
   - **Действие**: Находится с запасом в рамках бюджета (< 120 ms). Верстка оптимизирована под 60 FPS.
-- 💡 **Самый активный C# метод: Microsoft.AspNetCore.Http.Generated.<GeneratedRouteBuilderExtensions_g>F202B381FFC497F212FEEA6512613F4D084B421EB97B74D5CBD81E03E134C6BFD__GeneratedRouteBuilderExtensionsCore+<>c__DisplayClass25_0+<<MapGet20>g__RequestHandler|5>d**: `Total Time: 9717.6 ms (160.7%)`
+- 💡 **Самый активный C# метод: Microsoft.AspNetCore.Http.Generated.<GeneratedRouteBuilderExtensions_g>F202B381FFC497F212FEEA6512613F4D084B421EB97B74D5CBD81E03E134C6BFD__GeneratedRouteBuilderExtensionsCore+<>c__DisplayClass25_0+<<MapGet20>g__RequestHandler|5>d**: `Total Time: 14216.4 ms (234.9%)`
   - **Действие**: Выполняется в конвейере обработки запросов ASP.NET Core под высокой конкуренцией.
 
 ## 💡 Рекомендации по микрооптимизации (Actionable Code Diff Suggestions)
@@ -46,22 +47,22 @@
 
 ### Сводка размеров бандла
 
-- **Критический чанк (Entry JS):** `100.39 KB` Gzip (`328.12 KB` uncompressed) — бюджет: `150 KB` (66.9%)
-- **Общий вес JS:** `276.83 KB` Gzip (`935.03 KB` uncompressed) — бюджет: `350 KB` (79.1%)
-- **Стили (CSS):** `35.99 KB` Gzip (`257.04 KB` uncompressed) — бюджет: `50 KB` (72.0%)
+- **Критический чанк (Entry JS):** `100.14 KB` Gzip (`327.08 KB` uncompressed) — бюджет: `150 KB` (66.8%)
+- **Общий вес JS:** `276.62 KB` Gzip (`934.12 KB` uncompressed) — бюджет: `350 KB` (79.0%)
+- **Стили (CSS):** `35.96 KB` Gzip (`255.94 KB` uncompressed) — бюджет: `50 KB` (71.9%)
 
 #### Топ асинхронных чанков (Lazy Chunks)
 
 | Чанк | Raw KB | Gzip KB |
 | :--- | :---: | :---: |
-| `MediaDetailView-BU_q2Pmv.js` | 152.08 | 40.07 |
-| `ImportPanel-DFYEuEtI.js` | 74.47 | 18.09 |
-| `StatsView-CFQZqJPx.js` | 52.64 | 14.16 |
-| `SettingsModal-0ORWtTER.js` | 53.79 | 13.13 |
-| `SearchModal-CsH6wqI-.js` | 33.89 | 9.88 |
-| `CalendarView-sRGohTC7.js` | 34.23 | 9.78 |
-| `BackgroundJobsModal-BagppiWn.js` | 20.74 | 6.75 |
-| `HistoryView-PBuLZaeK.js` | 19.46 | 5.93 |
+| `MediaDetailView-1K-8U2O9.js` | 152.21 | 40.12 |
+| `ImportPanel-5NTegidm.js` | 74.47 | 18.09 |
+| `StatsView-KxyGMiRA.js` | 52.64 | 14.16 |
+| `SettingsModal-1hjEDwFF.js` | 53.79 | 13.13 |
+| `SearchModal-CNgV3eMA.js` | 33.89 | 9.88 |
+| `CalendarView-CjS7bE60.js` | 34.23 | 9.78 |
+| `BackgroundJobsModal-4b7lJ6ez.js` | 20.74 | 6.75 |
+| `HistoryView-CuZq7Y75.js` | 19.46 | 5.92 |
 
 ### Контур статического анализа и стандартов
 
@@ -76,23 +77,23 @@
 
 | Экран | Layout (ms) | Recalc Style (ms) | Script (ms) | Task (ms) | DOM Нод | JS Heap (MB) |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
-| **home** | 0 | 0 | 0 | 0 | 1082 | 13.93 |
-| **game-initial** | 0.3 | 0.18 | 34.85 | 50.54 | 899 | 7.75 |
-| **game-virtual-scroll** | 0 | 0 | 1.56 | 4.39 | 899 | 7.84 |
-| **tvshow** | 0 | 0 | 0 | 0 | 117 | 15.67 |
-| **stats-summary** | 2.44 | 7.96 | 44.18 | 59.06 | 894 | 25.52 |
-| **stats-taste-profile** | 0 | 0 | 0 | 32.26 | 894 | 26.87 |
-| **history** | 0 | 0 | 0 | 0 | 125 | 34.33 |
-| **lists** | 0 | 0 | 2.45 | 42.93 | 46 | 6.75 |
-| **calendar** | 0 | 0 | 0 | 0 | 89 | 14.47 |
-| **detail** | 2.44 | 6.09 | 26.79 | 48.46 | 345 | 8.16 |
-| **modals** | 1.42 | 49.4 | 5.65 | 135.68 | 345 | 10.5 |
+| **home** | 0.19 | 2.3 | 12.52 | 28.94 | 551 | 14.52 |
+| **game-initial** | 0.13 | 0 | 17.37 | 27.9 | 464 | 5.84 |
+| **game-virtual-scroll** | 0 | 0 | 1.43 | 3.74 | 464 | 5.93 |
+| **tvshow** | 0 | 0 | 0 | 0 | 56 | 10.99 |
+| **stats-summary** | 4.6 | 13.29 | 75.13 | 131.78 | 895 | 6.38 |
+| **stats-taste-profile** | 0 | 0 | 0 | 33.95 | 895 | 7.58 |
+| **history** | 0 | 0 | 0 | 0 | 125 | 12.56 |
+| **lists** | 0 | 0 | 0 | 0 | 46 | 5.67 |
+| **calendar** | 0 | 0.02 | 0 | 0 | 61 | 10.83 |
+| **detail** | 3.78 | 5.78 | 23.87 | 48.25 | 331 | 6.29 |
+| **modals** | 1.41 | 49.79 | 5.8 | 143.53 | 331 | 8.36 |
 
 ### Стресс-тест утечек памяти JS Heap (12 циклов навигации с Force GC)
 
-- **Heap до циклов:** `6.81 MB`
-- **Heap после циклов:** `5.28 MB`
-- **Дельта:** `-1.53 MB` (порог: < 15 MB) -> **✅ Утечек нет**
+- **Heap до циклов:** `5.72 MB`
+- **Heap после циклов:** `4.11 MB`
+- **Дельта:** `-1.61 MB` (порог: < 15 MB) -> **✅ Утечек нет**
 
 ### Геометрия DOM и визуальная стабильность
 
@@ -120,35 +121,35 @@
 
 | Метод | Класс | Время (Mean) | Выделенная память | Gen 0 / 1 / 2 | Статус |
 | :--- | :--- | :---: | :---: | :---: | :---: |
-| `EvaluateSmartList` | `EvaluationAndScoringBenchmarks` | **94.62 μs** | **42.50 KB** | 10.38 / 0.61 / 0.00 | ✅ PASS |
-| `EvaluateCandidates` | `EvaluationAndScoringBenchmarks` | **20.21 μs** | **24.82 KB** | 6.07 / 0.00 / 0.00 | ✅ PASS |
-| `NormalizeGenres` | `EvaluationAndScoringBenchmarks` | **8.48 μs** | **8.53 KB** | 2.08 / 0.00 / 0.00 | ✅ PASS |
-| `ParseMangalibJson` | `ParsersBenchmarks` | **460.86 μs** | **112.86 KB** | 27.34 / 0.00 / 0.00 | ✅ PASS |
-| `ReadAnyRecordsCsv` | `ParsersBenchmarks` | **51.93 μs** | **78.29 KB** | 19.17 / 0.06 / 0.00 | ✅ PASS |
-| `CalculateAdvancedStats` | `StatsBenchmarks` | **154.01 μs** | **9.08 KB** | 2.20 / 0.00 / 0.00 | ✅ PASS |
-| `CalculateTasteProfile` | `StatsBenchmarks` | **49.55 μs** | **3.90 KB** | 0.92 / 0.00 / 0.00 | ✅ PASS |
+| `EvaluateSmartList` | `EvaluationAndScoringBenchmarks` | **110.73 μs** | **42.50 KB** | 10.38 / 0.61 / 0.00 | ✅ PASS |
+| `EvaluateCandidates` | `EvaluationAndScoringBenchmarks` | **25.55 μs** | **24.82 KB** | 6.07 / 0.00 / 0.00 | ✅ PASS |
+| `NormalizeGenres` | `EvaluationAndScoringBenchmarks` | **9.18 μs** | **8.53 KB** | 2.08 / 0.00 / 0.00 | ✅ PASS |
+| `ParseMangalibJson` | `ParsersBenchmarks` | **473.48 μs** | **112.86 KB** | 27.34 / 0.00 / 0.00 | ✅ PASS |
+| `ReadAnyRecordsCsv` | `ParsersBenchmarks` | **51.81 μs** | **78.29 KB** | 19.17 / 0.06 / 0.00 | ✅ PASS |
+| `CalculateAdvancedStats` | `StatsBenchmarks` | **151.86 μs** | **9.08 KB** | 2.20 / 0.00 / 0.00 | ✅ PASS |
+| `CalculateTasteProfile` | `StatsBenchmarks` | **49.97 μs** | **3.90 KB** | 0.92 / 0.00 / 0.00 | ✅ PASS |
 
 ### Макропрофилирование ASP.NET Core под конкурентной нагрузкой
 
 - **Конфигурация сервера:** `Release / net10.0` | Сидировано записей: **500**
-- **Пропускная способность:** **`16.4 RPS`** (Всего запросов: 230, Успешно: 230, Ошибок: 0)
-- **Задержка ответа (Latency):** min: `1.27ms` | **p50: `31.53ms`** | **p95: `2023.39ms`** | max: `9004.17ms`
+- **Пропускная способность:** **`21.9 RPS`** (Всего запросов: 226, Успешно: 226, Ошибок: 0)
+- **Задержка ответа (Latency):** min: `1.23ms` | **p50: `21.23ms`** | **p95: `632.7ms`** | max: `7422.92ms`
 - **CLR Среда:** GC Heap: `40.53 MB` | Allocation Rate: `12.21 MB/s` | Gen 0/1/2 Сборки: `12/2/0`
 
 #### Топ-10 горячих методов бэкенда (по данным dotnet-trace)
 
 | Ранг | Метод C# | Total Время (ms) | Self Время (ms) | Доля CPU (%) |
 | :---: | :--- | :---: | :---: | :---: |
-| 1 | `Microsoft.AspNetCore.Http.Generated.<GeneratedRouteBuilderExtensions_g>F202B381FFC497F212FEEA6512613F4D084B421EB97B74D5CBD81E03E134C6BFD__GeneratedRouteBuilderExtensionsCore+<>c__DisplayClass25_0+<<MapGet20>g__RequestHandler|5>d` | 9717.6 ms | 0 ms | 160.7% |
-| 2 | `Microsoft.AspNetCore.Http.Generated.<GeneratedRouteBuilderExtensions_g>F202B381FFC497F212FEEA6512613F4D084B421EB97B74D5CBD81E03E134C6BFD__GeneratedRouteBuilderExtensionsCore+<>c__DisplayClass25_0.<MapGet20>g__RequestHandler|5` | 4802.7 ms | 0 ms | 79.4% |
-| 3 | `Infrastructure.Persistence.AppDbContext.ReadMediaItemRow` | 4622.8 ms | 0 ms | 76.4% |
-| 4 | `Common.Endpoints.MediaEndpoints.MapMediaEndpoints` | 3602.7 ms | 0 ms | 59.6% |
-| 5 | `Features.Media.GetMediaList.GetMediaListHandler.HandleAsync` | 3598.8 ms | 0 ms | 59.5% |
-| 6 | `Infrastructure.Persistence.AppDbContext.LoadMediaItemsAsync` | 3281.9 ms | 0 ms | 54.3% |
-| 7 | `Microsoft.AspNetCore.Http.Generated.<GeneratedRouteBuilderExtensions_g>F202B381FFC497F212FEEA6512613F4D084B421EB97B74D5CBD81E03E134C6BFD__GeneratedRouteBuilderExtensionsCore.ExecuteAsyncExplicit` | 2123.4 ms | 0 ms | 35.1% |
-| 8 | `Microsoft.AspNetCore.Http.Generated.<GeneratedRouteBuilderExtensions_g>F202B381FFC497F212FEEA6512613F4D084B421EB97B74D5CBD81E03E134C6BFD__GeneratedRouteBuilderExtensionsCore+<>c__DisplayClass76_0.<MapGet71>g__RequestHandler|5` | 1865.3 ms | 0 ms | 30.8% |
-| 9 | `Microsoft.AspNetCore.Http.Generated.<GeneratedRouteBuilderExtensions_g>F202B381FFC497F212FEEA6512613F4D084B421EB97B74D5CBD81E03E134C6BFD__GeneratedRouteBuilderExtensionsCore+<>c__DisplayClass76_0+<<MapGet71>g__RequestHandler|5>d` | 1855.8 ms | 0 ms | 30.7% |
-| 10 | `Microsoft.AspNetCore.Http.Generated.<GeneratedRouteBuilderExtensions_g>F202B381FFC497F212FEEA6512613F4D084B421EB97B74D5CBD81E03E134C6BFD__GeneratedRouteBuilderExtensionsCore+<>c__DisplayClass27_0.<MapGet22>g__RequestHandler|5` | 1630 ms | 0 ms | 26.9% |
+| 1 | `Microsoft.AspNetCore.Http.Generated.<GeneratedRouteBuilderExtensions_g>F202B381FFC497F212FEEA6512613F4D084B421EB97B74D5CBD81E03E134C6BFD__GeneratedRouteBuilderExtensionsCore+<>c__DisplayClass25_0+<<MapGet20>g__RequestHandler|5>d` | 14216.4 ms | 0 ms | 234.9% |
+| 2 | `Infrastructure.Persistence.AppDbContext.ReadMediaItemRow` | 4599.9 ms | 0 ms | 76% |
+| 3 | `Microsoft.AspNetCore.Http.Generated.<GeneratedRouteBuilderExtensions_g>F202B381FFC497F212FEEA6512613F4D084B421EB97B74D5CBD81E03E134C6BFD__GeneratedRouteBuilderExtensionsCore+<>c__DisplayClass25_0.<MapGet20>g__RequestHandler|5` | 3311.6 ms | 0 ms | 54.7% |
+| 4 | `Microsoft.AspNetCore.Http.Generated.<GeneratedRouteBuilderExtensions_g>F202B381FFC497F212FEEA6512613F4D084B421EB97B74D5CBD81E03E134C6BFD__GeneratedRouteBuilderExtensionsCore.ExecuteAsyncExplicit` | 2608.5 ms | 0 ms | 43.1% |
+| 5 | `Microsoft.AspNetCore.Http.Generated.<GeneratedRouteBuilderExtensions_g>F202B381FFC497F212FEEA6512613F4D084B421EB97B74D5CBD81E03E134C6BFD__GeneratedRouteBuilderExtensionsCore+<>c__DisplayClass76_0.<MapGet71>g__RequestHandler|5` | 2588 ms | 0 ms | 42.8% |
+| 6 | `Microsoft.AspNetCore.Http.Generated.<GeneratedRouteBuilderExtensions_g>F202B381FFC497F212FEEA6512613F4D084B421EB97B74D5CBD81E03E134C6BFD__GeneratedRouteBuilderExtensionsCore+<>c__DisplayClass76_0+<<MapGet71>g__RequestHandler|5>d` | 2584.3 ms | 0 ms | 42.7% |
+| 7 | `Features.Media.GetMediaStats.GetMediaStatsHandler.LoadAllMediaItemsAsync` | 2461.8 ms | 0 ms | 40.7% |
+| 8 | `Features.Media.Calendar.CalendarEndpoints.MapCalendarEndpoints` | 2320.8 ms | 0 ms | 38.4% |
+| 9 | `Microsoft.AspNetCore.Http.Generated.<GeneratedRouteBuilderExtensions_g>F202B381FFC497F212FEEA6512613F4D084B421EB97B74D5CBD81E03E134C6BFD__GeneratedRouteBuilderExtensionsCore+<>c__DisplayClass27_0.<MapGet22>g__RequestHandler|5` | 2157.4 ms | 0 ms | 35.7% |
+| 10 | `Microsoft.AspNetCore.Http.Generated.<GeneratedRouteBuilderExtensions_g>F202B381FFC497F212FEEA6512613F4D084B421EB97B74D5CBD81E03E134C6BFD__GeneratedRouteBuilderExtensionsCore+<>c__DisplayClass27_0+<<MapGet22>g__RequestHandler|5>d` | 2151 ms | 0 ms | 35.5% |
 
 ### 🗄️ База данных SQLite: Здоровье, Фрагментация и WAL
 
@@ -171,16 +172,16 @@
 
 | Эндпоинт | Raw JSON | Gzip (Wire) | Brotli | Сжатие % | Latency (p50) | Бюджет Gzip | Статус |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| `/api/media` | 618.59 KB | **35.76 KB** | 25.28 KB | **-94.2%** | **31.4 ms** | ≤ 60 KB | ✅ PASS |
-| `/api/media?type=game&status=1` | 37.16 KB | **2.7 KB** | 2.1 KB | **-92.7%** | **4.9 ms** | ≤ 50 KB | ✅ PASS |
-| `/api/media/stats/advanced` | 2.79 KB | **0.65 KB** | 0.54 KB | **-76.7%** | **2.2 ms** | ≤ 20 KB | ✅ PASS |
-| `/api/media/stats/taste-profile` | 1.76 KB | **0.7 KB** | 0.55 KB | **-60.5%** | **1.3 ms** | ≤ 10 KB | ✅ PASS |
-| `/api/media/calendar` | 86.81 KB | **8.47 KB** | 6.48 KB | **-90.2%** | **29.2 ms** | ≤ 25 KB | ✅ PASS |
-| `/api/history` | 117.76 KB | **27.94 KB** | 22.66 KB | **-76.3%** | **10.9 ms** | ≤ 30 KB | ✅ PASS |
-| `/api/lists` | 0.29 KB | **0.24 KB** | 0.19 KB | **-17.1%** | **27.1 ms** | ≤ 15 KB | ✅ PASS |
+| `/api/media` | 618.57 KB | **35.69 KB** | 25.3 KB | **-94.2%** | **16.7 ms** | ≤ 60 KB | ✅ PASS |
+| `/api/media?type=game&status=1` | 37.16 KB | **2.69 KB** | 2.08 KB | **-92.8%** | **2.7 ms** | ≤ 50 KB | ✅ PASS |
+| `/api/media/stats/advanced` | 2.79 KB | **0.65 KB** | 0.54 KB | **-76.7%** | **3 ms** | ≤ 20 KB | ✅ PASS |
+| `/api/media/stats/taste-profile` | 1.76 KB | **0.7 KB** | 0.55 KB | **-60.5%** | **1.7 ms** | ≤ 10 KB | ✅ PASS |
+| `/api/media/calendar` | 86.81 KB | **8.48 KB** | 6.53 KB | **-90.2%** | **30.6 ms** | ≤ 25 KB | ✅ PASS |
+| `/api/history` | 117.76 KB | **27.96 KB** | 22.58 KB | **-76.3%** | **12.5 ms** | ≤ 30 KB | ✅ PASS |
+| `/api/lists` | 0.29 KB | **0.24 KB** | 0.2 KB | **-17.4%** | **26.4 ms** | ≤ 15 KB | ✅ PASS |
 
-- **Общий вес данных (7 запросов):** Raw: `865.16 KB` -> Gzip: `76.46 KB` (Сжатие: **-91.2%**)
-- **Средняя задержка API:** `15.3 ms` (все запросы уложились в бюджеты)
+- **Общий вес данных (7 запросов):** Raw: `865.14 KB` -> Gzip: `76.41 KB` (Сжатие: **-91.2%**)
+- **Средняя задержка API:** `13.4 ms` (все запросы уложились в бюджеты)
 
 ## 🧪 Тестирование и Покрытие кода (Test Suite & Code Coverage)
 
@@ -214,7 +215,7 @@
 | **Sidebar** | `[data-widget="sidebar"]` | ✅ Совпал | 216000 px | 0 px (0.00%) |
 | **FirstMediaCard** | `article.media-card:visible` | ✅ Совпал | 86860 px | 0 px (0.00%) |
 | **StatsHeroBanner** | `[data-widget="stats-hero"]` | ✅ Совпал | 179488 px | 0 px (0.00%) |
-| **DetailSidebar** | `[data-widget="detail-sidebar"]` | ✅ Совпал | 527680 px | 250 px (0.05%) |
+| **DetailSidebar** | `[data-widget="detail-sidebar"]` | ✅ Совпал | 527680 px | 300 px (0.06%) |
 
 
     <div class="section" id="ai-review">

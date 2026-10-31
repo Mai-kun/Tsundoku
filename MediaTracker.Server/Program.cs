@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text.Json.Serialization;
 using MediaTracker.Server.Common.Cli;
@@ -27,26 +26,6 @@ using Serilog.Events;
 using OpenApiUi;
 using Microsoft.OpenApi;
 
-if (OperatingSystem.IsLinux())
-{
-    // Enforce X11 backend on Linux for GTK3 stability and DMA-BUF crash prevention
-    if (
-        string.IsNullOrEmpty(Environment.GetEnvironmentVariable("GDK_BACKEND"))
-        || string.Equals(
-            Environment.GetEnvironmentVariable("GDK_BACKEND"),
-            "wayland",
-            StringComparison.OrdinalIgnoreCase
-        )
-    )
-    {
-        Environment.SetEnvironmentVariable("GDK_BACKEND", "x11");
-    }
-    if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WEBKIT_DISABLE_DMABUF_RENDERER")))
-    {
-        Environment.SetEnvironmentVariable("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
-    }
-}
-
 var options = CommandLineOptions.Parse(args);
 
 if (options.ShowHelp)
@@ -71,49 +50,6 @@ if (options.RunSelfCheck)
     return await RefactorSelfCheck.Run() == 0 ? 0 : 1;
 }
 
-if (options.Mode == TsundokuRunMode.GuiOnly)
-{
-    var isDevMode = options.IsDevMode || string.Equals(
-        Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"),
-        "Development",
-        StringComparison.OrdinalIgnoreCase
-    );
-    var guiPaths = CreateAppPaths(options, isDevMode);
-    if (OperatingSystem.IsWindows())
-    {
-        ConfigureWebView2(guiPaths);
-    }
-    else
-    {
-        ConfigureLinuxEnvironment(guiPaths);
-    }
-    Log.Information(
-        "Tsundoku starting in client-only mode. Server address: {ServerAddress}",
-        options.ServerUrl
-    );
-    if (OperatingSystem.IsLinux())
-    {
-        try
-        {
-            Process.Start(new ProcessStartInfo
-            {
-                FileName = "xdg-open",
-                Arguments = options.ServerUrl!,
-                UseShellExecute = true
-            });
-        }
-        catch (Exception ex)
-        {
-            Log.Warning(ex, "Failed to launch default browser via xdg-open");
-        }
-        Log.CloseAndFlush();
-        return 0;
-    }
-    RunPhotinoWindow(options.ServerUrl!);
-    Log.CloseAndFlush();
-    return 0;
-}
-
 var isContainer = CommandLineOptions.IsRunningInContainer;
 
 var builder = WebApplication.CreateBuilder();
@@ -135,15 +71,6 @@ foreach (var oldBinary in oldBinaries)
         if (File.Exists(path)) File.Delete(path);
     }
     catch { /* Ignore */ }
-}
-
-if (OperatingSystem.IsWindows() && !options.IsHeadless && !options.MigrateOnly)
-{
-    ConfigureWebView2(appPaths);
-}
-else if (!OperatingSystem.IsWindows() && !options.IsHeadless && !options.MigrateOnly)
-{
-    ConfigureLinuxEnvironment(appPaths);
 }
 
 ConfigureLogging(appPaths.LogsDirectory);
@@ -259,7 +186,23 @@ try
 
     var app = builder.Build();
 
-    app.UseSerilogRequestLogging();
+    app.UseSerilogRequestLogging(options =>
+    {
+        options.GetLevel = (httpContext, elapsed, ex) =>
+        {
+            if (ex != null || httpContext.Response.StatusCode >= 500)
+                return Serilog.Events.LogEventLevel.Error;
+
+            var path = httpContext.Request.Path.Value ?? string.Empty;
+            if (path.StartsWith("/api/logs", StringComparison.OrdinalIgnoreCase) ||
+                path.StartsWith("/api/jobs/stream", StringComparison.OrdinalIgnoreCase))
+            {
+                return Serilog.Events.LogEventLevel.Verbose; // Filtered out because min level is Information
+            }
+
+            return Serilog.Events.LogEventLevel.Information;
+        };
+    });
 
     app.UseResponseCompression();
 
@@ -390,80 +333,16 @@ try
         await stream.CopyToAsync(context.Response.Body);
     });
 
-    var mode = options.Mode == TsundokuRunMode.Headless ? "Headless" : "Photino";
     Log.Information(
-        "Tsundoku starting. .NET Version: {DotNetVersion}, OS: {OSDescription}, Mode: {Mode}, Server Address: {ServerAddress}",
+        "Tsundoku starting (headless). .NET Version: {DotNetVersion}, OS: {OSDescription}, Server Address: {ServerAddress}",
         Environment.Version.ToString(),
         RuntimeInformation.OSDescription,
-        mode,
         listenUrl
     );
 
-    if (options.IsHeadless)
-    {
-        // Headless serves forever; kick off the backfill concurrently instead of blocking startup.
-        StartBackgroundFranchiseBackfill(app);
-        await app.RunAsync();
-    }
-    else
-    {
-        await app.StartAsync();
-
-        // Start background franchise backfill without blocking UI window opening
-        StartBackgroundFranchiseBackfill(app);
-
-        if (OperatingSystem.IsLinux() && !options.IsHeadless && !options.MigrateOnly)
-        {
-            try
-            {
-                Process.Start(new ProcessStartInfo
-                {
-                    FileName = "xdg-open",
-                    Arguments = options.ServerUrl!,
-                    UseShellExecute = true
-                });
-            }
-            catch (Exception ex)
-            {
-                Log.Warning(ex, "Failed to launch default browser via xdg-open");
-            }
-
-            ConsoleOutput.Attach();
-            Console.WriteLine();
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"[Tsundoku] Сервер запущен: {options.ServerUrl}");
-            Console.ResetColor();
-            Console.WriteLine("[Tsundoku] Приложение открыто в браузере. Вы можете установить его как PWA через меню браузера.");
-            Console.WriteLine("Нажмите Ctrl+C для остановки сервера.");
-            Console.WriteLine();
-
-            await app.WaitForShutdownAsync();
-            return 0;
-        }
-
-        try
-        {
-            RunPhotinoWindow(options.ServerUrl!);
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Photino GUI failed to start. Falling back to Headless mode.");
-            ConsoleOutput.Attach();
-            Console.WriteLine();
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine($"[Tsundoku] Не удалось открыть графическое окно Photino: {ex.Message}");
-            Console.ResetColor();
-            Console.WriteLine($"[Tsundoku] Сервер продолжает работать в штатном фоновом режиме!");
-            Console.WriteLine($"[Tsundoku] Откройте приложение в браузере: {options.ServerUrl}");
-            Console.WriteLine();
-
-            // Server keeps running and waits for shutdown signal (Ctrl+C / SIGTERM)
-            await app.WaitForShutdownAsync();
-            return 0;
-        }
-
-        await app.StopAsync();
-    }
+    // Headless Kestrel service: kick off the backfill concurrently instead of blocking startup.
+    StartBackgroundFranchiseBackfill(app);
+    await app.RunAsync();
 }
 finally
 {
@@ -522,35 +401,6 @@ static AppPaths CreateAppPaths(CommandLineOptions options, bool isDevelopment)
     return AppPaths.Create(options, isDevelopment);
 }
 
-static void ConfigureWebView2(AppPaths appPaths)
-{
-    var webViewCacheDir = Path.Combine(appPaths.DataDirectory, "cache", "webview2");
-    Directory.CreateDirectory(webViewCacheDir);
-
-    Environment.SetEnvironmentVariable(
-        "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS",
-        "--enable-gpu-rasterization "
-            + "--ignore-gpu-blocklist "
-            + "--disable-features=msWebOOUI,msPdfOOUI "
-            + "--enable-smooth-scrolling"
-    );
-    Environment.SetEnvironmentVariable("WEBVIEW2_USER_DATA_FOLDER", webViewCacheDir);
-}
-
-static void ConfigureLinuxEnvironment(AppPaths appPaths)
-{
-    // Prevent WebKitGTK / Photino "Protocol error dispatching to Wayland display" crash
-    if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("GDK_BACKEND")))
-    {
-        Environment.SetEnvironmentVariable("GDK_BACKEND", "x11");
-    }
-
-    if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WEBKIT_DISABLE_DMABUF_RENDERER")))
-    {
-        Environment.SetEnvironmentVariable("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
-    }
-}
-
 static async Task InitializeDatabaseAsync(WebApplication app)
 {
     using var scope = app.Services.CreateScope();
@@ -578,7 +428,7 @@ static async Task InitializeDatabaseAsync(WebApplication app)
 
 static void StartBackgroundFranchiseBackfill(WebApplication app)
 {
-    // Start background franchise backfill without blocking UI window opening
+    // Fire-and-forget so Kestrel starts listening immediately.
     _ = Task.Run(async () =>
     {
         try
@@ -594,79 +444,3 @@ static void StartBackgroundFranchiseBackfill(WebApplication app)
         }
     });
 }
-
-static void RunPhotinoWindow(string serverUrl)
-{
-    // Photino reads this before the WebView2 controller is created, so it has to be set here rather
-    // than on the window: without it the surface flashes white before the web content paints.
-    // The value is the UI's --color-canvas (#0d0f14) in WebView2's AARRGGBB form.
-    if (OperatingSystem.IsWindows())
-    {
-        Environment.SetEnvironmentVariable("WEBVIEW2_DEFAULT_BACKGROUND_COLOR", "FF0D0F14");
-    }
-
-    Exception? threadException = null;
-
-    var uiThread = new Thread(() =>
-    {
-        try
-        {
-            if (OperatingSystem.IsLinux())
-            {
-                if (
-                    string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DISPLAY"))
-                    && string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WAYLAND_DISPLAY"))
-                )
-                {
-                    throw new InvalidOperationException(
-                        "No graphical display found (neither DISPLAY nor WAYLAND_DISPLAY is set)."
-                    );
-                }
-
-                try
-                {
-                    if (!GtkInitCheck(IntPtr.Zero, IntPtr.Zero))
-                    {
-                        throw new InvalidOperationException("Cannot open display or initialize GTK3.");
-                    }
-                }
-                catch (DllNotFoundException)
-                {
-                    throw new InvalidOperationException("GTK3 runtime library (libgtk-3.so.0) not found.");
-                }
-            }
-
-            var window = new Photino.NET.PhotinoWindow()
-                .SetTitle("Tsundoku")
-                .SetUseOsDefaultSize(false)
-                .SetSize(1300, 850)
-                .Center()
-                .SetDevToolsEnabled(true)
-                .Load(serverUrl);
-
-            window.WaitForClose();
-        }
-        catch (Exception ex)
-        {
-            threadException = ex;
-        }
-    });
-
-#pragma warning disable CA1416
-    if (OperatingSystem.IsWindows())
-    {
-        uiThread.SetApartmentState(ApartmentState.STA);
-    }
-#pragma warning restore CA1416
-    uiThread.Start();
-    uiThread.Join();
-
-    if (threadException != null)
-    {
-        throw threadException;
-    }
-}
-
-[DllImport("libgtk-3.so.0", EntryPoint = "gtk_init_check")]
-[return: MarshalAs(UnmanagedType.Bool)]
-static extern bool GtkInitCheck(IntPtr argc, IntPtr argv);

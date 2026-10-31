@@ -2314,29 +2314,30 @@ public static class RefactorSelfCheck
             CommandLineOptions.Parse([]).ServerUrl,
             "default server url"
         );
+        // Legacy run-mode flags are accepted as no-ops now that the server is always headless.
         AssertEqual(
             failures,
-            true,
-            CommandLineOptions.Parse(["--headless"]).IsHeadless,
-            "--headless"
+            null,
+            CommandLineOptions.Parse(["--headless"]).Error,
+            "--headless accepted as legacy no-op"
         );
         AssertEqual(
             failures,
-            true,
-            CommandLineOptions.Parse(["--server-only"]).IsHeadless,
-            "--server-only alias"
+            null,
+            CommandLineOptions.Parse(["--server-only"]).Error,
+            "--server-only accepted as legacy no-op"
         );
         AssertEqual(
             failures,
-            TsundokuRunMode.GuiOnly,
-            CommandLineOptions.Parse(["--gui"]).Mode,
-            "--gui"
+            null,
+            CommandLineOptions.Parse(["--gui"]).Error,
+            "--gui accepted as legacy no-op"
         );
         AssertEqual(
             failures,
-            TsundokuRunMode.GuiOnly,
-            CommandLineOptions.Parse(["--client-only"]).Mode,
-            "--client-only alias"
+            null,
+            CommandLineOptions.Parse(["--client-only"]).Error,
+            "--client-only accepted as legacy no-op"
         );
 
         var portOnly = CommandLineOptions.Parse(["--port", "5050"]);
@@ -2350,7 +2351,6 @@ public static class RefactorSelfCheck
         AssertEqual(failures, 5050, CommandLineOptions.Parse(["-p", "5050"]).Port, "-p alias");
 
         var remote = CommandLineOptions.Parse([
-            "--gui",
             "--server-url",
             "http://192.168.1.50:5000/",
         ]);

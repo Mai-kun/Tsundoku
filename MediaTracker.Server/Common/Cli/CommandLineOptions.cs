@@ -1,23 +1,15 @@
 namespace MediaTracker.Server.Common.Cli;
 
-public enum TsundokuRunMode
-{
-    Combined,
-    Headless,
-    GuiOnly,
-}
-
 /// <summary>
 /// Hand-rolled parser for the process arguments, so Program.cs only branches on the resolved
-/// mode instead of sniffing raw strings. Container env vars still win when no explicit mode
-/// flag is passed.
+/// options instead of sniffing raw strings. The server is always a headless Kestrel service:
+/// the legacy --headless / --gui mode flags are accepted as no-ops for backwards compatibility.
 /// </summary>
 public sealed class CommandLineOptions
 {
     public const int DefaultPort = 5000;
     public const string DefaultServerUrl = "http://127.0.0.1:5000";
 
-    public TsundokuRunMode Mode { get; private set; } = TsundokuRunMode.Combined;
     public int? Port { get; private set; }
     public string? ServerUrl { get; private set; }
     public string? DataDirectory { get; private set; }
@@ -26,8 +18,6 @@ public sealed class CommandLineOptions
     public bool RunSelfCheck { get; private set; }
     public bool IsDevMode { get; private set; }
     public string? Error { get; private set; }
-
-    public bool IsHeadless => Mode == TsundokuRunMode.Headless;
 
     public static bool IsRunningInContainer =>
         string.Equals(
@@ -45,7 +35,6 @@ public sealed class CommandLineOptions
     public static CommandLineOptions Parse(string[] args)
     {
         var options = new CommandLineOptions();
-        TsundokuRunMode? requestedMode = null;
 
         for (var i = 0; i < args.Length; i++)
         {
@@ -63,14 +52,11 @@ public sealed class CommandLineOptions
 
             switch (arg)
             {
+                // Legacy run-mode flags: the server is always headless, so they parse as no-ops.
                 case "--headless":
                 case "--server-only":
-                    requestedMode = TsundokuRunMode.Headless;
-                    break;
-
                 case "--gui":
                 case "--client-only":
-                    requestedMode = TsundokuRunMode.GuiOnly;
                     break;
 
                 case "--migrate-only":
@@ -155,17 +141,6 @@ public sealed class CommandLineOptions
             }
         }
 
-        var environmentForcesHeadless =
-            IsRunningInContainer
-            || string.Equals(
-                Environment.GetEnvironmentVariable("HEADLESS"),
-                "true",
-                StringComparison.OrdinalIgnoreCase
-            );
-
-        options.Mode =
-            requestedMode
-            ?? (environmentForcesHeadless ? TsundokuRunMode.Headless : TsundokuRunMode.Combined);
         options.ServerUrl ??= options.Port is { } kestrelPort
             ? $"http://127.0.0.1:{kestrelPort}"
             : DefaultServerUrl;
@@ -181,11 +156,11 @@ public sealed class CommandLineOptions
               Tsundoku.exe [options]
 
             Options:
-              --headless, --server-only    Run only the ASP.NET Core web server (Docker / service mode).
-                                         No Photino window is created.
-              --gui, --client-only         Run only the Photino desktop window. The embedded Kestrel
-                                         server and the database migrations are not started.
-              --server-url <url>           Address the --gui window connects to. Default: http://127.0.0.1:5000
+              --headless, --server-only    Legacy no-op. The server always runs as a headless
+                                         Kestrel web service.
+              --gui, --client-only         Legacy no-op. Photino was removed; the UI is served
+                                         from wwwroot and opened in any browser.
+              --server-url <url>           Address the UI connects to. Default: http://127.0.0.1:5000
               --port <number>, -p <number> Override the Kestrel listening port. Default: 5000
               --data-dir <path>            Base folder for tracker.db, logs and covers.
                                          Default: %LOCALAPPDATA%\Tsundoku (current directory in Docker)
@@ -194,14 +169,12 @@ public sealed class CommandLineOptions
               --help, -h                   Show this help and exit.
 
             Examples:
-              Tsundoku.exe                                          Backend in background + desktop window
-              Tsundoku.exe --headless -p 8080                       Web server only on port 8080
-              Tsundoku.exe --gui --server-url http://192.168.1.50:5000
+              Tsundoku.exe                                          Web server on the default port
+              Tsundoku.exe --port 8080                              Web server on port 8080
               Tsundoku.exe --port 5050 --data-dir D:\TsundokuData
               Tsundoku.exe --migrate-only                           CI/CD migration step
 
             Environment variables:
-              DOTNET_RUNNING_IN_CONTAINER=true or HEADLESS=true  force --headless
               ASPNETCORE_URLS                                      used when --port is not given
 
             """;

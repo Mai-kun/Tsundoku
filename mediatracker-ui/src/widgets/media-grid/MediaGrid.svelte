@@ -252,20 +252,9 @@
 {/snippet}
 
 {#if loading || isInitialLoading}
-  <div
-    style="display: grid; grid-template-columns: repeat({columnsCount}, minmax(0, 1fr)); gap: 1rem;"
-    aria-hidden="true"
-  >
-    {#each Array(7) as _, index (index)}
-      <div class="bg-card overflow-hidden rounded-lg">
-        <div class="bg-card-hover aspect-[3/4] animate-pulse"></div>
-        <div class="space-y-2 p-3.5">
-          <div class="bg-canvas h-4 w-3/4 animate-pulse rounded"></div>
-          <div class="bg-canvas h-3 w-1/2 animate-pulse rounded"></div>
-        </div>
-      </div>
-    {/each}
-  </div>
+  <!-- Clean placeholder: a quiet empty box holds the layout without pulsing
+       skeleton cards, which strobed on every category switch. -->
+  <div class="min-h-60" aria-hidden="true"></div>
   <p class="sr-only" role="status">{i18n.t.common.loading}</p>
 {:else if error}
   <div

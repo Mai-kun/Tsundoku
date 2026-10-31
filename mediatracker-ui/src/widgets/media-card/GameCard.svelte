@@ -30,13 +30,11 @@
 </script>
 
 <BaseCard {item} {timeHint} {onOpen} {onStatusChange} {onProgressCommitted} {onDelete}>
-  {#snippet children()}
-    <CardTitleBlock title={item.title} subtitle={platform ?? i18n.t.types.game} />
+  <CardTitleBlock title={item.title} subtitle={platform ?? i18n.t.types.game} />
 
-    {#if showProgress}
-      <CardProgressBar label={i18n.t.card.hours(progress.value)} ratio={null} />
-    {/if}
-  {/snippet}
+  {#if showProgress}
+    <CardProgressBar label={i18n.t.card.hours(progress.value)} ratio={null} />
+  {/if}
 
   {#snippet hover()}
     {#if showProgress}

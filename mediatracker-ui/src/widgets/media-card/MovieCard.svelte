@@ -19,13 +19,11 @@
 </script>
 
 <BaseCard {item} {timeHint} {onOpen} {onStatusChange} {onProgressCommitted} {onDelete}>
-  {#snippet children()}
-    <CardTitleBlock title={item.title} subtitle={item.director?.trim() || i18n.t.types.movie} />
+  <CardTitleBlock title={item.title} subtitle={item.director?.trim() || i18n.t.types.movie} />
 
-    {#if showProgress}
-      <CardProgressBar label={i18n.t.card.movie(item.durationMinutes)} ratio={null} />
-    {/if}
-  {/snippet}
+  {#if showProgress}
+    <CardProgressBar label={i18n.t.card.movie(item.durationMinutes)} ratio={null} />
+  {/if}
 
   {#snippet hover()}
     <MediaStatusBadge

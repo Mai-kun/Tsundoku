@@ -462,9 +462,9 @@
   function sortFilters(value: HomeSort) {
     switch (value) {
       case "updated":
-      // The server only knows flat columns; the client re-sorts anyway,
-      // so the initial fetch simply uses the same newest-first shape.
       case "created":
+        // The server only knows flat columns; the client re-sorts anyway,
+        // so the initial fetch simply uses the same newest-first shape.
         return {
           sortBy: "createdAt" as const,
           sortOrder: "desc" as const,

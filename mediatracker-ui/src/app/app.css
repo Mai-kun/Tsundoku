@@ -16,23 +16,23 @@
   --color-base-300: #14171f;
   --color-base-content: #f3f4f6;
 
-  --color-primary: #5844e0;
+  --color-primary: #473bb8;
   --color-primary-content: #ffffff;
   --color-secondary: #a5b4fc;
   --color-secondary-content: #101114;
   /* Matches the project's `bg-accent` (purple); keeps `accent-*` utilities stable. */
-  --color-accent: #5844e0;
+  --color-accent: #473bb8;
   --color-accent-content: #ffffff;
   --color-neutral: #242d42;
   --color-neutral-content: #f3f4f6;
 
   --color-info: #7dd3fc;
   --color-info-content: #101114;
-  --color-success: #34d399;
+  --color-success: #2ea879;
   --color-success-content: #101114;
-  --color-warning: #f59e0b;
+  --color-warning: #c2821b;
   --color-warning-content: #101114;
-  --color-error: #fb7185;
+  --color-error: #e05265;
   --color-error-content: #101114;
 
   --radius-selector: 0.375rem;
@@ -65,8 +65,8 @@
   --color-panel: #1a1e28;
   --color-panel-border: rgba(255, 255, 255, 0.06);
   --color-border: rgba(255, 255, 255, 0.05);
-  --color-accent: #5844e0;
-  --color-accent-hover: #4a37d4;
+  --color-accent: #473bb8;
+  --color-accent-hover: #3d32a0;
   --color-accent-soft: #a5b4fc;
   --color-star: #f59e0b;
   --color-muted: #9ca3af;
@@ -81,7 +81,7 @@
   --color-overlay: #181b24;
   --color-overlay-strong: #1e222d;
   --color-modal: #181b24;
-  --color-accent-bright: #6854f0;
+  --color-accent-bright: #5446cf;
   --color-accent-line: #7786ee;
   --color-accent-deep: #6b58eb;
   --color-ink-dim: #d1d5db;
@@ -94,7 +94,7 @@
   --color-success-surface: #0f241d;
   --color-warning-line: #d97706;
   --color-warning-surface: #281e0e;
-  --color-danger-line: #dc2626;
+  --color-danger-line: #b92b42;
   --color-danger-surface: #2b1016;
   --color-score-bg: #4a63c9;
   --color-track: #2a3040;
@@ -104,14 +104,32 @@
   --color-track-faint: #161a22;
   --color-track-alt: #181b24;
   --color-brand-blue: #2563eb;
-  --color-brand-green: #22c55e;
+  --color-brand-green: #228b57;
   --color-brand-sky: #38bdf8;
   --color-slate-deep: #032541;
+
+  /* Muted overrides for the Tailwind palette steps used by solid buttons. The
+     defaults (#e11d48, #059669, #f59e0b, ...) read as neon against the #0d0f14
+     canvas; these matte variants keep white label text within WCAG AA. */
+  --color-indigo-600: #4338ca;
+  --color-indigo-500: #4f46e5;
+  --color-rose-600: #9f2437;
+  --color-rose-500: #b92b42;
+  --color-emerald-600: #1b7348;
+  --color-emerald-500: #228b57;
+  --color-amber-500: #b87c14;
+  --color-amber-600: #9a650d;
 
   --ease-tap: cubic-bezier(0.2, 0, 0, 1);
 }
 
 @layer components {
+  /* Softens solid button labels: a faint dark halo keeps white text from
+     glaring against muted accent fills on the deep dark canvas. */
+  button:not(:disabled) {
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  }
+
   /* Panel surface for the detail page's left column (history / actions / details). */
   .panel {
     border-radius: 0.75rem;
@@ -132,6 +150,23 @@
     transform: scale(0.97);
   }
 
+  /* View/category switches: soft 180ms rise-in instead of loader flashes.
+     opacity + transform only, so the animation stays on the compositor. */
+  @keyframes viewFadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .view-fade {
+    animation: viewFadeIn 180ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
   /* Library card. The virtual grid already removes off-screen rows from the DOM,
      so content-visibility only added visibility-toggle work on top of it
      (micro-freezes on card entry in WebView2). layout+paint containment keeps
@@ -144,6 +179,10 @@
   @media (prefers-reduced-motion: reduce) {
     .tap {
       transition-duration: 0ms;
+    }
+
+    .view-fade {
+      animation: none;
     }
   }
 }

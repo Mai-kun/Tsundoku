@@ -15,7 +15,7 @@
   let { active, mediaType, seasonProgress, relatedCount = 0, onSelect }: Props = $props();
 
   function tabClass(tab: SubTab): string {
-    return `flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-semibold transition ${
+    return `flex items-center gap-2 whitespace-nowrap border-b-2 px-3 py-2.5 text-sm font-semibold transition sm:px-4 ${
       active === tab
         ? "border-[var(--color-accent)] text-white"
         : "border-transparent text-muted hover:text-white"

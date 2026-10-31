@@ -29,13 +29,11 @@
 </script>
 
 <BaseCard {item} {timeHint} {onOpen} {onStatusChange} {onProgressCommitted} {onDelete}>
-  {#snippet children()}
-    <CardTitleBlock title={item.title} subtitle={item.author || i18n.t.types.book} />
+  <CardTitleBlock title={item.title} subtitle={item.author || i18n.t.types.book} />
 
-    {#if showProgress}
-      <CardProgressBar label={i18n.t.card.pages(progress.value, item.totalPages)} {ratio} />
-    {/if}
-  {/snippet}
+  {#if showProgress}
+    <CardProgressBar label={i18n.t.card.pages(progress.value, item.totalPages)} {ratio} />
+  {/if}
 
   {#snippet hover()}
     {#if showProgress}

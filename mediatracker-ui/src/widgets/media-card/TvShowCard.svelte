@@ -61,16 +61,14 @@
 </script>
 
 <BaseCard {item} {timeHint} {onOpen} {onStatusChange} {onProgressCommitted} {onDelete}>
-  {#snippet children()}
-    <CardTitleBlock title={item.title} {subtitle} />
+  <CardTitleBlock title={item.title} {subtitle} />
 
-    {#if showProgress}
-      <CardProgressBar
-        label={i18n.t.card.episodes(item.totalEpisodesWatched, totalEpisodes ?? 0)}
-        {ratio}
-      />
-    {/if}
-  {/snippet}
+  {#if showProgress}
+    <CardProgressBar
+      label={i18n.t.card.episodes(item.totalEpisodesWatched, totalEpisodes ?? 0)}
+      {ratio}
+    />
+  {/if}
 
   {#snippet hover()}
     {#if showStepper && onEpisodeStep}

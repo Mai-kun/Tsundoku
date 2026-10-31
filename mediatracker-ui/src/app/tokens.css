@@ -3,17 +3,17 @@
   --color-canvas: #0d0f14;
   --color-surface: #12151c;
   --color-card: #151a26;
-  --color-accent: #5844e0;
+  --color-accent: #473bb8;
   --color-accent-soft: #a5b4fc;
 
   /* Фирменные градиенты */
-  --gradient-accent: linear-gradient(135deg, #5844e0 0%, #818cf8 100%);
+  --gradient-accent: linear-gradient(135deg, #473bb8 0%, #818cf8 100%);
   --gradient-card: linear-gradient(
     180deg,
     rgba(255, 255, 255, 0.03) 0%,
     rgba(255, 255, 255, 0.01) 100%
   );
-  --gradient-glow: radial-gradient(circle at 50% 0%, rgba(88, 68, 224, 0.15) 0%, transparent 70%);
+  --gradient-glow: radial-gradient(circle at 50% 0%, rgba(71, 59, 184, 0.15) 0%, transparent 70%);
 
   /* Тонкие границы */
   --color-panel-border: rgba(255, 255, 255, 0.06);
@@ -56,8 +56,8 @@
   --color-import-shikimori-text: #c7d2fe;
 
   /* Custom / Universal (Tsundoku Purple) */
-  --color-import-custom-accent: #5844e0;
-  --color-import-custom-border: rgba(88, 68, 224, 0.2);
+  --color-import-custom-accent: #473bb8;
+  --color-import-custom-border: rgba(71, 59, 184, 0.2);
   --color-import-custom-surface: rgba(88, 68, 224, 0.05);
   --color-import-custom-text: #a5b4fc;
 }

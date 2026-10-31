@@ -24,7 +24,6 @@
     setProgress,
     setSeasonProgress,
   } from "$shared/api/api";
-  import { LoaderCircle } from "$shared/ui/Icons";
   import { jobsClient } from "$shared/api/jobsClient.svelte";
   import { showToast } from "$shared/ui/toast.svelte";
   import { i18n } from "$shared/i18n/index.svelte";
@@ -95,11 +94,13 @@
       allItems = cached;
       loadedCategory = category;
       loading = false;
-    } else {
-      // Keep the previous rows mounted while the new category loads: clearing the list
-      // collapsed the scroller and re-laid out the page before the request even started.
-      // The template shows the skeleton instead whenever the data belongs to another category.
-      loading = true;
+    } else if (prevCategory !== null) {
+      // Live category switch with nothing cached: keep loading false so no gray
+      // placeholder or spinner ever flashes — the keyed fade container below
+      // waits quietly until loadItems fills the list, then the content fades in.
+      // (On mount, prevCategory is null and the initial `loading` state stands:
+      // it suppresses the "empty library" message while the first fetch runs.)
+      loading = false;
     }
   });
 
@@ -441,63 +442,59 @@
     {/if}
   </p>
 
-  {#if loading && allItems.length === 0}
-    <!-- First visit with nothing cached: a single quiet spinner, never a pulsing skeleton grid. -->
-    <div class="text-muted flex min-h-60 items-center justify-center">
-      <LoaderCircle size={28} class="animate-spin" aria-hidden="true" />
-      <span class="sr-only">{i18n.t.common.loading}</span>
-    </div>
-  {:else}
-    <div class="transition-opacity duration-200" class:opacity-60={refreshing}>
-      {#if loadError}
-        {@render mediaGrid([])}
-      {:else if useSingleGrid}
-        {@render mediaGrid(filteredItems)}
-      {:else if groupBy === "status"}
-        {#if statusGroups.length === 0 && !loading}
+  {#key loadedCategory}
+    <div class="view-fade">
+      <div class="transition-opacity duration-200" class:opacity-60={refreshing}>
+        {#if loadError}
           {@render mediaGrid([])}
+        {:else if useSingleGrid}
+          {@render mediaGrid(filteredItems)}
+        {:else if groupBy === "status"}
+          {#if statusGroups.length === 0 && !loading}
+            {@render mediaGrid([])}
+          {:else}
+            <div class="space-y-8">
+              {#each statusGroups as group (group.status)}
+                <SectionRow
+                  title={group.title}
+                  items={group.items}
+                  onRetry={refresh}
+                  {onOpen}
+                  onProgress={updateProgress}
+                  onProgressCommitted={onMediaChanged}
+                  onStatusChange={handleItemStatusChange}
+                  onEpisodeStep={stepEpisode}
+                  onDelete={removeItem}
+                  {onEdit}
+                />
+              {/each}
+            </div>
+          {/if}
+        {:else if groupBy === "franchise"}
+          {#if franchiseGroups.length === 0 && !loading}
+            {@render mediaGrid([])}
+          {:else}
+            <div class="space-y-8">
+              {#each franchiseGroups as group (group.name)}
+                <SectionRow
+                  title={group.name}
+                  items={group.items}
+                  onRetry={refresh}
+                  {onOpen}
+                  onProgress={updateProgress}
+                  onProgressCommitted={onMediaChanged}
+                  onStatusChange={handleItemStatusChange}
+                  onEpisodeStep={stepEpisode}
+                  onDelete={removeItem}
+                  {onEdit}
+                />
+              {/each}
+            </div>
+          {/if}
         {:else}
-          <div class="space-y-8">
-            {#each statusGroups as group (group.status)}
-              <SectionRow
-                title={group.title}
-                items={group.items}
-                onRetry={refresh}
-                {onOpen}
-                onProgress={updateProgress}
-                onProgressCommitted={onMediaChanged}
-                onStatusChange={handleItemStatusChange}
-                onEpisodeStep={stepEpisode}
-                onDelete={removeItem}
-                {onEdit}
-              />
-            {/each}
-          </div>
+          {@render mediaGrid(filteredItems)}
         {/if}
-      {:else if groupBy === "franchise"}
-        {#if franchiseGroups.length === 0 && !loading}
-          {@render mediaGrid([])}
-        {:else}
-          <div class="space-y-8">
-            {#each franchiseGroups as group (group.name)}
-              <SectionRow
-                title={group.name}
-                items={group.items}
-                onRetry={refresh}
-                {onOpen}
-                onProgress={updateProgress}
-                onProgressCommitted={onMediaChanged}
-                onStatusChange={handleItemStatusChange}
-                onEpisodeStep={stepEpisode}
-                onDelete={removeItem}
-                {onEdit}
-              />
-            {/each}
-          </div>
-        {/if}
-      {:else}
-        {@render mediaGrid(filteredItems)}
-      {/if}
+      </div>
     </div>
-  {/if}
+  {/key}
 </div>

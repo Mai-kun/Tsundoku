@@ -799,9 +799,9 @@
             </div>
 
             {#if sourcesLoading}
-              <div class="space-y-3">
+              <div class="space-y-3.5">
                 {#each Array(4) as _, i (i)}
-                  <div class="bg-card h-24 animate-pulse rounded-lg"></div>
+                  <div class="bg-card h-24 animate-pulse rounded-xl"></div>
                 {/each}
               </div>
             {:else if sourcesError}
@@ -809,10 +809,10 @@
                 {errorMessage(sourcesError)}
               </p>
             {:else}
-              <div class="space-y-3">
+              <div class="space-y-3.5">
                 {#each filteredSources as source (source.id)}
                   <div
-                    class="bg-field rounded-lg border border-white/10 p-4 transition {source.isEnabled ===
+                    class="bg-field rounded-xl border border-white/[0.07] p-4 transition {source.isEnabled ===
                     false
                       ? 'opacity-65'
                       : ''}"
@@ -902,8 +902,10 @@
                           type="button"
                           role="switch"
                           aria-checked={source.isEnabled}
-                          class={`focus:ring-accent-soft focus:ring-offset-surface relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:ring-2 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 ${
-                            source.isEnabled ? "bg-accent-soft" : "bg-canvas"
+                          class={`focus:ring-accent-soft focus:ring-offset-surface relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border transition-colors duration-200 focus:ring-2 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 ${
+                            source.isEnabled
+                              ? "border-indigo-400 bg-indigo-600"
+                              : "border-white/10 bg-white/10"
                           }`}
                           onclick={() => void handleToggleSource(source)}
                           disabled={togglingSource === source.id}
@@ -913,8 +915,8 @@
                         >
                           <span
                             aria-hidden="true"
-                            class={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                              source.isEnabled ? "translate-x-5" : "translate-x-0"
+                            class={`pointer-events-none inline-block h-5 w-5 transform rounded-full shadow ring-0 transition duration-200 ease-in-out ${
+                              source.isEnabled ? "translate-x-5 bg-white" : "translate-x-0 bg-slate-400"
                             }`}
                           ></span>
                         </button>

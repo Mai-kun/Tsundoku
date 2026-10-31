@@ -59,6 +59,7 @@
   let status = $state<MediaStatus>(MEDIA_STATUS.planned);
   let editingInitialized = $state(false);
   let titleInput = $state<HTMLInputElement | null>(null);
+  let altTitles = $state("");
 
   /**
    * Notes are a detail-only field: the list the grid holds does not carry them, so prefilling from
@@ -108,6 +109,8 @@
     studio = "";
     network = "";
     seasons = [];
+    // Only the detail payload carries alt titles; a list-shaped editing row has none.
+    altTitles = ("altTitles" in item ? (item.altTitles ?? []) : []).join(", ");
 
     if (item.type === "game") {
       platform = item.platform ?? "";
@@ -159,9 +162,15 @@
   }
 
   function buildPayload(): CreateMediaPayload {
+    const altTitleList = altTitles
+      .split(/[,,\n]/)
+      .map((value) => value.trim())
+      .filter(Boolean);
+
     const common = {
       title: title.trim(),
       status: MEDIA_STATUS.planned,
+      altTitles: altTitleList.length > 0 ? altTitleList : undefined,
       coverUrl: optionalText(coverUrl),
       notes: optionalText(notes),
     };
@@ -213,6 +222,7 @@
   function resetForm() {
     type = "game";
     title = "";
+    altTitles = "";
     coverUrl = "";
     notes = "";
     platform = "";
@@ -262,6 +272,12 @@
       const saved = editingItem
         ? await updateMedia(editingItem.id, {
             title: title.trim(),
+            altTitles: altTitles.trim()
+              ? altTitles
+                  .split(/[,,\n]/)
+                  .map((value) => value.trim())
+                  .filter(Boolean)
+              : [],
             score: numberOrNull(score),
             notes: optionalText(notes),
             coverUrl: optionalText(coverUrl),
@@ -349,6 +365,14 @@
           /></label
         >
       </div>
+
+      <label class="text-ink space-y-1.5 block text-sm font-medium"
+        ><span>{i18n.t.createModal.fields.altTitles}</span><input
+          class="bg-field placeholder:text-muted h-10 w-full rounded-lg border border-white/10 px-3 text-sm font-normal outline-none focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/30"
+          bind:value={altTitles}
+          placeholder={i18n.t.createModal.fields.altTitles}
+        /></label
+      >
 
       <div class="grid gap-4 sm:grid-cols-2">
         <label class="text-ink space-y-1.5 text-sm font-medium"

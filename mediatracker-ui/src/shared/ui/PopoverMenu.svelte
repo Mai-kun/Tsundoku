@@ -253,3 +253,28 @@
     {/if}
   {/if}
 </div>
+
+<style>
+  /* Micro-animation on open: 150ms fade + settle. The native popover attribute
+     needs `display`/`overlay` in the transition list and @starting-style so the
+     entry animation actually plays from the closed state. */
+  div[popover] {
+    opacity: 0;
+    transform: translateY(-4px);
+    transition:
+      opacity 150ms ease,
+      transform 150ms ease,
+      display 150ms allow-discrete,
+      overlay 150ms allow-discrete;
+  }
+
+  div[popover]:popover-open {
+    opacity: 1;
+    transform: translateY(0);
+
+    @starting-style {
+      opacity: 0;
+      transform: translateY(-4px);
+    }
+  }
+</style>

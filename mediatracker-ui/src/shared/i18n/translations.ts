@@ -67,6 +67,35 @@ export const translations = {
       ru: (count: number) => `Всего: ${count}`,
       en: (count: number) => `Total: ${count}`,
     },
+    resultCountWithShown: {
+      ru: (total: number, shown: number) => `Всего: ${total} (показано ${shown})`,
+      en: (total: number, shown: number) => `Total: ${total} (showing ${shown})`,
+    },
+  },
+  home: {
+    searchPlaceholder: { ru: "Поиск на главной...", en: "Search home..." },
+    limitCompact: { ru: "21", en: "21" },
+    limitAll: { ru: "Все", en: "All" },
+    limitTooltip: {
+      ru: "Переключить лимит: 21 тайтл / Все",
+      en: "Toggle limit: 21 items / All",
+    },
+    grouping: { ru: "Группировка", en: "Grouping" },
+    groupByStatus: { ru: "По статусу", en: "By status" },
+    groupByType: { ru: "По типу медиа", en: "By media type" },
+    groupNone: { ru: "Без группировки", en: "No grouping" },
+    categories: { ru: "Категории", en: "Categories" },
+    allCategories: { ru: "Все категории", en: "All categories" },
+    randomPick: { ru: "Случайный тайтл", en: "Random title" },
+    randomPickToast: {
+      ru: (title: string) => `Выбор пал на: ${title} 🎲`,
+      en: (title: string) => `Selected: ${title} 🎲`,
+    },
+    randomEmpty: {
+      ru: "Нет тайтлов для выбора — измените фильтры",
+      en: "Nothing to pick from — adjust the filters",
+    },
+    resetFilters: { ru: "Сбросить фильтры", en: "Reset filters" },
   },
   views: {
     homeTitle: { ru: "Моя медиатека", en: "My library" },
@@ -449,6 +478,8 @@ export const translations = {
   sort: {
     label: { ru: "Сортировка", en: "Sort" },
     newest: { ru: "Сначала новые", en: "Newest first" },
+    updated: { ru: "По активности", en: "Recently active" },
+    created: { ru: "По дате добавления", en: "Date added" },
     oldest: { ru: "Сначала старые", en: "Oldest first" },
     rating: { ru: "По рейтингу", en: "Top rated" },
     title: { ru: "По алфавиту", en: "Alphabetical" },
@@ -1220,6 +1251,10 @@ export const translations = {
     fields: {
       type: { ru: "Тип", en: "Type" },
       title: { ru: "Название", en: "Title" },
+      altTitles: {
+        ru: "Альтернативные названия",
+        en: "Alternative titles",
+      },
       coverUrl: { ru: "Обложка", en: "Cover" },
       platform: { ru: "Платформа", en: "Platform" },
       hoursPlayed: { ru: "Часы", en: "Hours" },
@@ -1335,6 +1370,7 @@ export const translations = {
     },
     actionsTitle: { ru: "Действия", en: "Actions" },
     detailsTitle: { ru: "Характеристики", en: "Details" },
+    altTitlesLabel: { ru: "Альтернативные названия", en: "Alternative titles" },
     originalTitle: { ru: "Оригинальное название", en: "Original title" },
     synopsisTitle: { ru: "Синопсис", en: "Synopsis" },
     noSynopsis: {

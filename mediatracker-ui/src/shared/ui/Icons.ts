@@ -25,6 +25,8 @@ export { default as Clapperboard } from "lucide-svelte/icons/clapperboard";
 export { default as Clock3 } from "lucide-svelte/icons/clock-3";
 export { default as Copy } from "lucide-svelte/icons/copy";
 export { default as Download } from "lucide-svelte/icons/download";
+export { default as Dices } from "lucide-svelte/icons/dices";
+export { default as Shuffle } from "lucide-svelte/icons/shuffle";
 export { default as ExternalLink } from "lucide-svelte/icons/external-link";
 export { default as Eye } from "lucide-svelte/icons/eye";
 export { default as EyeOff } from "lucide-svelte/icons/eye-off";

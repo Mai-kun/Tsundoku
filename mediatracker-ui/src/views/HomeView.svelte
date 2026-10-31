@@ -13,7 +13,21 @@
 </script>
 
 <script lang="ts">
-  import { Clock3, Layers } from "$shared/ui/Icons";
+  import {
+    ArrowUp,
+    CalendarDays,
+    ChevronDown,
+    Clock3,
+    Dices,
+    History,
+    Layers,
+    LayoutGrid,
+    ListChecks,
+    Search,
+    SlidersHorizontal,
+    Star,
+    Type,
+  } from "$shared/ui/Icons";
   import {
     deleteMedia,
     getMedia,
@@ -34,7 +48,6 @@
   import MediaGrid from "$widgets/media-grid/MediaGrid.svelte";
   import PopoverMenu from "$shared/ui/PopoverMenu.svelte";
   import { nextSeriesEpisodeStep } from "$entities/media/model/seriesStep";
-  import { SORT_ICONS } from "$features/filter-and-sort/FilterBar.svelte";
   import {
     evaluateTimeFit,
     formatTimeBudgetChip,
@@ -54,11 +67,47 @@
     { value: 120, label: i18n.t.timeBudget.options.h2_plus },
   ]);
 
-  const sortOptions = $derived<{ value: LibrarySort; label: string }[]>([
-    { value: "newest", label: i18n.t.sort.newest },
+  /** Home-local sort: `updated` leads with last activity; `created` by date added. */
+  type HomeSort = "updated" | "created" | "oldest" | "rating" | "title";
+  type CategoryFilter = "all" | "game" | "anime" | "manga" | "movie" | "tvshow" | "book";
+  type GroupingMode = "status" | "type" | "none";
+
+  const HOME_SORT_ICONS: Record<HomeSort, typeof Star> = {
+    updated: History,
+    created: CalendarDays,
+    oldest: ArrowUp,
+    rating: Star,
+    title: Type,
+  };
+
+  const GROUP_MODE_ICONS: Record<GroupingMode, typeof Layers> = {
+    status: ListChecks,
+    type: Layers,
+    none: LayoutGrid,
+  };
+
+  const sortOptions = $derived<{ value: HomeSort; label: string }[]>([
+    { value: "updated", label: i18n.t.sort.updated },
+    { value: "created", label: i18n.t.sort.created },
     { value: "oldest", label: i18n.t.sort.oldest },
     { value: "rating", label: i18n.t.sort.rating },
     { value: "title", label: i18n.t.sort.title },
+  ]);
+
+  const categoryOptions = $derived<{ value: CategoryFilter; label: string }[]>([
+    { value: "all", label: i18n.t.home.allCategories },
+    { value: "anime", label: i18n.t.navigation.anime },
+    { value: "manga", label: i18n.t.navigation.manga },
+    { value: "game", label: i18n.t.navigation.game },
+    { value: "movie", label: i18n.t.navigation.movie },
+    { value: "tvshow", label: i18n.t.navigation.tvshow },
+    { value: "book", label: i18n.t.navigation.book },
+  ]);
+
+  const groupingOptions = $derived<{ value: GroupingMode; label: string }[]>([
+    { value: "status", label: i18n.t.home.groupByStatus },
+    { value: "type", label: i18n.t.home.groupByType },
+    { value: "none", label: i18n.t.home.groupNone },
   ]);
 
   interface Props {
@@ -77,9 +126,16 @@
   );
   let loading = $state(homeCache.peek(HOME_KEY) === undefined);
   let loadError = $state<unknown>(null);
-  let sort = $state<LibrarySort>(uiSettings.sortOption as LibrarySort);
-  let groupByType = $state<boolean>(uiSettings.groupByType);
+  // The persisted library value "newest" maps to home's "updated" (both newest-first).
+  let sort = $state<HomeSort>(
+    uiSettings.sortOption === "newest" ? "updated" : (uiSettings.sortOption as HomeSort),
+  );
+  let groupByMode = $state<GroupingMode>(uiSettings.groupByType ? "type" : "status");
   let timeBudget = $state<TimeBudgetMinutes>(null);
+  let showAll = $state(false);
+  let searchQuery = $state("");
+  let debouncedSearch = $state("");
+  let selectedCategory = $state<CategoryFilter>("all");
   let showStaleModal = $state(false);
   const staleCount = $derived(inProgress.filter((item) => isStaleInProgress(item, 180)).length);
   let requestSequence = 0;
@@ -104,27 +160,33 @@
     book: 6,
   };
 
-  function sortItems(list: MediaItem[], byType: boolean, currentSort: LibrarySort): MediaItem[] {
+  function compareItems(a: MediaItem, b: MediaItem, currentSort: HomeSort): number {
+    if (currentSort === "rating") {
+      return (b.score ?? 0) - (a.score ?? 0);
+    }
+    if (currentSort === "title") {
+      return a.title.localeCompare(b.title);
+    }
+    if (currentSort === "created") {
+      return Date.parse(b.createdAt) - Date.parse(a.createdAt);
+    }
+    if (currentSort === "oldest") {
+      return Date.parse(a.createdAt) - Date.parse(b.createdAt);
+    }
+    // updated = "по недавней активности": the newest known touch wins.
+    const aTime = Date.parse(a.lastActivityAt || a.updatedAt || a.createdAt);
+    const bTime = Date.parse(b.lastActivityAt || b.updatedAt || b.createdAt);
+    return bTime - aTime;
+  }
+
+  function sortItems(list: MediaItem[], byType: boolean, currentSort: HomeSort): MediaItem[] {
     return [...list].sort((a, b) => {
       if (byType) {
         const typeA = TYPE_ORDER[a.type] ?? 99;
         const typeB = TYPE_ORDER[b.type] ?? 99;
         if (typeA !== typeB) return typeA - typeB;
       }
-      if (currentSort === "rating") {
-        return (b.score ?? 0) - (a.score ?? 0);
-      }
-      if (currentSort === "title") {
-        return a.title.localeCompare(b.title);
-      }
-      if (currentSort === "oldest") {
-        const aTime = a.finishedAt ? Date.parse(a.finishedAt) : Date.parse(a.createdAt);
-        const bTime = b.finishedAt ? Date.parse(b.finishedAt) : Date.parse(b.createdAt);
-        return aTime - bTime;
-      }
-      const aTime = a.finishedAt ? Date.parse(a.finishedAt) : Date.parse(a.createdAt);
-      const bTime = b.finishedAt ? Date.parse(b.finishedAt) : Date.parse(b.createdAt);
-      return bTime - aTime;
+      return compareItems(a, b, currentSort);
     });
   }
 
@@ -132,7 +194,7 @@
     list: MediaItem[],
     budget: number,
     byType: boolean,
-    currentSort: LibrarySort,
+    currentSort: HomeSort,
   ): MediaItem[] {
     return [...list].sort((a, b) => {
       const finishA = evaluateItem(a, budget).canFinishNow ? 1 : 0;
@@ -145,37 +207,75 @@
         const typeB = TYPE_ORDER[b.type] ?? 99;
         if (typeA !== typeB) return typeA - typeB;
       }
-      if (currentSort === "rating") {
-        return (b.score ?? 0) - (a.score ?? 0);
-      }
-      if (currentSort === "title") {
-        return a.title.localeCompare(b.title);
-      }
-      if (currentSort === "oldest") {
-        const aTime = a.finishedAt ? Date.parse(a.finishedAt) : Date.parse(a.createdAt);
-        const bTime = b.finishedAt ? Date.parse(b.finishedAt) : Date.parse(b.createdAt);
-        return aTime - bTime;
-      }
-      const aTime = a.finishedAt ? Date.parse(a.finishedAt) : Date.parse(a.createdAt);
-      const bTime = b.finishedAt ? Date.parse(b.finishedAt) : Date.parse(b.createdAt);
-      return bTime - aTime;
+      return compareItems(a, b, currentSort);
     });
   }
 
-  // Dashboard sections show a compact recent slice; the full lists live in
-  // the category views. 8 gives a clean slice while keeping total DOM nodes well below 1150 (< 75% budget).
-  const HOME_SECTION_LIMIT = 8;
+  // Default keeps a compact per-section slice; "Show all" removes the cap entirely.
+  // Compact mode shows 21 = three full rows on the 7-column grid; "All" lifts the cap.
+  const HOME_SECTION_LIMIT = 21;
+
+  // 200ms debounce so typing doesn't refilter the whole library on every keystroke.
+  $effect(() => {
+    const query = searchQuery;
+    const timer = setTimeout(() => (debouncedSearch = query), 200);
+    return () => clearTimeout(timer);
+  });
+
+  function matchesSearch(item: MediaItem, query: string): boolean {
+    const needle = query.trim().toLowerCase();
+    if (!needle) return true;
+    const romaji = "romajiTitle" in item ? (item.romajiTitle ?? "") : "";
+    const original = (item as { originalTitle?: string | null }).originalTitle ?? "";
+    return [item.title, romaji, original].some((value) => value.toLowerCase().includes(needle));
+  }
+
+  function matchesCategory(item: MediaItem): boolean {
+    if (selectedCategory === "all") return true;
+    // "anime" spans both animated kinds: TvShow and Movie rows carrying the flag.
+    if (selectedCategory === "anime") return typeKey(item) === "anime";
+    return item.type === selectedCategory;
+  }
+
+  let filteredInProgress = $derived(
+    inProgress.filter((item) => matchesSearch(item, debouncedSearch) && matchesCategory(item)),
+  );
+  let filteredUpNext = $derived(
+    upNext.filter((item) => matchesSearch(item, debouncedSearch) && matchesCategory(item)),
+  );
+  let filteredRecentlyCompleted = $derived(
+    recentlyCompleted.filter(
+      (item) => matchesSearch(item, debouncedSearch) && matchesCategory(item),
+    ),
+  );
+  let filteredTotal = $derived(
+    filteredInProgress.length + filteredUpNext.length + filteredRecentlyCompleted.length,
+  );
+
+  let hasActiveFilters = $derived(
+    debouncedSearch.trim() !== "" || selectedCategory !== "all" || timeBudget !== null,
+  );
+
+  function categoryLabel(value: string): string {
+    return categoryOptions.find((option) => option.value === value)?.label ?? value;
+  }
+
+  function resetAllFilters() {
+    searchQuery = "";
+    selectedCategory = "all";
+    timeBudget = null;
+  }
 
   let inProgressFitting = $derived.by(() => {
     const budget = timeBudget;
     if (budget === null) return [];
-    return inProgress.filter((item) => evaluateItem(item, budget).fits);
+    return filteredInProgress.filter((item) => evaluateItem(item, budget).fits);
   });
 
   let upNextFitting = $derived.by(() => {
     const budget = timeBudget;
     if (budget === null) return [];
-    return upNext.filter((item) => evaluateItem(item, budget).fits);
+    return filteredUpNext.filter((item) => evaluateItem(item, budget).fits);
   });
 
   let totalFitting = $derived(inProgressFitting.length + upNextFitting.length);
@@ -213,23 +313,65 @@
   });
 
   let displayInProgress = $derived(
-    timeBudget !== null
-      ? sortBudgetItems(inProgressFitting, timeBudget, groupByType, sort).slice(
-          0,
-          HOME_SECTION_LIMIT,
-        )
-      : sortItems(inProgress, groupByType, sort).slice(0, HOME_SECTION_LIMIT),
+    (timeBudget !== null
+      ? sortBudgetItems(inProgressFitting, timeBudget, false, sort)
+      : sortItems(filteredInProgress, false, sort)
+    ).slice(0, showAll ? Number.POSITIVE_INFINITY : HOME_SECTION_LIMIT),
   );
   let displayUpNext = $derived(
-    timeBudget !== null
-      ? sortBudgetItems(upNextFitting, timeBudget, groupByType, sort).slice(0, HOME_SECTION_LIMIT)
-      : sortItems(upNext, groupByType, sort).slice(0, HOME_SECTION_LIMIT),
+    (timeBudget !== null
+      ? sortBudgetItems(upNextFitting, timeBudget, false, sort)
+      : sortItems(filteredUpNext, false, sort)
+    ).slice(0, showAll ? Number.POSITIVE_INFINITY : HOME_SECTION_LIMIT),
   );
   let displayRecentlyCompleted = $derived(
     timeBudget === null
-      ? sortItems(recentlyCompleted, groupByType, sort).slice(0, HOME_SECTION_LIMIT)
+      ? sortItems(filteredRecentlyCompleted, false, sort).slice(
+          0,
+          showAll ? Number.POSITIVE_INFINITY : HOME_SECTION_LIMIT,
+        )
       : [],
   );
+
+  // "type" mode: one section per media kind across all matching items.
+  let typeGroups = $derived.by(() => {
+    if (groupByMode !== "type") return [];
+    const pool =
+      timeBudget !== null
+        ? [...inProgressFitting, ...upNextFitting]
+        : [...filteredInProgress, ...filteredUpNext, ...filteredRecentlyCompleted];
+    const limit = showAll ? Number.POSITIVE_INFINITY : HOME_SECTION_LIMIT;
+    return groupByMediaType(sortItems(pool, false, sort)).map((group) => ({
+      ...group,
+      items: group.items.slice(0, limit),
+    }));
+  });
+
+  // "none" mode: a single unified stream without section headers.
+  let unifiedList = $derived.by(() => {
+    if (groupByMode !== "none") return [];
+    const pool =
+      timeBudget !== null
+        ? [...inProgressFitting, ...upNextFitting]
+        : [...filteredInProgress, ...filteredUpNext, ...filteredRecentlyCompleted];
+    return sortItems(pool, false, sort).slice(
+      0,
+      showAll ? Number.POSITIVE_INFINITY : HOME_SECTION_LIMIT,
+    );
+  });
+
+  /** 🎲 "Что выбрать?": random pick from what is actually on screen. */
+  function pickRandomTitle() {
+    const pool = [...displayInProgress, ...displayUpNext];
+    const source = pool.length > 0 ? pool : displayRecentlyCompleted;
+    if (source.length === 0) {
+      showToast(i18n.t.home.randomEmpty, "warning");
+      return;
+    }
+    const pick = source[Math.floor(Math.random() * source.length)];
+    showToast(i18n.t.home.randomPickToast(pick.title), "success");
+    onOpen(pick);
+  }
 
   function typeKey(media: MediaItem): string {
     return media.type === "tvshow" && media.isAnime ? "anime" : media.type;
@@ -267,8 +409,6 @@
       .sort((a, b) => (TYPE_ORDER[a.key] ?? 99) - (TYPE_ORDER[b.key] ?? 99));
   }
 
-  let totalItems = $derived(inProgress.length + upNext.length + recentlyCompleted.length);
-
   function handleStatusChange(item: MediaItem, newStatus: MediaStatus) {
     inProgress = inProgress.filter((x) => x.id !== item.id);
     upNext = upNext.filter((x) => x.id !== item.id);
@@ -285,9 +425,17 @@
     homeCache.set(HOME_KEY, { inProgress, upNext, recentlyCompleted });
   }
 
+  // refreshKey бампается при любом изменении медиа (в т.ч. после фоновой задачи):
+  // инвалидируем кэш, чтобы секции дома сразу перезапросились и показали новые
+  // обложки, счётчики серий и статусы без F5.
+  let prevRefreshKey: number | null = null;
   $effect(() => {
-    void refreshKey;
     void sort;
+    void showAll;
+    if (prevRefreshKey !== null && refreshKey !== prevRefreshKey) {
+      homeCache.invalidate(HOME_KEY);
+    }
+    prevRefreshKey = refreshKey;
     const isInitial = !hasLoaded;
     void loadSections(++requestSequence, isInitial);
 
@@ -311,9 +459,12 @@
     refresh();
   });
 
-  function sortFilters(value: LibrarySort) {
+  function sortFilters(value: HomeSort) {
     switch (value) {
-      case "newest":
+      case "updated":
+      // The server only knows flat columns; the client re-sorts anyway,
+      // so the initial fetch simply uses the same newest-first shape.
+      case "created":
         return {
           sortBy: "createdAt" as const,
           sortOrder: "desc" as const,
@@ -343,10 +494,13 @@
 
     try {
       const sortParams = sortFilters(sort);
+      // Compact mode fetches just over the 21-item slice; "All" pulls up to the
+      // server cap so every matching title reaches the section.
+      const fetchLimit = showAll ? 500 : HOME_SECTION_LIMIT;
       const [active, planned, completed] = await Promise.all([
-        getMedia({ status: MEDIA_STATUS.inProgress, limit: 16, ...sortParams }),
-        getMedia({ status: MEDIA_STATUS.planned, limit: 16, ...sortParams }),
-        getMedia({ status: MEDIA_STATUS.completed, limit: 16, ...sortParams }),
+        getMedia({ status: MEDIA_STATUS.inProgress, limit: fetchLimit, ...sortParams }),
+        getMedia({ status: MEDIA_STATUS.planned, limit: fetchLimit, ...sortParams }),
+        getMedia({ status: MEDIA_STATUS.completed, limit: fetchLimit, ...sortParams }),
       ]);
 
       if (sequence === requestSequence) {
@@ -484,202 +638,312 @@
         </button>
       {/if}
     </div>
-    {#if groupByType}
-      {#each groupByMediaType(items) as group (group.key)}
-        <div class="space-y-3">
-          <div class="flex items-center gap-2">
-            <h3 class="text-ink text-sm font-semibold">
-              {group.label}
-            </h3>
-            <span
-              class="bg-card-hover text-muted rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums"
-            >
-              {group.items.length}
-            </span>
-          </div>
-          <MediaGrid
-            items={group.items}
-            {timeBudget}
-            {onOpen}
-            onProgress={updateProgress}
-            onProgressCommitted={onMediaChanged}
-            onStatusChange={handleStatusChange}
-            onDelete={removeItem}
-            {onEdit}
-            onEpisodeStep={stepEpisode}
-          />
-        </div>
-      {/each}
-    {:else}
-      <MediaGrid
-        {items}
-        {timeBudget}
-        {onOpen}
-        onProgress={updateProgress}
-        onProgressCommitted={onMediaChanged}
-        onStatusChange={handleStatusChange}
-        onDelete={removeItem}
-        {onEdit}
-        onEpisodeStep={stepEpisode}
-      />
-    {/if}
+    <MediaGrid
+            forceFlat={showAll}
+      {items}
+      {timeBudget}
+      {onOpen}
+      onProgress={updateProgress}
+      onProgressCommitted={onMediaChanged}
+      onStatusChange={handleStatusChange}
+      onDelete={removeItem}
+      {onEdit}
+      onEpisodeStep={stepEpisode}
+    />
   </section>
 {/snippet}
 
 <div class="space-y-8">
-  <!-- Обычный заголовок вверху страницы -->
-  <div class="mb-2">
-    <p class="text-accent-soft text-xs font-semibold tracking-[0.18em] uppercase">
-      {i18n.t.library.collectionLabel}
-    </p>
-  </div>
-
-  <!-- Плавающий островок кнопок справа (только кнопки интерактивны) -->
+  <!-- Полноразмерная панель управления (точная копия FilterBar категорий) -->
   {#if !loading && !loadError}
-    <div class="pointer-events-none sticky top-2 z-30 -mt-8 mb-4 flex justify-end">
-      <div
-        class="pointer-events-auto inline-flex items-center gap-2 rounded-xl border border-white/10 bg-[#12151c]/90 p-1.5 shadow-xl shadow-black/50 backdrop-blur-md"
-      >
-        <!-- Меню фильтра времени -->
-        <PopoverMenu
-          id="home-time-budget"
-          options={timeBudgetOptions}
-          selected={timeBudget}
-          onSelect={(val) => (timeBudget = val as TimeBudgetMinutes)}
-          label={i18n.t.timeBudget.filterTitle}
-          placement="bottom-end"
-          openOnHover
-          closeDelay={220}
-        >
-          {#snippet trigger({ popoverTargetId, anchorName, isOpen })}
-            {#if timeBudget !== null}
+    <section
+      class="bg-surface space-y-3 rounded-lg p-3 sm:p-4 mb-6"
+      aria-label="Панель управления главной"
+    >
+      <div class="flex flex-col gap-3 lg:flex-row lg:items-center justify-between">
+        <!-- Левый кластер: группировка, категория, время, рандомайзер -->
+        <div class="flex min-w-0 flex-1 items-center gap-2">
+          <SlidersHorizontal size={16} class="text-muted shrink-0" aria-hidden="true" />
+          <!-- Режим группировки -->
+          <PopoverMenu
+            id="home-grouping"
+            options={groupingOptions}
+            selected={groupByMode}
+            onSelect={(value) => {
+              groupByMode = value as GroupingMode;
+              uiSettings.setGroupByType(groupByMode === "type");
+            }}
+            label={i18n.t.home.grouping}
+            placement="bottom-start"
+            openOnHover
+            closeDelay={220}
+          >
+            {#snippet trigger({ popoverTargetId, anchorName, isOpen })}
+              {@const GroupIcon = GROUP_MODE_ICONS[groupByMode]}
               <button
                 type="button"
                 popovertarget={popoverTargetId}
                 popovertargetaction="toggle"
                 style={isOpen ? `anchor-name: ${anchorName}` : undefined}
-                class="tap border-accent/40 bg-accent/15 text-accent-soft hover:bg-accent/25 inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-lg border px-2.5 text-xs font-semibold transition has-[:popover-open]:ring-2 has-[:popover-open]:ring-indigo-500/40"
-                title={i18n.t.timeBudget.filterTitle}
-                aria-label={i18n.t.timeBudget.filterTitle}
+                class="tap bg-field text-muted hover:text-ink grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-white/10 transition hover:border-white/20 has-[:popover-open]:ring-2 has-[:popover-open]:ring-indigo-500/40"
+                title={i18n.t.home.grouping}
+                aria-label={i18n.t.home.grouping}
               >
-                <Clock3 size={16} stroke-width={2} aria-hidden="true" />
-                <span>{formatTimeBudgetChip(timeBudget, i18n.current)}</span>
+                <GroupIcon size={18} stroke-width={2} aria-hidden="true" />
               </button>
-            {:else}
-              <button
-                type="button"
-                popovertarget={popoverTargetId}
-                popovertargetaction="toggle"
-                style={isOpen ? `anchor-name: ${anchorName}` : undefined}
-                class="tap bg-field text-muted hover:text-ink grid h-9 w-9 shrink-0 cursor-pointer place-items-center rounded-lg border border-white/10 transition hover:border-white/20 has-[:popover-open]:ring-2 has-[:popover-open]:ring-indigo-500/40"
-                title={i18n.t.timeBudget.filterTitle}
-                aria-label={i18n.t.timeBudget.filterTitle}
-              >
-                <Clock3 size={18} stroke-width={2} aria-hidden="true" />
-              </button>
-            {/if}
-          {/snippet}
+            {/snippet}
+            {#snippet renderOption({ option })}
+              {@const GroupIcon = GROUP_MODE_ICONS[option.value as GroupingMode]}
+              <span class="flex items-center gap-2">
+                <GroupIcon size={16} stroke-width={2} aria-hidden="true" />
+                <span class="truncate">{option.label}</span>
+              </span>
+            {/snippet}
+          </PopoverMenu>
 
-          {#snippet footer({ close })}
-            <form
-              class="flex items-center gap-1.5"
-              onsubmit={(e) => {
-                e.preventDefault();
-                applyCustomTime(close);
-              }}
-            >
-              <input
-                type="number"
-                min="1"
-                max="999"
-                step="any"
-                aria-label={i18n.t.timeBudget.customTimePlaceholder}
-                title={i18n.t.timeBudget.customTimePlaceholder}
-                bind:value={customTimeValue}
-                class="bg-canvas text-ink focus:border-accent h-7 w-16 rounded border border-white/10 px-2 text-xs outline-none"
-                onkeydown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    applyCustomTime(close);
-                  }
+          <!-- Категории -->
+          <PopoverMenu
+            id="home-category"
+            options={categoryOptions}
+            selected={selectedCategory}
+            onSelect={(value) => (selectedCategory = value as CategoryFilter)}
+            label={i18n.t.home.categories}
+            placement="bottom-start"
+            openOnHover
+            closeDelay={220}
+          >
+            {#snippet trigger({ popoverTargetId, anchorName, isOpen })}
+              <button
+                type="button"
+                popovertarget={popoverTargetId}
+                popovertargetaction="toggle"
+                style={isOpen ? `anchor-name: ${anchorName}` : undefined}
+                class="tap bg-field text-ink flex h-10 shrink-0 items-center gap-2 rounded-lg border border-white/10 px-3 text-xs font-semibold transition hover:border-white/20 has-[:popover-open]:ring-2 has-[:popover-open]:ring-indigo-500/40"
+                title={i18n.t.home.categories}
+              >
+                <span class="truncate">{categoryLabel(selectedCategory)}</span>
+                <ChevronDown size={14} class="text-muted shrink-0" aria-hidden="true" />
+              </button>
+            {/snippet}
+          </PopoverMenu>
+
+          <!-- Меню фильтра времени -->
+          <PopoverMenu
+            id="home-time-budget"
+            options={timeBudgetOptions}
+            selected={timeBudget}
+            onSelect={(val) => (timeBudget = val as TimeBudgetMinutes)}
+            label={i18n.t.timeBudget.filterTitle}
+            placement="bottom-start"
+            openOnHover
+            closeDelay={220}
+          >
+            {#snippet trigger({ popoverTargetId, anchorName, isOpen })}
+              {#if timeBudget !== null}
+                <button
+                  type="button"
+                  popovertarget={popoverTargetId}
+                  popovertargetaction="toggle"
+                  style={isOpen ? `anchor-name: ${anchorName}` : undefined}
+                  class="tap bg-field text-ink flex h-10 shrink-0 items-center gap-2 rounded-lg border border-white/10 px-3 text-xs font-semibold transition hover:border-white/20 has-[:popover-open]:ring-2 has-[:popover-open]:ring-indigo-500/40"
+                  title={i18n.t.timeBudget.filterTitle}
+                >
+                  <Clock3 size={16} stroke-width={2} aria-hidden="true" />
+                  <span>{formatTimeBudgetChip(timeBudget, i18n.current)}</span>
+                  <ChevronDown size={14} class="text-muted shrink-0" aria-hidden="true" />
+                </button>
+              {:else}
+                <button
+                  type="button"
+                  popovertarget={popoverTargetId}
+                  popovertargetaction="toggle"
+                  style={isOpen ? `anchor-name: ${anchorName}` : undefined}
+                  class="tap bg-field text-muted hover:text-ink grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-white/10 transition hover:border-white/20 has-[:popover-open]:ring-2 has-[:popover-open]:ring-indigo-500/40"
+                  title={i18n.t.timeBudget.filterTitle}
+                  aria-label={i18n.t.timeBudget.filterTitle}
+                >
+                  <Clock3 size={18} stroke-width={2} aria-hidden="true" />
+                </button>
+              {/if}
+            {/snippet}
+
+            {#snippet footer({ close })}
+              <form
+                class="flex items-center gap-1.5"
+                onsubmit={(e) => {
+                  e.preventDefault();
+                  applyCustomTime(close);
                 }}
-              />
-              <select
-                bind:value={customTimeUnit}
-                class="bg-canvas text-ink focus:border-accent h-7 cursor-pointer rounded border border-white/10 px-1 text-xs outline-none"
               >
-                <option value="min">{i18n.t.timeBudget.unitMin}</option>
-                <option value="h">{i18n.t.timeBudget.unitHours}</option>
-              </select>
+                <input
+                  type="number"
+                  min="1"
+                  max="999"
+                  step="any"
+                  aria-label={i18n.t.timeBudget.customTimePlaceholder}
+                  title={i18n.t.timeBudget.customTimePlaceholder}
+                  bind:value={customTimeValue}
+                  class="bg-field text-white focus:border-indigo-500/60 h-8 w-18 rounded-lg border border-white/10 px-2.5 text-xs outline-none tabular-nums [&::-webkit-inner-spin-button]:appearance-none"
+                  onkeydown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      applyCustomTime(close);
+                    }
+                  }}
+                />
+                <select
+                  bind:value={customTimeUnit}
+                  class="bg-field text-slate-200 focus:border-indigo-500/60 h-8 cursor-pointer rounded-lg border border-white/10 px-2 text-xs outline-none"
+                >
+                  <option value="min">{i18n.t.timeBudget.unitMin}</option>
+                  <option value="h">{i18n.t.timeBudget.unitHours}</option>
+                </select>
+                <button
+                  type="submit"
+                  class="hover:bg-indigo-500 bg-indigo-600 h-8 cursor-pointer rounded-lg px-3 text-xs font-bold text-white transition shadow-sm"
+                  title={i18n.t.timeBudget.applyCustomTime}
+                >
+                  OK
+                </button>
+              </form>
+            {/snippet}
+          </PopoverMenu>
+
+          <!-- 🎲 Случайный тайтл -->
+          <button
+            type="button"
+            class="tap bg-field text-muted hover:text-ink grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-white/10 transition hover:border-white/20"
+            onclick={pickRandomTitle}
+            title={i18n.t.home.randomPick}
+            aria-label={i18n.t.home.randomPick}
+          >
+            <Dices size={18} stroke-width={2} aria-hidden="true" />
+          </button>
+        </div>
+
+        <!-- Правый кластер: поиск, лимит, сортировка -->
+        <div class="flex items-center gap-2">
+          <label class="relative min-w-0 flex-1 lg:w-56 lg:flex-none">
+            <span class="sr-only">{i18n.t.home.searchPlaceholder}</span>
+            <Search
+              size={18}
+              class="text-muted pointer-events-none absolute top-1/2 left-3 -translate-y-1/2"
+              aria-hidden="true"
+            />
+            <input
+              type="search"
+              bind:value={searchQuery}
+              placeholder={i18n.t.home.searchPlaceholder}
+              class="bg-field text-ink placeholder:text-muted h-10 w-full rounded-lg border border-white/10 pr-2.5 pl-9 text-sm outline-none focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/30"
+            />
+          </label>
+
+          <!-- Лимит секций: 21 / Все -->
+          <button
+            type="button"
+            role="switch"
+            aria-checked={showAll}
+            class={`tap flex h-10 shrink-0 items-center gap-1.5 rounded-lg border px-3 text-xs font-semibold transition ${
+              showAll
+                ? "border-indigo-500/60 bg-indigo-500/20 text-indigo-300"
+                : "bg-field text-ink border-white/10 hover:border-white/20"
+            }`}
+            onclick={() => (showAll = !showAll)}
+            title={i18n.t.home.limitTooltip}
+          >
+            <span>{showAll ? i18n.t.home.limitAll : i18n.t.home.limitCompact}</span>
+          </button>
+
+          <!-- Меню сортировки -->
+          <PopoverMenu
+            id="home-sort"
+            options={sortOptions}
+            selected={sort}
+            onSelect={(value) => {
+              sort = value as HomeSort;
+              // `created`/`updated` are home-local; persist the sorts the library views share.
+              if (sort === "oldest" || sort === "rating" || sort === "title") {
+                uiSettings.setSortOption(sort as LibrarySort);
+              }
+            }}
+            label={i18n.t.sort.label}
+            placement="bottom-end"
+            openOnHover
+            closeDelay={220}
+          >
+            {#snippet trigger({ popoverTargetId, anchorName, isOpen })}
+              {@const SortIcon = HOME_SORT_ICONS[sort]}
               <button
-                type="submit"
-                class="tap bg-accent hover:bg-accent-hover h-7 cursor-pointer rounded px-2 text-xs font-medium text-white transition"
-                title={i18n.t.timeBudget.applyCustomTime}
+                type="button"
+                popovertarget={popoverTargetId}
+                popovertargetaction="toggle"
+                style={isOpen ? `anchor-name: ${anchorName}` : undefined}
+                class="tap bg-field text-muted hover:text-ink grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-white/10 transition hover:border-white/20 has-[:popover-open]:ring-2 has-[:popover-open]:ring-indigo-500/40"
+                title={i18n.t.sort.label}
+                aria-label={i18n.t.sort.label}
               >
-                OK
+                <SortIcon size={18} stroke-width={2} aria-hidden="true" />
               </button>
-            </form>
-          {/snippet}
-        </PopoverMenu>
-
-        <!-- Кнопка группировки -->
-        <button
-          type="button"
-          role="switch"
-          aria-checked={groupByType}
-          class={`tap grid h-9 w-9 shrink-0 cursor-pointer place-items-center rounded-lg border transition ${
-            groupByType
-              ? "border-accent/40 bg-accent/15 text-accent-soft"
-              : "bg-field text-muted hover:text-ink border-white/10"
-          }`}
-          onclick={() => {
-            groupByType = !groupByType;
-            uiSettings.setGroupByType(groupByType);
-          }}
-          title={i18n.t.views.groupByType}
-          aria-label={i18n.t.views.groupByType}
-        >
-          <Layers size={18} stroke-width={2} aria-hidden="true" />
-        </button>
-
-        <!-- Меню сортировки -->
-        <PopoverMenu
-          id="home-sort"
-          options={sortOptions}
-          selected={sort}
-          onSelect={(value) => {
-            sort = value as LibrarySort;
-            uiSettings.setSortOption(sort);
-          }}
-          label={i18n.t.sort.label}
-          placement="bottom-end"
-          openOnHover
-          closeDelay={220}
-        >
-          {#snippet trigger({ popoverTargetId, anchorName, isOpen })}
-            {@const SortIcon = SORT_ICONS[sort]}
-            <button
-              type="button"
-              popovertarget={popoverTargetId}
-              popovertargetaction="toggle"
-              style={isOpen ? `anchor-name: ${anchorName}` : undefined}
-              class="tap bg-field text-muted hover:text-ink grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-white/10 transition hover:border-white/20 has-[:popover-open]:ring-2 has-[:popover-open]:ring-indigo-500/40"
-              title={i18n.t.sort.label}
-              aria-label={i18n.t.sort.label}
-            >
-              <SortIcon size={18} stroke-width={2} aria-hidden="true" />
-            </button>
-          {/snippet}
-          {#snippet renderOption({ option })}
-            {@const SortIcon = SORT_ICONS[option.value as LibrarySort]}
-            <span class="flex items-center gap-2">
-              <SortIcon size={16} stroke-width={2} aria-hidden="true" />
-              <span class="truncate">{option.label}</span>
-            </span>
-          {/snippet}
-        </PopoverMenu>
+            {/snippet}
+            {#snippet renderOption({ option })}
+              {@const SortIcon = HOME_SORT_ICONS[option.value as HomeSort]}
+              <span class="flex items-center gap-2">
+                <SortIcon size={16} stroke-width={2} aria-hidden="true" />
+                <span class="truncate">{option.label}</span>
+              </span>
+            {/snippet}
+          </PopoverMenu>
+        </div>
       </div>
-    </div>
+
+      <!-- Чипы активных фильтров -->
+      {#if hasActiveFilters}
+        <div
+          class="flex flex-wrap items-center gap-2 border-t border-white/5 pt-2 text-xs text-slate-300"
+        >
+          {#if debouncedSearch}
+            <span
+              class="inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/5 px-2.5 py-1"
+            >
+              <Search size={12} aria-hidden="true" />
+              <span>"{debouncedSearch}"</span>
+              <button type="button" class="hover:text-rose-400" onclick={() => (searchQuery = "")}
+                >✕</button
+              >
+            </span>
+          {/if}
+          {#if selectedCategory !== "all"}
+            <span
+              class="border-accent/30 bg-accent/15 text-accent-soft inline-flex items-center gap-1 rounded-md border px-2.5 py-1"
+            >
+              <span>{categoryLabel(selectedCategory)}</span>
+              <button
+                type="button"
+                class="hover:text-rose-400"
+                onclick={() => (selectedCategory = "all")}>✕</button
+              >
+            </span>
+          {/if}
+          {#if timeBudget !== null}
+            <span
+              class="inline-flex items-center gap-1 rounded-md border border-indigo-500/30 bg-indigo-500/15 px-2.5 py-1 text-indigo-300"
+            >
+              <span>⏱ {formatTimeBudgetChip(timeBudget, i18n.current)}</span>
+              <button type="button" class="hover:text-rose-400" onclick={() => (timeBudget = null)}
+                >✕</button
+              >
+            </span>
+          {/if}
+          <button
+            type="button"
+            class="text-muted ml-auto text-xs underline hover:text-white"
+            onclick={resetAllFilters}
+          >
+            {i18n.t.home.resetFilters}
+          </button>
+        </div>
+      {/if}
+    </section>
   {/if}
 
   <!-- Сводка при активном фильтре времени -->
@@ -708,11 +972,14 @@
   {/if}
 
   {#if loading}
-    <MediaGrid items={[]} {loading} />
+    <MediaGrid
+            forceFlat={showAll} items={[]} {loading} />
   {:else if loadError}
-    <MediaGrid items={[]} error={loadError} onRetry={refresh} />
-  {:else if totalItems === 0}
-    <MediaGrid items={[]} />
+    <MediaGrid
+            forceFlat={showAll} items={[]} error={loadError} onRetry={refresh} />
+  {:else if filteredTotal === 0}
+    <MediaGrid
+            forceFlat={showAll} items={[]} />
   {:else if timeBudget !== null && totalFitting === 0}
     <div
       class="bg-surface/60 flex min-h-60 flex-col items-center justify-center gap-3 rounded-xl border border-white/5 p-8 text-center"
@@ -734,6 +1001,23 @@
         {i18n.t.timeBudget.reset}
       </button>
     </div>
+  {:else if groupByMode === "type"}
+    {#each typeGroups as group (group.key)}
+      {@render section(group.items, group.label)}
+    {/each}
+  {:else if groupByMode === "none"}
+    <MediaGrid
+            forceFlat={showAll}
+      items={unifiedList}
+      {timeBudget}
+      {onOpen}
+      onProgress={updateProgress}
+      onProgressCommitted={onMediaChanged}
+      onStatusChange={handleStatusChange}
+      onDelete={removeItem}
+      {onEdit}
+      onEpisodeStep={stepEpisode}
+    />
   {:else}
     {#if displayInProgress.length > 0}
       {@render section(displayInProgress, i18n.t.views.inProgress, true)}

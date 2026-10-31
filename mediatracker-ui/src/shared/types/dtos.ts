@@ -108,6 +108,7 @@ export interface MangaLibProfilePayload {
 interface CreateMediaBase {
   title: string;
   status: MediaStatus;
+  altTitles?: string[] | null;
   score?: number | null;
   coverUrl?: string | null;
   notes?: string | null;
@@ -220,6 +221,7 @@ export type CreateMediaPayload =
 
 export interface UpdateMediaPayload {
   title?: string;
+  altTitles?: string[];
   score?: number | null;
   clearScore?: boolean;
   detailedScoreJson?: string | null;

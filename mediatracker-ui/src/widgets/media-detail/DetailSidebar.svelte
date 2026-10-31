@@ -877,6 +877,16 @@
     </h2>
     <div class="panel">
       <dl class="divide-y divide-white/5 text-sm">
+        {#if (media.altTitles ?? []).length > 0}
+          <div class="flex items-start justify-between gap-3 py-3 first:pt-0">
+            <dt class="text-muted shrink-0 text-xs font-medium">
+              {i18n.t.detail.altTitlesLabel}
+            </dt>
+            <dd class="text-right text-xs font-medium whitespace-pre-line text-white/85">
+              {media.altTitles?.join("\n")}
+            </dd>
+          </div>
+        {/if}
         {#each specRows as row, idx (`${row.label}-${idx}`)}
           <div class="flex items-start justify-between gap-3 py-3 first:pt-0 last:pb-0">
             <dt class="text-muted shrink-0 text-xs font-medium">

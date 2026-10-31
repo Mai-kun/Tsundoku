@@ -100,6 +100,8 @@ export interface MediaDetailFields {
   cast?: CastMember[];
   /** Native/romanized title; rendered under the main headline on the detail screen. */
   originalTitle?: string | null;
+  /** Every known title variant (English, Romaji, Native, localized) minus the display title. */
+  altTitles?: string[] | null;
   staffJson?: string | null;
   /** Key crew, already parsed by the server (like recommendations). */
   staff?: StaffMember[];

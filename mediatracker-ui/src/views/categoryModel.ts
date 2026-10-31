@@ -22,18 +22,24 @@ export function buildStatusGroups(
   status: StatusFilter,
   sections: readonly StatusSection[],
 ): StatusGroup[] {
-  const buckets = new Map<number, MediaItem[]>(
-    sections.map((section) => [Number(section.status), []]),
-  );
+  // Plain record with explicit 0-safe keys: MEDIA_STATUS.planned is 0, and any
+  // `if (buckets[key])` shortcut or Map-less lookup must not treat it as missing.
+  const buckets: Record<number, MediaItem[]> = {};
+  for (const section of sections) {
+    buckets[Number(section.status)] = [];
+  }
   for (const item of items) {
-    buckets.get(Number(item.status))?.push(item);
+    const s = Number(item.status);
+    if (buckets[s]) {
+      buckets[s].push(item);
+    }
   }
 
   return sections
     .map((section) => ({
       status: section.status,
       title: section.title,
-      items: buckets.get(Number(section.status)) ?? [],
+      items: buckets[Number(section.status)] ?? [],
     }))
     .filter((section) =>
       status === "all" ? section.items.length > 0 : Number(section.status) === Number(status),

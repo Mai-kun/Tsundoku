@@ -5,6 +5,7 @@ import CategoryView from "../CategoryView.svelte";
 
 vi.mock("$shared/api/api", () => ({
   getMedia: vi.fn(),
+  getMediaWithCount: vi.fn(),
   deleteMedia: vi.fn(),
   getMediaItem: vi.fn(),
   setProgress: vi.fn(),
@@ -12,9 +13,9 @@ vi.mock("$shared/api/api", () => ({
   errorMessage: vi.fn(() => "error"),
 }));
 
-import { getMedia } from "$shared/api/api";
+import { getMediaWithCount } from "$shared/api/api";
 
-const getMediaMock = vi.mocked(getMedia);
+const getMediaMock = vi.mocked(getMediaWithCount);
 
 const gameItems: MediaItem[] = Array.from(
   { length: 18 },
@@ -90,9 +91,10 @@ describe("CategoryView", () => {
   });
 
   it("renders items of the newly selected category after switching", async () => {
-    getMediaMock.mockImplementation((filters: MediaFilters) =>
-      Promise.resolve((filters.type === "manga" ? mangaItems : gameItems) as MediaItem[]),
-    );
+    getMediaMock.mockImplementation((filters: MediaFilters) => {
+      const items = (filters.type === "manga" ? mangaItems : gameItems) as MediaItem[];
+      return Promise.resolve({ items, totalCount: items.length });
+    });
 
     const { host, destroy: destroyGame } = mountView("game");
 

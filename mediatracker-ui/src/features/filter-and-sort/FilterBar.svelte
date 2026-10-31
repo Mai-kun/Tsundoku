@@ -89,9 +89,12 @@
   let searchDebounce: ReturnType<typeof setTimeout> | null = null;
 
   function debouncedSearch(event: Event) {
+    // Read the value now: currentTarget is nulled once dispatch finishes, so a
+    // deferred read inside setTimeout would throw and silently drop the search.
+    const value = (event.currentTarget as HTMLInputElement).value;
     if (searchDebounce) clearTimeout(searchDebounce);
     searchDebounce = setTimeout(() => {
-      onSearchChange((event.currentTarget as HTMLInputElement).value);
+      onSearchChange(value);
       searchDebounce = null;
     }, 300);
   }

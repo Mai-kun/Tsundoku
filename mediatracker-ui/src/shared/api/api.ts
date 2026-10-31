@@ -127,6 +127,16 @@ function jsonOptions(method: "POST" | "PUT", payload: object): RequestInit {
 }
 
 export function getMedia(filters: MediaFilters = {}): Promise<MediaItem[]> {
+  return getMediaWithCount(filters).then((page) => page.items);
+}
+
+export interface MediaListPage {
+  items: MediaItem[];
+  /** True DB-side total behind the server's limit window (X-Total-Count). */
+  totalCount: number;
+}
+
+export async function getMediaWithCount(filters: MediaFilters = {}): Promise<MediaListPage> {
   const params = new URLSearchParams();
   const queryFilters = {
     sortBy: "createdAt" as const,
@@ -141,7 +151,17 @@ export function getMedia(filters: MediaFilters = {}): Promise<MediaItem[]> {
   }
 
   const query = params.toString();
-  return requestJson<MediaItem[]>(`${mediaEndpoint}${query ? `?${query}` : ""}`);
+  const response = await fetch(`${mediaEndpoint}${query ? `?${query}` : ""}`);
+  if (!response.ok) {
+    return throwApiError(response);
+  }
+
+  const items = (await response.json()) as MediaItem[];
+  const header = Number(response.headers.get("X-Total-Count"));
+  return {
+    items,
+    totalCount: Number.isFinite(header) && header > 0 ? header : items.length,
+  };
 }
 
 export function getMediaItem(id: string): Promise<MediaDetail> {

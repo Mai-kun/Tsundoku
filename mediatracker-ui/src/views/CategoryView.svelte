@@ -19,11 +19,12 @@
   import { markStart, markEnd } from "$shared/utils/perfMarks";
   import {
     deleteMedia,
-    getMedia,
+    getMediaWithCount,
     getMediaItem,
     setProgress,
     setSeasonProgress,
   } from "$shared/api/api";
+  import { LoaderCircle } from "$shared/ui/Icons";
   import { jobsClient } from "$shared/api/jobsClient.svelte";
   import { showToast } from "$shared/ui/toast.svelte";
   import { i18n } from "$shared/i18n/index.svelte";
@@ -64,13 +65,16 @@
   let search = $state("");
   const initialItems = untrack(() => categoryCache.peek(category) ?? []);
   let allItems = $state.raw<MediaItem[]>(initialItems);
+  // True DB-side total for the current category+search, from X-Total-Count.
+  let totalCount = $state(initialItems.length);
   let loadedCategory = $state<Category | null>(
     untrack(() => (initialItems.length > 0 ? category : null)),
   );
   let loading = $state(initialItems.length === 0);
+  /** Background refetch in flight: the grid stays mounted, dimmed, with a top-bar spinner. */
+  let refreshing = $state(false);
   let loadError = $state<unknown>(null);
   let requestSequence = 0;
-  let skeletonTimer: ReturnType<typeof setTimeout> | null = null;
 
   let prevCategory: Category | null = null;
   // $effect.pre, not $effect: a plain effect runs *after* the DOM update, so switching category
@@ -105,10 +109,15 @@
   });
 
   let filteredItems = $derived(filterByStatus(allItems, status));
-  // Five independent virtualizers (one per status/franchise section) fight over the same
-  // scroller on a big library. Past this size one grid is both simpler and cheaper.
+  // Section virtualizers share the app scroller; on a big library franchise
+  // grouping still collapses into one grid past this size (dozens of groups
+  // fighting over the same scroller). Status grouping is exempt: status
+  // sections are capped at five, each virtually rendered, and their headers
+  // must always show — planned (0) and completed (2) included.
   const SECTION_ROW_LIMIT = 40;
-  let useSingleGrid = $derived(filteredItems.length > SECTION_ROW_LIMIT);
+  let useSingleGrid = $derived(
+    filteredItems.length > SECTION_ROW_LIMIT && groupBy === "franchise",
+  );
   let statusCounts = $derived(countStatuses(allItems));
 
   const statusSections = $derived([
@@ -187,18 +196,28 @@
     return groups;
   });
 
+  // refreshKey бампается при любом изменении медиа (в т.ч. после фоновой задачи),
+  // а смена категории ремоунтит вью с модульным кэшем, пережившим ремоунт:
+  // в обоих случаях инвалидируем SWR-кэш, иначе loadItems выходит раньше времени
+  // и список остаётся с устаревшими обложками/счётчиками до F5.
+  let lastLoadedCategory: Category | null = null;
+  let prevRefreshKey: number | null = null;
   $effect(() => {
-    void refreshKey;
-    void category;
     void search;
     void sort;
+    const categoryChanged = lastLoadedCategory !== category;
+    const revisionChanged = prevRefreshKey !== null && refreshKey !== prevRefreshKey;
+    if (categoryChanged || revisionChanged) {
+      categoryCache.invalidate(category);
+    }
+    lastLoadedCategory = category;
+    prevRefreshKey = refreshKey;
     const sequence = ++requestSequence;
     const delay = search.trim() ? 500 : 0;
     const timer = setTimeout(() => void loadItems(sequence), delay);
 
     return () => {
       clearTimeout(timer);
-      if (skeletonTimer) clearTimeout(skeletonTimer);
     };
   });
 
@@ -216,12 +235,13 @@
 
   async function loadItems(sequence: number) {
     markStart("tsundoku:category:load");
-    if (skeletonTimer) clearTimeout(skeletonTimer);
 
     // Cached data already rendered by the pre-effect: don't flash a loader or
-    // refetch when there's no search forcing a refresh.
+    // refetch when the view already shows exactly that cached list. Reference
+    // equality matters: search results replace allItems without entering the
+    // cache, so clearing the search never bails here and always refetches.
     const cached = categoryCache.peek(category);
-    if (search.trim() === "" && cached && cached.length > 0 && allItems.length > 0) {
+    if (search.trim() === "" && cached && cached.length > 0 && allItems === cached) {
       loadedCategory = category;
       loading = false;
       markEnd("tsundoku:category:load");
@@ -231,20 +251,22 @@
     if (allItems.length === 0) {
       loading = true;
     } else {
-      skeletonTimer = setTimeout(() => {
-        if (sequence === requestSequence) {
-          loading = true;
-        }
-      }, 120);
+      // Data is on screen: never destroy the grid for a spinner, just dim it.
+      refreshing = true;
     }
     loadError = null;
 
     try {
-      const found = await getMedia({ ...categoryFilters(category, search, sort), limit: 500 });
+      const page = await getMediaWithCount({
+        ...categoryFilters(category, search, sort),
+        limit: 500,
+      });
+      const found = page.items;
       if (sequence === requestSequence) {
-        if (skeletonTimer) clearTimeout(skeletonTimer);
         loading = false;
+        refreshing = false;
         loadedCategory = category;
+        totalCount = page.totalCount;
         // O(1) snapshot check instead of found.every() across 500+ items:
         // same length + same first/last updatedAt means nothing meaningful changed.
         const sameSnapshot =
@@ -253,13 +275,17 @@
           allItems[allItems.length - 1]?.updatedAt === found[found.length - 1]?.updatedAt;
         if (sameSnapshot) return;
         allItems = found;
-        categoryCache.set(category, found);
+        // Search-filtered results must not poison the category cache, otherwise
+        // clearing the search would be blocked by the cache fast-path above.
+        if (search.trim() === "") {
+          categoryCache.set(category, found);
+        }
       }
     } catch (error) {
       if (sequence === requestSequence) {
-        if (skeletonTimer) clearTimeout(skeletonTimer);
         loadError = error;
         loading = false;
+        refreshing = false;
       }
     } finally {
       markEnd("tsundoku:category:load");
@@ -267,6 +293,7 @@
   }
 
   function refresh() {
+    categoryCache.invalidate(category);
     void loadItems(++requestSequence);
   }
 
@@ -409,10 +436,22 @@
   {/if}
 
   <p class="text-muted text-xs font-medium">
-    {i18n.t.library.resultCount(filteredItems.length)}
+    {#if totalCount > filteredItems.length}
+      {i18n.t.library.resultCountWithShown(totalCount, filteredItems.length)}
+    {:else}
+      {i18n.t.library.resultCount(filteredItems.length)}
+    {/if}
   </p>
 
-  {#if loading && (allItems.length === 0 || loadedCategory !== category)}
+  {#if loading && allItems.length === 0}
+    <!-- First visit with nothing cached: a single quiet spinner, never a pulsing skeleton grid. -->
+    <div class="text-muted flex min-h-60 items-center justify-center">
+      <LoaderCircle size={28} class="animate-spin" aria-hidden="true" />
+      <span class="sr-only">{i18n.t.common.loading}</span>
+    </div>
+  {:else}
+  <div class="transition-opacity duration-200" class:opacity-60={refreshing}>
+  {#if loadError}
     {@render mediaGrid([])}
   {:else if useSingleGrid}
     {@render mediaGrid(filteredItems)}
@@ -460,5 +499,7 @@
     {/if}
   {:else}
     {@render mediaGrid(filteredItems)}
+  {/if}
+  </div>
   {/if}
 </div>

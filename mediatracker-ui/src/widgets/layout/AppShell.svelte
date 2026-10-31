@@ -37,7 +37,7 @@
     <main
       id="main-scroll"
       bind:this={mainElement}
-      class="min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-4 pt-6 pb-24 sm:px-6 lg:px-8 lg:pb-8"
+      class="min-h-0 flex-1 overflow-x-hidden overflow-y-auto p-6"
     >
       {@render children()}
     </main>

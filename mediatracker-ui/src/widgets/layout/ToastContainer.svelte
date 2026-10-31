@@ -18,10 +18,10 @@
     }
   });
 
-  const accentClasses: Record<ToastType, string> = {
-    error: "text-[#d65563]",
-    success: "text-emerald-400",
-    warning: "text-amber-400",
+  const badgeClasses: Record<ToastType, string> = {
+    error: "bg-rose-500/15 border border-rose-500/30 text-rose-400",
+    success: "bg-emerald-500/15 border border-emerald-500/30 text-emerald-400",
+    warning: "bg-amber-500/15 border border-amber-500/30 text-amber-400",
   };
 </script>
 
@@ -35,79 +35,77 @@
 >
   {#each toastStore.items as toast (toast.id)}
     <div
-      class="error-alert pointer-events-auto flex min-h-12 w-full cursor-default items-center justify-between rounded-lg bg-[#232531] px-[10px] py-1.5 shadow-lg shadow-black/40 transition-colors duration-200 sm:min-h-14"
+      class="toast pointer-events-auto flex w-full cursor-default items-start gap-3 rounded-xl border border-white/10 bg-[#151a26]/95 p-3.5 shadow-2xl shadow-black/50 backdrop-blur-xl"
       role="alert"
     >
-      <div class="mr-2 flex min-w-0 flex-1 items-center gap-2">
-        <div
-          class="{accentClasses[
-            toast.type
-          ]} flex shrink-0 items-center justify-center rounded-lg bg-white/5 p-1 backdrop-blur-xl"
-        >
-          {#if toast.type === "error"}
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke-width="1.5"
-              stroke="currentColor"
-              class="h-5 w-5 sm:h-6 sm:w-6"
-              aria-hidden="true"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z"
-              />
-            </svg>
-          {:else if toast.type === "success"}
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke-width="1.5"
-              stroke="currentColor"
-              class="h-5 w-5 sm:h-6 sm:w-6"
-              aria-hidden="true"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
-              />
-            </svg>
-          {:else}
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke-width="1.5"
-              stroke="currentColor"
-              class="h-5 w-5 sm:h-6 sm:w-6"
-              aria-hidden="true"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"
-              />
-            </svg>
-          {/if}
-        </div>
-        <div class="min-w-0 flex-1">
-          <p class="leading-tight font-medium break-words text-white">
-            {toast.message}
+      <div
+        class="{badgeClasses[
+          toast.type
+        ]} grid size-8 shrink-0 place-items-center rounded-lg"
+      >
+        {#if toast.type === "error"}
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke-width="2"
+            stroke="currentColor"
+            class="h-4 w-4"
+            aria-hidden="true"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z"
+            />
+          </svg>
+        {:else if toast.type === "success"}
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke-width="2"
+            stroke="currentColor"
+            class="h-4 w-4"
+            aria-hidden="true"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
+            />
+          </svg>
+        {:else}
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke-width="2"
+            stroke="currentColor"
+            class="h-4 w-4"
+            aria-hidden="true"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"
+            />
+          </svg>
+        {/if}
+      </div>
+      <div class="min-w-0 flex-1 pt-0.5">
+        <p class="text-xs leading-snug font-bold break-words text-white">
+          {toast.message}
+        </p>
+        {#if toast.description}
+          <p class="text-[11px] text-slate-400 mt-0.5 leading-snug break-words">
+            {toast.description}
           </p>
-          {#if toast.description}
-            <p class="mt-0.5 leading-tight break-words text-gray-500">
-              {toast.description}
-            </p>
-          {/if}
-        </div>
+        {/if}
       </div>
       <button
         type="button"
-        class="shrink-0 cursor-pointer rounded-md p-1 text-gray-600 transition-colors ease-linear hover:bg-white/10 hover:text-gray-300"
+        class="text-slate-500 hover:text-white shrink-0 cursor-pointer rounded-md p-1 transition hover:bg-white/5"
         aria-label="Close notification"
         onclick={() => dismissToast(toast.id)}
       >
@@ -115,9 +113,9 @@
           xmlns="http://www.w3.org/2000/svg"
           fill="none"
           viewBox="0 0 24 24"
-          stroke-width="1.5"
+          stroke-width="2"
           stroke="currentColor"
-          class="h-5 w-5 sm:h-6 sm:w-6"
+          class="h-4 w-4"
           aria-hidden="true"
         >
           <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
@@ -126,3 +124,21 @@
     </div>
   {/each}
 </div>
+
+<style>
+  /* Slide-up on enter: toasts rise into place instead of popping. */
+  .toast {
+    animation: toast-in 200ms ease-out;
+  }
+
+  @keyframes toast-in {
+    from {
+      opacity: 0;
+      transform: translateY(10px) scale(0.98);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+</style>

@@ -30,22 +30,25 @@ public sealed class ResetDataHandler(
 
         try
         {
-            await conn.ExecuteAsync("DELETE FROM CustomListItems;");
-            await conn.ExecuteAsync("DELETE FROM CustomLists;");
-            await conn.ExecuteAsync("DELETE FROM Events;");
-            await conn.ExecuteAsync("DELETE FROM TvSeasons;");
-            await conn.ExecuteAsync("DELETE FROM MangaVolumes;");
-            await conn.ExecuteAsync("DELETE FROM MediaItems;");
-            await conn.ExecuteAsync("DELETE FROM Franchises;");
+            // A pending local transaction makes Dapper throw unless every command
+            // explicitly joins it (the connection's ambient transaction is not picked up).
+            await conn.ExecuteAsync("DELETE FROM CustomListItems;", transaction: tx);
+            await conn.ExecuteAsync("DELETE FROM CustomLists;", transaction: tx);
+            await conn.ExecuteAsync("DELETE FROM Events;", transaction: tx);
+            await conn.ExecuteAsync("DELETE FROM TvSeasons;", transaction: tx);
+            await conn.ExecuteAsync("DELETE FROM MangaVolumes;", transaction: tx);
+            await conn.ExecuteAsync("DELETE FROM MediaItems;", transaction: tx);
+            await conn.ExecuteAsync("DELETE FROM Franchises;", transaction: tx);
 
             if (request.KeepApiKeys)
             {
                 await conn.ExecuteAsync(
-                    "DELETE FROM Settings WHERE Key IN ('SourcePriority', 'DisabledSources', 'SearchCategoryOrder');");
+                    "DELETE FROM Settings WHERE Key IN ('SourcePriority', 'DisabledSources', 'SearchCategoryOrder');",
+                    transaction: tx);
             }
             else
             {
-                await conn.ExecuteAsync("DELETE FROM Settings;");
+                await conn.ExecuteAsync("DELETE FROM Settings;", transaction: tx);
             }
 
             tx.Commit();

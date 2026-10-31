@@ -12,6 +12,14 @@ public interface IGetMediaListHandler
 {
     /// <summary>Returns the mapped DTO list directly; retrieving it from memory takes 0.001ms.</summary>
     Task<Result<IReadOnlyList<MediaListDto>>> HandleAsync(GetMediaListQuery query, CancellationToken ct);
+
+    /// <summary>
+    /// Same list as <see cref="HandleAsync"/> plus the true total matching count
+    /// (the DB row count behind the limit/offset window), used for X-Total-Count.
+    /// </summary>
+    Task<(IReadOnlyList<MediaListDto> Items, int TotalCount)> HandleWithCountAsync(
+        GetMediaListQuery query,
+        CancellationToken ct);
 }
 
 public static class MediaListCache
@@ -55,5 +63,32 @@ public sealed class GetMediaListHandler(AppDbContext db, IMemoryCache? cache = n
             cache.Set(key, dtos, TimeSpan.FromMinutes(10));
         }
         return Result<IReadOnlyList<MediaListDto>>.Success(dtos);
+    }
+
+    public async Task<(IReadOnlyList<MediaListDto> Items, int TotalCount)> HandleWithCountAsync(
+        GetMediaListQuery query,
+        CancellationToken ct)
+    {
+        var items = await HandleAsync(query, ct);
+
+        var countKey = $"{MediaListCache.BuildKey(query)}:total";
+        if (cache is not null
+            && cache.TryGetValue(countKey, out int? cachedTotal)
+            && cachedTotal is not null)
+        {
+            return (items.Value, cachedTotal.Value);
+        }
+
+        var total = await db.GetMediaTotalCountAsync(
+            query.Type,
+            query.Status,
+            query.IsAnime,
+            query.Search,
+            ct);
+        if (cache is not null)
+        {
+            cache.Set(countKey, total, TimeSpan.FromMinutes(10));
+        }
+        return (items.Value, total);
     }
 }

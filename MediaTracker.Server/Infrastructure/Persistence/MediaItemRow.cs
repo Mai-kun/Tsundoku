@@ -49,6 +49,7 @@ public sealed class MediaItemRow
     public string? OriginalLanguage { get; set; }
     public string? CountryOfOrigin { get; set; }
     public string? OriginalTitle { get; set; }
+    public string? AltTitles { get; set; }
     public string? CastJson { get; set; }
     public string? StaffJson { get; set; }
     public string? TranslatedSynopsis { get; set; }
@@ -196,6 +197,7 @@ public sealed class MediaItemRow
         item.OriginalLanguage = OriginalLanguage;
         item.CountryOfOrigin = CountryOfOrigin;
         item.OriginalTitle = OriginalTitle;
+        item.AltTitles = AltTitles;
         item.CastJson = CastJson;
         item.StaffJson = StaffJson;
         item.TranslatedSynopsis = TranslatedSynopsis;
@@ -261,6 +263,7 @@ public sealed class MediaItemRow
             OriginalLanguage = item.OriginalLanguage,
             CountryOfOrigin = item.CountryOfOrigin,
             OriginalTitle = item.OriginalTitle,
+            AltTitles = item.AltTitles,
             CastJson = item.CastJson,
             StaffJson = item.StaffJson,
             TranslatedSynopsis = item.TranslatedSynopsis,

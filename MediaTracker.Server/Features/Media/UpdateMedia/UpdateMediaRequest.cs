@@ -38,6 +38,9 @@ public sealed record UpdateMediaRequest
 
     public string? RomajiTitle { get; init; }
 
+    /// <summary>Replaces the stored alternative titles when supplied.</summary>
+    public List<string>? AltTitles { get; init; }
+
     public int? TotalVolumes { get; init; }
 
     public int? CurrentVolume { get; init; }

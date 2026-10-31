@@ -174,6 +174,9 @@ public sealed record MediaDetailDto : MediaListDto
     /// <summary>When <see cref="RecommendationsJson"/> was written, so the client can show its age.</summary>
     public DateTime? RecommendationsUpdatedAt { get; init; }
 
+    /// <summary>All known title variants (English, Romaji, Native, localized) minus the display title.</summary>
+    public IReadOnlyList<string> AltTitles { get; init; } = [];
+
     /// <summary>
     /// The cached recommendations, already parsed. Sending the blob and letting the detail screen parse
     /// it meant the browser had to know the stored shape; this way the row is the cache and the tab has

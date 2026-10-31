@@ -1,4 +1,5 @@
 using MediaTracker.Server.Domain.Entities;
+using MediaTracker.Server.Domain.Rules;
 using MediaTracker.Server.Features.External.RefreshMetadata;
 using MediaTracker.Server.Infrastructure.ExternalApis;
 
@@ -108,6 +109,7 @@ public static class MediaDetailProjection
             Covers = MediaCoverCollection.Parse(item.CoversJson),
             Cast = MediaJsonCache.Deserialize<CastMemberDto>(item.CastJson),
             OriginalTitle = item.OriginalTitle,
+            AltTitles = MediaMetadataApplier.DeserializeAltTitles(item.AltTitles),
             StaffJson = item.StaffJson,
             Staff = MediaJsonCache.Deserialize<ExternalStaffMemberDto>(item.StaffJson),
         };

@@ -1,3 +1,5 @@
+using System.Text.Json;
+using MediaTracker.Server.Common.Json;
 using MediaTracker.Server.Domain.Entities;
 using MediaTracker.Server.Features.Media.UpdateMedia;
 using MediaTracker.Server.Features.Media.GetMediaStats;
@@ -120,6 +122,10 @@ public static class MediaItemUpdater
             case Manga manga:
                 manga.Author = request.Author ?? manga.Author;
                 manga.RomajiTitle = request.RomajiTitle ?? manga.RomajiTitle;
+                if (request.AltTitles is { Count: > 0 } altTitles)
+                {
+                    item.AltTitles = MediaMetadataApplier.SerializeAltTitles(altTitles);
+                }
                 manga.TotalVolumes = request.TotalVolumes ?? manga.TotalVolumes;
                 manga.CurrentVolume = request.CurrentVolume ?? manga.CurrentVolume;
                 manga.TotalChapters = request.TotalChapters ?? manga.TotalChapters;

@@ -1,3 +1,5 @@
+using System.Text.Json;
+using MediaTracker.Server.Common.Json;
 using MediaTracker.Server.Domain.Entities;
 using MediaTracker.Server.Features.Media.CreateMedia;
 using MediaTracker.Server.Features.Media.GetMediaStats;
@@ -108,6 +110,10 @@ public static class MediaItemFactory
         item.FranchiseOrder = request.FranchiseOrder;
         item.ExternalId = request.ExternalId;
         item.ExternalSource = request.ExternalSource;
+        if (request.AltTitles is { Count: > 0 } altTitles)
+        {
+            item.AltTitles = MediaMetadataApplier.SerializeAltTitles(altTitles);
+        }
         item.ExternalRating = request.ExternalRating;
         item.ExternalRatingVotes = request.ExternalRatingVotes;
         item.ExternalRatingsJson = request.ExternalRatingsJson;

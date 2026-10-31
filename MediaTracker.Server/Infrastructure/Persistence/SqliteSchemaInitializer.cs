@@ -64,6 +64,13 @@ public static class SqliteSchemaInitializer
             alterCmd.CommandText = "ALTER TABLE MediaItems ADD COLUMN CoversJson TEXT NULL;";
             await alterCmd.ExecuteNonQueryAsync(ct);
         }
+
+        if (!existingColumns.Contains("AltTitles"))
+        {
+            using var alterCmd = connection.CreateCommand();
+            alterCmd.CommandText = "ALTER TABLE MediaItems ADD COLUMN AltTitles TEXT NULL;";
+            await alterCmd.ExecuteNonQueryAsync(ct);
+        }
     }
 
     private const string SchemaSql = @"
@@ -141,6 +148,7 @@ CREATE TABLE IF NOT EXISTS MediaItems (
     OriginalLanguage TEXT,
     CountryOfOrigin TEXT,
     OriginalTitle TEXT,
+    AltTitles TEXT,
     CastJson TEXT,
     StaffJson TEXT,
     TranslatedSynopsis TEXT,

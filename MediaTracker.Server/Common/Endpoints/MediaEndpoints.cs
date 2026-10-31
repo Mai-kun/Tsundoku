@@ -110,6 +110,7 @@ public static class MediaEndpoints
 
         group.MapGet("/", async (
                 [FromServices] IGetMediaListHandler handler,
+                HttpContext httpContext,
                 string? type,
                 MediaStatus? status,
                 bool? isAnime,
@@ -120,7 +121,15 @@ public static class MediaEndpoints
                 int? offset,
                 CancellationToken ct) =>
             {
-                return await handler.HandleAsync(new GetMediaListQuery(type, status, isAnime, search, sortBy, sortOrder, limit, offset), ct).ToOk();
+                var (items, totalCount) = await handler.HandleWithCountAsync(
+                    new GetMediaListQuery(type, status, isAnime, search, sortBy, sortOrder, limit, offset),
+                    ct);
+
+                // True DB-side total behind the limit/offset window, so the UI can
+                // show "Всего: N (показано M)" instead of a truncated list length.
+                httpContext.Response.Headers["X-Total-Count"] = totalCount.ToString();
+
+                return Results.Ok(items);
             })
             .WithTags("Медиатека / Media")
             .WithSummary("Список тайтлов медиатеки")

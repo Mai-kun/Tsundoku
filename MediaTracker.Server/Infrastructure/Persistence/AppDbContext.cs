@@ -23,6 +23,16 @@ public sealed class AppDbContext : IDisposable, IAsyncDisposable
     public AppDbContext(string connectionString)
     {
         _connection = new SqliteConnection(connectionString);
+
+        // SQLite's built-in LIKE and LOWER() are ASCII-only, so a Cyrillic query
+        // ("норагами") never matched "Норагами". contains_ci does a Unicode-aware
+        // case-insensitive substring check and backs all media-list search filters.
+        _connection.CreateFunction(
+            "contains_ci",
+            (string? source, string? query) =>
+                !string.IsNullOrEmpty(source)
+                && !string.IsNullOrEmpty(query)
+                && source.IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0);
     }
 
     private readonly SqliteConnection _connection;
@@ -408,6 +418,7 @@ public sealed class AppDbContext : IDisposable, IAsyncDisposable
         public readonly int OriginalLanguage = reader.GetOrdinal("OriginalLanguage");
         public readonly int CountryOfOrigin = reader.GetOrdinal("CountryOfOrigin");
         public readonly int OriginalTitle = reader.GetOrdinal("OriginalTitle");
+        public readonly int AltTitles = reader.GetOrdinal("AltTitles");
         public readonly int CastJson = reader.GetOrdinal("CastJson");
         public readonly int StaffJson = reader.GetOrdinal("StaffJson");
         public readonly int TranslatedSynopsis = reader.GetOrdinal("TranslatedSynopsis");
@@ -497,6 +508,7 @@ public sealed class AppDbContext : IDisposable, IAsyncDisposable
             OriginalLanguage = reader.IsDBNull(ordinals.OriginalLanguage) ? null : reader.GetString(ordinals.OriginalLanguage),
             CountryOfOrigin = reader.IsDBNull(ordinals.CountryOfOrigin) ? null : reader.GetString(ordinals.CountryOfOrigin),
             OriginalTitle = reader.IsDBNull(ordinals.OriginalTitle) ? null : reader.GetString(ordinals.OriginalTitle),
+            AltTitles = reader.IsDBNull(ordinals.AltTitles) ? null : reader.GetString(ordinals.AltTitles),
             CastJson = reader.IsDBNull(ordinals.CastJson) ? null : reader.GetString(ordinals.CastJson),
             StaffJson = reader.IsDBNull(ordinals.StaffJson) ? null : reader.GetString(ordinals.StaffJson),
             TranslatedSynopsis = reader.IsDBNull(ordinals.TranslatedSynopsis) ? null : reader.GetString(ordinals.TranslatedSynopsis),
@@ -639,6 +651,15 @@ public sealed class AppDbContext : IDisposable, IAsyncDisposable
         var effectiveLimit = limit is > 0 ? Math.Min(limit.Value, 2000) : 500;
         var effectiveOffset = offset ?? 0;
 
+        // "anime" is not a stored MediaType: rows are TvShow/Movie carrying an IsAnime flag, so
+        // the alias must translate into the flag filter — matching MediaType = 'anime' would
+        // silently return 0 rows.
+        if (string.Equals(mediaType, "anime", StringComparison.OrdinalIgnoreCase))
+        {
+            mediaType = null;
+            isAnime = true;
+        }
+
         var conn = Connection;
         if (conn.State != System.Data.ConnectionState.Open) await conn.OpenAsync(ct);
         await EnsureSchemaAsync(ct);
@@ -667,24 +688,29 @@ public sealed class AppDbContext : IDisposable, IAsyncDisposable
 
         if (isAnime is { } anime)
         {
-            // The type columns are nullable, so "not anime" must treat NULL as false; a plain
-            // equality would silently drop rows that never had the flag written.
-            sb.Append(anime
-                ? " AND (m.Movie_IsAnime = 1 OR m.TvShow_IsAnime = 1)"
-                : " AND (COALESCE(m.Movie_IsAnime, 0) = 0 AND COALESCE(m.TvShow_IsAnime, 0) = 0)");
+            // The flag columns are nullable and each belongs to its own media type, so the filter
+            // is scoped per type with NULL read as "not anime". The parameter is bound strictly as
+            // 0/1 integer: SQLite stores the flags as integers, and a bool bind would never match.
+            sb.Append(
+                " AND ((m.MediaType = 'TvShow' AND COALESCE(m.TvShow_IsAnime, 0) = @isAnime)"
+                + " OR (m.MediaType = 'Movie' AND COALESCE(m.Movie_IsAnime, 0) = @isAnime))");
+            cmd.Parameters.Add(new SqliteParameter("@isAnime", anime ? 1 : 0));
         }
 
         if (!string.IsNullOrWhiteSpace(search))
         {
-            sb.Append(" AND (m.Title LIKE @p").Append(paramIndex);
-            sb.Append(" OR f.Name LIKE @p").Append(paramIndex + 1);
-            sb.Append(" OR m.Movie_RomajiTitle LIKE @p").Append(paramIndex + 2);
-            sb.Append(" OR m.TvShow_RomajiTitle LIKE @p").Append(paramIndex + 3).Append(')');
-            cmd.Parameters.Add(new SqliteParameter($"@p{paramIndex}", $"%{search}%"));
-            cmd.Parameters.Add(new SqliteParameter($"@p{paramIndex + 1}", $"%{search}%"));
-            cmd.Parameters.Add(new SqliteParameter($"@p{paramIndex + 2}", $"%{search}%"));
-            cmd.Parameters.Add(new SqliteParameter($"@p{paramIndex + 3}", $"%{search}%"));
-            paramIndex += 4;
+            // contains_ci instead of LIKE: Unicode-aware, so Cyrillic and other
+            // non-ASCII queries match regardless of letter casing. The romaji
+            // columns are per-type (schema splits them), and the franchise name
+            // stays searchable so grouping a title never hides it.
+            sb.Append(" AND (contains_ci(m.Title, @search) = 1");
+            sb.Append(" OR contains_ci(m.OriginalTitle, @search) = 1");
+            sb.Append(" OR contains_ci(m.AltTitles, @search) = 1");
+            sb.Append(" OR contains_ci(m.Movie_RomajiTitle, @search) = 1");
+            sb.Append(" OR contains_ci(m.TvShow_RomajiTitle, @search) = 1");
+            sb.Append(" OR contains_ci(m.Manga_RomajiTitle, @search) = 1");
+            sb.Append(" OR contains_ci(f.Name, @search) = 1)");
+            cmd.Parameters.Add(new SqliteParameter("@search", search));
         }
 
         var orderBy = sortBy?.Trim()?.ToLowerInvariant() switch
@@ -761,6 +787,74 @@ public sealed class AppDbContext : IDisposable, IAsyncDisposable
         return items;
     }
 
+    /// <summary>
+    /// True number of rows matching the media-list filters, ignoring limit/offset.
+    /// Applies exactly the same WHERE conditions as <see cref="LoadMediaItemsAsync"/>
+    /// (including the "anime" alias and the Unicode-aware search) so the
+    /// <c>X-Total-Count</c> header can never disagree with what a limitless
+    /// query would have returned.
+    /// </summary>
+    public async Task<int> GetMediaTotalCountAsync(
+        string? mediaType,
+        MediaStatus? status,
+        bool? isAnime,
+        string? search,
+        CancellationToken ct = default)
+    {
+        if (string.Equals(mediaType, "anime", StringComparison.OrdinalIgnoreCase))
+        {
+            mediaType = null;
+            isAnime = true;
+        }
+
+        var conn = Connection;
+        if (conn.State != System.Data.ConnectionState.Open) await conn.OpenAsync(ct);
+        await EnsureSchemaAsync(ct);
+
+        var cmd = conn.CreateCommand();
+        var sb = new System.Text.StringBuilder(@"
+            SELECT COUNT(*)
+            FROM MediaItems m
+            LEFT JOIN Franchises f ON m.FranchiseId = f.Id
+            WHERE 1=1");
+
+        if (!string.IsNullOrEmpty(mediaType))
+        {
+            sb.Append(" AND LOWER(m.MediaType) = LOWER(@type)");
+            cmd.Parameters.Add(new SqliteParameter("@type", mediaType));
+        }
+
+        if (status is { } s)
+        {
+            sb.Append(" AND m.Status = @status");
+            cmd.Parameters.Add(new SqliteParameter("@status", (int)s));
+        }
+
+        if (isAnime is { } anime)
+        {
+            sb.Append(
+                " AND ((m.MediaType = 'TvShow' AND COALESCE(m.TvShow_IsAnime, 0) = @isAnime)"
+                + " OR (m.MediaType = 'Movie' AND COALESCE(m.Movie_IsAnime, 0) = @isAnime))");
+            cmd.Parameters.Add(new SqliteParameter("@isAnime", anime ? 1 : 0));
+        }
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            sb.Append(" AND (contains_ci(m.Title, @search) = 1");
+            sb.Append(" OR contains_ci(m.OriginalTitle, @search) = 1");
+            sb.Append(" OR contains_ci(m.AltTitles, @search) = 1");
+            sb.Append(" OR contains_ci(m.Movie_RomajiTitle, @search) = 1");
+            sb.Append(" OR contains_ci(m.TvShow_RomajiTitle, @search) = 1");
+            sb.Append(" OR contains_ci(m.Manga_RomajiTitle, @search) = 1");
+            sb.Append(" OR contains_ci(f.Name, @search) = 1)");
+            cmd.Parameters.Add(new SqliteParameter("@search", search));
+        }
+
+        cmd.CommandText = sb.ToString();
+        var result = await cmd.ExecuteScalarAsync(ct);
+        return Convert.ToInt32(result);
+    }
+
     /// <summary>Loads seasons for many TV shows in one batched query, chunked to stay inside
     /// SQLite's parameter limit.</summary>
     private static async Task<Dictionary<string, List<TvSeason>>> LoadTvSeasonsBatch(
@@ -824,6 +918,7 @@ public sealed class AppDbContext : IDisposable, IAsyncDisposable
                 TranslationLanguage, Genres, Tags, UnlockedAchievements, UserPlatform,
                 RelatedMediaJson, PendingMatchesJson, RelatedSource, AchievementsJson,
                 RecommendationsJson, RecommendationsUpdatedAt, IsCustomEdited, MediaType,
+                AltTitles,
                 Author, CurrentPage, TotalPages, CurrentChapter, TotalChapters,
                 Manga_Author, Manga_RomajiTitle, Manga_Format, CurrentVolume, Manga_TotalVolumes,
                 DurationMinutes, Director, Movie_IsAnime, Movie_Studio, Movie_RomajiTitle,
@@ -840,6 +935,7 @@ public sealed class AppDbContext : IDisposable, IAsyncDisposable
                 @TranslationLanguage, @Genres, @Tags, @UnlockedAchievements, @UserPlatform,
                 @RelatedMediaJson, @PendingMatchesJson, @RelatedSource, @AchievementsJson,
                 @RecommendationsJson, @RecommendationsUpdatedAt, @IsCustomEdited, @MediaType,
+                @AltTitles,
                 @Author, @CurrentPage, @TotalPages, @CurrentChapter, @TotalChapters,
                 @Manga_Author, @Manga_RomajiTitle, @Manga_Format, @CurrentVolume, @Manga_TotalVolumes,
                 @DurationMinutes, @Director, @Movie_IsAnime, @Movie_Studio, @Movie_RomajiTitle,
@@ -890,7 +986,8 @@ public sealed class AppDbContext : IDisposable, IAsyncDisposable
                 TvShow_IsAnime = @TvShow_IsAnime, TvShow_Studio = @TvShow_Studio,
                 TvShow_RomajiTitle = @TvShow_RomajiTitle,
                 TvShow_EpisodeDurationMinutes = @TvShow_EpisodeDurationMinutes,
-                Platform = @Platform, HoursPlayed = @HoursPlayed, Studio = @Studio
+                Platform = @Platform, HoursPlayed = @HoursPlayed, Studio = @Studio,
+                AltTitles = @AltTitles
             WHERE Id = @Id;
             """,
             row);

@@ -92,6 +92,86 @@ public static class MediaMetadataApplier
         (url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
          url.StartsWith("https://", StringComparison.OrdinalIgnoreCase));
 
+    private static bool ContainsCyrillic(string? text) =>
+        !string.IsNullOrEmpty(text) && text.Any(c => c is >= '\u0400' and <= '\u04FF');
+
+    /// <summary>
+    /// Merges every non-empty title variant (localized, English, Romaji, Native) into the stored
+    /// AltTitles blob, minus whatever <paramref name="displayTitle"/> currently shows, so all
+    /// language variants stay searchable without ever overwriting the display title.
+    /// </summary>
+    public static void UpdateAltTitles(MediaItem item, params string?[] candidates)
+    {
+        // DeserializeAltTitles reads \uXXXX-escaped legacy blobs as well as the relaxed format.
+        var merged = new List<string>(DeserializeAltTitles(item.AltTitles));
+        foreach (var candidate in candidates.Append(item.Title))
+        {
+            var value = candidate?.Trim();
+            if (string.IsNullOrWhiteSpace(value) || value == item.Title)
+            {
+                continue;
+            }
+            if (merged.Contains(value, StringComparer.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+            merged.Add(value);
+        }
+
+        item.AltTitles = merged.Count > 0 ? SerializeAltTitles(merged) : null;
+    }
+
+    /// <summary>
+    /// The default JSON encoder escapes every non-ASCII character into \uXXXX, which would bury
+    /// Cyrillic and Native titles inside an ASCII-only blob no search could ever match. Alt titles
+    /// are stored with relaxed escaping so the raw column text stays human-readable and greppable.
+    /// </summary>
+    public static string SerializeAltTitles(IReadOnlyList<string> titles) =>
+        JsonSerializer.Serialize(titles, AltTitleJsonOptions);
+
+    public static List<string> DeserializeAltTitles(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return [];
+        }
+        try
+        {
+            return JsonSerializer.Deserialize<List<string>>(json, AltTitleJsonOptions) ?? [];
+        }
+        catch
+        {
+            return [];
+        }
+    }
+
+    private static readonly JsonSerializerOptions AltTitleJsonOptions = new()
+    {
+        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+    };
+
+    /// <summary>
+    /// Refresh title handling: the display title follows the source, except when the stored one is
+    /// a localized (Cyrillic) import and the incoming one is not — a Russian title collected from
+    /// Shikimori/Kinopoisk must survive an AniList/MangaDex refresh, and every other variant lands
+    /// in the AltTitles blob instead.
+    /// </summary>
+    public static void ApplyTitle(MediaItem item, ExternalMediaDto external)
+    {
+        var storedIsRussian = ContainsCyrillic(item.Title);
+        var incomingIsRussian = ContainsCyrillic(external.Title);
+
+        if (storedIsRussian && !incomingIsRussian && !string.IsNullOrWhiteSpace(item.Title))
+        {
+            // Keep the Russian display title; the incoming foreign title joins the alternatives.
+            UpdateAltTitles(item, external.Title);
+            return;
+        }
+
+        item.Title = external.Title;
+        UpdateAltTitles(item, external.OriginalTitle, external.RomajiTitle);
+    }
+
     /// <summary>Refresh: external data is authoritative and overwrites whatever is stored.</summary>
     public static async Task ApplyOverwriteAsync(
         MediaItem item,
@@ -101,7 +181,7 @@ public static class MediaMetadataApplier
         Action<TvSeason>? trackNewSeason = null,
         bool fillMissing = true)
     {
-        item.Title = external.Title;
+        ApplyTitle(item, external);
 
         item.Description = external.Description;
         item.TrailerVideoId = external.TrailerVideoId;
@@ -165,6 +245,7 @@ public static class MediaMetadataApplier
         item.CountryOfOrigin = external.CountryOfOrigin;
         item.CastJson = external.Cast is { Count: > 0 } cast ? JsonSerializer.Serialize(cast, AppJsonSerializerContext.Default.IReadOnlyListCastMemberDto) : null;
         item.OriginalTitle = external.OriginalTitle;
+        UpdateAltTitles(item, external.OriginalTitle, external.RomajiTitle);
         item.StaffJson = external.Staff is { Count: > 0 } staff ? JsonSerializer.Serialize(staff, AppJsonSerializerContext.Default.IReadOnlyListExternalStaffMemberDto) : null;
 
         if (external.Ratings is { Count: > 0 } ratings)
@@ -190,6 +271,7 @@ public static class MediaMetadataApplier
         Action<TvSeason>? trackNewSeason = null)
     {
         var modified = ApplyRatings(item, external);
+        UpdateAltTitles(item, external.Title, external.OriginalTitle, external.RomajiTitle);
         modified |= SetIfBlank(item.OriginalLanguage, external.OriginalLanguage, value => item.OriginalLanguage = value);
         modified |= SetIfBlank(item.CountryOfOrigin, external.CountryOfOrigin, value => item.CountryOfOrigin = value);
         if (string.IsNullOrWhiteSpace(item.CastJson) && external.Cast is { Count: > 0 } cast)

@@ -59,6 +59,9 @@ public sealed record CreateMediaRequest
     public string? Studio { get; init; }
     public string? RomajiTitle { get; init; }
 
+    /// <summary>Alternative titles (Romaji / English / Native) searchable alongside the main one.</summary>
+    public List<string>? AltTitles { get; init; }
+
     public string? Network { get; init; }
 
     public List<CreateSeasonRequest>? Seasons { get; init; }

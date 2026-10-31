@@ -103,6 +103,13 @@ public abstract class MediaItem
     /// <summary>Native or romanized original title the source reported; rendered under the main one.</summary>
     public string? OriginalTitle { get; set; }
 
+    /// <summary>
+    /// JSON array of alternative titles (English, Romaji, Native, localized) collected from
+    /// every metadata source; kept separate from <see cref="Title"/> so a localized display
+    /// title is never overwritten and every variant stays searchable.
+    /// </summary>
+    public string? AltTitles { get; set; }
+
     public string? CastJson { get; set; }
 
     /// <summary>Serialised key staff (director, script, art...), stored once per refresh like CastJson.</summary>

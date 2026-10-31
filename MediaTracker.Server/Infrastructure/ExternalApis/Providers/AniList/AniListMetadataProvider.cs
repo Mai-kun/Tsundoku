@@ -19,7 +19,7 @@ public sealed partial class AniListMetadataProvider(
         IsDefault: true,
         Priority: 1);
 
-    private readonly string mediaType = serviceKey?.StartsWith("manga", StringComparison.OrdinalIgnoreCase) is true ? "manga" : "anime";
+    private readonly string mediaType = serviceKey?.Contains("manga", StringComparison.OrdinalIgnoreCase) is true ? "manga" : "anime";
     public override async Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string query, CancellationToken ct)
     {
         var client = httpClientFactory.CreateClient(Id);

@@ -196,7 +196,7 @@ public sealed class RegistrationGenerator : IIncrementalGenerator
             sb.Append(s.Namespace);
             sb.Append('.');
             sb.Append(s.TypeName);
-            sb.AppendLine(">($\"{mediaType}:" + s.TypeName + ".Source.Id\");");
+            sb.AppendLine(">($\"{mediaType}:{" + s.TypeName + ".Source.Id}\");");
             sb.Append("            if (");
             sb.Append(s.TypeName);
             sb.AppendLine(".Source.IsDefault)");

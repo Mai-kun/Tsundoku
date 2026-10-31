@@ -3,6 +3,7 @@ using MediaTracker.Server.Domain.Enums;
 using MediaTracker.Server.Domain.Rules;
 using MediaTracker.Server.Features.External.RefreshMetadata;
 using MediaTracker.Server.Features.Jobs;
+using MediaTracker.Server.Features.Media.GetMediaList;
 using MediaTracker.Server.Infrastructure.ExternalApis;
 using MediaTracker.Server.Infrastructure.Persistence;
 using Microsoft.Extensions.Logging;
@@ -110,6 +111,7 @@ public static class AutoRefreshRunner
         }
 
         await db.UpdateMediaItemAsync(item, ct);
+        MediaListCache.Invalidate();
 
         return new AutoRefreshOutcome(true, hasNewContent);
     }

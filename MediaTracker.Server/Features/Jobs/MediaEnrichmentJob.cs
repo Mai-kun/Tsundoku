@@ -7,6 +7,7 @@ using MediaTracker.Server.Domain.Rules;
 using MediaTracker.Server.Features.External;
 using MediaTracker.Server.Features.External.GetExternalRelations;
 using MediaTracker.Server.Features.External.RefreshMetadata;
+using MediaTracker.Server.Features.Media.GetMediaList;
 using MediaTracker.Server.Infrastructure.ExternalApis;
 using MediaTracker.Server.Infrastructure.Persistence;
 using MediaTracker.Server.Infrastructure.Storage;
@@ -79,6 +80,7 @@ public static class MediaEnrichmentJob
             item.SyncStatus = SyncStatus.Ready;
             item.MarkUpdated();
             await db.UpdateMediaItemAsync(item, jobCts.Token).ConfigureAwait(false);
+            MediaListCache.Invalidate();
             AdvancedStatsCalculator.InvalidateCache(services.GetService<Microsoft.Extensions.Caching.Memory.IMemoryCache>());
             TasteProfileCalculator.InvalidateCache(services.GetService<Microsoft.Extensions.Caching.Memory.IMemoryCache>());
 
@@ -116,6 +118,7 @@ public static class MediaEnrichmentJob
             item.SyncStatus = SyncStatus.Failed;
             item.MarkUpdated();
             await db.UpdateMediaItemAsync(item, CancellationToken.None).ConfigureAwait(false);
+            MediaListCache.Invalidate();
         }
         catch
         {

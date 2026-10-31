@@ -2,6 +2,7 @@ using MediaTracker.Server.Domain.Rules;
 using MediaTracker.Server.Domain.Entities;
 using MediaTracker.Server.Domain.Enums;
 using MediaTracker.Server.Features.External.RefreshMetadata;
+using MediaTracker.Server.Features.Media.GetMediaList;
 using MediaTracker.Server.Features.Media.GetMediaStats;
 using MediaTracker.Server.Features.Media.Import;
 using MediaTracker.Server.Features.Media.MediaContract;
@@ -116,6 +117,7 @@ public static class BatchImportEnrichmentJob
                     .CreateLogger("BatchImportEnrichmentJob")
                     .LogWarning(cleanupError, "Не удалось сбросить SyncStatus при отмене задачи");
             }
+            MediaListCache.Invalidate();
             throw;
         }
 
@@ -130,6 +132,7 @@ public static class BatchImportEnrichmentJob
             null));
 
         EvictStatsCaches(services);
+        MediaListCache.Invalidate();
     }
 
     private static async Task<MatchVerdictKind> EnrichOneAsync(

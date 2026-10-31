@@ -4,6 +4,7 @@ using MediaTracker.Server.Domain.Entities;
 using MediaTracker.Server.Domain.Enums;
 using MediaTracker.Server.Features.External.RefreshMetadata;
 using MediaTracker.Server.Features.Jobs;
+using MediaTracker.Server.Features.Media.GetMediaList;
 using MediaTracker.Server.Features.Media.GetMediaStats;
 using MediaTracker.Server.Features.Media.Import;
 using MediaTracker.Server.Features.Media.MediaContract;
@@ -158,6 +159,7 @@ public sealed class ResolveMatchHandler(
         item.PendingMatchesJson = null;
         item.MarkUpdated();
         await db.UpdateMediaItemAsync(item, ct);
+        MediaListCache.Invalidate();
 
         jobs?.Enqueue(
             item.Id,
@@ -230,6 +232,7 @@ internal static class PendingMatchEnrichment
 
                 AdvancedStatsCalculator.InvalidateCache(cache);
                 TasteProfileCalculator.InvalidateCache(cache);
+                MediaListCache.Invalidate();
             }
             catch (Exception ex)
             {
@@ -238,6 +241,7 @@ internal static class PendingMatchEnrichment
                     current.SyncStatus = SyncStatus.Failed;
                     current.MarkUpdated();
                     await scopedDb.UpdateMediaItemAsync(current, CancellationToken.None);
+                    MediaListCache.Invalidate();
                 }
                 catch
                 {
@@ -337,6 +341,8 @@ public sealed class ResolveAllByPriorityHandler(AppDbContext db, IJobManager? jo
             await db.UpdateMediaItemAsync(item, ct);
         }
 
+        MediaListCache.Invalidate();
+
         foreach (var (item, top) in queued)
         {
             jobs?.Enqueue(
@@ -381,6 +387,7 @@ public sealed class DismissMatchHandler(AppDbContext db) : IDismissMatchHandler
         var mediaItem = itemRow.ToEntity();
         PendingMatchApplier.Dismiss(mediaItem);
         await db.UpdateMediaItemAsync(mediaItem, ct);
+        MediaListCache.Invalidate();
         return true;
     }
 }
@@ -420,6 +427,7 @@ public sealed class DismissAllMatchesHandler(AppDbContext db) : IDismissAllMatch
             await db.UpdateMediaItemAsync(item, ct);
         }
 
+        MediaListCache.Invalidate();
         return pending.Count;
     }
 }

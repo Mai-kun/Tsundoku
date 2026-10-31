@@ -3,6 +3,7 @@ using MediaTracker.Server.Domain.Entities;
 using MediaTracker.Server.Domain.Enums;
 using MediaTracker.Server.Domain.Rules;
 using MediaTracker.Server.Features.Jobs;
+using MediaTracker.Server.Features.Media.GetMediaList;
 using MediaTracker.Server.Features.Media.GetMediaStats;
 using MediaTracker.Server.Features.Media.MediaContract;
 using MediaTracker.Server.Infrastructure.ExternalApis;
@@ -110,6 +111,7 @@ public sealed class RefreshMetadataHandler(
                     current.SyncStatus = SyncStatus.Ready;
                     current.MarkUpdated();
                     await scopedDb.UpdateMediaItemAsync(current, token);
+                    MediaListCache.Invalidate();
                     AdvancedStatsCalculator.InvalidateCache(cache);
                     TasteProfileCalculator.InvalidateCache(cache);
                 }
@@ -120,6 +122,7 @@ public sealed class RefreshMetadataHandler(
                         current.SyncStatus = SyncStatus.Failed;
                         current.MarkUpdated();
                         await scopedDb.UpdateMediaItemAsync(current, CancellationToken.None);
+                        MediaListCache.Invalidate();
                     }
                     catch
                     {

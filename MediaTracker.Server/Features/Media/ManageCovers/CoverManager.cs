@@ -2,6 +2,7 @@ using System.Net.Http.Json;
 using MediaTracker.Server.Common.Json;
 using MediaTracker.Server.Domain.Common;
 using MediaTracker.Server.Domain.Entities;
+using MediaTracker.Server.Features.Media.GetMediaList;
 using MediaTracker.Server.Features.Media.MediaContract;
 using MediaTracker.Server.Infrastructure.ExternalApis;
 using MediaTracker.Server.Infrastructure.Persistence;
@@ -81,6 +82,7 @@ public sealed class CoverManager(
         item.IsCustomEdited = true;
         item.MarkUpdated();
         await db.UpdateMediaItemAsync(item, ct);
+        MediaListCache.Invalidate();
 
         return Result<MediaDetailDto>.Success(MediaDetailProjection.ToDetailDto(item));
     }
@@ -116,6 +118,7 @@ public sealed class CoverManager(
 
         item.MarkUpdated();
         await db.UpdateMediaItemAsync(item, ct);
+        MediaListCache.Invalidate();
 
         return Result<MediaDetailDto>.Success(MediaDetailProjection.ToDetailDto(item));
     }
@@ -198,6 +201,7 @@ public sealed class CoverManager(
             item.CoversJson = MediaCoverCollection.Serialize(covers);
             item.MarkUpdated();
             await db.UpdateMediaItemAsync(item, ct);
+            MediaListCache.Invalidate();
         }
 
         return Result<MediaDetailDto>.Success(MediaDetailProjection.ToDetailDto(item));
@@ -236,6 +240,7 @@ public sealed class CoverManager(
 
         item.MarkUpdated();
         await db.UpdateMediaItemAsync(item, ct);
+        MediaListCache.Invalidate();
 
         return Result<MediaDetailDto>.Success(MediaDetailProjection.ToDetailDto(item));
     }

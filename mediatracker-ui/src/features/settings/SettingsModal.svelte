@@ -2,6 +2,8 @@
   import {
     AlertCircle,
     AlertTriangle,
+    AppWindow,
+    Archive,
     ArrowDown,
     BookOpen,
     Check,
@@ -12,6 +14,8 @@
     Eye,
     EyeOff,
     FolderInput,
+    FolderOpen,
+    GripVertical,
     Key,
     LoaderCircle,
     Plus,
@@ -25,7 +29,9 @@
     X,
   } from "$shared/ui/Icons";
   import { onMount } from "svelte";
+  import { slide } from "svelte/transition";
   import { uiSettings } from "$shared/utils/uiSettings.svelte";
+  import { readOnCloseAction, writeOnCloseAction, type CloseBehavior } from "$shared/utils/tauri";
   import {
     createApiToken,
     errorMessage,
@@ -70,8 +76,31 @@
   let { isOpen, onClose, onImportCompleted, onNavigateToList }: Props = $props();
 
   type Tab =
-    "sources" | "search" | "backup" | "import" | "reading" | "apiTokens" | "update" | "storage";
+    | "sources"
+    | "search"
+    | "backup"
+    | "import"
+    | "reading"
+    | "apiTokens"
+    | "update"
+    | "storage"
+    | "desktop";
   let activeTab = $state<Tab>("sources");
+
+  /* Read once when the modal mounts; written through on every radio change. */
+  let onCloseAction = $state<CloseBehavior>(readOnCloseAction());
+
+  const closeBehaviorOptions = $derived([
+    { value: "ask", label: i18n.t.settingsModal.closeBehavior.ask },
+    { value: "minimize_to_tray", label: i18n.t.settingsModal.closeBehavior.minimizeToTray },
+    { value: "close_gui", label: i18n.t.settingsModal.closeBehavior.closeGui },
+    { value: "exit_all", label: i18n.t.settingsModal.closeBehavior.exitAll },
+  ] as { value: CloseBehavior; label: string }[]);
+
+  function setCloseBehavior(value: CloseBehavior) {
+    onCloseAction = value;
+    writeOnCloseAction(value);
+  }
 
   let tokens = $state<ApiTokenSummary[]>([]);
   let isLoadingTokens = $state(false);
@@ -289,11 +318,11 @@
     const mangaMin = Number(readingMangaChapterMinutes);
 
     if (isNaN(bookMin) || bookMin < 0.2 || bookMin > 10.0) {
-      showToast("Скорость чтения книг должна быть от 0.2 до 10.0 мин/стр", "error");
+      showToast(i18n.t.settingsModal.reading.bookSpeedValidation, "error");
       return;
     }
     if (isNaN(mangaMin) || mangaMin < 0.5 || mangaMin > 30.0) {
-      showToast("Скорость чтения манги должна быть от 0.5 до 30.0 мин/гл", "error");
+      showToast(i18n.t.settingsModal.reading.mangaSpeedValidation, "error");
       return;
     }
 
@@ -612,6 +641,47 @@
     return i18n.t.types[cat as keyof typeof i18n.t.types] || cat;
   }
 
+  let draggedIndex = $state<number | null>(null);
+
+  function handleDragStart(idx: number, event: DragEvent) {
+    draggedIndex = idx;
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData("text/plain", String(idx));
+    }
+  }
+
+  function handleDragOver(idx: number, event: DragEvent) {
+    event.preventDefault();
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = "move";
+    }
+  }
+
+  async function handleDrop(targetIdx: number, event: DragEvent) {
+    event.preventDefault();
+    if (draggedIndex === null || draggedIndex === targetIdx) return;
+
+    const updated = [...categoryOrder];
+    const [moved] = updated.splice(draggedIndex, 1);
+    updated.splice(targetIdx, 0, moved);
+
+    categoryOrder = updated;
+    draggedIndex = null;
+
+    try {
+      await saveCategoryOrder(updated);
+      showToast(i18n.t.settingsModal.search.saved, "success");
+    } catch (err) {
+      console.error(err);
+      showToast(errorMessage(err), "error");
+    }
+  }
+
+  function handleDragEnd() {
+    draggedIndex = null;
+  }
+
   function getSourceName(id: string): string {
     const s = sources.find((x) => x.id === id);
     if (s) return s.name;
@@ -759,6 +829,19 @@
           <FolderInput size={16} />
           <span>{i18n.t.settingsModal.tabs.storage}</span>
         </button>
+
+        <button
+          type="button"
+          class={`tap flex w-full cursor-pointer items-center gap-3 rounded-lg px-3.5 py-2.5 text-left text-xs transition ${
+            activeTab === "desktop"
+              ? "border border-[#5844e0]/30 bg-[#5844e0]/15 font-semibold text-[#a5b4fc] shadow-sm"
+              : "text-muted border border-transparent font-medium hover:bg-white/5 hover:text-white"
+          }`}
+          onclick={() => (activeTab = "desktop")}
+        >
+          <AppWindow size={16} />
+          <span>{i18n.t.settingsModal.tabs.desktop}</span>
+        </button>
       </nav>
 
       <!-- Right content area -->
@@ -799,7 +882,7 @@
             </div>
 
             {#if sourcesLoading}
-              <div class="space-y-3.5">
+              <div class="space-y-4">
                 {#each Array(4) as _, i (i)}
                   <div class="bg-card h-24 animate-pulse rounded-xl"></div>
                 {/each}
@@ -809,10 +892,10 @@
                 {errorMessage(sourcesError)}
               </p>
             {:else}
-              <div class="space-y-3.5">
+              <div class="space-y-4">
                 {#each filteredSources as source (source.id)}
                   <div
-                    class="bg-field rounded-xl border border-white/[0.07] p-4 transition {source.isEnabled ===
+                    class="rounded-xl border border-white/[0.08] bg-white/[0.02] p-4 transition hover:border-white/15 sm:p-5 {source.isEnabled ===
                     false
                       ? 'opacity-65'
                       : ''}"
@@ -1051,20 +1134,41 @@
               {#if orderLoading}
                 <div class="bg-card h-32 animate-pulse rounded-lg"></div>
               {:else}
-                <div class="space-y-2">
+                <div class="space-y-2" role="list">
                   {#each categoryOrder as cat, idx (cat)}
                     <div
-                      class="bg-field flex items-center justify-between rounded-lg border border-white/10 px-4 py-2.5"
+                      role="listitem"
+                      class="group flex cursor-grab items-center justify-between rounded-lg border border-white/10 bg-white/[0.02] p-3 transition-colors hover:border-white/20 {draggedIndex ===
+                      idx
+                        ? 'border-dashed border-indigo-500 opacity-40'
+                        : ''}"
+                      draggable="true"
+                      ondragstart={(e) => handleDragStart(idx, e)}
+                      ondragover={(e) => handleDragOver(idx, e)}
+                      ondrop={(e) => handleDrop(idx, e)}
+                      ondragend={handleDragEnd}
                     >
-                      <div class="flex items-center gap-3">
+                      <!-- Left: position number + category name -->
+                      <div class="flex min-w-36 items-center gap-3">
                         <span
-                          class="bg-canvas text-muted grid h-6 w-6 place-items-center rounded text-xs font-bold"
+                          class="flex h-6 w-6 items-center justify-center rounded bg-white/5 text-xs font-semibold text-slate-400 tabular-nums"
                         >
                           {idx + 1}
                         </span>
-                        <span class="text-ink text-sm font-medium">{categoryLabel(cat)}</span>
+                        <span class="text-ink text-sm font-semibold">{categoryLabel(cat)}</span>
                       </div>
 
+                      <!-- Center: drag handle in the middle of the row -->
+                      <div class="flex flex-1 items-center justify-center">
+                        <div
+                          class="rounded-md p-1.5 text-slate-500 transition group-hover:text-slate-300 hover:bg-white/5 active:cursor-grabbing"
+                          title={i18n.t.settingsModal.search.dragHint}
+                        >
+                          <GripVertical size={18} class="rotate-90 sm:rotate-0" />
+                        </div>
+                      </div>
+
+                      <!-- Right: accessible fallback buttons -->
                       <div class="flex items-center gap-1">
                         <button
                           type="button"
@@ -1192,8 +1296,8 @@
           </div>
         {:else if activeTab === "backup"}
           <div class="space-y-6">
-            <!-- Export Section -->
-            <div class="bg-card rounded-lg border border-white/[0.08] p-5">
+            <!-- Export Section (Neutral / Safe) -->
+            <div class="rounded-xl border border-white/10 bg-white/[0.02] p-5">
               <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div class="max-w-xl">
                   <h3 class="text-ink text-sm font-semibold">
@@ -1206,7 +1310,7 @@
                 <div class="shrink-0">
                   <button
                     type="button"
-                    class="bg-accent-soft text-ink hover:bg-accent inline-flex h-9 cursor-pointer items-center gap-2 rounded-md px-4 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60"
+                    class="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-60"
                     class:cursor-wait={isExporting}
                     disabled={isExporting}
                     onclick={handleExportBackup}
@@ -1223,16 +1327,18 @@
               </div>
             </div>
 
-            <!-- Restore Section (Danger Zone) -->
-            <div class="rounded-lg border border-rose-500/20 bg-rose-950/10 p-5">
-              <div class="flex items-center gap-2 text-rose-400">
+            <!-- Restore Section (Warning Zone - Amber) -->
+            <div class="rounded-xl border border-amber-500/25 bg-amber-500/5 p-5">
+              <div
+                class="flex items-center gap-2 text-xs font-bold tracking-wider text-amber-400 uppercase"
+              >
                 <AlertTriangle size={16} />
-                <h3 class="text-xs font-semibold tracking-wide uppercase">
+                <h3>
                   {i18n.t.settingsModal.backup.dangerZone}: {i18n.t.settingsModal.backup
                     .restoreTitle}
                 </h3>
               </div>
-              <p class="text-muted mt-2 text-xs leading-relaxed">
+              <p class="mt-1 text-xs text-slate-400">
                 {i18n.t.settingsModal.backup.restoreDescription}
               </p>
               <div class="mt-4">
@@ -1245,7 +1351,7 @@
                 />
                 <button
                   type="button"
-                  class="bg-field inline-flex h-9 cursor-pointer items-center gap-2 rounded-md border border-rose-500/30 px-4 text-xs font-semibold text-rose-300 transition hover:border-rose-500/50 hover:bg-rose-500/15 disabled:cursor-not-allowed disabled:opacity-60"
+                  class="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-2 text-xs font-semibold text-amber-300 transition hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-60"
                   disabled={isRestoring}
                   onclick={() => fileInputRef?.click()}
                 >
@@ -1255,19 +1361,22 @@
               </div>
             </div>
 
-            <div class="rounded-lg border border-rose-500/30 bg-rose-950/15 p-5">
-              <div class="flex items-center gap-2 text-rose-400">
-                <AlertTriangle size={16} />
-                <h3 class="text-xs font-semibold tracking-wide uppercase">
+            <!-- Reset Section (Danger Zone - Rose) -->
+            <div class="rounded-xl border border-rose-500/25 bg-rose-500/5 p-5">
+              <div
+                class="flex items-center gap-2 text-xs font-bold tracking-wider text-rose-400 uppercase"
+              >
+                <AlertCircle size={16} />
+                <h3>
                   {i18n.t.settingsModal.backup.dangerZone}: {i18n.t.settingsModal.backup.resetTitle}
                 </h3>
               </div>
-              <p class="text-muted mt-2 text-xs leading-relaxed">
+              <p class="mt-1 text-xs text-slate-400">
                 {i18n.t.settingsModal.backup.resetDescription}
               </p>
               <button
                 type="button"
-                class="mt-4 inline-flex h-9 cursor-pointer items-center gap-2 rounded-md bg-rose-700 px-4 text-xs font-semibold text-white transition hover:bg-rose-600 disabled:cursor-not-allowed disabled:opacity-60"
+                class="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-lg bg-rose-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-rose-500 disabled:cursor-not-allowed disabled:opacity-60"
                 disabled={isResetting}
                 onclick={() => (showResetConfirm = true)}
               >
@@ -1391,50 +1500,81 @@
                 {errorMessage(storageError)}
               </p>
             {:else if storage}
-              <div class="bg-card space-y-5 rounded-lg border border-white/[0.08] p-5">
+              <div class="bg-card space-y-5 rounded-xl border border-white/[0.08] p-5">
                 <div class="space-y-2">
                   <span class="block text-xs font-semibold text-slate-300">
                     {i18n.t.settingsModal.storage.title}
                   </span>
-                  <div class="space-y-1.5">
+                  <div class="grid gap-2.5 sm:grid-cols-3">
                     <label
-                      class="flex cursor-pointer items-center gap-2 text-sm text-slate-200 hover:text-white"
+                      class={`flex cursor-pointer items-center gap-3 rounded-xl border p-3.5 transition ${
+                        storageMode === "default"
+                          ? "border-indigo-500/60 bg-indigo-500/15 text-white ring-1 ring-indigo-500/30"
+                          : "border-white/10 bg-white/[0.02] text-slate-300 hover:border-white/20"
+                      }`}
                     >
                       <input
                         type="radio"
                         bind:group={storageMode}
                         value="default"
-                        class="accent-accent-soft shrink-0"
+                        class="sr-only"
                       />
-                      <span>{i18n.t.settingsModal.storage.modeDefault}</span>
+                      <Server
+                        size={18}
+                        class="shrink-0 {storageMode === 'default'
+                          ? 'text-indigo-400'
+                          : 'text-slate-400'}"
+                      />
+                      <span class="text-xs leading-snug font-semibold">
+                        {i18n.t.settingsModal.storage.modeDefault}
+                      </span>
                     </label>
                     <label
-                      class="flex cursor-pointer items-center gap-2 text-sm text-slate-200 hover:text-white"
+                      class={`flex cursor-pointer items-center gap-3 rounded-xl border p-3.5 transition ${
+                        storageMode === "portable"
+                          ? "border-indigo-500/60 bg-indigo-500/15 text-white ring-1 ring-indigo-500/30"
+                          : "border-white/10 bg-white/[0.02] text-slate-300 hover:border-white/20"
+                      }`}
                     >
                       <input
                         type="radio"
                         bind:group={storageMode}
                         value="portable"
-                        class="accent-accent-soft shrink-0"
+                        class="sr-only"
                       />
-                      <span>{i18n.t.settingsModal.storage.modePortable}</span>
+                      <Archive
+                        size={18}
+                        class="shrink-0 {storageMode === 'portable'
+                          ? 'text-indigo-400'
+                          : 'text-slate-400'}"
+                      />
+                      <span class="text-xs leading-snug font-semibold">
+                        {i18n.t.settingsModal.storage.modePortable}
+                      </span>
                     </label>
                     <label
-                      class="flex cursor-pointer items-center gap-2 text-sm text-slate-200 hover:text-white"
+                      class={`flex cursor-pointer items-center gap-3 rounded-xl border p-3.5 transition ${
+                        storageMode === "custom"
+                          ? "border-indigo-500/60 bg-indigo-500/15 text-white ring-1 ring-indigo-500/30"
+                          : "border-white/10 bg-white/[0.02] text-slate-300 hover:border-white/20"
+                      }`}
                     >
-                      <input
-                        type="radio"
-                        bind:group={storageMode}
-                        value="custom"
-                        class="accent-accent-soft shrink-0"
+                      <input type="radio" bind:group={storageMode} value="custom" class="sr-only" />
+                      <FolderOpen
+                        size={18}
+                        class="shrink-0 {storageMode === 'custom'
+                          ? 'text-indigo-400'
+                          : 'text-slate-400'}"
                       />
-                      <span>{i18n.t.settingsModal.storage.modeCustom}</span>
+                      <span class="text-xs leading-snug font-semibold">
+                        {i18n.t.settingsModal.storage.modeCustom}
+                      </span>
                     </label>
                   </div>
                 </div>
 
                 {#if storageMode === "custom"}
-                  <div class="space-y-1.5">
+                  <div class="space-y-1.5" transition:slide={{ duration: 150 }}>
                     <label
                       for="custom-path-input"
                       class="block text-xs font-semibold text-slate-300"
@@ -1446,12 +1586,14 @@
                       type="text"
                       bind:value={customPathInput}
                       placeholder={i18n.t.settingsModal.storage.customPathPlaceholder}
-                      class="bg-field text-ink focus:border-accent-soft focus:ring-accent-soft w-full rounded-lg border border-white/10 px-3 py-2 text-sm transition outline-none focus:ring-1"
+                      class="bg-field text-ink focus:border-accent-soft focus:ring-accent-soft h-10 w-full rounded-lg border border-white/10 px-3 text-xs transition outline-none focus:ring-1"
                     />
                   </div>
                 {/if}
 
-                <label class="flex cursor-pointer items-center gap-2 text-sm text-slate-200">
+                <label
+                  class="flex cursor-pointer items-center gap-2 text-sm text-slate-200 hover:text-white"
+                >
                   <input
                     type="checkbox"
                     bind:checked={migrateExistingData}
@@ -1460,31 +1602,52 @@
                   {i18n.t.settingsModal.storage.migrateLabel}
                 </label>
 
-                <div class="space-y-1.5 border-t border-white/[0.05] pt-3">
-                  <div class="flex justify-between text-xs">
-                    <span class="text-muted">{i18n.t.settingsModal.storage.dbPathLabel}</span>
-                    <span class="text-ink max-w-xs truncate font-mono"
-                      >{storage.defaultDirectory}</span
+                <div class="space-y-2 border-t border-white/5 pt-2">
+                  <div
+                    class="flex items-center justify-between gap-3 rounded-lg border border-white/5 bg-black/20 p-2.5 text-xs"
+                  >
+                    <span class="shrink-0 font-medium text-slate-400">
+                      {i18n.t.settingsModal.storage.dbPathLabel}
+                    </span>
+                    <span
+                      class="truncate font-mono text-[11px] text-slate-200 select-all"
+                      title={storage.defaultDirectory}
                     >
+                      {storage.defaultDirectory}
+                    </span>
                   </div>
-                  <div class="flex justify-between text-xs">
-                    <span class="text-muted">{i18n.t.settingsModal.storage.coversPathLabel}</span>
-                    <span class="text-ink max-w-xs truncate font-mono"
-                      >{storage.portableDirectory}</span
+                  <div
+                    class="flex items-center justify-between gap-3 rounded-lg border border-white/5 bg-black/20 p-2.5 text-xs"
+                  >
+                    <span class="shrink-0 font-medium text-slate-400">
+                      {i18n.t.settingsModal.storage.coversPathLabel}
+                    </span>
+                    <span
+                      class="truncate font-mono text-[11px] text-slate-200 select-all"
+                      title={storage.portableDirectory}
                     >
+                      {storage.portableDirectory}
+                    </span>
                   </div>
-                  <div class="flex justify-between text-xs">
-                    <span class="text-muted">{i18n.t.settingsModal.storage.logsPathLabel}</span>
-                    <span class="text-ink max-w-xs truncate font-mono"
-                      >{storage.defaultDirectory}</span
+                  <div
+                    class="flex items-center justify-between gap-3 rounded-lg border border-white/5 bg-black/20 p-2.5 text-xs"
+                  >
+                    <span class="shrink-0 font-medium text-slate-400">
+                      {i18n.t.settingsModal.storage.logsPathLabel}
+                    </span>
+                    <span
+                      class="truncate font-mono text-[11px] text-slate-200 select-all"
+                      title={storage.defaultDirectory}
                     >
+                      {storage.defaultDirectory}
+                    </span>
                   </div>
                 </div>
 
                 <button
                   type="button"
                   disabled={isSavingStorage}
-                  class="bg-accent hover:bg-accent-hover inline-flex cursor-pointer items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-50"
+                  class="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
                   onclick={handleSaveStorage}
                 >
                   {#if isSavingStorage}
@@ -1494,6 +1657,46 @@
                 </button>
               </div>
             {/if}
+          </section>
+        {:else if activeTab === "desktop"}
+          <section class="space-y-6">
+            <div>
+              <h3 class="text-ink text-base font-bold">
+                {i18n.t.settingsModal.closeBehavior.title}
+              </h3>
+              <p class="text-muted mt-1 text-xs leading-relaxed">
+                {i18n.t.settingsModal.closeBehavior.description}
+              </p>
+            </div>
+
+            <div class="bg-card grid gap-2.5 rounded-xl border border-white/[0.08] p-5">
+              {#each closeBehaviorOptions as option (option.value)}
+                <label
+                  class={`flex cursor-pointer items-center gap-3 rounded-xl border p-3.5 transition ${
+                    onCloseAction === option.value
+                      ? "border-indigo-500/60 bg-indigo-500/15 text-white ring-1 ring-indigo-500/30"
+                      : "border-white/10 bg-white/[0.02] text-slate-300 hover:border-white/20"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="on-close-action"
+                    value={option.value}
+                    checked={onCloseAction === option.value}
+                    onchange={() => setCloseBehavior(option.value)}
+                    class="sr-only"
+                  />
+                  <span
+                    class={`h-4 w-4 shrink-0 rounded-full border transition ${
+                      onCloseAction === option.value
+                        ? "border-4 border-indigo-400"
+                        : "border-white/25"
+                    }`}
+                  ></span>
+                  <span class="text-xs leading-snug font-semibold">{option.label}</span>
+                </label>
+              {/each}
+            </div>
           </section>
         {:else if activeTab === "apiTokens"}
           <section class="space-y-6">

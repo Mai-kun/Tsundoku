@@ -10,6 +10,10 @@ const apiTarget = process.env.MT_API_TARGET ?? "http://localhost:5000";
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => ({
+  // Tauri reads Vite's stdout to detect the dev server; clearing the screen
+  // breaks that handshake, and the port must never drift to 5174.
+  clearScreen: false,
+  envPrefix: ["VITE_", "TAURI_"],
   plugins: [
     svelte(),
     tailwindcss(),
@@ -56,6 +60,7 @@ export default defineConfig(({ mode }) => ({
     },
   },
   server: {
+    strictPort: true,
     proxy: {
       "/api": apiTarget,
       // Covers are served by the API from its data directory, not from public/.

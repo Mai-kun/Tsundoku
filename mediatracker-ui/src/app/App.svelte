@@ -1,8 +1,12 @@
 <script lang="ts">
   import { deleteMedia } from "$shared/api/api";
   import { jobsClient } from "$shared/api/jobsClient.svelte";
+  import { invoke } from "@tauri-apps/api/core";
+  import { readOnCloseAction, isTauri } from "$shared/utils/tauri";
+  import { listen } from "@tauri-apps/api/event";
   import FirstRunStorageModal from "$features/settings/FirstRunStorageModal.svelte";
   import AppShell from "$widgets/layout/AppShell.svelte";
+  import CloseAppModal from "$widgets/layout/CloseAppModal.svelte";
   import Header from "$widgets/layout/Header.svelte";
   import Sidebar from "$widgets/layout/Sidebar.svelte";
   import { dropPromptState } from "$features/drop-reason/dropReasonPrompt.svelte";
@@ -62,7 +66,42 @@
   let modalTrigger = $state<HTMLElement | null>(null);
   let detailDepth = 0;
   let mainScrollContainer = $state<HTMLElement | null>(null);
+  let isCloseConfirmOpen = $state(false);
   const savedScrollPositions = new Map<string, number>();
+
+  /* The Tauri shell intercepts [X] on the main window and forwards it here. A saved
+     preference (Settings → Application tab) is applied silently; without one the
+     confirm dialog asks. Outside Tauri (vite dev in a browser) there is no close request. */
+  $effect(() => {
+    if (!isTauri()) return;
+    let unlisten: (() => void) | undefined;
+    let disposed = false;
+    listen("close-requested", () => {
+      const stored = readOnCloseAction();
+      if (stored !== "ask") {
+        invoke("close_action", { action: stored }).catch((error) => {
+          console.error("close_action failed:", error);
+        });
+        return;
+      }
+      isCloseConfirmOpen = true;
+    }).then((stop) => {
+      if (disposed) {
+        stop();
+        return;
+      }
+      unlisten = stop;
+    });
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  });
+
+  function closeCloseConfirm() {
+    isCloseConfirmOpen = false;
+    restoreModalFocus();
+  }
 
   function setScroll(value: number) {
     if (mainScrollContainer) mainScrollContainer.scrollTop = value;
@@ -542,6 +581,10 @@
   {:catch error}
     {@const _ = console.error("Failed to load view/modal:", error)}
   {/await}
+{/if}
+
+{#if isCloseConfirmOpen}
+  <CloseAppModal onClose={closeCloseConfirm} />
 {/if}
 
 <FirstRunStorageModal />

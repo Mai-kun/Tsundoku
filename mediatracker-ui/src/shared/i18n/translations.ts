@@ -22,6 +22,8 @@ export const translations = {
     back: { ru: "Назад", en: "Back" },
     noData: { ru: "Пока нет данных", en: "No data yet" },
     comingSoon: { ru: "Скоро", en: "Coming soon" },
+    details: { ru: "Подробнее", en: "Details" },
+    collapse: { ru: "Свернуть", en: "Collapse" },
   },
   header: {
     description: {
@@ -2043,6 +2045,31 @@ export const translations = {
       en: "Custom folder",
     },
   },
+  closeAppModal: {
+    title: { ru: "Закрыть Tsundoku?", en: "Close Tsundoku?" },
+    minimizeTitle: { ru: "Свернуть в трей", en: "Minimize to tray" },
+    minimizeDescription: {
+      ru: "Окно скроется, иконка останется в трее, мгновенный разворот.",
+      en: "The window hides, the icon stays in the tray, instant restore.",
+    },
+    closeGuiTitle: {
+      ru: "Закрыть окно (сервер работает в фоне)",
+      en: "Close window (server keeps running)",
+    },
+    closeGuiDescription: {
+      ru: "Освобождает память Webview, сервер продолжит автопроверку онгоингов.",
+      en: "Frees Webview memory, the server keeps auto-checking ongoing media.",
+    },
+    remember: { ru: "Запомнить мой выбор", en: "Remember my choice" },
+    apply: { ru: "Применить", en: "Apply" },
+  },
+  desktop: {
+    exitAll: { ru: "Полный выход из программы", en: "Exit application completely" },
+    exitAllDesc: {
+      ru: "Останавливает сервер, закрывает окно и выгружает иконку из трея",
+      en: "Stops server, closes window, and removes tray icon",
+    },
+  },
   settingsModal: {
     title: { ru: "Настройки", en: "Settings" },
     tabs: {
@@ -2054,6 +2081,21 @@ export const translations = {
       reading: { ru: "Темп чтения", en: "Reading Speed" },
       apiTokens: { ru: "API и доступ", en: "API & Access" },
       update: { ru: "Обновление", en: "Updates" },
+      desktop: { ru: "Приложение", en: "Application" },
+    },
+    closeBehavior: {
+      title: { ru: "Поведение при закрытии окна", en: "On Window Close" },
+      description: {
+        ru: "Что происходит при нажатии на крестик главного окна. Сервер продолжает работать в фоне во всех режимах, кроме полного выхода.",
+        en: "What happens when the main window is closed. The server keeps running in the background in every mode except full exit.",
+      },
+      ask: { ru: "Спрашивать каждый раз", en: "Ask every time" },
+      minimizeToTray: { ru: "Сворачивать в трей", en: "Minimize to tray" },
+      closeGui: {
+        ru: "Закрывать окно (сервер в фоне)",
+        en: "Close the window (server in background)",
+      },
+      exitAll: { ru: "Полный выход из программы", en: "Full exit" },
     },
     sources: {
       title: { ru: "Поддерживаемые источники", en: "Supported Sources" },
@@ -2115,6 +2157,7 @@ export const translations = {
         ru: "Настройте порядок отображения групп категорий при общем поиске.",
         en: "Configure the order of media type sections when searching All.",
       },
+      dragHint: { ru: "Перетащите для изменения порядка", en: "Drag to reorder" },
       sourcePriorityTitle: {
         ru: "Приоритет источников по типам",
         en: "Source priority by media type",
@@ -2259,6 +2302,14 @@ export const translations = {
       savedToast: {
         ru: "Настройки темпа чтения успешно сохранены",
         en: "Reading speed settings saved successfully",
+      },
+      bookSpeedValidation: {
+        ru: "Скорость чтения книг должна быть от 0.2 до 10.0 мин/стр",
+        en: "Book reading speed must be between 0.2 and 10.0 min/page",
+      },
+      mangaSpeedValidation: {
+        ru: "Скорость чтения манги должна быть от 0.5 до 30.0 мин/гл",
+        en: "Manga reading speed must be between 0.5 and 30.0 min/ch",
       },
     },
     apiTokens: {

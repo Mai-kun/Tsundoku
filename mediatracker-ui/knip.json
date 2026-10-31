@@ -2,22 +2,16 @@
   "$schema": "https://unpkg.com/knip@5/schema.json",
   "entry": [
     "index.html",
-    "src/app/main.ts",
     "checks/**/*.ts",
     "checks/**/*.cjs",
     "public/sw.js",
     "src/shared/utils/reactivityDebug.svelte.ts"
   ],
   "project": [
-    "src/**/*.{ts,svelte}",
+    "src/**/*.{ts,svelte,css}",
     "checks/**/*.{ts,cjs}"
   ],
   "ignoreDependencies": [
-    "daisyui",
-    "tailwindcss",
-    "playwright",
-    "playwright-core",
-    "lucide-svelte",
     "@types/pixelmatch",
     "html-validate",
     "stylelint-config-standard",

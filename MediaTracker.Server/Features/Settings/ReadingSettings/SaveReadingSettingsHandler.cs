@@ -19,14 +19,14 @@ public sealed class SaveReadingSettingsHandler(AppDbContext db, IMemoryCache cac
             command.BookPageMinutes < 0.2 || command.BookPageMinutes > 10.0)
         {
             return Result<ReadingSettingsDto>.Failure(
-                Error.Validation("Скорость чтения книг должна быть от 0.2 до 10.0 минут на страницу."));
+                Error.Validation("Book reading speed must be between 0.2 and 10.0 minutes per page."));
         }
 
         if (double.IsNaN(command.MangaChapterMinutes) || double.IsInfinity(command.MangaChapterMinutes) ||
             command.MangaChapterMinutes < 0.5 || command.MangaChapterMinutes > 30.0)
         {
             return Result<ReadingSettingsDto>.Failure(
-                Error.Validation("Скорость чтения манги должна быть от 0.5 до 30.0 минут на главу."));
+                Error.Validation("Manga reading speed must be between 0.5 and 30.0 minutes per chapter."));
         }
 
         await AppSettingStore.SetAsync(

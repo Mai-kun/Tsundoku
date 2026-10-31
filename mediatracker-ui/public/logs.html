@@ -1,0 +1,685 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tsundoku — Консоль логов</title>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+      }
+      body {
+        background: #090b10;
+        color: #f3f4f6;
+        font-family: ui-monospace, "JetBrains Mono", Consolas, monospace;
+        font-size: 12.5px;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      /* ---------- Top bar ---------- */
+      header {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 10px 16px;
+        background: #12151f;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        flex-shrink: 0;
+      }
+      header h1 {
+        margin: 0;
+        font-size: 13.5px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        white-space: nowrap;
+      }
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 3px 10px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 600;
+        background: rgba(56, 189, 248, 0.12);
+        border: 1px solid rgba(56, 189, 248, 0.35);
+        color: #7dd3fc;
+        white-space: nowrap;
+      }
+      .badge .dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: #38bdf8;
+        animation: pulse 1.6s ease-in-out infinite;
+      }
+      .badge.stale {
+        background: rgba(248, 113, 113, 0.12);
+        border-color: rgba(248, 113, 113, 0.35);
+        color: #fca5a5;
+      }
+      .badge.stale .dot {
+        background: #f87171;
+        animation: none;
+      }
+      @keyframes pulse {
+        50% {
+          opacity: 0.35;
+        }
+      }
+      .spacer {
+        flex: 1;
+      }
+      button {
+        font: inherit;
+        font-size: 11.5px;
+        padding: 5px 12px;
+        cursor: pointer;
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(255, 255, 255, 0.04);
+        color: #e5e7eb;
+        transition:
+          background 0.15s,
+          border-color 0.15s;
+        white-space: nowrap;
+      }
+      button:hover {
+        background: rgba(255, 255, 255, 0.09);
+        border-color: rgba(255, 255, 255, 0.22);
+      }
+      button.active {
+        background: rgba(56, 189, 248, 0.15);
+        border-color: rgba(56, 189, 248, 0.4);
+        color: #7dd3fc;
+      }
+      input[type="text"] {
+        font: inherit;
+        font-size: 12px;
+        padding: 6px 12px;
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(255, 255, 255, 0.04);
+        color: #f3f4f6;
+        outline: none;
+        width: 220px;
+      }
+      input[type="text"]:focus {
+        border-color: rgba(56, 189, 248, 0.5);
+        background: rgba(255, 255, 255, 0.06);
+      }
+      input[type="text"]::placeholder {
+        color: #6b7280;
+      }
+      /* ---------- Dual-pane layout ---------- */
+      main {
+        flex: 1;
+        display: flex;
+        min-height: 0;
+      }
+      .logs-pane {
+        width: 68%;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        border-right: 1px solid rgba(255, 255, 255, 0.08);
+      }
+      .toolbar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 14px;
+        background: #0e1119;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        flex-shrink: 0;
+        flex-wrap: wrap;
+      }
+      .level-group {
+        display: flex;
+        gap: 4px;
+      }
+      .level-group button {
+        padding: 5px 10px;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+      }
+      #logs {
+        flex: 1;
+        overflow-y: auto;
+        padding: 12px 16px 20px;
+        line-height: 1.55;
+        white-space: pre-wrap;
+        word-break: break-word;
+        user-select: text;
+      }
+      #logs .line {
+        padding: 1px 0;
+        display: block;
+      }
+      #logs .ts {
+        color: #9ca3af;
+      }
+      #logs .lvl-inf,
+      #logs .lvl-dbg {
+        color: #38bdf8;
+        font-weight: 700;
+      }
+      #logs .lvl-wrn {
+        color: #fbbf24;
+        font-weight: 700;
+      }
+      #logs .lvl-err,
+      #logs .lvl-ftl {
+        color: #f87171;
+        font-weight: 700;
+      }
+      #logs .ctx {
+        color: #8b8fa3;
+      }
+      #logs .msg {
+        color: #f3f4f6;
+      }
+      #logs .repeat {
+        display: inline-block;
+        margin-left: 8px;
+        padding: 0 7px;
+        border-radius: 999px;
+        font-size: 10.5px;
+        font-weight: 700;
+        background: rgba(139, 143, 163, 0.18);
+        border: 1px solid rgba(139, 143, 163, 0.4);
+        color: #c3c8d9;
+        vertical-align: 1px;
+      }
+      #logs .placeholder {
+        color: #6b7280;
+        font-style: italic;
+      }
+      /* ---------- Telemetry sidebar ---------- */
+      .telemetry-pane {
+        width: 32%;
+        overflow-y: auto;
+        padding: 14px;
+        background: #0b0d13;
+      }
+      .telemetry-pane h2 {
+        margin: 0 0 12px;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: #6b7280;
+      }
+      .card {
+        background: #12151c;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        padding: 14px;
+        margin-bottom: 14px;
+      }
+      .card h3 {
+        margin: 0 0 8px;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: #9ca3af;
+      }
+      .metric-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        padding: 2px 0;
+      }
+      .metric-label {
+        color: #8b8fa3;
+        font-size: 11.5px;
+      }
+      .metric-value {
+        color: #f3f4f6;
+        font-weight: 700;
+        font-size: 13px;
+      }
+      .metric-value.accent {
+        color: #38bdf8;
+      }
+      .card .kv {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 3px 0;
+        font-size: 12px;
+      }
+      .card .kv .k {
+        color: #8b8fa3;
+        flex-shrink: 0;
+      }
+      .card .kv .v {
+        color: #e5e7eb;
+        text-align: right;
+        word-break: break-word;
+      }
+      .ip-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      .ip-row .ip {
+        color: #38bdf8;
+        font-weight: 700;
+        font-size: 14px;
+      }
+      .icon-btn {
+        padding: 4px 8px;
+        font-size: 12px;
+        line-height: 1;
+      }
+      .spark-wrap {
+        margin-top: 10px;
+      }
+      .spark-wrap svg {
+        display: block;
+        width: 100%;
+        height: 44px;
+      }
+      .spark-caption {
+        margin-top: 4px;
+        font-size: 10.5px;
+        color: #6b7280;
+      }
+      .gpu-name {
+        color: #e5e7eb;
+        font-size: 12px;
+        word-break: break-word;
+        line-height: 1.5;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Tsundoku — Консоль логов</h1>
+      <span id="status" class="badge"><span class="dot"></span><span id="status-text">Live</span></span>
+      <span class="spacer"></span>
+    </header>
+    <main>
+      <section class="logs-pane">
+        <div class="toolbar">
+          <input id="search" type="text" placeholder="Фильтр по тексту..." />
+          <div class="level-group" id="level-group">
+            <button data-level="all" type="button" class="active">ALL</button>
+            <button data-level="inf" type="button">INF</button>
+            <button data-level="wrn" type="button">WRN</button>
+            <button data-level="err" type="button">ERR</button>
+          </div>
+          <span class="spacer"></span>
+          <button id="autoscroll" type="button" class="active">Автоскролл: Вкл</button>
+          <button id="copy" type="button">Копировать</button>
+          <button id="clear" type="button">Очистить</button>
+        </div>
+        <div id="logs"><span class="placeholder">Загрузка логов…</span></div>
+      </section>
+      <aside class="telemetry-pane">
+        <h2>Телеметрия</h2>
+        <div class="card">
+          <h3>RAM</h3>
+          <div class="metric-row">
+            <span class="metric-label">Процесс</span>
+            <span class="metric-value accent" id="ram-process">— МБ</span>
+          </div>
+          <div class="metric-row">
+            <span class="metric-label">GC Heap</span>
+            <span class="metric-value" id="ram-gc">— МБ</span>
+          </div>
+          <div class="spark-wrap">
+            <svg id="ram-spark" viewBox="0 0 100 32" preserveAspectRatio="none" aria-hidden="true">
+              <polyline id="spark-area" fill="rgba(56,189,248,0.15)" stroke="none" points="" />
+              <polyline
+                id="spark-line"
+                fill="none"
+                stroke="#38bdf8"
+                stroke-width="1.5"
+                stroke-linejoin="round"
+                stroke-linecap="round"
+                points=""
+              />
+            </svg>
+            <div class="spark-caption">История за последние 25 секунд</div>
+          </div>
+        </div>
+        <div class="card">
+          <h3>GPU</h3>
+          <div class="gpu-name" id="gpu-name">—</div>
+        </div>
+        <div class="card">
+          <h3>Сеть</h3>
+          <div class="ip-row">
+            <span class="metric-label">Local IP</span>
+            <span class="ip-row">
+              <span class="ip" id="local-ip">—</span>
+              <button id="copy-ip" class="icon-btn" type="button" title="Скопировать IP">⧉</button>
+            </span>
+          </div>
+        </div>
+        <div class="card">
+          <h3>Система</h3>
+          <div class="kv"><span class="k">Uptime</span><span class="v" id="uptime">—</span></div>
+          <div class="kv"><span class="k">PID</span><span class="v" id="pid">—</span></div>
+          <div class="kv"><span class="k">Потоки</span><span class="v" id="threads">—</span></div>
+          <div class="kv"><span class="k">База данных</span><span class="v" id="db-size">—</span></div>
+          <div class="kv"><span class="k">ОС</span><span class="v" id="os">—</span></div>
+          <div class="kv"><span class="k">Архитектура</span><span class="v" id="arch">—</span></div>
+        </div>
+      </aside>
+    </main>
+
+    <script>
+      const POLL_INTERVAL_MS = 1500;
+      const LEVEL_RE = /\[([0-9:. -]+)\]\s*\[(INF|WRN|ERR|FTL|DBG)\]\s*(\[[^\]]*\]\s*)?([\s\S]*)/;
+      const SPARK_HISTORY_MAX = Math.ceil(25000 / POLL_INTERVAL_MS);
+
+      const logsEl = document.getElementById("logs");
+      const statusEl = document.getElementById("status");
+      const statusText = document.getElementById("status-text");
+      const autoscrollBtn = document.getElementById("autoscroll");
+      const searchInput = document.getElementById("search");
+
+      let autoScroll = true;
+      let lastContent = "";
+      let textFilter = "";
+      let levelFilter = "all";
+      let ramHistory = [];
+
+      function setStale(stale) {
+        statusEl.classList.toggle("stale", stale);
+        statusText.textContent = stale ? "Нет ответа" : "Live";
+      }
+
+      /* ---------- Log stream ---------- */
+
+      // Level filter groups: INF shows INF+DBG, ERR shows ERR+FTL.
+      const LEVEL_FILTER_SETS = {
+        all: null,
+        inf: new Set(["INF", "DBG"]),
+        wrn: new Set(["WRN"]),
+        err: new Set(["ERR", "FTL"]),
+      };
+
+      function render(text) {
+        logsEl.textContent = "";
+        if (!text.trim()) {
+          const p = document.createElement("span");
+          p.className = "placeholder";
+          p.textContent = "Логи пусты.";
+          logsEl.appendChild(p);
+          return;
+        }
+
+        // Collapse consecutive identical entries: repeated messages merge into
+        // one line with an x2/x3 pill. Timestamps are ignored so the same
+        // message logged in a burst still deduplicates.
+        const entries = [];
+        for (const rawLine of text.split("\n")) {
+          const match = rawLine.match(LEVEL_RE);
+          if (!match) {
+            entries.push({ rawLine, match: null, key: "\u0000raw:" + rawLine });
+            continue;
+          }
+          const [, ts, level, ctx, msg] = match;
+          const key = level + "|" + (ctx ?? "") + "|" + msg;
+          const last = entries[entries.length - 1];
+          if (last && last.key === key) {
+            last.count += 1;
+          } else {
+            entries.push({ rawLine, match, key, count: 1 });
+          }
+        }
+
+        let visible = 0;
+        for (const entry of entries) {
+          if (!entry.match) {
+            const line = renderUnformatted(entry.rawLine);
+            logsEl.appendChild(line);
+            visible++;
+            continue;
+          }
+          const [, ts, level, ctx, msg] = entry.match;
+          if (!passesFilter(level, msg)) continue;
+          logsEl.appendChild(renderFormatted(ts, level, ctx, msg, entry.count));
+          visible++;
+        }
+
+        if (visible === 0) {
+          const p = document.createElement("span");
+          p.className = "placeholder";
+          p.textContent = "Нет строк, подходящих под фильтр.";
+          logsEl.appendChild(p);
+        }
+      }
+
+      function passesFilter(level, msg) {
+        if (textFilter && !msg.toLowerCase().includes(textFilter)) return false;
+        const allowed = LEVEL_FILTER_SETS[levelFilter];
+        if (allowed && !allowed.has(level)) return false;
+        return true;
+      }
+
+      function renderFormatted(ts, level, ctx, msg, count) {
+        const line = document.createElement("div");
+        line.className = "line";
+        const tsEl = document.createElement("span");
+        tsEl.className = "ts";
+        tsEl.textContent = `[${ts}] `;
+        const lvlEl = document.createElement("span");
+        lvlEl.className = `lvl-${level.toLowerCase()}`;
+        lvlEl.textContent = `[${level}] `;
+        line.append(tsEl, lvlEl);
+        if (ctx) {
+          const ctxEl = document.createElement("span");
+          ctxEl.className = "ctx";
+          ctxEl.textContent = ctx;
+          line.appendChild(ctxEl);
+        }
+        const msgEl = document.createElement("span");
+        msgEl.className = "msg";
+        msgEl.textContent = msg;
+        line.appendChild(msgEl);
+        if (count > 1) {
+          const pill = document.createElement("span");
+          pill.className = "repeat";
+          pill.textContent = `x${count}`;
+          pill.title = `Строка повторилась ${count} раз подряд`;
+          line.appendChild(pill);
+        }
+        return line;
+      }
+
+      function renderUnformatted(rawLine) {
+        // Multiline exceptions and unformatted lines keep the raw text.
+        const line = document.createElement("div");
+        line.className = "line";
+        line.textContent = rawLine;
+        if (/Exception|at System|FTL/.test(rawLine)) {
+          line.style.color = "#f87171";
+        }
+        return line;
+      }
+
+      function maybeScroll() {
+        if (!autoScroll) return;
+        logsEl.scrollTop = logsEl.scrollHeight;
+      }
+
+      /* ---------- Telemetry ---------- */
+
+      function renderSparkline() {
+        const points = ramHistory;
+        const lineEl = document.getElementById("spark-line");
+        const areaEl = document.getElementById("spark-area");
+        if (points.length < 2) {
+          lineEl.setAttribute("points", "");
+          areaEl.setAttribute("points", "");
+          return;
+        }
+        const min = Math.min(...points);
+        const max = Math.max(...points);
+        const range = Math.max(max - min, 4); // avoid a flat line filling the whole box
+        const coords = points.map((value, i) => {
+          const x = (i / (points.length - 1)) * 100;
+          const y = 30 - ((value - min) / range) * 28 - 1;
+          return `${x.toFixed(2)},${y.toFixed(2)}`;
+        });
+        lineEl.setAttribute("points", coords.join(" "));
+        areaEl.setAttribute(
+          "points",
+          `0,32 ${coords.join(" ")} 100,32`,
+        );
+      }
+
+      function renderTelemetry(data) {
+        document.getElementById("ram-process").textContent = `${data.processRamMb} МБ`;
+        document.getElementById("ram-gc").textContent = `${data.gcHeapMb} МБ`;
+        ramHistory.push(data.processRamMb);
+        if (ramHistory.length > SPARK_HISTORY_MAX) ramHistory.shift();
+        renderSparkline();
+
+        document.getElementById("local-ip").textContent = data.localIp;
+        document.getElementById("uptime").textContent = data.uptime;
+        document.getElementById("pid").textContent = data.pid;
+        document.getElementById("threads").textContent = data.threads;
+        document.getElementById("db-size").textContent = `${data.dbSizeMb} МБ`;
+        document.getElementById("os").textContent = data.os;
+        document.getElementById("arch").textContent = data.architecture;
+      }
+
+      function getGpuModel() {
+        try {
+          const canvas = document.createElement("canvas");
+          const gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+          if (gl) {
+            const ext = gl.getExtension("WEBGL_debug_renderer_info");
+            if (ext) return gl.getParameter(ext.UNMASKED_RENDERER_WEBGL);
+          }
+        } catch (e) {}
+        return "Software / Integrated";
+      }
+
+      /* ---------- Polling ---------- */
+
+      async function poll() {
+        try {
+          const response = await fetch("/api/logs/latest", { cache: "no-store" });
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          const text = await response.text();
+          setStale(false);
+          if (text !== lastContent) {
+            lastContent = text;
+            render(text);
+            maybeScroll();
+          }
+        } catch {
+          setStale(true);
+        }
+      }
+
+      async function pollTelemetry() {
+        try {
+          const response = await fetch("/api/logs/telemetry", { cache: "no-store" });
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          renderTelemetry(await response.json());
+        } catch {
+          // Telemetry cards keep their last known values on a failed poll.
+        }
+      }
+
+      /* ---------- Controls ---------- */
+
+      logsEl.addEventListener("scroll", () => {
+        const atBottom =
+          logsEl.scrollHeight - logsEl.scrollTop - logsEl.clientHeight < 40;
+        if (!atBottom && autoScroll) {
+          autoScroll = false;
+          syncAutoscrollButton();
+        }
+      });
+
+      function syncAutoscrollButton() {
+        autoscrollBtn.textContent = `Автоскролл: ${autoScroll ? "Вкл" : "Выкл"}`;
+        autoscrollBtn.classList.toggle("active", autoScroll);
+      }
+
+      autoscrollBtn.addEventListener("click", () => {
+        autoScroll = !autoScroll;
+        syncAutoscrollButton();
+        if (autoScroll) maybeScroll();
+      });
+
+      document.getElementById("clear").addEventListener("click", () => {
+        logsEl.textContent = "";
+        lastContent = "";
+      });
+
+      document.getElementById("copy").addEventListener("click", async (event) => {
+        const button = event.currentTarget;
+        try {
+          await navigator.clipboard.writeText(logsEl.innerText);
+          button.textContent = "Скопировано ✓";
+        } catch {
+          button.textContent = "Ошибка копирования";
+        }
+        setTimeout(() => (button.textContent = "Копировать"), 1500);
+      });
+
+      searchInput.addEventListener("input", () => {
+        textFilter = searchInput.value.trim().toLowerCase();
+        if (lastContent) {
+          render(lastContent);
+          maybeScroll();
+        }
+      });
+
+      document.getElementById("level-group").addEventListener("click", (event) => {
+        const button = event.target.closest("button[data-level]");
+        if (!button) return;
+        levelFilter = button.dataset.level;
+        for (const b of document.querySelectorAll("#level-group button")) {
+          b.classList.toggle("active", b === button);
+        }
+        if (lastContent) {
+          render(lastContent);
+          maybeScroll();
+        }
+      });
+
+      document.getElementById("copy-ip").addEventListener("click", async (event) => {
+        const button = event.currentTarget;
+        const ip = document.getElementById("local-ip").textContent;
+        try {
+          await navigator.clipboard.writeText(ip);
+          button.textContent = "✓";
+        } catch {
+          button.textContent = "✗";
+        }
+        setTimeout(() => (button.textContent = "⧉"), 1500);
+      });
+
+      /* ---------- Boot ---------- */
+
+      document.getElementById("gpu-name").textContent = getGpuModel();
+      poll();
+      pollTelemetry();
+      setInterval(poll, POLL_INTERVAL_MS);
+      setInterval(pollTelemetry, POLL_INTERVAL_MS);
+    </script>
+  </body>
+</html>

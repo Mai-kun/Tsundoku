@@ -63,10 +63,7 @@ export function writeCardProgress(item: MediaItem, value: number): void {
 /** Only games, books and manga carry a stepper; movies and shows do not. */
 export function supportsProgressStepper(item: MediaItem): boolean {
   return (
-    item.type === "game" ||
-    item.type === "book" ||
-    item.type === "manga" ||
-    item.type === "tvshow"
+    item.type === "game" || item.type === "book" || item.type === "manga" || item.type === "tvshow"
   );
 }
 

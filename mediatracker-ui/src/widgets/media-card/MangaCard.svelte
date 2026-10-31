@@ -41,10 +41,7 @@
     <CardTitleBlock title={item.title} {subtitle} />
 
     {#if showProgress}
-      <CardProgressBar
-        label={i18n.t.card.chapters(progress.value, totalChapters)}
-        {ratio}
-      />
+      <CardProgressBar label={i18n.t.card.chapters(progress.value, totalChapters)} {ratio} />
     {/if}
   {/snippet}
 

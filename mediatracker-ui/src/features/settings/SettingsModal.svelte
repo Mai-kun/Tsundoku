@@ -916,7 +916,9 @@
                           <span
                             aria-hidden="true"
                             class={`pointer-events-none inline-block h-5 w-5 transform rounded-full shadow ring-0 transition duration-200 ease-in-out ${
-                              source.isEnabled ? "translate-x-5 bg-white" : "translate-x-0 bg-slate-400"
+                              source.isEnabled
+                                ? "translate-x-5 bg-white"
+                                : "translate-x-0 bg-slate-400"
                             }`}
                           ></span>
                         </button>

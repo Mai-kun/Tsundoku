@@ -378,7 +378,7 @@
               {:else}
                 <button
                   type="button"
-                  class="absolute top-2 left-2 z-10 grid size-8 place-items-center rounded-lg border border-white/20 bg-black/70 text-white opacity-0 shadow-md transition duration-150 hover:border-indigo-500 hover:bg-indigo-600 group-hover:opacity-100 disabled:opacity-50"
+                  class="absolute top-2 left-2 z-10 grid size-8 place-items-center rounded-lg border border-white/20 bg-black/70 text-white opacity-0 shadow-md transition duration-150 group-hover:opacity-100 hover:border-indigo-500 hover:bg-indigo-600 disabled:opacity-50"
                   title={i18n.t.coversModal.select}
                   aria-label={i18n.t.coversModal.select}
                   disabled={busy}
@@ -395,7 +395,7 @@
               <!-- Delete (top-right, on hover) -->
               <button
                 type="button"
-                class="absolute top-2 right-2 z-10 grid size-8 place-items-center rounded-lg border border-white/20 bg-black/70 text-slate-300 opacity-0 shadow-md transition duration-150 hover:border-rose-500 hover:bg-rose-600 hover:text-white group-hover:opacity-100 disabled:opacity-50"
+                class="absolute top-2 right-2 z-10 grid size-8 place-items-center rounded-lg border border-white/20 bg-black/70 text-slate-300 opacity-0 shadow-md transition duration-150 group-hover:opacity-100 hover:border-rose-500 hover:bg-rose-600 hover:text-white disabled:opacity-50"
                 title={i18n.t.coversModal.delete}
                 aria-label={i18n.t.coversModal.delete}
                 disabled={busy}

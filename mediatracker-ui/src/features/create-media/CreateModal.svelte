@@ -366,7 +366,7 @@
         >
       </div>
 
-      <label class="text-ink space-y-1.5 block text-sm font-medium"
+      <label class="text-ink block space-y-1.5 text-sm font-medium"
         ><span>{i18n.t.createModal.fields.altTitles}</span><input
           class="bg-field placeholder:text-muted h-10 w-full rounded-lg border border-white/10 px-3 text-sm font-normal outline-none focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/30"
           bind:value={altTitles}

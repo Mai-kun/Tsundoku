@@ -315,7 +315,8 @@
         {@const startIdx = virtualRow.index * columnsCount}
         <div
           style="position: absolute; top: 0; left: 0; width: 100%; transform: translateY({virtualRow.start -
-            $virtualizer.options.scrollMargin}px); will-change: transform; contain: layout paint; display: grid; grid-template-columns: repeat({columnsCount}, minmax(0, 1fr)); gap: 1rem;"
+            $virtualizer.options
+              .scrollMargin}px); will-change: transform; contain: layout paint; display: grid; grid-template-columns: repeat({columnsCount}, minmax(0, 1fr)); gap: 1rem;"
         >
           {#each items.slice(startIdx, startIdx + columnsCount) as item (item.id)}
             {@render card(item)}

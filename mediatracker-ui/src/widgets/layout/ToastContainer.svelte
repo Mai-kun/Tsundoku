@@ -38,11 +38,7 @@
       class="toast pointer-events-auto flex w-full cursor-default items-start gap-3 rounded-xl border border-white/10 bg-[#151a26]/95 p-3.5 shadow-2xl shadow-black/50 backdrop-blur-xl"
       role="alert"
     >
-      <div
-        class="{badgeClasses[
-          toast.type
-        ]} grid size-8 shrink-0 place-items-center rounded-lg"
-      >
+      <div class="{badgeClasses[toast.type]} grid size-8 shrink-0 place-items-center rounded-lg">
         {#if toast.type === "error"}
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -98,14 +94,14 @@
           {toast.message}
         </p>
         {#if toast.description}
-          <p class="text-[11px] text-slate-400 mt-0.5 leading-snug break-words">
+          <p class="mt-0.5 text-[11px] leading-snug break-words text-slate-400">
             {toast.description}
           </p>
         {/if}
       </div>
       <button
         type="button"
-        class="text-slate-500 hover:text-white shrink-0 cursor-pointer rounded-md p-1 transition hover:bg-white/5"
+        class="shrink-0 cursor-pointer rounded-md p-1 text-slate-500 transition hover:bg-white/5 hover:text-white"
         aria-label="Close notification"
         onclick={() => dismissToast(toast.id)}
       >

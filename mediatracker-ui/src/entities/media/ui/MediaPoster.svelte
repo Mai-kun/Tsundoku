@@ -31,7 +31,7 @@
   });
 </script>
 
-<div class="bg-canvas relative aspect-[3/4] overflow-hidden rounded-lg">
+<div class="bg-canvas relative aspect-[2/3] overflow-hidden rounded-lg">
   {#if src && src.startsWith("/") && !imgError}
     <img
       {src}

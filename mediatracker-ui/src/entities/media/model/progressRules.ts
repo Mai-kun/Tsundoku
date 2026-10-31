@@ -1,9 +1,9 @@
 import {
-  MEDIA_STATUS,
   type BookMedia,
   type GameMedia,
   type MangaMedia,
   type MediaItem,
+  type TvShowMedia,
 } from "$shared/types";
 
 export function clampProgress(current: number, total: number | null | undefined): number {
@@ -38,10 +38,36 @@ export function cardProgressTotal(item: MediaItem): number | null {
   }
 }
 
+/**
+ * Mirrors {@link readCardProgress} for writes: keeps the raw item object in
+ * sync with an optimistic step, so a parent map that spreads the item (e.g. a
+ * status flip) carries the new progress instead of reverting it.
+ */
+export function writeCardProgress(item: MediaItem, value: number): void {
+  switch (item.type) {
+    case "game":
+      (item as GameMedia).hoursPlayed = value;
+      break;
+    case "book":
+      (item as BookMedia).currentPage = value;
+      break;
+    case "manga":
+      (item as MangaMedia).currentChapter = value;
+      break;
+    case "tvshow":
+      (item as TvShowMedia).totalEpisodesWatched = value;
+      break;
+  }
+}
+
 /** Only games, books and manga carry a stepper; movies and shows do not. */
 export function supportsProgressStepper(item: MediaItem): boolean {
-  if (item.status !== MEDIA_STATUS.inProgress) return false;
-  return item.type === "game" || item.type === "book" || item.type === "manga";
+  return (
+    item.type === "game" ||
+    item.type === "book" ||
+    item.type === "manga" ||
+    item.type === "tvshow"
+  );
 }
 
 /** Next value after a +/- press, clamped to the known total (never below zero). */

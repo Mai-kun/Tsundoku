@@ -6,7 +6,6 @@
   import CardProgressControls from "./CardProgressControls.svelte";
   import CardTitleBlock from "./CardTitleBlock.svelte";
   import { createCardProgress } from "$features/update-progress/progressController.svelte";
-  import { supportsProgressStepper } from "$entities/media/model/progressRules";
   import type { MediaCardProps } from "./cardTypes";
 
   let {
@@ -24,8 +23,8 @@
     getItem: () => item,
     getOnProgress: () => onProgress,
     getOnProgressCommitted: () => onProgressCommitted,
+    getOnStatusChange: () => onStatusChange,
   });
-  const showStepper = $derived(supportsProgressStepper(item));
   // Same canonical `totalChapters` the detail screen reads, so the card and "Характеристики"
   // can never disagree. An unknown total renders as a dash rather than a misleading 0.
   const totalChapters = $derived(
@@ -38,17 +37,25 @@
 </script>
 
 <BaseCard {item} {timeHint} {onOpen} {onStatusChange} {onProgressCommitted} {onDelete}>
-  <CardTitleBlock title={item.title} {subtitle} />
+  {#snippet children()}
+    <CardTitleBlock title={item.title} {subtitle} />
 
-  {#if showProgress}
-    <CardProgressBar
-      label={i18n.t.card.chapters(progress.value, totalChapters)}
-      {ratio}
-      reserveSpace={showStepper}
-    />
-
-    {#if showStepper}
-      <CardProgressControls {progress} />
+    {#if showProgress}
+      <CardProgressBar
+        label={i18n.t.card.chapters(progress.value, totalChapters)}
+        {ratio}
+      />
     {/if}
-  {/if}
+  {/snippet}
+
+  {#snippet hover()}
+    {#if showProgress}
+      <CardProgressControls
+        text={i18n.t.card.chapters(progress.value, totalChapters)}
+        onStep={(delta) => progress.step(delta)}
+        decrementDisabled={progress.value <= 0}
+        error={progress.error}
+      />
+    {/if}
+  {/snippet}
 </BaseCard>

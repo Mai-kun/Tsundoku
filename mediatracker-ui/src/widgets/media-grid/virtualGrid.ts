@@ -1,28 +1,31 @@
 /**
- * Viewport -> column mapping for the card grid. Must mirror the Tailwind
- * responsive classes (grid-cols-2 sm:grid-cols-3 lg:grid-cols-4
- * xl:grid-cols-5 2xl:grid-cols-7): breakpoints are viewport-based, not
- * container-based, so row chunking and the rendered grid always agree.
+ * Viewport -> column mapping for the card grid. Mirrors the Tailwind ladder up
+ * to 2xl, then caps at 6 columns so desktop cards stay enlarged (~190-220px).
+ * estimateRowHeight stays derived from the actual column width, so the
+ * virtualizer pitch always matches the rendered card height at any viewport.
  */
 export function columnsForWidth(viewportWidth: number): number {
   if (viewportWidth < 640) return 2;
   if (viewportWidth < 1024) return 3;
   if (viewportWidth < 1280) return 4;
   if (viewportWidth < 1536) return 5;
-  return 7;
+  return 6; // 6 cards per row on 2xl / desktop (enlarged card width ~190-220px)
 }
 
-// Seed values for the fixed per-breakpoint row height (poster 3:4 + title block
-// + controls). Rows are uniform within a breakpoint but grow with card width,
-// so the constant differs per column count (measured 329px @2 cols ... 442px
-// pitch @3 cols @768px viewport). MediaGrid replaces the seed with one exact
-// measurement of the first rendered row per breakpoint.
+// Seed value for the fixed per-breakpoint row height (poster 3:4 + title block
+// + controls). The seed is derived from the actual column width at this
+// viewport — including the dynamic ultra-wide range — so the virtualizer never
+// spaces rows tighter than the real rendered card height. MediaGrid replaces
+// the seed with one exact measurement of the first rendered row.
 export function estimateRowHeight(viewportWidth: number): number {
-  if (viewportWidth < 640) return 329;
-  if (viewportWidth < 1024) return 400;
-  if (viewportWidth < 1280) return 345;
-  if (viewportWidth < 1536) return 385;
-  return 410;
+  const cols = columnsForWidth(viewportWidth);
+  const sidebarWidth = viewportWidth >= 1024 ? 240 : 0;
+  const availableWidth = Math.max(300, viewportWidth - sidebarWidth - 64);
+  const gapTotal = (cols - 1) * 16;
+  const cardWidth = Math.max(120, (availableWidth - gapTotal) / cols);
+  const posterHeight = cardWidth * 1.5; // 2:3 poster ratio
+  const infoHeight = 90; // title, subtitle, stepper padding
+  return Math.round(posterHeight + infoHeight);
 }
 
 /**

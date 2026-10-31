@@ -1,10 +1,12 @@
 <script lang="ts">
-  import { MEDIA_STATUS, type TvShowMedia } from "$shared/types";
+  import type { MediaStatus, TvShowMedia } from "$shared/types";
   import { i18n } from "$shared/i18n/index.svelte";
-  import MediaStepper from "$entities/media/ui/MediaStepper.svelte";
+  import MediaStatusBadge from "$entities/media/ui/MediaStatusBadge.svelte";
+  import { transitionToInProgress } from "$features/update-progress/progressController.svelte";
   import { cardTypeLabel } from "$entities/media/model/mediaLabels";
   import BaseCard from "./BaseCard.svelte";
   import CardProgressBar from "./CardProgressBar.svelte";
+  import CardProgressControls from "./CardProgressControls.svelte";
   import CardTitleBlock from "./CardTitleBlock.svelte";
   import type { MediaCardProps } from "./cardTypes";
 
@@ -30,9 +32,7 @@
   );
 
   /* A single-episode "show" has nothing to step through. */
-  const showStepper = $derived(
-    Boolean(onEpisodeStep) && item.status === MEDIA_STATUS.inProgress && totalEpisodes !== 1,
-  );
+  const showStepper = $derived(Boolean(onEpisodeStep) && totalEpisodes !== 1);
 
   const episodeText = $derived(
     totalEpisodes !== null
@@ -48,24 +48,44 @@
     if (!onEpisodeStep) return;
     await onEpisodeStep(item, delta);
   }
+
+  function statusProxy(next: MediaStatus) {
+    void onStatusChange?.(item, next);
+  }
+
+  /** Hover stepper: stepping a non-InProgress show means watching resumed. */
+  function stepFromHover(delta: number) {
+    transitionToInProgress(item, onStatusChange);
+    void stepEpisode(delta);
+  }
 </script>
 
 <BaseCard {item} {timeHint} {onOpen} {onStatusChange} {onProgressCommitted} {onDelete}>
-  <CardTitleBlock title={item.title} {subtitle} />
+  {#snippet children()}
+    <CardTitleBlock title={item.title} {subtitle} />
 
-  {#if showProgress}
-    <CardProgressBar
-      label={i18n.t.card.episodes(item.totalEpisodesWatched, totalEpisodes ?? 0)}
-      {ratio}
-    />
+    {#if showProgress}
+      <CardProgressBar
+        label={i18n.t.card.episodes(item.totalEpisodesWatched, totalEpisodes ?? 0)}
+        {ratio}
+      />
+    {/if}
+  {/snippet}
 
+  {#snippet hover()}
     {#if showStepper && onEpisodeStep}
-      <MediaStepper
+      <CardProgressControls
         text={episodeText}
-        onStep={(delta) => void stepEpisode(delta)}
+        onStep={stepFromHover}
         decrementDisabled={item.totalEpisodesWatched <= 0}
         incrementDisabled={atLastEpisode}
       />
+    {:else}
+      <MediaStatusBadge
+        id={`status-hover-${item.id}`}
+        status={item.status}
+        onSelect={(next) => void statusProxy(next)}
+      />
     {/if}
-  {/if}
+  {/snippet}
 </BaseCard>

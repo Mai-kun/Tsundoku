@@ -31,6 +31,8 @@
     onEdit?: (item: MediaItem) => void;
     onEpisodeStep?: (item: MediaItem, delta: number) => Promise<void>;
     onRemoveFromList?: (item: MediaItem) => Promise<void>;
+    /** Render every item flat: multi-section dashboards must never collapse into a virtual void. */
+    forceFlat?: boolean;
   }
 
   let {
@@ -50,6 +52,7 @@
     onEdit = () => {},
     onEpisodeStep,
     onRemoveFromList,
+    forceFlat = false,
   }: Props = $props();
 
   // Below this many cards the flat grid is cheaper than the virtualizer machinery.
@@ -68,7 +71,7 @@
 
   let columnsCount = $derived(columnsForWidth(viewportWidth));
   let rowCount = $derived(Math.ceil(items.length / columnsCount));
-  let shouldVirtualize = $derived(items.length >= FLAT_LIMIT);
+  let shouldVirtualize = $derived(!forceFlat && items.length >= FLAT_LIMIT);
 
   // Rows are positioned from a single height per breakpoint instead of
   // measuring every row: measureElement's per-row ResizeObserver caused
@@ -250,7 +253,7 @@
 
 {#if loading || isInitialLoading}
   <div
-    class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-7"
+    style="display: grid; grid-template-columns: repeat({columnsCount}, minmax(0, 1fr)); gap: 1rem;"
     aria-hidden="true"
   >
     {#each Array(7) as _, index (index)}
@@ -296,7 +299,7 @@
          after an options change). Render the visible slice flat instead of
          leaving the screen blank while items exist in state. -->
     <div
-      class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-7"
+      style="display: grid; grid-template-columns: repeat({columnsCount}, minmax(0, 1fr)); gap: 1rem;"
     >
       {#each items as item (item.id)}
         {@render card(item)}
@@ -312,8 +315,7 @@
         {@const startIdx = virtualRow.index * columnsCount}
         <div
           style="position: absolute; top: 0; left: 0; width: 100%; transform: translateY({virtualRow.start -
-            $virtualizer.options.scrollMargin}px); will-change: transform; contain: layout paint;"
-          class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-7"
+            $virtualizer.options.scrollMargin}px); will-change: transform; contain: layout paint; display: grid; grid-template-columns: repeat({columnsCount}, minmax(0, 1fr)); gap: 1rem;"
         >
           {#each items.slice(startIdx, startIdx + columnsCount) as item (item.id)}
             {@render card(item)}
@@ -323,7 +325,9 @@
     </div>
   {/if}
 {:else}
-  <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-7">
+  <div
+    style="display: grid; grid-template-columns: repeat({columnsCount}, minmax(0, 1fr)); gap: 1rem;"
+  >
     {#each items as item (item.id)}
       {@render card(item)}
     {/each}

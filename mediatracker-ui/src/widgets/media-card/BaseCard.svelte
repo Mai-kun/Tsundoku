@@ -21,6 +21,8 @@
     onDelete?: (item: MediaItem) => Promise<void>;
     /** Rendered below the poster: title, progress, type-specific controls. */
     children: Snippet;
+    /** Hover layer swapped in over `children` (stepper / quick actions). */
+    hover?: Snippet;
   }
 
   let {
@@ -31,6 +33,7 @@
     onProgressCommitted = () => {},
     onDelete,
     children,
+    hover,
   }: Props = $props();
 
   let deleteError = $state<unknown>(null);
@@ -104,9 +107,9 @@
     {/if}
   </MediaPoster>
 
-  <div class="relative z-10 min-w-0 space-y-2.5 px-0.5 pt-3 pb-1">
+  <div class="relative z-10 min-w-0 px-0.5 pt-2.5">
     {#if timeHint}
-      <div class="flex items-center">
+      <div class="flex items-center pb-2">
         <span
           class={`inline-flex max-w-full items-center gap-1 truncate rounded-md border px-2 py-0.5 text-[11px] ${
             timeHint.canFinishNow
@@ -120,7 +123,25 @@
       </div>
     {/if}
 
-    {@render children()}
+    <!-- Fixed-height info section: two swapped layers keep every card the
+         exact same height regardless of status or content length. -->
+    <div class="relative h-[70px] min-w-0">
+      <!-- Layer A: default info, fades out on hover -->
+      <div
+        class="pointer-events-auto h-full space-y-1.5 transition-opacity duration-150 group-hover:pointer-events-none group-hover:opacity-0"
+      >
+        {@render children()}
+      </div>
+
+      <!-- Layer B: hover actions, fade in on hover -->
+      {#if hover}
+        <div
+          class="pointer-events-none absolute inset-0 flex items-center justify-between opacity-0 transition-opacity duration-150 group-hover:pointer-events-auto group-hover:opacity-100"
+        >
+          {@render hover()}
+        </div>
+      {/if}
+    </div>
 
     {#if deleteError}
       <p class="text-xs leading-4 text-rose-300" role="alert">

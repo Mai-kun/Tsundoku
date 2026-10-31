@@ -1,20 +1,53 @@
 <script lang="ts">
+  import { Minus, Plus } from "$shared/ui/Icons";
+  import { i18n } from "$shared/i18n/index.svelte";
   import { errorMessage } from "$shared/api/api";
-  import MediaStepper from "$entities/media/ui/MediaStepper.svelte";
-  import { formatNumber } from "$entities/media/model/mediaLabels";
-  import type { CardProgressState } from "$features/update-progress/progressController.svelte";
 
   interface Props {
-    progress: CardProgressState;
+    /** Already formatted for the locale, e.g. "18 / 109 гл." or "12 ч.". */
+    text: string;
+    onStep: (delta: number) => void;
+    decrementDisabled?: boolean;
+    incrementDisabled?: boolean;
+    /** Progress request failure, surfaced under the stepper. */
+    error?: unknown;
   }
 
-  let { progress }: Props = $props();
+  let {
+    text,
+    onStep,
+    decrementDisabled = false,
+    incrementDisabled = false,
+    error = null,
+  }: Props = $props();
 </script>
 
-<MediaStepper text={formatNumber(progress.value)} onStep={(delta) => progress.step(delta)} />
+<div class="flex w-full items-center gap-1.5">
+  <button
+    type="button"
+    class="tap bg-field hover:bg-white/10 text-muted hover:text-ink flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition disabled:opacity-40"
+    aria-label={i18n.t.card.decrement}
+    disabled={decrementDisabled}
+    onclick={(event) => {
+      event.stopPropagation();
+      onStep(-1);
+    }}><Minus size={16} aria-hidden="true" /></button
+  >
+  <span class="text-xs font-bold text-white tabular-nums text-center flex-1">{text}</span>
+  <button
+    type="button"
+    class="tap bg-field hover:bg-white/10 text-muted hover:text-ink flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition disabled:opacity-40"
+    aria-label={i18n.t.card.increment}
+    disabled={incrementDisabled}
+    onclick={(event) => {
+      event.stopPropagation();
+      onStep(1);
+    }}><Plus size={16} aria-hidden="true" /></button
+  >
+</div>
 
-{#if progress.error}
+{#if error}
   <p class="text-xs leading-4 text-rose-300" role="alert">
-    {errorMessage(progress.error)}
+    {errorMessage(error)}
   </p>
 {/if}

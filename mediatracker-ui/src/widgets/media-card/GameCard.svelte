@@ -6,7 +6,6 @@
   import CardProgressControls from "./CardProgressControls.svelte";
   import CardTitleBlock from "./CardTitleBlock.svelte";
   import { createCardProgress } from "$features/update-progress/progressController.svelte";
-  import { supportsProgressStepper } from "$entities/media/model/progressRules";
   import type { MediaCardProps } from "./cardTypes";
 
   let {
@@ -24,21 +23,29 @@
     getItem: () => item,
     getOnProgress: () => onProgress,
     getOnProgressCommitted: () => onProgressCommitted,
+    getOnStatusChange: () => onStatusChange,
   });
-  const showStepper = $derived(supportsProgressStepper(item));
-
   /** Games list every platform shipped on; only the user's pick is meaningful. */
   const platform = $derived(item.userPlatform?.trim() || item.platform?.trim() || null);
 </script>
 
 <BaseCard {item} {timeHint} {onOpen} {onStatusChange} {onProgressCommitted} {onDelete}>
-  <CardTitleBlock title={item.title} subtitle={platform ?? i18n.t.types.game} />
+  {#snippet children()}
+    <CardTitleBlock title={item.title} subtitle={platform ?? i18n.t.types.game} />
 
-  {#if showProgress}
-    <CardProgressBar label={i18n.t.card.hours(progress.value)} ratio={null} />
-
-    {#if showStepper}
-      <CardProgressControls {progress} />
+    {#if showProgress}
+      <CardProgressBar label={i18n.t.card.hours(progress.value)} ratio={null} />
     {/if}
-  {/if}
+  {/snippet}
+
+  {#snippet hover()}
+    {#if showProgress}
+      <CardProgressControls
+        text={i18n.t.card.hours(progress.value)}
+        onStep={(delta) => progress.step(delta)}
+        decrementDisabled={progress.value <= 0}
+        error={progress.error}
+      />
+    {/if}
+  {/snippet}
 </BaseCard>

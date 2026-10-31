@@ -318,19 +318,20 @@
         <!-- Fallback if covers array is empty but title has a single legacy coverUrl -->
         <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
           <div
-            class="group relative flex flex-col overflow-hidden rounded-xl border border-indigo-500/50 bg-[#191e2b] shadow-md ring-2 ring-indigo-500/30"
+            style="contain: layout paint;"
+            class="group relative aspect-[2/3] overflow-hidden rounded-xl border-2 border-emerald-500/80 shadow-md ring-2 ring-emerald-500/40"
           >
-            <div class="aspect-[2/3] w-full overflow-hidden bg-black/30">
-              <img
-                src={fullSizeCoverUrl(media.coverUrl)}
-                alt={media.title}
-                class="h-full w-full object-cover"
-              />
-            </div>
+            <img
+              src={fullSizeCoverUrl(media.coverUrl)}
+              alt={media.title}
+              loading="lazy"
+              decoding="async"
+              class="h-full w-full object-cover"
+            />
             <div
-              class="absolute top-2 left-2 flex items-center gap-1 rounded bg-emerald-600/90 px-2 py-0.5 text-[10px] font-bold text-white shadow backdrop-blur-sm"
+              class="absolute top-2 left-2 flex items-center gap-1 rounded-md bg-emerald-600/95 px-2 py-0.5 text-[11px] font-bold text-white shadow"
             >
-              <Check size={11} aria-hidden="true" />
+              <Check size={14} strokeWidth={3} aria-hidden="true" />
               <span>{i18n.t.coversModal.activeBadge}</span>
             </div>
           </div>
@@ -340,94 +341,118 @@
           {#each covers as cover (cover.id)}
             {@const active = isActiveCover(cover)}
             <div
-              style="contain: layout paint"
-              class="group relative flex flex-col overflow-hidden rounded-xl border bg-[#191e2b] shadow-md transition {active
-                ? 'border-emerald-500/60 ring-2 ring-emerald-500/30'
-                : 'border-white/10 hover:border-white/20'}"
+              style="contain: layout paint;"
+              class="group relative aspect-[2/3] overflow-hidden rounded-xl transition {active
+                ? 'border-2 border-emerald-500/80 ring-2 ring-emerald-500/40'
+                : 'cursor-pointer border-2 border-transparent'}"
             >
-              <div class="aspect-[2/3] w-full overflow-hidden bg-black/30">
-                <img
-                  src={cover.thumbUrl}
-                  alt={cover.source ?? media.title}
-                  loading="lazy"
-                  decoding="async"
-                  referrerpolicy="no-referrer"
-                  class="h-full w-full object-cover transition duration-200 group-hover:scale-105"
-                />
-              </div>
+              <img
+                src={cover.thumbUrl}
+                alt={cover.source ?? media.title}
+                loading="lazy"
+                decoding="async"
+                referrerpolicy="no-referrer"
+                class="h-full w-full object-cover transition duration-200 group-hover:scale-105"
+              />
 
-              <!-- Top status badges -->
+              <!-- Whole-image click selects an inactive cover -->
+              {#if !active}
+                <button
+                  type="button"
+                  class="absolute inset-0 cursor-pointer"
+                  title={i18n.t.coversModal.select}
+                  aria-label={i18n.t.coversModal.select}
+                  disabled={busy}
+                  onclick={() => void handleSelect(cover.id)}
+                ></button>
+              {/if}
+
+              <!-- Active badge (top-left) -->
               {#if active}
                 <div
-                  class="absolute top-2 left-2 flex items-center gap-1 rounded bg-emerald-600/90 px-2 py-0.5 text-[10px] font-bold text-white shadow backdrop-blur-sm"
+                  class="absolute top-2 left-2 z-10 flex items-center gap-1 rounded-md bg-emerald-600/95 px-2 py-0.5 text-[11px] font-bold text-white shadow"
                 >
-                  <Check size={11} aria-hidden="true" />
+                  <Check size={14} strokeWidth={3} aria-hidden="true" />
                   <span>{i18n.t.coversModal.activeBadge}</span>
                 </div>
+              {:else}
+                <button
+                  type="button"
+                  class="absolute top-2 left-2 z-10 grid size-8 place-items-center rounded-lg border border-white/20 bg-black/70 text-white opacity-0 shadow-md transition duration-150 hover:border-indigo-500 hover:bg-indigo-600 group-hover:opacity-100 disabled:opacity-50"
+                  title={i18n.t.coversModal.select}
+                  aria-label={i18n.t.coversModal.select}
+                  disabled={busy}
+                  onclick={() => void handleSelect(cover.id)}
+                >
+                  {#if busy && actionId === cover.id}
+                    <LoaderCircle size={16} class="animate-spin" aria-hidden="true" />
+                  {:else}
+                    <Check size={16} strokeWidth={2.5} aria-hidden="true" />
+                  {/if}
+                </button>
               {/if}
 
-              {#if cover.source}
+              <!-- Delete (top-right, on hover) -->
+              <button
+                type="button"
+                class="absolute top-2 right-2 z-10 grid size-8 place-items-center rounded-lg border border-white/20 bg-black/70 text-slate-300 opacity-0 shadow-md transition duration-150 hover:border-rose-500 hover:bg-rose-600 hover:text-white group-hover:opacity-100 disabled:opacity-50"
+                title={i18n.t.coversModal.delete}
+                aria-label={i18n.t.coversModal.delete}
+                disabled={busy}
+                onclick={(e) => {
+                  e.stopPropagation();
+                  deletingId = cover.id;
+                }}
+              >
+                <Trash2 size={14} aria-hidden="true" />
+              </button>
+
+              <!-- Delete confirmation -->
+              {#if deletingId === cover.id}
                 <div
-                  class="absolute bottom-12 left-2 rounded bg-black/70 px-1.5 py-0.5 text-[10px] font-medium text-slate-300 backdrop-blur-sm"
+                  class="absolute inset-0 z-20 grid place-items-center bg-black/85 p-3"
+                  role="alertdialog"
+                  aria-label={i18n.t.coversModal.delete}
                 >
-                  {cover.source}
+                  <div class="flex flex-col items-center gap-2 text-center">
+                    <span class="text-xs font-semibold text-white">
+                      {i18n.t.coversModal.delete}?
+                    </span>
+                    <div class="flex items-center gap-2">
+                      <button
+                        type="button"
+                        class="rounded-md bg-rose-600 px-2.5 py-1 text-xs font-bold text-white transition hover:bg-rose-500 disabled:opacity-50"
+                        disabled={busy}
+                        onclick={() => void handleDelete(cover.id)}
+                      >
+                        {#if busy && actionId === cover.id}
+                          <LoaderCircle size={12} class="animate-spin" aria-hidden="true" />
+                        {:else}
+                          {i18n.t.common.delete}
+                        {/if}
+                      </button>
+                      <button
+                        type="button"
+                        class="rounded-md bg-white/10 px-2.5 py-1 text-xs font-semibold text-slate-200 transition hover:bg-white/20"
+                        onclick={() => (deletingId = null)}
+                      >
+                        {i18n.t.common.cancel}
+                      </button>
+                    </div>
+                  </div>
                 </div>
               {/if}
 
-              <!-- Actions bar -->
-              <div
-                class="flex items-center justify-between border-t border-white/[0.06] bg-[#141822] p-2"
-              >
-                {#if active}
-                  <span class="text-[11px] font-semibold text-emerald-400">
-                    {i18n.t.coversModal.selected}
+              <!-- Source label (bottom, on hover) -->
+              {#if cover.source}
+                <div
+                  class="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent p-3 pt-8 opacity-0 transition duration-150 group-hover:opacity-100"
+                >
+                  <span class="line-clamp-2 text-xs font-bold text-white drop-shadow">
+                    {cover.source}
                   </span>
-                {:else}
-                  <button
-                    type="button"
-                    class="rounded border border-indigo-500/40 bg-indigo-600/30 px-2.5 py-1 text-xs font-semibold text-indigo-300 transition hover:bg-indigo-600 hover:text-white disabled:opacity-50"
-                    disabled={busy}
-                    onclick={() => void handleSelect(cover.id)}
-                  >
-                    {#if busy && actionId === cover.id}
-                      <LoaderCircle size={12} class="animate-spin" aria-hidden="true" />
-                    {:else}
-                      {i18n.t.coversModal.select}
-                    {/if}
-                  </button>
-                {/if}
-
-                {#if deletingId === cover.id}
-                  <div class="flex items-center gap-1">
-                    <button
-                      type="button"
-                      class="rounded bg-rose-600 px-2 py-1 text-[10px] font-bold text-white transition hover:bg-rose-500"
-                      disabled={busy}
-                      onclick={() => void handleDelete(cover.id)}
-                    >
-                      {i18n.t.common.delete}
-                    </button>
-                    <button
-                      type="button"
-                      class="rounded bg-white/10 px-1.5 py-1 text-[10px] text-slate-300 hover:bg-white/20"
-                      onclick={() => (deletingId = null)}
-                    >
-                      ✕
-                    </button>
-                  </div>
-                {:else}
-                  <button
-                    type="button"
-                    class="rounded p-1 text-slate-400 transition hover:bg-rose-500/20 hover:text-rose-400 disabled:opacity-50"
-                    disabled={busy}
-                    title={i18n.t.coversModal.delete}
-                    aria-label={i18n.t.coversModal.delete}
-                    onclick={() => (deletingId = cover.id)}
-                  >
-                    <Trash2 size={13} aria-hidden="true" />
-                  </button>
-                {/if}
-              </div>
+                </div>
+              {/if}
             </div>
           {/each}
         </div>

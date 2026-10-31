@@ -1,0 +1,7 @@
+{
+  "bundle": {
+    "resources": {
+      "binaries/e_sqlite3.dll": "e_sqlite3.dll"
+    }
+  }
+}

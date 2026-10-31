@@ -1,0 +1,16 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Default capabilities for the Tsundoku desktop shell. Remote URLs are required because the release webview loads the SPA from the .NET server origin (http://127.0.0.1) and needs IPC for window-close handling and the logs console.",
+  "windows": ["main", "logs"],
+  "remote": {
+    "urls": ["http://127.0.0.1:*", "http://localhost:*"]
+  },
+  "permissions": [
+    "core:default",
+    "shell:allow-open",
+    "notification:default",
+    "allow-close-action",
+    "allow-open-logs-window"
+  ]
+}

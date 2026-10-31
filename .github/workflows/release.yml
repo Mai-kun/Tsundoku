@@ -77,46 +77,106 @@ jobs:
 
   build:
     # NativeAOT cannot cross-compile Linux -> Windows without the target OS toolchain,
-    # so each RID builds on its own native runner.
+    # so each RID builds on its own native runner (which also matches the Tauri
+    # sidecar scheme: one bundle per host target triple).
     strategy:
       fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest
             rid: linux-x64
+            sidecar: tsundoku-server-x86_64-unknown-linux-gnu
           - os: windows-latest
             rid: win-x64
+            sidecar: tsundoku-server-x86_64-pc-windows-msvc.exe
     runs-on: ${{ matrix.os }}
     needs: version
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      # Root npm ci pulls @tauri-apps/cli (npx tauri build); the UI has its own lockfile.
+      - name: Install CLI Dependencies
+        run: npm ci
+
       - name: Install Frontend Dependencies
         run: npm --prefix mediatracker-ui ci
+
+      - name: Install Tauri v2 Prerequisites (Linux)
+        if: matrix.rid == 'linux-x64'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev
 
       - name: Build Frontend
         run: npm --prefix mediatracker-ui run build
 
       # ubuntu-latest ships clang and zlib1g-dev already; windows-latest needs nothing extra.
       - name: Publish Server (NativeAOT)
-        run: dotnet publish MediaTracker.Server/MediaTracker.Server.csproj -c Release -r ${{ matrix.rid }} -p:Version=${{ needs.version.outputs.version }} -o publish/${{ matrix.rid }}
+        run: dotnet publish MediaTracker.Server/MediaTracker.Server.csproj -c Release -r ${{ matrix.rid }} -p:Version=${{ env.VERSION }} -o publish/${{ matrix.rid }}
 
-      - name: Zip Release (Linux)
+      # Tauri requires the sidecar binary to carry the Rust target triple suffix.
+      # The SQLite native library ships alongside it as a bundle resource.
+      - name: Install Server Sidecar
+        shell: bash
+        run: |
+          mkdir -p src-tauri/binaries
+          if [ "${{ matrix.rid }}" = "win-x64" ]; then
+            cp publish/win-x64/Tsundoku.Server.exe "src-tauri/binaries/${{ matrix.sidecar }}"
+            cp publish/win-x64/e_sqlite3.dll src-tauri/binaries/e_sqlite3.dll
+          else
+            cp publish/linux-x64/Tsundoku.Server "src-tauri/binaries/${{ matrix.sidecar }}"
+            chmod +x "src-tauri/binaries/${{ matrix.sidecar }}"
+            cp publish/linux-x64/libe_sqlite3.so src-tauri/binaries/libe_sqlite3.so
+          fi
+
+      # --config merges the release version over tauri.conf.json (which keeps 1.0.0 as the dev
+      # default). beforeBuildCommand runs from the invocation directory, so tauri build must
+      # be called from the repo root, not from src-tauri.
+      - name: Build Tauri Desktop Bundle
+        shell: bash
+        run: |
+          printf '{"version":"%s"}\n' "$VERSION" > src-tauri/tauri.release.json
+          npx tauri build --config src-tauri/tauri.release.json
+
+      - name: Stage Release Assets
+        shell: bash
+        run: |
+          mkdir -p release-assets
+          if [ "${{ matrix.rid }}" = "linux-x64" ]; then
+            cp src-tauri/target/release/bundle/appimage/*.AppImage release-assets/
+            cp src-tauri/target/release/bundle/deb/*.deb release-assets/
+          else
+            cp src-tauri/target/release/bundle/nsis/*.exe release-assets/
+          fi
+
+      # Git Bash on windows-latest has no zip; PowerShell's Compress-Archive is built in.
+      - name: Zip Headless Server (Windows)
+        if: matrix.rid == 'win-x64'
+        shell: pwsh
+        run: Compress-Archive -Path publish/win-x64/* -DestinationPath tsundoku-win-x64.zip
+
+      - name: Zip Headless Server (Linux)
         if: matrix.rid == 'linux-x64'
         run: |
           cd publish/linux-x64
           zip -r ../../tsundoku-linux-x64.zip .
 
-      # Git Bash on windows-latest has no zip; PowerShell's Compress-Archive is built in.
-      - name: Zip Release (Windows)
-        if: matrix.rid == 'win-x64'
-        shell: pwsh
-        run: Compress-Archive -Path publish/win-x64/* -DestinationPath tsundoku-win-x64.zip
-
       - uses: actions/upload-artifact@v4
         with:
           name: tsundoku-${{ matrix.rid }}
-          path: tsundoku-${{ matrix.rid }}.zip
+          path: |
+            release-assets/
+            tsundoku-${{ matrix.rid }}.zip
 
   release:
     runs-on: ubuntu-latest
@@ -135,3 +195,4 @@ jobs:
           files: |
             tsundoku-linux-x64.zip
             tsundoku-win-x64.zip
+            release-assets/*

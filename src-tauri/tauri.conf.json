@@ -1,0 +1,43 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Tsundoku",
+  "version": "1.0.0",
+  "identifier": "com.tsundoku.app",
+  "build": {
+    "frontendDist": "../MediaTracker.Server/wwwroot",
+    "devUrl": "http://localhost:5173",
+    "beforeDevCommand": "cd mediatracker-ui && npm run dev",
+    "beforeBuildCommand": "cd mediatracker-ui && npm run build"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Tsundoku",
+        "width": 1300,
+        "height": 850,
+        "minWidth": 900,
+        "minHeight": 600,
+        "center": true
+      }
+    ],
+    "security": {
+      "csp": null
+    },
+    "trayIcon": {
+      "id": "main",
+      "iconPath": "icons/icon.png",
+      "iconAsTemplate": false,
+      "tooltip": "Tsundoku"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": ["icons/icon.png", "icons/icon-512.png"],
+    "externalBin": ["binaries/tsundoku-server"],
+    "resources": {
+      "../MediaTracker.Server/wwwroot": "wwwroot/"
+    }
+  }
+}

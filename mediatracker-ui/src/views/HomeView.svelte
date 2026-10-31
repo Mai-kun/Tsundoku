@@ -639,7 +639,7 @@
       {/if}
     </div>
     <MediaGrid
-            forceFlat={showAll}
+      forceFlat={showAll}
       {items}
       {timeBudget}
       {onOpen}
@@ -657,10 +657,10 @@
   <!-- Полноразмерная панель управления (точная копия FilterBar категорий) -->
   {#if !loading && !loadError}
     <section
-      class="bg-surface space-y-3 rounded-lg p-3 sm:p-4 mb-6"
+      class="bg-surface mb-6 space-y-3 rounded-lg p-3 sm:p-4"
       aria-label="Панель управления главной"
     >
-      <div class="flex flex-col gap-3 lg:flex-row lg:items-center justify-between">
+      <div class="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
         <!-- Левый кластер: группировка, категория, время, рандомайзер -->
         <div class="flex min-w-0 flex-1 items-center gap-2">
           <SlidersHorizontal size={16} class="text-muted shrink-0" aria-hidden="true" />
@@ -783,7 +783,7 @@
                   aria-label={i18n.t.timeBudget.customTimePlaceholder}
                   title={i18n.t.timeBudget.customTimePlaceholder}
                   bind:value={customTimeValue}
-                  class="bg-field text-white focus:border-indigo-500/60 h-8 w-18 rounded-lg border border-white/10 px-2.5 text-xs outline-none tabular-nums [&::-webkit-inner-spin-button]:appearance-none"
+                  class="bg-field h-8 w-18 rounded-lg border border-white/10 px-2.5 text-xs text-white tabular-nums outline-none focus:border-indigo-500/60 [&::-webkit-inner-spin-button]:appearance-none"
                   onkeydown={(e) => {
                     if (e.key === "Enter") {
                       e.preventDefault();
@@ -793,14 +793,14 @@
                 />
                 <select
                   bind:value={customTimeUnit}
-                  class="bg-field text-slate-200 focus:border-indigo-500/60 h-8 cursor-pointer rounded-lg border border-white/10 px-2 text-xs outline-none"
+                  class="bg-field h-8 cursor-pointer rounded-lg border border-white/10 px-2 text-xs text-slate-200 outline-none focus:border-indigo-500/60"
                 >
                   <option value="min">{i18n.t.timeBudget.unitMin}</option>
                   <option value="h">{i18n.t.timeBudget.unitHours}</option>
                 </select>
                 <button
                   type="submit"
-                  class="hover:bg-indigo-500 bg-indigo-600 h-8 cursor-pointer rounded-lg px-3 text-xs font-bold text-white transition shadow-sm"
+                  class="h-8 cursor-pointer rounded-lg bg-indigo-600 px-3 text-xs font-bold text-white shadow-sm transition hover:bg-indigo-500"
                   title={i18n.t.timeBudget.applyCustomTime}
                 >
                   OK
@@ -972,14 +972,11 @@
   {/if}
 
   {#if loading}
-    <MediaGrid
-            forceFlat={showAll} items={[]} {loading} />
+    <MediaGrid forceFlat={showAll} items={[]} {loading} />
   {:else if loadError}
-    <MediaGrid
-            forceFlat={showAll} items={[]} error={loadError} onRetry={refresh} />
+    <MediaGrid forceFlat={showAll} items={[]} error={loadError} onRetry={refresh} />
   {:else if filteredTotal === 0}
-    <MediaGrid
-            forceFlat={showAll} items={[]} />
+    <MediaGrid forceFlat={showAll} items={[]} />
   {:else if timeBudget !== null && totalFitting === 0}
     <div
       class="bg-surface/60 flex min-h-60 flex-col items-center justify-center gap-3 rounded-xl border border-white/5 p-8 text-center"
@@ -1007,7 +1004,7 @@
     {/each}
   {:else if groupByMode === "none"}
     <MediaGrid
-            forceFlat={showAll}
+      forceFlat={showAll}
       items={unifiedList}
       {timeBudget}
       {onOpen}

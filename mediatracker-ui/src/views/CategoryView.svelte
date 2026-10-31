@@ -115,9 +115,7 @@
   // sections are capped at five, each virtually rendered, and their headers
   // must always show — planned (0) and completed (2) included.
   const SECTION_ROW_LIMIT = 40;
-  let useSingleGrid = $derived(
-    filteredItems.length > SECTION_ROW_LIMIT && groupBy === "franchise",
-  );
+  let useSingleGrid = $derived(filteredItems.length > SECTION_ROW_LIMIT && groupBy === "franchise");
   let statusCounts = $derived(countStatuses(allItems));
 
   const statusSections = $derived([
@@ -450,56 +448,56 @@
       <span class="sr-only">{i18n.t.common.loading}</span>
     </div>
   {:else}
-  <div class="transition-opacity duration-200" class:opacity-60={refreshing}>
-  {#if loadError}
-    {@render mediaGrid([])}
-  {:else if useSingleGrid}
-    {@render mediaGrid(filteredItems)}
-  {:else if groupBy === "status"}
-    {#if statusGroups.length === 0 && !loading}
-      {@render mediaGrid([])}
-    {:else}
-      <div class="space-y-8">
-        {#each statusGroups as group (group.status)}
-          <SectionRow
-            title={group.title}
-            items={group.items}
-            onRetry={refresh}
-            {onOpen}
-            onProgress={updateProgress}
-            onProgressCommitted={onMediaChanged}
-            onStatusChange={handleItemStatusChange}
-            onEpisodeStep={stepEpisode}
-            onDelete={removeItem}
-            {onEdit}
-          />
-        {/each}
-      </div>
-    {/if}
-  {:else if groupBy === "franchise"}
-    {#if franchiseGroups.length === 0 && !loading}
-      {@render mediaGrid([])}
-    {:else}
-      <div class="space-y-8">
-        {#each franchiseGroups as group (group.name)}
-          <SectionRow
-            title={group.name}
-            items={group.items}
-            onRetry={refresh}
-            {onOpen}
-            onProgress={updateProgress}
-            onProgressCommitted={onMediaChanged}
-            onStatusChange={handleItemStatusChange}
-            onEpisodeStep={stepEpisode}
-            onDelete={removeItem}
-            {onEdit}
-          />
-        {/each}
-      </div>
-    {/if}
-  {:else}
-    {@render mediaGrid(filteredItems)}
-  {/if}
-  </div>
+    <div class="transition-opacity duration-200" class:opacity-60={refreshing}>
+      {#if loadError}
+        {@render mediaGrid([])}
+      {:else if useSingleGrid}
+        {@render mediaGrid(filteredItems)}
+      {:else if groupBy === "status"}
+        {#if statusGroups.length === 0 && !loading}
+          {@render mediaGrid([])}
+        {:else}
+          <div class="space-y-8">
+            {#each statusGroups as group (group.status)}
+              <SectionRow
+                title={group.title}
+                items={group.items}
+                onRetry={refresh}
+                {onOpen}
+                onProgress={updateProgress}
+                onProgressCommitted={onMediaChanged}
+                onStatusChange={handleItemStatusChange}
+                onEpisodeStep={stepEpisode}
+                onDelete={removeItem}
+                {onEdit}
+              />
+            {/each}
+          </div>
+        {/if}
+      {:else if groupBy === "franchise"}
+        {#if franchiseGroups.length === 0 && !loading}
+          {@render mediaGrid([])}
+        {:else}
+          <div class="space-y-8">
+            {#each franchiseGroups as group (group.name)}
+              <SectionRow
+                title={group.name}
+                items={group.items}
+                onRetry={refresh}
+                {onOpen}
+                onProgress={updateProgress}
+                onProgressCommitted={onMediaChanged}
+                onStatusChange={handleItemStatusChange}
+                onEpisodeStep={stepEpisode}
+                onDelete={removeItem}
+                {onEdit}
+              />
+            {/each}
+          </div>
+        {/if}
+      {:else}
+        {@render mediaGrid(filteredItems)}
+      {/if}
+    </div>
   {/if}
 </div>

@@ -9,7 +9,6 @@ import type {
   MediaDetail,
   MediaFilters,
   MediaItem,
-  MediaStats,
   AdvancedStats,
   TasteProfile,
   MediaStatus,
@@ -17,7 +16,6 @@ import type {
   SourceInfo,
   GameAchievementsResponse,
   GameRelatedItem,
-  ExternalRecommendation,
   ExternalRelation,
   UpdateMediaPayload,
   CustomListSummary,
@@ -27,7 +25,6 @@ import type {
   ImportResultDto,
   SteamImportPayload,
   AniListProfilePayload,
-  MangaLibProfilePayload,
   CreatorRole,
   CreatorSummaryDto,
   CalendarScheduleDto,
@@ -178,10 +175,6 @@ export function getCreatorSummary(
   return requestJson<CreatorSummaryDto | null>(
     `${mediaEndpoint}/creator-summary?${params.toString()}`,
   );
-}
-
-export function getStats(): Promise<MediaStats> {
-  return requestJson<MediaStats>(`${mediaEndpoint}/stats`);
 }
 
 export function getAdvancedStats(
@@ -335,13 +328,6 @@ export function importSteamProfile(payload: SteamImportPayload): Promise<ImportR
 export function importAniListProfile(payload: AniListProfilePayload): Promise<ImportResultDto> {
   return requestJson<ImportResultDto>(
     `${mediaEndpoint}/import/anilist-profile`,
-    jsonOptions("POST", payload),
-  );
-}
-
-export function importMangaLibProfile(payload: MangaLibProfilePayload): Promise<ImportResultDto> {
-  return requestJson<ImportResultDto>(
-    `${mediaEndpoint}/import/mangalib-profile`,
     jsonOptions("POST", payload),
   );
 }
@@ -533,20 +519,6 @@ export function getGameRelated(params: {
   return requestJson<GameRelatedItem[]>(`/api/external/games/related?${query.toString()}`);
 }
 
-export function getGameRecommendations(params: {
-  rawgId?: string | null;
-  title?: string | null;
-  externalSource?: string | null;
-  externalId?: string | null;
-}): Promise<GameRelatedItem[]> {
-  const query = new URLSearchParams();
-  if (params.rawgId) query.set("rawgId", params.rawgId);
-  if (params.title) query.set("title", params.title);
-  if (params.externalSource) query.set("externalSource", params.externalSource);
-  if (params.externalId) query.set("externalId", params.externalId);
-  return requestJson<GameRelatedItem[]>(`/api/external/games/recommendations?${query.toString()}`);
-}
-
 /**
  * Related / recommended titles for one source. `kind` is "related" or "recommendations"; the
  * caller must name the source explicitly because these are only ever fetched on request.
@@ -565,26 +537,6 @@ export function getExternalRelations(params: {
   query.set("source", params.source);
   query.set("kind", params.kind);
   return requestJson<ExternalRelation[]>(`/api/external/relations?${query.toString()}`);
-}
-
-/**
- * Recommendations for one item, fetched and stored by the server.
- *
- * The list is kept on the media row, so a call inside the 30-day window is answered from SQLite with
- * no provider request at all; `forceRefresh` is what the panel's reload button sets.
- */
-export function getMediaRecommendations(
-  id: string,
-  source: string | null,
-  forceRefresh = false,
-): Promise<ExternalRecommendation[]> {
-  const query = new URLSearchParams();
-  if (source) query.set("source", source);
-  if (forceRefresh) query.set("forceRefresh", "true");
-  return requestJson<ExternalRecommendation[]>(
-    `/api/media/${id}/recommendations?${query.toString()}`,
-    { method: "POST" },
-  );
 }
 
 export function getCalendar(

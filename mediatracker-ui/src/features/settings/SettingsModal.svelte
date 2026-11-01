@@ -24,6 +24,7 @@
     Search,
     Server,
     Settings,
+    FileText,
     ShieldCheck,
     Trash2,
     X,
@@ -36,6 +37,8 @@
     createApiToken,
     errorMessage,
     exportBackup,
+    exportLibraryCsv,
+    exportLibraryJson,
     getApiTokens,
     getCategoryOrder,
     getSources,
@@ -56,6 +59,8 @@
   import { showToast } from "$shared/ui/toast.svelte";
   import { i18n } from "$shared/i18n/index.svelte";
   import Modal from "$shared/ui/Modal.svelte";
+  import Select from "$shared/ui/Select.svelte";
+  import { flip } from "svelte/animate";
   import ImportPanel from "$features/import-media/ImportPanel.svelte";
   import type {
     ApiTokenSummary,
@@ -339,6 +344,7 @@
   }
 
   let isExporting = $state(false);
+  let exportingTableFormat = $state<"" | "json" | "csv">("");
   let isRestoring = $state(false);
   let selectedBackupFile = $state<File | null>(null);
   let showRestoreConfirm = $state(false);
@@ -371,6 +377,30 @@
       showToast(errorMessage(e), "error");
     } finally {
       isExporting = false;
+    }
+  }
+
+  async function handleExportTable(format: "json" | "csv") {
+    if (exportingTableFormat) return;
+    exportingTableFormat = format;
+    try {
+      const blob = format === "json" ? await exportLibraryJson() : await exportLibraryCsv();
+      const now = new Date();
+      const pad = (n: number) => String(n).padStart(2, "0");
+      const timestamp = `${now.getUTCFullYear()}${pad(now.getUTCMonth() + 1)}${pad(now.getUTCDate())}`;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `tsundoku-library-${timestamp}.${format}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error(e);
+      showToast(errorMessage(e), "error");
+    } finally {
+      exportingTableFormat = "";
     }
   }
 
@@ -498,6 +528,39 @@
     } finally {
       sourcesLoading = false;
     }
+  }
+
+  /**
+   * Per-source colors from the shared Source Themes token group in tokens.css
+   * (the same palette the import provider cards use). Unknown ids fall back to
+   * the neutral card chrome.
+   */
+  const THEMED_SOURCES = new Set([
+    "tmdb",
+    "imdb",
+    "rawg",
+    "simkl",
+    "kinopoisk",
+    "steam",
+    "anilist",
+    "shikimori",
+    "kitsu",
+    "mangadex",
+    "mangaupdates",
+    "openlibrary",
+  ]);
+
+  function sourceThemeVars(sourceId: string) {
+    if (!THEMED_SOURCES.has(sourceId)) {
+      return {
+        accent: "var(--color-accent)",
+        border: "var(--color-panel-border)",
+      };
+    }
+    return {
+      accent: `var(--color-import-${sourceId}-accent)`,
+      border: `var(--color-import-${sourceId}-border)`,
+    };
   }
 
   async function loadOrder() {
@@ -641,10 +704,29 @@
     return i18n.t.types[cat as keyof typeof i18n.t.types] || cat;
   }
 
+  /* Live-reorder drag state. The list order mutates on every dragover that
+     crosses a new row (animate:flip then slides the neighbours aside), and the
+     persisted save happens once on drop/dragend. */
   let draggedIndex = $state<number | null>(null);
+  let orderDirty = false;
+
+  /**
+   * Midpoint thresholding: a swap fires only when the cursor actually crosses
+   * the vertical midpoint of the hovered row in the drag direction. Without it
+   * the shifted neighbour slides under the cursor, fires dragover back and the
+   * row oscillates on every mouse twitch. Shared by both drag lists.
+   */
+  function crossesMidpoint(event: DragEvent, targetIndex: number, currentIndex: number): boolean {
+    const target = event.currentTarget;
+    if (!(target instanceof HTMLElement)) return true;
+    const middleY = target.getBoundingClientRect().top + target.getBoundingClientRect().height / 2;
+    if (currentIndex < targetIndex) return event.clientY >= middleY; // dragging down
+    return event.clientY <= middleY; // dragging up
+  }
 
   function handleDragStart(idx: number, event: DragEvent) {
     draggedIndex = idx;
+    orderDirty = false;
     if (event.dataTransfer) {
       event.dataTransfer.effectAllowed = "move";
       event.dataTransfer.setData("text/plain", String(idx));
@@ -656,21 +738,26 @@
     if (event.dataTransfer) {
       event.dataTransfer.dropEffect = "move";
     }
-  }
-
-  async function handleDrop(targetIdx: number, event: DragEvent) {
-    event.preventDefault();
-    if (draggedIndex === null || draggedIndex === targetIdx) return;
+    if (draggedIndex === null || draggedIndex === idx) return;
+    if (!crossesMidpoint(event, idx, draggedIndex)) return;
 
     const updated = [...categoryOrder];
     const [moved] = updated.splice(draggedIndex, 1);
-    updated.splice(targetIdx, 0, moved);
+    updated.splice(idx, 0, moved);
 
     categoryOrder = updated;
+    draggedIndex = idx;
+    orderDirty = true;
+  }
+
+  async function finishCategoryDrag() {
+    const wasDirty = orderDirty;
     draggedIndex = null;
+    orderDirty = false;
+    if (!wasDirty) return;
 
     try {
-      await saveCategoryOrder(updated);
+      await saveCategoryOrder(categoryOrder);
       showToast(i18n.t.settingsModal.search.saved, "success");
     } catch (err) {
       console.error(err);
@@ -678,8 +765,48 @@
     }
   }
 
-  function handleDragEnd() {
-    draggedIndex = null;
+  let draggedSource: { type: string; index: number } | null = $state(null);
+  let priorityDirty = false;
+
+  function handleSourceDragStart(type: string, index: number, event: DragEvent) {
+    draggedSource = { type, index };
+    priorityDirty = false;
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData("text/plain", `${type}:${index}`);
+    }
+  }
+
+  function handleSourceDragOver(type: string, index: number, event: DragEvent) {
+    event.preventDefault();
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = "move";
+    }
+    if (!draggedSource || draggedSource.type !== type || draggedSource.index === index) return;
+    if (!crossesMidpoint(event, index, draggedSource.index)) return;
+
+    const list = [...(sourcePriority[type] || [])];
+    const [moved] = list.splice(draggedSource.index, 1);
+    list.splice(index, 0, moved);
+
+    sourcePriority = { ...sourcePriority, [type]: list };
+    draggedSource = { type, index };
+    priorityDirty = true;
+  }
+
+  async function finishSourceDrag() {
+    const wasDirty = priorityDirty;
+    draggedSource = null;
+    priorityDirty = false;
+    if (!wasDirty) return;
+
+    try {
+      await saveSourcePriority(sourcePriority);
+      showToast(i18n.t.settingsModal.search.prioritySaved, "success");
+    } catch (err) {
+      console.error(err);
+      showToast(errorMessage(err), "error");
+    }
   }
 
   function getSourceName(id: string): string {
@@ -863,21 +990,21 @@
                 <label for="source-type-filter" class="text-muted shrink-0 text-xs"
                   >{i18n.t.settingsModal.sources.filterLabel}:</label
                 >
-                <select
+                <Select
                   id="source-type-filter"
-                  class="bg-field text-ink focus:border-accent-soft h-8 cursor-pointer rounded-md border border-white/10 px-2.5 text-xs focus:outline-none"
+                  options={[
+                    { value: "all", label: i18n.t.settingsModal.sources.filterAll },
+                    { value: "anime", label: i18n.t.navigation.anime },
+                    { value: "manga", label: i18n.t.types.manga },
+                    { value: "movie", label: i18n.t.types.movie },
+                    { value: "tvshow", label: i18n.t.types.tvshow },
+                    { value: "game", label: i18n.t.types.game },
+                    { value: "book", label: i18n.t.types.book },
+                  ]}
                   value={selectedTypeFilter}
-                  onchange={(e) =>
-                    (selectedTypeFilter = (e.currentTarget as HTMLSelectElement).value)}
-                >
-                  <option value="all">{i18n.t.settingsModal.sources.filterAll}</option>
-                  <option value="anime">{i18n.t.navigation.anime}</option>
-                  <option value="manga">{i18n.t.types.manga}</option>
-                  <option value="movie">{i18n.t.types.movie}</option>
-                  <option value="tvshow">{i18n.t.types.tvshow}</option>
-                  <option value="game">{i18n.t.types.game}</option>
-                  <option value="book">{i18n.t.types.book}</option>
-                </select>
+                  onChange={(next) => (selectedTypeFilter = next)}
+                  class="h-8 rounded-md px-2.5 text-xs"
+                />
               </div>
             </div>
 
@@ -894,15 +1021,22 @@
             {:else}
               <div class="space-y-4">
                 {#each filteredSources as source (source.id)}
+                  {@const theme = sourceThemeVars(source.id)}
                   <div
-                    class="rounded-xl border border-white/[0.08] bg-white/[0.02] p-4 transition hover:border-white/15 sm:p-5 {source.isEnabled ===
+                    class="rounded-xl border bg-white/[0.02] p-4 transition hover:border-white/15 sm:p-5 {source.isEnabled ===
                     false
                       ? 'opacity-65'
                       : ''}"
+                    style={`border-color: ${theme.border};`}
                   >
                     <div class="flex flex-wrap items-start justify-between gap-3">
                       <div class="min-w-[200px] flex-1">
                         <div class="flex flex-wrap items-center gap-2">
+                          <span
+                            class="size-2.5 shrink-0 rounded-full"
+                            style={`background: ${theme.accent};`}
+                            aria-hidden="true"
+                          ></span>
                           <h4 class="text-ink text-sm font-bold">
                             {source.name}
                           </h4>
@@ -1138,15 +1272,19 @@
                   {#each categoryOrder as cat, idx (cat)}
                     <div
                       role="listitem"
-                      class="group flex cursor-grab items-center justify-between rounded-lg border border-white/10 bg-white/[0.02] p-3 transition-colors hover:border-white/20 {draggedIndex ===
+                      animate:flip={{ duration: 180 }}
+                      class="group flex cursor-grab items-center justify-between rounded-lg border p-3 transition-colors {draggedIndex ===
                       idx
-                        ? 'border-dashed border-indigo-500 opacity-40'
-                        : ''}"
+                        ? 'pointer-events-none border-indigo-500/60 bg-indigo-500/[0.06] opacity-40'
+                        : 'border-white/10 bg-white/[0.02] hover:border-white/20'}"
                       draggable="true"
                       ondragstart={(e) => handleDragStart(idx, e)}
                       ondragover={(e) => handleDragOver(idx, e)}
-                      ondrop={(e) => handleDrop(idx, e)}
-                      ondragend={handleDragEnd}
+                      ondrop={(e) => {
+                        e.preventDefault();
+                        void finishCategoryDrag();
+                      }}
+                      ondragend={() => void finishCategoryDrag()}
                     >
                       <!-- Left: position number + category name -->
                       <div class="flex min-w-36 items-center gap-3">
@@ -1227,16 +1365,34 @@
                             >{i18n.t.settingsModal.sources.providersCount(providers.length)}</span
                           >
                         </div>
-                        <div class="space-y-1.5">
+                        <div class="space-y-1.5" role="list">
                           {#each providers as provId, pIdx (provId)}
                             <div
-                              class="border-border/70 bg-surface flex items-center justify-between rounded-md border px-3 py-2 {isSourceDisabled(
-                                provId,
-                              )
+                              role="listitem"
+                              animate:flip={{ duration: 180 }}
+                              draggable="true"
+                              ondragstart={(e) => handleSourceDragStart(mediaType, pIdx, e)}
+                              ondragover={(e) => handleSourceDragOver(mediaType, pIdx, e)}
+                              ondrop={(e) => {
+                                e.preventDefault();
+                                void finishSourceDrag();
+                              }}
+                              ondragend={() => void finishSourceDrag()}
+                              class="border-border/70 bg-surface flex cursor-grab items-center justify-between rounded-md border px-3 py-2 {draggedSource?.type ===
+                                mediaType && draggedSource.index === pIdx
+                                ? 'pointer-events-none border-indigo-500/60 bg-indigo-500/10 opacity-40'
+                                : draggedSource?.type === mediaType
+                                  ? 'border-indigo-500/25'
+                                  : ''} {isSourceDisabled(provId)
                                 ? 'bg-surface/50 opacity-60'
                                 : ''}"
                             >
                               <div class="flex items-center gap-2.5">
+                                <GripVertical
+                                  size={14}
+                                  class="text-muted/60 shrink-0 cursor-grab"
+                                  aria-hidden="true"
+                                />
                                 <span
                                   class="bg-canvas text-muted grid h-5 w-5 place-items-center rounded text-[11px] font-bold"
                                 >
@@ -1321,6 +1477,50 @@
                     {:else}
                       <ArrowDown size={14} />
                       {i18n.t.settingsModal.backup.exportButton}
+                    {/if}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Data Table Export (Neutral / Safe) -->
+            <div class="rounded-xl border border-white/10 bg-white/[0.02] p-5">
+              <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div class="max-w-xl">
+                  <h3 class="text-ink text-sm font-semibold">
+                    {i18n.t.settingsModal.backup.exportDataTitle}
+                  </h3>
+                  <p class="text-muted mt-1 text-xs leading-relaxed">
+                    {i18n.t.settingsModal.backup.exportDataDescription}
+                  </p>
+                </div>
+                <div class="flex shrink-0 gap-2">
+                  <button
+                    type="button"
+                    class="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-indigo-500/40 bg-indigo-500/10 px-4 py-2 text-xs font-semibold text-indigo-300 transition hover:bg-indigo-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+                    disabled={Boolean(exportingTableFormat)}
+                    onclick={() => handleExportTable("json")}
+                  >
+                    {#if exportingTableFormat === "json"}
+                      <LoaderCircle size={14} class="animate-spin" />
+                      {i18n.t.settingsModal.backup.exportingTable}
+                    {:else}
+                      <FileText size={14} />
+                      {i18n.t.settingsModal.backup.exportJsonButton}
+                    {/if}
+                  </button>
+                  <button
+                    type="button"
+                    class="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 text-xs font-semibold text-emerald-300 transition hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+                    disabled={Boolean(exportingTableFormat)}
+                    onclick={() => handleExportTable("csv")}
+                  >
+                    {#if exportingTableFormat === "csv"}
+                      <LoaderCircle size={14} class="animate-spin" />
+                      {i18n.t.settingsModal.backup.exportingTable}
+                    {:else}
+                      <ArrowDown size={14} />
+                      {i18n.t.settingsModal.backup.exportCsvButton}
                     {/if}
                   </button>
                 </div>

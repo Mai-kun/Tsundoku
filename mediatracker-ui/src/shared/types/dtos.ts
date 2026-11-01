@@ -100,6 +100,8 @@ export interface MangaLibProfilePayload {
   profileUrlOrId: string;
   siteIds?: number[];
   bearerToken?: string;
+  /** Standard SocialLib folder ids (1..6) to import; omitted means all. */
+  statusIds?: number[];
   skipDuplicates?: boolean;
   targetListId?: string;
   newListName?: string;
@@ -340,4 +342,25 @@ export interface CalendarScheduleDto {
   from: string;
   to: string;
   days: CalendarDayDto[];
+}
+
+/** A release within the next 30 days the user is behind on; see /calendar/backlog-deadlines. */
+export interface BacklogDeadlineDto {
+  mediaId: string;
+  title: string;
+  type: string;
+  coverUrl: string | null;
+  /** "air_date" — behind on an ongoing; "release" — franchise sequel with an unfinished previous part. */
+  kind: "air_date" | "release";
+  /** "YYYY-MM-DD" */
+  deadlineDate: string;
+  daysLeft: number;
+  episodeNumber: number | null;
+  seasonNumber: number | null;
+  /** Episodes/chapters left to catch up; null for franchise sequels. */
+  behindCount: number | null;
+  /** The previous franchise part to finish first; null for ongoing catch-ups. */
+  blockerTitle: string | null;
+  blockerProgress: number | null;
+  blockerTotalCount: number | null;
 }

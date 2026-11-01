@@ -18,12 +18,70 @@
   /* Тонкие границы */
   --color-panel-border: rgba(255, 255, 255, 0.06);
 
-  /* --- Import Provider Themes --- */
+  /* --- Source Themes (import providers + settings sources) ---
+     One accent/border/surface/text group per external source; both the import
+     panel provider cards and the settings sources list read these. */
   /* MangaLib / SocialLib (Pale terracotta/orange) */
   --color-import-mangalib-accent: #ea580c;
+  /* The accent dimmed by 30% for large CTA fills: full-strength orange glares. */
+  --color-import-mangalib-accent-dim: rgba(234, 88, 12, 0.7);
   --color-import-mangalib-border: rgba(249, 115, 22, 0.2);
   --color-import-mangalib-surface: rgba(249, 115, 22, 0.05);
   --color-import-mangalib-text: #fdba74;
+
+  /* TMDB (The Movie Database mint green) */
+  --color-import-tmdb-accent: #90cea1;
+  --color-import-tmdb-border: rgba(144, 206, 161, 0.2);
+  --color-import-tmdb-surface: rgba(144, 206, 161, 0.05);
+  --color-import-tmdb-text: #bbf7d0;
+
+  /* RAWG (Games red) */
+  --color-import-rawg-accent: #f87171;
+  --color-import-rawg-border: rgba(248, 113, 113, 0.2);
+  --color-import-rawg-surface: rgba(248, 113, 113, 0.05);
+  --color-import-rawg-text: #fca5a5;
+
+  /* Simkl (Tracker lime green) */
+  --color-import-simkl-accent: #84cc16;
+  --color-import-simkl-border: rgba(132, 204, 22, 0.2);
+  --color-import-simkl-surface: rgba(132, 204, 22, 0.05);
+  --color-import-simkl-text: #d9f99d;
+
+  /* Kinopoisk (Cinema amber) */
+  --color-import-kinopoisk-accent: #f59e0b;
+  --color-import-kinopoisk-border: rgba(245, 158, 11, 0.2);
+  --color-import-kinopoisk-surface: rgba(245, 158, 11, 0.05);
+  --color-import-kinopoisk-text: #fcd34d;
+
+  /* IMDb (Screen gold) */
+  --color-import-imdb-accent: #f5c518;
+  --color-import-imdb-border: rgba(245, 197, 24, 0.2);
+  --color-import-imdb-surface: rgba(245, 197, 24, 0.05);
+  --color-import-imdb-text: #fde68a;
+
+  /* Kitsu (Anime coral) */
+  --color-import-kitsu-accent: #fd5e63;
+  --color-import-kitsu-border: rgba(253, 94, 99, 0.2);
+  --color-import-kitsu-surface: rgba(253, 94, 99, 0.05);
+  --color-import-kitsu-text: #fda4af;
+
+  /* MangaDex (Manga tomato red) */
+  --color-import-mangadex-accent: #ff6740;
+  --color-import-mangadex-border: rgba(255, 103, 64, 0.2);
+  --color-import-mangadex-surface: rgba(255, 103, 64, 0.05);
+  --color-import-mangadex-text: #fdba74;
+
+  /* MangaUpdates (List violet) */
+  --color-import-mangaupdates-accent: #a78bfa;
+  --color-import-mangaupdates-border: rgba(167, 139, 250, 0.2);
+  --color-import-mangaupdates-surface: rgba(167, 139, 250, 0.05);
+  --color-import-mangaupdates-text: #c4b5fd;
+
+  /* OpenLibrary (Books warm brown) */
+  --color-import-openlibrary-accent: #d6a858;
+  --color-import-openlibrary-border: rgba(214, 168, 88, 0.2);
+  --color-import-openlibrary-surface: rgba(214, 168, 88, 0.05);
+  --color-import-openlibrary-text: #fde68a;
 
   /* Letterboxd (Film Emerald) */
   --color-import-letterboxd-accent: #00e054;

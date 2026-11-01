@@ -68,8 +68,14 @@
     type TvSeason,
     type UpdateMediaPayload,
   } from "$shared/types";
-  import { clampProgress } from "$entities/media/model/progressRules";
+  import { clampProgress, writeCardProgress } from "$entities/media/model/progressRules";
   import { nextSeriesEpisodeStep } from "$entities/media/model/seriesStep";
+  import {
+    applyOptimisticProgress,
+    clearOptimisticProgress,
+    reconcileProgress,
+    resolveOptimisticProgress,
+  } from "$features/update-progress/optimisticProgress.svelte";
   import { createProgressDebounce } from "$shared/utils/progressDebounce";
   import { formatNumber, sourceBadgeClasses } from "$entities/media/model/mediaLabels";
   import {
@@ -611,9 +617,12 @@
     }),
     onCommitted: (value) => {
       committedProgress = value;
+      resolveOptimisticProgress(media?.id ?? "", value);
       const target = media;
-      if (target && target.type === "game") {
-        target.hoursPlayed = value;
+      if (target) {
+        // Keep the raw object (and the shared prefetch cache it may back) on
+        // the confirmed value for every type, not just games.
+        writeCardProgress(target, value);
       }
       if (progressValue === value) onUpdate();
     },
@@ -621,6 +630,7 @@
       progressValue = pendingSnapshot ?? committedProgress;
       committedProgress = progressValue;
       pendingSnapshot = null;
+      clearOptimisticProgress(media?.id ?? "");
       progressError = error;
     },
   });
@@ -808,7 +818,13 @@
   });
 
   $effect(() => {
-    return () => void progressDebounce.flush(true);
+    return () => {
+      // Leaving with an uncommitted step: the keepalive PUT carries the value
+      // to the server, but the owning grid must refetch so its card does not
+      // keep showing the stale number until some unrelated refresh.
+      if (progressValue !== committedProgress) onUpdate();
+      void progressDebounce.flush(true);
+    };
   });
 
   // In-memory caches to prevent progress spinner / jog wheel from re-fetching
@@ -1116,8 +1132,10 @@
     statusValue = item.status;
     scoreValue = item.score;
     const info = readProgress(item);
-    progressValue = info?.current ?? 0;
-    committedProgress = progressValue;
+    // Anti-rollback: a card step whose debounce/PUT is still in flight must
+    // not be overwritten by the (stale) freshly loaded server value.
+    progressValue = reconcileProgress(item.id, info?.current ?? 0);
+    committedProgress = info?.current ?? 0;
     pendingSnapshot = null;
   }
 
@@ -1675,17 +1693,34 @@
     if (pendingSnapshot === null) pendingSnapshot = committedProgress;
     progressValue = next;
     progressError = null;
+    // Publish the optimistic value so cards showing this title (and the
+    // prefetch cache) pick it up before the debounced PUT confirms.
+    applyOptimisticProgress(target.id, next);
+    writeCardProgress(target, next);
     progressDebounce.schedule(target.id, next);
   }
 
   async function stepEpisodeProgress(delta: number) {
     const step = nextSeriesEpisodeStep(seasons, delta);
     if (!step) return;
+    const target = media;
+    if (!target) return;
+
+    // Optimistic: bump the season row locally so the banner moves at once,
+    // and publish the series total for the cards; rollback on failure below.
+    const season = seasons.find((s) => s.id === step.seasonId);
+    const previousEpisode = season?.currentEpisode ?? 0;
+    const previousTotal = seriesEpisodes.current;
+    if (season) season.currentEpisode = step.currentEpisode;
+    applyOptimisticProgress(target.id, previousTotal + delta);
 
     try {
       await setSeasonProgress(step.seasonId, step.currentEpisode);
       onUpdate();
     } catch (error) {
+      if (season) season.currentEpisode = previousEpisode;
+      writeCardProgress(target, previousTotal);
+      clearOptimisticProgress(target.id);
       progressError = error;
       showToast(errorMessage(error), "error");
     }
@@ -1876,10 +1911,15 @@
     // Clicking a watched episode unwatches back to the one before it; clicking an unwatched one
     // marks everything up to and including it.
     const nextVal = number <= current ? number - 1 : number;
+    const owner = media;
+    const seriesTotalBefore = seriesEpisodes.current;
 
     target.currentEpisode = nextVal;
     episodeBusy = target.id;
     progressError = null;
+    if (owner) {
+      applyOptimisticProgress(owner.id, seriesTotalBefore + (nextVal - current));
+    }
 
     try {
       await setSeasonProgress(target.id, nextVal);
@@ -1888,6 +1928,7 @@
       onUpdate();
     } catch (error) {
       target.currentEpisode = current;
+      if (owner) clearOptimisticProgress(owner.id);
       onUpdate();
       progressError = error;
       showToast(errorMessage(error), "error");
@@ -1924,10 +1965,15 @@
     const previous = target.currentEpisode ?? 0;
     const completing = previous < total;
     const nextVal = completing ? total : 0;
+    const owner = media;
+    const seriesTotalBefore = seriesEpisodes.current;
 
     target.currentEpisode = nextVal;
     episodeBusy = target.id;
     progressError = null;
+    if (owner) {
+      applyOptimisticProgress(owner.id, seriesTotalBefore + (nextVal - previous));
+    }
 
     try {
       await setSeasonProgress(target.id, nextVal);
@@ -1939,6 +1985,7 @@
       );
     } catch (error) {
       target.currentEpisode = previous;
+      if (owner) clearOptimisticProgress(owner.id);
       onUpdate();
       progressError = error;
       showToast(errorMessage(error), "error");
@@ -2141,6 +2188,8 @@
               if (pendingSnapshot === null) pendingSnapshot = committedProgress;
               progressValue = next;
               progressError = null;
+              applyOptimisticProgress(media.id, next);
+              writeCardProgress(media, next);
               progressDebounce.schedule(media.id, next);
             }}
             achievements={gameAchievements}

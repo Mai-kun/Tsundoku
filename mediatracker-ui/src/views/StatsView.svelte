@@ -164,37 +164,37 @@
   {#if loading}
     <div class="space-y-4" aria-hidden="true">
       <div class="space-y-2">
-        <div class="h-8 w-72 max-w-full animate-pulse rounded-lg bg-white/5"></div>
-        <div class="h-4 w-96 max-w-full animate-pulse rounded-lg bg-white/5"></div>
+        <div class="h-8 w-72 max-w-full rounded-lg bg-white/5"></div>
+        <div class="h-4 w-96 max-w-full rounded-lg bg-white/5"></div>
       </div>
       <div class="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
         {#each Array(3) as _, index (index)}
-          <div class="h-20 animate-pulse rounded-xl border border-white/5 bg-[#151a26]"></div>
+          <div class="h-20 rounded-xl border border-white/5 bg-[#151a26]"></div>
         {/each}
       </div>
     </div>
 
     <div class="grid grid-cols-1 gap-6 lg:grid-cols-2" aria-hidden="true">
-      <div class="h-64 animate-pulse rounded-xl border border-white/5 bg-[#151a26]"></div>
-      <div class="h-64 animate-pulse rounded-xl border border-white/5 bg-[#151a26]"></div>
+      <div class="h-64 rounded-xl border border-white/5 bg-[#151a26]"></div>
+      <div class="h-64 rounded-xl border border-white/5 bg-[#151a26]"></div>
     </div>
 
     <div class="grid grid-cols-1 gap-6" aria-hidden="true">
-      <div class="h-64 animate-pulse rounded-xl border border-white/5 bg-[#151a26]"></div>
-      <div class="h-40 animate-pulse rounded-xl border border-white/5 bg-[#151a26]"></div>
+      <div class="h-64 rounded-xl border border-white/5 bg-[#151a26]"></div>
+      <div class="h-40 rounded-xl border border-white/5 bg-[#151a26]"></div>
     </div>
 
     <!-- Skeleton for BacklogHealth and TrackerBadges -->
     <div class="space-y-6" aria-hidden="true">
-      <div class="h-36 animate-pulse rounded-xl border border-white/5 bg-[#151a26]"></div>
+      <div class="h-36 rounded-xl border border-white/5 bg-[#151a26]"></div>
       <div class="space-y-4">
         <div class="flex items-center justify-between">
-          <div class="h-6 w-48 animate-pulse rounded-lg bg-white/5"></div>
-          <div class="h-6 w-36 animate-pulse rounded-lg bg-white/5"></div>
+          <div class="h-6 w-48 rounded-lg bg-white/5"></div>
+          <div class="h-6 w-36 rounded-lg bg-white/5"></div>
         </div>
         <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           {#each Array(6) as _, index (index)}
-            <div class="h-32 animate-pulse rounded-xl border border-white/5 bg-[#151a26]"></div>
+            <div class="h-32 rounded-xl border border-white/5 bg-[#151a26]"></div>
           {/each}
         </div>
       </div>

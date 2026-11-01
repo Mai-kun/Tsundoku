@@ -12,6 +12,9 @@ export function traceEffect(label: string, fn: () => void | (() => void)): void 
 
   if (enabled) {
     $effect(() => {
+      // Dev-only effect tracing behind the tsundoku_trace_effects flag — the
+      // production branch below never reaches this $inspect.
+      // eslint-disable-next-line svelte/no-inspect
       $inspect.trace(label);
       return fn();
     });

@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { SmartListQuery, MediaItem } from "$shared/types";
   import { i18n } from "$shared/i18n/index.svelte";
+  import Select from "$shared/ui/Select.svelte";
 
   interface Props {
     query: SmartListQuery;
@@ -463,28 +464,26 @@
   <div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
     <label class="text-ink block space-y-1 text-xs font-medium">
       {i18n.t.views.smartSortBy}
-      <select
+      <Select
+        id="smart-sort-by"
+        options={sortByOptions.map((opt) => ({ value: opt.value, label: opt.label() }))}
         value={query.sortBy ?? "createdAt"}
-        onchange={(e) =>
-          onQueryChange({ ...query, sortBy: (e.currentTarget as HTMLSelectElement).value })}
-        class="bg-canvas focus:border-accent mt-1 w-full rounded-lg border border-white/10 px-2.5 py-1.5 text-sm outline-none"
-      >
-        {#each sortByOptions as opt (opt.value)}
-          <option value={opt.value}>{opt.label()}</option>
-        {/each}
-      </select>
+        onChange={(next) => onQueryChange({ ...query, sortBy: next })}
+        class="w-full rounded-lg px-2.5 py-1.5 text-sm"
+      />
     </label>
     <label class="text-ink block space-y-1 text-xs font-medium">
       {i18n.t.views.smartSortOrder}
-      <select
+      <Select
+        id="smart-sort-order"
+        options={[
+          { value: "desc", label: i18n.t.views.smartSortDesc },
+          { value: "asc", label: i18n.t.views.smartSortAsc },
+        ]}
         value={query.sortOrder ?? "desc"}
-        onchange={(e) =>
-          onQueryChange({ ...query, sortOrder: (e.currentTarget as HTMLSelectElement).value })}
-        class="bg-canvas focus:border-accent mt-1 w-full rounded-lg border border-white/10 px-2.5 py-1.5 text-sm outline-none"
-      >
-        <option value="desc">{i18n.t.views.smartSortDesc}</option>
-        <option value="asc">{i18n.t.views.smartSortAsc}</option>
-      </select>
+        onChange={(next) => onQueryChange({ ...query, sortOrder: next })}
+        class="w-full rounded-lg px-2.5 py-1.5 text-sm"
+      />
     </label>
     <label class="text-ink block space-y-1 text-xs font-medium">
       {i18n.t.views.smartLimit}

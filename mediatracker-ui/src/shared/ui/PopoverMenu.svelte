@@ -1,4 +1,4 @@
-<script lang="ts">
+<script lang="ts" generics="T">
   import { Check } from "$shared/ui/Icons";
   import type { Snippet } from "svelte";
 
@@ -30,7 +30,7 @@
     /** Open on hover and close after `closeDelay` ms. */
     openOnHover?: boolean;
     /** Replaces the default label row — used by icon-only menus (sort, grouping). */
-    renderOption?: Snippet<[ctx: { option: PopoverOption<unknown>; selected: boolean }]>;
+    renderOption?: Snippet<[ctx: { option: PopoverOption<T>; selected: boolean }]>;
     closeDelay?: number;
     label: string;
     footer?: Snippet<[ctx: { close: () => void }]>;
@@ -51,7 +51,7 @@
     closeDelay = 180,
     label,
     footer,
-  }: Props<unknown> = $props();
+  }: Props<T> = $props();
 
   const popoverId = $derived(`popover-${id}`);
   const anchorName = $derived(`--${popoverId}`);
@@ -146,7 +146,7 @@
     event.stopPropagation();
   }
 
-  function select(value: unknown) {
+  function select(value: T) {
     onSelect(value);
   }
 

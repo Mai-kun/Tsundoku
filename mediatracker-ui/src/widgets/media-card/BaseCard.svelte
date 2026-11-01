@@ -126,17 +126,21 @@
     <!-- Fixed-height info section: two swapped layers keep every card the
          exact same height regardless of status or content length. -->
     <div class="relative h-[70px] min-w-0">
-      <!-- Layer A: default info, fades out on hover -->
+      <!-- Layer A: default info, fades out on hover. invisible + pointer-events
+           make sure it can never bleed under the hover controls. The
+           focus-within swap mirrors Layer B exactly: the two layers are
+           strictly exclusive, so neither can end up hidden while the other
+           is not showing. -->
       <div
-        class="pointer-events-auto h-full space-y-1.5 transition-opacity duration-150 group-hover:pointer-events-none group-hover:opacity-0"
+        class="pointer-events-auto h-full space-y-1.5 opacity-100 transition-opacity duration-150 group-focus-within:pointer-events-none group-focus-within:invisible group-focus-within:opacity-0 group-hover:pointer-events-none group-hover:invisible group-hover:opacity-0"
       >
         {@render children()}
       </div>
 
-      <!-- Layer B: hover actions, fade in on hover -->
+      <!-- Layer B: hover actions, fade in on hover or keyboard focus -->
       {#if hover}
         <div
-          class="pointer-events-none absolute inset-0 flex items-center justify-between opacity-0 transition-opacity duration-150 group-hover:pointer-events-auto group-hover:opacity-100"
+          class="pointer-events-none absolute inset-0 flex items-center justify-between opacity-0 transition-opacity duration-150 group-focus-within:pointer-events-auto group-focus-within:opacity-100 group-hover:pointer-events-auto group-hover:opacity-100"
         >
           {@render hover()}
         </div>

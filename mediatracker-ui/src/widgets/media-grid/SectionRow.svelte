@@ -12,7 +12,7 @@
     onStatusChange?: (item: MediaItem, newStatus: MediaStatus) => void;
     onDelete?: (item: MediaItem) => Promise<void>;
     onEdit?: (item: MediaItem) => void;
-    onEpisodeStep?: (item: MediaItem, delta: number) => Promise<void>;
+    onEpisodeStep?: (item: MediaItem, newWatched: number) => void | Promise<void>;
   }
 
   let {

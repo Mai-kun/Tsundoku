@@ -63,9 +63,9 @@
 
   {#if loading}
     <div class="space-y-4" aria-hidden="true">
-      <div class="bg-card h-7 w-64 animate-pulse rounded"></div>
+      <div class="bg-card h-7 w-64 rounded"></div>
       {#each Array(3) as _, index (index)}
-        <div class="bg-card h-32 animate-pulse rounded-lg"></div>
+        <div class="bg-card h-32 rounded-lg"></div>
       {/each}
     </div>
     <p class="sr-only" role="status">{i18n.t.common.loading}</p>

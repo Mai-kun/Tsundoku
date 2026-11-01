@@ -28,26 +28,14 @@
     Star,
     Type,
   } from "$shared/ui/Icons";
-  import {
-    deleteMedia,
-    getMedia,
-    getMediaItem,
-    setProgress,
-    setSeasonProgress,
-  } from "$shared/api/api";
+  import { deleteMedia, getMedia, setProgress } from "$shared/api/api";
   import { jobsClient } from "$shared/api/jobsClient.svelte";
   import { showToast } from "$shared/ui/toast.svelte";
+  import Select from "$shared/ui/Select.svelte";
   import { i18n } from "$shared/i18n/index.svelte";
-  import {
-    MEDIA_STATUS,
-    SYNC_STATUS,
-    isTvShowDetail,
-    type MediaItem,
-    type MediaStatus,
-  } from "$shared/types";
+  import { MEDIA_STATUS, SYNC_STATUS, type MediaItem, type MediaStatus } from "$shared/types";
   import MediaGrid from "$widgets/media-grid/MediaGrid.svelte";
   import PopoverMenu from "$shared/ui/PopoverMenu.svelte";
-  import { nextSeriesEpisodeStep } from "$entities/media/model/seriesStep";
   import {
     evaluateTimeFit,
     formatTimeBudgetChip,
@@ -591,28 +579,15 @@
     }, 20);
   }
 
-  // Bug 6: step episode for tvshow cards on Home screen optimistically
-  async function stepEpisode(item: MediaItem, delta: number) {
+  // Step episode for tvshow cards on Home screen. The series controller
+  // (driven by the card) owns the optimistic store and the debounced PUT and
+  // hands us the absolute post-step count; mirroring a delta on top of the
+  // already-updated item double-counted every click. Only refresh section
+  // identity so sections derived from the array re-render.
+  function stepEpisode(item: MediaItem, newWatched: number) {
     if (item.type !== "tvshow") return;
-    const prevWatched = item.totalEpisodesWatched ?? 0;
-    const nextWatched = Math.max(0, prevWatched + delta);
-    item.totalEpisodesWatched = nextWatched;
+    item.totalEpisodesWatched = newWatched;
     inProgress = [...inProgress];
-
-    try {
-      const detail = await getMediaItem(item.id);
-      if (!isTvShowDetail(detail) || !detail.seasons?.length) return;
-
-      const step = nextSeriesEpisodeStep(detail.seasons, delta);
-      if (!step) return;
-
-      await setSeasonProgress(step.seasonId, step.currentEpisode);
-      onMediaChanged();
-    } catch {
-      item.totalEpisodesWatched = prevWatched;
-      inProgress = [...inProgress];
-      showToast(i18n.t.errors.unexpected, "error");
-    }
   }
 </script>
 
@@ -791,13 +766,16 @@
                     }
                   }}
                 />
-                <select
-                  bind:value={customTimeUnit}
-                  class="bg-field h-8 cursor-pointer rounded-lg border border-white/10 px-2 text-xs text-slate-200 outline-none focus:border-indigo-500/60"
-                >
-                  <option value="min">{i18n.t.timeBudget.unitMin}</option>
-                  <option value="h">{i18n.t.timeBudget.unitHours}</option>
-                </select>
+                <Select
+                  id="custom-time-unit"
+                  options={[
+                    { value: "min", label: i18n.t.timeBudget.unitMin },
+                    { value: "h", label: i18n.t.timeBudget.unitHours },
+                  ] as { value: "min" | "h"; label: string }[]}
+                  value={customTimeUnit}
+                  onChange={(next) => (customTimeUnit = next)}
+                  class="h-8 rounded-lg px-2 text-xs"
+                />
                 <button
                   type="submit"
                   class="h-8 cursor-pointer rounded-lg bg-indigo-600 px-3 text-xs font-bold text-white shadow-sm transition hover:bg-indigo-500"

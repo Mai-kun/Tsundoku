@@ -29,7 +29,7 @@
     onStatusChange?: (item: MediaItem, newStatus: import("$shared/types").MediaStatus) => void;
     onDelete?: (item: MediaItem) => Promise<void>;
     onEdit?: (item: MediaItem) => void;
-    onEpisodeStep?: (item: MediaItem, delta: number) => Promise<void>;
+    onEpisodeStep?: (item: MediaItem, newWatched: number) => void | Promise<void>;
     onRemoveFromList?: (item: MediaItem) => Promise<void>;
     /** Render every item flat: multi-section dashboards must never collapse into a virtual void. */
     forceFlat?: boolean;
@@ -90,7 +90,11 @@
     getScrollElement: () => document.getElementById("main-scroll"),
     estimateSize: () => rowHeight,
     gap: ROW_GAP,
-    overscan: 1,
+    // Rows beyond the visible range mount ahead of the scroll: with a buffer of
+    // 1 a fast wheel burst reached the edge of rendered rows before the next
+    // batch mounted, visibly stuttering the grid. 3 rows cover the fastest
+    // flick on a 120Hz+ display without rendering the whole list.
+    overscan: 3,
     initialOffset: () => document.getElementById("main-scroll")?.scrollTop ?? 0,
     scrollMargin: 0,
   });

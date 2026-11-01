@@ -10,6 +10,7 @@
   import Header from "$widgets/layout/Header.svelte";
   import Sidebar from "$widgets/layout/Sidebar.svelte";
   import { dropPromptState } from "$features/drop-reason/dropReasonPrompt.svelte";
+  import { handleMangalibAuthenticated } from "$features/import-media/mangalibAuth.svelte";
   import CategoryView from "$views/CategoryView.svelte";
   import type { Category } from "$views/categoryModel";
   import HomeView from "$views/HomeView.svelte";
@@ -85,6 +86,28 @@
         return;
       }
       isCloseConfirmOpen = true;
+    }).then((stop) => {
+      if (disposed) {
+        stop();
+        return;
+      }
+      unlisten = stop;
+    });
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  });
+
+  /* The MangaLib auth popup (native Tauri window) captured the Bearer token and
+     closed itself; persist it via the settings API and surface the connected
+     state. Outside Tauri there is no such window and nothing to listen to. */
+  $effect(() => {
+    if (!isTauri()) return;
+    let unlisten: (() => void) | undefined;
+    let disposed = false;
+    listen<{ token: string; userId: string }>("mangalib-authenticated", (event) => {
+      void handleMangalibAuthenticated(event.payload.token, event.payload.userId);
     }).then((stop) => {
       if (disposed) {
         stop();
@@ -415,6 +438,18 @@
   }
 
   function handleKeydown(event: KeyboardEvent) {
+    // DevTools shortcut: the tray menu also opens the inspector, this covers
+    // the keyboard path in the packaged build (devtools feature in Cargo).
+    if (
+      isTauri() &&
+      (event.key === "F12" ||
+        ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLowerCase() === "i"))
+    ) {
+      event.preventDefault();
+      invoke("open_devtools").catch((error) => console.error("open_devtools failed:", error));
+      return;
+    }
+
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
       event.preventDefault();
       if (!isSearchOpen) {
@@ -448,13 +483,15 @@
 
   {#if renderedView === "lists"}
     {#await import("$views/ListsView.svelte") then { default: ListsView }}
-      <ListsView onOpen={openDetail} onImportCompleted={mediaChanged} />
+      <div class="view-fade">
+        <ListsView onOpen={openDetail} onImportCompleted={mediaChanged} />
+      </div>
     {:catch error}
       {@const _ = console.error("Failed to load view/modal:", error)}
     {/await}
   {/if}
 
-  <div class:hidden={renderedView !== "home"}>
+  <div class="view-fade" class:hidden={renderedView !== "home"}>
     <HomeView
       refreshKey={mediaRevision}
       onOpen={openDetail}
@@ -480,45 +517,58 @@
 
   {#if renderedView === "detail" && selectedMediaId}
     {#await import("$views/MediaDetailView.svelte") then { default: MediaDetailView }}
-      <MediaDetailView
-        mediaId={selectedMediaId}
-        refreshKey={mediaRevision}
-        onBack={closeDetail}
-        onUpdate={mediaChanged}
-        onDelete={deleteFromDetail}
-        onEdit={openEdit}
-        onOpenRelated={openDetail}
-        onSearch={(context) => openSearch(context)}
-      />
+      <div class="view-fade">
+        <MediaDetailView
+          mediaId={selectedMediaId}
+          refreshKey={mediaRevision}
+          onBack={closeDetail}
+          onUpdate={mediaChanged}
+          onDelete={deleteFromDetail}
+          onEdit={openEdit}
+          onOpenRelated={openDetail}
+          onSearch={(context) => openSearch(context)}
+        />
+      </div>
     {:catch error}
       {@const _ = console.error("Failed to load view/modal:", error)}
     {/await}
   {:else if renderedView === "seasons" && selectedMediaId}
     {#await import("$views/ShowSeasonsView.svelte") then { default: ShowSeasonsView }}
-      <ShowSeasonsView
-        mediaId={selectedMediaId}
-        refreshKey={mediaRevision}
-        onBack={closeDetail}
-        onMediaChanged={mediaChanged}
-      />
+      <div class="view-fade">
+        <ShowSeasonsView
+          mediaId={selectedMediaId}
+          refreshKey={mediaRevision}
+          onBack={closeDetail}
+          onMediaChanged={mediaChanged}
+        />
+      </div>
     {:catch error}
       {@const _ = console.error("Failed to load view/modal:", error)}
     {/await}
   {:else if renderedView === "stats"}
     {#await import("$views/StatsView.svelte") then { default: StatsView }}
-      <StatsView refreshKey={mediaRevision} onOpenMedia={(mediaId) => openDetailById(mediaId)} />
+      <div class="view-fade">
+        <StatsView refreshKey={mediaRevision} onOpenMedia={(mediaId) => openDetailById(mediaId)} />
+      </div>
     {:catch error}
       {@const _ = console.error("Failed to load view/modal:", error)}
     {/await}
   {:else if renderedView === "history"}
     {#await import("$views/HistoryView.svelte") then { default: HistoryView }}
-      <HistoryView refreshKey={mediaRevision} onOpenMedia={(mediaId) => openDetailById(mediaId)} />
+      <div class="view-fade">
+        <HistoryView
+          refreshKey={mediaRevision}
+          onOpenMedia={(mediaId) => openDetailById(mediaId)}
+        />
+      </div>
     {:catch error}
       {@const _ = console.error("Failed to load view/modal:", error)}
     {/await}
   {:else if renderedView === "calendar"}
     {#await import("$views/CalendarView.svelte") then { default: CalendarView }}
-      <CalendarView onOpenMedia={(id) => openDetailById(id)} />
+      <div class="view-fade">
+        <CalendarView onOpenMedia={(id) => openDetailById(id)} />
+      </div>
     {:catch error}
       {@const _ = console.error("Failed to load view/modal:", error)}
     {/await}

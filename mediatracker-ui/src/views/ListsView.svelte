@@ -297,7 +297,7 @@
     {#if loading}
       <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {#each [1, 2, 3] as item (item)}<div
-            class="bg-card h-56 animate-pulse rounded-xl border border-white/[0.06]"
+            class="bg-card h-56 rounded-xl border border-white/[0.06]"
           ></div>{/each}
       </div>
     {:else if error}

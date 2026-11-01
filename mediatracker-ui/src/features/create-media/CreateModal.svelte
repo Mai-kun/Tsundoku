@@ -1,5 +1,6 @@
 <script lang="ts">
   import { X } from "$shared/ui/Icons";
+  import Select from "$shared/ui/Select.svelte";
   import { createMedia, errorMessage, updateMedia } from "$shared/api/api";
   import { isValidCoverUrl } from "$entities/media/model/coverUrl";
   import Modal from "$shared/ui/Modal.svelte";
@@ -348,12 +349,15 @@
 
       <div class="grid gap-4 sm:grid-cols-2">
         <label class="text-ink space-y-1.5 text-sm font-medium"
-          ><span>{i18n.t.createModal.fields.type}</span><select
-            class="bg-field h-10 w-full rounded-lg border border-white/10 px-3 text-sm font-normal outline-none focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/30"
-            bind:value={type}
-            >{#each types as mediaType}<option value={mediaType}>{i18n.t.types[mediaType]}</option
-              >{/each}</select
-          ></label
+          ><span>{i18n.t.createModal.fields.type}</span><Select
+            id="create-type"
+            options={types.map((mediaType) => ({
+              value: mediaType,
+              label: i18n.t.types[mediaType],
+            }))}
+            value={type}
+            onChange={(next) => (type = next)}
+          /></label
         >
         <label class="text-ink space-y-1.5 text-sm font-medium"
           ><span>{i18n.t.createModal.fields.title}</span><input
@@ -385,11 +389,12 @@
           /></label
         >
         <label class="text-ink space-y-1.5 text-sm font-medium"
-          ><span>{i18n.t.status.label}</span><select
-            class="bg-field focus:border-accent h-10 w-full rounded-lg border border-white/10 px-3 text-sm font-normal outline-none"
-            bind:value={status}
-            >{#each Object.values(MEDIA_STATUS) as value}<option {value}
-                >{i18n.t.status[
+          ><span>{i18n.t.status.label}</span><Select
+            id="create-status"
+            options={Object.values(MEDIA_STATUS).map((value) => ({
+              value,
+              label:
+                i18n.t.status[
                   value === 0
                     ? "planned"
                     : value === 1
@@ -399,9 +404,11 @@
                         : value === 3
                           ? "paused"
                           : "dropped"
-                ]}</option
-              >{/each}</select
-          ></label
+                ],
+            }))}
+            value={status}
+            onChange={(next) => (status = next)}
+          /></label
         >
         <label class="text-ink space-y-1.5 text-sm font-medium"
           ><span>{i18n.t.createModal.fields.startedAt}</span><input

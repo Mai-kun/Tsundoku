@@ -1,6 +1,7 @@
 <script lang="ts">
   import { Image as ImageIcon, LoaderCircle, Plus, Star, X } from "$shared/ui/Icons";
   import Modal from "$shared/ui/Modal.svelte";
+  import Select from "$shared/ui/Select.svelte";
   import { i18n } from "$shared/i18n/index.svelte";
   import { MEDIA_STATUS, type MediaStatus } from "$shared/types";
   import { formatMediaDisplayType, statusLabel } from "$widgets/media-detail/detailFormatters";
@@ -175,16 +176,13 @@
                 <label for="preview-status" class="text-muted text-xs font-medium">
                   {i18n.t.detail.previewModal.initialStatus}:
                 </label>
-                <select
+                <Select
                   id="preview-status"
+                  options={statusOptions.map((opt) => ({ value: opt, label: statusLabel(opt) }))}
                   value={status}
-                  onchange={(e) => onStatusChange(Number(e.currentTarget.value) as MediaStatus)}
-                  class="bg-field text-ink focus:border-accent rounded-md border border-white/10 px-2.5 py-1.5 text-xs font-medium outline-none"
-                >
-                  {#each statusOptions as opt (opt)}
-                    <option value={opt}>{statusLabel(opt)}</option>
-                  {/each}
-                </select>
+                  onChange={(next) => onStatusChange(next)}
+                  class="rounded-md px-2.5 py-1.5 text-xs font-medium"
+                />
               </div>
 
               <button

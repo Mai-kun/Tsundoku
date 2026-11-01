@@ -25,9 +25,11 @@ import type {
   ImportResultDto,
   SteamImportPayload,
   AniListProfilePayload,
+  MangaLibProfilePayload,
   CreatorRole,
   CreatorSummaryDto,
   CalendarScheduleDto,
+  BacklogDeadlineDto,
   PendingMatchItemDto,
   StorageSettings,
   StorageRequest,
@@ -332,6 +334,13 @@ export function importAniListProfile(payload: AniListProfilePayload): Promise<Im
   );
 }
 
+export function importMangaLibProfile(payload: MangaLibProfilePayload): Promise<ImportResultDto> {
+  return requestJson<ImportResultDto>(
+    `${mediaEndpoint}/import/mangalib-profile`,
+    jsonOptions("POST", payload),
+  );
+}
+
 export function getLists(): Promise<CustomListSummary[]> {
   return requestJson<CustomListSummary[]>("/api/lists");
 }
@@ -431,6 +440,12 @@ export function saveSourceKey(
 ): Promise<{ success: boolean; hasKey: boolean; maskedKey: string | null }> {
   invalidateSourcesCache();
   return requestJson(`/api/settings/sources/${sourceId}/key`, jsonOptions("PUT", { apiKey }));
+}
+
+export function getSourceKeyStatus(
+  sourceId: string,
+): Promise<{ success: boolean; hasKey: boolean; maskedKey: string | null }> {
+  return requestJson(`/api/settings/sources/${sourceId}/key`);
 }
 
 export function getCategoryOrder(): Promise<string[]> {
@@ -559,6 +574,22 @@ export function triggerAutoRefresh(mediaId: string): Promise<MediaDetail> {
   });
 }
 
+/** RFC 5545 calendar feed (episodes + releases) for Apple Calendar / Google Calendar / Thunderbird. */
+export async function exportCalendarIcs(): Promise<Blob> {
+  const response = await fetch(`${mediaEndpoint}/calendar/ics`);
+  if (!response.ok) {
+    return throwApiError(response);
+  }
+  return response.blob();
+}
+
+/** Titles with a release in the next 30 days the user is behind on (ongoings + franchise sequels). */
+export function getBacklogDeadlines(signal?: AbortSignal): Promise<BacklogDeadlineDto[]> {
+  return requestJson<BacklogDeadlineDto[]>(`${mediaEndpoint}/calendar/backlog-deadlines`, {
+    signal,
+  });
+}
+
 /** Library rows the enrichment job parked in `NeedsReview`, each with its candidate matches. */
 export function getPendingMatches(): Promise<PendingMatchItemDto[]> {
   return requestJson<PendingMatchItemDto[]>(`${mediaEndpoint}/pending-matches`);
@@ -620,6 +651,24 @@ export function deleteHistoryEvent(id: string): Promise<void> {
 
 export async function exportBackup(): Promise<Blob> {
   const response = await fetch("/api/settings/backup/export");
+  if (!response.ok) {
+    return throwApiError(response);
+  }
+  return response.blob();
+}
+
+/** Clean, import-compatible dump of the whole library (fields match the Custom Import parser). */
+export async function exportLibraryJson(): Promise<Blob> {
+  const response = await fetch("/api/settings/export/json");
+  if (!response.ok) {
+    return throwApiError(response);
+  }
+  return response.blob();
+}
+
+/** RFC 4180 CSV dump of the whole library, UTF-8 BOM included for Excel. */
+export async function exportLibraryCsv(): Promise<Blob> {
+  const response = await fetch("/api/settings/export/csv");
   if (!response.ok) {
     return throwApiError(response);
   }

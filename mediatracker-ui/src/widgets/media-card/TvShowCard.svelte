@@ -1,8 +1,11 @@
 <script lang="ts">
   import type { MediaStatus, TvShowMedia } from "$shared/types";
+  import { untrack } from "svelte";
   import { i18n } from "$shared/i18n/index.svelte";
   import MediaStatusBadge from "$entities/media/ui/MediaStatusBadge.svelte";
-  import { transitionToInProgress } from "$features/update-progress/progressController.svelte";
+  import { scheduleDeferredInProgress } from "$features/update-progress/progressController.svelte";
+  import { reconcileProgress } from "$features/update-progress/optimisticProgress.svelte";
+  import { stepSeriesEpisodes } from "$features/update-progress/seriesProgressController.svelte";
   import { cardTypeLabel } from "$entities/media/model/mediaLabels";
   import BaseCard from "./BaseCard.svelte";
   import CardProgressBar from "./CardProgressBar.svelte";
@@ -21,11 +24,21 @@
     onEpisodeStep,
   }: MediaCardProps & { item: TvShowMedia } = $props();
 
+  // Optimistic counter: the real commit runs a detail fetch + season POST + refetch and can
+  // take seconds, so the card renders from a local copy that steps instantly on click and
+  // resyncs from props whenever the view sends refreshed data. reconcileProgress holds a
+  // pending step (this card's or the detail page's) against stale refetched data.
+  let localEpisodesWatched = $state(untrack(() => item.totalEpisodesWatched ?? 0));
+
+  $effect(() => {
+    localEpisodesWatched = reconcileProgress(item.id, item.totalEpisodesWatched ?? 0);
+  });
+
   // The card and the detail screen read the same counters; the guard only covers a show whose
   // seasons have not been written yet, so a known episode count is still shown instead of "0".
   const totalEpisodes = $derived(item.totalEpisodesCount > 0 ? item.totalEpisodesCount : null);
 
-  const ratio = $derived(totalEpisodes !== null ? item.totalEpisodesWatched / totalEpisodes : null);
+  const ratio = $derived(totalEpisodes !== null ? localEpisodesWatched / totalEpisodes : null);
 
   const subtitle = $derived(
     item.seasonsCount > 0 ? `${cardTypeLabel(item)} • ${item.seasonsCount}` : cardTypeLabel(item),
@@ -36,17 +49,21 @@
 
   const episodeText = $derived(
     totalEpisodes !== null
-      ? `${item.totalEpisodesWatched} / ${totalEpisodes}`
-      : String(item.totalEpisodesWatched),
+      ? `${localEpisodesWatched} / ${totalEpisodes}`
+      : String(localEpisodesWatched),
   );
 
-  const atLastEpisode = $derived(
-    totalEpisodes !== null && item.totalEpisodesWatched >= totalEpisodes,
-  );
+  const atLastEpisode = $derived(totalEpisodes !== null && localEpisodesWatched >= totalEpisodes);
 
   async function stepEpisode(delta: number) {
     if (!onEpisodeStep) return;
-    await onEpisodeStep(item, delta);
+    // Instant local counter; the controller owns the raw item write, the
+    // shared optimistic store, the detail-cache patch and the debounced PUT.
+    localEpisodesWatched = Math.max(0, localEpisodesWatched + delta);
+    stepSeriesEpisodes(item, delta, { onCommitted: () => onProgressCommitted() });
+    // Absolute value, not a delta: the controller has already applied the step
+    // to item, so a parent that added delta again would double-count the click.
+    await onEpisodeStep(item, localEpisodesWatched);
   }
 
   function statusProxy(next: MediaStatus) {
@@ -55,7 +72,9 @@
 
   /** Hover stepper: stepping a non-InProgress show means watching resumed. */
   function stepFromHover(delta: number) {
-    transitionToInProgress(item, onStatusChange);
+    // Read before stepping: an idle start (0 episodes watched / Planned) defers
+    // the status flip behind the 10s toast instead of switching immediately.
+    scheduleDeferredInProgress(item, localEpisodesWatched === 0, onStatusChange);
     void stepEpisode(delta);
   }
 </script>
@@ -65,7 +84,7 @@
 
   {#if showProgress}
     <CardProgressBar
-      label={i18n.t.card.episodes(item.totalEpisodesWatched, totalEpisodes ?? 0)}
+      label={i18n.t.card.episodes(localEpisodesWatched, totalEpisodes ?? 0)}
       {ratio}
     />
   {/if}
@@ -75,7 +94,7 @@
       <CardProgressControls
         text={episodeText}
         onStep={stepFromHover}
-        decrementDisabled={item.totalEpisodesWatched <= 0}
+        decrementDisabled={localEpisodesWatched <= 0}
         incrementDisabled={atLastEpisode}
       />
     {:else}

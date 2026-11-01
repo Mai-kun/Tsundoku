@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
   import ToastContainer from "./ToastContainer.svelte";
+  import { installSmoothWheelScroll } from "$shared/utils/smoothWheelScroll";
 
   interface Props {
     sidebar: Snippet;
@@ -15,6 +16,13 @@
 
   $effect(() => {
     if (mainRef) mainRef(mainElement);
+  });
+
+  // WebKitGTK (Tauri on Linux) has no native wheel animation, unlike browsers;
+  // this restores the Chrome-like glide. No-op everywhere else.
+  $effect(() => {
+    if (!mainElement) return;
+    return installSmoothWheelScroll(mainElement);
   });
 </script>
 

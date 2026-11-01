@@ -25,6 +25,15 @@ export const translations = {
     details: { ru: "Подробнее", en: "Details" },
     collapse: { ru: "Свернуть", en: "Collapse" },
   },
+  toast: {
+    statusPending: {
+      ru: (title: string) => `Статус тайтла «${title}» будет изменён на «В процессе» через 10 сек.`,
+      en: (title: string) => `The status of “${title}” will change to “In progress” in 10 sec.`,
+    },
+    applyNow: { ru: "Применить", en: "Apply" },
+    expand: { ru: "Развернуть", en: "Expand" },
+    collapse: { ru: "Свернуть", en: "Collapse" },
+  },
   header: {
     description: {
       ru: "Личный трекер игр, фильмов, книг и сериалов",
@@ -168,6 +177,13 @@ export const translations = {
       ru: "Проверить обновления",
       en: "Check for updates",
     },
+    calendarExportIcs: { ru: "Экспорт .ICS", en: "Export .ICS" },
+    calendarExportIcsTitle: {
+      ru: "Скачать календарь в формате iCalendar (Apple Calendar, Google Calendar, Thunderbird)",
+      en: "Download the calendar as iCalendar (Apple Calendar, Google Calendar, Thunderbird)",
+    },
+    backlogTitle: { ru: "Дедлайны бэклога", en: "Backlog Deadlines" },
+    backlogSubtitle: { ru: "Успеть к релизу", en: "Beat the Release" },
     listsTitle: { ru: "Списки", en: "Lists" },
     listsHint: {
       ru: "Здесь появятся ваши собственные коллекции: собранные вручную подборки, сезоны, избранное и очереди на просмотр.",
@@ -2008,6 +2024,55 @@ export const translations = {
       ru: "Вставить из буфера и импортировать",
       en: "Paste from clipboard and import",
     },
+    mangalibAuth: {
+      login: { ru: "Войти через MangaLib", en: "Sign in via MangaLib" },
+      loginShort: { ru: "Войти", en: "Sign in" },
+      loginHint: {
+        ru: "Нативное окно авторизации: войдите любым способом — токен будет пойман автоматически.",
+        en: "Native auth window: sign in any way you like — the token is captured automatically.",
+      },
+      connected: { ru: "Подключено", en: "Connected" },
+      connectedAs: {
+        ru: (id: string) => `Профиль ${id}`,
+        en: (id: string) => `Profile ${id}`,
+      },
+      logout: { ru: "Выйти", en: "Sign out" },
+      reconnect: { ru: "Сменить аккаунт", en: "Switch account" },
+      connectedToast: {
+        ru: "MangaLib успешно подключен!",
+        en: "MangaLib connected successfully!",
+      },
+      disconnectedToast: {
+        ru: "Аккаунт MangaLib отключён",
+        en: "MangaLib account disconnected",
+      },
+      saveFailed: {
+        ru: "Не удалось сохранить токен MangaLib",
+        en: "Failed to save the MangaLib token",
+      },
+      authFailed: {
+        ru: "Не удалось открыть окно авторизации MangaLib",
+        en: "Failed to open the MangaLib auth window",
+      },
+      oneClickTitle: {
+        ru: "Импорт профиля в один клик",
+        en: "One-click profile import",
+      },
+      oneClickHint: {
+        ru: "Токен уже сохранён — закладки скачиваются напрямую с API SocialLib без браузера и Cloudflare.",
+        en: "Token already saved — bookmarks are fetched directly from the SocialLib API with no browser or Cloudflare.",
+      },
+      userIdLabel: { ru: "User ID или ссылка на профиль", en: "User ID or profile URL" },
+      importNow: { ru: "Импортировать закладки", en: "Import bookmarks" },
+      userIdRequired: {
+        ru: "Укажите User ID или ссылку на профиль SocialLib.",
+        en: "Enter a User ID or profile URL for SocialLib.",
+      },
+      desktopOnly: {
+        ru: "Вход через окно доступен в десктоп-приложении Tsundoku.",
+        en: "Window sign-in is available in the Tsundoku desktop app.",
+      },
+    },
     selectedOf: {
       ru: (selected: number, total: number) => `Выбрано: ${selected} из ${total}`,
       en: (selected: number, total: number) => `Selected: ${selected} of ${total}`,
@@ -2191,6 +2256,14 @@ export const translations = {
       },
       exportButton: { ru: "Скачать резервную копию", en: "Download Backup" },
       exporting: { ru: "Создание архива...", en: "Creating archive..." },
+      exportDataTitle: { ru: "Экспорт таблицы данных", en: "Data Table Export" },
+      exportDataDescription: {
+        ru: "Выгружает все тайтлы в чистом человекочитаемом JSON или CSV — без обложек и служебных данных. Файл можно в любой момент импортировать обратно через «Импорт → Custom».",
+        en: "Dumps every title into a clean, human-readable JSON or CSV file — no covers or service data. The file can be re-imported any time via Import → Custom.",
+      },
+      exportJsonButton: { ru: "Скачать JSON", en: "Download JSON" },
+      exportCsvButton: { ru: "Скачать CSV", en: "Download CSV" },
+      exportingTable: { ru: "Экспорт...", en: "Exporting..." },
       restoreTitle: {
         ru: "Восстановление из копии",
         en: "Restore from Backup",

@@ -201,6 +201,20 @@
         color: #c3c8d9;
         vertical-align: 1px;
       }
+      /* Continuation lines of a multi-line entry (SQL/GraphQL bodies, stack
+         traces) render as one soft mono block under the header line. */
+      #logs .multiline {
+        display: block;
+        margin: 3px 0 5px;
+        padding: 6px 10px;
+        background: rgba(255, 255, 255, 0.035);
+        border-left: 2px solid rgba(139, 143, 163, 0.35);
+        border-radius: 6px;
+        color: #d1d5db;
+        font-family: ui-monospace, "JetBrains Mono", Consolas, monospace;
+        font-size: 12px;
+        line-height: 1.5;
+      }
       #logs .placeholder {
         color: #6b7280;
         font-style: italic;
@@ -324,7 +338,28 @@
           </div>
           <span class="spacer"></span>
           <button id="autoscroll" type="button" class="active">Автоскролл: Вкл</button>
+          <button id="nowrap" type="button" class="icon-btn" title="Перенос строк" aria-label="Перенос строк" aria-pressed="false">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+              style="display: block"
+            >
+              <path d="M3 6h18" />
+              <path d="M3 12h13a3 3 0 1 1 0 6h-4" />
+              <path d="m16 16-2-2 2-2" />
+              <path d="M3 18h7" />
+            </svg>
+          </button>
           <button id="copy" type="button">Копировать</button>
+          <button id="download" type="button">Скачать</button>
           <button id="clear" type="button">Очистить</button>
         </div>
         <div id="logs"><span class="placeholder">Загрузка логов…</span></div>
@@ -425,37 +460,55 @@
           return;
         }
 
+        /* Multi-line payloads (SQL, GraphQL bodies, stack traces) have no
+           [timestamp][LEVEL] header of their own: a new entry starts only at a
+           LEVEL_RE match, everything else is a continuation of the previous
+           entry. That way filters see the whole record, not orphaned lines. */
+        const entries = [];
+        let current = null;
+        for (const rawLine of text.split("\n")) {
+          const match = rawLine.match(LEVEL_RE);
+          if (match) {
+            const [, ts, level, ctx, msg] = match;
+            const key = level + "|" + (ctx ?? "") + "|" + msg;
+            current = { match, extraLines: [], key, count: 1 };
+            entries.push(current);
+            continue;
+          }
+          if (current) {
+            current.extraLines.push(rawLine);
+            current.key += "\n" + rawLine;
+            continue;
+          }
+          entries.push({ match: null, extraLines: [rawLine], key: "\u0000raw:" + rawLine, count: 1 });
+        }
+
         // Collapse consecutive identical entries: repeated messages merge into
         // one line with an x2/x3 pill. Timestamps are ignored so the same
         // message logged in a burst still deduplicates.
-        const entries = [];
-        for (const rawLine of text.split("\n")) {
-          const match = rawLine.match(LEVEL_RE);
-          if (!match) {
-            entries.push({ rawLine, match: null, key: "\u0000raw:" + rawLine });
-            continue;
-          }
-          const [, ts, level, ctx, msg] = match;
-          const key = level + "|" + (ctx ?? "") + "|" + msg;
-          const last = entries[entries.length - 1];
-          if (last && last.key === key) {
+        const deduped = [];
+        for (const entry of entries) {
+          const last = deduped[deduped.length - 1];
+          if (last && last.key === entry.key) {
             last.count += 1;
           } else {
-            entries.push({ rawLine, match, key, count: 1 });
+            deduped.push(entry);
           }
         }
 
         let visible = 0;
-        for (const entry of entries) {
+        for (const entry of deduped) {
           if (!entry.match) {
-            const line = renderUnformatted(entry.rawLine);
-            logsEl.appendChild(line);
-            visible++;
+            for (const rawLine of entry.extraLines) {
+              logsEl.appendChild(renderUnformatted(rawLine));
+              visible++;
+            }
             continue;
           }
           const [, ts, level, ctx, msg] = entry.match;
-          if (!passesFilter(level, msg)) continue;
-          logsEl.appendChild(renderFormatted(ts, level, ctx, msg, entry.count));
+          const fullText = msg + (entry.extraLines.length ? "\n" + entry.extraLines.join("\n") : "");
+          if (!passesFilter(level, fullText)) continue;
+          logsEl.appendChild(renderFormatted(ts, level, ctx, msg, entry.count, entry.extraLines));
           visible++;
         }
 
@@ -474,12 +527,38 @@
         return true;
       }
 
-      function renderFormatted(ts, level, ctx, msg, count) {
+      /* Long namespace prefixes ate half the screen, so noisy contexts collapse
+         into short badges and everything else keeps only the class name. */
+      const CTX_BADGES = [
+        ["RequestLoggingMiddleware", "HTTP"],
+        ["GlobalExceptionHandler", "EXC"],
+      ];
+
+      function compactContext(ctx) {
+        const inner = ctx.trim().replace(/^\[/, "").replace(/\]$/, "");
+        for (const [needle, badge] of CTX_BADGES) {
+          if (inner.includes(needle)) return `[${badge}] `;
+        }
+        const lastDot = inner.lastIndexOf(".");
+        const short = lastDot >= 0 ? inner.slice(lastDot + 1) : inner;
+        return `[${short}] `;
+      }
+
+      /* The date repeats on every line, so only the time renders; hovering
+         shows the full timestamp via title. */
+      function compactTimestamp(ts) {
+        const trimmed = ts.trim();
+        const spaceIdx = trimmed.indexOf(" ");
+        return spaceIdx >= 0 ? trimmed.slice(spaceIdx + 1) : trimmed;
+      }
+
+      function renderFormatted(ts, level, ctx, msg, count, extraLines) {
         const line = document.createElement("div");
         line.className = "line";
         const tsEl = document.createElement("span");
         tsEl.className = "ts";
-        tsEl.textContent = `[${ts}] `;
+        tsEl.textContent = `[${compactTimestamp(ts)}] `;
+        tsEl.title = ts.trim();
         const lvlEl = document.createElement("span");
         lvlEl.className = `lvl-${level.toLowerCase()}`;
         lvlEl.textContent = `[${level}] `;
@@ -487,7 +566,8 @@
         if (ctx) {
           const ctxEl = document.createElement("span");
           ctxEl.className = "ctx";
-          ctxEl.textContent = ctx;
+          ctxEl.textContent = compactContext(ctx);
+          ctxEl.title = ctx.trim();
           line.appendChild(ctxEl);
         }
         const msgEl = document.createElement("span");
@@ -500,6 +580,12 @@
           pill.textContent = `x${count}`;
           pill.title = `Строка повторилась ${count} раз подряд`;
           line.appendChild(pill);
+        }
+        if (extraLines && extraLines.length > 0) {
+          const block = document.createElement("div");
+          block.className = "multiline";
+          block.textContent = extraLines.join("\n");
+          line.appendChild(block);
         }
         return line;
       }
@@ -553,13 +639,18 @@
         if (ramHistory.length > SPARK_HISTORY_MAX) ramHistory.shift();
         renderSparkline();
 
-        document.getElementById("local-ip").textContent = data.localIp;
+        document.getElementById("local-ip").textContent = data.localIp || "127.0.0.1";
         document.getElementById("uptime").textContent = data.uptime;
         document.getElementById("pid").textContent = data.pid;
         document.getElementById("threads").textContent = data.threads;
         document.getElementById("db-size").textContent = `${data.dbSizeMb} МБ`;
         document.getElementById("os").textContent = data.os;
-        document.getElementById("arch").textContent = data.architecture;
+        document.getElementById("arch").textContent = data.architecture || data.arch || "—";
+      }
+
+      function setGpuName(gpu) {
+        // Если сервер определил GPU/чип, показываем его; иначе остаётся WebGL-значение.
+        if (gpu) document.getElementById("gpu-name").textContent = gpu;
       }
 
       function getGpuModel() {
@@ -596,7 +687,9 @@
         try {
           const response = await fetch("/api/logs/telemetry", { cache: "no-store" });
           if (!response.ok) throw new Error(`HTTP ${response.status}`);
-          renderTelemetry(await response.json());
+          const data = await response.json();
+          renderTelemetry(data);
+          setGpuName(data.gpu);
         } catch {
           // Telemetry cards keep their last known values on a failed poll.
         }
@@ -622,6 +715,33 @@
         autoScroll = !autoScroll;
         syncAutoscrollButton();
         if (autoScroll) maybeScroll();
+      });
+
+      /* No-wrap toggle: active mode keeps each log entry on one scrollable line. */
+      const nowrapBtn = document.getElementById("nowrap");
+      let noWrap = false;
+      nowrapBtn.addEventListener("click", () => {
+        noWrap = !noWrap;
+        nowrapBtn.classList.toggle("active", noWrap);
+        nowrapBtn.setAttribute("aria-pressed", String(noWrap));
+        logsEl.style.whiteSpace = noWrap ? "pre" : "";
+        logsEl.style.overflowX = noWrap ? "auto" : "";
+        logsEl.style.wordBreak = noWrap ? "normal" : "";
+      });
+
+      document.getElementById("download").addEventListener("click", () => {
+        const now = new Date();
+        const p = (n) => String(n).padStart(2, "0");
+        const stamp = `${now.getFullYear()}-${p(now.getMonth() + 1)}-${p(now.getDate())}_${p(
+          now.getHours(),
+        )}-${p(now.getMinutes())}`;
+        const blob = new Blob([logsEl.innerText], { type: "text/plain;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `tsundoku-logs-${stamp}.log`;
+        link.click();
+        URL.revokeObjectURL(url);
       });
 
       document.getElementById("clear").addEventListener("click", () => {

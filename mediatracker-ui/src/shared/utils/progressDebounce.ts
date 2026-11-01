@@ -20,7 +20,9 @@ interface PendingProgress {
   timer: ReturnType<typeof setTimeout>;
 }
 
-const defaultDelay = 375;
+/* 3s: quiet clicks (+ / - in a burst) collapse into one request, and the
+   keepalive flush on tab hide/close still guarantees delivery. */
+const defaultDelay = 3000;
 const pendingProgress = new Map<symbol, PendingProgress>();
 let globalHandlersRegistered = false;
 
@@ -34,6 +36,9 @@ function clearPending(instance: symbol): PendingProgress | null {
 
 async function sendKeepalive(task: PendingProgress) {
   const request = task.buildRequest(task.id, task.value);
+  // A builder that cannot represent the value synchronously (no data in
+  // memory) reports an empty URL; skipping beats firing a broken request.
+  if (!request.url) return;
   await fetch(request.url, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },

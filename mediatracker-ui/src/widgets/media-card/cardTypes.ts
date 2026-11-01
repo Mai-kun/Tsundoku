@@ -16,5 +16,8 @@ export interface MediaCardProps {
   onStatusChange?: (item: MediaItem, newStatus: MediaStatus) => void;
   onDelete?: (item: MediaItem) => Promise<void>;
   onEdit?: (item: MediaItem) => void;
-  onEpisodeStep?: (item: MediaItem, delta: number) => Promise<void>;
+  /** The card drives the optimistic series step itself; the callback receives
+   *  the absolute post-step watched count (never a delta) so the parent can
+   *  mirror the value without double-counting the click. */
+  onEpisodeStep?: (item: MediaItem, newWatched: number) => void | Promise<void>;
 }

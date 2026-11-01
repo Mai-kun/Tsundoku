@@ -1,6 +1,7 @@
 import { getMediaItem } from "$shared/api/api";
 import type { MediaDetail } from "$shared/types";
 import { createPrefetchCache } from "$shared/utils/prefetchCache";
+import { writeCardProgress } from "$entities/media/model/progressRules";
 
 // Методика 3: in-memory guard. Всё, что уже загружено (или грузится прямо сейчас),
 // отсекается ещё до отправки запроса в сеть.
@@ -11,6 +12,18 @@ export const mediaDetailCache = createPrefetchCache<MediaDetail>(DETAIL_TTL_MS);
 
 export function loadMediaDetail(id: string): Promise<MediaDetail> {
   return mediaDetailCache.load(id, () => getMediaItem(id));
+}
+
+/**
+ * Patches the cached detail payload with an optimistic progress value, so
+ * opening the detail screen right after stepping a card shows the new number
+ * immediately instead of the pre-step one while the refetch is in flight.
+ */
+export function updateCachedDetailProgress(id: string, value: number): void {
+  const cached = mediaDetailCache.peek(id);
+  if (cached && cached.id === id) {
+    writeCardProgress(cached, value);
+  }
 }
 
 export function prefetchMediaDetail(id: string): void {

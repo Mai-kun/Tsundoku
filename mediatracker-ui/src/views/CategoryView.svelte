@@ -17,21 +17,15 @@
 <script lang="ts">
   import { untrack } from "svelte";
   import { markStart, markEnd } from "$shared/utils/perfMarks";
-  import {
-    deleteMedia,
-    getMediaWithCount,
-    getMediaItem,
-    setProgress,
-    setSeasonProgress,
-  } from "$shared/api/api";
+  import { deleteMedia, getMediaWithCount, setProgress } from "$shared/api/api";
   import { jobsClient } from "$shared/api/jobsClient.svelte";
   import { showToast } from "$shared/ui/toast.svelte";
+  import { LoaderCircle } from "$shared/ui/Icons";
   import { i18n } from "$shared/i18n/index.svelte";
-  import { isTvShowDetail, MEDIA_STATUS, SYNC_STATUS, type MediaItem } from "$shared/types";
+  import { MEDIA_STATUS, SYNC_STATUS, type MediaItem } from "$shared/types";
   import FilterBar from "$features/filter-and-sort/FilterBar.svelte";
   import MediaGrid from "$widgets/media-grid/MediaGrid.svelte";
   import SectionRow from "$widgets/media-grid/SectionRow.svelte";
-  import { nextSeriesEpisodeStep } from "$entities/media/model/seriesStep";
   import { uiSettings } from "$shared/utils/uiSettings.svelte";
   import {
     buildStatusGroups,
@@ -66,9 +60,6 @@
   let allItems = $state.raw<MediaItem[]>(initialItems);
   // True DB-side total for the current category+search, from X-Total-Count.
   let totalCount = $state(initialItems.length);
-  let loadedCategory = $state<Category | null>(
-    untrack(() => (initialItems.length > 0 ? category : null)),
-  );
   let loading = $state(initialItems.length === 0);
   /** Background refetch in flight: the grid stays mounted, dimmed, with a top-bar spinner. */
   let refreshing = $state(false);
@@ -92,12 +83,11 @@
     const cached = categoryCache.peek(category);
     if (cached) {
       allItems = cached;
-      loadedCategory = category;
       loading = false;
     } else if (prevCategory !== null) {
       // Live category switch with nothing cached: keep loading false so no gray
-      // placeholder or spinner ever flashes — the keyed fade container below
-      // waits quietly until loadItems fills the list, then the content fades in.
+      // placeholder or spinner ever flashes — the fade container below waits
+      // quietly until loadItems fills the list, then the content fades in.
       // (On mount, prevCategory is null and the initial `loading` state stands:
       // it suppresses the "empty library" message while the first fetch runs.)
       loading = false;
@@ -241,7 +231,6 @@
     // cache, so clearing the search never bails here and always refetches.
     const cached = categoryCache.peek(category);
     if (search.trim() === "" && cached && cached.length > 0 && allItems === cached) {
-      loadedCategory = category;
       loading = false;
       markEnd("tsundoku:category:load");
       return;
@@ -250,7 +239,7 @@
     if (allItems.length === 0) {
       loading = true;
     } else {
-      // Data is on screen: never destroy the grid for a spinner, just dim it.
+      // Data is on screen: keep the grid mounted, just show the subtle spinner.
       refreshing = true;
     }
     loadError = null;
@@ -264,7 +253,6 @@
       if (sequence === requestSequence) {
         loading = false;
         refreshing = false;
-        loadedCategory = category;
         totalCount = page.totalCount;
         // O(1) snapshot check instead of found.every() across 500+ items:
         // same length + same first/last updatedAt means nothing meaningful changed.
@@ -372,29 +360,15 @@
     savedCategoryState[category] = { status, sort, groupBy, search: value };
   }
 
-  async function stepEpisode(item: MediaItem, delta: number) {
+  function stepEpisode(item: MediaItem, newWatched: number) {
     if (item.type !== "tvshow") return;
-    const prevWatched = item.totalEpisodesWatched ?? 0;
-    const nextWatched = Math.max(0, prevWatched + delta);
-    allItems = allItems.map((x) =>
-      x.id === item.id ? { ...x, totalEpisodesWatched: nextWatched } : x,
-    );
-
-    try {
-      const detail = await getMediaItem(item.id);
-      if (!isTvShowDetail(detail) || !detail.seasons?.length) return;
-
-      const step = nextSeriesEpisodeStep(detail.seasons, delta);
-      if (!step) return;
-
-      await setSeasonProgress(step.seasonId, step.currentEpisode);
-      onMediaChanged();
-    } catch {
-      allItems = allItems.map((x) =>
-        x.id === item.id ? { ...x, totalEpisodesWatched: prevWatched } : x,
-      );
-      showToast(i18n.t.errors.unexpected, "error");
-    }
+    // The series controller owns the optimistic value and the debounced PUT
+    // (one grouped request per burst) and hands us the absolute post-step
+    // count. Mirror it onto the grid's own proxy object without recomputing
+    // from item.totalEpisodesWatched (already up to date) — adding a delta
+    // here double-counted every click. The controller rolls the same field
+    // back on error.
+    item.totalEpisodesWatched = newWatched;
   }
 
   function handleItemStatusChange(item: MediaItem, newStatus: import("$shared/types").MediaStatus) {
@@ -434,67 +408,66 @@
     />
   {/if}
 
-  <p class="text-muted text-xs font-medium">
+  <p class="text-muted flex items-center gap-2 text-xs font-medium">
     {#if totalCount > filteredItems.length}
       {i18n.t.library.resultCountWithShown(totalCount, filteredItems.length)}
     {:else}
       {i18n.t.library.resultCount(filteredItems.length)}
     {/if}
+    {#if refreshing}
+      <LoaderCircle size={12} class="animate-spin" aria-hidden="true" />
+    {/if}
   </p>
 
-  {#key loadedCategory}
-    <div class="view-fade">
-      <div class="transition-opacity duration-200" class:opacity-60={refreshing}>
-        {#if loadError}
-          {@render mediaGrid([])}
-        {:else if useSingleGrid}
-          {@render mediaGrid(filteredItems)}
-        {:else if groupBy === "status"}
-          {#if statusGroups.length === 0 && !loading}
-            {@render mediaGrid([])}
-          {:else}
-            <div class="space-y-8">
-              {#each statusGroups as group (group.status)}
-                <SectionRow
-                  title={group.title}
-                  items={group.items}
-                  onRetry={refresh}
-                  {onOpen}
-                  onProgress={updateProgress}
-                  onProgressCommitted={onMediaChanged}
-                  onStatusChange={handleItemStatusChange}
-                  onEpisodeStep={stepEpisode}
-                  onDelete={removeItem}
-                  {onEdit}
-                />
-              {/each}
-            </div>
-          {/if}
-        {:else if groupBy === "franchise"}
-          {#if franchiseGroups.length === 0 && !loading}
-            {@render mediaGrid([])}
-          {:else}
-            <div class="space-y-8">
-              {#each franchiseGroups as group (group.name)}
-                <SectionRow
-                  title={group.name}
-                  items={group.items}
-                  onRetry={refresh}
-                  {onOpen}
-                  onProgress={updateProgress}
-                  onProgressCommitted={onMediaChanged}
-                  onStatusChange={handleItemStatusChange}
-                  onEpisodeStep={stepEpisode}
-                  onDelete={removeItem}
-                  {onEdit}
-                />
-              {/each}
-            </div>
-          {/if}
-        {:else}
-          {@render mediaGrid(filteredItems)}
-        {/if}
-      </div>
-    </div>
-  {/key}
+  <div class="view-fade">
+    {#if loadError}
+      {@render mediaGrid([])}
+    {:else if useSingleGrid}
+      {@render mediaGrid(filteredItems)}
+    {:else if groupBy === "status"}
+      {#if statusGroups.length === 0 && !loading}
+        {@render mediaGrid([])}
+      {:else}
+        <div class="space-y-8">
+          {#each statusGroups as group (group.status)}
+            <SectionRow
+              title={group.title}
+              items={group.items}
+              onRetry={refresh}
+              {onOpen}
+              onProgress={updateProgress}
+              onProgressCommitted={onMediaChanged}
+              onStatusChange={handleItemStatusChange}
+              onEpisodeStep={stepEpisode}
+              onDelete={removeItem}
+              {onEdit}
+            />
+          {/each}
+        </div>
+      {/if}
+    {:else if groupBy === "franchise"}
+      {#if franchiseGroups.length === 0 && !loading}
+        {@render mediaGrid([])}
+      {:else}
+        <div class="space-y-8">
+          {#each franchiseGroups as group (group.name)}
+            <SectionRow
+              title={group.name}
+              items={group.items}
+              onRetry={refresh}
+              {onOpen}
+              onProgress={updateProgress}
+              onProgressCommitted={onMediaChanged}
+              onStatusChange={handleItemStatusChange}
+              onEpisodeStep={stepEpisode}
+              onDelete={removeItem}
+              {onEdit}
+            />
+          {/each}
+        </div>
+      {/if}
+    {:else}
+      {@render mediaGrid(filteredItems)}
+    {/if}
+  </div>
 </div>

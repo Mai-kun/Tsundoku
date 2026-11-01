@@ -6,6 +6,8 @@
     ChevronLeft,
     ChevronRight,
     Clapperboard,
+    Clock3,
+    Download,
     Film,
     Gamepad2,
     Image,
@@ -21,10 +23,17 @@
   } from "$shared/ui/Icons";
   import PopoverMenu from "$shared/ui/PopoverMenu.svelte";
   import { i18n } from "$shared/i18n/index.svelte";
-  import { errorMessage, getCalendar, triggerAutoRefresh } from "$shared/api/api";
+  import {
+    errorMessage,
+    exportCalendarIcs,
+    getBacklogDeadlines,
+    getCalendar,
+    triggerAutoRefresh,
+  } from "$shared/api/api";
   import { showToast } from "$shared/ui/toast.svelte";
   import MediaCoverPlaceholder from "$shared/ui/MediaCoverPlaceholder.svelte";
   import type {
+    BacklogDeadlineDto,
     CalendarDayDto,
     CalendarEventKind,
     CalendarItemDto,
@@ -59,6 +68,110 @@
   let isLoading = $state(false);
   let loadError = $state<unknown>(null);
   let brokenCovers = $state<Set<string>>(new Set());
+  let backlogItems = $state<BacklogDeadlineDto[]>([]);
+  let isExportingIcs = $state(false);
+
+  // Backlog deadlines cover a fixed 30-day horizon, not the visible month, so they load once.
+  $effect(() => {
+    const controller = new AbortController();
+    getBacklogDeadlines(controller.signal)
+      .then((items) => (backlogItems = items))
+      .catch((error) => {
+        if ((error as Error)?.name !== "AbortError") console.error(error);
+      });
+    return () => controller.abort();
+  });
+
+  async function handleExportIcs() {
+    if (isExportingIcs) return;
+    isExportingIcs = true;
+    try {
+      const blob = await exportCalendarIcs();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "tsundoku-releases.ics";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      showToast(errorMessage(error), "error");
+    } finally {
+      isExportingIcs = false;
+    }
+  }
+
+  function backlogUnit(item: BacklogDeadlineDto): string {
+    if (item.type === "manga") return i18n.current === "ru" ? "гл." : "ch.";
+    return i18n.current === "ru" ? "эп." : "ep.";
+  }
+
+  function backlogTypeLabel(type: string): string {
+    if (type === "anime") return i18n.t.navigation.anime;
+    switch (type) {
+      case "manga":
+        return i18n.t.types.manga;
+      case "tvshow":
+        return i18n.t.types.tvshow;
+      case "movie":
+        return i18n.t.types.movie;
+      case "game":
+        return i18n.t.types.game;
+      case "book":
+        return i18n.t.types.book;
+      default:
+        return type;
+    }
+  }
+
+  function formatDaysLeft(days: number): string {
+    if (days <= 0) return i18n.current === "ru" ? "Сегодня" : "Today";
+    if (days === 1) return i18n.current === "ru" ? "Завтра" : "Tomorrow";
+    return i18n.current === "ru" ? `Через ${days} дн.` : `In ${days} d.`;
+  }
+
+  function formatBacklogBehind(item: BacklogDeadlineDto): string | null {
+    if (item.behindCount === null || item.behindCount <= 0) return null;
+    return i18n.current === "ru"
+      ? `Осталось ${item.behindCount} ${backlogUnit(item)}`
+      : `${item.behindCount} ${backlogUnit(item)} left`;
+  }
+
+  function formatBacklogPace(item: BacklogDeadlineDto): string | null {
+    if (item.behindCount === null || item.behindCount <= 0 || item.daysLeft <= 0) return null;
+    const unit = backlogUnit(item);
+    const ru = i18n.current === "ru";
+    const pacePerDay = item.behindCount / item.daysLeft;
+    if (pacePerDay >= 1) {
+      const perDay = new Intl.NumberFormat(i18n.current, { maximumFractionDigits: 1 }).format(
+        Math.ceil(pacePerDay * 10) / 10,
+      );
+      return ru ? `Темп: ~${perDay} ${unit} в день` : `Pace: ~${perDay} ${unit}/day`;
+    }
+    const daysPerUnit = Math.ceil(item.daysLeft / item.behindCount);
+    if (ru) {
+      const mod10 = daysPerUnit % 10;
+      const mod100 = daysPerUnit % 100;
+      const word =
+        mod100 >= 11 && mod100 <= 19
+          ? "дней"
+          : mod10 === 1
+            ? "день"
+            : mod10 >= 2 && mod10 <= 4
+              ? "дня"
+              : "дней";
+      return `Темп: 1 ${unit} в ${daysPerUnit} ${word}`;
+    }
+    return `Pace: 1 ${unit} every ${daysPerUnit} ${daysPerUnit === 1 ? "day" : "days"}`;
+  }
+
+  function formatBlockerProgress(item: BacklogDeadlineDto): string | null {
+    if (item.blockerProgress === null) return null;
+    return item.blockerTotalCount
+      ? `${item.blockerProgress} / ${item.blockerTotalCount}`
+      : String(item.blockerProgress);
+  }
 
   // Svelte 5 does not re-render on Set#add mutation, so reassign the set to trigger reactivity.
   function markBroken(url: string) {
@@ -816,6 +929,95 @@
 {/snippet}
 
 <div class="w-full space-y-6">
+  <!-- Backlog deadlines: releases in the next 30 days the user can still catch up to -->
+  {#if backlogItems.length > 0}
+    <section class="rounded-xl border border-amber-500/20 bg-amber-500/[0.04] p-4">
+      <header class="flex flex-wrap items-center gap-2">
+        <Clock3 size={16} class="text-amber-300" aria-hidden="true" />
+        <h2 class="text-ink text-sm font-bold">{i18n.t.views.backlogTitle}</h2>
+        <span class="text-muted text-xs font-semibold"> · {i18n.t.views.backlogSubtitle}</span>
+        <span
+          class="rounded-full border border-amber-500/30 bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold text-amber-300 tabular-nums"
+        >
+          {backlogItems.length}
+        </span>
+      </header>
+      <div class="mt-3 grid gap-2 lg:grid-cols-2 2xl:grid-cols-3">
+        {#each backlogItems as item (item.kind + item.mediaId + (item.episodeNumber ?? ""))}
+          <div
+            role="button"
+            tabindex="0"
+            class="bg-card hover:bg-field/60 group flex cursor-pointer items-center gap-3 rounded-xl border border-white/[0.06] p-2.5 text-left transition hover:border-white/[0.12]"
+            onclick={() => onOpenMedia?.(item.mediaId)}
+            onkeydown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onOpenMedia?.(item.mediaId);
+              }
+            }}
+          >
+            <div
+              class="aspect-[2/3] w-10 shrink-0 overflow-hidden rounded-lg bg-white/5 shadow-md ring-1 ring-white/10"
+            >
+              {#if item.coverUrl && !brokenCovers.has(item.coverUrl)}
+                <img
+                  src={item.coverUrl}
+                  alt={item.title}
+                  loading="lazy"
+                  referrerpolicy="no-referrer"
+                  class="h-full w-full object-cover object-top"
+                  onerror={(e) => {
+                    const target = e.currentTarget as HTMLImageElement;
+                    markBroken(item.coverUrl!);
+                    target.src = "";
+                  }}
+                />
+              {:else}
+                <MediaCoverPlaceholder class="h-full w-full object-cover object-top" />
+              {/if}
+            </div>
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center justify-between gap-2">
+                <p class="text-ink truncate text-sm font-semibold">{item.title}</p>
+                <span
+                  class="shrink-0 rounded-full border border-amber-500/30 bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold whitespace-nowrap text-amber-300 tabular-nums"
+                >
+                  {formatDaysLeft(item.daysLeft)}
+                </span>
+              </div>
+              {#if item.kind === "air_date"}
+                <p class="text-muted mt-0.5 truncate text-[11px]">
+                  {#if formatBacklogBehind(item)}
+                    {formatBacklogBehind(item)}
+                    {#if formatBacklogPace(item)}
+                      <span class="text-muted/50"> • </span><span class="text-emerald-300/90"
+                        >{formatBacklogPace(item)}</span
+                      >
+                    {/if}
+                  {/if}
+                  {#if item.seasonNumber !== null && item.episodeNumber !== null}
+                    <span class="text-muted/60"> · S{item.seasonNumber}E{item.episodeNumber}</span>
+                  {/if}
+                </p>
+              {:else}
+                <p class="text-muted mt-0.5 truncate text-[11px]">
+                  {#if item.blockerTitle}
+                    {i18n.current === "ru" ? "Сначала: " : "Finish first: "}{item.blockerTitle}
+                    {#if formatBlockerProgress(item)}
+                      <span class="text-muted/60"> · {formatBlockerProgress(item)}</span>
+                    {/if}
+                  {:else}
+                    {backlogTypeLabel(item.type)}
+                  {/if}
+                </p>
+              {/if}
+            </div>
+          </div>
+        {/each}
+      </div>
+    </section>
+  {/if}
+
   <!-- Compact control panel (Month navigation, filters, reset, view modes) -->
   <div class="flex flex-wrap items-center justify-between gap-3">
     <!-- Left: Month navigation + Filters + Reset -->
@@ -918,8 +1120,19 @@
       {/if}
     </div>
 
-    <!-- Right: Cell Mode Switcher (Posters / Icons) + View Mode Switcher (Grid / Feed) -->
+    <!-- Right: Cell Mode Switcher (Posters / Icons) + View Mode Switcher (Grid / Feed) + .ICS export -->
     <div class="flex flex-wrap items-center gap-2">
+      <button
+        type="button"
+        class="tap bg-card text-muted flex h-9 cursor-pointer items-center gap-1.5 rounded-lg border border-white/[0.08] px-3 text-xs font-semibold transition hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+        disabled={isExportingIcs}
+        onclick={handleExportIcs}
+        title={i18n.t.views.calendarExportIcsTitle}
+      >
+        <Download size={15} aria-hidden="true" />
+        <span class="hidden sm:inline">{i18n.t.views.calendarExportIcs}</span>
+      </button>
+
       {#if mode === "grid"}
         <div class="bg-card flex items-center gap-1 rounded-lg border border-white/[0.08] p-1">
           <button

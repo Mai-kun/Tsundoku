@@ -3,6 +3,7 @@
   import { errorMessage, getSources, relinkMedia, searchExternal } from "$shared/api/api";
   import { i18n } from "$shared/i18n/index.svelte";
   import Modal from "$shared/ui/Modal.svelte";
+  import Select from "$shared/ui/Select.svelte";
   import { sourceBadgeClasses } from "$entities/media/model/mediaLabels";
   import type { ExternalMedia, MediaType, SearchScope, SourceInfo } from "$shared/types";
 
@@ -230,15 +231,12 @@
           >
             {i18n.current === "ru" ? "Искать в сервисе" : "Search in provider"}
           </label>
-          <select
+          <Select
             id="relink-provider"
-            bind:value={provider}
-            class="h-10 w-full rounded-lg border border-white/[0.08] bg-[#1c202b] px-3 text-sm text-white outline-none focus:border-indigo-500/60"
-          >
-            {#each providerOptions as option (option.id)}
-              <option value={option.id}>{option.name}</option>
-            {/each}
-          </select>
+            options={providerOptions.map((option) => ({ value: option.id, label: option.name }))}
+            value={provider}
+            onChange={(next) => (provider = next)}
+          />
         </div>
       {/if}
       {#if currentSource}

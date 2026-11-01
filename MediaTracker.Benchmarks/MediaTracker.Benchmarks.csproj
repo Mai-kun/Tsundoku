@@ -5,6 +5,10 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <!-- Same pin as the server (see its csproj): ImageSharp stays at 3.1.12
+         because the 4.x advisories fixes require a Six Labors license; the
+         resulting NU1902/NU1903 audit warnings are noise here too. -->
+    <NoWarn>$(NoWarn);NU1902;NU1903</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

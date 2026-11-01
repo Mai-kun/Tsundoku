@@ -512,3 +512,6 @@ reports/
 !MediaTracker.Benchmarks/Data/
 !MediaTracker.Benchmarks/Data/**
 mediatracker-ui/checks/__snapshots__/
+
+# go-task state/cache directory (task audit artifacts)
+.task/

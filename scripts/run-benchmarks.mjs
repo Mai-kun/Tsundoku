@@ -51,8 +51,11 @@ async function runBenchmarks() {
     "--filter",
     "*",
     "--exporters",
+    // "github" is deliberately omitted: BenchmarkDotNet's DefaultConfig already
+    // exports GitHub markdown, and adding it again only produces the
+    // "MarkdownExporter-github is already present in configuration" warning.
+    // The summary parser below consumes the JSON export only.
     "json",
-    "github",
     "--artifacts",
     "./reports/benchmarks",
   ];

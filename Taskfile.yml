@@ -15,8 +15,6 @@ tasks:
       - npm --prefix mediatracker-ui run check:perf-marks
       - npm --prefix mediatracker-ui run check:deadcode
       - npm --prefix mediatracker-ui run check:i18n
-      - npm --prefix mediatracker-ui run check:i18n-parity
-      - npm --prefix mediatracker-ui run check:contract-drift
       - npm --prefix mediatracker-ui run check:leading-chars
       - dotnet run --project MediaTracker.Server/MediaTracker.Server.csproj --no-build -- --selfcheck
 

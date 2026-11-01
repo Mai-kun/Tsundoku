@@ -366,9 +366,16 @@ async function main() {
   const tempDir = path.join(os.tmpdir(), `mt-profile-db-${Date.now()}`);
   fs.mkdirSync(tempDir, { recursive: true });
 
-  const dllPath = path.resolve(rootDir, "MediaTracker.Server/bin/Release/net10.0/Tsundoku.dll");
-  if (!fs.existsSync(dllPath)) {
-    console.error(`Release assembly not found at ${dllPath}. Please run dotnet build -c Release first.`);
+  // The csproj sets AssemblyName=Tsundoku.Server; accept the legacy bare
+  // "Tsundoku.dll" name too so a differently staged output still profiles.
+  const candidates = ["Tsundoku.Server.dll", "Tsundoku.dll"].map((name) =>
+    path.resolve(rootDir, "MediaTracker.Server/bin/Release/net10.0", name),
+  );
+  const dllPath = candidates.find((p) => fs.existsSync(p));
+  if (!dllPath) {
+    console.error(
+      `Release assembly not found (${candidates.join(" or ")}). Please run dotnet build -c Release first.`,
+    );
     process.exit(1);
   }
 

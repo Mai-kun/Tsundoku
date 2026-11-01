@@ -21,13 +21,13 @@
   /* --- Source Themes (import providers + settings sources) ---
      One accent/border/surface/text group per external source; both the import
      panel provider cards and the settings sources list read these. */
-  /* MangaLib / SocialLib (Pale terracotta/orange) */
-  --color-import-mangalib-accent: #ea580c;
-  /* The accent dimmed by 30% for large CTA fills: full-strength orange glares. */
-  --color-import-mangalib-accent-dim: rgba(234, 88, 12, 0.7);
-  --color-import-mangalib-border: rgba(249, 115, 22, 0.2);
-  --color-import-mangalib-surface: rgba(249, 115, 22, 0.05);
-  --color-import-mangalib-text: #fdba74;
+  /* MangaLib / SocialLib (Matte terracotta) */
+  --color-import-mangalib-accent: #c25e2e;
+  /* The accent dimmed for large CTA fills: keeps the fill matte on dark graphite. */
+  --color-import-mangalib-accent-dim: rgba(194, 94, 46, 0.75);
+  --color-import-mangalib-border: rgba(194, 94, 46, 0.25);
+  --color-import-mangalib-surface: rgba(194, 94, 46, 0.08);
+  --color-import-mangalib-text: #e89a74;
 
   /* TMDB (The Movie Database mint green) */
   --color-import-tmdb-accent: #90cea1;
@@ -41,35 +41,35 @@
   --color-import-rawg-surface: rgba(248, 113, 113, 0.05);
   --color-import-rawg-text: #fca5a5;
 
-  /* Simkl (Tracker lime green) */
-  --color-import-simkl-accent: #84cc16;
-  --color-import-simkl-border: rgba(132, 204, 22, 0.2);
-  --color-import-simkl-surface: rgba(132, 204, 22, 0.05);
-  --color-import-simkl-text: #d9f99d;
+  /* Simkl (Tracker muted olive-lime) */
+  --color-import-simkl-accent: #94b447;
+  --color-import-simkl-border: rgba(148, 180, 71, 0.22);
+  --color-import-simkl-surface: rgba(148, 180, 71, 0.06);
+  --color-import-simkl-text: #c8dc8f;
 
-  /* Kinopoisk (Cinema amber) */
-  --color-import-kinopoisk-accent: #f59e0b;
-  --color-import-kinopoisk-border: rgba(245, 158, 11, 0.2);
-  --color-import-kinopoisk-surface: rgba(245, 158, 11, 0.05);
+  /* Kinopoisk (Cinema muted amber) */
+  --color-import-kinopoisk-accent: #c79438;
+  --color-import-kinopoisk-border: rgba(199, 148, 56, 0.22);
+  --color-import-kinopoisk-surface: rgba(199, 148, 56, 0.06);
   --color-import-kinopoisk-text: #fcd34d;
 
-  /* IMDb (Screen gold) */
-  --color-import-imdb-accent: #f5c518;
-  --color-import-imdb-border: rgba(245, 197, 24, 0.2);
-  --color-import-imdb-surface: rgba(245, 197, 24, 0.05);
+  /* IMDb (Screen muted gold) */
+  --color-import-imdb-accent: #cfa63e;
+  --color-import-imdb-border: rgba(207, 166, 62, 0.22);
+  --color-import-imdb-surface: rgba(207, 166, 62, 0.06);
   --color-import-imdb-text: #fde68a;
 
-  /* Kitsu (Anime coral) */
-  --color-import-kitsu-accent: #fd5e63;
-  --color-import-kitsu-border: rgba(253, 94, 99, 0.2);
-  --color-import-kitsu-surface: rgba(253, 94, 99, 0.05);
+  /* Kitsu (Anime muted coral) */
+  --color-import-kitsu-accent: #e0646c;
+  --color-import-kitsu-border: rgba(224, 100, 108, 0.22);
+  --color-import-kitsu-surface: rgba(224, 100, 108, 0.06);
   --color-import-kitsu-text: #fda4af;
 
-  /* MangaDex (Manga tomato red) */
-  --color-import-mangadex-accent: #ff6740;
-  --color-import-mangadex-border: rgba(255, 103, 64, 0.2);
-  --color-import-mangadex-surface: rgba(255, 103, 64, 0.05);
-  --color-import-mangadex-text: #fdba74;
+  /* MangaDex (Manga muted tomato) */
+  --color-import-mangadex-accent: #c9603f;
+  --color-import-mangadex-border: rgba(201, 96, 63, 0.22);
+  --color-import-mangadex-surface: rgba(201, 96, 63, 0.06);
+  --color-import-mangadex-text: #e8a28c;
 
   /* MangaUpdates (List violet) */
   --color-import-mangaupdates-accent: #a78bfa;
@@ -83,11 +83,11 @@
   --color-import-openlibrary-surface: rgba(214, 168, 88, 0.05);
   --color-import-openlibrary-text: #fde68a;
 
-  /* Letterboxd (Film Emerald) */
-  --color-import-letterboxd-accent: #00e054;
-  --color-import-letterboxd-border: rgba(0, 224, 84, 0.2);
-  --color-import-letterboxd-surface: rgba(0, 224, 84, 0.05);
-  --color-import-letterboxd-text: #86efac;
+  /* Letterboxd (Film matte emerald) */
+  --color-import-letterboxd-accent: #228b57;
+  --color-import-letterboxd-border: rgba(34, 139, 87, 0.25);
+  --color-import-letterboxd-surface: rgba(34, 139, 87, 0.08);
+  --color-import-letterboxd-text: #72d59e;
 
   /* Goodreads (Book Warm Gold/Tan) */
   --color-import-goodreads-accent: #d6a858;
@@ -101,10 +101,10 @@
   --color-import-steam-surface: rgba(102, 192, 244, 0.05);
   --color-import-steam-text: #bae6fd;
 
-  /* AniList (AniList Cyan) */
-  --color-import-anilist-accent: #02a9ff;
-  --color-import-anilist-border: rgba(2, 169, 255, 0.2);
-  --color-import-anilist-surface: rgba(2, 169, 255, 0.05);
+  /* AniList (AniList matte cyan) */
+  --color-import-anilist-accent: #3d8fc9;
+  --color-import-anilist-border: rgba(61, 143, 201, 0.22);
+  --color-import-anilist-surface: rgba(61, 143, 201, 0.06);
   --color-import-anilist-text: #7dd3fc;
 
   /* Shikimori & MAL (Navy Indigo) */
@@ -118,4 +118,10 @@
   --color-import-custom-border: rgba(71, 59, 184, 0.2);
   --color-import-custom-surface: rgba(88, 68, 224, 0.05);
   --color-import-custom-text: #a5b4fc;
+
+  /* Anixart (Muted violet) */
+  --color-import-anixart-accent: #9a68d0;
+  --color-import-anixart-border: rgba(154, 104, 208, 0.25);
+  --color-import-anixart-surface: rgba(154, 104, 208, 0.08);
+  --color-import-anixart-text: #c9a8ec;
 }

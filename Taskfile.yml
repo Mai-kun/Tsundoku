@@ -10,6 +10,7 @@ tasks:
       - npm --prefix mediatracker-ui run lint:es
       - npm --prefix mediatracker-ui run lint:css
       - npm --prefix mediatracker-ui run check:html
+      - npm --prefix mediatracker-ui run check:colors
       - npm --prefix mediatracker-ui run check:deslop
       - npm --prefix mediatracker-ui run check:state-raw
       - npm --prefix mediatracker-ui run check:perf-marks

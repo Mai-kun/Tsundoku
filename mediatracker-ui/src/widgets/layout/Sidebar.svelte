@@ -13,6 +13,7 @@
     Menu,
     Plus,
     Settings,
+    Trophy,
     Tv,
   } from "$shared/ui/Icons";
   import { i18n } from "$shared/i18n/index.svelte";
@@ -184,6 +185,12 @@
       >
       <button
         type="button"
+        class={`inline-flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition ${itemClass("goals")}`}
+        onclick={() => navigate("goals")}
+        ><Trophy size={18} aria-hidden="true" />{i18n.t.navigation.goals}</button
+      >
+      <button
+        type="button"
         class="text-muted hover:bg-card hover:text-ink inline-flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition"
         onclick={() => {
           toolsOpen = false;
@@ -223,6 +230,11 @@
         class={`inline-flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition ${itemClass("calendar")}`}
         onclick={() => navigate("calendar")}
         ><CalendarDays size={17} />{i18n.t.navigation.calendar}</button
+      >
+      <button
+        type="button"
+        class={`inline-flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition ${itemClass("goals")}`}
+        onclick={() => navigate("goals")}><Trophy size={17} />{i18n.t.navigation.goals}</button
       >
       <button
         type="button"

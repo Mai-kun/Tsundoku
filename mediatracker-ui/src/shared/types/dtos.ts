@@ -364,3 +364,31 @@ export interface BacklogDeadlineDto {
   blockerProgress: number | null;
   blockerTotalCount: number | null;
 }
+
+/** One yearly/thematic goal with its live progress; see GET /api/goals?year=. */
+export interface GoalDto {
+  id: string;
+  title: string;
+  description: string | null;
+  /** Emoji or icon key shown on the card. */
+  icon: string;
+  year: number;
+  targetCount: number;
+  currentCount: number;
+  isCompleted: boolean;
+  /** "all" | "book" | "movie" | "anime" | "manga" | "game" | "tvshow". */
+  category: string | null;
+  smartQueryJson: string | null;
+  /** Up to 6 most recent completed titles counting toward the goal (cover strip). */
+  completedItems: MediaItem[];
+}
+
+export interface CreateGoalPayload {
+  title: string;
+  description?: string | null;
+  icon?: string | null;
+  year: number;
+  targetCount: number;
+  category?: string | null;
+  smartQueryJson?: string | null;
+}

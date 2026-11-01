@@ -44,6 +44,7 @@
   } from "$entities/media/model/timeBudget";
   import { uiSettings } from "$shared/utils/uiSettings.svelte";
   import { isStaleInProgress } from "$entities/media/model/staleTriage";
+  import { reconcileListProgress } from "$features/update-progress/optimisticProgress.svelte";
 
   const timeBudgetOptions = $derived<{ value: TimeBudgetMinutes; label: string }[]>([
     { value: null, label: i18n.t.timeBudget.options.all },
@@ -494,6 +495,12 @@
       if (sequence === requestSequence) {
         if (skeletonTimer) clearTimeout(skeletonTimer);
         hasLoaded = true;
+        // Anti-stale overwrite: keep a pending optimistic step (debounce ticking
+        // or PUT in flight) on the incoming items so the section refresh cannot
+        // drag the visible counter back to the pre-step number.
+        reconcileListProgress(active);
+        reconcileListProgress(planned);
+        reconcileListProgress(completed);
         inProgress = active;
         upNext = planned;
         recentlyCompleted = completed.toSorted((left, right) => {

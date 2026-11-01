@@ -13,7 +13,7 @@ export function clampProgress(current: number, total: number | null | undefined)
     : safeCurrent;
 }
 
-/** Games, books and manga expose the user-driven field each of these reads. */
+/** Games, books, manga and shows expose the user-driven field each of these reads. */
 export function readCardProgress(item: MediaItem): number {
   switch (item.type) {
     case "game":
@@ -22,6 +22,8 @@ export function readCardProgress(item: MediaItem): number {
       return (item as BookMedia).currentPage;
     case "manga":
       return (item as MangaMedia).currentChapter;
+    case "tvshow":
+      return (item as TvShowMedia).totalEpisodesWatched ?? 0;
     default:
       return 0;
   }

@@ -27,6 +27,7 @@
   import MediaGrid from "$widgets/media-grid/MediaGrid.svelte";
   import SectionRow from "$widgets/media-grid/SectionRow.svelte";
   import { uiSettings } from "$shared/utils/uiSettings.svelte";
+  import { reconcileListProgress } from "$features/update-progress/optimisticProgress.svelte";
   import {
     buildStatusGroups,
     categoryFilters,
@@ -261,6 +262,10 @@
           allItems[0]?.updatedAt === found[0]?.updatedAt &&
           allItems[allItems.length - 1]?.updatedAt === found[found.length - 1]?.updatedAt;
         if (sameSnapshot) return;
+        // Anti-stale overwrite: a step whose debounce/PUT has not fully landed must
+        // survive the list replacement, so pending optimistic values are stamped onto
+        // the incoming items (and into the cache below) instead of rolling back.
+        reconcileListProgress(found);
         allItems = found;
         // Search-filtered results must not poison the category cache, otherwise
         // clearing the search would be blocked by the cache fast-path above.

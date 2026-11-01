@@ -1,4 +1,6 @@
 import { SvelteMap } from "svelte/reactivity";
+import type { MediaItem } from "$shared/types";
+import { readCardProgress, writeCardProgress } from "$entities/media/model/progressRules";
 
 /**
  * Single source of truth for progress the user has stepped but the server has
@@ -67,4 +69,21 @@ export function reconcileProgress(id: string, incoming: number): number {
     return incoming;
   }
   return optimistic;
+}
+
+/**
+ * Bulk {@link reconcileProgress} for a refetched list before it replaces the
+ * rendered items (`allItems = found`): any item with a live optimistic step
+ * keeps that step on the incoming object instead of snapping back to the
+ * server value. Items the server has caught up with drop their override here,
+ * so the entries never outlive the confirmation.
+ */
+export function reconcileListProgress(items: readonly MediaItem[]): void {
+  for (const item of items) {
+    if (!entries.has(item.id)) continue;
+    const reconciled = reconcileProgress(item.id, readCardProgress(item));
+    if (reconciled !== readCardProgress(item)) {
+      writeCardProgress(item, reconciled);
+    }
+  }
 }

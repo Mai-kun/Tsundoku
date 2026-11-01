@@ -4,6 +4,7 @@ using MediaTracker.Server.Common.Http;
 using MediaTracker.Server.Domain.Common;
 using MediaTracker.Server.Domain.Entities;
 using MediaTracker.Server.Domain.Enums;
+using MediaTracker.Server.Features.Media.GetMediaList;
 using MediaTracker.Server.Features.Media.GetMediaStats;
 using MediaTracker.Server.Features.Seasons.UpdateSeasonProgress;
 using MediaTracker.Server.Infrastructure.Persistence;
@@ -86,6 +87,10 @@ public sealed class UpdateSeasonProgressHandler(
                 new { now = DateTime.UtcNow, id = season.TvShowId });
         }
 
+        // The list projection carries TotalEpisodesWatched computed from the seasons, so the
+        // cached DTO list is stale the moment a season row changes. Without this the post-commit
+        // refetch hands the client the pre-step number and the card's optimistic value rolls back.
+        MediaListCache.Invalidate();
         AdvancedStatsCalculator.InvalidateCache(cache);
         TasteProfileCalculator.InvalidateCache(cache);
         return Result.Success();

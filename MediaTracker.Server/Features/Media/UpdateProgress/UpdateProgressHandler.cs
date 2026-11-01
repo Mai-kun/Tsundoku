@@ -4,6 +4,7 @@ using MediaTracker.Server.Common.Http;
 using MediaTracker.Server.Domain.Common;
 using MediaTracker.Server.Domain.Entities;
 using MediaTracker.Server.Domain.Enums;
+using MediaTracker.Server.Features.Media.GetMediaList;
 using MediaTracker.Server.Features.Media.GetMediaStats;
 using MediaTracker.Server.Features.Media.UpdateProgress;
 using MediaTracker.Server.Infrastructure.Persistence;
@@ -49,6 +50,9 @@ public sealed class UpdateProgressHandler(
                 "UPDATE MediaItems SET CurrentPage = @next, LastActivityAt = @now WHERE Id = @id",
                 new { next, now, id = idStr });
             await RecordProgressAsync(db, command.Id, $"{book.CurrentPage} стр.", $"{next} стр.", ct);
+            // The list projection carries CurrentPage/CurrentChapter/HoursPlayed; a stale cached
+            // list would roll the card's optimistic value back on the post-commit refetch.
+            MediaListCache.Invalidate();
             AdvancedStatsCalculator.InvalidateCache(cache);
             TasteProfileCalculator.InvalidateCache(cache);
             return Result.Success();
@@ -65,6 +69,7 @@ public sealed class UpdateProgressHandler(
                 "UPDATE MediaItems SET CurrentChapter = @next, LastActivityAt = @now WHERE Id = @id",
                 new { next, now, id = idStr });
             await RecordProgressAsync(db, command.Id, $"{manga.CurrentChapter} гл.", $"{next} гл.", ct);
+            MediaListCache.Invalidate();
             AdvancedStatsCalculator.InvalidateCache(cache);
             TasteProfileCalculator.InvalidateCache(cache);
             return Result.Success();
@@ -80,6 +85,7 @@ public sealed class UpdateProgressHandler(
                 "UPDATE MediaItems SET HoursPlayed = @progress, LastActivityAt = @now WHERE Id = @id",
                 new { progress, now, id = idStr });
             await RecordProgressAsync(db, command.Id, $"{game.HoursPlayed ?? 0} ч.", $"{progress} ч.", ct);
+            MediaListCache.Invalidate();
             AdvancedStatsCalculator.InvalidateCache(cache);
             TasteProfileCalculator.InvalidateCache(cache);
             return Result.Success();

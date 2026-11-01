@@ -1,37 +1,37 @@
 # 📊 Сводный отчет комплексного аудита производительности и качества (Tsundoku)
 
-**Статус:** **`PASS`** | **Дата генерации:** 31.10.2026, 04:22:04 GMT+3 (`2026-10-31T01:22:04.990Z`)
+**Статус:** **`PASS`** | **Дата генерации:** 01.11.2026, 05:38:19 GMT+3 (`2026-11-01T02:38:19.487Z`)
 
 ## 🎯 Общий вердикт (Executive Summary)
 
 | Проверочный контур | Инструмент / Метод | Статус | Ключевой результат / Метрика | Бюджет / Порог |
 | :--- | :--- | :---: | :--- | :--- |
-| **Сборка фронтенда** | Vite 8 + Rollup | ✅ PASS | Entry: `102.77 KB`, Total: `280.17 KB`, CSS: `36 KB` (Gzip) | Entry ≤ 150 KB, Total ≤ 350 KB |
-| **Качество верстки и De-slop** | HTML-Validate + AST De-slop | ✅ PASS | Scanned: `102` files, 0 issues remaining | 0 structural errors, 0 slop patterns |
+| **Сборка фронтенда** | Vite 8 + Rollup | ✅ PASS | Entry: `111.91 KB`, Total: `293.1 KB`, CSS: `37.48 KB` (Gzip) | Entry ≤ 150 KB, Total ≤ 350 KB |
+| **Качество верстки и De-slop** | HTML-Validate + AST De-slop | ✅ PASS | Scanned: `104` files, 0 issues remaining | 0 structural errors, 0 slop patterns |
 | **Reactivity & Svelte 5** | $state.raw Audit | ✅ PASS | 7 primary collections on `$state.raw` (no proxy overhead) | 0 unneeded deep proxies |
 | **База данных & Индексы** | SQLite `EXPLAIN QUERY PLAN` | ✅ PASS | 5/5 ключевых запросов покрыты индексами, 0 Full Table Scans | 100% indexed queries |
 | **Алгоритмы C# (Микро)** | BenchmarkDotNet v0.14 | ✅ PASS | 7 бенчмарков (скоринг, парсеры CSV/JSON, стат-профиль) уложились в бюджет | 0 SLA & allocation violations |
-| **Бэкенд под нагрузкой** | `dotnet-trace` + EventPipe | ✅ PASS | Throughput: `18.2 RPS`, p50: `12.42ms`, p95: `3108.87ms`, Heap: `40.53MB` | 0 error responses, p95 < 1000ms |
-| **Браузерный рендеринг** | Playwright + Chrome CDP | ✅ PASS | Layout: max `2.99ms` (detail), Nodes: max `938` (home) | Layout ≤ 120ms, Nodes ≤ 1500 |
+| **Бэкенд под нагрузкой** | `dotnet-trace` + EventPipe | ✅ PASS | Throughput: `17.7 RPS`, p50: `16.13ms`, p95: `783.92ms`, Heap: `40.53MB` | 0 error responses, p95 < 1000ms |
+| **Браузерный рендеринг** | Playwright + Chrome CDP | ✅ PASS | Layout: max `2.28ms` (stats-summary), Nodes: max `938` (home) | Layout ≤ 120ms, Nodes ≤ 1500 |
 | **Плавность рендеринга (144Hz)** | Playwright + rAF Frame Budget | ✅ PASS | FPS: `2461`, P95 кадр: `0.7ms`, Пропусков: `0` | FPS ≥ 120 (или ≥ 55), P95 кадр ≤ 8.3ms |
 | **Утечки памяти JS** | Heap Profile + Force GC | ✅ PASS | Delta после 12 циклов навигации: `-1.59 MB` | Delta < 15 MB |
-| **Веб-витали (LCP / FCP / CLS)** | Playwright + Chrome CDP | ✅ PASS | FCP: max `100ms`, LCP: max `232ms`, CLS: max `0.002` | FCP ≤ 1800ms, LCP ≤ 2500ms, CLS ≤ 0.1 |
+| **Веб-витали (LCP / FCP / CLS)** | Playwright + Chrome CDP | ✅ PASS | FCP: max `120ms`, LCP: max `192ms`, CLS: max `0` | FCP ≤ 1800ms, LCP ≤ 2500ms, CLS ≤ 0.1 |
 | **Геометрия & Разметка** | BoundingBox Collision Audit | ✅ PASS | 14 экранов (Mobile, Tablet, Desktop) проверены, 0 аномалий переполнения | 0 layout collisions / scroll |
 | **Доступность (WCAG 2.1 AA)** | Axe-core Playwright | ✅ PASS | 7 экранов проверены, 0 critical/serious нарушений | 0 critical/serious violations |
 | **Снапшоты виджетов** | Pixelmatch (0.1 threshold) | ✅ PASS | 5/5 ключевых виджетов совпали с эталонами (0 px drift) | 100% visual match |
 | **Тестирование и Покрытие кода** | xUnit + Coverlet + Vitest (v8) | ✅ PASS | Backend: `23/23 tests` (Line `0%`, Branch `0%`) | Frontend: `39/39 tests` (Model/Utils: `92-100%`, Overall: `17.1%`) | 0 test failures, 100% Passing Suite |
 | **База данных SQLite (Здоровье)** | PRAGMA Integrity & Freelist | ✅ PASS | Размер: `624 KB`, WAL: `0 KB`, Фрагментация: `0%`, Целостность: `ok` | Фрагментация ≤ 15%, Freelist ≤ 100 страниц, Integrity: ok |
-| **Сетевые бюджеты API (Wire)** | Gzip & Brotli Wire Profiler | ✅ PASS | Каталог 500 элементов: `35.82 KB` Gzip (Raw: `618.57 KB`), сжатие: `91.1%`, средняя задержка: `12.7ms` | /api/media Gzip ≤ 120 KB, Latency ≤ 150ms |
-| **Безопасность и Зависимости** | dotnet list + npm audit + Secrets | ✅ PASS | NuGet: `0 уязвимостей` (ImageSharp подавлен), NPM prod: `0 уязвимостей`, Secret Scan: `0 утечек` (`524 файлов`) | 0 unsuppressed CVEs, 0 secret leaks |
+| **Сетевые бюджеты API (Wire)** | Gzip & Brotli Wire Profiler | ✅ PASS | Каталог 500 элементов: `35.72 KB` Gzip (Raw: `618.57 KB`), сжатие: `91.2%`, средняя задержка: `13.3ms` | /api/media Gzip ≤ 120 KB, Latency ≤ 150ms |
+| **Безопасность и Зависимости** | dotnet list + npm audit + Secrets | ✅ PASS | NuGet: `0 уязвимостей` (ImageSharp подавлен), NPM prod: `0 уязвимостей`, Secret Scan: `0 утечек` (`535 файлов`) | 0 unsuppressed CVEs, 0 secret leaks |
 | **Целостность тестового набора** | Static Orphan Scanner | ✅ PASS | Диск: `82`, Зарегистрировано: `82`, Сирот: `0` | 0 orphaned files |
 
 ## 🚨 Требует внимания / Рекомендации (Actionable Insights)
 
-- 💡 **Самый тяжелый Lazy-чанк: MediaDetailView-BLc_Y-OK.js**: `40.32 KB Gzip (152.67 KB raw)`
+- 💡 **Самый тяжелый Lazy-чанк: MediaDetailView-DKqk3uik.js**: `40.45 KB Gzip (153.1 KB raw)`
   - **Действие**: Оптимально изолирован в асинхронный чанк и загружается только при переходе на экран.
-- 💡 **Самый требовательный экран по Layout: 'detail'**: `LayoutDuration: 2.99 ms`
+- 💡 **Самый требовательный экран по Layout: 'stats-summary'**: `LayoutDuration: 2.28 ms`
   - **Действие**: Находится с запасом в рамках бюджета (< 120 ms). Верстка оптимизирована под 60 FPS.
-- 💡 **Самый активный C# метод: Infrastructure.Persistence.AppDbContext.ReadMediaItemRow**: `Total Time: 2259 ms (37.4%)`
+- 💡 **Самый активный C# метод: Tsundoku.Server!MediaTracker.Server.Infrastructure.Persistence.AppDbContext.ReadMediaItemRow**: `Total Time: 3479.4 ms (57.6%)`
   - **Действие**: Выполняется в конвейере обработки запросов ASP.NET Core под высокой конкуренцией.
 
 ## 💡 Рекомендации по микрооптимизации (Actionable Code Diff Suggestions)
@@ -47,22 +47,22 @@
 
 ### Сводка размеров бандла
 
-- **Критический чанк (Entry JS):** `102.77 KB` Gzip (`336.93 KB` uncompressed) — бюджет: `150 KB` (68.5%)
-- **Общий вес JS:** `280.17 KB` Gzip (`946.05 KB` uncompressed) — бюджет: `350 KB` (80.0%)
-- **Стили (CSS):** `36 KB` Gzip (`256.21 KB` uncompressed) — бюджет: `50 KB` (72.0%)
+- **Критический чанк (Entry JS):** `111.91 KB` Gzip (`365.57 KB` uncompressed) — бюджет: `150 KB` (74.6%)
+- **Общий вес JS:** `293.1 KB` Gzip (`991.71 KB` uncompressed) — бюджет: `350 KB` (83.7%)
+- **Стили (CSS):** `37.48 KB` Gzip (`262.65 KB` uncompressed) — бюджет: `50 KB` (75.0%)
 
 #### Топ асинхронных чанков (Lazy Chunks)
 
 | Чанк | Raw KB | Gzip KB |
 | :--- | :---: | :---: |
-| `MediaDetailView-BLc_Y-OK.js` | 152.67 | 40.32 |
-| `ImportPanel-CEZob_xq.js` | 74.46 | 18.1 |
-| `StatsView-DQ2M8aSZ.js` | 52.64 | 14.19 |
-| `SettingsModal-CORO2qNr.js` | 53.86 | 13.21 |
-| `SearchModal-xH46CYPt.js` | 33.9 | 9.89 |
-| `CalendarView-FtxXdy20.js` | 34.22 | 9.76 |
-| `BackgroundJobsModal-DM4EgGgF.js` | 20.74 | 6.79 |
-| `HistoryView-Bl1374YZ.js` | 19.46 | 5.99 |
+| `MediaDetailView-DKqk3uik.js` | 153.1 | 40.45 |
+| `ImportPanel-CuutKLS_.js` | 78.69 | 18.81 |
+| `SettingsModal-Dr3QQBr1.js` | 62.11 | 15.02 |
+| `StatsView-Do0wkoc6.js` | 52.49 | 14.21 |
+| `CalendarView-BTmOPqQQ.js` | 39.78 | 11.09 |
+| `SearchModal-CW2vj-io.js` | 33.9 | 9.91 |
+| `BackgroundJobsModal-DW9m_Njz.js` | 20.74 | 6.8 |
+| `HistoryView-s_yUfQgS.js` | 19.45 | 5.95 |
 
 ### Контур статического анализа и стандартов
 
@@ -77,22 +77,22 @@
 
 | Экран | Layout (ms) | Recalc Style (ms) | Script (ms) | Task (ms) | DOM Нод | JS Heap (MB) |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
-| **home** | 1.23 | 0.88 | 0.9 | 0 | 938 | 19.07 |
-| **game-initial** | 0 | 0 | 33.67 | 36.65 | 615 | 6.83 |
-| **game-virtual-scroll** | 0 | 0 | 1.21 | 3.69 | 615 | 6.92 |
-| **tvshow** | 0 | 0 | 0 | 0 | 57 | 13.64 |
-| **stats-summary** | 2.31 | 9.93 | 49.9 | 95.36 | 896 | 7.09 |
-| **stats-taste-profile** | 0 | 0 | 0 | 36.31 | 896 | 8.38 |
-| **history** | 0 | 0 | 0 | 0 | 125 | 14.97 |
-| **lists** | 0 | 1.38 | 7.16 | 21.08 | 46 | 6.41 |
-| **calendar** | 0.07 | 0 | 0 | 0 | 61 | 13.19 |
-| **detail** | 2.99 | 6.05 | 20.38 | 92.04 | 331 | 7 |
-| **modals** | 1.07 | 42.36 | 4.6 | 118.48 | 331 | 9.19 |
+| **home** | 0 | 0.24 | 26.8 | 0 | 938 | 20.14 |
+| **game-initial** | 0 | 0 | 0 | 0 | 615 | 7.01 |
+| **game-virtual-scroll** | 0 | 0 | 1.44 | 3.47 | 615 | 7.1 |
+| **tvshow** | 0 | 0 | 0 | 0 | 57 | 13.87 |
+| **stats-summary** | 2.28 | 6.42 | 37.81 | 74.08 | 898 | 7.23 |
+| **stats-taste-profile** | 0 | 0 | 0 | 40.31 | 898 | 8.51 |
+| **history** | 0 | 0 | 0 | 0 | 126 | 15.17 |
+| **lists** | 0 | 0 | 0 | 5.71 | 119 | 6.56 |
+| **calendar** | 0.68 | 2.96 | 10.06 | 0.53 | 244 | 13.88 |
+| **detail** | 1.23 | 0.72 | 6.97 | 22.5 | 332 | 7.16 |
+| **modals** | 1.25 | 38.54 | 4.32 | 113.28 | 332 | 9.4 |
 
 ### Стресс-тест утечек памяти JS Heap (12 циклов навигации с Force GC)
 
-- **Heap до циклов:** `6.42 MB`
-- **Heap после циклов:** `4.83 MB`
+- **Heap до циклов:** `6.53 MB`
+- **Heap после циклов:** `4.94 MB`
 - **Дельта:** `-1.59 MB` (порог: < 15 MB) -> **✅ Утечек нет**
 
 ### Геометрия DOM и визуальная стабильность
@@ -121,35 +121,35 @@
 
 | Метод | Класс | Время (Mean) | Выделенная память | Gen 0 / 1 / 2 | Статус |
 | :--- | :--- | :---: | :---: | :---: | :---: |
-| `EvaluateSmartList` | `EvaluationAndScoringBenchmarks` | **104.63 μs** | **42.50 KB** | 10.38 / 0.61 / 0.00 | ✅ PASS |
-| `EvaluateCandidates` | `EvaluationAndScoringBenchmarks` | **23.37 μs** | **24.82 KB** | 6.07 / 0.00 / 0.00 | ✅ PASS |
-| `NormalizeGenres` | `EvaluationAndScoringBenchmarks` | **9.25 μs** | **8.53 KB** | 2.08 / 0.00 / 0.00 | ✅ PASS |
-| `ParseMangalibJson` | `ParsersBenchmarks` | **507.55 μs** | **112.86 KB** | 27.34 / 0.00 / 0.00 | ✅ PASS |
-| `ReadAnyRecordsCsv` | `ParsersBenchmarks` | **51.03 μs** | **78.29 KB** | 19.17 / 0.06 / 0.00 | ✅ PASS |
-| `CalculateAdvancedStats` | `StatsBenchmarks` | **161.11 μs** | **9.08 KB** | 2.20 / 0.00 / 0.00 | ✅ PASS |
-| `CalculateTasteProfile` | `StatsBenchmarks` | **50.14 μs** | **3.90 KB** | 0.92 / 0.00 / 0.00 | ✅ PASS |
+| `EvaluateSmartList` | `EvaluationAndScoringBenchmarks` | **132.34 μs** | **42.50 KB** | 10.25 / 0.49 / 0.00 | ✅ PASS |
+| `EvaluateCandidates` | `EvaluationAndScoringBenchmarks` | **29.58 μs** | **24.82 KB** | 6.04 / 0.00 / 0.00 | ✅ PASS |
+| `NormalizeGenres` | `EvaluationAndScoringBenchmarks` | **11.18 μs** | **8.53 KB** | 2.08 / 0.00 / 0.00 | ✅ PASS |
+| `ParseMangalibJson` | `ParsersBenchmarks` | **534.44 μs** | **113.64 KB** | 27.34 / 0.00 / 0.00 | ✅ PASS |
+| `ReadAnyRecordsCsv` | `ParsersBenchmarks` | **64.35 μs** | **78.29 KB** | 19.17 / 0.06 / 0.00 | ✅ PASS |
+| `CalculateAdvancedStats` | `StatsBenchmarks` | **243.25 μs** | **9.04 KB** | 2.20 / 0.00 / 0.00 | ✅ PASS |
+| `CalculateTasteProfile` | `StatsBenchmarks` | **71.29 μs** | **3.90 KB** | 0.85 / 0.00 / 0.00 | ✅ PASS |
 
 ### Макропрофилирование ASP.NET Core под конкурентной нагрузкой
 
 - **Конфигурация сервера:** `Release / net10.0` | Сидировано записей: **500**
-- **Пропускная способность:** **`18.2 RPS`** (Всего запросов: 210, Успешно: 210, Ошибок: 0)
-- **Задержка ответа (Latency):** min: `2.09ms` | **p50: `12.42ms`** | **p95: `3108.87ms`** | max: `7501.15ms`
+- **Пропускная способность:** **`17.7 RPS`** (Всего запросов: 209, Успешно: 209, Ошибок: 0)
+- **Задержка ответа (Latency):** min: `0.87ms` | **p50: `16.13ms`** | **p95: `783.92ms`** | max: `8011.24ms`
 - **CLR Среда:** GC Heap: `40.53 MB` | Allocation Rate: `12.21 MB/s` | Gen 0/1/2 Сборки: `12/2/0`
 
 #### Топ-10 горячих методов бэкенда (по данным dotnet-trace)
 
 | Ранг | Метод C# | Total Время (ms) | Self Время (ms) | Доля CPU (%) |
 | :---: | :--- | :---: | :---: | :---: |
-| 1 | `Infrastructure.Persistence.AppDbContext.ReadMediaItemRow` | 2259 ms | 0 ms | 37.4% |
-| 2 | `Microsoft.AspNetCore.Http.Generated.<GeneratedRouteBuilderExtensions_g>F202B381FFC497F212FEEA6512613F4D084B421EB97B74D5CBD81E03E134C6BFD__GeneratedRouteBuilderExtensionsCore+<>c__DisplayClass25_0.<MapGet20>g__RequestHandler|5` | 2167.7 ms | 0 ms | 35.9% |
-| 3 | `Microsoft.AspNetCore.Http.Generated.<GeneratedRouteBuilderExtensions_g>F202B381FFC497F212FEEA6512613F4D084B421EB97B74D5CBD81E03E134C6BFD__GeneratedRouteBuilderExtensionsCore+<>c__DisplayClass25_0+<<MapGet20>g__RequestHandler|5>d` | 2167.7 ms | 0 ms | 35.9% |
-| 4 | `Microsoft.AspNetCore.Http.Generated.<GeneratedRouteBuilderExtensions_g>F202B381FFC497F212FEEA6512613F4D084B421EB97B74D5CBD81E03E134C6BFD__GeneratedRouteBuilderExtensionsCore.ExecuteAsyncExplicit` | 2023.3 ms | 0 ms | 33.5% |
-| 5 | `Microsoft.AspNetCore.Http.Generated.<GeneratedRouteBuilderExtensions_g>F202B381FFC497F212FEEA6512613F4D084B421EB97B74D5CBD81E03E134C6BFD__GeneratedRouteBuilderExtensionsCore+<>c__DisplayClass27_0.<MapGet22>g__RequestHandler|5` | 1570.6 ms | 0 ms | 26% |
-| 6 | `Microsoft.AspNetCore.Http.Generated.<GeneratedRouteBuilderExtensions_g>F202B381FFC497F212FEEA6512613F4D084B421EB97B74D5CBD81E03E134C6BFD__GeneratedRouteBuilderExtensionsCore+<>c__DisplayClass27_0+<<MapGet22>g__RequestHandler|5>d` | 1559 ms | 0 ms | 25.8% |
-| 7 | `Microsoft.AspNetCore.Http.Generated.<GeneratedRouteBuilderExtensions_g>F202B381FFC497F212FEEA6512613F4D084B421EB97B74D5CBD81E03E134C6BFD__GeneratedRouteBuilderExtensionsCore+<>c__DisplayClass76_0.<MapGet71>g__RequestHandler|5` | 1551.9 ms | 0 ms | 25.7% |
-| 8 | `Microsoft.AspNetCore.Http.Generated.<GeneratedRouteBuilderExtensions_g>F202B381FFC497F212FEEA6512613F4D084B421EB97B74D5CBD81E03E134C6BFD__GeneratedRouteBuilderExtensionsCore+<>c__DisplayClass76_0+<<MapGet71>g__RequestHandler|5>d` | 1542.5 ms | 0 ms | 25.5% |
-| 9 | `Features.Media.GetMediaStats.GetMediaStatsHandler.LoadAllMediaItemsAsync` | 1455.2 ms | 0 ms | 24.1% |
-| 10 | `Features.Media.Calendar.CalendarEndpoints.MapCalendarEndpoints` | 1336 ms | 0 ms | 22.1% |
+| 1 | `Tsundoku.Server!MediaTracker.Server.Infrastructure.Persistence.AppDbContext.ReadMediaItemRow` | 3479.4 ms | 0 ms | 57.6% |
+| 2 | `Tsundoku.Server!MediaTracker.Server.Features.Media.Calendar.CalendarEndpoints.MapCalendarEndpoints` | 1915.7 ms | 0 ms | 31.7% |
+| 3 | `Tsundoku.Server!MediaTracker.Server.Features.Media.Calendar.CalendarEndpoints.CollectEventsAsync` | 1889.2 ms | 0 ms | 31.3% |
+| 4 | `Tsundoku.Server!MediaTracker.Server.Features.Media.GetMediaStats.GetMediaStatsHandler.LoadAllMediaItemsAsync` | 1790.9 ms | 0 ms | 29.7% |
+| 5 | `Tsundoku.Server!MediaTracker.Server.Common.Endpoints.MediaEndpoints.MapMediaEndpoints` | 1537.2 ms | 0 ms | 25.5% |
+| 6 | `Tsundoku.Server!MediaTracker.Server.Features.Media.GetMediaStats.GetMediaStatsHandler.HandleAdvancedAsync` | 1527 ms | 0 ms | 25.3% |
+| 7 | `Tsundoku.Server!MediaTracker.Server.Features.Media.GetMediaStats.GetMediaStatsHandler.HandleTasteProfileAsync` | 1213.2 ms | 0 ms | 20.1% |
+| 8 | `Tsundoku.Server!MediaTracker.Server.Features.Media.GetMediaList.GetMediaListHandler.HandleWithCountAsync` | 1135.4 ms | 0 ms | 18.8% |
+| 9 | `Tsundoku.Server!MediaTracker.Server.Features.Media.GetMediaList.GetMediaListHandler.HandleAsync` | 1133.5 ms | 0 ms | 18.8% |
+| 10 | `Tsundoku.Server!MediaTracker.Server.Infrastructure.Persistence.AppDbContext.LoadMediaItemsAsync` | 998.8 ms | 0 ms | 16.5% |
 
 ### 🗄️ База данных SQLite: Здоровье, Фрагментация и WAL
 
@@ -172,16 +172,16 @@
 
 | Эндпоинт | Raw JSON | Gzip (Wire) | Brotli | Сжатие % | Latency (p50) | Бюджет Gzip | Статус |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| `/api/media` | 618.57 KB | **35.82 KB** | 25.54 KB | **-94.2%** | **16.3 ms** | ≤ 60 KB | ✅ PASS |
-| `/api/media?type=game&status=1` | 37.16 KB | **2.7 KB** | 2.07 KB | **-92.7%** | **2.5 ms** | ≤ 50 KB | ✅ PASS |
-| `/api/media/stats/advanced` | 2.79 KB | **0.65 KB** | 0.54 KB | **-76.8%** | **2.4 ms** | ≤ 20 KB | ✅ PASS |
-| `/api/media/stats/taste-profile` | 1.76 KB | **0.7 KB** | 0.55 KB | **-60.5%** | **1.6 ms** | ≤ 10 KB | ✅ PASS |
-| `/api/media/calendar` | 88.83 KB | **8.71 KB** | 6.52 KB | **-90.2%** | **30 ms** | ≤ 25 KB | ✅ PASS |
-| `/api/history` | 117.76 KB | **27.99 KB** | 22.56 KB | **-76.2%** | **10.1 ms** | ≤ 30 KB | ✅ PASS |
-| `/api/lists` | 0.29 KB | **0.24 KB** | 0.2 KB | **-18.1%** | **26.2 ms** | ≤ 15 KB | ✅ PASS |
+| `/api/media` | 618.57 KB | **35.72 KB** | 25.47 KB | **-94.2%** | **15.3 ms** | ≤ 60 KB | ✅ PASS |
+| `/api/media?type=game&status=1` | 37.16 KB | **2.72 KB** | 2.08 KB | **-92.7%** | **2.6 ms** | ≤ 50 KB | ✅ PASS |
+| `/api/media/stats/advanced` | 2.79 KB | **0.65 KB** | 0.54 KB | **-76.8%** | **3.3 ms** | ≤ 20 KB | ✅ PASS |
+| `/api/media/stats/taste-profile` | 1.76 KB | **0.7 KB** | 0.55 KB | **-60.5%** | **1.9 ms** | ≤ 10 KB | ✅ PASS |
+| `/api/media/calendar` | 58.51 KB | **5.66 KB** | 4.67 KB | **-90.3%** | **34.5 ms** | ≤ 25 KB | ✅ PASS |
+| `/api/history` | 117.76 KB | **28 KB** | 22.6 KB | **-76.2%** | **12.8 ms** | ≤ 30 KB | ✅ PASS |
+| `/api/lists` | 0.29 KB | **0.24 KB** | 0.2 KB | **-17.7%** | **22.7 ms** | ≤ 15 KB | ✅ PASS |
 
-- **Общий вес данных (7 запросов):** Raw: `867.16 KB` -> Gzip: `76.81 KB` (Сжатие: **-91.1%**)
-- **Средняя задержка API:** `12.7 ms` (все запросы уложились в бюджеты)
+- **Общий вес данных (7 запросов):** Raw: `836.84 KB` -> Gzip: `73.69 KB` (Сжатие: **-91.2%**)
+- **Средняя задержка API:** `13.3 ms` (все запросы уложились в бюджеты)
 
 ## 🧪 Тестирование и Покрытие кода (Test Suite & Code Coverage)
 
@@ -213,9 +213,9 @@
 | :--- | :--- | :---: | :---: | :---: |
 | **Header** | `[data-widget="header"]` | ✅ Совпал | 67200 px | 0 px (0.00%) |
 | **Sidebar** | `[data-widget="sidebar"]` | ✅ Совпал | 216000 px | 0 px (0.00%) |
-| **FirstMediaCard** | `article.media-card:visible` | ✅ Совпал | 86328 px | 0 px (0.00%) |
-| **StatsHeroBanner** | `[data-widget="stats-hero"]` | ✅ Совпал | 182016 px | 0 px (0.00%) |
-| **DetailSidebar** | `[data-widget="detail-sidebar"]` | ✅ Совпал | 527680 px | 0 px (0.00%) |
+| **FirstMediaCard** | `article.media-card:visible` | ✅ Совпал | 86328 px | 332 px (0.39%) |
+| **StatsHeroBanner** | `[data-widget="stats-hero"]` | ✅ Совпал | 182016 px | 42 px (0.02%) |
+| **DetailSidebar** | `[data-widget="detail-sidebar"]` | ✅ Совпал | 527680 px | 1954 px (0.37%) |
 
 
     <div class="section" id="ai-review">
@@ -239,13 +239,13 @@
 ### 2. NPM production-зависимости (mediatracker-ui)
 
 - Статус: **✅ PASS**
-- Просканировано production-пакетов: **4**
+- Просканировано production-пакетов: **5**
 - Уязвимости: Critical: **0**, High: **0**, Moderate: **0**, Low: **0** (Всего: **0**)
 
 ### 3. Статический скан утечек секретов (Secret Leak Scan)
 
 - Статус: **✅ PASS**
-- Просканировано файлов в репозитории: **524** (.cs, .ts, .svelte, .json)
+- Просканировано файлов в репозитории: **535** (.cs, .ts, .svelte, .json)
 - Обнаружено приватных ключей / токенов: **0**
 
 ### Артефакты и интерактивные отчеты

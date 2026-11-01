@@ -211,27 +211,32 @@ public sealed class ImportMediaHandler(
             return Result<ImportResultDto>.Failure(Error.Validation("Не удалось определить ID пользователя из указанной ссылки."));
 
         var client = clients.CreateClient("Import");
+        // A token captured by the desktop auth flow is stored as the source key;
+        // the request-level token (browser collector path) takes precedence.
+        var bearerToken = string.IsNullOrWhiteSpace(request.BearerToken)
+            ? apiOptions.Value.GetKey(ImportOnlyKeySources.MangaLib)
+            : request.BearerToken;
         var siteIds = request.SiteIds is { Length: > 0 } ? request.SiteIds : [1, 5, 3, 2, 4];
         var allItems = new List<ParsedMediaItemDto>();
         var totalSitesQueried = 0;
         var authErrorCount = 0;
-        var statuses = new[] { 1, 2, 4, 3, 6, 5 };
 
         foreach (var siteId in siteIds)
         {
             totalSitesQueried++;
             var siteAuthError = false;
-            var siteFolderIds = await FetchSocialLibFolderIdsAsync(client, userId, siteId, request.BearerToken, ct);
+            var siteFolderIds = await FetchSocialLibFolderIdsAsync(client, userId, siteId, bearerToken, ct);
 
             foreach (var statusId in siteFolderIds)
             {
                 if (siteAuthError) break;
+                if (request.StatusIds is { Length: > 0 } && !request.StatusIds.Contains(statusId)) continue;
 
                 var page = 1;
                 while (page <= 50)
                 {
                     var url = $"https://api.cdnlibs.org/api/bookmarks?user_id={Uri.EscapeDataString(userId)}&site_id={siteId}&status={statusId}&page={page}&limit=60&fields[]=summary&fields[]=genres&fields[]=authors&fields[]=chap_count&fields[]=rate";
-                    using var msg = CreateSocialLibMessage(url, siteId, request.BearerToken);
+                    using var msg = CreateSocialLibMessage(url, siteId, bearerToken);
 
                     HttpResponseMessage? response = null;
                     try
@@ -399,7 +404,7 @@ public sealed class ImportMediaHandler(
             }
         }
 
-        var existing = await db.LoadMediaItemsAsync(null, null, null, null, null, null, ct);
+        var existing = await db.LoadAllMediaItemsAsync(ct);
 
         var byExternalKey = existing
             .Where(item => !string.IsNullOrWhiteSpace(item.ExternalId))
@@ -411,6 +416,7 @@ public sealed class ImportMediaHandler(
         {
             var type = GetType(item);
             byTitleKey.TryAdd($"{type}\u001f{item.Title.Trim()}", item);
+
             string? romaji = item switch
             {
                 Manga m => m.RomajiTitle,
@@ -807,6 +813,8 @@ public sealed class ImportMediaHandler(
         item.ExternalId = dto.ExternalId;
         item.ExternalSource = dto.ExternalSource;
         item.ImportSource = dto.ExternalSource;
+        item.OriginalTitle = dto.OriginalTitle;
+        item.Notes = dto.Notes;
         item.ExternalRating = dto.Rating;
         item.ExternalRatingVotes = dto.RatingVotes;
         if (dto.Rating is > 0)

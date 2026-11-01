@@ -30,6 +30,7 @@ using MediaTracker.Server.Features.Media.UpdateStatus;
 using MediaTracker.Server.Features.Seasons.UpdateSeasonProgress;
 using MediaTracker.Server.Features.Settings.ApiTokens;
 using MediaTracker.Server.Features.Settings.GetCategoryOrder;
+using MediaTracker.Server.Features.Settings.GetSourceKeyStatus;
 using MediaTracker.Server.Features.Settings.GetSourcePriority;
 using MediaTracker.Server.Features.Settings.SaveCategoryOrder;
 using MediaTracker.Server.Features.Settings.SaveSourceKey;
@@ -97,6 +98,7 @@ public static partial class FeatureRegistration
         // System and settings
         services.AddScoped<IGetSourcesHandler, GetSourcesHandler>();
         services.AddScoped<ISaveSourceKeyHandler, SaveSourceKeyHandler>();
+        services.AddScoped<IGetSourceKeyStatusHandler, GetSourceKeyStatusHandler>();
         services.AddScoped<IToggleSourceHandler, ToggleSourceHandler>();
         services.AddScoped<ITestSourceHandler, TestSourceHandler>();
         services.AddScoped<IGetCategoryOrderHandler, GetCategoryOrderHandler>();

@@ -10,6 +10,7 @@ using MediaTracker.Server.Features.History.GetHistoryEvents;
 using MediaTracker.Server.Features.Jobs;
 using MediaTracker.Server.Features.Lists;
 using MediaTracker.Server.Features.Logs.ClientLog;
+using MediaTracker.Server.Features.Logs.Telemetry;
 using MediaTracker.Server.Features.Media.Calendar;
 using MediaTracker.Server.Features.Media.CreateMedia;
 using MediaTracker.Server.Features.Media.GetCreatorSummary;
@@ -85,6 +86,8 @@ namespace MediaTracker.Server.Common.Json;
 [JsonSerializable(typeof(CreatorSummaryDto))]
 [JsonSerializable(typeof(CalendarScheduleDto))]
 [JsonSerializable(typeof(CalendarItemDto))]
+[JsonSerializable(typeof(BacklogDeadlineDto))]
+[JsonSerializable(typeof(IReadOnlyList<BacklogDeadlineDto>))]
 [JsonSerializable(typeof(PendingMatchReviewDto))]
 [JsonSerializable(typeof(IReadOnlyList<PendingMatchReviewDto>))]
 [JsonSerializable(typeof(ResolveAllByPriorityResult))]
@@ -116,6 +119,10 @@ namespace MediaTracker.Server.Common.Json;
 [JsonSerializable(typeof(CreatedEntityId))]
 [JsonSerializable(typeof(DismissedCount))]
 [JsonSerializable(typeof(StorageInfoResponse))]
+[JsonSerializable(typeof(TelemetryDto))]
+// --- Privacy-first library export (import-compatible with CustomImportParser) ---
+[JsonSerializable(typeof(LibraryExportItemDto))]
+[JsonSerializable(typeof(List<LibraryExportItemDto>))]
 // --- External media payload graph (search, details, relations, recommendations) ---
 [JsonSerializable(typeof(ExternalMediaDto))]
 [JsonSerializable(typeof(IReadOnlyList<ExternalMediaDto>))]

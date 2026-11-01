@@ -2,8 +2,12 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using MediaTracker.Server.Common.Http;
 using MediaTracker.Server.Features.Logs.ClientLog;
+using MediaTracker.Server.Features.Logs.Telemetry;
+using MediaTracker.Server.Infrastructure.Logging;
 using MediaTracker.Server.Infrastructure.Storage;
 using MediaTracker.Server.Infrastructure.Persistence;
+using System.Net.NetworkInformation;
+using System.Net.Sockets;
 using Microsoft.AspNetCore.Mvc;
 
 namespace MediaTracker.Server.Common.Endpoints;
@@ -58,39 +62,52 @@ public static class LogEndpoints
         })
         .ExcludeFromDescription();
 
-        app.MapGet("/api/logs/telemetry", (AppDbContext db, AppPaths appPaths) =>
+        app.MapGet("/api/logs/telemetry", (AppPaths appPaths) =>
         {
-            var process = Process.GetCurrentProcess();
-            var workingSetMb = Math.Round(process.WorkingSet64 / 1024.0 / 1024.0, 1);
+            var currentProc = Process.GetCurrentProcess();
+            var processRamMb = Math.Round(currentProc.WorkingSet64 / 1024.0 / 1024.0, 1);
             var gcHeapMb = Math.Round(GC.GetTotalMemory(false) / 1024.0 / 1024.0, 1);
-            var uptime = DateTime.UtcNow - process.StartTime.ToUniversalTime();
 
-            string? localIp = null;
+            string localIp = "127.0.0.1";
             try
             {
-                localIp = System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces()
-                    .Where(n => n.OperationalStatus == System.Net.NetworkInformation.OperationalStatus.Up &&
-                                n.NetworkInterfaceType != System.Net.NetworkInformation.NetworkInterfaceType.Loopback)
-                    .SelectMany(n => n.GetIPProperties().UnicastAddresses)
-                    .FirstOrDefault(a => a.Address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)?.Address.ToString();
+                foreach (var netInterface in NetworkInterface.GetAllNetworkInterfaces())
+                {
+                    if (netInterface.OperationalStatus != OperationalStatus.Up ||
+                        netInterface.NetworkInterfaceType == NetworkInterfaceType.Loopback)
+                        continue;
+
+                    var ipv4 = netInterface.GetIPProperties().UnicastAddresses
+                        .FirstOrDefault(a => a.Address.AddressFamily == AddressFamily.InterNetwork &&
+                                             !System.Net.IPAddress.IsLoopback(a.Address));
+                    if (ipv4 != null)
+                    {
+                        localIp = ipv4.Address.ToString();
+                        break;
+                    }
+                }
             }
-            catch {}
+            catch { }
 
-            long dbSizeBytes = 0;
-            try { if (File.Exists(appPaths.DatabaseFilePath)) dbSizeBytes = new FileInfo(appPaths.DatabaseFilePath).Length; } catch {}
+            var uptimeTimeSpan = DateTime.UtcNow - currentProc.StartTime.ToUniversalTime();
+            var uptime = $"{(int)uptimeTimeSpan.TotalHours}ч {uptimeTimeSpan.Minutes}м {uptimeTimeSpan.Seconds}с";
 
-            return Results.Ok(new
-            {
-                processRamMb = workingSetMb,
-                gcHeapMb = gcHeapMb,
-                uptime = $"{(int)uptime.TotalHours:D2}:{uptime.Minutes:D2}:{uptime.Seconds:D2}",
-                localIp = localIp ?? "127.0.0.1",
-                os = RuntimeInformation.OSDescription,
-                pid = process.Id,
-                threads = process.Threads.Count,
-                dbSizeMb = Math.Round(dbSizeBytes / 1024.0 / 1024.0, 2),
-                architecture = $"{RuntimeInformation.ProcessArchitecture} (NativeAOT)"
-            });
+            double dbSizeMb = 0;
+            try { if (File.Exists(appPaths.DatabaseFilePath)) dbSizeMb = Math.Round(new FileInfo(appPaths.DatabaseFilePath).Length / 1024.0 / 1024.0, 2); } catch { }
+
+            var telemetry = new TelemetryDto(
+                ProcessRamMb: processRamMb,
+                GcHeapMb: gcHeapMb,
+                LocalIp: localIp,
+                Uptime: uptime,
+                Os: RuntimeInformation.OSDescription,
+                Pid: Environment.ProcessId,
+                Threads: currentProc.Threads.Count,
+                DbSizeMb: dbSizeMb,
+                Architecture: $"{RuntimeInformation.ProcessArchitecture} (NativeAOT)",
+                Gpu: HardwareDetector.GetGpuName());
+
+            return Results.Ok(telemetry);
         }).ExcludeFromDescription();
 
         return app;

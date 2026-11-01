@@ -30,10 +30,14 @@ public static class CustomImportParser
         var cover = NullIfEmpty(Get(row, "coverurl", "cover_url", "cover", "image", "poster", "обложка"));
         var desc = NullIfEmpty(Get(row, "description", "summary", "desc", "синопсис", "описание"));
         var genres = NullIfEmpty(Get(row, "genres", "genre", "жанры", "жанр"));
+        var notes = NullIfEmpty(Get(row, "notes", "note", "заметки", "заметка"));
         var releaseDate = NullIfEmpty(Get(row, "releasedate", "release_date", "дата_выхода", "датавыхода"));
         var endDate = NullIfEmpty(Get(row, "enddate", "end_date", "дата_окончания", "датаокончания"));
         var releaseStatus = NullIfEmpty(Get(row, "releasestatus", "release_status", "статус_релиза", "статусрелиза"));
         var romaji = NullIfEmpty(Get(row, "romaji", "romaji_title", "romajititle", "english_title", "eng_name"));
+        var originalTitle = NullIfEmpty(Get(row, "originaltitle", "original_title", "native_title", "нативное"));
+        var externalId = NullIfEmpty(Get(row, "externalid", "external_id", "id_источника"));
+        var externalSource = NullIfEmpty(Get(row, "externalsource", "external_source", "источник"));
 
         var rating = Double(row, "rating", "external_rating", "externalrating", "рейтинг");
         var score = Number(row, "score", "оценка");
@@ -60,6 +64,10 @@ public static class CustomImportParser
             EndDate: endDate,
             ReleaseStatus: releaseStatus,
             RomajiTitle: romaji,
+            OriginalTitle: originalTitle,
+            ExternalId: externalId,
+            ExternalSource: externalSource,
+            Notes: notes,
             Rating: rating,
             Studio: studio,
             Director: director);

@@ -31,7 +31,8 @@ public sealed record ParsedMediaItemDto(
     int? CurrentVolumes = null,
     int? TotalVolumes = null,
     string? FolderName = null,
-    bool? IsCustomFolder = null);
+    bool? IsCustomFolder = null,
+    string? Notes = null);
 
 public sealed record ImportResultDto(
     int TotalFound,
@@ -64,6 +65,7 @@ public sealed record MangaLibProfileRequest(
     string ProfileUrlOrId,
     int[]? SiteIds = null,
     string? BearerToken = null,
+    int[]? StatusIds = null,
     bool SkipDuplicates = true,
     Guid? TargetListId = null,
     string? NewListName = null);

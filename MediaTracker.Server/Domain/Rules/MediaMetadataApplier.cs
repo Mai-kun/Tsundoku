@@ -127,7 +127,7 @@ public static class MediaMetadataApplier
     /// are stored with relaxed escaping so the raw column text stays human-readable and greppable.
     /// </summary>
     public static string SerializeAltTitles(IReadOnlyList<string> titles) =>
-        JsonSerializer.Serialize(titles, AltTitleJsonOptions);
+        JsonSerializer.Serialize(titles, AltTitleSerializerOptions);
 
     public static List<string> DeserializeAltTitles(string? json)
     {
@@ -137,7 +137,7 @@ public static class MediaMetadataApplier
         }
         try
         {
-            return JsonSerializer.Deserialize<List<string>>(json, AltTitleJsonOptions) ?? [];
+            return JsonSerializer.Deserialize<List<string>>(json, AltTitleSerializerOptions) ?? [];
         }
         catch
         {
@@ -145,8 +145,14 @@ public static class MediaMetadataApplier
         }
     }
 
-    private static readonly JsonSerializerOptions AltTitleJsonOptions = new()
+    // AOT-safe: the resolver comes from the source-generated context; a bare `new JsonSerializerOptions`
+    // falls back to reflection-based serialization, which NativeAOT disables at runtime.
+    private static readonly JsonSerializerOptions AltTitleSerializerOptions = new(AppJsonSerializerContext.Default.Options)
     {
+        TypeInfoResolver = AppJsonSerializerContext.Default,
+        // The default encoder escapes every non-ASCII character into \uXXXX, which would bury
+        // Cyrillic and Native titles inside an ASCII-only blob no search could ever match. Alt
+        // titles are stored with relaxed escaping so the raw column text stays readable and greppable.
         Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
     };
 

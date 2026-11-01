@@ -31,9 +31,10 @@ public sealed class SaveSourceKeyHandler(
         var provider = providers.FirstOrDefault(p =>
             p.Id.Equals(normalizedId, StringComparison.OrdinalIgnoreCase));
 
-        // Optional-key providers (Steam) may still store a key, so a missing provider match or a
-        // no-key provider is the only rejected case.
-        if (provider is null || (!provider.RequiresApiKey && !provider.OptionalApiKey))
+        // Optional-key providers (Steam) may still store a key; import-only sources (MangaLib's
+        // user Bearer token) have no provider but go through the same encrypted storage.
+        var accepted = provider is not null && (provider.RequiresApiKey || provider.OptionalApiKey);
+        if (!accepted && !ImportOnlyKeySources.AcceptsKey(normalizedId))
         {
             return Result<SaveSourceKeyResponse>.Failure(
                 Error.Validation($"Source '{command.SourceId}' does not accept an API key."));

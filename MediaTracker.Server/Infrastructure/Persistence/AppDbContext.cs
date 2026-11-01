@@ -32,7 +32,7 @@ public sealed class AppDbContext : IDisposable, IAsyncDisposable
             (string? source, string? query) =>
                 !string.IsNullOrEmpty(source)
                 && !string.IsNullOrEmpty(query)
-                && source.IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0);
+                && source.Contains(query, StringComparison.OrdinalIgnoreCase));
     }
 
     private readonly SqliteConnection _connection;
@@ -635,6 +635,26 @@ public sealed class AppDbContext : IDisposable, IAsyncDisposable
     }
 
     /// <summary>Loads media items with filtering, sorting and franchise included.</summary>
+    /// <summary>
+    /// Pages through the whole MediaItems table. The single-call loader silently caps at 2000 rows
+    /// (and defaults to 500 without an explicit limit), which truncated import dedupe and library
+    /// export on real libraries — both must see every row, not just the first page.
+    /// </summary>
+    public async Task<List<MediaItem>> LoadAllMediaItemsAsync(CancellationToken ct = default)
+    {
+        var all = new List<MediaItem>();
+        const int pageSize = 2000;
+        while (true)
+        {
+            var page = await LoadMediaItemsAsync(null, null, null, null, null, null, ct, pageSize, all.Count);
+            all.AddRange(page);
+            if (page.Count < pageSize)
+            {
+                return all;
+            }
+        }
+    }
+
     public async Task<List<MediaItem>> LoadMediaItemsAsync(
         string? mediaType,
         MediaStatus? status,

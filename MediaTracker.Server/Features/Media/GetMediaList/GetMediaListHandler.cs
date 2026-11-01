@@ -76,7 +76,7 @@ public sealed class GetMediaListHandler(AppDbContext db, IMemoryCache? cache = n
             && cache.TryGetValue(countKey, out int? cachedTotal)
             && cachedTotal is not null)
         {
-            return (items.Value, cachedTotal.Value);
+            return (items.Value ?? [], cachedTotal.Value);
         }
 
         var total = await db.GetMediaTotalCountAsync(
@@ -89,6 +89,6 @@ public sealed class GetMediaListHandler(AppDbContext db, IMemoryCache? cache = n
         {
             cache.Set(countKey, total, TimeSpan.FromMinutes(10));
         }
-        return (items.Value, total);
+        return (items.Value ?? [], total);
     }
 }

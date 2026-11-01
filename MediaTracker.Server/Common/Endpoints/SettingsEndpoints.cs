@@ -1,10 +1,15 @@
 using System.Diagnostics;
+using System.Globalization;
+using System.Text;
+using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 using MediaTracker.Server.Common.Http;
 using MediaTracker.Server.Common.Json;
 using MediaTracker.Server.Infrastructure.Storage;
 using MediaTracker.Server.Features.Settings.ApiTokens;
 using MediaTracker.Server.Features.Settings.GetCategoryOrder;
+using MediaTracker.Server.Features.Settings.GetSourceKeyStatus;
 using MediaTracker.Server.Features.Settings.GetSourcePriority;
 using MediaTracker.Server.Features.Settings.SaveCategoryOrder;
 using MediaTracker.Server.Features.Settings.SaveSourceKey;
@@ -15,6 +20,8 @@ using MediaTracker.Server.Features.Settings.TestSource;
 using MediaTracker.Server.Features.Settings.ToggleSource;
 using MediaTracker.Server.Features.System.GetSources;
 using MediaTracker.Server.Features.System.Updates;
+using MediaTracker.Server.Domain.Entities;
+using MediaTracker.Server.Domain.Enums;
 using MediaTracker.Server.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Mvc;
 
@@ -48,6 +55,14 @@ public static class SettingsEndpoints
             handler.HandleAsync(new SaveSourceKeyCommand(id, request.ApiKey), ct).ToOk())
             .WithTags("Настройки / Settings")
             .WithSummary("Сохранить API-ключ источника");
+
+        group.MapGet("/sources/{id}/key", (
+                string id,
+                [FromServices] IGetSourceKeyStatusHandler handler,
+                CancellationToken ct) =>
+            handler.HandleAsync(new GetSourceKeyStatusQuery(id), ct).ToOk())
+            .WithTags("Настройки / Settings")
+            .WithSummary("Статус ключа источника (без раскрытия секрета)");
 
         group.MapPut("/sources/{id}/toggle", (
                 string id,
@@ -164,6 +179,46 @@ public static class SettingsEndpoints
         .WithTags("Настройки / Settings")
         .WithSummary("Восстановление из резервной копии")
         .WithDescription("Принимает ZIP-архив бэкапа и восстанавливает базу данных и медиафайлы.");
+
+        group.MapGet("/export/json", async (
+            [FromServices] AppDbContext db,
+            CancellationToken ct) =>
+        {
+            var items = await db.LoadAllMediaItemsAsync(ct);
+            var export = items.Select(LibraryExportMapper.ToExportDto).ToList();
+
+            var options = new JsonSerializerOptions(AppJsonSerializerContext.Default.Options)
+            {
+                WriteIndented = true,
+                Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+            };
+            var typeInfo = (JsonTypeInfo<List<LibraryExportItemDto>>)options.GetTypeInfo(typeof(List<LibraryExportItemDto>));
+            var json = JsonSerializer.Serialize(export, typeInfo);
+
+            return Results.Bytes(
+                Encoding.UTF8.GetBytes(json),
+                contentType: "application/json; charset=utf-8",
+                fileDownloadName: $"tsundoku-library-{DateTime.UtcNow:yyyyMMdd}.json");
+        })
+        .WithTags("Настройки / Settings")
+        .WithSummary("Экспорт библиотеки в JSON")
+        .WithDescription("Выгружает все тайтлы в человекочитаемом JSON, совместимом с импортом (Custom Import).");
+
+        group.MapGet("/export/csv", async (
+            [FromServices] AppDbContext db,
+            CancellationToken ct) =>
+        {
+            var items = await db.LoadAllMediaItemsAsync(ct);
+            var csv = LibraryExportMapper.ToCsv(items.Select(LibraryExportMapper.ToExportDto).ToList());
+
+            return Results.Bytes(
+                Encoding.UTF8.GetBytes(csv),
+                contentType: "text/csv; charset=utf-8",
+                fileDownloadName: $"tsundoku-library-{DateTime.UtcNow:yyyyMMdd}.csv");
+        })
+        .WithTags("Настройки / Settings")
+        .WithSummary("Экспорт библиотеки в CSV")
+        .WithDescription("Выгружает все тайтлы в RFC 4180 CSV с UTF-8 BOM (корректно открывается в Excel), совместим с импортом (Custom Import).");
 
         group.MapGet("/update/check", async (
             [FromServices] IUpdateService updateService,
@@ -285,3 +340,144 @@ public static class SettingsEndpoints
 public sealed record StorageRequest(string Mode, string? CustomPath, bool MigrateExistingData);
 public sealed record ToggleSourceRequest(bool Enabled);
 public sealed record UpdateKeyRequest(string? ApiKey);
+
+/// <summary>
+/// One flat library row in the privacy-first export. The column names are exactly the aliases
+/// CustomImportParser matches case-insensitively, so a downloaded file re-imports without edits.
+/// </summary>
+public sealed record LibraryExportItemDto(
+    string Title,
+    string? OriginalTitle,
+    string? RomajiTitle,
+    string Type,
+    string Status,
+    int? Score,
+    int? Progress,
+    int? TotalCount,
+    string? Author,
+    string? Studio,
+    int? ReleaseYear,
+    string? ReleaseDate,
+    string? Genres,
+    string? Notes,
+    string? ExternalSource,
+    string? ExternalId);
+
+/// <summary>Projects typed media entities onto the flat import-compatible export rows.</summary>
+public static class LibraryExportMapper
+{
+    public static LibraryExportItemDto ToExportDto(MediaItem item) => new(
+        Title: item.Title,
+        OriginalTitle: item.OriginalTitle,
+        RomajiTitle: item switch
+        {
+            Manga manga => manga.RomajiTitle,
+            TvShow show => show.RomajiTitle,
+            Movie movie => movie.RomajiTitle,
+            _ => null,
+        },
+        Type: ToTypeName(item),
+        Status: ToStatusName(item.Status),
+        Score: item.Score,
+        Progress: item switch
+        {
+            Manga manga => manga.CurrentChapter,
+            Book book => book.CurrentPage,
+            TvShow show => show.TotalEpisodesWatched,
+            VideoGame game => game.HoursPlayed,
+            _ => null,
+        },
+        TotalCount: item switch
+        {
+            Manga manga => manga.TotalChapters,
+            Book book => book.TotalPages > 0 ? book.TotalPages : null,
+            TvShow show => show.TotalEpisodesCount > 0 ? show.TotalEpisodesCount : null,
+            _ => null,
+        },
+        Author: item switch
+        {
+            Manga manga => manga.Author,
+            Book book => string.IsNullOrWhiteSpace(book.Author) ? null : book.Author,
+            _ => null,
+        },
+        Studio: item switch
+        {
+            TvShow show => show.Studio,
+            Movie movie => movie.Studio,
+            VideoGame game => game.Studio,
+            _ => null,
+        },
+        ReleaseYear: item.ReleaseYear,
+        ReleaseDate: item.ReleaseDate?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+        Genres: item.Genres,
+        Notes: item.Notes,
+        ExternalSource: item.ExternalSource,
+        ExternalId: item.ExternalId);
+
+    private static string ToTypeName(MediaItem item) => item switch
+    {
+        VideoGame => "game",
+        Book => "book",
+        Manga => "manga",
+        Movie => "movie",
+        // "anime" is not a stored media type: it round-trips through the import parser back to
+        // a TvShow carrying the IsAnime flag, so it must not collapse into "tvshow".
+        TvShow { IsAnime: true } => "anime",
+        TvShow => "tvshow",
+        _ => throw new InvalidOperationException($"Unsupported media item '{item.GetType().Name}'."),
+    };
+
+    private static string ToStatusName(MediaStatus status) => status switch
+    {
+        MediaStatus.InProgress => "in_progress",
+        MediaStatus.Completed => "completed",
+        MediaStatus.OnHold => "on_hold",
+        MediaStatus.Dropped => "dropped",
+        _ => "planned",
+    };
+
+    /// <summary>Serialises rows as RFC 4180 CSV: CRLF line breaks, quote-doubling, UTF-8 BOM.</summary>
+    public static string ToCsv(List<LibraryExportItemDto> items)
+    {
+        var sb = new StringBuilder();
+        sb.Append('\uFEFF');
+        sb.Append(
+            "title,originalTitle,romajiTitle,type,status,score,progress,totalCount,author,studio," +
+            "releaseYear,releaseDate,genres,notes,externalSource,externalId\r\n");
+        foreach (var item in items)
+        {
+            sb.Append(EscapeCsvField(item.Title)).Append(',')
+                .Append(EscapeCsvField(item.OriginalTitle)).Append(',')
+                .Append(EscapeCsvField(item.RomajiTitle)).Append(',')
+                .Append(EscapeCsvField(item.Type)).Append(',')
+                .Append(EscapeCsvField(item.Status)).Append(',')
+                .Append(EscapeCsvField(item.Score)).Append(',')
+                .Append(EscapeCsvField(item.Progress)).Append(',')
+                .Append(EscapeCsvField(item.TotalCount)).Append(',')
+                .Append(EscapeCsvField(item.Author)).Append(',')
+                .Append(EscapeCsvField(item.Studio)).Append(',')
+                .Append(EscapeCsvField(item.ReleaseYear)).Append(',')
+                .Append(EscapeCsvField(item.ReleaseDate)).Append(',')
+                .Append(EscapeCsvField(item.Genres)).Append(',')
+                .Append(EscapeCsvField(item.Notes)).Append(',')
+                .Append(EscapeCsvField(item.ExternalSource)).Append(',')
+                .Append(EscapeCsvField(item.ExternalId))
+                .Append("\r\n");
+        }
+
+        return sb.ToString();
+    }
+
+    private static string EscapeCsvField(object? value)
+    {
+        var text = value?.ToString() ?? "";
+        var mustQuote = text.Contains(',') || text.Contains('"') || text.Contains('\r') || text.Contains('\n');
+        if (!mustQuote)
+        {
+            return text;
+        }
+
+        return $"\"{text.Replace("\"", "\"\"")}\"";
+    }
+}
+

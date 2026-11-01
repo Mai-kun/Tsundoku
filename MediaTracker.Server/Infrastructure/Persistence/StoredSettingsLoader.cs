@@ -26,9 +26,16 @@ public sealed class StoredSettingsLoader(
 
         if (!settingsTableExists) return;
 
-        foreach (var provider in providers.Where(p => p.RequiresApiKey || p.OptionalApiKey).DistinctBy(p => p.Id))
+        // Import-only sources (MangaLib) live in the same Settings table without
+        // a provider, so they are concatenated explicitly.
+        var keySources = providers
+            .Where(p => p.RequiresApiKey || p.OptionalApiKey)
+            .Select(p => p.Id)
+            .Concat(new[] { ImportOnlyKeySources.MangaLib })
+            .DistinctBy(id => id, StringComparer.OrdinalIgnoreCase);
+        foreach (var sourceId in keySources)
         {
-            var value = await db.GetSettingAsync($"ApiKey_{provider.Id}", ct);
+            var value = await db.GetSettingAsync($"ApiKey_{sourceId}", ct);
             if (string.IsNullOrWhiteSpace(value))
             {
                 continue;
@@ -37,7 +44,7 @@ public sealed class StoredSettingsLoader(
             var decrypted = encryption.Decrypt(value);
             if (!string.IsNullOrWhiteSpace(decrypted))
             {
-                options.Value.SetKey(provider.Id, decrypted);
+                options.Value.SetKey(sourceId, decrypted);
             }
         }
     }

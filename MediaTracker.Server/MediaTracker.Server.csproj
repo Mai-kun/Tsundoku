@@ -12,7 +12,10 @@
         <AllowMissingPrunePackageData>true</AllowMissingPrunePackageData>
 
         <RuntimeIdentifier Condition="'$(OS)' == 'Windows_NT'">win-x64</RuntimeIdentifier>
-        <PublishDir>$(MSBuildThisFileDirectory)..\dist\</PublishDir>
+        <!-- Only a default: an explicit `-o` / `-p:PublishDir=` on the command
+             line must win, otherwise `dotnet publish -o dist/server_build`
+             ignores it and splatters the publish output into dist/. -->
+        <PublishDir Condition="'$(PublishDir)' == ''">$(MSBuildThisFileDirectory)..\dist\</PublishDir>
 
         <AssemblyName>Tsundoku.Server</AssemblyName>
         <RootNamespace>MediaTracker.Server</RootNamespace>
@@ -51,6 +54,12 @@
         <PublishAot>true</PublishAot>
         <StripSymbols>true</StripSymbols>
         <OptimizationPreference>Speed</OptimizationPreference>
+        <!-- ilc already parallelizes across all cores by default (no IlcParallelism property
+             exists; single-threaded compilation is only forced when IlcSingleThreaded is true). -->
+        <IlcSingleThreaded>false</IlcSingleThreaded>
+        <!-- Identical method body folding costs minutes of link time for a marginal
+             size win; disabling it keeps the NativeAOT compile fast. -->
+        <IlcFoldIdenticalMethodBodies>false</IlcFoldIdenticalMethodBodies>
 
         <DebugType>None</DebugType>
         <DebugSymbols>false</DebugSymbols>
@@ -72,6 +81,16 @@
         <Content Update="appsettings.json" CopyToPublishDirectory="Never" />
         <Content Update="web.config" CopyToPublishDirectory="Never" />
         <Content Update="appsettings.Development.json" CopyToPublishDirectory="Never" />
+    </ItemGroup>
+
+    <!-- build-linux.sh publishes the server IN PARALLEL with the vite build that
+         rewrites wwwroot (new content-hashed names, old ones deleted). MSBuild
+         snapshots the Content list at evaluation, so by the copy phase the files
+         are gone (MSB3030). The desktop bundle takes wwwroot from the source
+         folder, never from the publish output, so the script opts out via this
+         switch; plain `dotnet publish` keeps shipping wwwroot. -->
+    <ItemGroup Condition="'$(ExcludeWwwrootFromPublish)' == 'true'">
+        <Content Remove="wwwroot\**\*" />
     </ItemGroup>
 
     <ItemGroup>

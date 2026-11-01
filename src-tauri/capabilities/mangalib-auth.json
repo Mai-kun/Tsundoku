@@ -1,0 +1,22 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "mangalib-auth",
+  "description": "MangaLib login popup. Remote SocialLib origins are required so the initialization script can invoke save_mangalib_auth with the captured Bearer token. Only the two app commands it needs are exposed.",
+  "windows": ["auth_mangalib"],
+  "remote": {
+    "urls": [
+      "https://mangalib.me",
+      "https://*.mangalib.me",
+      "https://animelib.org",
+      "https://*.animelib.org",
+      "https://ranobelib.me",
+      "https://*.ranobelib.me",
+      "https://lib.social",
+      "https://*.lib.social"
+    ]
+  },
+  "permissions": [
+    "core:default",
+    "allow-save-mangalib-auth"
+  ]
+}

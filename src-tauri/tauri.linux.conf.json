@@ -1,4 +1,7 @@
 {
+  "app": {
+    "windows": []
+  },
   "bundle": {
     "resources": {
       "binaries/libe_sqlite3.so": "libe_sqlite3.so"

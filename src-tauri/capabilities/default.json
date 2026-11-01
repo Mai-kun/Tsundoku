@@ -11,6 +11,8 @@
     "shell:allow-open",
     "notification:default",
     "allow-close-action",
-    "allow-open-logs-window"
+    "allow-open-logs-window",
+    "allow-open-mangalib-auth-window",
+    "allow-save-mangalib-auth"
   ]
 }

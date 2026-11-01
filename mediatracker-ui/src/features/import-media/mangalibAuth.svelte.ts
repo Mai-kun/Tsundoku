@@ -1,15 +1,13 @@
-import { invoke } from "@tauri-apps/api/core";
 import { getSourceKeyStatus, saveSourceKey } from "$shared/api/api";
 import { i18n } from "$shared/i18n/index.svelte";
 import { showToast } from "$shared/ui/toast.svelte";
-import { isTauri } from "$shared/utils/tauri";
 
 /**
- * Native MangaLib (SocialLib) auth state, shared by the import panel and the
- * settings sources tab. The Bearer token is captured by the Tauri auth window
- * (`save_mangalib_auth` -> `mangalib-authenticated` event), persisted through
- * the encrypted source-key storage and never kept in the frontend; only the
- * non-secret User ID lives in localStorage for one-click imports.
+ * MangaLib (SocialLib) auth state, shared by the import panel and the
+ * settings sources tab. The Bearer token is picked up from the user's own
+ * browser session (server-side detector, `detect-token` endpoint), persisted
+ * through the encrypted source-key storage and never kept in the frontend;
+ * only the non-secret User ID lives in localStorage for one-click imports.
  */
 
 const USER_ID_KEY = "mangalib_user_id";
@@ -30,10 +28,11 @@ export function readStoredMangalibUserId(): string {
 }
 
 export async function refreshMangalibAuth(): Promise<void> {
-  if (!isTauri()) {
-    mangalibAuth.checking = false;
-    return;
-  }
+  await readMangalibStatus();
+}
+
+/** Reads the server-side key status. */
+async function readMangalibStatus(): Promise<void> {
   try {
     const status = await getSourceKeyStatus("mangalib");
     mangalibAuth.connected = status.hasKey;
@@ -46,36 +45,42 @@ export async function refreshMangalibAuth(): Promise<void> {
   }
 }
 
-/** Opens the native MangaLib login popup (Tauri shell only). */
-export function openMangalibAuthWindow(): void {
-  if (!isTauri()) return;
-  invoke("open_mangalib_auth_window").catch((error) => {
-    console.error("open_mangalib_auth_window failed:", error);
-    showToast(i18n.t.importModal.mangalibAuth.authFailed, "error");
-  });
-}
-
 /**
- * Handles the `mangalib-authenticated` event from the Tauri shell: persists
- * the captured token into the encrypted source-key storage, remembers the
- * non-secret User ID for one-click imports and refreshes the shared state.
+ * Manual token fallback (when browser pickup is unavailable): persists the
+ * token the user pasted by hand. Returns true when the token was saved and
+ * the shared state now reports connected.
  */
-export async function handleMangalibAuthenticated(token: string, userId: string): Promise<void> {
+export async function saveMangalibToken(token: string): Promise<boolean> {
+  const trimmed = token.trim();
+  if (!trimmed) return false;
   try {
-    await saveSourceKey("mangalib", token);
-    if (userId) {
-      try {
-        localStorage.setItem(USER_ID_KEY, userId.trim());
-      } catch {
-        // Storage unavailable: the user can still type the ID manually.
-      }
-    }
-    await refreshMangalibAuth();
+    await saveSourceKey("mangalib", trimmed);
+    await readMangalibStatus();
     showToast(i18n.t.importModal.mangalibAuth.connectedToast, "success");
+    return true;
   } catch (error) {
     console.error("save mangalib token failed:", error);
     showToast(i18n.t.importModal.mangalibAuth.saveFailed, "error");
+    return false;
   }
+}
+
+/**
+ * Applies a session picked up from the user's browser (server already stored
+ * the token encrypted): remembers the non-secret User ID for one-click imports
+ * and refreshes the shared state so the card flips to connected.
+ */
+export async function adoptBrowserSession(userId: number | null): Promise<void> {
+  if (userId) {
+    try {
+      localStorage.setItem(USER_ID_KEY, String(userId));
+    } catch {
+      // Storage unavailable: the user can still type the ID manually.
+    }
+  }
+  // Read the server status directly: the detector already persisted the token.
+  await readMangalibStatus();
+  showToast(i18n.t.importModal.mangalibAuth.connectedToast, "success");
 }
 
 /** Clears the stored token and the remembered User ID. */

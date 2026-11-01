@@ -31,6 +31,8 @@ import type {
   CalendarScheduleDto,
   BacklogDeadlineDto,
   PendingMatchItemDto,
+  GoalDto,
+  CreateGoalPayload,
   StorageSettings,
   StorageRequest,
 } from "$shared/types";
@@ -448,6 +450,40 @@ export function getSourceKeyStatus(
   return requestJson(`/api/settings/sources/${sourceId}/key`);
 }
 
+export interface MangalibDetectResult {
+  success: boolean;
+  userId: number | null;
+  username: string | null;
+  /** Where the session was found (browser profile), for the confirmation toast. */
+  source: string | null;
+  message: string | null;
+}
+
+/**
+ * Picks up the SocialLib session from the user's own browsers (Zen / Firefox /
+ * the isolated Tsundoku Chromium profile). Returns null when no session exists
+ * (HTTP 404) — the caller shows the "open login page" fallback.
+ */
+export async function detectMangalibBrowserSession(): Promise<MangalibDetectResult | null> {
+  const response = await fetch("/api/settings/sources/mangalib/detect-token", { method: "POST" });
+  if (response.status === 404) return null;
+  if (!response.ok) {
+    await throwApiError(response);
+  }
+  invalidateSourcesCache();
+  return (await response.json()) as MangalibDetectResult;
+}
+
+/** Opens the MangaLib login page in the system browser. */
+export function openMangalibLoginPage(): Promise<void> {
+  return requestVoid("/api/settings/sources/mangalib/open-login", { method: "POST" });
+}
+
+/** Asks the Tsundoku server (tray + web) to shut down gracefully. */
+export function shutdownApp(): Promise<void> {
+  return requestVoid("/api/system/shutdown", { method: "POST" });
+}
+
 export function getCategoryOrder(): Promise<string[]> {
   return requestJson<string[]>("/api/settings/category-order");
 }
@@ -738,4 +774,16 @@ export function getStorageSettings(): Promise<StorageSettings> {
 
 export function saveStorageSettings(payload: StorageRequest): Promise<void> {
   return requestVoid("/api/settings/storage", jsonOptions("POST", payload));
+}
+
+export function getGoals(year: number): Promise<GoalDto[]> {
+  return requestJson<GoalDto[]>(`/api/goals?year=${year}`);
+}
+
+export function createGoal(payload: CreateGoalPayload): Promise<GoalDto> {
+  return requestJson<GoalDto>("/api/goals", jsonOptions("POST", payload));
+}
+
+export function deleteGoal(id: string): Promise<void> {
+  return requestVoid(`/api/goals/${id}`, { method: "DELETE" });
 }

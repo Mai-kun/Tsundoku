@@ -18,26 +18,29 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import {
+    detectMangalibBrowserSession,
     getLists,
     getSources,
     importAniListProfile,
     importFile,
     importMangaLibProfile,
     importSteamProfile,
+    openMangalibLoginPage,
     saveSourceKey,
   } from "$shared/api/api";
   import type { CustomListSummary, ImportResultDto } from "$shared/types";
   import { i18n } from "$shared/i18n/index.svelte";
+  import { showToast } from "$shared/ui/toast.svelte";
   import { jobsClient } from "$shared/api/jobsClient.svelte";
   import Modal from "$shared/ui/Modal.svelte";
   import Select from "$shared/ui/Select.svelte";
   import PopoverMenu, { type PopoverOption } from "$shared/ui/PopoverMenu.svelte";
-  import { isTauri } from "$shared/utils/tauri";
   import {
+    adoptBrowserSession,
     disconnectMangalib,
     mangalibAuth,
-    openMangalibAuthWindow,
     refreshMangalibAuth,
+    saveMangalibToken,
   } from "./mangalibAuth.svelte";
   import {
     Check,
@@ -49,6 +52,7 @@
     ExternalLink,
     FileText,
     FolderInput,
+    Key,
     LoaderCircle,
     Sparkles,
     Upload,
@@ -103,12 +107,18 @@
   // MangaLib (SocialLib) ecosystem
   let mangalibMode = $state<"collector" | "file">("collector");
   let mangalibSites = $state<number[]>([1, 5, 3, 2, 4]);
-  let scriptCopied = $state(false);
   let showSkippedDuplicates = $state(false);
   // One-click profile import (native auth): User ID is remembered by the
   // mangalibAuth store once the token has been captured.
   let mangalibProfileInput = $state("");
   let mangalibOneClickBusy = $state(false);
+  // Manual token fallback (browser mode or when the native window is unavailable).
+  let showManualTokenInput = $state(false);
+  let manualTokenInput = $state("");
+  let manualTokenBusy = $state(false);
+  // Automatic browser-session pickup (server reads Zen/Firefox/Chromium profiles).
+  let mangalibDetectBusy = $state(false);
+  let mangalibDetectFailed = $state(false);
 
   // MangaLib folder options: standard 5 + custom folders
   interface MangaLibFolderOption {
@@ -520,10 +530,10 @@
       icon: "AX",
       title: "Anixart",
       subtitle: i18n.t.importModal.subtitleAnixart,
-      accent: "#a855f7",
-      border: "rgba(168, 85, 247, 0.3)",
-      surface: "rgba(168, 85, 247, 0.1)",
-      text: "#c084fc",
+      accent: "var(--color-import-anixart-accent)",
+      border: "var(--color-import-anixart-border)",
+      surface: "var(--color-import-anixart-surface)",
+      text: "var(--color-import-anixart-text)",
     },
     {
       id: "custom",
@@ -639,10 +649,10 @@
         return;
       }
     } else if (provider === "mangalib" && mangalibMode === "collector") {
-      if (!file) {
-        void importFromClipboard();
-        return;
-      }
+      // The collector tab is auth-driven: the footer button mirrors the card's
+      // primary action instead of reading a clipboard payload.
+      void importMangaLibOneClick();
+      return;
     } else {
       if (!file) {
         error = i18n.t.importModal.selectFileError;
@@ -776,532 +786,6 @@
     }
   }
 
-  function generateSocialLibScript(
-    siteIds: number[],
-    statusCodes: number[] = mangalibSelectedStatuses,
-    includeCustom: boolean = mangalibIncludeCustomFolders,
-  ): string {
-    const idsJson = JSON.stringify(siteIds);
-    const statusJson = JSON.stringify(statusCodes);
-    const includeCustomJson = JSON.stringify(includeCustom);
-    return `(async () => {
-  console.clear();
-  let userId = null;
-  const urlMatch = window.location.pathname.match(/\/(?:ru\/)?user[s]?\/(\d+)/i) || window.location.pathname.match(/\/user\/(\d+)/);
-  if (urlMatch) userId = urlMatch[1];
-
-  if (!userId) {
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      const val = localStorage.getItem(key);
-      if (!val) continue;
-      try {
-        const parsed = JSON.parse(val);
-        if (parsed?.id && typeof parsed.id === "number") { userId = String(parsed.id); break; }
-        if (parsed?.user?.id) { userId = String(parsed.user.id); break; }
-        if (parsed?.userId) { userId = String(parsed.userId); break; }
-        if (parsed?.auth?.user?.id) { userId = String(parsed.auth.user.id); break; }
-      } catch {}
-    }
-  }
-  if (!userId && window.__DATA__?.user?.id) userId = String(window.__DATA__.user.id);
-  if (!userId && window.__INITIAL_STATE__?.user?.id) userId = String(window.__INITIAL_STATE__.user.id);
-
-  if (!userId) {
-    userId = prompt("Tsundoku: Enter Lib numeric User ID (e.g.: 123456):");
-    if (!userId) { console.error("Export cancelled: User ID not provided."); return; }
-    userId = userId.trim().replace(/\D+/g, "");
-  }
-
-  console.log("%c[Tsundoku SocialLib Collector]%c Starting bookmarks export for User ID:", "color:#ff6740;font-weight:bold", "", userId);
-
-  // Auth token in SocialLib is stored in localStorage.auth as JSON: { token: { access_token } }
-  const getAuthToken = () => {
-    // 1. localStorage.auth
-    try {
-      if (localStorage.auth) {
-        const auth = JSON.parse(localStorage.auth);
-        const token = auth?.token?.access_token || auth?.access_token || auth?.token;
-        if (token && typeof token === "string" && token.startsWith("eyJ")) return token;
-      }
-    } catch {}
-
-    // 2. localStorage.token
-    try {
-      if (localStorage.token) {
-        const t = JSON.parse(localStorage.token);
-        const token = t?.access_token || t?.token || t;
-        if (token && typeof token === "string" && token.startsWith("eyJ")) return token;
-      }
-    } catch {
-      if (typeof localStorage.token === "string" && localStorage.token.startsWith("eyJ")) return localStorage.token;
-    }
-
-    // 3. Scan all localStorage keys for valid JWT (eyJ...)
-    try {
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        const val = localStorage.getItem(key);
-        if (!val) continue;
-        if (val.startsWith("eyJ") && val.includes(".")) return val.trim();
-        try {
-          const parsed = JSON.parse(val);
-          const match = JSON.stringify(parsed).match(/eyJ[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+/);
-          if (match) return match[0];
-        } catch {}
-      }
-    } catch {}
-
-    return null;
-  };
-  const token = getAuthToken();
-  console.log("Auth token:", token ? \`✅ found (\${token.slice(0, 15)}...)\` : "❌ not found (guest mode, limit 100 titles)");
-
-  const allSites = [
-    { id: 1, name: "MangaLib", type: "manga" },
-    { id: 5, name: "AnimeLib", type: "anime" },
-    { id: 3, name: "RanobeLib", type: "book" },
-    { id: 2, name: "SlashLib", type: "manga" },
-    { id: 4, name: "HentaiLib", type: "manga" }
-  ];
-  const targetSiteIds = ${idsJson};
-  const selectedSites = allSites.filter(s => targetSiteIds.includes(s.id));
-  const standardIds = [1, 2, 3, 4, 5, 6];
-  const allowedStandardStatuses = ${statusJson};
-  const includeCustomFolders = ${includeCustomJson};
-
-  const isStandardName = (name) => {
-    if (!name) return false;
-    const s = String(name).toLowerCase().trim();
-    return READING_RE.test(s) ||
-      PLANNED_RE.test(s) ||
-      COMPLETED_RE.test(s) ||
-      FAVORITE_RE.test(s) ||
-      ON_HOLD_RE.test(s) ||
-      DROPPED_RE.test(s);
-  };
-
-  const statusToCode = (statusId, statusName) => {
-    const s = String(statusName || "").toLowerCase();
-    if (DROPPED_RE.test(s)) return 3;
-    if (READING_RE.test(s)) return 1;
-    if (PLANNED_RE.test(s)) return 2;
-    if (COMPLETED_RE.test(s)) return 4;
-    if (FAVORITE_RE.test(s)) return 5;
-    if (ON_HOLD_RE.test(s)) return 6;
-    if (typeof statusId === "number") {
-      if (statusId >= 1 && statusId <= 6) return statusId;
-      return 6;
-    }
-    return 2;
-  };
-
-  const allItems = [];
-  const counts = { 1: 0, 5: 0, 3: 0, 2: 0, 4: 0, 6: 0 };
-  const statusMap = { 1: "Reading", 2: "Planned", 3: "Dropped", 4: "Completed", 5: "Favorites", 6: "On Hold" };
-
-  const processBookmark = (b, site, folderId, folderName, isCustomFolder) => {
-    const m = b.media || {};
-    const prog = b.item || b.progress || {};
-    const itemStatus = (b.status !== undefined && b.status !== null) ? b.status : (b.status_id || b.folder_id || folderId || 2);
-    const statusText = folderName || statusMap[itemStatus] || (typeof itemStatus === "string" ? itemStatus : null) || b.folder?.name || b.status_name;
-
-    let coverUrl = null;
-    if (typeof m.cover === "string") coverUrl = m.cover;
-    else if (m.cover?.default) coverUrl = m.cover.default;
-    else if (m.cover?.md) coverUrl = m.cover.md;
-    else if (b.cover) coverUrl = typeof b.cover === "string" ? b.cover : (b.cover?.default || b.cover?.md);
-
-    const genresList = Array.isArray(m.genres) ? m.genres.map(g => g?.name || g).filter(Boolean).join(", ") : (m.genres ?? null);
-    const authorList = Array.isArray(m.authors) ? m.authors.map(a => a?.name || a).filter(Boolean).join(", ") : (m.authors ?? m.author ?? null);
-
-    const totalChapters = m.chap_count ?? m.chapters_count ?? b.total_chapters ?? null;
-    const volumes = prog.volume !== undefined ? Number(prog.volume) : (m.volumes_count ?? b.volumes ?? null);
-    const userRating = prog.rating ?? prog.score ?? prog.user_rating ?? b.user_rating ?? b.score ?? b.rating ?? null;
-    const summary = m.summary ?? m.description ?? b.summary ?? null;
-
-    const item = {
-      title: m.rus_name || m.name || m.eng_name || b.name || b.title,
-      englishTitle: m.eng_name || m.name || b.eng_name || null,
-      type: site.type,
-      status: statusText || itemStatus || "Planned",
-      status_id: (typeof itemStatus === "number" ? itemStatus : (folderId || null)),
-      folder_name: folderName || null,
-      folder_id: folderId || null,
-      is_custom_folder: isCustomFolder,
-      progress: prog.chapter !== undefined ? Number(prog.chapter) : (prog.episodes !== undefined ? Number(prog.episodes) : (b.progress ?? 0)),
-      totalEpisodes: site.type === "anime" ? totalChapters : null,
-      totalChapters: site.type !== "anime" ? totalChapters : null,
-      totalVolumes: volumes,
-      rating: userRating !== null ? Number(userRating) : null,
-      score: userRating !== null ? Number(userRating) : null,
-      author: authorList,
-      genres: genresList,
-      description: summary,
-      sourceUrl: \`https://\${site.name.toLowerCase()}.me/\${m.slug_url || m.slug || b.slug || ""}\`,
-      coverUrl: coverUrl,
-      source_site: site.name
-    };
-
-    allItems.push(item);
-    counts[site.id] = (counts[site.id] || 0) + 1;
-  };
-
-  const headers = {
-    "Accept": "application/json",
-    "Site-Id": "1"
-  };
-  if (token) {
-    headers["Authorization"] = token.startsWith("Bearer ") ? token : ("Bearer " + token);
-  }
-
-  let siteIdx = 0;
-  const totalSites = selectedSites.length;
-
-  for (const site of selectedSites) {
-    siteIdx++;
-    headers["Site-Id"] = String(site.id);
-    let siteTotal = 0;
-    console.log(\`%c[\${siteIdx}/\${totalSites}] \${site.name}%c: polling folders...\`, "color:#ff6740;font-weight:bold", "");
-
-    let activeFolders = [];
-    try {
-      const res = await fetch(\`https://api.lib.social/api/bookmarks/folders?user_id=\${userId}\`, { headers });
-      if (res.ok) {
-        const json = await res.json();
-        const rawFolders = json.data || json || [];
-        if (Array.isArray(rawFolders) && rawFolders.length > 0) {
-          activeFolders = rawFolders.map(f => ({
-            id: f.id,
-            name: f.name || f.slug || ("Folder " + f.id),
-            count: f.count ?? f.items_count ?? 0
-          }));
-        }
-      }
-    } catch (err) {
-      console.warn(\`Failed to get folders for \${site.name}:\`, err.message);
-    }
-
-    if (activeFolders.length === 0) {
-      const isAnime = site.type === "anime";
-      if (standardIds.some(id => allowedStandardStatuses.includes(id))) {
-        activeFolders = isAnime ? [
-          { id: 1, name: "Watching" },
-          { id: 2, name: "Planned" },
-          { id: 4, name: "Completed" },
-          { id: 5, name: "Favorites" },
-          { id: 6, name: "On Hold" },
-          { id: 3, name: "Dropped" }
-        ] : [
-          { id: 1, name: "Reading" },
-          { id: 2, name: "Planned" },
-          { id: 4, name: "Completed" },
-          { id: 5, name: "Favorites" },
-          { id: 3, name: "Dropped" }
-        ];
-      }
-    }
-
-    // Custom folders ("Waiting", "Deleted", etc.) — scan DOM of bookmark sidebar
-    // on the current page and merge with API list by unique id
-    if (includeCustomFolders) {
-      try {
-        const domFolderElements = document.querySelectorAll("a[href*=\"/bookmark/\"], a[href*=\"/bookmarks\"]");
-        const discovered = [];
-        domFolderElements.forEach(el => {
-          const m = el.getAttribute("href")?.match(/folder[=\/](\d+)/i) || el.getAttribute("href")?.match(/\/(\d+)$/);
-          const rawName = el.innerText?.trim();
-          if (m && rawName) {
-            const id = Number(m[1]);
-            const folder = { id: id, name: rawName.replace(/\s*\d+$/, "").trim() || ("Folder " + id) };
-            if (!activeFolders.some(f => f.id === id) && !discovered.some(f => f.id === id)) {
-              discovered.push(folder);
-            }
-          }
-        });
-        if (discovered.length > 0) {
-          activeFolders = [...activeFolders, ...discovered];
-        }
-      } catch {}
-    }
-
-    console.log(\`📁 [\${site.name}] Folders: \${activeFolders.map(f => \`\${f.name} (\${f.count})\`).join(', ')}\`);
-
-    for (const folder of activeFolders) {
-      const isStd = standardIds.includes(folder.id) || isStandardName(folder.name);
-      if (isStd) {
-        const stdCode = folder.id >= 1 && folder.id <= 6 ? folder.id : statusToCode(folder.id, folder.name);
-        if (!allowedStandardStatuses.includes(stdCode)) {
-          continue;
-        }
-      } else {
-        if (!includeCustomFolders) {
-          continue;
-        }
-      }
-
-      let page = 1;
-      let maxPage = 1;
-      let folderCount = 0;
-      let totalExpected = null;
-
-      // Pagination: in SocialLib API fields (last_page / total / per_page) are root-level
-      while (page <= maxPage && page <= 50) {
-        let res;
-        try {
-          res = await fetch(\`https://api.lib.social/api/bookmarks?user_id=\${userId}&folder_id=\${folder.id}&page=\${page}&per_page=60\`, { headers });
-        } catch (fetchErr) {
-          console.error(\`Network error for folder "\${folder.name}" (page \${page}):\`, fetchErr);
-          break;
-        }
-
-        if (res.status === 429) {
-          console.warn(\`[\${site.name}] ⚠️ Rate limit (429), pausing 6s...\`);
-          await new Promise(r => setTimeout(r, 6000));
-          continue;
-        }
-
-        if (!res.ok) {
-          if (res.status === 401 || res.status === 403) {
-            console.warn(\`\${site.name}: access restricted (\${res.status})\`);
-          } else if (res.status === 422) {
-            const errDetail = await res.text().catch(() => "");
-            console.warn(\`\${site.name} (folder "\${folder.name}" id:\${folder.id}): 422 detail:\`, errDetail);
-          }
-          break;
-        }
-
-        const json = await res.json();
-        const items = json.data || (Array.isArray(json) ? json : []);
-        if (!items || items.length === 0) break;
-
-        const isCustom = !standardIds.includes(folder.id) && !isStandardName(folder.name);
-        for (const b of items) {
-          processBookmark(b, site, folder.id, folder.name, isCustom);
-        }
-        folderCount += items.length;
-        siteTotal += items.length;
-
-        // Pagination can come at root or inside meta
-        const meta = json.meta || {};
-        totalExpected = json.total ?? meta.total ?? totalExpected;
-        const perPage = json.per_page ?? meta.per_page ?? 60;
-        if (json.last_page !== undefined) maxPage = json.last_page;
-        else if (meta.last_page !== undefined) maxPage = meta.last_page;
-        else if (totalExpected && perPage) maxPage = Math.ceil(totalExpected / perPage);
-        else maxPage = items.length === 60 ? page + 1 : page;
-
-        console.log(\`  ↳ Folder "\${folder.name}" (total \${totalExpected ?? "?"}): page \${page}/\${maxPage ?? "?"} ✓ (+\${items.length} titles, collected: \${folderCount})\`);
-
-        page++;
-        if (page <= maxPage) {
-          await new Promise(r => setTimeout(r, 600));
-        }
-      }
-    }
-
-    console.log(\`✔ \${site.name}: successfully collected \${siteTotal} titles.\`);
-  }
-
-  if (allItems.length === 0) {
-    console.log("Attempting fallback export from open page DOM...");
-    const cards = document.querySelectorAll(".media-card, .bookmark-item, .card, [data-media-id]");
-    cards.forEach(card => {
-      const titleEl = card.querySelector(".media-card__title, .title, h3, a[href*='/ru/']");
-      const title = titleEl ? titleEl.textContent?.trim() : null;
-      if (!title) return;
-      const href = card.querySelector("a[href]")?.getAttribute("href") || "";
-      const cover = card.querySelector("img")?.getAttribute("src") || null;
-      let text = card.textContent || "";
-      const progMatch = text.match(/(?:\u0433\u043B\u0430\u0432\u0430|\u0441\u0435\u0440\u0438\u044F|\u0442\u043E\u043C|\u0433\u043B\.|\u0441\u0435\u0440\.|chapter|episode|vol\.)\s*(\d+)/i) || text.match(/\b(\d+)\s*\/\s*\d+/);
-      const scoreMatch = text.match(/(?:★|☆|\u043E\u0446\u0435\u043D\u043A\u0430|score)?\s*(\d+(?:\.\d+)?)\s*\/\s*10/i);
-      allItems.push({
-        title: title,
-        type: window.location.host.includes("anime") ? "anime" : "manga",
-        status: "Planned",
-        status_id: 2,
-        folder_name: null,
-        is_custom_folder: false,
-        progress: progMatch ? parseInt(progMatch[1], 10) : 0,
-        score: scoreMatch ? parseFloat(scoreMatch[1]) : null,
-        sourceUrl: href ? (href.startsWith("http") ? href : window.location.origin + href) : null,
-        coverUrl: cover
-      });
-    });
-  }
-
-  if (allItems.length === 0) {
-    console.warn("No bookmarks found. Ensure you are signed in and viewing the right profile.");
-    return;
-  }
-
-  const exportPayload = {
-    version: 1,
-    exported_at: new Date().toISOString(),
-    source: "SocialLib Instant Collector",
-    items: allItems
-  };
-
-  const jsonStr = JSON.stringify(exportPayload, null, 2);
-
-  try {
-    await navigator.clipboard.writeText(jsonStr);
-  } catch {
-    const ta = document.createElement("textarea");
-    ta.value = jsonStr;
-    document.body.appendChild(ta);
-    ta.select();
-    document.execCommand("copy");
-    document.body.removeChild(ta);
-  }
-
-  try {
-    const blob = new Blob([jsonStr], { type: "application/json" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "tsundoku-sociallib.json";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(a.href);
-  } catch {}
-
-  let directUploaded = false;
-  try {
-    const blob = new Blob([jsonStr], { type: "application/json" });
-    const formData = new FormData();
-    formData.append("file", blob, "tsundoku-sociallib.json");
-    formData.append("provider", "mangalib");
-    formData.append("skipDuplicates", "true");
-    const resp = await fetch("http://localhost:5000/api/media/import/file", {
-      method: "POST",
-      body: formData
-    });
-    if (resp.ok) {
-      directUploaded = true;
-    }
-  } catch {}
-
-  console.log("%c==================================================", "color:#10b981");
-  console.log(\`%c🎉 EXPORT SUCCESSFUL: \${allItems.length} titles!\`, "color:#10b981;font-weight:bold;font-size:13px;");
-  console.log(\`MangaLib: \${counts[1] || 0}, AnimeLib: \${counts[5] || 0}, RanobeLib: \${counts[3] || 0}, SlashLib: \${counts[2] || 0}, HentaiLib: \${counts[4] || 0}\`);
-  console.log("Data copied to clipboard and downloaded as tsundoku-sociallib.json.");
-  console.log("👉 Return to Tsundoku and click Paste from clipboard and import!");
-  console.log("%c==================================================", "color:#10b981");
-
-  if (directUploaded) {
-    alert("🎉 Exported " + allItems.length + " bookmarks and sent to Tsundoku! Check your library.");
-  } else {
-    alert("✅ Exported " + allItems.length + " bookmarks! Copied to clipboard — return to Tsundoku and click Paste from clipboard and import!");
-  }
-})();`;
-  }
-
-  function toBookmarkletUrl(script: string): string {
-    const cleaned = script
-      .replace(/^\s*\/\/[^\n\r]*/gm, "")
-      .replace(/[\n\r\t]+/g, " ")
-      .replace(/\s{2,}/g, " ")
-      .trim();
-    return `javascript:void ${cleaned}`;
-  }
-
-  let bookmarkletUrl = $derived(
-    toBookmarkletUrl(
-      generateSocialLibScript(
-        mangalibSites,
-        mangalibSelectedStatuses,
-        mangalibIncludeCustomFolders,
-      ),
-    ),
-  );
-  let bookmarkletCopied = $state(false);
-
-  async function copyBookmarkletUrl() {
-    try {
-      await navigator.clipboard.writeText(bookmarkletUrl);
-      bookmarkletCopied = true;
-      setTimeout(() => (bookmarkletCopied = false), 2500);
-    } catch {
-      error = i18n.t.importModal.copyBookmarkletFailed;
-    }
-  }
-
-  async function copySocialLibScript() {
-    const script = generateSocialLibScript(
-      mangalibSites,
-      mangalibSelectedStatuses,
-      mangalibIncludeCustomFolders,
-    );
-    try {
-      await navigator.clipboard.writeText(script);
-      scriptCopied = true;
-      setTimeout(() => (scriptCopied = false), 2500);
-    } catch {
-      error = i18n.t.importModal.copyScriptFailed;
-    }
-  }
-
-  async function importFromClipboard() {
-    if (busy) return;
-    error = "";
-    try {
-      if (!navigator.clipboard?.readText) {
-        error = i18n.t.importModal.clipboardUnavailable;
-        return;
-      }
-      const text = await navigator.clipboard.readText();
-      if (!text || !text.trim()) {
-        error = i18n.t.importModal.clipboardEmpty;
-        return;
-      }
-      let data: any;
-      try {
-        data = JSON.parse(text);
-      } catch {
-        error = i18n.t.importModal.clipboardNoJson;
-        return;
-      }
-
-      let items: any[] = Array.isArray(data)
-        ? data
-        : data && Array.isArray(data.data)
-          ? data.data
-          : [];
-      items = filterMangaLibItems(items);
-
-      const customFolders = extractCustomFolders(items);
-      if (customFolders.length > 0) {
-        pendingImport = { type: "clipboard", data: items };
-        pendingCustomFolders = customFolders;
-        showCustomFolderModal = true;
-        busy = false;
-        return;
-      }
-
-      busy = true;
-      const clipboardFile = new File([JSON.stringify(items)], "tsundoku-sociallib.json", {
-        type: "application/json",
-      });
-      const form = new FormData();
-      form.append("file", clipboardFile);
-      form.append("provider", "mangalib");
-      form.append("skipDuplicates", String(skipDuplicates));
-      if (addToList && listMode === "existing" && targetListId)
-        form.append("targetListId", targetListId);
-      if (addToList && listMode === "new" && newListName.trim())
-        form.append("newListName", newListName.trim());
-
-      result = await importFile(form);
-      onImportCompleted?.();
-      void loadListsAndSources();
-    } catch (caught) {
-      error = caught instanceof Error ? caught.message : i18n.t.importModal.failed;
-    } finally {
-      busy = false;
-    }
-  }
-
   function resetImport() {
     result = null;
     file = null;
@@ -1311,7 +795,9 @@
   /** Direct API import using the token captured by the native auth window. */
   async function importMangaLibOneClick() {
     if (mangalibOneClickBusy) return;
-    const idOrUrl = mangalibProfileInput.trim();
+    // The remembered User ID makes this a true 1-click import; the field is
+    // only needed to override or when nothing was remembered yet.
+    const idOrUrl = mangalibProfileInput.trim() || mangalibAuth.userId;
     if (!idOrUrl) {
       error = i18n.t.importModal.mangalibAuth.userIdRequired;
       return;
@@ -1340,6 +826,41 @@
       error = caught instanceof Error ? caught.message : i18n.t.importModal.failed;
     } finally {
       mangalibOneClickBusy = false;
+    }
+  }
+
+  /** Persists a hand-pasted token, then flips the card to the connected state. */
+  async function saveManualMangalibToken() {
+    if (manualTokenBusy) return;
+    manualTokenBusy = true;
+    error = "";
+    const saved = await saveMangalibToken(manualTokenInput);
+    manualTokenBusy = false;
+    if (saved) {
+      manualTokenInput = "";
+      showManualTokenInput = false;
+    }
+  }
+
+  /** Asks the server to find the SocialLib session in the user's browsers. */
+  async function detectMangalibSession() {
+    if (mangalibDetectBusy) return;
+    mangalibDetectBusy = true;
+    error = "";
+    mangalibDetectFailed = false;
+    try {
+      const result = await detectMangalibBrowserSession();
+      if (result === null) {
+        // 404: no browser session — surface the "open login page" fallback.
+        mangalibDetectFailed = true;
+        return;
+      }
+      await adoptBrowserSession(result.userId);
+    } catch (caught) {
+      console.error("mangalib browser session detection failed:", caught);
+      showToast(i18n.t.importModal.mangalibAuth.detectFailedToast, "error");
+    } finally {
+      mangalibDetectBusy = false;
     }
   }
 
@@ -1491,7 +1012,7 @@
         {/if}
         <button
           type="button"
-          class="cursor-pointer rounded-lg border border-[#5844e0]/40 bg-[#5844e0]/15 px-4 py-2 text-sm font-semibold text-[#8f7fff] transition hover:bg-[#5844e0]/25 hover:text-white"
+          class="cursor-pointer rounded-lg border border-[#5446cf]/40 bg-[#5446cf]/15 px-4 py-2 text-sm font-semibold text-[#8f7fff] transition hover:bg-[#5446cf]/25 hover:text-white"
           onclick={() => jobsClient.openModal("jobs")}
         >
           {i18n.t.backgroundJobs.openProcesses}
@@ -2050,266 +1571,152 @@
             </button>
           </div>
 
-          <!-- Mode 1: Instant Collector Script + Clipboard 1-Click Import -->
+          <!-- Mode 1: Authorization + one-click API import -->
           {#if mangalibMode === "collector"}
-            <div class="bg-card/50 space-y-4 rounded-xl border border-white/[0.08] p-4">
-              <div class="space-y-1.5">
-                <div class="flex items-center gap-2">
+            <div class="bg-card/50 space-y-3 rounded-xl border border-white/[0.08] p-4">
+              {#if mangalibAuth.checking}
+                <div class="text-muted flex items-center justify-center gap-2 p-4 text-sm">
+                  <LoaderCircle size={16} class="animate-spin" />
+                  <span>{i18n.t.importModal.mangalibAuth.checking}</span>
+                </div>
+              {:else if mangalibAuth.connected}
+                <div class="flex flex-wrap items-center justify-between gap-2">
                   <span
-                    class="inline-flex items-center rounded-md border border-[var(--color-import-mangalib-border)] bg-[var(--color-import-mangalib-surface)] px-2 py-0.5 text-[11px] font-medium text-[var(--color-import-mangalib-text)]"
+                    class="inline-flex items-center gap-1.5 rounded-md border border-emerald-400/40 bg-emerald-500/15 px-2 py-0.5 text-[11px] font-semibold text-emerald-300"
                   >
-                    {i18n.t.importModal.recommended}
+                    <Check size={12} strokeWidth={3} />
+                    {i18n.t.importModal.mangalibAuth.connected}{#if mangalibAuth.userId}
+                      &nbsp;·&nbsp;{i18n.t.importModal.mangalibAuth.connectedAs(
+                        mangalibAuth.userId,
+                      )}
+                    {/if}
                   </span>
-                  <h4 class="text-sm font-semibold text-white">
-                    {i18n.t.importModal.instantCollectorTitle}
-                  </h4>
-                </div>
-                <p class="mt-2 text-sm leading-relaxed text-slate-300">
-                  {i18n.t.importModal.instantCollectorDesc}
-                </p>
-              </div>
-
-              <!-- Native auth: connected -> one-click API import; not connected -> login button -->
-              {#if mangalibAuth.connected}
-                <div
-                  class="space-y-3 rounded-xl border border-[var(--color-import-mangalib-border)] bg-[var(--color-import-mangalib-surface)] p-4"
-                >
-                  <div class="flex flex-wrap items-center justify-between gap-2">
-                    <div class="flex items-center gap-2">
-                      <span
-                        class="inline-flex items-center gap-1 rounded-md border border-emerald-400/40 bg-emerald-500/15 px-2 py-0.5 text-[11px] font-semibold text-emerald-300"
-                      >
-                        <Check size={12} strokeWidth={3} />
-                        {i18n.t.importModal.mangalibAuth.connected}{#if mangalibAuth.userId}
-                          &nbsp;·&nbsp;{i18n.t.importModal.mangalibAuth.connectedAs(
-                            mangalibAuth.userId,
-                          )}
-                        {/if}
-                      </span>
-                      <h4 class="text-sm font-bold text-white">
-                        {i18n.t.importModal.mangalibAuth.oneClickTitle}
-                      </h4>
-                    </div>
-                    <div class="flex items-center gap-3">
-                      <button
-                        type="button"
-                        class="cursor-pointer text-xs text-[var(--color-import-mangalib-text)] underline hover:text-white"
-                        onclick={() => openMangalibAuthWindow()}
-                      >
-                        {i18n.t.importModal.mangalibAuth.reconnect}
-                      </button>
-                      <button
-                        type="button"
-                        class="cursor-pointer text-xs text-rose-300 underline hover:text-rose-200"
-                        onclick={() => void disconnectMangalib()}
-                      >
-                        {i18n.t.importModal.mangalibAuth.logout}
-                      </button>
-                    </div>
-                  </div>
-                  <p class="text-sm leading-relaxed text-slate-300">
-                    {i18n.t.importModal.mangalibAuth.oneClickHint}
-                  </p>
-                  <div class="flex flex-col gap-2 sm:flex-row">
-                    <input
-                      id="mangalib-profile-id"
-                      bind:value={mangalibProfileInput}
-                      placeholder="123456 · https://mangalib.org/ru/users/123456"
-                      class="bg-field text-ink min-w-0 flex-1 rounded-lg border border-white/10 px-3 py-2 text-sm transition outline-none focus:border-[var(--imp-accent)] focus:ring-1 focus:ring-[var(--imp-border)]"
-                      onkeydown={(e) => {
-                        if (e.key === "Enter") void importMangaLibOneClick();
-                      }}
-                    />
-                    <button
-                      type="button"
-                      disabled={mangalibOneClickBusy}
-                      class="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-[var(--color-import-mangalib-border)] bg-[var(--color-import-mangalib-accent-dim)] px-4 py-2 text-sm font-semibold whitespace-nowrap text-white shadow-sm transition hover:bg-[var(--color-import-mangalib-accent)] disabled:cursor-wait disabled:opacity-60"
-                      onclick={() => void importMangaLibOneClick()}
-                    >
-                      {#if mangalibOneClickBusy}
-                        <LoaderCircle size={16} class="animate-spin" />
-                        <span>{i18n.t.importModal.importingStatus}</span>
-                      {:else}
-                        <Download size={16} />
-                        <span>{i18n.t.importModal.mangalibAuth.importNow}</span>
-                      {/if}
-                    </button>
-                  </div>
-                </div>
-              {:else if isTauri()}
-                <div
-                  class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--color-import-mangalib-border)] bg-[var(--color-import-mangalib-surface)] p-4"
-                >
-                  <div class="min-w-0 flex-1">
-                    <p class="text-sm font-semibold text-white">
-                      {i18n.t.importModal.mangalibAuth.login}
-                    </p>
-                    <p class="text-muted mt-0.5 text-xs">
-                      {i18n.t.importModal.mangalibAuth.loginHint}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    class="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-[var(--color-import-mangalib-border)] bg-[var(--color-import-mangalib-accent-dim)] px-4 py-2 text-sm font-semibold whitespace-nowrap text-white shadow-sm transition hover:bg-[var(--color-import-mangalib-accent)]"
-                    onclick={() => openMangalibAuthWindow()}
-                  >
-                    {i18n.t.importModal.mangalibAuth.loginShort}
-                  </button>
-                </div>
-              {:else}
-                <p class="text-muted text-xs">
-                  {i18n.t.importModal.mangalibAuth.desktopOnly}
-                </p>
-              {/if}
-
-              {#if !mangalibAuth.connected}
-                <!-- Bookmarklet Banner: 1-Click Import without F12 -->
-                <div
-                  class="space-y-3 rounded-xl border border-[var(--color-import-mangalib-border)] bg-gradient-to-r from-[var(--color-import-mangalib-surface)] via-transparent to-transparent p-4"
-                >
-                  <div class="flex flex-wrap items-center justify-between gap-2">
-                    <div class="flex items-center gap-2">
-                      <span
-                        class="inline-flex items-center rounded-md border border-[var(--color-import-mangalib-border)] bg-[var(--color-import-mangalib-surface)] px-2 py-0.5 text-[11px] font-medium text-[var(--color-import-mangalib-text)]"
-                      >
-                        {i18n.t.importModal.oneClickNoF12}
-                      </span>
-                      <h4 class="text-sm font-bold text-white">
-                        {i18n.t.importModal.bookmarkletButton}
-                      </h4>
-                    </div>
+                  <div class="flex items-center gap-3">
                     <button
                       type="button"
                       class="cursor-pointer text-xs text-[var(--color-import-mangalib-text)] underline hover:text-white"
-                      onclick={() => void copyBookmarkletUrl()}
+                      onclick={() => void openMangalibLoginPage()}
                     >
-                      {#if bookmarkletCopied}
-                        <span class="font-medium text-emerald-400"
-                          >{i18n.t.importModal.linkCopied}</span
-                        >
-                      {:else}
-                        {i18n.t.importModal.copyBookmarkletLink}
-                      {/if}
+                      {i18n.t.importModal.mangalibAuth.reconnect}
+                    </button>
+                    <button
+                      type="button"
+                      class="cursor-pointer text-xs text-rose-300 underline hover:text-rose-200"
+                      onclick={() => void disconnectMangalib()}
+                    >
+                      {i18n.t.importModal.mangalibAuth.logout}
                     </button>
                   </div>
-                  <p class="text-sm leading-relaxed text-slate-300">
-                    {i18n.t.importModal.bookmarkletInstruction} (<kbd
-                      class="bg-canvas rounded border border-white/10 px-1.5 py-0.5 font-mono text-xs text-slate-300"
-                      >Ctrl+Shift+B</kbd
-                    >){i18n.t.importModal.bookmarkletInstructionSuffix}
-                  </p>
-                  <div class="flex flex-wrap items-center gap-3 pt-1">
-                    <a
-                      href={bookmarkletUrl}
-                      draggable="true"
-                      class="inline-flex cursor-grab items-center gap-2 rounded-lg border-2 border-dashed border-[var(--color-import-mangalib-border)] bg-[var(--color-import-mangalib-surface)] px-4 py-2.5 text-xs font-bold text-[var(--color-import-mangalib-text)] shadow-md transition select-none hover:scale-[1.01] hover:brightness-110 active:scale-95 active:cursor-grabbing"
-                      title={i18n.t.importModal.bookmarkletDragTooltip}
-                      onclick={(e) => {
-                        e.preventDefault();
-                        alert(i18n.t.importModal.bookmarkletDragAlert);
-                      }}
-                    >
-                      <span>{i18n.t.importModal.bookmarkletButtonText}</span>
-                    </a>
-                    <span class="text-muted text-xs">
-                      {i18n.t.importModal.bookmarkletDragHint}
-                    </span>
-                  </div>
                 </div>
-
-                <!-- Instructions -->
-                <ol
-                  class="space-y-3 rounded-lg border border-white/5 bg-black/30 p-3.5 text-sm leading-normal text-slate-200"
-                >
-                  <li class="flex items-start gap-2.5">
-                    <span
-                      class="grid size-6 shrink-0 place-items-center rounded-full bg-[var(--color-import-mangalib-surface)] text-xs font-bold text-[var(--color-import-mangalib-text)]"
-                      >1</span
-                    >
-                    <span>
-                      {i18n.t.importModal.step1Text} (<a
-                        href="https://mangalib.org"
-                        target="_blank"
-                        rel="noreferrer"
-                        class="font-medium text-[var(--color-import-mangalib-text)] hover:underline"
-                        >MangaLib</a
-                      >,
-                      <a
-                        href="https://animelib.org"
-                        target="_blank"
-                        rel="noreferrer"
-                        class="font-medium text-[var(--color-import-mangalib-text)] hover:underline"
-                        >AnimeLib</a
-                      >,
-                      <a
-                        href="https://ranobelib.me"
-                        target="_blank"
-                        rel="noreferrer"
-                        class="font-medium text-[var(--color-import-mangalib-text)] hover:underline"
-                        >RanobeLib</a
-                      >).
-                    </span>
-                  </li>
-                  <li class="flex items-start gap-2.5">
-                    <span
-                      class="grid size-6 shrink-0 place-items-center rounded-full bg-[var(--color-import-mangalib-surface)] text-xs font-bold text-[var(--color-import-mangalib-text)]"
-                      >2</span
-                    >
-                    <span>
-                      {i18n.t.importModal.step2TextPre}
-                      <kbd
-                        class="bg-canvas rounded border border-white/10 px-1.5 py-0.5 font-mono text-xs text-slate-300"
-                        >F12 → Console</kbd
-                      >{i18n.t.importModal.step2TextMid}
-                      <kbd
-                        class="bg-canvas rounded border border-white/10 px-1.5 py-0.5 font-mono text-xs text-slate-300"
-                        >Enter</kbd
-                      >{i18n.t.importModal.step2TextPost}
-                    </span>
-                  </li>
-                  <li class="flex items-start gap-2.5">
-                    <span
-                      class="grid size-6 shrink-0 place-items-center rounded-full bg-[var(--color-import-mangalib-surface)] text-xs font-bold text-[var(--color-import-mangalib-text)]"
-                      >3</span
-                    >
-                    <span>
-                      {i18n.t.importModal.step3TextPre}
-                      <strong>{i18n.t.importModal.step3TextBtn}</strong>{i18n.t.importModal
-                        .step3TextPost}
-                    </span>
-                  </li>
-                </ol>
-
-                <!-- Actions -->
-                <div class="grid grid-cols-1 gap-2.5 pt-1 sm:grid-cols-2">
+                <p class="text-sm leading-relaxed text-slate-300">
+                  {i18n.t.importModal.mangalibAuth.oneClickHint}
+                </p>
+                <div class="flex flex-col gap-2 sm:flex-row">
+                  <input
+                    id="mangalib-profile-id"
+                    bind:value={mangalibProfileInput}
+                    placeholder={mangalibAuth.userId ||
+                      "123456 · https://mangalib.org/ru/users/123456"}
+                    class="bg-field text-ink min-w-0 flex-1 rounded-lg border border-white/10 px-3 py-2 text-sm transition outline-none focus:border-[var(--imp-accent)] focus:ring-1 focus:ring-[var(--imp-border)]"
+                    onkeydown={(e) => {
+                      if (e.key === "Enter") void importMangaLibOneClick();
+                    }}
+                  />
                   <button
                     type="button"
-                    class="bg-field inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-white/10 px-4 py-2.5 text-sm font-medium text-slate-200 transition hover:border-[var(--color-import-mangalib-border)] hover:bg-[var(--color-import-mangalib-surface)] hover:text-[var(--color-import-mangalib-text)]"
-                    onclick={() => void copySocialLibScript()}
+                    disabled={mangalibOneClickBusy}
+                    class="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-[var(--color-import-mangalib-border)] bg-[var(--color-import-mangalib-accent-dim)] px-4 py-2 text-sm font-semibold whitespace-nowrap text-white shadow-sm transition hover:bg-[var(--color-import-mangalib-accent)] disabled:cursor-wait disabled:opacity-60"
+                    onclick={() => void importMangaLibOneClick()}
                   >
-                    {#if scriptCopied}
-                      <Check size={16} class="text-emerald-400" />
-                      <span class="text-emerald-300">{i18n.t.importModal.scriptCopied}</span>
-                    {:else}
-                      <Copy size={16} />
-                      <span>{i18n.t.importModal.copyCollectorScript}</span>
-                    {/if}
-                  </button>
-
-                  <button
-                    type="button"
-                    disabled={busy}
-                    class="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-[var(--color-import-mangalib-border)] bg-[var(--color-import-mangalib-accent-dim)] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[var(--color-import-mangalib-accent)] disabled:cursor-wait disabled:opacity-60"
-                    onclick={() => void importFromClipboard()}
-                  >
-                    {#if busy}
+                    {#if mangalibOneClickBusy}
                       <LoaderCircle size={16} class="animate-spin" />
                       <span>{i18n.t.importModal.importingStatus}</span>
                     {:else}
                       <Download size={16} />
-                      <span>{i18n.t.importModal.pasteAndImport}</span>
+                      <span>{i18n.t.importModal.mangalibAuth.importNow}</span>
                     {/if}
                   </button>
+                </div>
+              {:else}
+                <!-- Compact auth card: explanation left, actions right -->
+                <div
+                  class="flex flex-col gap-4 rounded-xl border border-white/5 bg-white/[0.02] p-4 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div class="min-w-0">
+                    <p class="text-sm font-semibold text-white">
+                      {i18n.t.importModal.mangalibAuth.detectTitle}
+                    </p>
+                    <p class="text-muted mt-0.5 text-xs leading-relaxed">
+                      {i18n.t.importModal.mangalibAuth.detectHint}
+                    </p>
+                    {#if mangalibDetectFailed}
+                      <p class="mt-1.5 text-xs font-medium text-amber-300" role="status">
+                        {i18n.t.importModal.mangalibAuth.detectNotFound}
+                      </p>
+                    {/if}
+                  </div>
+                  <div class="flex shrink-0 items-center gap-1.5">
+                    <button
+                      type="button"
+                      disabled={mangalibDetectBusy}
+                      class="w-auto inline-flex cursor-pointer items-center gap-2 rounded-lg bg-white/10 px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-white/15 disabled:cursor-wait disabled:opacity-60"
+                      onclick={() => void detectMangalibSession()}
+                    >
+                      {#if mangalibDetectBusy}
+                        <LoaderCircle size={14} class="animate-spin" />
+                      {:else}
+                        <Key size={14} />
+                      {/if}
+                      <span>{i18n.t.importModal.mangalibAuth.detectButton}</span>
+                    </button>
+                    <button
+                      type="button"
+                      class="inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-2 text-xs text-slate-400 transition hover:text-white"
+                      onclick={() => void openMangalibLoginPage()}
+                    >
+                      <span>{i18n.t.importModal.mangalibAuth.openLoginPage}</span>
+                      <ExternalLink size={13} aria-hidden="true" />
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Manual token fallback: subtle spoiler link at the bottom -->
+                <div>
+                  <button
+                    type="button"
+                    aria-expanded={showManualTokenInput}
+                    class="text-muted inline-flex cursor-pointer items-center gap-1.5 px-1 text-left text-xs transition hover:text-white"
+                    onclick={() => (showManualTokenInput = !showManualTokenInput)}
+                  >
+                    <span>{i18n.t.importModal.mangalibAuth.manualTokenTitle}</span>
+                    {#if showManualTokenInput}
+                      <ChevronUp size={13} />
+                    {:else}
+                      <ChevronDown size={13} />
+                    {/if}
+                  </button>
+                  {#if showManualTokenInput}
+                    <div class="mt-2 flex flex-col gap-2 sm:flex-row">
+                      <input
+                        bind:value={manualTokenInput}
+                        placeholder={i18n.t.importModal.mangalibAuth.manualTokenPlaceholder}
+                        class="bg-field text-ink min-w-0 flex-1 rounded-lg border border-white/10 px-3 py-2 text-sm transition outline-none focus:border-[var(--imp-accent)] focus:ring-1 focus:ring-[var(--imp-border)]"
+                      />
+                      <button
+                        type="button"
+                        disabled={manualTokenBusy || manualTokenInput.trim() === ""}
+                        class="bg-field text-ink hover:bg-elevated inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-white/10 px-4 py-2 text-sm font-medium whitespace-nowrap transition hover:text-white disabled:cursor-wait disabled:opacity-60"
+                        onclick={() => void saveManualMangalibToken()}
+                      >
+                        {#if manualTokenBusy}
+                          <LoaderCircle size={14} class="animate-spin" />
+                        {:else}
+                          <Check size={14} />
+                        {/if}
+                        <span>{i18n.t.importModal.mangalibAuth.manualTokenSave}</span>
+                      </button>
+                    </div>
+                  {/if}
                 </div>
               {/if}
             </div>
@@ -2780,7 +2187,7 @@
       <button
         type="button"
         disabled={busy}
-        class="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-[var(--imp-accent)] px-5 py-2.5 text-sm font-semibold text-white shadow-md transition hover:opacity-90 disabled:cursor-wait disabled:opacity-60"
+        class="bg-accent hover:bg-accent-hover inline-flex cursor-pointer items-center gap-2 rounded-lg border border-white/10 px-5 py-2.5 text-sm font-semibold text-white transition disabled:cursor-wait disabled:opacity-60"
         onclick={() => void runImport()}
       >
         {#if busy}

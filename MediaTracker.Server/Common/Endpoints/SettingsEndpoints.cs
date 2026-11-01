@@ -23,6 +23,8 @@ using MediaTracker.Server.Features.System.Updates;
 using MediaTracker.Server.Domain.Entities;
 using MediaTracker.Server.Domain.Enums;
 using MediaTracker.Server.Infrastructure.Persistence;
+using MediaTracker.Server.Infrastructure.ExternalApis;
+using MediaTracker.Server.Infrastructure.ExternalApis.Providers.MangaLib;
 using Microsoft.AspNetCore.Mvc;
 
 namespace MediaTracker.Server.Common.Endpoints;
@@ -80,6 +82,63 @@ public static class SettingsEndpoints
             handler.HandleAsync(new TestSourceQuery(id), ct).ToOk())
             .WithTags("Настройки / Settings")
             .WithSummary("Проверить доступность источника и валидность ключа");
+
+        // MangaLib browser-session pickup: the token never leaves this machine — the detector
+        // reads the user's own browser localStorage and persists it through the encrypted
+        // source-key storage, exactly like the isolated Chromium profile the launcher keeps.
+        group.MapPost("/sources/mangalib/detect-token", async (
+                [FromServices] ISaveSourceKeyHandler saveKey,
+                CancellationToken ct) =>
+            {
+                var session = await BrowserSessionDetector.TryDetectSessionAsync(ct);
+                if (session is null)
+                {
+                    return Results.NotFound(new MangalibSessionResponse(
+                        Success: false,
+                        UserId: null,
+                        Username: null,
+                        Source: null,
+                        Message: "Сессия SocialLib в браузерах не найдена. Войдите на lib.social в браузере и повторите попытку."));
+                }
+
+                var saved = await saveKey.HandleAsync(
+                    new SaveSourceKeyCommand(ImportOnlyKeySources.MangaLib, session.Token), ct);
+                if (!saved.TryGetValue(out var savedValue))
+                {
+                    return Results.BadRequest(new ApiErrorDetail(
+                        saved.Error?.Message ?? "Не удалось сохранить токен."));
+                }
+
+                return Results.Ok(new MangalibSessionResponse(
+                    Success: savedValue.Success,
+                    UserId: session.UserId,
+                    Username: session.Username,
+                    Source: session.SourcePath,
+                    Message: null));
+            })
+            .WithTags("Настройки / Settings")
+            .WithSummary("Подхватить авторизацию MangaLib из браузера (Zen / Firefox / Chromium)")
+            .WithDescription("Ищет localStorage-сессию SocialLib в профилях браузеров пользователя и сохраняет токен в зашифрованном хранилище.");
+
+        group.MapPost("/sources/mangalib/open-login", () =>
+            {
+                try
+                {
+                    // Single SocialLib auth center; mangalib.me/ru/login answers 404.
+                    Process.Start(new ProcessStartInfo("https://auth.lib.social/auth/login")
+                    {
+                        UseShellExecute = true,
+                    });
+                    return Results.NoContent();
+                }
+                catch (Exception error)
+                {
+                    return Results.BadRequest(new ApiErrorDetail(
+                        $"Не удалось открыть браузер: {error.Message}"));
+                }
+            })
+            .WithTags("Настройки / Settings")
+            .WithSummary("Открыть страницу входа MangaLib в системном браузере");
 
         group.MapGet("/category-order", ([FromServices] IGetCategoryOrderHandler handler, CancellationToken ct) =>
             handler.HandleAsync(ct).ToOk())
@@ -480,4 +539,3 @@ public static class LibraryExportMapper
         return $"\"{text.Replace("\"", "\"\"")}\"";
     }
 }
-

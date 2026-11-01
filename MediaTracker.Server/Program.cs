@@ -10,6 +10,7 @@ using MediaTracker.Server.Features.Jobs;
 using MediaTracker.Server.Features.Media.Calendar;
 using MediaTracker.Server.Features.System.Updates;
 using MediaTracker.Server.Infrastructure.ExternalApis;
+using MediaTracker.Server.Infrastructure.Desktop;
 using MediaTracker.Server.Infrastructure.Logging;
 using MediaTracker.Server.Infrastructure.Persistence;
 using MediaTracker.Server.Infrastructure.Persistence.Franchises;
@@ -50,6 +51,10 @@ if (options.RunSelfCheck)
     return await RefactorSelfCheck.Run() == 0 ? 0 : 1;
 }
 
+// One Tsundoku per port: a second launch pings the running instance to surface its UI
+// and exits immediately (replaces the Tauri single-instance plugin).
+SingleInstanceService.EnsureSingleInstance(options);
+
 var isContainer = CommandLineOptions.IsRunningInContainer;
 
 var builder = WebApplication.CreateBuilder();
@@ -60,6 +65,21 @@ if (options.IsDevMode)
 }
 
 var appPaths = CreateAppPaths(options, isDevelopment);
+
+// Links for the tray menu, the launcher and /api/system/* endpoints. The server binds
+// 0.0.0.0 but the desktop UI is always reached over loopback.
+var links = new DesktopLinks(
+    UiUrl: $"http://127.0.0.1:{options.EffectivePort}",
+    LogsUrl: $"http://127.0.0.1:{options.EffectivePort}/logs.html");
+
+// Desktop shell: tray icon + automatic browser window, unless running as a service.
+var enableDesktopShell = !options.IsHeadless && !isContainer;
+if (enableDesktopShell)
+{
+    builder.Services.AddSingleton(options);
+    builder.Services.AddSingleton(links);
+    builder.Services.AddHostedService<TrayBackgroundService>();
+}
 
 // Clean up old binaries
 string[] oldBinaries = { "Tsundoku.old", "Tsundoku.exe.old" };
@@ -309,6 +329,8 @@ try
     app.MapSettingsEndpoints();
     app.MapJobEndpoints();
     app.MapCalendarEndpoints();
+    app.MapGoalEndpoints();
+    app.MapSystemEndpoints(links);
 
     app.MapFallback(async context =>
     {
@@ -334,14 +356,22 @@ try
     });
 
     Log.Information(
-        "Tsundoku starting (headless). .NET Version: {DotNetVersion}, OS: {OSDescription}, Server Address: {ServerAddress}",
+        "Tsundoku starting. .NET Version: {DotNetVersion}, OS: {OSDescription}, Server Address: {ServerAddress}, Shell: {ShellMode}",
         Environment.Version.ToString(),
         RuntimeInformation.OSDescription,
-        listenUrl
-    );
+        listenUrl,
+        enableDesktopShell ? "desktop (tray + browser)" : "headless");
 
     // Headless Kestrel service: kick off the backfill concurrently instead of blocking startup.
     StartBackgroundFranchiseBackfill(app);
+
+    if (enableDesktopShell && !options.StartMinimized)
+    {
+        // Surface the UI as soon as Kestrel accepts connections (replaces the Tauri
+        // startup path that opened the browser once the server port was ready).
+        app.Lifetime.ApplicationStarted.Register(() => BrowserLauncher.OpenUrl(links.UiUrl));
+    }
+
     await app.RunAsync();
 }
 finally

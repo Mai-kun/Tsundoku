@@ -2,8 +2,9 @@ namespace MediaTracker.Server.Common.Cli;
 
 /// <summary>
 /// Hand-rolled parser for the process arguments, so Program.cs only branches on the resolved
-/// options instead of sniffing raw strings. The server is always a headless Kestrel service:
-/// the legacy --headless / --gui mode flags are accepted as no-ops for backwards compatibility.
+/// options instead of sniffing raw strings. The web server itself is always a headless Kestrel
+/// service; the desktop shell (tray icon + browser window) is layered on top unless the process
+/// is explicitly started headless (server, systemd, Docker).
 /// </summary>
 public sealed class CommandLineOptions
 {
@@ -17,6 +18,13 @@ public sealed class CommandLineOptions
     public bool ShowHelp { get; private set; }
     public bool RunSelfCheck { get; private set; }
     public bool IsDevMode { get; private set; }
+
+    /// <summary>Skip the tray icon and the automatic browser window (services, containers).</summary>
+    public bool IsHeadless { get; private set; }
+
+    /// <summary>Keep the process in the tray without surfacing the UI (autostart, shortcuts).</summary>
+    public bool StartMinimized { get; private set; }
+
     public string? Error { get; private set; }
 
     public static bool IsRunningInContainer =>
@@ -52,11 +60,21 @@ public sealed class CommandLineOptions
 
             switch (arg)
             {
-                // Legacy run-mode flags: the server is always headless, so they parse as no-ops.
+                // Headless: no tray icon, no browser window (systemd, Docker, scripts).
                 case "--headless":
                 case "--server-only":
+                    options.IsHeadless = true;
+                    break;
+
+                // Legacy no-ops kept for backwards compatibility with old shortcuts.
                 case "--gui":
                 case "--client-only":
+                    break;
+
+                // Start in the tray without opening the UI (autostart, shortcuts).
+                case "--tray":
+                case "--minimized":
+                    options.StartMinimized = true;
                     break;
 
                 case "--migrate-only":
@@ -148,6 +166,34 @@ public sealed class CommandLineOptions
         return options;
     }
 
+    /// <summary>
+    /// The port the UI (and the single-instance handshake) targets: --port wins, then
+    /// ASPNETCORE_URLS, then the default — the exact precedence UseUrls() applies.
+    /// </summary>
+    public int EffectivePort =>
+        Port
+        ?? TryParseAspnetcoreUrlsPort()
+        ?? DefaultPort;
+
+    private static int? TryParseAspnetcoreUrlsPort()
+    {
+        var urls = Environment.GetEnvironmentVariable("ASPNETCORE_URLS");
+        if (string.IsNullOrWhiteSpace(urls))
+        {
+            return null;
+        }
+
+        foreach (var part in urls.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            if (Uri.TryCreate(part, UriKind.Absolute, out var uri) && uri.Port > 0)
+            {
+                return uri.Port;
+            }
+        }
+
+        return null;
+    }
+
     public static string HelpText =>
         """
             Tsundoku - MediaTracker.Server
@@ -156,10 +202,10 @@ public sealed class CommandLineOptions
               Tsundoku.exe [options]
 
             Options:
-              --headless, --server-only    Legacy no-op. The server always runs as a headless
-                                         Kestrel web service.
-              --gui, --client-only         Legacy no-op. Photino was removed; the UI is served
-                                         from wwwroot and opened in any browser.
+              --headless, --server-only    Run without the tray icon and without opening a
+                                         browser window (systemd, Docker, scripts).
+              --tray, --minimized          Start in the tray; the UI is not opened automatically.
+              --gui, --client-only         Legacy no-op.
               --server-url <url>           Address the UI connects to. Default: http://127.0.0.1:5000
               --port <number>, -p <number> Override the Kestrel listening port. Default: 5000
               --data-dir <path>            Base folder for tracker.db, logs and covers.
@@ -169,10 +215,11 @@ public sealed class CommandLineOptions
               --help, -h                   Show this help and exit.
 
             Examples:
-              Tsundoku.exe                                          Web server on the default port
-              Tsundoku.exe --port 8080                              Web server on port 8080
-              Tsundoku.exe --port 5050 --data-dir D:\TsundokuData
-              Tsundoku.exe --migrate-only                           CI/CD migration step
+              Tsundoku                                          Server + tray + UI in the browser
+              Tsundoku --port 8080                              Web server on port 8080
+              Tsundoku --port 5050 --data-dir D:\TsundokuData   Custom storage location
+              Tsundoku --headless                               Pure service (no tray, no UI)
+              Tsundoku --migrate-only                           CI/CD migration step
 
             Environment variables:
               ASPNETCORE_URLS                                      used when --port is not given

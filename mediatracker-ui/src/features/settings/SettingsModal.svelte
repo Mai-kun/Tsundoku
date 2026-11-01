@@ -31,8 +31,8 @@
   } from "$shared/ui/Icons";
   import { onMount } from "svelte";
   import { slide } from "svelte/transition";
-  import { uiSettings } from "$shared/utils/uiSettings.svelte";
-  import { readOnCloseAction, writeOnCloseAction, type CloseBehavior } from "$shared/utils/tauri";
+  import { uiSettings, type OnCloseAction } from "$shared/utils/uiSettings.svelte";
+  import { exitApp } from "$shared/utils/appExit";
   import {
     createApiToken,
     errorMessage,
@@ -92,20 +92,23 @@
     | "desktop";
   let activeTab = $state<Tab>("sources");
 
-  /* Read once when the modal mounts; written through on every radio change. */
-  let onCloseAction = $state<CloseBehavior>(readOnCloseAction());
-
   const closeBehaviorOptions = $derived([
-    { value: "ask", label: i18n.t.settingsModal.closeBehavior.ask },
-    { value: "minimize_to_tray", label: i18n.t.settingsModal.closeBehavior.minimizeToTray },
-    { value: "close_gui", label: i18n.t.settingsModal.closeBehavior.closeGui },
-    { value: "exit_all", label: i18n.t.settingsModal.closeBehavior.exitAll },
-  ] as { value: CloseBehavior; label: string }[]);
-
-  function setCloseBehavior(value: CloseBehavior) {
-    onCloseAction = value;
-    writeOnCloseAction(value);
-  }
+    {
+      value: "tray",
+      label: i18n.t.settingsModal.closeBehavior.tray,
+      description: i18n.t.settingsModal.closeBehavior.trayDescription,
+    },
+    {
+      value: "exit",
+      label: i18n.t.settingsModal.closeBehavior.exit,
+      description: i18n.t.settingsModal.closeBehavior.exitDescription,
+    },
+    {
+      value: "ask",
+      label: i18n.t.settingsModal.closeBehavior.ask,
+      description: i18n.t.settingsModal.closeBehavior.askDescription,
+    },
+  ] as { value: OnCloseAction; label: string; description: string }[]);
 
   let tokens = $state<ApiTokenSummary[]>([]);
   let isLoadingTokens = $state(false);
@@ -1872,30 +1875,46 @@
             <div class="bg-card grid gap-2.5 rounded-xl border border-white/[0.08] p-5">
               {#each closeBehaviorOptions as option (option.value)}
                 <label
-                  class={`flex cursor-pointer items-center gap-3 rounded-xl border p-3.5 transition ${
-                    onCloseAction === option.value
-                      ? "border-indigo-500/60 bg-indigo-500/15 text-white ring-1 ring-indigo-500/30"
-                      : "border-white/10 bg-white/[0.02] text-slate-300 hover:border-white/20"
+                  class={`flex cursor-pointer items-start gap-3 rounded-xl border p-3.5 transition ${
+                    uiSettings.onCloseAction === option.value
+                      ? "border-indigo-500/60 bg-indigo-500/15 ring-1 ring-indigo-500/30"
+                      : "border-white/10 bg-white/[0.02] hover:border-white/20"
                   }`}
                 >
                   <input
                     type="radio"
                     name="on-close-action"
                     value={option.value}
-                    checked={onCloseAction === option.value}
-                    onchange={() => setCloseBehavior(option.value)}
+                    checked={uiSettings.onCloseAction === option.value}
+                    onchange={() => uiSettings.setOnCloseAction(option.value)}
                     class="sr-only"
                   />
                   <span
-                    class={`h-4 w-4 shrink-0 rounded-full border transition ${
-                      onCloseAction === option.value
+                    class={`mt-0.5 h-4 w-4 shrink-0 rounded-full border transition ${
+                      uiSettings.onCloseAction === option.value
                         ? "border-4 border-indigo-400"
                         : "border-white/25"
                     }`}
                   ></span>
-                  <span class="text-xs leading-snug font-semibold">{option.label}</span>
+                  <span>
+                    <span class="block text-sm font-semibold text-white">{option.label}</span>
+                    <span class="text-muted mt-0.5 block text-xs leading-snug">
+                      {option.description}
+                    </span>
+                  </span>
                 </label>
               {/each}
+            </div>
+
+            <div class="bg-card rounded-xl border border-white/[0.08] p-5">
+              <button
+                type="button"
+                class="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-rose-400/30 bg-rose-500/10 px-4 py-2 text-sm font-semibold text-rose-200 transition hover:bg-rose-500/20"
+                onclick={() => void exitApp()}
+              >
+                <X size={16} />
+                {i18n.t.settingsModal.exitApp.button}
+              </button>
             </div>
           </section>
         {:else if activeTab === "apiTokens"}

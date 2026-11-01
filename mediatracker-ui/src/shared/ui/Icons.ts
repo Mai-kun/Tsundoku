@@ -59,6 +59,7 @@ export { default as Minus } from "lucide-svelte/icons/minus";
 export { default as Pause } from "lucide-svelte/icons/pause";
 export { default as Pencil } from "lucide-svelte/icons/pencil";
 export { default as Play } from "lucide-svelte/icons/play";
+export { default as Power } from "lucide-svelte/icons/power";
 export { default as Plus } from "lucide-svelte/icons/plus";
 export { default as Quote } from "lucide-svelte/icons/quote";
 export { default as RefreshCw } from "lucide-svelte/icons/refresh-cw";

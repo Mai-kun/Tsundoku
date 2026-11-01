@@ -2,7 +2,10 @@
 
     <PropertyGroup>
         <Version>1.0.0</Version>
-        <OutputType>Exe</OutputType>
+        <!-- Release on Windows hides the console window (WinExe); Debug and every
+             other platform keep a regular console executable. -->
+        <OutputType Condition="'$(Configuration)' == 'Release' and '$(OS)' == 'Windows_NT'">WinExe</OutputType>
+        <OutputType Condition="'$(Configuration)' != 'Release' or '$(OS)' != 'Windows_NT'">Exe</OutputType>
         <TargetFramework>net10.0</TargetFramework>
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
@@ -17,7 +20,8 @@
              ignores it and splatters the publish output into dist/. -->
         <PublishDir Condition="'$(PublishDir)' == ''">$(MSBuildThisFileDirectory)..\dist\</PublishDir>
 
-        <AssemblyName>Tsundoku.Server</AssemblyName>
+        <!-- The single monolithic NativeAOT binary (server + tray + launcher) is Tsundoku. -->
+        <AssemblyName>Tsundoku</AssemblyName>
         <RootNamespace>MediaTracker.Server</RootNamespace>
 
         <IsTransformWebConfigDisabled>true</IsTransformWebConfigDisabled>
@@ -81,16 +85,6 @@
         <Content Update="appsettings.json" CopyToPublishDirectory="Never" />
         <Content Update="web.config" CopyToPublishDirectory="Never" />
         <Content Update="appsettings.Development.json" CopyToPublishDirectory="Never" />
-    </ItemGroup>
-
-    <!-- build-linux.sh publishes the server IN PARALLEL with the vite build that
-         rewrites wwwroot (new content-hashed names, old ones deleted). MSBuild
-         snapshots the Content list at evaluation, so by the copy phase the files
-         are gone (MSB3030). The desktop bundle takes wwwroot from the source
-         folder, never from the publish output, so the script opts out via this
-         switch; plain `dotnet publish` keeps shipping wwwroot. -->
-    <ItemGroup Condition="'$(ExcludeWwwrootFromPublish)' == 'true'">
-        <Content Remove="wwwroot\**\*" />
     </ItemGroup>
 
     <ItemGroup>

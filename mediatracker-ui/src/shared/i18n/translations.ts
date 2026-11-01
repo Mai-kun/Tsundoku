@@ -46,6 +46,7 @@ export const translations = {
     },
     addButton: { ru: "Добавить", en: "Add media" },
     language: { ru: "Язык интерфейса", en: "Interface language" },
+    exit: { ru: "Выход / Управление работой", en: "Exit / Power" },
   },
   navigation: {
     home: { ru: "Главная", en: "Home" },
@@ -60,6 +61,7 @@ export const translations = {
     lists: { ru: "Списки", en: "Lists" },
     history: { ru: "История", en: "History" },
     calendar: { ru: "Календарь", en: "Calendar" },
+    goals: { ru: "Цели", en: "Goals" },
     seasons: { ru: "Сезоны", en: "Seasons" },
     brand: { ru: "Медиа-трекер", en: "Media tracker" },
     toolsLabel: { ru: "Инструменты", en: "Tools" },
@@ -126,6 +128,7 @@ export const translations = {
       ru: "Календарь релизов и обновлений",
       en: "Release & Update Calendar",
     },
+    goalsTitle: { ru: "Цели и вызовы", en: "Goals & Challenges" },
     calendarSubtitle: {
       ru: "Расписание выхода серий, премьер и автоматических проверок новых глав",
       en: "Schedule of upcoming episodes, premieres and automatic chapter checks",
@@ -417,6 +420,65 @@ export const translations = {
     storageMigrate: {
       ru: "Перенести текущую базу и обложки",
       en: "Migrate existing database and covers",
+    },
+  },
+  goals: {
+    summaryOf: {
+      ru: (done: number, total: number) => `Выполнено ${done} из ${total} целей`,
+      en: (done: number, total: number) => `${done} of ${total} goals completed`,
+    },
+    overallProgress: { ru: "Общий прогресс", en: "Overall progress" },
+    yearLabel: { ru: "Год", en: "Year" },
+    createGoal: { ru: "Новая цель", en: "New goal" },
+    empty: {
+      ru: "На этот год целей пока нет — создайте первую!",
+      en: "No goals for this year yet — create the first one!",
+    },
+    loadFailed: { ru: "Не удалось загрузить цели", en: "Failed to load goals" },
+    deleteGoal: { ru: "Удалить цель", en: "Delete goal" },
+    deleteConfirm: {
+      ru: (title: string) => `Удалить цель «${title}»?`,
+      en: (title: string) => `Delete goal "${title}"?`,
+    },
+    deleted: { ru: "Цель удалена", en: "Goal deleted" },
+    completedBadge: { ru: "🎉 Выполнено!", en: "🎉 Completed!" },
+    noMatches: {
+      ru: "Пока ни одного тайтла в зачёте",
+      en: "No titles count toward this goal yet",
+    },
+    finishHint: {
+      ru: "Завершайте тайтлы — прогресс обновится сам",
+      en: "Finish titles — progress updates automatically",
+    },
+    modal: {
+      templatesTab: { ru: "Быстрые шаблоны", en: "Quick templates" },
+      customTab: { ru: "Своя цель", en: "Custom goal" },
+      createTitle: { ru: "Новая цель", en: "New goal" },
+      titleField: { ru: "Название", en: "Title" },
+      descriptionField: { ru: "Описание (необязательно)", en: "Description (optional)" },
+      iconField: { ru: "Иконка", en: "Icon" },
+      yearField: { ru: "Год", en: "Year" },
+      targetField: { ru: "Целевое число", en: "Target count" },
+      categoryField: { ru: "Категория", en: "Category" },
+      categoryAll: { ru: "Всё подряд", en: "Everything" },
+      create: { ru: "Создать цель", en: "Create goal" },
+      createFailed: { ru: "Не удалось создать цель", en: "Failed to create the goal" },
+      templateBooks: {
+        ru: (n: number) => `Прочитать ${n} книг`,
+        en: (n: number) => `Read ${n} books`,
+      },
+      templateGames: {
+        ru: (n: number) => `Пройти ${n} игр`,
+        en: (n: number) => `Finish ${n} games`,
+      },
+      templateAnime: {
+        ru: (n: number) => `Посмотреть ${n} аниме`,
+        en: (n: number) => `Watch ${n} anime`,
+      },
+      templateRetro: {
+        ru: (n: number) => `Ретро-марафон: ${n} фильмов до 2000 года`,
+        en: (n: number) => `Retro marathon: ${n} pre-2000 movies`,
+      },
     },
   },
   settings: {
@@ -1928,110 +1990,13 @@ export const translations = {
       ru: "Файл .json / .csv",
       en: "File .json / .csv",
     },
-    recommended: {
-      ru: "Рекомендуется",
-      en: "Recommended",
-    },
-    instantCollectorTitle: {
-      ru: "Сбор закладок за 1 секунду прямо из браузера",
-      en: "1-second bookmarks export directly from your browser",
-    },
-    instantCollectorDesc: {
-      ru: "Обходит ограничения Cloudflare, моментально извлекая закладки со всех выбранных сайтов Lib с прогрессом, оценками и статусами.",
-      en: "Bypasses Cloudflare restrictions, instantly exporting bookmarks from all chosen Lib sites with progress, scores, and statuses.",
-    },
-    oneClickNoF12: {
-      ru: "1 клик без F12",
-      en: "1 click without F12",
-    },
-    bookmarkletButton: {
-      ru: "Кнопка-букмарклет для браузера",
-      en: "Browser bookmarklet button",
-    },
-    linkCopied: {
-      ru: "Ссылка скопирована!",
-      en: "Link copied!",
-    },
-    copyBookmarkletLink: {
-      ru: "Скопировать ссылку букмарклета",
-      en: "Copy bookmarklet link",
-    },
-    bookmarkletInstruction: {
-      ru: "Перетащите эту кнопку на панель закладок вашего браузера",
-      en: "Drag this button to your browser bookmarks bar",
-    },
-    bookmarkletInstructionSuffix: {
-      ru: ". Затем откройте любую страницу MangaLib, AnimeLib или RanobeLib и просто кликните по закладке!",
-      en: ". Then open any page on MangaLib, AnimeLib, or RanobeLib and just click the bookmark!",
-    },
-    bookmarkletDragTooltip: {
-      ru: "Зажмите и перетащите на панель закладок браузера (Ctrl+Shift+B)",
-      en: "Click and drag to browser bookmarks bar (Ctrl+Shift+B)",
-    },
-    bookmarkletDragAlert: {
-      ru: "📌 Перетащите эту кнопку мышкой на панель закладок браузера (Ctrl+Shift+B)!\n\nИли нажмите «Скопировать ссылку букмарклета» справа и создайте закладку вручную.",
-      en: "📌 Drag this button to your browser bookmarks bar (Ctrl+Shift+B)!\n\nOr click 'Copy bookmarklet link' on the right to create the bookmark manually.",
-    },
-    bookmarkletButtonText: {
-      ru: "📥 Tsundoku Импорт (перетащите в закладки)",
-      en: "📥 Tsundoku Import (drag to bookmarks)",
-    },
-    bookmarkletDragHint: {
-      ru: "← зажмите и потяните на панель закладок",
-      en: "← drag and drop to your bookmarks bar",
-    },
-    step1Text: {
-      ru: "Откройте страницу своего профиля или закладок на любом сайте Lib",
-      en: "Open your profile or bookmarks page on any Lib website",
-    },
-    step2TextPre: {
-      ru: "Нажмите на закладку в браузере (или откройте консоль",
-      en: "Click the bookmark in your browser (or open dev console with",
-    },
-    step2TextMid: {
-      ru: ", вставьте скрипт и нажмите",
-      en: ", paste the script, and press",
-    },
-    step2TextPost: {
-      ru: "). Букмарклет моментально выгрузит закладки.",
-      en: "). The bookmarklet will instantly dump bookmarks.",
-    },
-    step3TextPre: {
-      ru: "Если прямое сохранение заблокировано браузером — данные уже скопированы в буфер обмена: просто нажмите",
-      en: "If direct upload was blocked by the browser, the data is already copied to clipboard: simply click",
-    },
-    step3TextBtn: {
-      ru: "«Вставить из буфера и импортировать»",
-      en: '"Paste from clipboard and import"',
-    },
-    step3TextPost: {
-      ru: "ниже.",
-      en: "below.",
-    },
-    scriptCopied: {
-      ru: "Скрипт скопирован!",
-      en: "Script copied!",
-    },
-    copyCollectorScript: {
-      ru: "Скопировать скрипт сбора",
-      en: "Copy collector script",
-    },
     importingStatus: {
       ru: "Импортируем...",
       en: "Importing...",
     },
-    pasteAndImport: {
-      ru: "Вставить из буфера и импортировать",
-      en: "Paste from clipboard and import",
-    },
     mangalibAuth: {
-      login: { ru: "Войти через MangaLib", en: "Sign in via MangaLib" },
       loginShort: { ru: "Войти", en: "Sign in" },
-      loginHint: {
-        ru: "Нативное окно авторизации: войдите любым способом — токен будет пойман автоматически.",
-        en: "Native auth window: sign in any way you like — the token is captured automatically.",
-      },
-      connected: { ru: "Подключено", en: "Connected" },
+      connected: { ru: "Аккаунт подключен", en: "Account connected" },
       connectedAs: {
         ru: (id: string) => `Профиль ${id}`,
         en: (id: string) => `Profile ${id}`,
@@ -2054,48 +2019,59 @@ export const translations = {
         ru: "Не удалось открыть окно авторизации MangaLib",
         en: "Failed to open the MangaLib auth window",
       },
-      oneClickTitle: {
-        ru: "Импорт профиля в один клик",
-        en: "One-click profile import",
-      },
       oneClickHint: {
         ru: "Токен уже сохранён — закладки скачиваются напрямую с API SocialLib без браузера и Cloudflare.",
         en: "Token already saved — bookmarks are fetched directly from the SocialLib API with no browser or Cloudflare.",
       },
-      userIdLabel: { ru: "User ID или ссылка на профиль", en: "User ID or profile URL" },
       importNow: { ru: "Импортировать закладки", en: "Import bookmarks" },
       userIdRequired: {
         ru: "Укажите User ID или ссылку на профиль SocialLib.",
         en: "Enter a User ID or profile URL for SocialLib.",
       },
-      desktopOnly: {
-        ru: "Вход через окно доступен в десктоп-приложении Tsundoku.",
-        en: "Window sign-in is available in the Tsundoku desktop app.",
+      checking: {
+        ru: "Проверяем сохранённый токен…",
+        en: "Checking the saved token…",
+      },
+      detectTitle: {
+        ru: "Авторизация MangaLib (SocialLib)",
+        en: "MangaLib (SocialLib) authorization",
+      },
+      detectHint: {
+        ru: "Подхватим сессию из Zen Browser, Firefox или Chromium — токен остаётся на этом устройстве.",
+        en: "We pick up the session from Zen Browser, Firefox or Chromium — the token never leaves this device.",
+      },
+      detectButton: {
+        ru: "Подхватить сессию",
+        en: "Detect session",
+      },
+      detectNotFound: {
+        ru: "Сессия не найдена. Войдите на сайте lib.social и повторите",
+        en: "No session found. Sign in at lib.social and try again",
+      },
+      openLoginPage: {
+        ru: "Войти на lib.social",
+        en: "Sign in at lib.social",
+      },
+      detectFailedToast: {
+        ru: "Не удалось проверить браузерные профили",
+        en: "Failed to scan browser profiles",
+      },
+      manualTokenTitle: {
+        ru: "Ввести токен вручную",
+        en: "Enter a token manually",
+      },
+      manualTokenPlaceholder: {
+        ru: "Bearer-токен SocialLib (eyJ…)",
+        en: "SocialLib bearer token (eyJ…)",
+      },
+      manualTokenSave: {
+        ru: "Сохранить токен",
+        en: "Save token",
       },
     },
     selectedOf: {
       ru: (selected: number, total: number) => `Выбрано: ${selected} из ${total}`,
       en: (selected: number, total: number) => `Selected: ${selected} of ${total}`,
-    },
-    copyBookmarkletFailed: {
-      ru: "Не удалось скопировать букмарклет в буфер обмена",
-      en: "Failed to copy bookmarklet to clipboard",
-    },
-    copyScriptFailed: {
-      ru: "Не удалось скопировать скрипт в буфер обмена",
-      en: "Failed to copy script to clipboard",
-    },
-    clipboardUnavailable: {
-      ru: "Буфер обмена недоступен в вашем браузере. Выберите способ «Файл» и загрузите сохраненный tsundoku-sociallib.json.",
-      en: "Clipboard is unavailable in your browser. Choose 'File' tab and upload your tsundoku-sociallib.json.",
-    },
-    clipboardEmpty: {
-      ru: "Буфер обмена пуст. Сначала скопируйте скрипт, выполните его в консоли любого Lib-сайта, а затем нажмите эту кнопку.",
-      en: "Clipboard is empty. Copy and run the script on any Lib website first, then click this button.",
-    },
-    clipboardNoJson: {
-      ru: "В буфере обмена нет JSON данных закладок. Убедитесь, что скрипт в консоли завершил сбор.",
-      en: "Clipboard does not contain valid bookmark JSON. Make sure the collector script completed.",
     },
     skippedDuplicatesWithCount: {
       ru: (count: number) => `Пропущено дубликатов: ${count}`,
@@ -2111,31 +2087,43 @@ export const translations = {
     },
   },
   closeAppModal: {
-    title: { ru: "Закрыть Tsundoku?", en: "Close Tsundoku?" },
-    minimizeTitle: { ru: "Свернуть в трей", en: "Minimize to tray" },
-    minimizeDescription: {
-      ru: "Окно скроется, иконка останется в трее, мгновенный разворот.",
-      en: "The window hides, the icon stays in the tray, instant restore.",
+    title: { ru: "Управление Tsundoku", en: "Tsundoku Power" },
+    backgroundTitle: {
+      ru: "Сворачивать в трей",
+      en: "Minimize to tray",
     },
-    closeGuiTitle: {
-      ru: "Закрыть окно (сервер работает в фоне)",
-      en: "Close window (server keeps running)",
+    backgroundDescription: {
+      ru: "Интерфейс закрывается, сервер продолжает работать в фоне, иконка остаётся в системном трее.",
+      en: "The interface closes, the server keeps running in the background, and the tray icon stays.",
     },
-    closeGuiDescription: {
-      ru: "Освобождает память Webview, сервер продолжит автопроверку онгоингов.",
-      en: "Frees Webview memory, the server keeps auto-checking ongoing media.",
+    exitTitle: { ru: "Полный выход из Tsundoku", en: "Exit Tsundoku completely" },
+    exitDescription: {
+      ru: "Останавливает сервер, закрывает окно и выгружает иконку из трея.",
+      en: "Stops the server, closes the window, and removes the tray icon.",
     },
-    remember: { ru: "Запомнить мой выбор", en: "Remember my choice" },
+    backgroundToast: {
+      ru: "Tsundoku работает в фоне — иконка в системном трее. Можно закрыть вкладку.",
+      en: "Tsundoku runs in the background — see the tray icon. You can close this tab.",
+    },
+    stoppedTitle: {
+      ru: "Tsundoku успешно остановлен",
+      en: "Tsundoku has stopped",
+    },
+    stoppedDescription: {
+      ru: "Эту вкладку можно закрыть",
+      en: "You can close this tab",
+    },
     apply: { ru: "Применить", en: "Apply" },
   },
-  desktop: {
-    exitAll: { ru: "Полный выход из программы", en: "Exit application completely" },
-    exitAllDesc: {
-      ru: "Останавливает сервер, закрывает окно и выгружает иконку из трея",
-      en: "Stops server, closes window, and removes tray icon",
-    },
-  },
   settingsModal: {
+    exitApp: {
+      title: { ru: "Завершение работы", en: "Shut Down" },
+      description: {
+        ru: "Полностью останавливает сервер Tsundoku, закрывает окно и выгружает иконку из трея.",
+        en: "Stops the Tsundoku server, closes the window, and removes the tray icon.",
+      },
+      button: { ru: "Остановить Tsundoku (Выход)", en: "Stop Tsundoku (Exit)" },
+    },
     title: { ru: "Настройки", en: "Settings" },
     tabs: {
       storage: { ru: "Хранилище", en: "Storage" },
@@ -2149,18 +2137,26 @@ export const translations = {
       desktop: { ru: "Приложение", en: "Application" },
     },
     closeBehavior: {
-      title: { ru: "Поведение при закрытии окна", en: "On Window Close" },
+      title: { ru: "Действие при выходе / закрытии", en: "Exit / Close Action" },
       description: {
-        ru: "Что происходит при нажатии на крестик главного окна. Сервер продолжает работать в фоне во всех режимах, кроме полного выхода.",
-        en: "What happens when the main window is closed. The server keeps running in the background in every mode except full exit.",
+        ru: "Выберите, как Tsundoku должен вести себя при закрытии окна интерфейса",
+        en: "Choose how Tsundoku behaves when the interface window is closed",
+      },
+      tray: { ru: "Сворачивать в трей", en: "Minimize to tray" },
+      trayDescription: {
+        ru: "Интерфейс закрывается, сервер продолжает работать в фоне, иконка остаётся в системном трее.",
+        en: "The interface closes, the server keeps running in the background, and the tray icon stays.",
+      },
+      exit: { ru: "Полный выход", en: "Full exit" },
+      exitDescription: {
+        ru: "Полностью останавливать сервер Tsundoku и закрывать приложение.",
+        en: "Stop the Tsundoku server completely and close the application.",
       },
       ask: { ru: "Спрашивать каждый раз", en: "Ask every time" },
-      minimizeToTray: { ru: "Сворачивать в трей", en: "Minimize to tray" },
-      closeGui: {
-        ru: "Закрывать окно (сервер в фоне)",
-        en: "Close the window (server in background)",
+      askDescription: {
+        ru: "При нажатии кнопки выхода в шапке показывать окно выбора.",
+        en: "Show the choice dialog when the exit button in the header is pressed.",
       },
-      exitAll: { ru: "Полный выход из программы", en: "Full exit" },
     },
     sources: {
       title: { ru: "Поддерживаемые источники", en: "Supported Sources" },

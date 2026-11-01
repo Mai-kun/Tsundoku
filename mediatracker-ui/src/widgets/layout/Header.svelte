@@ -1,5 +1,5 @@
 ﻿<script lang="ts">
-  import { ChevronDown, Languages, Search } from "$shared/ui/Icons";
+  import { ChevronDown, Languages, Power, Search } from "$shared/ui/Icons";
   import { i18n, locales, type Locale } from "$shared/i18n/index.svelte";
   import PopoverMenu from "$shared/ui/PopoverMenu.svelte";
   import ActivityDropdown from "./ActivityDropdown.svelte";
@@ -7,9 +7,10 @@
   interface Props {
     title: string;
     onSearch: () => void;
+    onExitClick?: () => void;
   }
 
-  let { title, onSearch }: Props = $props();
+  let { title, onSearch, onExitClick }: Props = $props();
 
   const localeOptions = locales.map((locale) => ({
     value: locale,
@@ -18,11 +19,16 @@
 </script>
 
 <div class="flex h-full items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
-  <h1 class="text-ink min-w-0 flex-1 truncate text-base font-semibold tracking-tight">
+  <!-- Fixed-width title slot: RU/EN titles (and section names) differ by a few
+       pixels, and a flex-1 title would nudge the search field and toolbar on
+       every locale switch. truncate absorbs longer titles. -->
+  <h1
+    class="text-ink w-56 min-w-0 shrink-0 truncate text-base font-semibold tracking-tight sm:w-72"
+  >
     {title}
   </h1>
 
-  <div class="flex shrink-0 items-center gap-2">
+  <div class="flex shrink-0 items-center justify-end gap-2.5">
     <button
       type="button"
       class="bg-elevated hover:bg-card-hover hidden h-9 w-64 items-center gap-2 rounded-lg border border-white/[0.08] px-3 text-left text-sm text-white transition hover:border-indigo-500/40 focus:ring-1 focus:ring-indigo-500/30 focus:outline-none sm:flex"
@@ -48,6 +54,18 @@
 
     <ActivityDropdown />
 
+    {#if onExitClick}
+      <button
+        type="button"
+        class="bg-elevated text-muted hover:text-ink hover:border-rose-400/40 inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/[0.08] transition focus:ring-1 focus:ring-rose-500/30 focus:outline-none"
+        title={i18n.t.header.exit}
+        aria-label={i18n.t.header.exit}
+        onclick={onExitClick}
+      >
+        <Power size={16} class="shrink-0" aria-hidden="true" />
+      </button>
+    {/if}
+
     <label class="sr-only" for="language-select">{i18n.t.header.language}</label>
     <PopoverMenu
       id="language-select"
@@ -63,7 +81,7 @@
           popovertarget={popoverTargetId}
           popovertargetaction="toggle"
           style={isOpen ? `anchor-name: ${anchorName}` : undefined}
-          class="tap bg-elevated text-ink inline-flex h-9 items-center gap-1.5 rounded-lg border border-white/[0.08] px-2.5 text-xs font-semibold transition hover:border-indigo-500/40 hover:text-white focus:ring-1 focus:ring-indigo-500/30 focus:outline-none"
+          class="tap bg-elevated text-ink inline-flex h-9 w-[88px] items-center justify-between rounded-lg border border-white/[0.08] px-2.5 text-xs font-semibold transition hover:border-indigo-500/40 hover:text-white focus:ring-1 focus:ring-indigo-500/30 focus:outline-none"
           title={i18n.t.header.language}
         >
           <Languages size={15} class="text-muted" aria-hidden="true" />

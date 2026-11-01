@@ -7,12 +7,20 @@ const BOOK_PAGE_MINUTES_KEY = "tsundoku_reading_book_page_minutes";
 const MANGA_CHAPTER_MINUTES_KEY = "tsundoku_reading_manga_chapter_minutes";
 const CAST_SIZE_BY_CATEGORY_KEY = "tsundoku_cast_size_by_category";
 const STAFF_SIZE_BY_CATEGORY_KEY = "tsundoku_staff_size_by_category";
+const ON_CLOSE_ACTION_KEY = "tsundoku_on_close_action";
 
 export const DEFAULT_BOOK_PAGE_MINUTES = 1.5;
 export const DEFAULT_MANGA_CHAPTER_MINUTES = 6.0;
 
 export type PeopleCardSize = "compact" | "large";
+export type OnCloseAction = "tray" | "exit" | "ask";
 type PeopleSizeMap = Record<string, PeopleCardSize>;
+
+function readOnCloseAction(): OnCloseAction {
+  if (typeof localStorage === "undefined") return "tray";
+  const raw = localStorage.getItem(ON_CLOSE_ACTION_KEY);
+  return raw === "exit" || raw === "ask" ? raw : "tray";
+}
 
 function readStoredNumber(key: string, defaultValue: number): number {
   if (typeof localStorage === "undefined") {
@@ -63,6 +71,7 @@ class UiSettingsService {
       ? "all"
       : "completed",
   );
+  onCloseAction = $state<OnCloseAction>(readOnCloseAction());
   isLoaded = $state<boolean>(false);
 
   constructor() {
@@ -128,6 +137,13 @@ class UiSettingsService {
     this.statsScope = scope;
     if (typeof localStorage !== "undefined") {
       localStorage.setItem("stats_scope", scope);
+    }
+  }
+
+  setOnCloseAction(value: OnCloseAction): void {
+    this.onCloseAction = value;
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem(ON_CLOSE_ACTION_KEY, value);
     }
   }
 

@@ -1,20 +1,17 @@
 <script lang="ts">
   import { deleteMedia } from "$shared/api/api";
   import { jobsClient } from "$shared/api/jobsClient.svelte";
-  import { invoke } from "@tauri-apps/api/core";
-  import { readOnCloseAction, isTauri } from "$shared/utils/tauri";
-  import { listen } from "@tauri-apps/api/event";
   import FirstRunStorageModal from "$features/settings/FirstRunStorageModal.svelte";
   import AppShell from "$widgets/layout/AppShell.svelte";
   import CloseAppModal from "$widgets/layout/CloseAppModal.svelte";
   import Header from "$widgets/layout/Header.svelte";
   import Sidebar from "$widgets/layout/Sidebar.svelte";
   import { dropPromptState } from "$features/drop-reason/dropReasonPrompt.svelte";
-  import { handleMangalibAuthenticated } from "$features/import-media/mangalibAuth.svelte";
   import CategoryView from "$views/CategoryView.svelte";
   import type { Category } from "$views/categoryModel";
   import HomeView from "$views/HomeView.svelte";
   import { i18n } from "$shared/i18n/index.svelte";
+  import { closeToTray, exitApp } from "$shared/utils/appExit";
   import { uiSettings } from "$shared/utils/uiSettings.svelte";
   import { bumpGridLayout } from "$widgets/media-grid/gridLayout.svelte";
   import type {
@@ -33,6 +30,7 @@
     "lists",
     "history",
     "calendar",
+    "goals",
     "seasons",
     "detail",
   ];
@@ -67,63 +65,25 @@
   let modalTrigger = $state<HTMLElement | null>(null);
   let detailDepth = 0;
   let mainScrollContainer = $state<HTMLElement | null>(null);
-  let isCloseConfirmOpen = $state(false);
+  let isExitModalOpen = $state(false);
   const savedScrollPositions = new Map<string, number>();
 
-  /* The Tauri shell intercepts [X] on the main window and forwards it here. A saved
-     preference (Settings → Application tab) is applied silently; without one the
-     confirm dialog asks. Outside Tauri (vite dev in a browser) there is no close request. */
-  $effect(() => {
-    if (!isTauri()) return;
-    let unlisten: (() => void) | undefined;
-    let disposed = false;
-    listen("close-requested", () => {
-      const stored = readOnCloseAction();
-      if (stored !== "ask") {
-        invoke("close_action", { action: stored }).catch((error) => {
-          console.error("close_action failed:", error);
-        });
-        return;
-      }
-      isCloseConfirmOpen = true;
-    }).then((stop) => {
-      if (disposed) {
-        stop();
-        return;
-      }
-      unlisten = stop;
-    });
-    return () => {
-      disposed = true;
-      unlisten?.();
-    };
-  });
-
-  /* The MangaLib auth popup (native Tauri window) captured the Bearer token and
-     closed itself; persist it via the settings API and surface the connected
-     state. Outside Tauri there is no such window and nothing to listen to. */
-  $effect(() => {
-    if (!isTauri()) return;
-    let unlisten: (() => void) | undefined;
-    let disposed = false;
-    listen<{ token: string; userId: string }>("mangalib-authenticated", (event) => {
-      void handleMangalibAuthenticated(event.payload.token, event.payload.userId);
-    }).then((stop) => {
-      if (disposed) {
-        stop();
-        return;
-      }
-      unlisten = stop;
-    });
-    return () => {
-      disposed = true;
-      unlisten?.();
-    };
-  });
-
-  function closeCloseConfirm() {
-    isCloseConfirmOpen = false;
+  function closeExitModal() {
+    isExitModalOpen = false;
     restoreModalFocus();
+  }
+
+  async function handleExitClick() {
+    if (uiSettings.onCloseAction === "ask") {
+      modalTrigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      isExitModalOpen = true;
+      return;
+    }
+    if (uiSettings.onCloseAction === "exit") {
+      await exitApp();
+      return;
+    }
+    closeToTray();
   }
 
   function setScroll(value: number) {
@@ -287,6 +247,8 @@
         return i18n.t.views.historyTitle;
       case "calendar":
         return i18n.t.views.calendarTitle;
+      case "goals":
+        return i18n.t.views.goalsTitle;
       case "seasons":
         return i18n.t.navigation.seasons;
       case "detail":
@@ -438,18 +400,6 @@
   }
 
   function handleKeydown(event: KeyboardEvent) {
-    // DevTools shortcut: the tray menu also opens the inspector, this covers
-    // the keyboard path in the packaged build (devtools feature in Cargo).
-    if (
-      isTauri() &&
-      (event.key === "F12" ||
-        ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLowerCase() === "i"))
-    ) {
-      event.preventDefault();
-      invoke("open_devtools").catch((error) => console.error("open_devtools failed:", error));
-      return;
-    }
-
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
       event.preventDefault();
       if (!isSearchOpen) {
@@ -478,7 +428,11 @@
   {/snippet}
 
   {#snippet header()}
-    <Header title={titleForView(activeView)} onSearch={() => openSearch()} />
+    <Header
+      title={titleForView(activeView)}
+      onSearch={() => openSearch()}
+      onExitClick={() => void handleExitClick()}
+    />
   {/snippet}
 
   {#if renderedView === "lists"}
@@ -572,6 +526,18 @@
     {:catch error}
       {@const _ = console.error("Failed to load view/modal:", error)}
     {/await}
+  {:else if renderedView === "goals"}
+    {#await import("$views/GoalsView.svelte") then { default: GoalsView }}
+      <div class="view-fade">
+        <GoalsView
+          refreshKey={mediaRevision}
+          onOpenMedia={(id) => openDetailById(id)}
+          onMediaChanged={mediaChanged}
+        />
+      </div>
+    {:catch error}
+      {@const _ = console.error("Failed to load view/modal:", error)}
+    {/await}
   {/if}
 </AppShell>
 
@@ -633,8 +599,8 @@
   {/await}
 {/if}
 
-{#if isCloseConfirmOpen}
-  <CloseAppModal onClose={closeCloseConfirm} />
+{#if isExitModalOpen}
+  <CloseAppModal onClose={closeExitModal} />
 {/if}
 
 <FirstRunStorageModal />

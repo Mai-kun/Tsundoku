@@ -244,6 +244,20 @@ CREATE TABLE IF NOT EXISTS TvSeasons (
     CONSTRAINT FK_TvSeasons_MediaItems_TvShowId FOREIGN KEY (TvShowId) REFERENCES MediaItems (Id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS Goals (
+    Id TEXT NOT NULL PRIMARY KEY,
+    Title TEXT NOT NULL,
+    Description TEXT,
+    Icon TEXT DEFAULT '🎯',
+    Year INTEGER NOT NULL,
+    TargetCount INTEGER NOT NULL,
+    Category TEXT,
+    SmartQueryJson TEXT,
+    CreatedAt TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS IX_Goals_Year ON Goals (Year);
+
 CREATE INDEX IF NOT EXISTS IX_ApiTokens_TokenHash ON ApiTokens (TokenHash);
 CREATE INDEX IF NOT EXISTS IX_CustomListItems_ListId_MediaItemId ON CustomListItems (ListId, MediaItemId);
 CREATE INDEX IF NOT EXISTS IX_CustomListItems_MediaItemId ON CustomListItems (MediaItemId);

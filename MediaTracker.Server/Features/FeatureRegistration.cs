@@ -9,6 +9,7 @@ using MediaTracker.Server.Features.External.RefreshMetadata;
 using MediaTracker.Server.Features.External.RelinkMedia;
 using MediaTracker.Server.Features.External.SearchExternal;
 using MediaTracker.Server.Features.External.TranslateText;
+using MediaTracker.Server.Features.Goals;
 using MediaTracker.Server.Features.History.ClearHistory;
 using MediaTracker.Server.Features.History.DeleteHistoryEvent;
 using MediaTracker.Server.Features.History.GetHistoryEvents;
@@ -77,6 +78,9 @@ public static partial class FeatureRegistration
 
         // Seasons
         services.AddScoped<IUpdateSeasonProgressHandler, UpdateSeasonProgressHandler>();
+
+        // Goals
+        services.AddScoped<IGoalsHandler, GoalsHandler>();
 
         // External
         services.AddScoped<ISearchExternalHandler, SearchExternalHandler>();

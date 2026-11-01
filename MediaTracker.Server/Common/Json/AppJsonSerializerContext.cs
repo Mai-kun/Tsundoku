@@ -6,6 +6,7 @@ using MediaTracker.Server.Common.Json;
 using MediaTracker.Server.Domain.Rules;
 using MediaTracker.Server.Features.External.RelinkMedia;
 using MediaTracker.Server.Features.External.TranslateText;
+using MediaTracker.Server.Features.Goals;
 using MediaTracker.Server.Features.History.GetHistoryEvents;
 using MediaTracker.Server.Features.Jobs;
 using MediaTracker.Server.Features.Lists;
@@ -30,6 +31,7 @@ using MediaTracker.Server.Features.Settings.ToggleSource;
 using MediaTracker.Server.Features.System.GetSources;
 using MediaTracker.Server.Features.System.Updates;
 using MediaTracker.Server.Infrastructure.ExternalApis;
+using MediaTracker.Server.Infrastructure.ExternalApis.Providers.MangaLib;
 using MediaTracker.Server.Infrastructure.Storage;
 using MediaTracker.Server.SelfChecks;
 using Microsoft.AspNetCore.Mvc;
@@ -103,6 +105,11 @@ namespace MediaTracker.Server.Common.Json;
 [JsonSerializable(typeof(IReadOnlyList<SourceInfo>))]
 [JsonSerializable(typeof(ToggleSourceResponse))]
 [JsonSerializable(typeof(SaveSourceKeyResponse))]
+[JsonSerializable(typeof(MangalibSessionResponse))]
+[JsonSerializable(typeof(GoalDto))]
+[JsonSerializable(typeof(IReadOnlyList<GoalDto>))]
+[JsonSerializable(typeof(List<GoalDto>))]
+[JsonSerializable(typeof(CreateGoalRequest))]
 [JsonSerializable(typeof(ConnectionTestResult))]
 [JsonSerializable(typeof(ReadingSettingsDto))]
 [JsonSerializable(typeof(ApiTokenDto))]

@@ -1700,6 +1700,121 @@ public sealed class AppDbContext : IDisposable, IAsyncDisposable
     }
 
     // ------------------------------------------------------------------
+    // Goals (yearly / thematic challenges)
+    // ------------------------------------------------------------------
+
+    public async Task<List<Goal>> GetGoalsByYearAsync(int year, CancellationToken ct = default)
+    {
+        var conn = Connection;
+        if (conn.State != System.Data.ConnectionState.Open) await conn.OpenAsync(ct);
+        await EnsureSchemaAsync(ct);
+
+        var rows = await conn.QueryAsync<GoalRow>(
+            "SELECT * FROM Goals WHERE Year = @year ORDER BY CreatedAt;",
+            new { year });
+        return rows.Select(r => new Goal
+        {
+            Id = Guid.Parse(r.Id),
+            Title = r.Title,
+            Description = r.Description,
+            Icon = r.Icon,
+            Year = r.Year,
+            TargetCount = r.TargetCount,
+            Category = r.Category,
+            SmartQueryJson = r.SmartQueryJson,
+            CreatedAt = DateTime.Parse(r.CreatedAt).ToUniversalTime(),
+        }).ToList();
+    }
+
+    public async Task CreateGoalAsync(Goal goal, CancellationToken ct = default)
+    {
+        var conn = Connection;
+        if (conn.State != System.Data.ConnectionState.Open) await conn.OpenAsync(ct);
+        await EnsureSchemaAsync(ct);
+
+        await conn.ExecuteAsync(
+            """
+            INSERT INTO Goals (Id, Title, Description, Icon, Year, TargetCount, Category, SmartQueryJson, CreatedAt)
+            VALUES (@Id, @Title, @Description, @Icon, @Year, @TargetCount, @Category, @SmartQueryJson, @CreatedAt);
+            """,
+            new
+            {
+                Id = goal.Id.ToString().ToUpperInvariant(),
+                goal.Title,
+                goal.Description,
+                goal.Icon,
+                goal.Year,
+                goal.TargetCount,
+                goal.Category,
+                goal.SmartQueryJson,
+                CreatedAt = goal.CreatedAt.ToString("o"),
+            });
+    }
+
+    public async Task<int> DeleteGoalAsync(Guid id, CancellationToken ct = default)
+    {
+        var conn = Connection;
+        if (conn.State != System.Data.ConnectionState.Open) await conn.OpenAsync(ct);
+        await EnsureSchemaAsync(ct);
+
+        return await conn.ExecuteAsync(
+            "DELETE FROM Goals WHERE Id = @id;",
+            new { id = id.ToString().ToUpperInvariant() });
+    }
+
+    /// <summary>
+    /// Seeds the three starter challenges when the year has no goals yet, so a fresh library
+    /// opens the Goals screen with something meaningful. Deliberately re-seeds an emptied year:
+    /// the presets are cheap to delete and a year without goals reads as "not configured".
+    /// </summary>
+    public async Task EnsureDefaultGoalsAsync(int year, CancellationToken ct = default)
+    {
+        if ((await GetGoalsByYearAsync(year, ct)).Count > 0) return;
+
+        await CreateGoalAsync(new Goal
+        {
+            Title = $"Книжный вызов {year}",
+            Description = "Прочитать заданное количество книг за год.",
+            Icon = "📚",
+            Year = year,
+            TargetCount = 12,
+            Category = "book",
+        }, ct);
+        await CreateGoalAsync(new Goal
+        {
+            Title = $"Киномарафон {year}",
+            Description = "Посмотреть заданное количество фильмов за год.",
+            Icon = "🎬",
+            Year = year,
+            TargetCount = 30,
+            Category = "movie",
+        }, ct);
+        await CreateGoalAsync(new Goal
+        {
+            Title = $"Игровой сезон {year}",
+            Description = "Пройти заданное количество игр за год.",
+            Icon = "🎮",
+            Year = year,
+            TargetCount = 10,
+            Category = "game",
+        }, ct);
+    }
+
+    /// <summary>Flat row mirroring the Goals table for Dapper reads.</summary>
+    private sealed class GoalRow
+    {
+        public string Id { get; set; } = string.Empty;
+        public string Title { get; set; } = string.Empty;
+        public string? Description { get; set; }
+        public string? Icon { get; set; }
+        public int Year { get; set; }
+        public int TargetCount { get; set; }
+        public string? Category { get; set; }
+        public string? SmartQueryJson { get; set; }
+        public string CreatedAt { get; set; } = string.Empty;
+    }
+
+    // ------------------------------------------------------------------
     // Schema
     // ------------------------------------------------------------------
 

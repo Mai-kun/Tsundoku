@@ -1,7 +1,0 @@
-# Fast linker for the Linux desktop build: mold cuts the Rust link phase
-# from ~a minute to a couple of seconds. build-linux.sh falls back to lld
-# (and then to the system linker via RUSTFLAGS, which fully overrides this
-# rustflags block) when mold is not installed.
-[target.x86_64-unknown-linux-gnu]
-linker = "clang"
-rustflags = ["-C", "link-arg=-fuse-ld=mold"]

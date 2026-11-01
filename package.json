@@ -16,13 +16,10 @@
     "report": "node scripts/generate-audit-report.mjs",
     "review:ai": "node scripts/ai-ui-review.mjs",
     "test:stress": "node scripts/stress-test.mjs",
-    "tauri": "tauri",
-    "desktop:dev": "tauri dev",
-    "desktop:build": "tauri build"
+    "desktop:dev": "npm --prefix mediatracker-ui run dev & dotnet run --project MediaTracker.Server"
   },
   "devDependencies": {
     "@google/genai": "^2.31.0",
-    "@tauri-apps/cli": "^2.0.0",
     "dotenv": "^18.0.9",
     "marked": "^18.1.2",
     "playwright": "^1.64.1",

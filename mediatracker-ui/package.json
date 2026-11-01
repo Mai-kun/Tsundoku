@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "check:orphans": "node --experimental-strip-types checks/static/orphanChecks.check.ts",
+    "check:colors": "node --experimental-strip-types checks/static/checkMutedColors.check.ts",
     "check:achievements-buttons": "node --experimental-strip-types checks/e2e/achievementsButtons.check.ts",
     "check:cards": "node --experimental-strip-types checks/e2e/cards.check.ts",
     "check:category-switch": "node --experimental-strip-types checks/e2e/categorySwitch.check.ts",
@@ -111,7 +112,6 @@
   },
   "dependencies": {
     "@tanstack/svelte-virtual": "^3.13.45",
-    "@tauri-apps/api": "^2.12.4",
     "lucide-svelte": "^1.0.1"
   }
 }

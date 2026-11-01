@@ -366,9 +366,9 @@ async function main() {
   const tempDir = path.join(os.tmpdir(), `mt-profile-db-${Date.now()}`);
   fs.mkdirSync(tempDir, { recursive: true });
 
-  // The csproj sets AssemblyName=Tsundoku.Server; accept the legacy bare
-  // "Tsundoku.dll" name too so a differently staged output still profiles.
-  const candidates = ["Tsundoku.Server.dll", "Tsundoku.dll"].map((name) =>
+  // The csproj sets AssemblyName=Tsundoku; accept the legacy "Tsundoku.Server.dll"
+  // name too so an older staged output still profiles.
+  const candidates = ["Tsundoku.dll", "Tsundoku.Server.dll"].map((name) =>
     path.resolve(rootDir, "MediaTracker.Server/bin/Release/net10.0", name),
   );
   const dllPath = candidates.find((p) => fs.existsSync(p));

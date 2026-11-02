@@ -12,7 +12,8 @@ namespace MediaTracker.Server.Infrastructure.ExternalApis;
 /// (operation name + variables), never dumped whole.
 /// </summary>
 public sealed partial class ExternalHttpLoggingHandler(
-    ILogger<ExternalHttpLoggingHandler> logger) : DelegatingHandler
+    ILogger<ExternalHttpLoggingHandler> logger,
+    RateLimitTracker? rateLimitTracker = null) : DelegatingHandler
 {
     private const int MaxSnippetLength = 120;
     private const int MaxVariableValueLength = 40;
@@ -32,6 +33,7 @@ public sealed partial class ExternalHttpLoggingHandler(
         {
             var response = await base.SendAsync(request, cancellationToken);
             stopwatch.Stop();
+            TrackRateLimits(request, response);
             var status = (int)response.StatusCode;
             string reason = response.ReasonPhrase ?? string.Empty;
             var message = "[ExternalHttp] <-- {StatusCode} ({ReasonPhrase}) from {Method} {Url}{GraphQl} in {ElapsedMs}ms";
@@ -201,6 +203,118 @@ public sealed partial class ExternalHttpLoggingHandler(
             JsonValueKind.Number or JsonValueKind.True or JsonValueKind.False => element.GetRawText(),
             _ => null,
         };
+    }
+
+    private void TrackRateLimits(HttpRequestMessage request, HttpResponseMessage response)
+    {
+        if (rateLimitTracker is null) return;
+
+        var remainingHeader = GetHeader(response, "X-RateLimit-Remaining")
+            ?? GetHeader(response, "RateLimit-Remaining")
+            ?? GetHeader(response, "X-Rate-Limit-Remaining");
+
+        var limitHeader = GetHeader(response, "X-RateLimit-Limit")
+            ?? GetHeader(response, "RateLimit-Limit")
+            ?? GetHeader(response, "X-Rate-Limit-Limit");
+
+        var resetHeader = GetHeader(response, "X-RateLimit-Reset")
+            ?? GetHeader(response, "RateLimit-Reset")
+            ?? GetHeader(response, "X-Rate-Limit-Reset")
+            ?? GetHeader(response, "Retry-After");
+
+        if (remainingHeader is null && limitHeader is null && resetHeader is null)
+        {
+            return;
+        }
+
+        if (!int.TryParse(remainingHeader, out var remaining))
+        {
+            remaining = 0;
+        }
+
+        if (!int.TryParse(limitHeader, out var limit))
+        {
+            limit = 0;
+        }
+
+        var resetSeconds = ParseResetHeader(resetHeader);
+        var (providerKey, providerName) = ResolveProvider(request.RequestUri);
+        rateLimitTracker.Update(providerKey, providerName, remaining, limit, resetSeconds);
+    }
+
+    private static string? GetHeader(HttpResponseMessage response, string headerName)
+    {
+        if (response.Headers.TryGetValues(headerName, out var values))
+        {
+            return values.FirstOrDefault();
+        }
+
+        if (response.Content != null && response.Content.Headers.TryGetValues(headerName, out var contentValues))
+        {
+            return contentValues.FirstOrDefault();
+        }
+
+        return null;
+    }
+
+    private static int ParseResetHeader(string? resetHeader)
+    {
+        if (string.IsNullOrWhiteSpace(resetHeader))
+        {
+            return 0;
+        }
+
+        if (double.TryParse(resetHeader, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var num))
+        {
+            if (num > 1_000_000_000)
+            {
+                var resetTime = DateTimeOffset.FromUnixTimeSeconds((long)num);
+                var seconds = (int)Math.Ceiling((resetTime - DateTimeOffset.UtcNow).TotalSeconds);
+                return Math.Max(0, seconds);
+            }
+
+            return Math.Max(0, (int)Math.Ceiling(num));
+        }
+
+        if (DateTimeOffset.TryParse(resetHeader, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var date))
+        {
+            var seconds = (int)Math.Ceiling((date - DateTimeOffset.UtcNow).TotalSeconds);
+            return Math.Max(0, seconds);
+        }
+
+        return 0;
+    }
+
+    private static (string Key, string Name) ResolveProvider(Uri? uri)
+    {
+        if (uri is null) return ("unknown", "Unknown");
+
+        var host = uri.Host;
+
+        foreach (var descriptor in MetadataSourceRegistry.All)
+        {
+            if (Uri.TryCreate(descriptor.BaseAddress, UriKind.Absolute, out var baseUri))
+            {
+                if (string.Equals(baseUri.Host, host, StringComparison.OrdinalIgnoreCase) ||
+                    host.EndsWith("." + baseUri.Host, StringComparison.OrdinalIgnoreCase))
+                {
+                    return (descriptor.Id.ToLowerInvariant(), descriptor.RatingSourceName);
+                }
+            }
+        }
+
+        if (host.Contains("anilist", StringComparison.OrdinalIgnoreCase)) return ("anilist", "AniList");
+        if (host.Contains("mangadex", StringComparison.OrdinalIgnoreCase)) return ("mangadex", "MangaDex");
+        if (host.Contains("themoviedb", StringComparison.OrdinalIgnoreCase) || host.Contains("tmdb", StringComparison.OrdinalIgnoreCase)) return ("tmdb", "TMDB");
+        if (host.Contains("shikimori", StringComparison.OrdinalIgnoreCase)) return ("shikimori", "Shikimori");
+        if (host.Contains("rawg", StringComparison.OrdinalIgnoreCase)) return ("rawg", "RAWG");
+        if (host.Contains("steam", StringComparison.OrdinalIgnoreCase)) return ("steam", "Steam");
+        if (host.Contains("kinopoisk", StringComparison.OrdinalIgnoreCase)) return ("kinopoisk", "Kinopoisk");
+        if (host.Contains("simkl", StringComparison.OrdinalIgnoreCase)) return ("simkl", "Simkl");
+        if (host.Contains("kitsu", StringComparison.OrdinalIgnoreCase)) return ("kitsu", "Kitsu");
+        if (host.Contains("openlibrary", StringComparison.OrdinalIgnoreCase)) return ("openlibrary", "OpenLibrary");
+
+        return (host.ToLowerInvariant(), host);
     }
 
     [GeneratedRegex("query\\s+(\\w+)", RegexOptions.Compiled)]

@@ -169,8 +169,8 @@ switch (command) {
       run("dotnet", ["run", "--project", "MediaTracker.Server/MediaTracker.Server.csproj", "--no-build", "--", "--selfcheck"]);
     }
 
-    // 3. Parallel execution of all 10 independent frontend checks
-    console.log(`\n🚀 [parallel] Запуск 10 статических проверок фронтенда параллельно...`);
+    // 3. Parallel execution of all 11 independent frontend checks
+    console.log(`\n🚀 [parallel] Запуск 11 статических проверок фронтенда параллельно...`);
     const pStart = Date.now();
     try {
       await Promise.all([
@@ -178,6 +178,7 @@ switch (command) {
         runAsync("npm", ["--prefix", "mediatracker-ui", "run", "lint:es"]),
         runAsync("npm", ["--prefix", "mediatracker-ui", "run", "lint:css"]),
         runAsync("npm", ["--prefix", "mediatracker-ui", "run", "check:html"]),
+        runAsync("npm", ["--prefix", "mediatracker-ui", "run", "check:colors"]),
         runAsync("npm", ["--prefix", "mediatracker-ui", "run", "check:deslop"]),
         runAsync("npm", ["--prefix", "mediatracker-ui", "run", "check:state-raw"]),
         runAsync("npm", ["--prefix", "mediatracker-ui", "run", "check:perf-marks"]),
@@ -186,7 +187,7 @@ switch (command) {
         runAsync("npm", ["--prefix", "mediatracker-ui", "run", "check:leading-chars"]),
       ]);
       const pDur = ((Date.now() - pStart) / 1000).toFixed(2);
-      console.log(`✨ [parallel-done] Все 10 проверок фронтенда завершены за ${pDur}s`);
+      console.log(`✨ [parallel-done] Все 11 проверок фронтенда завершены за ${pDur}s`);
     } catch (err) {
       console.error(`❌ Ошибка в параллельных проверках:`, err.message);
       process.exit(1);
@@ -221,6 +222,7 @@ switch (command) {
 
     // 5. Browser suite (Playwright CDP, geometry, a11y, snapshots, Core Web Vitals)
     run("npm", ["--prefix", "mediatracker-ui", "run", "check:browser-suite"]);
+    run("npm", ["--prefix", "mediatracker-ui", "run", "check:jank"]);
 
     // 6. Network API wire payload & compression measurement (500 items)
     run("node", ["--experimental-strip-types", "scripts/measure-api-payloads.mjs"]);

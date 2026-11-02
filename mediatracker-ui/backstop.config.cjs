@@ -53,9 +53,9 @@ module.exports = {
     },
   ],
   paths: {
-    bitmaps_reference: "checks/backstop_data/bitmaps_reference",
-    bitmaps_test: "checks/backstop_data/bitmaps_test",
-    engine_scripts: "checks",
+    bitmaps_reference: "checks/harness/backstop_data/bitmaps_reference",
+    bitmaps_test: "checks/harness/backstop_data/bitmaps_test",
+    engine_scripts: "checks/audit",
     html_report: "../reports/backstop_data/html_report",
     ci_report: "../reports/backstop_data/ci_report",
   },

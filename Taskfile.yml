@@ -4,6 +4,8 @@ tasks:
   fix:
     desc: 'Fast fix & sanity check contour (~3-5s)'
     cmds:
+      - npm --prefix mediatracker-ui run check:orphans
+      - node scripts/inspect-code-smells.mjs --fix
       - npm --prefix mediatracker-ui run format:fix
       - dotnet format --verify-no-changes || dotnet format
       - npm --prefix mediatracker-ui run check
@@ -33,7 +35,7 @@ tasks:
       - npm --prefix mediatracker-ui run check:bundle
 
   browser-suite:
-    desc: 'Run Playwright browser suite (CDP, geometry, a11y, snapshots)'
+    desc: 'Run Playwright browser suite (CDP, geometry, a11y, snapshots, Web Vitals)'
     sources:
       - 'mediatracker-ui/src/**/*'
       - 'mediatracker-ui/checks/**/*'
@@ -43,6 +45,7 @@ tasks:
       - 'reports/layout-geometry.json'
       - 'reports/axe-accessibility.json'
       - 'reports/visual-snapshots.json'
+      - 'reports/web-vitals.json'
     method: checksum
     cmds:
       - npm --prefix mediatracker-ui run check:browser-suite
@@ -118,11 +121,27 @@ tasks:
       - task: test
       - task: build-ui
       - task: browser-suite
+      - task: check:jank
       - task: api-payloads
       - task: sqlite-health
       - task: benchmarks
       - task: profile-backend
       - task: report
+
+  stress:
+    desc: 'Run 144Hz high-refresh virtual scroll stress-test on 25k items'
+    cmds:
+      - node scripts/stress-test.mjs --count=25000
+
+  smells:
+    desc: 'Inspect C# and Svelte micro-optimizations code smells'
+    cmds:
+      - node scripts/inspect-code-smells.mjs
+
+  check:orphans:
+    desc: 'Verify 100% of check scripts on disk are registered'
+    cmds:
+      - npm --prefix mediatracker-ui run check:orphans
 
   visual:
     desc: 'Run BackstopJS visual regression test'

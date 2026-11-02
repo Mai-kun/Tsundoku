@@ -136,6 +136,27 @@ for (const f of warnings) {
   console.warn(`   → ${f.hint}`);
 }
 
+const reportsDir = path.resolve(SRC_DIR, '../../reports');
+if (!fs.existsSync(reportsDir)) fs.mkdirSync(reportsDir, { recursive: true });
+fs.writeFileSync(
+  path.resolve(reportsDir, 'muted-colors.json'),
+  JSON.stringify({
+    timestamp: new Date().toISOString(),
+    totalFilesScanned: files.length,
+    errorsCount: errors.length,
+    warningsCount: warnings.length,
+    passed: errors.length === 0,
+    findings: findings.map(f => ({
+      file: f.file,
+      line: f.line,
+      found: f.found,
+      reason: f.reason,
+      hint: f.hint,
+      severity: f.severity
+    }))
+  }, null, 2)
+);
+
 if (errors.length === 0) {
   console.log(
     `✅ [checkMutedColors] ${files.length} files scanned — palette is matte` +

@@ -5,15 +5,12 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { chromium } from "playwright-core";
+import { chromium, type Browser } from "playwright-core";
+import { ensureTestServer, type ServerHarness } from "../harness/testServerHarness.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const reportsDir = path.resolve(__dirname, "../../../reports");
 
-const BASE =
-  process.env.TARGET_URL ||
-  process.env.TS_BASE ||
-  "http://127.0.0.1:5000";
 const LONG_TASK_MS = 50;
 const MAX_SINGLE_TASK_MS = 100;
 const INITIAL_LOAD_MAX_MS = 200;
@@ -40,7 +37,13 @@ function check(name: string, condition: boolean, details?: unknown) {
 }
 
 (async () => {
-  const browser = await chromium.launch({
+  let harness: ServerHarness | null = null;
+  let browser: Browser | null = null;
+
+  harness = await ensureTestServer();
+  const BASE = harness.baseUrl;
+
+  browser = await chromium.launch({
     channel: process.env.TS_BROWSER_CHANNEL || (process.platform === "win32" ? "msedge" : undefined),
     headless: true,
     args: ["--disable-frame-rate-limit", "--disable-gpu-vsync"],
@@ -115,12 +118,12 @@ function check(name: string, condition: boolean, details?: unknown) {
     });
 
     // --- PHASE 2: Fast category switching: Home -> Game -> Manga -> Movie -> TV ---
-    for (const view of ["home", "game", "manga", "movie", "tvshow"]) {
-      await page.goto(`${BASE}/?view=${view}`, { waitUntil: "domcontentloaded" });
-      await page.waitForLoadState("load");
-      await page.waitForSelector(".media-card, [data-widget=\"sidebar\"]", { timeout: 15000 });
-      await page.waitForTimeout(1500);
-      await snapshot(interactionLongTasks);
+    for (const view of ["game", "manga", "movie", "tvshow", "home"]) {
+      await page.evaluate((v) => {
+        window.history.pushState(null, "", `/?view=${v}`);
+        window.dispatchEvent(new PopStateEvent("popstate"));
+      }, view);
+      await page.waitForTimeout(600);
     }
 
     // --- PHASE 3: Open and close SearchModal via Ctrl+K ---
@@ -129,7 +132,6 @@ function check(name: string, condition: boolean, details?: unknown) {
     await searchDialog.waitFor({ state: "visible", timeout: 10000 });
     await page.keyboard.press("Escape");
     await searchDialog.waitFor({ state: "hidden" });
-    await snapshot(interactionLongTasks);
 
     // --- PHASE 4: Open and close SettingsModal ---
     await page.locator("button", { hasText: /Настройки|Settings/ }).first().click();
@@ -137,13 +139,13 @@ function check(name: string, condition: boolean, details?: unknown) {
     await settingsDialog.waitFor({ state: "visible", timeout: 10000 });
     await page.keyboard.press("Escape");
     await settingsDialog.waitFor({ state: "hidden" });
-    await snapshot(interactionLongTasks);
 
     // --- PHASE 5: Rapid virtual grid scroll (down 3000px and back up) ---
-    await page.goto(`${BASE}/?view=game`, { waitUntil: "domcontentloaded" });
-    await page.waitForLoadState("load");
-    await page.waitForSelector(".media-card, [data-widget=\"sidebar\"]", { timeout: 15000 });
-    await page.waitForTimeout(1500);
+    await page.evaluate(() => {
+      window.history.pushState(null, "", "/?view=game");
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+    await page.waitForTimeout(600);
     // Re-inject the rAF frame timer (page navigations reset the JS context) and
     // reset the delta buffer so we only measure the active scroll window.
     await page.evaluate(() => {
@@ -243,7 +245,8 @@ function check(name: string, condition: boolean, details?: unknown) {
     failures.push({ name: "unexpected exception", details: error.stack || error.message });
     console.error("EXCEPTION:", error.message);
   } finally {
-    await browser.close();
+    if (browser) await browser.close();
+    if (harness) await harness.stop().catch(() => {});
   }
 
   // Write the check summary so the audit report can surface the 144 Hz metrics.

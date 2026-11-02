@@ -27,8 +27,8 @@ function walk(dir: string, filter: (f: string) => boolean): string[] {
 
 // 1. Поиск всех проверяемых файлов на диске
 const discoveredFiles: string[] = [
-  ...walk(CHECKS_DIR, f => f.endsWith('.check.ts') || f.endsWith('.runner.ts') || f === 'testServerHarness.ts' || f === 'backstopOnReady.js'),
-  ...walk(SCRIPTS_DIR, f => f.endsWith('.mjs')),
+  ...walk(CHECKS_DIR, f => f.endsWith('.check.ts') || f.endsWith('.check.cjs') || f.endsWith('.runner.ts') || f === 'testServerHarness.ts' || f === 'backstopOnReady.cjs' || f === 'backstopOnReady.js'),
+  ...walk(SCRIPTS_DIR, f => f.endsWith('.mjs') || f.endsWith('.js') || f.endsWith('.ts')),
   ...walk(path.resolve(UI_DIR, 'src'), f => f.endsWith('.test.ts'))
 ];
 
@@ -61,7 +61,7 @@ for (const file of discoveredFiles) {
   // либо он является юнит-тестом Vitest (src/**/__tests__/*.test.ts)
   const isReferenced = pipelineContext.includes(baseName) || pipelineContext.includes(relPath);
   const isVitestTest = file.includes('__tests__') && file.endsWith('.test.ts');
-  const isImportedModule = baseName === 'testServerHarness.ts' || baseName === 'backstopOnReady.js';
+  const isImportedModule = baseName === 'testServerHarness.ts' || baseName === 'backstopOnReady.cjs' || baseName === 'backstopOnReady.js';
 
   if (isReferenced || isVitestTest || isImportedModule) {
     registered.push(relPath);

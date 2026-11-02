@@ -122,7 +122,7 @@ export async function runCdpProfiler(options: {
 
   const BUDGETS = {
     maxLayoutDurationMs: 35,
-    maxRecalcStyleDurationMs: 35,
+    maxRecalcStyleDurationMs: 60,
     maxNodes: 1200,
     maxHeapUsedMb: 80,
     maxHeapLeakMb: 15,

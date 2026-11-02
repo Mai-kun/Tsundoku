@@ -21,7 +21,7 @@ async function runBackstopCli(command: "reference" | "test", targetUrl: string):
   console.log(`\n[runBackstop] Executing "backstop ${command}" for ${targetUrl}...`);
 
   return new Promise((resolve) => {
-    const proc = spawn("npx", ["backstop", command, "--config=backstop.config.js"], {
+    const proc = spawn("npx", ["backstop", command, "--config=backstop.config.cjs"], {
       cwd: uiDir,
       stdio: "inherit",
       env: {

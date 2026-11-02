@@ -77,4 +77,29 @@ public class HistoryAndSettingsTests
         var saved = await db.Settings.FindAsync("ReadingSpeed");
         saved!.Value.Should().Be("100");
     }
+
+    [Fact]
+    public void AppPaths_AppImageResolution_ShouldResolveNextToAppImage()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        var fakeAppImage = Path.Combine(tempDir, "Tsundoku.AppImage");
+        File.WriteAllText(fakeAppImage, "fake");
+
+        var originalAppImage = Environment.GetEnvironmentVariable("APPIMAGE");
+        try
+        {
+            Environment.SetEnvironmentVariable("APPIMAGE", fakeAppImage);
+            var resolvedDir = MediaTracker.Server.Infrastructure.Storage.AppPaths.GetAppDirectory();
+            resolvedDir.Should().Be(tempDir);
+
+            var resolvedExe = MediaTracker.Server.Infrastructure.Storage.AppPaths.GetExecutablePath();
+            resolvedExe.Should().Be(fakeAppImage);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("APPIMAGE", originalAppImage);
+            try { Directory.Delete(tempDir, true); } catch { }
+        }
+    }
 }

@@ -22,6 +22,7 @@ using MediaTracker.Server.Features.System.GetSources;
 using MediaTracker.Server.Features.System.Updates;
 using MediaTracker.Server.Domain.Entities;
 using MediaTracker.Server.Domain.Enums;
+using MediaTracker.Server.Infrastructure.Desktop;
 using MediaTracker.Server.Infrastructure.Persistence;
 using MediaTracker.Server.Infrastructure.ExternalApis;
 using MediaTracker.Server.Infrastructure.ExternalApis.Providers.MangaLib;
@@ -48,6 +49,42 @@ public static class SettingsEndpoints
             handler.HandleAsync(ct).ToOk())
             .WithTags("Настройки / Settings")
             .WithSummary("Список внешних источников метаданных");
+
+        group.MapGet("/app", async ([FromServices] AppDbContext db, CancellationToken ct) =>
+            {
+                var launchMode = await AppSettingStore.ReadAsync(db, BrowserLauncher.LaunchModeKey, ct)
+                    ?? BrowserLauncher.DefaultLaunchMode;
+                var closeAction = await AppSettingStore.ReadAsync(db, BrowserLauncher.CloseActionKey, ct)
+                    ?? BrowserLauncher.DefaultCloseAction;
+                return Results.Ok(new AppSettingsDto(launchMode, closeAction));
+            })
+            .WithTags("Настройки / Settings")
+            .WithSummary("Режим запуска интерфейса и действие при закрытии окна");
+
+        group.MapPut("/app", async (
+                AppSettingsDto request,
+                [FromServices] AppDbContext db,
+                CancellationToken ct) =>
+            {
+                if (request.LaunchMode is not ("app_window" or "browser_tab"))
+                {
+                    return Results.BadRequest(new ApiErrorDetail(
+                        "launchMode must be 'app_window' or 'browser_tab'."));
+                }
+
+                if (request.CloseAction is not ("minimize_to_tray" or "exit_all"))
+                {
+                    return Results.BadRequest(new ApiErrorDetail(
+                        "closeAction must be 'minimize_to_tray' or 'exit_all'."));
+                }
+
+                await AppSettingStore.SetAsync(db, BrowserLauncher.LaunchModeKey, request.LaunchMode, ct);
+                await AppSettingStore.SetAsync(db, BrowserLauncher.CloseActionKey, request.CloseAction, ct);
+                BrowserLauncher.ApplySettings(request.LaunchMode, request.CloseAction);
+                return Results.Ok(request);
+            })
+            .WithTags("Настройки / Settings")
+            .WithSummary("Сохранить режим запуска интерфейса и действие при закрытии окна");
 
         group.MapPut("/sources/{id}/key", (
                 string id,
@@ -287,22 +324,14 @@ public static class SettingsEndpoints
 
         group.MapGet("/storage", ([FromServices] AppPaths appPaths) =>
         {
-            var appDir = AppContext.BaseDirectory;
-            var configPath = Path.Combine(appDir, "storage.json");
-            var mode = "default";
-            string? customPath = null;
-            if (File.Exists(configPath))
-            {
-                var config = JsonSerializer.Deserialize(File.ReadAllText(configPath), AppJsonSerializerContext.Default.StorageConfig);
-                mode = config?.Mode ?? "default";
-                customPath = config?.CustomPath;
-            }
+            var appDir = AppPaths.GetAppDirectory();
+            var config = appPaths.GetOrRecreateStorageConfig();
             return Results.Ok(new StorageInfoResponse(
-                mode,
+                config.Mode ?? "default",
                 appPaths.DataDirectory,
                 Path.Combine(appDir, "data"),
                 Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Tsundoku"),
-                customPath,
+                config.CustomPath,
                 appPaths.IsFirstRunSetupRequired));
         }).WithTags("Настройки / Settings").WithSummary("Получить настройки хранилища");
 
@@ -312,8 +341,8 @@ public static class SettingsEndpoints
             [FromServices] AppDbContext dbContext,
             [FromServices] IHostApplicationLifetime hostLifetime) =>
             {
-                var appDir = AppContext.BaseDirectory;
-                var configPath = Path.Combine(appDir, "storage.json");
+                var appDir = AppPaths.GetAppDirectory();
+                var configPath = AppPaths.GetWritableStorageConfigPath(request.Mode);
 
                 string targetDataDir = request.Mode switch
                 {
@@ -322,7 +351,9 @@ public static class SettingsEndpoints
                     _ => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Tsundoku")
                 };
 
-                if (request.MigrateExistingData && targetDataDir != currentPaths.DataDirectory)
+                targetDataDir = Path.GetFullPath(targetDataDir);
+
+                if (request.MigrateExistingData && !string.Equals(targetDataDir, currentPaths.DataDirectory, StringComparison.OrdinalIgnoreCase))
                 {
                     Directory.CreateDirectory(targetDataDir);
 
@@ -330,6 +361,11 @@ public static class SettingsEndpoints
                     if (File.Exists(currentPaths.DatabaseFilePath))
                     {
                         var targetDbPath = Path.Combine(targetDataDir, Path.GetFileName(currentPaths.DatabaseFilePath));
+                        if (File.Exists(targetDbPath))
+                        {
+                            File.Delete(targetDbPath);
+                        }
+
                         var escapedTargetDbPath = targetDbPath.Replace("'", "''");
                         var conn2 = dbContext.Connection;
                         if (conn2.State != global::System.Data.ConnectionState.Open) await conn2.OpenAsync();
@@ -358,18 +394,20 @@ public static class SettingsEndpoints
                 }
 
                 var config = new StorageConfig { Mode = request.Mode, CustomPath = request.CustomPath };
-                File.WriteAllText(configPath, JsonSerializer.Serialize(config, AppJsonSerializerContext.Default.StorageConfig));
+                currentPaths.SaveStorageConfig(configPath, config);
 
-                _ = Task.Run(() =>
+                var needsRestart = !string.Equals(targetDataDir, currentPaths.DataDirectory, StringComparison.OrdinalIgnoreCase);
+
+                if (needsRestart)
                 {
-                    Thread.Sleep(1000);
-                    var startInfo = new ProcessStartInfo(Environment.ProcessPath!, string.Join(" ", Environment.GetCommandLineArgs().Skip(1)))
+                    _ = Task.Run(async () =>
                     {
-                        UseShellExecute = true
-                    };
-                    Process.Start(startInfo);
-                    hostLifetime.StopApplication();
-                });
+                        await Task.Delay(300);
+                        AppRestartService.ScheduleRestart("--no-browser");
+                        hostLifetime.StopApplication();
+                    });
+                }
+
                 return Results.Accepted();
             }).WithTags("Настройки / Settings").WithSummary("Сохранить настройки хранилища");
 
@@ -397,6 +435,7 @@ public static class SettingsEndpoints
 }
 
 public sealed record StorageRequest(string Mode, string? CustomPath, bool MigrateExistingData);
+public sealed record AppSettingsDto(string LaunchMode, string CloseAction);
 public sealed record ToggleSourceRequest(bool Enabled);
 public sealed record UpdateKeyRequest(string? ApiKey);
 

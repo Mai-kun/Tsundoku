@@ -1,4 +1,5 @@
 using MediaTracker.Server.Infrastructure.Desktop;
+using MediaTracker.Server.Infrastructure.ExternalApis;
 using Microsoft.AspNetCore.Mvc;
 
 namespace MediaTracker.Server.Common.Endpoints;
@@ -31,6 +32,19 @@ public static class SystemEndpoints
             .WithSummary("Открыть консоль логов")
             .ExcludeFromDescription();
 
+        app.MapPost("/api/system/switch-to-browser", ([FromBody] SwitchToBrowserRequest? request) =>
+        {
+            // `preferAppWindow: false` forces a tab in the system default browser
+            // (xdg-open / Zen), instead of a --app window owned by the server.
+            var targetUrl = string.IsNullOrWhiteSpace(request?.Url) ? "http://127.0.0.1:5000" : request.Url;
+            BrowserLauncher.OpenUrl(targetUrl, preferAppWindow: false);
+            BrowserLauncher.CloseBrowser(); // закрываем окно Chromium --app
+            return Results.NoContent();
+        })
+        .WithTags("Система / System")
+        .WithSummary("Переключить текущую вкладку в системный браузер, закрыв окно Chromium --app")
+        .ExcludeFromDescription();
+
         app.MapPost("/api/system/shutdown", (
                 [FromServices] IHostApplicationLifetime lifetime) =>
             {
@@ -46,6 +60,13 @@ public static class SystemEndpoints
             .WithTags("Система / System")
             .WithSummary("Корректно завершить работу Tsundoku");
 
+        app.MapGet("/api/system/rate-limits", ([FromServices] RateLimitTracker rateLimitTracker) =>
+            Results.Ok(rateLimitTracker.GetAll()))
+            .WithTags("Система / System")
+            .WithSummary("Получить список активных лимитов внешних API");
+
         return app;
     }
+
+    public record SwitchToBrowserRequest(string? Url);
 }

@@ -24,6 +24,7 @@ public static unsafe class LinuxTray
     private static Action _openUi = static () => { };
     private static Action _openLogs = static () => { };
     private static Action _exit = static () => { };
+    private static delegate* unmanaged<void> _gtkMainQuit;
 
     public static bool TryStart(Action openUi, Action openLogs, Action exit)
     {
@@ -69,6 +70,9 @@ public static unsafe class LinuxTray
                     _openLogs();
                     break;
                 case MenuAction.Exit:
+                    // Release the GTK thread first: gtk_main() only returns after this, and
+                    // without it the tray loop can outlive the host shutdown.
+                    if (_gtkMainQuit is not null) _gtkMainQuit();
                     _exit();
                     break;
             }
@@ -146,7 +150,9 @@ public static unsafe class LinuxTray
             appIndicatorSetMenu(indicator, menu);
             Serilog.Log.Information("System tray icon created");
 
-            // Blocks this background thread until the process exits.
+            _gtkMainQuit = (delegate* unmanaged<void>)NativeLibrary.GetExport(gtk, "gtk_main_quit");
+
+            // Blocks this background thread until the process exits or "Выход" calls gtk_main_quit().
             ((delegate* unmanaged<void>)NativeLibrary.GetExport(gtk, "gtk_main"))();
         }
         catch (Exception error)

@@ -1709,21 +1709,38 @@ public sealed class AppDbContext : IDisposable, IAsyncDisposable
         if (conn.State != System.Data.ConnectionState.Open) await conn.OpenAsync(ct);
         await EnsureSchemaAsync(ct);
 
-        var rows = await conn.QueryAsync<GoalRow>(
-            "SELECT * FROM Goals WHERE Year = @year ORDER BY CreatedAt;",
-            new { year });
-        return rows.Select(r => new Goal
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = "SELECT Id, Title, Description, Icon, Year, TargetCount, Category, SmartQueryJson, CreatedAt FROM Goals WHERE Year = @year ORDER BY CreatedAt;";
+        cmd.Parameters.Add(new SqliteParameter("@year", year));
+
+        using var reader = await cmd.ExecuteReaderAsync(ct);
+        var goals = new List<Goal>();
+        var idOrd = reader.GetOrdinal("Id");
+        var titleOrd = reader.GetOrdinal("Title");
+        var descOrd = reader.GetOrdinal("Description");
+        var iconOrd = reader.GetOrdinal("Icon");
+        var yearOrd = reader.GetOrdinal("Year");
+        var targetOrd = reader.GetOrdinal("TargetCount");
+        var catOrd = reader.GetOrdinal("Category");
+        var smartOrd = reader.GetOrdinal("SmartQueryJson");
+        var createdOrd = reader.GetOrdinal("CreatedAt");
+
+        while (await reader.ReadAsync(ct))
         {
-            Id = Guid.Parse(r.Id),
-            Title = r.Title,
-            Description = r.Description,
-            Icon = r.Icon,
-            Year = r.Year,
-            TargetCount = r.TargetCount,
-            Category = r.Category,
-            SmartQueryJson = r.SmartQueryJson,
-            CreatedAt = DateTime.Parse(r.CreatedAt).ToUniversalTime(),
-        }).ToList();
+            goals.Add(new Goal
+            {
+                Id = Guid.Parse(reader.GetString(idOrd)),
+                Title = reader.GetString(titleOrd),
+                Description = reader.IsDBNull(descOrd) ? null : reader.GetString(descOrd),
+                Icon = reader.IsDBNull(iconOrd) ? null : reader.GetString(iconOrd),
+                Year = reader.GetInt32(yearOrd),
+                TargetCount = reader.GetInt32(targetOrd),
+                Category = reader.IsDBNull(catOrd) ? null : reader.GetString(catOrd),
+                SmartQueryJson = reader.IsDBNull(smartOrd) ? null : reader.GetString(smartOrd),
+                CreatedAt = DateTime.Parse(reader.GetString(createdOrd)).ToUniversalTime(),
+            });
+        }
+        return goals;
     }
 
     public async Task CreateGoalAsync(Goal goal, CancellationToken ct = default)
@@ -1800,19 +1817,6 @@ public sealed class AppDbContext : IDisposable, IAsyncDisposable
         }, ct);
     }
 
-    /// <summary>Flat row mirroring the Goals table for Dapper reads.</summary>
-    private sealed class GoalRow
-    {
-        public string Id { get; set; } = string.Empty;
-        public string Title { get; set; } = string.Empty;
-        public string? Description { get; set; }
-        public string? Icon { get; set; }
-        public int Year { get; set; }
-        public int TargetCount { get; set; }
-        public string? Category { get; set; }
-        public string? SmartQueryJson { get; set; }
-        public string CreatedAt { get; set; } = string.Empty;
-    }
 
     // ------------------------------------------------------------------
     // Schema

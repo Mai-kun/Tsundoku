@@ -3,6 +3,7 @@ using System.IO.Compression;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using MediaTracker.Server.Common.Cli;
+using MediaTracker.Server.Infrastructure.Desktop;
 using MediaTracker.Server.Infrastructure.Persistence;
 using MediaTracker.Server.Infrastructure.Storage;
 using Microsoft.Extensions.Logging;
@@ -92,12 +93,8 @@ public sealed class UpdateService(
         // 4. Restart
         _ = Task.Run(() =>
         {
-            Thread.Sleep(1000);
-            var startInfo = new ProcessStartInfo(Environment.ProcessPath!, string.Join(" ", Environment.GetCommandLineArgs().Skip(1)))
-            {
-                UseShellExecute = true
-            };
-            Process.Start(startInfo);
+            Thread.Sleep(500);
+            AppRestartService.ScheduleRestart();
             hostLifetime.StopApplication();
         }, CancellationToken.None);
     }

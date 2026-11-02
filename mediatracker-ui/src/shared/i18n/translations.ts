@@ -20,6 +20,8 @@ export const translations = {
     loading: { ru: "Загрузка…", en: "Loading…" },
     saving: { ru: "Сохранение…", en: "Saving…" },
     back: { ru: "Назад", en: "Back" },
+    copy: { ru: "Скопировать", en: "Copy" },
+    copied: { ru: "Скопировано!", en: "Copied!" },
     noData: { ru: "Пока нет данных", en: "No data yet" },
     comingSoon: { ru: "Скоро", en: "Coming soon" },
     details: { ru: "Подробнее", en: "Details" },
@@ -47,6 +49,7 @@ export const translations = {
     addButton: { ru: "Добавить", en: "Add media" },
     language: { ru: "Язык интерфейса", en: "Interface language" },
     exit: { ru: "Выход / Управление работой", en: "Exit / Power" },
+    updatingData: { ru: "Обновление данных...", en: "Updating data..." },
   },
   navigation: {
     home: { ru: "Главная", en: "Home" },
@@ -493,6 +496,10 @@ export const translations = {
     },
     storageCustom: { ru: "Свой путь", en: "Custom path" },
     storageConfirm: { ru: "Начать", en: "Start" },
+    storageApplying: {
+      ru: "Применение настроек хранилища... (1-2 сек)",
+      en: "Applying storage settings... (1-2 sec)",
+    },
   },
   types: {
     game: { ru: "Игра", en: "Game" },
@@ -2136,26 +2143,42 @@ export const translations = {
       update: { ru: "Обновление", en: "Updates" },
       desktop: { ru: "Приложение", en: "Application" },
     },
+    launchMode: {
+      title: { ru: "Режим отображения интерфейса", en: "Interface Launch Mode" },
+      description: {
+        ru: "Как открывать интерфейс Tsundoku при запуске и из трея.",
+        en: "How Tsundoku opens its interface on launch and from the tray.",
+      },
+      appWindow: { ru: "🖥️ Окно приложения", en: "🖥️ App window" },
+      appWindowDescription: {
+        ru: "Открывает интерфейс в отдельном нативном окне без рамок браузера (144 FPS).",
+        en: "Opens the interface in a separate native window without browser chrome (144 FPS).",
+      },
+      browserTab: { ru: "🌐 Вкладка браузера", en: "🌐 Browser tab" },
+      browserTabDescription: {
+        ru: "Открывает интерфейс как обычную вкладку в вашем браузере по умолчанию.",
+        en: "Opens the interface as a regular tab in your default browser.",
+      },
+    },
     closeBehavior: {
-      title: { ru: "Действие при выходе / закрытии", en: "Exit / Close Action" },
+      title: { ru: "Действие при закрытии окна", en: "Action on Window Close" },
       description: {
         ru: "Выберите, как Tsundoku должен вести себя при закрытии окна интерфейса",
         en: "Choose how Tsundoku behaves when the interface window is closed",
       },
       tray: { ru: "Сворачивать в трей", en: "Minimize to tray" },
       trayDescription: {
-        ru: "Интерфейс закрывается, сервер продолжает работать в фоне, иконка остаётся в системном трее.",
-        en: "The interface closes, the server keeps running in the background, and the tray icon stays.",
+        ru: "Сервер остаётся в фоне, иконка доступна около часов.",
+        en: "The server keeps running in the background, with the tray icon near the clock.",
       },
       exit: { ru: "Полный выход", en: "Full exit" },
       exitDescription: {
-        ru: "Полностью останавливать сервер Tsundoku и закрывать приложение.",
-        en: "Stop the Tsundoku server completely and close the application.",
+        ru: "При закрытии окна крестиком полностью останавливать сервер Tsundoku.",
+        en: "Closing the window with the X stops the Tsundoku server completely.",
       },
-      ask: { ru: "Спрашивать каждый раз", en: "Ask every time" },
-      askDescription: {
-        ru: "При нажатии кнопки выхода в шапке показывать окно выбора.",
-        en: "Show the choice dialog when the exit button in the header is pressed.",
+      savedToast: {
+        ru: "Настройки приложения сохранены",
+        en: "Application settings saved",
       },
     },
     sources: {
@@ -2464,6 +2487,19 @@ export const translations = {
       ru: (title: string) => `Отменить синхронизацию «${title}»`,
       en: (title: string) => `Cancel sync of "${title}"`,
     },
+    rateLimitsTitle: { ru: "Лимиты API", en: "API Rate Limits" },
+    remaining: {
+      ru: (remaining: number, limit: number) => `Осталось: ${remaining} / ${limit}`,
+      en: (remaining: number, limit: number) => `Remaining: ${remaining} / ${limit}`,
+    },
+    resetInSeconds: {
+      ru: (sec: number) => `Сброс через ${sec} сек.`,
+      en: (sec: number) => `Reset in ${sec}s`,
+    },
+    resetReady: {
+      ru: "Сброс готов",
+      en: "Reset ready",
+    },
   },
   backgroundJobs: {
     openWindow: { ru: "Открыть окно процессов", en: "Open processes window" },
@@ -2675,6 +2711,14 @@ export const translations = {
       ru: "Не удалось выполнить запрос.",
       en: "The request could not be completed.",
     },
+  },
+  contextMenu: {
+    title: { ru: "Контекстное меню", en: "Context menu" },
+    copy: { ru: "Скопировать", en: "Copy" },
+    copyTitle: { ru: "Скопировать название", en: "Copy title" },
+    searchInLibrary: { ru: "Искать в библиотеке", en: "Search in library" },
+    consoleLogs: { ru: "Консоль логов", en: "Console logs" },
+    openInBrowser: { ru: "Открыть в браузере (Zen)", en: "Open in browser (Zen)" },
   },
 } as const;
 

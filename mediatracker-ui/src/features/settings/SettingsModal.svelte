@@ -31,7 +31,7 @@
   } from "$shared/ui/Icons";
   import { onMount } from "svelte";
   import { slide } from "svelte/transition";
-  import { uiSettings, type OnCloseAction } from "$shared/utils/uiSettings.svelte";
+  import { uiSettings } from "$shared/utils/uiSettings.svelte";
   import { exitApp } from "$shared/utils/appExit";
   import {
     createApiToken,
@@ -40,12 +40,14 @@
     exportLibraryCsv,
     exportLibraryJson,
     getApiTokens,
+    getAppSettings,
     getCategoryOrder,
     getSources,
     getSourcePriority,
     restoreBackup,
     resetAllData,
     revokeApiToken,
+    saveAppSettings,
     saveCategoryOrder,
     saveSourceKey,
     saveSourcePriority,
@@ -55,6 +57,7 @@
     applyAppUpdate,
     getStorageSettings,
     saveStorageSettings,
+    type AppSettings,
   } from "$shared/api/api";
   import { showToast } from "$shared/ui/toast.svelte";
   import { i18n } from "$shared/i18n/index.svelte";
@@ -92,23 +95,60 @@
     | "desktop";
   let activeTab = $state<Tab>("sources");
 
-  const closeBehaviorOptions = $derived([
+  const launchModeOptions = $derived([
     {
-      value: "tray",
+      value: "app_window",
+      label: i18n.t.settingsModal.launchMode.appWindow,
+      description: i18n.t.settingsModal.launchMode.appWindowDescription,
+    },
+    {
+      value: "browser_tab",
+      label: i18n.t.settingsModal.launchMode.browserTab,
+      description: i18n.t.settingsModal.launchMode.browserTabDescription,
+    },
+  ] as { value: AppSettings["launchMode"]; label: string; description: string }[]);
+
+  const closeActionOptions = $derived([
+    {
+      value: "minimize_to_tray",
       label: i18n.t.settingsModal.closeBehavior.tray,
       description: i18n.t.settingsModal.closeBehavior.trayDescription,
     },
     {
-      value: "exit",
+      value: "exit_all",
       label: i18n.t.settingsModal.closeBehavior.exit,
       description: i18n.t.settingsModal.closeBehavior.exitDescription,
     },
-    {
-      value: "ask",
-      label: i18n.t.settingsModal.closeBehavior.ask,
-      description: i18n.t.settingsModal.closeBehavior.askDescription,
-    },
-  ] as { value: OnCloseAction; label: string; description: string }[]);
+  ] as { value: AppSettings["closeAction"]; label: string; description: string }[]);
+
+  let appSettings = $state<AppSettings>({
+    launchMode: "app_window",
+    closeAction: "minimize_to_tray",
+  });
+  let appSettingsSaving = $state(false);
+
+  async function loadAppSettings() {
+    try {
+      appSettings = await getAppSettings();
+    } catch (e) {
+      console.error("Failed to load app settings:", e);
+    }
+  }
+
+  async function updateAppSettings(patch: Partial<AppSettings>) {
+    if (appSettingsSaving) return;
+    const next = { ...appSettings, ...patch };
+    appSettings = next;
+    appSettingsSaving = true;
+    try {
+      appSettings = await saveAppSettings(next);
+      showToast(i18n.t.settingsModal.closeBehavior.savedToast, "success");
+    } catch (e) {
+      showToast(errorMessage(e), "error");
+    } finally {
+      appSettingsSaving = false;
+    }
+  }
 
   let tokens = $state<ApiTokenSummary[]>([]);
   let isLoadingTokens = $state(false);
@@ -136,6 +176,9 @@
     }
     if (isOpen && activeTab === "storage") {
       loadStorage();
+    }
+    if (isOpen && activeTab === "desktop") {
+      loadAppSettings();
     }
   });
 
@@ -289,6 +332,25 @@
     }
   }
 
+  async function waitForServerAndReload() {
+    await new Promise((r) => setTimeout(r, 600));
+    for (let i = 0; i < 40; i++) {
+      try {
+        const res = await fetch("/api/settings/storage?t=" + Date.now(), {
+          cache: "no-store",
+        });
+        if (res.ok) {
+          window.location.reload();
+          return;
+        }
+      } catch {
+        // Server restarting, wait and retry
+      }
+      await new Promise((r) => setTimeout(r, 500));
+    }
+    window.location.reload();
+  }
+
   async function handleSaveStorage() {
     if (isSavingStorage) return;
     isSavingStorage = true;
@@ -299,12 +361,9 @@
         migrateExistingData,
       });
       showToast(i18n.t.settingsModal.storage.savedToast, "success");
-      setTimeout(() => {
-        window.location.reload();
-      }, 1500);
+      await waitForServerAndReload();
     } catch (e) {
       showToast(errorMessage(e), "error");
-    } finally {
       isSavingStorage = false;
     }
   }
@@ -1865,6 +1924,54 @@
           <section class="space-y-6">
             <div>
               <h3 class="text-ink text-base font-bold">
+                {i18n.t.settingsModal.launchMode.title}
+              </h3>
+              <p class="text-muted mt-1 text-xs leading-relaxed">
+                {i18n.t.settingsModal.launchMode.description}
+              </p>
+            </div>
+
+            <div class="bg-card grid gap-2.5 rounded-xl border border-white/[0.08] p-5">
+              {#each launchModeOptions as option (option.value)}
+                <label
+                  class={`flex items-start gap-3 rounded-xl border p-3.5 transition ${
+                    appSettingsSaving
+                      ? "cursor-wait opacity-70"
+                      : "cursor-pointer"
+                  } ${
+                    appSettings.launchMode === option.value
+                      ? "border-indigo-500/60 bg-indigo-500/15 ring-1 ring-indigo-500/30"
+                      : "border-white/10 bg-white/[0.02] hover:border-white/20"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="launch-mode"
+                    value={option.value}
+                    checked={appSettings.launchMode === option.value}
+                    onchange={() => void updateAppSettings({ launchMode: option.value })}
+                    disabled={appSettingsSaving}
+                    class="sr-only"
+                  />
+                  <span
+                    class={`mt-0.5 h-4 w-4 shrink-0 rounded-full border transition ${
+                      appSettings.launchMode === option.value
+                        ? "border-4 border-indigo-400"
+                        : "border-white/25"
+                    }`}
+                  ></span>
+                  <span>
+                    <span class="block text-sm font-semibold text-white">{option.label}</span>
+                    <span class="text-muted mt-0.5 block text-xs leading-snug">
+                      {option.description}
+                    </span>
+                  </span>
+                </label>
+              {/each}
+            </div>
+
+            <div>
+              <h3 class="text-ink text-base font-bold">
                 {i18n.t.settingsModal.closeBehavior.title}
               </h3>
               <p class="text-muted mt-1 text-xs leading-relaxed">
@@ -1872,26 +1979,35 @@
               </p>
             </div>
 
-            <div class="bg-card grid gap-2.5 rounded-xl border border-white/[0.08] p-5">
-              {#each closeBehaviorOptions as option (option.value)}
+            <div
+              class={`bg-card grid gap-2.5 rounded-xl border border-white/[0.08] p-5 transition ${
+                appSettings.launchMode === "app_window" ? "" : "opacity-50"
+              }`}
+            >
+              {#each closeActionOptions as option (option.value)}
+                {@const disabled =
+                  appSettings.launchMode !== "app_window" || appSettingsSaving}
                 <label
-                  class={`flex cursor-pointer items-start gap-3 rounded-xl border p-3.5 transition ${
-                    uiSettings.onCloseAction === option.value
+                  class={`flex items-start gap-3 rounded-xl border p-3.5 transition ${
+                    disabled ? "cursor-not-allowed" : "cursor-pointer"
+                  } ${
+                    appSettings.closeAction === option.value
                       ? "border-indigo-500/60 bg-indigo-500/15 ring-1 ring-indigo-500/30"
                       : "border-white/10 bg-white/[0.02] hover:border-white/20"
                   }`}
                 >
                   <input
                     type="radio"
-                    name="on-close-action"
+                    name="close-action"
                     value={option.value}
-                    checked={uiSettings.onCloseAction === option.value}
-                    onchange={() => uiSettings.setOnCloseAction(option.value)}
+                    checked={appSettings.closeAction === option.value}
+                    onchange={() => void updateAppSettings({ closeAction: option.value })}
+                    {disabled}
                     class="sr-only"
                   />
                   <span
                     class={`mt-0.5 h-4 w-4 shrink-0 rounded-full border transition ${
-                      uiSettings.onCloseAction === option.value
+                      appSettings.closeAction === option.value
                         ? "border-4 border-indigo-400"
                         : "border-white/25"
                     }`}

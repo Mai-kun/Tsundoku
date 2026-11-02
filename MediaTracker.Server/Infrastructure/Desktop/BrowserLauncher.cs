@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using MediaTracker.Server.Infrastructure.Persistence;
 
 namespace MediaTracker.Server.Infrastructure.Desktop;
 
@@ -9,8 +10,43 @@ namespace MediaTracker.Server.Infrastructure.Desktop;
 /// </summary>
 public static class BrowserLauncher
 {
+    public const string LaunchModeKey = "App_LaunchMode";
+    public const string CloseActionKey = "App_CloseAction";
+    public const string DefaultLaunchMode = "app_window";
+    public const string DefaultCloseAction = "minimize_to_tray";
+
     /// <summary>The Chromium process opened by the last successful launch, if any.</summary>
     private static Process? ActiveBrowserProcess;
+
+    /// <summary>Set while the server itself closes the window, so its exit is not user-initiated.</summary>
+    private static volatile bool _closingBrowser;
+
+    private static IHostApplicationLifetime? _hostLifetime;
+    private static IServiceProvider? _services;
+
+    /// <summary>`app_window` (Chromium --app) or `browser_tab` (default browser).</summary>
+    public static string LaunchMode { get; private set; } = DefaultLaunchMode;
+
+    /// <summary>`minimize_to_tray` or `exit_all`, applied when the user closes the app window.</summary>
+    public static string CloseAction { get; private set; } = DefaultCloseAction;
+
+    /// <summary>Wires the host shutdown path and loads the persisted launch/close behavior.</summary>
+    public static async Task InitializeAsync(IServiceProvider services, IHostApplicationLifetime lifetime)
+    {
+        _services = services;
+        _hostLifetime = lifetime;
+        using var scope = services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        ApplySettings(
+            await AppSettingStore.ReadAsync(db, LaunchModeKey) ?? DefaultLaunchMode,
+            await AppSettingStore.ReadAsync(db, CloseActionKey) ?? DefaultCloseAction);
+    }
+
+    public static void ApplySettings(string launchMode, string closeAction)
+    {
+        LaunchMode = launchMode;
+        CloseAction = closeAction;
+    }
 
     /// <summary>Chromium-family launchers tried (in order) for a native chrome-less window.</summary>
     private static readonly string[] ChromiumBrowsers =
@@ -33,15 +69,18 @@ public static class BrowserLauncher
 
     public static void OpenUrl(string url, bool preferAppWindow = true)
     {
+        // The persisted setting wins over the caller's preference (e.g. the log console).
+        var useAppWindow = preferAppWindow
+            && !string.Equals(LaunchMode, "browser_tab", StringComparison.OrdinalIgnoreCase);
         try
         {
             if (OperatingSystem.IsLinux())
             {
-                OpenOnLinux(url, preferAppWindow);
+                OpenOnLinux(url, useAppWindow);
             }
             else if (OperatingSystem.IsWindows())
             {
-                OpenOnWindows(url, preferAppWindow);
+                OpenOnWindows(url, useAppWindow);
             }
             else if (OperatingSystem.IsMacOS())
             {
@@ -176,6 +215,7 @@ public static class BrowserLauncher
         startInfo.ArgumentList.Add("--no-first-run");
         startInfo.ArgumentList.Add("--no-default-browser-check");
         startInfo.ArgumentList.Add("--disable-features=Translate,GlobalMediaControls,MediaRouter,OptimizationHints");
+        startInfo.ArgumentList.Add("--disable-translate");
         startInfo.ArgumentList.Add("--enable-gpu-rasterization");
         startInfo.ArgumentList.Add("--enable-zero-copy");
         startInfo.ArgumentList.Add("--force-dark-mode");
@@ -198,6 +238,21 @@ public static class BrowserLauncher
             // A successful Process.Start is enough: on Linux Chromium normally hands the
             // request to an already-running instance and exits the launcher with code 0.
             // Waiting here would misread that handoff as a crash and open a second window.
+            var launchedAt = Stopwatch.GetTimestamp();
+            child.EnableRaisingEvents = true;
+            child.Exited += (_, _) =>
+            {
+                // shortcut: a handoff exit happens within a second or two; a real window
+                // cannot be closed that fast in practice. Upgrade to a Chromium IPC signal
+                // if false positives ever appear.
+                if (Stopwatch.GetElapsedTime(launchedAt).TotalSeconds < 3)
+                {
+                    return;
+                }
+
+                OnBrowserWindowClosed();
+            };
+
             ActiveBrowserProcess = child;
             return true;
         }
@@ -205,6 +260,40 @@ public static class BrowserLauncher
         {
             Serilog.Log.Warning(error, "Failed to launch {Browser}", browser.FullName);
             return false;
+        }
+    }
+
+    /// <summary>User closed the Chromium window: honor the persisted close action.</summary>
+    private static async void OnBrowserWindowClosed()
+    {
+        try
+        {
+            if (_closingBrowser)
+            {
+                return;
+            }
+
+            var closeAction = CloseAction;
+            if (_services?.GetService(typeof(IServiceScopeFactory)) is IServiceScopeFactory scopeFactory)
+            {
+                using var scope = scopeFactory.CreateScope();
+                var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                closeAction = await AppSettingStore.ReadAsync(db, CloseActionKey) ?? closeAction;
+            }
+
+            if (string.Equals(closeAction, "exit_all", StringComparison.OrdinalIgnoreCase))
+            {
+                Serilog.Log.Information("[Desktop] App window closed by user. Shutting down Tsundoku...");
+                _hostLifetime?.StopApplication();
+            }
+            else
+            {
+                Serilog.Log.Information("[Desktop] App window closed. Tsundoku continues running in tray.");
+            }
+        }
+        catch (Exception error)
+        {
+            Serilog.Log.Warning(error, "Failed to handle the browser window exit");
         }
     }
 
@@ -217,6 +306,8 @@ public static class BrowserLauncher
         {
             return;
         }
+
+        _closingBrowser = true;
 
         try
         {

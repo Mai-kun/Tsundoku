@@ -18,6 +18,12 @@ public static class SingleInstanceService
     /// <summary>Rooted for the process lifetime; releasing early would defeat the lock.</summary>
     private static IDisposable? _instanceLock;
 
+    /// <summary>Releases the instance lock early (used during restart or shutdown).</summary>
+    public static void ReleaseLock()
+    {
+        Interlocked.Exchange(ref _instanceLock, null)?.Dispose();
+    }
+
     /// <summary>
     /// Returns true when this process may continue starting (lock acquired). Exits the
     /// process with code 0 when an instance is already serving the same port. Pure utility
@@ -96,9 +102,26 @@ public static class SingleInstanceService
     {
         Console.WriteLine($"[Tsundoku] Сервер уже запущен на порту {port}. Открываем интерфейс...");
 
-        // Exactly one launch: Chromium with the same profile deduplicates into the
-        // existing app process, so this focuses/opens a single window. Pinging
-        // /api/system/open-ui as well would open a second one.
+        // Ask the running server to surface its UI so it uses the *persisted* launch mode
+        // (app window vs browser tab). Exactly one launch: Chromium with the same profile
+        // deduplicates into the existing app process, so this focuses/opens a single window.
+        try
+        {
+            using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(2) };
+            using var response = http
+                .PostAsync($"http://127.0.0.1:{port}/api/system/open-ui", content: null)
+                .GetAwaiter()
+                .GetResult();
+            if (response.IsSuccessStatusCode)
+            {
+                Environment.Exit(0);
+            }
+        }
+        catch
+        {
+            // Older or unresponsive instance: fall back to a local launch.
+        }
+
         BrowserLauncher.OpenUrl($"http://127.0.0.1:{port}");
         Environment.Exit(0);
     }

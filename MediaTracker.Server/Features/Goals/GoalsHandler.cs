@@ -138,14 +138,21 @@ public sealed class GoalsHandler(AppDbContext db) : IGoalsHandler
 
     private static List<MediaItem> MatchGoal(Goal goal, List<MediaItem> completed)
     {
-        IEnumerable<MediaItem> matched = completed.Where(item =>
-            item.FinishedAt is { } finished && finished.Year == goal.Year);
-
-        // Category always applies — a smart query narrows the category further, never widens it.
-        var category = goal.Category;
-        if (!string.IsNullOrEmpty(category) && category != "all")
+        var matched = new List<MediaItem>();
+        foreach (var item in completed)
         {
-            matched = matched.Where(item => MatchesCategory(item, category));
+            var finishedYear = item.FinishedAt?.Year 
+                               ?? (item.Status == MediaStatus.Completed ? item.UpdatedAt.Year : (int?)null);
+            if (finishedYear != goal.Year) continue;
+
+            // Category always applies — a smart query narrows the category further, never widens it.
+            var category = goal.Category;
+            if (!string.IsNullOrEmpty(category) && category != "all" && !MatchesCategory(item, category))
+            {
+                continue;
+            }
+
+            matched.Add(item);
         }
 
         if (goal.SmartQueryJson is not null)
@@ -157,7 +164,7 @@ public sealed class GoalsHandler(AppDbContext db) : IGoalsHandler
             }
         }
 
-        return matched.ToList();
+        return matched;
     }
 
     /// <summary>Goal categories map intuitively: "movie"/"tvshow" match the type regardless of
@@ -177,7 +184,7 @@ public sealed class GoalsHandler(AppDbContext db) : IGoalsHandler
     private static GoalDto ToDto(Goal goal, List<MediaItem> matched)
     {
         var previews = matched
-            .OrderByDescending(item => item.FinishedAt)
+            .OrderByDescending(item => item.FinishedAt ?? (item.Status == MediaStatus.Completed ? item.UpdatedAt : DateTime.MinValue))
             .Take(PreviewCount)
             .Select(MediaResponseMapper.ToListDto)
             .ToList();

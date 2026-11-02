@@ -27,20 +27,34 @@
   let isCreateOpen = $state(false);
 
   let requestSequence = 0;
+  let lastLoadedYear = -1;
+  let lastLoadedRefreshKey = -1;
 
   $effect(() => {
-    void refreshKey;
-    void year;
-    const sequence = ++requestSequence;
-    void loadGoals(sequence);
+    const targetYear = year;
+    const targetKey = refreshKey;
+
+    if (targetYear === lastLoadedYear && targetKey === lastLoadedRefreshKey) {
+      return;
+    }
+
+    lastLoadedYear = targetYear;
+    lastLoadedRefreshKey = targetKey;
+
+    untrack(() => {
+      const sequence = ++requestSequence;
+      void loadGoals(sequence, targetYear);
+    });
   });
 
-  async function loadGoals(sequence: number) {
+  async function loadGoals(sequence: number, targetYear: number) {
     markStart("tsundoku:goals:load");
-    loading = goals.length === 0;
-    loadError = null;
+    untrack(() => {
+      loading = goals.length === 0;
+      loadError = null;
+    });
     try {
-      const loaded = await getGoals(year);
+      const loaded = await getGoals(targetYear);
       if (sequence === requestSequence) {
         goals = loaded;
         loading = false;
@@ -74,7 +88,6 @@
   }
 
   function onGoalCreated(_goal: GoalDto) {
-    void loadGoals(++requestSequence);
     untrack(() => onMediaChanged());
   }
 </script>

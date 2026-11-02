@@ -10,11 +10,24 @@ public static class GoalEndpoints
     {
         var group = app.MapGroup("/api/goals");
 
-        group.MapGet("/", (
+        group.MapGet("/", async (
                 [FromServices] IGoalsHandler handler,
+                [FromServices] ILogger<IGoalsHandler> logger,
                 int? year,
                 CancellationToken ct) =>
-            handler.GetGoalsAsync(year ?? DateTime.UtcNow.Year, ct).ToOk())
+            {
+                var targetYear = year ?? DateTime.UtcNow.Year;
+                try
+                {
+                    var result = await handler.GetGoalsAsync(targetYear, ct);
+                    return (IResult)result.ToOk();
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Failed to load goals for year {Year}", year);
+                    return Results.Problem("Failed to load goals");
+                }
+            })
             .WithTags("Цели / Goals")
             .WithSummary("Цели за год с рассчитанным прогрессом")
             .WithDescription("Возвращает годовые и тематические цели с живым прогрессом по завершённым тайтлам и превью обложек.");

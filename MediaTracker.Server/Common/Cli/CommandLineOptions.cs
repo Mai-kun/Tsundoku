@@ -25,6 +25,9 @@ public sealed class CommandLineOptions
     /// <summary>Keep the process in the tray without surfacing the UI (autostart, shortcuts).</summary>
     public bool StartMinimized { get; private set; }
 
+    public bool ImportOfflineDb { get; private set; }
+    public string? OfflineDbDumpPath { get; private set; }
+
     public string? Error { get; private set; }
 
     public static bool IsRunningInContainer =>
@@ -71,11 +74,27 @@ public sealed class CommandLineOptions
                 case "--client-only":
                     break;
 
-                // Start in the tray without opening the UI (autostart, shortcuts).
+                // Start in the tray without opening the UI (autostart, shortcuts, internal restart).
+                case "--no-browser":
                 case "--tray":
                 case "--minimized":
                     options.StartMinimized = true;
                     break;
+
+                case "--import-offline-db":
+                    options.ImportOfflineDb = true;
+                    break;
+
+                case "--offline-dump":
+                    {
+                        if (!TryTakeValue(args, ref i, out var dumpPath))
+                        {
+                            return options.WithError($"Missing value for '{arg}'.");
+                        }
+
+                        options.OfflineDbDumpPath = dumpPath;
+                        break;
+                    }
 
                 case "--migrate-only":
                     options.MigrateOnly = true;
@@ -205,6 +224,9 @@ public sealed class CommandLineOptions
               --headless, --server-only    Run without the tray icon and without opening a
                                          browser window (systemd, Docker, scripts).
               --tray, --minimized          Start in the tray; the UI is not opened automatically.
+              --no-browser                 Do not launch browser window on startup.
+              --import-offline-db          Import anime-offline-database into anime_offline.db.
+              --offline-dump <path>        Custom path to anime-offline-database.json(l).
               --gui, --client-only         Legacy no-op.
               --server-url <url>           Address the UI connects to. Default: http://127.0.0.1:5000
               --port <number>, -p <number> Override the Kestrel listening port. Default: 5000

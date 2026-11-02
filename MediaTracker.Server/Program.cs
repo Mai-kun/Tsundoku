@@ -7,6 +7,7 @@ using MediaTracker.Server.Common.Extensions;
 using MediaTracker.Server.Common.Middleware;
 using MediaTracker.Server.Domain.Enums;
 using MediaTracker.Server.Features.Jobs;
+using MediaTracker.Server.Infrastructure.Jobs;
 using MediaTracker.Server.Features.Media.Calendar;
 using MediaTracker.Server.Features.System.Updates;
 using MediaTracker.Server.Infrastructure.ExternalApis;
@@ -66,6 +67,41 @@ if (options.IsDevMode)
 
 var appPaths = CreateAppPaths(options, isDevelopment);
 
+if (options.ImportOfflineDb)
+{
+    ConsoleOutput.Attach();
+    var dumpPath = options.OfflineDbDumpPath;
+    if (string.IsNullOrEmpty(dumpPath))
+    {
+        var jsonl = Path.Combine(appPaths.OfflineDirectory, "anime-offline-database.jsonl");
+        var json = Path.Combine(appPaths.OfflineDirectory, "anime-offline-database.json");
+        var appJsonl = Path.Combine(AppPaths.GetAppDirectory(), "data", "offline", "anime-offline-database.jsonl");
+        var appJson = Path.Combine(AppPaths.GetAppDirectory(), "data", "offline", "anime-offline-database.json");
+
+        if (File.Exists(jsonl)) dumpPath = jsonl;
+        else if (File.Exists(json)) dumpPath = json;
+        else if (File.Exists(appJsonl)) dumpPath = appJsonl;
+        else if (File.Exists(appJson)) dumpPath = appJson;
+        else dumpPath = jsonl;
+    }
+
+    if (!File.Exists(dumpPath))
+    {
+        Console.Error.WriteLine($"Tsundoku: Offline anime dump file not found at '{dumpPath}'.");
+        Console.Error.WriteLine("Please place 'anime-offline-database.jsonl' in data/offline/ or specify --offline-dump <path>.");
+        return 1;
+    }
+
+    Console.WriteLine($"Tsundoku: Importing offline anime database from '{dumpPath}'...");
+    var importer = new MediaTracker.Server.Infrastructure.ExternalApis.Offline.AnimeOfflineDatabaseImporter();
+    var count = await importer.ImportDumpAsync(dumpPath, appPaths.OfflineDatabasePath);
+    Console.WriteLine($"Tsundoku: Successfully imported {count:N0} anime titles into '{appPaths.OfflineDatabasePath}'.");
+    return 0;
+}
+
+var fileLockGuard = new FileLockGuard(appPaths);
+appPaths.LockGuard = fileLockGuard;
+
 // Links for the tray menu, the launcher and /api/system/* endpoints. The server binds
 // 0.0.0.0 but the desktop UI is always reached over loopback.
 var links = new DesktopLinks(
@@ -112,6 +148,7 @@ try
     builder.WebHost.UseUrls(listenUrl);
 
     builder.Services.AddSingleton(appPaths);
+    builder.Services.AddSingleton(fileLockGuard);
     builder.Services.AddScoped<IUpdateService, UpdateService>();
 
     var seedCandidates = new[]
@@ -227,6 +264,7 @@ try
     app.UseResponseCompression();
 
     await InitializeDatabaseAsync(app);
+    await BrowserLauncher.InitializeAsync(app.Services, app.Lifetime);
 
     if (options.MigrateOnly)
     {
@@ -364,6 +402,7 @@ try
 
     // Headless Kestrel service: kick off the backfill concurrently instead of blocking startup.
     StartBackgroundFranchiseBackfill(app);
+    StartBackgroundOfflineDatabaseImports(app);
 
     if (enableDesktopShell && !options.StartMinimized)
     {
@@ -372,11 +411,20 @@ try
         app.Lifetime.ApplicationStarted.Register(() => BrowserLauncher.OpenUrl(links.UiUrl));
     }
 
+    app.Lifetime.ApplicationStopping.Register(() => fileLockGuard.Dispose());
+
     await app.RunAsync();
 }
 finally
 {
+    fileLockGuard.Dispose();
     Log.CloseAndFlush();
+    SingleInstanceService.ReleaseLock();
+}
+
+if (AppRestartService.IsRestartScheduled)
+{
+    AppRestartService.ExecuteRestart();
 }
 
 return 0;
@@ -473,4 +521,11 @@ static void StartBackgroundFranchiseBackfill(WebApplication app)
             Log.Warning(ex, "Background franchise auto-backfill failed");
         }
     });
+}
+
+static void StartBackgroundOfflineDatabaseImports(WebApplication app)
+{
+    var jobManager = app.Services.GetRequiredService<IJobManager>();
+    var dbManager = app.Services.GetRequiredService<MediaTracker.Server.Infrastructure.ExternalApis.Offline.OfflineDatabaseManager>();
+    dbManager.EnqueuePendingImports(jobManager, app.Logger);
 }

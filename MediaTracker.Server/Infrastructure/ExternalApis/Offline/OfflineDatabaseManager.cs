@@ -1,0 +1,435 @@
+using System.Diagnostics;
+using System.Text.Json;
+using MediaTracker.Server.Common.Json;
+using MediaTracker.Server.Infrastructure.Jobs;
+using MediaTracker.Server.Infrastructure.Storage;
+using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.Logging;
+
+namespace MediaTracker.Server.Infrastructure.ExternalApis.Offline;
+
+public sealed class OfflineDatabaseManager
+{
+    public const string CreateTableSql = @"
+        CREATE TABLE IF NOT EXISTS OfflineMedia (
+            Id TEXT PRIMARY KEY,
+            Title TEXT NOT NULL,
+            OriginalTitle TEXT,
+            Type TEXT NOT NULL,
+            Year INTEGER,
+            Genres TEXT,
+            ExternalSource TEXT,
+            ExternalId TEXT,
+            ExtraDataJson TEXT
+        );
+    ";
+
+    public const string CreateIndexesSql = @"
+        CREATE INDEX IF NOT EXISTS IX_OfflineMedia_Search ON OfflineMedia (Type, Title COLLATE NOCASE);
+        CREATE INDEX IF NOT EXISTS IX_OfflineMedia_OriginalSearch ON OfflineMedia (Type, OriginalTitle COLLATE NOCASE);
+        PRAGMA optimize;
+    ";
+
+    private readonly AppPaths? _appPaths;
+    private readonly ILogger<OfflineDatabaseManager>? _logger;
+
+    public OfflineDatabaseManager(
+        AppPaths? appPaths = null,
+        ILogger<OfflineDatabaseManager>? logger = null)
+    {
+        _appPaths = appPaths;
+        _logger = logger;
+    }
+
+    public string OfflineDirectory =>
+        _appPaths?.OfflineDirectory ?? Path.Combine(AppPaths.GetAppDirectory(), "data", "offline");
+
+    public string AnimeDatabasePath => Path.Combine(OfflineDirectory, "anime_offline.db");
+    public string MoviesDatabasePath => Path.Combine(OfflineDirectory, "movies_offline.db");
+    public string GamesDatabasePath => Path.Combine(OfflineDirectory, "games_offline.db");
+
+    public bool HasAnyDatabase => GetExistingDatabases().Count > 0;
+
+    public IReadOnlyList<string> GetExistingDatabases(string? type = null)
+    {
+        var dirs = new List<string>();
+        if (!string.IsNullOrWhiteSpace(OfflineDirectory) && Directory.Exists(OfflineDirectory))
+        {
+            dirs.Add(OfflineDirectory);
+        }
+
+        var appOfflineDir = Path.Combine(AppPaths.GetAppDirectory(), "data", "offline");
+        if (Directory.Exists(appOfflineDir) && !dirs.Contains(appOfflineDir, StringComparer.OrdinalIgnoreCase))
+        {
+            dirs.Add(appOfflineDir);
+        }
+
+        var found = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var dir in dirs)
+        {
+            try
+            {
+                foreach (var file in Directory.EnumerateFiles(dir, "*.db", SearchOption.TopDirectoryOnly))
+                {
+                    var name = Path.GetFileName(file);
+                    if (name.Contains(".tmp", StringComparison.OrdinalIgnoreCase) ||
+                        name.EndsWith("-wal", StringComparison.OrdinalIgnoreCase) ||
+                        name.EndsWith("-shm", StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+                    found.Add(Path.GetFullPath(file));
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogDebug(ex, "Failed to enumerate databases in '{Dir}': {Message}", dir, ex.Message);
+            }
+        }
+
+        var list = found.ToList();
+
+        // Sort by relevance to type if specified
+        list.Sort((a, b) =>
+        {
+            var aName = Path.GetFileName(a).ToLowerInvariant();
+            var bName = Path.GetFileName(b).ToLowerInvariant();
+
+            int Score(string name)
+            {
+                if (type == "anime" && name.Contains("anime")) return 0;
+                if ((type is "movie" or "tvshow") && name.Contains("movie")) return 0;
+                if (type == "game" && (name.Contains("game") || name.Contains("openvgdb"))) return 0;
+                return 1;
+            }
+
+            return Score(aName).CompareTo(Score(bName));
+        });
+
+        return list;
+    }
+
+    public async Task<IReadOnlyList<ExternalMediaDto>> ExecuteSearchAsync(
+        string? type,
+        string query,
+        int limit,
+        CancellationToken ct)
+    {
+        var dbs = GetExistingDatabases(type);
+        if (dbs.Count == 0) return [];
+
+        var normalized = query?.Trim();
+        if (string.IsNullOrWhiteSpace(normalized)) return [];
+
+        var results = new List<ExternalMediaDto>();
+        var seenKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var dbPath in dbs)
+        {
+            ct.ThrowIfCancellationRequested();
+
+            try
+            {
+                await using var conn = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly;");
+                await conn.OpenAsync(ct);
+
+                await using var cmd = conn.CreateCommand();
+                cmd.CommandText = @"
+                    SELECT Id, Title, OriginalTitle, Type, Year, Genres, ExternalSource, ExternalId, ExtraDataJson
+                    FROM OfflineMedia
+                    WHERE (@type IS NULL OR Type = @type)
+                      AND (
+                           Title LIKE @pattern COLLATE NOCASE
+                        OR OriginalTitle LIKE @pattern COLLATE NOCASE
+                        OR ExternalId = @exact
+                        OR Id = @exact
+                      )
+                    ORDER BY
+                      CASE
+                        WHEN Title = @exact COLLATE NOCASE THEN 1
+                        WHEN Title LIKE @prefix COLLATE NOCASE THEN 2
+                        ELSE 3
+                      END
+                    LIMIT @limit;
+                ";
+
+                cmd.Parameters.AddWithValue("@type", (object?)type ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@exact", normalized);
+                cmd.Parameters.AddWithValue("@prefix", $"{normalized}%");
+                cmd.Parameters.AddWithValue("@pattern", $"%{normalized}%");
+                cmd.Parameters.AddWithValue("@limit", limit);
+
+                await using var reader = await cmd.ExecuteReaderAsync(ct);
+                while (await reader.ReadAsync(ct))
+                {
+                    var dto = MapRow(reader);
+                    var key = $"{dto.Type}:{dto.ExternalId ?? dto.Title}";
+                    if (seenKeys.Add(key))
+                    {
+                        results.Add(dto);
+                        if (results.Count >= limit) break;
+                    }
+                }
+            }
+            catch (SqliteException ex) when (ex.SqliteErrorCode == 1)
+            {
+                // Table doesn't exist, ignore this db file
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogDebug(ex, "Offline search error in '{DbPath}' for '{Query}': {Message}", dbPath, query, ex.Message);
+            }
+
+            if (results.Count >= limit) break;
+        }
+
+        return results;
+    }
+
+    public async Task<ExternalMediaDto?> GetDetailsAsync(
+        string externalId,
+        string? title,
+        string? type,
+        CancellationToken ct)
+    {
+        var dbs = GetExistingDatabases(type);
+        if (dbs.Count == 0) return null;
+
+        foreach (var dbPath in dbs)
+        {
+            ct.ThrowIfCancellationRequested();
+
+            try
+            {
+                await using var conn = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly;");
+                await conn.OpenAsync(ct);
+
+                await using var cmd = conn.CreateCommand();
+                cmd.CommandText = @"
+                    SELECT Id, Title, OriginalTitle, Type, Year, Genres, ExternalSource, ExternalId, ExtraDataJson
+                    FROM OfflineMedia
+                    WHERE Id = @id
+                       OR ExternalId = @id
+                       OR ExtraDataJson LIKE @idPattern
+                       OR (@title IS NOT NULL AND (Title = @title COLLATE NOCASE OR OriginalTitle = @title COLLATE NOCASE))
+                    LIMIT 1;
+                ";
+
+                cmd.Parameters.AddWithValue("@id", externalId ?? string.Empty);
+                cmd.Parameters.AddWithValue("@idPattern", $"%\"{externalId}\"%");
+                cmd.Parameters.AddWithValue("@title", (object?)title ?? DBNull.Value);
+
+                await using var reader = await cmd.ExecuteReaderAsync(ct);
+                if (await reader.ReadAsync(ct))
+                {
+                    return MapRow(reader);
+                }
+            }
+            catch (SqliteException ex) when (ex.SqliteErrorCode == 1)
+            {
+                // Table doesn't exist
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogDebug(ex, "Offline GetDetails error in '{DbPath}' for id '{Id}', title '{Title}': {Message}", dbPath, externalId, title, ex.Message);
+            }
+        }
+
+        return null;
+    }
+
+    public async Task<ConnectionTestResult> TestConnectionAsync(CancellationToken ct)
+    {
+        var dbs = GetExistingDatabases();
+        if (dbs.Count == 0)
+        {
+            return new ConnectionTestResult(false, 0, "Локальные базы данных не найдены в data/offline/");
+        }
+
+        var sw = Stopwatch.StartNew();
+        long totalCount = 0;
+        var accessibleDbs = 0;
+
+        foreach (var db in dbs)
+        {
+            try
+            {
+                await using var conn = new SqliteConnection($"Data Source={db};Mode=ReadOnly;");
+                await conn.OpenAsync(ct);
+
+                await using var cmd = conn.CreateCommand();
+                cmd.CommandText = "SELECT COUNT(1) FROM OfflineMedia;";
+                totalCount += Convert.ToInt64(await cmd.ExecuteScalarAsync(ct));
+                accessibleDbs++;
+            }
+            catch { }
+        }
+        sw.Stop();
+
+        if (accessibleDbs == 0)
+        {
+            return new ConnectionTestResult(false, 0, "Таблица OfflineMedia не найдена в доступных базах данных.");
+        }
+
+        return new ConnectionTestResult(true, (int)sw.ElapsedMilliseconds, $"OK ({totalCount:N0} тайтлов в {accessibleDbs} базах)");
+    }
+
+    public void EnqueuePendingImports(IJobManager jobManager, ILogger? logger = null)
+    {
+        try
+        {
+            Directory.CreateDirectory(OfflineDirectory);
+        }
+        catch { }
+
+        // 1. IMDb Basics (title.basics.tsv -> movies_offline.db)
+        var imdbDump = FindDumpFile("title.basics.tsv");
+        if (imdbDump != null && !File.Exists(MoviesDatabasePath))
+        {
+            logger?.LogInformation("Enqueuing offline IMDb indexing from '{Dump}'...", imdbDump);
+            jobManager.Enqueue(null, "Индексация офлайн-базы: IMDb", async (sp, token, progress) =>
+            {
+                var importer = new ImdbBasicsImporter();
+                await importer.ImportDumpAsync(imdbDump, MoviesDatabasePath, progress, token);
+            });
+        }
+
+        // 2. Anime Database (anime-offline-database.jsonl / .json -> anime_offline.db)
+        var animeDump = FindDumpFile("anime-offline-database.jsonl") ?? FindDumpFile("anime-offline-database.json");
+        if (animeDump != null && !File.Exists(AnimeDatabasePath))
+        {
+            logger?.LogInformation("Enqueuing offline Anime indexing from '{Dump}'...", animeDump);
+            jobManager.Enqueue(null, "Индексация офлайн-базы: Anime", async (sp, token, progress) =>
+            {
+                var importer = new AnimeOfflineDatabaseImporter();
+                await importer.ImportDumpAsync(animeDump, AnimeDatabasePath, progress, token);
+            });
+        }
+
+        // 3. OpenVGDB (openvgdb directory or openvgdb.sqlite/openvgdb.db -> games_offline.db)
+        var openvgdbSource = FindOpenVgdbSource();
+        if (openvgdbSource != null && !File.Exists(GamesDatabasePath))
+        {
+            logger?.LogInformation("Enqueuing offline OpenVGDB indexing from '{Source}'...", openvgdbSource);
+            jobManager.Enqueue(null, "Индексация офлайн-базы: OpenVGDB", async (sp, token, progress) =>
+            {
+                var importer = new OpenVgdbImporter();
+                await importer.ImportAsync(openvgdbSource, GamesDatabasePath, progress, token);
+            });
+        }
+    }
+
+    private string? FindDumpFile(string fileName)
+    {
+        var primary = Path.Combine(OfflineDirectory, fileName);
+        if (File.Exists(primary)) return primary;
+
+        var secondary = Path.Combine(AppPaths.GetAppDirectory(), "data", "offline", fileName);
+        if (File.Exists(secondary)) return secondary;
+
+        return null;
+    }
+
+    private string? FindOpenVgdbSource()
+    {
+        var dirs = new[]
+        {
+            Path.Combine(OfflineDirectory, "openvgdb"),
+            Path.Combine(AppPaths.GetAppDirectory(), "data", "offline", "openvgdb")
+        };
+
+        foreach (var dir in dirs)
+        {
+            if (Directory.Exists(dir))
+            {
+                var sqlite = Path.Combine(dir, "openvgdb.sqlite");
+                if (File.Exists(sqlite)) return sqlite;
+
+                var db = Path.Combine(dir, "openvgdb.db");
+                if (File.Exists(db)) return db;
+
+                var any = Directory.EnumerateFiles(dir, "*.sqlite", SearchOption.TopDirectoryOnly)
+                    .Concat(Directory.EnumerateFiles(dir, "*.db", SearchOption.TopDirectoryOnly))
+                    .FirstOrDefault(f => !Path.GetFileName(f).StartsWith('.'));
+                if (any != null) return any;
+            }
+        }
+
+        var directFiles = new[]
+        {
+            Path.Combine(OfflineDirectory, "openvgdb.sqlite"),
+            Path.Combine(OfflineDirectory, "openvgdb.db"),
+            Path.Combine(AppPaths.GetAppDirectory(), "data", "offline", "openvgdb.sqlite"),
+            Path.Combine(AppPaths.GetAppDirectory(), "data", "offline", "openvgdb.db")
+        };
+
+        foreach (var file in directFiles)
+        {
+            if (File.Exists(file)) return file;
+        }
+
+        return null;
+    }
+
+    public static ExternalMediaDto MapRow(SqliteDataReader reader)
+    {
+        var id = reader.GetString(0);
+        var title = reader.GetString(1);
+        var originalTitle = reader.IsDBNull(2) ? null : reader.GetString(2);
+        var type = reader.GetString(3);
+        var year = reader.IsDBNull(4) ? (int?)null : reader.GetInt32(4);
+        var genresStr = reader.IsDBNull(5) ? null : reader.GetString(5);
+        var externalSource = reader.IsDBNull(6) ? null : reader.GetString(6);
+        var externalId = reader.IsDBNull(7) ? null : reader.GetString(7);
+        var extraJson = reader.IsDBNull(8) ? null : reader.GetString(8);
+
+        OfflineExtraData? extra = null;
+        if (!string.IsNullOrWhiteSpace(extraJson))
+        {
+            try
+            {
+                extra = JsonSerializer.Deserialize(extraJson, AppJsonSerializerContext.Default.OfflineExtraData);
+            }
+            catch { }
+        }
+
+        List<string>? genres = null;
+        if (!string.IsNullOrWhiteSpace(genresStr))
+        {
+            genres = genresStr.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).ToList();
+        }
+
+        return new ExternalMediaDto
+        {
+            ExternalId = externalId ?? id,
+            ExternalSource = "offline",
+            Title = title,
+            OriginalTitle = originalTitle,
+            Type = type,
+            ReleaseYear = year,
+            Genres = genres ?? extra?.Tags,
+            Tags = extra?.Tags ?? genres,
+            CoverUrl = extra?.CoverUrl,
+            Description = extra?.Description,
+            Format = extra?.Format,
+            TotalCount = extra?.TotalCount,
+            RuntimeMinutes = extra?.RuntimeMinutes,
+            ReleaseStatus = extra?.ReleaseStatus,
+            Studio = extra?.Studio ?? extra?.Developer,
+            Platform = extra?.Platform,
+            AnilistId = extra?.AnilistId,
+            MalId = extra?.MalId,
+            KitsuId = extra?.KitsuId,
+            AnidbId = extra?.AnidbId,
+            SteamAppId = extra?.SteamAppId,
+        };
+    }
+}

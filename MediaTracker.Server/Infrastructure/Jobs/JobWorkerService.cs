@@ -43,15 +43,20 @@ public sealed class JobWorkerService(
 
             // Reports are applied inline rather than through Progress<T>: the latter posts to the
             // thread pool, so a 90% checkpoint could overtake the 100% one that follows it.
+            var completedStep = "Готово";
             var progress = new InlineProgress(update =>
             {
                 percent = update.ProgressPercent;
+                if (update.Status == JobStatus.Completed && !string.IsNullOrWhiteSpace(update.CurrentStep))
+                {
+                    completedStep = update.CurrentStep;
+                }
                 jobs.Publish(job, percent, update.CurrentStep, update.Status, update.ErrorMessage);
             });
 
             await job.Work(scope.ServiceProvider, cts.Token, progress).ConfigureAwait(false);
 
-            jobs.Publish(job, 100, "Готово", JobStatus.Completed, null);
+            jobs.Publish(job, 100, completedStep, JobStatus.Completed, null);
         }
         catch (OperationCanceledException) when (cts.IsCancellationRequested)
         {

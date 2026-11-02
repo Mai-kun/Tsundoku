@@ -77,6 +77,10 @@ public sealed record ExternalMediaDto
     public string? RomajiTitle { get; init; }
 
     public string? SteamAppId { get; init; }
+    public string? AnilistId { get; init; }
+    public string? MalId { get; init; }
+    public string? KitsuId { get; init; }
+    public string? AnidbId { get; init; }
 
     public string? CoverUrl { get; init; }
 

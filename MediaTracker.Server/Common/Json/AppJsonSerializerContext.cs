@@ -31,6 +31,7 @@ using MediaTracker.Server.Features.Settings.ToggleSource;
 using MediaTracker.Server.Features.System.GetSources;
 using MediaTracker.Server.Features.System.Updates;
 using MediaTracker.Server.Infrastructure.ExternalApis;
+using MediaTracker.Server.Infrastructure.ExternalApis.Offline;
 using MediaTracker.Server.Infrastructure.ExternalApis.Providers.MangaLib;
 using MediaTracker.Server.Infrastructure.Storage;
 using MediaTracker.Server.SelfChecks;
@@ -75,6 +76,8 @@ namespace MediaTracker.Server.Common.Json;
 [JsonSerializable(typeof(ClientLogRequest))]
 [JsonSerializable(typeof(ResetDataRequest))]
 [JsonSerializable(typeof(StorageRequest))]
+[JsonSerializable(typeof(AppSettingsDto))]
+[JsonSerializable(typeof(SystemEndpoints.SwitchToBrowserRequest))]
 [JsonSerializable(typeof(ToggleSourceRequest))]
 [JsonSerializable(typeof(UpdateKeyRequest))]
 [JsonSerializable(typeof(CreateListRequest))]
@@ -131,6 +134,7 @@ namespace MediaTracker.Server.Common.Json;
 [JsonSerializable(typeof(LibraryExportItemDto))]
 [JsonSerializable(typeof(List<LibraryExportItemDto>))]
 // --- External media payload graph (search, details, relations, recommendations) ---
+[JsonSerializable(typeof(OfflineExtraData))]
 [JsonSerializable(typeof(ExternalMediaDto))]
 [JsonSerializable(typeof(IReadOnlyList<ExternalMediaDto>))]
 [JsonSerializable(typeof(List<ExternalMediaDto>))]
@@ -214,6 +218,9 @@ namespace MediaTracker.Server.Common.Json;
 [JsonSerializable(typeof(Dictionary<string, string[]>))]
 [JsonSerializable(typeof(Dictionary<string, CustomFolderSetting>))]
 [JsonSerializable(typeof(StorageConfig))]
+[JsonSerializable(typeof(ApiRateLimitStatus))]
+[JsonSerializable(typeof(List<ApiRateLimitStatus>))]
+[JsonSerializable(typeof(IReadOnlyList<ApiRateLimitStatus>))]
 // --- Error surface ---
 [JsonSerializable(typeof(ProblemDetails))]
 [JsonSerializable(typeof(HttpValidationProblemDetails))]

@@ -1,3 +1,6 @@
+using MediaTracker.Server.Infrastructure.ExternalApis.Offline;
+using Microsoft.Extensions.DependencyInjection;
+
 namespace MediaTracker.Server.Infrastructure.ExternalApis;
 
 /// <summary>
@@ -23,6 +26,7 @@ public static class MetadataServiceExtensions
     {
         MetadataSourceRegistry.ConfigureHttpClients(services);
 
+        services.AddSingleton<OfflineDatabaseManager>();
         services.AddSingleton<IMetadataProviderResolver, MetadataProviderResolver>();
         services.AddSingleton<ISourcePriorityService, SourcePriorityService>();
 

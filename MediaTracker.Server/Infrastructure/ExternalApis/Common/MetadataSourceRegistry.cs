@@ -77,6 +77,8 @@ public static partial class MetadataSourceRegistry
     /// </summary>
     public static IServiceCollection ConfigureHttpClients(IServiceCollection services)
     {
+        services.AddSingleton<RateLimitTracker>();
+
         // The per-call logger every external client pipes through (see ExternalHttpLoggingHandler).
         services.AddTransient<ExternalHttpLoggingHandler>();
 

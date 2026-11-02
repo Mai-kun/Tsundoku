@@ -7,13 +7,17 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 using MediaTracker.Server.Common.Json;
+using MediaTracker.Server.Infrastructure.ExternalApis.Offline;
+using MediaTracker.Server.Infrastructure.Storage;
 
 namespace MediaTracker.Server.Infrastructure.ExternalApis;
 
 public sealed class SourcePriorityService(
     IServiceScopeFactory scopeFactory,
     IMemoryCache cache,
-    ILogger<SourcePriorityService> logger) : ISourcePriorityService
+    ILogger<SourcePriorityService> logger,
+    AppPaths? appPaths = null,
+    OfflineDatabaseManager? dbManager = null) : ISourcePriorityService
 {
     public const string PriorityCacheKey = "settings:source_priority";
     public const string DisabledSourcesCacheKey = "settings:disabled_sources";
@@ -50,9 +54,11 @@ public sealed class SourcePriorityService(
                 ? MergePriorityLists(cachedList, defaultSources)
                 : defaultSources;
 
-            return cachedDisabled.Count == 0
+            var resolved = cachedDisabled.Count == 0
                 ? cachedResult
                 : cachedResult.Where(s => !cachedDisabled.Contains(MediaMerger.NormalizeSourceKey(s)) && !cachedDisabled.Contains(s)).ToList();
+
+            return FilterAvailable(resolved);
         }
 
         IReadOnlyList<string> basePriorities = defaultSources;
@@ -95,14 +101,29 @@ public sealed class SourcePriorityService(
         }
 
         var disabled = await GetDisabledSourcesAsync(ct);
-        if (disabled.Count == 0)
+        var active = disabled.Count == 0
+            ? basePriorities
+            : basePriorities
+                .Where(s => !disabled.Contains(MediaMerger.NormalizeSourceKey(s)) && !disabled.Contains(s))
+                .ToList();
+
+        return FilterAvailable(active);
+    }
+
+    private IReadOnlyList<string> FilterAvailable(IReadOnlyList<string> list)
+    {
+        var hasOffline = (dbManager != null && dbManager.HasAnyDatabase) ||
+                         (appPaths != null && (File.Exists(appPaths.OfflineDatabasePath) ||
+                                               File.Exists(Path.Combine(appPaths.OfflineDirectory, "movies_offline.db")) ||
+                                               File.Exists(Path.Combine(appPaths.OfflineDirectory, "games_offline.db"))));
+
+        if (hasOffline)
         {
-            return basePriorities;
+            return list;
         }
 
-        return basePriorities
-            .Where(s => !disabled.Contains(MediaMerger.NormalizeSourceKey(s)) && !disabled.Contains(s))
-            .ToList();
+        return list.Where(s => !string.Equals(s, UniversalOfflineMetadataProvider.Source.Id, StringComparison.OrdinalIgnoreCase)
+                            && !string.Equals(s, "offline_anime", StringComparison.OrdinalIgnoreCase)).ToList();
     }
 
     public async Task<IReadOnlySet<string>> GetDisabledSourcesAsync(CancellationToken ct)

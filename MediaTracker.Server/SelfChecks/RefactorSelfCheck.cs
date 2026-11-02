@@ -909,13 +909,13 @@ public static class RefactorSelfCheck
         // exists to fill gaps for it. These two assertions pin the shipped order exactly.
         AssertEqual(
             failures,
-            "anilist,shikimori,kitsu,simkl",
+            "offline,anilist,shikimori,kitsu,simkl",
             string.Join(',', SourcePriorityService.DefaultPriorities["anime"]),
             "anime cascade order"
         );
         AssertEqual(
             failures,
-            "tmdb,imdb,kinopoisk,simkl",
+            "offline,tmdb,imdb,kinopoisk,simkl",
             string.Join(',', SourcePriorityService.DefaultPriorities["movie"]),
             "movie cascade order"
         );
@@ -927,7 +927,7 @@ public static class RefactorSelfCheck
         );
         AssertEqual(
             failures,
-            "rawg,steam",
+            "offline,rawg,steam",
             string.Join(',', SourcePriorityService.DefaultPriorities["game"]),
             "game cascade order"
         );

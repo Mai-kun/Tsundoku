@@ -21,6 +21,11 @@ public sealed class GetSourcesHandler(
                 // A provider that works without a key is always configured; HasKey only reflects
                 // whether an (optional) key was actually saved.
                 var hasKey = !string.IsNullOrWhiteSpace(key);
+                var isConfigured = !provider.RequiresApiKey || hasKey;
+                if (provider is UniversalOfflineMetadataProvider offline)
+                {
+                    isConfigured = offline.IsDatabaseAvailable;
+                }
 
                 return new SourceInfo(
                     Id: provider.Id,
@@ -29,11 +34,12 @@ public sealed class GetSourcesHandler(
                     MediaTypes: [.. provider.MediaTypes],
                     RequiresApiKey: provider.RequiresApiKey,
                     OptionalApiKey: provider.OptionalApiKey,
-                    IsConfigured: !provider.RequiresApiKey || hasKey,
+                    IsConfigured: isConfigured,
                     HasKey: hasKey,
                     MaskedKey: ApiKeyMask.Mask(key),
-                    IsEnabled: !disabled.Contains(provider.Id)
-                        && !disabled.Contains(MediaMerger.NormalizeSourceKey(provider.Id)));
+                    IsEnabled: (!disabled.Contains(provider.Id)
+                        && !disabled.Contains(MediaMerger.NormalizeSourceKey(provider.Id)))
+                        && isConfigured);
             })
             .OrderByDescending(source => source.IsEnabled)
             .ToList();

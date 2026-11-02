@@ -1,6 +1,7 @@
 <script lang="ts">
   import { deleteMedia } from "$shared/api/api";
   import { jobsClient } from "$shared/api/jobsClient.svelte";
+  import { apiFetch } from "$shared/api/api";
   import FirstRunStorageModal from "$features/settings/FirstRunStorageModal.svelte";
   import AppShell from "$widgets/layout/AppShell.svelte";
   import CloseAppModal from "$widgets/layout/CloseAppModal.svelte";
@@ -21,6 +22,12 @@
     SearchModalContext,
     SearchScope,
   } from "$shared/types";
+  import {
+    contextMenuStore,
+    openContextMenu,
+    closeContextMenu,
+  } from "$shared/ui/contextMenu.svelte";
+  import { showToast } from "$shared/ui/toast.svelte";
 
   const categories: readonly Category[] = ["tvshow", "movie", "anime", "manga", "game", "book"];
   const views: readonly AppView[] = [
@@ -413,6 +420,104 @@
       closeDetail();
     }
   }
+
+  function handleContextMenu(event: MouseEvent) {
+    const target = event.target as HTMLElement;
+
+    if (target.closest("[role='menu']")) {
+      event.preventDefault();
+      return;
+    }
+
+    // Не показываем кастомное меню, если клик по интерактивному элементу.
+    if (target.closest("button, input, select, textarea, a, [contenteditable]")) {
+      return;
+    }
+
+    const selection = window.getSelection();
+    const selectedText = selection?.toString()?.trim();
+
+    if (selectedText) {
+      // Выделенный текст: копирование или поиск.
+      event.preventDefault();
+      openContextMenu(event.clientX, event.clientY, [
+        {
+          id: "copy-selection",
+          label: i18n.t.common.copy,
+          icon: "copy",
+          kind: "default",
+          action: () => {
+            navigator.clipboard.writeText(selectedText).catch(() => {});
+            showToast(i18n.t.common.copied);
+          },
+        },
+        {
+          id: "search-selection",
+          label: i18n.t.contextMenu.searchInLibrary,
+          icon: "search",
+          kind: "default",
+          action: () => openSearch(selectedText),
+        },
+      ]);
+      return;
+    }
+
+    // Пустое место / фон: глобальное меню.
+    event.preventDefault();
+    openContextMenu(event.clientX, event.clientY, [
+      {
+        id: "search",
+        label: i18n.t.header.searchButton,
+        icon: "search",
+        kind: "default",
+        action: () => openSearch(),
+      },
+      {
+        id: "logs",
+        label: i18n.t.contextMenu.consoleLogs,
+        icon: "logs",
+        kind: "default",
+        action: () => {
+          apiFetch("/api/system/open-logs", { method: "POST" }).catch(() => {});
+        },
+      },
+      {
+        id: "browser",
+        label: i18n.t.contextMenu.openInBrowser,
+        icon: "browser",
+        kind: "default",
+        action: () => {
+          apiFetch("/api/system/switch-to-browser", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ url: window.location.href }),
+          }).catch(() => {});
+        },
+      },
+      { id: "separator1", kind: "separator" },
+      {
+        id: "settings",
+        label: i18n.t.navigation.settings,
+        icon: "settings",
+        kind: "default",
+        action: () => openSettings(),
+      },
+      {
+        id: "exit",
+        label: i18n.t.header.exit,
+        icon: "power",
+        kind: "danger",
+        action: () => handleExitClick(),
+      },
+    ]);
+  }
+
+  $effect(() => {
+    window.addEventListener("contextmenu", handleContextMenu);
+    return () => {
+      window.removeEventListener("contextmenu", handleContextMenu);
+    };
+  });
 </script>
 
 <svelte:window onkeydown={handleKeydown} />

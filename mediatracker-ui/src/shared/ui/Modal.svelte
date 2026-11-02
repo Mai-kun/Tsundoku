@@ -7,10 +7,11 @@
     labelledBy?: string;
     /** `md` — обычная модалка. `lg` — широкая панель (превью деталей). `xl` — расширенная модалка (настройки и т.д.). `search` — модалка поиска на 80% экрана. */
     size?: "md" | "lg" | "xl" | "search";
+    closable?: boolean;
     children: Snippet;
   }
 
-  let { isOpen, onClose, labelledBy, size = "md", children }: Props = $props();
+  let { isOpen, onClose, labelledBy, size = "md", closable = true, children }: Props = $props();
 
   let dialogElement = $state<HTMLDialogElement | null>(null);
   let closingProgrammatically = false;
@@ -39,19 +40,21 @@
 
   function handleCancel(event: Event) {
     event.preventDefault();
-    onClose();
+    if (closable) onClose();
   }
 
   function handleNativeClose() {
     if (closingProgrammatically) return;
-    onClose();
+    if (closable) onClose();
   }
 
   function handleMouseDown(event: MouseEvent) {
+    if (!closable) return;
     pressedOnBackdrop = event.target === dialogElement;
   }
 
   function handleMouseUp(event: MouseEvent) {
+    if (!closable) return;
     const startedOnBackdrop = pressedOnBackdrop;
     pressedOnBackdrop = false;
     if (startedOnBackdrop && event.target === dialogElement) onClose();

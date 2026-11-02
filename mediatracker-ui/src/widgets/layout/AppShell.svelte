@@ -1,5 +1,8 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
+  import ContextMenu from "$shared/ui/ContextMenu.svelte";
+  import ListPicker from "$features/lists/ListPicker.svelte";
+  import { activeListPickerMediaId, closeListPicker } from "$shared/ui/contextMenu.svelte";
   import ToastContainer from "./ToastContainer.svelte";
 
   interface Props {
@@ -42,6 +45,12 @@
       {@render children()}
     </main>
   </div>
+
+  {#if $activeListPickerMediaId}
+    <ListPicker mediaId={$activeListPickerMediaId} isOpen={true} onClose={closeListPicker} />
+  {/if}
+
+  <ContextMenu />
 
   <ToastContainer />
 </div>

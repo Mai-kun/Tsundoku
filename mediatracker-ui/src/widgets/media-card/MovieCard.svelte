@@ -15,10 +15,11 @@
     onStatusChange,
     onProgressCommitted = () => {},
     onDelete,
+    onEdit,
   }: MediaCardProps & { item: MovieMedia } = $props();
 </script>
 
-<BaseCard {item} {timeHint} {onOpen} {onStatusChange} {onProgressCommitted} {onDelete}>
+<BaseCard {item} {timeHint} {onOpen} {onStatusChange} {onProgressCommitted} {onDelete} {onEdit}>
   <CardTitleBlock title={item.title} subtitle={item.director?.trim() || i18n.t.types.movie} />
 
   {#if showProgress}

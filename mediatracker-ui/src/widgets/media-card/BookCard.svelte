@@ -17,6 +17,7 @@
     onProgressCommitted = () => {},
     onStatusChange,
     onDelete,
+    onEdit,
   }: MediaCardProps & { item: BookMedia } = $props();
 
   const progress = createCardProgress({
@@ -28,7 +29,7 @@
   const ratio = $derived(item.totalPages > 0 ? progress.value / item.totalPages : null);
 </script>
 
-<BaseCard {item} {timeHint} {onOpen} {onStatusChange} {onProgressCommitted} {onDelete}>
+<BaseCard {item} {timeHint} {onOpen} {onStatusChange} {onProgressCommitted} {onDelete} {onEdit}>
   <CardTitleBlock title={item.title} subtitle={item.author || i18n.t.types.book} />
 
   {#if showProgress}

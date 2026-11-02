@@ -1,6 +1,7 @@
-﻿<script lang="ts">
-  import { ChevronDown, Languages, Power, Search } from "$shared/ui/Icons";
+<script lang="ts">
+  import { ChevronDown, Languages, LoaderCircle, Power, Search } from "$shared/ui/Icons";
   import { i18n, locales, type Locale } from "$shared/i18n/index.svelte";
+  import { networkActivity } from "$shared/api/networkActivity.svelte";
   import PopoverMenu from "$shared/ui/PopoverMenu.svelte";
   import ActivityDropdown from "./ActivityDropdown.svelte";
 
@@ -18,52 +19,56 @@
   }));
 </script>
 
-<div class="flex h-full items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
-  <!-- Fixed-width title slot: RU/EN titles (and section names) differ by a few
-       pixels, and a flex-1 title would nudge the search field and toolbar on
-       every locale switch. truncate absorbs longer titles. -->
+<div class="relative flex h-full w-full items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+  <!-- Fixed-width title slot: RU/EN titles differ by a few pixels; truncate absorbs
+       longer titles without pushing the center search bar. -->
   <h1
-    class="text-ink w-56 min-w-0 shrink-0 truncate text-base font-semibold tracking-tight sm:w-72"
+    class="text-ink w-56 min-w-0 shrink-0 truncate text-base font-semibold tracking-tight"
   >
     {title}
   </h1>
 
-  <div class="flex shrink-0 items-center justify-end gap-2.5">
-    <button
-      type="button"
-      class="bg-elevated hover:bg-card-hover hidden h-9 w-64 items-center gap-2 rounded-lg border border-white/[0.08] px-3 text-left text-sm text-white transition hover:border-indigo-500/40 focus:ring-1 focus:ring-indigo-500/30 focus:outline-none sm:flex"
-      title={i18n.t.header.searchTooltip}
-      onclick={onSearch}
-    >
-      <Search size={16} class="text-muted shrink-0" aria-hidden="true" />
-      <span class="min-w-0 flex-1 truncate text-zinc-400">{i18n.t.header.searchButton}</span>
-      <kbd
-        class="bg-canvas text-muted shrink-0 rounded border border-white/[0.08] px-1.5 py-0.5 text-[10px] font-medium"
-        >Ctrl K</kbd
-      >
-    </button>
-
-    <button
-      type="button"
-      class="bg-elevated text-muted hover:text-ink inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/[0.08] transition hover:border-indigo-500/40 focus:ring-1 focus:ring-indigo-500/30 focus:outline-none sm:hidden"
-      aria-label={i18n.t.header.searchButton}
-      onclick={onSearch}
-    >
-      <Search size={17} aria-hidden="true" />
-    </button>
-
-    <ActivityDropdown />
-
-    {#if onExitClick}
+  <!-- Strictly centered search with Activity button anchored to its right -->
+  <div class="pointer-events-none absolute left-1/2 -translate-x-1/2 flex items-center">
+    <div class="relative flex items-center">
       <button
         type="button"
-        class="bg-elevated text-muted hover:text-ink hover:border-rose-400/40 inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/[0.08] transition focus:ring-1 focus:ring-rose-500/30 focus:outline-none"
-        title={i18n.t.header.exit}
-        aria-label={i18n.t.header.exit}
-        onclick={onExitClick}
+        class="pointer-events-auto bg-elevated hover:bg-card-hover hidden h-9 w-[28rem] sm:w-[32rem] items-center gap-2 rounded-lg border border-white/[0.08] px-3 text-left text-sm text-white transition hover:border-indigo-500/40 focus:ring-1 focus:ring-indigo-500/30 focus:outline-none sm:flex"
+        title={i18n.t.header.searchTooltip}
+        onclick={onSearch}
       >
-        <Power size={16} class="shrink-0" aria-hidden="true" />
+        <Search size={16} class="text-muted shrink-0" aria-hidden="true" />
+        <span class="min-w-0 flex-1 truncate text-zinc-400">{i18n.t.header.searchButton}</span>
+        <kbd
+          class="bg-canvas text-muted shrink-0 rounded border border-white/[0.08] px-1.5 py-0.5 text-[10px] font-medium"
+          >Ctrl K</kbd
+        >
       </button>
+
+      <button
+        type="button"
+        class="pointer-events-auto bg-elevated text-muted hover:text-ink inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/[0.08] transition hover:border-indigo-500/40 focus:ring-1 focus:ring-indigo-500/30 focus:outline-none sm:hidden"
+        aria-label={i18n.t.header.searchButton}
+        onclick={onSearch}
+      >
+        <Search size={17} aria-hidden="true" />
+      </button>
+
+      <div class="pointer-events-auto absolute left-full ml-2.5 flex items-center">
+        <ActivityDropdown />
+      </div>
+    </div>
+  </div>
+
+  <!-- Right cluster: [ Loading indicator ] -> [ Language selector ] -> [ Power button ] -->
+  <div class="flex shrink-0 items-center justify-end gap-2.5">
+    {#if networkActivity.isLoading}
+      <div
+        class="flex size-9 items-center justify-center text-[var(--color-accent-soft,#818cf8)]"
+        title={i18n.t.header.updatingData}
+      >
+        <LoaderCircle size={16} class="size-4 animate-spin" aria-hidden="true" />
+      </div>
     {/if}
 
     <label class="sr-only" for="language-select">{i18n.t.header.language}</label>
@@ -90,5 +95,17 @@
         </button>
       {/snippet}
     </PopoverMenu>
+
+    {#if onExitClick}
+      <button
+        type="button"
+        class="bg-elevated text-muted hover:text-ink hover:border-rose-400/40 inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/[0.08] transition focus:ring-1 focus:ring-rose-500/30 focus:outline-none"
+        title={i18n.t.header.exit}
+        aria-label={i18n.t.header.exit}
+        onclick={onExitClick}
+      >
+        <Power size={16} class="shrink-0" aria-hidden="true" />
+      </button>
+    {/if}
   </div>
 </div>

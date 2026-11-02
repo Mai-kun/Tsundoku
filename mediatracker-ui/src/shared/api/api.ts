@@ -35,6 +35,7 @@ import type {
   CreateGoalPayload,
   StorageSettings,
   StorageRequest,
+  ApiRateLimitStatus,
 } from "$shared/types";
 
 const mediaEndpoint = "/api/media";
@@ -101,8 +102,20 @@ async function throwApiError(response: Response): Promise<never> {
   throw new ApiError(response.status, problem.detail || problem.title || "", problem.errors);
 }
 
+import { networkActivity } from "./networkActivity.svelte";
+export { networkActivity };
+
+export async function apiFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  networkActivity.begin();
+  try {
+    return await fetch(input, init);
+  } finally {
+    networkActivity.end();
+  }
+}
+
 async function requestJson<T>(url: string, options: RequestInit = {}): Promise<T> {
-  const response = await fetch(url, options);
+  const response = await apiFetch(url, options);
 
   if (!response.ok) {
     return throwApiError(response);
@@ -112,7 +125,7 @@ async function requestJson<T>(url: string, options: RequestInit = {}): Promise<T
 }
 
 async function requestVoid(url: string, options: RequestInit = {}): Promise<void> {
-  const response = await fetch(url, options);
+  const response = await apiFetch(url, options);
 
   if (!response.ok) {
     return throwApiError(response);
@@ -152,7 +165,7 @@ export async function getMediaWithCount(filters: MediaFilters = {}): Promise<Med
   }
 
   const query = params.toString();
-  const response = await fetch(`${mediaEndpoint}${query ? `?${query}` : ""}`);
+  const response = await apiFetch(`${mediaEndpoint}${query ? `?${query}` : ""}`);
   if (!response.ok) {
     return throwApiError(response);
   }
@@ -465,7 +478,7 @@ export interface MangalibDetectResult {
  * (HTTP 404) — the caller shows the "open login page" fallback.
  */
 export async function detectMangalibBrowserSession(): Promise<MangalibDetectResult | null> {
-  const response = await fetch("/api/settings/sources/mangalib/detect-token", { method: "POST" });
+  const response = await apiFetch("/api/settings/sources/mangalib/detect-token", { method: "POST" });
   if (response.status === 404) return null;
   if (!response.ok) {
     await throwApiError(response);
@@ -514,6 +527,27 @@ export interface ReadingSettings {
   bookPageMinutes: number;
   mangaChapterMinutes: number;
 }
+
+export type AppLaunchMode = "app_window" | "browser_tab";
+export type AppCloseAction = "minimize_to_tray" | "exit_all";
+
+export interface AppSettings {
+  launchMode: AppLaunchMode;
+  closeAction: AppCloseAction;
+}
+
+export function getAppSettings(): Promise<AppSettings> {
+  return requestJson<AppSettings>("/api/settings/app");
+}
+
+export function saveAppSettings(settings: AppSettings): Promise<AppSettings> {
+  return requestJson<AppSettings>("/api/settings/app", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(settings),
+  });
+}
+
 
 export function getReadingSettings(): Promise<ReadingSettings> {
   return requestJson<ReadingSettings>("/api/settings/reading");
@@ -612,7 +646,7 @@ export function triggerAutoRefresh(mediaId: string): Promise<MediaDetail> {
 
 /** RFC 5545 calendar feed (episodes + releases) for Apple Calendar / Google Calendar / Thunderbird. */
 export async function exportCalendarIcs(): Promise<Blob> {
-  const response = await fetch(`${mediaEndpoint}/calendar/ics`);
+  const response = await apiFetch(`${mediaEndpoint}/calendar/ics`);
   if (!response.ok) {
     return throwApiError(response);
   }
@@ -686,7 +720,7 @@ export function deleteHistoryEvent(id: string): Promise<void> {
 }
 
 export async function exportBackup(): Promise<Blob> {
-  const response = await fetch("/api/settings/backup/export");
+  const response = await apiFetch("/api/settings/backup/export");
   if (!response.ok) {
     return throwApiError(response);
   }
@@ -695,7 +729,7 @@ export async function exportBackup(): Promise<Blob> {
 
 /** Clean, import-compatible dump of the whole library (fields match the Custom Import parser). */
 export async function exportLibraryJson(): Promise<Blob> {
-  const response = await fetch("/api/settings/export/json");
+  const response = await apiFetch("/api/settings/export/json");
   if (!response.ok) {
     return throwApiError(response);
   }
@@ -704,7 +738,7 @@ export async function exportLibraryJson(): Promise<Blob> {
 
 /** RFC 4180 CSV dump of the whole library, UTF-8 BOM included for Excel. */
 export async function exportLibraryCsv(): Promise<Blob> {
-  const response = await fetch("/api/settings/export/csv");
+  const response = await apiFetch("/api/settings/export/csv");
   if (!response.ok) {
     return throwApiError(response);
   }
@@ -715,7 +749,7 @@ export async function restoreBackup(file: File): Promise<void> {
   const formData = new FormData();
   formData.append("backupFile", file);
 
-  const response = await fetch("/api/settings/backup/restore", {
+  const response = await apiFetch("/api/settings/backup/restore", {
     method: "POST",
     body: formData,
   });
@@ -786,4 +820,8 @@ export function createGoal(payload: CreateGoalPayload): Promise<GoalDto> {
 
 export function deleteGoal(id: string): Promise<void> {
   return requestVoid(`/api/goals/${id}`, { method: "DELETE" });
+}
+
+export function getRateLimits(): Promise<ApiRateLimitStatus[]> {
+  return requestJson<ApiRateLimitStatus[]>("/api/system/rate-limits");
 }

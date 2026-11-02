@@ -17,6 +17,7 @@
     onProgressCommitted = () => {},
     onStatusChange,
     onDelete,
+    onEdit,
   }: MediaCardProps & { item: MangaMedia } = $props();
 
   const progress = createCardProgress({
@@ -36,7 +37,7 @@
   );
 </script>
 
-<BaseCard {item} {timeHint} {onOpen} {onStatusChange} {onProgressCommitted} {onDelete}>
+<BaseCard {item} {timeHint} {onOpen} {onStatusChange} {onProgressCommitted} {onDelete} {onEdit}>
   <CardTitleBlock title={item.title} {subtitle} />
 
   {#if showProgress}

@@ -255,12 +255,12 @@
   </div>
 {/snippet}
 
-{#if loading || isInitialLoading}
+{#if (loading || isInitialLoading) && items.length === 0}
   <!-- Clean placeholder: a quiet empty box holds the layout without pulsing
        skeleton cards, which strobed on every category switch. -->
   <div class="min-h-60" aria-hidden="true"></div>
   <p class="sr-only" role="status">{i18n.t.common.loading}</p>
-{:else if error}
+{:else if error && items.length === 0}
   <div
     class="flex min-h-72 flex-col items-center justify-center gap-3 rounded-lg bg-rose-400/5 p-6 text-center"
   >

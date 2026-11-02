@@ -17,6 +17,7 @@
     onProgressCommitted = () => {},
     onStatusChange,
     onDelete,
+    onEdit,
   }: MediaCardProps & { item: GameMedia } = $props();
 
   const progress = createCardProgress({
@@ -29,7 +30,7 @@
   const platform = $derived(item.userPlatform?.trim() || item.platform?.trim() || null);
 </script>
 
-<BaseCard {item} {timeHint} {onOpen} {onStatusChange} {onProgressCommitted} {onDelete}>
+<BaseCard {item} {timeHint} {onOpen} {onStatusChange} {onProgressCommitted} {onDelete} {onEdit}>
   <CardTitleBlock title={item.title} subtitle={platform ?? i18n.t.types.game} />
 
   {#if showProgress}

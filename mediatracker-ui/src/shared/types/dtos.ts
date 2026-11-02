@@ -392,3 +392,11 @@ export interface CreateGoalPayload {
   category?: string | null;
   smartQueryJson?: string | null;
 }
+
+export interface ApiRateLimitStatus {
+  provider: string;
+  remaining: number;
+  limit: number;
+  resetSecondsRemaining: number;
+  updatedAt: string;
+}

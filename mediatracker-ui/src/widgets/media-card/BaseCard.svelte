@@ -2,10 +2,13 @@
   import type { Snippet } from "svelte";
   import { Trash2 } from "$shared/ui/Icons";
   import { errorMessage } from "$shared/api/api";
+  import { showToast } from "$shared/ui/toast.svelte";
   import { i18n } from "$shared/i18n/index.svelte";
   import type { MediaItem, MediaStatus } from "$shared/types";
   import { SYNC_STATUS } from "$shared/types";
   import { schedulePrefetchMediaDetail } from "$features/prefetch-details/mediaDetailPrefetch";
+  import type { MenuItem } from "$shared/ui/contextMenu.svelte";
+  import { openContextMenu, openListPicker } from "$shared/ui/contextMenu.svelte";
   import MediaPoster from "$entities/media/ui/MediaPoster.svelte";
   import MediaScoreBadge from "$entities/media/ui/MediaScoreBadge.svelte";
   import MediaStatusBadge from "$entities/media/ui/MediaStatusBadge.svelte";
@@ -19,6 +22,7 @@
     onStatusChange?: (item: MediaItem, newStatus: MediaStatus) => void;
     onProgressCommitted?: () => void;
     onDelete?: (item: MediaItem) => Promise<void>;
+    onEdit?: (item: MediaItem) => void;
     /** Rendered below the poster: title, progress, type-specific controls. */
     children: Snippet;
     /** Hover layer swapped in over `children` (stepper / quick actions). */
@@ -32,6 +36,7 @@
     onStatusChange,
     onProgressCommitted = () => {},
     onDelete,
+    onEdit,
     children,
     hover,
   }: Props = $props();
@@ -62,15 +67,88 @@
       deleteError = error;
     }
   }
+
+  function buildCardMenuItems(item: MediaItem): MenuItem[] {
+    const statusLabel = (status: MediaStatus): string => {
+      const map: Record<MediaStatus, keyof typeof i18n.t.status> = {
+        0: 'planned',
+        1: 'inProgress',
+        2: 'completed',
+        3: 'paused',
+        4: 'dropped',
+      };
+      return i18n.t.status[map[status]];
+    };
+
+    return [
+      {
+        id: 'edit',
+        label: i18n.t.detailModal.edit,
+        icon: 'edit',
+        kind: 'default',
+        action: () => (onEdit ? onEdit(item) : onOpen?.(item)),
+      },
+      {
+        id: 'status',
+        label: i18n.t.status.label,
+        icon: 'status',
+        kind: 'default',
+        children: [
+          { id: 'status-planned', label: statusLabel(0), kind: 'default', action: () => onStatusChange?.(item, 0) },
+          { id: 'status-inProgress', label: statusLabel(1), kind: 'default', action: () => onStatusChange?.(item, 1) },
+          { id: 'status-completed', label: statusLabel(2), kind: 'default', action: () => onStatusChange?.(item, 2) },
+          { id: 'status-dropped', label: statusLabel(4), kind: 'default', action: () => onStatusChange?.(item, 4) },
+        ],
+      },
+      {
+        id: 'add-to-list',
+        label: i18n.t.views.listAddTo,
+        icon: 'list',
+        kind: 'default',
+        action: () => openListPicker(item.id),
+      },
+      {
+        id: 'copy-title',
+        label: i18n.t.contextMenu.copyTitle ?? i18n.t.common.copy,
+        icon: 'copy',
+        kind: 'default',
+        action: () => {
+          navigator.clipboard.writeText(item.title).catch(() => {});
+          showToast(i18n.t.common.copied);
+        },
+      },
+      { id: 'separator1', kind: 'separator' },
+      {
+        id: 'delete',
+        label: i18n.t.detailModal.delete,
+        icon: 'delete',
+        kind: 'danger',
+        action: async () => {
+          if (!onDelete) return;
+          if (!window.confirm(i18n.t.card.confirmDelete(item.title))) return;
+          await onDelete(item);
+        },
+      },
+    ];
+  }
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events -->
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <article
   class="media-card group bg-card hover:bg-card-hover relative cursor-pointer rounded-xl border border-white/[0.05] p-2.5 shadow-lg focus-within:ring-2 focus-within:ring-indigo-500/30 hover:border-white/[0.1]"
+  data-id={item.id}
   onclick={(event) => {
     if ((event.target as HTMLElement).closest("button, a, input, select")) return;
     onOpen(item);
+  }}
+  oncontextmenu={(event) => {
+    const selection = window.getSelection()?.toString()?.trim();
+    if (selection) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const items = buildCardMenuItems(item);
+    openContextMenu(event.clientX, event.clientY, items);
   }}
   onpointerenter={() => schedulePrefetchMediaDetail(item.id)}
   onfocus={() => schedulePrefetchMediaDetail(item.id)}

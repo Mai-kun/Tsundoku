@@ -15,14 +15,27 @@
 
   interface Props {
     mediaId: string;
+    isOpen?: boolean;
+    onClose?: () => void;
   }
-  let { mediaId }: Props = $props();
+  let { mediaId, isOpen = false, onClose }: Props = $props();
   let open = $state(false);
   let createOpen = $state(false);
   let loading = $state(false);
   let lists = $state.raw<CustomListSummary[]>([]);
   let included = $state<string[]>([]);
   let busyIds = $state<string[]>([]);
+
+  $effect(() => {
+    if (isOpen) {
+      void showPicker();
+    }
+  });
+
+  function handleClose() {
+    open = false;
+    onClose?.();
+  }
 
   async function showPicker() {
     open = true;
@@ -64,16 +77,18 @@
   }
 </script>
 
-<button
-  type="button"
-  class="bg-surface/50 flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-xs font-medium text-[var(--color-ink-dim)] transition hover:bg-[var(--color-panel-raised)] hover:text-white"
-  onclick={() => void showPicker()}
->
-  <List size={15} class="text-[var(--color-accent-soft)]" aria-hidden="true" />{i18n.t.views
-    .listAddTo}
-</button>
+{#if !onClose}
+  <button
+    type="button"
+    class="bg-surface/50 flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-xs font-medium text-[var(--color-ink-dim)] transition hover:bg-[var(--color-panel-raised)] hover:text-white"
+    onclick={() => void showPicker()}
+  >
+    <List size={15} class="text-[var(--color-accent-soft)]" aria-hidden="true" />{i18n.t.views
+      .listAddTo}
+  </button>
+{/if}
 
-<Modal isOpen={open} onClose={() => (open = false)} labelledBy="list-picker-title">
+<Modal isOpen={open} onClose={handleClose} labelledBy="list-picker-title">
   <div class="p-5 sm:p-6">
     <div class="flex items-center justify-between gap-3">
       <h2 id="list-picker-title" class="text-ink text-lg font-bold">

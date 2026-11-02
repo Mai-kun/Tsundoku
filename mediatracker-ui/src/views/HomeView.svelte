@@ -128,7 +128,7 @@
   let showStaleModal = $state(false);
   const staleCount = $derived(inProgress.filter((item) => isStaleInProgress(item, 180)).length);
   let requestSequence = 0;
-  let hasLoaded = homeCache.peek(HOME_KEY) !== undefined;
+  let hasLoaded = $state(homeCache.peek(HOME_KEY) !== undefined);
   let skeletonTimer: ReturnType<typeof setTimeout> | null = null;
 
   function evaluateItem(item: MediaItem, budget: number): TimeFitResult {
@@ -472,9 +472,21 @@
 
   async function loadSections(sequence: number, showLoading = true) {
     if (skeletonTimer) clearTimeout(skeletonTimer);
-    if (showLoading && !homeCache.peek(HOME_KEY)) {
+    if (
+      showLoading &&
+      !homeCache.peek(HOME_KEY) &&
+      inProgress.length === 0 &&
+      upNext.length === 0 &&
+      recentlyCompleted.length === 0
+    ) {
       skeletonTimer = setTimeout(() => {
-        if (sequence === requestSequence && !homeCache.peek(HOME_KEY)) {
+        if (
+          sequence === requestSequence &&
+          !homeCache.peek(HOME_KEY) &&
+          inProgress.length === 0 &&
+          upNext.length === 0 &&
+          recentlyCompleted.length === 0
+        ) {
           loading = true;
         }
       }, 120);
@@ -637,7 +649,7 @@
 
 <div class="space-y-8">
   <!-- Полноразмерная панель управления (точная копия FilterBar категорий) -->
-  {#if !loading && !loadError}
+  {#if (!loading && !loadError) || hasLoaded || inProgress.length > 0 || upNext.length > 0 || recentlyCompleted.length > 0}
     <section
       class="bg-surface mb-6 space-y-3 rounded-lg p-3 sm:p-4"
       aria-label="Панель управления главной"
@@ -956,9 +968,9 @@
     </div>
   {/if}
 
-  {#if loading}
+  {#if loading && inProgress.length === 0 && upNext.length === 0 && recentlyCompleted.length === 0}
     <MediaGrid forceFlat={showAll} items={[]} {loading} />
-  {:else if loadError}
+  {:else if loadError && inProgress.length === 0 && upNext.length === 0 && recentlyCompleted.length === 0}
     <MediaGrid forceFlat={showAll} items={[]} error={loadError} onRetry={refresh} />
   {:else if filteredTotal === 0}
     <MediaGrid forceFlat={showAll} items={[]} />

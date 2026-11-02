@@ -21,6 +21,7 @@
     onStatusChange,
     onProgressCommitted = () => {},
     onDelete,
+    onEdit,
     onEpisodeStep,
   }: MediaCardProps & { item: TvShowMedia } = $props();
 
@@ -79,7 +80,7 @@
   }
 </script>
 
-<BaseCard {item} {timeHint} {onOpen} {onStatusChange} {onProgressCommitted} {onDelete}>
+<BaseCard {item} {timeHint} {onOpen} {onStatusChange} {onProgressCommitted} {onDelete} {onEdit}>
   <CardTitleBlock title={item.title} {subtitle} />
 
   {#if showProgress}

@@ -419,13 +419,10 @@
     {:else}
       {i18n.t.library.resultCount(filteredItems.length)}
     {/if}
-    {#if refreshing}
-      <LoaderCircle size={12} class="animate-spin" aria-hidden="true" />
-    {/if}
   </p>
 
-  <div class="view-fade">
-    {#if loadError}
+  <div>
+    {#if loadError && allItems.length === 0}
       {@render mediaGrid([])}
     {:else if useSingleGrid}
       {@render mediaGrid(filteredItems)}

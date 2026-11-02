@@ -1,16 +1,69 @@
 <script lang="ts">
   import { Activity, X } from "$shared/ui/Icons";
   import { jobsClient } from "$shared/api/jobsClient.svelte";
+  import { getRateLimits } from "$shared/api/api";
   import { i18n } from "$shared/i18n/index.svelte";
-  import type { JobProgress } from "$shared/types";
+  import type { ApiRateLimitStatus, JobProgress } from "$shared/types";
+  import { onMount } from "svelte";
 
   const popoverId = "activity-popover";
 
+  let rateLimits = $state<ApiRateLimitStatus[]>([]);
+  let timerId: number | null = null;
+  let pollIntervalId: number | null = null;
+
+  async function refreshRateLimits() {
+    try {
+      rateLimits = await getRateLimits();
+    } catch {
+      // Ignore polling errors
+    }
+  }
+
+  function startRateLimitTracking() {
+    void refreshRateLimits();
+    stopRateLimitTracking();
+
+    timerId = window.setInterval(() => {
+      if (rateLimits.length === 0) return;
+      rateLimits = rateLimits.map((item) => ({
+        ...item,
+        resetSecondsRemaining: Math.max(0, item.resetSecondsRemaining - 1),
+      }));
+    }, 1000);
+
+    pollIntervalId = window.setInterval(() => {
+      void refreshRateLimits();
+    }, 10000);
+  }
+
+  function stopRateLimitTracking() {
+    if (timerId !== null) {
+      clearInterval(timerId);
+      timerId = null;
+    }
+    if (pollIntervalId !== null) {
+      clearInterval(pollIntervalId);
+      pollIntervalId = null;
+    }
+  }
+
+  function onPopoverToggle(event: ToggleEvent) {
+    if (event.newState === "open") {
+      startRateLimitTracking();
+    } else {
+      stopRateLimitTracking();
+    }
+  }
+
   // The queue is global and outlives any single view, so the socket is opened once on mount
   // rather than per panel open: closing the dropdown must not drop the progress feed.
-  $effect(() => {
+  onMount(() => {
     jobsClient.connect();
-    return () => jobsClient.disconnect();
+    return () => {
+      jobsClient.disconnect();
+      stopRateLimitTracking();
+    };
   });
 
   let popoverElement = $state<HTMLDivElement | null>(null);
@@ -71,6 +124,7 @@
   <div
     id={popoverId}
     bind:this={popoverElement}
+    ontoggle={onPopoverToggle}
     popover="auto"
     role="dialog"
     aria-label={i18n.t.activity.label}
@@ -152,6 +206,50 @@
           </li>
         {/each}
       </ul>
+    {/if}
+
+    {#if rateLimits.length > 0}
+      <div class="mt-3 border-t border-white/[0.08] pt-2.5">
+        <h3 class="mb-2 text-[11px] font-bold tracking-wider text-slate-400 uppercase">
+          {i18n.t.activity.rateLimitsTitle}
+        </h3>
+        <div class="space-y-2">
+          {#each rateLimits as limit (limit.provider)}
+            {@const ratio = limit.limit > 0 ? limit.remaining / limit.limit : (limit.remaining > 0 ? 1 : 0)}
+            {@const percent = Math.max(0, Math.min(100, Math.round(ratio * 100)))}
+            {@const barColor = limit.remaining <= 0 ? "bg-rose-500" : ratio < 0.3 ? "bg-amber-500" : "bg-emerald-500"}
+            <div class="rounded-md border border-white/[0.06] bg-white/[0.03] p-2">
+              <div class="flex items-center justify-between gap-2 text-xs">
+                <span class="font-medium text-slate-200 truncate">{limit.provider}</span>
+                <span class="text-[11px] font-medium text-slate-400 tabular-nums">
+                  {i18n.t.activity.remaining(limit.remaining, limit.limit)}
+                </span>
+              </div>
+              <div
+                class="mt-1.5 h-1 overflow-hidden rounded-full bg-white/[0.08]"
+                role="progressbar"
+                aria-label={limit.provider}
+                aria-valuenow={percent}
+                aria-valuemin="0"
+                aria-valuemax="100"
+              >
+                <div
+                  class="h-full rounded-full transition-all duration-300 ease-out {barColor}"
+                  style="width: {percent}%"
+                ></div>
+              </div>
+              <div class="mt-1 flex items-center justify-between text-[10px] text-muted">
+                <span>
+                  {limit.resetSecondsRemaining > 0
+                    ? i18n.t.activity.resetInSeconds(limit.resetSecondsRemaining)
+                    : i18n.t.activity.resetReady}
+                </span>
+                <span class="tabular-nums font-mono">{percent}%</span>
+              </div>
+            </div>
+          {/each}
+        </div>
+      </div>
     {/if}
 
     <button

@@ -1659,7 +1659,7 @@
                     <button
                       type="button"
                       disabled={mangalibDetectBusy}
-                      class="w-auto inline-flex cursor-pointer items-center gap-2 rounded-lg bg-[#c25e2e] hover:bg-[#b05224] text-white shadow-sm px-3.5 py-2 text-xs font-semibold transition disabled:cursor-wait disabled:opacity-60"
+                      class="inline-flex w-auto cursor-pointer items-center gap-2 rounded-lg bg-[#c25e2e] px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-[#b05224] disabled:cursor-wait disabled:opacity-60"
                       onclick={() => void detectMangalibSession()}
                     >
                       {#if mangalibDetectBusy}

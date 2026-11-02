@@ -71,58 +71,78 @@
   function buildCardMenuItems(item: MediaItem): MenuItem[] {
     const statusLabel = (status: MediaStatus): string => {
       const map: Record<MediaStatus, keyof typeof i18n.t.status> = {
-        0: 'planned',
-        1: 'inProgress',
-        2: 'completed',
-        3: 'paused',
-        4: 'dropped',
+        0: "planned",
+        1: "inProgress",
+        2: "completed",
+        3: "paused",
+        4: "dropped",
       };
       return i18n.t.status[map[status]];
     };
 
     return [
       {
-        id: 'edit',
+        id: "edit",
         label: i18n.t.detailModal.edit,
-        icon: 'edit',
-        kind: 'default',
+        icon: "edit",
+        kind: "default",
         action: () => (onEdit ? onEdit(item) : onOpen?.(item)),
       },
       {
-        id: 'status',
+        id: "status",
         label: i18n.t.status.label,
-        icon: 'status',
-        kind: 'default',
+        icon: "status",
+        kind: "default",
         children: [
-          { id: 'status-planned', label: statusLabel(0), kind: 'default', action: () => onStatusChange?.(item, 0) },
-          { id: 'status-inProgress', label: statusLabel(1), kind: 'default', action: () => onStatusChange?.(item, 1) },
-          { id: 'status-completed', label: statusLabel(2), kind: 'default', action: () => onStatusChange?.(item, 2) },
-          { id: 'status-dropped', label: statusLabel(4), kind: 'default', action: () => onStatusChange?.(item, 4) },
+          {
+            id: "status-planned",
+            label: statusLabel(0),
+            kind: "default",
+            action: () => onStatusChange?.(item, 0),
+          },
+          {
+            id: "status-inProgress",
+            label: statusLabel(1),
+            kind: "default",
+            action: () => onStatusChange?.(item, 1),
+          },
+          {
+            id: "status-completed",
+            label: statusLabel(2),
+            kind: "default",
+            action: () => onStatusChange?.(item, 2),
+          },
+          {
+            id: "status-dropped",
+            label: statusLabel(4),
+            kind: "default",
+            action: () => onStatusChange?.(item, 4),
+          },
         ],
       },
       {
-        id: 'add-to-list',
+        id: "add-to-list",
         label: i18n.t.views.listAddTo,
-        icon: 'list',
-        kind: 'default',
+        icon: "list",
+        kind: "default",
         action: () => openListPicker(item.id),
       },
       {
-        id: 'copy-title',
+        id: "copy-title",
         label: i18n.t.contextMenu.copyTitle ?? i18n.t.common.copy,
-        icon: 'copy',
-        kind: 'default',
+        icon: "copy",
+        kind: "default",
         action: () => {
           navigator.clipboard.writeText(item.title).catch(() => {});
           showToast(i18n.t.common.copied);
         },
       },
-      { id: 'separator1', kind: 'separator' },
+      { id: "separator1", kind: "separator" },
       {
-        id: 'delete',
+        id: "delete",
         label: i18n.t.detailModal.delete,
-        icon: 'delete',
-        kind: 'danger',
+        icon: "delete",
+        kind: "danger",
         action: async () => {
           if (!onDelete) return;
           if (!window.confirm(i18n.t.card.confirmDelete(item.title))) return;

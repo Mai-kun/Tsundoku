@@ -1,6 +1,6 @@
 import { writable } from "svelte/store";
 
-/** Пункт контекстного меню. Для разделителя `kind: "separator"` поля label и action необязательны. */
+/** Context menu item. For separator `kind: "separator"` label and action are optional. */
 export interface MenuItem {
   id: string;
   label?: string;
@@ -42,17 +42,17 @@ function createContextMenuStore() {
 
 export const contextMenuStore = createContextMenuStore();
 
-/** Открыть контекстное меню в координатах (x, y). */
+/** Open context menu at (x, y) coordinates. */
 export function openContextMenu(x: number, y: number, items: MenuItem[]) {
   contextMenuStore.open(x, y, items);
 }
 
-/** Закрыть контекстное меню. */
+/** Close context menu. */
 export function closeContextMenu() {
   contextMenuStore.close();
 }
 
-/** ID тайтла для модалки добавления в список ListPicker. */
+/** Media ID for the ListPicker add-to-list modal. */
 export const activeListPickerMediaId = writable<string | null>(null);
 
 export function openListPicker(mediaId: string) {

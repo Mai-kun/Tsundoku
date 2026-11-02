@@ -111,7 +111,9 @@
     role="menu"
     tabindex="-1"
     aria-label={i18n.t.contextMenu.title}
-    style="left: {renderedX}px; top: {renderedY}px; visibility: {isPositioned ? 'visible' : 'hidden'};"
+    style="left: {renderedX}px; top: {renderedY}px; visibility: {isPositioned
+      ? 'visible'
+      : 'hidden'};"
     oncontextmenu={(e) => e.preventDefault()}
   >
     {#each $contextMenuStore.items as item (item.id)}
@@ -228,7 +230,9 @@
     padding: 6px;
     min-width: 220px;
     max-width: 320px;
-    box-shadow: 0 20px 48px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.05);
+    box-shadow:
+      0 20px 48px rgba(0, 0, 0, 0.8),
+      0 0 0 1px rgba(255, 255, 255, 0.05);
     font-size: 13px;
     line-height: 1.4;
     color: #e8eaed;
@@ -255,7 +259,9 @@
     border-radius: 12px;
     padding: 6px;
     min-width: 170px;
-    box-shadow: 0 20px 48px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.05);
+    box-shadow:
+      0 20px 48px rgba(0, 0, 0, 0.8),
+      0 0 0 1px rgba(255, 255, 255, 0.05);
     display: flex;
     flex-direction: column;
     gap: 2px;
@@ -297,7 +303,9 @@
     cursor: pointer;
     text-align: left;
     width: 100%;
-    transition: background-color 100ms ease, color 100ms ease;
+    transition:
+      background-color 100ms ease,
+      color 100ms ease;
   }
 
   .context-menu-item:hover,

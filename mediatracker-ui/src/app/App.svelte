@@ -28,6 +28,7 @@
     closeContextMenu,
   } from "$shared/ui/contextMenu.svelte";
   import { showToast } from "$shared/ui/toast.svelte";
+  import { offlineModeState } from "$shared/api/offlineMode.svelte";
 
   const categories: readonly Category[] = ["tvshow", "movie", "anime", "manga", "game", "book"];
   const views: readonly AppView[] = [
@@ -186,6 +187,10 @@
     }
     renderedView = view;
   }
+
+  $effect(() => {
+    void offlineModeState.init();
+  });
 
   $effect(() => {
     if (renderedView === "home" || (renderedView !== null && isCategory(renderedView))) {
@@ -429,7 +434,7 @@
       return;
     }
 
-    // Не показываем кастомное меню, если клик по интерактивному элементу.
+    // Do not show custom menu when clicking on interactive elements.
     if (target.closest("button, input, select, textarea, a, [contenteditable]")) {
       return;
     }
@@ -438,7 +443,7 @@
     const selectedText = selection?.toString()?.trim();
 
     if (selectedText) {
-      // Выделенный текст: копирование или поиск.
+      // Selected text: copy or search.
       event.preventDefault();
       openContextMenu(event.clientX, event.clientY, [
         {
@@ -462,7 +467,7 @@
       return;
     }
 
-    // Пустое место / фон: глобальное меню.
+    // Empty space / background: global menu.
     event.preventDefault();
     openContextMenu(event.clientX, event.clientY, [
       {
@@ -684,6 +689,14 @@
       onClose={closeSettings}
       onImportCompleted={mediaChanged}
       onNavigateToList={navigateToList}
+      onTestSearch={(source, type) => {
+        closeSettings();
+        openSearch({
+          query: "",
+          source,
+          type: type === "movie" || type === "anime" || type === "game" ? type : "all",
+        });
+      }}
     />
   {:catch error}
     {@const _ = console.error("Failed to load view/modal:", error)}

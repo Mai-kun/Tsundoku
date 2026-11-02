@@ -1,7 +1,8 @@
 <script lang="ts">
-  import { ChevronDown, Languages, LoaderCircle, Power, Search } from "$shared/ui/Icons";
+  import { ChevronDown, CloudOff, Languages, LoaderCircle, Power, Search } from "$shared/ui/Icons";
   import { i18n, locales, type Locale } from "$shared/i18n/index.svelte";
   import { networkActivity } from "$shared/api/networkActivity.svelte";
+  import { offlineModeState } from "$shared/api/offlineMode.svelte";
   import PopoverMenu from "$shared/ui/PopoverMenu.svelte";
   import ActivityDropdown from "./ActivityDropdown.svelte";
 
@@ -22,18 +23,28 @@
 <div class="relative flex h-full w-full items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
   <!-- Fixed-width title slot: RU/EN titles differ by a few pixels; truncate absorbs
        longer titles without pushing the center search bar. -->
-  <h1
-    class="text-ink w-56 min-w-0 shrink-0 truncate text-base font-semibold tracking-tight"
-  >
+  <h1 class="text-ink w-56 min-w-0 shrink-0 truncate text-base font-semibold tracking-tight">
     {title}
   </h1>
 
   <!-- Strictly centered search with Activity button anchored to its right -->
-  <div class="pointer-events-none absolute left-1/2 -translate-x-1/2 flex items-center">
+  <div class="pointer-events-none absolute left-1/2 flex -translate-x-1/2 items-center">
     <div class="relative flex items-center">
+      {#if offlineModeState.isOffline}
+        <div
+          class="pointer-events-auto mr-2.5 flex items-center gap-1.5 rounded-lg border border-amber-500/30 bg-amber-500/15 px-2.5 py-1 text-xs font-medium text-amber-400 shadow-sm"
+          title={i18n.t.header.offlineBadgeTooltip}
+        >
+          <CloudOff size={15} class="shrink-0 text-amber-400" aria-hidden="true" />
+          <span class="hidden text-[11px] font-semibold md:inline"
+            >{i18n.t.header.offlineBadgeText}</span
+          >
+        </div>
+      {/if}
+
       <button
         type="button"
-        class="pointer-events-auto bg-elevated hover:bg-card-hover hidden h-9 w-[28rem] sm:w-[32rem] items-center gap-2 rounded-lg border border-white/[0.08] px-3 text-left text-sm text-white transition hover:border-indigo-500/40 focus:ring-1 focus:ring-indigo-500/30 focus:outline-none sm:flex"
+        class="bg-elevated hover:bg-card-hover pointer-events-auto hidden h-9 w-[28rem] items-center gap-2 rounded-lg border border-white/[0.08] px-3 text-left text-sm text-white transition hover:border-indigo-500/40 focus:ring-1 focus:ring-indigo-500/30 focus:outline-none sm:flex sm:w-[32rem]"
         title={i18n.t.header.searchTooltip}
         onclick={onSearch}
       >
@@ -47,7 +58,7 @@
 
       <button
         type="button"
-        class="pointer-events-auto bg-elevated text-muted hover:text-ink inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/[0.08] transition hover:border-indigo-500/40 focus:ring-1 focus:ring-indigo-500/30 focus:outline-none sm:hidden"
+        class="bg-elevated text-muted hover:text-ink pointer-events-auto inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/[0.08] transition hover:border-indigo-500/40 focus:ring-1 focus:ring-indigo-500/30 focus:outline-none sm:hidden"
         aria-label={i18n.t.header.searchButton}
         onclick={onSearch}
       >
@@ -99,7 +110,7 @@
     {#if onExitClick}
       <button
         type="button"
-        class="bg-elevated text-muted hover:text-ink hover:border-rose-400/40 inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/[0.08] transition focus:ring-1 focus:ring-rose-500/30 focus:outline-none"
+        class="bg-elevated text-muted hover:text-ink inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/[0.08] transition hover:border-rose-400/40 focus:ring-1 focus:ring-rose-500/30 focus:outline-none"
         title={i18n.t.header.exit}
         aria-label={i18n.t.header.exit}
         onclick={onExitClick}

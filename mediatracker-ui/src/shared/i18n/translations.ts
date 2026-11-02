@@ -50,6 +50,11 @@ export const translations = {
     language: { ru: "Язык интерфейса", en: "Interface language" },
     exit: { ru: "Выход / Управление работой", en: "Exit / Power" },
     updatingData: { ru: "Обновление данных...", en: "Updating data..." },
+    offlineBadgeTooltip: {
+      ru: "Включён офлайн-режим: внешние сети заблокированы, поиск идёт только по локальным базам",
+      en: "Offline mode active: external networks blocked, search runs only on local databases",
+    },
+    offlineBadgeText: { ru: "Офлайн", en: "Offline" },
   },
   navigation: {
     home: { ru: "Главная", en: "Home" },
@@ -2231,6 +2236,41 @@ export const translations = {
         en: (ms: number) => `Connected (${ms} ms)`,
       },
       testFailed: { ru: "Ошибка подключения", en: "Connection failed" },
+      offline: {
+        title: { ru: "Локальные офлайн-базы (Layer 0)", en: "Local Offline Databases (Layer 0)" },
+        subtitle: {
+          ru: "Мгновенный автономный поиск без интернета и ограничений по API",
+          en: "Instant offline search without internet or API rate limits",
+        },
+        reindexBtn: { ru: "Пересканировать дампы", en: "Rescan dumps" },
+        reindexToast: {
+          ru: "Запущена фоновая переиндексация офлайн-дампов",
+          en: "Background offline dump reindexing started",
+        },
+        activeBadge: { ru: "✓ Активно (0.3 мс)", en: "✓ Active (0.3 ms)" },
+        inactiveBadge: { ru: "Не активно", en: "Inactive" },
+        pendingDumpsWarning: {
+          ru: (files: string) =>
+            `Обнаружены исходные дампы: ${files}. Нажмите "Пересканировать", чтобы собрать их в быстрые базы данных.`,
+          en: (files: string) =>
+            `Found raw dump files: ${files}. Click "Rescan" to build them into fast databases.`,
+        },
+        hint: {
+          ru: "Чтобы подключить свои базы или обновить данные, поместите файлы в папку: data/offline/",
+          en: "To connect your own databases or update data, place files into: data/offline/",
+        },
+        offlineModeTitle: {
+          ru: "Режим полной автономии (Только локальные базы)",
+          en: "Full Offline Autonomy Mode (Local Databases Only)",
+        },
+        offlineModeDesc: {
+          ru: "Отключает любые сетевые запросы к внешним серверам. Поиск и метаданные работают только из локальных SQLite баз",
+          en: "Disables any external network requests. Search and metadata operate exclusively from local SQLite databases",
+        },
+        offlineModeActive: { ru: "Активен", en: "Active" },
+        testSearchBtn: { ru: "Тест", en: "Test" },
+        testSearchTooltip: { ru: "Тест поиска по базе", en: "Test database search" },
+      },
     },
     search: {
       orderTitle: {

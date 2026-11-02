@@ -18,7 +18,10 @@
     try {
       settings = await getStorageSettings();
       isOpen = Boolean(settings?.isFirstRunSetupRequired);
-      if (settings?.mode && (settings.mode === "default" || settings.mode === "portable" || settings.mode === "custom")) {
+      if (
+        settings?.mode &&
+        (settings.mode === "default" || settings.mode === "portable" || settings.mode === "custom")
+      ) {
         mode = settings.mode;
       }
     } catch (e) {
@@ -116,7 +119,7 @@
               class="shrink-0 {mode === 'default' ? 'text-indigo-400' : 'text-slate-400'}"
             />
             <div class="min-w-0 flex-1">
-              <span class="block text-xs font-semibold leading-snug">
+              <span class="block text-xs leading-snug font-semibold">
                 {i18n.t.settings.storageDefault}
               </span>
               <span class="block truncate text-[11px] text-slate-400">
@@ -138,7 +141,7 @@
               class="shrink-0 {mode === 'portable' ? 'text-indigo-400' : 'text-slate-400'}"
             />
             <div class="min-w-0 flex-1">
-              <span class="block text-xs font-semibold leading-snug">
+              <span class="block text-xs leading-snug font-semibold">
                 {i18n.t.settings.storagePortable}
               </span>
               <span class="block truncate text-[11px] text-slate-400">
@@ -160,7 +163,7 @@
               class="shrink-0 {mode === 'custom' ? 'text-indigo-400' : 'text-slate-400'}"
             />
             <div class="min-w-0 flex-1">
-              <span class="block text-xs font-semibold leading-snug">
+              <span class="block text-xs leading-snug font-semibold">
                 {i18n.t.settings.storageCustom}
               </span>
               <span class="block text-[11px] text-slate-400">

@@ -121,20 +121,33 @@
     );
   }
 
+  function formatSourceLabel(source: SourceInfo): string {
+    if (source.id.startsWith("offline:")) {
+      const cleanName = source.name.replace(/^\[Офлайн\]\s*/i, "");
+      return `💾 ${cleanName} (Офлайн)`;
+    }
+    return source.name;
+  }
+
   let sourceOptions = $derived.by(() => {
     const enabled = availableSources.filter(
       (s) => s.isEnabled && (activeType === "all" || s.mediaTypes.includes(activeType)),
     );
     return [
       { value: "", label: i18n.t.searchModal.allSources },
-      ...enabled.map((s) => ({ value: s.id as string, label: s.name as string })),
+      ...enabled.map((s) => ({ value: s.id as string, label: formatSourceLabel(s) })),
     ];
   });
 
   let selectedSourceLabel = $derived.by(() => {
     if (!selectedSource) return i18n.t.searchModal.allSources;
     const found = availableSources.find((s) => s.id.toLowerCase() === selectedSource.toLowerCase());
-    return found?.name ?? selectedSource;
+    if (found) return formatSourceLabel(found);
+    if (selectedSource.startsWith("offline:")) {
+      const dbName = selectedSource.slice("offline:".length).replace(/\.db$/i, "");
+      return `💾 ${dbName} (Офлайн)`;
+    }
+    return selectedSource;
   });
 
   let categoryOptions = $derived(

@@ -24,6 +24,7 @@ export { default as ChevronRight } from "lucide-svelte/icons/chevron-right";
 export { default as ChevronUp } from "lucide-svelte/icons/chevron-up";
 export { default as Clapperboard } from "lucide-svelte/icons/clapperboard";
 export { default as Clock3 } from "lucide-svelte/icons/clock-3";
+export { default as CloudOff } from "lucide-svelte/icons/cloud-off";
 export { default as Copy } from "lucide-svelte/icons/copy";
 export { default as Download } from "lucide-svelte/icons/download";
 export { default as Dices } from "lucide-svelte/icons/dices";

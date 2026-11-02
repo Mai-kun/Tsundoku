@@ -215,12 +215,18 @@
         </h3>
         <div class="space-y-2">
           {#each rateLimits as limit (limit.provider)}
-            {@const ratio = limit.limit > 0 ? limit.remaining / limit.limit : (limit.remaining > 0 ? 1 : 0)}
+            {@const ratio =
+              limit.limit > 0 ? limit.remaining / limit.limit : limit.remaining > 0 ? 1 : 0}
             {@const percent = Math.max(0, Math.min(100, Math.round(ratio * 100)))}
-            {@const barColor = limit.remaining <= 0 ? "bg-rose-500" : ratio < 0.3 ? "bg-amber-500" : "bg-emerald-500"}
+            {@const barColor =
+              limit.remaining <= 0
+                ? "bg-rose-500"
+                : ratio < 0.3
+                  ? "bg-amber-500"
+                  : "bg-emerald-500"}
             <div class="rounded-md border border-white/[0.06] bg-white/[0.03] p-2">
               <div class="flex items-center justify-between gap-2 text-xs">
-                <span class="font-medium text-slate-200 truncate">{limit.provider}</span>
+                <span class="truncate font-medium text-slate-200">{limit.provider}</span>
                 <span class="text-[11px] font-medium text-slate-400 tabular-nums">
                   {i18n.t.activity.remaining(limit.remaining, limit.limit)}
                 </span>
@@ -234,17 +240,17 @@
                 aria-valuemax="100"
               >
                 <div
-                  class="h-full rounded-full transition-all duration-300 ease-out {barColor}"
+                  class="h-full rounded-full transition duration-300 ease-out {barColor}"
                   style="width: {percent}%"
                 ></div>
               </div>
-              <div class="mt-1 flex items-center justify-between text-[10px] text-muted">
+              <div class="text-muted mt-1 flex items-center justify-between text-[10px]">
                 <span>
                   {limit.resetSecondsRemaining > 0
                     ? i18n.t.activity.resetInSeconds(limit.resetSecondsRemaining)
                     : i18n.t.activity.resetReady}
                 </span>
-                <span class="tabular-nums font-mono">{percent}%</span>
+                <span class="font-mono tabular-nums">{percent}%</span>
               </div>
             </div>
           {/each}

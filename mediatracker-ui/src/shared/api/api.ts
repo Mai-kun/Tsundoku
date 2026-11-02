@@ -35,6 +35,7 @@ import type {
   CreateGoalPayload,
   StorageSettings,
   StorageRequest,
+  OfflineDatabasesSummaryDto,
   ApiRateLimitStatus,
 } from "$shared/types";
 
@@ -478,7 +479,9 @@ export interface MangalibDetectResult {
  * (HTTP 404) — the caller shows the "open login page" fallback.
  */
 export async function detectMangalibBrowserSession(): Promise<MangalibDetectResult | null> {
-  const response = await apiFetch("/api/settings/sources/mangalib/detect-token", { method: "POST" });
+  const response = await apiFetch("/api/settings/sources/mangalib/detect-token", {
+    method: "POST",
+  });
   if (response.status === 404) return null;
   if (!response.ok) {
     await throwApiError(response);
@@ -547,7 +550,6 @@ export function saveAppSettings(settings: AppSettings): Promise<AppSettings> {
     body: JSON.stringify(settings),
   });
 }
-
 
 export function getReadingSettings(): Promise<ReadingSettings> {
   return requestJson<ReadingSettings>("/api/settings/reading");
@@ -824,4 +826,28 @@ export function deleteGoal(id: string): Promise<void> {
 
 export function getRateLimits(): Promise<ApiRateLimitStatus[]> {
   return requestJson<ApiRateLimitStatus[]>("/api/system/rate-limits");
+}
+
+export function getOfflineDatabases(): Promise<OfflineDatabasesSummaryDto> {
+  return requestJson<OfflineDatabasesSummaryDto>("/api/settings/offline-databases");
+}
+
+export function reindexOfflineDatabases(): Promise<void> {
+  return requestVoid("/api/settings/offline-databases/reindex", { method: "POST" });
+}
+
+export interface OfflineModeResponse {
+  offlineMode: boolean;
+  hasDatabases: boolean;
+}
+
+export function getOfflineMode(): Promise<OfflineModeResponse> {
+  return requestJson<OfflineModeResponse>("/api/settings/offline-mode");
+}
+
+export function setOfflineMode(offlineMode: boolean): Promise<{ offlineMode: boolean }> {
+  return requestJson<{ offlineMode: boolean }>(
+    "/api/settings/offline-mode",
+    jsonOptions("PUT", { offlineMode }),
+  );
 }

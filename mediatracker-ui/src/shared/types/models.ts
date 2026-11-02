@@ -505,3 +505,20 @@ export interface StorageRequest {
   customPath: string;
   migrateExistingData: boolean;
 }
+
+export interface OfflineDatabaseStatusDto {
+  name: string;
+  fileName: string;
+  type: string;
+  totalTitles: number;
+  fileSizeBytes: number;
+  lastModified: string;
+  isActive: boolean;
+}
+
+export interface OfflineDatabasesSummaryDto {
+  databases: OfflineDatabaseStatusDto[];
+  totalIndexedTitles: number;
+  offlineDirectoryPath: string;
+  pendingDumps: string[];
+}

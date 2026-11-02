@@ -57,10 +57,13 @@
     applyAppUpdate,
     getStorageSettings,
     saveStorageSettings,
+    getOfflineDatabases,
+    reindexOfflineDatabases,
     type AppSettings,
   } from "$shared/api/api";
   import { showToast } from "$shared/ui/toast.svelte";
   import { i18n } from "$shared/i18n/index.svelte";
+  import { offlineModeState } from "$shared/api/offlineMode.svelte";
   import Modal from "$shared/ui/Modal.svelte";
   import Select from "$shared/ui/Select.svelte";
   import { flip } from "svelte/animate";
@@ -71,6 +74,7 @@
     CreateApiTokenResponse,
     SourceInfo,
     StorageSettings,
+    OfflineDatabasesSummaryDto,
   } from "$shared/types";
   import type { UpdateCheckResult } from "$shared/api/api";
 
@@ -79,9 +83,10 @@
     onClose: () => void;
     onImportCompleted: () => void;
     onNavigateToList?: (id: string) => void;
+    onTestSearch?: (sourceId: string, type?: string) => void;
   }
 
-  let { isOpen, onClose, onImportCompleted, onNavigateToList }: Props = $props();
+  let { isOpen, onClose, onImportCompleted, onNavigateToList, onTestSearch }: Props = $props();
 
   type Tab =
     | "sources"
@@ -572,11 +577,70 @@
   let priorityLoading = $state(false);
   let prioritySaving = $state(false);
 
+  let offlineSummary = $state<OfflineDatabasesSummaryDto | null>(null);
+  let offlineLoading = $state(false);
+  let offlineReindexing = $state(false);
+  let offlineModeToggling = $state(false);
+
+  async function loadOfflineDatabases() {
+    offlineLoading = true;
+    try {
+      offlineSummary = await getOfflineDatabases();
+      await offlineModeState.init();
+    } catch (e) {
+      console.error("Failed to load offline databases:", e);
+    } finally {
+      offlineLoading = false;
+    }
+  }
+
+  async function handleToggleOfflineMode() {
+    if (offlineModeToggling) return;
+    offlineModeToggling = true;
+    try {
+      await offlineModeState.toggle(!offlineModeState.isOffline);
+    } catch (e) {
+      showToast(errorMessage(e), "error");
+    } finally {
+      offlineModeToggling = false;
+    }
+  }
+
+  async function handleReindexOffline() {
+    if (offlineReindexing) return;
+    offlineReindexing = true;
+    try {
+      await reindexOfflineDatabases();
+      showToast(i18n.t.settingsModal.sources.offline.reindexToast, "success");
+      await loadOfflineDatabases();
+    } catch (e) {
+      showToast(errorMessage(e), "error");
+    } finally {
+      offlineReindexing = false;
+    }
+  }
+
+  function formatBytes(bytes: number): string {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} КБ`;
+    if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(0)} МБ`;
+    return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} ГБ`;
+  }
+
+  function getOfflineDbIcon(type: string, name: string): string {
+    const lower = (type + " " + name).toLowerCase();
+    if (lower.includes("movie") || lower.includes("imdb") || lower.includes("фильм")) return "🎬";
+    if (lower.includes("anime") || lower.includes("аниме")) return "📺";
+    if (lower.includes("game") || lower.includes("игра") || lower.includes("vgdb")) return "🎮";
+    return "📦";
+  }
+
   $effect(() => {
     if (isOpen) {
       void loadSources();
       void loadOrder();
       void loadPriority();
+      void loadOfflineDatabases();
     }
   });
 
@@ -1036,8 +1100,197 @@
       <!-- Right content area -->
       <div class="thin-scroll min-w-0 flex-1 overflow-y-auto bg-[#151a26]/40 p-6">
         {#if activeTab === "sources"}
-          <div class="space-y-4">
-            <div class="flex flex-wrap items-center justify-between gap-3">
+          <div class="space-y-6">
+            <!-- Local Offline Databases (Layer 0) Premium Block -->
+            <div
+              class="rounded-2xl border border-indigo-500/25 bg-gradient-to-br from-indigo-950/40 via-[#151a26]/70 to-[#10141d]/90 p-5 shadow-xl backdrop-blur-sm"
+            >
+              <!-- Header -->
+              <div class="flex flex-wrap items-center justify-between gap-3">
+                <div class="flex items-center gap-3">
+                  <div
+                    class="grid size-10 shrink-0 place-items-center rounded-xl border border-indigo-500/30 bg-indigo-500/20 text-indigo-400 shadow-inner"
+                  >
+                    <Server size={20} />
+                  </div>
+                  <div>
+                    <div class="flex flex-wrap items-center gap-2">
+                      <h3 class="text-ink text-sm font-bold tracking-tight">
+                        {i18n.t.settingsModal.sources.offline.title}
+                      </h3>
+                      {#if offlineSummary && offlineSummary.totalIndexedTitles > 0}
+                        <span
+                          class="inline-flex items-center rounded-full border border-indigo-500/30 bg-indigo-500/15 px-2.5 py-0.5 text-[11px] font-semibold text-indigo-300"
+                        >
+                          {offlineSummary.totalIndexedTitles.toLocaleString("ru-RU")} тайтлов
+                        </span>
+                      {/if}
+                    </div>
+                    <p class="text-muted mt-0.5 text-xs">
+                      {i18n.t.settingsModal.sources.offline.subtitle}
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onclick={handleReindexOffline}
+                  disabled={offlineReindexing}
+                  class="inline-flex items-center gap-2 rounded-xl border border-indigo-500/30 bg-indigo-500/15 px-3.5 py-2 text-xs font-semibold text-indigo-200 transition-transform hover:border-indigo-400/50 hover:bg-indigo-500/25 active:scale-95 disabled:pointer-events-none disabled:opacity-50"
+                  title={i18n.t.settingsModal.sources.offline.reindexBtn}
+                >
+                  <RefreshCw
+                    size={14}
+                    class={offlineReindexing ? "animate-spin text-indigo-400" : "text-indigo-300"}
+                  />
+                  <span>🔄 {i18n.t.settingsModal.sources.offline.reindexBtn}</span>
+                </button>
+              </div>
+
+              <!-- Offline Autonomy Mode Toggle (visible only if local databases exist) -->
+              {#if offlineModeState.hasDatabases}
+                <div
+                  class="mt-4 flex items-center justify-between gap-4 rounded-xl border border-amber-500/20 bg-amber-500/[0.06] p-3.5 transition-colors"
+                >
+                  <div class="min-w-0 flex-1 space-y-0.5">
+                    <div class="flex flex-wrap items-center gap-2">
+                      <span class="text-ink text-xs font-bold">
+                        {i18n.t.settingsModal.sources.offline.offlineModeTitle}
+                      </span>
+                      {#if offlineModeState.isOffline}
+                        <span
+                          class="inline-flex items-center rounded-full border border-amber-500/30 bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold text-amber-400"
+                        >
+                          {i18n.t.settingsModal.sources.offline.offlineModeActive}
+                        </span>
+                      {/if}
+                    </div>
+                    <p class="text-muted text-[11px]">
+                      {i18n.t.settingsModal.sources.offline.offlineModeDesc}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={offlineModeState.isOffline}
+                    class={`focus:ring-accent-soft focus:ring-offset-surface relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border transition-colors duration-200 focus:ring-2 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 ${
+                      offlineModeState.isOffline
+                        ? "border-amber-400 bg-amber-600"
+                        : "border-white/10 bg-white/10"
+                    }`}
+                    onclick={handleToggleOfflineMode}
+                    disabled={offlineModeToggling}
+                    title={offlineModeState.isOffline
+                      ? i18n.t.settingsModal.sources.disable
+                      : i18n.t.settingsModal.sources.enable}
+                  >
+                    <span
+                      aria-hidden="true"
+                      class={`pointer-events-none inline-block h-5 w-5 transform rounded-full shadow ring-0 transition duration-200 ease-in-out ${
+                        offlineModeState.isOffline
+                          ? "translate-x-5 bg-white"
+                          : "translate-x-0 bg-slate-400"
+                      }`}
+                    ></span>
+                  </button>
+                </div>
+              {/if}
+
+              <!-- Raw Dumps Warning Banner -->
+              {#if offlineSummary && offlineSummary.pendingDumps && offlineSummary.pendingDumps.length > 0}
+                <div
+                  class="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5 text-xs text-amber-200"
+                >
+                  <div class="flex items-start gap-2.5">
+                    <AlertTriangle size={16} class="mt-0.5 shrink-0 text-amber-400" />
+                    <div class="flex-1">
+                      <span class="font-medium">
+                        {i18n.t.settingsModal.sources.offline.pendingDumpsWarning(
+                          offlineSummary.pendingDumps.join(", "),
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              {/if}
+
+              <!-- Databases Grid -->
+              {#if offlineLoading}
+                <div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {#each Array(3) as _, i (i)}
+                    <div class="bg-card h-20 animate-pulse rounded-xl"></div>
+                  {/each}
+                </div>
+              {:else if offlineSummary && offlineSummary.databases && offlineSummary.databases.length > 0}
+                <div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {#each offlineSummary.databases as db (db.fileName)}
+                    <div
+                      class="group relative flex flex-col justify-between rounded-xl border border-white/10 bg-white/[0.03] p-3.5 transition hover:border-indigo-500/40 hover:bg-white/[0.05]"
+                    >
+                      <div>
+                        <div class="flex items-start justify-between gap-2">
+                          <div class="flex min-w-0 items-center gap-2">
+                            <span class="shrink-0 text-base select-none"
+                              >{getOfflineDbIcon(db.type, db.name)}</span
+                            >
+                            <h4 class="text-ink truncate text-xs font-bold" title={db.name}>
+                              {db.name}
+                            </h4>
+                          </div>
+                          {#if db.isActive}
+                            <span
+                              class="inline-flex shrink-0 items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold text-emerald-400"
+                            >
+                              {i18n.t.settingsModal.sources.offline.activeBadge}
+                            </span>
+                          {:else}
+                            <span
+                              class="inline-flex shrink-0 items-center rounded-full border border-zinc-500/30 bg-zinc-500/15 px-2 py-0.5 text-[10px] font-semibold text-zinc-400"
+                            >
+                              {i18n.t.settingsModal.sources.offline.inactiveBadge}
+                            </span>
+                          {/if}
+                        </div>
+                        <div class="mt-2.5 flex items-center gap-2 text-[11px] text-slate-300">
+                          <span class="font-medium text-white"
+                            >{db.totalTitles.toLocaleString("ru-RU")} тайтлов</span
+                          >
+                          <span class="text-slate-500">•</span>
+                          <span>{formatBytes(db.fileSizeBytes)}</span>
+                        </div>
+                      </div>
+                      <div
+                        class="mt-2 flex items-center justify-between border-t border-white/5 pt-2 text-[10px] text-slate-500"
+                      >
+                        <code class="truncate text-slate-400">{db.fileName}</code>
+                        {#if db.isActive}
+                          <button
+                            type="button"
+                            onclick={() => onTestSearch?.(`offline:${db.fileName}`, db.type)}
+                            class="inline-flex items-center gap-1 rounded-lg border border-indigo-500/30 bg-indigo-500/15 px-2 py-0.5 text-[11px] font-medium text-indigo-200 transition-colors hover:border-indigo-400/50 hover:bg-indigo-500/25 active:scale-95"
+                            title={i18n.t.settingsModal.sources.offline.testSearchTooltip}
+                          >
+                            <span>🔍 {i18n.t.settingsModal.sources.offline.testSearchBtn}</span>
+                          </button>
+                        {/if}
+                      </div>
+                    </div>
+                  {/each}
+                </div>
+              {/if}
+
+              <!-- Bottom Directory Hint -->
+              <div class="mt-4 border-t border-white/10 pt-3">
+                <p class="text-muted flex flex-wrap items-center gap-1.5 text-[11px]">
+                  <FolderOpen size={13} class="shrink-0 text-slate-400" />
+                  <span>
+                    {i18n.t.settingsModal.sources.offline.hint}
+                  </span>
+                </p>
+              </div>
+            </div>
+
+            <div class="flex flex-wrap items-center justify-between gap-3 pt-2">
               <div>
                 <h3 class="text-ink text-sm font-semibold">
                   {i18n.t.settingsModal.sources.title}
@@ -1935,9 +2188,7 @@
               {#each launchModeOptions as option (option.value)}
                 <label
                   class={`flex items-start gap-3 rounded-xl border p-3.5 transition ${
-                    appSettingsSaving
-                      ? "cursor-wait opacity-70"
-                      : "cursor-pointer"
+                    appSettingsSaving ? "cursor-wait opacity-70" : "cursor-pointer"
                   } ${
                     appSettings.launchMode === option.value
                       ? "border-indigo-500/60 bg-indigo-500/15 ring-1 ring-indigo-500/30"
@@ -1985,8 +2236,7 @@
               }`}
             >
               {#each closeActionOptions as option (option.value)}
-                {@const disabled =
-                  appSettings.launchMode !== "app_window" || appSettingsSaving}
+                {@const disabled = appSettings.launchMode !== "app_window" || appSettingsSaving}
                 <label
                   class={`flex items-start gap-3 rounded-xl border p-3.5 transition ${
                     disabled ? "cursor-not-allowed" : "cursor-pointer"

@@ -67,6 +67,27 @@ public class StorageLockAndRateLimitTests
             regenerated.Should().NotBeNull();
             regenerated.Mode.Should().Be("custom");
             regenerated.CustomPath.Should().Be(tempDir);
+            File.Exists(configPath).Should().BeFalse();
+        }
+        finally
+        {
+            try { Directory.Delete(tempDir, recursive: true); } catch { }
+        }
+    }
+
+    [Fact]
+    public void FileLockGuard_ShouldNotCreateStorageConfig_WhenFileDoesNotExist()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "tsundoku_test_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        var missingConfigFile = Path.Combine(tempDir, "storage.json");
+
+        try
+        {
+            using var lockGuard = new FileLockGuard(tempDir, missingConfigFile);
+
+            // Storage file must NOT be created by lock guard
+            File.Exists(missingConfigFile).Should().BeFalse();
         }
         finally
         {

@@ -344,9 +344,15 @@ public static class BrowserLauncher
             return null;
         }
 
-        foreach (var directory in pathVariable.Split(':', StringSplitOptions.RemoveEmptyEntries))
+        foreach (var range in MemoryExtensions.Split(pathVariable.AsSpan(), ':'))
         {
-            var candidate = new FileInfo(Path.Combine(directory.TrimEnd('/'), binary));
+            var segment = pathVariable.AsSpan()[range];
+            if (segment.IsEmpty)
+            {
+                continue;
+            }
+
+            var candidate = new FileInfo(Path.Combine(segment.ToString().TrimEnd('/'), binary));
             if (candidate is { Exists: true, Length: > 0 })
             {
                 return candidate;

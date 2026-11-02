@@ -6,9 +6,10 @@ using Microsoft.Data.Sqlite;
 
 namespace MediaTracker.Server.Infrastructure.ExternalApis.Offline;
 
-public sealed class OpenVgdbImporter
+public sealed partial class OpenVgdbImporter
 {
-    private static readonly Regex YearRegex = new(@"\b(19\d\d|20\d\d)\b", RegexOptions.Compiled);
+    [GeneratedRegex(@"\b(19\d\d|20\d\d)\b")]
+    private static partial Regex YearRegex();
 
     public async Task<int> ImportAsync(
         string sourcePath,
@@ -150,7 +151,7 @@ public sealed class OpenVgdbImporter
                         int? year = null;
                         if (!string.IsNullOrWhiteSpace(releaseDate))
                         {
-                            var match = YearRegex.Match(releaseDate);
+                            var match = YearRegex().Match(releaseDate);
                             if (match.Success && int.TryParse(match.Value, out var y))
                             {
                                 year = y;

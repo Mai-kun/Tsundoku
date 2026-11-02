@@ -109,6 +109,62 @@ public sealed class OfflineDatabaseManager
         return list;
     }
 
+    public string? ResolveDatabasePath(string fileNameOrPath)
+    {
+        if (string.IsNullOrWhiteSpace(fileNameOrPath)) return null;
+        if (File.Exists(fileNameOrPath)) return Path.GetFullPath(fileNameOrPath);
+
+        var targetFileName = Path.GetFileName(fileNameOrPath);
+        foreach (var existing in GetExistingDatabases())
+        {
+            if (string.Equals(Path.GetFileName(existing), targetFileName, StringComparison.OrdinalIgnoreCase))
+            {
+                return existing;
+            }
+        }
+
+        var candidate = Path.Combine(OfflineDirectory, targetFileName);
+        if (File.Exists(candidate))
+        {
+            return Path.GetFullPath(candidate);
+        }
+
+        return null;
+    }
+
+    public async Task<IReadOnlyList<ExternalMediaDto>> ExecuteSearchInDatabaseAsync(
+        string dbFileNameOrPath,
+        string? type,
+        string query,
+        int limit,
+        CancellationToken ct)
+    {
+        var resolvedPath = ResolveDatabasePath(dbFileNameOrPath);
+        if (resolvedPath is null) return [];
+
+        var normalized = query?.Trim();
+        if (string.IsNullOrWhiteSpace(normalized)) return [];
+
+        var results = new List<ExternalMediaDto>();
+        var seenKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        await SearchSingleDatabaseAsync(resolvedPath, type, normalized, limit, seenKeys, results, ct);
+        return results;
+    }
+
+    public async Task<ExternalMediaDto?> GetDetailsInDatabaseAsync(
+        string dbFileNameOrPath,
+        string externalId,
+        string? title,
+        string? type,
+        CancellationToken ct)
+    {
+        var resolvedPath = ResolveDatabasePath(dbFileNameOrPath);
+        if (resolvedPath is null) return null;
+
+        return await GetDetailsFromDatabaseAsync(resolvedPath, externalId, title, ct);
+    }
+
     public async Task<IReadOnlyList<ExternalMediaDto>> ExecuteSearchAsync(
         string? type,
         string query,
@@ -126,68 +182,79 @@ public sealed class OfflineDatabaseManager
 
         foreach (var dbPath in dbs)
         {
-            ct.ThrowIfCancellationRequested();
-
-            try
-            {
-                await using var conn = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly;");
-                await conn.OpenAsync(ct);
-
-                await using var cmd = conn.CreateCommand();
-                cmd.CommandText = @"
-                    SELECT Id, Title, OriginalTitle, Type, Year, Genres, ExternalSource, ExternalId, ExtraDataJson
-                    FROM OfflineMedia
-                    WHERE (@type IS NULL OR Type = @type)
-                      AND (
-                           Title LIKE @pattern COLLATE NOCASE
-                        OR OriginalTitle LIKE @pattern COLLATE NOCASE
-                        OR ExternalId = @exact
-                        OR Id = @exact
-                      )
-                    ORDER BY
-                      CASE
-                        WHEN Title = @exact COLLATE NOCASE THEN 1
-                        WHEN Title LIKE @prefix COLLATE NOCASE THEN 2
-                        ELSE 3
-                      END
-                    LIMIT @limit;
-                ";
-
-                cmd.Parameters.AddWithValue("@type", (object?)type ?? DBNull.Value);
-                cmd.Parameters.AddWithValue("@exact", normalized);
-                cmd.Parameters.AddWithValue("@prefix", $"{normalized}%");
-                cmd.Parameters.AddWithValue("@pattern", $"%{normalized}%");
-                cmd.Parameters.AddWithValue("@limit", limit);
-
-                await using var reader = await cmd.ExecuteReaderAsync(ct);
-                while (await reader.ReadAsync(ct))
-                {
-                    var dto = MapRow(reader);
-                    var key = $"{dto.Type}:{dto.ExternalId ?? dto.Title}";
-                    if (seenKeys.Add(key))
-                    {
-                        results.Add(dto);
-                        if (results.Count >= limit) break;
-                    }
-                }
-            }
-            catch (SqliteException ex) when (ex.SqliteErrorCode == 1)
-            {
-                // Table doesn't exist, ignore this db file
-            }
-            catch (OperationCanceledException) when (ct.IsCancellationRequested)
-            {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogDebug(ex, "Offline search error in '{DbPath}' for '{Query}': {Message}", dbPath, query, ex.Message);
-            }
-
+            await SearchSingleDatabaseAsync(dbPath, type, normalized, limit, seenKeys, results, ct);
             if (results.Count >= limit) break;
         }
 
         return results;
+    }
+
+    private async Task SearchSingleDatabaseAsync(
+        string dbPath,
+        string? type,
+        string normalized,
+        int limit,
+        HashSet<string> seenKeys,
+        List<ExternalMediaDto> results,
+        CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        try
+        {
+            await using var conn = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly;");
+            await conn.OpenAsync(ct);
+
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = @"
+                SELECT Id, Title, OriginalTitle, Type, Year, Genres, ExternalSource, ExternalId, ExtraDataJson
+                FROM OfflineMedia
+                WHERE (@type IS NULL OR Type = @type)
+                  AND (
+                       Title LIKE @pattern COLLATE NOCASE
+                    OR OriginalTitle LIKE @pattern COLLATE NOCASE
+                    OR ExternalId = @exact
+                    OR Id = @exact
+                  )
+                ORDER BY
+                  CASE
+                    WHEN Title = @exact COLLATE NOCASE THEN 1
+                    WHEN Title LIKE @prefix COLLATE NOCASE THEN 2
+                    ELSE 3
+                  END
+                LIMIT @limit;
+            ";
+
+            cmd.Parameters.AddWithValue("@type", (object?)type ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@exact", normalized);
+            cmd.Parameters.AddWithValue("@prefix", $"{normalized}%");
+            cmd.Parameters.AddWithValue("@pattern", $"%{normalized}%");
+            cmd.Parameters.AddWithValue("@limit", limit);
+
+            await using var reader = await cmd.ExecuteReaderAsync(ct);
+            while (await reader.ReadAsync(ct))
+            {
+                var dto = MapRow(reader);
+                var key = $"{dto.Type}:{dto.ExternalId ?? dto.Title}";
+                if (seenKeys.Add(key))
+                {
+                    results.Add(dto);
+                    if (results.Count >= limit) break;
+                }
+            }
+        }
+        catch (SqliteException ex) when (ex.SqliteErrorCode == 1)
+        {
+            // Table doesn't exist, ignore this db file
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogDebug(ex, "Offline search error in '{DbPath}' for '{Query}': {Message}", dbPath, normalized, ex.Message);
+        }
     }
 
     public async Task<ExternalMediaDto?> GetDetailsAsync(
@@ -201,46 +268,58 @@ public sealed class OfflineDatabaseManager
 
         foreach (var dbPath in dbs)
         {
-            ct.ThrowIfCancellationRequested();
+            var dto = await GetDetailsFromDatabaseAsync(dbPath, externalId, title, ct);
+            if (dto is not null) return dto;
+        }
 
-            try
-            {
-                await using var conn = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly;");
-                await conn.OpenAsync(ct);
+        return null;
+    }
 
-                await using var cmd = conn.CreateCommand();
-                cmd.CommandText = @"
-                    SELECT Id, Title, OriginalTitle, Type, Year, Genres, ExternalSource, ExternalId, ExtraDataJson
-                    FROM OfflineMedia
-                    WHERE Id = @id
-                       OR ExternalId = @id
-                       OR ExtraDataJson LIKE @idPattern
-                       OR (@title IS NOT NULL AND (Title = @title COLLATE NOCASE OR OriginalTitle = @title COLLATE NOCASE))
-                    LIMIT 1;
-                ";
+    private async Task<ExternalMediaDto?> GetDetailsFromDatabaseAsync(
+        string dbPath,
+        string externalId,
+        string? title,
+        CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
 
-                cmd.Parameters.AddWithValue("@id", externalId ?? string.Empty);
-                cmd.Parameters.AddWithValue("@idPattern", $"%\"{externalId}\"%");
-                cmd.Parameters.AddWithValue("@title", (object?)title ?? DBNull.Value);
+        try
+        {
+            await using var conn = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly;");
+            await conn.OpenAsync(ct);
 
-                await using var reader = await cmd.ExecuteReaderAsync(ct);
-                if (await reader.ReadAsync(ct))
-                {
-                    return MapRow(reader);
-                }
-            }
-            catch (SqliteException ex) when (ex.SqliteErrorCode == 1)
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = @"
+                SELECT Id, Title, OriginalTitle, Type, Year, Genres, ExternalSource, ExternalId, ExtraDataJson
+                FROM OfflineMedia
+                WHERE Id = @id
+                   OR ExternalId = @id
+                   OR ExtraDataJson LIKE @idPattern
+                   OR (@title IS NOT NULL AND (Title = @title COLLATE NOCASE OR OriginalTitle = @title COLLATE NOCASE))
+                LIMIT 1;
+            ";
+
+            cmd.Parameters.AddWithValue("@id", externalId ?? string.Empty);
+            cmd.Parameters.AddWithValue("@idPattern", $"%\"{externalId}\"%");
+            cmd.Parameters.AddWithValue("@title", (object?)title ?? DBNull.Value);
+
+            await using var reader = await cmd.ExecuteReaderAsync(ct);
+            if (await reader.ReadAsync(ct))
             {
-                // Table doesn't exist
+                return MapRow(reader);
             }
-            catch (OperationCanceledException) when (ct.IsCancellationRequested)
-            {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogDebug(ex, "Offline GetDetails error in '{DbPath}' for id '{Id}', title '{Title}': {Message}", dbPath, externalId, title, ex.Message);
-            }
+        }
+        catch (SqliteException ex) when (ex.SqliteErrorCode == 1)
+        {
+            // Table doesn't exist
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogDebug(ex, "Offline GetDetails error in '{DbPath}' for id '{Id}', title '{Title}': {Message}", dbPath, externalId, title, ex.Message);
         }
 
         return null;
@@ -282,8 +361,168 @@ public sealed class OfflineDatabaseManager
         return new ConnectionTestResult(true, (int)sw.ElapsedMilliseconds, $"OK ({totalCount:N0} тайтлов в {accessibleDbs} базах)");
     }
 
-    public void EnqueuePendingImports(IJobManager jobManager, ILogger? logger = null)
+    public async Task<OfflineDatabasesSummaryDto> GetSummaryAsync(CancellationToken ct = default)
     {
+        var dbs = GetExistingDatabases();
+        var statuses = new List<OfflineDatabaseStatusDto>();
+        var totalIndexedTitles = 0;
+
+        foreach (var dbPath in dbs)
+        {
+            ct.ThrowIfCancellationRequested();
+            var fileName = Path.GetFileName(dbPath);
+            var lower = fileName.ToLowerInvariant();
+            var fi = new FileInfo(dbPath);
+            var fileSizeBytes = fi.Exists ? fi.Length : 0L;
+            var lastModified = fi.Exists ? fi.LastWriteTimeUtc : DateTime.UtcNow;
+
+            string name;
+            string type;
+            if (lower.Contains("movie") || lower.Contains("imdb"))
+            {
+                name = "Фильмы и сериалы (IMDb)";
+                type = "movie";
+            }
+            else if (lower.Contains("anime"))
+            {
+                name = "Аниме (Anime Offline DB)";
+                type = "anime";
+            }
+            else if (lower.Contains("game") || lower.Contains("openvgdb"))
+            {
+                name = "Игры (OpenVGDB)";
+                type = "game";
+            }
+            else
+            {
+                name = Path.GetFileNameWithoutExtension(fileName);
+                type = "all";
+            }
+
+            var totalTitles = 0;
+            var isActive = false;
+            try
+            {
+                await using var conn = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly;");
+                await conn.OpenAsync(ct);
+                await using var cmd = conn.CreateCommand();
+                cmd.CommandText = "SELECT COUNT(1) FROM OfflineMedia;";
+                var scalar = await cmd.ExecuteScalarAsync(ct);
+                totalTitles = Convert.ToInt32(scalar);
+                isActive = totalTitles > 0;
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogDebug(ex, "Failed to count OfflineMedia rows in '{DbPath}': {Message}", dbPath, ex.Message);
+            }
+
+            totalIndexedTitles += totalTitles;
+            statuses.Add(new OfflineDatabaseStatusDto(
+                Name: name,
+                FileName: fileName,
+                Type: type,
+                TotalTitles: totalTitles,
+                FileSizeBytes: fileSizeBytes,
+                LastModified: lastModified,
+                IsActive: isActive));
+        }
+
+        statuses.Sort((a, b) =>
+        {
+            static int Priority(string t) => t switch
+            {
+                "movie" => 0,
+                "anime" => 1,
+                "game" => 2,
+                _ => 3
+            };
+            return Priority(a.Type).CompareTo(Priority(b.Type));
+        });
+
+        var pendingDumps = GetPendingDumps(statuses);
+
+        return new OfflineDatabasesSummaryDto(
+            Databases: statuses,
+            TotalIndexedTitles: totalIndexedTitles,
+            OfflineDirectoryPath: OfflineDirectory,
+            PendingDumps: pendingDumps);
+    }
+
+    public IReadOnlyList<string> GetPendingDumps(IReadOnlyList<OfflineDatabaseStatusDto>? existingStatuses = null)
+    {
+        var pending = new List<string>();
+        var dirs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (!string.IsNullOrWhiteSpace(OfflineDirectory) && Directory.Exists(OfflineDirectory))
+        {
+            dirs.Add(OfflineDirectory);
+        }
+        var appOfflineDir = Path.Combine(AppPaths.GetAppDirectory(), "data", "offline");
+        if (Directory.Exists(appOfflineDir))
+        {
+            dirs.Add(appOfflineDir);
+        }
+
+        var hasMoviesDb = existingStatuses?.Any(d => d.Type == "movie" && d.TotalTitles > 0)
+                          ?? (File.Exists(MoviesDatabasePath) && new FileInfo(MoviesDatabasePath).Length > 0);
+        var hasAnimeDb = existingStatuses?.Any(d => d.Type == "anime" && d.TotalTitles > 0)
+                         ?? (File.Exists(AnimeDatabasePath) && new FileInfo(AnimeDatabasePath).Length > 0);
+        var hasGamesDb = existingStatuses?.Any(d => d.Type == "game" && d.TotalTitles > 0)
+                         ?? (File.Exists(GamesDatabasePath) && new FileInfo(GamesDatabasePath).Length > 0);
+
+        if (!hasMoviesDb && FindDumpFile("title.basics.tsv") != null)
+        {
+            pending.Add("title.basics.tsv");
+        }
+
+        if (!hasAnimeDb)
+        {
+            var animeDump = FindDumpFile("anime-offline-database.jsonl") ?? FindDumpFile("anime-offline-database.json");
+            if (animeDump != null)
+            {
+                pending.Add(Path.GetFileName(animeDump));
+            }
+        }
+
+        if (!hasGamesDb && FindOpenVgdbSource() != null)
+        {
+            var src = FindOpenVgdbSource()!;
+            pending.Add(Path.GetFileName(src));
+        }
+
+        foreach (var dir in dirs)
+        {
+            try
+            {
+                foreach (var file in Directory.EnumerateFiles(dir, "*.*", SearchOption.TopDirectoryOnly))
+                {
+                    var ext = Path.GetExtension(file).ToLowerInvariant();
+                    if (ext is not (".tsv" or ".jsonl")) continue;
+
+                    var name = Path.GetFileName(file);
+                    if (pending.Contains(name, StringComparer.OrdinalIgnoreCase)) continue;
+                    if (name.Equals("title.basics.tsv", StringComparison.OrdinalIgnoreCase)) continue;
+                    if (name.StartsWith("anime-offline-database", StringComparison.OrdinalIgnoreCase)) continue;
+
+                    var stem = Path.GetFileNameWithoutExtension(file);
+                    var correspondingDb = Path.Combine(dir, $"{stem}.db");
+                    if (!File.Exists(correspondingDb))
+                    {
+                        pending.Add(name);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogDebug(ex, "Failed to scan directory for pending dumps: {Dir}", dir);
+            }
+        }
+
+        return pending;
+    }
+
+    public void EnqueuePendingImports(IJobManager jobManager, ILogger? logger = null, bool force = false)
+    {
+        var log = logger ?? _logger;
         try
         {
             Directory.CreateDirectory(OfflineDirectory);
@@ -292,9 +531,9 @@ public sealed class OfflineDatabaseManager
 
         // 1. IMDb Basics (title.basics.tsv -> movies_offline.db)
         var imdbDump = FindDumpFile("title.basics.tsv");
-        if (imdbDump != null && !File.Exists(MoviesDatabasePath))
+        if (imdbDump != null && (force || !File.Exists(MoviesDatabasePath)))
         {
-            logger?.LogInformation("Enqueuing offline IMDb indexing from '{Dump}'...", imdbDump);
+            log?.LogInformation("Enqueuing offline IMDb indexing from '{Dump}'...", imdbDump);
             jobManager.Enqueue(null, "Индексация офлайн-базы: IMDb", async (sp, token, progress) =>
             {
                 var importer = new ImdbBasicsImporter();
@@ -304,9 +543,9 @@ public sealed class OfflineDatabaseManager
 
         // 2. Anime Database (anime-offline-database.jsonl / .json -> anime_offline.db)
         var animeDump = FindDumpFile("anime-offline-database.jsonl") ?? FindDumpFile("anime-offline-database.json");
-        if (animeDump != null && !File.Exists(AnimeDatabasePath))
+        if (animeDump != null && (force || !File.Exists(AnimeDatabasePath)))
         {
-            logger?.LogInformation("Enqueuing offline Anime indexing from '{Dump}'...", animeDump);
+            log?.LogInformation("Enqueuing offline Anime indexing from '{Dump}'...", animeDump);
             jobManager.Enqueue(null, "Индексация офлайн-базы: Anime", async (sp, token, progress) =>
             {
                 var importer = new AnimeOfflineDatabaseImporter();
@@ -316,9 +555,9 @@ public sealed class OfflineDatabaseManager
 
         // 3. OpenVGDB (openvgdb directory or openvgdb.sqlite/openvgdb.db -> games_offline.db)
         var openvgdbSource = FindOpenVgdbSource();
-        if (openvgdbSource != null && !File.Exists(GamesDatabasePath))
+        if (openvgdbSource != null && (force || !File.Exists(GamesDatabasePath)))
         {
-            logger?.LogInformation("Enqueuing offline OpenVGDB indexing from '{Source}'...", openvgdbSource);
+            log?.LogInformation("Enqueuing offline OpenVGDB indexing from '{Source}'...", openvgdbSource);
             jobManager.Enqueue(null, "Индексация офлайн-базы: OpenVGDB", async (sp, token, progress) =>
             {
                 var importer = new OpenVgdbImporter();

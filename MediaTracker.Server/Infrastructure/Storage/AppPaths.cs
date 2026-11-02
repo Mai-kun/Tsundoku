@@ -20,11 +20,9 @@ public sealed class AppPaths
     };
     private readonly bool _hasExplicitDataDir;
 
-    public bool IsFirstRunSetupRequired => !IsDevelopment &&
-                                           !CommandLineOptions.IsRunningInContainer &&
+    public bool IsFirstRunSetupRequired => !CommandLineOptions.IsRunningInContainer &&
                                            !_hasExplicitDataDir &&
-                                           !File.Exists(Path.Combine(GetAppDirectory(), "storage.json")) &&
-                                           !File.Exists(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Tsundoku", "storage.json"));
+                                           !File.Exists(GetStorageConfigPath());
 
     public AppPaths(string dataDirectory, bool isDevelopment = false, bool hasExplicitDataDir = false, string mode = "default", string? customPath = null)
     {
@@ -115,24 +113,12 @@ public sealed class AppPaths
             // Missing or deleted externally
         }
 
-        // Recreate storage.json from active AppPaths parameters
-        var recreated = new StorageConfig
+        // Return in-memory fallback without writing to disk
+        return new StorageConfig
         {
             Mode = StorageMode,
             CustomPath = CustomPath
         };
-
-        try
-        {
-            var targetPath = GetWritableStorageConfigPath(StorageMode);
-            SaveStorageConfig(targetPath, recreated);
-        }
-        catch (Exception ex)
-        {
-            Serilog.Log.Warning(ex, "Failed to regenerate storage.json: {Message}", ex.Message);
-        }
-
-        return recreated;
     }
 
     public void SaveStorageConfig(string configPath, StorageConfig config)
@@ -204,6 +190,9 @@ public sealed class AppPaths
         var localConfig = Path.Combine(appDir, "storage.json");
         if (File.Exists(localConfig)) return localConfig;
 
+        var currentConfig = Path.Combine(Directory.GetCurrentDirectory(), "storage.json");
+        if (File.Exists(currentConfig)) return currentConfig;
+
         var systemConfig = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "Tsundoku",
@@ -256,7 +245,7 @@ public sealed class AppPaths
             mode = "custom";
             customPath = dataDirectory;
         }
-        else if (!isDevelopment && !CommandLineOptions.IsRunningInContainer && File.Exists(storageConfigPath))
+        else if (File.Exists(storageConfigPath) && !CommandLineOptions.IsRunningInContainer)
         {
             StorageConfig? config = null;
             try
@@ -373,7 +362,7 @@ public sealed class FileLockGuard : IDisposable
                 _storageLockStream?.Dispose();
                 _storageLockStream = new FileStream(
                     storageConfigPath,
-                    FileMode.OpenOrCreate,
+                    FileMode.Open,
                     FileAccess.ReadWrite,
                     FileShare.Read);
             }

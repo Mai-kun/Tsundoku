@@ -3,6 +3,8 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using FluentAssertions;
+using MediaTracker.Server.Common.Endpoints;
+using MediaTracker.Server.Common.Json;
 using MediaTracker.Server.Domain.Entities;
 using MediaTracker.Server.Domain.Enums;
 using MediaTracker.Server.Features.History.GetHistoryEvents;
@@ -212,7 +214,8 @@ public class ApiIntegrationTests : IClassFixture<CustomWebApplicationFactory>
     [Fact]
     public async Task Flow5_ApiKeyAuthMiddleware_ShouldAuthenticateRemoteRequestsCorrectly()
     {
-        var remoteIp = "192.168.1.100";
+        var remoteIp = "203.0.113.100";
+        var lanIp = "192.168.1.100";
         var testToken = "tsk_live_test_integration_token_abcdef123456";
 
         // Register token in database
@@ -233,24 +236,65 @@ public class ApiIntegrationTests : IClassFixture<CustomWebApplicationFactory>
             }
         }
 
-        // 1. Request from remote IP without token -> 401 Unauthorized
+        // 1. Request from LAN IP without token -> 200 OK (Trusted LAN)
+        using var lanUnauthReq = new HttpRequestMessage(HttpMethod.Get, "/api/media/stats/advanced");
+        lanUnauthReq.Headers.Add("X-Test-Remote-IP", lanIp);
+        var lanUnauthResponse = await _client.SendAsync(lanUnauthReq);
+        lanUnauthResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        // 2. Request from remote non-LAN IP without token -> 401 Unauthorized
         using var unauthReq = new HttpRequestMessage(HttpMethod.Get, "/api/media/stats/advanced");
         unauthReq.Headers.Add("X-Test-Remote-IP", remoteIp);
         var unauthResponse = await _client.SendAsync(unauthReq);
         unauthResponse.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
 
-        // 2. Request from remote IP with invalid token -> 401 Unauthorized
+        // 3. Request from remote IP with invalid token -> 401 Unauthorized
         using var invalidReq = new HttpRequestMessage(HttpMethod.Get, "/api/media/stats/advanced");
         invalidReq.Headers.Add("X-Test-Remote-IP", remoteIp);
         invalidReq.Headers.Authorization = new AuthenticationHeaderValue("Bearer", "invalid_token_123");
         var invalidResponse = await _client.SendAsync(invalidReq);
         invalidResponse.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
 
-        // 3. Request from remote IP with valid Bearer token -> 200 OK
+        // 4. Request from remote IP with valid Bearer token -> 200 OK
         using var authReq = new HttpRequestMessage(HttpMethod.Get, "/api/media/stats/advanced");
         authReq.Headers.Add("X-Test-Remote-IP", remoteIp);
         authReq.Headers.Authorization = new AuthenticationHeaderValue("Bearer", testToken);
         var authResponse = await _client.SendAsync(authReq);
         authResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task Flow6_OfflineModeEndpoints_ShouldWorkCorrectly()
+    {
+        // 1. Initial GET /api/settings/offline-mode
+        var getRes1 = await _client.GetAsync("/api/settings/offline-mode");
+        getRes1.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body1 = await getRes1.Content.ReadAsStringAsync();
+        body1.Should().Contain("offlineMode");
+
+        // 2. PUT /api/settings/offline-mode -> true
+        var putRes = await _client.PutAsJsonAsync(
+            "/api/settings/offline-mode",
+            new UpdateOfflineModeRequest(true),
+            AppJsonSerializerContext.Default.UpdateOfflineModeRequest);
+        putRes.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        // 3. Verify GET returns offlineMode: true
+        var getRes2 = await _client.GetAsync("/api/settings/offline-mode");
+        getRes2.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body2 = await getRes2.Content.ReadFromJsonAsync(AppJsonSerializerContext.Default.OfflineModeResponse);
+        body2.Should().NotBeNull();
+        body2!.OfflineMode.Should().BeTrue();
+
+        // 4. Revert PUT /api/settings/offline-mode -> false
+        var putRes2 = await _client.PutAsJsonAsync(
+            "/api/settings/offline-mode",
+            new UpdateOfflineModeRequest(false),
+            AppJsonSerializerContext.Default.UpdateOfflineModeRequest);
+        putRes2.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var getRes3 = await _client.GetAsync("/api/settings/offline-mode");
+        var body3 = await getRes3.Content.ReadFromJsonAsync(AppJsonSerializerContext.Default.OfflineModeResponse);
+        body3!.OfflineMode.Should().BeFalse();
     }
 }

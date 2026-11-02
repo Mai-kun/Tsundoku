@@ -141,7 +141,7 @@ public sealed class GoalsHandler(AppDbContext db) : IGoalsHandler
         var matched = new List<MediaItem>();
         foreach (var item in completed)
         {
-            var finishedYear = item.FinishedAt?.Year 
+            var finishedYear = item.FinishedAt?.Year
                                ?? (item.Status == MediaStatus.Completed ? item.UpdatedAt.Year : (int?)null);
             if (finishedYear != goal.Year) continue;
 

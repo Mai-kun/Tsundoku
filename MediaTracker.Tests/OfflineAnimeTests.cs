@@ -227,4 +227,65 @@ public sealed class OfflineAnimeTests
             try { Directory.Delete(tempDir, recursive: true); } catch { }
         }
     }
+
+    [Fact]
+    public async Task OfflineDatabaseManager_GetSummaryAsync_ShouldReturnValidSummary()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "tsundoku_summary_test_" + Path.GetRandomFileName());
+        Directory.CreateDirectory(tempDir);
+
+        try
+        {
+            var appPaths = new AppPaths(tempDir, isDevelopment: true);
+            var offlineDir = appPaths.OfflineDirectory;
+            Directory.CreateDirectory(offlineDir);
+
+            // Create a fake anime_offline.db with 2 records
+            var animeDbPath = Path.Combine(offlineDir, "anime_offline.db");
+            await using (var conn = new SqliteConnection($"Data Source={animeDbPath};"))
+            {
+                await conn.OpenAsync();
+                await using var cmd = conn.CreateCommand();
+                cmd.CommandText = OfflineDatabaseManager.CreateTableSql + @"
+                    INSERT INTO OfflineMedia (Id, Title, Type) VALUES ('1', 'Naruto', 'anime');
+                    INSERT INTO OfflineMedia (Id, Title, Type) VALUES ('2', 'Bleach', 'anime');
+                ";
+                await cmd.ExecuteNonQueryAsync();
+            }
+
+            // Create a raw dump file title.basics.tsv that hasn't been imported
+            var rawDump = Path.Combine(offlineDir, "title.basics.tsv");
+            await File.WriteAllTextAsync(rawDump, "tconst\ttitleType\tprimaryTitle\n");
+
+            var manager = new OfflineDatabaseManager(appPaths, NullLogger<OfflineDatabaseManager>.Instance);
+            var summary = await manager.GetSummaryAsync(CancellationToken.None);
+
+            Assert.Equal(2, summary.TotalIndexedTitles);
+            Assert.Single(summary.Databases);
+            var animeDb = summary.Databases[0];
+            Assert.Equal("anime_offline.db", animeDb.FileName);
+            Assert.Equal("Аниме (Anime Offline DB)", animeDb.Name);
+            Assert.Equal("anime", animeDb.Type);
+            Assert.Equal(2, animeDb.TotalTitles);
+            Assert.True(animeDb.IsActive);
+            Assert.True(animeDb.FileSizeBytes > 0);
+
+            // Raw title.basics.tsv should be pending because movies_offline.db doesn't exist
+            Assert.Contains("title.basics.tsv", summary.PendingDumps);
+
+            // Targeted search in anime_offline.db
+            var targeted = await manager.ExecuteSearchInDatabaseAsync("anime_offline.db", "anime", "Naruto", 10, CancellationToken.None);
+            Assert.Single(targeted);
+            Assert.Equal("Naruto", targeted[0].Title);
+
+            // Targeted get details
+            var details = await manager.GetDetailsInDatabaseAsync("anime_offline.db", "1", "Naruto", "anime", CancellationToken.None);
+            Assert.NotNull(details);
+            Assert.Equal("Naruto", details!.Title);
+        }
+        finally
+        {
+            try { Directory.Delete(tempDir, recursive: true); } catch { }
+        }
+    }
 }

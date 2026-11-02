@@ -1,5 +1,8 @@
 using System.Diagnostics;
+using MediaTracker.Server.Infrastructure.ExternalApis.Offline;
+using MediaTracker.Server.Infrastructure.Persistence;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace MediaTracker.Server.Infrastructure.ExternalApis;
@@ -8,7 +11,9 @@ public sealed class MetadataAggregatorService(
     IMetadataProviderResolver providerResolver,
     ISourcePriorityService priorityService,
     IMemoryCache cache,
-    ILogger<MetadataAggregatorService> logger)
+    ILogger<MetadataAggregatorService> logger,
+    OfflineDatabaseManager? offlineDbManager = null,
+    IServiceScopeFactory? scopeFactory = null)
 {
     private static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(10);
 
@@ -25,6 +30,34 @@ public sealed class MetadataAggregatorService(
     private static readonly TimeSpan EnrichmentBatchTimeout = TimeSpan.FromSeconds(3);
 
     private static readonly string[] AllTypes = ["anime", "manga", "movie", "tvshow", "game", "book"];
+
+    private async ValueTask<bool> IsOfflineModeAsync(CancellationToken ct)
+    {
+        const string cacheKey = "settings:offline_mode";
+        if (cache.TryGetValue(cacheKey, out bool isOffline))
+        {
+            return isOffline;
+        }
+
+        if (scopeFactory is null)
+        {
+            return false;
+        }
+
+        try
+        {
+            using var scope = scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var value = await AppSettingStore.ReadAsync(db, AppSettingStore.OfflineModeKey, ct);
+            isOffline = string.Equals(value, "true", StringComparison.OrdinalIgnoreCase);
+            cache.Set(cacheKey, isOffline, CacheDuration);
+            return isOffline;
+        }
+        catch
+        {
+            return false;
+        }
+    }
 
     /// <summary>
     /// The priority version rides in every cache key: a settings change (new source order, a source
@@ -50,6 +83,22 @@ public sealed class MetadataAggregatorService(
         if (cache.TryGetValue(cacheKey, out IReadOnlyList<ExternalMediaDto>? cached) && cached is not null)
         {
             return cached;
+        }
+
+        if (await IsOfflineModeAsync(ct))
+        {
+            var offlineProvider = providerResolver.Resolve(normalizedType, "offline") as UniversalOfflineMetadataProvider
+                ?? (offlineDbManager is not null ? new UniversalOfflineMetadataProvider(offlineDbManager) : null);
+
+            IReadOnlyList<ExternalMediaDto> offlineResults = [];
+            if (offlineProvider is not null)
+            {
+                var targetType = normalizedType is "all" or "" ? null : normalizedType;
+                offlineResults = await offlineProvider.SearchAsync(normalizedQuery, targetType, ct);
+            }
+
+            cache.Set(cacheKey, offlineResults, CacheDuration);
+            return offlineResults;
         }
 
         IReadOnlyList<ExternalMediaDto> results = normalizedType is "all" or ""
@@ -79,6 +128,23 @@ public sealed class MetadataAggregatorService(
         if (cache.TryGetValue(cacheKey, out IReadOnlyList<ExternalMediaDto>? cached) && cached is not null)
         {
             return cached;
+        }
+
+        if (source.StartsWith("offline:", StringComparison.OrdinalIgnoreCase))
+        {
+            var dbFileName = source["offline:".Length..].Trim();
+            var targetType = normalizedType is "all" or "" ? null : normalizedType;
+            IReadOnlyList<ExternalMediaDto> offlineResults = offlineDbManager is not null
+                ? await offlineDbManager.ExecuteSearchInDatabaseAsync(dbFileName, targetType, normalizedQuery, 10, ct)
+                : [];
+            cache.Set(cacheKey, offlineResults, CacheDuration);
+            return offlineResults;
+        }
+
+        if (await IsOfflineModeAsync(ct))
+        {
+            cache.Set(cacheKey, (IReadOnlyList<ExternalMediaDto>)[], CacheDuration);
+            return [];
         }
 
         IReadOnlyList<ExternalMediaDto> results = [];
@@ -122,6 +188,37 @@ public sealed class MetadataAggregatorService(
         if (cache.TryGetValue(cacheKey, out ExternalMediaDto? cached) && cached is not null)
         {
             return cached;
+        }
+
+        if (!string.IsNullOrWhiteSpace(source) && source.StartsWith("offline:", StringComparison.OrdinalIgnoreCase))
+        {
+            var dbFileName = source["offline:".Length..].Trim();
+            var targetType = normalizedType is "all" or "" ? null : normalizedType;
+            var details = offlineDbManager is not null
+                ? await offlineDbManager.GetDetailsInDatabaseAsync(dbFileName, externalId, title, targetType, ct)
+                : null;
+            if (details is not null)
+            {
+                cache.Set(cacheKey, details, CacheDuration);
+            }
+            return details;
+        }
+
+        if (await IsOfflineModeAsync(ct))
+        {
+            var offlineProvider = providerResolver.Resolve(normalizedType, "offline") as UniversalOfflineMetadataProvider
+                ?? (offlineDbManager is not null ? new UniversalOfflineMetadataProvider(offlineDbManager) : null);
+
+            var targetType = normalizedType is "all" or "" ? null : normalizedType;
+            var details = offlineProvider is not null
+                ? await offlineProvider.GetDetailsAsync(externalId, title, targetType, ct)
+                : null;
+
+            if (details is not null)
+            {
+                cache.Set(cacheKey, details, CacheDuration);
+            }
+            return details;
         }
 
         ExternalMediaDto? initialDetails = null;
@@ -193,6 +290,11 @@ public sealed class MetadataAggregatorService(
 
     public async Task<ExternalMediaDto> EnrichAsync(ExternalMediaDto details, string type, CancellationToken ct)
     {
+        if (await IsOfflineModeAsync(ct))
+        {
+            return details;
+        }
+
         var current = details;
         var ratings = details.Ratings is not null ? new List<ExternalRatingDto>(details.Ratings) : [];
         if (ratings.Count == 0 && details.Rating.HasValue && !string.IsNullOrWhiteSpace(details.ExternalSource))

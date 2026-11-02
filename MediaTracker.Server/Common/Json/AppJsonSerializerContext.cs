@@ -84,7 +84,9 @@ namespace MediaTracker.Server.Common.Json;
 [JsonSerializable(typeof(UpdateListRequest))]
 [JsonSerializable(typeof(AddMediaToListRequest))]
 [JsonSerializable(typeof(CreateApiTokenRequest))]
+[JsonSerializable(typeof(UpdateOfflineModeRequest))]
 // --- Minimal API: responses ---
+[JsonSerializable(typeof(OfflineModeResponse))]
 [JsonSerializable(typeof(MediaStatsDto))]
 [JsonSerializable(typeof(AdvancedStatsDto))]
 [JsonSerializable(typeof(TasteProfileDto))]
@@ -129,6 +131,10 @@ namespace MediaTracker.Server.Common.Json;
 [JsonSerializable(typeof(CreatedEntityId))]
 [JsonSerializable(typeof(DismissedCount))]
 [JsonSerializable(typeof(StorageInfoResponse))]
+[JsonSerializable(typeof(OfflineDatabaseStatusDto))]
+[JsonSerializable(typeof(IReadOnlyList<OfflineDatabaseStatusDto>))]
+[JsonSerializable(typeof(List<OfflineDatabaseStatusDto>))]
+[JsonSerializable(typeof(OfflineDatabasesSummaryDto))]
 [JsonSerializable(typeof(TelemetryDto))]
 // --- Privacy-first library export (import-compatible with CustomImportParser) ---
 [JsonSerializable(typeof(LibraryExportItemDto))]

@@ -25,8 +25,11 @@ using MediaTracker.Server.Domain.Enums;
 using MediaTracker.Server.Infrastructure.Desktop;
 using MediaTracker.Server.Infrastructure.Persistence;
 using MediaTracker.Server.Infrastructure.ExternalApis;
+using MediaTracker.Server.Infrastructure.ExternalApis.Offline;
 using MediaTracker.Server.Infrastructure.ExternalApis.Providers.MangaLib;
+using MediaTracker.Server.Infrastructure.Jobs;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace MediaTracker.Server.Common.Endpoints;
 
@@ -421,6 +424,50 @@ public static class SettingsEndpoints
             .WithTags("Настройки / Settings")
             .WithSummary("Применить обновление");
 
+        group.MapGet("/offline-databases", async (
+            [FromServices] OfflineDatabaseManager dbManager,
+            CancellationToken ct) => Results.Ok(await dbManager.GetSummaryAsync(ct)))
+            .WithTags("Настройки / Settings")
+            .WithSummary("Получить статус офлайн-баз данных");
+
+        group.MapPost("/offline-databases/reindex", (
+            [FromServices] OfflineDatabaseManager dbManager,
+            [FromServices] IJobManager jobManager) =>
+        {
+            dbManager.EnqueuePendingImports(jobManager, force: true);
+            return Results.Accepted();
+        })
+            .WithTags("Настройки / Settings")
+            .WithSummary("Переиндексировать офлайн-дампы");
+
+        group.MapGet("/offline-mode", async (
+            [FromServices] AppDbContext db,
+            [FromServices] OfflineDatabaseManager dbManager,
+            CancellationToken ct) =>
+        {
+            var val = await AppSettingStore.ReadAsync(db, AppSettingStore.OfflineModeKey, ct);
+            var offlineMode = string.Equals(val, "true", StringComparison.OrdinalIgnoreCase);
+            var hasDatabases = dbManager.HasAnyDatabase;
+            return Results.Ok(new OfflineModeResponse(offlineMode, hasDatabases));
+        })
+            .WithTags("Настройки / Settings")
+            .WithSummary("Получить статус офлайн-режима");
+
+        group.MapPut("/offline-mode", async (
+            UpdateOfflineModeRequest request,
+            [FromServices] AppDbContext db,
+            [FromServices] ISourcePriorityService priorityService,
+            [FromServices] IMemoryCache cache,
+            CancellationToken ct) =>
+        {
+            await AppSettingStore.SetAsync(db, AppSettingStore.OfflineModeKey, request.OfflineMode ? "true" : "false", ct);
+            cache.Set("settings:offline_mode", request.OfflineMode, TimeSpan.FromMinutes(10));
+            priorityService.InvalidateCache();
+            return Results.Ok(new UpdateOfflineModeRequest(request.OfflineMode));
+        })
+            .WithTags("Настройки / Settings")
+            .WithSummary("Сохранить статус офлайн-режима");
+
         return app;
     }
 
@@ -434,6 +481,8 @@ public static class SettingsEndpoints
     }
 }
 
+public sealed record OfflineModeResponse(bool OfflineMode, bool HasDatabases);
+public sealed record UpdateOfflineModeRequest(bool OfflineMode);
 public sealed record StorageRequest(string Mode, string? CustomPath, bool MigrateExistingData);
 public sealed record AppSettingsDto(string LaunchMode, string CloseAction);
 public sealed record ToggleSourceRequest(bool Enabled);

@@ -37,6 +37,7 @@ public sealed class UniversalOfflineMetadataProvider : MetadataProviderBase
     }
 
     public bool IsDatabaseAvailable => _dbManager.HasAnyDatabase;
+    public OfflineDatabaseManager DatabaseManager => _dbManager;
 
     public override async Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string query, CancellationToken ct)
     {
@@ -51,6 +52,11 @@ public sealed class UniversalOfflineMetadataProvider : MetadataProviderBase
     public override async Task<ExternalMediaDto?> GetDetailsAsync(string externalId, string title, CancellationToken ct)
     {
         return await _dbManager.GetDetailsAsync(externalId, title, _targetType, ct);
+    }
+
+    public async Task<ExternalMediaDto?> GetDetailsAsync(string externalId, string title, string? type, CancellationToken ct)
+    {
+        return await _dbManager.GetDetailsAsync(externalId, title, type ?? _targetType, ct);
     }
 
     public override async Task<ConnectionTestResult> TestConnectionAsync(CancellationToken ct)

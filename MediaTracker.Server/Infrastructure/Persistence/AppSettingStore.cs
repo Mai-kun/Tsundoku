@@ -9,6 +9,8 @@ namespace MediaTracker.Server.Infrastructure.Persistence;
 /// </summary>
 public static class AppSettingStore
 {
+    public const string OfflineModeKey = "App_OfflineMode";
+
     public static async Task SetAsync(AppDbContext db, string key, string value, CancellationToken ct = default)
     {
         await db.SetSettingAsync(key, value, ct);

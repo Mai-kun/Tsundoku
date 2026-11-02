@@ -19,3 +19,18 @@ public sealed record StorageInfoResponse(
     string DefaultDirectory,
     string? CustomPath,
     bool IsFirstRunSetupRequired);
+
+public sealed record OfflineDatabaseStatusDto(
+    string Name,
+    string FileName,
+    string Type,
+    int TotalTitles,
+    long FileSizeBytes,
+    DateTime LastModified,
+    bool IsActive);
+
+public sealed record OfflineDatabasesSummaryDto(
+    IReadOnlyList<OfflineDatabaseStatusDto> Databases,
+    int TotalIndexedTitles,
+    string OfflineDirectoryPath,
+    IReadOnlyList<string> PendingDumps);

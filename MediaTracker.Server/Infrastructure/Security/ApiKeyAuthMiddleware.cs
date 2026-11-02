@@ -31,10 +31,10 @@ public sealed class ApiKeyAuthMiddleware(RequestDelegate next)
         var authHeader = context.Request.Headers.Authorization.ToString();
         var apiKeyHeader = context.Request.Headers["X-Api-Key"].ToString();
         var hasAuthHeader = !string.IsNullOrWhiteSpace(authHeader) || !string.IsNullOrWhiteSpace(apiKeyHeader);
-        var isLoopback = IsLoopbackAddress(context.Connection.RemoteIpAddress);
+        var isTrustedNetwork = IsTrustedLocalOrLanAddress(context.Connection.RemoteIpAddress);
 
-        // Local loopback access without explicit token headers is trusted (frictionless UI mode)
-        if (isLoopback && !hasAuthHeader)
+        // Local loopback and LAN access without explicit token headers is trusted (frictionless UI mode)
+        if (isTrustedNetwork && !hasAuthHeader)
         {
             await next(context);
             return;
@@ -94,7 +94,7 @@ public sealed class ApiKeyAuthMiddleware(RequestDelegate next)
         await next(context);
     }
 
-    private static bool IsLoopbackAddress(IPAddress? address)
+    private static bool IsTrustedLocalOrLanAddress(IPAddress? address)
     {
         if (address is null)
         {
@@ -108,7 +108,60 @@ public sealed class ApiKeyAuthMiddleware(RequestDelegate next)
 
         if (address.IsIPv4MappedToIPv6)
         {
-            return IPAddress.IsLoopback(address.MapToIPv4());
+            address = address.MapToIPv4();
+        }
+
+        if (address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+        {
+            if (IPAddress.IsLoopback(address))
+            {
+                return true;
+            }
+
+            Span<byte> bytes = stackalloc byte[4];
+            if (address.TryWriteBytes(bytes, out _))
+            {
+                // 10.0.0.0/8 (10.x.x.x)
+                if (bytes[0] == 10)
+                {
+                    return true;
+                }
+
+                // 172.16.0.0/12 (172.16.x.x - 172.31.x.x)
+                if (bytes[0] == 172 && bytes[1] >= 16 && bytes[1] <= 31)
+                {
+                    return true;
+                }
+
+                // 192.168.0.0/16 (192.168.x.x)
+                if (bytes[0] == 192 && bytes[1] == 168)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        if (address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6)
+        {
+            // IPv6 Link-Local (fe80::/10)
+            if (address.IsIPv6LinkLocal)
+            {
+                return true;
+            }
+
+            Span<byte> bytes = stackalloc byte[16];
+            if (address.TryWriteBytes(bytes, out _))
+            {
+                // IPv6 Unique Local Address fc00::/7 (fc00::/8 and fd00::/8)
+                if ((bytes[0] & 0xFE) == 0xFC)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         return false;

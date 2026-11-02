@@ -348,7 +348,7 @@
         <div class="logo-badge">TS</div>
         <div class="title-wrap">
           <h1>Аудит производительности и качества Tsundoku</h1>
-          <p>Сгенерировано: 01.11.2026, 07:22:35 GMT+3</p>
+          <p>Сгенерировано: 02.11.2026, 23:40:27 GMT+3</p>
         </div>
       </div>
       <div>
@@ -388,8 +388,8 @@
       </div>
       <div class="kpi-card">
         <div class="kpi-label">Backend Line Coverage</div>
-        <div class="kpi-value">0%</div>
-        <div class="kpi-sub">20840 / 36869 строк</div>
+        <div class="kpi-value">41%</div>
+        <div class="kpi-sub">37217 / 90667 строк</div>
       </div>
       <div class="kpi-card">
         <div class="kpi-label">Frontend Models Coverage</div>
@@ -398,22 +398,22 @@
       </div>
       <div class="kpi-card">
         <div class="kpi-label">Бэкенд Throughput</div>
-        <div class="kpi-value">21.5 <span style="font-size: 14px; font-weight: normal; color: var(--text-muted)">RPS</span></div>
-        <div class="kpi-sub">p50: 12.46ms / p95: 690.36ms</div>
+        <div class="kpi-value">16 <span style="font-size: 14px; font-weight: normal; color: var(--text-muted)">RPS</span></div>
+        <div class="kpi-sub">p50: 15.25ms / p95: 3502.48ms</div>
       </div>
       <div class="kpi-card">
         <div class="kpi-label">Entry JS Gzip</div>
-        <div class="kpi-value">111.91 <span style="font-size: 14px; font-weight: normal; color: var(--text-muted)">KB</span></div>
-        <div class="kpi-sub">Лимит: 150 KB (74.6%)</div>
+        <div class="kpi-value">124.06 <span style="font-size: 14px; font-weight: normal; color: var(--text-muted)">KB</span></div>
+        <div class="kpi-sub">Лимит: 150 KB (82.7%)</div>
       </div>
       <div class="kpi-card">
         <div class="kpi-label">DOM Нод (Макс)</div>
         <div class="kpi-value">938</div>
-        <div class="kpi-sub">Лимит: 1500 (62.5%)</div>
+        <div class="kpi-sub">Лимит: 1200 (78.2%)</div>
       </div>
       <div class="kpi-card">
         <div class="kpi-label">Дельта утечек памяти</div>
-        <div class="kpi-value">-1.59 MB</div>
+        <div class="kpi-value">-1.62 MB</div>
         <div class="kpi-sub">12 циклов с Force GC</div>
       </div>
       <div class="kpi-card">
@@ -424,7 +424,7 @@
       <div class="kpi-card">
         <div class="kpi-label">Core Web Vitals</div>
         <div class="kpi-value" style="color: var(--success)">100% <span style="font-size: 14px; font-weight: normal; color: var(--text-muted)">Good</span></div>
-        <div class="kpi-sub">LCP: 0ms &bull; CLS: 0</div>
+        <div class="kpi-sub">LCP: 224ms &bull; CLS: 0</div>
       </div>
       <div class="kpi-card">
         <div class="kpi-label">SQLite Фрагментация</div>
@@ -434,12 +434,22 @@
       <div class="kpi-card">
         <div class="kpi-label">Сжатие API (Wire)</div>
         <div class="kpi-value" style="color: var(--success)">-91.2%</div>
-        <div class="kpi-sub">Avg Latency: 13.3ms (500 items)</div>
+        <div class="kpi-sub">Avg Latency: 16ms (500 items)</div>
       </div>
       <div class="kpi-card">
         <div class="kpi-label">Security Audit</div>
         <div class="kpi-value" style="color: var(--success)">0 <span style="font-size: 14px; font-weight: normal; color: var(--text-muted)">CVE / Leaks</span></div>
         <div class="kpi-sub">NuGet &bull; NPM &bull; Secret Scan (0 leaks)</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Палитра UI (check:colors)</div>
+        <div class="kpi-value" style="color: var(--success)">100% <span style="font-size: 14px; font-weight: normal; color: var(--text-muted)">Matte</span></div>
+        <div class="kpi-sub">110 файлов &bull; 0 ошибок</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Целостность чеков</div>
+        <div class="kpi-value" style="color: var(--success)">100% <span style="font-size: 14px; font-weight: normal; color: var(--text-muted)">Registered</span></div>
+        <div class="kpi-sub">80/80 чеков &bull; 0 сирот</div>
       </div>
       <div class="kpi-card">
         <div class="kpi-label">Микрооптимизации</div>
@@ -459,17 +469,17 @@
       <h3>💡 Ключевые ресурсоемкие точки (Top Hotspots)</h3>
       
         <div class="insight-item">
-          <strong>Самый тяжелый Lazy-чанк: MediaDetailView-DKqk3uik.js</strong>: <code>40.45 KB Gzip (153.1 KB raw)</code>
+          <strong>Самый тяжелый Lazy-чанк: MediaDetailView-CePbsi_u.js</strong>: <code>39.77 KB Gzip (150.36 KB raw)</code>
           <div style="color: var(--text-muted); margin-top: 2px;">↳ Оптимально изолирован в асинхронный чанк и загружается только при переходе на экран.</div>
         </div>
       
         <div class="insight-item">
-          <strong>Самый требовательный экран по Layout: 'stats-summary'</strong>: <code>LayoutDuration: 2.28 ms</code>
+          <strong>Самый требовательный экран по Layout: 'stats-summary'</strong>: <code>LayoutDuration: 3.09 ms</code>
           <div style="color: var(--text-muted); margin-top: 2px;">↳ Находится с запасом в рамках бюджета (< 120 ms). Верстка оптимизирована под 60 FPS.</div>
         </div>
       
         <div class="insight-item">
-          <strong>Самый активный C# метод: Tsundoku.Server!MediaTracker.Server.Infrastructure.Persistence.AppDbContext.ReadMediaItemRow</strong>: <code>Total Time: 3628.5 ms (60.1%)</code>
+          <strong>Самый активный C# метод: Microsoft.AspNetCore.Http.Generated.<GeneratedRouteBuilderExtensions_g>F202B381FFC497F212FEEA6512613F4D084B421EB97B74D5CBD81E03E134C6BFD__GeneratedRouteBuilderExtensionsCore+<>c__DisplayClass29_0+<<MapGet24>g__RequestHandler|5>d</strong>: <code>Total Time: 5391.7 ms (89.2%)</code>
           <div style="color: var(--text-muted); margin-top: 2px;">↳ Выполняется в конвейере обработки запросов ASP.NET Core под высокой конкуренцией.</div>
         </div>
       
@@ -481,38 +491,38 @@
       <div class="progress-bar-group">
         <div class="progress-item">
           <div class="progress-header">
-            <span>Entry JS Gzip (111.91 KB / 150 KB)</span>
-            <span>74.6%</span>
+            <span>Entry JS Gzip (124.06 KB / 150 KB)</span>
+            <span>82.7%</span>
           </div>
           <div class="progress-track">
-            <div class="progress-fill" style="width: 74.60666666666667%; background: var(--accent-bright);"></div>
+            <div class="progress-fill" style="width: 82.70666666666668%; background: var(--accent-bright);"></div>
           </div>
         </div>
         <div class="progress-item">
           <div class="progress-header">
-            <span>Total JS Gzip (293.1 KB / 350 KB)</span>
-            <span>83.7%</span>
+            <span>Total JS Gzip (300.45 KB / 350 KB)</span>
+            <span>85.8%</span>
           </div>
           <div class="progress-track">
-            <div class="progress-fill" style="width: 83.74285714285715%; background: var(--accent-bright);"></div>
+            <div class="progress-fill" style="width: 85.84285714285714%; background: var(--accent-bright);"></div>
           </div>
         </div>
         <div class="progress-item">
           <div class="progress-header">
-            <span>CSS Gzip (37.48 KB / 50 KB)</span>
-            <span>75.0%</span>
+            <span>CSS Gzip (38.62 KB / 50 KB)</span>
+            <span>77.2%</span>
           </div>
           <div class="progress-track">
-            <div class="progress-fill" style="width: 74.96%; background: var(--success);"></div>
+            <div class="progress-fill" style="width: 77.24%; background: var(--success);"></div>
           </div>
         </div>
         <div class="progress-item">
           <div class="progress-header">
-            <span>DOM Nodes (938 / 1500)</span>
-            <span>62.5%</span>
+            <span>DOM Nodes (938 / 1200)</span>
+            <span>78.2%</span>
           </div>
           <div class="progress-track">
-            <div class="progress-fill" style="width: 62.53333333333333%; background: var(--success);"></div>
+            <div class="progress-fill" style="width: 78.16666666666666%; background: var(--success);"></div>
           </div>
         </div>
       </div>
@@ -538,32 +548,32 @@
             
               <tr>
                 <td><strong>home</strong></td>
-                <td>0</td>
-                <td>0.24</td>
-                <td>26.8</td>
-                <td>0</td>
+                <td>2.38</td>
+                <td>4.25</td>
+                <td>12.7</td>
+                <td>19.83</td>
                 <td>938</td>
-                <td>20.14</td>
+                <td>5.88</td>
               </tr>
             
               <tr>
                 <td><strong>game-initial</strong></td>
                 <td>0</td>
                 <td>0</td>
-                <td>0</td>
+                <td>20.52</td>
                 <td>0</td>
                 <td>615</td>
-                <td>7.01</td>
+                <td>15.43</td>
               </tr>
             
               <tr>
                 <td><strong>game-virtual-scroll</strong></td>
                 <td>0</td>
                 <td>0</td>
-                <td>1.44</td>
-                <td>3.47</td>
+                <td>1.05</td>
+                <td>2.99</td>
                 <td>615</td>
-                <td>7.1</td>
+                <td>15.52</td>
               </tr>
             
               <tr>
@@ -573,17 +583,17 @@
                 <td>0</td>
                 <td>0</td>
                 <td>57</td>
-                <td>13.87</td>
+                <td>6.12</td>
               </tr>
             
               <tr>
                 <td><strong>stats-summary</strong></td>
-                <td>2.28</td>
-                <td>6.42</td>
-                <td>37.81</td>
-                <td>74.08</td>
-                <td>898</td>
-                <td>7.23</td>
+                <td>3.09</td>
+                <td>10.21</td>
+                <td>59.4</td>
+                <td>57.2</td>
+                <td>892</td>
+                <td>15.65</td>
               </tr>
             
               <tr>
@@ -591,9 +601,9 @@
                 <td>0</td>
                 <td>0</td>
                 <td>0</td>
-                <td>40.31</td>
-                <td>898</td>
-                <td>8.51</td>
+                <td>49.47</td>
+                <td>892</td>
+                <td>16.95</td>
               </tr>
             
               <tr>
@@ -603,47 +613,47 @@
                 <td>0</td>
                 <td>0</td>
                 <td>126</td>
-                <td>15.17</td>
+                <td>15.18</td>
               </tr>
             
               <tr>
                 <td><strong>lists</strong></td>
                 <td>0</td>
+                <td>1.62</td>
+                <td>0.32</td>
                 <td>0</td>
-                <td>0</td>
-                <td>5.71</td>
                 <td>119</td>
-                <td>6.56</td>
+                <td>6.75</td>
               </tr>
             
               <tr>
                 <td><strong>calendar</strong></td>
-                <td>0.68</td>
-                <td>2.96</td>
-                <td>10.06</td>
-                <td>0.53</td>
+                <td>0.94</td>
+                <td>3.96</td>
+                <td>0.43</td>
+                <td>1.61</td>
                 <td>244</td>
-                <td>13.88</td>
+                <td>14.51</td>
               </tr>
             
               <tr>
                 <td><strong>detail</strong></td>
-                <td>1.23</td>
-                <td>0.72</td>
-                <td>6.97</td>
-                <td>22.5</td>
-                <td>332</td>
-                <td>7.16</td>
+                <td>1.27</td>
+                <td>0</td>
+                <td>5.83</td>
+                <td>0</td>
+                <td>329</td>
+                <td>22.92</td>
               </tr>
             
               <tr>
                 <td><strong>modals</strong></td>
-                <td>1.25</td>
-                <td>38.54</td>
-                <td>4.32</td>
-                <td>113.28</td>
-                <td>332</td>
-                <td>9.4</td>
+                <td>1.33</td>
+                <td>50.76</td>
+                <td>5.35</td>
+                <td>161.86</td>
+                <td>329</td>
+                <td>9.48</td>
               </tr>
             
           </tbody>
@@ -657,7 +667,69 @@
       <p style="color: var(--text-muted); margin-bottom: 20px;">
         Реальные пользовательские метрики Google Core Web Vitals, собранные через <code>PerformanceObserver</code> в браузере под реальным взаимодействием пользователя (скролл виртуального грида, клики по элементам).
       </p>
-      <p style="color: var(--text-muted)">Нет данных Web Vitals</p>
+      
+        <table>
+          <thead>
+            <tr>
+              <th>Экран</th>
+              <th>LCP</th>
+              <th>Рейтинг LCP</th>
+              <th>CLS</th>
+              <th>Рейтинг CLS</th>
+              <th>FID / Input Delay</th>
+              <th>FCP</th>
+              <th>Статус</th>
+            </tr>
+          </thead>
+          <tbody>
+            
+              <tr>
+                <td><strong>home</strong></td>
+                <td><strong>216 ms</strong></td>
+                <td><span class="tag-pass">● Good</span></td>
+                <td><strong>0</strong></td>
+                <td><span class="tag-pass">● Good</span></td>
+                <td>7.9 ms</td>
+                <td>100 ms</td>
+                <td><span class="tag-pass">✅ PASS</span></td>
+              </tr>
+            
+              <tr>
+                <td><strong>game</strong></td>
+                <td><strong>224 ms</strong></td>
+                <td><span class="tag-pass">● Good</span></td>
+                <td><strong>0</strong></td>
+                <td><span class="tag-pass">● Good</span></td>
+                <td>8.5 ms</td>
+                <td>116 ms</td>
+                <td><span class="tag-pass">✅ PASS</span></td>
+              </tr>
+            
+              <tr>
+                <td><strong>detail</strong></td>
+                <td><strong>208 ms</strong></td>
+                <td><span class="tag-pass">● Good</span></td>
+                <td><strong>0</strong></td>
+                <td><span class="tag-pass">● Good</span></td>
+                <td>8.5 ms</td>
+                <td>104 ms</td>
+                <td><span class="tag-pass">✅ PASS</span></td>
+              </tr>
+            
+              <tr>
+                <td><strong>stats</strong></td>
+                <td><strong>92 ms</strong></td>
+                <td><span class="tag-pass">● Good</span></td>
+                <td><strong>0</strong></td>
+                <td><span class="tag-pass">● Good</span></td>
+                <td>2.5 ms</td>
+                <td>92 ms</td>
+                <td><span class="tag-pass">✅ PASS</span></td>
+              </tr>
+            
+          </tbody>
+        </table>
+      
     </div>
 
     <!-- BACKEND & SQLITE -->
@@ -733,25 +805,25 @@
               <tr>
                 <td><code>EvaluateSmartList</code></td>
                 <td>EvaluationAndScoringBenchmarks</td>
-                <td><strong>153.24 μs</strong></td>
+                <td><strong>116.29 μs</strong></td>
                 <td>42.50 KB</td>
-                <td>10.25 / 0.49 / 0.00</td>
+                <td>10.38 / 0.61 / 0.00</td>
                 <td><span class="tag-pass">✅ PASS</span></td>
               </tr>
             
               <tr>
                 <td><code>EvaluateCandidates</code></td>
                 <td>EvaluationAndScoringBenchmarks</td>
-                <td><strong>40.80 μs</strong></td>
+                <td><strong>26.01 μs</strong></td>
                 <td>24.82 KB</td>
-                <td>6.04 / 0.00 / 0.00</td>
+                <td>6.07 / 0.00 / 0.00</td>
                 <td><span class="tag-pass">✅ PASS</span></td>
               </tr>
             
               <tr>
                 <td><code>NormalizeGenres</code></td>
                 <td>EvaluationAndScoringBenchmarks</td>
-                <td><strong>11.93 μs</strong></td>
+                <td><strong>10.44 μs</strong></td>
                 <td>8.53 KB</td>
                 <td>2.08 / 0.00 / 0.00</td>
                 <td><span class="tag-pass">✅ PASS</span></td>
@@ -760,7 +832,7 @@
               <tr>
                 <td><code>ParseMangalibJson</code></td>
                 <td>ParsersBenchmarks</td>
-                <td><strong>787.58 μs</strong></td>
+                <td><strong>579.32 μs</strong></td>
                 <td>113.64 KB</td>
                 <td>27.34 / 0.00 / 0.00</td>
                 <td><span class="tag-pass">✅ PASS</span></td>
@@ -769,7 +841,7 @@
               <tr>
                 <td><code>ReadAnyRecordsCsv</code></td>
                 <td>ParsersBenchmarks</td>
-                <td><strong>63.09 μs</strong></td>
+                <td><strong>65.92 μs</strong></td>
                 <td>78.29 KB</td>
                 <td>19.17 / 0.12 / 0.00</td>
                 <td><span class="tag-pass">✅ PASS</span></td>
@@ -778,7 +850,7 @@
               <tr>
                 <td><code>CalculateAdvancedStats</code></td>
                 <td>StatsBenchmarks</td>
-                <td><strong>234.78 μs</strong></td>
+                <td><strong>190.12 μs</strong></td>
                 <td>9.08 KB</td>
                 <td>2.20 / 0.00 / 0.00</td>
                 <td><span class="tag-pass">✅ PASS</span></td>
@@ -787,9 +859,9 @@
               <tr>
                 <td><code>CalculateTasteProfile</code></td>
                 <td>StatsBenchmarks</td>
-                <td><strong>74.91 μs</strong></td>
+                <td><strong>62.91 μs</strong></td>
                 <td>3.90 KB</td>
-                <td>0.85 / 0.00 / 0.00</td>
+                <td>0.92 / 0.00 / 0.00</td>
                 <td><span class="tag-pass">✅ PASS</span></td>
               </tr>
             
@@ -813,82 +885,82 @@
             
               <tr>
                 <td>#1</td>
-                <td><code>Tsundoku.Server!MediaTracker.Server.Infrastructure.Persistence.AppDbContext.ReadMediaItemRow</code></td>
-                <td>3628.5 ms</td>
+                <td><code>Microsoft.AspNetCore.Http.Generated.<GeneratedRouteBuilderExtensions_g>F202B381FFC497F212FEEA6512613F4D084B421EB97B74D5CBD81E03E134C6BFD__GeneratedRouteBuilderExtensionsCore+<>c__DisplayClass29_0+<<MapGet24>g__RequestHandler|5>d</code></td>
+                <td>5391.7 ms</td>
                 <td>0 ms</td>
-                <td>60.1%</td>
+                <td>89.2%</td>
               </tr>
             
               <tr>
                 <td>#2</td>
-                <td><code>Tsundoku.Server!MediaTracker.Server.Features.Media.GetMediaStats.GetMediaStatsHandler.LoadAllMediaItemsAsync</code></td>
-                <td>1801.5 ms</td>
+                <td><code>Microsoft.AspNetCore.Http.Generated.<GeneratedRouteBuilderExtensions_g>F202B381FFC497F212FEEA6512613F4D084B421EB97B74D5CBD81E03E134C6BFD__GeneratedRouteBuilderExtensionsCore.ExecuteAsyncExplicit</code></td>
+                <td>2691.6 ms</td>
                 <td>0 ms</td>
-                <td>29.8%</td>
+                <td>44.5%</td>
               </tr>
             
               <tr>
                 <td>#3</td>
-                <td><code>Tsundoku.Server!MediaTracker.Server.Features.Media.Calendar.CalendarEndpoints.MapCalendarEndpoints</code></td>
-                <td>1766.9 ms</td>
+                <td><code>Microsoft.AspNetCore.Http.Generated.<GeneratedRouteBuilderExtensions_g>F202B381FFC497F212FEEA6512613F4D084B421EB97B74D5CBD81E03E134C6BFD__GeneratedRouteBuilderExtensionsCore+<>c__DisplayClass29_0.<MapGet24>g__RequestHandler|5</code></td>
+                <td>2635.5 ms</td>
                 <td>0 ms</td>
-                <td>29.2%</td>
+                <td>43.6%</td>
               </tr>
             
               <tr>
                 <td>#4</td>
-                <td><code>Tsundoku.Server!MediaTracker.Server.Features.Media.Calendar.CalendarEndpoints.CollectEventsAsync</code></td>
-                <td>1756.6 ms</td>
+                <td><code>Infrastructure.Persistence.AppDbContext.ReadMediaItemRow</code></td>
+                <td>2525.5 ms</td>
                 <td>0 ms</td>
-                <td>29.1%</td>
+                <td>41.8%</td>
               </tr>
             
               <tr>
                 <td>#5</td>
-                <td><code>Tsundoku.Server!MediaTracker.Server.Common.Endpoints.MediaEndpoints.MapMediaEndpoints</code></td>
-                <td>1439.1 ms</td>
+                <td><code>Microsoft.AspNetCore.Http.Generated.<GeneratedRouteBuilderExtensions_g>F202B381FFC497F212FEEA6512613F4D084B421EB97B74D5CBD81E03E134C6BFD__GeneratedRouteBuilderExtensionsCore+<>c__DisplayClass91_0.<MapGet86>g__RequestHandler|5</code></td>
+                <td>1963.2 ms</td>
                 <td>0 ms</td>
-                <td>23.8%</td>
+                <td>32.5%</td>
               </tr>
             
               <tr>
                 <td>#6</td>
-                <td><code>Tsundoku.Server!MediaTracker.Server.Features.Media.GetMediaStats.GetMediaStatsHandler.HandleAdvancedAsync</code></td>
-                <td>1428.2 ms</td>
+                <td><code>Microsoft.AspNetCore.Http.Generated.<GeneratedRouteBuilderExtensions_g>F202B381FFC497F212FEEA6512613F4D084B421EB97B74D5CBD81E03E134C6BFD__GeneratedRouteBuilderExtensionsCore+<>c__DisplayClass91_0+<<MapGet86>g__RequestHandler|5>d</code></td>
+                <td>1953.2 ms</td>
                 <td>0 ms</td>
-                <td>23.6%</td>
+                <td>32.3%</td>
               </tr>
             
               <tr>
                 <td>#7</td>
-                <td><code>Tsundoku.Server!MediaTracker.Server.Features.Media.GetMediaList.GetMediaListHandler.HandleWithCountAsync</code></td>
-                <td>1207.2 ms</td>
+                <td><code>Microsoft.AspNetCore.Http.Generated.<GeneratedRouteBuilderExtensions_g>F202B381FFC497F212FEEA6512613F4D084B421EB97B74D5CBD81E03E134C6BFD__GeneratedRouteBuilderExtensionsCore+<>c__DisplayClass31_0.<MapGet26>g__RequestHandler|5</code></td>
+                <td>1860.6 ms</td>
                 <td>0 ms</td>
-                <td>20%</td>
+                <td>30.8%</td>
               </tr>
             
               <tr>
                 <td>#8</td>
-                <td><code>Tsundoku.Server!MediaTracker.Server.Features.Media.GetMediaList.GetMediaListHandler.HandleAsync</code></td>
-                <td>1193.5 ms</td>
+                <td><code>Microsoft.AspNetCore.Http.Generated.<GeneratedRouteBuilderExtensions_g>F202B381FFC497F212FEEA6512613F4D084B421EB97B74D5CBD81E03E134C6BFD__GeneratedRouteBuilderExtensionsCore+<>c__DisplayClass31_0+<<MapGet26>g__RequestHandler|5>d</code></td>
+                <td>1860.6 ms</td>
                 <td>0 ms</td>
-                <td>19.8%</td>
+                <td>30.8%</td>
               </tr>
             
               <tr>
                 <td>#9</td>
-                <td><code>Tsundoku.Server!MediaTracker.Server.Features.Media.GetMediaStats.GetMediaStatsHandler.HandleTasteProfileAsync</code></td>
-                <td>1150.9 ms</td>
+                <td><code>Features.Media.Calendar.CalendarEndpoints.MapCalendarEndpoints</code></td>
+                <td>1673.5 ms</td>
                 <td>0 ms</td>
-                <td>19.1%</td>
+                <td>27.7%</td>
               </tr>
             
               <tr>
                 <td>#10</td>
-                <td><code>Tsundoku.Server!MediaTracker.Server.Infrastructure.Persistence.AppDbContext.LoadMediaItemsAsync</code></td>
-                <td>1115.6 ms</td>
+                <td><code>Features.Media.Calendar.CalendarEndpoints.CollectEventsAsync</code></td>
+                <td>1619.3 ms</td>
                 <td>0 ms</td>
-                <td>18.5%</td>
+                <td>26.8%</td>
               </tr>
             
           </tbody>
@@ -907,7 +979,7 @@
           <div class="progress-item">
             <div class="progress-header">
               <span><strong>Фрагментация страниц</strong></span>
-              <span>0% (0 из 156 страниц)</span>
+              <span>0% (0 из 150 страниц)</span>
             </div>
             <div class="progress-track">
               <div class="progress-fill" style="width: 2%; background: var(--success)"></div>
@@ -933,7 +1005,7 @@
             </tr>
             <tr>
               <td><strong>Размер файла БД</strong></td>
-              <td><strong>624 KB</strong></td>
+              <td><strong>600 KB</strong></td>
               <td>—</td>
               <td><span class="tag-pass">✅ Compact</span></td>
             </tr>
@@ -945,7 +1017,7 @@
             </tr>
             <tr>
               <td><strong>Размер страницы / Число страниц</strong></td>
-              <td>4096 B / 156 страниц</td>
+              <td>4096 B / 150 страниц</td>
               <td>Стандарт 4096 B</td>
               <td><span class="tag-pass">✅ Optimal</span></td>
             </tr>
@@ -997,10 +1069,10 @@
               <tr>
                 <td><code>/api/media</code></td>
                 <td>618.55 KB</td>
-                <td><strong>35.77 KB</strong></td>
-                <td>25.21 KB</td>
+                <td><strong>35.91 KB</strong></td>
+                <td>25.65 KB</td>
                 <td><span class="tag-pass">-94.2%</span></td>
-                <td><strong>13.9 ms</strong></td>
+                <td><strong>19.6 ms</strong></td>
                 <td>&le; 60 KB</td>
                 <td><span class="tag-pass">✅ PASS</span></td>
               </tr>
@@ -1008,10 +1080,10 @@
               <tr>
                 <td><code>/api/media?type=game&status=1</code></td>
                 <td>37.16 KB</td>
-                <td><strong>2.73 KB</strong></td>
-                <td>2.08 KB</td>
+                <td><strong>2.71 KB</strong></td>
+                <td>2.1 KB</td>
                 <td><span class="tag-pass">-92.7%</span></td>
-                <td><strong>4.6 ms</strong></td>
+                <td><strong>3.1 ms</strong></td>
                 <td>&le; 50 KB</td>
                 <td><span class="tag-pass">✅ PASS</span></td>
               </tr>
@@ -1020,9 +1092,9 @@
                 <td><code>/api/media/stats/advanced</code></td>
                 <td>2.79 KB</td>
                 <td><strong>0.65 KB</strong></td>
-                <td>0.54 KB</td>
+                <td>0.55 KB</td>
                 <td><span class="tag-pass">-76.8%</span></td>
-                <td><strong>3.3 ms</strong></td>
+                <td><strong>2.9 ms</strong></td>
                 <td>&le; 20 KB</td>
                 <td><span class="tag-pass">✅ PASS</span></td>
               </tr>
@@ -1033,18 +1105,18 @@
                 <td><strong>0.7 KB</strong></td>
                 <td>0.55 KB</td>
                 <td><span class="tag-pass">-60.5%</span></td>
-                <td><strong>2.4 ms</strong></td>
+                <td><strong>1.5 ms</strong></td>
                 <td>&le; 10 KB</td>
                 <td><span class="tag-pass">✅ PASS</span></td>
               </tr>
             
               <tr>
                 <td><code>/api/media/calendar</code></td>
-                <td>58.51 KB</td>
-                <td><strong>5.67 KB</strong></td>
-                <td>4.63 KB</td>
-                <td><span class="tag-pass">-90.3%</span></td>
-                <td><strong>30.4 ms</strong></td>
+                <td>60.53 KB</td>
+                <td><strong>5.91 KB</strong></td>
+                <td>4.89 KB</td>
+                <td><span class="tag-pass">-90.2%</span></td>
+                <td><strong>37.1 ms</strong></td>
                 <td>&le; 25 KB</td>
                 <td><span class="tag-pass">✅ PASS</span></td>
               </tr>
@@ -1052,10 +1124,10 @@
               <tr>
                 <td><code>/api/history</code></td>
                 <td>117.75 KB</td>
-                <td><strong>27.96 KB</strong></td>
-                <td>22.51 KB</td>
-                <td><span class="tag-pass">-76.3%</span></td>
-                <td><strong>10.4 ms</strong></td>
+                <td><strong>28.01 KB</strong></td>
+                <td>22.61 KB</td>
+                <td><span class="tag-pass">-76.2%</span></td>
+                <td><strong>12.1 ms</strong></td>
                 <td>&le; 30 KB</td>
                 <td><span class="tag-pass">✅ PASS</span></td>
               </tr>
@@ -1065,8 +1137,8 @@
                 <td>0.29 KB</td>
                 <td><strong>0.24 KB</strong></td>
                 <td>0.2 KB</td>
-                <td><span class="tag-pass">-17.7%</span></td>
-                <td><strong>28.3 ms</strong></td>
+                <td><span class="tag-pass">-17.4%</span></td>
+                <td><strong>35.9 ms</strong></td>
                 <td>&le; 15 KB</td>
                 <td><span class="tag-pass">✅ PASS</span></td>
               </tr>
@@ -1074,7 +1146,7 @@
           </tbody>
         </table>
         <div style="margin-top: 16px; font-size: 13px; color: var(--text-muted);">
-          Сводка: Исходный вес ответов <strong>836.81 KB</strong> сжат до <strong>73.72 KB</strong> (экономия трафика <strong>-91.2%</strong>) при средней задержке <strong>13.3 ms</strong>.
+          Сводка: Исходный вес ответов <strong>838.83 KB</strong> сжат до <strong>74.13 KB</strong> (экономия трафика <strong>-91.2%</strong>) при средней задержке <strong>16 ms</strong>.
         </div>
       
     </div>
@@ -1108,19 +1180,19 @@
         <div class="progress-item">
           <div class="progress-header">
             <span><strong>Бэкенд: Line Coverage</strong></span>
-            <span>0% (20840 / 36869)</span>
+            <span>41% (37217 / 90667)</span>
           </div>
           <div class="progress-track">
-            <div class="progress-fill" style="width: 0%; background: var(--danger)"></div>
+            <div class="progress-fill" style="width: 41%; background: var(--danger)"></div>
           </div>
         </div>
         <div class="progress-item">
           <div class="progress-header">
             <span><strong>Бэкенд: Branch Coverage</strong></span>
-            <span>0% (1252 / 8435)</span>
+            <span>31.8% (7021 / 22049)</span>
           </div>
           <div class="progress-track">
-            <div class="progress-fill" style="width: 0%; background: var(--warning)"></div>
+            <div class="progress-fill" style="width: 63.6%; background: var(--warning)"></div>
           </div>
         </div>
         <div class="progress-item">
@@ -1192,8 +1264,8 @@
             <td><strong>XPlat Coverage</strong></td>
             <td><strong>23</strong></td>
             <td><span class="tag-pass">✅ 23 PASS (0 err)</span></td>
-            <td><strong>0%</strong></td>
-            <td><strong>0%</strong></td>
+            <td><strong>41%</strong></td>
+            <td><strong>31.8%</strong></td>
           </tr>
           <tr>
             <td><strong>Frontend: Media Models</strong> (timeBudget, chronicleTimeline, detailedScore, staleTriage, seriesStep, coverUrl)</td>
@@ -1251,13 +1323,13 @@
             <tr>
               <td><strong>NPM production зависимости</strong></td>
               <td><code>npm audit --omit=dev</code></td>
-              <td>0 уязвимостей (5 пакетов)</td>
+              <td>0 уязвимостей (4 пакетов)</td>
               <td>0 критических, 0 высоких, 0 средних</td>
               <td><span class="tag-pass">✅ PASS</span></td>
             </tr>
             <tr>
               <td><strong>Статический поиск утечек секретов</strong></td>
-              <td>RegEx Static Scan (535 файлов)</td>
+              <td>RegEx Static Scan (558 файлов)</td>
               <td>0 утечек секретов</td>
               <td>Проверены .cs, .ts, .svelte, .json на Stripe, AWS, GitHub, Google ключи</td>
               <td><span class="tag-pass">✅ PASS</span></td>
@@ -1304,7 +1376,7 @@
                 <td><code>article.media-card:visible</code></td>
                 <td><span class="tag-pass">✅ Совпал</span></td>
                 <td>86328 px</td>
-                <td>332 px (0.39%)</td>
+                <td>0 px (0.00%)</td>
               </tr>
             
               <tr>
@@ -1312,7 +1384,7 @@
                 <td><code>[data-widget="stats-hero"]</code></td>
                 <td><span class="tag-pass">✅ Совпал</span></td>
                 <td>182016 px</td>
-                <td>42 px (0.02%)</td>
+                <td>0 px (0.00%)</td>
               </tr>
             
               <tr>
@@ -1320,7 +1392,7 @@
                 <td><code>[data-widget="detail-sidebar"]</code></td>
                 <td><span class="tag-pass">✅ Совпал</span></td>
                 <td>527680 px</td>
-                <td>1954 px (0.37%)</td>
+                <td>0 px (0.00%)</td>
               </tr>
             
           </tbody>

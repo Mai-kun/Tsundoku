@@ -515,3 +515,7 @@ mediatracker-ui/checks/__snapshots__/
 
 # go-task state/cache directory (task audit artifacts)
 .task/
+
+# Runtime browser profile
+Tsundoku/
+tsundoku-chromium-profile/

@@ -73,6 +73,7 @@ public class BrowserSessionDetectorTests
     [InlineData("https+++auth.lib.social", true)]
     [InlineData("https+++mangalib.me", true)]
     [InlineData("https+++ranobelib.me", true)]
+    [InlineData("https+++v5.animelib.org", true)]
     [InlineData("https+++example.com", false)]
     public void TryFirefoxProfile_MatchesSocialLibFoldersOnly(string folder, bool shouldFind)
     {
@@ -96,6 +97,26 @@ public class BrowserSessionDetectorTests
             {
                 session.Should().BeNull();
             }
+        }
+        finally
+        {
+            Directory.Delete(profile, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void TryFirefoxProfile_ScansNestedDataSqliteRecursively()
+    {
+        var profile = Path.Combine(Path.GetTempPath(), $"tsundoku-det-{Guid.NewGuid():N}");
+        var deepDir = Path.Combine(profile, "storage", "default", "https+++mangalib.me", "deep", "nested", "storage");
+        Directory.CreateDirectory(deepDir);
+        CreateDataSqliteAt(Path.Combine(deepDir, "data.sqlite"), rows: [("auth", Utf16WithPadding(AuthJson))]);
+
+        try
+        {
+            var session = BrowserSessionDetector.TryFirefoxProfile(profile);
+            session.Should().NotBeNull();
+            session!.Token.Should().StartWith("eyJ");
         }
         finally
         {

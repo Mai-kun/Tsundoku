@@ -26,8 +26,9 @@ public sealed record MangalibSessionResponse(
 ///  2. the isolated Chromium profile BrowserLauncher keeps at
 ///     <c>~/.local/share/Tsundoku/tsundoku-chromium-profile</c> — its Local Storage leveldb is
 ///     scanned for the auth JSON.
-/// Everything stays local: the file is opened read-only (a temp copy when the browser holds a
-/// lock) and only the token/user pair leaves the detector.
+/// Everything stays local: the file is always read from a temporary snapshot (copy first, so a
+/// running browser's exclusive lock cannot produce `database is locked`), and only the token/user
+/// pair leaves the detector.
 /// </summary>
 public static class BrowserSessionDetector
 {
@@ -37,6 +38,8 @@ public static class BrowserSessionDetector
         "mangalib",
         "lib.social",
         "anilib",
+        "animelib",
+        "auth",
         "ranobelib",
         "slashlib",
         "hentailib",
@@ -48,30 +51,59 @@ public static class BrowserSessionDetector
     public static Task<BrowserSession?> TryDetectSessionAsync(CancellationToken ct = default)
     {
         var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        var stats = new DetectionStats();
 
-        // Firefox-family: each root contains one profile directory per folder (Zen keeps them
-        // directly under the root; some distributions nest them under "Profiles").
-        var firefoxRoots = new[]
+        var zenProfiles = GetZenProfiles(home, out var checkedZenPaths);
+        var allCheckedPaths = new List<string>(checkedZenPaths)
         {
-            Path.Combine(home, ".zen"),
             Path.Combine(home, ".mozilla", "firefox"),
-            Path.Combine(home, ".var", "app", "app.zen_browser.zen", ".zen"),
-            Path.Combine(home, ".var", "app", "io.github.zen_browser.zen", ".zen"),
             Path.Combine(home, ".var", "app", "org.mozilla.firefox", ".mozilla", "firefox"),
             Path.Combine(home, "snap", "firefox", "common", ".mozilla", "firefox"),
         };
 
-        foreach (var root in firefoxRoots.Select(NormalizeHome).Where(Directory.Exists))
+        // 1. Check Zen Browser profiles first
+        foreach (var profile in zenProfiles)
+        {
+            ct.ThrowIfCancellationRequested();
+            var session = TryFirefoxProfile(profile, stats);
+            if (session is not null)
+            {
+                Serilog.Log.Information(
+                    "MangaLib session found in Zen profile: {Profile}. Zen profiles found: {ZenCount}. Checked paths: {Paths}",
+                    profile,
+                    zenProfiles.Count,
+                    string.Join(", ", allCheckedPaths));
+                return Task.FromResult<BrowserSession?>(session);
+            }
+        }
+
+        // 2. Check other Firefox-family profiles
+        var otherFirefoxRoots = new[]
+        {
+            Path.Combine(home, ".mozilla", "firefox"),
+            Path.Combine(home, ".var", "app", "org.mozilla.firefox", ".mozilla", "firefox"),
+            Path.Combine(home, "snap", "firefox", "common", ".mozilla", "firefox"),
+        };
+
+        foreach (var root in otherFirefoxRoots.Select(NormalizeHome).Where(Directory.Exists))
         {
             foreach (var profile in EnumerateProfileDirs(root))
             {
                 ct.ThrowIfCancellationRequested();
-                var session = TryFirefoxProfile(profile);
-                if (session is not null) return Task.FromResult<BrowserSession?>(session);
+                var session = TryFirefoxProfile(profile, stats);
+                if (session is not null)
+                {
+                    Serilog.Log.Information(
+                        "MangaLib session found in Firefox profile: {Profile}. Zen profiles found: {ZenCount}. Checked paths: {Paths}",
+                        profile,
+                        zenProfiles.Count,
+                        string.Join(", ", allCheckedPaths));
+                    return Task.FromResult<BrowserSession?>(session);
+                }
             }
         }
 
-        // Chromium-family: the isolated profile BrowserLauncher maintains. Standard browser
+        // 3. Chromium-family: the isolated profile BrowserLauncher maintains. Standard browser
         // profiles are intentionally NOT scanned — only our own profile is unambiguous consent.
         var chromiumLevelDb = Path.Combine(
             home, ".local", "share", "Tsundoku", "tsundoku-chromium-profile",
@@ -80,10 +112,107 @@ public static class BrowserSessionDetector
         {
             ct.ThrowIfCancellationRequested();
             var session = TryChromiumLevelDb(chromiumLevelDb);
-            if (session is not null) return Task.FromResult<BrowserSession?>(session);
+            if (session is not null)
+            {
+                Serilog.Log.Information(
+                    "MangaLib session found in isolated Chromium profile. Zen profiles found: {ZenCount}. Checked paths: {Paths}",
+                    zenProfiles.Count,
+                    string.Join(", ", allCheckedPaths));
+                return Task.FromResult<BrowserSession?>(session);
+            }
         }
 
+        // Nothing found: say what was actually inspected so a missing session is diagnosable.
+        Serilog.Log.Information(
+            "MangaLib session not found. Zen profiles found: {ZenCount} ({ZenProfiles}). Checked paths: {Paths}. Total profiles scanned: {TotalProfiles}. data.sqlite checked: {Databases}. Domains seen: {Domains}",
+            zenProfiles.Count,
+            zenProfiles.Count == 0 ? "(none)" : string.Join(", ", zenProfiles),
+            string.Join(", ", allCheckedPaths),
+            stats.ProfileDirs.Count == 0 ? "(none)" : string.Join(", ", stats.ProfileDirs),
+            stats.DatabaseCount,
+            stats.Domains.Count == 0 ? "(none)" : string.Join(", ", stats.Domains));
+
         return Task.FromResult<BrowserSession?>(null);
+    }
+
+    private static List<string> GetZenProfiles(string home, out List<string> checkedZenPaths)
+    {
+        checkedZenPaths =
+        [
+            Path.Combine(home, ".zen"),
+            Path.Combine(home, ".config", "zen"),
+            Path.Combine(home, ".zen-browser"),
+            Path.Combine(home, ".var", "app", "app.zen_browser.zen"),
+            Path.Combine(home, ".var", "app", "io.github.zen_browser.zen"),
+        ];
+
+        var profiles = new List<string>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        void AddProfile(string dir)
+        {
+            if (Directory.Exists(dir) && seen.Add(dir))
+            {
+                profiles.Add(dir);
+            }
+        }
+
+        foreach (var root in new[]
+        {
+            Path.Combine(home, ".zen"),
+            Path.Combine(home, ".config", "zen"),
+            Path.Combine(home, ".zen-browser"),
+        })
+        {
+            if (!Directory.Exists(root)) continue;
+            foreach (var p in EnumerateProfileDirs(root)) AddProfile(p);
+        }
+
+        var flatpakRoots = new[]
+        {
+            Path.Combine(home, ".var", "app", "app.zen_browser.zen"),
+            Path.Combine(home, ".var", "app", "io.github.zen_browser.zen"),
+        };
+
+        foreach (var flatpakDir in flatpakRoots)
+        {
+            if (!Directory.Exists(flatpakDir)) continue;
+
+            foreach (var sub in new[] { ".zen", Path.Combine(".config", "zen"), ".zen-browser" })
+            {
+                var candidate = Path.Combine(flatpakDir, sub);
+                if (Directory.Exists(candidate))
+                {
+                    foreach (var p in EnumerateProfileDirs(candidate)) AddProfile(p);
+                }
+            }
+
+            try
+            {
+                foreach (var storage in Directory.EnumerateDirectories(flatpakDir, "storage", SearchOption.AllDirectories))
+                {
+                    if (Directory.Exists(Path.Combine(storage, "default")))
+                    {
+                        var parent = Directory.GetParent(storage)?.FullName;
+                        if (!string.IsNullOrEmpty(parent)) AddProfile(parent);
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                // Ignore filesystem exceptions in sandbox hierarchy
+            }
+        }
+
+        return profiles;
+    }
+
+    /// <summary>What the last scan actually looked at — logged when no session is found.</summary>
+    internal sealed class DetectionStats
+    {
+        public List<string> ProfileDirs { get; } = [];
+        public HashSet<string> Domains { get; } = new(StringComparer.OrdinalIgnoreCase);
+        public int DatabaseCount { get; set; }
     }
 
     private static string NormalizeHome(string path) => path
@@ -91,6 +220,14 @@ public static class BrowserSessionDetector
 
     private static IEnumerable<string> EnumerateProfileDirs(string root)
     {
+        if (!Directory.Exists(root)) yield break;
+
+        if (Directory.Exists(Path.Combine(root, "storage", "default")))
+        {
+            yield return root;
+            yield break;
+        }
+
         foreach (var dir in Directory.EnumerateDirectories(root))
         {
             yield return dir;
@@ -101,66 +238,100 @@ public static class BrowserSessionDetector
         }
     }
 
-    internal static BrowserSession? TryFirefoxProfile(string profileDir)
+    internal static BrowserSession? TryFirefoxProfile(string profileDir, DetectionStats? stats = null)
     {
+        stats?.ProfileDirs.Add(profileDir);
+
         var storageDefault = Path.Combine(profileDir, "storage", "default");
         if (!Directory.Exists(storageDefault)) return null;
 
-        // Origins drift (mangalib.me -> lib.social, auth.lib.social, …): match the folder
-        // name against fragments instead of a hard-coded origin list.
+        // Origins drift (mangalib.me -> lib.social, auth.lib.social, …) and Zen containers add
+        // suffixes (…^userContextId=1): match the folder name against fragments instead of a
+        // hard-coded origin list.
         foreach (var originDir in Directory.EnumerateDirectories(storageDefault))
         {
             var name = Path.GetFileName(originDir);
-            if (!StorageFolderPatterns.Any(pattern =>
-                    name.Contains(pattern, StringComparison.OrdinalIgnoreCase)))
+            stats?.Domains.Add(name);
+
+            var matchesOrigin = StorageFolderPatterns.Any(pattern =>
+                name.Contains(pattern, StringComparison.OrdinalIgnoreCase));
+
+            IEnumerable<string> sqliteFiles;
+            try
+            {
+                if (matchesOrigin)
+                {
+                    sqliteFiles = Directory.EnumerateFiles(originDir, "data.sqlite", SearchOption.AllDirectories);
+                }
+                else
+                {
+                    sqliteFiles = Directory.EnumerateDirectories(originDir, "*", SearchOption.AllDirectories)
+                        .Where(subDir => StorageFolderPatterns.Any(pattern =>
+                            Path.GetFileName(subDir).Contains(pattern, StringComparison.OrdinalIgnoreCase)))
+                        .SelectMany(subDir => Directory.EnumerateFiles(subDir, "data.sqlite", SearchOption.AllDirectories));
+                }
+            }
+            catch (Exception)
             {
                 continue;
             }
 
-            var dbPath = Path.Combine(originDir, "ls", "data.sqlite");
-            if (!File.Exists(dbPath)) continue;
-
-            foreach (var raw in ReadFirefoxAuthValues(dbPath))
+            foreach (var dbPath in sqliteFiles)
             {
-                var session = ParseAuthJson(raw, $"{Path.GetFileName(profileDir)}/{name}");
-                if (session is not null) return session;
+                if (stats is not null) stats.DatabaseCount++;
 
-                // The row holds the auth JSON in a non-parseable shape (truncated key,
-                // extra wrapper): fall back to pulling the JWT straight out of the text.
-                session = ExtractTokenByPattern(raw, $"{Path.GetFileName(profileDir)}/{name}");
-                if (session is not null) return session;
+                foreach (var raw in ReadFirefoxAuthValues(dbPath))
+                {
+                    var session = ParseAuthJson(raw, $"{Path.GetFileName(profileDir)}/{name}");
+                    if (session is not null) return session;
+
+                    // The row holds the auth JSON in a non-parseable shape (truncated key,
+                    // extra wrapper): fall back to pulling the JWT straight out of the text.
+                    session = ExtractTokenByPattern(raw, $"{Path.GetFileName(profileDir)}/{name}");
+                    if (session is not null) return session;
+                }
             }
         }
         return null;
     }
 
-    /// <summary>Reads the auth rows read-only; falls back to a temp copy when the browser locks the DB.</summary>
+    /// <summary>
+    /// Reads the DB from a snapshot: Firefox/Zen holds an exclusive lock while running, so the
+    /// live file is copied to /tmp first (WAL sidecars included). Direct read-only access is
+    /// only the fallback when the copy itself fails.
+    /// </summary>
     private static IEnumerable<string> ReadFirefoxAuthValues(string dbPath)
     {
-        var values = TryQueryAuthRows(dbPath).ToList();
-        if (values.Count > 0) return values;
-
-        // Firefox keeps an exclusive lock while running: read a snapshot instead.
+        var temp = Path.Combine(Path.GetTempPath(), $"mangalib_detect_{Guid.NewGuid():N}.sqlite");
         try
         {
-            var temp = Path.Combine(Path.GetTempPath(), $"tsundoku-ls-{Guid.NewGuid():N}.sqlite");
-            try
+            File.Copy(dbPath, temp, overwrite: true);
+            foreach (var suffix in new[] { "-wal", "-shm" })
             {
-                File.Copy(dbPath, temp, overwrite: true);
-                return TryQueryAuthRows(temp);
+                var sidecar = dbPath + suffix;
+                if (File.Exists(sidecar))
+                {
+                    try { File.Copy(sidecar, temp + suffix, overwrite: true); }
+                    catch (IOException) { /* sidecar is optional */ }
+                }
             }
-            finally
-            {
-                try { File.Delete(temp); } catch { /* best effort cleanup */ }
-            }
+
+            return TryQueryAuthRows(temp).ToList();
         }
         catch (IOException)
         {
-            return [];
+            return TryQueryAuthRows(dbPath).ToList();
         }
         catch (UnauthorizedAccessException)
         {
-            return [];
+            return TryQueryAuthRows(dbPath).ToList();
+        }
+        finally
+        {
+            foreach (var suffix in new[] { "", "-wal", "-shm" })
+            {
+                try { File.Delete(temp + suffix); } catch { /* best effort cleanup */ }
+            }
         }
     }
 
@@ -180,20 +351,25 @@ public static class BrowserSessionDetector
             conn.Open();
 
             // Only the "value" column exists in current Firefox/Zen schemas — the legacy
-            // "utf16" column is gone, and SELECTing it throws `no such column`. The value
-            // itself may be TEXT (JSON) or a BLOB (UTF-8/UTF-16LE payload).
+            // "utf16" column is gone, and SELECTing it throws `no such column`. Scan every row:
+            // the auth JSON may sit under any key, and the value may be TEXT or a BLOB
+            // (UTF-8/UTF-16LE payload).
             using var cmd = conn.CreateCommand();
-            cmd.CommandText =
-                """
-                SELECT key, value FROM data
-                WHERE key IN ('auth', 'token', 'access_token', 'user') OR value LIKE '%eyJ%';
-                """;
+            cmd.CommandText = "SELECT key, value FROM data;";
             using var reader = cmd.ExecuteReader();
             while (reader.Read())
             {
                 if (reader.FieldCount < 2) continue;
+
                 var text = DecodeStoredValue(reader.GetValue(1));
-                if (text is not null) results.Add(text);
+                if (text is null) continue;
+
+                var key = reader.GetValue(0)?.ToString();
+                if (IsAuthCandidate(text) ||
+                    (key is not null && AuthKeys.Contains(key, StringComparer.OrdinalIgnoreCase)))
+                {
+                    results.Add(text);
+                }
             }
         }
         catch (SqliteException)
@@ -234,24 +410,28 @@ public static class BrowserSessionDetector
         !text.Contains('\0') &&
         (text.TrimStart().StartsWith('{') || text.Contains("eyJ", StringComparison.Ordinal));
 
-    /// <summary>Last-resort extraction: the JWT substring straight out of arbitrary text.</summary>
+    /// <summary>Last-resort extraction: a JWT substring straight out of arbitrary text.</summary>
     private static BrowserSession? ExtractTokenByPattern(string text, string sourcePath)
     {
-        foreach (var marker in new[] { "\"access_token\":\"", "\"token\":\"" })
+        // JWTs start with the base64url "eyJ" header marker and continue with base64url
+        // characters plus the two '.' separators.
+        var start = text.IndexOf("eyJ", StringComparison.Ordinal);
+        while (start >= 0)
         {
-            var start = text.IndexOf(marker, StringComparison.Ordinal);
-            if (start < 0) continue;
+            var end = start;
+            while (end < text.Length &&
+                   (char.IsAsciiLetterOrDigit(text[end]) || text[end] is '-' or '_' or '.'))
+            {
+                end++;
+            }
 
-            start += marker.Length;
-            if (start >= text.Length || !text.AsSpan(start).StartsWith("eyJ", StringComparison.Ordinal)) continue;
-
-            var end = text.IndexOf('"', start);
-            if (end < 0) end = Math.Min(text.Length, start + 4096);
             var token = text[start..end];
             if (token.Length >= 20)
             {
                 return new BrowserSession(0, string.Empty, token, sourcePath);
             }
+
+            start = text.IndexOf("eyJ", start + 3, StringComparison.Ordinal);
         }
         return null;
     }

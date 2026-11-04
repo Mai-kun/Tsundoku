@@ -73,6 +73,7 @@ public sealed class MediaItemRow
     public int? TotalPages { get; set; }
     public int? CurrentChapter { get; set; }
     public int? TotalChapters { get; set; }
+    public string? Book_Format { get; set; }
 
     // Manga-specific (prefixed)
     public string? Manga_Author { get; set; }
@@ -121,6 +122,11 @@ public sealed class MediaItemRow
                 Author = Author ?? string.Empty,
                 TotalPages = TotalPages ?? 0,
                 CurrentPage = CurrentPage ?? 0,
+                Format = Book_Format,
+                CurrentChapter = CurrentChapter,
+                TotalChapters = TotalChapters,
+                CurrentVolume = CurrentVolume,
+                TotalVolumes = Manga_TotalVolumes,
             },
             SqliteSchemaInitializer.MediaTypes.Manga => (MediaItem)new Manga
             {
@@ -292,13 +298,14 @@ public sealed class MediaItemRow
             Author = item is Book b ? b.Author : item is Manga m ? m.Author : null,
             CurrentPage = item is Book b2 ? b2.CurrentPage : null,
             TotalPages = item is Book b3 ? b3.TotalPages : null,
-            CurrentChapter = item is Manga m2 ? m2.CurrentChapter : null,
-            TotalChapters = item is Manga m3 ? m3.TotalChapters : null,
-            CurrentVolume = item is Manga m4 ? m4.CurrentVolume : null,
+            CurrentChapter = item is Manga m2 ? m2.CurrentChapter : item is Book bChap ? bChap.CurrentChapter : null,
+            TotalChapters = item is Manga m3 ? m3.TotalChapters : item is Book bTotChap ? bTotChap.TotalChapters : null,
+            CurrentVolume = item is Manga m4 ? m4.CurrentVolume : item is Book bVol ? bVol.CurrentVolume : null,
+            Book_Format = item is Book bFmt ? bFmt.Format : null,
             Manga_Author = item is Manga m5 ? m5.Author : null,
             Manga_RomajiTitle = item is Manga m6 ? m6.RomajiTitle : null,
             Manga_Format = item is Manga m7 ? m7.Format : null,
-            Manga_TotalVolumes = item is Manga m8 ? m8.TotalVolumes : null,
+            Manga_TotalVolumes = item is Manga m8 ? m8.TotalVolumes : item is Book bTotVol ? bTotVol.TotalVolumes : null,
             DurationMinutes = item is Movie mv ? mv.DurationMinutes : item is TvShow tv ? tv.EpisodeDurationMinutes : null,
             Director = item is Movie mv2 ? mv2.Director : null,
             Movie_IsAnime = item is Movie mv3 ? mv3.IsAnime : item is TvShow tv2 ? tv2.IsAnime : null,

@@ -52,6 +52,24 @@ public static class BatchImportEnrichmentJob
                     await Task.Delay(Throttle, ct);
                 }
 
+                var rateLimiter = services.GetService<RateLimitTracker>();
+                var anilistStatus = rateLimiter?.GetStatus("anilist");
+                if (anilistStatus is not null && anilistStatus.Remaining <= 2 && anilistStatus.ResetSecondsRemaining > 0)
+                {
+                    var resetSeconds = anilistStatus.ResetSecondsRemaining;
+                    progress.Report(new JobProgressDto(
+                        Guid.Empty,
+                        null,
+                        string.Empty,
+                        processed * 100 / mediaIds.Count,
+                        $"Ожидание сброса лимита AniList ({resetSeconds} сек)...",
+                        JobStatus.Running,
+                        DateTime.MinValue,
+                        null));
+
+                    await Task.Delay(TimeSpan.FromSeconds(resetSeconds + 2), ct);
+                }
+
                 var item = await LoadAsync(db, mediaId, ct);
                 processed++;
 
@@ -65,14 +83,39 @@ public static class BatchImportEnrichmentJob
                     item.Id,
                     item.Title,
                     processed * 100 / mediaIds.Count,
-                    $"[{processed}/{mediaIds.Count}] {item.Title} (авто: {autoCount}, спорных: {reviewCount})",
+                    $"[{processed}/{mediaIds.Count}] {item.Title}",
                     JobStatus.Running,
                     DateTime.MinValue,
                     null));
 
                 try
                 {
-                    var verdict = await EnrichOneAsync(services, db, aggregator, imageStorage, item, ct);
+                    MatchVerdictKind verdict;
+                    while (true)
+                    {
+                        try
+                        {
+                            verdict = await EnrichOneAsync(services, db, aggregator, imageStorage, item, ct);
+                            break;
+                        }
+                        catch (Exception ex) when (Is429Error(ex, services))
+                        {
+                            var status = services.GetService<RateLimitTracker>()?.GetStatus("anilist");
+                            var resetSeconds = status?.ResetSecondsRemaining is > 0 ? status.ResetSecondsRemaining : 60;
+                            progress.Report(new JobProgressDto(
+                                Guid.Empty,
+                                item.Id,
+                                item.Title,
+                                processed * 100 / mediaIds.Count,
+                                $"Ожидание сброса лимита AniList ({resetSeconds} сек)...",
+                                JobStatus.Running,
+                                DateTime.MinValue,
+                                null));
+
+                            await Task.Delay(TimeSpan.FromSeconds(resetSeconds + 2), ct);
+                        }
+                    }
+
                     if (verdict == MatchVerdictKind.Confident) autoCount++;
                     else if (verdict == MatchVerdictKind.Ambiguous) reviewCount++;
                 }
@@ -364,6 +407,35 @@ public static class BatchImportEnrichmentJob
                 Add("kinopoisk", aggregator.SearchSourceAsync(type, latin, "kinopoisk", ct));
             }
         }
+        else if (type == "book")
+        {
+            if (!string.IsNullOrWhiteSpace(latin))
+            {
+                Add("anilist", aggregator.SearchSourceAsync("book", latin, "anilist", ct));
+                Add("kitsu", aggregator.SearchSourceAsync("book", latin, "kitsu", ct));
+            }
+            else
+            {
+                Add("anilist", aggregator.SearchSourceAsync("book", item.Title, "anilist", ct));
+                Add("kitsu", aggregator.SearchSourceAsync("book", item.Title, "kitsu", ct));
+            }
+
+            if (MediaTitleHelper.IsCyrillic(russian))
+            {
+                Add("ranobelib", aggregator.SearchSourceAsync("book", russian, "ranobelib", ct));
+                Add("shikimori", aggregator.SearchSourceAsync("book", russian, "shikimori", ct));
+            }
+            else if (!string.IsNullOrWhiteSpace(latin))
+            {
+                Add("ranobelib", aggregator.SearchSourceAsync("book", latin, "ranobelib", ct));
+                Add("shikimori", aggregator.SearchSourceAsync("book", latin, "shikimori", ct));
+            }
+            else
+            {
+                Add("ranobelib", aggregator.SearchSourceAsync("book", item.Title, "ranobelib", ct));
+                Add("shikimori", aggregator.SearchSourceAsync("book", item.Title, "shikimori", ct));
+            }
+        }
 
         if (searchTasks.Count == 0)
         {
@@ -385,7 +457,7 @@ public static class BatchImportEnrichmentJob
         }
 
         // Cyrillic-only roundtrip
-        if (collected.Count > 0 && string.IsNullOrWhiteSpace(latin) && type is "anime" or "manga")
+        if (collected.Count > 0 && string.IsNullOrWhiteSpace(latin) && type is "anime" or "manga" or "book")
         {
             var romajiFromFallback = collected
                 .Select(candidate => candidate.Dto.RomajiTitle ?? candidate.Dto.OriginalTitle)
@@ -400,6 +472,10 @@ public static class BatchImportEnrichmentJob
                 if (type == "manga")
                 {
                     secondary.Add(("mangadex", aggregator.SearchSourceAsync("manga", romajiFromFallback, "mangadex", ct)));
+                }
+                else if (type == "book")
+                {
+                    secondary.Add(("kitsu", aggregator.SearchSourceAsync("book", romajiFromFallback, "kitsu", ct)));
                 }
 
                 var secondaryResults = await Task.WhenAll(secondary.Select(task => task.Task));
@@ -459,6 +535,29 @@ public static class BatchImportEnrichmentJob
             .ThenByDescending(candidate => candidate.Score)
             .Select(candidate => candidate.Dto)
             .ToList();
+    }
+
+    private static bool Is429Error(Exception ex, IServiceProvider services)
+    {
+        if (ex is SourceUnavailableException sue &&
+            (sue.SourceId.Equals("anilist", StringComparison.OrdinalIgnoreCase) || sue.Message.Contains("429")))
+        {
+            return true;
+        }
+
+        if (ex is HttpRequestException { StatusCode: global::System.Net.HttpStatusCode.TooManyRequests } || ex.Message.Contains("429"))
+        {
+            return true;
+        }
+
+        var rateLimiter = services.GetService<RateLimitTracker>();
+        var status = rateLimiter?.GetStatus("anilist");
+        if (status is not null && status.Remaining <= 0 && status.ResetSecondsRemaining > 0)
+        {
+            return true;
+        }
+
+        return false;
     }
 
     private static Task<MediaItem?> LoadAsync(AppDbContext db, Guid mediaId, CancellationToken ct) =>

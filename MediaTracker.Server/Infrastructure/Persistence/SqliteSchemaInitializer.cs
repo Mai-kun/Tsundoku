@@ -71,6 +71,22 @@ public static class SqliteSchemaInitializer
             alterCmd.CommandText = "ALTER TABLE MediaItems ADD COLUMN AltTitles TEXT NULL;";
             await alterCmd.ExecuteNonQueryAsync(ct);
         }
+
+        if (!existingColumns.Contains("Book_Format"))
+        {
+            using var alterCmd = connection.CreateCommand();
+            alterCmd.CommandText = "ALTER TABLE MediaItems ADD COLUMN Book_Format TEXT NULL;";
+            await alterCmd.ExecuteNonQueryAsync(ct);
+        }
+
+        using (var cleanupCmd = connection.CreateCommand())
+        {
+            cleanupCmd.CommandText = @"
+                DELETE FROM MediaItems 
+                WHERE (ImportSource = 'MangaLib' OR ImportSource COLLATE NOCASE IN ('MangaLib', 'AnimeLib', 'RanobeLib', 'SlashLib', 'HentaiLib'))
+                  AND Title IN ('Читаю', 'В планах', 'Брошено', 'Прочитано', 'Любимые', 'Жду', 'Удалено', 'Смотрю', 'Запланировано', 'Пересматриваю', 'Отложено');";
+            await cleanupCmd.ExecuteNonQueryAsync(ct);
+        }
     }
 
     private const string SchemaSql = @"
@@ -149,6 +165,7 @@ CREATE TABLE IF NOT EXISTS MediaItems (
     CountryOfOrigin TEXT,
     OriginalTitle TEXT,
     AltTitles TEXT,
+    Book_Format TEXT,
     CastJson TEXT,
     StaffJson TEXT,
     TranslatedSynopsis TEXT,

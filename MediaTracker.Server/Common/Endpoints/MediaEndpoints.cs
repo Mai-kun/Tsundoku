@@ -21,6 +21,7 @@ using MediaTracker.Server.Features.Media.PendingMatches;
 using MediaTracker.Server.Features.Media.UpdateMedia;
 using MediaTracker.Server.Features.Media.UpdateProgress;
 using MediaTracker.Server.Features.Media.UpdateStatus;
+using MediaTracker.Server.Infrastructure.Storage;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
@@ -106,6 +107,30 @@ public static class MediaEndpoints
         })
         .WithTags("Импорт / Import")
         .WithSummary("Импорт закладок по профилю SocialLib (MangaLib / AnimeLib / RanobeLib и др.)");
+
+        group.MapGet("/import/dump/{fileName}", (string fileName, [FromServices] AppPaths appPaths) =>
+        {
+            var safeName = Path.GetFileName(fileName);
+            var path = Path.Combine(appPaths.DataDirectory, "imports", safeName);
+            if (!File.Exists(path)) return Results.NotFound();
+            return Results.File(path, contentType: "application/json", fileDownloadName: safeName);
+        })
+        .WithTags("Импорт / Import")
+        .WithSummary("Скачать копию закладок (.json)");
+
+        group.MapGet("/import/sociallib/latest-dump", ([FromServices] AppPaths appPaths) =>
+        {
+            var importsDir = Path.Combine(appPaths.DataDirectory, "imports");
+            if (!Directory.Exists(importsDir)) return Results.NotFound();
+            var latest = new DirectoryInfo(importsDir)
+                .GetFiles("tsundoku-sociallib-*.json")
+                .OrderByDescending(f => f.LastWriteTimeUtc)
+                .FirstOrDefault();
+            if (latest is null) return Results.NotFound();
+            return Results.File(latest.FullName, contentType: "application/json", fileDownloadName: latest.Name);
+        })
+        .WithTags("Импорт / Import")
+        .WithSummary("Скачать последний дамп закладок SocialLib (.json)");
 
 
         group.MapGet("/", async (

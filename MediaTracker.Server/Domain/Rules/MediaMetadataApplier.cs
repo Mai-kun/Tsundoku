@@ -370,10 +370,36 @@ public static class MediaMetadataApplier
                 // Books had no branch here at all, so enrichment never wrote the page count: only an
                 // explicit refresh (ApplyTypeSpecific) did. A book added from a search kept 0 pages
                 // even when a source had already reported the real length.
-                if (book.TotalPages <= 0 && external.TotalCount is > 0)
+                if (book.Format is null && (external.MangaFormat is not null || external.Format is not null))
                 {
-                    book.TotalPages = external.TotalCount.Value;
-                    modified = true;
+                    var fmt = external.MangaFormat ?? external.Format;
+                    if (fmt is "light_novel" or "web_novel" or "novel")
+                    {
+                        book.Format = fmt == "novel" ? "light_novel" : fmt;
+                        modified = true;
+                    }
+                }
+
+                if (book.Format is "light_novel" or "web_novel")
+                {
+                    if (book.TotalChapters is null or <= 0 && (external.Chapters is > 0 || external.TotalCount is > 0))
+                    {
+                        book.TotalChapters = external.Chapters is > 0 ? external.Chapters.Value : external.TotalCount!.Value;
+                        modified = true;
+                    }
+                    if (book.TotalVolumes is null or <= 0 && external.Volumes is > 0)
+                    {
+                        book.TotalVolumes = external.Volumes.Value;
+                        modified = true;
+                    }
+                }
+                else
+                {
+                    if (book.TotalPages <= 0 && external.TotalCount is > 0)
+                    {
+                        book.TotalPages = external.TotalCount.Value;
+                        modified = true;
+                    }
                 }
 
                 modified |= SetIfBlank(book.Author, external.Author, value => book.Author = value);
@@ -519,7 +545,24 @@ public static class MediaMetadataApplier
                 else if (!string.IsNullOrWhiteSpace(external.Author)) movie.Director = external.Author;
                 break;
             case Book book:
-                if (external.TotalCount is > 0) book.TotalPages = external.TotalCount.Value;
+                if (external.MangaFormat is not null || external.Format is not null)
+                {
+                    var fmt = external.MangaFormat ?? external.Format;
+                    if (fmt is "light_novel" or "web_novel" or "novel" or "book")
+                    {
+                        book.Format = fmt == "novel" ? "light_novel" : fmt;
+                    }
+                }
+                if (book.Format is "light_novel" or "web_novel")
+                {
+                    if (external.Chapters is > 0) book.TotalChapters = external.Chapters.Value;
+                    else if (external.TotalCount is > 0) book.TotalChapters = external.TotalCount.Value;
+                    if (external.Volumes is > 0) book.TotalVolumes = external.Volumes.Value;
+                }
+                else if (external.TotalCount is > 0)
+                {
+                    book.TotalPages = external.TotalCount.Value;
+                }
                 if (!string.IsNullOrWhiteSpace(external.Author)) book.Author = external.Author;
                 break;
             case Manga manga:

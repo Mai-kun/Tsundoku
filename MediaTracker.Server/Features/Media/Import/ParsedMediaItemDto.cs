@@ -40,7 +40,9 @@ public sealed record ImportResultDto(
     int SkippedDuplicates,
     Guid? TargetListId,
     string? TargetListName,
-    IReadOnlyList<string>? SkippedTitles = null);
+    IReadOnlyList<string>? SkippedTitles = null,
+    string? DumpUrl = null,
+    string? DumpFileName = null);
 
 public sealed record SteamImportRequest(string? SteamId = null, string? ProfileUrl = null, bool SkipDuplicates = true, Guid? TargetListId = null, string? NewListName = null, string? SteamApiKey = null);
 
@@ -66,6 +68,8 @@ public sealed record MangaLibProfileRequest(
     int[]? SiteIds = null,
     string? BearerToken = null,
     int[]? StatusIds = null,
+    bool IncludeCustomFolders = true,
     bool SkipDuplicates = true,
     Guid? TargetListId = null,
-    string? NewListName = null);
+    string? NewListName = null,
+    string? Category = null);

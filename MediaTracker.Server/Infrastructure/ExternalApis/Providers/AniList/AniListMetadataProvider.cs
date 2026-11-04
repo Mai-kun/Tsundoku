@@ -14,18 +14,23 @@ public sealed partial class AniListMetadataProvider(
         Id: "anilist",
         Name: "AniList",
         Description: "Anime and Manga metadata & ratings provider",
-        MediaTypes: ["anime", "manga"],
+        MediaTypes: ["anime", "manga", "book"],
         BaseAddress: "https://graphql.anilist.co/",
         IsDefault: true,
         Priority: 1);
 
-    private readonly string mediaType = serviceKey?.Contains("manga", StringComparison.OrdinalIgnoreCase) is true ? "manga" : "anime";
+    private readonly string mediaType = serviceKey?.StartsWith("book", StringComparison.OrdinalIgnoreCase) is true
+        ? "book"
+        : (serviceKey?.Contains("manga", StringComparison.OrdinalIgnoreCase) is true ? "manga" : "anime");
+
     public override async Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string query, CancellationToken ct)
     {
         var client = httpClientFactory.CreateClient(Id);
+        var isBook = mediaType == "book";
+        var graphQlType = isBook || mediaType == "manga" ? "MANGA" : "ANIME";
         var payload = new AniListGraphQlPayload(
             AniListGraphQlQueries.GraphQLSearchQuery,
-            new AniListVariables(mediaType == "anime" ? "ANIME" : "MANGA", Search: query));
+            new AniListVariables(graphQlType, isBook ? "NOVEL" : null, Search: query));
 
         using var response = await client.PostAsJsonAsync(
             "", payload, AppJsonSerializerContext.Default.AniListGraphQlPayload, ct);
@@ -40,6 +45,10 @@ public sealed partial class AniListMetadataProvider(
         var dtoList = new List<ExternalMediaDto>();
         foreach (var item in mediaList)
         {
+            if (isBook && !string.Equals(item.Format, "NOVEL", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
             var dto = MapItem(item);
             dtoList.Add(dto);
         }
@@ -218,7 +227,7 @@ public sealed partial class AniListMetadataProvider(
         ];
     }
 
-    private string GraphQlType => mediaType == "manga" ? "MANGA" : "ANIME";
+    private string GraphQlType => mediaType == "anime" ? "ANIME" : "MANGA";
 
     private static bool HasTitle(AniListMedia node) =>
         !string.IsNullOrWhiteSpace(node.Title?.English ?? node.Title?.Romaji ?? node.Title?.Native);
@@ -268,6 +277,11 @@ public sealed partial class AniListMetadataProvider(
 
     private static string ResolveItemType(AniListMedia item, string fallbackType)
     {
+        if (fallbackType == "book")
+        {
+            return "book";
+        }
+
         if (string.Equals(item.Type, "MANGA", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(item.Format, "MANGA", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(item.Format, "NOVEL", StringComparison.OrdinalIgnoreCase) ||
@@ -354,7 +368,7 @@ public sealed partial class AniListMetadataProvider(
             RuntimeMinutes = item.Duration,
             Type = itemType,
             Format = item.Format,
-            Author = itemType == "manga"
+            Author = itemType == "manga" || itemType == "book"
                 ? (item.Staff?.Edges?.FirstOrDefault(e => e.Role?.Contains("Story", StringComparison.OrdinalIgnoreCase) is true || e.Role?.Contains("Art", StringComparison.OrdinalIgnoreCase) is true)?.Node?.Name?.Full
                    ?? item.Staff?.Edges?.FirstOrDefault()?.Node?.Name?.Full)
                 : null,
@@ -362,12 +376,15 @@ public sealed partial class AniListMetadataProvider(
             TotalCount = itemType == "anime" ? item.Episodes : (item.Chapters ?? item.Volumes),
             Chapters = item.Chapters,
             Volumes = item.Volumes,
-            MangaFormat = itemType == "manga" ? MangaFormats.FromCountryOfOrigin(item.CountryOfOrigin) : null,
+            MangaFormat = itemType == "book"
+                ? "light_novel"
+                : (itemType == "manga" ? MangaFormats.FromCountryOfOrigin(item.CountryOfOrigin) : null),
             Staff = MapStaff(item.Staff),
             Rating = primaryRating,
             Ratings = ratings,
             Cast = MapCast(item.Characters, itemType),
             Genres = item.Genres is { Count: > 0 } genres ? [.. genres.Where(g => !string.IsNullOrWhiteSpace(g))] : null,
+            Synonyms = item.Synonyms is { Count: > 0 } syns ? [.. syns.Where(s => !string.IsNullOrWhiteSpace(s))] : null,
             Episodes = episodes
         };
     }

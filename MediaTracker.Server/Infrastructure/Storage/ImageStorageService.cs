@@ -41,7 +41,8 @@ public sealed class ImageStorageService(
         var sw = Stopwatch.StartNew();
         try
         {
-            using var response = await httpClient.GetAsync(externalUrl, HttpCompletionOption.ResponseHeadersRead, ct);
+            using var request = CreateImageRequest(externalUrl);
+            using var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
             response.EnsureSuccessStatusCode();
 
             if (IsOversized(response))
@@ -108,6 +109,22 @@ public sealed class ImageStorageService(
     private static bool IsSafeCoverId(string coverId) =>
         coverId.Length > 0 && coverId.Length <= 40 && coverId.All(char.IsAsciiLetterOrDigit);
 
+    private static HttpRequestMessage CreateImageRequest(string url)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, url);
+        if (Uri.TryCreate(url, UriKind.Absolute, out var uri))
+        {
+            var host = uri.Host;
+            if (host.EndsWith("imglib.info", StringComparison.OrdinalIgnoreCase)
+                || host.EndsWith("mangalib.me", StringComparison.OrdinalIgnoreCase))
+            {
+                request.Headers.TryAddWithoutValidation("Referer", "https://mangalib.me/");
+                request.Headers.TryAddWithoutValidation("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36");
+            }
+        }
+        return request;
+    }
+
     public async Task<MediaCoverItemDto?> SaveCoverVariantAsync(
         string externalUrl,
         Guid itemId,
@@ -122,7 +139,8 @@ public sealed class ImageStorageService(
         var sw = Stopwatch.StartNew();
         try
         {
-            using var response = await httpClient.GetAsync(externalUrl, HttpCompletionOption.ResponseHeadersRead, ct);
+            using var request = CreateImageRequest(externalUrl);
+            using var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
             response.EnsureSuccessStatusCode();
 
             if (IsOversized(response))

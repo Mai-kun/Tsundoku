@@ -149,4 +149,6 @@ public sealed record ExternalMediaDto
     public IReadOnlyList<string>? Genres { get; init; }
 
     public IReadOnlyList<string>? Tags { get; init; }
+
+    public IReadOnlyList<string>? Synonyms { get; init; }
 }

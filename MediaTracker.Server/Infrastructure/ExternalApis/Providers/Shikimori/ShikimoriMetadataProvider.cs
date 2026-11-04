@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.DependencyInjection;
 using MediaTracker.Server.Common.Json;
+using MediaTracker.Server.Features.Media.Import;
 
 namespace MediaTracker.Server.Infrastructure.ExternalApis;
 
@@ -13,19 +14,29 @@ public sealed class ShikimoriMetadataProvider(
         Id: "shikimori",
         Name: "Shikimori",
         Description: "Anime & manga metadata and community ratings provider",
-        MediaTypes: ["anime", "manga"],
+        MediaTypes: ["anime", "manga", "book"],
         BaseAddress: "https://shikimori.io/api/",
         Priority: 2,
         UserAgent: "MediaTracker/1.0 (Tsundoku)");
 
-    private readonly string _mediaType = serviceKey?.StartsWith("manga", StringComparison.OrdinalIgnoreCase) is true ? "manga" : "anime";
+    private readonly string _mediaType =
+        serviceKey?.Contains("book", StringComparison.OrdinalIgnoreCase) is true ||
+        serviceKey?.Contains("novel", StringComparison.OrdinalIgnoreCase) is true ||
+        serviceKey?.Contains("ranobe", StringComparison.OrdinalIgnoreCase) is true
+            ? "book"
+            : (serviceKey?.Contains("manga", StringComparison.OrdinalIgnoreCase) is true ? "manga" : "anime");
 
     public override async Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string query, CancellationToken ct)
     {
+        var cleaned = MediaTitleHelper.StripGarbageSuffixes(query);
+        var effectiveQuery = !string.IsNullOrWhiteSpace(cleaned) ? cleaned : query;
         var client = httpClientFactory.CreateClient(Id);
-        var endpoint = _mediaType == "manga"
-            ? $"mangas?search={Uri.EscapeDataString(query)}&limit=10"
-            : $"animes?search={Uri.EscapeDataString(query)}&limit=10";
+        var endpoint = _mediaType switch
+        {
+            "book" => $"mangas?kind=light_novel&search={Uri.EscapeDataString(effectiveQuery)}&limit=10",
+            "manga" => $"mangas?search={Uri.EscapeDataString(effectiveQuery)}&limit=10",
+            _ => $"animes?search={Uri.EscapeDataString(effectiveQuery)}&limit=10"
+        };
 
         try
         {
@@ -46,7 +57,7 @@ public sealed class ShikimoriMetadataProvider(
     public override async Task<ExternalMediaDto?> GetDetailsAsync(string externalId, string title, CancellationToken ct)
     {
         var client = httpClientFactory.CreateClient(Id);
-        var endpoint = _mediaType == "manga" ? $"mangas/{externalId}" : $"animes/{externalId}";
+        var endpoint = (_mediaType == "manga" || _mediaType == "book") ? $"mangas/{externalId}" : $"animes/{externalId}";
 
         try
         {
@@ -95,6 +106,13 @@ public sealed class ShikimoriMetadataProvider(
             releaseYear = airedDate.Year;
         }
 
+        var author = item.Authors?.FirstOrDefault(a => !string.IsNullOrWhiteSpace(a.Russian) || !string.IsNullOrWhiteSpace(a.Name));
+        var authorName = author is not null ? (!string.IsNullOrWhiteSpace(author.Russian) ? author.Russian : author.Name) : null;
+        var isNovel = type == "book" || string.Equals(item.Kind, "light_novel", StringComparison.OrdinalIgnoreCase) || string.Equals(item.Kind, "novel", StringComparison.OrdinalIgnoreCase);
+
+        var resolvedType = (type == "book" || isNovel) ? "book" : (type == "anime" ? "anime" : "manga");
+        var mangaFormat = resolvedType == "book" ? "light_novel" : (resolvedType == "manga" ? "manga" : null);
+
         return new ExternalMediaDto
         {
             ExternalId = item.Id.ToString(CultureInfo.InvariantCulture),
@@ -104,16 +122,19 @@ public sealed class ShikimoriMetadataProvider(
             RomajiTitle = item.Name,
             CoverUrl = cover,
             Description = item.Description,
+            Author = authorName,
             ReleaseYear = releaseYear,
             ReleaseDate = item.AiredOn,
             EndDate = item.ReleasedOn,
             ReleaseStatus = item.Status?.ToUpperInvariant(),
-            Type = type,
-            TotalCount = type == "anime" ? item.Episodes : (item.Chapters is > 0 ? item.Chapters : item.Volumes),
+            Type = resolvedType,
+            MangaFormat = mangaFormat,
+            TotalCount = resolvedType == "anime" ? item.Episodes : (item.Chapters is > 0 ? item.Chapters : item.Volumes),
             Chapters = item.Chapters,
             Volumes = item.Volumes,
             Rating = score,
             Ratings = ratings,
+            Synonyms = item.Synonyms is { Count: > 0 } syns ? [.. syns.Where(s => !string.IsNullOrWhiteSpace(s))] : null,
             Genres = item.Genres is { Count: > 0 }
                 ? item.Genres
                     .Select(g => !string.IsNullOrWhiteSpace(g.Russian) ? g.Russian : g.Name)

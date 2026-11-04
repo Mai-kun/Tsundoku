@@ -209,6 +209,8 @@ public sealed partial class ExternalHttpLoggingHandler(
     {
         if (rateLimitTracker is null) return;
 
+        var is429 = (int)response.StatusCode == 429;
+
         var remainingHeader = GetHeader(response, "X-RateLimit-Remaining")
             ?? GetHeader(response, "RateLimit-Remaining")
             ?? GetHeader(response, "X-Rate-Limit-Remaining");
@@ -222,7 +224,7 @@ public sealed partial class ExternalHttpLoggingHandler(
             ?? GetHeader(response, "X-Rate-Limit-Reset")
             ?? GetHeader(response, "Retry-After");
 
-        if (remainingHeader is null && limitHeader is null && resetHeader is null)
+        if (!is429 && remainingHeader is null && limitHeader is null && resetHeader is null)
         {
             return;
         }
@@ -238,6 +240,12 @@ public sealed partial class ExternalHttpLoggingHandler(
         }
 
         var resetSeconds = ParseResetHeader(resetHeader);
+        if (is429)
+        {
+            remaining = 0;
+            if (resetSeconds <= 0) resetSeconds = 60;
+        }
+
         var (providerKey, providerName) = ResolveProvider(request.RequestUri);
         rateLimitTracker.Update(providerKey, providerName, remaining, limit, resetSeconds);
     }

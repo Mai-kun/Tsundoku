@@ -14,6 +14,20 @@ namespace MediaTracker.Server.Features.Media.Import.Parsers;
 /// </summary>
 public static class MangalibParser
 {
+    private static readonly HashSet<string> StandardFolderTitles = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Читаю",
+        "В планах",
+        "Брошено",
+        "Прочитано",
+        "Любимые",
+        "Жду",
+        "Удалено",
+        "Смотрю",
+        "Запланировано",
+        "Пересматриваю",
+        "Отложено"
+    };
     public static IReadOnlyList<ParsedMediaItemDto> Parse(string content, int? defaultSiteId = null, int? defaultStatusId = null)
     {
         var trimmed = content.TrimStart();
@@ -70,6 +84,17 @@ public static class MangalibParser
         if (elem.ValueKind != JsonValueKind.Object) return null;
 
         var hasMedia = elem.TryGetProperty("media", out var media) && media.ValueKind == JsonValueKind.Object;
+        var hasTitleFields = elem.TryGetProperty("slug_url", out _)
+            || elem.TryGetProperty("chap_count", out _)
+            || elem.TryGetProperty("rus_name", out _)
+            || elem.TryGetProperty("eng_name", out _)
+            || elem.TryGetProperty("site_id", out _)
+            || elem.TryGetProperty("target_id", out _)
+            || elem.TryGetProperty("target_title_ru", out _);
+
+        if (!hasMedia && !hasTitleFields)
+            return null;
+
         var hasProgress = (elem.TryGetProperty("item", out var progress) && progress.ValueKind == JsonValueKind.Object)
                        || (elem.TryGetProperty("progress", out progress) && progress.ValueKind == JsonValueKind.Object);
 
@@ -91,6 +116,8 @@ public static class MangalibParser
             ?? (hasMedia ? GetJsonString(media, "name", "eng_name", "title") : null);
 
         var title = !string.IsNullOrWhiteSpace(rusName) ? rusName : altName ?? "";
+        if (string.IsNullOrWhiteSpace(title) || StandardFolderTitles.Contains(title.Trim()))
+            return null;
         var romaji = GetJsonString(elem, "eng_name", "target_title", "romaji", "romaji_name")
             ?? (hasMedia ? GetJsonString(media, "eng_name", "romaji") : null);
 
@@ -215,10 +242,11 @@ public static class MangalibParser
     private static IReadOnlyList<ParsedMediaItemDto> ParseCsv(string csv, int? defaultSiteId) =>
         CsvHelperMini.ReadRecords(csv)
             .Select(row => MapCsvRow(row, defaultSiteId))
-            .Where(item => !string.IsNullOrWhiteSpace(item.Title))
+            .Where(item => item is not null && !string.IsNullOrWhiteSpace(item.Title) && !StandardFolderTitles.Contains(item.Title.Trim()))
+            .Select(item => item!)
             .ToArray();
 
-    private static ParsedMediaItemDto MapCsvRow(Dictionary<string, string> row, int? defaultSiteId)
+    private static ParsedMediaItemDto? MapCsvRow(Dictionary<string, string> row, int? defaultSiteId)
     {
         var siteId = Number(row, "site_id", "site") ?? defaultSiteId;
         var rawType = Get(row, "type", "model");
@@ -227,6 +255,9 @@ public static class MangalibParser
         var rusName = Get(row, "rus_name", "target_title_ru");
         var altName = Get(row, "name", "eng_name", "title", "target_title");
         var title = !string.IsNullOrWhiteSpace(rusName) ? rusName : altName;
+
+        if (string.IsNullOrWhiteSpace(title) || StandardFolderTitles.Contains(title.Trim()))
+            return null;
 
         var folderName = NullIfEmpty(Get(row, "folder_name"));
         var statusName = folderName ?? NullIfEmpty(Get(row, "status_name")) ?? NullIfEmpty(Get(row, "status"));

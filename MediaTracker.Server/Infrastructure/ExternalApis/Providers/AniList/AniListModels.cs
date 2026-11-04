@@ -71,7 +71,8 @@ internal sealed record AniListMedia(
     AniListStudios? Studios,
     AniListStaff? Staff,
     AniListCharacters? Characters,
-    List<string>? Genres);
+    List<string>? Genres,
+    List<string>? Synonyms = null);
 
 internal sealed record AniListStreamingEpisode(string? Title);
 internal sealed record AniListTrailer(string? Id, string? Site);
@@ -103,6 +104,7 @@ internal sealed record AniListGraphQlPayload(string Query, AniListVariables Vari
 /// </summary>
 internal sealed record AniListVariables(
     [property: JsonPropertyName("type")] string? Type = null,
+    [property: JsonPropertyName("format")] string? Format = null,
     [property: JsonPropertyName("search")] string? Search = null,
     [property: JsonPropertyName("id")] int? Id = null,
     [property: JsonPropertyName("idMal")] int? IdMal = null);

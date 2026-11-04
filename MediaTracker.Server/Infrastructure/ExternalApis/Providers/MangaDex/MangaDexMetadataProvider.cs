@@ -3,12 +3,14 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using MediaTracker.Server.Domain.Rules;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using MediaTracker.Server.Common.Json;
 
 namespace MediaTracker.Server.Infrastructure.ExternalApis;
 
 public sealed class MangaDexMetadataProvider(
-    IHttpClientFactory httpClientFactory) : MetadataProviderBase(Source)
+    IHttpClientFactory httpClientFactory,
+    ILogger<MangaDexMetadataProvider>? logger = null) : MetadataProviderBase(Source)
 {
     public static MetadataSourceDescriptor Source { get; } = new(
         Id: "mangadex",
@@ -41,6 +43,21 @@ public sealed class MangaDexMetadataProvider(
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
             throw;
+        }
+        catch (JsonException ex)
+        {
+            logger?.LogWarning(ex, "[MangaDex] Failed to parse search response for '{Query}', likely HTML/Cloudflare error: {Message}", query, ex.Message);
+            return [];
+        }
+        catch (HttpRequestException ex)
+        {
+            logger?.LogWarning(ex, "[MangaDex] HTTP request failed for '{Query}': {Message}", query, ex.Message);
+            return [];
+        }
+        catch (Exception ex)
+        {
+            logger?.LogWarning(ex, "[MangaDex] Search failed for '{Query}': {Message}", query, ex.Message);
+            return [];
         }
     }
 
@@ -80,6 +97,11 @@ public sealed class MangaDexMetadataProvider(
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
             throw;
+        }
+        catch (Exception ex)
+        {
+            logger?.LogWarning(ex, "[MangaDex] Failed to get details for '{ExternalId}': {Message}", externalId, ex.Message);
+            return null;
         }
     }
 

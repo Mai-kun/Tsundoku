@@ -1,5 +1,6 @@
 using System.Text;
 using MediaTracker.Server.Domain.Entities;
+using MediaTracker.Server.Domain.Rules;
 using MediaTracker.Server.Infrastructure.ExternalApis;
 
 namespace MediaTracker.Server.Features.Media.Import;
@@ -33,7 +34,7 @@ public sealed record MatchVerdict(
 /// <summary>
 /// One found candidate plus the score it earned against the library row. Ranked by the scorer.
 /// </summary>
-public sealed record ScoredCandidate(ExternalMediaDto Candidate, int Score);
+public sealed record ScoredCandidate(ExternalMediaDto Candidate, int Score, bool HasContradiction = false);
 
 /// <summary>
 /// Confidence scoring for library-match candidates. A title imported from a private list (MangaLib,
@@ -67,18 +68,20 @@ public static class ImportMatchScorer
 
     private const int TiedGap = 15;
 
-    public static int ScoreCandidate(MediaItem item, ExternalMediaDto candidate)
-    {
-        int best = 0;
+    public static int ScoreCandidate(MediaItem item, ExternalMediaDto candidate) =>
+        ScoreCandidate(item, candidate, out _);
 
-        ReadOnlySpan<string?> candTitles = [candidate.Title, candidate.RomajiTitle, candidate.OriginalTitle];
+    public static int ScoreCandidate(MediaItem item, ExternalMediaDto candidate, out bool hasContradiction)
+    {
+        hasContradiction = false;
+        int best = 0;
 
         // Every stored name against every source name, so a romaji row can match an English hit and
         // vice versa; the title heuristics take the single best pair rather than stacking.
         foreach (var itemName in ItemTitles(item))
         {
             if (string.IsNullOrWhiteSpace(itemName)) continue;
-            foreach (var candName in candTitles)
+            foreach (var candName in CandidateTitles(candidate))
             {
                 if (string.IsNullOrWhiteSpace(candName)) continue;
                 var score = TitlePairScore(itemName, candName);
@@ -89,6 +92,12 @@ public static class ImportMatchScorer
             }
         }
 
+        // Direct search result base score >= 40% (eliminates false 0% for API matches with shared query tokens)
+        if (best == 0 && HasDirectQueryMatch(item, candidate))
+        {
+            best = SimilarTitleBonus;
+        }
+
         if (best == 0)
         {
             return 0;
@@ -96,21 +105,93 @@ public static class ImportMatchScorer
 
         var total = best;
 
+        // 1. Release Year
         if (item.ReleaseYear is > 0 && candidate.ReleaseYear is > 0)
         {
             var diff = Math.Abs(item.ReleaseYear.Value - candidate.ReleaseYear.Value);
-            if (diff <= 1) total += SameYearBonus;
-            else if (diff > 2) total -= DivergentYearPenalty;
+            if (diff <= 1)
+            {
+                total += SameYearBonus;
+            }
+            else if (diff > 2)
+            {
+                total -= DivergentYearPenalty;
+                hasContradiction = true;
+            }
+        }
+        else if (best >= ExactTitleBonus)
+        {
+            total += SameYearBonus;
         }
 
-        if (AuthorMatches(item, candidate))
+        // 2. Author / Studio
+        var itemAuthor = NormalizeTitle(ItemAuthor(item));
+        var candAuthor = NormalizeTitle(candidate.Author);
+        var candStudio = NormalizeTitle(candidate.Studio);
+        var candAuthorKnown = candAuthor is not null || candStudio is not null;
+
+        if (itemAuthor is not null && candAuthorKnown)
+        {
+            var authorMatches = (candAuthor is not null && itemAuthor == candAuthor)
+                             || (candStudio is not null && itemAuthor == candStudio);
+            if (authorMatches)
+            {
+                total += AuthorBonus;
+            }
+            else
+            {
+                total -= 40;
+                hasContradiction = true;
+            }
+        }
+        else if (best >= ExactTitleBonus)
         {
             total += AuthorBonus;
         }
 
-        if (CountsAreClose(ItemCount(item), CandidateCount(candidate)))
+        // 3. Chapter / Page / Episode Counts
+        var itemCount = ItemCount(item);
+        var candCount = CandidateCount(candidate);
+        if (itemCount is > 0 && candCount is > 0)
+        {
+            var minCount = Math.Min(itemCount.Value, candCount.Value);
+            var maxCount = Math.Max(itemCount.Value, candCount.Value);
+            var ratio = minCount / (double)maxCount;
+            if (ratio >= 0.8)
+            {
+                total += LengthBonus;
+            }
+            else if (ratio < 0.6)
+            {
+                total -= 30;
+                hasContradiction = true;
+            }
+        }
+        else if (best >= ExactTitleBonus)
         {
             total += LengthBonus;
+        }
+
+        // 4. Format / Country Mismatch (manhwa vs manga / KR vs JP)
+        var itemFormat = ResolveItemMangaFormat(item);
+        var candFormat = ResolveCandidateMangaFormat(candidate);
+        var formatMismatch = (itemFormat is "manhwa" && candFormat is "manga")
+                          || (itemFormat is "manga" && candFormat is "manhwa");
+
+        if (!formatMismatch && !string.IsNullOrWhiteSpace(item.CountryOfOrigin) && !string.IsNullOrWhiteSpace(candidate.CountryOfOrigin))
+        {
+            var itemCountry = item.CountryOfOrigin.Trim().ToUpperInvariant();
+            var candCountry = candidate.CountryOfOrigin.Trim().ToUpperInvariant();
+            if ((itemCountry == "KR" && candCountry == "JP") || (itemCountry == "JP" && candCountry == "KR"))
+            {
+                formatMismatch = true;
+            }
+        }
+
+        if (formatMismatch)
+        {
+            total -= 20;
+            hasContradiction = true;
         }
 
         return Math.Clamp(total, 0, 100);
@@ -137,20 +218,23 @@ public static class ImportMatchScorer
         var topSource = sourcePriorities is { Count: > 0 } ? sourcePriorities[0] : null;
 
         var scored = candidates
-            .Select(candidate => new ScoredCandidate(candidate, ScoreCandidate(item, candidate)))
+            .Select(candidate =>
+            {
+                var score = ScoreCandidate(item, candidate, out var hasContradiction);
+                return new ScoredCandidate(candidate, score, hasContradiction);
+            })
             .ToList();
 
         // Победа приоритетного источника при автовыборе: кандидат из первого источника в
         // настройках (например, AniList) с надёжным баллом (>= 60) автоматически побеждает любого
-        // кандидата из более низких источников (например, Shikimori), даже если у того числовой
-        // балл формально выше.
+        // кандидата из более низких источников (например, Shikimori), если удовлетворяет защитному барьеру.
         if (topSource is not null)
         {
             var primary = scored
                 .Where(scored => string.Equals(scored.Candidate.ExternalSource, topSource, StringComparison.OrdinalIgnoreCase))
                 .OrderByDescending(scored => scored.Score)
                 .FirstOrDefault();
-            if (primary is not null && primary.Score >= ConfidentAloneScore)
+            if (primary is not null && primary.Score >= ConfidentAloneScore && CanAutoMatch(item, primary) && !HasHomonymConflict(primary, scored))
             {
                 return MatchVerdict.Confident(primary.Candidate);
             }
@@ -179,14 +263,18 @@ public static class ImportMatchScorer
                 : null;
             if (tieBroken is not null)
             {
-                return MatchVerdict.Confident(tieBroken);
+                var winnerScored = ranked[0].Candidate == tieBroken ? ranked[0] : ranked[1];
+                if (CanAutoMatch(item, winnerScored) && !HasHomonymConflict(winnerScored, scored))
+                {
+                    return MatchVerdict.Confident(tieBroken);
+                }
             }
 
             return MatchVerdict.Ambiguous([.. ranked.Take(12).Select(scored => scored.Candidate)]);
         }
 
         var aloneButStrong = best.Score >= ConfidentAloneScore && best.Score - runnerUp >= NearMissGap;
-        if (best.Score >= ConfidentScore || aloneButStrong)
+        if ((best.Score >= ConfidentScore || aloneButStrong) && CanAutoMatch(item, best) && !HasHomonymConflict(best, scored))
         {
             return MatchVerdict.Confident(best.Candidate);
         }
@@ -335,53 +423,266 @@ public static class ImportMatchScorer
         return list;
     }
 
+    private static bool HasDirectQueryMatch(MediaItem item, ExternalMediaDto candidate)
+    {
+        foreach (var itemName in ItemTitles(item))
+        {
+            if (string.IsNullOrWhiteSpace(itemName)) continue;
+            var itemTokens = Tokens(itemName);
+            if (itemTokens.Count == 0) continue;
+
+            foreach (var candName in CandidateTitles(candidate))
+            {
+                if (string.IsNullOrWhiteSpace(candName)) continue;
+                var candTokens = Tokens(candName);
+                if (candTokens.Count == 0) continue;
+
+                var sharedCount = itemTokens.Count(t => t.Length >= 3 && candTokens.Contains(t));
+                if (sharedCount > 0 && (sharedCount / (double)Math.Min(itemTokens.Count, candTokens.Count)) >= 0.3)
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
     private static IEnumerable<string?> ItemTitles(MediaItem item)
     {
-        yield return item.Title;
-        yield return item switch
+        var rawTitle = item.Title;
+        var strippedTitle = MediaTitleHelper.StripGarbageSuffixes(rawTitle);
+
+        yield return strippedTitle;
+        if (!string.Equals(strippedTitle, rawTitle, StringComparison.Ordinal))
+        {
+            yield return rawTitle;
+        }
+
+        var romaji = item switch
         {
             Manga manga => manga.RomajiTitle,
             Movie movie => movie.RomajiTitle,
             TvShow show => show.RomajiTitle,
             _ => null,
         };
-        yield return item.OriginalTitle;
-
-        var extractedLatin = MediaTitleHelper.ExtractLatinFromTitle(item.Title);
-        if (!string.IsNullOrWhiteSpace(extractedLatin))
+        if (!string.IsNullOrWhiteSpace(romaji))
         {
-            yield return extractedLatin;
+            yield return MediaTitleHelper.StripGarbageSuffixes(romaji);
         }
 
-        var cleanedRussian = MediaTitleHelper.CleanRussianTitle(item.Title);
-        if (!string.IsNullOrWhiteSpace(cleanedRussian) && cleanedRussian != item.Title)
+        if (!string.IsNullOrWhiteSpace(item.OriginalTitle))
+        {
+            yield return MediaTitleHelper.StripGarbageSuffixes(item.OriginalTitle);
+        }
+
+        if (!string.IsNullOrWhiteSpace(item.AltTitles))
+        {
+            foreach (var alt in MediaMetadataApplier.DeserializeAltTitles(item.AltTitles))
+            {
+                if (!string.IsNullOrWhiteSpace(alt))
+                {
+                    yield return MediaTitleHelper.StripGarbageSuffixes(alt);
+                }
+            }
+        }
+
+        var extractedLatin = MediaTitleHelper.ExtractLatinFromTitle(strippedTitle)
+            ?? MediaTitleHelper.ExtractLatinFromTitle(rawTitle);
+        if (!string.IsNullOrWhiteSpace(extractedLatin))
+        {
+            yield return MediaTitleHelper.StripGarbageSuffixes(extractedLatin);
+        }
+
+        var cleanedRussian = MediaTitleHelper.CleanRussianTitle(strippedTitle);
+        if (!string.IsNullOrWhiteSpace(cleanedRussian) && cleanedRussian != strippedTitle)
         {
             yield return cleanedRussian;
         }
     }
 
-    private static IEnumerable<string?> CandidateTitles(ExternalMediaDto candidate) =>
-        [candidate.Title, candidate.RomajiTitle, candidate.OriginalTitle];
+    private static IEnumerable<string?> CandidateTitles(ExternalMediaDto candidate)
+    {
+        yield return MediaTitleHelper.StripGarbageSuffixes(candidate.Title);
+        yield return MediaTitleHelper.StripGarbageSuffixes(candidate.RomajiTitle);
+        yield return MediaTitleHelper.StripGarbageSuffixes(candidate.OriginalTitle);
+        if (candidate.Synonyms is { Count: > 0 } synonyms)
+        {
+            foreach (var syn in synonyms)
+            {
+                if (!string.IsNullOrWhiteSpace(syn))
+                {
+                    yield return MediaTitleHelper.StripGarbageSuffixes(syn);
+                }
+            }
+        }
+    }
+
+    private static string? ItemAuthor(MediaItem item) => item switch
+    {
+        Manga manga => manga.Author,
+        Book book => book.Author,
+        VideoGame game => game.Studio,
+        Movie movie => movie.Studio,
+        TvShow show => show.Studio,
+        _ => null,
+    };
 
     /// <summary>One human picks an adaptation by its author as often as by its name.</summary>
     private static bool AuthorMatches(MediaItem item, ExternalMediaDto candidate)
     {
-        var itemAuthor = item switch
-        {
-            Manga manga => manga.Author,
-            Book book => book.Author,
-            VideoGame game => game.Studio,
-            Movie movie => movie.Studio,
-            TvShow show => show.Studio,
-            _ => null,
-        };
-        if (string.IsNullOrWhiteSpace(itemAuthor) || string.IsNullOrWhiteSpace(candidate.Studio) && string.IsNullOrWhiteSpace(candidate.Author))
+        var itemAuthor = NormalizeTitle(ItemAuthor(item));
+        if (itemAuthor is null)
         {
             return false;
         }
 
-        var candAuthor = NormalizeTitle(candidate.Author) ?? NormalizeTitle(candidate.Studio);
-        return candAuthor is not null && NormalizeTitle(itemAuthor) == candAuthor;
+        var candAuthor = NormalizeTitle(candidate.Author);
+        if (candAuthor is not null && candAuthor == itemAuthor)
+        {
+            return true;
+        }
+
+        var candStudio = NormalizeTitle(candidate.Studio);
+        if (candStudio is not null && candStudio == itemAuthor)
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool HasSolidConfirmation(MediaItem item, ExternalMediaDto candidate)
+    {
+        if (AuthorMatches(item, candidate))
+        {
+            return true;
+        }
+
+        if (item.ReleaseYear is > 0 && candidate.ReleaseYear is > 0)
+        {
+            var yearDiff = Math.Abs(item.ReleaseYear.Value - candidate.ReleaseYear.Value);
+            if (yearDiff <= 1)
+            {
+                return true;
+            }
+        }
+
+        if (CountsAreClose(ItemCount(item), CandidateCount(candidate)))
+        {
+            return true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(item.ExternalId) &&
+            !string.IsNullOrWhiteSpace(candidate.ExternalId) &&
+            string.Equals(item.ExternalId.Trim(), candidate.ExternalId.Trim(), StringComparison.OrdinalIgnoreCase))
+        {
+            if (string.IsNullOrWhiteSpace(item.ExternalSource) ||
+                string.IsNullOrWhiteSpace(candidate.ExternalSource) ||
+                string.Equals(item.ExternalSource.Trim(), candidate.ExternalSource.Trim(), StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool CanAutoMatch(MediaItem item, ScoredCandidate scored) =>
+        !scored.HasContradiction && HasSolidConfirmation(item, scored.Candidate);
+
+    private static bool HasHomonymConflict(ScoredCandidate target, IReadOnlyList<ScoredCandidate> allScored)
+    {
+        var targetNorm = NormalizeTitle(target.Candidate.Title) ?? NormalizeTitle(target.Candidate.RomajiTitle);
+        if (targetNorm is null)
+        {
+            return false;
+        }
+
+        foreach (var other in allScored)
+        {
+            if (ReferenceEquals(target, other)) continue;
+            if (other.Score < ReviewScore) continue;
+
+            var otherNorm = NormalizeTitle(other.Candidate.Title) ?? NormalizeTitle(other.Candidate.RomajiTitle);
+            if (otherNorm is null || targetNorm != otherNorm) continue;
+
+            if (!AreMirroredCopies(target.Candidate, other.Candidate))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool AreMirroredCopies(ExternalMediaDto a, ExternalMediaDto b)
+    {
+        if (string.IsNullOrWhiteSpace(a.ExternalSource) ||
+            string.IsNullOrWhiteSpace(b.ExternalSource) ||
+            string.Equals(a.ExternalSource, b.ExternalSource, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var authorA = NormalizeTitle(a.Author) ?? NormalizeTitle(a.Studio);
+        var authorB = NormalizeTitle(b.Author) ?? NormalizeTitle(b.Studio);
+        if (authorA is not null && authorB is not null && authorA != authorB)
+        {
+            return false;
+        }
+
+        if (a.ReleaseYear is > 0 && b.ReleaseYear is > 0 && Math.Abs(a.ReleaseYear.Value - b.ReleaseYear.Value) > 1)
+        {
+            return false;
+        }
+
+        var formatA = ResolveCandidateMangaFormat(a);
+        var formatB = ResolveCandidateMangaFormat(b);
+        if ((formatA is "manhwa" && formatB is "manga") || (formatA is "manga" && formatB is "manhwa"))
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    private static string? ResolveItemMangaFormat(MediaItem item)
+    {
+        if (item is Manga manga && !string.IsNullOrWhiteSpace(manga.Format))
+        {
+            var f = manga.Format.Trim().ToLowerInvariant();
+            if (f is "manhwa" or "manga" or "manhua" or "oel") return f;
+        }
+
+        if (!string.IsNullOrWhiteSpace(item.CountryOfOrigin))
+        {
+            return MangaFormats.FromCountryOfOrigin(item.CountryOfOrigin);
+        }
+
+        return null;
+    }
+
+    private static string? ResolveCandidateMangaFormat(ExternalMediaDto candidate)
+    {
+        if (!string.IsNullOrWhiteSpace(candidate.MangaFormat))
+        {
+            var mf = candidate.MangaFormat.Trim().ToLowerInvariant();
+            if (mf is "manhwa" or "manga" or "manhua" or "oel") return mf;
+        }
+
+        if (!string.IsNullOrWhiteSpace(candidate.Format))
+        {
+            var f = candidate.Format.Trim().ToLowerInvariant();
+            if (f is "manhwa" or "manga" or "manhua" or "oel") return f;
+        }
+
+        if (!string.IsNullOrWhiteSpace(candidate.CountryOfOrigin))
+        {
+            return MangaFormats.FromCountryOfOrigin(candidate.CountryOfOrigin);
+        }
+
+        return null;
     }
 
     /// <summary>Chapters, pages or episodes; only titles of the same length get the bonus.</summary>

@@ -1,4 +1,5 @@
 using MediaTracker.Server.Domain.Common;
+using MediaTracker.Server.Features.Media.Import;
 using MediaTracker.Server.Infrastructure.ExternalApis;
 
 namespace MediaTracker.Server.Features.External.SearchExternal;
@@ -30,6 +31,17 @@ public sealed class SearchExternalHandler(MetadataAggregatorService aggregator) 
     {
         var normalizedType = SearchTypes.Normalize(query.Type);
         var normalizedQuery = query.Query?.Trim() ?? string.Empty;
+
+        if (normalizedType == "book"
+            || string.Equals(query.Source, "ranobelib", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(query.Source, "shikimori", StringComparison.OrdinalIgnoreCase))
+        {
+            var stripped = MediaTitleHelper.StripGarbageSuffixes(normalizedQuery);
+            if (!string.IsNullOrWhiteSpace(stripped))
+            {
+                normalizedQuery = stripped;
+            }
+        }
 
         var errors = new Dictionary<string, string[]>();
 

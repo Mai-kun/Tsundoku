@@ -27,6 +27,11 @@ public static class MediaItemFactory
                 Author = request.Author ?? string.Empty,
                 TotalPages = request.TotalPages ?? 0,
                 Title = request.Title,
+                Format = request.Format,
+                CurrentChapter = request.CurrentChapter,
+                TotalChapters = request.TotalChapters,
+                CurrentVolume = request.CurrentVolume,
+                TotalVolumes = request.TotalVolumes,
             },
             "manga" => CreateManga(request),
             "movie" => new Movie
@@ -100,6 +105,17 @@ public static class MediaItemFactory
         if (item is Manga manga && request.CurrentVolume is { } currentVolume)
         {
             manga.CurrentVolume = currentVolume;
+        }
+        if (item is Book book)
+        {
+            if (request.CurrentChapter is { } currentChapter)
+            {
+                book.CurrentChapter = currentChapter;
+            }
+            if (request.CurrentVolume is { } currentVol)
+            {
+                book.CurrentVolume = currentVol;
+            }
         }
         item.Score = request.Score;
         item.CoverUrl = request.CoverUrl;

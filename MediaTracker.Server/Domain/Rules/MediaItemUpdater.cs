@@ -118,6 +118,11 @@ public static class MediaItemUpdater
                 book.Author = request.Author ?? book.Author;
                 book.TotalPages = request.TotalPages ?? book.TotalPages;
                 book.CurrentPage = request.CurrentPage ?? book.CurrentPage;
+                book.Format = request.Format ?? book.Format;
+                book.CurrentChapter = request.CurrentChapter ?? book.CurrentChapter;
+                book.TotalChapters = request.TotalChapters ?? book.TotalChapters;
+                book.CurrentVolume = request.CurrentVolume ?? book.CurrentVolume;
+                book.TotalVolumes = request.TotalVolumes ?? book.TotalVolumes;
                 break;
             case Manga manga:
                 manga.Author = request.Author ?? manga.Author;

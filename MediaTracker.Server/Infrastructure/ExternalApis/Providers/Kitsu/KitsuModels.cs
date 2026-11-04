@@ -20,6 +20,9 @@ internal sealed record KitsuAttributes(
     [property: JsonPropertyName("posterImage")] KitsuPosterImage? PosterImage,
     [property: JsonPropertyName("episodeCount")] int? EpisodeCount,
     [property: JsonPropertyName("episodeLength")] int? EpisodeLength,
+    [property: JsonPropertyName("chapterCount")] int? ChapterCount,
+    [property: JsonPropertyName("volumeCount")] int? VolumeCount,
+    [property: JsonPropertyName("subtype")] string? Subtype,
     [property: JsonPropertyName("categories")] JsonElement? Categories,
     [property: JsonPropertyName("genres")] JsonElement? Genres);
 internal sealed record KitsuPosterImage(string? Large, string? Original);

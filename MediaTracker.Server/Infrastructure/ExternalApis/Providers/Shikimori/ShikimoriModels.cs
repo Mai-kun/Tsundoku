@@ -47,6 +47,27 @@ internal sealed class ShikimoriItem
 
     [JsonPropertyName("genres")]
     public List<ShikimoriGenre>? Genres { get; set; }
+
+    [JsonPropertyName("synonyms")]
+    public List<string>? Synonyms { get; set; }
+
+    [JsonPropertyName("kind")]
+    public string? Kind { get; set; }
+
+    [JsonPropertyName("authors")]
+    public List<ShikimoriPerson>? Authors { get; set; }
+}
+
+internal sealed class ShikimoriPerson
+{
+    [JsonPropertyName("id")]
+    public long Id { get; set; }
+
+    [JsonPropertyName("name")]
+    public string? Name { get; set; }
+
+    [JsonPropertyName("russian")]
+    public string? Russian { get; set; }
 }
 
 internal sealed class ShikimoriGenre

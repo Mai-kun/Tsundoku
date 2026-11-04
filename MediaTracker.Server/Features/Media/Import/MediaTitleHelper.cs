@@ -10,6 +10,15 @@ public static partial class MediaTitleHelper
     [GeneratedRegex(@"^([^\(]+)\s*\([^)]*[a-zA-Z][^)]*\)")]
     private static partial Regex CleanCyrillicPrefixRegex();
 
+    [GeneratedRegex(@"\s*[\(\[](?:новелла|манхва|манга|сборник|ранобэ)[\)\]]", RegexOptions.IgnoreCase)]
+    private static partial Regex GarbageSuffixesRegex();
+
+    public static string StripGarbageSuffixes(string? title)
+    {
+        if (string.IsNullOrWhiteSpace(title)) return string.Empty;
+        return GarbageSuffixesRegex().Replace(title, string.Empty).Trim();
+    }
+
     public static bool IsLatin(string? value) =>
         !string.IsNullOrWhiteSpace(value)
         && value.Any(char.IsLetter)

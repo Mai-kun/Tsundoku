@@ -41,15 +41,29 @@ public sealed class UpdateProgressHandler(
         // --- Book ---
         var idStr = command.Id.ToString().ToUpperInvariant();
         var book = await db.Connection.QueryFirstOrDefaultAsync<MediaItemRow>(
-            "SELECT Id, CurrentPage, TotalPages FROM MediaItems WHERE Id = @id AND MediaType = 'Book'",
+            "SELECT Id, CurrentPage, TotalPages, CurrentChapter, TotalChapters, Book_Format FROM MediaItems WHERE Id = @id AND MediaType = 'Book'",
             new { id = idStr });
         if (book is not null)
         {
-            var next = book.TotalPages > 0 && progress > book.TotalPages ? book.TotalPages : progress;
-            await db.Connection.ExecuteAsync(
-                "UPDATE MediaItems SET CurrentPage = @next, LastActivityAt = @now WHERE Id = @id",
-                new { next, now, id = idStr });
-            await RecordProgressAsync(db, command.Id, $"{book.CurrentPage} стр.", $"{next} стр.", ct);
+            var isNovel = string.Equals(book.Book_Format, "light_novel", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(book.Book_Format, "web_novel", StringComparison.OrdinalIgnoreCase);
+
+            if (isNovel)
+            {
+                var next = book.TotalChapters is > 0 && progress > book.TotalChapters.Value ? book.TotalChapters.Value : progress;
+                await db.Connection.ExecuteAsync(
+                    "UPDATE MediaItems SET CurrentChapter = @next, LastActivityAt = @now WHERE Id = @id",
+                    new { next, now, id = idStr });
+                await RecordProgressAsync(db, command.Id, $"{book.CurrentChapter ?? 0} гл.", $"{next} гл.", ct);
+            }
+            else
+            {
+                var next = book.TotalPages > 0 && progress > book.TotalPages ? book.TotalPages : progress;
+                await db.Connection.ExecuteAsync(
+                    "UPDATE MediaItems SET CurrentPage = @next, LastActivityAt = @now WHERE Id = @id",
+                    new { next, now, id = idStr });
+                await RecordProgressAsync(db, command.Id, $"{book.CurrentPage} стр.", $"{next} стр.", ct);
+            }
             // The list projection carries CurrentPage/CurrentChapter/HoursPlayed; a stale cached
             // list would roll the card's optimistic value back on the post-commit refetch.
             MediaListCache.Invalidate();

@@ -14,6 +14,8 @@ public sealed class JobManager : IJobManager
     /// <summary>How long a finished job lingers so the UI can animate it out instead of blinking.</summary>
     private static readonly TimeSpan CompletedRetention = TimeSpan.FromSeconds(5);
 
+    private readonly Channel<QueuedJob> _highPriorityQueue =
+        Channel.CreateUnbounded<QueuedJob>(new UnboundedChannelOptions { SingleReader = true });
     private readonly Channel<QueuedJob> _queue =
         Channel.CreateUnbounded<QueuedJob>(new UnboundedChannelOptions { SingleReader = true });
 
@@ -22,18 +24,21 @@ public sealed class JobManager : IJobManager
     private readonly ConcurrentDictionary<Guid, Channel<JobProgressDto>> _subscribers = new();
 
     public ChannelReader<QueuedJob> Reader => _queue.Reader;
+    public ChannelReader<QueuedJob> HighPriorityReader => _highPriorityQueue.Reader;
 
     public Guid Enqueue(
         Guid? mediaId,
         string title,
-        Func<IServiceProvider, CancellationToken, IProgress<JobProgressDto>, Task> work)
+        Func<IServiceProvider, CancellationToken, IProgress<JobProgressDto>, Task> work,
+        bool highPriority = false)
     {
         var job = new QueuedJob(Guid.NewGuid(), mediaId, title, DateTime.UtcNow, work);
 
         _cancellations[job.JobId] = new CancellationTokenSource();
         Publish(job, 0, "В очереди", JobStatus.Queued, null);
 
-        if (!_queue.Writer.TryWrite(job))
+        var queue = highPriority ? _highPriorityQueue : _queue;
+        if (!queue.Writer.TryWrite(job))
         {
             _jobs.TryRemove(job.JobId, out _);
             _cancellations.TryRemove(job.JobId, out var source);
@@ -123,6 +128,31 @@ public sealed class JobManager : IJobManager
         if (_cancellations.TryRemove(jobId, out var source))
         {
             source.Dispose();
+        }
+    }
+
+    public void ReportProgress(Guid jobId, string title, int percent, string step, JobStatus status, string? error = null)
+    {
+        var update = new JobProgressDto(
+            jobId,
+            null,
+            title,
+            Math.Clamp(percent, 0, 100),
+            step,
+            status,
+            DateTime.UtcNow,
+            error);
+
+        _jobs[jobId] = update;
+
+        if (status is JobStatus.Completed or JobStatus.Failed or JobStatus.Cancelled)
+        {
+            _ = Task.Delay(CompletedRetention).ContinueWith(_ => Forget(jobId), TaskScheduler.Default);
+        }
+
+        foreach (var subscriber in _subscribers.Values)
+        {
+            subscriber.Writer.TryWrite(update);
         }
     }
 

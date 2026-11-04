@@ -32,7 +32,11 @@ public sealed record CreateMediaRequest
 
     public string? Author { get; init; }
 
+    public string? Format { get; init; }
+
     public int? TotalPages { get; init; }
+
+    public int? CurrentChapter { get; init; }
 
     public int? TotalChapters { get; init; }
 

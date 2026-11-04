@@ -1,3 +1,4 @@
+using System.Threading.Channels;
 using MediaTracker.Server.Features.Jobs;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -15,9 +16,16 @@ public sealed class JobWorkerService(
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        var highTask = ProcessQueueAsync(jobs.HighPriorityReader, stoppingToken);
+        var normalTask = ProcessQueueAsync(jobs.Reader, stoppingToken);
+        await Task.WhenAll(highTask, normalTask).ConfigureAwait(false);
+    }
+
+    private async Task ProcessQueueAsync(ChannelReader<QueuedJob> reader, CancellationToken stoppingToken)
+    {
         try
         {
-            await foreach (var job in jobs.Reader.ReadAllAsync(stoppingToken).ConfigureAwait(false))
+            await foreach (var job in reader.ReadAllAsync(stoppingToken).ConfigureAwait(false))
             {
                 await RunAsync(job, stoppingToken).ConfigureAwait(false);
             }

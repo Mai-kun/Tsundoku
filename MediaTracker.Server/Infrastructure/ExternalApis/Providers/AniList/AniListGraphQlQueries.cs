@@ -30,13 +30,14 @@ internal static class AniListGraphQlQueries
         voiceActors(language: JAPANESE, sort: [RELEVANCE, ID]) { name { full } image { large medium } }
       }
     }
+    synonyms
     genres
     """;
 
     internal const string GraphQLSearchQuery = $$"""
-    query Search($search: String, $type: MediaType) {
+    query Search($search: String, $type: MediaType, $format: MediaFormat) {
       Page(perPage: 10) {
-        media(search: $search, type: $type, sort: SEARCH_MATCH) {
+        media(search: $search, type: $type, format: $format, sort: SEARCH_MATCH) {
           {{MediaFields}}
         }
       }

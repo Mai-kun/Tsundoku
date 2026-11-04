@@ -170,6 +170,11 @@ public sealed class MetadataAggregatorService(
             {
                 ExternalApiLog.Failed(logger, source, ex, $"search '{normalizedQuery}'");
                 logger.LogDebug(ex, "[Aggregator] Source search '{Source}' failed for '{Query}': {Message}", source, normalizedQuery, ex.Message);
+                if (ex is HttpRequestException { StatusCode: System.Net.HttpStatusCode.TooManyRequests } or SourceUnavailableException ||
+                    ex.Message.Contains("429"))
+                {
+                    throw new SourceUnavailableException(source, "429 Too Many Requests", ex);
+                }
             }
         }
         else

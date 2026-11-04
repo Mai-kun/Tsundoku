@@ -22,7 +22,8 @@ public interface IJobManager
     Guid Enqueue(
         Guid? mediaId,
         string title,
-        Func<IServiceProvider, CancellationToken, IProgress<JobProgressDto>, Task> work);
+        Func<IServiceProvider, CancellationToken, IProgress<JobProgressDto>, Task> work,
+        bool highPriority = false);
 
     /// <summary>Snapshot of the jobs the UI has to draw right now.</summary>
     IReadOnlyList<JobProgressDto> GetSnapshot();
@@ -36,11 +37,16 @@ public interface IJobManager
     /// <summary>The queue the worker drains. Exposed so the worker stays a separate hosted service.</summary>
     ChannelReader<QueuedJob> Reader { get; }
 
-    /// <summary>
-    /// Token source for one run: it fires when the user cancels the job or when the host stops.
+    /// <summary>High-priority queue reader for manual user tasks that should run immediately.</summary>
+    ChannelReader<QueuedJob> HighPriorityReader => Reader;
+
+    /// <summary>Token source for one run: it fires when the user cancels the job or when the host stops.
     /// Owned by the caller so the worker can dispose it, and linked against the per-job source
     /// created at enqueue time — that is the only way a job cancelled while still queued ever sees
     /// the cancellation.
     /// </summary>
     CancellationTokenSource CreateRunnerToken(Guid jobId, CancellationToken stoppingToken);
+
+    /// <summary>Publishes an ad-hoc or live progress update directly to the SSE stream.</summary>
+    void ReportProgress(Guid jobId, string title, int percent, string step, JobStatus status, string? error = null) { }
 }

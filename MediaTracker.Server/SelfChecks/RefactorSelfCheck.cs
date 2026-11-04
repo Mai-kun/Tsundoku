@@ -933,7 +933,7 @@ public static class RefactorSelfCheck
         );
         AssertEqual(
             failures,
-            "openlibrary",
+            "ranobelib,shikimori,anilist,kitsu,openlibrary",
             string.Join(',', SourcePriorityService.DefaultPriorities["book"]),
             "book cascade order"
         );
@@ -4311,13 +4311,25 @@ public static class RefactorSelfCheck
 
             if (type == typeof(ShikimoriMetadataProvider))
             {
-                var factory = new StubHttpClientFactory(_ => Task.FromResult(new HttpResponseMessage
+                string? requestedUri = null;
+                var factory = new StubHttpClientFactory(req =>
                 {
-                    Content = new StringContent("""{"id":1,"name":"Cowboy Bebop","genres":[{"name":"Action","russian":"Экшен"}]}""")
-                }));
-                var provider = new ShikimoriMetadataProvider(factory);
-                var dto = provider.GetDetailsAsync("1", "Cowboy Bebop", CancellationToken.None).GetAwaiter().GetResult();
-                return dto?.Genres is { Count: > 0 } && dto.Genres.Contains("Экшен");
+                    requestedUri = req.RequestUri?.ToString();
+                    return Task.FromResult(new HttpResponseMessage
+                    {
+                        Content = new StringContent("""[{"id":1,"name":"Spice and Wolf","russian":"Волчица и пряности","kind":"light_novel","genres":[{"name":"Action","russian":"Экшен"}]}]""")
+                    });
+                });
+                var bookProvider = new ShikimoriMetadataProvider(factory, serviceKey: "book:shikimori");
+                var list = bookProvider.SearchAsync("Волчица и пряности", CancellationToken.None).GetAwaiter().GetResult();
+                var item = list.FirstOrDefault();
+                return item is not null
+                    && item.Type == "book"
+                    && item.MangaFormat == "light_novel"
+                    && requestedUri is not null
+                    && requestedUri.Contains("mangas?kind=light_novel&search=")
+                    && item.Genres is { Count: > 0 }
+                    && item.Genres.Contains("Экшен");
             }
 
             if (type == typeof(SimklMetadataProvider))
@@ -4625,6 +4637,7 @@ public static class RefactorSelfCheck
             Title = "Добро пожаловать в особняк роз (Welcome To The Rose Mansion)",
             RomajiTitle = "Welcome To The Rose Mansion",
             ReleaseYear = 2023,
+            Author = "Rose Author",
         };
 
         var anilistCand = new ExternalMediaDto
@@ -4633,6 +4646,7 @@ public static class RefactorSelfCheck
             ExternalSource = "anilist",
             Title = "Welcome To The Rose Mansion",
             RomajiTitle = "Welcome To The Rose Mansion",
+            Author = "Rose Author",
             Type = "manga",
         };
 

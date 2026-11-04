@@ -11,7 +11,9 @@ using MediaTracker.Server.Features.Jobs;
 using MediaTracker.Server.Infrastructure.ExternalApis;
 using MediaTracker.Server.Infrastructure.Jobs;
 using MediaTracker.Server.Infrastructure.Persistence;
+using MediaTracker.Server.Infrastructure.Security;
 using MediaTracker.Server.Features.Media.GetMediaStats;
+using MediaTracker.Server.Infrastructure.Storage;
 using Microsoft.Extensions.Options;
 
 using MediaTracker.Server.Common.Json;
@@ -25,7 +27,9 @@ public sealed class ImportMediaHandler(
     IHttpClientFactory clients,
     IConfiguration configuration,
     IOptions<ExternalApiOptions> apiOptions,
-    IJobManager? jobs = null)
+    IEncryptionService? encryption = null,
+    IJobManager? jobs = null,
+    AppPaths? appPaths = null)
 {
     public async Task<ImportResultDto> ImportFileAsync(ImportFileRequest request, CancellationToken ct)
     {
@@ -58,7 +62,29 @@ public sealed class ImportMediaHandler(
         }
         catch (XmlException error) { throw new FormatException("The XML file is malformed.", error); }
         catch (JsonException error) { throw new FormatException("The JSON file is malformed.", error); }
-        return await ImportAsync(
+
+        string? dumpUrl = null;
+        string? dumpFileName = null;
+        if (provider == "mangalib" && items.Count > 0)
+        {
+            try
+            {
+                var dataDir = appPaths?.DataDirectory ?? Path.Combine(AppPaths.GetAppDirectory(), "data");
+                var importsDir = Path.Combine(dataDir, "imports");
+                Directory.CreateDirectory(importsDir);
+                dumpFileName = $"tsundoku-sociallib-{DateTime.UtcNow:yyyyMMdd-HHmmss}.json";
+                var dumpPath = Path.Combine(importsDir, dumpFileName);
+                await File.WriteAllTextAsync(dumpPath, content, ct);
+                dumpUrl = $"/api/media/import/dump/{dumpFileName}";
+                Console.WriteLine($"[SocialLib] Сохранён дамп закладок из файла: {dumpPath}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[SocialLib] Ошибка при сохранении дампа: {ex.Message}");
+            }
+        }
+
+        var result = await ImportAsync(
             items,
             request.SkipDuplicates,
             request.TargetListId,
@@ -67,6 +93,8 @@ public sealed class ImportMediaHandler(
             request.CreateCustomLists,
             provider == "anixart" ? null : request.CustomFolderStatus,
             request.CustomFolderConfigs);
+
+        return result with { DumpUrl = dumpUrl, DumpFileName = dumpFileName };
     }
 
     public async Task<ImportResultDto> ImportSteamAsync(SteamImportRequest request, CancellationToken ct)
@@ -213,58 +241,289 @@ public sealed class ImportMediaHandler(
         var client = clients.CreateClient("Import");
         // A token captured by the desktop auth flow is stored as the source key;
         // the request-level token (browser collector path) takes precedence.
-        var bearerToken = string.IsNullOrWhiteSpace(request.BearerToken)
-            ? apiOptions.Value.GetKey(ImportOnlyKeySources.MangaLib)
-            : request.BearerToken;
+        var bearerToken = request.BearerToken;
+        if (string.IsNullOrWhiteSpace(bearerToken))
+        {
+            bearerToken = apiOptions.Value.GetKey(ImportOnlyKeySources.MangaLib);
+        }
+        if (string.IsNullOrWhiteSpace(bearerToken))
+        {
+            var stored = await db.GetSettingAsync("ApiKey_mangalib", ct);
+            if (!string.IsNullOrWhiteSpace(stored))
+            {
+                try
+                {
+                    bearerToken = encryption?.Decrypt(stored) ?? stored;
+                }
+                catch
+                {
+                    bearerToken = stored;
+                }
+            }
+        }
+
         var siteIds = request.SiteIds is { Length: > 0 } ? request.SiteIds : [1, 5, 3, 2, 4];
+        if (string.Equals(request.Category, "book", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(request.Category, "books", StringComparison.OrdinalIgnoreCase))
+        {
+            siteIds = siteIds.Where(id => id != 5).ToArray();
+        }
         var allItems = new List<ParsedMediaItemDto>();
+        var rawElements = new List<JsonElement>();
         var totalSitesQueried = 0;
         var authErrorCount = 0;
+
+        var jobId = Guid.NewGuid();
+        jobs?.ReportProgress(jobId, "Импорт SocialLib", 0, "Загрузка закладок SocialLib...", JobStatus.Running);
+
+        var defaultFolderIds = new[] { 1, 2, 4, 3, 6, 5 };
+        var standardFolderIds = new HashSet<int> { 1, 2, 3, 4, 5, 6 };
 
         foreach (var siteId in siteIds)
         {
             totalSitesQueried++;
-            var siteAuthError = false;
-            var siteFolderIds = await FetchSocialLibFolderIdsAsync(client, userId, siteId, bearerToken, ct);
+            var fetchedFolders = await FetchSocialLibFoldersAsync(client, userId, siteId, bearerToken, ct);
 
-            foreach (var statusId in siteFolderIds)
+            // 1. Standard statuses: 1, 2, 4, 3, 6, 5 with &status={id}
+            var targetStatuses = request.StatusIds is { Length: > 0 }
+                ? defaultFolderIds.Where(s => request.StatusIds.Contains(s)).ToList()
+                : defaultFolderIds.ToList();
+
+            foreach (var statusId in targetStatuses)
             {
-                if (siteAuthError) break;
-                if (request.StatusIds is { Length: > 0 } && !request.StatusIds.Contains(statusId)) continue;
+                var folderName = GetStandardStatusName(statusId);
+                jobs?.ReportProgress(
+                    jobId,
+                    "Импорт SocialLib",
+                    10,
+                    $"Загрузка закладок SocialLib... Загружено {allItems.Count} тайтлов (папка {folderName})",
+                    JobStatus.Running);
 
                 var page = 1;
+                var folderCount = 0;
                 while (page <= 50)
                 {
-                    var url = $"https://api.cdnlibs.org/api/bookmarks?user_id={Uri.EscapeDataString(userId)}&site_id={siteId}&status={statusId}&page={page}&limit=60&fields[]=summary&fields[]=genres&fields[]=authors&fields[]=chap_count&fields[]=rate";
-                    using var msg = CreateSocialLibMessage(url, siteId, bearerToken);
+                    await Task.Delay(350, ct);
 
-                    HttpResponseMessage? response = null;
+                    var url = $"https://api.cdnlibs.org/api/bookmarks?user_id={Uri.EscapeDataString(userId)}&site_id={siteId}&status={statusId}&page={page}&per_page=60&fields[]=summary&fields[]=genres&fields[]=authors&fields[]=chap_count&fields[]=rate";
+
+                    string? json = null;
+                    var success = false;
+
+                    for (var attempt = 1; attempt <= 3; attempt++)
+                    {
+                        HttpResponseMessage? response = null;
+                        try
+                        {
+                            using var msg = CreateSocialLibMessage(url, siteId, bearerToken);
+                            response = await client.SendAsync(msg, ct);
+
+                            if ((int)response.StatusCode is 401 or 403)
+                            {
+                                authErrorCount++;
+                                break;
+                            }
+
+                            if ((int)response.StatusCode == 422)
+                            {
+                                var errorBody = await response.Content.ReadAsStringAsync(ct);
+                                Console.WriteLine($"[SocialLib] status {statusId} 422 error details: {errorBody}");
+                                break;
+                            }
+
+                            if ((int)response.StatusCode == 429)
+                            {
+                                if (attempt < 3)
+                                {
+                                    await Task.Delay(2000, ct);
+                                    continue;
+                                }
+                                break;
+                            }
+
+                            if (!response.IsSuccessStatusCode)
+                            {
+                                if (attempt < 3)
+                                {
+                                    await Task.Delay(2000, ct);
+                                    continue;
+                                }
+                                break;
+                            }
+
+                            json = await response.Content.ReadAsStringAsync(ct);
+                            success = true;
+                            break;
+                        }
+                        catch (HttpRequestException) when (attempt < 3)
+                        {
+                            await Task.Delay(2000, ct);
+                        }
+                        catch (HttpRequestException)
+                        {
+                            break;
+                        }
+                        finally
+                        {
+                            response?.Dispose();
+                        }
+                    }
+
+                    if (!success || string.IsNullOrWhiteSpace(json))
+                        break;
+
+                    IReadOnlyList<ParsedMediaItemDto> pageItems;
                     try
                     {
-                        response = await client.SendAsync(msg, ct);
+                        pageItems = MangalibParser.Parse(json, defaultSiteId: siteId, defaultStatusId: statusId);
                     }
-                    catch (HttpRequestException)
+                    catch
                     {
                         break;
                     }
 
-                    using (response)
+                    if (pageItems.Count == 0) break;
+
+                    TryCollectRawElements(json, rawElements);
+                    allItems.AddRange(pageItems);
+                    folderCount += pageItems.Count;
+
+                    jobs?.ReportProgress(
+                        jobId,
+                        "Импорт SocialLib",
+                        10,
+                        $"Загрузка закладок SocialLib... Загружено {allItems.Count} тайтлов (папка {folderName})",
+                        JobStatus.Running);
+
+                    if (pageItems.Count < 60) break;
+                    page++;
+                }
+
+                Console.WriteLine($"[SocialLib] Статус {statusId} ({folderName}): успешно загружено {folderCount} закладок (страниц: {page})");
+            }
+
+            // 2. Custom folders with &folder_id={id}
+            if (request.IncludeCustomFolders)
+            {
+                var customFolders = fetchedFolders.Where(f => !standardFolderIds.Contains(f.Id)).ToList();
+                foreach (var folder in customFolders)
+                {
+                    var folderName = folder.Name;
+                    jobs?.ReportProgress(
+                        jobId,
+                        "Импорт SocialLib",
+                        50,
+                        $"Загрузка закладок SocialLib... Загружено {allItems.Count} тайтлов (папка {folderName})",
+                        JobStatus.Running);
+
+                    var page = 1;
+                    var folderCount = 0;
+                    while (page <= 50)
                     {
-                        if ((int)response.StatusCode is 401 or 403)
+                        await Task.Delay(350, ct);
+
+                        var url = $"https://api.cdnlibs.org/api/bookmarks?user_id={Uri.EscapeDataString(userId)}&site_id={siteId}&folder_id={folder.Id}&page={page}&per_page=60&fields[]=summary&fields[]=genres&fields[]=authors&fields[]=chap_count&fields[]=rate";
+
+                        string? json = null;
+                        var success = false;
+                        var is422 = false;
+
+                        for (var attempt = 1; attempt <= 3; attempt++)
                         {
-                            authErrorCount++;
-                            siteAuthError = true;
-                            break;
+                            HttpResponseMessage? response = null;
+                            try
+                            {
+                                using var msg = CreateSocialLibMessage(url, siteId, bearerToken);
+                                response = await client.SendAsync(msg, ct);
+
+                                if ((int)response.StatusCode is 401 or 403)
+                                {
+                                    authErrorCount++;
+                                    break;
+                                }
+
+                                if ((int)response.StatusCode == 422)
+                                {
+                                    is422 = true;
+                                    var errorBody = await response.Content.ReadAsStringAsync(ct);
+                                    Console.WriteLine($"[SocialLib] folder_id {folder.Id} 422 error details: {errorBody}");
+                                    break;
+                                }
+
+                                if ((int)response.StatusCode == 429)
+                                {
+                                    if (attempt < 3)
+                                    {
+                                        await Task.Delay(2000, ct);
+                                        continue;
+                                    }
+                                    break;
+                                }
+
+                                if (!response.IsSuccessStatusCode)
+                                {
+                                    if (attempt < 3)
+                                    {
+                                        await Task.Delay(2000, ct);
+                                        continue;
+                                    }
+                                    break;
+                                }
+
+                                json = await response.Content.ReadAsStringAsync(ct);
+                                success = true;
+                                break;
+                            }
+                            catch (HttpRequestException) when (attempt < 3)
+                            {
+                                await Task.Delay(2000, ct);
+                            }
+                            catch (HttpRequestException)
+                            {
+                                break;
+                            }
+                            finally
+                            {
+                                response?.Dispose();
+                            }
                         }
 
-                        if (!response.IsSuccessStatusCode)
+                        // Fallback endpoint if primary bookmarks query returned 422
+                        if (is422 && !success)
+                        {
+                            var altUrl = $"https://api.cdnlibs.org/api/bookmarks/folder/{folder.Id}?user_id={Uri.EscapeDataString(userId)}&site_id={siteId}&page={page}&per_page=60&fields[]=summary&fields[]=genres&fields[]=authors&fields[]=chap_count&fields[]=rate";
+                            HttpResponseMessage? altResponse = null;
+                            try
+                            {
+                                using var altMsg = CreateSocialLibMessage(altUrl, siteId, bearerToken);
+                                altResponse = await client.SendAsync(altMsg, ct);
+                                if (altResponse.IsSuccessStatusCode)
+                                {
+                                    json = await altResponse.Content.ReadAsStringAsync(ct);
+                                    success = true;
+                                }
+                                else if ((int)altResponse.StatusCode == 422)
+                                {
+                                    var altErrorBody = await altResponse.Content.ReadAsStringAsync(ct);
+                                    Console.WriteLine($"[SocialLib] folder_id {folder.Id} alt endpoint 422 error details: {altErrorBody}");
+                                }
+                            }
+                            catch
+                            {
+                            }
+                            finally
+                            {
+                                altResponse?.Dispose();
+                            }
+                        }
+
+                        if (!success || string.IsNullOrWhiteSpace(json))
                             break;
 
-                        var json = await response.Content.ReadAsStringAsync(ct);
                         IReadOnlyList<ParsedMediaItemDto> pageItems;
                         try
                         {
-                            pageItems = MangalibParser.Parse(json, defaultSiteId: siteId, defaultStatusId: statusId);
+                            pageItems = MangalibParser.Parse(json, defaultSiteId: siteId, defaultStatusId: null);
                         }
                         catch
                         {
@@ -273,13 +532,32 @@ public sealed class ImportMediaHandler(
 
                         if (pageItems.Count == 0) break;
 
+                        TryCollectRawElements(json, rawElements);
                         allItems.AddRange(pageItems);
+                        folderCount += pageItems.Count;
+
+                        jobs?.ReportProgress(
+                            jobId,
+                            "Импорт SocialLib",
+                            50,
+                            $"Загрузка закладок SocialLib... Загружено {allItems.Count} тайтлов (папка {folderName})",
+                            JobStatus.Running);
+
                         if (pageItems.Count < 60) break;
                         page++;
                     }
+
+                    Console.WriteLine($"[SocialLib] Папка {folder.Id} ({folderName}): успешно загружено {folderCount} закладок (страниц: {page})");
                 }
             }
         }
+
+        jobs?.ReportProgress(
+            jobId,
+            "Импорт SocialLib",
+            100,
+            $"Загрузка закладок SocialLib... Загружено {allItems.Count} тайтлов",
+            JobStatus.Completed);
 
         if (allItems.Count == 0)
         {
@@ -291,8 +569,81 @@ public sealed class ImportMediaHandler(
             return Result<ImportResultDto>.Failure(Error.Validation($"У пользователя {userId} не найдено закладок на выбранных сайтах SocialLib."));
         }
 
+        string? dumpUrl = null;
+        string? dumpFileName = null;
+        try
+        {
+            var dataDir = appPaths?.DataDirectory ?? Path.Combine(AppPaths.GetAppDirectory(), "data");
+            var importsDir = Path.Combine(dataDir, "imports");
+            Directory.CreateDirectory(importsDir);
+            dumpFileName = $"tsundoku-sociallib-{DateTime.UtcNow:yyyyMMdd-HHmmss}.json";
+            var dumpPath = Path.Combine(importsDir, dumpFileName);
+
+            using (var stream = File.Create(dumpPath))
+            using (var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true }))
+            {
+                writer.WriteStartArray();
+                foreach (var elem in rawElements)
+                {
+                    elem.WriteTo(writer);
+                }
+                writer.WriteEndArray();
+            }
+
+            dumpUrl = $"/api/media/import/dump/{dumpFileName}";
+            Console.WriteLine($"[SocialLib] Сохранён полный дамп закладок: {dumpPath}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[SocialLib] Ошибка при автосохранении дампа закладок: {ex.Message}");
+        }
+
         var importResult = await ImportAsync(allItems, request.SkipDuplicates, request.TargetListId, request.NewListName, ct);
-        return Result<ImportResultDto>.Success(importResult);
+        return Result<ImportResultDto>.Success(importResult with { DumpUrl = dumpUrl, DumpFileName = dumpFileName });
+    }
+
+    private static void TryCollectRawElements(string json, List<JsonElement> target)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+            if (root.ValueKind == JsonValueKind.Object)
+            {
+                foreach (var wrapper in new[] { "data", "items", "list", "entries" })
+                {
+                    if (root.TryGetProperty(wrapper, out var nested) && nested.ValueKind == JsonValueKind.Array)
+                    {
+                        root = nested;
+                        break;
+                    }
+                }
+            }
+
+            if (root.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var elem in root.EnumerateArray())
+                {
+                    if (elem.ValueKind != JsonValueKind.Object) continue;
+                    var hasMedia = elem.TryGetProperty("media", out var media) && media.ValueKind == JsonValueKind.Object;
+                    var hasTitleFields = elem.TryGetProperty("slug_url", out _)
+                        || elem.TryGetProperty("chap_count", out _)
+                        || elem.TryGetProperty("rus_name", out _)
+                        || elem.TryGetProperty("eng_name", out _)
+                        || elem.TryGetProperty("site_id", out _)
+                        || elem.TryGetProperty("target_id", out _)
+                        || elem.TryGetProperty("target_title_ru", out _);
+
+                    if (hasMedia || hasTitleFields)
+                    {
+                        target.Add(elem.Clone());
+                    }
+                }
+            }
+        }
+        catch
+        {
+        }
     }
 
     private static string? ExtractSocialLibUserId(string input)
@@ -347,7 +698,21 @@ public sealed class ImportMediaHandler(
         return msg;
     }
 
-    private static async Task<IReadOnlyList<int>> FetchSocialLibFolderIdsAsync(HttpClient client, string userId, int siteId, string? bearerToken, CancellationToken ct)
+    private sealed record SocialLibFolderInfo(int Id, string Name);
+
+    private static string GetStandardStatusName(int statusId) => statusId switch
+    {
+        1 => "Читаю",
+        2 => "В планах",
+        3 => "Брошено",
+        4 => "Прочитано",
+        5 => "Любимое",
+        6 => "Отложено",
+        _ => $"Статус {statusId}"
+    };
+
+    private static async Task<IReadOnlyList<SocialLibFolderInfo>> FetchSocialLibFoldersAsync(
+        HttpClient client, string userId, int siteId, string? bearerToken, CancellationToken ct)
     {
         try
         {
@@ -363,13 +728,16 @@ public sealed class ImportMediaHandler(
                     root = data;
                 if (root.ValueKind == JsonValueKind.Array)
                 {
-                    var ids = new List<int>();
+                    var list = new List<SocialLibFolderInfo>();
                     foreach (var elem in root.EnumerateArray())
                     {
                         if (elem.TryGetProperty("id", out var idProp) && idProp.TryGetInt32(out var id))
-                            ids.Add(id);
+                        {
+                            var name = elem.TryGetProperty("name", out var nameProp) ? nameProp.GetString() : null;
+                            list.Add(new SocialLibFolderInfo(id, !string.IsNullOrWhiteSpace(name) ? name : $"Папка {id}"));
+                        }
                     }
-                    if (ids.Count > 0) return ids;
+                    if (list.Count > 0) return list;
                 }
             }
         }
@@ -377,7 +745,7 @@ public sealed class ImportMediaHandler(
         {
         }
 
-        return [1, 2, 4, 3, 6, 5];
+        return [];
     }
 
     private async Task<ImportResultDto> ImportAsync(
@@ -823,13 +1191,17 @@ public sealed class ImportMediaHandler(
         item.ExternalId = dto.ExternalId;
         item.ExternalSource = dto.ExternalSource;
         item.ImportSource = dto.ExternalSource;
-        item.OriginalTitle = dto.OriginalTitle;
+        item.OriginalTitle = dto.OriginalTitle ?? (!string.IsNullOrWhiteSpace(dto.RomajiTitle) && item is Book ? dto.RomajiTitle : null);
         item.Notes = dto.Notes;
         item.ExternalRating = dto.Rating;
         item.ExternalRatingVotes = dto.RatingVotes;
         if (dto.Rating is > 0)
         {
             item.ExternalRatingsJson = SerializeExternalRating(dto.ExternalSource, dto.Rating.Value, dto.RatingVotes);
+        }
+        if (!string.IsNullOrWhiteSpace(dto.RomajiTitle))
+        {
+            MediaMetadataApplier.UpdateAltTitles(item, dto.RomajiTitle);
         }
         item.SyncStatus = SyncStatus.Ready;
         if (dto.WatchedAt is { } watched) { item.StartedAt = watched; item.FinishedAt = watched; }

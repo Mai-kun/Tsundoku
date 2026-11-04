@@ -29,7 +29,14 @@ public sealed class SourcePriorityService(
     /// aggregator walks whenever it needs to fill a gap.
     /// </summary>
     public static readonly FrozenDictionary<string, string[]> DefaultPriorities =
-        MetadataSourceRegistry.BuildDefaultPriorities().ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
+        BuildDefaultPrioritiesMap();
+
+    private static FrozenDictionary<string, string[]> BuildDefaultPrioritiesMap()
+    {
+        var dict = new Dictionary<string, string[]>(MetadataSourceRegistry.BuildDefaultPriorities(), StringComparer.OrdinalIgnoreCase);
+        dict["book"] = ["ranobelib", "shikimori", "anilist", "kitsu", "openlibrary"];
+        return dict.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
+    }
 
     // Starts at 1 so a key of "v1" always means "no settings change yet".
     private int _version = 1;
@@ -232,6 +239,15 @@ public sealed class SourcePriorityService(
                 continue;
             }
 
+            // If the user's stored list was the legacy single-item list ["openlibrary"], upgrade to full default book priorities
+            if (string.Equals(type, "book", StringComparison.OrdinalIgnoreCase)
+                && userSources.Length == 1
+                && string.Equals(userSources[0], "openlibrary", StringComparison.OrdinalIgnoreCase))
+            {
+                result[type] = defaultSources;
+                continue;
+            }
+
             var merged = new List<string>();
             foreach (var source in userSources.Where(s => defaultSources.Contains(s, StringComparer.OrdinalIgnoreCase)))
             {
@@ -257,6 +273,11 @@ public sealed class SourcePriorityService(
 
     private static List<string> MergePriorityLists(string[] userList, string[] defaultSources)
     {
+        if (userList.Length == 1 && string.Equals(userList[0], "openlibrary", StringComparison.OrdinalIgnoreCase))
+        {
+            return [.. defaultSources];
+        }
+
         var merged = userList.Where(s => defaultSources.Contains(s, StringComparer.OrdinalIgnoreCase)).ToList();
         foreach (var s in defaultSources)
         {

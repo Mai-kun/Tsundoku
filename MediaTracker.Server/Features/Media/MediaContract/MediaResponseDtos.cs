@@ -92,6 +92,9 @@ public record MediaListDto
     /// <summary>manga / manhwa / manhua / oel. Null when no source could tell.</summary>
     public string? MangaFormat { get; init; }
 
+    /// <summary>book / light_novel / web_novel</summary>
+    public string? Format { get; init; }
+
     public int? TotalEpisodesCount { get; init; }
 
     public string? Network { get; init; }
@@ -286,6 +289,11 @@ public static class MediaResponseMapper
                 Author = book.Author,
                 CurrentPage = book.CurrentPage,
                 TotalPages = book.TotalPages,
+                Format = book.Format,
+                CurrentChapter = book.CurrentChapter,
+                TotalChapters = book.TotalChapters,
+                CurrentVolume = book.CurrentVolume,
+                TotalVolumes = book.TotalVolumes,
             },
             Manga manga => dto with
             {
@@ -380,6 +388,7 @@ public static class MediaResponseMapper
             Studio = listFields.Studio,
             RomajiTitle = listFields.RomajiTitle,
             MangaFormat = listFields.MangaFormat,
+            Format = listFields.Format,
             TotalEpisodesCount = listFields.TotalEpisodesCount,
             Network = listFields.Network,
             TotalEpisodesWatched = listFields.TotalEpisodesWatched,

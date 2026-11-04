@@ -165,7 +165,7 @@ public static class MediaMerger
     /// arrays rather than params: this runs once per source per enrichment, so no call may allocate.
     /// </summary>
     private static readonly string[] GameSourceFragments = ["steam", "rawg"];
-    private static readonly string[] BookSourceFragments = ["openlibrary"];
+    private static readonly string[] BookSourceFragments = ["openlibrary", "ranobelib"];
     private static readonly string[] MangaSourceFragments = ["mangaupdates", "mangadex"];
     private static readonly string[] AnimeSourceFragments = ["anilist", "shikimori", "kitsu"];
     private static readonly string[] MovieSourceFragments = ["kinopoisk", "imdb"];

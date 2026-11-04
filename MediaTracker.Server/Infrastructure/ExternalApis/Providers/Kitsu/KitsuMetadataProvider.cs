@@ -15,18 +15,26 @@ public sealed class KitsuMetadataProvider(
         Id: "kitsu",
         Name: "Kitsu",
         Description: "Anime and Manga ratings provider (community scores)",
-        MediaTypes: ["anime", "manga"],
+        MediaTypes: ["anime", "manga", "book"],
         BaseAddress: "https://kitsu.io/api/",
         Priority: 3);
 
-    private readonly string mediaType = serviceKey?.StartsWith("manga", StringComparison.OrdinalIgnoreCase) is true ? "manga" : "anime";
+    private readonly string mediaType = serviceKey?.StartsWith("book", StringComparison.OrdinalIgnoreCase) is true
+        ? "book"
+        : (serviceKey?.StartsWith("manga", StringComparison.OrdinalIgnoreCase) is true ? "manga" : "anime");
 
     public override async Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string query, CancellationToken ct)
     {
         var client = httpClientFactory.CreateClient(Id);
         try
         {
-            var res = await client.GetFromJsonAsync($"edge/{mediaType}?filter%5Btext%5D={Uri.EscapeDataString(query)}&page%5Blimit%5D=10", AppJsonSerializerContext.Default.KitsuSearchResponse, ct);
+            var endpoint = mediaType switch
+            {
+                "book" => $"edge/manga?filter%5Btext%5D={Uri.EscapeDataString(query)}&filter%5Bsubtype%5D=novel&page%5Blimit%5D=10",
+                "manga" => $"edge/manga?filter%5Btext%5D={Uri.EscapeDataString(query)}&page%5Blimit%5D=10",
+                _ => $"edge/anime?filter%5Btext%5D={Uri.EscapeDataString(query)}&page%5Blimit%5D=10"
+            };
+            var res = await client.GetFromJsonAsync(endpoint, AppJsonSerializerContext.Default.KitsuSearchResponse, ct);
 
             if (res?.Data is not { Count: > 0 } data)
             {
@@ -46,7 +54,8 @@ public sealed class KitsuMetadataProvider(
         var client = httpClientFactory.CreateClient(Id);
         try
         {
-            var res = await client.GetFromJsonAsync($"edge/{mediaType}/{Uri.EscapeDataString(externalId)}", AppJsonSerializerContext.Default.KitsuSingleResponse, ct);
+            var category = (mediaType == "manga" || mediaType == "book") ? "manga" : "anime";
+            var res = await client.GetFromJsonAsync($"edge/{category}/{Uri.EscapeDataString(externalId)}", AppJsonSerializerContext.Default.KitsuSingleResponse, ct);
             if (res?.Data is not null)
             {
                 return MapItem(res.Data);
@@ -88,15 +97,20 @@ public sealed class KitsuMetadataProvider(
             releaseYear = sDate.Year;
         }
 
+        var isNovel = mediaType == "book" || string.Equals(attr?.Subtype, "novel", StringComparison.OrdinalIgnoreCase);
+
         return new ExternalMediaDto
         {
             ExternalId = item.Id ?? string.Empty,
             ExternalSource = "Kitsu",
             Type = mediaType,
+            MangaFormat = isNovel ? "light_novel" : (mediaType == "manga" ? "manga" : null),
             Title = title,
             Description = attr?.Synopsis,
             CoverUrl = attr?.PosterImage?.Large ?? attr?.PosterImage?.Original,
-            TotalCount = attr?.EpisodeCount,
+            TotalCount = mediaType == "anime" ? attr?.EpisodeCount : (attr?.ChapterCount ?? attr?.VolumeCount),
+            Chapters = attr?.ChapterCount,
+            Volumes = attr?.VolumeCount,
             RuntimeMinutes = attr?.EpisodeLength,
             Rating = rating,
             RatingVotes = attr?.UserCount,

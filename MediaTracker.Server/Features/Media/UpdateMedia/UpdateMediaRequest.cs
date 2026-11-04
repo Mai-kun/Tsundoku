@@ -43,6 +43,8 @@ public sealed record UpdateMediaRequest
 
     public int? TotalVolumes { get; init; }
 
+    public string? Format { get; init; }
+
     public int? CurrentVolume { get; init; }
 
     public int? TotalChapters { get; init; }

@@ -2,6 +2,7 @@ using Dapper;
 using MediaTracker.Server.Domain.Common;
 using MediaTracker.Server.Domain.Entities;
 using MediaTracker.Server.Domain.Enums;
+using MediaTracker.Server.Domain.Rules;
 using MediaTracker.Server.Features.External.RefreshMetadata;
 using MediaTracker.Server.Features.Jobs;
 using MediaTracker.Server.Features.Media.GetMediaList;
@@ -27,12 +28,16 @@ public sealed record PendingMatchReviewDto
     public required Guid Id { get; init; }
     public required string Title { get; init; }
     public string? RomajiTitle { get; init; }
+    public string? OriginalTitle { get; init; }
+    public IReadOnlyList<string>? AltTitles { get; init; }
     public required string Type { get; init; }
     public bool? IsAnime { get; init; }
     public int? ReleaseYear { get; init; }
     public string? Author { get; init; }
     public int? CurrentProgress { get; init; }
     public int? TotalCount { get; init; }
+    public string? CountryOfOrigin { get; init; }
+    public string? MangaFormat { get; init; }
     public IReadOnlyList<ExternalMediaDto> Candidates { get; init; } = [];
 }
 
@@ -82,7 +87,11 @@ public sealed class GetPendingMatchesHandler(AppDbContext db) : IGetPendingMatch
             Movie movie => movie.RomajiTitle,
             TvShow show => show.RomajiTitle,
             _ => null,
-        }) ?? MediaTitleHelper.ExtractLatinFromTitle(item.Title),
+        }) ?? MediaMetadataApplier.DeserializeAltTitles(item.AltTitles).FirstOrDefault(MediaTitleHelper.IsLatin)
+           ?? (MediaTitleHelper.IsLatin(item.OriginalTitle) ? item.OriginalTitle : null)
+           ?? MediaTitleHelper.ExtractLatinFromTitle(item.Title),
+        OriginalTitle = item.OriginalTitle,
+        AltTitles = MediaMetadataApplier.DeserializeAltTitles(item.AltTitles),
         Type = MediaResponseMapper.GetType(item),
         IsAnime = item switch { Movie movie => movie.IsAnime, TvShow show => show.IsAnime, _ => null },
         ReleaseYear = item.ReleaseYear,
@@ -94,6 +103,8 @@ public sealed class GetPendingMatchesHandler(AppDbContext db) : IGetPendingMatch
         },
         CurrentProgress = Progress(item),
         TotalCount = Total(item),
+        CountryOfOrigin = item.CountryOfOrigin,
+        MangaFormat = item switch { Manga manga => manga.Format, _ => null },
         Candidates = MediaJsonCache.Deserialize<ExternalMediaDto>(item.PendingMatchesJson),
     };
 
@@ -170,7 +181,8 @@ public sealed class ResolveMatchHandler(
                 request.Source,
                 request.Type,
                 request.Title,
-                logger));
+                logger),
+            highPriority: true);
 
         return Result<MediaDetailDto>.Success(MediaDetailProjection.ToDetailDto(item));
     }
@@ -209,11 +221,13 @@ internal static class PendingMatchEnrichment
                 var resolvedType = type ?? AggregatorTypes.Resolve(current);
                 var details = await FetchWithRetryAsync(
                     aggregator,
+                    sp,
                     resolvedType,
                     externalId,
                     title ?? current.Title,
                     source,
-                    token);
+                    token,
+                    progress);
                 if (details is null)
                 {
                     throw new InvalidOperationException("Не удалось получить данные выбранного кандидата от источника.");
@@ -252,28 +266,68 @@ internal static class PendingMatchEnrichment
         };
 
     /// <summary>
-    /// A rate-limited provider (429 lands here as SourceUnavailableException) gets the same treatment
-    /// as the batch import: a pause and another try before the job is marked failed.
+    /// A rate-limited provider (429 lands here as SourceUnavailableException) gets backoff treatment:
+    /// wait for the limit to reset before retrying so manual user choices do not fail.
     /// </summary>
     private static async Task<ExternalMediaDto?> FetchWithRetryAsync(
         MetadataAggregatorService aggregator,
+        IServiceProvider sp,
         string type,
         string externalId,
         string title,
         string source,
-        CancellationToken ct)
+        CancellationToken ct,
+        IProgress<JobProgressDto>? progress = null)
     {
-        for (var attempt = 1; ; attempt++)
+        for (var attempt = 1; attempt <= 5; attempt++)
         {
             try
             {
+                var rateLimiter = sp.GetService<RateLimitTracker>();
+                var status = rateLimiter?.GetStatus(source);
+                if (status is not null && status.Remaining <= 2 && status.ResetSecondsRemaining > 0)
+                {
+                    var waitSec = status.ResetSecondsRemaining;
+                    progress?.Report(new JobProgressDto(
+                        Guid.Empty, null, string.Empty, 20,
+                        $"Ожидание сброса лимита {status.Provider} ({waitSec} сек)...",
+                        JobStatus.Running, DateTime.MinValue, null));
+                    await Task.Delay(TimeSpan.FromSeconds(waitSec + 2), ct);
+                }
+
                 return await aggregator.GetDetailsAsync(type, externalId, title, ct, source);
             }
-            catch (SourceUnavailableException) when (attempt < 3)
+            catch (SourceUnavailableException ex)
             {
-                await Task.Delay(2500, ct);
+                var is429 = ex.Message.Contains("429") ||
+                            ex.InnerException is HttpRequestException { StatusCode: global::System.Net.HttpStatusCode.TooManyRequests };
+
+                if (is429 && attempt < 5)
+                {
+                    var rateLimiter = sp.GetService<RateLimitTracker>();
+                    var status = rateLimiter?.GetStatus(source);
+                    var waitSec = status?.ResetSecondsRemaining is > 0 ? status.ResetSecondsRemaining : 60;
+
+                    progress?.Report(new JobProgressDto(
+                        Guid.Empty, null, string.Empty, 20,
+                        $"Ожидание сброса лимита {source} ({waitSec} сек)...",
+                        JobStatus.Running, DateTime.MinValue, null));
+
+                    await Task.Delay(TimeSpan.FromSeconds(waitSec + 2), ct);
+                    continue;
+                }
+
+                if (attempt < 3 && !is429)
+                {
+                    await Task.Delay(2500, ct);
+                    continue;
+                }
+
+                throw;
             }
         }
+
+        return null;
     }
 }
 

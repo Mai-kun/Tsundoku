@@ -8,6 +8,9 @@ const LEGACY_ALLOWLIST = new Set([
   'src/entities/media/model/dropReasons.ts',
   'src/entities/media/model/genreLabel.ts',
   'src/entities/media/model/timeBudget.ts',
+  // ImportPanel: the remaining Cyrillic literals are SocialLib API folder-name data inside the
+  // clipboard bookmarklet (matched against external API payloads, not rendered UI copy).
+  'src/features/import-media/ImportPanel.svelte',
   'src/entities/media/ui/MediaPoster.svelte',
   'src/features/create-media/CreateModal.svelte',
   'src/features/lists/CreateListModal.svelte',

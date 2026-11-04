@@ -72,11 +72,48 @@ ICON_SRC="mediatracker-ui/public/icon-512.png"
 cp "$ICON_SRC" "$APPDIR/tsundoku.png"
 ln -sf tsundoku.png "$APPDIR/.DirIcon"
 
+# AppStream metainfo: named after the component id (appstreamcli requires the
+# cid match; appimagetool's own filename check is skipped in favor of an
+# explicit validation below).
+mkdir -p "$APPDIR/usr/share/metainfo" "$APPDIR/usr/share/applications"
+cat > "$APPDIR/usr/share/metainfo/io.github.Maikun.Tsundoku.appdata.xml" <<'APPDATA'
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.Maikun.Tsundoku</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <name>Tsundoku</name>
+  <summary>Personal media library tracker</summary>
+  <description>
+    <p>
+      Tsundoku (MediaTracker) is a personal tracker for anime, manga, books,
+      movies, TV shows and games with external metadata aggregation.
+    </p>
+  </description>
+  <launchable type="desktop-id">tsundoku.desktop</launchable>
+  <url type="homepage">https://github.com/Mai-kun/Tsundoku</url>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="1.0.0" date="2026-11-05"/>
+  </releases>
+</component>
+APPDATA
+# A desktop-file copy under usr/share/applications lets appstreamcli resolve
+# the <launchable> reference; the AppDir-root .desktop stays the AppImage entry point.
+cp "$APPDIR/tsundoku.desktop" "$APPDIR/usr/share/applications/tsundoku.desktop"
+
+if command -v appstreamcli >/dev/null 2>&1; then
+  appstreamcli validate "$APPDIR/usr/share/metainfo/io.github.Maikun.Tsundoku.appdata.xml"
+fi
+
 # appimagetool: системный или автоматически скачанный в кэш.
 ARCH="x86_64"
 if command -v appimagetool >/dev/null 2>&1; then
-  ARCH=x86_64 appimagetool "$APPDIR" dist/Tsundoku.AppImage
+  # --no-appstream: appimagetool's legacy check expects a tsundoku.appdata.xml
+  # filename that conflicts with the cid-based naming appstreamcli validates above.
+  ARCH=x86_64 appimagetool --no-appstream "$APPDIR" dist/Tsundoku.AppImage
 else
+  # Build-only cache: the produced binary/AppImage never reads or creates this path.
   TOOL_DIR="$HOME/.cache/tsundoku-build"
   TOOL="$TOOL_DIR/appimagetool"
   if [ ! -x "$TOOL" ]; then
@@ -88,7 +125,7 @@ else
     mv "$TOOL.download" "$TOOL"
   fi
   # --appimage-extract-and-run: работает даже без FUSE в системе.
-  ARCH=x86_64 "$TOOL" --appimage-extract-and-run "$APPDIR" dist/Tsundoku.AppImage
+  ARCH=x86_64 "$TOOL" --appimage-extract-and-run --no-appstream "$APPDIR" dist/Tsundoku.AppImage
 fi
 chmod +x dist/Tsundoku.AppImage
 rm -rf "$APPDIR"

@@ -68,7 +68,7 @@
         type="button"
         class={`flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition ${
           isPlanned
-            ? "bg-[#5844e0] text-white shadow-sm ring-1 ring-[#5844e0]"
+            ? "bg-accent-bright ring-accent-bright text-white shadow-sm ring-1"
             : "border border-white/10 bg-white/[0.03] text-slate-300 hover:bg-white/10 hover:text-white"
         }`}
         onclick={() => onChangeStatus?.(0 as MediaStatus)}

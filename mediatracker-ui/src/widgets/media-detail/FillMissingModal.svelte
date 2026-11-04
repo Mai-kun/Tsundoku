@@ -57,7 +57,7 @@
     tvshow: ["tmdb", "kinopoisk", "simkl"],
     anime: ["anilist", "mangadex", "shikimori"],
     manga: ["anilist", "mangadex", "shikimori"],
-    book: ["openlibrary"],
+    book: ["ranobelib", "shikimori", "anilist", "kitsu", "openlibrary"],
   };
 
   const options = $derived.by(() => {

@@ -50,7 +50,7 @@
           aria-pressed={selectedType === category}
           class="flex h-8 w-full items-center justify-center rounded-md px-1 text-center text-xs font-medium whitespace-nowrap transition-colors duration-200 {selectedType ===
           category
-            ? 'bg-[#5844e0]/30 text-white'
+            ? 'bg-accent-bright/30 text-white'
             : 'text-slate-400 hover:text-white'}"
           onclick={() => (selectedType = category)}
         >

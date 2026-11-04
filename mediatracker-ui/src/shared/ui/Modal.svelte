@@ -5,8 +5,8 @@
     isOpen: boolean;
     onClose: () => void;
     labelledBy?: string;
-    /** `md` — обычная модалка. `lg` — широкая панель (превью деталей). `xl` — расширенная модалка (настройки и т.д.). `search` — модалка поиска на 80% экрана. */
-    size?: "md" | "lg" | "xl" | "search";
+    /** `md` — обычная модалка. `lg` — широкая панель (превью деталей). `xl` — расширенная модалка (настройки и т.д.). `search` — модалка поиска на 80% экрана. `jobs` — модалка фоновых процессов на ~90% экрана. */
+    size?: "md" | "lg" | "xl" | "search" | "jobs";
     closable?: boolean;
     children: Snippet;
   }
@@ -64,13 +64,15 @@
 <dialog
   bind:this={dialogElement}
   aria-labelledby={labelledBy}
-  class="z-40 m-auto w-full {size === 'search'
-    ? 'h-[85vh] max-h-[85vh] w-[95vw] max-w-[95vw] sm:h-[80vh] sm:max-h-[80vh] sm:w-[80vw] sm:max-w-[80vw]'
-    : size === 'xl'
-      ? 'h-[86vh] max-h-[90vh] w-[90vw] max-w-7xl'
-      : size === 'lg'
-        ? 'max-w-5xl'
-        : 'max-w-2xl'} text-ink overflow-visible border-0 bg-transparent p-4 backdrop:bg-[#090b10]/80"
+  class="z-40 m-auto w-full {size === 'jobs'
+    ? 'h-[88vh] max-h-[88vh] w-[92vw] max-w-[1600px]'
+    : size === 'search'
+      ? 'h-[85vh] max-h-[85vh] w-[95vw] max-w-[95vw] sm:h-[80vh] sm:max-h-[80vh] sm:w-[80vw] sm:max-w-[80vw]'
+      : size === 'xl'
+        ? 'h-[86vh] max-h-[90vh] w-[90vw] max-w-7xl'
+        : size === 'lg'
+          ? 'max-w-5xl'
+          : 'max-w-2xl'} text-ink overflow-visible border-0 bg-transparent p-4 backdrop:bg-[#090b10]/80"
   style="contain: layout style;"
   onclose={handleNativeClose}
   oncancel={handleCancel}
@@ -81,11 +83,17 @@
        surface itself, otherwise page content bleeds through the text. -->
   <div
     class="overflow-hidden rounded-xl border border-white/[0.08] bg-[#151a26] shadow-2xl shadow-black/60 {size ===
-      'xl' || size === 'search'
+      'xl' ||
+    size === 'search' ||
+    size === 'jobs'
       ? 'flex h-full min-h-0 flex-col'
       : ''}"
   >
-    <div class={size === "xl" || size === "search" ? "flex h-full min-h-0 flex-col" : ""}>
+    <div
+      class={size === "xl" || size === "search" || size === "jobs"
+        ? "flex h-full min-h-0 flex-col"
+        : ""}
+    >
       {@render children()}
     </div>
   </div>

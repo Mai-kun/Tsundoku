@@ -20,6 +20,7 @@
     getSources,
     searchExternal,
   } from "$shared/api/api";
+  import { parseMediaUrl } from "$shared/utils/urlMediaParser";
   import { i18n } from "$shared/i18n/index.svelte";
   import Modal from "$shared/ui/Modal.svelte";
   import PopoverMenu from "$shared/ui/PopoverMenu.svelte";
@@ -228,6 +229,25 @@
     const controller = new AbortController();
     searchController = controller;
 
+    const parsedUrl = parseMediaUrl(pendingTerm);
+    if (parsedUrl) {
+      void loadUrlResult(parsedUrl, sequence, controller.signal);
+      return () => {
+        controller.abort();
+      };
+    }
+
+    if (pendingTerm.startsWith("http://") || pendingTerm.startsWith("https://")) {
+      results = [];
+      resultsByCategory = {};
+      loadingByCategory = {};
+      searching = false;
+      searchError = i18n.t.searchModal.unsupportedLinkError;
+      return () => {
+        controller.abort();
+      };
+    }
+
     const delay = setTimeout(
       () =>
         void loadResults(
@@ -351,6 +371,52 @@
     );
   }
 
+  async function loadUrlResult(
+    parsed: NonNullable<ReturnType<typeof parseMediaUrl>>,
+    sequence: number,
+    signal: AbortSignal,
+  ) {
+    if (signal.aborted) return;
+    searching = true;
+    searchError = null;
+    results = [];
+    resultsByCategory = {};
+    loadingByCategory = { [parsed.type]: true };
+
+    try {
+      const details = await getExternalDetails(parsed.type, parsed.id, "", parsed.source, signal);
+      if (sequence !== requestSequence || signal.aborted) return;
+
+      if (details) {
+        if (!details.type) details.type = parsed.type;
+        if (!details.externalSource) details.externalSource = parsed.source;
+        if (!details.externalId) details.externalId = parsed.id;
+        details.isDirectUrl = true;
+
+        results = [details];
+        resultsByCategory = { [parsed.type]: [details] };
+        loadingByCategory = { [parsed.type]: false };
+      } else {
+        results = [];
+        resultsByCategory = {};
+        loadingByCategory = {};
+        searchError = i18n.t.searchModal.directLinkError;
+      }
+    } catch (error) {
+      if (signal.aborted) return;
+      if (sequence === requestSequence) {
+        results = [];
+        resultsByCategory = {};
+        loadingByCategory = {};
+        searchError = error;
+      }
+    } finally {
+      if (sequence === requestSequence) {
+        searching = false;
+      }
+    }
+  }
+
   async function hydrateMissingData(items: ExternalMedia[], sequence: number, signal: AbortSignal) {
     const candidates = items.filter(
       (r) => effectiveType(r) === "manga" && (r.chapters == null || r.volumes == null || !r.author),
@@ -418,10 +484,16 @@
     if (result.totalCount === null || result.totalCount === undefined) return null;
 
     const type = effectiveType(result);
+    const isNovel =
+      result.type === "book" &&
+      (result.mangaFormat === "light_novel" ||
+        result.mangaFormat === "web_novel" ||
+        result.format === "NOVEL");
+
     const unit =
       type === "anime" || type === "tvshow"
         ? i18n.t.searchModal.countUnits.tvshow
-        : type === "manga"
+        : type === "manga" || isNovel
           ? i18n.t.searchModal.countUnits.manga
           : type === "movie"
             ? i18n.t.searchModal.countUnits.movie
@@ -507,13 +579,21 @@
           totalVolumes: result.volumes ?? 1,
           currentVolume: 1,
         };
-      case "book":
+      case "book": {
+        const isNovel =
+          result.mangaFormat === "light_novel" ||
+          result.mangaFormat === "web_novel" ||
+          result.format === "NOVEL";
         return {
           ...common,
           type: "book",
           author: result.author || i18n.t.searchModal.unknownAuthor,
-          totalPages: result.totalCount,
+          format: isNovel ? "light_novel" : "book",
+          totalPages: isNovel ? undefined : result.totalCount,
+          totalChapters: isNovel ? (result.chapters ?? result.totalCount ?? undefined) : undefined,
+          totalVolumes: isNovel ? (result.volumes ?? undefined) : undefined,
         };
+      }
       case "game":
         return {
           ...common,
@@ -587,6 +667,8 @@
     const s = (source ?? "").toLowerCase();
     if (s.includes("anilist"))
       return "bg-[#02a9ff]/15 text-[var(--color-brand-sky)] border-[#02a9ff]/30";
+    if (s.includes("ranobelib")) return "bg-[#ec4899]/15 text-[#f472b6] border-[#ec4899]/30";
+    if (s.includes("shikimori")) return "bg-[#2e51a2]/20 text-[#688ce4] border-[#2e51a2]/40";
     if (s.includes("mangadex")) return "bg-[#ff6740]/15 text-[#ff6740] border-[#ff6740]/30";
     if (s.includes("mal") || s.includes("myanimelist") || s.includes("jikan"))
       return "bg-[#2e51a2]/20 text-[#60a5fa] border-[#2e51a2]/30";
@@ -920,11 +1002,25 @@
                         </div>
 
                         <div class="text-muted flex flex-wrap items-center gap-2 text-xs">
+                          {#if result.isDirectUrl}
+                            <span
+                              class="rounded border border-emerald-500/40 bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-300"
+                            >
+                              {i18n.t.searchModal.foundViaDirectLink}
+                            </span>
+                          {/if}
                           {#if result.externalSource}
                             <span
                               class={`rounded border px-1.5 py-0.5 text-[10px] font-semibold ${sourceBadgeClass(result.externalSource)}`}
                             >
                               {result.externalSource}
+                            </span>
+                          {/if}
+                          {#if result.type === "book" && (result.mangaFormat === "light_novel" || result.mangaFormat === "web_novel" || result.format === "NOVEL")}
+                            <span
+                              class="rounded border border-purple-500/30 bg-purple-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-purple-300"
+                            >
+                              {i18n.current === "ru" ? "Ранобэ" : "Light Novel"}
                             </span>
                           {/if}
                           {#if result.rating && (!result.externalSource || !disabledSources.has(result.externalSource.toLowerCase()))}
@@ -1061,11 +1157,25 @@
                 </div>
 
                 <div class="text-muted flex flex-wrap items-center gap-2 text-xs">
+                  {#if result.isDirectUrl}
+                    <span
+                      class="rounded border border-emerald-500/40 bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-300"
+                    >
+                      {i18n.t.searchModal.foundViaDirectLink}
+                    </span>
+                  {/if}
                   {#if result.externalSource}
                     <span
                       class={`rounded border px-1.5 py-0.5 text-[10px] font-semibold ${sourceBadgeClass(result.externalSource)}`}
                     >
                       {result.externalSource}
+                    </span>
+                  {/if}
+                  {#if result.type === "book" && (result.mangaFormat === "light_novel" || result.mangaFormat === "web_novel" || result.format === "NOVEL")}
+                    <span
+                      class="rounded border border-purple-500/30 bg-purple-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-purple-300"
+                    >
+                      {i18n.current === "ru" ? "Ранобэ" : "Light Novel"}
                     </span>
                   {/if}
                   {#if result.rating && (!result.externalSource || !disabledSources.has(result.externalSource.toLowerCase()))}

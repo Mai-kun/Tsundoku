@@ -191,6 +191,9 @@
           <BookProgressSection
             totalPages={(media as { totalPages: number }).totalPages ?? 0}
             currentPage={(media as { currentPage: number }).currentPage ?? 0}
+            format={(media as { format?: string | null }).format}
+            totalChapters={(media as { totalChapters?: number | null }).totalChapters}
+            currentChapter={(media as { currentChapter?: number | null }).currentChapter}
             progress={support}
             value={progressValue}
             percent={progressPercent}

@@ -6,10 +6,13 @@
 <script lang="ts">
   import Modal from "$shared/ui/Modal.svelte";
   import Placeholder404 from "$entities/media/ui/Placeholder404.svelte";
+  import ExternalDetailModal from "$widgets/media-detail/ExternalDetailModal.svelte";
   import {
     Activity,
     AlertTriangle,
     Check,
+    ChevronRight,
+    Eye,
     LoaderCircle,
     Search,
     Trash2,
@@ -21,14 +24,21 @@
     dismissAllPendingMatches,
     dismissPendingMatch,
     errorMessage,
+    getExternalDetails,
     resolveAllPendingMatchesByPriority,
     resolvePendingMatch,
     searchExternal,
     getSourcePriority,
   } from "$shared/api/api";
+  import { parseMediaUrl } from "$shared/utils/urlMediaParser";
   import { showToast } from "$shared/ui/toast.svelte";
   import { i18n } from "$shared/i18n/index.svelte";
-  import type { ExternalMedia, JobProgress, PendingMatchItemDto } from "$shared/types";
+  import type {
+    ExternalMedia,
+    JobProgress,
+    PendingMatchItemDto,
+    SearchMediaType,
+  } from "$shared/types";
 
   interface Props {
     onMediaChanged?: () => void;
@@ -49,13 +59,43 @@
   let resolvingAll = $state(false);
   /** A candidate cover that failed once shows the 404-tan instead of a broken image icon. */
   let candidateImgErrors = $state<Record<string, boolean>>({});
+  let previewCandidate = $state<{ item: ExternalMedia; parentItem: PendingMatchItemDto } | null>(
+    null,
+  );
+  let resolvingCandidates = $state<Record<string, boolean>>({});
+  /** Master-detail: the row picked in the left list, or null while the list settles. */
+  let selectedMatchId = $state<string | null>(null);
+  let pendingQuery = $state("");
+
+  const visiblePending = $derived.by(() => {
+    const query = pendingQuery.trim().toLowerCase();
+    if (!query) return jobsClient.pendingMatches;
+    return jobsClient.pendingMatches.filter((item) =>
+      [item.title, item.romajiTitle, item.originalTitle].some((title) =>
+        title?.toLowerCase().includes(query),
+      ),
+    );
+  });
+
+  const selectedItem = $derived(
+    visiblePending.find((item) => item.id === selectedMatchId) ?? visiblePending[0] ?? null,
+  );
+  const selectedIndex = $derived(
+    selectedItem ? visiblePending.findIndex((item) => item.id === selectedItem.id) : -1,
+  );
+
+  function candidateType(cand: ExternalMedia, item: PendingMatchItemDto): SearchMediaType {
+    if (cand.type === "anime" || item.isAnime) return "anime";
+    if (cand.type) return cand.type as SearchMediaType;
+    return (item.type as SearchMediaType) || "manga";
+  }
 
   const defaultPriorities: Record<string, string[]> = {
     anime: ["anilist", "shikimori", "kitsu", "simkl"],
     manga: ["anilist", "mangadex", "shikimori", "mangaupdates", "kitsu"],
     movie: ["tmdb", "kinopoisk", "imdb", "simkl"],
     tvshow: ["tmdb", "kinopoisk", "imdb", "simkl"],
-    book: ["openlibrary"],
+    book: ["ranobelib", "shikimori", "anilist", "kitsu", "openlibrary"],
     game: ["steam", "rawg"],
   };
 
@@ -94,11 +134,32 @@
   }
 
   function scoreCandidate(item: PendingMatchItemDto, cand: ExternalMedia): number {
-    const norm = (s: string | null | undefined) =>
-      (s ?? "").toLowerCase().replace(/[^a-z0-9а-яё]/gi, "");
+    // A candidate the user pinned by pasting a direct link is the exact answer, not a guess.
+    if (cand.isDirectUrl) return 100;
 
-    const targets = [item.title, item.romajiTitle].map(norm).filter(Boolean);
-    const candTitles = [cand.title, cand.originalTitle, cand.romajiTitle].map(norm).filter(Boolean);
+    const cleanSuffix = (s: string | null | undefined) =>
+      (s ?? "").replace(/\s*[\(\[](?:новелла|манхва|манга|сборник|ранобэ)[\)\]]/gi, "").trim();
+
+    const norm = (s: string | null | undefined) =>
+      cleanSuffix(s)
+        .toLowerCase()
+        .replace(/[^a-z0-9а-яё]/gi, "");
+
+    const targets = [
+      item.title,
+      item.romajiTitle,
+      item.originalTitle,
+      extractRussian(item.title),
+      extractLatin(item.title),
+      ...(item.altTitles ?? []),
+    ]
+      .map(norm)
+      .filter(Boolean);
+
+    const candTitles = [cand.title, cand.originalTitle, cand.romajiTitle, ...(cand.synonyms ?? [])]
+      .map(norm)
+      .filter(Boolean);
+
     let best = 0;
     for (const t of targets) {
       for (const c of candTitles) {
@@ -109,14 +170,98 @@
         }
       }
     }
-    if (
-      item.releaseYear &&
-      cand.releaseYear &&
-      Math.abs(item.releaseYear - cand.releaseYear) <= 1
-    ) {
-      best += 20;
+
+    // Direct search result base score >= 40% (eliminates false 0% for API matches with shared query tokens)
+    if (best === 0) {
+      const itemTokens = targets.flatMap((t) => t.match(/[a-z0-9а-яё]{3,}/g) ?? []);
+      const candTokens = candTitles.flatMap((c) => c.match(/[a-z0-9а-яё]{3,}/g) ?? []);
+      const shared = itemTokens.filter((tok) => candTokens.includes(tok));
+      if (
+        shared.length > 0 &&
+        shared.length / Math.min(itemTokens.length || 1, candTokens.length || 1) >= 0.3
+      ) {
+        best = 40;
+      }
     }
-    return best;
+
+    if (best === 0) return 0;
+
+    let total = best;
+
+    // 1. Release Year
+    if (item.releaseYear && cand.releaseYear) {
+      const diff = Math.abs(item.releaseYear - cand.releaseYear);
+      if (diff <= 1) total += 20;
+      else if (diff > 2) total -= 25;
+    } else if (best >= 60) {
+      total += 20;
+    }
+
+    // 2. Author / Studio
+    const ia = norm(item.author);
+    const ca = norm(cand.author) || norm(cand.studio);
+    if (ia && ca) {
+      if (ia === ca || ia.includes(ca) || ca.includes(ia)) {
+        total += 15;
+      } else {
+        total -= 40;
+      }
+    } else if (best >= 60) {
+      total += 15;
+    }
+
+    // 3. Chapter / Page / Episode Counts
+    const ic = item.totalCount ?? 0;
+    const cc = cand.totalCount ?? cand.chapters ?? 0;
+    if (ic > 0 && cc > 0) {
+      const minCount = Math.min(ic, cc);
+      const maxCount = Math.max(ic, cc);
+      const ratio = minCount / maxCount;
+      if (ratio >= 0.8) {
+        total += 10;
+      } else if (ratio < 0.6) {
+        total -= 30;
+      }
+    } else if (best >= 60) {
+      total += 10;
+    }
+
+    // 4. Format / Country Mismatch (manhwa vs manga / KR vs JP)
+    const resolveFormat = (
+      mangaFmt?: string | null,
+      fmt?: string | null,
+      country?: string | null,
+    ) => {
+      const mf = (mangaFmt ?? "").toLowerCase().trim();
+      if (mf === "manhwa" || mf === "manga" || mf === "manhua") return mf;
+      const f = (fmt ?? "").toLowerCase().trim();
+      if (f === "manhwa" || f === "manga" || f === "manhua") return f;
+      const c = (country ?? "").toUpperCase().trim();
+      if (c === "KR") return "manhwa";
+      if (c === "JP") return "manga";
+      if (c === "CN") return "manhua";
+      return null;
+    };
+
+    const itemFmt = resolveFormat(item.mangaFormat, null, item.countryOfOrigin);
+    const candFmt = resolveFormat(cand.mangaFormat, cand.format, cand.countryOfOrigin);
+    let formatMismatch =
+      (itemFmt === "manhwa" && candFmt === "manga") ||
+      (itemFmt === "manga" && candFmt === "manhwa");
+
+    if (!formatMismatch && item.countryOfOrigin && cand.countryOfOrigin) {
+      const ic = item.countryOfOrigin.toUpperCase().trim();
+      const cc = cand.countryOfOrigin.toUpperCase().trim();
+      if ((ic === "KR" && cc === "JP") || (ic === "JP" && cc === "KR")) {
+        formatMismatch = true;
+      }
+    }
+
+    if (formatMismatch) {
+      total -= 20;
+    }
+
+    return Math.min(100, Math.max(0, total));
   }
 
   function sortCandidates(list: ExternalMedia[], item: PendingMatchItemDto): ExternalMedia[] {
@@ -145,31 +290,15 @@
   }
 
   function emptySearch(item: PendingMatchItemDto): ManualSearch {
-    return { open: false, query: getPreferredSearchQuery(item), results: null, loading: false };
+    return { open: true, query: getPreferredSearchQuery(item), results: null, loading: false };
   }
 
-  function toggleSearch(item: PendingMatchItemDto) {
-    const existing = manualSearches[item.id];
-    if (existing) {
-      existing.open = !existing.open;
-      return;
-    }
-    manualSearches[item.id] = { ...emptySearch(item), open: true };
-  }
-
-  // When an item has 0 candidates, automatically open manual search with its preferred Latin/Romaji query
+  // Every selected row gets its own search draft; a row with no candidates searches itself once.
   $effect(() => {
-    for (const item of jobsClient.pendingMatches) {
-      if ((!item.candidates || item.candidates.length === 0) && !manualSearches[item.id]) {
-        manualSearches[item.id] = {
-          open: true,
-          query: getPreferredSearchQuery(item),
-          results: null,
-          loading: false,
-        };
-        void runSearch(item);
-      }
-    }
+    const item = selectedItem;
+    if (!item || manualSearches[item.id]) return;
+    manualSearches[item.id] = emptySearch(item);
+    if (!item.candidates || item.candidates.length === 0) void runSearch(item);
   });
 
   async function runSearch(item: PendingMatchItemDto) {
@@ -178,6 +307,36 @@
 
     search.loading = true;
     try {
+      // A pasted direct link skips the text search entirely: fetch the exact title and pin it
+      // as the single 100% candidate.
+      const parsedUrl = parseMediaUrl(search.query.trim());
+      if (parsedUrl) {
+        const details = await getExternalDetails(
+          parsedUrl.type,
+          parsedUrl.id,
+          "",
+          parsedUrl.source,
+        );
+        if (details) {
+          if (!details.type) details.type = parsedUrl.type;
+          if (!details.externalSource) details.externalSource = parsedUrl.source;
+          if (!details.externalId) details.externalId = parsedUrl.id;
+          details.isDirectUrl = true;
+          search.results = [details];
+        } else {
+          search.results = [];
+          showToast(i18n.t.searchModal.directLinkError, "error");
+        }
+        return;
+      }
+
+      const trimmedQuery = search.query.trim();
+      if (trimmedQuery.startsWith("http://") || trimmedQuery.startsWith("https://")) {
+        search.results = [];
+        showToast(i18n.t.searchModal.unsupportedLinkError, "error");
+        return;
+      }
+
       const priorities = sourcePriorities[item.type]?.length
         ? sourcePriorities[item.type]
         : defaultPriorities[item.type] || [];
@@ -238,10 +397,32 @@
     return sortCandidates(raw, item);
   }
 
+  function candidateCount(item: PendingMatchItemDto): number {
+    return (manualSearches[item.id]?.results ?? item.candidates ?? []).length;
+  }
+
+  /**
+   * Auto-advance: keep the cursor on the row after the removed one, falling back to the previous
+   * row at the end of the list. Skips never call this — they only move the cursor.
+   */
+  function advanceSelection(itemId: string) {
+    const list = visiblePending;
+    const index = list.findIndex((item) => item.id === itemId);
+    const next = list[index + 1] ?? list[index - 1] ?? null;
+    selectedMatchId = next && next.id !== itemId ? next.id : null;
+  }
+
+  function skipCurrent() {
+    if (visiblePending.length === 0) return;
+    const index = visiblePending.findIndex((item) => item.id === selectedItem?.id);
+    selectedMatchId = visiblePending[(index + 1) % visiblePending.length]?.id ?? null;
+  }
+
   function resolve(item: PendingMatchItemDto, candidate: ExternalMedia) {
-    // Optimistic: the card vanishes at once. The server only records the choice (~2 ms) and
-    // downloads covers/ratings through the background job, so no spinner and no 429 risk.
-    jobsClient.dropPendingMatch(item.id);
+    const candKey = `${item.id}:${candidate.externalSource}:${candidate.externalId}`;
+    resolvingCandidates[candKey] = true;
+    advanceSelection(item.id);
+
     showToast(i18n.t.backgroundJobs.resolvedAsyncToast, "success");
     void resolvePendingMatch(item.id, {
       externalId: String(candidate.externalId),
@@ -250,12 +431,19 @@
       title: candidate.title,
     })
       .catch((error) => showToast(errorMessage(error), "error"))
-      .finally(() => onMediaChanged?.());
+      .finally(() => {
+        delete resolvingCandidates[candKey];
+        onMediaChanged?.();
+      });
+
+    // The server already queued the highest-priority enrichment, so the row can leave the list now.
+    jobsClient.dropPendingMatch(item.id);
   }
 
   async function keep(item: PendingMatchItemDto) {
     try {
       await dismissPendingMatch(item.id);
+      advanceSelection(item.id);
       jobsClient.dropPendingMatch(item.id);
       onMediaChanged?.();
     } catch (error) {
@@ -303,11 +491,52 @@
 
   /** The row is a junk import, no candidates or a manual search will save it: remove it entirely. */
   function handleDeleteItem(id: string) {
+    advanceSelection(id);
     jobsClient.dropPendingMatch(id);
     void deleteMedia(id)
       .then(() => showToast(i18n.t.backgroundJobs.deletedToast, "success"))
       .catch((error) => showToast(errorMessage(error), "error"))
       .finally(() => onMediaChanged?.());
+  }
+
+  function isTextEntry(target: EventTarget | null): boolean {
+    const element = target as HTMLElement | null;
+    if (!element) return false;
+    return (
+      element.tagName === "INPUT" ||
+      element.tagName === "TEXTAREA" ||
+      element.tagName === "SELECT" ||
+      element.isContentEditable
+    );
+  }
+
+  /** 1–4 pick a candidate, S/Space skips, Delete removes — never while the user is typing. */
+  function handleHotkey(event: KeyboardEvent) {
+    if (
+      !jobsClient.isModalOpen ||
+      jobsClient.modalTab !== "review" ||
+      previewCandidate ||
+      event.ctrlKey ||
+      event.metaKey ||
+      event.altKey ||
+      isTextEntry(event.target) ||
+      !selectedItem
+    ) {
+      return;
+    }
+
+    if (event.key >= "1" && event.key <= "4") {
+      const candidate = candidatesFor(selectedItem)[Number(event.key) - 1];
+      if (!candidate) return;
+      event.preventDefault();
+      resolve(selectedItem, candidate);
+    } else if (event.key === "s" || event.key === "S" || event.key === " ") {
+      event.preventDefault();
+      skipCurrent();
+    } else if (event.key === "Delete") {
+      event.preventDefault();
+      handleDeleteItem(selectedItem.id);
+    }
   }
 
   function statusLabel(job: JobProgress): string {
@@ -351,9 +580,14 @@
   }
 
   const sourceBadges: Record<string, string> = {
-    anilist: "bg-emerald-500/15 text-emerald-300",
-    mangadex: "bg-rose-500/15 text-rose-300",
-    shikimori: "bg-sky-500/15 text-sky-300",
+    anilist: "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30",
+    shikimori: "bg-sky-500/20 text-sky-300 border border-sky-500/30",
+    mangadex: "bg-rose-500/20 text-rose-300 border border-rose-500/30",
+    tmdb: "bg-amber-500/20 text-amber-300 border border-amber-500/30",
+    kinopoisk: "bg-orange-500/20 text-orange-300 border border-orange-500/30",
+    imdb: "bg-yellow-500/20 text-yellow-300 border border-yellow-500/30",
+    steam: "bg-blue-500/20 text-blue-300 border border-blue-500/30",
+    rawg: "bg-purple-500/20 text-purple-300 border border-purple-500/30",
   };
 
   function sourceBadgeClass(source: string | null | undefined): string {
@@ -361,12 +595,14 @@
   }
 </script>
 
-<Modal isOpen={jobsClient.isModalOpen} onClose={() => jobsClient.closeModal()} size="xl">
+<svelte:window onkeydown={handleHotkey} />
+
+<Modal isOpen={jobsClient.isModalOpen} onClose={() => jobsClient.closeModal()} size="jobs">
   <div class="flex h-full flex-col overflow-hidden">
     <header class="flex shrink-0 flex-col gap-3 border-b border-white/[0.08] px-5 py-4">
       <div class="flex items-center gap-3">
         <div
-          class="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#5844e0]/20 text-[#8f7fff]"
+          class="bg-accent-bright/20 grid h-9 w-9 shrink-0 place-items-center rounded-lg text-[#8f7fff]"
         >
           <Activity size={19} aria-hidden="true" />
         </div>
@@ -390,7 +626,7 @@
           aria-selected={jobsClient.modalTab === "jobs"}
           class="inline-flex cursor-pointer items-center gap-2 rounded-md px-3.5 py-1.5 text-xs font-semibold transition {jobsClient.modalTab ===
           'jobs'
-            ? 'bg-[#5844e0] text-white'
+            ? 'bg-accent-bright text-white'
             : 'text-muted hover:text-ink'}"
           onclick={() => (jobsClient.modalTab = "jobs")}
         >
@@ -425,7 +661,11 @@
       </div>
     </header>
 
-    <div class="thin-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain p-5">
+    <div
+      class={jobsClient.modalTab === "jobs"
+        ? "thin-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain p-5"
+        : "thin-scroll flex min-h-0 flex-1 flex-col overflow-hidden p-4 sm:p-5"}
+    >
       {#if jobsClient.modalTab === "jobs"}
         {#if jobsClient.pendingCount > 0}
           <div
@@ -500,7 +740,7 @@
                         ? "bg-rose-500"
                         : job.status === "Completed"
                           ? "bg-emerald-500"
-                          : "bg-[#5844e0]"
+                          : "bg-accent-bright"
                     }`}
                     style={`transform: scaleX(${job.progressPercent / 100})`}
                   ></div>
@@ -508,14 +748,14 @@
 
                 {#if isBatchImport(job)}
                   <div
-                    class="mt-2 flex flex-wrap items-center gap-2 rounded-lg bg-[#5844e0]/10 px-3 py-2 text-[11px] leading-relaxed text-[#a99cff]"
+                    class="bg-accent-bright/10 mt-2 flex flex-wrap items-center gap-2 rounded-lg px-3 py-2 text-[11px] leading-relaxed text-[#a99cff]"
                   >
                     <p class="min-w-0 flex-1">
                       {i18n.t.backgroundJobs.throttleNotice}
                     </p>
                     {#if etaMinutes(job)}
                       <span
-                        class="shrink-0 rounded-md bg-[#5844e0] px-2 py-0.5 text-[10px] font-bold text-white tabular-nums"
+                        class="bg-accent-bright shrink-0 rounded-md px-2 py-0.5 text-[10px] font-bold text-white tabular-nums"
                       >
                         {i18n.t.backgroundJobs.remainingMin(etaMinutes(job)!)}
                       </span>
@@ -582,135 +822,201 @@
             </p>
           </div>
         {:else}
-          <ul class="space-y-4">
-            {#each jobsClient.pendingMatches as item (item.id)}
-              {@const search = manualSearches[item.id] ?? emptySearch(item)}
-              {@const candidates = candidatesFor(item)}
-              <li class="bg-card/60 rounded-xl border border-white/[0.08] p-4">
-                <div class="flex flex-wrap items-start justify-between gap-3">
-                  <div class="min-w-0">
-                    <p class="text-xs font-bold tracking-wider text-slate-300 uppercase">
-                      {i18n.t.backgroundJobs.yourEntryPrompt}
-                    </p>
-                    <h3 class="text-ink mt-0.5 truncate text-sm font-bold">
-                      {item.title}
-                      {#if item.romajiTitle && item.romajiTitle !== item.title}
-                        <span class="text-muted ml-1.5 text-xs font-normal">
-                          ({item.romajiTitle})
+          <div class="flex min-h-0 flex-1 flex-col gap-4 md:flex-row">
+            <!-- Master list: every unresolved title, filterable and keyboard-driven. -->
+            <aside
+              class="flex max-h-64 min-h-0 w-full shrink-0 flex-col overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.03] md:max-h-none md:w-80 md:border-r md:border-white/10"
+            >
+              <div class="shrink-0 space-y-2 border-b border-white/[0.08] p-3">
+                <div class="relative">
+                  <Search
+                    size={14}
+                    class="text-muted pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2"
+                    aria-hidden="true"
+                  />
+                  <input
+                    type="search"
+                    bind:value={pendingQuery}
+                    placeholder={i18n.t.backgroundJobs.listSearchPlaceholder}
+                    class="bg-field text-ink focus:border-accent-soft focus:ring-accent-soft w-full rounded-lg border border-white/10 py-1.5 pr-3 pl-8 text-xs transition outline-none focus:ring-1"
+                  />
+                </div>
+                <div
+                  class="text-muted flex items-center justify-between text-[11px] font-medium tabular-nums"
+                >
+                  <span
+                    >[ {selectedIndex >= 0 ? selectedIndex + 1 : 0} / {visiblePending.length} ]</span
+                  >
+                  <span>{i18n.t.backgroundJobs.pendingShort}</span>
+                </div>
+              </div>
+
+              <ul
+                class="thin-scroll min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain p-2"
+              >
+                {#each visiblePending as item (item.id)}
+                  {@const active = item.id === selectedItem?.id}
+                  <li>
+                    <button
+                      type="button"
+                      class={`w-full cursor-pointer rounded-xl border px-2.5 py-2 text-left transition ${
+                        active
+                          ? "border-accent/60 bg-accent/15 text-white shadow-sm"
+                          : "border-transparent text-slate-300 hover:bg-white/[0.05]"
+                      }`}
+                      aria-current={active ? "true" : undefined}
+                      onclick={() => (selectedMatchId = item.id)}
+                    >
+                      <span class="block truncate text-xs font-semibold">{item.title}</span>
+                      <span class="mt-1 flex items-center gap-1.5 text-[10px]">
+                        <span
+                          class="bg-accent-bright/20 rounded px-1.5 py-0.5 font-semibold text-[#8f7fff]"
+                        >
+                          {item.type}{item.isAnime ? " · anime" : ""}
                         </span>
-                      {/if}
-                    </h3>
-                    <div class="mt-1.5 flex flex-wrap items-center gap-1.5">
+                        <span
+                          class="text-muted rounded bg-white/[0.06] px-1.5 py-0.5 font-medium tabular-nums"
+                          title={i18n.t.backgroundJobs.suggestions}
+                        >
+                          {candidateCount(item)}
+                        </span>
+                      </span>
+                    </button>
+                  </li>
+                {:else}
+                  <li class="text-muted p-3 text-xs">
+                    {i18n.t.backgroundJobs.noListResults}
+                  </li>
+                {/each}
+              </ul>
+
+              <div class="shrink-0 border-t border-white/[0.08] p-2">
+                <p class="text-muted px-1 pb-2 text-center text-[10px] leading-relaxed">
+                  {i18n.t.backgroundJobs.hotkeysHint}
+                </p>
+                <button
+                  type="button"
+                  class="bg-field hover:bg-elevated inline-flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-white/10 px-3 py-2 text-xs font-semibold text-slate-300 transition hover:text-white"
+                  onclick={skipCurrent}
+                >
+                  <ChevronRight size={14} aria-hidden="true" />
+                  {i18n.t.backgroundJobs.skipNext}
+                </button>
+              </div>
+            </aside>
+
+            <!-- Detail: the selected title and its candidate grid. -->
+            <section
+              class="thin-scroll min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain rounded-2xl border border-white/[0.08] bg-white/[0.02]"
+            >
+              {#if selectedItem}
+                {@const item = selectedItem}
+                {@const search = manualSearches[item.id] ?? emptySearch(item)}
+                {@const candidates = candidatesFor(item)}
+                <div
+                  class="sticky top-0 z-10 border-b border-white/[0.08] bg-[#151a26] px-4 py-2.5"
+                >
+                  <!-- Row 1: identity + quick actions -->
+                  <div class="flex items-center justify-between gap-2">
+                    <div class="flex min-w-0 items-center gap-2">
                       <span
-                        class="rounded-md bg-[#5844e0]/20 px-2 py-0.5 text-[10px] font-semibold text-[#8f7fff]"
+                        class="bg-accent-bright/20 shrink-0 rounded-md px-2 py-0.5 text-[10px] font-semibold text-[#8f7fff]"
                       >
                         {item.type}{item.isAnime ? " · anime" : ""}
                       </span>
-                      {#if item.releaseYear}
-                        <span
-                          class="text-muted rounded-md bg-white/[0.06] px-2 py-0.5 text-[10px] font-medium tabular-nums"
-                        >
-                          {item.releaseYear}
-                        </span>
-                      {/if}
-                      {#if item.author}
-                        <span
-                          class="text-muted truncate rounded-md bg-white/[0.06] px-2 py-0.5 text-[10px] font-medium"
-                        >
-                          {item.author}
-                        </span>
-                      {/if}
+                      <h3 class="text-ink min-w-0 truncate text-sm font-bold" title={item.title}>
+                        {item.title}
+                        {#if item.originalTitle || (item.romajiTitle && item.romajiTitle !== item.title)}
+                          <span class="text-muted ml-1 text-xs font-normal">
+                            ({item.originalTitle ?? item.romajiTitle})
+                          </span>
+                        {/if}
+                      </h3>
                       {#if item.currentProgress !== null && item.currentProgress !== undefined}
                         <span
-                          class="text-muted rounded-md bg-white/[0.06] px-2 py-0.5 text-[10px] font-medium tabular-nums"
+                          class="text-muted shrink-0 rounded-md bg-white/[0.06] px-2 py-0.5 text-[10px] font-medium tabular-nums"
                         >
                           {item.currentProgress}{item.totalCount ? ` / ${item.totalCount}` : ""}
+                          {item.isAnime || item.type === "tvshow" || item.type === "anime"
+                            ? " эп."
+                            : " гл."}
                         </span>
                       {/if}
                     </div>
-                  </div>
-                  <div class="flex shrink-0 items-center gap-1.5">
-                    <button
-                      type="button"
-                      class="bg-field hover:bg-elevated inline-flex size-8 cursor-pointer items-center justify-center rounded-lg border border-white/10 text-slate-300 transition hover:text-white sm:size-9 {search.open
-                        ? 'border-accent-soft text-accent-soft'
-                        : ''}"
-                      title="Искать вручную"
-                      aria-label={i18n.t.backgroundJobs.findManually}
-                      onclick={() => toggleSearch(item)}
-                    >
-                      <Search size={15} aria-hidden="true" />
-                    </button>
-                    <button
-                      type="button"
-                      class="bg-field hover:bg-elevated inline-flex size-8 cursor-pointer items-center justify-center rounded-lg border border-white/10 text-slate-300 transition hover:text-white sm:size-9"
-                      title="Оставить как есть (без привязки)"
-                      aria-label={i18n.t.backgroundJobs.keepAsIs}
-                      onclick={() => void keep(item)}
-                    >
-                      <X size={15} aria-hidden="true" />
-                    </button>
-                    <button
-                      type="button"
-                      class="inline-flex size-8 cursor-pointer items-center justify-center rounded-lg border border-rose-500/20 bg-rose-500/10 text-rose-400 transition hover:border-rose-500/40 hover:bg-rose-500/20 sm:size-9"
-                      title="Удалить из библиотеки"
-                      aria-label={i18n.t.backgroundJobs.delete}
-                      onclick={() => handleDeleteItem(item.id)}
-                    >
-                      <Trash2 size={15} aria-hidden="true" />
-                    </button>
-                  </div>
-                </div>
 
-                {#if search.open}
-                  <div class="mt-3 flex items-center gap-2">
-                    <div class="relative flex min-w-0 flex-1 items-center">
+                    <div class="flex shrink-0 items-center gap-1.5">
+                      <button
+                        type="button"
+                        class="bg-field hover:bg-elevated inline-flex size-8 cursor-pointer items-center justify-center rounded-lg border border-white/10 text-slate-300 transition hover:text-white"
+                        title="Оставить как есть (без привязки)"
+                        aria-label={i18n.t.backgroundJobs.keepAsIs}
+                        onclick={() => void keep(item)}
+                      >
+                        <X size={15} aria-hidden="true" />
+                      </button>
+                      <button
+                        type="button"
+                        class="inline-flex size-8 cursor-pointer items-center justify-center rounded-lg border border-rose-500/20 bg-rose-500/10 text-rose-400 transition hover:border-rose-500/40 hover:bg-rose-500/20"
+                        title="Удалить тайтл из библиотеки"
+                        aria-label={i18n.t.backgroundJobs.delete}
+                        onclick={() => handleDeleteItem(item.id)}
+                      >
+                        <Trash2 size={15} aria-hidden="true" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Row 2: search field with in-field language toggles -->
+                  <div class="mt-2 flex items-center gap-2">
+                    <div
+                      class="bg-field focus-within:border-accent-soft focus-within:ring-accent-soft flex min-w-0 flex-1 items-center rounded-lg border border-white/10 transition focus-within:ring-1"
+                    >
                       <input
                         type="search"
                         bind:value={search.query}
                         placeholder={i18n.t.backgroundJobs.searchPlaceholder}
-                        class="bg-field text-ink focus:border-accent-soft focus:ring-accent-soft w-full rounded-lg border border-white/10 px-3 py-2 pr-20 text-sm transition outline-none focus:ring-1"
+                        class="text-ink min-w-0 flex-1 bg-transparent px-3 py-1.5 text-sm outline-none placeholder:text-zinc-500"
                         onkeydown={(event) => {
                           if (event.key === "Enter") void runSearch(item);
                         }}
                       />
-                      {#if item.romajiTitle || extractLatin(item.title)}
-                        <div class="absolute right-2 flex items-center gap-1">
-                          <button
-                            type="button"
-                            class="cursor-pointer rounded px-1.5 py-0.5 text-[10px] font-semibold transition {search.query ===
-                            (item.romajiTitle || item.title)
-                              ? 'bg-accent text-white'
-                              : 'text-muted bg-white/10 hover:text-white'}"
-                            title="Искать по латинице / Romaji"
-                            onclick={() => {
-                              search.query = item.romajiTitle || item.title;
-                              void runSearch(item);
-                            }}
-                          >
-                            EN
-                          </button>
-                          <button
-                            type="button"
-                            class="cursor-pointer rounded px-1.5 py-0.5 text-[10px] font-semibold transition {search.query ===
-                            extractRussian(item.title)
-                              ? 'bg-accent text-white'
-                              : 'text-muted bg-white/10 hover:text-white'}"
-                            title="Искать по русскому названию"
-                            onclick={() => {
-                              search.query = extractRussian(item.title);
-                              void runSearch(item);
-                            }}
-                          >
-                            RU
-                          </button>
-                        </div>
-                      {/if}
+                      <div class="flex shrink-0 items-center gap-1 pr-2">
+                        <button
+                          type="button"
+                          class="cursor-pointer rounded-md border px-1.5 py-0.5 text-[10px] font-bold transition {search.query ===
+                          extractRussian(item.title)
+                            ? 'border-accent bg-accent text-white'
+                            : 'text-muted border-white/10 bg-white/[0.04] hover:text-white'}"
+                          title="Искать по русскому названию"
+                          onclick={() => {
+                            search.query = extractRussian(item.title);
+                            void runSearch(item);
+                          }}
+                        >
+                          RU
+                        </button>
+                        <button
+                          type="button"
+                          class="cursor-pointer rounded-md border px-1.5 py-0.5 text-[10px] font-bold transition {search.query ===
+                          getPreferredSearchQuery(item)
+                            ? 'border-accent bg-accent text-white'
+                            : 'text-muted border-white/10 bg-white/[0.04] hover:text-white'}"
+                          title="Искать по латинице / Romaji"
+                          onclick={() => {
+                            search.query = getPreferredSearchQuery(item);
+                            void runSearch(item);
+                          }}
+                        >
+                          EN
+                        </button>
+                      </div>
                     </div>
                     <button
                       type="button"
                       disabled={search.loading}
                       class="bg-accent hover:bg-accent-hover inline-flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-lg text-white transition disabled:cursor-wait disabled:opacity-60"
+                      title={i18n.t.backgroundJobs.findManually}
+                      aria-label={i18n.t.backgroundJobs.findManually}
                       onclick={() => void runSearch(item)}
                     >
                       {#if search.loading}
@@ -720,108 +1026,208 @@
                       {/if}
                     </button>
                   </div>
-                  {#if search.results}
-                    <p class="text-muted mt-3 text-[10px] font-bold tracking-wider uppercase">
-                      {i18n.t.backgroundJobs.suggestions}
-                    </p>
-                  {/if}
-                {/if}
+                </div>
 
-                {#if candidates.length === 0}
-                  <p class="text-muted mt-3 text-xs leading-relaxed">
-                    {i18n.t.backgroundJobs.noCandidates}
-                  </p>
-                {:else}
-                  <div
-                    class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2 {candidates.length > 4
-                      ? 'max-h-[420px] overflow-y-auto [overscroll-behavior:auto] overscroll-auto pr-1.5'
-                      : ''}"
-                  >
-                    {#each candidates as candidate (candidate.externalSource + candidate.externalId)}
-                      {@const key = candidate.externalSource + candidate.externalId}
-                      <div
-                        class="flex items-center justify-between gap-3.5 rounded-xl border border-white/[0.06] bg-white/[0.03] p-3 transition hover:border-white/15 hover:bg-white/[0.06]"
-                      >
-                        {#if candidate.coverUrl && !candidateImgErrors[key]}
-                          <img
-                            src={candidate.coverUrl}
-                            alt={candidate.title}
-                            referrerpolicy="no-referrer"
-                            class="bg-canvas h-20 w-14 shrink-0 rounded-lg object-cover ring-1 ring-white/10"
-                            loading="lazy"
-                            decoding="async"
-                            onerror={() => (candidateImgErrors[key] = true)}
-                          />
-                        {:else}
-                          <div
-                            class="h-20 w-14 shrink-0 overflow-hidden rounded-lg ring-1 ring-white/10"
+                <div class="space-y-3 p-4">
+                  <div class="flex items-center gap-2">
+                    <div class="min-w-0 flex-1">
+                      <input
+                        type="search"
+                        bind:value={search.query}
+                        placeholder={i18n.t.backgroundJobs.searchPlaceholder}
+                        class="bg-field text-ink focus:border-accent-soft focus:ring-accent-soft w-full rounded-lg border border-white/10 px-3 py-2 text-sm transition outline-none focus:ring-1"
+                        onkeydown={(event) => {
+                          if (event.key === "Enter") void runSearch(item);
+                        }}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      disabled={search.loading}
+                      class="bg-accent hover:bg-accent-hover inline-flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-lg text-white transition disabled:cursor-wait disabled:opacity-60"
+                      title={i18n.t.backgroundJobs.findManually}
+                      aria-label={i18n.t.backgroundJobs.findManually}
+                      onclick={() => void runSearch(item)}
+                    >
+                      {#if search.loading}
+                        <LoaderCircle size={15} class="animate-spin" />
+                      {:else}
+                        <Search size={15} aria-hidden="true" />
+                      {/if}
+                    </button>
+                  </div>
+
+                  {#if candidates.length === 0}
+                    <p class="text-muted text-xs leading-relaxed">
+                      {i18n.t.backgroundJobs.noCandidates}
+                    </p>
+                  {:else}
+                    <div class="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                      {#each candidates as candidate, index (candidate.externalSource + candidate.externalId)}
+                        {@const key = candidate.externalSource + candidate.externalId}
+                        {@const candKey = `${item.id}:${candidate.externalSource}:${candidate.externalId}`}
+                        {@const isResolving = Boolean(resolvingCandidates[candKey])}
+                        {@const match = scoreCandidate(item, candidate)}
+                        <div
+                          class="relative flex gap-4 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-3.5 shadow-sm transition hover:border-white/20 hover:bg-white/[0.06] sm:p-4"
+                        >
+                          <button
+                            type="button"
+                            class="group/poster relative aspect-[2/3] w-24 shrink-0 cursor-pointer overflow-hidden rounded-xl shadow-md ring-1 ring-white/10 transition hover:ring-white/25 active:scale-[0.98] sm:w-28"
+                            title="Нажмите для подробного просмотра"
+                            onclick={() =>
+                              (previewCandidate = { item: candidate, parentItem: item })}
                           >
-                            <Placeholder404 />
-                          </div>
-                        {/if}
-                        <div class="min-w-0 flex-1 space-y-1">
-                          <p
-                            class="line-clamp-2 text-xs leading-snug font-bold text-white sm:text-sm"
-                            title={candidate.title}
-                          >
-                            {candidate.title}
-                          </p>
-                          {#if candidate.originalTitle || candidate.romajiTitle}
-                            <p class="text-muted truncate text-[11px]">
-                              {candidate.originalTitle ?? candidate.romajiTitle}
-                            </p>
-                          {/if}
-                          <div class="flex flex-wrap gap-1 text-[10px]">
-                            {#if candidate.externalSource}
-                              <span
-                                class="rounded px-1.5 py-0.5 font-semibold {sourceBadgeClass(
-                                  candidate.externalSource,
-                                )}"
-                              >
-                                {candidate.externalSource}
-                              </span>
+                            {#if candidate.coverUrl && !candidateImgErrors[key]}
+                              <img
+                                src={candidate.coverUrl}
+                                alt={candidate.title}
+                                referrerpolicy="no-referrer"
+                                class="bg-canvas h-full w-full object-cover transition-transform duration-300 group-hover/poster:scale-105"
+                                loading="lazy"
+                                decoding="async"
+                                onerror={() => (candidateImgErrors[key] = true)}
+                              />
+                            {:else}
+                              <div class="h-full w-full">
+                                <Placeholder404 />
+                              </div>
                             {/if}
-                            {#if candidate.releaseYear}
-                              <span
-                                class="text-muted rounded bg-white/[0.07] px-1.5 py-0.5 tabular-nums"
+                            <div
+                              class="absolute inset-0 grid place-items-center bg-black/40 opacity-0 backdrop-blur-[1px] transition-opacity duration-200 group-hover/poster:opacity-100"
+                            >
+                              <Eye size={20} class="text-white drop-shadow-md" />
+                            </div>
+                          </button>
+
+                          <div class="flex min-w-0 flex-1 flex-col">
+                            <div class="flex items-start gap-1.5">
+                              {#if index < 4}
+                                <span
+                                  class="bg-accent-bright mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-md text-[10px] font-bold text-white"
+                                >
+                                  {index + 1}
+                                </span>
+                              {/if}
+                              <p
+                                class="line-clamp-2 text-sm leading-snug font-bold tracking-tight text-white sm:text-base"
+                                title={candidate.title}
                               >
-                                {candidate.releaseYear}
-                              </span>
+                                {candidate.title}
+                              </p>
+                            </div>
+                            {#if candidate.originalTitle || candidate.romajiTitle}
+                              <p class="text-muted mt-0.5 truncate text-xs">
+                                {candidate.originalTitle ?? candidate.romajiTitle}
+                              </p>
                             {/if}
-                            {#if (candidate.totalCount ?? candidate.chapters) !== null && (candidate.totalCount ?? candidate.chapters) !== undefined}
+
+                            <div
+                              class="mt-2 flex flex-wrap items-center gap-1.5 text-[10px] sm:text-[11px]"
+                            >
+                              {#if candidate.externalSource}
+                                <span
+                                  class="rounded-md px-2 py-0.5 font-bold tracking-wide {sourceBadgeClass(
+                                    candidate.externalSource,
+                                  )}"
+                                >
+                                  {candidate.externalSource}
+                                </span>
+                              {/if}
+                              {#if candidate.releaseYear}
+                                <span
+                                  class="text-muted rounded-md bg-white/[0.07] px-2 py-0.5 font-medium tabular-nums"
+                                >
+                                  {candidate.releaseYear}
+                                </span>
+                              {/if}
+                              {#if (candidate.totalCount ?? candidate.chapters) !== null && (candidate.totalCount ?? candidate.chapters) !== undefined}
+                                <span
+                                  class="text-muted rounded-md bg-white/[0.07] px-2 py-0.5 font-medium tabular-nums"
+                                >
+                                  {candidate.totalCount ?? candidate.chapters}
+                                  {candidate.type === "anime" || item.isAnime ? "эп." : "гл."}
+                                </span>
+                              {/if}
+                              {#if candidate.author || candidate.studio}
+                                <span
+                                  class="text-muted max-w-[140px] truncate rounded-md bg-white/[0.07] px-2 py-0.5 font-medium"
+                                  title={candidate.author ?? candidate.studio}
+                                >
+                                  {candidate.author ?? candidate.studio}
+                                </span>
+                              {/if}
                               <span
-                                class="text-muted rounded bg-white/[0.07] px-1.5 py-0.5 tabular-nums"
+                                class="rounded-md border border-emerald-500/30 bg-emerald-500/15 px-2 py-0.5 font-bold text-emerald-300 tabular-nums"
+                                title={i18n.t.backgroundJobs.matchScore(match)}
                               >
-                                {candidate.totalCount ?? candidate.chapters}
+                                {i18n.t.backgroundJobs.matchScore(match)}
                               </span>
-                            {/if}
-                            {#if candidate.author || candidate.studio}
-                              <span
-                                class="text-muted truncate rounded bg-white/[0.07] px-1.5 py-0.5"
+                            </div>
+
+                            <div class="mt-auto flex gap-2 pt-3">
+                              <button
+                                type="button"
+                                disabled={isResolving}
+                                class="bg-accent hover:bg-accent-hover inline-flex min-w-0 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold text-white shadow-sm transition active:scale-95 disabled:cursor-wait"
+                                title="Выбрать этот вариант"
+                                onclick={() => resolve(item, candidate)}
                               >
-                                {candidate.author ?? candidate.studio}
-                              </span>
-                            {/if}
+                                {#if isResolving}
+                                  <LoaderCircle size={14} class="animate-spin" />
+                                {:else}
+                                  <Check size={14} stroke-width={2.5} />
+                                {/if}
+                                <span class="truncate">{i18n.t.backgroundJobs.choose}</span>
+                              </button>
+                              <button
+                                type="button"
+                                class="bg-field hover:bg-elevated inline-flex shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-white/10 px-3 py-2 text-xs font-medium text-slate-300 transition hover:text-white"
+                                title="Подробнее"
+                                aria-label="Подробнее"
+                                onclick={() =>
+                                  (previewCandidate = { item: candidate, parentItem: item })}
+                              >
+                                <Eye size={14} aria-hidden="true" />
+                                <span>{i18n.t.common.details}</span>
+                              </button>
+                            </div>
                           </div>
                         </div>
-                        <button
-                          type="button"
-                          class="bg-accent hover:bg-accent-hover grid size-10 shrink-0 cursor-pointer place-items-center rounded-xl text-white shadow-md transition active:scale-95"
-                          title="Выбрать этот вариант"
-                          aria-label={i18n.t.backgroundJobs.choose}
-                          onclick={() => resolve(item, candidate)}
-                        >
-                          <Check size={18} stroke-width={2.5} />
-                        </button>
-                      </div>
-                    {/each}
-                  </div>
-                {/if}
-              </li>
-            {/each}
-          </ul>
+                      {/each}
+                    </div>
+                  {/if}
+                </div>
+              {/if}
+            </section>
+          </div>
         {/if}
       {/if}
     </div>
   </div>
 </Modal>
+
+{#if previewCandidate}
+  <ExternalDetailModal
+    item={previewCandidate.item}
+    type={candidateType(previewCandidate.item, previewCandidate.parentItem)}
+    onClose={() => (previewCandidate = null)}
+  >
+    {#snippet actions()}
+      <button
+        type="button"
+        class="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white shadow-md transition hover:bg-emerald-500 active:scale-95"
+        onclick={() => {
+          const pc = previewCandidate;
+          previewCandidate = null;
+          if (pc) {
+            resolve(pc.parentItem, pc.item);
+          }
+        }}
+      >
+        <Check size={16} stroke-width={2.5} />
+        <span>{i18n.t.backgroundJobs.choose}</span>
+      </button>
+    {/snippet}
+  </ExternalDetailModal>
+{/if}

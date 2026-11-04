@@ -18,8 +18,12 @@ export function readCardProgress(item: MediaItem): number {
   switch (item.type) {
     case "game":
       return (item as GameMedia).hoursPlayed ?? 0;
-    case "book":
-      return (item as BookMedia).currentPage;
+    case "book": {
+      const book = item as BookMedia;
+      return book.format === "light_novel" || book.format === "web_novel"
+        ? (book.currentChapter ?? 0)
+        : book.currentPage;
+    }
     case "manga":
       return (item as MangaMedia).currentChapter;
     case "tvshow":
@@ -31,8 +35,12 @@ export function readCardProgress(item: MediaItem): number {
 
 export function cardProgressTotal(item: MediaItem): number | null {
   switch (item.type) {
-    case "book":
-      return (item as BookMedia).totalPages;
+    case "book": {
+      const book = item as BookMedia;
+      return book.format === "light_novel" || book.format === "web_novel"
+        ? (book.totalChapters ?? null)
+        : book.totalPages;
+    }
     case "manga":
       return (item as MangaMedia).totalChapters;
     default:
@@ -50,9 +58,15 @@ export function writeCardProgress(item: MediaItem, value: number): void {
     case "game":
       (item as GameMedia).hoursPlayed = value;
       break;
-    case "book":
-      (item as BookMedia).currentPage = value;
+    case "book": {
+      const book = item as BookMedia;
+      if (book.format === "light_novel" || book.format === "web_novel") {
+        book.currentChapter = value;
+      } else {
+        book.currentPage = value;
+      }
       break;
+    }
     case "manga":
       (item as MangaMedia).currentChapter = value;
       break;

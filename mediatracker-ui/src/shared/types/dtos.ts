@@ -11,12 +11,15 @@ export interface PendingMatchItemDto {
   title: string;
   romajiTitle?: string | null;
   originalTitle?: string | null;
+  altTitles?: string[] | null;
   type: string;
   isAnime?: boolean;
   releaseYear?: number | null;
   author?: string | null;
   currentProgress?: number | null;
   totalCount?: number | null;
+  countryOfOrigin?: string | null;
+  mangaFormat?: string | null;
   candidates: ExternalMedia[];
 }
 
@@ -77,6 +80,8 @@ export interface ImportResultDto {
   targetListId: string | null;
   targetListName: string | null;
   skippedTitles?: string[];
+  dumpUrl?: string | null;
+  dumpFileName?: string | null;
 }
 
 export interface SteamImportPayload {
@@ -102,6 +107,8 @@ export interface MangaLibProfilePayload {
   bearerToken?: string;
   /** Standard SocialLib folder ids (1..6) to import; omitted means all. */
   statusIds?: number[];
+  /** Include the user's custom folder ids returned by bookmarks/folder/{userId}. */
+  includeCustomFolders?: boolean;
   skipDuplicates?: boolean;
   targetListId?: string;
   newListName?: string;
@@ -144,6 +151,11 @@ export interface CreateBookPayload extends CreateMediaBase {
   type: "book";
   author: string;
   totalPages?: number | null;
+  format?: string | null;
+  currentChapter?: number | null;
+  totalChapters?: number | null;
+  currentVolume?: number | null;
+  totalVolumes?: number | null;
 }
 
 export interface CreateVolumePayload {
@@ -239,6 +251,7 @@ export interface UpdateMediaPayload {
   franchiseName?: string | null;
   franchiseOrder?: number | null;
   author?: string | null;
+  format?: string | null;
   romajiTitle?: string | null;
   totalVolumes?: number | null;
   currentVolume?: number | null;

@@ -293,7 +293,12 @@
     allItems = allItems.map((item) => {
       if (item.id !== id) return item;
       if (item.type === "game") return { ...item, hoursPlayed: currentProgress };
-      if (item.type === "book") return { ...item, currentPage: currentProgress };
+      if (item.type === "book") {
+        const isNovel = item.format === "light_novel" || item.format === "web_novel";
+        return isNovel
+          ? { ...item, currentChapter: currentProgress }
+          : { ...item, currentPage: currentProgress };
+      }
       if (item.type === "manga") return { ...item, currentChapter: currentProgress };
       return item;
     });

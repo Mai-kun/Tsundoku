@@ -137,7 +137,7 @@
             type="button"
             class={`cursor-pointer px-3.5 py-2 text-sm font-medium transition ${
               year === option
-                ? "bg-[#5844e0]/20 font-semibold text-[#a5b4fc]"
+                ? "bg-accent-bright/20 font-semibold text-[#a5b4fc]"
                 : "text-muted hover:text-ink"
             }`}
             aria-pressed={year === option}

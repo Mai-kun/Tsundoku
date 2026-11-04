@@ -37,7 +37,7 @@
 
   function itemClass(view: AppView): string {
     return activeView === view
-      ? "bg-[#5844e0]/15 font-medium text-[#a5b4fc] [&>svg]:text-[#a5b4fc]"
+      ? "bg-accent-bright/15 font-medium text-[#a5b4fc] [&>svg]:text-[#a5b4fc]"
       : "text-muted hover:bg-card/60 hover:text-ink [&>svg]:text-muted hover:[&>svg]:text-ink";
   }
 </script>

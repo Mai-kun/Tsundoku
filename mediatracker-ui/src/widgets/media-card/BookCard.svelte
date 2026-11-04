@@ -26,20 +26,36 @@
     getOnProgressCommitted: () => onProgressCommitted,
     getOnStatusChange: () => onStatusChange,
   });
-  const ratio = $derived(item.totalPages > 0 ? progress.value / item.totalPages : null);
+
+  const isNovel = $derived(item.format === "light_novel" || item.format === "web_novel");
+  const total = $derived(isNovel ? (item.totalChapters ?? 0) : item.totalPages);
+  const ratio = $derived(total > 0 ? progress.value / total : null);
+  const progressText = $derived(
+    isNovel
+      ? i18n.t.card.chapters(progress.value, item.totalChapters ?? null)
+      : i18n.t.card.pages(progress.value, item.totalPages),
+  );
 </script>
 
 <BaseCard {item} {timeHint} {onOpen} {onStatusChange} {onProgressCommitted} {onDelete} {onEdit}>
-  <CardTitleBlock title={item.title} subtitle={item.author || i18n.t.types.book} />
+  <CardTitleBlock
+    title={item.title}
+    subtitle={item.author ||
+      (isNovel
+        ? item.format === "web_novel"
+          ? i18n.t.detail.mangaFormats.web_novel
+          : i18n.t.detail.mangaFormats.light_novel
+        : i18n.t.types.book)}
+  />
 
   {#if showProgress}
-    <CardProgressBar label={i18n.t.card.pages(progress.value, item.totalPages)} {ratio} />
+    <CardProgressBar label={progressText} {ratio} />
   {/if}
 
   {#snippet hover()}
     {#if showProgress}
       <CardProgressControls
-        text={i18n.t.card.pages(progress.value, item.totalPages)}
+        text={progressText}
         onStep={(delta) => progress.step(delta)}
         decrementDisabled={progress.value <= 0}
         error={progress.error}

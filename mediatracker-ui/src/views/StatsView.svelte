@@ -107,7 +107,7 @@
         aria-selected={activeTab === "summary"}
         class="flex h-9 cursor-pointer items-center justify-center gap-2 rounded-lg px-4 text-sm font-medium transition-colors duration-200 {activeTab ===
         'summary'
-          ? 'bg-[#5844e0]/30 font-semibold text-white'
+          ? 'bg-accent-bright/30 font-semibold text-white'
           : 'text-slate-400 hover:text-white'}"
         onclick={() => (activeTab = "summary")}
       >
@@ -120,7 +120,7 @@
         aria-selected={activeTab === "taste"}
         class="flex h-9 cursor-pointer items-center justify-center gap-2 rounded-lg px-4 text-sm font-medium transition-colors duration-200 {activeTab ===
         'taste'
-          ? 'bg-[#5844e0]/30 font-semibold text-white'
+          ? 'bg-accent-bright/30 font-semibold text-white'
           : 'text-slate-400 hover:text-white'}"
         onclick={() => (activeTab = "taste")}
       >

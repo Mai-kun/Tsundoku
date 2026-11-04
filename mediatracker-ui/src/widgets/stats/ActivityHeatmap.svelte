@@ -26,9 +26,9 @@
 
   function intensity(count: number): string {
     if (count === 0) return "bg-white/[0.04]";
-    if (count <= 2) return "bg-[#5844e0]/35";
-    if (count <= 5) return "bg-[#5844e0]/65";
-    if (count <= 9) return "bg-[#5844e0]";
+    if (count <= 2) return "bg-accent-bright/35";
+    if (count <= 5) return "bg-accent-bright/65";
+    if (count <= 9) return "bg-accent-bright";
     return "bg-[#818cf8]";
   }
 
@@ -77,9 +77,9 @@
     >
       <span>{i18n.t.stats.less}</span>
       <span class="size-3 rounded-[2px] bg-white/[0.04]"></span>
-      <span class="size-3 rounded-[2px] bg-[#5844e0]/35"></span>
-      <span class="size-3 rounded-[2px] bg-[#5844e0]/65"></span>
-      <span class="size-3 rounded-[2px] bg-[#5844e0]"></span>
+      <span class="bg-accent-bright/35 size-3 rounded-[2px]"></span>
+      <span class="bg-accent-bright/65 size-3 rounded-[2px]"></span>
+      <span class="bg-accent-bright size-3 rounded-[2px]"></span>
       <span class="size-3 rounded-[2px] bg-[#818cf8]"></span>
       <span>{i18n.t.stats.more}</span>
     </div>

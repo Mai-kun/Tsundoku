@@ -122,7 +122,7 @@
         aria-selected={tab === "templates"}
         class={`flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium transition ${
           tab === "templates"
-            ? "border-[#818cf8]/40 bg-[#5844e0]/15 font-semibold text-[#a5b4fc]"
+            ? "bg-accent-bright/15 border-[#818cf8]/40 font-semibold text-[#a5b4fc]"
             : "bg-card/60 text-muted hover:text-ink hover:bg-card border-white/10"
         }`}
         onclick={() => (tab = "templates")}
@@ -136,7 +136,7 @@
         aria-selected={tab === "custom"}
         class={`flex flex-1 cursor-pointer items-center justify-center rounded-lg border px-3 py-2 text-xs font-medium transition ${
           tab === "custom"
-            ? "border-[#818cf8]/40 bg-[#5844e0]/15 font-semibold text-[#a5b4fc]"
+            ? "bg-accent-bright/15 border-[#818cf8]/40 font-semibold text-[#a5b4fc]"
             : "bg-card/60 text-muted hover:text-ink hover:bg-card border-white/10"
         }`}
         onclick={() => (tab = "custom")}

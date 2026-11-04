@@ -1311,6 +1311,18 @@ export const translations = {
     },
     inLibrary: { ru: "В библиотеке", en: "In library" },
     added: { ru: "Добавлено", en: "Added" },
+    foundViaDirectLink: {
+      ru: "✓ Найдено по прямой ссылке",
+      en: "✓ Found via direct link",
+    },
+    directLinkError: {
+      ru: "Не удалось найти тайтл по прямой ссылке.",
+      en: "Could not find title by direct link.",
+    },
+    unsupportedLinkError: {
+      ru: "Неподдерживаемый домен для прямого поиска по ссылке.",
+      en: "Unsupported domain for direct link search.",
+    },
     goToTitle: { ru: "Перейти к тайтлу", en: "Go to title" },
     unknownAuthor: { ru: "Неизвестный автор", en: "Unknown author" },
     countUnits: {
@@ -1351,8 +1363,15 @@ export const translations = {
       platform: { ru: "Платформа", en: "Platform" },
       hoursPlayed: { ru: "Часы", en: "Hours" },
       author: { ru: "Автор", en: "Author" },
+      format: { ru: "Формат", en: "Format" },
       totalPages: { ru: "Страницы", en: "Pages" },
       totalChapters: { ru: "Главы", en: "Chapters" },
+      totalVolumes: { ru: "Тома", en: "Volumes" },
+      bookFormats: {
+        book: { ru: "Обычная книга", en: "Standard Book" },
+        light_novel: { ru: "Ранобэ / Лайт-новелла", en: "Light Novel" },
+        web_novel: { ru: "Веб-новелла", en: "Web Novel" },
+      },
       currentVolume: { ru: "Текущий том", en: "Current volume" },
       isAnime: { ru: "Это аниме?", en: "Is it anime?" },
       studio: { ru: "Студия", en: "Studio" },
@@ -1576,6 +1595,9 @@ export const translations = {
       manhwa: { ru: "Манхва", en: "Manhwa" },
       manhua: { ru: "Маньхуа", en: "Manhua" },
       oel: { ru: "Oel-манга", en: "Oel manga" },
+      light_novel: { ru: "Ранобэ", en: "Light Novel" },
+      web_novel: { ru: "Веб-новелла", en: "Web Novel" },
+      novel: { ru: "Новелла", en: "Novel" },
     },
     startDateLabel: { ru: "Дата начала", en: "Start date" },
     endDateLabel: { ru: "Дата окончания", en: "End date" },
@@ -1752,6 +1774,10 @@ export const translations = {
   },
   importModal: {
     title: { ru: "Импорт медиатеки", en: "Import your library" },
+    socialLibLoading: {
+      ru: "Загрузка закладок SocialLib...",
+      en: "Loading SocialLib bookmarks...",
+    },
     description: {
       ru: "Перенесите прогресс, оценки и списки из популярных сервисов или своих файлов.",
       en: "Transfer progress, ratings and lists from popular services or custom files.",
@@ -1958,6 +1984,10 @@ export const translations = {
     fileSelected: { ru: "Файл выбран", en: "File selected" },
     changeFile: { ru: "Сменить файл", en: "Change file" },
     importAnother: { ru: "Импортировать ещё", en: "Import another" },
+    downloadBookmarksDump: {
+      ru: "💾 Скачать копию закладок (.json)",
+      en: "💾 Download bookmarks copy (.json)",
+    },
     optionsTitle: { ru: "Опции импорта", en: "Import options" },
     sourceTitle: { ru: "Выбор источника", en: "Source selection" },
     socialLibSites: {
@@ -1995,8 +2025,8 @@ export const translations = {
       en: "Dropped / Removed",
     },
     instantCollector: {
-      ru: "Мгновенный сборщик",
-      en: "Instant Collector",
+      ru: "Мгновенный сборщик закладок",
+      en: "Instant bookmark collector",
     },
     fileJsonCsv: {
       ru: "Файл .json / .csv",
@@ -2171,6 +2201,10 @@ export const translations = {
       detectButton: {
         ru: "Подхватить сессию",
         en: "Detect session",
+      },
+      browserTimingHint: {
+        ru: "Если вы только что вошли на сайте, подождите 10–15 секунд или обновите вкладку в Zen Browser, чтобы браузер сохранил сессию на диск.",
+        en: "If you just logged in on the site, wait 10–15 seconds or refresh the tab in Zen Browser so the browser saves the session to disk.",
       },
       detectNotFound: {
         ru: "Сессия не найдена. Войдите на сайте lib.social и повторите",
@@ -2676,6 +2710,30 @@ export const translations = {
       ru: "Для этих тайтлов найдено несколько похожих вариантов или нет 100% уверенности. Выберите правильное совпадение или оставьте запись без привязки.",
       en: "Several similar options were found for these titles, or there is no full confidence. Pick the correct match or leave the entry unlinked.",
     },
+    listSearchPlaceholder: {
+      ru: "Поиск по списку…",
+      en: "Search the list…",
+    },
+    noListResults: {
+      ru: "Ничего не найдено",
+      en: "Nothing found",
+    },
+    pendingShort: {
+      ru: "тайтлов",
+      en: "titles",
+    },
+    skipNext: {
+      ru: "Пропустить (следующий)",
+      en: "Skip (next)",
+    },
+    hotkeysHint: {
+      ru: "1–4 — выбрать · S или Space — пропустить · Delete — удалить",
+      en: "1–4 — choose · S or Space — skip · Delete — delete",
+    },
+    matchScore: {
+      ru: (score: number) => `${score}% совпадение`,
+      en: (score: number) => `${score}% match`,
+    },
     keepAll: { ru: "Оставить все как есть", en: "Keep all as is" },
     resolveAllPriority: {
       ru: "Выбрать все по приоритету",
@@ -2692,15 +2750,11 @@ export const translations = {
       ru: "Тайтл удален из библиотеки",
       en: "Title removed from the library",
     },
-    yourEntryPrompt: {
-      ru: "Ваша импортированная запись — выберите подходящее совпадение из списка ниже:",
-      en: "Your imported entry — pick the matching title from the list below:",
-    },
     findManually: { ru: "Найти вручную", en: "Find manually" },
     keepAsIs: { ru: "Оставить как есть", en: "Keep as is" },
     searchPlaceholder: {
-      ru: "Введите альтернативное название и нажмите Enter…",
-      en: "Type an alternative title and press Enter…",
+      ru: "Поиск по названию или вставьте прямую ссылку (AniList, Shikimori, MangaDex...)",
+      en: "Search by title or paste direct link (AniList, Shikimori, MangaDex...)",
     },
     suggestions: {
       ru: "Результаты ручного поиска",
@@ -2710,7 +2764,7 @@ export const translations = {
       ru: "Точных совпадений не найдено. Воспользуйтесь кнопкой «Найти вручную» или оставьте запись как есть.",
       en: 'No exact matches found. Use the "Find manually" button or keep the entry as is.',
     },
-    choose: { ru: "✓ Выбрать", en: "✓ Choose" },
+    choose: { ru: "Выбрать", en: "Choose" },
     refineBadge: { ru: "Уточнить", en: "Review" },
     openProcesses: {
       ru: "Открыть фоновые процессы",

@@ -123,6 +123,17 @@
   let showBrowserCollector = $state(false);
   let mangalibDetectFailed = $state(false);
 
+  const mangalibJob = $derived(
+    jobsClient.jobs.find(
+      (job) =>
+        (job.title.includes("SocialLib") || job.title.includes("MangaLib")) &&
+        (job.status === "Running" || job.status === "Queued"),
+    ),
+  );
+  const mangalibLiveStatus = $derived(
+    mangalibJob?.currentStep || (mangalibOneClickBusy ? i18n.t.importModal.socialLibLoading : ""),
+  );
+
   // MangaLib folder options: standard 5 + custom folders
   interface MangaLibFolderOption {
     id: number | "custom";
@@ -820,6 +831,7 @@
         profileUrlOrId: idOrUrl,
         siteIds: mangalibSites,
         statusIds: mangalibSelectedStatuses,
+        includeCustomFolders: mangalibIncludeCustomFolders,
         skipDuplicates,
         ...listFields,
       });
@@ -912,7 +924,7 @@
     userId = userId.trim().replace(/\D+/g, "");
   }
 
-  console.log("%c[Tsundoku SocialLib Collector]%c Starting bookmarks export for User ID:", "color:#ff6740;font-weight:bold", "", userId);
+  console.log("%c[Tsundoku SocialLib Collector]%c Starting bookmarks export for User ID:", "color:#e8a28c;font-weight:bold", "", userId);
 
   // Auth token in SocialLib is stored in localStorage.auth as JSON: { token: { access_token } }
   const getAuthToken = () => {
@@ -1000,7 +1012,18 @@
   const statusMap = { 1: "Reading", 2: "Planned", 3: "Dropped", 4: "Completed", 5: "Favorites", 6: "On Hold" };
 
   const processBookmark = (b, site, folderId, folderName, isCustomFolder) => {
+    if (!b || typeof b !== "object") return;
     const m = b.media || {};
+    const hasMedia = b.media && typeof b.media === "object";
+    const hasTitleFields = !!(b.slug_url || b.chap_count || b.rus_name || b.eng_name || b.site_id || m.slug_url || m.rus_name || m.name || m.chap_count);
+    if (!hasMedia && !hasTitleFields) return;
+
+    const resolvedTitle = m.rus_name || m.name || m.eng_name || b.name || b.title;
+    if (!resolvedTitle) return;
+    const sTitle = String(resolvedTitle).toLowerCase().trim();
+    const FORBIDDEN_TITLES = new Set(["читаю", "в планах", "брошено", "прочитано", "любимые", "жду", "удалено", "смотрю", "запланировано", "пересматриваю", "отложено"]);
+    if (FORBIDDEN_TITLES.has(sTitle)) return;
+
     const prog = b.item || b.progress || {};
     const itemStatus = (b.status !== undefined && b.status !== null) ? b.status : (b.status_id || b.folder_id || folderId || 2);
     const statusText = folderName || statusMap[itemStatus] || (typeof itemStatus === "string" ? itemStatus : null) || b.folder?.name || b.status_name;
@@ -1020,7 +1043,7 @@
     const summary = m.summary ?? m.description ?? b.summary ?? null;
 
     const item = {
-      title: m.rus_name || m.name || m.eng_name || b.name || b.title,
+      title: resolvedTitle,
       englishTitle: m.eng_name || m.name || b.eng_name || null,
       type: site.type,
       status: statusText || itemStatus || "Planned",
@@ -1061,11 +1084,11 @@
     siteIdx++;
     headers["Site-Id"] = String(site.id);
     let siteTotal = 0;
-    console.log(\`%c[\${siteIdx}/\${totalSites}] \${site.name}%c: polling folders...\`, "color:#ff6740;font-weight:bold", "");
+    console.log(\`%c[\${siteIdx}/\${totalSites}] \${site.name}%c: polling folders...\`, "color:#e8a28c;font-weight:bold", "");
 
     let activeFolders = [];
     try {
-      const res = await fetch(\`https://api.lib.social/api/bookmarks/folders?user_id=\${userId}\`, { headers });
+      const res = await fetch(\`https://api.cdnlibs.org/api/bookmarks/folder/\${userId}?site_id=\${site.id}\`, { headers });
       if (res.ok) {
         const json = await res.json();
         const rawFolders = json.data || json || [];
@@ -1128,15 +1151,18 @@
 
     for (const folder of activeFolders) {
       const isStd = standardIds.includes(folder.id) || isStandardName(folder.name);
+      let folderQuery = null;
       if (isStd) {
         const stdCode = folder.id >= 1 && folder.id <= 6 ? folder.id : statusToCode(folder.id, folder.name);
         if (!allowedStandardStatuses.includes(stdCode)) {
           continue;
         }
+        folderQuery = \`status=\${stdCode}\`;
       } else {
         if (!includeCustomFolders) {
           continue;
         }
+        folderQuery = \`folder_id=\${folder.id}\`;
       }
 
       let page = 1;
@@ -1148,7 +1174,7 @@
       while (page <= maxPage && page <= 50) {
         let res;
         try {
-          res = await fetch(\`https://api.lib.social/api/bookmarks?user_id=\${userId}&folder_id=\${folder.id}&page=\${page}&per_page=60\`, { headers });
+          res = await fetch(\`https://api.cdnlibs.org/api/bookmarks?user_id=\${userId}&site_id=\${site.id}&\${folderQuery}&page=\${page}&per_page=60\`, { headers });
         } catch (fetchErr) {
           console.error(\`Network error for folder "\${folder.name}" (page \${page}):\`, fetchErr);
           break;
@@ -1561,6 +1587,15 @@
         >
           {i18n.t.importModal.importAnother}
         </button>
+        {#if result.dumpUrl || provider === "mangalib"}
+          <a
+            href={result.dumpUrl || "/api/media/import/sociallib/latest-dump"}
+            download={result.dumpFileName || "tsundoku-sociallib.json"}
+            class="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-emerald-400/40 bg-emerald-400/15 px-4 py-2 text-sm font-semibold text-emerald-200 transition hover:bg-emerald-400/25 hover:text-white"
+          >
+            {i18n.t.importModal.downloadBookmarksDump}
+          </a>
+        {/if}
         {#if showCloseButton && onClose}
           <button
             type="button"
@@ -2174,6 +2209,17 @@
                     {/if}
                   </button>
                 </div>
+                {#if mangalibOneClickBusy || mangalibJob}
+                  <div
+                    class="mt-2.5 flex items-center gap-2.5 rounded-xl border border-[var(--color-import-mangalib-border)] bg-[var(--color-import-mangalib-surface)] px-3.5 py-2.5 text-xs font-medium text-[var(--color-import-mangalib-text)] shadow-sm"
+                  >
+                    <LoaderCircle
+                      size={14}
+                      class="shrink-0 animate-spin text-[var(--color-import-mangalib-accent)]"
+                    />
+                    <span class="leading-snug">{mangalibLiveStatus}</span>
+                  </div>
+                {/if}
               {:else}
                 <!-- Compact auth card: explanation left, actions right -->
                 <div
@@ -2192,28 +2238,33 @@
                       </p>
                     {/if}
                   </div>
-                  <div class="flex shrink-0 items-center gap-1.5">
-                    <button
-                      type="button"
-                      disabled={mangalibDetectBusy}
-                      class="inline-flex w-auto cursor-pointer items-center gap-2 rounded-lg bg-[#c25e2e] px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-[#b05224] disabled:cursor-wait disabled:opacity-60"
-                      onclick={() => void detectMangalibSession()}
-                    >
-                      {#if mangalibDetectBusy}
-                        <LoaderCircle size={14} class="animate-spin" />
-                      {:else}
-                        <Key size={14} />
-                      {/if}
-                      <span>{i18n.t.importModal.mangalibAuth.detectButton}</span>
-                    </button>
-                    <button
-                      type="button"
-                      class="inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-2 text-xs text-slate-400 transition hover:text-white"
-                      onclick={() => void openMangalibLoginPage()}
-                    >
-                      <span>{i18n.t.importModal.mangalibAuth.openLoginPage}</span>
-                      <ExternalLink size={13} aria-hidden="true" />
-                    </button>
+                  <div class="flex shrink-0 flex-col items-start gap-1.5 sm:items-end">
+                    <div class="flex shrink-0 items-center gap-1.5">
+                      <button
+                        type="button"
+                        disabled={mangalibDetectBusy}
+                        class="inline-flex w-auto cursor-pointer items-center gap-2 rounded-lg bg-[#c25e2e] px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-[#b05224] disabled:cursor-wait disabled:opacity-60"
+                        onclick={() => void detectMangalibSession()}
+                      >
+                        {#if mangalibDetectBusy}
+                          <LoaderCircle size={14} class="animate-spin" />
+                        {:else}
+                          <Key size={14} />
+                        {/if}
+                        <span>{i18n.t.importModal.mangalibAuth.detectButton}</span>
+                      </button>
+                      <button
+                        type="button"
+                        class="inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-2 text-xs text-slate-400 transition hover:text-white"
+                        onclick={() => void openMangalibLoginPage()}
+                      >
+                        <span>{i18n.t.importModal.mangalibAuth.openLoginPage}</span>
+                        <ExternalLink size={13} aria-hidden="true" />
+                      </button>
+                    </div>
+                    <p class="text-muted max-w-sm text-[11px] leading-tight sm:text-right">
+                      {i18n.t.importModal.mangalibAuth.browserTimingHint}
+                    </p>
                   </div>
                 </div>
 
@@ -2258,187 +2309,189 @@
               {/if}
             </div>
 
-          <!-- Browser collector toggle: the script runs inside the user's browser, -->
-          <!-- where Cloudflare is already passed, so it works 100% of the time. -->
-          <div class="bg-card/50 rounded-xl border border-white/[0.08] p-4">
-            <div class="flex flex-wrap items-center justify-between gap-2">
-              <div class="flex min-w-0 items-center gap-2">
-                <span
-                  class="inline-flex items-center rounded-md border border-[var(--color-import-mangalib-border)] bg-[var(--color-import-mangalib-surface)] px-2 py-0.5 text-[11px] font-medium text-[var(--color-import-mangalib-text)]"
-                >
-                  {i18n.t.importModal.recommended}
-                </span>
-                <p class="min-w-0 text-sm font-semibold text-white">
-                  {i18n.t.importModal.collectViaScript}
-                </p>
-              </div>
-              <button
-                type="button"
-                aria-expanded={showBrowserCollector}
-                class="inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs font-medium text-slate-300 transition hover:text-white"
-                onclick={() => (showBrowserCollector = !showBrowserCollector)}
-              >
-                <span>{showBrowserCollector ? i18n.t.importModal.hideTemplate : i18n.t.importModal.instantCollector}</span>
-                {#if showBrowserCollector}
-                  <ChevronUp size={13} />
-                {:else}
-                  <ChevronDown size={13} />
-                {/if}
-              </button>
-            </div>
-
-            {#if showBrowserCollector}
-              <div class="space-y-3 pt-3">
-
-            <!-- Bookmarklet Banner: 1-Click Import without F12 -->
-            <div
-              class="space-y-3 rounded-xl border border-[var(--color-import-mangalib-border)] bg-gradient-to-r from-[var(--color-import-mangalib-surface)] via-transparent to-transparent p-4"
-            >
+            <!-- Browser collector toggle: the script runs inside the user's browser, -->
+            <!-- where Cloudflare is already passed, so it works 100% of the time. -->
+            <div class="bg-card/50 rounded-xl border border-white/[0.08] p-4">
               <div class="flex flex-wrap items-center justify-between gap-2">
-                <div class="flex items-center gap-2">
+                <div class="flex min-w-0 items-center gap-2">
                   <span
                     class="inline-flex items-center rounded-md border border-[var(--color-import-mangalib-border)] bg-[var(--color-import-mangalib-surface)] px-2 py-0.5 text-[11px] font-medium text-[var(--color-import-mangalib-text)]"
                   >
-                    {i18n.t.importModal.oneClickNoF12}
+                    {i18n.t.importModal.recommended}
                   </span>
-                  <h4 class="text-sm font-bold text-white">
-                    {i18n.t.importModal.bookmarkletButton}
-                  </h4>
+                  <p class="min-w-0 text-sm font-semibold text-white">
+                    {i18n.t.importModal.collectViaScript}
+                  </p>
                 </div>
                 <button
                   type="button"
-                  class="cursor-pointer text-xs text-[var(--color-import-mangalib-text)] underline hover:text-white"
-                  onclick={() => void copyBookmarkletUrl()}
+                  aria-expanded={showBrowserCollector}
+                  class="inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs font-medium text-slate-300 transition hover:text-white"
+                  onclick={() => (showBrowserCollector = !showBrowserCollector)}
                 >
-                  {#if bookmarkletCopied}
-                    <span class="font-medium text-emerald-400"
-                      >{i18n.t.importModal.linkCopied}</span
-                    >
+                  <span
+                    >{showBrowserCollector
+                      ? i18n.t.importModal.hideTemplate
+                      : i18n.t.importModal.instantCollector}</span
+                  >
+                  {#if showBrowserCollector}
+                    <ChevronUp size={13} />
                   {:else}
-                    {i18n.t.importModal.copyBookmarkletLink}
+                    <ChevronDown size={13} />
                   {/if}
                 </button>
               </div>
-              <p class="text-sm leading-relaxed text-slate-300">
-                {i18n.t.importModal.bookmarkletInstruction} (<kbd
-                  class="bg-canvas rounded border border-white/10 px-1.5 py-0.5 font-mono text-xs text-slate-300"
-                  >Ctrl+Shift+B</kbd
-                >){i18n.t.importModal.bookmarkletInstructionSuffix}
-              </p>
-              <div class="flex flex-wrap items-center gap-3 pt-1">
-                <a
-                  href={bookmarkletUrl}
-                  draggable="true"
-                  class="inline-flex cursor-grab items-center gap-2 rounded-lg border-2 border-dashed border-[var(--color-import-mangalib-border)] bg-[var(--color-import-mangalib-surface)] px-4 py-2.5 text-xs font-bold text-[var(--color-import-mangalib-text)] shadow-md transition select-none hover:scale-[1.01] hover:brightness-110 active:scale-95 active:cursor-grabbing"
-                  title={i18n.t.importModal.bookmarkletDragTooltip}
-                  onclick={(e) => {
-                    e.preventDefault();
-                    alert(i18n.t.importModal.bookmarkletDragAlert);
-                  }}
-                >
-                  <span>{i18n.t.importModal.bookmarkletButtonText}</span>
-                </a>
-                <span class="text-muted text-xs">
-                  {i18n.t.importModal.bookmarkletDragHint}
-                </span>
-              </div>
-            </div>
-            <!-- Instructions -->
-            <ol
-              class="space-y-3 rounded-lg border border-white/5 bg-black/30 p-3.5 text-sm leading-normal text-slate-200"
-            >
-              <li class="flex items-start gap-2.5">
-                <span
-                  class="grid size-6 shrink-0 place-items-center rounded-full bg-[var(--color-import-mangalib-surface)] text-xs font-bold text-[var(--color-import-mangalib-text)]"
-                  >1</span
-                >
-                <span>
-                  {i18n.t.importModal.step1Text} (<a
-                    href="https://mangalib.org"
-                    target="_blank"
-                    rel="noreferrer"
-                    class="font-medium text-[var(--color-import-mangalib-text)] hover:underline"
-                    >MangaLib</a
-                  >,
-                  <a
-                    href="https://animelib.org"
-                    target="_blank"
-                    rel="noreferrer"
-                    class="font-medium text-[var(--color-import-mangalib-text)] hover:underline"
-                    >AnimeLib</a
-                  >,
-                  <a
-                    href="https://ranobelib.me"
-                    target="_blank"
-                    rel="noreferrer"
-                    class="font-medium text-[var(--color-import-mangalib-text)] hover:underline"
-                    >RanobeLib</a
-                  >).
-                </span>
-              </li>
-              <li class="flex items-start gap-2.5">
-                <span
-                  class="grid size-6 shrink-0 place-items-center rounded-full bg-[var(--color-import-mangalib-surface)] text-xs font-bold text-[var(--color-import-mangalib-text)]"
-                  >2</span
-                >
-                <span>
-                  {i18n.t.importModal.step2TextPre}
-                  <kbd
-                    class="bg-canvas rounded border border-white/10 px-1.5 py-0.5 font-mono text-xs text-slate-300"
-                    >F12 → Console</kbd
-                  >{i18n.t.importModal.step2TextMid}
-                  <kbd
-                    class="bg-canvas rounded border border-white/10 px-1.5 py-0.5 font-mono text-xs text-slate-300"
-                    >Enter</kbd
-                  >{i18n.t.importModal.step2TextPost}
-                </span>
-              </li>
-              <li class="flex items-start gap-2.5">
-                <span
-                  class="grid size-6 shrink-0 place-items-center rounded-full bg-[var(--color-import-mangalib-surface)] text-xs font-bold text-[var(--color-import-mangalib-text)]"
-                  >3</span
-                >
-                <span>
-                  {i18n.t.importModal.step3TextPre}
-                  <strong>{i18n.t.importModal.step3TextBtn}</strong>{i18n.t.importModal
-                    .step3TextPost}
-                </span>
-              </li>
-            </ol>
-            <!-- Actions -->
-            <div class="grid grid-cols-1 gap-2.5 pt-1 sm:grid-cols-2">
-              <button
-                type="button"
-                class="bg-field inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-white/10 px-4 py-2.5 text-sm font-medium text-slate-200 transition hover:border-[var(--color-import-mangalib-border)] hover:bg-[var(--color-import-mangalib-surface)] hover:text-[var(--color-import-mangalib-text)]"
-                onclick={() => void copySocialLibScript()}
-              >
-                {#if scriptCopied}
-                  <Check size={16} class="text-emerald-400" />
-                  <span class="text-emerald-300">{i18n.t.importModal.scriptCopied}</span>
-                {:else}
-                  <Copy size={16} />
-                  <span>{i18n.t.importModal.copyCollectorScript}</span>
-                {/if}
-              </button>
-              <button
-                type="button"
-                disabled={busy}
-                class="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-[var(--color-import-mangalib-border)] bg-[var(--color-import-mangalib-accent-dim)] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[var(--color-import-mangalib-accent)] disabled:cursor-wait disabled:opacity-60"
-                onclick={() => void importFromClipboard()}
-              >
-                {#if busy}
-                  <LoaderCircle size={16} class="animate-spin" />
-                  <span>{i18n.t.importModal.importingStatus}</span>
-                {:else}
-                  <Download size={16} />
-                  <span>{i18n.t.importModal.pasteAndImport}</span>
-                {/if}
-              </button>
-            </div>
 
-              </div>
-            {/if}
-          </div>
+              {#if showBrowserCollector}
+                <div class="space-y-3 pt-3">
+                  <!-- Bookmarklet Banner: 1-Click Import without F12 -->
+                  <div
+                    class="space-y-3 rounded-xl border border-[var(--color-import-mangalib-border)] bg-gradient-to-r from-[var(--color-import-mangalib-surface)] via-transparent to-transparent p-4"
+                  >
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                      <div class="flex items-center gap-2">
+                        <span
+                          class="inline-flex items-center rounded-md border border-[var(--color-import-mangalib-border)] bg-[var(--color-import-mangalib-surface)] px-2 py-0.5 text-[11px] font-medium text-[var(--color-import-mangalib-text)]"
+                        >
+                          {i18n.t.importModal.oneClickNoF12}
+                        </span>
+                        <h4 class="text-sm font-bold text-white">
+                          {i18n.t.importModal.bookmarkletButton}
+                        </h4>
+                      </div>
+                      <button
+                        type="button"
+                        class="cursor-pointer text-xs text-[var(--color-import-mangalib-text)] underline hover:text-white"
+                        onclick={() => void copyBookmarkletUrl()}
+                      >
+                        {#if bookmarkletCopied}
+                          <span class="font-medium text-emerald-400"
+                            >{i18n.t.importModal.linkCopied}</span
+                          >
+                        {:else}
+                          {i18n.t.importModal.copyBookmarkletLink}
+                        {/if}
+                      </button>
+                    </div>
+                    <p class="text-sm leading-relaxed text-slate-300">
+                      {i18n.t.importModal.bookmarkletInstruction} (<kbd
+                        class="bg-canvas rounded border border-white/10 px-1.5 py-0.5 font-mono text-xs text-slate-300"
+                        >Ctrl+Shift+B</kbd
+                      >){i18n.t.importModal.bookmarkletInstructionSuffix}
+                    </p>
+                    <div class="flex flex-wrap items-center gap-3 pt-1">
+                      <a
+                        href={bookmarkletUrl}
+                        draggable="true"
+                        class="inline-flex cursor-grab items-center gap-2 rounded-lg border-2 border-dashed border-[var(--color-import-mangalib-border)] bg-[var(--color-import-mangalib-surface)] px-4 py-2.5 text-xs font-bold text-[var(--color-import-mangalib-text)] shadow-md transition select-none hover:scale-[1.01] hover:brightness-110 active:scale-95 active:cursor-grabbing"
+                        title={i18n.t.importModal.bookmarkletDragTooltip}
+                        onclick={(e) => {
+                          e.preventDefault();
+                          alert(i18n.t.importModal.bookmarkletDragAlert);
+                        }}
+                      >
+                        <span>{i18n.t.importModal.bookmarkletButtonText}</span>
+                      </a>
+                      <span class="text-muted text-xs">
+                        {i18n.t.importModal.bookmarkletDragHint}
+                      </span>
+                    </div>
+                  </div>
+                  <!-- Instructions -->
+                  <ol
+                    class="space-y-3 rounded-lg border border-white/5 bg-black/30 p-3.5 text-sm leading-normal text-slate-200"
+                  >
+                    <li class="flex items-start gap-2.5">
+                      <span
+                        class="grid size-6 shrink-0 place-items-center rounded-full bg-[var(--color-import-mangalib-surface)] text-xs font-bold text-[var(--color-import-mangalib-text)]"
+                        >1</span
+                      >
+                      <span>
+                        {i18n.t.importModal.step1Text} (<a
+                          href="https://mangalib.org"
+                          target="_blank"
+                          rel="noreferrer"
+                          class="font-medium text-[var(--color-import-mangalib-text)] hover:underline"
+                          >MangaLib</a
+                        >,
+                        <a
+                          href="https://animelib.org"
+                          target="_blank"
+                          rel="noreferrer"
+                          class="font-medium text-[var(--color-import-mangalib-text)] hover:underline"
+                          >AnimeLib</a
+                        >,
+                        <a
+                          href="https://ranobelib.me"
+                          target="_blank"
+                          rel="noreferrer"
+                          class="font-medium text-[var(--color-import-mangalib-text)] hover:underline"
+                          >RanobeLib</a
+                        >).
+                      </span>
+                    </li>
+                    <li class="flex items-start gap-2.5">
+                      <span
+                        class="grid size-6 shrink-0 place-items-center rounded-full bg-[var(--color-import-mangalib-surface)] text-xs font-bold text-[var(--color-import-mangalib-text)]"
+                        >2</span
+                      >
+                      <span>
+                        {i18n.t.importModal.step2TextPre}
+                        <kbd
+                          class="bg-canvas rounded border border-white/10 px-1.5 py-0.5 font-mono text-xs text-slate-300"
+                          >F12 → Console</kbd
+                        >{i18n.t.importModal.step2TextMid}
+                        <kbd
+                          class="bg-canvas rounded border border-white/10 px-1.5 py-0.5 font-mono text-xs text-slate-300"
+                          >Enter</kbd
+                        >{i18n.t.importModal.step2TextPost}
+                      </span>
+                    </li>
+                    <li class="flex items-start gap-2.5">
+                      <span
+                        class="grid size-6 shrink-0 place-items-center rounded-full bg-[var(--color-import-mangalib-surface)] text-xs font-bold text-[var(--color-import-mangalib-text)]"
+                        >3</span
+                      >
+                      <span>
+                        {i18n.t.importModal.step3TextPre}
+                        <strong>{i18n.t.importModal.step3TextBtn}</strong>{i18n.t.importModal
+                          .step3TextPost}
+                      </span>
+                    </li>
+                  </ol>
+                  <!-- Actions -->
+                  <div class="grid grid-cols-1 gap-2.5 pt-1 sm:grid-cols-2">
+                    <button
+                      type="button"
+                      class="bg-field inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-white/10 px-4 py-2.5 text-sm font-medium text-slate-200 transition hover:border-[var(--color-import-mangalib-border)] hover:bg-[var(--color-import-mangalib-surface)] hover:text-[var(--color-import-mangalib-text)]"
+                      onclick={() => void copySocialLibScript()}
+                    >
+                      {#if scriptCopied}
+                        <Check size={16} class="text-emerald-400" />
+                        <span class="text-emerald-300">{i18n.t.importModal.scriptCopied}</span>
+                      {:else}
+                        <Copy size={16} />
+                        <span>{i18n.t.importModal.copyCollectorScript}</span>
+                      {/if}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      class="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-[var(--color-import-mangalib-border)] bg-[var(--color-import-mangalib-accent-dim)] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[var(--color-import-mangalib-accent)] disabled:cursor-wait disabled:opacity-60"
+                      onclick={() => void importFromClipboard()}
+                    >
+                      {#if busy}
+                        <LoaderCircle size={16} class="animate-spin" />
+                        <span>{i18n.t.importModal.importingStatus}</span>
+                      {:else}
+                        <Download size={16} />
+                        <span>{i18n.t.importModal.pasteAndImport}</span>
+                      {/if}
+                    </button>
+                  </div>
+                </div>
+              {/if}
+            </div>
 
             <!-- Mode 2: File Upload (.json / .csv) -->
           {:else}

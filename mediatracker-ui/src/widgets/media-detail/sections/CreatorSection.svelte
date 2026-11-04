@@ -192,7 +192,7 @@
         class="h-1.5 w-full overflow-hidden rounded-full border border-white/[0.04] bg-[var(--color-field)]"
       >
         <div
-          class="h-full rounded-full bg-gradient-to-r from-[#5844e0] to-[#818cf8] transition duration-300"
+          class="from-accent-bright h-full rounded-full bg-gradient-to-r to-[#818cf8] transition duration-300"
           style="width: {Math.min(100, Math.max(0, completionPercent))}%"
         ></div>
       </div>

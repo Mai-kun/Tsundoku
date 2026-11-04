@@ -228,7 +228,7 @@
       onpointercancel={handlePointerUp}
     >
       <div
-        class="h-full rounded-full bg-gradient-to-r from-[#5844e0] to-[#818cf8] shadow-[0_0_8px_rgba(129,140,248,0.4)] transition-[width] duration-150 ease-out"
+        class="from-accent-bright h-full rounded-full bg-gradient-to-r to-[#818cf8] shadow-[0_0_8px_rgba(129,140,248,0.4)] transition-[width] duration-150 ease-out"
         style="width: {Math.min(100, Math.max(0, percent))}%"
       ></div>
     </div>

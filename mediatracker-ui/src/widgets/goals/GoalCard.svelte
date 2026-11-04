@@ -63,7 +63,9 @@
     >
       <div
         class={`h-full rounded-full transition-[width] duration-500 ease-out ${
-          goal.isCompleted ? "bg-emerald-500/80" : "bg-gradient-to-r from-[#5844e0] to-[#818cf8]"
+          goal.isCompleted
+            ? "bg-emerald-500/80"
+            : "from-accent-bright bg-gradient-to-r to-[#818cf8]"
         }`}
         style={`width: ${percent}%`}
       ></div>

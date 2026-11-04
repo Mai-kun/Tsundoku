@@ -42,7 +42,7 @@
       </h3>
     </div>
     <span
-      class="inline-flex items-center rounded-md border border-[#5844e0]/30 bg-[#5844e0]/15 px-2.5 py-1 text-xs font-semibold text-[#818cf8]"
+      class="border-accent-bright/30 bg-accent-bright/15 inline-flex items-center rounded-md border px-2.5 py-1 text-xs font-semibold text-[#818cf8]"
     >
       {i18n.t.stats.completedInYear(totalCompletions)}
     </span>
@@ -76,7 +76,7 @@
               </span>
               <div class="flex w-full flex-1 items-end">
                 <div
-                  class="h-full w-full origin-bottom rounded-t-md bg-gradient-to-t from-[#5844e0] to-[#818cf8] hover:brightness-125"
+                  class="from-accent-bright h-full w-full origin-bottom rounded-t-md bg-gradient-to-t to-[#818cf8] hover:brightness-125"
                   style="transform: scaleY({heightPercent / 100});"
                 ></div>
               </div>

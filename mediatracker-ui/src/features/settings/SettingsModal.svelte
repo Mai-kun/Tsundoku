@@ -568,7 +568,7 @@
     movie: ["tmdb", "imdb", "kinopoisk", "simkl"],
     tvshow: ["tmdb", "imdb", "kinopoisk", "simkl"],
     game: ["rawg", "steam"],
-    book: ["openlibrary"],
+    book: ["ranobelib", "shikimori", "anilist", "kitsu", "openlibrary"],
   };
 
   let sourcePriority = $state<Record<string, string[]>>({
@@ -944,6 +944,8 @@
     if (id === "tmdb") return "TMDb";
     if (id === "rawg") return "RAWG";
     if (id === "openlibrary") return "OpenLibrary";
+    if (id === "ranobelib") return "RanobeLib";
+    if (id === "kitsu") return "Kitsu";
     if (id === "shikimori") return "Shikimori";
     if (id === "steam") return "Steam";
     if (id === "imdb") return "IMDb";
@@ -966,7 +968,7 @@
       class="flex shrink-0 items-center justify-between border-b border-white/[0.08] px-6 py-4"
     >
       <div class="flex items-center gap-3">
-        <div class="grid h-9 w-9 place-items-center rounded-lg bg-[#5844e0]/15 text-[#a5b4fc]">
+        <div class="bg-accent-bright/15 grid h-9 w-9 place-items-center rounded-lg text-[#a5b4fc]">
           <Settings size={20} />
         </div>
         <div>
@@ -996,7 +998,7 @@
           type="button"
           class={`tap flex w-full cursor-pointer items-center gap-3 rounded-lg px-3.5 py-2.5 text-left text-xs transition ${
             activeTab === "sources"
-              ? "border border-[#5844e0]/30 bg-[#5844e0]/15 font-semibold text-[#a5b4fc] shadow-sm"
+              ? "border-accent-bright/30 bg-accent-bright/15 border font-semibold text-[#a5b4fc] shadow-sm"
               : "text-muted border border-transparent font-medium hover:bg-white/5 hover:text-white"
           }`}
           onclick={() => (activeTab = "sources")}
@@ -1009,7 +1011,7 @@
           type="button"
           class={`tap flex w-full cursor-pointer items-center gap-3 rounded-lg px-3.5 py-2.5 text-left text-xs transition ${
             activeTab === "search"
-              ? "border border-[#5844e0]/30 bg-[#5844e0]/15 font-semibold text-[#a5b4fc] shadow-sm"
+              ? "border-accent-bright/30 bg-accent-bright/15 border font-semibold text-[#a5b4fc] shadow-sm"
               : "text-muted border border-transparent font-medium hover:bg-white/5 hover:text-white"
           }`}
           onclick={() => (activeTab = "search")}
@@ -1022,7 +1024,7 @@
           type="button"
           class={`tap flex w-full cursor-pointer items-center gap-3 rounded-lg px-3.5 py-2.5 text-left text-xs transition ${
             activeTab === "backup"
-              ? "border border-[#5844e0]/30 bg-[#5844e0]/15 font-semibold text-[#a5b4fc] shadow-sm"
+              ? "border-accent-bright/30 bg-accent-bright/15 border font-semibold text-[#a5b4fc] shadow-sm"
               : "text-muted border border-transparent font-medium hover:bg-white/5 hover:text-white"
           }`}
           onclick={() => (activeTab = "backup")}
@@ -1035,7 +1037,7 @@
           type="button"
           class={`tap flex w-full cursor-pointer items-center gap-3 rounded-lg px-3.5 py-2.5 text-left text-xs transition ${
             activeTab === "import"
-              ? "border border-[#5844e0]/30 bg-[#5844e0]/15 font-semibold text-[#a5b4fc] shadow-sm"
+              ? "border-accent-bright/30 bg-accent-bright/15 border font-semibold text-[#a5b4fc] shadow-sm"
               : "text-muted border border-transparent font-medium hover:bg-white/5 hover:text-white"
           }`}
           onclick={() => (activeTab = "import")}
@@ -1048,7 +1050,7 @@
           type="button"
           class={`tap flex w-full cursor-pointer items-center gap-3 rounded-lg px-3.5 py-2.5 text-left text-xs transition ${
             activeTab === "reading"
-              ? "border border-[#5844e0]/30 bg-[#5844e0]/15 font-semibold text-[#a5b4fc] shadow-sm"
+              ? "border-accent-bright/30 bg-accent-bright/15 border font-semibold text-[#a5b4fc] shadow-sm"
               : "text-muted border border-transparent font-medium hover:bg-white/5 hover:text-white"
           }`}
           onclick={() => (activeTab = "reading")}
@@ -1061,7 +1063,7 @@
           type="button"
           class={`tap flex w-full cursor-pointer items-center gap-3 rounded-lg px-3.5 py-2.5 text-left text-xs transition ${
             activeTab === "update"
-              ? "border border-[#5844e0]/30 bg-[#5844e0]/15 font-semibold text-[#a5b4fc] shadow-sm"
+              ? "border-accent-bright/30 bg-accent-bright/15 border font-semibold text-[#a5b4fc] shadow-sm"
               : "text-muted border border-transparent font-medium hover:bg-white/5 hover:text-white"
           }`}
           onclick={() => (activeTab = "update")}
@@ -1074,7 +1076,7 @@
           type="button"
           class={`tap flex w-full cursor-pointer items-center gap-3 rounded-lg px-3.5 py-2.5 text-left text-xs transition ${
             activeTab === "storage"
-              ? "border border-[#5844e0]/30 bg-[#5844e0]/15 font-semibold text-[#a5b4fc] shadow-sm"
+              ? "border-accent-bright/30 bg-accent-bright/15 border font-semibold text-[#a5b4fc] shadow-sm"
               : "text-muted border border-transparent font-medium hover:bg-white/5 hover:text-white"
           }`}
           onclick={() => (activeTab = "storage")}
@@ -1087,7 +1089,7 @@
           type="button"
           class={`tap flex w-full cursor-pointer items-center gap-3 rounded-lg px-3.5 py-2.5 text-left text-xs transition ${
             activeTab === "desktop"
-              ? "border border-[#5844e0]/30 bg-[#5844e0]/15 font-semibold text-[#a5b4fc] shadow-sm"
+              ? "border-accent-bright/30 bg-accent-bright/15 border font-semibold text-[#a5b4fc] shadow-sm"
               : "text-muted border border-transparent font-medium hover:bg-white/5 hover:text-white"
           }`}
           onclick={() => (activeTab = "desktop")}
@@ -2335,7 +2337,7 @@
                 class="flex flex-col items-center justify-center rounded-2xl border border-dashed border-white/[0.1] bg-white/[0.02] p-12 text-center"
               >
                 <div
-                  class="mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-[#5844e0]/10 text-[#a5b4fc]"
+                  class="bg-accent-bright/10 mb-3 grid h-12 w-12 place-items-center rounded-2xl text-[#a5b4fc]"
                 >
                   <Key size={22} />
                 </div>
@@ -2550,7 +2552,7 @@
   <div class="p-6">
     <div class="mb-5 flex items-start gap-4">
       <div
-        class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#5844e0]/15 text-[#a5b4fc]"
+        class="bg-accent-bright/15 grid h-10 w-10 shrink-0 place-items-center rounded-full text-[#a5b4fc]"
       >
         <Key size={20} />
       </div>
@@ -2612,7 +2614,7 @@
         </button>
         <button
           type="submit"
-          class="inline-flex h-9 cursor-pointer items-center gap-2 rounded-md bg-[#5844e0] px-4 text-xs font-semibold text-white transition hover:bg-[#6854f0] disabled:cursor-not-allowed disabled:opacity-60"
+          class="bg-accent-bright inline-flex h-9 cursor-pointer items-center gap-2 rounded-md px-4 text-xs font-semibold text-white transition hover:bg-[#6854f0] disabled:cursor-not-allowed disabled:opacity-60"
           disabled={isCreatingToken || !newTokenName.trim()}
         >
           {#if isCreatingToken}
@@ -2674,7 +2676,7 @@
           </code>
           <button
             type="button"
-            class="tap inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg bg-[#5844e0] px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-[#6854f0]"
+            class="tap bg-accent-bright inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-[#6854f0]"
             onclick={() => handleCopyToken(createdTokenResult!.rawToken)}
           >
             {#if hasCopiedToken}

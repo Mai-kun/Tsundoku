@@ -108,7 +108,7 @@
     />
     {#if jobsClient.activeCount > 0}
       <span
-        class="absolute -top-1 -right-1 min-w-4 rounded-full bg-[#5844e0] px-1 text-[10px] leading-4 font-bold text-white tabular-nums"
+        class="bg-accent-bright absolute -top-1 -right-1 min-w-4 rounded-full px-1 text-[10px] leading-4 font-bold text-white tabular-nums"
       >
         {jobsClient.activeCount}
       </span>
@@ -137,7 +137,7 @@
       </h2>
       {#if jobsClient.activeCount > 0}
         <span
-          class="rounded-full bg-[#5844e0]/20 px-2 py-0.5 text-[10px] font-bold text-[#8f7fff] tabular-nums"
+          class="bg-accent-bright/20 rounded-full px-2 py-0.5 text-[10px] font-bold text-[#8f7fff] tabular-nums"
         >
           {jobsClient.activeCount}
         </span>
@@ -190,7 +190,7 @@
               aria-valuemax="100"
             >
               <div
-                class="h-full w-full origin-left rounded-full bg-[#5844e0] transition-transform duration-300 ease-out"
+                class="bg-accent-bright h-full w-full origin-left rounded-full transition-transform duration-300 ease-out"
                 style={`transform: scaleX(${job.progressPercent / 100})`}
               ></div>
             </div>

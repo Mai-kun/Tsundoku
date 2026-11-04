@@ -9,6 +9,9 @@
   interface Props {
     totalPages: number;
     currentPage: number;
+    format?: string | null;
+    totalChapters?: number | null;
+    currentChapter?: number | null;
     progress: ProgressInfo;
     value: number;
     percent: number;
@@ -17,19 +20,39 @@
     onCounterChange?: (value: number) => void;
   }
 
-  let { totalPages, currentPage, progress, value, percent, error, onStep, onCounterChange }: Props =
-    $props();
+  let {
+    totalPages,
+    currentPage,
+    format,
+    totalChapters,
+    currentChapter,
+    progress,
+    value,
+    percent,
+    error,
+    onStep,
+    onCounterChange,
+  }: Props = $props();
 
-  const minsPerPage = $derived(uiSettings.bookPageMinutes || 1.5);
-  const DAILY_PACE = 20;
+  const isNovel = $derived(format === "light_novel" || format === "web_novel");
+  const minsPerUnit = $derived(isNovel ? 6 : uiSettings.bookPageMinutes || 1.5);
+  const DAILY_PACE = $derived(isNovel ? 3 : 20);
 
-  const effectiveTotal = $derived(totalPages > 0 ? totalPages : (progress.total ?? 0));
-  const totalMinutes = $derived(Math.round(effectiveTotal * minsPerPage));
+  const effectiveTotal = $derived(
+    isNovel
+      ? totalChapters && totalChapters > 0
+        ? totalChapters
+        : (progress.total ?? 0)
+      : totalPages > 0
+        ? totalPages
+        : (progress.total ?? 0),
+  );
+  const totalMinutes = $derived(Math.round(effectiveTotal * minsPerUnit));
   const totalHours = $derived((totalMinutes / 60).toFixed(1));
-  const remainingPages = $derived(Math.max(0, effectiveTotal - value));
-  const remainingMinutes = $derived(Math.round(remainingPages * minsPerPage));
+  const remainingUnits = $derived(Math.max(0, effectiveTotal - value));
+  const remainingMinutes = $derived(Math.round(remainingUnits * minsPerUnit));
   const remainingHours = $derived((remainingMinutes / 60).toFixed(1));
-  const daysAtPace = $derived(Math.ceil(remainingPages / DAILY_PACE));
+  const daysAtPace = $derived(Math.ceil(remainingUnits / DAILY_PACE));
 
   const isRu = $derived(i18n.current === "ru");
 
@@ -113,7 +136,7 @@
   <div class="flex items-center justify-between gap-3">
     <div class="flex min-w-0 flex-wrap items-center gap-2.5">
       <span class="text-xs font-bold tracking-wider text-slate-300 uppercase">
-        {isRu ? "СТРАНИЦЫ" : "PAGES"}
+        {isNovel ? (isRu ? "ГЛАВЫ" : "CHAPTERS") : isRu ? "СТРАНИЦЫ" : "PAGES"}
       </span>
       <div class="flex items-center gap-1.5">
         {#if isEditing}
@@ -190,7 +213,13 @@
       bind:this={barElement}
       role="slider"
       tabindex="0"
-      aria-label={isRu ? "Прогресс чтения страниц" : "Page progress"}
+      aria-label={isNovel
+        ? isRu
+          ? "Прогресс чтения глав"
+          : "Chapter progress"
+        : isRu
+          ? "Прогресс чтения страниц"
+          : "Page progress"}
       aria-valuenow={value}
       aria-valuemin="0"
       aria-valuemax={effectiveTotal}
@@ -201,7 +230,7 @@
       onpointercancel={handlePointerUp}
     >
       <div
-        class="h-full rounded-full bg-gradient-to-r from-[#5844e0] to-[#818cf8] shadow-[0_0_8px_rgba(129,140,248,0.4)] transition-[width] duration-150 ease-out"
+        class="from-accent-bright h-full rounded-full bg-gradient-to-r to-[#818cf8] shadow-[0_0_8px_rgba(129,140,248,0.4)] transition-[width] duration-150 ease-out"
         style="width: {Math.min(100, Math.max(0, percent))}%"
       ></div>
     </div>
@@ -219,7 +248,13 @@
       <div
         class="flex flex-col gap-0.5 rounded-lg border border-white/[0.06] bg-black/15 px-3 py-2"
       >
-        <span class="text-muted">{isRu ? "Ориентировочно на книгу" : "Estimated total time"}</span>
+        <span class="text-muted"
+          >{isRu
+            ? isNovel
+              ? "Ориентировочно на новеллу"
+              : "Ориентировочно на книгу"
+            : "Estimated total time"}</span
+        >
         <span class="font-semibold text-white">~{totalHours} {isRu ? "ч." : "h"}</span>
       </div>
       <div
@@ -230,18 +265,28 @@
       </div>
     </div>
 
-    {#if remainingPages > 0}
+    {#if remainingUnits > 0}
       <div class="text-muted flex items-center gap-2 text-xs">
         <Clock size={13} class="text-accent-soft shrink-0" />
         <span>
           {isRu
-            ? `При темпе ${DAILY_PACE} стр./день чтение займет ~${daysAtPace} дн.`
-            : `At ${DAILY_PACE} pages/day reading will take ~${daysAtPace} days`}
+            ? isNovel
+              ? `При темпе ${DAILY_PACE} гл./день чтение займет ~${daysAtPace} дн.`
+              : `При темпе ${DAILY_PACE} стр./день чтение займет ~${daysAtPace} дн.`
+            : isNovel
+              ? `At ${DAILY_PACE} ch./day reading will take ~${daysAtPace} days`
+              : `At ${DAILY_PACE} pages/day reading will take ~${daysAtPace} days`}
         </span>
       </div>
     {:else}
       <div class="text-xs font-semibold text-emerald-400">
-        {isRu ? "✓ Книга полностью прочитана!" : "✓ Book completed!"}
+        {isRu
+          ? isNovel
+            ? "✓ Новелла полностью прочитана!"
+            : "✓ Книга полностью прочитана!"
+          : isNovel
+            ? "✓ Novel completed!"
+            : "✓ Book completed!"}
       </div>
     {/if}
   {/if}

@@ -31,6 +31,11 @@ export function typeLabel(item: MediaItem): string {
  * called just "Манга" is wrong. Falls back to the plain type label when no source knew.
  */
 export function formatLabel(item: MediaItem): string {
+  if (item.type === "book") {
+    if (item.format === "light_novel") return i18n.current === "ru" ? "Ранобэ" : "Light Novel";
+    if (item.format === "web_novel") return i18n.current === "ru" ? "Веб-новелла" : "Web Novel";
+    return typeLabel(item);
+  }
   if (!isMangaDetail(item)) return typeLabel(item);
 
   const known = item.mangaFormat;
@@ -92,9 +97,25 @@ export function providerLink(item: MediaItem): { name: string; url: string } | n
       ? { name: "MangaDex", url: `https://mangadex.org/title/${encodeURIComponent(id)}` }
       : null;
   }
+  if (src.includes("ranobelib")) {
+    return id
+      ? { name: "RanobeLib", url: `https://ranobelib.me/ru/${encodeURIComponent(id)}` }
+      : null;
+  }
+  if (src.includes("shikimori")) {
+    return id
+      ? { name: "Shikimori", url: `https://shikimori.io/mangas/${encodeURIComponent(id)}` }
+      : null;
+  }
   if (src.includes("anilist")) {
     if (!id) return null;
-    const kind = item.type === "manga" ? "manga" : "anime";
+    const kind =
+      item.type === "manga" ||
+      (item.type === "book" && (item.format === "light_novel" || item.format === "web_novel"))
+        ? "manga"
+        : item.type === "tvshow" || isAnime(item)
+          ? "anime"
+          : "manga";
     return { name: "AniList", url: `https://anilist.co/${kind}/${encodeURIComponent(id)}` };
   }
   if (src.includes("mal") || src.includes("jikan") || src.includes("myanimelist")) {
@@ -252,13 +273,19 @@ export function readProgress(item: MediaItem): ProgressInfo | null {
         editable: true,
         label: i18n.t.detail.hoursLabel,
       };
-    case "book":
+    case "book": {
+      const isNovel = item.format === "light_novel" || item.format === "web_novel";
       return {
-        current: item.currentPage,
-        total: item.totalPages,
+        current: isNovel
+          ? ((item as { currentChapter?: number | null }).currentChapter ?? 0)
+          : item.currentPage,
+        total: isNovel
+          ? ((item as { totalChapters?: number | null }).totalChapters ?? null)
+          : item.totalPages,
         editable: true,
-        label: i18n.t.detail.pagesLabel,
+        label: isNovel ? i18n.t.detail.chaptersLabel : i18n.t.detail.pagesLabel,
       };
+    }
     case "manga": {
       const chapters = mangaChapterProgress(item);
       return {
@@ -543,12 +570,30 @@ export function specRows(item: MediaItem): SpecRow[] {
         value: i18n.t.card.episodes(item.totalEpisodesWatched, item.totalEpisodesCount),
       });
       break;
-    case "book":
-      rows.push({
-        label: i18n.t.detail.pagesLabel,
-        value: i18n.t.card.pages(item.currentPage, item.totalPages),
-      });
+    case "book": {
+      const isNovel = item.format === "light_novel" || item.format === "web_novel";
+      if (isNovel) {
+        const currentChapter = (item as { currentChapter?: number | null }).currentChapter ?? 0;
+        const totalChapters = (item as { totalChapters?: number | null }).totalChapters;
+        const totalVolumes = (item as { totalVolumes?: number | null }).totalVolumes;
+        rows.push({
+          label: i18n.t.detail.chaptersLabel,
+          value: i18n.t.card.chapters(currentChapter, totalChapters ?? null),
+        });
+        if (totalVolumes && totalVolumes > 0) {
+          rows.push({
+            label: i18n.t.detail.volumesLabel,
+            value: `${totalVolumes}`,
+          });
+        }
+      } else {
+        rows.push({
+          label: i18n.t.detail.pagesLabel,
+          value: i18n.t.card.pages(item.currentPage, item.totalPages),
+        });
+      }
       break;
+    }
     case "manga": {
       const chapters = mangaChapterProgress(item);
       rows.push({

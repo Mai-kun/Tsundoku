@@ -59,10 +59,10 @@
 </script>
 
 <div
-  class="relative overflow-hidden rounded-xl border border-[#5844e0]/25 bg-gradient-to-br from-[#5844e0]/25 via-[#151a26] to-[#151a26] p-6"
+  class="border-accent-bright/25 from-accent-bright/25 relative overflow-hidden rounded-xl border bg-gradient-to-br via-[#151a26] to-[#151a26] p-6"
 >
   <div
-    class="pointer-events-none absolute -top-16 -right-16 size-56 rounded-full bg-[#5844e0]/30 blur-3xl"
+    class="bg-accent-bright/30 pointer-events-none absolute -top-16 -right-16 size-56 rounded-full blur-3xl"
     aria-hidden="true"
   ></div>
   <div
@@ -73,7 +73,7 @@
     class="relative flex flex-col items-center gap-5 text-center sm:flex-row sm:items-start sm:text-left"
   >
     <div
-      class="flex size-20 shrink-0 items-center justify-center rounded-2xl bg-[#5844e0]/30 ring-1 ring-white/10"
+      class="bg-accent-bright/30 flex size-20 shrink-0 items-center justify-center rounded-2xl ring-1 ring-white/10"
     >
       <Icon class="size-10 text-white drop-shadow" aria-hidden="true" />
     </div>

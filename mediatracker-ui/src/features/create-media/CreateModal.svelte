@@ -43,8 +43,10 @@
   let platform = $state("");
   let hoursPlayed = $state("");
   let author = $state("");
+  let bookFormat = $state("book");
   let totalPages = $state("");
   let totalChapters = $state("");
+  let bookTotalVolumes = $state("");
   let currentVolume = $state("");
   let durationMinutes = $state("");
   let isAnime = $state(false);
@@ -102,8 +104,10 @@
     platform = "";
     hoursPlayed = "";
     author = "";
+    bookFormat = "book";
     totalPages = "";
     totalChapters = "";
+    bookTotalVolumes = "";
     currentVolume = "";
     durationMinutes = "";
     isAnime = false;
@@ -117,8 +121,18 @@
       platform = item.platform ?? "";
       hoursPlayed = item.hoursPlayed?.toString() ?? "";
     } else if (item.type === "book") {
-      author = item.author ?? "";
-      totalPages = item.totalPages?.toString() ?? "";
+      const book = item as {
+        author?: string;
+        format?: string | null;
+        totalPages?: number;
+        totalChapters?: number | null;
+        totalVolumes?: number | null;
+      };
+      author = book.author ?? "";
+      bookFormat = book.format || "book";
+      totalPages = book.totalPages?.toString() ?? "";
+      totalChapters = book.totalChapters?.toString() ?? "";
+      bookTotalVolumes = book.totalVolumes?.toString() ?? "";
     } else if (item.type === "manga") {
       author = item.author ?? "";
       totalChapters = item.totalChapters?.toString() ?? "";
@@ -184,13 +198,18 @@
           platform: platform.trim(),
           hoursPlayed: numberOrNull(hoursPlayed),
         };
-      case "book":
+      case "book": {
+        const isNovel = bookFormat === "light_novel" || bookFormat === "web_novel";
         return {
           ...common,
           type: "book",
           author: author.trim(),
-          totalPages: numberOrNull(totalPages),
+          format: bookFormat || "book",
+          totalPages: isNovel ? undefined : numberOrNull(totalPages),
+          totalChapters: isNovel ? numberOrNull(totalChapters) : undefined,
+          totalVolumes: isNovel ? numberOrNull(bookTotalVolumes) : undefined,
         };
+      }
       case "manga":
         return {
           ...common,
@@ -229,8 +248,10 @@
     platform = "";
     hoursPlayed = "";
     author = "";
+    bookFormat = "book";
     totalPages = "";
     totalChapters = "";
+    bookTotalVolumes = "";
     currentVolume = "";
     durationMinutes = "";
     isAnime = false;
@@ -270,6 +291,7 @@
     submitting = true;
 
     try {
+      const isNovel = bookFormat === "light_novel" || bookFormat === "web_novel";
       const saved = editingItem
         ? await updateMedia(editingItem.id, {
             title: title.trim(),
@@ -285,6 +307,26 @@
             startedAt: startedAt ? new Date(startedAt).toISOString() : null,
             finishedAt: finishedAt ? new Date(finishedAt).toISOString() : null,
             status,
+            format: type === "book" ? bookFormat || "book" : undefined,
+            author: type === "book" || type === "manga" ? author.trim() : undefined,
+            totalPages:
+              type === "book" ? (isNovel ? undefined : numberOrNull(totalPages)) : undefined,
+            totalChapters:
+              type === "book"
+                ? isNovel
+                  ? numberOrNull(totalChapters)
+                  : undefined
+                : type === "manga"
+                  ? numberOrNull(totalChapters)
+                  : undefined,
+            totalVolumes:
+              type === "book"
+                ? isNovel
+                  ? numberOrNull(bookTotalVolumes)
+                  : undefined
+                : type === "manga"
+                  ? numberOrNull(totalPages)
+                  : undefined,
           } satisfies UpdateMediaPayload)
         : await createMedia(buildPayload());
       resetForm();
@@ -451,7 +493,13 @@
       {#if type === "game"}
         <GameFormFields bind:platform bind:hoursPlayed />
       {:else if type === "book"}
-        <BookFormFields bind:author bind:totalPages />
+        <BookFormFields
+          bind:author
+          bind:totalPages
+          bind:format={bookFormat}
+          bind:totalChapters
+          bind:totalVolumes={bookTotalVolumes}
+        />
       {:else if type === "manga"}
         <!-- The volume count shares the totalPages state; the payload reads it back as totalVolumes. -->
         <MangaFormFields

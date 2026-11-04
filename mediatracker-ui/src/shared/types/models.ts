@@ -70,6 +70,7 @@ export interface MediaBase {
   genres?: string[] | string | null;
   tags?: string[] | string | null;
   userPlatform?: string | null;
+  format?: string | null;
   /** Next scheduled background content check, so the UI can show when an ongoing is polled. */
   nextAutoRefreshAt?: string | null;
   /** Current adaptive interval between auto-refresh checks, in days. */
@@ -151,6 +152,10 @@ export interface BookMedia extends MediaBase {
   author: string;
   currentPage: number;
   totalPages: number;
+  currentChapter?: number | null;
+  totalChapters?: number | null;
+  currentVolume?: number | null;
+  totalVolumes?: number | null;
 }
 
 export interface MangaMedia extends MediaBase {
@@ -414,6 +419,7 @@ export interface ExternalMedia {
   volumes?: number | null;
   /** One of manga/manhwa/manhua/oel; null when no source could tell. */
   mangaFormat?: string | null;
+  countryOfOrigin?: string | null;
   platform: string | null;
   rating?: number | null;
   ratingVotes?: number | null;
@@ -421,6 +427,9 @@ export interface ExternalMedia {
   episodes?: ExternalEpisode[] | null;
   genres?: string[] | string | null;
   tags?: string[] | string | null;
+  synonyms?: string[] | null;
+  /** Set client-side when the entry was resolved from a pasted direct link. */
+  isDirectUrl?: boolean;
 }
 
 export interface MediaFilters {

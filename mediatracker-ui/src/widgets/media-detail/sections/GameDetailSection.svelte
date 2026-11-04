@@ -128,7 +128,7 @@
               placeholder={i18n.current === "ru"
                 ? "Поиск достижений по названию и описанию..."
                 : "Search achievements by name and description..."}
-              class="w-56 rounded-md border border-white/10 bg-[#161a24] px-3 py-1.5 pr-7 text-xs text-white placeholder-zinc-500 transition outline-none focus:border-[#5844e0] sm:w-64"
+              class="focus:border-accent-bright w-56 rounded-md border border-white/10 bg-[#161a24] px-3 py-1.5 pr-7 text-xs text-white placeholder-zinc-500 transition outline-none sm:w-64"
             />
             {#if searchQuery}
               <button
@@ -295,7 +295,7 @@
                     onclick={() => goToPage(p)}
                     class={`flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-md text-xs tabular-nums transition ${
                       currentPage === p
-                        ? "bg-[#5844e0] font-medium text-white"
+                        ? "bg-accent-bright font-medium text-white"
                         : "border border-white/10 text-slate-300 hover:bg-white/10 hover:text-white"
                     }`}
                   >

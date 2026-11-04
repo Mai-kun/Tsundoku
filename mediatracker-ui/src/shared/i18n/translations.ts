@@ -502,8 +502,8 @@ export const translations = {
     storageCustom: { ru: "Свой путь", en: "Custom path" },
     storageConfirm: { ru: "Начать", en: "Start" },
     storageApplying: {
-      ru: "Применение настроек хранилища... (1-2 сек)",
-      en: "Applying storage settings... (1-2 sec)",
+      ru: "Перезапуск сервера...",
+      en: "Restarting the server...",
     },
   },
   types: {
@@ -2005,6 +2005,122 @@ export const translations = {
     importingStatus: {
       ru: "Импортируем...",
       en: "Importing...",
+    },
+    recommended: {
+      ru: "Рекомендуется",
+      en: "Recommended",
+    },
+    instantCollectorTitle: {
+      ru: "Сбор закладок за 1 секунду прямо из браузера",
+      en: "1-second bookmarks export directly from your browser",
+    },
+    instantCollectorDesc: {
+      ru: "Обходит ограничения Cloudflare, моментально извлекая закладки со всех выбранных сайтов Lib с прогрессом, оценками и статусами.",
+      en: "Bypasses Cloudflare restrictions, instantly exporting bookmarks from all chosen Lib sites with progress, scores, and statuses.",
+    },
+    collectViaScript: {
+      ru: "Собрать закладки через скрипт браузера (100% обход Cloudflare)",
+      en: "Collect bookmarks via browser script (100% Cloudflare bypass)",
+    },
+    oneClickNoF12: {
+      ru: "1 клик без F12",
+      en: "1 click without F12",
+    },
+    bookmarkletButton: {
+      ru: "Кнопка-букмарклет для браузера",
+      en: "Browser bookmarklet button",
+    },
+    linkCopied: {
+      ru: "Ссылка скопирована!",
+      en: "Link copied!",
+    },
+    copyBookmarkletLink: {
+      ru: "Скопировать ссылку букмарклета",
+      en: "Copy bookmarklet link",
+    },
+    bookmarkletInstruction: {
+      ru: "Перетащите эту кнопку на панель закладок вашего браузера",
+      en: "Drag this button to your browser bookmarks bar",
+    },
+    bookmarkletInstructionSuffix: {
+      ru: ". Затем откройте любую страницу MangaLib, AnimeLib или RanobeLib и просто кликните по закладке!",
+      en: ". Then open any page on MangaLib, AnimeLib, or RanobeLib and just click the bookmark!",
+    },
+    bookmarkletDragTooltip: {
+      ru: "Зажмите и перетащите на панель закладок браузера (Ctrl+Shift+B)",
+      en: "Click and drag to browser bookmarks bar (Ctrl+Shift+B)",
+    },
+    bookmarkletDragAlert: {
+      ru: "📌 Перетащите эту кнопку мышкой на панель закладок браузера (Ctrl+Shift+B)!\n\nИли нажмите «Скопировать ссылку букмарклета» справа и создайте закладку вручную.",
+      en: "📌 Drag this button to your browser bookmarks bar (Ctrl+Shift+B)!\n\nOr click 'Copy bookmarklet link' on the right to create the bookmark manually.",
+    },
+    bookmarkletButtonText: {
+      ru: "📥 Tsundoku Импорт (перетащите в закладки)",
+      en: "📥 Tsundoku Import (drag to bookmarks)",
+    },
+    bookmarkletDragHint: {
+      ru: "← зажмите и потяните на панель закладок",
+      en: "← drag and drop to your bookmarks bar",
+    },
+    step1Text: {
+      ru: "Откройте страницу своего профиля или закладок на любом сайте Lib",
+      en: "Open your profile or bookmarks page on any Lib website",
+    },
+    step2TextPre: {
+      ru: "Нажмите на закладку в браузере (или откройте консоль",
+      en: "Click the bookmark in your browser (or open dev console with",
+    },
+    step2TextMid: {
+      ru: ", вставьте скрипт и нажмите",
+      en: ", paste the script, and press",
+    },
+    step2TextPost: {
+      ru: "). Букмарклет моментально выгрузит закладки.",
+      en: "). The bookmarklet will instantly dump bookmarks.",
+    },
+    step3TextPre: {
+      ru: "Если прямое сохранение заблокировано браузером — данные уже скопированы в буфер обмена: просто нажмите",
+      en: "If direct upload was blocked by the browser, the data is already copied to clipboard: simply click",
+    },
+    step3TextBtn: {
+      ru: "«Вставить из буфера и импортировать»",
+      en: '"Paste from clipboard and import"',
+    },
+    step3TextPost: {
+      ru: "ниже.",
+      en: "below.",
+    },
+    scriptCopied: {
+      ru: "Скрипт скопирован!",
+      en: "Script copied!",
+    },
+    copyCollectorScript: {
+      ru: "Скопировать скрипт сбора",
+      en: "Copy collector script",
+    },
+    pasteAndImport: {
+      ru: "Вставить из буфера и импортировать",
+      en: "Paste from clipboard and import",
+    },
+    copyBookmarkletFailed: {
+      ru: "Не удалось скопировать букмарклет в буфер обмена",
+      en: "Failed to copy bookmarklet to clipboard",
+    },
+    copyScriptFailed: {
+      ru: "Не удалось скопировать скрипт в буфер обмена",
+      en: "Failed to copy script to clipboard",
+    },
+    clipboardUnavailable: {
+      ru: "Буфер обмена недоступен в вашем браузере. Выберите способ «Файл» и загрузите сохраненный tsundoku-sociallib.json.",
+      en: "Clipboard is unavailable in your browser. Choose 'File' tab and upload your tsundoku-sociallib.json.",
+    },
+    clipboardEmpty: {
+      ru: "Буфер обмена пуст. Сначала скопируйте скрипт, выполните его в консоли любого Lib-сайта, а затем нажмите эту кнопку.",
+      en: "Clipboard is empty. Copy and run the script on any Lib website first, then click this button.",
+    },
+    clipboardNoJson: {
+      ru: "В буфере обмена нет JSON данных закладок. Убедитесь, что скрипт в консоли завершил сбор.",
+      en: "Clipboard does not contain valid bookmark JSON. Make sure the collector script completed.",
     },
     mangalibAuth: {
       loginShort: { ru: "Войти", en: "Sign in" },

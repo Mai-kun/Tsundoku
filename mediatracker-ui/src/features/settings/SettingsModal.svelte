@@ -1143,7 +1143,7 @@
                     size={14}
                     class={offlineReindexing ? "animate-spin text-indigo-400" : "text-indigo-300"}
                   />
-                  <span>🔄 {i18n.t.settingsModal.sources.offline.reindexBtn}</span>
+                  <span>{i18n.t.settingsModal.sources.offline.reindexBtn}</span>
                 </button>
               </div>
 

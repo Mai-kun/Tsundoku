@@ -33,23 +33,29 @@
   });
 
   async function waitForServerAndReload() {
-    // Wait a brief moment to allow the server to initiate shutdown/restart
-    await new Promise((r) => setTimeout(r, 600));
+    // Give the old server a moment to write storage.json and start shutting down.
+    await new Promise((r) => setTimeout(r, 250));
 
-    // Poll for the server to become available again
-    for (let i = 0; i < 40; i++) {
+    // Fast poll (300 ms interval, 500 ms request timeout): reload as soon as the new
+    // server answers 200 OK, so the user never sees a connection-lost error screen.
+    const deadline = Date.now() + 20_000;
+    while (Date.now() < deadline) {
       try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 500);
         const res = await fetch("/api/settings/storage?t=" + Date.now(), {
           cache: "no-store",
+          signal: controller.signal,
         });
+        clearTimeout(timeout);
         if (res.ok) {
           window.location.reload();
           return;
         }
       } catch {
-        // Server restarting, wait and retry
+        // Server restarting — retry
       }
-      await new Promise((r) => setTimeout(r, 500));
+      await new Promise((r) => setTimeout(r, 300));
     }
 
     window.location.reload();

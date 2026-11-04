@@ -178,4 +178,101 @@ public class ParsersTests
         parsedCsv[0].Status.Should().Be(MediaStatus.OnHold);
         parsedCsv[0].Score.Should().Be(8);
     }
+
+    [Fact]
+    public void MangalibParser_ShouldFilterOutFolderObjectsAndStandardFolderNames()
+    {
+        // 1. Raw folder object { id: 21, name: "Читаю" } has no media and no title-specific fields -> ignored
+        var singleFolder = """{ "id": 21, "name": "Читаю" }""";
+        MangalibParser.Parse(singleFolder).Should().BeEmpty();
+
+        // 2. Array of folder objects from /api/bookmarks/folder/
+        var foldersArray = """
+            [
+              { "id": 1, "name": "Читаю" },
+              { "id": 2, "name": "В планах" },
+              { "id": 3, "name": "Брошено" },
+              { "id": 4, "name": "Прочитано" },
+              { "id": 5, "name": "Любимые" },
+              { "id": 6, "name": "Отложено" },
+              { "id": 7, "name": "Жду" },
+              { "id": 8, "name": "Удалено" },
+              { "id": 9, "name": "Смотрю" },
+              { "id": 10, "name": "Запланировано" },
+              { "id": 11, "name": "Пересматриваю" }
+            ]
+            """;
+        MangalibParser.Parse(foldersArray).Should().BeEmpty();
+
+        // 3. Even if site_id is present, standard folder names are forbidden as titles
+        var forbiddenTitles = """
+            [
+              { "rus_name": "Читаю", "site_id": 1 },
+              { "name": "В планах", "site_id": 1 },
+              { "media": { "rus_name": "Любимые", "slug_url": "favorites" } }
+            ]
+            """;
+        MangalibParser.Parse(forbiddenTitles).Should().BeEmpty();
+
+        // 4. Valid item is preserved while folder items are ignored
+        var mixed = """
+            [
+              { "id": 21, "name": "Читаю" },
+              { "rus_name": "Человек-бензопила", "site_id": 1, "slug_url": "chainsaw-man", "chap_count": 170 }
+            ]
+            """;
+        var parsedMixed = MangalibParser.Parse(mixed);
+        parsedMixed.Should().HaveCount(1);
+        parsedMixed[0].Title.Should().Be("Человек-бензопила");
+        parsedMixed[0].ExternalId.Should().Be("chainsaw-man");
+    }
+
+    [Fact]
+    public void MangalibParser_AnimeLib_ShouldBeAnimeAndNeverBook()
+    {
+        var (type, source) = MangalibParser.DetermineTypeAndSource(5, "book");
+        type.Should().Be("anime");
+        source.Should().Be("AnimeLib");
+    }
+
+    [Fact]
+    public async Task SqliteSchemaInitializer_ShouldCleanUpLegacyFakeFolderMediaItems()
+    {
+        var dbPath = Path.Combine(Path.GetTempPath(), $"cleanup_test_{Guid.NewGuid():N}.db");
+        try
+        {
+            var db = new MediaTracker.Server.Infrastructure.Persistence.AppDbContext($"Data Source={dbPath}");
+            await db.Database.EnsureCreatedAsync();
+
+            // Insert directly via SQL to simulate existing polluted database
+            var id1 = Guid.NewGuid().ToString();
+            var id2 = Guid.NewGuid().ToString();
+            var id3 = Guid.NewGuid().ToString();
+            await db.Database.ExecuteSqlRawAsync($"""
+                INSERT INTO MediaItems (Id, Title, Status, SyncStatus, CreatedAt, UpdatedAt, MediaType, AutoRefreshIntervalDays, ImportSource, IsCustomEdited)
+                VALUES 
+                  ('{id1}', 'Читаю', 1, 0, '2026-01-01', '2026-01-01', 'manga', 7, 'MangaLib', 0),
+                  ('{id2}', 'В планах', 2, 0, '2026-01-01', '2026-01-01', 'manga', 7, 'MangaLib', 0),
+                  ('{id3}', 'Берсерк', 1, 0, '2026-01-01', '2026-01-01', 'manga', 7, 'MangaLib', 0);
+                """);
+
+            using (var cmd = db.Connection.CreateCommand())
+            {
+                cmd.CommandText = "SELECT COUNT(*) FROM MediaItems;";
+                var countBefore = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+                countBefore.Should().Be(3);
+            }
+
+            // Re-initialize to trigger migration cleanup
+            await MediaTracker.Server.Infrastructure.Persistence.SqliteSchemaInitializer.InitializeAsync(db.Connection);
+
+            var itemsAfter = await db.LoadAllMediaItemsAsync();
+            itemsAfter.Should().HaveCount(1);
+            itemsAfter[0].Title.Should().Be("Берсерк");
+        }
+        finally
+        {
+            if (File.Exists(dbPath)) File.Delete(dbPath);
+        }
+    }
 }

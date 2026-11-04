@@ -1623,7 +1623,8 @@ public sealed class DatabaseFieldPreservationTests
 
         public Guid Enqueue(
             Guid? mediaId, string title,
-            Func<IServiceProvider, CancellationToken, IProgress<JobProgressDto>, Task> work)
+            Func<IServiceProvider, CancellationToken, IProgress<JobProgressDto>, Task> work,
+            bool highPriority = false)
         {
             EnqueuedCount++;
             return Guid.NewGuid();
@@ -1645,6 +1646,8 @@ public sealed class DatabaseFieldPreservationTests
         }
 
         public ChannelReader<QueuedJob> Reader => Channel.CreateUnbounded<QueuedJob>().Reader;
+
+        public void ReportProgress(Guid jobId, string title, int percent, string step, JobStatus status, string? error = null) { }
 
         public CancellationTokenSource CreateRunnerToken(Guid jobId, CancellationToken stoppingToken) =>
             CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);

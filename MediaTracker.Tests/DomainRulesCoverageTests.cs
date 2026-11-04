@@ -564,6 +564,25 @@ public class DomainRulesCoverageTests
     }
 
     [Fact]
+    public void Factory_LightNovelBook_ShouldSetNovelFields()
+    {
+        var book = (Book)MediaItemFactory.CreateEntity(new CreateMediaRequest
+        {
+            Type = "book",
+            Title = "Overlord",
+            Format = "light_novel",
+            TotalChapters = 100,
+            TotalVolumes = 16,
+            CurrentChapter = 10
+        });
+
+        book.Format.Should().Be("light_novel");
+        book.TotalChapters.Should().Be(100);
+        book.TotalVolumes.Should().Be(16);
+        book.CurrentChapter.Should().Be(10);
+    }
+
+    [Fact]
     public void Factory_Manga_ShouldScheduleAutoRefresh()
     {
         var manga = (Manga)MediaItemFactory.CreateEntity(new CreateMediaRequest

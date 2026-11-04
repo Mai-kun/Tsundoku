@@ -1,6 +1,7 @@
 using FluentAssertions;
 using MediaTracker.Server.Domain.Entities;
 using MediaTracker.Server.Domain.Enums;
+using MediaTracker.Server.Domain.Rules;
 using MediaTracker.Server.Features.Lists;
 using MediaTracker.Server.Features.Media.GetMediaStats;
 using MediaTracker.Server.Features.Media.Import;
@@ -349,5 +350,126 @@ public class CalculatorsTests
         // No candidates -> NoMatch
         var noMatchVerdict = ImportMatchScorer.EvaluateCandidates(manga, []);
         noMatchVerdict.Kind.Should().Be(MatchVerdictKind.NoMatch);
+    }
+
+    [Fact]
+    public void ImportMatchScorer_ShouldScoreAniListSynonymsWithExactMatchScore()
+    {
+        var book = new Book
+        {
+            Title = "Старшая сестра злодея сегодня снова страдает",
+            Author = "Author Name",
+            ReleaseYear = 2021,
+            TotalPages = 300,
+            AltTitles = MediaMetadataApplier.SerializeAltTitles(["The Villain's Sister is Suffering Again Today"]),
+        };
+
+        var anilistCandidate = new ExternalMediaDto
+        {
+            ExternalId = "135759",
+            ExternalSource = "anilist",
+            Title = "Lydia's Great Escape",
+            RomajiTitle = "Akuyaku Reijou no Ani Desu ga",
+            Synonyms = ["The Villain's Sister is Suffering Again Today", "Another Synonym"],
+            ReleaseYear = 2021,
+            Author = "Author Name",
+            Type = "book",
+            MangaFormat = "light_novel",
+        };
+
+        var score = ImportMatchScorer.ScoreCandidate(book, anilistCandidate);
+        score.Should().BeInRange(95, 100);
+    }
+
+    [Fact]
+    public void Leviathan_Manhwa_Vs_Manga_Should_Never_AutoMatch()
+    {
+        var manhwa = new Manga
+        {
+            Title = "Leviathan",
+            RomajiTitle = "Leviathan",
+            Author = "Lee Kyung-tak",
+            ReleaseYear = 2018,
+            TotalChapters = 222,
+            Format = "manhwa",
+            CountryOfOrigin = "KR",
+        };
+
+        var japaneseManga = new ExternalMediaDto
+        {
+            ExternalId = "manga-leviathan",
+            ExternalSource = "anilist",
+            Title = "LEVIATHAN",
+            RomajiTitle = "LEVIATHAN",
+            Author = "Shiro Kuroi",
+            ReleaseYear = 2019,
+            Chapters = 70,
+            Type = "manga",
+            MangaFormat = "manga",
+            CountryOfOrigin = "JP",
+        };
+
+        var score = ImportMatchScorer.ScoreCandidate(manhwa, japaneseManga, out var hasContradiction);
+        score.Should().BeLessThan(40);
+        hasContradiction.Should().BeTrue();
+
+        var verdict = ImportMatchScorer.EvaluateCandidates(manhwa, [japaneseManga]);
+        verdict.Kind.Should().NotBe(MatchVerdictKind.Confident);
+    }
+
+    [Fact]
+    public void ImportMatchScorer_MatchingTitleAndAuthor_ShouldBeConfident()
+    {
+        var manhwa = new Manga
+        {
+            Title = "Leviathan",
+            RomajiTitle = "Leviathan",
+            Author = "Lee Kyung-tak",
+            ReleaseYear = 2018,
+            TotalChapters = 222,
+            Format = "manhwa",
+            CountryOfOrigin = "KR",
+        };
+
+        var correctCandidate = new ExternalMediaDto
+        {
+            ExternalId = "manhwa-leviathan",
+            ExternalSource = "anilist",
+            Title = "Leviathan",
+            RomajiTitle = "Leviathan",
+            Author = "Lee Kyung-tak",
+            ReleaseYear = 2018,
+            Chapters = 222,
+            Type = "manga",
+            MangaFormat = "manhwa",
+            CountryOfOrigin = "KR",
+        };
+
+        var score = ImportMatchScorer.ScoreCandidate(manhwa, correctCandidate, out var hasContradiction);
+        score.Should().BeGreaterThanOrEqualTo(75);
+        hasContradiction.Should().BeFalse();
+
+        var verdict = ImportMatchScorer.EvaluateCandidates(manhwa, [correctCandidate]);
+        verdict.Kind.Should().Be(MatchVerdictKind.Confident);
+        verdict.Winner?.ExternalId.Should().Be("manhwa-leviathan");
+    }
+
+    [Fact]
+    public void ImportMatchScorer_BareTitleOnlyWithoutConfirmation_ShouldBeAmbiguous()
+    {
+        var item = new Manga
+        {
+            Title = "Some Generic Title",
+        };
+
+        var candidate = new ExternalMediaDto
+        {
+            ExternalId = "generic-1",
+            Title = "Some Generic Title",
+            Type = "manga",
+        };
+
+        var verdict = ImportMatchScorer.EvaluateCandidates(item, [candidate]);
+        verdict.Kind.Should().Be(MatchVerdictKind.Ambiguous);
     }
 }

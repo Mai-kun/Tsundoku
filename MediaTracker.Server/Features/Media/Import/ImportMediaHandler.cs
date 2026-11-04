@@ -325,6 +325,16 @@ public sealed class ImportMediaHandler(
         msg.Headers.TryAddWithoutValidation("Site-Id", siteId.ToString(CultureInfo.InvariantCulture));
         msg.Headers.TryAddWithoutValidation("Accept", "application/json");
         msg.Headers.TryAddWithoutValidation("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+        // Browser-like SEC headers: Cloudflare scores bare library HTTP clients lower than
+        // same-shape browser traffic, which is what causes the 403 Forbidden walls.
+        msg.Headers.TryAddWithoutValidation("Origin", "https://mangalib.me");
+        msg.Headers.TryAddWithoutValidation("Referer", "https://mangalib.me/");
+        msg.Headers.TryAddWithoutValidation("Sec-Ch-Ua", "\"Chromium\";v=\"124\", \"Not-A.Brand\";v=\"99\"");
+        msg.Headers.TryAddWithoutValidation("Sec-Ch-Ua-Mobile", "?0");
+        msg.Headers.TryAddWithoutValidation("Sec-Ch-Ua-Platform", "\"Linux\"");
+        msg.Headers.TryAddWithoutValidation("Sec-Fetch-Dest", "empty");
+        msg.Headers.TryAddWithoutValidation("Sec-Fetch-Mode", "cors");
+        msg.Headers.TryAddWithoutValidation("Sec-Fetch-Site", "cross-site");
 
         if (!string.IsNullOrWhiteSpace(bearerToken))
         {

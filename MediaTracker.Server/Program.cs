@@ -147,6 +147,10 @@ try
 
     builder.WebHost.UseUrls(listenUrl);
 
+    // Storage-mode changes and tray exit must restart/quit in 1-2 seconds: long-lived SSE
+    // connections and background workers should not hold the port during graceful shutdown.
+    builder.Services.Configure<HostOptions>(o => o.ShutdownTimeout = TimeSpan.FromSeconds(1.5));
+
     builder.Services.AddSingleton(appPaths);
     builder.Services.AddSingleton(fileLockGuard);
     builder.Services.AddScoped<IUpdateService, UpdateService>();

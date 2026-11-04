@@ -399,6 +399,39 @@ public static class SettingsEndpoints
                 var config = new StorageConfig { Mode = request.Mode, CustomPath = request.CustomPath };
                 currentPaths.SaveStorageConfig(configPath, config);
 
+                if (string.Equals(request.Mode, "portable", StringComparison.OrdinalIgnoreCase))
+                {
+                    // Mode switch to portable: the previously created default-mode folder inside
+                    // LocalApplicationData must not linger. Only an accidentally created empty
+                    // folder (no files, only empty subfolders) is removed — user data is preserved.
+                    var legacyDir = Path.Combine(
+                        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                        "Tsundoku");
+                    try
+                    {
+                        if (Directory.Exists(legacyDir)
+                            && !Directory.EnumerateFileSystemEntries(legacyDir).Any()
+                            && !string.Equals(configPath, Path.Combine(legacyDir, "storage.json"), StringComparison.OrdinalIgnoreCase))
+                        {
+                            foreach (var subDir in Directory.EnumerateDirectories(legacyDir))
+                            {
+                                if (!Directory.EnumerateFileSystemEntries(subDir).Any())
+                                {
+                                    Directory.Delete(subDir);
+                                }
+                            }
+                            if (!Directory.EnumerateFileSystemEntries(legacyDir).Any())
+                            {
+                                Directory.Delete(legacyDir);
+                            }
+                        }
+                    }
+                    catch (Exception error)
+                    {
+                        Serilog.Log.Warning(error, "Failed to clean up the legacy Tsundoku folder");
+                    }
+                }
+
                 var needsRestart = !string.Equals(targetDataDir, currentPaths.DataDirectory, StringComparison.OrdinalIgnoreCase);
 
                 if (needsRestart)

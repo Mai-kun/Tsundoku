@@ -36,8 +36,27 @@ public sealed class TrayBackgroundService(
         void Exit()
         {
             Serilog.Log.Information("Tray: exit requested");
+            // Close the app window first (kills the spawned Chromium tree), then remove the
+            // Windows tray icon instead of leaving it until the next hover.
+            if (OperatingSystem.IsWindows())
+            {
+                WindowsTray.Shutdown();
+            }
             BrowserLauncher.CloseBrowser();
-            lifetime.StopApplication();
+            lifetime.StopApplication(); // releases the ports and disposes the data lock
+            // Graceful shutdown can stall on in-flight requests (SSE, background jobs):
+            // force process exit shortly after, so "Выход" is always instant.
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await Task.Delay(150);
+                }
+                finally
+                {
+                    Environment.Exit(0);
+                }
+            });
         }
 
         try

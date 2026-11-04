@@ -291,10 +291,25 @@ public sealed class AppPaths
         }
         else
         {
-            dataDirectory = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "Tsundoku"
-            );
+            // First run (no storage.json yet): keep every byte inside the program folder
+            // (honest portable behavior) instead of pre-creating ~/.local/share/Tsundoku.
+            // If the user later picks "default" in the setup modal, the restart relocates
+            // there; picking portable keeps ./data as-is with no restart at all.
+            var portableDataDir = Path.Combine(appDir, "data");
+            try
+            {
+                Directory.CreateDirectory(portableDataDir);
+                dataDirectory = portableDataDir;
+                mode = "portable";
+            }
+            catch
+            {
+                // App folder is read-only (installed copy): fall back to the system dir.
+                dataDirectory = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "Tsundoku"
+                );
+            }
         }
 
         return new AppPaths(dataDirectory, isDevelopment, hasExplicitDir, mode, customPath);

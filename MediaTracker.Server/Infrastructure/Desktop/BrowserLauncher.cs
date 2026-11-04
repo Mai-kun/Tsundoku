@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using MediaTracker.Server.Infrastructure.Persistence;
+using MediaTracker.Server.Infrastructure.Storage;
 
 namespace MediaTracker.Server.Infrastructure.Desktop;
 
@@ -30,11 +31,21 @@ public static class BrowserLauncher
     /// <summary>`minimize_to_tray` or `exit_all`, applied when the user closes the app window.</summary>
     public static string CloseAction { get; private set; } = DefaultCloseAction;
 
+    /// <summary>
+    /// Isolated Chromium profile, kept strictly inside the storage root (./data in portable
+    /// mode), so portable installs never write into the system app-data folder. Set once at
+    /// startup; falls back to the app folder when storage has not been resolved yet.
+    /// </summary>
+    private static string ProfileDirectory =
+        Path.Combine(AppPaths.GetAppDirectory(), "data", "chromium-profile");
+
     /// <summary>Wires the host shutdown path and loads the persisted launch/close behavior.</summary>
     public static async Task InitializeAsync(IServiceProvider services, IHostApplicationLifetime lifetime)
     {
         _services = services;
         _hostLifetime = lifetime;
+        var appPaths = services.GetRequiredService<AppPaths>();
+        ProfileDirectory = Path.Combine(appPaths.DataDirectory, "chromium-profile");
         using var scope = services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         ApplySettings(
@@ -191,10 +202,7 @@ public static class BrowserLauncher
         var windowSize = url.EndsWith("/logs.html", StringComparison.OrdinalIgnoreCase)
             ? "1280,720"
             : "1400,900";
-        var profileDir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "Tsundoku",
-            "tsundoku-chromium-profile");
+        var profileDir = ProfileDirectory;
 
         var startInfo = new ProcessStartInfo
         {

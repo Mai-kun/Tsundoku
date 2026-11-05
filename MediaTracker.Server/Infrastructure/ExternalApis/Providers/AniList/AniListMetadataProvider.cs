@@ -3,12 +3,15 @@ using System.Text.RegularExpressions;
 using MediaTracker.Server.Common.Json;
 using MediaTracker.Server.Domain.Rules;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace MediaTracker.Server.Infrastructure.ExternalApis;
 
 public sealed partial class AniListMetadataProvider(
     IHttpClientFactory httpClientFactory,
-    [ServiceKey] string? serviceKey = null) : MetadataProviderBase(Source)
+    [ServiceKey] string? serviceKey = null,
+    RateLimitTracker? rateLimitTracker = null,
+    ILogger<AniListMetadataProvider>? logger = null) : MetadataProviderBase(Source)
 {
     public static MetadataSourceDescriptor Source { get; } = new(
         Id: "anilist",
@@ -34,6 +37,12 @@ public sealed partial class AniListMetadataProvider(
 
         using var response = await client.PostAsJsonAsync(
             "", payload, AppJsonSerializerContext.Default.AniListGraphQlPayload, ct);
+        if (IsRateLimited(response))
+        {
+            // AniList's per-minute bucket: an empty result degrades gracefully, an exception used to
+            // escalate into SourceUnavailableException and fail the whole aggregate search.
+            return [];
+        }
         response.EnsureSuccessStatusCode();
 
         var result = await response.Content.ReadFromJsonAsync(AppJsonSerializerContext.Default.AniListSearchResponse, ct);
@@ -80,6 +89,11 @@ public sealed partial class AniListMetadataProvider(
 
             using var response = await httpClientFactory.CreateClient(Id).PostAsJsonAsync(
                 "", payload, AppJsonSerializerContext.Default.AniListGraphQlPayload, ct);
+            if (IsRateLimited(response))
+            {
+                // The filtered-search fallback below then returns nothing instead of throwing.
+                return [];
+            }
             response.EnsureSuccessStatusCode();
 
             var data = (await response.Content.ReadFromJsonAsync(AppJsonSerializerContext.Default.AniListCreatorSearchResponse, ct))?.Data;
@@ -228,6 +242,33 @@ public sealed partial class AniListMetadataProvider(
     }
 
     private string GraphQlType => mediaType == "anime" ? "ANIME" : "MANGA";
+
+    /// <summary>
+    /// True when AniList answered 429: logs the hit, feeds the rate-limit panel
+    /// (<see cref="RateLimitTracker.RecordRateLimitExceeded"/>) and lets the caller degrade to an
+    /// empty result instead of escaping as <c>SourceUnavailableException</c>. The per-minute
+    /// bucket resets quickly, so nothing long-lived is lost.
+    /// </summary>
+    private bool IsRateLimited(HttpResponseMessage response)
+    {
+        if ((int)response.StatusCode != 429)
+        {
+            return false;
+        }
+
+        int resetSeconds = 60;
+        if (response.Headers.TryGetValues("Retry-After", out var values)
+            && int.TryParse(values.FirstOrDefault(), out var parsed)
+            && parsed > 0)
+        {
+            resetSeconds = Math.Min(parsed, 600);
+        }
+
+        logger?.LogWarning(
+            "AniList answered 429 Too Many Requests; backing off for ~{ResetSeconds}s", resetSeconds);
+        rateLimitTracker?.RecordRateLimitExceeded("anilist", "AniList", resetSeconds);
+        return true;
+    }
 
     private static bool HasTitle(AniListMedia node) =>
         !string.IsNullOrWhiteSpace(node.Title?.English ?? node.Title?.Romaji ?? node.Title?.Native);

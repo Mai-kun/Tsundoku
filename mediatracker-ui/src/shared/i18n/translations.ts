@@ -2690,6 +2690,14 @@ export const translations = {
       ru: "Сброс готов",
       en: "Reset ready",
     },
+    rateLimitsRefresh: {
+      ru: "Обновить лимиты",
+      en: "Refresh rate limits",
+    },
+    rateLimitsUnlimited: {
+      ru: "Не ограничен",
+      en: "Unlimited",
+    },
   },
   backgroundJobs: {
     openWindow: { ru: "Открыть окно процессов", en: "Open processes window" },

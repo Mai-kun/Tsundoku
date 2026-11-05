@@ -299,6 +299,16 @@ public sealed partial class ExternalHttpLoggingHandler(
 
         var host = uri.Host;
 
+        // The SocialLib provider rotates between api.cdnlibs.org, api2.mangalib.me and lib.social;
+        // the registry only knows the primary BaseAddress, so without this the same provider showed
+        // up in the rate-limit panel under three different keys.
+        if (host.EndsWith("cdnlibs.org", StringComparison.OrdinalIgnoreCase)
+            || host.EndsWith("mangalib.me", StringComparison.OrdinalIgnoreCase)
+            || host.EndsWith("lib.social", StringComparison.OrdinalIgnoreCase))
+        {
+            return ("sociallib", "SocialLib");
+        }
+
         foreach (var descriptor in MetadataSourceRegistry.All)
         {
             if (Uri.TryCreate(descriptor.BaseAddress, UriKind.Absolute, out var baseUri))

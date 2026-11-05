@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Activity, X } from "$shared/ui/Icons";
+  import { Activity, RefreshCw, X } from "$shared/ui/Icons";
   import { jobsClient } from "$shared/api/jobsClient.svelte";
   import { getRateLimits } from "$shared/api/api";
   import { i18n } from "$shared/i18n/index.svelte";
@@ -9,14 +9,18 @@
   const popoverId = "activity-popover";
 
   let rateLimits = $state<ApiRateLimitStatus[]>([]);
+  let rateLimitsRefreshing = $state(false);
   let timerId: number | null = null;
   let pollIntervalId: number | null = null;
 
   async function refreshRateLimits() {
+    rateLimitsRefreshing = true;
     try {
       rateLimits = await getRateLimits();
     } catch {
       // Ignore polling errors
+    } finally {
+      rateLimitsRefreshing = false;
     }
   }
 
@@ -210,49 +214,73 @@
 
     {#if rateLimits.length > 0}
       <div class="mt-3 border-t border-white/[0.08] pt-2.5">
-        <h3 class="mb-2 text-[11px] font-bold tracking-wider text-slate-400 uppercase">
-          {i18n.t.activity.rateLimitsTitle}
-        </h3>
+        <div class="mb-2 flex items-center justify-between gap-2">
+          <h3 class="text-[11px] font-bold tracking-wider text-slate-400 uppercase">
+            {i18n.t.activity.rateLimitsTitle}
+          </h3>
+          <button
+            type="button"
+            class="tap text-muted grid h-6 w-6 cursor-pointer place-items-center rounded-md transition hover:bg-white/10 hover:text-white focus:ring-1 focus:ring-indigo-500/40 focus:outline-none"
+            title={i18n.t.activity.rateLimitsRefresh}
+            aria-label={i18n.t.activity.rateLimitsRefresh}
+            onclick={() => void refreshRateLimits()}
+          >
+            <RefreshCw
+              size={13}
+              class={rateLimitsRefreshing ? "animate-spin" : ""}
+              aria-hidden="true"
+            />
+          </button>
+        </div>
         <div class="space-y-2">
           {#each rateLimits as limit (limit.provider)}
-            {@const ratio =
-              limit.limit > 0 ? limit.remaining / limit.limit : limit.remaining > 0 ? 1 : 0}
-            {@const percent = Math.max(0, Math.min(100, Math.round(ratio * 100)))}
-            {@const barColor =
-              limit.remaining <= 0
-                ? "bg-rose-500"
-                : ratio < 0.3
-                  ? "bg-amber-500"
-                  : "bg-emerald-500"}
-            <div class="rounded-md border border-white/[0.06] bg-white/[0.03] p-2">
-              <div class="flex items-center justify-between gap-2 text-xs">
+            <!-- limit <= 0 (Shikimori sends no headers): no 0/0 bar, just "unlimited". -->
+            {#if limit.limit <= 0}
+              <div class="flex items-center justify-between gap-2 rounded-md border border-white/[0.06] bg-white/[0.03] p-2 text-xs">
                 <span class="truncate font-medium text-slate-200">{limit.provider}</span>
-                <span class="text-[11px] font-medium text-slate-400 tabular-nums">
-                  {i18n.t.activity.remaining(limit.remaining, limit.limit)}
+                <span class="text-muted shrink-0 text-[11px]">
+                  {i18n.t.activity.rateLimitsUnlimited}
                 </span>
               </div>
-              <div
-                class="mt-1.5 h-1 overflow-hidden rounded-full bg-white/[0.08]"
-                role="progressbar"
-                aria-label={limit.provider}
-                aria-valuenow={percent}
-                aria-valuemin="0"
-                aria-valuemax="100"
-              >
+            {:else}
+              {@const ratio = limit.limit > 0 ? limit.remaining / limit.limit : 0}
+              {@const percent = Math.max(0, Math.min(100, Math.round(ratio * 100)))}
+              {@const barColor =
+                limit.remaining <= 0
+                  ? "bg-rose-500"
+                  : ratio < 0.3
+                    ? "bg-amber-500"
+                    : "bg-emerald-500"}
+              <div class="rounded-md border border-white/[0.06] bg-white/[0.03] p-2">
+                <div class="flex items-center justify-between gap-2 text-xs">
+                  <span class="truncate font-medium text-slate-200">{limit.provider}</span>
+                  <span class="text-[11px] font-medium text-slate-400 tabular-nums">
+                    {i18n.t.activity.remaining(limit.remaining, limit.limit)}
+                  </span>
+                </div>
                 <div
-                  class="h-full rounded-full transition duration-300 ease-out {barColor}"
-                  style="width: {percent}%"
-                ></div>
+                  class="mt-1.5 h-1 overflow-hidden rounded-full bg-white/[0.08]"
+                  role="progressbar"
+                  aria-label={limit.provider}
+                  aria-valuenow={percent}
+                  aria-valuemin="0"
+                  aria-valuemax="100"
+                >
+                  <div
+                    class="h-full rounded-full transition duration-300 ease-out {barColor}"
+                    style="width: {percent}%"
+                  ></div>
+                </div>
+                <div class="text-muted mt-1 flex items-center justify-between text-[10px]">
+                  <span>
+                    {limit.resetSecondsRemaining > 0
+                      ? i18n.t.activity.resetInSeconds(limit.resetSecondsRemaining)
+                      : i18n.t.activity.resetReady}
+                  </span>
+                  <span class="font-mono tabular-nums">{percent}%</span>
+                </div>
               </div>
-              <div class="text-muted mt-1 flex items-center justify-between text-[10px]">
-                <span>
-                  {limit.resetSecondsRemaining > 0
-                    ? i18n.t.activity.resetInSeconds(limit.resetSecondsRemaining)
-                    : i18n.t.activity.resetReady}
-                </span>
-                <span class="font-mono tabular-nums">{percent}%</span>
-              </div>
-            </div>
+            {/if}
           {/each}
         </div>
       </div>

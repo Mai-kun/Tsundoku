@@ -9,6 +9,7 @@ using MediaTracker.Server.Features.Media.MediaContract;
 using MediaTracker.Server.Infrastructure.Persistence;
 using MediaTracker.Server.Infrastructure.Storage;
 using Microsoft.Extensions.Logging.Abstractions;
+using SkiaSharp;
 using Xunit;
 
 namespace MediaTracker.Tests;
@@ -302,10 +303,11 @@ public class BusinessLogicGapTests : IDisposable
 
     private static byte[] BuildPngBytes(int width, int height)
     {
-        using var image = SixLabors.ImageSharp.Image.LoadPixelData<SixLabors.ImageSharp.PixelFormats.Rgba32>(
-            new SixLabors.ImageSharp.PixelFormats.Rgba32[width * height], width, height);
+        using var bitmap = new SKBitmap(width, height, SKColorType.Rgba8888, SKAlphaType.Opaque);
+        using var image = SKImage.FromBitmap(bitmap);
+        using var encoded = image.Encode(SKEncodedImageFormat.Png, 100);
         using var ms = new MemoryStream();
-        image.Save(ms, new SixLabors.ImageSharp.Formats.Png.PngEncoder());
+        encoded.SaveTo(ms);
         return ms.ToArray();
     }
 }

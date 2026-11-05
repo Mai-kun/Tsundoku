@@ -36,8 +36,12 @@
   } from "$shared/types";
 
   const categories = ["all", "anime", "manga", "movie", "tvshow", "game", "book"] as const;
-  const minQueryLength = 2;
-  const debounceDelay = 220;
+  // 500ms beats natural typing pauses: every intermediate prefix used to fire a full aggregate
+  // search (2-3 AniList requests for "all"), which drained the per-minute quota on one query.
+  const debounceDelay = 500;
+  // 3 characters instead of 2: two-char prefixes ("Тщ" from a mistyped layout) matched nothing
+  // useful anywhere and still paid for the whole fan-out.
+  const minQueryLength = 3;
   const fallbackPlatform = "PC";
 
   type SearchCategory = (typeof categories)[number];
@@ -666,7 +670,7 @@
   function sourceBadgeClass(source?: string | null): string {
     const s = (source ?? "").toLowerCase();
     if (s.includes("anilist"))
-      return "bg-[#02a9ff]/15 text-[var(--color-brand-sky)] border-[#02a9ff]/30";
+      return "bg-[var(--color-badge-anilist-surface)] text-[var(--color-brand-sky)] border-[var(--color-badge-anilist-border)]";
     if (
       s.includes("sociallib") ||
       s.includes("ranobelib") ||
@@ -675,20 +679,24 @@
       s.includes("slashlib") ||
       s.includes("hentailib")
     )
-      return "bg-[#ec4899]/15 text-[#f472b6] border-[#ec4899]/30";
-    if (s.includes("shikimori")) return "bg-[#2e51a2]/20 text-[#688ce4] border-[#2e51a2]/40";
-    if (s.includes("mangadex")) return "bg-[#ff6740]/15 text-[#ff6740] border-[#ff6740]/30";
+      return "bg-[var(--color-badge-sociallib-surface)] text-[var(--color-badge-sociallib-text)] border-[var(--color-badge-sociallib-border)]";
+    if (s.includes("shikimori"))
+      return "bg-[var(--color-badge-shikimori-surface)] text-[var(--color-badge-shikimori-text)] border-[var(--color-badge-shikimori-border)]";
+    if (s.includes("mangadex"))
+      return "bg-[var(--color-badge-mangadex-surface)] text-[var(--color-badge-mangadex)] border-[var(--color-badge-mangadex-border)]";
     if (s.includes("mal") || s.includes("myanimelist") || s.includes("jikan"))
-      return "bg-[#2e51a2]/20 text-[#60a5fa] border-[#2e51a2]/30";
+      return "bg-[var(--color-badge-shikimori-surface)] text-[var(--color-badge-mal-text)] border-[var(--color-badge-shikimori-border-subtle)]";
     if (s.includes("mangaupdate"))
-      return "bg-[#3b82f6]/20 text-[var(--color-ink-faint)] border-[#3b82f6]/30";
+      return "bg-[var(--color-badge-mangaupdates-surface)] text-[var(--color-ink-faint)] border-[var(--color-badge-mangaupdates-border)]";
     if (s.includes("tmdb"))
-      return "bg-[#01b4e4]/15 text-[var(--color-brand-sky)] border-[#01b4e4]/30";
-    if (s.includes("kitsu")) return "bg-[#fd755c]/15 text-[#fb923c] border-[#fd755c]/30";
+      return "bg-[var(--color-badge-tmdb-surface)] text-[var(--color-brand-sky)] border-[var(--color-badge-tmdb-border)]";
+    if (s.includes("kitsu"))
+      return "bg-[var(--color-badge-kitsu-surface)] text-[var(--color-badge-kitsu-text)] border-[var(--color-badge-kitsu-border)]";
     if (s.includes("rawg")) return "bg-white/10 text-slate-200 border-white/[0.14]";
     if (s.includes("steam"))
       return "bg-[var(--color-track-deep)] text-[var(--color-info-line)] border-[color-mix(in_oklab,var(--color-info-line)_40%,transparent)]";
-    if (s.includes("igdb")) return "bg-[#9146ff]/20 text-[#a855f7] border-[#9146ff]/40";
+    if (s.includes("igdb"))
+      return "bg-[var(--color-badge-igdb-surface)] text-[var(--color-badge-igdb-text)] border-[var(--color-badge-igdb-border)]";
     if (s.includes("openlibrary")) return "bg-amber-500/15 text-amber-300 border-amber-500/30";
     return "bg-white/10 text-muted border-white/[0.08]";
   }
@@ -766,7 +774,7 @@
           selected={selectedSource}
           onSelect={(value) => (selectedSource = value as string)}
           label={i18n.t.searchModal.sourceLabel}
-          matchTriggerWidth
+          class="min-w-[260px] max-w-sm"
         >
           {#snippet trigger({ popoverTargetId, anchorName, isOpen })}
             <button
@@ -776,7 +784,7 @@
               style={isOpen ? `anchor-name: ${anchorName}` : undefined}
               class="tap bg-field text-ink flex h-10 shrink-0 items-center gap-1.5 rounded-lg border border-white/10 px-3 text-xs font-semibold transition outline-none hover:border-indigo-500/40 has-[:popover-open]:border-indigo-500/60 has-[:popover-open]:ring-1 has-[:popover-open]:ring-indigo-500/30"
             >
-              <span class="max-w-32 truncate" title={selectedSourceLabel}>
+              <span class="max-w-48 truncate sm:max-w-56" title={selectedSourceLabel}>
                 {selectedSourceLabel}
               </span>
               <ChevronDown size={14} class="text-muted shrink-0" aria-hidden="true" />

@@ -1,5 +1,8 @@
+using System.Diagnostics;
+using System.Runtime.InteropServices;
 using MediaTracker.Server.Infrastructure.Desktop;
 using MediaTracker.Server.Infrastructure.ExternalApis;
+using MediaTracker.Server.Infrastructure.Storage;
 using Microsoft.AspNetCore.Mvc;
 
 namespace MediaTracker.Server.Common.Endpoints;
@@ -12,7 +15,7 @@ namespace MediaTracker.Server.Common.Endpoints;
 public static class SystemEndpoints
 {
     public static IEndpointRouteBuilder MapSystemEndpoints(
-        this IEndpointRouteBuilder app, DesktopLinks links)
+        this IEndpointRouteBuilder app, DesktopLinks links, AppPaths appPaths)
     {
         app.MapPost("/api/system/open-ui", () =>
             {
@@ -65,8 +68,110 @@ public static class SystemEndpoints
             .WithTags("Система / System")
             .WithSummary("Получить список активных лимитов внешних API");
 
+        app.MapPost("/api/system/reveal-in-explorer", ([FromBody] RevealInExplorerRequest? request, [FromServices] AppPaths appPaths) =>
+        {
+            var rawPath = request?.Path?.Trim();
+            if (string.IsNullOrWhiteSpace(rawPath))
+            {
+                return Results.BadRequest(new { error = "Path is required" });
+            }
+
+            // Relative paths resolve against the data directory, so the UI can name
+            // "media/{id}/covers/..." without knowing where the server stores its files.
+            var fullPath = Path.IsPathRooted(rawPath)
+                ? Path.GetFullPath(rawPath)
+                : Path.GetFullPath(Path.Combine(appPaths.DataDirectory, rawPath));
+
+            if (!File.Exists(fullPath) && !Directory.Exists(fullPath))
+            {
+                return Results.NotFound(new { error = $"Path not found: {fullPath}" });
+            }
+
+            if (RevealInFileManager(fullPath))
+            {
+                return Results.NoContent();
+            }
+
+            return Results.StatusCode(StatusCodes.Status500InternalServerError);
+        })
+        .WithTags("Система / System")
+        .WithSummary("Показать файл или папку в системном проводнике");
+
+        app.MapPost("/api/system/open-data-dir", ([FromServices] AppPaths appPaths) =>
+        {
+            if (OpenInFileManager(appPaths.DataDirectory))
+            {
+                return Results.NoContent();
+            }
+
+            return Results.StatusCode(StatusCodes.Status500InternalServerError);
+        })
+        .WithTags("Система / System")
+        .WithSummary("Открыть папку данных приложения в системном проводнике");
+
         return app;
     }
 
     public record SwitchToBrowserRequest(string? Url);
+
+    public record RevealInExplorerRequest(string? Path);
+
+    /// <summary>
+    /// Selects <paramref name="path"/> in the platform file manager. For a directory most managers
+    /// just open it; the "select" behavior only makes sense for files.
+    /// </summary>
+    private static bool RevealInFileManager(string path)
+    {
+        if (Directory.Exists(path))
+        {
+            return OpenInFileManager(path);
+        }
+
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            return TryStart(() => Process.Start(
+                new ProcessStartInfo("explorer.exe", $"/select,\"{path}\"") { UseShellExecute = true }));
+        }
+
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        {
+            return TryStart(() => Process.Start("open", $"-R \"{path}\""));
+        }
+
+        // Linux: file managers have no universal "select" verb, so the parent folder opens instead.
+        return OpenInFileManager(Path.GetDirectoryName(path) ?? "/");
+    }
+
+    /// <summary>Opens <paramref name="path"/> (a directory) in the platform file manager.</summary>
+    private static bool OpenInFileManager(string path)
+    {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            return TryStart(() => Process.Start(
+                new ProcessStartInfo("explorer.exe", $"\"{path}\"") { UseShellExecute = true }));
+        }
+
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        {
+            return TryStart(() => Process.Start("open", $"\"{path}\""));
+        }
+
+        return TryStart(() => Process.Start(
+            new ProcessStartInfo("xdg-open", path) { UseShellExecute = true }));
+    }
+
+    private static bool TryStart(Func<Process?> start)
+    {
+        try
+        {
+            return start() is not null;
+        }
+        catch (Exception ex)
+        {
+            // Headless servers have no file manager to launch; the caller answers 500 and the UI
+            // surfaces a toast rather than dying silently.
+            Console.Error.WriteLine($"[System] Failed to open file manager: {ex.Message}");
+            return false;
+        }
+    }
 }

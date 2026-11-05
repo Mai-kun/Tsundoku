@@ -395,7 +395,7 @@ try
     app.MapJobEndpoints();
     app.MapCalendarEndpoints();
     app.MapGoalEndpoints();
-    app.MapSystemEndpoints(links);
+    app.MapSystemEndpoints(links, appPaths);
 
     app.MapFallback(async context =>
     {

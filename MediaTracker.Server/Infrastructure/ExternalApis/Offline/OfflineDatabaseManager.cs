@@ -2,8 +2,10 @@ using System.Diagnostics;
 using System.Text.Json;
 using MediaTracker.Server.Common.Json;
 using MediaTracker.Server.Infrastructure.Jobs;
+using MediaTracker.Server.Infrastructure.Persistence;
 using MediaTracker.Server.Infrastructure.Storage;
 using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace MediaTracker.Server.Infrastructure.ExternalApis.Offline;
@@ -32,14 +34,67 @@ public sealed class OfflineDatabaseManager
 
     private readonly AppPaths? _appPaths;
     private readonly ILogger<OfflineDatabaseManager>? _logger;
+    private readonly IServiceScopeFactory? _scopeFactory;
+
+    // Per-database toggles live in the DisabledSources setting as "offline:{fileName}" entries.
+    // The manager cannot depend on ISourcePriorityService (it would close a DI cycle: the priority
+    // service already takes the manager), so the setting is read directly through a scope.
+    private IReadOnlySet<string>? _disabledFilesCache;
+    private DateTimeOffset _disabledFilesCacheUntil;
 
     public OfflineDatabaseManager(
         AppPaths? appPaths = null,
-        ILogger<OfflineDatabaseManager>? logger = null)
+        ILogger<OfflineDatabaseManager>? logger = null,
+        IServiceScopeFactory? scopeFactory = null)
     {
         _appPaths = appPaths;
         _logger = logger;
+        _scopeFactory = scopeFactory;
     }
+
+    private static readonly IReadOnlySet<string> EmptySet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>File names of offline databases the user switched off via their own toggle.</summary>
+    private async Task<IReadOnlySet<string>> GetDisabledDatabaseFileNamesAsync(CancellationToken ct)
+    {
+        if (_scopeFactory is null) return EmptySet;
+
+        if (_disabledFilesCache is not null && DateTimeOffset.UtcNow < _disabledFilesCacheUntil)
+        {
+            return _disabledFilesCache;
+        }
+
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var value = await db.GetSettingAsync("DisabledSources", ct);
+            var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (value is not null && !string.IsNullOrWhiteSpace(value))
+            {
+                var list = JsonSerializer.Deserialize(value, AppJsonSerializerContext.Default.ListString);
+                foreach (var entry in list ?? [])
+                {
+                    if (entry.StartsWith("offline:", StringComparison.OrdinalIgnoreCase))
+                    {
+                        set.Add(entry["offline:".Length..].Trim());
+                    }
+                }
+            }
+
+            _disabledFilesCache = set;
+            _disabledFilesCacheUntil = DateTimeOffset.UtcNow.AddSeconds(10);
+            return set;
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogDebug(ex, "[Offline] Failed to read per-database toggles");
+            return _disabledFilesCache ?? EmptySet;
+        }
+    }
+
+    private static bool IsDisabledFile(string dbPath, IReadOnlySet<string> disabled) =>
+        disabled.Contains(Path.GetFileName(dbPath));
 
     public string OfflineDirectory =>
         _appPaths?.OfflineDirectory ?? Path.Combine(AppPaths.GetAppDirectory(), "data", "offline");
@@ -141,6 +196,7 @@ public sealed class OfflineDatabaseManager
     {
         var resolvedPath = ResolveDatabasePath(dbFileNameOrPath);
         if (resolvedPath is null) return [];
+        if (IsDisabledFile(resolvedPath, await GetDisabledDatabaseFileNamesAsync(ct))) return [];
 
         var normalized = query?.Trim();
         if (string.IsNullOrWhiteSpace(normalized)) return [];
@@ -161,6 +217,7 @@ public sealed class OfflineDatabaseManager
     {
         var resolvedPath = ResolveDatabasePath(dbFileNameOrPath);
         if (resolvedPath is null) return null;
+        if (IsDisabledFile(resolvedPath, await GetDisabledDatabaseFileNamesAsync(ct))) return null;
 
         return await GetDetailsFromDatabaseAsync(resolvedPath, externalId, title, ct);
     }
@@ -171,7 +228,10 @@ public sealed class OfflineDatabaseManager
         int limit,
         CancellationToken ct)
     {
-        var dbs = GetExistingDatabases(type);
+        var disabled = await GetDisabledDatabaseFileNamesAsync(ct);
+        var dbs = GetExistingDatabases(type)
+            .Where(dbPath => !IsDisabledFile(dbPath, disabled))
+            .ToList();
         if (dbs.Count == 0) return [];
 
         var normalized = query?.Trim();
@@ -424,7 +484,8 @@ public sealed class OfflineDatabaseManager
                 TotalTitles: totalTitles,
                 FileSizeBytes: fileSizeBytes,
                 LastModified: lastModified,
-                IsActive: isActive));
+                IsActive: isActive,
+                SourceDumpFileName: FindSourceDumpForDatabase(fileName)));
         }
 
         statuses.Sort((a, b) =>
@@ -518,6 +579,101 @@ public sealed class OfflineDatabaseManager
         }
 
         return pending;
+    }
+
+    /// <summary>
+    /// The raw source dump (".jsonl" / ".json" / ".tsv") that produced <paramref name="dbFileName"/>,
+    /// if it still sits in an offline directory. Known fixed-name databases (anime/movies/games) map
+    /// to their canonical dumps; everything else matches by file stem. Null when nothing is found.
+    /// </summary>
+    public string? FindSourceDumpForDatabase(string dbFileName)
+    {
+        if (string.IsNullOrWhiteSpace(dbFileName)) return null;
+
+        var dirs = new List<string>();
+        if (!string.IsNullOrWhiteSpace(OfflineDirectory) && Directory.Exists(OfflineDirectory))
+        {
+            dirs.Add(OfflineDirectory);
+        }
+
+        var appOfflineDir = Path.Combine(AppPaths.GetAppDirectory(), "data", "offline");
+        if (Directory.Exists(appOfflineDir) && !dirs.Contains(appOfflineDir, StringComparer.OrdinalIgnoreCase))
+        {
+            dirs.Add(appOfflineDir);
+        }
+
+        var stem = Path.GetFileNameWithoutExtension(dbFileName).ToLowerInvariant();
+        string[] knownDumps = stem switch
+        {
+            "anime_offline" => ["anime-offline-database.jsonl", "anime-offline-database.json"],
+            "movies_offline" => ["title.basics.tsv"],
+            "games_offline" => ["openvgdb.sqlite", "openvgdb.db"],
+            _ => [$"{stem}.jsonl", $"{stem}.json", $"{stem}.tsv"],
+        };
+
+        foreach (var dir in dirs)
+        {
+            foreach (var candidate in knownDumps)
+            {
+                var path = Path.Combine(dir, candidate);
+                if (File.Exists(path)) return path;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Deletes a source dump from an offline directory. Only the file name is accepted and only
+    /// files that are actually discoverable offline dumps are removed, so the endpoint cannot be
+    /// pointed at arbitrary paths.
+    /// </summary>
+    public bool DeleteSourceDump(string fileName)
+    {
+        if (string.IsNullOrWhiteSpace(fileName)
+            || fileName.Contains('/')
+            || fileName.Contains('\\')
+            || fileName.Contains(".."))
+        {
+            return false;
+        }
+
+        var dumpPath = FindSourceDumpForDatabase(fileName)
+            // A dump that has no indexed database yet ("pending") is deletable too.
+            ?? ResolveOfflineDumpPath(fileName);
+        if (dumpPath is null || !File.Exists(dumpPath)) return false;
+
+        try
+        {
+            File.Delete(dumpPath);
+            _logger?.LogInformation("[Offline] Deleted source dump '{DumpPath}'", dumpPath);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "[Offline] Failed to delete source dump '{DumpPath}'", dumpPath);
+            return false;
+        }
+    }
+
+    private string? ResolveOfflineDumpPath(string fileName)
+    {
+        var dirs = new List<string>();
+        if (!string.IsNullOrWhiteSpace(OfflineDirectory) && Directory.Exists(OfflineDirectory))
+        {
+            dirs.Add(OfflineDirectory);
+        }
+
+        var appOfflineDir = Path.Combine(AppPaths.GetAppDirectory(), "data", "offline");
+        if (Directory.Exists(appOfflineDir)) dirs.Add(appOfflineDir);
+
+        foreach (var dir in dirs)
+        {
+            var candidate = Path.Combine(dir, fileName);
+            if (File.Exists(candidate)) return Path.GetFullPath(candidate);
+        }
+
+        return null;
     }
 
     public void EnqueuePendingImports(IJobManager jobManager, ILogger? logger = null, bool force = false)

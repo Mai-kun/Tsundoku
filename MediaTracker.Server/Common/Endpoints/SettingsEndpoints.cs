@@ -449,6 +449,22 @@ public static class SettingsEndpoints
             .WithTags("Настройки / Settings")
             .WithSummary("Переиндексировать офлайн-дампы");
 
+        group.MapDelete("/offline-databases/dumps/{fileName}", (
+            string fileName,
+            [FromServices] OfflineDatabaseManager dbManager) =>
+        {
+            // Only dumps discoverable in the offline directories are accepted; anything else is a
+            // rejection rather than a guess, so the endpoint never deletes an arbitrary file.
+            if (!dbManager.DeleteSourceDump(fileName))
+            {
+                return Results.NotFound(new { error = $"Source dump not found for '{fileName}'" });
+            }
+
+            return Results.NoContent();
+        })
+            .WithTags("Настройки / Settings")
+            .WithSummary("Удалить исходный дамп офлайн-базы (освободить место)");
+
         group.MapGet("/offline-mode", async (
             [FromServices] AppDbContext db,
             [FromServices] OfflineDatabaseManager dbManager,

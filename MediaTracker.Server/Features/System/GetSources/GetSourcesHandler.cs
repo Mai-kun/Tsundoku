@@ -14,9 +14,14 @@ public sealed class GetSourcesHandler(
     public async Task<Result<IReadOnlyList<SourceInfo>>> HandleAsync(CancellationToken ct)
     {
         var disabled = await priorityService.GetDisabledSourcesAsync(ct);
+        // Once at least one offline database is indexed, every "*.db" file is already listed as its
+        // own "[Офлайн] ..." source below; the generic "offline" provider would duplicate both the
+        // source list and the rating badges.
+        var hasIndexedDatabases = dbManager is not null && dbManager.HasAnyDatabase;
 
         var sources = providers
             .DistinctBy(provider => provider.Id)
+            .Where(provider => !(hasIndexedDatabases && provider.Id == "offline"))
             .Select(provider =>
             {
                 var key = options.Value.GetKey(provider.Id);
@@ -79,8 +84,11 @@ public sealed class GetSourcesHandler(
                     IsConfigured: true,
                     HasKey: false,
                     MaskedKey: null,
-                    IsEnabled: true
-                ));
+                    // The per-database toggle in the offline block uses the same DisabledSources
+                    // setting as every other source, so a switched-off database shows as off here.
+                    IsEnabled: !disabled.Contains($"offline:{db.FileName}")
+                        && !disabled.Contains(MediaMerger.NormalizeSourceKey($"offline:{db.FileName}"))
+                    ));
             }
         }
 

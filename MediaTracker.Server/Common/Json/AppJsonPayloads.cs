@@ -27,7 +27,8 @@ public sealed record OfflineDatabaseStatusDto(
     int TotalTitles,
     long FileSizeBytes,
     DateTime LastModified,
-    bool IsActive);
+    bool IsActive,
+    string? SourceDumpFileName = null);
 
 public sealed record OfflineDatabasesSummaryDto(
     IReadOnlyList<OfflineDatabaseStatusDto> Databases,

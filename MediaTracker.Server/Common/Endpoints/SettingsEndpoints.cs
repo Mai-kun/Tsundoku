@@ -123,41 +123,17 @@ public static class SettingsEndpoints
             .WithTags("Настройки / Settings")
             .WithSummary("Проверить доступность источника и валидность ключа");
 
-        // MangaLib browser-session pickup: the token never leaves this machine — the detector
+        // MangaLib / SocialLib browser-session pickup: the token never leaves this machine — the detector
         // reads the user's own browser localStorage and persists it through the encrypted
         // source-key storage, exactly like the isolated Chromium profile the launcher keeps.
-        group.MapPost("/sources/mangalib/detect-token", async (
-                [FromServices] ISaveSourceKeyHandler saveKey,
-                CancellationToken ct) =>
-            {
-                var session = await BrowserSessionDetector.TryDetectSessionAsync(ct);
-                if (session is null)
-                {
-                    return Results.NotFound(new MangalibSessionResponse(
-                        Success: false,
-                        UserId: null,
-                        Username: null,
-                        Source: null,
-                        Message: "Сессия SocialLib в браузерах не найдена. Войдите на lib.social в браузере и повторите попытку."));
-                }
-
-                var saved = await saveKey.HandleAsync(
-                    new SaveSourceKeyCommand(ImportOnlyKeySources.MangaLib, session.Token), ct);
-                if (!saved.TryGetValue(out var savedValue))
-                {
-                    return Results.BadRequest(new ApiErrorDetail(
-                        saved.Error?.Message ?? "Не удалось сохранить токен."));
-                }
-
-                return Results.Ok(new MangalibSessionResponse(
-                    Success: savedValue.Success,
-                    UserId: session.UserId,
-                    Username: session.Username,
-                    Source: session.SourcePath,
-                    Message: null));
-            })
+        group.MapPost("/sources/mangalib/detect-token", DetectSocialLibSessionAsync)
             .WithTags("Настройки / Settings")
             .WithSummary("Подхватить авторизацию MangaLib из браузера (Zen / Firefox / Chromium)")
+            .WithDescription("Ищет localStorage-сессию SocialLib в профилях браузеров пользователя и сохраняет токен в зашифрованном хранилище.");
+
+        group.MapPost("/sources/sociallib/detect-token", DetectSocialLibSessionAsync)
+            .WithTags("Настройки / Settings")
+            .WithSummary("Подхватить авторизацию SocialLib из браузера (Zen / Firefox / Chromium)")
             .WithDescription("Ищет localStorage-сессию SocialLib в профилях браузеров пользователя и сохраняет токен в зашифрованном хранилище.");
 
         group.MapPost("/sources/mangalib/open-login", () =>
@@ -511,6 +487,39 @@ public static class SettingsEndpoints
             File.Copy(file, Path.Combine(targetDir, Path.GetFileName(file)), overwrite: true);
         foreach (var directory in Directory.GetDirectories(sourceDir))
             CopyDirectory(directory, Path.Combine(targetDir, Path.GetFileName(directory)));
+    }
+
+    private static async Task<IResult> DetectSocialLibSessionAsync(
+        [FromServices] ISaveSourceKeyHandler saveKey,
+        CancellationToken ct)
+    {
+        var session = await BrowserSessionDetector.TryDetectSessionAsync(ct);
+        if (session is null)
+        {
+            return Results.NotFound(new MangalibSessionResponse(
+                Success: false,
+                UserId: null,
+                Username: null,
+                Source: null,
+                Message: "Сессия SocialLib в браузерах не найдена. Войдите на lib.social в браузере и повторите попытку."));
+        }
+
+        await saveKey.HandleAsync(
+            new SaveSourceKeyCommand("sociallib", session.Token), ct);
+        var saved = await saveKey.HandleAsync(
+            new SaveSourceKeyCommand(ImportOnlyKeySources.MangaLib, session.Token), ct);
+        if (!saved.TryGetValue(out var savedValue))
+        {
+            return Results.BadRequest(new ApiErrorDetail(
+                saved.Error?.Message ?? "Не удалось сохранить токен."));
+        }
+
+        return Results.Ok(new MangalibSessionResponse(
+            Success: savedValue.Success,
+            UserId: session.UserId,
+            Username: session.Username,
+            Source: session.SourcePath,
+            Message: null));
     }
 }
 

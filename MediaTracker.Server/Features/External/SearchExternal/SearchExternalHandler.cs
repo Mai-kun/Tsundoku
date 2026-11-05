@@ -33,6 +33,7 @@ public sealed class SearchExternalHandler(MetadataAggregatorService aggregator) 
         var normalizedQuery = query.Query?.Trim() ?? string.Empty;
 
         if (normalizedType == "book"
+            || string.Equals(query.Source, "sociallib", StringComparison.OrdinalIgnoreCase)
             || string.Equals(query.Source, "ranobelib", StringComparison.OrdinalIgnoreCase)
             || string.Equals(query.Source, "shikimori", StringComparison.OrdinalIgnoreCase))
         {

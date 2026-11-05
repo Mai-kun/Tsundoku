@@ -422,17 +422,17 @@ public static class BatchImportEnrichmentJob
 
             if (MediaTitleHelper.IsCyrillic(russian))
             {
-                Add("ranobelib", aggregator.SearchSourceAsync("book", russian, "ranobelib", ct));
+                Add("sociallib", aggregator.SearchSourceAsync("book", russian, "sociallib", ct));
                 Add("shikimori", aggregator.SearchSourceAsync("book", russian, "shikimori", ct));
             }
             else if (!string.IsNullOrWhiteSpace(latin))
             {
-                Add("ranobelib", aggregator.SearchSourceAsync("book", latin, "ranobelib", ct));
+                Add("sociallib", aggregator.SearchSourceAsync("book", latin, "sociallib", ct));
                 Add("shikimori", aggregator.SearchSourceAsync("book", latin, "shikimori", ct));
             }
             else
             {
-                Add("ranobelib", aggregator.SearchSourceAsync("book", item.Title, "ranobelib", ct));
+                Add("sociallib", aggregator.SearchSourceAsync("book", item.Title, "sociallib", ct));
                 Add("shikimori", aggregator.SearchSourceAsync("book", item.Title, "shikimori", ct));
             }
         }

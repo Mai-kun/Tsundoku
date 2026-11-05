@@ -909,7 +909,7 @@ public static class RefactorSelfCheck
         // exists to fill gaps for it. These two assertions pin the shipped order exactly.
         AssertEqual(
             failures,
-            "offline,anilist,shikimori,kitsu,simkl",
+            "offline,anilist,shikimori,kitsu,simkl,sociallib",
             string.Join(',', SourcePriorityService.DefaultPriorities["anime"]),
             "anime cascade order"
         );
@@ -921,7 +921,7 @@ public static class RefactorSelfCheck
         );
         AssertEqual(
             failures,
-            "anilist,shikimori,kitsu,mangadex,mangaupdates",
+            "anilist,shikimori,kitsu,mangadex,mangaupdates,sociallib",
             string.Join(',', SourcePriorityService.DefaultPriorities["manga"]),
             "manga cascade order"
         );
@@ -933,7 +933,7 @@ public static class RefactorSelfCheck
         );
         AssertEqual(
             failures,
-            "ranobelib,shikimori,anilist,kitsu,openlibrary",
+            "sociallib,shikimori,anilist,kitsu,openlibrary",
             string.Join(',', SourcePriorityService.DefaultPriorities["book"]),
             "book cascade order"
         );

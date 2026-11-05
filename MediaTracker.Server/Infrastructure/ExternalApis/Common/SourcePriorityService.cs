@@ -34,7 +34,7 @@ public sealed class SourcePriorityService(
     private static FrozenDictionary<string, string[]> BuildDefaultPrioritiesMap()
     {
         var dict = new Dictionary<string, string[]>(MetadataSourceRegistry.BuildDefaultPriorities(), StringComparer.OrdinalIgnoreCase);
-        dict["book"] = ["ranobelib", "shikimori", "anilist", "kitsu", "openlibrary"];
+        dict["book"] = ["sociallib", "shikimori", "anilist", "kitsu", "openlibrary"];
         return dict.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
     }
 

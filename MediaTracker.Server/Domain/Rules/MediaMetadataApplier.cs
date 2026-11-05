@@ -147,14 +147,22 @@ public static class MediaMetadataApplier
 
     // AOT-safe: the resolver comes from the source-generated context; a bare `new JsonSerializerOptions`
     // falls back to reflection-based serialization, which NativeAOT disables at runtime.
-    private static readonly JsonSerializerOptions AltTitleSerializerOptions = new(AppJsonSerializerContext.Default.Options)
-    {
-        TypeInfoResolver = AppJsonSerializerContext.Default,
-        // The default encoder escapes every non-ASCII character into \uXXXX, which would bury
-        // Cyrillic and Native titles inside an ASCII-only blob no search could ever match. Alt
-        // titles are stored with relaxed escaping so the raw column text stays readable and greppable.
-        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
-    };
+    //
+    // Lazy: AppJsonSerializerContext.Default.Options is itself built during static initialization,
+    // so reading it from this type's static constructor can deadlock the type initializer chain and
+    // surface as TypeInitializationException (NullReferenceException) under NativeAOT. Deferring the
+    // read to first use keeps the contexts from initializing each other mid-construction.
+    private static readonly Lazy<JsonSerializerOptions> s_altTitleOptions = new(() =>
+        new JsonSerializerOptions(AppJsonSerializerContext.Default.Options)
+        {
+            TypeInfoResolver = AppJsonSerializerContext.Default,
+            // The default encoder escapes every non-ASCII character into \uXXXX, which would bury
+            // Cyrillic and Native titles inside an ASCII-only blob no search could ever match. Alt
+            // titles are stored with relaxed escaping so the raw column text stays readable and greppable.
+            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+        });
+
+    private static JsonSerializerOptions AltTitleSerializerOptions => s_altTitleOptions.Value;
 
     /// <summary>
     /// Refresh title handling: the display title follows the source, except when the stored one is

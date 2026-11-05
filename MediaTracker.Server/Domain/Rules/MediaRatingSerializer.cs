@@ -17,8 +17,15 @@ public static class MediaRatingSerializer
     /// <see cref="JsonSerializer"/> does not match "source" to a `Source` property by default, so a
     /// plain read silently produced rows whose source was null.
     /// </summary>
-    public static JsonSerializerOptions ReadOptions { get; } =
-        new(AppJsonSerializerContext.Default.Options) { PropertyNameCaseInsensitive = true };
+    /// <remarks>
+    /// Lazy on purpose: touching <see cref="AppJsonSerializerContext"/>.Default from a static field
+    /// initializer can deadlock the two types' initializers and crash the process with a
+    /// TypeInitializationException before any host ever starts.
+    /// </remarks>
+    private static readonly Lazy<JsonSerializerOptions> s_readOptions = new(() =>
+        new JsonSerializerOptions(AppJsonSerializerContext.Default.Options) { PropertyNameCaseInsensitive = true });
+
+    public static JsonSerializerOptions ReadOptions => s_readOptions.Value;
 
     public static string Serialize(IEnumerable<RatingSnapshot> ratings) =>
         JsonSerializer.Serialize(ratings.Select(rating => new MediaRatingRow(rating.Source, rating.Rating, rating.Votes)).ToList(), AppJsonSerializerContext.Default.ListMediaRatingRow);

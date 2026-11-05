@@ -131,6 +131,29 @@ foreach (var oldBinary in oldBinaries)
 
 ConfigureLogging(appPaths.LogsDirectory);
 
+// Last-resort crash logging: a TypeInitializationException or any other fatal escape used to kill
+// the process silently (no window, no log line) and looked like "the backend just vanished".
+// The handler cannot save the process, but the log keeps the stack trace for diagnosis.
+AppDomain.CurrentDomain.UnhandledException += (_, eventArgs) =>
+{
+    if (eventArgs.ExceptionObject is Exception ex)
+    {
+        Log.Fatal(ex, "Unhandled exception. IsTerminating: {IsTerminating}", eventArgs.IsTerminating);
+    }
+    else
+    {
+        Log.Fatal("Unhandled non-exception failure. IsTerminating: {IsTerminating}", eventArgs.IsTerminating);
+    }
+    Log.CloseAndFlush();
+};
+TaskScheduler.UnobservedTaskException += (_, eventArgs) =>
+{
+    Log.Warning(eventArgs.Exception, "Unobserved task exception");
+
+    // Mark observed so the task stays swallowed; default .NET behavior keeps the process alive either way.
+    eventArgs.SetObserved();
+};
+
 Log.Information("Database path: {DatabasePath}", appPaths.DatabaseFilePath);
 
 try

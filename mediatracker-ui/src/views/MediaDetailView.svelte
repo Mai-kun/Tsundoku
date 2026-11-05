@@ -795,6 +795,27 @@
     // "[Офлайн] <file>") never render as badges.
     ratings = ratings.filter((r) => !/offline|офлайн/i.test(r.source));
 
+    // The LibSocial ecosystem answers under several aliases (SocialLib / MangaLib / AnimeLib...):
+    // collapse them into one row per site, preferring the exact site name over the umbrella.
+    const byFamily = new Map<string, RawRating>();
+    for (const r of ratings) {
+      const key = r.source.toLowerCase();
+      const family = /(sociallib|mangalib|animelib|ranobelib|slashlib|hentailib)/.test(key)
+        ? "lib"
+        : key;
+      const existing = byFamily.get(family);
+      if (!existing) {
+        byFamily.set(family, r);
+        continue;
+      }
+      const existingIsUmbrella = existing.source.toLowerCase() === "sociallib";
+      const candidateIsUmbrella = key === "sociallib";
+      const better =
+        (existingIsUmbrella && !candidateIsUmbrella) || (!existing.rating && r.rating) ? r : existing;
+      byFamily.set(family, better);
+    }
+    ratings = [...byFamily.values()];
+
     const cat = (media as { isAnime?: boolean }).isAnime ? "anime" : media.type;
 
     return buildRatingBadges({
@@ -2204,6 +2225,7 @@
               {unlockedAchievementNames}
               onOpenMedia={onOpenRelated}
               onEdit={startEdit}
+              onOpenRelink={() => (relinkOpen = true)}
               onSearch={(creatorName) => {
                 // The card's search button means "works of this creator": the
                 // type and source of the current record narrow the external search.

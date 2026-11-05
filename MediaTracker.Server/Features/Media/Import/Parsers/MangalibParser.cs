@@ -438,8 +438,8 @@ public static class MangalibParser
             if (!elem.TryGetProperty(propName, out var prop)) continue;
             if (prop.ValueKind == JsonValueKind.String)
             {
-                var str = prop.GetString();
-                if (!string.IsNullOrWhiteSpace(str)) return str.Trim();
+                var str = SocialLibMetadataProvider.NormalizeCoverUrl(prop.GetString());
+                if (!string.IsNullOrWhiteSpace(str)) return str;
             }
             else if (prop.ValueKind == JsonValueKind.Object)
             {
@@ -447,8 +447,8 @@ public static class MangalibParser
                 {
                     if (prop.TryGetProperty(sub, out var subProp) && subProp.ValueKind == JsonValueKind.String)
                     {
-                        var str = subProp.GetString();
-                        if (!string.IsNullOrWhiteSpace(str)) return str.Trim();
+                        var str = SocialLibMetadataProvider.NormalizeCoverUrl(subProp.GetString());
+                        if (!string.IsNullOrWhiteSpace(str)) return str;
                     }
                 }
             }

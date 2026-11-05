@@ -104,18 +104,12 @@ const RULES: MatchRule[] = [
     extractId: (m) => m[1],
   },
 
-  // RanobeLib / MangaLib
+  // LibSocial ecosystem: MangaLib / SlashLib / HentaiLib / lib.social (manga sites).
+  // Ids arrive both as bare slugs and as "35160--slug" pairs; /ru/ and /manga/ path
+  // segments are optional.
   {
-    pattern: /ranobelib\.me\/(?:ru\/)?([a-z0-9\-]+)/i,
-    source: "ranobelib",
-    type: "book",
-    extractId: (m) => {
-      const id = m[1].toLowerCase();
-      return FORBIDDEN_SLUGS.has(id) ? null : m[1];
-    },
-  },
-  {
-    pattern: /mangalib\.me\/(?:ru\/)?([a-z0-9\-]+)/i,
+    pattern:
+      /(?:mangalib\.(?:me|org)|slashlib\.me|hentailib\.me|lib\.social)\/(?:ru\/)?(?:manga\/)?([0-9a-zA-Z\-_]+)/i,
     source: "mangalib",
     type: "manga",
     extractId: (m) => {
@@ -123,10 +117,21 @@ const RULES: MatchRule[] = [
       return FORBIDDEN_SLUGS.has(id) ? null : m[1];
     },
   },
+  // AnimeLib (incl. the v5 host and the /anime/ path segment)
   {
-    pattern: /animelib\.(?:me|org)\/(?:ru\/)?([a-z0-9\-]+)/i,
+    pattern: /(?:animelib\.(?:me|org)|v5\.animelib\.org)\/(?:ru\/)?(?:anime\/)?([0-9a-zA-Z\-_]+)/i,
     source: "animelib",
     type: "anime",
+    extractId: (m) => {
+      const id = m[1].toLowerCase();
+      return FORBIDDEN_SLUGS.has(id) ? null : m[1];
+    },
+  },
+  // RanobeLib (novels; /ranobe/ path segment tolerated)
+  {
+    pattern: /ranobelib\.me\/(?:ru\/)?(?:ranobe\/)?([0-9a-zA-Z\-_]+)/i,
+    source: "ranobelib",
+    type: "book",
     extractId: (m) => {
       const id = m[1].toLowerCase();
       return FORBIDDEN_SLUGS.has(id) ? null : m[1];

@@ -285,6 +285,10 @@ public sealed class SocialLibMetadataProvider(
                 mangaFormat = "light_novel";
                 externalSource = "RanobeLib";
                 break;
+            case 4:
+                type = "manga";
+                externalSource = "HentaiLib";
+                break;
             case 5:
                 type = "anime";
                 externalSource = "AnimeLib";
@@ -396,20 +400,37 @@ public sealed class SocialLibMetadataProvider(
         if (elem.TryGetProperty("cover", out var cover))
         {
             if (cover.ValueKind == JsonValueKind.String)
-                return cover.GetString()?.Trim();
+                return NormalizeCoverUrl(cover.GetString());
             if (cover.ValueKind == JsonValueKind.Object)
             {
                 foreach (var sub in new[] { "default", "md", "thumbnail" })
                 {
                     if (cover.TryGetProperty(sub, out var subProp) && subProp.ValueKind == JsonValueKind.String)
                     {
-                        var str = subProp.GetString();
-                        if (!string.IsNullOrWhiteSpace(str)) return str.Trim();
+                        var str = NormalizeCoverUrl(subProp.GetString());
+                        if (!string.IsNullOrWhiteSpace(str)) return str;
                     }
                 }
             }
         }
         return null;
+    }
+
+    /// <summary>
+    /// The catalog sometimes serves relative upload paths or scheme-less hosts; the card renders
+    /// them only as absolute https URLs pointing at the shared cover CDN.
+    /// </summary>
+    public static string? NormalizeCoverUrl(string? url)
+    {
+        var value = url?.Trim();
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        if (value.StartsWith("//", StringComparison.Ordinal)) return $"https:{value}";
+        if (value.StartsWith("/uploads/", StringComparison.OrdinalIgnoreCase) || value.StartsWith("uploads/", StringComparison.OrdinalIgnoreCase))
+        {
+            return $"https://cover.imglib.info/{value.TrimStart('/')}";
+        }
+
+        return value;
     }
 
     private static (double? Score, int? Votes) ExtractRating(JsonElement elem)

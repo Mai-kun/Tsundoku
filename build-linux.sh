@@ -40,8 +40,11 @@ APPDIR="dist/.appdir"
 mkdir -p "$APPDIR/bin"
 cp dist/Tsundoku-Portable/Tsundoku "$APPDIR/bin/Tsundoku"
 chmod +x "$APPDIR/bin/Tsundoku"
-cp dist/Tsundoku-Portable/libe_sqlite3.so "$APPDIR/bin/libe_sqlite3.so"
-chmod +x "$APPDIR/bin/libe_sqlite3.so"
+# Every native library ships next to the binary: the DllNotFoundException for a
+# missing libSkiaSharp.so surfaced only at first cover download, as a fatal
+# TypeInitializationException on the finalizer thread that killed the process.
+cp dist/Tsundoku-Portable/*.so "$APPDIR/bin/"
+chmod +x "$APPDIR/bin/"*.so
 cp -r dist/Tsundoku-Portable/wwwroot "$APPDIR/wwwroot"
 
 cat > "$APPDIR/AppRun" <<'APPRUN'
@@ -67,7 +70,8 @@ Type=Application
 Categories=Utility;
 DESKTOP
 
-ICON_SRC="mediatracker-ui/public/icon-512.png"
+ICON_SRC="mediatracker-ui/public/icons/default.png"
+[ -f "$ICON_SRC" ] || ICON_SRC="mediatracker-ui/public/icon-512.png"
 [ -f "$ICON_SRC" ] || ICON_SRC="mediatracker-ui/public/icon-192.png"
 cp "$ICON_SRC" "$APPDIR/tsundoku.png"
 ln -sf tsundoku.png "$APPDIR/.DirIcon"

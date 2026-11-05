@@ -185,6 +185,7 @@ public static unsafe class LinuxTray
     {
         var candidates = new[]
         {
+            Path.Combine(AppContext.BaseDirectory, "wwwroot", "icons", "default.png"),
             Path.Combine(AppContext.BaseDirectory, "wwwroot", "icon-192.png"),
             Path.Combine(AppContext.BaseDirectory, "wwwroot", "icon-512.png"),
             "/usr/share/tsundoku/wwwroot/icon-192.png",

@@ -2,6 +2,9 @@
 
     <PropertyGroup>
         <Version>1.0.0</Version>
+        <!-- Bakes icon.ico into Tsundoku.exe; the Windows tray reads the same resource
+             through ExtractIconExW when no explicit icon file is found. -->
+        <ApplicationIcon>icon.ico</ApplicationIcon>
         <!-- Release on Windows hides the console window (WinExe); Debug and every
              other platform keep a regular console executable. -->
         <OutputType Condition="'$(Configuration)' == 'Release' and '$(OS)' == 'Windows_NT'">WinExe</OutputType>

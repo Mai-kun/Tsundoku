@@ -1,0 +1,1268 @@
+{
+  "action": {
+    "ru": "Боевик",
+    "en": "Action",
+    "isGenre": true,
+    "aliases": [
+      "Action",
+      "боевик",
+      "экшен",
+      "экшн",
+      "экшены",
+      "действие",
+      "приключенческий боевик",
+      "action epic",
+      "b-action",
+      "car action",
+      "gun fu",
+      "one-person army",
+      "jason statham action",
+      "swashbuckler"
+    ]
+  },
+  "adventure": {
+    "ru": "Приключения",
+    "en": "Adventure",
+    "isGenre": true,
+    "aliases": [
+      "Adventure",
+      "приключения",
+      "приключение",
+      "приключенческий",
+      "приключенческие игры",
+      "adventure epic",
+      "animal adventure",
+      "desert adventure",
+      "dinosaur adventure",
+      "globetrotting adventure",
+      "jungle adventure",
+      "mountain adventure",
+      "sea adventure",
+      "urban adventure",
+      "quest",
+      "road trip",
+      "sword & sandal"
+    ]
+  },
+  "comedy": {
+    "ru": "Комедия",
+    "en": "Comedy",
+    "isGenre": true,
+    "aliases": [
+      "Comedy",
+      "комедия",
+      "комедийный",
+      "юмор",
+      "dark comedy",
+      "farce",
+      "high-concept comedy",
+      "holiday comedy",
+      "parody",
+      "пародия",
+      "quirky comedy",
+      "raunchy comedy",
+      "screwball comedy",
+      "sitcom",
+      "sketch comedy",
+      "slapstick",
+      "stand-up",
+      "стендап",
+      "stoner comedy",
+      "teen comedy",
+      "body swap comedy",
+      "buddy comedy"
+    ]
+  },
+  "drama": {
+    "ru": "Драма",
+    "en": "Drama",
+    "isGenre": true,
+    "aliases": [
+      "Drama",
+      "драма",
+      "романы",
+      "пьесы",
+      "рассказы",
+      "classic",
+      "классика",
+      "coming-of-age",
+      "cop drama",
+      "costume drama",
+      "docudrama",
+      "financial drama",
+      "korean drama",
+      "legal drama",
+      "medical drama",
+      "period drama",
+      "political drama",
+      "prison drama",
+      "psychological drama",
+      "showbiz drama",
+      "soap opera",
+      "teen drama",
+      "telenovela",
+      "tragedy",
+      "трагедия",
+      "workplace drama"
+    ]
+  },
+  "sci-fi": {
+    "ru": "Фантастика",
+    "en": "Sci-Fi",
+    "isGenre": true,
+    "aliases": [
+      "Sci-Fi",
+      "sci fi",
+      "science fiction",
+      "science-fiction",
+      "science-fiction (sci-fi)",
+      "sci-fi & fantasy",
+      "научная фантастика",
+      "фантастика",
+      "научно-фантастический",
+      "sci-fi epic",
+      "dystopian sci-fi",
+      "space sci-fi",
+      "artificial intelligence",
+      "alien invasion",
+      "aliens",
+      "пришельцы",
+      "инопланетяне",
+      "virtual reality",
+      "виртуальная реальность",
+      "time travel",
+      "путешествия во времени"
+    ]
+  },
+  "fantasy": {
+    "ru": "Фэнтези",
+    "en": "Fantasy",
+    "isGenre": true,
+    "aliases": [
+      "Fantasy",
+      "фэнтези",
+      "фентези",
+      "dark fantasy",
+      "fairy tale",
+      "сказка",
+      "fantasy epic",
+      "supernatural fantasy",
+      "sword & sorcery",
+      "teen fantasy",
+      "magic",
+      "магия",
+      "monster girls",
+      "девушки-монстры"
+    ]
+  },
+  "romance": {
+    "ru": "Романтика",
+    "en": "Romance",
+    "isGenre": true,
+    "aliases": [
+      "Romance",
+      "романтика",
+      "романс",
+      "мелодрама",
+      "любовь",
+      "dark romance",
+      "feel-good romance",
+      "holiday romance",
+      "romantic comedy",
+      "ромком",
+      "romantic epic",
+      "steamy romance",
+      "teen romance",
+      "tragic romance"
+    ]
+  },
+  "thriller": {
+    "ru": "Триллер",
+    "en": "Thriller",
+    "isGenre": true,
+    "aliases": [
+      "Thriller",
+      "триллер",
+      "триллеры",
+      "саспенс",
+      "suspense",
+      "suspense / thriller",
+      "conspiracy thriller",
+      "cyber thriller",
+      "erotic thriller",
+      "legal thriller",
+      "political thriller",
+      "psychological thriller"
+    ]
+  },
+  "horror": {
+    "ru": "Ужасы",
+    "en": "Horror",
+    "isGenre": true,
+    "aliases": [
+      "Horror",
+      "ужасы",
+      "хоррор",
+      "b-horror",
+      "body horror",
+      "folk horror",
+      "found footage horror",
+      "monster horror",
+      "monsters",
+      "монстры",
+      "psychological horror",
+      "slasher horror",
+      "splatter horror",
+      "supernatural horror",
+      "teen horror",
+      "vampire horror",
+      "werewolf horror",
+      "witch horror",
+      "zombie horror",
+      "ghosts",
+      "призраки",
+      "monster"
+    ]
+  },
+  "mystery": {
+    "ru": "Детектив",
+    "en": "Mystery",
+    "isGenre": true,
+    "aliases": [
+      "Mystery",
+      "детектив",
+      "мистика",
+      "тайна",
+      "мистика и детективы",
+      "bumbling detective",
+      "cozy mystery",
+      "hard-boiled detective",
+      "suspense mystery",
+      "whodunit"
+    ]
+  },
+  "slice of life": {
+    "ru": "Повседневность",
+    "en": "Slice of Life",
+    "isGenre": true,
+    "aliases": [
+      "Slice of Life",
+      "повседневность",
+      "повседневная жизнь",
+      "быт",
+      "iyashikei",
+      "социальной жизнь и обычаи",
+      "социальная жизнь и обычаи",
+      "lifestyle",
+      "daily life"
+    ]
+  },
+  "supernatural": {
+    "ru": "Сверхъестественное",
+    "en": "Supernatural",
+    "isGenre": true,
+    "aliases": [
+      "Supernatural",
+      "сверхъестественное",
+      "сверхъестественные силы",
+      "super power",
+      "суперсила"
+    ]
+  },
+  "psychological": {
+    "ru": "Психологическое",
+    "en": "Psychological",
+    "isGenre": true,
+    "aliases": [
+      "Psychological",
+      "психологическое",
+      "психологический",
+      "психология",
+      "dementia",
+      "безумие"
+    ]
+  },
+  "philosophical": {
+    "ru": "Философское",
+    "en": "Philosophical",
+    "isGenre": true,
+    "aliases": [
+      "Philosophical",
+      "философия"
+    ]
+  },
+  "historical": {
+    "ru": "Историческое",
+    "en": "Historical",
+    "isGenre": true,
+    "aliases": [
+      "Historical",
+      "history",
+      "история",
+      "исторический",
+      "художественная история",
+      "historical epic",
+      "древние цивилизации",
+      "археология",
+      "короли и правители",
+      "периодические произведения"
+    ]
+  },
+  "crime": {
+    "ru": "Криминал",
+    "en": "Crime",
+    "isGenre": true,
+    "aliases": [
+      "Crime",
+      "криминал",
+      "преступление",
+      "caper",
+      "drug crime",
+      "gangster",
+      "heist",
+      "police",
+      "police procedural",
+      "полиция",
+      "полицейский",
+      "true crime",
+      "mafia",
+      "мафия",
+      "delinquents",
+      "хулиганы",
+      "serial killer"
+    ]
+  },
+  "war": {
+    "ru": "Военное",
+    "en": "War",
+    "isGenre": true,
+    "aliases": [
+      "War",
+      "война",
+      "военный",
+      "военное",
+      "military",
+      "war epic",
+      "вторая мировая война"
+    ]
+  },
+  "western": {
+    "ru": "Вестерн",
+    "en": "Western",
+    "isGenre": true,
+    "aliases": [
+      "Western",
+      "вестерн",
+      "classical western",
+      "contemporary western",
+      "spaghetti western",
+      "western epic"
+    ]
+  },
+  "animation": {
+    "ru": "Анимация",
+    "en": "Animation",
+    "isGenre": true,
+    "aliases": [
+      "Animation",
+      "анимация",
+      "мультфильм",
+      "adult animation",
+      "computer animation",
+      "hand-drawn animation",
+      "stop motion animation",
+      "holiday animation",
+      "anime influenced"
+    ]
+  },
+  "documentary": {
+    "ru": "Документальное",
+    "en": "Documentary",
+    "isGenre": true,
+    "aliases": [
+      "Documentary",
+      "документальный",
+      "документальное кино",
+      "crime documentary",
+      "docuseries",
+      "faith & spirituality documentary",
+      "food documentary",
+      "history documentary",
+      "military documentary",
+      "music documentary",
+      "nature documentary",
+      "political documentary",
+      "science & technology documentary",
+      "sports documentary",
+      "travel documentary",
+      "mockumentary"
+    ]
+  },
+  "family": {
+    "ru": "Семейное",
+    "en": "Family",
+    "isGenre": true,
+    "aliases": [
+      "Family",
+      "семейный",
+      "семья",
+      "holiday family",
+      "kids",
+      "детский",
+      "для детей",
+      "детские книги",
+      "книжки-малышки",
+      "книги на ночь",
+      "книги с картинками",
+      "family friendly"
+    ]
+  },
+  "sports": {
+    "ru": "Спорт",
+    "en": "Sports",
+    "isGenre": true,
+    "aliases": [
+      "Sports",
+      "sport",
+      "спорт",
+      "спортивный",
+      "baseball",
+      "basketball",
+      "boxing",
+      "extreme sport",
+      "football",
+      "soccer",
+      "water sport",
+      "упражнения"
+    ]
+  },
+  "music": {
+    "ru": "Музыка",
+    "en": "Music",
+    "isGenre": true,
+    "aliases": [
+      "Music",
+      "музыка",
+      "музыкальный",
+      "musical",
+      "мюзикл",
+      "music / musical",
+      "classical musical",
+      "concert",
+      "концерт",
+      "jukebox musical",
+      "pop musical",
+      "rock musical",
+      "теория музыки",
+      "композиторы",
+      "идолы",
+      "idols"
+    ]
+  },
+  "biography": {
+    "ru": "Биография",
+    "en": "Biography",
+    "isGenre": true,
+    "aliases": [
+      "Biography",
+      "биография",
+      "автобиографии"
+    ]
+  },
+  "film noir": {
+    "ru": "Фильм-нуар",
+    "en": "Film Noir",
+    "isGenre": true,
+    "aliases": [
+      "Film Noir",
+      "фильм-нуар",
+      "giallo"
+    ]
+  },
+  "cyberpunk": {
+    "ru": "Киберпанк",
+    "en": "Cyberpunk",
+    "isGenre": true,
+    "aliases": [
+      "Cyberpunk",
+      "киберпанк"
+    ]
+  },
+  "steampunk": {
+    "ru": "Стимпанк",
+    "en": "Steampunk",
+    "isGenre": true,
+    "aliases": [
+      "Steampunk",
+      "стимпанк"
+    ]
+  },
+  "post-apocalyptic": {
+    "ru": "Постапокалиптика",
+    "en": "Post-Apocalyptic",
+    "isGenre": true,
+    "aliases": [
+      "Post-Apocalyptic",
+      "постапокалипсис",
+      "постапокалиптика",
+      "disaster",
+      "катастрофа"
+    ]
+  },
+  "survival": {
+    "ru": "Выживание",
+    "en": "Survival",
+    "isGenre": true,
+    "aliases": [
+      "Survival",
+      "выживание"
+    ]
+  },
+  "superhero": {
+    "ru": "Супергерои",
+    "en": "Superhero",
+    "isGenre": true,
+    "aliases": [
+      "Superhero",
+      "супергерои",
+      "super power",
+      "суперсила",
+      "суперсилы",
+      "tokusatsu",
+      "токусацу"
+    ]
+  },
+  "mecha": {
+    "ru": "Меха",
+    "en": "Mecha",
+    "isGenre": true,
+    "aliases": [
+      "Mecha",
+      "меха",
+      "механика",
+      "kaiju",
+      "кайдзю",
+      "robot"
+    ]
+  },
+  "mahou shoujo": {
+    "ru": "Махо-сёдзё",
+    "en": "Mahou Shoujo",
+    "isGenre": true,
+    "aliases": [
+      "Mahou Shoujo",
+      "махо-сёдзё",
+      "magical girls",
+      "magical girl (mahou shoujo)",
+      "mahou shounen"
+    ]
+  },
+  "isekai": {
+    "ru": "Исекай",
+    "en": "Isekai",
+    "isGenre": true,
+    "aliases": [
+      "Isekai",
+      "исекай",
+      "попаданцы",
+      "reincarnation",
+      "реинкарнация",
+      "перерождение",
+      "villainess",
+      "злодейка"
+    ]
+  },
+  "martial arts": {
+    "ru": "Боевые искусства",
+    "en": "Martial Arts",
+    "isGenre": true,
+    "aliases": [
+      "Martial Arts",
+      "боевые искусства",
+      "кунг-фу",
+      "kung fu",
+      "wuxia",
+      "уся",
+      "samurai",
+      "самураи",
+      "ninja",
+      "ниндзя"
+    ]
+  },
+  "school": {
+    "ru": "Школа",
+    "en": "School",
+    "isGenre": true,
+    "aliases": [
+      "School",
+      "school life",
+      "школа",
+      "школьная жизнь",
+      "youth",
+      "молодёжь",
+      "подростковая литература",
+      "teen adventure"
+    ]
+  },
+  "work life": {
+    "ru": "Работа",
+    "en": "Work Life",
+    "isGenre": true,
+    "aliases": [
+      "Work Life",
+      "workplace",
+      "office workers",
+      "работа",
+      "офис"
+    ]
+  },
+  "gourmet": {
+    "ru": "Кулинария",
+    "en": "Gourmet",
+    "isGenre": true,
+    "aliases": [
+      "Gourmet",
+      "гурман",
+      "еда",
+      "кулинария",
+      "cooking",
+      "food",
+      "cooking & food",
+      "приготовление еды",
+      "поваренные книги",
+      "питание"
+    ]
+  },
+  "medical": {
+    "ru": "Медицина",
+    "en": "Medical",
+    "isGenre": true,
+    "aliases": [
+      "Medical",
+      "медицина",
+      "медицинский",
+      "душевное здоровье"
+    ]
+  },
+  "political": {
+    "ru": "Политика",
+    "en": "Political",
+    "isGenre": true,
+    "aliases": [
+      "Political",
+      "политика",
+      "политический",
+      "политика и правительство",
+      "политическая наука",
+      "law",
+      "право"
+    ]
+  },
+  "space": {
+    "ru": "Космос",
+    "en": "Space",
+    "isGenre": true,
+    "aliases": [
+      "Space",
+      "космос"
+    ]
+  },
+  "vampire": {
+    "ru": "Вампиры",
+    "en": "Vampire",
+    "isGenre": true,
+    "aliases": [
+      "Vampire",
+      "vampires",
+      "вампиры"
+    ]
+  },
+  "demons": {
+    "ru": "Демоны",
+    "en": "Demons",
+    "isGenre": true,
+    "aliases": [
+      "Demons",
+      "демоны"
+    ]
+  },
+  "zombies": {
+    "ru": "Зомби",
+    "en": "Zombies",
+    "isGenre": true,
+    "aliases": [
+      "Zombies",
+      "зомби"
+    ]
+  },
+  "animals": {
+    "ru": "Животные",
+    "en": "Animals",
+    "isGenre": true,
+    "aliases": [
+      "Animals",
+      "животные",
+      "медведи",
+      "кошки",
+      "котята",
+      "собаки",
+      "щенки"
+    ]
+  },
+  "harem": {
+    "ru": "Гарем",
+    "en": "Harem",
+    "isGenre": true,
+    "aliases": [
+      "Harem",
+      "гарем",
+      "reverse harem",
+      "обратный гарем"
+    ]
+  },
+  "ecchi": {
+    "ru": "Этти",
+    "en": "Ecchi",
+    "isGenre": true,
+    "aliases": [
+      "Ecchi",
+      "этти",
+      "ecchi / harem"
+    ]
+  },
+  "erotica": {
+    "ru": "Эротика",
+    "en": "Erotica",
+    "isGenre": true,
+    "aliases": [
+      "Erotica",
+      "эротика",
+      "smut",
+      "mature",
+      "adult",
+      "для взрослых",
+      "sexual violence",
+      "incest",
+      "lolicon",
+      "loli",
+      "shotacon",
+      "shota"
+    ]
+  },
+  "hentai": {
+    "ru": "Хентай",
+    "en": "Hentai",
+    "isGenre": true,
+    "aliases": [
+      "Hentai",
+      "хентай"
+    ]
+  },
+  "gore": {
+    "ru": "Жестокость",
+    "en": "Gore",
+    "isGenre": true,
+    "aliases": [
+      "Gore",
+      "жестокость",
+      "гуро"
+    ]
+  },
+  "boys' love": {
+    "ru": "Сёнэн-ай",
+    "en": "Boys' Love",
+    "isGenre": true,
+    "aliases": [
+      "Boys' Love",
+      "yaoi",
+      "яой",
+      "shounen ai",
+      "сёнен-ай",
+      "сёнэн-ай"
+    ]
+  },
+  "girls' love": {
+    "ru": "Сёдзё-ай",
+    "en": "Girls' Love",
+    "isGenre": true,
+    "aliases": [
+      "Girls' Love",
+      "yuri",
+      "юри",
+      "shoujo ai",
+      "сёдзё-ай"
+    ]
+  },
+  "gender bender": {
+    "ru": "Смена пола",
+    "en": "Gender Bender",
+    "isGenre": true,
+    "aliases": [
+      "Gender Bender",
+      "genderswap",
+      "crossdressing",
+      "гендерная интрига",
+      "смена пола"
+    ]
+  },
+  "shounen": {
+    "ru": "Сёнэн",
+    "en": "Shounen",
+    "isGenre": true,
+    "aliases": [
+      "Shounen",
+      "shonen",
+      "shōnen",
+      "сёнэн",
+      "сёунэн"
+    ]
+  },
+  "seinen": {
+    "ru": "Сэйнэн",
+    "en": "Seinen",
+    "isGenre": true,
+    "aliases": [
+      "Seinen",
+      "сэйнэн",
+      "сэйнен"
+    ]
+  },
+  "shoujo": {
+    "ru": "Сёдзё",
+    "en": "Shoujo",
+    "isGenre": true,
+    "aliases": [
+      "Shoujo",
+      "shojo",
+      "shōjo",
+      "сёдзё",
+      "сёдзе"
+    ]
+  },
+  "josei": {
+    "ru": "Дзёсэй",
+    "en": "Josei",
+    "isGenre": true,
+    "aliases": [
+      "Josei",
+      "дзёсэй",
+      "дзесей"
+    ]
+  },
+  "doujinshi": {
+    "ru": "Додзинси",
+    "en": "Doujinshi",
+    "isGenre": true,
+    "aliases": [
+      "Doujinshi",
+      "додзинси",
+      "self-published"
+    ]
+  },
+  "web comic": {
+    "ru": "Веб-комикс",
+    "en": "Web Comic",
+    "isGenre": true,
+    "aliases": [
+      "Web Comic",
+      "веб-комикс",
+      "long strip",
+      "full color",
+      "official colored",
+      "fan colored",
+      "anthology",
+      "антология",
+      "gyaru",
+      "гяру"
+    ]
+  },
+  "reality tv": {
+    "ru": "Реалити-шоу",
+    "en": "Reality TV",
+    "isGenre": true,
+    "aliases": [
+      "Reality TV",
+      "reality",
+      "reality-tv",
+      "реальное тв",
+      "реалити",
+      "реалити-шоу",
+      "business reality tv",
+      "crime reality tv",
+      "dating reality tv",
+      "docusoap reality tv",
+      "paranormal reality tv",
+      "beauty competition",
+      "beauty makeover",
+      "cooking competition",
+      "home improvement",
+      "survival competition",
+      "talent competition",
+      "hidden camera"
+    ]
+  },
+  "game show": {
+    "ru": "Игровое шоу",
+    "en": "Game Show",
+    "isGenre": true,
+    "aliases": [
+      "Game Show",
+      "игровое шоу",
+      "quiz show"
+    ]
+  },
+  "talk show": {
+    "ru": "Ток-шоу",
+    "en": "Talk Show",
+    "isGenre": true,
+    "aliases": [
+      "Talk Show",
+      "ток-шоу",
+      "церемония"
+    ]
+  },
+  "news": {
+    "ru": "Новости",
+    "en": "News",
+    "isGenre": true,
+    "aliases": [
+      "News",
+      "новости"
+    ]
+  },
+  "short": {
+    "ru": "Короткометражка",
+    "en": "Short",
+    "isGenre": true,
+    "aliases": [
+      "Short",
+      "короткометражка",
+      "короткометражный",
+      "shorts",
+      "short episodes"
+    ]
+  },
+  "tv movie": {
+    "ru": "ТВ-фильм",
+    "en": "TV Movie",
+    "isGenre": true,
+    "aliases": [
+      "TV Movie",
+      "телевизионный фильм",
+      "holiday"
+    ]
+  },
+  "rpg": {
+    "ru": "RPG",
+    "en": "RPG",
+    "isGenre": true,
+    "aliases": [
+      "RPG",
+      "ролевые игры",
+      "ролевая игра"
+    ]
+  },
+  "shooter": {
+    "ru": "Шутер",
+    "en": "Shooter",
+    "isGenre": true,
+    "aliases": [
+      "Shooter",
+      "шутер",
+      "шутеры"
+    ]
+  },
+  "strategy": {
+    "ru": "Стратегия",
+    "en": "Strategy",
+    "isGenre": true,
+    "aliases": [
+      "Strategy",
+      "стратегии",
+      "стратегия"
+    ]
+  },
+  "simulation": {
+    "ru": "Симулятор",
+    "en": "Simulation",
+    "isGenre": true,
+    "aliases": [
+      "Simulation",
+      "симуляторы",
+      "симулятор"
+    ]
+  },
+  "puzzle": {
+    "ru": "Головоломка",
+    "en": "Puzzle",
+    "isGenre": true,
+    "aliases": [
+      "Puzzle",
+      "головоломки",
+      "головоломка"
+    ]
+  },
+  "platformer": {
+    "ru": "Платформер",
+    "en": "Platformer",
+    "isGenre": true,
+    "aliases": [
+      "Platformer",
+      "платформер",
+      "платформеры"
+    ]
+  },
+  "fighting": {
+    "ru": "Файтинг",
+    "en": "Fighting",
+    "isGenre": true,
+    "aliases": [
+      "Fighting",
+      "файтинг",
+      "файтинги"
+    ]
+  },
+  "racing": {
+    "ru": "Гонки",
+    "en": "Racing",
+    "isGenre": true,
+    "aliases": [
+      "Racing",
+      "гонки",
+      "cars",
+      "автогонки",
+      "тачки",
+      "motorsport"
+    ]
+  },
+  "arcade": {
+    "ru": "Аркада",
+    "en": "Arcade",
+    "isGenre": true,
+    "aliases": [
+      "Arcade",
+      "аркада",
+      "аркады"
+    ]
+  },
+  "indie": {
+    "ru": "Инди",
+    "en": "Indie",
+    "isGenre": true,
+    "aliases": [
+      "Indie",
+      "инди",
+      "независимое кино"
+    ]
+  },
+  "casual": {
+    "ru": "Казуальная игра",
+    "en": "Casual",
+    "isGenre": true,
+    "aliases": [
+      "Casual",
+      "казуальные игры",
+      "казуальная"
+    ]
+  },
+  "mmo": {
+    "ru": "MMO",
+    "en": "MMO",
+    "isGenre": true,
+    "aliases": [
+      "MMO",
+      "massively multiplayer",
+      "многопользовательские игры",
+      "mmorpg"
+    ]
+  },
+  "board & card": {
+    "ru": "Настольные игры",
+    "en": "Board & Card",
+    "isGenre": true,
+    "aliases": [
+      "Board & Card",
+      "board games",
+      "card",
+      "настольные игры",
+      "карточные игры",
+      "traditional games",
+      "mahjong",
+      "маджонг",
+      "game",
+      "игра",
+      "video games",
+      "видеоигры"
+    ]
+  },
+  "free to play": {
+    "ru": "Free to Play",
+    "en": "Free to Play",
+    "isGenre": true,
+    "aliases": [
+      "Free to Play",
+      "бесплатные"
+    ]
+  },
+  "early access": {
+    "ru": "Ранний доступ",
+    "en": "Early Access",
+    "isGenre": true,
+    "aliases": [
+      "Early Access",
+      "ранний доступ"
+    ]
+  },
+  "utilities & software": {
+    "ru": "Утилиты",
+    "en": "Utilities & Software",
+    "isGenre": true,
+    "aliases": [
+      "Utilities & Software",
+      "utilities",
+      "утилиты",
+      "accounting",
+      "бухгалтерия",
+      "audio production",
+      "работа со звуком",
+      "photo editing",
+      "обработка фото",
+      "software training",
+      "обучение работе с по",
+      "video production",
+      "создание видео",
+      "web publishing",
+      "веб-разработка",
+      "controller-friendly",
+      "с поддержкой контроллеров",
+      "macos",
+      "steamos + linux",
+      "steamos и linux",
+      "demos",
+      "демоверсии"
+    ]
+  },
+  "poetry": {
+    "ru": "Поэзия",
+    "en": "Poetry",
+    "isGenre": true,
+    "aliases": [
+      "Poetry",
+      "поэзия",
+      "стихи"
+    ]
+  },
+  "art & design": {
+    "ru": "Искусство и дизайн",
+    "en": "Art & Design",
+    "isGenre": true,
+    "aliases": [
+      "Art & Design",
+      "архитектура",
+      "руководства по искусству",
+      "история искусства",
+      "танцы",
+      "дизайн",
+      "мода",
+      "кинематограф",
+      "графический дизайн",
+      "изобразительное искусство",
+      "фотография",
+      "художники",
+      "the arts"
+    ]
+  },
+  "science": {
+    "ru": "Наука",
+    "en": "Science",
+    "isGenre": true,
+    "aliases": [
+      "Science",
+      "биология",
+      "химия",
+      "математика",
+      "алгебра",
+      "физика",
+      "естествознание",
+      "география",
+      "антропология"
+    ]
+  },
+  "programming & it": {
+    "ru": "Программирование",
+    "en": "Programming & IT",
+    "isGenre": true,
+    "aliases": [
+      "Programming & IT",
+      "программирование",
+      "информатика"
+    ]
+  },
+  "business & economics": {
+    "ru": "Бизнес и экономика",
+    "en": "Business & Economics",
+    "isGenre": true,
+    "aliases": [
+      "Business & Economics",
+      "менеджмент",
+      "предпринимательство",
+      "экономика",
+      "успешные проекты",
+      "финансы",
+      "бизнес и экономика"
+    ]
+  },
+  "education": {
+    "ru": "Образование",
+    "en": "Education",
+    "isGenre": true,
+    "aliases": [
+      "Education",
+      "educational",
+      "образование",
+      "английский язык",
+      "английский",
+      "русский"
+    ]
+  },
+  "self-help": {
+    "ru": "Саморазвитие",
+    "en": "Self-Help",
+    "isGenre": true,
+    "aliases": [
+      "Self-Help",
+      "самопомощь"
+    ]
+  },
+  "religion": {
+    "ru": "Религия",
+    "en": "Religion",
+    "isGenre": true,
+    "aliases": [
+      "Religion",
+      "религия"
+    ]
+  },
+  "donghua": {
+    "ru": "Дунхуа",
+    "en": "Donghua",
+    "isGenre": true,
+    "aliases": [
+      "Donghua",
+      "chinese animation",
+      "китайская анимация",
+      "дунхуа"
+    ]
+  },
+  "one-shot": {
+    "ru": "Ваншот",
+    "en": "One-shot",
+    "isGenre": true,
+    "aliases": [
+      "One-shot",
+      "one shot",
+      "oneshot",
+      "van-shot"
+    ]
+  }
+}

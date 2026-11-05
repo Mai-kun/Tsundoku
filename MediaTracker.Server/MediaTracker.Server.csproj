@@ -112,6 +112,12 @@
     </ItemGroup>
 
     <ItemGroup>
+        <!-- The genre dictionary ships inside the binary (AOT-safe) and can be extended
+             per installation via data/dictionaries/genres.json (see GenreNormalizer). -->
+        <EmbeddedResource Include="Resources\genres-dictionary.json" />
+    </ItemGroup>
+
+    <ItemGroup>
         <ProjectReference Include="..\MediaTracker.Generators\MediaTracker.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
     </ItemGroup>
 

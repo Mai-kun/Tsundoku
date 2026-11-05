@@ -943,12 +943,14 @@
           {#if splitAltTitles.length > 3}
             <button
               type="button"
-              class="text-accent-soft mt-1 cursor-pointer text-xs font-medium transition hover:text-white"
-              onclick={() => (showAllAltTitles = !showAllAltTitles)}
-            >
-              {showAllAltTitles
+              class="text-muted mt-1 inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-md transition hover:bg-white/[0.08] hover:text-white"
+              aria-expanded={showAllAltTitles}
+              title={showAllAltTitles
                 ? i18n.t.detail.altTitlesLess
                 : i18n.t.detail.altTitlesMore(splitAltTitles.length - 3)}
+              onclick={() => (showAllAltTitles = !showAllAltTitles)}
+            >
+              <ChevronDown size={14} class={`transition ${showAllAltTitles ? "rotate-180" : ""}`} />
             </button>
           {/if}
         </div>
@@ -956,7 +958,7 @@
 
       <!-- Genres as matte chips across the full panel width; the long tail hides behind a spoiler. -->
       {#if genreChips.length > 0}
-        <div class="border-b border-white/5 pb-3">
+        <div class="mt-3 border-b border-white/5 pb-3">
           <h3 class="text-muted text-xs font-medium">{i18n.t.detail.genresLabel}</h3>
           <div class="flex flex-wrap gap-1.5 pt-2">
             {#each visibleGenreChips as genre (genre)}
@@ -967,19 +969,21 @@
             {#if genreChips.length > 6}
               <button
                 type="button"
-                class="text-accent-soft cursor-pointer rounded-md bg-white/[0.04] px-2.5 py-1 text-xs transition hover:bg-white/[0.08] hover:text-white"
-                onclick={() => (showAllGenres = !showAllGenres)}
-              >
-                {showAllGenres
+                class="grid size-[30px] cursor-pointer place-items-center rounded-md bg-white/[0.04] text-slate-300 transition hover:bg-white/[0.08] hover:text-white"
+                aria-expanded={showAllGenres}
+                title={showAllGenres
                   ? i18n.t.detail.altTitlesLess
                   : i18n.t.detail.genresMore(genreChips.length - 6)}
+                onclick={() => (showAllGenres = !showAllGenres)}
+              >
+                <ChevronDown size={14} class={`transition ${showAllGenres ? "rotate-180" : ""}`} />
               </button>
             {/if}
           </div>
         </div>
       {/if}
 
-      <dl class="divide-y divide-white/5 text-sm">
+      <dl class="divide-y divide-white/5 pt-3 text-sm">
         {#each filteredSpecRows as row, idx (`${row.label}-${idx}`)}
           <div class="flex items-start justify-between gap-3 py-3 first:pt-0 last:pb-0">
             <dt class="text-muted shrink-0 text-xs font-medium">

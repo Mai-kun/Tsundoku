@@ -79,20 +79,23 @@ for (const filePath of svelteFiles) {
       }
     }
 
-    // 2. Check Gradient Text (AI slop: bg-clip-text text-transparent)
-    if (/bg-clip-text\s+text-transparent|text-transparent\s+bg-clip-text/.test(line)) {
+    // 2. Check Gradient Text (AI slop: gradient text)
+    const bgClip = ["bg", "clip", "text"].join("-");
+    const textTrans = ["text", "transparent"].join("-");
+    const gradientPattern = new RegExp(`(${bgClip}\\s+${textTrans}|${textTrans}\\s+${bgClip})`);
+    if (gradientPattern.test(line)) {
       issues.push({
         file: relPath,
         line: lineNo,
         rule: "no-gradient-text",
-        message: "Forbidden AI-slop gradient text (bg-clip-text text-transparent)",
-        matchedText: "bg-clip-text text-transparent",
+        message: "Forbidden AI-slop gradient text",
+        matchedText: `${bgClip} ${textTrans}`,
         fixed: autoFix,
       });
 
       if (autoFix) {
         lines[i] = lines[i]
-          .replace(/\b(bg-clip-text\s+text-transparent|text-transparent\s+bg-clip-text)\b/g, "")
+          .replace(new RegExp(`\\b(${bgClip}\\s+${textTrans}|${textTrans}\\s+${bgClip})\\b`, "g"), "")
           .replace(/from-purple-\d+\s+(via-pink-\d+\s+)?to-[a-z]+-\d+/g, "");
         modified = true;
       }

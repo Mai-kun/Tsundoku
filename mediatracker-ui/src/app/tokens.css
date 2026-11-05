@@ -121,4 +121,44 @@
   --color-import-anixart-border: rgba(154, 104, 208, 0.25);
   --color-import-anixart-surface: rgba(154, 104, 208, 0.08);
   --color-import-anixart-text: #c9a8ec;
+
+  /* --- External Search & Source Badges ---
+     Canonical palette preserving exact brand badge shades across views */
+  --color-badge-anilist: #02a9ff;
+  --color-badge-anilist-surface: rgba(2, 169, 255, 0.15);
+  --color-badge-anilist-border: rgba(2, 169, 255, 0.3);
+
+  --color-badge-sociallib: #ec4899;
+  --color-badge-sociallib-surface: rgba(236, 72, 153, 0.15);
+  --color-badge-sociallib-border: rgba(236, 72, 153, 0.3);
+  --color-badge-sociallib-text: #f472b6;
+
+  --color-badge-shikimori: #2e51a2;
+  --color-badge-shikimori-surface: rgba(46, 81, 162, 0.2);
+  --color-badge-shikimori-border: rgba(46, 81, 162, 0.4);
+  --color-badge-shikimori-border-subtle: rgba(46, 81, 162, 0.3);
+  --color-badge-shikimori-text: #688ce4;
+  --color-badge-mal-text: #60a5fa;
+
+  --color-badge-mangadex: #ff6740;
+  --color-badge-mangadex-surface: rgba(255, 103, 64, 0.15);
+  --color-badge-mangadex-border: rgba(255, 103, 64, 0.3);
+
+  --color-badge-mangaupdates: #3b82f6;
+  --color-badge-mangaupdates-surface: rgba(59, 130, 246, 0.2);
+  --color-badge-mangaupdates-border: rgba(59, 130, 246, 0.3);
+
+  --color-badge-tmdb: #01b4e4;
+  --color-badge-tmdb-surface: rgba(1, 180, 228, 0.15);
+  --color-badge-tmdb-border: rgba(1, 180, 228, 0.3);
+
+  --color-badge-kitsu: #fd755c;
+  --color-badge-kitsu-surface: rgba(253, 117, 92, 0.15);
+  --color-badge-kitsu-border: rgba(253, 117, 92, 0.3);
+  --color-badge-kitsu-text: #fb923c;
+
+  --color-badge-igdb: #9146ff;
+  --color-badge-igdb-surface: rgba(145, 70, 255, 0.2);
+  --color-badge-igdb-border: rgba(145, 70, 255, 0.4);
+  --color-badge-igdb-text: #a855f7;
 }

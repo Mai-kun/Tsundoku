@@ -519,3 +519,8 @@ mediatracker-ui/checks/__snapshots__/
 # Runtime browser profile
 Tsundoku/
 tsundoku-chromium-profile/
+.impeccable/
+.github/hooks/impeccable.json
+.github/skills/impeccable/
+.github/agents/
+.agent/

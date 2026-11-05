@@ -112,7 +112,6 @@ public sealed class AnimeOfflineDatabaseImporter
                         KitsuId = entry.KitsuId,
                         AnidbId = entry.AnidbId
                     };
-
                     var extId = entry.AnilistId ?? entry.MalId ?? entry.KitsuId ?? entry.AnidbId ?? (totalCount + 1).ToString();
                     var id = entry.AnilistId != null ? $"anilist:{entry.AnilistId}"
                            : entry.MalId != null ? $"mal:{entry.MalId}"
@@ -124,17 +123,26 @@ public sealed class AnimeOfflineDatabaseImporter
                     // is what a romaji/original title is supposed to be.
                     string? originalTitle = FirstLatinSynonym(entry.Synonyms);
 
-                    // The tag list of an offline dump mixes real genres with hundreds of story
-                    // tropes ("aim for the top", "middle school", "lingerie"). Only registry-known
-                    // genres go into the Genres column; unknown micro-tags are dropped, not stored.
-                    string? genresStr = entry.Tags is { Count: > 0 }
-                        ? string.Join(
-                            ", ",
-                            entry.Tags
-                                .Where(GenreNormalizer.IsKnownGenre)
-                                .Select(GenreNormalizer.Normalize)
-                                .Distinct(StringComparer.OrdinalIgnoreCase))
+                    // The dump's tag list mixes real genres with hundreds of story tropes
+                    // ("aim for the top", "middle school", "lingerie"). The dictionary decides:
+                    // primary genres (max 6, canonical English) go into the Genres column, every
+                    // other descriptive trope is preserved in ExtraDataJson.Tags.
+                    var validGenres = entry.Tags is { Count: > 0 }
+                        ? entry.Tags
+                            .Where(GenreNormalizer.IsPrimaryGenre)
+                            .Select(GenreNormalizer.Normalize)
+                            .Distinct(StringComparer.OrdinalIgnoreCase)
+                            .Take(6)
+                            .ToList()
+                        : [];
+                    var extraTags = entry.Tags is { Count: > 0 }
+                        ? entry.Tags
+                            .Where(tag => !GenreNormalizer.IsPrimaryGenre(tag))
+                            .Distinct(StringComparer.OrdinalIgnoreCase)
+                            .ToList()
                         : null;
+                    extra.Tags = extraTags is { Count: > 0 } ? extraTags : null;
+                    string? genresStr = validGenres.Count > 0 ? string.Join(", ", validGenres) : null;
 
                     pId.Value = id;
                     pTitle.Value = entry.Title;

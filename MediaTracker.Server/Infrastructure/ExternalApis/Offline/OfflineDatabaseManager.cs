@@ -3,6 +3,7 @@ using System.Text.Json;
 using MediaTracker.Server.Common.Json;
 using MediaTracker.Server.Infrastructure.Jobs;
 using MediaTracker.Server.Infrastructure.Persistence;
+using MediaTracker.Server.Features.Media.GetMediaStats;
 using MediaTracker.Server.Infrastructure.Storage;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
@@ -95,6 +96,156 @@ public sealed class OfflineDatabaseManager
 
     private static bool IsDisabledFile(string dbPath, IReadOnlySet<string> disabled) =>
         disabled.Contains(Path.GetFileName(dbPath));
+
+    // One-time in-process guard: the dictionary cleanup pass runs at most once per launch.
+    private int _genresCleanupState;
+
+    /// <summary>
+    /// One-time migration for databases imported before the genre dictionary existed: their Genres
+    /// column still holds the full trope list, so every row is re-filtered through
+    /// <see cref="GenreNormalizer"/> — max six primary genres stay, the dropped tropes move into
+    /// ExtraDataJson.Tags. Each database remembers completion in its own DbMeta table, and the
+    /// pass runs at most once per process, so repeated calls are cheap no-ops.
+    /// </summary>
+    public async Task EnsureGenresDictionaryCleanupAsync(CancellationToken ct = default)
+    {
+        if (Interlocked.CompareExchange(ref _genresCleanupState, 1, 0) == 1) return;
+
+        foreach (var dbPath in GetExistingDatabases())
+        {
+            ct.ThrowIfCancellationRequested();
+            try
+            {
+                await CleanupDatabaseGenresAsync(dbPath, ct);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "[Offline] Genre dictionary cleanup failed for '{DbPath}'", dbPath);
+            }
+        }
+    }
+
+    private async Task CleanupDatabaseGenresAsync(string dbPath, CancellationToken ct)
+    {
+        await using var conn = new SqliteConnection($"Data Source={dbPath};Mode=ReadWrite;");
+        await conn.OpenAsync(ct);
+
+        await using var command = conn.CreateCommand();
+        command.CommandText = @"
+            CREATE TABLE IF NOT EXISTS DbMeta (Key TEXT PRIMARY KEY, Value TEXT NOT NULL);
+            SELECT Value FROM DbMeta WHERE Key = 'genres_dictionary_cleanup';";
+        var flag = await command.ExecuteScalarAsync(ct);
+        if (flag is "1") return;
+
+        var updated = 0;
+        var ids = new List<string>();
+        var newGenres = new List<string>();
+        var newExtra = new List<string>();
+
+        var (readCmd, idOrdinal, genresOrdinal, extraOrdinal) = SetupGenreScan(conn);
+        await using (readCmd)
+        {
+            await using var reader = await readCmd.ExecuteReaderAsync(ct);
+            while (await reader.ReadAsync(ct))
+            {
+            var id = reader.IsDBNull(idOrdinal) ? null : reader.GetString(idOrdinal);
+            var genres = reader.IsDBNull(genresOrdinal) ? null : reader.GetString(genresOrdinal);
+            var extraJson = reader.IsDBNull(extraOrdinal) ? null : reader.GetString(extraOrdinal);
+            if (id is null || genres is null) continue;
+
+            var tags = genres.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+            var primary = tags
+                .Where(GenreNormalizer.IsPrimaryGenre)
+                .Select(GenreNormalizer.Normalize)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Take(6)
+                .ToList();
+            var dropped = tags
+                .Where(tag => !GenreNormalizer.IsPrimaryGenre(tag))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (dropped.Count == 0 && primary.Count == tags.Length) continue;
+
+            ids.Add(id);
+            newGenres.Add(primary.Count > 0 ? string.Join(", ", primary) : string.Empty);
+            newExtra.Add(MergeTagsIntoExtraData(extraJson, dropped));
+            updated++;
+            }
+        }
+
+        if (updated > 0)
+        {
+            await using var tx = await conn.BeginTransactionAsync(ct) as SqliteTransaction;
+            for (var i = 0; i < ids.Count; i++)
+            {
+                await using var update = conn.CreateCommand();
+                update.Transaction = (SqliteTransaction)tx;
+                update.CommandText = "UPDATE OfflineMedia SET Genres = @genres, ExtraDataJson = @extra WHERE Id = @id";
+                update.Parameters.Add("@genres", SqliteType.Text).Value = newGenres[i];
+                update.Parameters.Add("@extra", SqliteType.Text).Value = (object?)newExtra[i] ?? DBNull.Value;
+                update.Parameters.Add("@id", SqliteType.Text).Value = ids[i];
+                await update.ExecuteNonQueryAsync(ct);
+            }
+
+            await using var flagCmd = conn.CreateCommand();
+            flagCmd.Transaction = (SqliteTransaction)tx;
+            flagCmd.CommandText = "INSERT INTO DbMeta (Key, Value) VALUES ('genres_dictionary_cleanup', '1') ON CONFLICT(Key) DO UPDATE SET Value = '1'";
+            await flagCmd.ExecuteNonQueryAsync(ct);
+            await tx.CommitAsync(ct);
+        }
+        else
+        {
+            await using var flagCmd = conn.CreateCommand();
+            flagCmd.CommandText = "INSERT INTO DbMeta (Key, Value) VALUES ('genres_dictionary_cleanup', '1') ON CONFLICT(Key) DO UPDATE SET Value = '1'";
+            await flagCmd.ExecuteNonQueryAsync(ct);
+        }
+
+        _logger?.LogInformation(
+            "[Offline] Genre dictionary cleanup rewrote {Updated} rows in '{DbPath}'", updated, Path.GetFileName(dbPath));
+    }
+
+    private static (SqliteCommand Command, int Id, int Genres, int Extra) SetupGenreScan(SqliteConnection conn)
+    {
+        var cmd = conn.CreateCommand();
+        cmd.CommandText = "SELECT Id, Genres, ExtraDataJson FROM OfflineMedia WHERE Genres IS NOT NULL AND Genres != ''";
+        return (cmd, 0, 1, 2);
+    }
+
+    /// <summary>Appends the dropped tropes into ExtraDataJson.Tags, parsing and re-serializing the payload.</summary>
+    private static string? MergeTagsIntoExtraData(string? extraJson, List<string> dropped)
+    {
+        OfflineExtraData extra;
+        if (!string.IsNullOrWhiteSpace(extraJson))
+        {
+            try
+            {
+                extra = JsonSerializer.Deserialize(extraJson, AppJsonSerializerContext.Default.OfflineExtraData) ?? new OfflineExtraData();
+            }
+            catch (JsonException)
+            {
+                extra = new OfflineExtraData();
+            }
+        }
+        else
+        {
+            extra = new OfflineExtraData();
+        }
+
+        if (dropped.Count > 0)
+        {
+            var merged = new List<string>();
+            if (extra.Tags is { Count: > 0 }) merged.AddRange(extra.Tags);
+            foreach (var tag in dropped)
+            {
+                if (!merged.Contains(tag, StringComparer.OrdinalIgnoreCase)) merged.Add(tag);
+            }
+
+            extra.Tags = merged;
+        }
+
+        return JsonSerializer.Serialize(extra, AppJsonSerializerContext.Default.OfflineExtraData);
+    }
 
     public string OfflineDirectory =>
         _appPaths?.OfflineDirectory ?? Path.Combine(AppPaths.GetAppDirectory(), "data", "offline");
@@ -228,6 +379,7 @@ public sealed class OfflineDatabaseManager
         int limit,
         CancellationToken ct)
     {
+        await EnsureGenresDictionaryCleanupAsync(ct);
         var disabled = await GetDisabledDatabaseFileNamesAsync(ct);
         var dbs = GetExistingDatabases(type)
             .Where(dbPath => !IsDisabledFile(dbPath, disabled))
@@ -423,6 +575,7 @@ public sealed class OfflineDatabaseManager
 
     public async Task<OfflineDatabasesSummaryDto> GetSummaryAsync(CancellationToken ct = default)
     {
+        await EnsureGenresDictionaryCleanupAsync(ct);
         var dbs = GetExistingDatabases();
         var statuses = new List<OfflineDatabaseStatusDto>();
         var totalIndexedTitles = 0;

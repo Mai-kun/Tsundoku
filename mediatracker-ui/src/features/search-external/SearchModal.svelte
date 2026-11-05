@@ -667,7 +667,15 @@
     const s = (source ?? "").toLowerCase();
     if (s.includes("anilist"))
       return "bg-[#02a9ff]/15 text-[var(--color-brand-sky)] border-[#02a9ff]/30";
-    if (s.includes("ranobelib")) return "bg-[#ec4899]/15 text-[#f472b6] border-[#ec4899]/30";
+    if (
+      s.includes("sociallib") ||
+      s.includes("ranobelib") ||
+      s.includes("mangalib") ||
+      s.includes("animelib") ||
+      s.includes("slashlib") ||
+      s.includes("hentailib")
+    )
+      return "bg-[#ec4899]/15 text-[#f472b6] border-[#ec4899]/30";
     if (s.includes("shikimori")) return "bg-[#2e51a2]/20 text-[#688ce4] border-[#2e51a2]/40";
     if (s.includes("mangadex")) return "bg-[#ff6740]/15 text-[#ff6740] border-[#ff6740]/30";
     if (s.includes("mal") || s.includes("myanimelist") || s.includes("jikan"))

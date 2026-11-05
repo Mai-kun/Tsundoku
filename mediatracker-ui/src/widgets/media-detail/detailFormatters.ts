@@ -102,6 +102,32 @@ export function providerLink(item: MediaItem): { name: string; url: string } | n
       ? { name: "RanobeLib", url: `https://ranobelib.me/ru/${encodeURIComponent(id)}` }
       : null;
   }
+  if (src.includes("mangalib")) {
+    return id
+      ? { name: "MangaLib", url: `https://mangalib.me/ru/${encodeURIComponent(id)}` }
+      : null;
+  }
+  if (src.includes("animelib")) {
+    return id
+      ? { name: "AnimeLib", url: `https://animelib.org/ru/${encodeURIComponent(id)}` }
+      : null;
+  }
+  if (src.includes("slashlib")) {
+    return id
+      ? { name: "SlashLib", url: `https://slashlib.me/ru/${encodeURIComponent(id)}` }
+      : null;
+  }
+  if (src.includes("sociallib")) {
+    const domain =
+      item.type === "book"
+        ? "ranobelib.me"
+        : isAnime(item)
+          ? "animelib.org"
+          : "mangalib.me";
+    return id
+      ? { name: "SocialLib", url: `https://${domain}/ru/${encodeURIComponent(id)}` }
+      : null;
+  }
   if (src.includes("shikimori")) {
     return id
       ? { name: "Shikimori", url: `https://shikimori.io/mangas/${encodeURIComponent(id)}` }

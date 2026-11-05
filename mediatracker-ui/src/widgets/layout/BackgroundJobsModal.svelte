@@ -91,11 +91,11 @@
   }
 
   const defaultPriorities: Record<string, string[]> = {
-    anime: ["anilist", "shikimori", "kitsu", "simkl"],
-    manga: ["anilist", "mangadex", "shikimori", "mangaupdates", "kitsu"],
+    anime: ["anilist", "shikimori", "kitsu", "simkl", "sociallib"],
+    manga: ["anilist", "mangadex", "shikimori", "mangaupdates", "kitsu", "sociallib"],
     movie: ["tmdb", "kinopoisk", "imdb", "simkl"],
     tvshow: ["tmdb", "kinopoisk", "imdb", "simkl"],
-    book: ["ranobelib", "shikimori", "anilist", "kitsu", "openlibrary"],
+    book: ["sociallib", "shikimori", "anilist", "kitsu", "openlibrary"],
     game: ["steam", "rawg"],
   };
 

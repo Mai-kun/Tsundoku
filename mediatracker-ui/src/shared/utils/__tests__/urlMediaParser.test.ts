@@ -97,7 +97,7 @@ describe("parseMediaUrl", () => {
     });
   });
 
-  it("parses RanobeLib and MangaLib URLs", () => {
+  it("parses RanobeLib, MangaLib, and AnimeLib URLs", () => {
     expect(parseMediaUrl("https://ranobelib.me/ru/1234-some-novel")).toEqual({
       source: "ranobelib",
       id: "1234-some-novel",
@@ -107,6 +107,11 @@ describe("parseMediaUrl", () => {
       source: "mangalib",
       id: "some-manga",
       type: "manga",
+    });
+    expect(parseMediaUrl("https://animelib.org/some-anime")).toEqual({
+      source: "animelib",
+      id: "some-anime",
+      type: "anime",
     });
     // System pages should return null
     expect(parseMediaUrl("https://mangalib.me/ru/catalog")).toBeNull();

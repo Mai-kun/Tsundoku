@@ -6,15 +6,6 @@
   --color-accent: #473bb8;
   --color-accent-soft: #a5b4fc;
 
-  /* Фирменные градиенты */
-  --gradient-accent: linear-gradient(135deg, #473bb8 0%, #818cf8 100%);
-  --gradient-card: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.03) 0%,
-    rgba(255, 255, 255, 0.01) 100%
-  );
-  --gradient-glow: radial-gradient(circle at 50% 0%, rgba(71, 59, 184, 0.15) 0%, transparent 70%);
-
   /* Тонкие границы */
   --color-panel-border: rgba(255, 255, 255, 0.06);
 
@@ -28,6 +19,12 @@
   --color-import-mangalib-border: rgba(194, 94, 46, 0.25);
   --color-import-mangalib-surface: rgba(194, 94, 46, 0.08);
   --color-import-mangalib-text: #e89a74;
+
+  --color-import-sociallib-accent: #c25e2e;
+  --color-import-sociallib-accent-dim: rgba(194, 94, 46, 0.75);
+  --color-import-sociallib-border: rgba(194, 94, 46, 0.25);
+  --color-import-sociallib-surface: rgba(194, 94, 46, 0.08);
+  --color-import-sociallib-text: #e89a74;
 
   /* TMDB (The Movie Database mint green) */
   --color-import-tmdb-accent: #90cea1;

@@ -53,7 +53,15 @@ export function titleTooltip(title: string): string {
 export function sourceBadgeClasses(src: string): string {
   const source = src.toLowerCase();
   if (source.includes("anilist")) return "border-[#02a9ff]/30 bg-[#02a9ff]/15 text-[#02a9ff]";
-  if (source.includes("ranobelib")) return "border-[#ec4899]/30 bg-[#ec4899]/15 text-[#f472b6]";
+  if (
+    source.includes("sociallib") ||
+    source.includes("ranobelib") ||
+    source.includes("mangalib") ||
+    source.includes("animelib") ||
+    source.includes("slashlib") ||
+    source.includes("hentailib")
+  )
+    return "border-[#ec4899]/30 bg-[#ec4899]/15 text-[#f472b6]";
   if (source.includes("shikimori")) return "border-[#2e51a2]/40 bg-[#2e51a2]/20 text-[#688ce4]";
   if (source.includes("mangadex")) return "border-[#ff6740]/30 bg-[#ff6740]/15 text-[#ff6740]";
   if (source.includes("myanimelist") || source.includes("jikan") || source.includes("mal"))

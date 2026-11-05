@@ -59,6 +59,7 @@
     saveStorageSettings,
     getOfflineDatabases,
     reindexOfflineDatabases,
+    detectMangalibBrowserSession,
     type AppSettings,
   } from "$shared/api/api";
   import { showToast } from "$shared/ui/toast.svelte";
@@ -563,12 +564,12 @@
   const defaultCategories = ["anime", "movie", "tvshow", "manga", "game", "book"];
 
   const defaultPriority: Record<string, string[]> = {
-    anime: ["anilist", "shikimori", "kitsu", "simkl"],
-    manga: ["anilist", "shikimori", "mangadex", "mangaupdates"],
+    anime: ["anilist", "shikimori", "kitsu", "simkl", "sociallib"],
+    manga: ["anilist", "shikimori", "mangadex", "mangaupdates", "sociallib"],
     movie: ["tmdb", "imdb", "kinopoisk", "simkl"],
     tvshow: ["tmdb", "imdb", "kinopoisk", "simkl"],
     game: ["rawg", "steam"],
-    book: ["ranobelib", "shikimori", "anilist", "kitsu", "openlibrary"],
+    book: ["sociallib", "shikimori", "anilist", "kitsu", "openlibrary"],
   };
 
   let sourcePriority = $state<Record<string, string[]>>({
@@ -674,6 +675,7 @@
     "mangadex",
     "mangaupdates",
     "openlibrary",
+    "sociallib",
   ]);
 
   function sourceThemeVars(sourceId: string) {
@@ -774,6 +776,28 @@
       showToast(errorMessage(e), "error");
     } finally {
       testingSource = "";
+    }
+  }
+
+  let detectingSocialLib = $state(false);
+
+  async function handleDetectSocialLibSession() {
+    detectingSocialLib = true;
+    try {
+      const res = await detectMangalibBrowserSession();
+      if (res && res.success) {
+        showToast("Авторизация SocialLib успешно подхвачена из браузера", "success");
+        await loadSources();
+      } else {
+        showToast(
+          "Сессия SocialLib в браузерах не найдена. Войдите на lib.social в браузере и повторите попытку.",
+          "error",
+        );
+      }
+    } catch (err) {
+      showToast(errorMessage(err), "error");
+    } finally {
+      detectingSocialLib = false;
     }
   }
 
@@ -944,7 +968,10 @@
     if (id === "tmdb") return "TMDb";
     if (id === "rawg") return "RAWG";
     if (id === "openlibrary") return "OpenLibrary";
-    if (id === "ranobelib") return "RanobeLib";
+    if (id === "sociallib") return "SocialLib";
+    if (id === "ranobelib") return "SocialLib (RanobeLib)";
+    if (id === "mangalib") return "SocialLib (MangaLib)";
+    if (id === "animelib") return "SocialLib (AnimeLib)";
     if (id === "kitsu") return "Kitsu";
     if (id === "shikimori") return "Shikimori";
     if (id === "steam") return "Steam";
@@ -1498,6 +1525,23 @@
                               class="bg-canvas text-ink rounded px-2 py-0.5 font-mono text-[11px]"
                               >{source.maskedKey}</code
                             >
+                          </div>
+                        {/if}
+
+                        {#if source.id === "sociallib"}
+                          <div class="mb-3 flex flex-wrap items-center gap-2">
+                            <button
+                              type="button"
+                              class="bg-field text-ink hover:bg-card hover:border-accent-soft inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-white/10 px-3 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60"
+                              disabled={detectingSocialLib}
+                              onclick={handleDetectSocialLibSession}
+                            >
+                              <RefreshCw size={13} class={detectingSocialLib ? "animate-spin" : ""} />
+                              <span>{detectingSocialLib ? i18n.t.common.loading : "Подхватить сессию из браузера"}</span>
+                            </button>
+                            <span class="text-muted text-[11px]">
+                              Ищет активную сессию MangaLib / RanobeLib / AnimeLib в браузерах
+                            </span>
                           </div>
                         {/if}
 

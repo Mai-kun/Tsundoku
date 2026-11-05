@@ -55,9 +55,9 @@
     game: ["rawg", "steam"],
     movie: ["tmdb", "kinopoisk", "simkl"],
     tvshow: ["tmdb", "kinopoisk", "simkl"],
-    anime: ["anilist", "mangadex", "shikimori"],
-    manga: ["anilist", "mangadex", "shikimori"],
-    book: ["ranobelib", "shikimori", "anilist", "kitsu", "openlibrary"],
+    anime: ["anilist", "mangadex", "shikimori", "sociallib"],
+    manga: ["anilist", "mangadex", "shikimori", "sociallib"],
+    book: ["sociallib", "shikimori", "anilist", "kitsu", "openlibrary"],
   };
 
   const options = $derived.by(() => {

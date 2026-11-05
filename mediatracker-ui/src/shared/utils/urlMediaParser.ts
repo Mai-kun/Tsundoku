@@ -123,6 +123,15 @@ const RULES: MatchRule[] = [
       return FORBIDDEN_SLUGS.has(id) ? null : m[1];
     },
   },
+  {
+    pattern: /animelib\.(?:me|org)\/(?:ru\/)?([a-z0-9\-]+)/i,
+    source: "animelib",
+    type: "anime",
+    extractId: (m) => {
+      const id = m[1].toLowerCase();
+      return FORBIDDEN_SLUGS.has(id) ? null : m[1];
+    },
+  },
 
   // Kitsu
   {

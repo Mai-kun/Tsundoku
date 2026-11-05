@@ -78,6 +78,7 @@ namespace MediaTracker.Server.Common.Json;
 [JsonSerializable(typeof(StorageRequest))]
 [JsonSerializable(typeof(AppSettingsDto))]
 [JsonSerializable(typeof(SystemEndpoints.SwitchToBrowserRequest))]
+[JsonSerializable(typeof(SystemEndpoints.RevealInExplorerRequest))]
 [JsonSerializable(typeof(ToggleSourceRequest))]
 [JsonSerializable(typeof(UpdateKeyRequest))]
 [JsonSerializable(typeof(CreateListRequest))]

@@ -2,7 +2,7 @@
   import { i18n } from "$shared/i18n/index.svelte";
   import type { CastMember, MediaDetail } from "$shared/types";
   import { User } from "$shared/ui/Icons";
-  import ImageLightbox from "$shared/ui/ImageLightbox.svelte";
+  import { openLightbox } from "$shared/ui/lightbox.svelte";
   import { uiSettings } from "$shared/utils/uiSettings.svelte";
   import PeopleSizeToggle from "./PeopleSizeToggle.svelte";
 
@@ -121,7 +121,6 @@
       ? "inline-flex items-center rounded-md border border-accent/30 bg-accent/15 px-1.5 py-0.5 text-[10px] font-semibold text-accent-soft"
       : "inline-flex items-center rounded-md border border-white/10 bg-white/[0.04] px-1.5 py-0.5 text-[10px] font-medium text-slate-400";
 
-  let activeLightboxUrl = $state<string | null>(null);
 </script>
 
 {#if display}
@@ -153,7 +152,7 @@
                 <button
                   type="button"
                   class="shrink-0 cursor-pointer border-0 bg-transparent p-0 text-left"
-                  onclick={() => (activeLightboxUrl = voice.photoUrl)}
+                  onclick={() => openLightbox(voice.photoUrl)}
                   aria-label={`Увеличить фото: ${voice.name}`}
                 >
                   <img
@@ -220,7 +219,7 @@
                     <button
                       type="button"
                       class="shrink-0 cursor-pointer border-0 bg-transparent p-0 text-left"
-                      onclick={() => (activeLightboxUrl = character.photoUrl)}
+                      onclick={() => openLightbox(character.photoUrl)}
                       aria-label={`Увеличить фото: ${character.name}`}
                     >
                       <img
@@ -259,7 +258,7 @@
               <button
                 type="button"
                 class="shrink-0 cursor-pointer border-0 bg-transparent p-0 text-left"
-                onclick={() => (activeLightboxUrl = member.photoUrl)}
+                onclick={() => openLightbox(member.photoUrl)}
                 aria-label={`Увеличить фото: ${member.name}`}
               >
                 <img
@@ -300,4 +299,3 @@
   </section>
 {/if}
 
-<ImageLightbox url={activeLightboxUrl} onclose={() => (activeLightboxUrl = null)} />

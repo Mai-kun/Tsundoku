@@ -1,8 +1,10 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
   import ContextMenu from "$shared/ui/ContextMenu.svelte";
+  import ImageLightbox from "$shared/ui/ImageLightbox.svelte";
   import ListPicker from "$features/lists/ListPicker.svelte";
   import { activeListPickerMediaId, closeListPicker } from "$shared/ui/contextMenu.svelte";
+  import { closeLightbox, lightboxUrl } from "$shared/ui/lightbox.svelte";
   import ToastContainer from "./ToastContainer.svelte";
 
   interface Props {
@@ -51,6 +53,10 @@
   {/if}
 
   <ContextMenu />
+
+  <!-- Top-level on purpose: outside the `.view-fade` transform containers, so the fixed
+       overlay centers on the monitor rather than the content column. -->
+  <ImageLightbox url={$lightboxUrl} onclose={closeLightbox} />
 
   <ToastContainer />
 </div>

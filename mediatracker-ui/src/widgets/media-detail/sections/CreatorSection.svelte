@@ -9,7 +9,7 @@
   import { BookOpen, Clapperboard, Gamepad2, Search } from "$shared/ui/Icons";
   import { uiSettings } from "$shared/utils/uiSettings.svelte";
   import PeopleSizeToggle from "./PeopleSizeToggle.svelte";
-  import ImageLightbox from "$shared/ui/ImageLightbox.svelte";
+  import { openLightbox } from "$shared/ui/lightbox.svelte";
 
   interface Props {
     creatorName: string;
@@ -42,7 +42,6 @@
 
   let summary = $state<Awaited<ReturnType<typeof getCreatorSummary>>>(null);
   let loading = $state(true);
-  let activeLightboxUrl = $state<string | null>(null);
 
   $effect(() => {
     const name = creatorName;
@@ -122,7 +121,7 @@
           <button
             type="button"
             class="shrink-0 cursor-pointer border-0 bg-transparent p-0 text-left"
-            onclick={() => (activeLightboxUrl = imageUrl)}
+            onclick={() => openLightbox(imageUrl)}
             aria-label={`Увеличить фото: ${creatorName}`}
           >
             <img
@@ -220,7 +219,7 @@
             <button
               type="button"
               class="shrink-0 cursor-pointer border-0 bg-transparent p-0 text-left"
-              onclick={() => (activeLightboxUrl = person.imageUrl)}
+              onclick={() => openLightbox(person.imageUrl)}
               aria-label={`Увеличить фото: ${person.name}`}
             >
               <img
@@ -317,4 +316,3 @@
   {/if}
 </section>
 
-<ImageLightbox url={activeLightboxUrl} onclose={() => (activeLightboxUrl = null)} />

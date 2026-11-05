@@ -17,7 +17,7 @@
   import { showToast } from "$shared/ui/toast.svelte";
   import { fullSizeCoverUrl } from "$entities/media/model/coverUrl";
   import MediaCoverPlaceholder from "$shared/ui/MediaCoverPlaceholder.svelte";
-  import ImageLightbox from "$shared/ui/ImageLightbox.svelte";
+  import { openLightbox } from "$shared/ui/lightbox.svelte";
   import PopoverMenu from "$shared/ui/PopoverMenu.svelte";
   import { i18n } from "$shared/i18n/index.svelte";
   import { MEDIA_STATUS, type AppView, type MediaDetail, type MediaStatus } from "$shared/types";
@@ -163,7 +163,6 @@
   );
 
   let autoRefreshBusy = $state(false);
-  let activeLightboxUrl = $state<string | null>(null);
 
   async function handleAutoRefresh() {
     if (autoRefreshBusy) return;
@@ -201,7 +200,7 @@
         class="block h-full w-full cursor-pointer border-0 bg-transparent p-0 text-left"
         onclick={() => {
           const cover = media.coverUrl;
-          if (cover) activeLightboxUrl = fullSizeCoverUrl(cover);
+          if (cover) openLightbox(fullSizeCoverUrl(cover));
         }}
         title="Увеличить постер"
         aria-label="Увеличить постер"
@@ -215,9 +214,11 @@
         />
       </button>
 
+      <!-- Hidden until hover: the poster stays clean, the covers manager reveals on
+           hover or keyboard focus. -->
       <button
         type="button"
-        class="absolute top-2 right-2 z-10 flex items-center gap-1.5 rounded-lg border border-white/20 bg-black/70 px-2.5 py-1 text-xs font-semibold text-white opacity-80 shadow-md transition group-hover:opacity-100 hover:border-white/40 hover:bg-black/90"
+        class="absolute top-2 right-2 z-10 flex items-center gap-1.5 rounded-lg border border-white/20 bg-black/70 px-2.5 py-1 text-xs font-semibold text-white opacity-0 shadow-md transition-opacity duration-150 group-hover:opacity-100 hover:border-white/40 hover:bg-black/90 focus-visible:opacity-100"
         onclick={(e) => {
           e.stopPropagation();
           isCoverManagerOpen = true;
@@ -939,10 +940,6 @@
       onClose={() => (isActivityOpen = false)}
     />
   {/await}
-{/if}
-
-{#if activeLightboxUrl}
-  <ImageLightbox url={activeLightboxUrl} onclose={() => (activeLightboxUrl = null)} />
 {/if}
 
 {#if isCoverManagerOpen}

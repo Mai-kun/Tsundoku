@@ -16,6 +16,7 @@
   import { errorMessage, triggerAutoRefresh } from "$shared/api/api";
   import { showToast } from "$shared/ui/toast.svelte";
   import { fullSizeCoverUrl } from "$entities/media/model/coverUrl";
+  import { genreLabel } from "$entities/media/model/genreLabel";
   import MediaCoverPlaceholder from "$shared/ui/MediaCoverPlaceholder.svelte";
   import { openLightbox } from "$shared/ui/lightbox.svelte";
   import PopoverMenu from "$shared/ui/PopoverMenu.svelte";
@@ -963,7 +964,7 @@
           <div class="flex flex-wrap gap-1.5 pt-2">
             {#each visibleGenreChips as genre (genre)}
               <span class="rounded-md bg-white/[0.04] px-2.5 py-1 text-xs text-slate-300"
-                >{genre}</span
+                >{genreLabel(genre)}</span
               >
             {/each}
             {#if genreChips.length > 6}

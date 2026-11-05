@@ -25,6 +25,101 @@ const ALIASES: Record<string, string> = {
   kids: "family",
 };
 
+/**
+ * Dictionary-driven Russian fallbacks (generated from MediaTracker.Server/Resources/genres-dictionary.json).
+ * Used when the i18n catalog has no entry for the canonical name — offline imports can carry
+ * genres the stats translations never heard of (e.g. "Donghua").
+ */
+const RU_FALLBACKS: Record<string, string> = {
+  ["action"]: "Боевик",
+  ["adventure"]: "Приключения",
+  ["animals"]: "Животные",
+  ["animation"]: "Анимация",
+  ["arcade"]: "Аркада",
+  ["art & design"]: "Искусство и дизайн",
+  ["biography"]: "Биография",
+  ["board & card"]: "Настольные игры",
+  ["boys' love"]: "Сёнэн-ай",
+  ["business & economics"]: "Бизнес и экономика",
+  ["casual"]: "Казуальная игра",
+  ["comedy"]: "Комедия",
+  ["crime"]: "Криминал",
+  ["cyberpunk"]: "Киберпанк",
+  ["demons"]: "Демоны",
+  ["documentary"]: "Документальное",
+  ["donghua"]: "Дунхуа",
+  ["doujinshi"]: "Додзинси",
+  ["drama"]: "Драма",
+  ["early access"]: "Ранний доступ",
+  ["ecchi"]: "Этти",
+  ["education"]: "Образование",
+  ["erotica"]: "Эротика",
+  ["family"]: "Семейное",
+  ["fantasy"]: "Фэнтези",
+  ["fighting"]: "Файтинг",
+  ["film noir"]: "Фильм-нуар",
+  ["game show"]: "Игровое шоу",
+  ["gender bender"]: "Смена пола",
+  ["girls' love"]: "Сёдзё-ай",
+  ["gore"]: "Жестокость",
+  ["gourmet"]: "Кулинария",
+  ["harem"]: "Гарем",
+  ["hentai"]: "Хентай",
+  ["historical"]: "Историческое",
+  ["horror"]: "Ужасы",
+  ["indie"]: "Инди",
+  ["isekai"]: "Исекай",
+  ["josei"]: "Дзёсэй",
+  ["mahou shoujo"]: "Махо-сёдзё",
+  ["martial arts"]: "Боевые искусства",
+  ["mecha"]: "Меха",
+  ["medical"]: "Медицина",
+  ["music"]: "Музыка",
+  ["mystery"]: "Детектив",
+  ["news"]: "Новости",
+  ["one-shot"]: "Ваншот",
+  ["philosophical"]: "Философское",
+  ["platformer"]: "Платформер",
+  ["poetry"]: "Поэзия",
+  ["political"]: "Политика",
+  ["post-apocalyptic"]: "Постапокалиптика",
+  ["programming & it"]: "Программирование",
+  ["psychological"]: "Психологическое",
+  ["puzzle"]: "Головоломка",
+  ["racing"]: "Гонки",
+  ["reality tv"]: "Реалити-шоу",
+  ["religion"]: "Религия",
+  ["romance"]: "Романтика",
+  ["school"]: "Школа",
+  ["sci-fi"]: "Фантастика",
+  ["science"]: "Наука",
+  ["seinen"]: "Сэйнэн",
+  ["self-help"]: "Саморазвитие",
+  ["shooter"]: "Шутер",
+  ["short"]: "Короткометражка",
+  ["shoujo"]: "Сёдзё",
+  ["shounen"]: "Сёнэн",
+  ["simulation"]: "Симулятор",
+  ["slice of life"]: "Повседневность",
+  ["space"]: "Космос",
+  ["sports"]: "Спорт",
+  ["steampunk"]: "Стимпанк",
+  ["strategy"]: "Стратегия",
+  ["superhero"]: "Супергерои",
+  ["supernatural"]: "Сверхъестественное",
+  ["survival"]: "Выживание",
+  ["talk show"]: "Ток-шоу",
+  ["thriller"]: "Триллер",
+  ["tv movie"]: "ТВ-фильм",
+  ["utilities & software"]: "Утилиты",
+  ["vampire"]: "Вампиры",
+  ["war"]: "Военное",
+  ["web comic"]: "Веб-комикс",
+  ["western"]: "Вестерн",
+  ["work life"]: "Работа",
+  ["zombies"]: "Зомби",
+};
+
 /** Localizes a canonical (or already-normalized) genre name; unknown genres pass through untouched. */
 export function genreLabel(genre: string): string {
   const normalized = genre
@@ -36,9 +131,13 @@ export function genreLabel(genre: string): string {
     normalized
       .replace(/\s+([a-z])/g, (_, letter: string) => letter.toUpperCase())
       .replace(/^([a-z])/, (_, letter: string) => letter.toLowerCase());
-  return key in i18n.t.stats.genres
-    ? i18n.t.stats.genres[key as keyof typeof i18n.t.stats.genres]
-    : genre;
+  if (key in i18n.t.stats.genres) {
+    return i18n.t.stats.genres[key as keyof typeof i18n.t.stats.genres];
+  }
+
+  // No localized stats entry: fall back to the server genre dictionary (RU locale only —
+  // the dictionary carries Russian names by design).
+  return i18n.current === "ru" ? (RU_FALLBACKS[normalized] ?? RU_FALLBACKS[key] ?? genre) : genre;
 }
 
 /** Localizes a genre list and removes duplicates, so "Боевик, Боевик" never renders. */

@@ -208,6 +208,27 @@ public sealed class RegistrationGenerator : IIncrementalGenerator
             sb.AppendLine(">(mediaType);");
             sb.AppendLine("            }");
             sb.AppendLine("        }");
+
+            sb.Append("        foreach (var alias in ");
+            sb.Append(s.TypeName);
+            sb.AppendLine(".Source.KnownAliases)");
+            sb.AppendLine("        {");
+            sb.Append("            services.AddKeyedTransient<IMetadataProvider, ");
+            sb.Append(s.Namespace);
+            sb.Append('.');
+            sb.Append(s.TypeName);
+            sb.AppendLine(">(alias);");
+            sb.Append("            foreach (var mediaType in ");
+            sb.Append(s.TypeName);
+            sb.AppendLine(".Source.MediaTypes)");
+            sb.AppendLine("            {");
+            sb.Append("                services.AddKeyedTransient<IMetadataProvider, ");
+            sb.Append(s.Namespace);
+            sb.Append('.');
+            sb.Append(s.TypeName);
+            sb.AppendLine(">($\"{mediaType}:{alias}\");");
+            sb.AppendLine("            }");
+            sb.AppendLine("        }");
         }
 
         sb.AppendLine("        return services;");

@@ -27,6 +27,17 @@ public static class GenreNormalizer
         return Aliases.GetValueOrDefault(key, value);
     }
 
+    /// <summary>
+    /// True when the raw tag resolves to a canonical genre in the registry. Offline dumps carry
+    /// hundreds of story tropes ("aim for the top", "bdsm", "middle school") in their tag list;
+    /// only registry-recognized names belong in the Genres column, everything else is noise.
+    /// </summary>
+    public static bool IsKnownGenre(string? rawGenre)
+    {
+        var value = rawGenre?.Trim() ?? string.Empty;
+        return value.Length > 0 && Aliases.ContainsKey(BuildLookupKey(value));
+    }
+
     internal static string BuildLookupKey(string value)
     {
         var sb = new StringBuilder(value.Length);

@@ -3,6 +3,7 @@ using System.Runtime.CompilerServices;
 using System.Text.Json;
 using MediaTracker.Server.Common.Json;
 using MediaTracker.Server.Features.Jobs;
+using MediaTracker.Server.Features.Media.GetMediaStats;
 using Microsoft.Data.Sqlite;
 
 namespace MediaTracker.Server.Infrastructure.ExternalApis.Offline;
@@ -117,12 +118,22 @@ public sealed class AnimeOfflineDatabaseImporter
                            : entry.MalId != null ? $"mal:{entry.MalId}"
                            : $"anime:{totalCount + 1}";
 
-                    string? originalTitle = entry.Synonyms != null && entry.Synonyms.Count > 0
-                        ? string.Join(" / ", entry.Synonyms)
-                        : null;
+                    // The slash-joined synonyms blob used to land in OriginalTitle and flow on
+                    // into RomajiTitle during enrichment, burying the romanized name under a
+                    // giant "a / b / c" string. Keep only the first clean Latin synonym — that
+                    // is what a romaji/original title is supposed to be.
+                    string? originalTitle = FirstLatinSynonym(entry.Synonyms);
 
-                    string? genresStr = entry.Tags != null && entry.Tags.Count > 0
-                        ? string.Join(", ", entry.Tags)
+                    // The tag list of an offline dump mixes real genres with hundreds of story
+                    // tropes ("aim for the top", "middle school", "lingerie"). Only registry-known
+                    // genres go into the Genres column; unknown micro-tags are dropped, not stored.
+                    string? genresStr = entry.Tags is { Count: > 0 }
+                        ? string.Join(
+                            ", ",
+                            entry.Tags
+                                .Where(GenreNormalizer.IsKnownGenre)
+                                .Select(GenreNormalizer.Normalize)
+                                .Distinct(StringComparer.OrdinalIgnoreCase))
                         : null;
 
                     pId.Value = id;
@@ -346,6 +357,38 @@ public sealed class AnimeOfflineDatabaseImporter
         var end = sub.IndexOfAny(['/', '?', '#']);
         var id = end >= 0 ? sub[..end] : sub;
         return string.IsNullOrWhiteSpace(id) ? null : id.Trim();
+    }
+
+    /// <summary>
+    /// First synonym that is actually a Latin-script title. Offline dumps mix Russian and
+    /// English synonyms freely, and Cyrillic junk is useless as the stored romanized title.
+    /// </summary>
+    private static string? FirstLatinSynonym(List<string>? synonyms)
+    {
+        if (synonyms is null) return null;
+
+        foreach (var synonym in synonyms)
+        {
+            var candidate = synonym?.Trim();
+            if (string.IsNullOrWhiteSpace(candidate) || !IsMostlyLatin(candidate)) continue;
+            return candidate;
+        }
+
+        return null;
+    }
+
+    /// <summary>True when every letter is Latin (ASCII or Latin Extended), and there is at least one.</summary>
+    private static bool IsMostlyLatin(string value)
+    {
+        var hasLetter = false;
+        foreach (var c in value)
+        {
+            if (!char.IsLetter(c)) continue;
+            hasLetter = true;
+            if (c > (char)0x024F) return false;
+        }
+
+        return hasLetter;
     }
 
     private sealed record ParsedOfflineEntry(

@@ -21,6 +21,40 @@ public static class ShikimoriImportParser
             .ToArray();
     }
 
+    /// <summary>
+    /// Keeps a single clean Latin title out of the raw value: some legacy payloads carry a
+    /// slash-joined synonyms blob ("a / b / c") in the name field, and only the first Latin
+    /// entry belongs in RomajiTitle.
+    /// </summary>
+    private static string? FirstLatinTitle(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return raw;
+
+        var candidates = raw.Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (candidates.Length <= 1) return raw.Trim();
+
+        foreach (var candidate in candidates)
+        {
+            if (candidate.Length == 0 || !IsMostlyLatin(candidate)) continue;
+            return candidate;
+        }
+
+        return candidates[0];
+    }
+
+    private static bool IsMostlyLatin(string value)
+    {
+        var hasLetter = false;
+        foreach (var c in value)
+        {
+            if (!char.IsLetter(c)) continue;
+            hasLetter = true;
+            if (c > (char)0x024F) return false;
+        }
+
+        return hasLetter;
+    }
+
     private static ParsedMediaItemDto MapEntry(JsonElement entry)
     {
         var target = entry.TryGetProperty("anime", out var a) ? a : entry.TryGetProperty("manga", out var m) ? m : entry;
@@ -36,7 +70,7 @@ public static class ShikimoriImportParser
         };
 
         var rusName = String(target, "russian");
-        var romajiName = String(target, "name");
+        var romajiName = FirstLatinTitle(String(target, "name"));
         var title = !string.IsNullOrWhiteSpace(rusName) ? rusName : romajiName ?? "";
         var origName = String(target, "japanese") ?? romajiName;
 

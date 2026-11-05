@@ -70,17 +70,13 @@ function auditNuget() {
     }
   }
 
-  // Check known suppressions in csproj (e.g. ImageSharp NU1902;NU1903)
-  const evaluatedPackages = packages.map((pkg) => {
-    const isImageSharp = pkg.name.toLowerCase().includes("imagesharp");
-    return {
-      ...pkg,
-      suppressed: isImageSharp,
-      suppressionReason: isImageSharp
-        ? "Подавлено в .csproj (NU1902;NU1903) как известное транзитивное ограничение целевой платформы .NET 10"
-        : null,
-    };
-  });
+  // No suppression allowlist anymore: ImageSharp was replaced by SkiaSharp, so every
+  // vulnerable package reported here is a real finding that must fail the audit.
+  const evaluatedPackages = packages.map((pkg) => ({
+    ...pkg,
+    suppressed: false,
+    suppressionReason: null,
+  }));
 
   const unsuppressedCount = evaluatedPackages.filter((p) => !p.suppressed).length;
 

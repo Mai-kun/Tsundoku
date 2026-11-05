@@ -445,7 +445,7 @@ function generateMarkdown() {
     const n = securityAudit.nuget || {};
     const npm = securityAudit.npm || {};
     const sec = securityAudit.secretScan || {};
-    lines.push(`| **Безопасность и Зависимости** | dotnet list + npm audit + Secrets | ${securityAudit.passed ? "✅ PASS" : "❌ FAIL"} | NuGet: \`${n.unsuppressedCount || 0} уязвимостей\` (ImageSharp подавлен), NPM prod: \`${npm.vulnerabilities?.total || 0} уязвимостей\`, Secret Scan: \`0 утечек\` (\`${sec.scannedFilesCount || 0} файлов\`) | 0 unsuppressed CVEs, 0 secret leaks |`);
+    lines.push(`| **Безопасность и Зависимости** | dotnet list + npm audit + Secrets | ${securityAudit.passed ? "✅ PASS" : "❌ FAIL"} | NuGet: \`${n.unsuppressedCount || 0} уязвимостей\` (0 подавлений), NPM prod: \`${npm.vulnerabilities?.total || 0} уязвимостей\`, Secret Scan: \`0 утечек\` (\`${sec.scannedFilesCount || 0} файлов\`) | 0 unsuppressed CVEs, 0 secret leaks |`);
   }
   // Orphan Checks
   if (orphanChecks) {
@@ -1876,7 +1876,7 @@ function generateHtml() {
               <td><strong>NuGet зависимости</strong></td>
               <td><code>dotnet list --vulnerable</code></td>
               <td>${securityAudit.nuget.unsuppressedCount} неподавленных (из ${securityAudit.nuget.totalVulnerablePackages})</td>
-              <td>ImageSharp 3.1.12: подавлены NU1902;NU1903 в .csproj (.NET 10 target)</td>
+              <td>Подавлений нет: ImageSharp заменён на SkiaSharp 2.88.9, NU1902/NU1903 удалены из NoWarn</td>
               <td><span class="${securityAudit.nuget.passed ? "tag-pass" : "tag-fail"}">${securityAudit.nuget.passed ? "✅ PASS" : "❌ FAIL"}</span></td>
             </tr>
             <tr>

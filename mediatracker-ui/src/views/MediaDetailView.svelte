@@ -791,10 +791,9 @@
       } catch {}
     }
 
-    // Offline databases feed metadata, not scores: an "Offline Database —" badge is noise.
-    ratings = ratings.filter(
-      (r) => !(r.source.toLowerCase().includes("offline") && !r.rating),
-    );
+    // Offline databases feed metadata, not scores: their rating rows ("Offline Database",
+    // "[Офлайн] <file>") never render as badges.
+    ratings = ratings.filter((r) => !/offline|офлайн/i.test(r.source));
 
     const cat = (media as { isAnime?: boolean }).isAnime ? "anime" : media.type;
 

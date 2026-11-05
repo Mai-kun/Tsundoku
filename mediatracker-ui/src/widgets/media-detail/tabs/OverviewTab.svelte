@@ -302,14 +302,6 @@
         </div>
       {/if}
 
-      <!-- 5. БЛОК ЗАМЕТОК -->
-      <div
-        class="order-5 min-w-0"
-        style="contain-intrinsic-size: 0 250px; content-visibility: auto;"
-      >
-        <NotesSection notes={media.notes} {onEdit} />
-      </div>
-
       <!-- 6. БЛОК ФРАНШИЗЫ И ХРОНОЛОГИИ: часть номера + быстрые переходы преквел/сиквел -->
       {#if hasFranchiseBlock}
         <div class="order-6 min-w-0">
@@ -357,12 +349,21 @@
         </div>
       {/if}
 
-      <!-- 7. БЛОК ВИДЕО / ТРЕЙЛЕРА: закрывает левую колонку под заметками -->
+      <!-- 5. БЛОК ВИДЕО / ТРЕЙЛЕРА -->
       {#if media.trailerVideoId}
-        <div class="order-7 min-w-0">
+        <div class="order-5 min-w-0">
           <TrailerSection trailerVideoId={media.trailerVideoId} title={media.title} />
         </div>
       {/if}
+
+      <!-- 7. БЛОК ЗАМЕТОК: закрывает левую колонку, балансируя её высоту
+           с кастомом и создателями справа. -->
+      <div
+        class="order-7 min-w-0"
+        style="contain-intrinsic-size: 0 250px; content-visibility: auto;"
+      >
+        <NotesSection notes={media.notes} {onEdit} />
+      </div>
     </div>
 
     <!-- ПРАВАЯ КОЛОНКА -->

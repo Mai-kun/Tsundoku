@@ -63,7 +63,7 @@
   {/each}
 </ul>
 <div class="flex flex-wrap items-center gap-2.5">
-  {#each ratings.filter((r) => !(r.source.toLowerCase().includes("offline") && (r.score === null || r.score <= 0))) as rating (rating.source)}
+  {#each ratings.filter((r) => !/offline|офлайн/i.test(r.source)) as rating (rating.source)}
     {@const src = rating.source.toLowerCase()}
     <div
       class="inline-flex h-9 items-center gap-2 rounded-lg border px-3 shadow-sm transition hover:brightness-125 {sourceBadgeClasses(

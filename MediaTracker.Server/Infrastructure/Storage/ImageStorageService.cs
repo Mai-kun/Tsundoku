@@ -1,8 +1,6 @@
 using System.Diagnostics;
 using MediaTracker.Server.Features.Media.MediaContract;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Formats.Webp;
-using SixLabors.ImageSharp.Processing;
+using SkiaSharp;
 
 namespace MediaTracker.Server.Infrastructure.Storage;
 
@@ -61,12 +59,12 @@ public sealed class ImageStorageService(
             var thumbPath = Path.Combine(coverDirectory, "thumb.webp");
 
             await using var source = await response.Content.ReadAsStreamAsync(ct);
-            using var image = await Image.LoadAsync(LimitStream(source), ct);
+            using var image = await DecodeBitmapAsync(LimitStream(source), ct);
 
             await SaveWebpAsync(image, originalPath, MaxOriginalWidth, OriginalQuality, ct);
 
-            // The thumb is what the grid renders. Cloned from the decoded image, so the download and
-            // decode are still paid only once.
+            // The thumb is what the grid renders. Resized from the same decoded bitmap, so the
+            // download and decode are still paid only once.
             await SaveWebpAsync(image, thumbPath, MaxThumbWidth, ThumbQuality, ct);
 
             sw.Stop();
@@ -85,7 +83,7 @@ public sealed class ImageStorageService(
         {
             throw;
         }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException or ImageFormatException or OversizedCoverException)
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException or OversizedCoverException)
         {
             sw.Stop();
             logger.LogWarning(
@@ -156,7 +154,7 @@ public sealed class ImageStorageService(
         {
             throw;
         }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException or ImageFormatException or OversizedCoverException)
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException or OversizedCoverException)
         {
             sw.Stop();
             logger.LogWarning(
@@ -182,7 +180,7 @@ public sealed class ImageStorageService(
             var variantDirectory = Path.Combine(appPaths.MediaDirectory, itemId.ToString(), "covers", coverId);
             Directory.CreateDirectory(variantDirectory);
 
-            using var image = await Image.LoadAsync(LimitStream(content), ct);
+            using var image = await DecodeBitmapAsync(LimitStream(content), ct);
 
             await SaveWebpAsync(image, Path.Combine(variantDirectory, "original.webp"), MaxOriginalWidth, OriginalQuality, ct);
             await SaveWebpAsync(image, Path.Combine(variantDirectory, "thumb.webp"), MaxThumbWidth, ThumbQuality, ct);
@@ -204,7 +202,7 @@ public sealed class ImageStorageService(
         {
             throw;
         }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException or ImageFormatException or OversizedCoverException)
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException or OversizedCoverException)
         {
             logger.LogWarning(ex, "[Storage] Failed to store cover variant for {MediaId}, discarding", itemId);
             return null;
@@ -236,31 +234,79 @@ public sealed class ImageStorageService(
         new SizeLimitedStream(source, MaxCoverSizeBytes);
 
     /// <summary>
+    /// Decodes an image into a bitmap. The limited stream is non-seekable, so it is buffered into
+    /// memory first: the codec must rewind for a full decode, and the 10 MB cap keeps that copy
+    /// bounded. Decode failures surface as IOException so the existing catch chain logs them.
+    /// </summary>
+    private static async Task<SKBitmap> DecodeBitmapAsync(Stream source, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        using var buffered = new MemoryStream();
+        await source.CopyToAsync(buffered, ct);
+        buffered.Seek(0, SeekOrigin.Begin); // CopyToAsync leaves the stream at its end
+
+        using var codec = SKCodec.Create(buffered);
+        if (codec is null)
+        {
+            throw new IOException("Unsupported or corrupt image data: no codec could decode the stream.");
+        }
+
+        var bitmap = SKBitmap.Decode(codec);
+        if (bitmap is null)
+        {
+            throw new IOException($"Failed to decode {codec.EncodedFormat} image data.");
+        }
+
+        return bitmap;
+    }
+
+    /// <summary>
     /// Writes one WebP rendition, never upscaling: a source narrower than the cap is encoded as-is,
     /// because enlarging it would only add bytes and soften the poster.
     /// </summary>
     private static async Task SaveWebpAsync(
-        Image image,
+        SKBitmap source,
         string path,
         int maxWidth,
         int quality,
         CancellationToken ct)
     {
-        var encoder = new WebpEncoder { Quality = quality };
+        ct.ThrowIfCancellationRequested();
 
-        await using var fileStream = File.Create(path);
-        if (image.Width <= maxWidth)
+        var width = source.Width;
+        var height = source.Height;
+
+        SKBitmap bitmapToEncode = source;
+        SKBitmap? resizedBitmap = null;
+
+        if (width > maxWidth)
         {
-            await image.SaveAsWebpAsync(fileStream, encoder, ct);
-            return;
+            var scale = (float)maxWidth / width;
+            var targetWidth = maxWidth;
+            var targetHeight = Math.Max(1, (int)Math.Round(height * scale));
+
+            resizedBitmap = new SKBitmap(targetWidth, targetHeight, source.ColorType, source.AlphaType);
+            source.ScalePixels(resizedBitmap, SKFilterQuality.High);
+            bitmapToEncode = resizedBitmap;
         }
 
-        using var resized = image.Clone(context => context.Resize(new ResizeOptions
+        try
         {
-            Mode = ResizeMode.Max,
-            Size = new Size(maxWidth, 0)
-        }));
-        await resized.SaveAsWebpAsync(fileStream, encoder, ct);
+            using var image = SKImage.FromBitmap(bitmapToEncode);
+            using var data = image.Encode(SKEncodedImageFormat.Webp, quality);
+            if (data is null)
+            {
+                throw new IOException("Failed to encode image to WebP format.");
+            }
+
+            await using var fileStream = File.Create(path);
+            data.SaveTo(fileStream);
+        }
+        finally
+        {
+            resizedBitmap?.Dispose();
+        }
     }
 
     public void DeleteCover(string? localCoverUrl)

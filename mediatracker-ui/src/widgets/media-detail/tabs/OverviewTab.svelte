@@ -17,6 +17,7 @@
   import MovieStatusSection from "../sections/MovieStatusSection.svelte";
   import TvShowProgressSection from "../sections/TvShowProgressSection.svelte";
   import type { CreatorRole, MangaDetail, MediaItem } from "$shared/types";
+  import { getMedia } from "$shared/api/api";
 
   interface Props {
     media: MediaDetail;
@@ -157,6 +158,46 @@
   const isTvShow = $derived(media.type === "tvshow");
   const hasQuotes = $derived(Boolean(media.quotesJson && media.quotesJson !== "[]"));
   const showQuotes = $derived(isBook || isManga || hasQuotes);
+
+  // Franchise chronology: local library siblings of the same franchise, ordered by part number.
+  // Fetched once per item; an empty franchise id renders nothing.
+  let franchiseSiblings = $state<MediaItem[]>([]);
+  $effect(() => {
+    const id = media.franchiseId;
+    franchiseSiblings = [];
+    if (!id) return;
+    let cancelled = false;
+    void getMedia()
+      .then((items) => {
+        if (cancelled) return;
+        franchiseSiblings = items
+          .filter(
+            (candidate) =>
+              candidate.franchiseId === id &&
+              candidate.id !== media.id &&
+              candidate.franchiseOrder !== null,
+          )
+          .sort(
+            (left, right) => (left.franchiseOrder ?? 0) - (right.franchiseOrder ?? 0) || left.title.localeCompare(right.title),
+          );
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  });
+
+  const hasFranchiseBlock = $derived(
+    Boolean(media.franchiseName || media.franchiseId) && franchiseSiblings.length > 0,
+  );
+  const prequel = $derived(
+    franchiseSiblings
+      .filter((s) => (s.franchiseOrder ?? 0) < (media.franchiseOrder ?? 0))
+      .at(-1) ?? null,
+  );
+  const sequel = $derived(
+    franchiseSiblings.find((s) => (s.franchiseOrder ?? 0) > (media.franchiseOrder ?? 0)) ?? null,
+  );
 </script>
 
 <div class="space-y-5">
@@ -251,31 +292,77 @@
         {/if}
       </div>
 
-      <!-- 3. БЛОК ВИДЕО / ТРЕЙЛЕРА: нативный плеер aspect-video -->
-      {#if media.trailerVideoId}
-        <div class="order-3 min-w-0">
-          <TrailerSection trailerVideoId={media.trailerVideoId} title={media.title} />
-        </div>
-      {/if}
-
-      <!-- 5. БЛОК ЦИТАТ: для книг, манги или тайтлов с сохраненными цитатами -->
+      <!-- 3. БЛОК ЦИТАТ: для книг, манги или тайтлов с сохраненными цитатами -->
       {#if showQuotes}
         <div
-          class="order-5 min-w-0"
+          class="order-3 min-w-0"
           style="contain-intrinsic-size: 0 250px; content-visibility: auto;"
         >
           <QuotesSection {media} />
         </div>
       {/if}
 
-      <!-- 7. БЛОК ЗАМЕТОК: closes the left column, which is what balances its height
-                 against cast + creator on the right. -->
+      <!-- 5. БЛОК ЗАМЕТОК -->
       <div
-        class="order-7 min-w-0"
+        class="order-5 min-w-0"
         style="contain-intrinsic-size: 0 250px; content-visibility: auto;"
       >
         <NotesSection notes={media.notes} {onEdit} />
       </div>
+
+      <!-- 6. БЛОК ФРАНШИЗЫ И ХРОНОЛОГИИ: часть номера + быстрые переходы преквел/сиквел -->
+      {#if hasFranchiseBlock}
+        <div class="order-6 min-w-0">
+          <div
+            class="rounded-xl border border-white/[0.06] bg-[var(--color-panel-line)] p-5 shadow-sm"
+          >
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <h3 class="text-xs font-bold tracking-wider text-slate-300 uppercase">
+                {i18n.t.detail.franchiseTitle}
+              </h3>
+              {#if media.franchiseOrder}
+                <span
+                  class="inline-flex items-center rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-0.5 text-[10px] font-semibold text-slate-300"
+                >
+                  {i18n.t.detail.franchisePart(media.franchiseOrder)}
+                </span>
+              {/if}
+            </div>
+            <p class="mt-1.5 text-sm font-semibold text-white">{media.franchiseName}</p>
+            {#if prequel || sequel}
+              <div class="mt-3 flex flex-wrap gap-2">
+                {#if prequel}
+                  <button
+                    type="button"
+                    class="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1 text-xs font-medium text-slate-300 transition hover:border-indigo-500/40 hover:text-white"
+                    onclick={() => onOpenMedia(prequel)}
+                    title={prequel.title}
+                  >
+                    ← {i18n.t.detail.franchisePrequel}
+                  </button>
+                {/if}
+                {#if sequel}
+                  <button
+                    type="button"
+                    class="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1 text-xs font-medium text-slate-300 transition hover:border-indigo-500/40 hover:text-white"
+                    onclick={() => onOpenMedia(sequel)}
+                    title={sequel.title}
+                  >
+                    {i18n.t.detail.franchiseSequel} →
+                  </button>
+                {/if}
+              </div>
+            {/if}
+          </div>
+        </div>
+      {/if}
+
+      <!-- 7. БЛОК ВИДЕО / ТРЕЙЛЕРА: закрывает левую колонку под заметками -->
+      {#if media.trailerVideoId}
+        <div class="order-7 min-w-0">
+          <TrailerSection trailerVideoId={media.trailerVideoId} title={media.title} />
+        </div>
+      {/if}
     </div>
 
     <!-- ПРАВАЯ КОЛОНКА -->

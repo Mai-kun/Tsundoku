@@ -129,6 +129,60 @@
   let detailedDraft = $state<DetailedScoreMap>({});
   let lastMediaJson = $state<string | null | undefined>(undefined);
   let imgError = $state(false);
+  let showAllAltTitles = $state(false);
+  let showAllGenres = $state(false);
+
+  // Stored alt titles can arrive as one slash/comma-joined blob (legacy offline imports), so
+  // every entry is split, case-insensitively deduped and stripped of the display title.
+  const splitAltTitles = $derived.by(() => {
+    const seen = new Set<string>();
+    const titleKey = media.title.trim().toLowerCase();
+    const result: string[] = [];
+    for (const raw of media.altTitles ?? []) {
+      for (const part of raw.split(/\s*[/,]\s*/)) {
+        const value = part.trim();
+        const key = value.toLowerCase();
+        if (!value || key === titleKey || seen.has(key)) continue;
+        seen.add(key);
+        result.push(value);
+      }
+    }
+    return result;
+  });
+  const visibleAltTitles = $derived(
+    showAllAltTitles ? splitAltTitles : splitAltTitles.slice(0, 2),
+  );
+  // The romaji row is noise when the romanized title just repeats the display title or one
+  // of the alternatives; the genres and alt-title rows move out of the dl into full-width
+  // blocks below the table.
+  const filteredSpecRows = $derived(
+    specRows.filter((row) => {
+      if (row.label === i18n.t.detail.genresLabel) return false;
+      if (row.label !== i18n.t.detail.romajiTitle) return true;
+      const value = row.value.trim().toLowerCase();
+      if (!value || value === media.title.trim().toLowerCase()) return false;
+      return !splitAltTitles.some((alt) => alt.toLowerCase() === value);
+    }),
+  );
+
+  const genreChips = $derived.by(() => {
+    const list = Array.isArray(media.genres)
+      ? media.genres
+      : (media.genres ?? "").split(/[,;]\s*/);
+    const seen = new Set<string>();
+    const result: string[] = [];
+    for (const part of list) {
+      const value = part.trim();
+      const key = value.toLowerCase();
+      if (!value || seen.has(key)) continue;
+      seen.add(key);
+      result.push(value);
+    }
+    return result;
+  });
+  const visibleGenreChips = $derived(
+    showAllGenres ? genreChips : genreChips.slice(0, 6),
+  );
 
   $effect(() => {
     void media.coverUrl;
@@ -877,18 +931,56 @@
       {i18n.t.detail.detailsTitle}
     </h2>
     <div class="panel">
-      <dl class="divide-y divide-white/5 text-sm">
-        {#if (media.altTitles ?? []).length > 0}
-          <div class="flex items-start justify-between gap-3 py-3 first:pt-0">
-            <dt class="text-muted shrink-0 text-xs font-medium">
-              {i18n.t.detail.altTitlesLabel}
-            </dt>
-            <dd class="text-right text-xs font-medium whitespace-pre-line text-white/85">
-              {media.altTitles?.join("\n")}
-            </dd>
+      <!-- Alt titles live outside the dl: a squashed right column cannot fit them. -->
+      {#if splitAltTitles.length > 0}
+        <div class="border-b border-white/5 pb-3">
+          <h3 class="text-muted text-xs font-medium">{i18n.t.detail.altTitlesLabel}</h3>
+          <ul class="mt-2 space-y-1">
+            {#each visibleAltTitles as alt (alt)}
+              <li class="text-xs leading-5 text-white/85">• {alt}</li>
+            {/each}
+          </ul>
+          {#if splitAltTitles.length > 3}
+            <button
+              type="button"
+              class="text-accent-soft mt-1 cursor-pointer text-xs font-medium transition hover:text-white"
+              onclick={() => (showAllAltTitles = !showAllAltTitles)}
+            >
+              {showAllAltTitles
+                ? i18n.t.detail.altTitlesLess
+                : i18n.t.detail.altTitlesMore(splitAltTitles.length - 3)}
+            </button>
+          {/if}
+        </div>
+      {/if}
+
+      <!-- Genres as matte chips across the full panel width; the long tail hides behind a spoiler. -->
+      {#if genreChips.length > 0}
+        <div class="border-b border-white/5 pb-3">
+          <h3 class="text-muted text-xs font-medium">{i18n.t.detail.genresLabel}</h3>
+          <div class="flex flex-wrap gap-1.5 pt-2">
+            {#each visibleGenreChips as genre (genre)}
+              <span class="rounded-md bg-white/[0.04] px-2.5 py-1 text-xs text-slate-300"
+                >{genre}</span
+              >
+            {/each}
+            {#if genreChips.length > 6}
+              <button
+                type="button"
+                class="text-accent-soft cursor-pointer rounded-md bg-white/[0.04] px-2.5 py-1 text-xs transition hover:bg-white/[0.08] hover:text-white"
+                onclick={() => (showAllGenres = !showAllGenres)}
+              >
+                {showAllGenres
+                  ? i18n.t.detail.altTitlesLess
+                  : i18n.t.detail.genresMore(genreChips.length - 6)}
+              </button>
+            {/if}
           </div>
-        {/if}
-        {#each specRows as row, idx (`${row.label}-${idx}`)}
+        </div>
+      {/if}
+
+      <dl class="divide-y divide-white/5 text-sm">
+        {#each filteredSpecRows as row, idx (`${row.label}-${idx}`)}
           <div class="flex items-start justify-between gap-3 py-3 first:pt-0 last:pb-0">
             <dt class="text-muted shrink-0 text-xs font-medium">
               {row.label}

@@ -151,7 +151,7 @@
     <div class="space-y-2.5">
       {#each quotes as quote (quote.id)}
         <div
-          class="group relative flex items-center justify-between gap-3 rounded-lg border-l-2 border-amber-400/50 bg-white/[0.02] p-3.5 pl-4 transition hover:border-amber-400 hover:bg-white/[0.04]"
+          class="group relative flex items-center justify-between gap-3 rounded-lg border border-amber-400/20 bg-amber-500/[0.02] p-3.5 transition hover:border-amber-400/40 hover:bg-amber-500/[0.04]"
         >
           <div class="min-w-0 flex-1 space-y-1.5">
             <div>

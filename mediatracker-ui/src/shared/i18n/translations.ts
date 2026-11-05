@@ -271,6 +271,15 @@ export const translations = {
     smartBadge: { ru: "Умный", en: "Smart" },
     smartEditRules: { ru: "Изменить правила", en: "Edit rules" },
     smartPresets: { ru: "Быстрые пресеты", en: "Quick presets" },
+    smartSectionScope: { ru: "Охват библиотеки", en: "Library scope" },
+    smartSectionQuality: { ru: "Оценки и качество", en: "Scores & quality" },
+    smartSectionVolumes: { ru: "Объёмы и ограничения", en: "Volumes & limits" },
+    smartSectionPeriod: { ru: "Период и авторство", en: "Period & authorship" },
+    smartSectionSort: { ru: "Сортировка и лимит", en: "Sort & limit" },
+    smartUnitMinutes: { ru: "мин.", en: "min" },
+    smartUnitEpisodes: { ru: "эп.", en: "ep." },
+    smartUnitPages: { ru: "стр.", en: "pp." },
+    smartUnitChapters: { ru: "гл.", en: "ch." },
     smartPresetMasterpieces: {
       ru: "Шедевры (9–10 ★)",
       en: "Masterpieces (9–10 ★)",
@@ -304,6 +313,14 @@ export const translations = {
     smartStatusCompleted: { ru: "Завершено", en: "Completed" },
     smartStatusOnHold: { ru: "На паузе", en: "On hold" },
     smartStatusDropped: { ru: "Брошено", en: "Dropped" },
+    smartReleaseStatusLabel: {
+      ru: "Статус релиза произведения",
+      en: "Work release status",
+    },
+    smartReleaseStatusAny: { ru: "Любой", en: "Any" },
+    smartReleaseStatusFinished: { ru: "Выпуск завершён (Finished)", en: "Finished" },
+    smartReleaseStatusReleasing: { ru: "Онгоинг (Выходит)", en: "Ongoing (Releasing)" },
+    smartReleaseStatusAnnounced: { ru: "Анонс / Заморожен", en: "Announced / Paused" },
     smartMinScore: { ru: "Личная оценка от", en: "Min personal score" },
     smartMinExternalRating: {
       ru: "Внешний рейтинг от",
@@ -319,13 +336,13 @@ export const translations = {
       ru: "Макс. минут (фильм/серия)",
       en: "Max duration (min)",
     },
-    smartMaxDurationPlaceholder: { ru: "напр. 120", en: "e.g. 120" },
+    smartMaxDurationPlaceholder: { ru: "Макс. минут", en: "Max minutes" },
     smartMaxEpisodes: { ru: "Макс. серий", en: "Max episodes" },
-    smartMaxEpisodesPlaceholder: { ru: "напр. 12", en: "e.g. 12" },
+    smartMaxEpisodesPlaceholder: { ru: "Макс. серий", en: "Max episodes" },
     smartMaxPages: { ru: "Макс. страниц", en: "Max pages" },
-    smartMaxPagesPlaceholder: { ru: "напр. 300", en: "e.g. 300" },
+    smartMaxPagesPlaceholder: { ru: "Макс. страниц", en: "Max pages" },
     smartMaxChapters: { ru: "Макс. глав", en: "Max chapters" },
-    smartMaxChaptersPlaceholder: { ru: "напр. 50", en: "e.g. 50" },
+    smartMaxChaptersPlaceholder: { ru: "Макс. глав", en: "Max chapters" },
     smartCreator: {
       ru: "Студия, режиссёр или автор",
       en: "Studio, director or author",
@@ -1482,6 +1499,22 @@ export const translations = {
     actionsTitle: { ru: "Действия", en: "Actions" },
     detailsTitle: { ru: "Характеристики", en: "Details" },
     altTitlesLabel: { ru: "Альтернативные названия", en: "Alternative titles" },
+    altTitlesMore: {
+      ru: (count: number) => `+ ещё ${count}`,
+      en: (count: number) => `+ ${count} more`,
+    },
+    altTitlesLess: { ru: "Свернуть", en: "Show less" },
+    genresMore: {
+      ru: (count: number) => `+ ещё ${count}`,
+      en: (count: number) => `+ ${count} more`,
+    },
+    franchiseTitle: { ru: "Франшиза и хронология", en: "Franchise & timeline" },
+    franchisePart: {
+      ru: (part: number) => `Часть ${part}`,
+      en: (part: number) => `Part ${part}`,
+    },
+    franchisePrequel: { ru: "Преквел", en: "Prequel" },
+    franchiseSequel: { ru: "Сиквел", en: "Sequel" },
     originalTitle: { ru: "Оригинальное название", en: "Original title" },
     synopsisTitle: { ru: "Синопсис", en: "Synopsis" },
     noSynopsis: {
@@ -2297,6 +2330,35 @@ export const translations = {
       apiTokens: { ru: "API и доступ", en: "API & Access" },
       update: { ru: "Обновление", en: "Updates" },
       desktop: { ru: "Приложение", en: "Application" },
+      appearance: { ru: "Внешний вид", en: "Appearance" },
+    },
+    appearance: {
+      title: { ru: "Внешний вид", en: "Appearance" },
+      description: {
+        ru: "Персонализация интерфейса и оформления приложения",
+        en: "Personalize interface styling and app appearance",
+      },
+      appIconTitle: { ru: "Иконка приложения", en: "App Icon" },
+      appIconDescription: {
+        ru: "Выберите вариант иконки для вкладки браузера, заголовка окна и ярлыка",
+        en: "Choose an icon style for browser tabs, app window and shortcuts",
+      },
+      iconDefaultTitle: { ru: "Основная (Tsundoku)", en: "Default (Tsundoku)" },
+      iconDefaultDescription: {
+        ru: "Классическая фирменная иконка",
+        en: "Classic signature icon",
+      },
+      iconAltTitle: { ru: "Альтернативная", en: "Alternative" },
+      iconAltDescription: {
+        ru: "Второй вариант оформления",
+        en: "Alternative design style",
+      },
+      comingSoon: { ru: "Скоро", en: "Coming soon" },
+      accentColorTitle: { ru: "Акцентный цвет", en: "Accent color" },
+      accentColorDescription: {
+        ru: "Фиолетовый Obsidian, изумрудный, неоновый киберпанк — выбор темы оформления",
+        en: "Purple Obsidian, emerald, neon cyberpunk — theme variants",
+      },
     },
     launchMode: {
       title: { ru: "Режим отображения интерфейса", en: "Interface Launch Mode" },
@@ -2420,6 +2482,32 @@ export const translations = {
         offlineModeActive: { ru: "Активен", en: "Active" },
         testSearchBtn: { ru: "Тест", en: "Test" },
         testSearchTooltip: { ru: "Тест поиска по базе", en: "Test database search" },
+        dbEnableTitle: {
+          ru: "Включить эту базу в поиск",
+          en: "Enable this database in search",
+        },
+        dbDisableTitle: {
+          ru: "Отключить эту базу из поиска",
+          en: "Disable this database in search",
+        },
+        deleteDumpBtn: {
+          ru: "Удалить исходный файл",
+          en: "Delete source dump",
+        },
+        deleteDumpTooltip: {
+          ru: "Удалить исходный файл (освободить место) — индексированная база останется",
+          en: "Delete the raw source file (free up space) — the indexed database stays",
+        },
+        deleteDumpConfirm: {
+          ru: (file: string) =>
+            `Удалить исходный дамп «${file}»? База .db останется рабочей, но для переиндексации понадобится снова скачать дамп.`,
+          en: (file: string) =>
+            `Delete the raw dump "${file}"? The .db database stays usable, but reindexing will require downloading the dump again.`,
+        },
+        deleteDumpDone: {
+          ru: "Исходный дамп удалён",
+          en: "Source dump deleted",
+        },
       },
     },
     search: {

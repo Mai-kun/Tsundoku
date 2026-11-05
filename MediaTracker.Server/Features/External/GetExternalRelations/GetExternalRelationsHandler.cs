@@ -1,5 +1,6 @@
 using MediaTracker.Server.Domain.Common;
 using MediaTracker.Server.Infrastructure.ExternalApis;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace MediaTracker.Server.Features.External.GetExternalRelations;
 
@@ -27,8 +28,11 @@ public interface IGetExternalRelationsHandler
 public sealed class GetExternalRelationsHandler(
     RawgGameService gameService,
     TmdbRelationService tmdbRelations,
-    IMetadataProviderResolver providerResolver) : IGetExternalRelationsHandler
+    IMetadataProviderResolver providerResolver,
+    IMemoryCache cache) : IGetExternalRelationsHandler
 {
+    private static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(10);
+
     public async Task<Result<IReadOnlyList<ExternalRelationDto>>> HandleAsync(
         GetExternalRelationsQuery query,
         CancellationToken ct)
@@ -38,6 +42,22 @@ public sealed class GetExternalRelationsHandler(
             "recommendations",
             StringComparison.OrdinalIgnoreCase);
 
+        // Relations/recommendations are pure upstream reads: a 10-minute cache keeps re-opening the
+        // Related tab (and duplicated panel fetches) from re-paying the AniList rate limit.
+        var cacheKey = $"ext-relations:{(wantsRecommendations ? "recs" : "rel")}:{query.Type?.ToLowerInvariant()}:{query.Source?.ToLowerInvariant()}:{query.ExternalId}:{query.Title?.ToLowerInvariant()}";
+        if (cache.TryGetValue(cacheKey, out IReadOnlyList<ExternalRelationDto>? cached) && cached is not null)
+        {
+            return Result<IReadOnlyList<ExternalRelationDto>>.Success(cached);
+        }
+
+        var result = await FetchUncachedAsync(query, wantsRecommendations, ct);
+        cache.Set(cacheKey, result, CacheDuration);
+        return Result<IReadOnlyList<ExternalRelationDto>>.Success(result);
+    }
+
+    private async Task<IReadOnlyList<ExternalRelationDto>> FetchUncachedAsync(
+        GetExternalRelationsQuery query, bool wantsRecommendations, CancellationToken ct)
+    {
         // MangaDex has to be caught before the AniList branch below: for a manga it would otherwise
         // swallow the pick and look a MangaDex uuid up on AniList, where it matches nothing.
         // Recommendations stay with AniList — MangaDex has no recommendations endpoint, and the
@@ -47,13 +67,13 @@ public sealed class GetExternalRelationsHandler(
             if (providerResolver.Resolve(query.Type ?? "manga", MangaDexMetadataProvider.Source.Id)
                 is not MangaDexMetadataProvider mangaDex)
             {
-                return Result<IReadOnlyList<ExternalRelationDto>>.Success([]);
+                return [];
             }
 
             var relations = await mangaDex.GetRelationsAsync(
                 query.ExternalId, ct, query.Title);
 
-            return Result<IReadOnlyList<ExternalRelationDto>>.Success([.. relations]);
+            return [.. relations];
         }
 
         var isAnimeOrManga = query.Type is "anime" or "manga"
@@ -69,7 +89,7 @@ public sealed class GetExternalRelationsHandler(
             if (providerResolver.Resolve(resolvedType, AniListMetadataProvider.Source.Id)
                 is not AniListMetadataProvider aniList)
             {
-                return Result<IReadOnlyList<ExternalRelationDto>>.Success([]);
+                return [];
             }
 
             // Every anime/manga source in the dropdown stores someone else's id: Shikimori stores
@@ -82,12 +102,10 @@ public sealed class GetExternalRelationsHandler(
                 var recommendations = await aniList.GetRecommendationsAsync(
                     query.ExternalId, idIsMal, query.Title, ct);
 
-                return Result<IReadOnlyList<ExternalRelationDto>>.Success(
-                    [.. recommendations.Select(ToRelation)]);
+                return [.. recommendations.Select(ToRelation)];
             }
 
-            return Result<IReadOnlyList<ExternalRelationDto>>.Success(
-                await aniList.GetRelationsAsync(query.ExternalId, idIsMal, query.Title, ct));
+            return await aniList.GetRelationsAsync(query.ExternalId, idIsMal, query.Title, ct);
         }
 
         // The source is an explicit user pick, so an unrecognised one is an empty result rather than
@@ -100,8 +118,7 @@ public sealed class GetExternalRelationsHandler(
                 : await gameService.GetRelatedAsync(
                     null, query.Title, query.Source, query.ExternalId, ct);
 
-            return Result<IReadOnlyList<ExternalRelationDto>>.Success(
-                [.. items.Select(item => ToRelation(item, "OTHER", "game", query.Source))]);
+            return [.. items.Select(item => ToRelation(item, "OTHER", "game", query.Source))];
         }
 
         if (Mentions(query.Source, "tmdb") || Mentions(query.Source, "movie database"))
@@ -111,11 +128,10 @@ public sealed class GetExternalRelationsHandler(
                 ? await tmdbRelations.GetRecommendationsAsync(query.ExternalId, query.Title, mediaType, ct)
                 : await tmdbRelations.GetRelatedAsync(query.ExternalId, query.Title, mediaType, ct);
 
-            return Result<IReadOnlyList<ExternalRelationDto>>.Success(
-                [.. items.Select(item => ToRelation(item, "SIMILAR", mediaType, query.Source))]);
+            return [.. items.Select(item => ToRelation(item, "SIMILAR", mediaType, query.Source))];
         }
 
-        return Result<IReadOnlyList<ExternalRelationDto>>.Success([]);
+        return [];
     }
 
     /// <summary>

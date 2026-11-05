@@ -33,7 +33,10 @@ public static class MetadataServiceExtensions
         MetadataSourceRegistry.AddProviders(services);
 
         services.AddTransient<ITranslationService, TranslationService>();
-        services.AddTransient<MetadataAggregatorService>();
+        // Singleton: the aggregator owns the process-wide in-flight coalescing dictionaries and the
+        // IMemoryCache search cache. As a Transient every request built its own instance, so
+        // identical parallel searches each paid their own upstream fan-out (AniList quota).
+        services.AddSingleton<MetadataAggregatorService>();
         services.AddTransient<RawgGameService>();
         services.AddTransient<TmdbRelationService>();
 

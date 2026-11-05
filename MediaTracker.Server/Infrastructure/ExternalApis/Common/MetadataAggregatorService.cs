@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using MediaTracker.Server.Infrastructure.ExternalApis.Offline;
 using MediaTracker.Server.Infrastructure.Persistence;
@@ -28,6 +29,24 @@ public sealed class MetadataAggregatorService(
     /// long as the slowest source, so the batch gets an explicit, smaller deadline of its own.
     /// </summary>
     private static readonly TimeSpan EnrichmentBatchTimeout = TimeSpan.FromSeconds(3);
+
+    /// <summary>Budget for a coalesced search fan-out, decoupled from any one client's lifetime.</summary>
+    private static readonly TimeSpan CoalescedSearchTimeout = TimeSpan.FromSeconds(30);
+
+    /// <summary>Budget for a coalesced details cascade plus enrichment.</summary>
+    private static readonly TimeSpan CoalescedDetailsTimeout = TimeSpan.FromSeconds(90);
+
+    /// <summary>
+    /// Identical searches currently running upstream. A doubled request (two browser tabs, a
+    /// React/Svelte re-render, a user retyping faster than the 10-minute cache expires) shares one
+    /// fan-out instead of paying the external rate limit twice. Lazy + ExecutionAndPublication is
+    /// required: a racing GetOrAdd may invoke the factory several times, and every invocation that
+    /// started the task directly would have sent its own upstream fan-out.
+    /// </summary>
+    private readonly ConcurrentDictionary<string, Lazy<Task<IReadOnlyList<ExternalMediaDto>>>> inFlightSearches = new();
+
+    /// <summary>Same coalescing for details: the UI fires several identical Detail loads in one second.</summary>
+    private readonly ConcurrentDictionary<string, Lazy<Task<ExternalMediaDto?>>> inFlightDetails = new();
 
     private static readonly string[] AllTypes = ["anime", "manga", "movie", "tvshow", "game", "book"];
 
@@ -85,6 +104,40 @@ public sealed class MetadataAggregatorService(
             return cached;
         }
 
+        // Coalesce identical in-flight searches: the upstream fan-out runs once with its own
+        // timeout, decoupled from the first caller — a client that disconnects mid-wait (the
+        // browser aborting a keystroke's request) must not kill the shared work or its result.
+        var shared = inFlightSearches.GetOrAdd(
+            cacheKey,
+            _ => new Lazy<Task<IReadOnlyList<ExternalMediaDto>>>(
+                () => RunCoalescedSearchAsync(cacheKey, normalizedType, normalizedQuery, byCreator),
+                LazyThreadSafetyMode.ExecutionAndPublication));
+
+        return await shared.Value.WaitAsync(ct);
+    }
+
+    private async Task<IReadOnlyList<ExternalMediaDto>> RunCoalescedSearchAsync(
+        string cacheKey, string normalizedType, string normalizedQuery, bool byCreator)
+    {
+        using var timeout = new CancellationTokenSource(CoalescedSearchTimeout);
+        try
+        {
+            var results = await SearchCoreAsync(normalizedType, normalizedQuery, timeout.Token, byCreator);
+            cache.Set(cacheKey, results, CacheDuration);
+            return results;
+        }
+        finally
+        {
+            // Unconditional on purpose: a torn removal only risks a duplicate upstream fan-out in
+            // the rare race of two overlapping coalesced tasks, never a lost result — waiters hold
+            // their task reference directly.
+            inFlightSearches.TryRemove(cacheKey, out _);
+        }
+    }
+
+    private async ValueTask<IReadOnlyList<ExternalMediaDto>> SearchCoreAsync(
+        string normalizedType, string normalizedQuery, CancellationToken ct, bool byCreator)
+    {
         if (await IsOfflineModeAsync(ct))
         {
             var offlineProvider = providerResolver.Resolve(normalizedType, "offline") as UniversalOfflineMetadataProvider
@@ -97,7 +150,6 @@ public sealed class MetadataAggregatorService(
                 offlineResults = await offlineProvider.SearchAsync(normalizedQuery, targetType, ct);
             }
 
-            cache.Set(cacheKey, offlineResults, CacheDuration);
             return offlineResults;
         }
 
@@ -105,7 +157,6 @@ public sealed class MetadataAggregatorService(
             ? await SearchAllAsync(normalizedQuery, ct, byCreator)
             : await SearchProviderWithFallbackAsync(normalizedType, normalizedQuery, ct, byCreator);
 
-        cache.Set(cacheKey, results, CacheDuration);
         return results;
     }
 
@@ -209,24 +260,55 @@ public sealed class MetadataAggregatorService(
             return details;
         }
 
+        // The related/preview panels and the detail view fire several identical Detail loads within
+        // the same second (observed: every id hit AniList twice). Coalesce them into one cascade;
+        // the shared task keeps running even if the first client disconnects.
+        var shared = inFlightDetails.GetOrAdd(
+            cacheKey,
+            _ => new Lazy<Task<ExternalMediaDto?>>(
+                () => RunCoalescedDetailsAsync(cacheKey, normalizedType, externalId, title, source),
+                LazyThreadSafetyMode.ExecutionAndPublication));
+
+        return await shared.Value.WaitAsync(ct);
+    }
+
+    private async Task<ExternalMediaDto?> RunCoalescedDetailsAsync(
+        string cacheKey, string normalizedType, string externalId, string title, string? source)
+    {
+        using var timeout = new CancellationTokenSource(CoalescedDetailsTimeout);
+        try
+        {
+            var result = await DetailsCoreAsync(normalizedType, externalId, title, source, timeout.Token);
+            if (result is not null)
+            {
+                cache.Set(cacheKey, result, CacheDuration);
+            }
+
+            return result;
+        }
+        finally
+        {
+            // Same trade-off as the search coalescing: a torn removal can only duplicate work in a
+            // rare overlap, never lose a result.
+            inFlightDetails.TryRemove(cacheKey, out _);
+        }
+    }
+
+    private async ValueTask<ExternalMediaDto?> DetailsCoreAsync(
+        string normalizedType, string externalId, string title, string? source, CancellationToken ct)
+    {
         if (await IsOfflineModeAsync(ct))
         {
             var offlineProvider = providerResolver.Resolve(normalizedType, "offline") as UniversalOfflineMetadataProvider
                 ?? (offlineDbManager is not null ? new UniversalOfflineMetadataProvider(offlineDbManager) : null);
 
             var targetType = normalizedType is "all" or "" ? null : normalizedType;
-            var details = offlineProvider is not null
+            return offlineProvider is not null
                 ? await offlineProvider.GetDetailsAsync(externalId, title, targetType, ct)
                 : null;
-
-            if (details is not null)
-            {
-                cache.Set(cacheKey, details, CacheDuration);
-            }
-            return details;
         }
 
-        ExternalMediaDto? initialDetails = null;
+        ExternalMediaDto? initialDetails;
 
         if (!string.IsNullOrWhiteSpace(source))
         {
@@ -244,10 +326,6 @@ public sealed class MetadataAggregatorService(
                 ExternalApiLog.Querying(logger, source, normalizedType, DetailsLogLabel(externalId, title));
                 initialDetails = await directProvider.GetDetailsAsync(externalId, title, ct);
             }
-            catch (OperationCanceledException) when (ct.IsCancellationRequested)
-            {
-                throw;
-            }
             catch (Exception ex)
             {
                 ExternalApiLog.Failed(logger, source, ex, $"details '{externalId}'");
@@ -260,11 +338,10 @@ public sealed class MetadataAggregatorService(
                 return null;
             }
 
-            var enriched = await EnrichAsync(initialDetails, normalizedType, ct);
-            cache.Set(cacheKey, enriched, CacheDuration);
-            return enriched;
+            return await EnrichAsync(initialDetails, normalizedType, ct);
         }
 
+        initialDetails = null;
         var prioritySources = await priorityService.GetPrioritiesAsync(normalizedType, ct);
         foreach (var src in prioritySources)
         {
@@ -276,10 +353,6 @@ public sealed class MetadataAggregatorService(
                 initialDetails = await provider.GetDetailsAsync(externalId, title, ct);
                 if (initialDetails is not null) break;
             }
-            catch (OperationCanceledException) when (ct.IsCancellationRequested)
-            {
-                throw;
-            }
             catch (Exception ex)
             {
                 logger.LogDebug(ex, "[Aggregator] Priority provider '{Source}' GetDetailsAsync failed: {Message}", src, ex.Message);
@@ -288,9 +361,7 @@ public sealed class MetadataAggregatorService(
 
         if (initialDetails is null) return null;
 
-        var result = await EnrichAsync(initialDetails, normalizedType, ct);
-        cache.Set(cacheKey, result, CacheDuration);
-        return result;
+        return await EnrichAsync(initialDetails, normalizedType, ct);
     }
 
     public async Task<ExternalMediaDto> EnrichAsync(ExternalMediaDto details, string type, CancellationToken ct)

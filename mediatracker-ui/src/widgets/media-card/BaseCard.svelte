@@ -1,11 +1,12 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
   import { Trash2 } from "$shared/ui/Icons";
-  import { errorMessage } from "$shared/api/api";
+  import { apiFetch, errorMessage } from "$shared/api/api";
   import { showToast } from "$shared/ui/toast.svelte";
   import { i18n } from "$shared/i18n/index.svelte";
   import type { MediaItem, MediaStatus } from "$shared/types";
   import { SYNC_STATUS } from "$shared/types";
+  import { providerLink } from "$widgets/media-detail/detailFormatters";
   import { schedulePrefetchMediaDetail } from "$features/prefetch-details/mediaDetailPrefetch";
   import type { MenuItem } from "$shared/ui/contextMenu.svelte";
   import { openContextMenu, openListPicker } from "$shared/ui/contextMenu.svelte";
@@ -80,6 +81,9 @@
       return i18n.t.status[map[status]];
     };
 
+    const sourceLink = providerLink(item);
+    const posterDataPath = localAssetDataPath(item.coverUrl);
+
     return [
       {
         id: "edit",
@@ -137,6 +141,64 @@
           showToast(i18n.t.common.copied);
         },
       },
+      { id: "separator-poster", kind: "separator" },
+      ...(posterDataPath
+        ? [
+            {
+              id: "reveal-poster",
+              label: i18n.t.contextMenu.revealPoster,
+              icon: "image",
+              kind: "default" as const,
+              action: () => void revealInExplorer(posterDataPath),
+            },
+          ]
+        : []),
+      ...(item.coverUrl
+        ? [
+            {
+              id: "save-poster",
+              label: i18n.t.contextMenu.savePosterAs,
+              icon: "download",
+              kind: "default" as const,
+              action: savePosterAs,
+            },
+            {
+              id: "copy-image",
+              label: i18n.t.contextMenu.copyImage,
+              icon: "copy",
+              kind: "default" as const,
+              action: () => void copyPosterToClipboard(),
+            },
+            {
+              id: "copy-cover-url",
+              label: i18n.t.contextMenu.copyCoverUrl,
+              icon: "link",
+              kind: "default" as const,
+              action: () => {
+                navigator.clipboard.writeText(absoluteCoverUrl(item.coverUrl)).catch(() => {});
+                showToast(i18n.t.common.copied);
+              },
+            },
+          ]
+        : []),
+      ...(sourceLink
+        ? [
+            {
+              id: "open-on-source",
+              label: i18n.t.contextMenu.openOnSource(sourceLink.name),
+              icon: "browser",
+              kind: "default" as const,
+              action: () => window.open(sourceLink.url, "_blank", "noopener"),
+            },
+          ]
+        : []),
+      {
+        id: "open-title-folder",
+        label: i18n.t.contextMenu.openTitleFolder,
+        icon: "folder",
+        kind: "default",
+        action: () => void revealInExplorer(`media/${item.id}`),
+      },
       { id: "separator1", kind: "separator" },
       {
         id: "delete",
@@ -150,6 +212,88 @@
         },
       },
     ];
+  }
+
+  /** Data-directory-relative path behind a locally served asset URL; null for external hosts. */
+  function localAssetDataPath(url: string | null | undefined): string | null {
+    if (!url || url.startsWith("http://") || url.startsWith("https://")) return null;
+    const clean = url.split("?")[0]?.split("#")[0]?.replace(/^\//, "") ?? "";
+    if (clean.startsWith("media-assets/")) return `media/${clean.slice("media-assets/".length)}`;
+    if (clean.startsWith("covers/")) return clean;
+    return null;
+  }
+
+  /** The card shows a thumbnail; downloads and clipboard want the original variant. */
+  function fullSizeCoverUrl(url: string | null | undefined): string | null {
+    if (!url) return null;
+    return url.replace(/thumb\.webp(\?.*)?$/, "original.webp");
+  }
+
+  function absoluteCoverUrl(url: string | null | undefined): string {
+    if (!url) return "";
+    try {
+      return new URL(url, window.location.origin).toString();
+    } catch {
+      return url;
+    }
+  }
+
+  /** Asks the server to reveal a data-relative path in the OS file manager. */
+  async function revealInExplorer(dataPath: string) {
+    try {
+      const response = await apiFetch("/api/system/reveal-in-explorer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path: dataPath }),
+      });
+      if (response.ok) {
+        showToast(i18n.t.contextMenu.revealed, "success");
+      } else {
+        showToast(errorMessage(new Error(await response.text())), "error");
+      }
+    } catch (error) {
+      showToast(errorMessage(error), "error");
+    }
+  }
+
+  function savePosterAs() {
+    const url = fullSizeCoverUrl(item.coverUrl) ?? item.coverUrl;
+    if (!url) return;
+    // The native download prompt only fires from a real anchor click.
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "";
+    anchor.rel = "noopener";
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+  }
+
+  async function copyPosterToClipboard() {
+    const url = fullSizeCoverUrl(item.coverUrl) ?? item.coverUrl;
+    if (!url) return;
+    try {
+      const response = await fetch(url, { referrerPolicy: "no-referrer" });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      let blob = await response.blob();
+      // The clipboard spec only guarantees image/png; transcode webp/jpeg sources.
+      if (blob.type !== "image/png") {
+        const bitmap = await createImageBitmap(blob);
+        const canvas = document.createElement("canvas");
+        canvas.width = bitmap.width;
+        canvas.height = bitmap.height;
+        canvas.getContext("2d")?.drawImage(bitmap, 0, 0);
+        const png = await new Promise<Blob | null>((resolve) =>
+          canvas.toBlob(resolve, "image/png"),
+        );
+        if (!png) throw new Error("PNG transcode failed");
+        blob = png;
+      }
+      await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+      showToast(i18n.t.common.copied);
+    } catch (error) {
+      showToast(errorMessage(error), "error");
+    }
   }
 </script>
 

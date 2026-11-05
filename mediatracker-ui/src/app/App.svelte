@@ -463,6 +463,13 @@
           kind: "default",
           action: () => openSearch(selectedText),
         },
+        {
+          id: "search-selection-external",
+          label: i18n.t.contextMenu.searchExternal,
+          icon: "globe",
+          kind: "default",
+          action: () => openSearch({ query: selectedText, type: "all", source: "" }),
+        },
       ]);
       return;
     }
@@ -498,6 +505,40 @@
             body: JSON.stringify({ url: window.location.href }),
           }).catch(() => {});
         },
+      },
+      { id: "separator0", kind: "separator" },
+      {
+        id: "reload",
+        label: i18n.t.contextMenu.reloadPage,
+        icon: "refresh",
+        kind: "default",
+        action: () => window.location.reload(),
+      },
+      {
+        id: "open-data-dir",
+        label: i18n.t.contextMenu.openDataDir,
+        icon: "folder",
+        kind: "default",
+        action: () => {
+          apiFetch("/api/system/open-data-dir", { method: "POST" }).catch(() => {});
+        },
+      },
+      {
+        id: "random-title",
+        label: i18n.t.contextMenu.randomTitle,
+        icon: "dices",
+        kind: "default",
+        action: () => {
+          // HomeView owns the actual pool; it picks and opens a random visible title.
+          window.dispatchEvent(new CustomEvent("tsundoku:random-pick"));
+        },
+      },
+      {
+        id: "background-jobs",
+        label: i18n.t.contextMenu.backgroundJobs,
+        icon: "status",
+        kind: "default",
+        action: () => jobsClient.openModal(),
       },
       { id: "separator1", kind: "separator" },
       {

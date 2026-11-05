@@ -39,6 +39,7 @@ export { default as Flag } from "lucide-svelte/icons/flag";
 export { default as Flame } from "lucide-svelte/icons/flame";
 export { default as Gamepad2 } from "lucide-svelte/icons/gamepad-2";
 export { default as GitBranch } from "lucide-svelte/icons/git-branch";
+export { default as Globe } from "lucide-svelte/icons/globe";
 export { default as GripVertical } from "lucide-svelte/icons/grip-vertical";
 export { default as History } from "lucide-svelte/icons/history";
 export { default as Heart } from "lucide-svelte/icons/heart";

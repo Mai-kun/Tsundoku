@@ -2937,6 +2937,58 @@ export const translations = {
     searchInLibrary: { ru: "Искать в библиотеке", en: "Search in library" },
     consoleLogs: { ru: "Консоль логов", en: "Console logs" },
     openInBrowser: { ru: "Открыть в браузере (Zen)", en: "Open in browser (Zen)" },
+    searchExternal: {
+      ru: "Искать во внешней базе",
+      en: "Search external source",
+    },
+    revealPoster: {
+      ru: "Открыть файл постера в проводнике",
+      en: "Reveal poster file in file manager",
+    },
+    savePosterAs: {
+      ru: "Сохранить постер как…",
+      en: "Save poster as…",
+    },
+    copyImage: {
+      ru: "Скопировать изображение в буфер",
+      en: "Copy image to clipboard",
+    },
+    copyCoverUrl: {
+      ru: "Скопировать ссылку на обложку",
+      en: "Copy cover link",
+    },
+    openOnSource: {
+      ru: (source: string) => `Открыть на ${source}`,
+      en: (source: string) => `Open on ${source}`,
+    },
+    openTitleFolder: {
+      ru: "Открыть папку тайтла",
+      en: "Open title folder",
+    },
+    reloadPage: {
+      ru: "Перезагрузить страницу",
+      en: "Reload page",
+    },
+    openDataDir: {
+      ru: "Открыть папку с данными (data)",
+      en: "Open data folder",
+    },
+    randomTitle: {
+      ru: "Случайный тайтл",
+      en: "Random title",
+    },
+    backgroundJobs: {
+      ru: "Фоновые процессы",
+      en: "Background jobs",
+    },
+    posterMissing: {
+      ru: "Локальный файл постера не найден",
+      en: "Local poster file not found",
+    },
+    revealed: {
+      ru: "Открыто в проводнике",
+      en: "Revealed in file manager",
+    },
   },
 } as const;
 

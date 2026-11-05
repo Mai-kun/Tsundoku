@@ -14,6 +14,13 @@
     Settings,
     Power,
     ChevronRight,
+    Download,
+    FolderOpen,
+    Globe,
+    Image,
+    Link2,
+    RefreshCw,
+    Dices,
   } from "$shared/ui/Icons";
 
   let menuEl = $state<HTMLElement | null>(null);
@@ -37,6 +44,13 @@
       settings: Settings,
       power: Power,
       exit: Power,
+      download: Download,
+      folder: FolderOpen,
+      globe: Globe,
+      image: Image,
+      link: Link2,
+      refresh: RefreshCw,
+      dices: Dices,
     };
     return map[name] as typeof Pencil | null;
   }

@@ -362,6 +362,13 @@
     onOpen(pick);
   }
 
+  // The desktop context menu ("Случайный тайтл") fires this app-wide; HomeView owns the
+  // on-screen pool, so it answers the event. No-ops outside the home view.
+  $effect(() => {
+    window.addEventListener("tsundoku:random-pick", pickRandomTitle);
+    return () => window.removeEventListener("tsundoku:random-pick", pickRandomTitle);
+  });
+
   function typeKey(media: MediaItem): string {
     return media.type === "tvshow" && media.isAnime ? "anime" : media.type;
   }

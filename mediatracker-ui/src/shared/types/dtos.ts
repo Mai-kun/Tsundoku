@@ -68,6 +68,8 @@ export interface SmartListQuery {
   maxPages?: number | null;
   maxChapters?: number | null;
   creatorContains?: string | null;
+  /** Release status of the work itself: "FINISHED" | "RELEASING" | "NOT_YET_RELEASED". */
+  releaseStatus?: string | null;
   sortBy?: string | null;
   sortOrder?: string | null;
   limit?: number | null;

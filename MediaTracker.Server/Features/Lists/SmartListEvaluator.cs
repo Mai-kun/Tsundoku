@@ -22,6 +22,8 @@ public sealed record SmartListQueryDto
     public int? MaxPages { get; init; }
     public int? MaxChapters { get; init; }
     public string? CreatorContains { get; init; }
+    /// <summary>"FINISHED" / "RELEASING" / "NOT_YET_RELEASED" (aliases: "ANNOUNCED"); null = any.</summary>
+    public string? ReleaseStatus { get; init; }
     public string? SortBy { get; init; }
     public string? SortOrder { get; init; }
     public int? Limit { get; init; }
@@ -74,6 +76,7 @@ public static class SmartListEvaluator
         int? maxPg = query.MaxPages;
         int? maxCh = query.MaxChapters;
         string? creatorNeedle = string.IsNullOrWhiteSpace(query.CreatorContains) ? null : query.CreatorContains.Trim();
+        string? releaseStatus = NormalizeReleaseStatus(query.ReleaseStatus);
 
         foreach (var item in allItems)
         {
@@ -82,6 +85,15 @@ public static class SmartListEvaluator
 
             // Statuses
             if (query.Statuses is { Count: > 0 } statuses && !statuses.Contains(item.Status)) continue;
+
+            // Release status of the work itself (finished / ongoing / announced). Stored values vary
+            // by provider — AniList writes FINISHED, offline imports write "Completed" — so both
+            // sides go through the alias map before comparing.
+            if (releaseStatus is { } wanted
+                && !string.Equals(NormalizeReleaseStatus(item.ReleaseStatus), wanted, StringComparison.Ordinal))
+            {
+                continue;
+            }
 
             // Score
             if (onlyUnrated)
@@ -198,6 +210,15 @@ public static class SmartListEvaluator
 
         return filtered;
     }
+
+    private static string? NormalizeReleaseStatus(string? raw) => raw?.Trim().ToUpperInvariant() switch
+    {
+        null or "" => null,
+        "FINISHED" or "COMPLETED" or "COMPLETE" => "FINISHED",
+        "RELEASING" or "ONGOING" => "RELEASING",
+        "NOT_YET_RELEASED" or "ANNOUNCED" or "UPCOMING" => "NOT_YET_RELEASED",
+        var other => other,
+    };
 
     private static void Sort(List<MediaItem> filtered, string? sortBy, bool desc)
     {

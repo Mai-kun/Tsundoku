@@ -3,10 +3,7 @@ using System.Text;
 using Microsoft.Data.Sqlite;
 using MediaTracker.Server.Domain.Entities;
 using MediaTracker.Server.Infrastructure.Persistence;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Drawing.Processing;
-using SixLabors.ImageSharp.PixelFormats;
-using SixLabors.ImageSharp.Processing;
+using SkiaSharp;
 using BenchmarkDotNet.Running;
 
 namespace MediaTracker.Benchmarks;
@@ -283,24 +280,23 @@ public static class Program
         Directory.CreateDirectory(coversDir);
 
         // Contrasting hue palettes: indigo, amber, emerald, crimson, cyan.
-        var palettes = new (Rgba32 Dark, Rgba32 Light, Rgba32 Accent)[]
+        var palettes = new (SKColor Dark, SKColor Light, SKColor Accent)[]
         {
-            (new Rgba32(45, 30, 110), new Rgba32(90, 70, 180), new Rgba32(255, 215, 0)),   // indigo / gold
-            (new Rgba32(160, 90, 0), new Rgba32(230, 160, 40), new Rgba32(20, 60, 140)),   // amber / blue
-            (new Rgba32(15, 120, 90), new Rgba32(60, 200, 150), new Rgba32(180, 30, 60)),   // emerald / crimson
-            (new Rgba32(140, 20, 40), new Rgba32(210, 70, 90), new Rgba32(0, 140, 180)),    // crimson / cyan
-            (new Rgba32(0, 120, 140), new Rgba32(60, 200, 220), new Rgba32(160, 40, 0)),    // cyan / amber
+            (new SKColor(45, 30, 110), new SKColor(90, 70, 180), new SKColor(255, 215, 0)),   // indigo / gold
+            (new SKColor(160, 90, 0), new SKColor(230, 160, 40), new SKColor(20, 60, 140)),   // amber / blue
+            (new SKColor(15, 120, 90), new SKColor(60, 200, 150), new SKColor(180, 30, 60)),   // emerald / crimson
+            (new SKColor(140, 20, 40), new SKColor(210, 70, 90), new SKColor(0, 140, 180)),    // crimson / cyan
+            (new SKColor(0, 120, 140), new SKColor(60, 200, 220), new SKColor(160, 40, 0)),    // cyan / amber
         };
 
-        var encoder = new SixLabors.ImageSharp.Formats.Webp.WebpEncoder { Quality = 60 };
         var rng = new Random(7);
 
         for (var i = 1; i <= poolSize; i++)
         {
             var (dark, light, accent) = palettes[(i - 1) % palettes.Length];
-            using var image = new Image<Rgba32>(360, 480);
+            using var bitmap = new SKBitmap(360, 480);
 
-            image.Mutate(ctx =>
+            using (var canvas = new SKCanvas(bitmap))
             {
                 // Background: a few horizontal gradient bands from dark to light.
                 var bands = 6;
@@ -308,27 +304,37 @@ public static class Program
                 for (var b = 0; b < bands; b++)
                 {
                     var t = b / (float)Math.Max(1, bands - 1);
-                    var r = (byte)(dark.R + (light.R - dark.R) * t);
-                    var g = (byte)(dark.G + (light.G - dark.G) * t);
-                    var bb = (byte)(dark.B + (light.B - dark.B) * t);
-                    ctx.Fill(new Rgba32(r, g, bb), new RectangleF(0, b * bandHeight, 360, bandHeight + 1));
+                    var r = (byte)(dark.Red + (light.Red - dark.Red) * t);
+                    var g = (byte)(dark.Green + (light.Green - dark.Green) * t);
+                    var bb = (byte)(dark.Blue + (light.Blue - dark.Blue) * t);
+                    using var bandPaint = new SKPaint { Color = new SKColor(r, g, bb) };
+                    canvas.DrawRect(0, b * bandHeight, 360, bandHeight + 1, bandPaint);
                 }
 
                 // Contrasting procedural geometric badge: central ellipse accent.
-                ctx.Fill(accent, new SixLabors.ImageSharp.Drawing.EllipsePolygon(180f, 240f, 90f, 130f));
+                using (var accentPaint = new SKPaint { Color = accent, IsAntialias = true })
+                {
+                    canvas.DrawOval(180f, 240f, 90f, 130f, accentPaint);
+                }
 
                 // Inner darker shape for contrast.
-                ctx.Fill(dark, new SixLabors.ImageSharp.Drawing.EllipsePolygon(180f, 240f, 55f, 85f));
+                using (var darkPaint = new SKPaint { Color = dark, IsAntialias = true })
+                {
+                    canvas.DrawOval(180f, 240f, 55f, 85f, darkPaint);
+                }
 
-                // Corner squares.
-                ctx.Fill(light, new RectangleF(20, 20, 40, 40));
-                ctx.Fill(light, new RectangleF(300, 20, 40, 40));
-                ctx.Fill(light, new RectangleF(20, 420, 40, 40));
-                ctx.Fill(light, new RectangleF(300, 420, 40, 40));
+                using (var lightPaint = new SKPaint { Color = light })
+                {
+                    // Corner squares.
+                    canvas.DrawRect(20, 20, 40, 40, lightPaint);
+                    canvas.DrawRect(300, 20, 40, 40, lightPaint);
+                    canvas.DrawRect(20, 420, 40, 40, lightPaint);
+                    canvas.DrawRect(300, 420, 40, 40, lightPaint);
 
-                // Diagonal accent stripes.
-                ctx.Fill(accent, new RectangleF(60, 300, 240, 6));
-                ctx.Fill(accent, new RectangleF(60, 174, 240, 6));
+                    // Diagonal accent stripes.
+                    canvas.DrawRect(60, 300, 240, 6, lightPaint);
+                    canvas.DrawRect(60, 174, 240, 6, lightPaint);
+                }
 
                 // Deterministic noise rectangles seeded by index so every cover differs.
                 var nr = new Random(i * 31);
@@ -338,13 +344,16 @@ public static class Program
                     var ny = nr.Next(0, 460);
                     var nw = nr.Next(10, 60);
                     var nh = nr.Next(10, 60);
-                    var nc = new Rgba32((byte)nr.Next(0, 255), (byte)nr.Next(0, 255), (byte)nr.Next(0, 255), 90);
-                    ctx.Fill(nc, new RectangleF(nx, ny, Math.Min(nw, 360 - nx), Math.Min(nh, 480 - ny)));
+                    var nc = new SKColor((byte)nr.Next(0, 255), (byte)nr.Next(0, 255), (byte)nr.Next(0, 255), 90);
+                    using var noisePaint = new SKPaint { Color = nc };
+                    canvas.DrawRect(nx, ny, Math.Min(nw, 360 - nx), Math.Min(nh, 480 - ny), noisePaint);
                 }
-            });
+            }
 
+            using var image = SKImage.FromBitmap(bitmap);
+            using var data = image.Encode(SKEncodedImageFormat.Webp, 60);
             using var ms = new System.IO.MemoryStream();
-            image.SaveAsWebp(ms, encoder);
+            data.SaveTo(ms);
             System.IO.File.WriteAllBytes(Path.Combine(coversDir, $"cover_{i:D4}.webp"), ms.ToArray());
         }
     }

@@ -5,16 +5,14 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <!-- Same pin as the server (see its csproj): ImageSharp stays at 3.1.12
-         because the 4.x advisories fixes require a Six Labors license; the
-         resulting NU1902/NU1903 audit warnings are noise here too. -->
-    <NoWarn>$(NoWarn);NU1902;NU1903</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="BenchmarkDotNet" Version="0.15.8" />
-    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
-    <PackageReference Include="SixLabors.ImageSharp.Drawing" Version="2.1.0" />
+    <!-- Same image stack as the server (see its csproj): Skia (Google) instead of ImageSharp. -->
+    <PackageReference Include="SkiaSharp" Version="2.88.9" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="2.88.9" Condition="'$(RuntimeIdentifier)' == 'linux-x64' or '$(OS)' != 'Windows_NT'" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="2.88.9" Condition="'$(RuntimeIdentifier)' == 'win-x64' or '$(OS)' == 'Windows_NT'" />
   </ItemGroup>
 
   <ItemGroup>

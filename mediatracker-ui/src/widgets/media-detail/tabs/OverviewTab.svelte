@@ -7,6 +7,7 @@
   import GameDetailSection from "../sections/GameDetailSection.svelte";
   import CreatorSection from "../sections/CreatorSection.svelte";
   import NotesSection from "../sections/NotesSection.svelte";
+  import LinkedSourcesSection from "../sections/LinkedSourcesSection.svelte";
   import QuotesSection from "../sections/QuotesSection.svelte";
   import QuickFactsSection from "../sections/QuickFactsSection.svelte";
   import CastSection from "../sections/CastSection.svelte";
@@ -40,6 +41,8 @@
     onOpenMedia: (item: MediaItem) => void;
     onSearch: (query: string) => void;
     onEdit: () => void;
+    /** Opens the relink modal (re-pointing the primary external source). */
+    onOpenRelink?: () => void;
     onChangeStatus?: (status: MediaStatus) => void;
   }
 
@@ -62,6 +65,7 @@
     onOpenMedia,
     onSearch,
     onEdit,
+    onOpenRelink,
     onChangeStatus,
   }: Props = $props();
 
@@ -356,13 +360,17 @@
         </div>
       {/if}
 
-      <!-- 7. БЛОК ЗАМЕТОК: закрывает левую колонку, балансируя её высоту
-           с кастомом и создателями справа. -->
+      <!-- 7. БЛОК ЗАМЕТОК -->
       <div
         class="order-7 min-w-0"
         style="contain-intrinsic-size: 0 250px; content-visibility: auto;"
       >
         <NotesSection notes={media.notes} {onEdit} />
+      </div>
+
+      <!-- 8. БЛОК ВНЕШНИХ ИСТОЧНИКОВ: привязка MangaLib/AniList/... под заметками -->
+      <div class="order-8 min-w-0">
+        <LinkedSourcesSection mediaId={media.id} mediaType={media.type} {onOpenRelink} />
       </div>
     </div>
 

@@ -15,6 +15,7 @@ using MediaTracker.Server.Features.Media.GetMediaList;
 using MediaTracker.Server.Features.Media.GetMediaStats;
 using MediaTracker.Server.Features.Media.GetRecommendations;
 using MediaTracker.Server.Features.Media.Import;
+using MediaTracker.Server.Features.Media.LinkedSources;
 using MediaTracker.Server.Features.Media.ManageCovers;
 using MediaTracker.Server.Features.Media.MediaContract;
 using MediaTracker.Server.Features.Media.PendingMatches;
@@ -32,6 +33,9 @@ public static class MediaEndpoints
     public static IEndpointRouteBuilder MapMediaEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/media");
+
+        // Per-title external source bindings ("Внешние источники" panel).
+        app.MapLinkedSourcesEndpoints();
 
         group.MapPost("/import/file", async (
             [FromForm] IFormFile file, [FromForm] string provider, [FromForm] bool? skipDuplicates,

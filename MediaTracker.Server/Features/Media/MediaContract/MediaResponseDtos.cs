@@ -165,6 +165,9 @@ public sealed record MediaDetailDto : MediaListDto
     /// <summary>Cached related titles, so the Related tab survives a reload.</summary>
     public string? RelatedMediaJson { get; init; }
 
+    /// <summary>Every external source bound to this title (LinkedSourceCatalog shape).</summary>
+    public string? LinkedSourcesJson { get; init; }
+
     /// <summary>The provider <see cref="RelatedMediaJson"/> was fetched from.</summary>
     public string? RelatedSource { get; init; }
 
@@ -416,6 +419,7 @@ public static class MediaResponseMapper
             TranslatedSynopsis = item.TranslatedSynopsis,
             UnlockedAchievements = item.UnlockedAchievements,
             RelatedMediaJson = item.RelatedMediaJson,
+            LinkedSourcesJson = item.LinkedSourcesJson,
             RelatedSource = item.RelatedSource,
             AchievementsJson = item.AchievementsJson,
             RecommendationsJson = item.RecommendationsJson,

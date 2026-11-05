@@ -101,6 +101,7 @@ public static class MediaDetailProjection
             TranslatedSynopsis = item.TranslatedSynopsis,
             UnlockedAchievements = item.UnlockedAchievements,
             RelatedMediaJson = item.RelatedMediaJson,
+            LinkedSourcesJson = item.LinkedSourcesJson,
             RelatedSource = item.RelatedSource,
             AchievementsJson = item.AchievementsJson,
             RecommendationsJson = item.RecommendationsJson,

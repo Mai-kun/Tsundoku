@@ -84,6 +84,8 @@ public sealed record UpdateMediaRequest
     /// </summary>
     public string? RelatedMediaJson { get; init; }
 
+    public string? LinkedSourcesJson { get; init; }
+
     public string? RelatedSource { get; init; }
 
     /// <summary>

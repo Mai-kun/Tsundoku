@@ -79,6 +79,13 @@ public static class SqliteSchemaInitializer
             await alterCmd.ExecuteNonQueryAsync(ct);
         }
 
+        if (!existingColumns.Contains("LinkedSourcesJson"))
+        {
+            using var alterCmd = connection.CreateCommand();
+            alterCmd.CommandText = "ALTER TABLE MediaItems ADD COLUMN LinkedSourcesJson TEXT NULL;";
+            await alterCmd.ExecuteNonQueryAsync(ct);
+        }
+
         using (var cleanupCmd = connection.CreateCommand())
         {
             cleanupCmd.CommandText = @"
@@ -175,6 +182,7 @@ CREATE TABLE IF NOT EXISTS MediaItems (
     UnlockedAchievements TEXT,
     UserPlatform TEXT,
     RelatedMediaJson TEXT,
+    LinkedSourcesJson TEXT,
     PendingMatchesJson TEXT,
     RelatedSource TEXT,
     AchievementsJson TEXT,

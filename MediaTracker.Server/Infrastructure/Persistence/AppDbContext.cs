@@ -429,6 +429,7 @@ public sealed class AppDbContext : IDisposable, IAsyncDisposable
         public readonly int UnlockedAchievements = reader.GetOrdinal("UnlockedAchievements");
         public readonly int UserPlatform = reader.GetOrdinal("UserPlatform");
         public readonly int RelatedMediaJson = reader.GetOrdinal("RelatedMediaJson");
+        public readonly int LinkedSourcesJson = reader.GetOrdinal("LinkedSourcesJson");
         public readonly int PendingMatchesJson = reader.GetOrdinal("PendingMatchesJson");
         public readonly int RelatedSource = reader.GetOrdinal("RelatedSource");
         public readonly int AchievementsJson = reader.GetOrdinal("AchievementsJson");
@@ -520,6 +521,7 @@ public sealed class AppDbContext : IDisposable, IAsyncDisposable
             UnlockedAchievements = reader.IsDBNull(ordinals.UnlockedAchievements) ? null : reader.GetString(ordinals.UnlockedAchievements),
             UserPlatform = reader.IsDBNull(ordinals.UserPlatform) ? null : reader.GetString(ordinals.UserPlatform),
             RelatedMediaJson = reader.IsDBNull(ordinals.RelatedMediaJson) ? null : reader.GetString(ordinals.RelatedMediaJson),
+            LinkedSourcesJson = reader.IsDBNull(ordinals.LinkedSourcesJson) ? null : reader.GetString(ordinals.LinkedSourcesJson),
             PendingMatchesJson = reader.IsDBNull(ordinals.PendingMatchesJson) ? null : reader.GetString(ordinals.PendingMatchesJson),
             RelatedSource = reader.IsDBNull(ordinals.RelatedSource) ? null : reader.GetString(ordinals.RelatedSource),
             AchievementsJson = reader.IsDBNull(ordinals.AchievementsJson) ? null : reader.GetString(ordinals.AchievementsJson),
@@ -938,7 +940,7 @@ public sealed class AppDbContext : IDisposable, IAsyncDisposable
                 ReleaseDate, ReleaseYear, EndDate, WatchedOn, ReleaseStatus, OriginalLanguage,
                 CountryOfOrigin, OriginalTitle, CastJson, StaffJson, TranslatedSynopsis,
                 TranslationLanguage, Genres, Tags, UnlockedAchievements, UserPlatform,
-                RelatedMediaJson, PendingMatchesJson, RelatedSource, AchievementsJson,
+                RelatedMediaJson, LinkedSourcesJson, PendingMatchesJson, RelatedSource, AchievementsJson,
                 RecommendationsJson, RecommendationsUpdatedAt, IsCustomEdited, MediaType,
                 AltTitles,
                 Book_Format,
@@ -956,7 +958,7 @@ public sealed class AppDbContext : IDisposable, IAsyncDisposable
                 @ReleaseDate, @ReleaseYear, @EndDate, @WatchedOn, @ReleaseStatus, @OriginalLanguage,
                 @CountryOfOrigin, @OriginalTitle, @CastJson, @StaffJson, @TranslatedSynopsis,
                 @TranslationLanguage, @Genres, @Tags, @UnlockedAchievements, @UserPlatform,
-                @RelatedMediaJson, @PendingMatchesJson, @RelatedSource, @AchievementsJson,
+                @RelatedMediaJson, @LinkedSourcesJson, @PendingMatchesJson, @RelatedSource, @AchievementsJson,
                 @RecommendationsJson, @RecommendationsUpdatedAt, @IsCustomEdited, @MediaType,
                 @AltTitles,
                 @Book_Format,
@@ -997,6 +999,7 @@ public sealed class AppDbContext : IDisposable, IAsyncDisposable
                 TranslatedSynopsis = @TranslatedSynopsis, TranslationLanguage = @TranslationLanguage,
                 Genres = @Genres, Tags = @Tags, UnlockedAchievements = @UnlockedAchievements,
                 UserPlatform = @UserPlatform, RelatedMediaJson = @RelatedMediaJson,
+                LinkedSourcesJson = @LinkedSourcesJson,
                 PendingMatchesJson = @PendingMatchesJson, RelatedSource = @RelatedSource,
                 AchievementsJson = @AchievementsJson, RecommendationsJson = @RecommendationsJson,
                 RecommendationsUpdatedAt = @RecommendationsUpdatedAt, IsCustomEdited = @IsCustomEdited,

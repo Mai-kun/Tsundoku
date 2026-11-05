@@ -135,6 +135,12 @@ public abstract class MediaItem
     public string? RelatedMediaJson { get; set; }
 
     /// <summary>
+    /// JSON array of every external source bound to this title
+    /// (see LinkedSourceCatalog for the shape); null until the first binding.
+    /// </summary>
+    public string? LinkedSourcesJson { get; set; }
+
+    /// <summary>
     /// Serialised list of ambiguous candidate matches the enrichment job could not pick between;
     /// non-null only while <see cref="SyncStatus"/> is NeedsReview.
     /// </summary>

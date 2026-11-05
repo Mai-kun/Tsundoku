@@ -247,6 +247,11 @@ public static class MediaEnrichmentJob
             _ => { },
             fillMissing: false).ConfigureAwait(false);
 
+        // Every provider that answered the enrichment joins the linked-sources list, so the card
+        // accumulates the full cross-source history instead of only the current primary source.
+        LinkedSourceCatalog.AppendFromExternal(
+            item, external.ExternalSource, external.ExternalId, external.Title);
+
         return true;
     }
 

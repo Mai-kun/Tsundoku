@@ -222,6 +222,9 @@ namespace MediaTracker.Server.Common.Json;
 // --- Settings and configuration ---
 [JsonSerializable(typeof(string[]))]
 [JsonSerializable(typeof(List<string>))]
+[JsonSerializable(typeof(MediaTracker.Server.Domain.Rules.LinkedSourceDto))]
+[JsonSerializable(typeof(List<MediaTracker.Server.Domain.Rules.LinkedSourceDto>))]
+[JsonSerializable(typeof(MediaTracker.Server.Domain.Rules.LinkSourceRequest))]
 [JsonSerializable(typeof(IReadOnlyList<string>))]
 [JsonSerializable(typeof(HashSet<string>))]
 [JsonSerializable(typeof(Dictionary<string, string[]>))]

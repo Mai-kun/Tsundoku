@@ -59,6 +59,7 @@ public sealed class MediaItemRow
     public string? UnlockedAchievements { get; set; }
     public string? UserPlatform { get; set; }
     public string? RelatedMediaJson { get; set; }
+    public string? LinkedSourcesJson { get; set; }
     public string? PendingMatchesJson { get; set; }
     public string? RelatedSource { get; set; }
     public string? AchievementsJson { get; set; }
@@ -213,6 +214,7 @@ public sealed class MediaItemRow
         item.UnlockedAchievements = UnlockedAchievements;
         item.UserPlatform = UserPlatform;
         item.RelatedMediaJson = RelatedMediaJson;
+        item.LinkedSourcesJson = LinkedSourcesJson;
         item.PendingMatchesJson = PendingMatchesJson;
         item.RelatedSource = RelatedSource;
         item.AchievementsJson = AchievementsJson;
@@ -279,6 +281,7 @@ public sealed class MediaItemRow
             UnlockedAchievements = item.UnlockedAchievements,
             UserPlatform = item.UserPlatform,
             RelatedMediaJson = item.RelatedMediaJson,
+            LinkedSourcesJson = item.LinkedSourcesJson,
             PendingMatchesJson = item.PendingMatchesJson,
             RelatedSource = item.RelatedSource,
             AchievementsJson = item.AchievementsJson,

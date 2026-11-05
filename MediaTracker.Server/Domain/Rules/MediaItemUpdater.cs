@@ -43,6 +43,7 @@ public static class MediaItemUpdater
         item.FranchiseOrder = request.FranchiseOrder ?? item.FranchiseOrder;
         // Both are written together by the client: one pick of a source replaces the cached list.
         item.RelatedMediaJson = request.RelatedMediaJson ?? item.RelatedMediaJson;
+        item.LinkedSourcesJson = request.LinkedSourcesJson ?? item.LinkedSourcesJson;
         item.RelatedSource = request.RelatedSource ?? item.RelatedSource;
         // Written once, on the first successful provider fetch; a later refresh replaces them.
         item.AchievementsJson = request.AchievementsJson ?? item.AchievementsJson;

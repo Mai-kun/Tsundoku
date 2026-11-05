@@ -100,8 +100,30 @@ jobs:
         run: npm --prefix mediatracker-ui run build
 
       # ubuntu-latest ships clang and zlib1g-dev already; windows-latest needs nothing extra.
-      - name: Publish Tsundoku (NativeAOT monolith: server + tray + launcher)
+      - name: "Publish Tsundoku (NativeAOT monolith: server + tray + launcher)"
         run: dotnet publish MediaTracker.Server/MediaTracker.Server.csproj -c Release -r ${{ matrix.rid }} -p:Version=${{ env.VERSION }} -o publish/${{ matrix.rid }}
+
+      # Post-build verification: boot the REAL artifact, probe the API, render the SPA
+      # in headless Chromium and scan the session log. A broken binary fails the build
+      # here instead of shipping a release with a white screen.
+      - name: Install Node dependencies (root, for Playwright)
+        run: npm ci
+
+      - name: Install Playwright Chromium (Linux)
+        if: matrix.rid == 'linux-x64'
+        run: npx playwright install --with-deps chromium
+
+      - name: Install Playwright Chromium (Windows)
+        if: matrix.rid == 'win-x64'
+        run: npx playwright install chromium
+
+      - name: Smoke Test Built Artifact
+        shell: bash
+        run: |
+          # Убедиться в наличии прав на запуск
+          chmod +x publish/${{ matrix.rid }}/Tsundoku*
+          # Запуск сквозного смоук-теста (упавший тест красит билд и блокирует релиз)
+          node scripts/smoke-test-artifact.mjs publish/${{ matrix.rid }}/Tsundoku
 
       # Git Bash on windows-latest has no zip; PowerShell's Compress-Archive is built in.
       - name: Zip Tsundoku (Windows)

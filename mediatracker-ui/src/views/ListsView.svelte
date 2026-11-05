@@ -412,7 +412,7 @@
                 ></span>
                 {#if list.isSmart}
                   <span
-                    class="absolute top-2 right-2 z-20 inline-flex items-center gap-1 rounded-full border border-violet-400/40 bg-gradient-to-r from-violet-600/90 to-amber-600/90 px-2 py-0.5 text-[10px] font-semibold text-white shadow-lg backdrop-blur-sm"
+                    class="absolute top-2 right-2 z-20 inline-flex items-center gap-1 rounded-full border border-violet-400/30 bg-violet-950/80 px-2.5 py-0.5 text-[11px] font-semibold text-violet-200 shadow-md backdrop-blur-md"
                   >
                     ⚡ {i18n.t.views.smartBadge}
                   </span>

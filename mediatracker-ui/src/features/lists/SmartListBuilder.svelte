@@ -2,6 +2,7 @@
   import type { SmartListQuery, MediaItem } from "$shared/types";
   import { i18n } from "$shared/i18n/index.svelte";
   import Select from "$shared/ui/Select.svelte";
+  import { Search } from "$shared/ui/Icons";
 
   interface Props {
     query: SmartListQuery;
@@ -64,6 +65,13 @@
     { value: 4, label: () => i18n.t.views.smartStatusDropped },
   ];
 
+  const releaseStatusOptions = [
+    { value: "", label: () => i18n.t.views.smartReleaseStatusAny },
+    { value: "FINISHED", label: () => i18n.t.views.smartReleaseStatusFinished },
+    { value: "RELEASING", label: () => i18n.t.views.smartReleaseStatusReleasing },
+    { value: "NOT_YET_RELEASED", label: () => i18n.t.views.smartReleaseStatusAnnounced },
+  ];
+
   const sortByOptions = [
     { value: "score", label: () => i18n.t.views.smartSortScore },
     { value: "externalRating", label: () => i18n.t.views.smartSortExternalRating },
@@ -71,6 +79,42 @@
     { value: "createdAt", label: () => i18n.t.views.smartSortCreatedAt },
     { value: "title", label: () => i18n.t.views.smartSortTitle },
   ];
+
+  /** 2×2 объёмные лимиты: фильм/серия, серии, страницы, главы. */
+  const volumeFields = $derived([
+    {
+      key: "duration",
+      label: () => i18n.t.views.smartMaxDuration,
+      placeholder: () => i18n.t.views.smartMaxDurationPlaceholder,
+      unit: () => i18n.t.views.smartUnitMinutes,
+      value: () => query.maxDurationMinutes ?? "",
+      apply: (v: number | null) => onQueryChange({ ...query, maxDurationMinutes: v }),
+    },
+    {
+      key: "episodes",
+      label: () => i18n.t.views.smartMaxEpisodes,
+      placeholder: () => i18n.t.views.smartMaxEpisodesPlaceholder,
+      unit: () => i18n.t.views.smartUnitEpisodes,
+      value: () => query.maxEpisodes ?? "",
+      apply: (v: number | null) => onQueryChange({ ...query, maxEpisodes: v }),
+    },
+    {
+      key: "pages",
+      label: () => i18n.t.views.smartMaxPages,
+      placeholder: () => i18n.t.views.smartMaxPagesPlaceholder,
+      unit: () => i18n.t.views.smartUnitPages,
+      value: () => query.maxPages ?? "",
+      apply: (v: number | null) => onQueryChange({ ...query, maxPages: v }),
+    },
+    {
+      key: "chapters",
+      label: () => i18n.t.views.smartMaxChapters,
+      placeholder: () => i18n.t.views.smartMaxChaptersPlaceholder,
+      unit: () => i18n.t.views.smartUnitChapters,
+      value: () => query.maxChapters ?? "",
+      apply: (v: number | null) => onQueryChange({ ...query, maxChapters: v }),
+    },
+  ]);
 
   function toggleCategory(value: string) {
     const cats = query.categories ?? [];
@@ -234,271 +278,281 @@
   }
 </script>
 
-<div class="space-y-5">
-  <!-- Presets -->
-  <div>
-    <p class="text-muted mb-2 text-xs font-semibold tracking-widest uppercase">
+<div class="space-y-4">
+  <!-- Пресеты: ряд карточек-чипов -->
+  <section class="bg-surface/50 rounded-xl border border-white/5 p-4">
+    <p class="text-muted mb-3 text-xs font-semibold tracking-widest uppercase">
       {i18n.t.views.smartPresets}
     </p>
+    <!-- Full text on purpose: a truncated preset label hides the actual filter it applies. -->
     <div class="flex flex-wrap gap-2">
       {#each presets as preset (preset.icon)}
         <button
           type="button"
-          class="bg-elevated text-ink inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-3 py-1.5 text-xs transition hover:border-violet-400/40 hover:bg-violet-400/10 hover:text-violet-300"
+          class="bg-card text-ink hover:border-violet-500/40 hover:bg-violet-500/10 inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-white/5 px-3 py-2 text-xs font-medium whitespace-nowrap transition"
           onclick={() => applyPreset(preset)}
         >
-          <span>{preset.icon}</span>{preset.label()}
+          <span aria-hidden="true">{preset.icon}</span>
+          <span>{preset.label()}</span>
         </button>
       {/each}
     </div>
-  </div>
+  </section>
 
-  <!-- Categories -->
-  <fieldset>
-    <legend class="text-ink mb-2 text-sm font-medium">{i18n.t.views.smartCategories}</legend>
-    <div class="flex flex-wrap gap-2">
-      {#each categoryOptions as opt (opt.value)}
-        {@const active = (query.categories ?? []).includes(opt.value)}
-        <button
-          type="button"
-          class={`rounded-full border px-3 py-1 text-xs font-medium transition ${active ? "border-violet-400/60 bg-violet-400/15 text-violet-300" : "text-muted hover:text-ink border-white/10 hover:border-white/20"}`}
-          onclick={() => toggleCategory(opt.value)}
-          aria-pressed={active}
-        >
-          {opt.label()}
-        </button>
+  <!-- Охват библиотеки: категории + статусы -->
+  <section class="bg-surface/50 rounded-xl border border-white/5 p-4">
+    <p class="text-muted mb-3 text-xs font-semibold tracking-widest uppercase">
+      {i18n.t.views.smartSectionScope}
+    </p>
+    <div class="space-y-3">
+      <div class="flex flex-wrap gap-2">
+        {#each categoryOptions as opt (opt.value)}
+          {@const active = (query.categories ?? []).includes(opt.value)}
+          <button
+            type="button"
+            class={`rounded-full border px-3 py-1 text-xs font-medium transition ${active ? "border-violet-500/40 bg-violet-500/15 text-violet-300" : "text-muted hover:text-ink border-white/10 hover:border-white/20"}`}
+            onclick={() => toggleCategory(opt.value)}
+            aria-pressed={active}
+          >
+            {opt.label()}
+          </button>
+        {/each}
+      </div>
+      <div class="flex flex-wrap gap-2">
+        {#each statusOptions as opt (opt.value)}
+          {@const active = (query.statuses ?? []).includes(opt.value)}
+          <button
+            type="button"
+            class={`rounded-full border px-3 py-1 text-xs font-medium transition ${active ? "border-amber-500/40 bg-amber-500/15 text-amber-300" : "text-muted hover:text-ink border-white/10 hover:border-white/20"}`}
+            onclick={() => toggleStatus(opt.value)}
+            aria-pressed={active}
+          >
+            {opt.label()}
+          </button>
+        {/each}
+      </div>
+      <!-- Release status of the work itself (manga/anime finished by the author, ongoing, announced). -->
+      <label class="text-ink block w-full space-y-1 text-xs font-medium sm:max-w-64">
+        {i18n.t.views.smartReleaseStatusLabel}
+        <Select
+          id="smart-release-status"
+          options={releaseStatusOptions.map((opt) => ({ value: opt.value, label: opt.label() }))}
+          value={query.releaseStatus ?? ""}
+          onChange={(next) => onQueryChange({ ...query, releaseStatus: next || null })}
+          class="w-full rounded-lg px-2.5 py-1.5 text-sm"
+        />
+      </label>
+    </div>
+  </section>
+
+  <!-- Оценки и качество: одна строка -->
+  <section class="bg-surface/50 rounded-xl border border-white/5 p-4">
+    <p class="text-muted mb-3 text-xs font-semibold tracking-widest uppercase">
+      {i18n.t.views.smartSectionQuality}
+    </p>
+    <div class="flex flex-wrap items-end gap-3">
+      <label class="text-ink block w-32 space-y-1 text-xs font-medium sm:w-40">
+        {i18n.t.views.smartMinScore}
+        <span class="relative mt-1 block">
+          <span
+            class="text-muted pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2"
+            aria-hidden="true">★</span
+          >
+          <input
+            type="number"
+            min="1"
+            max="10"
+            step="1"
+            value={query.minScore ?? ""}
+            oninput={(e) =>
+              onQueryChange({
+                ...query,
+                minScore: (e.currentTarget as HTMLInputElement).valueAsNumber || null,
+              })}
+            class="bg-canvas focus:border-violet-500/60 w-full rounded-lg border border-white/10 py-1.5 pr-2.5 pl-7 text-sm outline-none"
+            placeholder="1–10"
+          />
+        </span>
+      </label>
+      <label class="text-ink block w-32 space-y-1 text-xs font-medium sm:w-40">
+        {i18n.t.views.smartMinExternalRating}
+        <span class="relative mt-1 block">
+          <span
+            class="text-muted pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2"
+            aria-hidden="true">★</span
+          >
+          <input
+            type="number"
+            min="0"
+            max="10"
+            step="0.1"
+            value={query.minExternalRating ?? ""}
+            oninput={(e) =>
+              onQueryChange({
+                ...query,
+                minExternalRating: (e.currentTarget as HTMLInputElement).valueAsNumber || null,
+              })}
+            class="bg-canvas focus:border-violet-500/60 w-full rounded-lg border border-white/10 py-1.5 pr-2.5 pl-7 text-sm outline-none"
+            placeholder="0–10"
+          />
+        </span>
+      </label>
+      <label class="text-ink flex cursor-pointer items-center gap-2 pb-1.5 text-xs font-medium">
+        <input
+          type="checkbox"
+          checked={query.onlyUnrated ?? false}
+          onchange={(e) =>
+            onQueryChange({
+              ...query,
+              onlyUnrated: (e.currentTarget as HTMLInputElement).checked || null,
+            })}
+          class="accent-violet-500"
+        />
+        {i18n.t.views.smartOnlyUnrated}
+      </label>
+    </div>
+  </section>
+
+  <!-- Объёмы и ограничения: сетка 2×2 -->
+  <section class="bg-surface/50 rounded-xl border border-white/5 p-4">
+    <p class="text-muted mb-3 text-xs font-semibold tracking-widest uppercase">
+      {i18n.t.views.smartSectionVolumes}
+    </p>
+    <div class="grid grid-cols-2 gap-3">
+      {#each volumeFields as field (field.key)}
+        <label class="text-ink block space-y-1 text-xs font-medium">
+          {field.label()}
+          <span class="relative mt-1 block">
+            <input
+              type="number"
+              min="1"
+              value={field.value()}
+              oninput={(e) =>
+                field.apply((e.currentTarget as HTMLInputElement).valueAsNumber || null)}
+              class="bg-canvas focus:border-violet-500/60 w-full rounded-lg border border-white/10 py-1.5 pr-10 pl-2.5 text-sm outline-none"
+              placeholder={field.placeholder()}
+            />
+            <span
+              class="text-muted pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 text-[11px]"
+              aria-hidden="true">{field.unit()}</span
+            >
+          </span>
+        </label>
       {/each}
     </div>
-  </fieldset>
+  </section>
 
-  <!-- Statuses -->
-  <fieldset>
-    <legend class="text-ink mb-2 text-sm font-medium">{i18n.t.views.smartStatuses}</legend>
-    <div class="flex flex-wrap gap-2">
-      {#each statusOptions as opt (opt.value)}
-        {@const active = (query.statuses ?? []).includes(opt.value)}
-        <button
-          type="button"
-          class={`rounded-full border px-3 py-1 text-xs font-medium transition ${active ? "border-amber-400/60 bg-amber-400/15 text-amber-300" : "text-muted hover:text-ink border-white/10 hover:border-white/20"}`}
-          onclick={() => toggleStatus(opt.value)}
-          aria-pressed={active}
-        >
-          {opt.label()}
-        </button>
-      {/each}
+  <!-- Период и авторство -->
+  <section class="bg-surface/50 rounded-xl border border-white/5 p-4">
+    <p class="text-muted mb-3 text-xs font-semibold tracking-widest uppercase">
+      {i18n.t.views.smartSectionPeriod}
+    </p>
+    <div class="space-y-3">
+      <div class="flex items-end gap-3">
+        <label class="text-ink block w-28 space-y-1 text-xs font-medium">
+          {i18n.t.views.smartYearFrom}
+          <input
+            type="number"
+            min="1900"
+            max="2100"
+            step="1"
+            value={query.releaseYearFrom ?? ""}
+            oninput={(e) =>
+              onQueryChange({
+                ...query,
+                releaseYearFrom: (e.currentTarget as HTMLInputElement).valueAsNumber || null,
+              })}
+            class="bg-canvas focus:border-violet-500/60 mt-1 w-full rounded-lg border border-white/10 px-2.5 py-1.5 text-sm outline-none"
+            placeholder="2000"
+          />
+        </label>
+        <span class="text-muted pb-2" aria-hidden="true">—</span>
+        <label class="text-ink block w-28 space-y-1 text-xs font-medium">
+          {i18n.t.views.smartYearTo}
+          <input
+            type="number"
+            min="1900"
+            max="2100"
+            step="1"
+            value={query.releaseYearTo ?? ""}
+            oninput={(e) =>
+              onQueryChange({
+                ...query,
+                releaseYearTo: (e.currentTarget as HTMLInputElement).valueAsNumber || null,
+              })}
+            class="bg-canvas focus:border-violet-500/60 mt-1 w-full rounded-lg border border-white/10 px-2.5 py-1.5 text-sm outline-none"
+            placeholder="2024"
+          />
+        </label>
+      </div>
+      <label class="text-ink block space-y-1 text-xs font-medium">
+        {i18n.t.views.smartCreator}
+        <span class="relative mt-1 block">
+          <Search
+            size={14}
+            class="text-muted pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2"
+            aria-hidden="true"
+          />
+          <input
+            type="text"
+            value={query.creatorContains ?? ""}
+            oninput={(e) =>
+              onQueryChange({
+                ...query,
+                creatorContains: (e.currentTarget as HTMLInputElement).value || null,
+              })}
+            class="bg-canvas focus:border-violet-500/60 w-full rounded-lg border border-white/10 py-1.5 pr-2.5 pl-8 text-sm outline-none"
+            placeholder={i18n.t.views.smartCreatorPlaceholder}
+          />
+        </span>
+      </label>
     </div>
-  </fieldset>
+  </section>
 
-  <!-- Scores & Rating -->
-  <div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
-    <label class="text-ink block space-y-1 text-xs font-medium">
-      {i18n.t.views.smartMinScore}
-      <input
-        type="number"
-        min="1"
-        max="10"
-        step="1"
-        value={query.minScore ?? ""}
-        oninput={(e) =>
-          onQueryChange({
-            ...query,
-            minScore: (e.currentTarget as HTMLInputElement).valueAsNumber || null,
-          })}
-        class="bg-canvas focus:border-accent mt-1 w-full rounded-lg border border-white/10 px-2.5 py-1.5 text-sm outline-none"
-        placeholder="1–10"
-      />
-    </label>
-    <label class="text-ink block space-y-1 text-xs font-medium">
-      {i18n.t.views.smartMinExternalRating}
-      <input
-        type="number"
-        min="0"
-        max="10"
-        step="0.1"
-        value={query.minExternalRating ?? ""}
-        oninput={(e) =>
-          onQueryChange({
-            ...query,
-            minExternalRating: (e.currentTarget as HTMLInputElement).valueAsNumber || null,
-          })}
-        class="bg-canvas focus:border-accent mt-1 w-full rounded-lg border border-white/10 px-2.5 py-1.5 text-sm outline-none"
-        placeholder="0–10"
-      />
-    </label>
-    <label
-      class="text-ink col-span-2 flex cursor-pointer items-center gap-2 pt-5 text-xs font-medium sm:col-span-1"
-    >
-      <input
-        type="checkbox"
-        checked={query.onlyUnrated ?? false}
-        onchange={(e) =>
-          onQueryChange({
-            ...query,
-            onlyUnrated: (e.currentTarget as HTMLInputElement).checked || null,
-          })}
-        class="rounded accent-violet-500"
-      />
-      {i18n.t.views.smartOnlyUnrated}
-    </label>
-  </div>
-
-  <!-- Release Years -->
-  <div class="grid grid-cols-2 gap-3">
-    <label class="text-ink block space-y-1 text-xs font-medium">
-      {i18n.t.views.smartYearFrom}
-      <input
-        type="number"
-        min="1900"
-        max="2100"
-        step="1"
-        value={query.releaseYearFrom ?? ""}
-        oninput={(e) =>
-          onQueryChange({
-            ...query,
-            releaseYearFrom: (e.currentTarget as HTMLInputElement).valueAsNumber || null,
-          })}
-        class="bg-canvas focus:border-accent mt-1 w-full rounded-lg border border-white/10 px-2.5 py-1.5 text-sm outline-none"
-        placeholder="2000"
-      />
-    </label>
-    <label class="text-ink block space-y-1 text-xs font-medium">
-      {i18n.t.views.smartYearTo}
-      <input
-        type="number"
-        min="1900"
-        max="2100"
-        step="1"
-        value={query.releaseYearTo ?? ""}
-        oninput={(e) =>
-          onQueryChange({
-            ...query,
-            releaseYearTo: (e.currentTarget as HTMLInputElement).valueAsNumber || null,
-          })}
-        class="bg-canvas focus:border-accent mt-1 w-full rounded-lg border border-white/10 px-2.5 py-1.5 text-sm outline-none"
-        placeholder="2024"
-      />
-    </label>
-  </div>
-
-  <!-- Volume limits -->
-  <div class="grid grid-cols-2 gap-3">
-    <label class="text-ink block space-y-1 text-xs font-medium">
-      {i18n.t.views.smartMaxDuration}
-      <input
-        type="number"
-        min="1"
-        value={query.maxDurationMinutes ?? ""}
-        oninput={(e) =>
-          onQueryChange({
-            ...query,
-            maxDurationMinutes: (e.currentTarget as HTMLInputElement).valueAsNumber || null,
-          })}
-        class="bg-canvas focus:border-accent mt-1 w-full rounded-lg border border-white/10 px-2.5 py-1.5 text-sm outline-none"
-        placeholder={i18n.t.views.smartMaxDurationPlaceholder}
-      />
-    </label>
-    <label class="text-ink block space-y-1 text-xs font-medium">
-      {i18n.t.views.smartMaxEpisodes}
-      <input
-        type="number"
-        min="1"
-        value={query.maxEpisodes ?? ""}
-        oninput={(e) =>
-          onQueryChange({
-            ...query,
-            maxEpisodes: (e.currentTarget as HTMLInputElement).valueAsNumber || null,
-          })}
-        class="bg-canvas focus:border-accent mt-1 w-full rounded-lg border border-white/10 px-2.5 py-1.5 text-sm outline-none"
-        placeholder={i18n.t.views.smartMaxEpisodesPlaceholder}
-      />
-    </label>
-    <label class="text-ink block space-y-1 text-xs font-medium">
-      {i18n.t.views.smartMaxPages}
-      <input
-        type="number"
-        min="1"
-        value={query.maxPages ?? ""}
-        oninput={(e) =>
-          onQueryChange({
-            ...query,
-            maxPages: (e.currentTarget as HTMLInputElement).valueAsNumber || null,
-          })}
-        class="bg-canvas focus:border-accent mt-1 w-full rounded-lg border border-white/10 px-2.5 py-1.5 text-sm outline-none"
-        placeholder={i18n.t.views.smartMaxPagesPlaceholder}
-      />
-    </label>
-    <label class="text-ink block space-y-1 text-xs font-medium">
-      {i18n.t.views.smartMaxChapters}
-      <input
-        type="number"
-        min="1"
-        value={query.maxChapters ?? ""}
-        oninput={(e) =>
-          onQueryChange({
-            ...query,
-            maxChapters: (e.currentTarget as HTMLInputElement).valueAsNumber || null,
-          })}
-        class="bg-canvas focus:border-accent mt-1 w-full rounded-lg border border-white/10 px-2.5 py-1.5 text-sm outline-none"
-        placeholder={i18n.t.views.smartMaxChaptersPlaceholder}
-      />
-    </label>
-  </div>
-
-  <!-- Creator -->
-  <label class="text-ink block space-y-1 text-xs font-medium">
-    {i18n.t.views.smartCreator}
-    <input
-      type="text"
-      value={query.creatorContains ?? ""}
-      oninput={(e) =>
-        onQueryChange({
-          ...query,
-          creatorContains: (e.currentTarget as HTMLInputElement).value || null,
-        })}
-      class="bg-canvas focus:border-accent mt-1 w-full rounded-lg border border-white/10 px-2.5 py-1.5 text-sm outline-none"
-      placeholder={i18n.t.views.smartCreatorPlaceholder}
-    />
-  </label>
-
-  <!-- Sort & Limit -->
-  <div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
-    <label class="text-ink block space-y-1 text-xs font-medium">
-      {i18n.t.views.smartSortBy}
-      <Select
-        id="smart-sort-by"
-        options={sortByOptions.map((opt) => ({ value: opt.value, label: opt.label() }))}
-        value={query.sortBy ?? "createdAt"}
-        onChange={(next) => onQueryChange({ ...query, sortBy: next })}
-        class="w-full rounded-lg px-2.5 py-1.5 text-sm"
-      />
-    </label>
-    <label class="text-ink block space-y-1 text-xs font-medium">
-      {i18n.t.views.smartSortOrder}
-      <Select
-        id="smart-sort-order"
-        options={[
-          { value: "desc", label: i18n.t.views.smartSortDesc },
-          { value: "asc", label: i18n.t.views.smartSortAsc },
-        ]}
-        value={query.sortOrder ?? "desc"}
-        onChange={(next) => onQueryChange({ ...query, sortOrder: next })}
-        class="w-full rounded-lg px-2.5 py-1.5 text-sm"
-      />
-    </label>
-    <label class="text-ink block space-y-1 text-xs font-medium">
-      {i18n.t.views.smartLimit}
-      <input
-        type="number"
-        min="1"
-        value={query.limit ?? ""}
-        oninput={(e) =>
-          onQueryChange({
-            ...query,
-            limit: (e.currentTarget as HTMLInputElement).valueAsNumber || null,
-          })}
-        class="bg-canvas focus:border-accent mt-1 w-full rounded-lg border border-white/10 px-2.5 py-1.5 text-sm outline-none"
-        placeholder={i18n.t.views.smartLimitPlaceholder}
-      />
-    </label>
-  </div>
+  <!-- Сортировка и лимит -->
+  <section class="bg-surface/50 rounded-xl border border-white/5 p-4">
+    <p class="text-muted mb-3 text-xs font-semibold tracking-widest uppercase">
+      {i18n.t.views.smartSectionSort}
+    </p>
+    <div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
+      <label class="text-ink block space-y-1 text-xs font-medium">
+        {i18n.t.views.smartSortBy}
+        <Select
+          id="smart-sort-by"
+          options={sortByOptions.map((opt) => ({ value: opt.value, label: opt.label() }))}
+          value={query.sortBy ?? "createdAt"}
+          onChange={(next) => onQueryChange({ ...query, sortBy: next })}
+          class="w-full rounded-lg px-2.5 py-1.5 text-sm"
+        />
+      </label>
+      <label class="text-ink block space-y-1 text-xs font-medium">
+        {i18n.t.views.smartSortOrder}
+        <Select
+          id="smart-sort-order"
+          options={[
+            { value: "desc", label: i18n.t.views.smartSortDesc },
+            { value: "asc", label: i18n.t.views.smartSortAsc },
+          ]}
+          value={query.sortOrder ?? "desc"}
+          onChange={(next) => onQueryChange({ ...query, sortOrder: next })}
+          class="w-full rounded-lg px-2.5 py-1.5 text-sm"
+        />
+      </label>
+      <label class="text-ink block space-y-1 text-xs font-medium">
+        {i18n.t.views.smartLimit}
+        <input
+          type="number"
+          min="1"
+          value={query.limit ?? ""}
+          oninput={(e) =>
+            onQueryChange({
+              ...query,
+              limit: (e.currentTarget as HTMLInputElement).valueAsNumber || null,
+            })}
+          class="bg-canvas focus:border-violet-500/60 mt-1 w-full rounded-lg border border-white/10 px-2.5 py-1.5 text-sm outline-none"
+          placeholder={i18n.t.views.smartLimitPlaceholder}
+        />
+      </label>
+    </div>
+  </section>
 </div>

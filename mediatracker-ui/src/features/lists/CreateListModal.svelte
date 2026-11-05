@@ -220,28 +220,35 @@
       <div class="min-w-0 flex-1">
         {#if listType === "smart"}
           <div class="flex items-center gap-3">
-            <span class="shrink-0 text-xs font-semibold text-violet-300">
-              ⚡ {i18n.t.views.smartPreviewCount(matchedItems.length)}
+            <span
+              class="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-violet-500/40 bg-violet-500/15 px-3 py-1 text-xs font-bold text-violet-200 shadow-sm shadow-violet-500/10"
+            >
+              <span aria-hidden="true">⚡</span>
+              {i18n.t.views.smartPreviewCount(matchedItems.length)}
             </span>
             {#if matchedItems.length > 0}
               <div class="flex items-center gap-1.5 overflow-hidden">
                 {#each matchedItems.slice(0, 5) as item (item.id)}
-                  {#if item.coverUrl}
-                    <img
-                      src={fullSizeCoverUrl(item.coverUrl)}
-                      alt={item.title}
-                      title={item.title}
-                      class="aspect-[2/3] h-8 shrink-0 rounded object-cover shadow ring-1 ring-white/10"
-                      onerror={(e) => {
-                        const target = e.currentTarget as HTMLImageElement;
-                        target.src = "";
-                      }}
-                    />
-                  {:else}
-                    <MediaCoverPlaceholder
-                      class="aspect-[2/3] h-8 shrink-0 rounded object-cover shadow ring-1 ring-white/10"
-                    />
-                  {/if}
+                  <!-- Fixed-size frame: MediaCoverPlaceholder is h-full/w-full and would
+                       otherwise stretch across the whole modal when coverUrl is null. -->
+                  <div
+                    class="h-9 w-6 shrink-0 overflow-hidden rounded shadow ring-1 ring-white/10"
+                    title={item.title}
+                  >
+                    {#if item.coverUrl}
+                      <img
+                        src={fullSizeCoverUrl(item.coverUrl)}
+                        alt={item.title}
+                        class="h-full w-full object-cover"
+                        onerror={(e) => {
+                          const target = e.currentTarget as HTMLImageElement;
+                          target.src = "";
+                        }}
+                      />
+                    {:else}
+                        <MediaCoverPlaceholder class="h-full w-full" />
+                    {/if}
+                  </div>
                 {/each}
               </div>
             {/if}

@@ -955,6 +955,13 @@
     </section>
   {/if}
 
+  <!-- Счётчик отфильтрованных тайтлов (как в CategoryView) -->
+  {#if !loading && !loadError}
+    <p class="text-muted -mt-4 mb-2 flex items-center gap-2 text-xs font-medium">
+      {i18n.t.library.resultCount(filteredTotal)}
+    </p>
+  {/if}
+
   <!-- Сводка при активном фильтре времени -->
   {#if !loading && !loadError && timeBudget !== null && totalFitting > 0}
     <div

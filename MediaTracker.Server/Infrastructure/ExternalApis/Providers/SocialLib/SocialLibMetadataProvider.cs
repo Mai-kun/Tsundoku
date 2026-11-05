@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text;
 using System.Text.Json;
 using MediaTracker.Server.Features.Media.Import;
 using Microsoft.Extensions.DependencyInjection;
@@ -12,13 +13,13 @@ public sealed class SocialLibMetadataProvider(
     [ServiceKey] string? serviceKey = null) : MetadataProviderBase(Source)
 {
     private const string PrimaryBaseUrl = "https://api.cdnlibs.org/api/";
-    private const string FallbackBaseUrl = "https://api.lib.social/api/";
+    private const string FallbackBaseUrl = "https://api2.mangalib.me/api/";
     private const string BrowserUserAgent =
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
 
     public static MetadataSourceDescriptor Source { get; } = new(
         Id: "sociallib",
-        Name: "SocialLib (MangaLib / RanobeLib / AnimeLib)",
+        Name: "SocialLib",
         Description: "Единый источник каталогов MangaLib, RanobeLib и AnimeLib",
         MediaTypes: ["manga", "book", "anime"],
         BaseAddress: PrimaryBaseUrl,
@@ -46,7 +47,9 @@ public sealed class SocialLibMetadataProvider(
     {
         var cleaned = MediaTitleHelper.StripGarbageSuffixes(query);
         var effectiveQuery = !string.IsNullOrWhiteSpace(cleaned) ? cleaned : query;
-        var url = $"{BasePath}?q={Uri.EscapeDataString(effectiveQuery)}{BuildQuerySuffix()}";
+        // The catalog answers 422 to fields[] on the search route: the list payload already
+        // carries names/covers/slugs, and the heavy fields are fetched by the detail call.
+        var url = $"{BasePath}?q={Uri.EscapeDataString(effectiveQuery)}&site_id[]={SiteId}";
 
         var json = await SendWithFallbackAsync(url, ct);
         if (string.IsNullOrWhiteSpace(json))
@@ -59,7 +62,13 @@ public sealed class SocialLibMetadataProvider(
 
     public override async Task<ExternalMediaDto?> GetDetailsAsync(string externalId, string title, CancellationToken ct)
     {
-        var url = $"{BasePath}/{Uri.EscapeDataString(externalId)}{BuildQuerySuffix()}";
+        // ExternalId is the site's slug_url ("195--naruto"); the API's detail route answers only
+        // to the bare slug, so the leading "{id}--" part is stripped.
+        var slug = externalId;
+        var dash = slug.IndexOf("--", StringComparison.Ordinal);
+        if (dash > 0) slug = slug[(dash + 2)..];
+
+        var url = $"{BasePath}/{Uri.EscapeDataString(slug)}?fields[]=summary&fields[]=genres&fields[]=authors&fields[]=rate&site_id[]={SiteId}";
         var json = await SendWithFallbackAsync(url, ct);
 
         if (!string.IsNullOrWhiteSpace(json))
@@ -97,18 +106,13 @@ public sealed class SocialLibMetadataProvider(
     /// <summary>Manga and novels live under /api/manga; AnimeLib has its own /api/anime tree.</summary>
     private string BasePath => _mediaType == "anime" ? "anime" : "manga";
 
-    /// <summary>site_id narrows the shared catalog to one site; anime also reports episodes, not chapters.</summary>
-    private string BuildQuerySuffix()
+    /// <summary>site_id narrows the shared catalog to one site: manga 1, novels 3, anime 5.</summary>
+    private int SiteId => _mediaType switch
     {
-        var siteId = _mediaType switch
-        {
-            "book" => 3,
-            "anime" => 5,
-            _ => 1
-        };
-        var countField = _mediaType == "anime" ? "episodes_count" : "chap_count";
-        return $"&fields[]=summary&fields[]=genres&fields[]=authors&fields[]={countField}&fields[]=rate&site_id[]={siteId}";
-    }
+        "book" => 3,
+        "anime" => 5,
+        _ => 1
+    };
 
     private async Task<string?> SendWithFallbackAsync(string relativeUrl, CancellationToken ct)
     {
@@ -325,7 +329,7 @@ public sealed class SocialLibMetadataProvider(
             OriginalTitle = origTitle,
             RomajiTitle = romajiTitle,
             CoverUrl = ExtractCover(elem),
-            Description = elem.TryGetProperty("summary", out var sump) && sump.ValueKind == JsonValueKind.String ? sump.GetString() : null,
+            Description = ExtractSummary(elem),
             Author = ExtractAuthors(elem),
             Type = type,
             MangaFormat = mangaFormat,
@@ -337,6 +341,54 @@ public sealed class SocialLibMetadataProvider(
             Ratings = ratings,
             Genres = ExtractGenres(elem)
         };
+    }
+
+    /// <summary>
+    /// summary used to be a plain string; the API now returns a TipTap document
+    /// ({ content: [ { content: [ { text } ] } ] }) — walk it and collect the text runs.
+    /// </summary>
+    private static string? ExtractSummary(JsonElement elem)
+    {
+        if (!elem.TryGetProperty("summary", out var sum)) return null;
+        if (sum.ValueKind == JsonValueKind.String)
+        {
+            var str = sum.GetString();
+            return string.IsNullOrWhiteSpace(str) ? null : str.Trim();
+        }
+
+        if (sum.ValueKind != JsonValueKind.Object) return null;
+
+        var sb = new StringBuilder();
+        WalkTipTap(sum, sb);
+        var text = sb.ToString().Trim();
+        return text.Length > 0 ? text : null;
+
+        static void WalkTipTap(JsonElement node, StringBuilder builder)
+        {
+            switch (node.ValueKind)
+            {
+                case JsonValueKind.Object:
+                    if (node.TryGetProperty("text", out var textProp) && textProp.ValueKind == JsonValueKind.String)
+                    {
+                        builder.Append(textProp.GetString());
+                        return;
+                    }
+                    if (node.TryGetProperty("content", out var content) && content.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (var child in content.EnumerateArray())
+                        {
+                            WalkTipTap(child, builder);
+                        }
+                    }
+                    break;
+                case JsonValueKind.Array:
+                    foreach (var child in node.EnumerateArray())
+                    {
+                        WalkTipTap(child, builder);
+                    }
+                    break;
+            }
+        }
     }
 
     private static string? ExtractCover(JsonElement elem)
@@ -362,6 +414,29 @@ public sealed class SocialLibMetadataProvider(
 
     private static (double? Score, int? Votes) ExtractRating(JsonElement elem)
     {
+        // The new API shape: rating: { average: "9.35", votes: 15384 }. The legacy rate:* fields
+        // stay as a fallback for older mirrors.
+        if (elem.TryGetProperty("rating", out var rating) && rating.ValueKind == JsonValueKind.Object)
+        {
+            double? score = null;
+            int? votes = null;
+            if (rating.TryGetProperty("average", out var avg))
+            {
+                if (avg.ValueKind == JsonValueKind.String && double.TryParse(avg.GetString(), NumberStyles.Float, CultureInfo.InvariantCulture, out var parsedStr))
+                    score = Math.Round(parsedStr, 1);
+                else if (avg.ValueKind == JsonValueKind.Number && avg.TryGetDouble(out var parsedNum))
+                    score = Math.Round(parsedNum, 1);
+            }
+
+            if (rating.TryGetProperty("votes", out var v) && v.TryGetInt32(out var vt))
+                votes = vt;
+
+            if (score is not null || votes is not null)
+            {
+                return (score, votes);
+            }
+        }
+
         if (elem.TryGetProperty("rate", out var rate))
         {
             if (rate.ValueKind == JsonValueKind.Object)

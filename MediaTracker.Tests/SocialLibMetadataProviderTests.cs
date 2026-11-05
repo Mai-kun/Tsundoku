@@ -42,7 +42,7 @@ public class SocialLibMetadataProviderTests
     [Theory]
     [InlineData("manga", "1", "https://mangalib.me/", "https://mangalib.me")]
     [InlineData("book", "3", "https://ranobelib.me/", "https://ranobelib.me")]
-    [InlineData("anime", "5", "https://animelib.org/", "https://animelib.org")]
+    [InlineData("anime", "5", "https://v5.animelib.org/", "https://v5.animelib.org")]
     public async Task SearchAsync_ShouldSendCorrectHeadersForMediaType(string serviceKey, string expectedSiteId, string expectedReferer, string expectedOrigin)
     {
         HttpRequestMessage? capturedRequest = null;
@@ -134,7 +134,7 @@ public class SocialLibMetadataProviderTests
 
         requestedUris.Should().HaveCount(2);
         requestedUris[0].Host.Should().Be("api.cdnlibs.org");
-        requestedUris[1].Host.Should().Be("api2.mangalib.me");
+        requestedUris[1].Host.Should().Be("api.lib.social");
 
         results.Should().HaveCount(1);
         results[0].ExternalId.Should().Be("1234-test-title");

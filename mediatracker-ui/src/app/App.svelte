@@ -731,7 +731,10 @@
       onImportCompleted={mediaChanged}
       onNavigateToList={navigateToList}
       onTestSearch={(source, type) => {
-        closeSettings();
+        // No popModalState() here: closeSettings() would call history.back(), and its
+        // delayed popstate event would close the SearchModal that openSearch just opened.
+        // Flip the flags directly instead.
+        isSettingsOpen = false;
         openSearch({
           query: "",
           source,

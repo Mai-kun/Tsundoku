@@ -18,6 +18,7 @@
     GripVertical,
     Key,
     LoaderCircle,
+    Palette,
     Plus,
     RefreshCw,
     RotateCcw,
@@ -60,11 +61,13 @@
     getOfflineDatabases,
     reindexOfflineDatabases,
     detectMangalibBrowserSession,
+    apiFetch,
     type AppSettings,
   } from "$shared/api/api";
   import { showToast } from "$shared/ui/toast.svelte";
   import { i18n } from "$shared/i18n/index.svelte";
   import { offlineModeState } from "$shared/api/offlineMode.svelte";
+  import type { OfflineDatabaseStatusDto } from "$shared/types";
   import Modal from "$shared/ui/Modal.svelte";
   import Select from "$shared/ui/Select.svelte";
   import { flip } from "svelte/animate";
@@ -98,7 +101,8 @@
     | "apiTokens"
     | "update"
     | "storage"
-    | "desktop";
+    | "desktop"
+    | "appearance";
   let activeTab = $state<Tab>("sources");
 
   const launchModeOptions = $derived([
@@ -539,10 +543,13 @@
 
   let selectedTypeFilter = $state<string>("all");
   let filteredSources = $derived(
+    // Offline entries (the generic "offline" provider and every "offline:{file}" database) live
+    // exclusively in the Layer-0 block above; the supported-sources list below stays external-only.
     (selectedTypeFilter === "all"
       ? sources
       : sources.filter((s) => s.mediaTypes.includes(selectedTypeFilter))
     )
+      .filter((s) => s.id !== "offline" && !s.id.startsWith("offline:"))
       .slice()
       .sort((a, b) => Number(b.isEnabled) - Number(a.isEnabled)),
   );
@@ -581,6 +588,8 @@
   let offlineSummary = $state<OfflineDatabasesSummaryDto | null>(null);
   let offlineLoading = $state(false);
   let offlineReindexing = $state(false);
+  let offlineDbToggling = $state("");
+  let deletingDump = $state("");
   let offlineModeToggling = $state(false);
 
   async function loadOfflineDatabases() {
@@ -618,6 +627,46 @@
       showToast(errorMessage(e), "error");
     } finally {
       offlineReindexing = false;
+    }
+  }
+
+  /** Per-database toggle: the id matches the "offline:{fileName}" source the API registers. */
+  async function handleToggleOfflineDb(fileName: string, enabled: boolean) {
+    if (offlineDbToggling) return;
+    offlineDbToggling = fileName;
+    try {
+      await toggleSourceEnabled(`offline:${fileName}`, enabled);
+      await loadOfflineDatabases();
+      await loadSources();
+    } catch (e) {
+      showToast(errorMessage(e), "error");
+    } finally {
+      offlineDbToggling = "";
+    }
+  }
+
+  async function handleDeleteDump(db: OfflineDatabaseStatusDto) {
+    if (deletingDump || !db.sourceDumpFileName) return;
+    if (
+      !window.confirm(
+        i18n.t.settingsModal.sources.offline.deleteDumpConfirm(db.sourceDumpFileName),
+      )
+    ) {
+      return;
+    }
+    deletingDump = db.fileName;
+    try {
+      const response = await apiFetch(
+        `/api/settings/offline-databases/dumps/${encodeURIComponent(db.sourceDumpFileName)}`,
+        { method: "DELETE" },
+      );
+      if (!response.ok) throw new Error(await response.text());
+      showToast(i18n.t.settingsModal.sources.offline.deleteDumpDone, "success");
+      await loadOfflineDatabases();
+    } catch (e) {
+      showToast(errorMessage(e), "error");
+    } finally {
+      deletingDump = "";
     }
   }
 
@@ -780,6 +829,7 @@
   }
 
   let detectingSocialLib = $state(false);
+  let showSocialLibManualToken = $state(false);
 
   async function handleDetectSocialLibSession() {
     detectingSocialLib = true;
@@ -1115,6 +1165,19 @@
         <button
           type="button"
           class={`tap flex w-full cursor-pointer items-center gap-3 rounded-lg px-3.5 py-2.5 text-left text-xs transition ${
+            activeTab === "appearance"
+              ? "border-accent-bright/30 bg-accent-bright/15 border font-semibold text-[#a5b4fc] shadow-sm"
+              : "text-muted border border-transparent font-medium hover:bg-white/5 hover:text-white"
+          }`}
+          onclick={() => (activeTab = "appearance")}
+        >
+          <Palette size={16} />
+          <span>{i18n.t.settingsModal.tabs.appearance}</span>
+        </button>
+
+        <button
+          type="button"
+          class={`tap flex w-full cursor-pointer items-center gap-3 rounded-lg px-3.5 py-2.5 text-left text-xs transition ${
             activeTab === "desktop"
               ? "border-accent-bright/30 bg-accent-bright/15 border font-semibold text-[#a5b4fc] shadow-sm"
               : "text-muted border border-transparent font-medium hover:bg-white/5 hover:text-white"
@@ -1266,19 +1329,31 @@
                               {db.name}
                             </h4>
                           </div>
-                          {#if db.isActive}
+                          <!-- Per-database toggle: switches this database alone, independent of
+                               the offline mode and of every other database. -->
+                          <button
+                            type="button"
+                            role="switch"
+                            aria-checked={db.isActive}
+                            aria-label={db.name}
+                            disabled={offlineDbToggling === db.fileName}
+                            class={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border transition-colors duration-200 disabled:cursor-wait disabled:opacity-50 ${
+                              db.isActive
+                                ? "border-emerald-500/40 bg-emerald-600"
+                                : "border-white/10 bg-white/10"
+                            }`}
+                            onclick={() => handleToggleOfflineDb(db.fileName, !db.isActive)}
+                            title={db.isActive
+                              ? i18n.t.settingsModal.sources.offline.dbDisableTitle
+                              : i18n.t.settingsModal.sources.offline.dbEnableTitle}
+                          >
                             <span
-                              class="inline-flex shrink-0 items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold text-emerald-400"
-                            >
-                              {i18n.t.settingsModal.sources.offline.activeBadge}
-                            </span>
-                          {:else}
-                            <span
-                              class="inline-flex shrink-0 items-center rounded-full border border-zinc-500/30 bg-zinc-500/15 px-2 py-0.5 text-[10px] font-semibold text-zinc-400"
-                            >
-                              {i18n.t.settingsModal.sources.offline.inactiveBadge}
-                            </span>
-                          {/if}
+                              aria-hidden="true"
+                              class={`pointer-events-none inline-block h-4 w-4 transform rounded-full shadow transition duration-200 ease-in-out ${
+                                db.isActive ? "translate-x-4 bg-white" : "translate-x-0 bg-slate-400"
+                              }`}
+                            ></span>
+                          </button>
                         </div>
                         <div class="mt-2.5 flex items-center gap-2 text-[11px] text-slate-300">
                           <span class="font-medium text-white"
@@ -1292,7 +1367,18 @@
                         class="mt-2 flex items-center justify-between border-t border-white/5 pt-2 text-[10px] text-slate-500"
                       >
                         <code class="truncate text-slate-400">{db.fileName}</code>
-                        {#if db.isActive}
+                        {#if deletingDump === db.fileName}
+                          <RefreshCw size={12} class="animate-spin text-slate-400" />
+                        {:else if db.sourceDumpFileName}
+                          <button
+                            type="button"
+                            onclick={() => handleDeleteDump(db)}
+                            class="shrink-0 rounded-lg border border-rose-500/30 bg-rose-500/10 px-2 py-0.5 text-[10px] font-medium text-rose-300 transition-colors hover:border-rose-400/50 hover:bg-rose-500/20 active:scale-95"
+                            title={i18n.t.settingsModal.sources.offline.deleteDumpTooltip}
+                          >
+                            {i18n.t.settingsModal.sources.offline.deleteDumpBtn}
+                          </button>
+                        {:else if db.isActive}
                           <button
                             type="button"
                             onclick={() => onTestSearch?.(`offline:${db.fileName}`, db.type)}
@@ -1391,7 +1477,15 @@
                               {i18n.t.settingsModal.sources.disabledBadge}
                             </span>
                           {/if}
-                          {#if source.optionalApiKey && !source.requiresApiKey}
+                          {#if source.id === "sociallib"}
+                            <span
+                              class="inline-flex items-center gap-1 rounded bg-violet-500/15 px-2 py-0.5 text-[11px] font-semibold text-violet-300"
+                              title="Токен не нужен для поиска; нужен только для каталога 18+ и личных закладок"
+                            >
+                              <ShieldCheck size={12} />
+                              Опциональный токен (18+ / закладки)
+                            </span>
+                          {:else if source.optionalApiKey && !source.requiresApiKey}
                             <span
                               class="inline-flex items-center gap-1 rounded bg-sky-500/15 px-2 py-0.5 text-[11px] font-semibold text-sky-400"
                               title={i18n.t.settingsModal.sources.optionalKeyHint}
@@ -1512,6 +1606,90 @@
 
                     {#if source.requiresApiKey || source.optionalApiKey}
                       <div class="border-white/[0.07]/60 mt-3 border-t pt-3">
+                        {#if source.id === "sociallib"}
+                          <!-- SocialLib: авторизация через сессию браузера, форма API-ключа не нужна -->
+                          {#if source.hasKey && source.maskedKey}
+                            <div class="mb-3 flex flex-wrap items-center gap-2 text-xs">
+                              <span
+                                class="inline-flex items-center gap-1 rounded bg-emerald-500/15 px-2 py-0.5 font-semibold text-emerald-400"
+                              >
+                                <Check size={12} />
+                                Сессия активна
+                              </span>
+                              <span class="text-muted">Токен:</span>
+                              <code
+                                class="bg-canvas text-ink rounded px-2 py-0.5 font-mono text-[11px]"
+                                >{source.maskedKey}</code
+                              >
+                            </div>
+                          {:else}
+                            <p class="text-muted mb-3 flex items-start gap-1.5 text-xs">
+                              <Key size={12} class="mt-0.5 shrink-0 text-sky-400" />
+                              Ключ не требуется для поиска. Авторизация нужна только для каталога 18+ и
+                              личных закладок.
+                            </p>
+                          {/if}
+
+                          <div class="flex flex-wrap items-center gap-2">
+                            <button
+                              type="button"
+                              class="bg-field text-ink hover:bg-card hover:border-accent-soft inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-white/10 px-3 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60"
+                              disabled={detectingSocialLib}
+                              onclick={handleDetectSocialLibSession}
+                            >
+                              <RefreshCw size={13} class={detectingSocialLib ? "animate-spin" : ""} />
+                              <span>{detectingSocialLib ? i18n.t.common.loading : "Подхватить сессию из браузера"}</span>
+                            </button>
+                            <button
+                              type="button"
+                              class="text-muted hover:text-ink hover:border-white/20 inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-white/10 px-3 text-xs font-medium transition"
+                              onclick={() => (showSocialLibManualToken = !showSocialLibManualToken)}
+                            >
+                              <Key size={13} />
+                              <span>Ввести токен вручную</span>
+                            </button>
+                          </div>
+                          <p class="text-muted mt-1.5 text-[11px]">
+                            Ищет активную сессию MangaLib / RanobeLib / AnimeLib в браузерах
+                          </p>
+
+                          {#if showSocialLibManualToken}
+                            <div class="mt-3 flex flex-wrap items-center gap-2">
+                              <input
+                                type="password"
+                                class="bg-field text-ink placeholder:text-muted focus:border-accent-soft focus:ring-accent-soft h-8 min-w-[220px] flex-1 rounded-md border border-white/10 px-3 text-xs focus:ring-1 focus:outline-none"
+                                placeholder="Bearer-токен (accessToken с lib.social)"
+                                value={inputKeys[source.id] ?? ""}
+                                oninput={(e) =>
+                                  (inputKeys[source.id] = (
+                                    e.currentTarget as HTMLInputElement
+                                  ).value)}
+                              />
+                              <button
+                                type="button"
+                                class="bg-field text-ink hover:bg-card hover:border-accent-soft inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-white/10 px-3 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60"
+                                disabled={savingKey === source.id || !inputKeys[source.id]?.trim()}
+                                onclick={() => void handleSaveKey(source.id)}
+                              >
+                                <ShieldCheck size={13} />
+                                {savingKey === source.id
+                                  ? i18n.t.common.saving
+                                  : i18n.t.settingsModal.sources.saveKey}
+                              </button>
+                            </div>
+                          {/if}
+
+                          {#if keySuccess[source.id]}
+                            <p class="mt-2 text-xs font-medium text-emerald-400">
+                              {keySuccess[source.id]}
+                            </p>
+                          {/if}
+                          {#if keyErrors[source.id]}
+                            <p class="mt-2 text-xs text-rose-300">
+                              {errorMessage(keyErrors[source.id])}
+                            </p>
+                          {/if}
+                        {:else}
                         {#if source.optionalApiKey && !source.requiresApiKey}
                           <p class="text-muted mb-2 flex items-start gap-1.5 text-xs">
                             <Key size={12} class="mt-0.5 shrink-0 text-sky-400" />
@@ -1525,23 +1703,6 @@
                               class="bg-canvas text-ink rounded px-2 py-0.5 font-mono text-[11px]"
                               >{source.maskedKey}</code
                             >
-                          </div>
-                        {/if}
-
-                        {#if source.id === "sociallib"}
-                          <div class="mb-3 flex flex-wrap items-center gap-2">
-                            <button
-                              type="button"
-                              class="bg-field text-ink hover:bg-card hover:border-accent-soft inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-white/10 px-3 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60"
-                              disabled={detectingSocialLib}
-                              onclick={handleDetectSocialLibSession}
-                            >
-                              <RefreshCw size={13} class={detectingSocialLib ? "animate-spin" : ""} />
-                              <span>{detectingSocialLib ? i18n.t.common.loading : "Подхватить сессию из браузера"}</span>
-                            </button>
-                            <span class="text-muted text-[11px]">
-                              Ищет активную сессию MangaLib / RanobeLib / AnimeLib в браузерах
-                            </span>
                           </div>
                         {/if}
 
@@ -1597,6 +1758,7 @@
                           <p class="mt-2 text-xs text-rose-300">
                             {errorMessage(keyErrors[source.id])}
                           </p>
+                        {/if}
                         {/if}
                       </div>
                     {/if}
@@ -2218,6 +2380,127 @@
                 </button>
               </div>
             {/if}
+          </section>
+        {:else if activeTab === "appearance"}
+          <section class="space-y-6">
+            <div>
+              <h3 class="text-ink text-base font-bold">
+                {i18n.t.settingsModal.appearance.title}
+              </h3>
+              <p class="text-muted mt-1 text-xs leading-relaxed">
+                {i18n.t.settingsModal.appearance.description}
+              </p>
+            </div>
+
+            <!-- App icon picker -->
+            <div
+              class="rounded-2xl border border-white/10 bg-white/[0.02] p-5 transition hover:border-white/[0.14]"
+            >
+              <h4 class="text-ink text-sm font-bold">
+                {i18n.t.settingsModal.appearance.appIconTitle}
+              </h4>
+              <p class="text-muted mt-0.5 text-xs">
+                {i18n.t.settingsModal.appearance.appIconDescription}
+              </p>
+
+              <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <!-- Default icon -->
+                <button
+                  type="button"
+                  class={`relative cursor-pointer rounded-2xl border p-4 text-left transition ${
+                    uiSettings.appIcon === "default"
+                      ? "border-indigo-500/60 bg-indigo-500/10 ring-1 ring-indigo-500/30"
+                      : "border-white/10 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04]"
+                  }`}
+                  onclick={() => uiSettings.setAppIcon("default")}
+                >
+                  {#if uiSettings.appIcon === "default"}
+                    <span
+                      class="absolute top-3 right-3 grid size-6 place-items-center rounded-full bg-indigo-500 text-white shadow-md"
+                    >
+                      <Check size={14} />
+                    </span>
+                  {/if}
+                  <div class="flex items-center gap-4">
+                    <img
+                      src="/icons/default.png"
+                      alt={i18n.t.settingsModal.appearance.iconDefaultTitle}
+                      class="size-16 rounded-2xl object-cover shadow-lg ring-1 ring-white/10"
+                    />
+                    <div class="min-w-0">
+                      <p class="text-ink text-sm font-semibold">
+                        {i18n.t.settingsModal.appearance.iconDefaultTitle}
+                      </p>
+                      <p class="text-muted mt-0.5 text-xs">
+                        {i18n.t.settingsModal.appearance.iconDefaultDescription}
+                      </p>
+                    </div>
+                  </div>
+                </button>
+
+                <!-- Alternative icon; falls back to the default when the file is not shipped yet -->
+                <button
+                  type="button"
+                  class={`relative cursor-pointer rounded-2xl border p-4 text-left transition ${
+                    uiSettings.appIcon === "alt"
+                      ? "border-indigo-500/60 bg-indigo-500/10 ring-1 ring-indigo-500/30"
+                      : "border-white/10 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04]"
+                  }`}
+                  onclick={() => uiSettings.setAppIcon("alt")}
+                >
+                  {#if uiSettings.appIcon === "alt"}
+                    <span
+                      class="absolute top-3 right-3 grid size-6 place-items-center rounded-full bg-indigo-500 text-white shadow-md"
+                    >
+                      <Check size={14} />
+                    </span>
+                  {/if}
+                  <div class="flex items-center gap-4">
+                    <img
+                      src="/icons/alt.png"
+                      alt={i18n.t.settingsModal.appearance.iconAltTitle}
+                      class="size-16 rounded-2xl object-cover shadow-lg ring-1 ring-white/10"
+                      onerror={(e) => {
+                        (e.currentTarget as HTMLImageElement).src = "/icons/default.png";
+                      }}
+                    />
+                    <div class="min-w-0">
+                      <p class="text-ink text-sm font-semibold">
+                        {i18n.t.settingsModal.appearance.iconAltTitle}
+                      </p>
+                      <p class="text-muted mt-0.5 text-xs">
+                        {i18n.t.settingsModal.appearance.iconAltDescription}
+                      </p>
+                    </div>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            <!-- Accent color: reserved for a future release -->
+            <div
+              class="relative overflow-hidden rounded-2xl border border-dashed border-white/10 bg-white/[0.01] p-5 opacity-60"
+            >
+              <span
+                class="absolute top-4 right-4 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-0.5 text-[10px] font-semibold tracking-wide text-slate-400 uppercase"
+              >
+                {i18n.t.settingsModal.appearance.comingSoon}
+              </span>
+              <h4 class="text-ink text-sm font-bold">
+                {i18n.t.settingsModal.appearance.accentColorTitle}
+              </h4>
+              <p class="text-muted mt-0.5 text-xs">
+                {i18n.t.settingsModal.appearance.accentColorDescription}
+              </p>
+              <div class="mt-3 flex gap-2">
+                {#each ["#8b5cf6", "#10b981", "#06b6d4"] as color (color)}
+                  <span
+                    class="size-7 rounded-full ring-1 ring-white/15"
+                    style={`background:${color}`}
+                  ></span>
+                {/each}
+              </div>
+            </div>
           </section>
         {:else if activeTab === "desktop"}
           <section class="space-y-6">

@@ -523,6 +523,8 @@ export interface OfflineDatabaseStatusDto {
   fileSizeBytes: number;
   lastModified: string;
   isActive: boolean;
+  /** Raw dump (".jsonl"/".json"/".tsv") that produced the database, when it still exists. */
+  sourceDumpFileName?: string | null;
 }
 
 export interface OfflineDatabasesSummaryDto {

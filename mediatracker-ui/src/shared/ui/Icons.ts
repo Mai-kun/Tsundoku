@@ -65,6 +65,7 @@ export { default as Power } from "lucide-svelte/icons/power";
 export { default as Plus } from "lucide-svelte/icons/plus";
 export { default as Quote } from "lucide-svelte/icons/quote";
 export { default as RefreshCw } from "lucide-svelte/icons/refresh-cw";
+export { default as Palette } from "lucide-svelte/icons/palette";
 export { default as RotateCcw } from "lucide-svelte/icons/rotate-ccw";
 export { default as Search } from "lucide-svelte/icons/search";
 export { default as Server } from "lucide-svelte/icons/server";

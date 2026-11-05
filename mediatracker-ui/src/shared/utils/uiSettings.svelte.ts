@@ -50,6 +50,25 @@ function writeStoredMap(key: string, value: PeopleSizeMap): void {
   localStorage.setItem(key, JSON.stringify(value));
 }
 
+/** Swaps the favicon / apple-touch-icon so the new app icon shows up in browser tabs. */
+export function applyAppIcon(iconUrl: string, faviconUrl?: string) {
+  if (typeof document === "undefined") return;
+  const favicon = document.querySelector<HTMLLinkElement>("link[rel~='icon']");
+  if (favicon) {
+    favicon.href = faviconUrl || iconUrl;
+  }
+  const appleIcon = document.querySelector<HTMLLinkElement>("link[rel='apple-touch-icon']");
+  if (appleIcon) {
+    appleIcon.href = iconUrl;
+  }
+}
+
+/** Icon variants shipped under /public/icons/; unknown ids fall back to the default. */
+const APP_ICON_MAP: Record<string, { icon: string; favicon: string }> = {
+  default: { icon: "/icons/default.png", favicon: "/favicon.svg" },
+  alt: { icon: "/icons/alt.png", favicon: "/icons/alt.png" },
+};
+
 class UiSettingsService {
   lastView = $state<string>(this.read("last_view", "home"));
   groupByType = $state<boolean>(this.read("group_by_type", false));
@@ -72,10 +91,20 @@ class UiSettingsService {
       : "completed",
   );
   onCloseAction = $state<OnCloseAction>(readOnCloseAction());
+  /** Selected app icon variant ("default" | "alt"), persisted and applied to the favicon. */
+  appIcon = $state<string>(this.read("app_icon", "default"));
   isLoaded = $state<boolean>(false);
 
   constructor() {
+    this.setAppIcon(this.appIcon);
     this.load();
+  }
+
+  setAppIcon(iconId: string): void {
+    this.appIcon = iconId;
+    this.write("app_icon", iconId);
+    const chosen = APP_ICON_MAP[iconId] ?? APP_ICON_MAP.default!;
+    applyAppIcon(chosen.icon, chosen.favicon);
   }
 
   private read<T>(key: string, fallback: T): T {

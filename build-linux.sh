@@ -22,6 +22,10 @@ echo "==> Шаг 2/3: Публикация NativeAOT (dotnet)..."
 dotnet publish MediaTracker.Server -c Release -r linux-x64 -o dist/Tsundoku-Portable
 chmod +x dist/Tsundoku-Portable/Tsundoku
 
+# Автономный установщик едет рядом с бинарником: распаковал архив — запустил установку.
+cp install-linux.sh uninstall-linux.sh dist/Tsundoku-Portable/
+chmod +x dist/Tsundoku-Portable/install-linux.sh dist/Tsundoku-Portable/uninstall-linux.sh
+
 # 3. Ярлык портативной папки.
 echo "==> Шаг 3/3: Упаковка..."
 cat > dist/Tsundoku-Portable/Tsundoku.desktop <<DESKTOP
@@ -30,9 +34,14 @@ Type=Application
 Name=Tsundoku
 Comment=Персональный трекер медиатеки
 Exec=/opt/tsundoku/Tsundoku
-Icon=tsundoku
+# Absolute path: Icon=tsundoku renders a grey placeholder until the file reaches
+# an icon theme the desktop environment actually caches.
+Icon=/opt/tsundoku/wwwroot/icons/default.png
 Categories=Office;Viewer;
 Terminal=false
+# Must match the Chromium --app window's WM_CLASS, or the dock pairs it with the
+# running browser instead of the Tsundoku icon.
+StartupWMClass=Tsundoku
 DESKTOP
 
 # Монолитный автономный AppImage: bin/ + wwwroot/ рядом с AppRun.
@@ -53,6 +62,11 @@ SELF=$(readlink -f "$0")
 HERE=${SELF%/*}
 export PATH="${HERE}/bin:${PATH}"
 export LD_LIBRARY_PATH="${HERE}/bin:${LD_LIBRARY_PATH}"
+# glibc arena caps: a multi-threaded server otherwise fragments virtual memory across dozens of
+# mostly-empty 64 MB arenas that malloc_trim cannot merge back, so RSS never returns to earth
+# after a load spike. Must be exported before the binary starts — glibc reads them at startup.
+export MALLOC_ARENA_MAX=2
+export MALLOC_TRIM_THRESHOLD_=131072
 # wwwroot sits at the AppDir root while the binary lives in bin/, so the
 # content root must be $HERE — the server resolves wwwroot from it.
 export DOTNET_CONTENTROOT="${HERE}"
@@ -68,6 +82,9 @@ Exec=AppRun
 Icon=tsundoku
 Type=Application
 Categories=Utility;
+# Must match the Chromium --app window's WM_CLASS, or the dock pairs it with the
+# running browser instead of the Tsundoku icon.
+StartupWMClass=Tsundoku
 DESKTOP
 
 ICON_SRC="mediatracker-ui/public/icons/default.png"

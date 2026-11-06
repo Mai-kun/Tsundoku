@@ -131,6 +131,13 @@ jobs:
         shell: pwsh
         run: Compress-Archive -Path publish/win-x64/* -DestinationPath tsundoku-win-x64.zip
 
+      # Автономный установщик: скрипты едут внутри архива рядом с бинарником,
+      # чтобы установка работала без доступа к сети.
+      - name: Bundle offline installer (Linux)
+        if: matrix.rid == 'linux-x64'
+        run: |
+          cp install-linux.sh uninstall-linux.sh publish/linux-x64/
+
       - name: Zip Tsundoku (Linux)
         if: matrix.rid == 'linux-x64'
         run: |

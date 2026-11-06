@@ -31,7 +31,7 @@ public class SocialLibMetadataProviderTests
     {
         var descriptor = SocialLibMetadataProvider.Source;
         descriptor.Id.Should().Be("sociallib");
-        descriptor.Name.Should().Be("SocialLib (MangaLib / RanobeLib / AnimeLib)");
+        descriptor.Name.Should().Be("SocialLib");
         descriptor.MediaTypes.Should().BeEquivalentTo(["manga", "book", "anime"]);
         descriptor.RequiresApiKey.Should().BeFalse();
         descriptor.OptionalApiKey.Should().BeTrue();
@@ -134,7 +134,7 @@ public class SocialLibMetadataProviderTests
 
         requestedUris.Should().HaveCount(2);
         requestedUris[0].Host.Should().Be("api.cdnlibs.org");
-        requestedUris[1].Host.Should().Be("api.lib.social");
+        requestedUris[1].Host.Should().Be("api2.mangalib.me");
 
         results.Should().HaveCount(1);
         results[0].ExternalId.Should().Be("1234-test-title");

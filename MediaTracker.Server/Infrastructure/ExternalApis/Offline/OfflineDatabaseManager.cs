@@ -140,7 +140,7 @@ public sealed class OfflineDatabaseManager
         var updated = 0;
         var ids = new List<string>();
         var newGenres = new List<string>();
-        var newExtra = new List<string>();
+        var newExtra = new List<string?>();
 
         var (readCmd, idOrdinal, genresOrdinal, extraOrdinal) = SetupGenreScan(conn);
         await using (readCmd)
@@ -148,35 +148,54 @@ public sealed class OfflineDatabaseManager
             await using var reader = await readCmd.ExecuteReaderAsync(ct);
             while (await reader.ReadAsync(ct))
             {
-            var id = reader.IsDBNull(idOrdinal) ? null : reader.GetString(idOrdinal);
-            var genres = reader.IsDBNull(genresOrdinal) ? null : reader.GetString(genresOrdinal);
-            var extraJson = reader.IsDBNull(extraOrdinal) ? null : reader.GetString(extraOrdinal);
-            if (id is null || genres is null) continue;
+                var id = reader.IsDBNull(idOrdinal) ? null : reader.GetString(idOrdinal);
+                var genres = reader.IsDBNull(genresOrdinal) ? null : reader.GetString(genresOrdinal);
+                var extraJson = reader.IsDBNull(extraOrdinal) ? null : reader.GetString(extraOrdinal);
+                if (id is null || genres is null) continue;
 
-            var tags = genres.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
-            var primary = tags
-                .Where(GenreNormalizer.IsPrimaryGenre)
-                .Select(GenreNormalizer.Normalize)
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .Take(6)
-                .ToList();
-            var dropped = tags
-                .Where(tag => !GenreNormalizer.IsPrimaryGenre(tag))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToList();
+                // Stackalloc split: this runs per row over whole offline libraries, so the tags
+                // string[] that string.Split allocated per row is avoided. Each surviving tag is
+                // materialized exactly once; classification reuses that same string. Writers cap
+                // the genre list at a handful of entries; a pathological row falls back to the heap.
+                Span<Range> ranges = stackalloc Range[24];
+                var span = genres.AsSpan();
+                if (span.Count(',') >= ranges.Length)
+                {
+                    ranges = new Range[span.Length];
+                }
 
-            if (dropped.Count == 0 && primary.Count == tags.Length) continue;
+                var tagCount = span.Split(ranges, ',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+                var primary = new List<string>(Math.Min(tagCount, 6));
+                var dropped = new List<string>(tagCount);
+                for (var i = 0; i < tagCount; i++)
+                {
+                    var tag = genres.AsSpan(ranges[i]).ToString();
+                    if (GenreNormalizer.IsPrimaryGenre(tag))
+                    {
+                        var normalized = GenreNormalizer.Normalize(tag);
+                        if (primary.Count < 6 && !primary.Contains(normalized, StringComparer.OrdinalIgnoreCase))
+                        {
+                            primary.Add(normalized);
+                        }
+                    }
+                    else if (!dropped.Contains(tag, StringComparer.OrdinalIgnoreCase))
+                    {
+                        dropped.Add(tag);
+                    }
+                }
 
-            ids.Add(id);
-            newGenres.Add(primary.Count > 0 ? string.Join(", ", primary) : string.Empty);
-            newExtra.Add(MergeTagsIntoExtraData(extraJson, dropped));
-            updated++;
+                if (dropped.Count == 0 && primary.Count == tagCount) continue;
+
+                ids.Add(id);
+                newGenres.Add(primary.Count > 0 ? string.Join(", ", primary) : string.Empty);
+                newExtra.Add(MergeTagsIntoExtraData(extraJson, dropped));
+                updated++;
             }
         }
 
         if (updated > 0)
         {
-            await using var tx = await conn.BeginTransactionAsync(ct) as SqliteTransaction;
+            await using var tx = (SqliteTransaction)await conn.BeginTransactionAsync(ct);
             for (var i = 0; i < ids.Count; i++)
             {
                 await using var update = conn.CreateCommand();
@@ -244,7 +263,7 @@ public sealed class OfflineDatabaseManager
             extra.Tags = merged;
         }
 
-        return JsonSerializer.Serialize(extra, AppJsonSerializerContext.Default.OfflineExtraData);
+        return JsonSerializer.Serialize(extra, OfflineExtraData.SerializerOptions);
     }
 
     public string OfflineDirectory =>
@@ -427,6 +446,7 @@ public sealed class OfflineDatabaseManager
                     OR OriginalTitle LIKE @pattern COLLATE NOCASE
                     OR ExternalId = @exact
                     OR Id = @exact
+                    OR (@synSearch = 1 AND ExtraDataJson LIKE @synPattern COLLATE NOCASE)
                   )
                 ORDER BY
                   CASE
@@ -442,6 +462,11 @@ public sealed class OfflineDatabaseManager
             cmd.Parameters.AddWithValue("@prefix", $"{normalized}%");
             cmd.Parameters.AddWithValue("@pattern", $"%{normalized}%");
             cmd.Parameters.AddWithValue("@limit", limit);
+            // Synonyms live only inside the ExtraDataJson blob (the importer stopped polluting
+            // OriginalTitle with the slash-joined list), so a synonym query has to match there.
+            // The 3-char gate keeps short numeric/id lookups from grazing the JSON structure.
+            cmd.Parameters.AddWithValue("@synSearch", normalized.Length >= 3 ? 1 : 0);
+            cmd.Parameters.AddWithValue("@synPattern", $"%\"synonyms\":[%{normalized}%");
 
             await using var reader = await cmd.ExecuteReaderAsync(ct);
             while (await reader.ReadAsync(ct))

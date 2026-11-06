@@ -1,7 +1,23 @@
 namespace MediaTracker.Server.Infrastructure.ExternalApis.Offline;
 
+using System.Text.Encodings.Web;
+using System.Text.Json;
+using MediaTracker.Server.Common.Json;
+
 public sealed class OfflineExtraData
 {
+    /// <summary>
+    /// The options the blob is stored with. The default encoder \uXXXX-escapes every non-ASCII
+    /// character, which buried Cyrillic synonyms inside an ASCII-only JSON blob no LIKE query
+    /// could ever match — the same trap the AltTitles serializer already escaped. Deserialization
+    /// is unaffected, so previously written databases keep reading fine and get rewritten in the
+    /// readable form by the next genre cleanup.
+    /// </summary>
+    public static readonly JsonSerializerOptions SerializerOptions = new(AppJsonSerializerContext.Default.Options)
+    {
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+    };
+
     public string? CoverUrl { get; set; }
     public string? Description { get; set; }
     public string? Format { get; set; }

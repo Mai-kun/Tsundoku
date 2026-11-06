@@ -152,7 +152,7 @@ public sealed class AnimeOfflineDatabaseImporter
                     pGenres.Value = (object?)genresStr ?? DBNull.Value;
                     pExternalSource.Value = "offline_anime";
                     pExternalId.Value = extId;
-                    pExtraDataJson.Value = JsonSerializer.Serialize(extra, AppJsonSerializerContext.Default.OfflineExtraData);
+                    pExtraDataJson.Value = JsonSerializer.Serialize(extra, OfflineExtraData.SerializerOptions);
 
                     await insertCmd.ExecuteNonQueryAsync(ct);
 

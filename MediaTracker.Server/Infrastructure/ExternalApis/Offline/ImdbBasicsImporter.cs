@@ -181,7 +181,7 @@ public sealed class ImdbBasicsImporter
                             RuntimeMinutes = runtimeVal,
                             ImdbId = extId
                         };
-                        extraJson = JsonSerializer.Serialize(extra, AppJsonSerializerContext.Default.OfflineExtraData);
+                        extraJson = JsonSerializer.Serialize(extra, OfflineExtraData.SerializerOptions);
                     }
 
                     pId.Value = $"imdb:{extId}";

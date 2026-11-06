@@ -177,7 +177,7 @@ public sealed partial class OpenVgdbImporter
                         pGenres.Value = (object?)genre ?? DBNull.Value;
                         pExternalSource.Value = "openvgdb";
                         pExternalId.Value = extIdStr;
-                        pExtraDataJson.Value = JsonSerializer.Serialize(extra, AppJsonSerializerContext.Default.OfflineExtraData);
+                        pExtraDataJson.Value = JsonSerializer.Serialize(extra, OfflineExtraData.SerializerOptions);
 
                         await insertCmd.ExecuteNonQueryAsync(ct);
 

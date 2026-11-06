@@ -186,11 +186,110 @@ public static unsafe class LinuxTray
         var candidates = new[]
         {
             Path.Combine(AppContext.BaseDirectory, "wwwroot", "icons", "default.png"),
+            // dotnet run / Rider: wwwroot stays in the project folder, two levels above bin/.
+            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "wwwroot", "icons", "default.png"),
             Path.Combine(AppContext.BaseDirectory, "wwwroot", "icon-192.png"),
             Path.Combine(AppContext.BaseDirectory, "wwwroot", "icon-512.png"),
+            // Installed by install-linux.sh (or the self-registration below).
+            Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "icons", "hicolor", "512x512", "apps", "tsundoku.png"),
             "/usr/share/tsundoku/wwwroot/icon-192.png",
         };
-        return candidates.FirstOrDefault(File.Exists);
+        return candidates.Select(Path.GetFullPath).FirstOrDefault(File.Exists);
+    }
+
+    /// <summary>
+    /// Registers the colored icon and the Wayland taskbar entry for this installation, so the
+    /// window's taskbar icon matches the tray even when no installer ran (dev runs, portable
+    /// folder). Idempotent: files are rewritten only when their content changed.
+    /// </summary>
+    public static void EnsureDesktopIconRegistered(string iconSourcePath)
+    {
+        if (!OperatingSystem.IsLinux() || !File.Exists(iconSourcePath))
+        {
+            return;
+        }
+
+        try
+        {
+            // GetFolderPath can return an empty string (unset XDG/HOME in odd environments);
+            // writing to a relative "icons/..." then litters the working directory — fall back
+            // to $HOME explicitly and bail out when neither exists.
+            var localShare = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            if (string.IsNullOrWhiteSpace(localShare) || !Path.IsPathRooted(localShare))
+            {
+                var home = Environment.GetEnvironmentVariable("HOME");
+                if (string.IsNullOrWhiteSpace(home) || !Path.IsPathRooted(home))
+                {
+                    Serilog.Log.Information("Tray: no home directory resolved — desktop icon not registered");
+                    return;
+                }
+
+                localShare = Path.Combine(home, ".local", "share");
+            }
+
+            // 1. Icon into the user's hicolor theme (taskbar requests 256, grids take 512).
+            string? installedIcon = null;
+            foreach (var size in new[] { "256x256", "512x512" })
+            {
+                var dir = Path.Combine(localShare, "icons", "hicolor", size, "apps");
+                Directory.CreateDirectory(dir);
+                var target = Path.Combine(dir, "tsundoku.png");
+                File.Copy(iconSourcePath, target, overwrite: true);
+                installedIcon ??= target;
+            }
+
+            // 2. The Wayland shim: Chromium ignores --class on native Wayland and derives its
+            //    app id as "chrome-<host>__-<profile>" (host 127.0.0.1 and the internal Default
+            //    profile are constant for desktop launches). NoDisplay keeps it out of menus
+            //    while the taskbar still matches the window class to this entry's icon.
+            var applicationsDir = Path.Combine(localShare, "applications");
+            Directory.CreateDirectory(applicationsDir);
+            var execPath = Environment.ProcessPath ?? "Tsundoku";
+            var shim = Path.Combine(applicationsDir, "tsundoku-wayland.desktop");
+            var shimContent = $"""
+                [Desktop Entry]
+                Type=Application
+                Name=Tsundoku
+                NoDisplay=true
+                Exec={execPath}
+                Icon={installedIcon}
+                StartupWMClass=chrome-127.0.0.1__-Default
+                """;
+            if (!File.Exists(shim) || File.ReadAllText(shim) != shimContent)
+            {
+                File.WriteAllText(shim, shimContent + Environment.NewLine);
+            }
+
+            // 3. Refresh the theme cache so KDE/GNOME pick the file up without a re-login.
+            foreach (var cacheTool in new[] { "gtk-update-icon-cache", "update-desktop-database" })
+            {
+                try
+                {
+                    using var process = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = cacheTool,
+                        ArgumentList = { "-f", Path.Combine(localShare, "icons", "hicolor") },
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                        UseShellExecute = false,
+                        CreateNoWindow = true,
+                    });
+                    process?.WaitForExit(3000);
+                }
+                catch
+                {
+                    // Either tool may be absent; the cache also refreshes on re-login.
+                }
+            }
+
+            Serilog.Log.Information("Tray: desktop icon registered ({Icon})", installedIcon);
+        }
+        catch (Exception error)
+        {
+            Serilog.Log.Warning(error, "Failed to register the desktop icon");
+        }
     }
 
     private static byte* Utf8(string value) => (byte*)Marshal.StringToCoTaskMemUTF8(value);

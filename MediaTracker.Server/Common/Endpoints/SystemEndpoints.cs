@@ -2,8 +2,10 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using MediaTracker.Server.Infrastructure.Desktop;
 using MediaTracker.Server.Infrastructure.ExternalApis;
+using MediaTracker.Server.Infrastructure.ExternalApis.Common;
 using MediaTracker.Server.Infrastructure.Storage;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace MediaTracker.Server.Common.Endpoints;
 
@@ -67,6 +69,20 @@ public static class SystemEndpoints
             Results.Ok(rateLimitTracker.GetAll()))
             .WithTags("Система / System")
             .WithSummary("Получить список активных лимитов внешних API");
+
+        app.MapPost("/api/system/trim-memory", ([FromServices] IMemoryCache cache, [FromServices] AppPaths appPaths) =>
+        {
+            var before = MemoryOptimizer.TakeSnapshot();
+            MemoryOptimizer.TrimMemory(cache, $"Data Source={appPaths.DatabaseFilePath}");
+            var after = MemoryOptimizer.TakeSnapshot();
+            return Results.Ok<MemoryOptimizer.TrimMemoryResponse>(new(
+                before,
+                after,
+                Math.Round((before.WorkingSetMb - after.WorkingSetMb) * 10) / 10,
+                Math.Round((before.GcHeapMb - after.GcHeapMb) * 10) / 10));
+        })
+        .WithTags("Система / System")
+        .WithSummary("Сжать память: сбросить кэши, собрать мусор и вернуть страницы ОС");
 
         app.MapPost("/api/system/reveal-in-explorer", ([FromBody] RevealInExplorerRequest? request, [FromServices] AppPaths appPaths) =>
         {

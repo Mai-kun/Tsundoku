@@ -57,6 +57,13 @@
         <PublishAot>true</PublishAot>
         <StripSymbols>true</StripSymbols>
         <OptimizationPreference>Speed</OptimizationPreference>
+        <!-- Tsundoku serves only its own localhost UI over HTTP/1.1: cut HTTP/2, HTTP/3 (QUIC),
+             event sources, metrics and macOS pools out of the NativeAOT binary and the runtime. -->
+        <HttpEnableHttp2>false</HttpEnableHttp2>
+        <HttpEnableHttp3>false</HttpEnableHttp3>
+        <EventSourceSupport>false</EventSourceSupport>
+        <MetricsSupport>false</MetricsSupport>
+        <AutoreleasePoolSupport>false</AutoreleasePoolSupport>
         <!-- ilc already parallelizes across all cores by default (no IlcParallelism property
              exists; single-threaded compilation is only forced when IlcSingleThreaded is true). -->
         <IlcSingleThreaded>false</IlcSingleThreaded>

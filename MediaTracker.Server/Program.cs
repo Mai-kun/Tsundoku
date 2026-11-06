@@ -19,6 +19,7 @@ using MediaTracker.Server.Infrastructure.Security;
 using MediaTracker.Server.Infrastructure.Storage;
 using MediaTracker.Server.SelfChecks;
 using Dapper;
+using MediaTracker.Server.Infrastructure.ExternalApis.Common;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.AspNetCore.StaticFiles;
 
@@ -29,6 +30,16 @@ using OpenApiUi;
 using Microsoft.OpenApi;
 
 var options = CommandLineOptions.Parse(args);
+
+// glibc arena caps, set before any thread spins up: without them a multi-threaded server
+// fragments virtual memory across dozens of mostly-empty 64 MB arenas that malloc_trim cannot
+// merge back, so RSS never returns to earth after a load spike. The env var must be set before
+// the first allocation race — doing it here (process start) is the only reliable moment.
+if (OperatingSystem.IsLinux())
+{
+    Environment.SetEnvironmentVariable("MALLOC_ARENA_MAX", "2");
+    Environment.SetEnvironmentVariable("MALLOC_TRIM_THRESHOLD_", "131072");
+}
 
 if (options.ShowHelp)
 {
@@ -117,6 +128,10 @@ if (enableDesktopShell)
     builder.Services.AddHostedService<TrayBackgroundService>();
 }
 
+// Idle sleep: request heartbeats + a periodic trim once the shell goes quiet.
+builder.Services.AddSingleton<IdleState>();
+builder.Services.AddHostedService<IdleDetectionService>();
+
 // Clean up old binaries
 string[] oldBinaries = { "Tsundoku.old", "Tsundoku.exe.old" };
 foreach (var oldBinary in oldBinaries)
@@ -169,6 +184,16 @@ try
             ?? $"http://0.0.0.0:{CommandLineOptions.DefaultPort}";
 
     builder.WebHost.UseUrls(listenUrl);
+
+    // Localhost-only UI: HTTP/1.1 is all the desktop shell speaks, so HTTP/2 and HTTP/3
+    // negotiation only added handshake paths (and binary size) nobody could use.
+    builder.WebHost.ConfigureKestrel(serverOptions =>
+    {
+        serverOptions.ConfigureEndpointDefaults(listenOptions =>
+        {
+            listenOptions.Protocols = Microsoft.AspNetCore.Server.Kestrel.Core.HttpProtocols.Http1;
+        });
+    });
 
     // Storage-mode changes and tray exit must restart/quit in 1-2 seconds: long-lived SSE
     // connections and background workers should not hold the port during graceful shutdown.
@@ -293,6 +318,21 @@ try
     await InitializeDatabaseAsync(app);
     await BrowserLauncher.InitializeAsync(app.Services, app.Lifetime);
 
+    if (enableDesktopShell)
+    {
+        // The window's taskbar icon must match the tray even when no installer ran (dev runs,
+        // portable folders): register the colored icon and the Wayland class shim idempotently.
+        var trayIcon = Path.Combine(AppContext.BaseDirectory, "wwwroot", "icons", "default.png");
+        if (!File.Exists(trayIcon))
+        {
+            // dotnet run / Rider: wwwroot lives in the project folder, not in bin/.
+            var devIcon = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "wwwroot", "icons", "default.png");
+            if (File.Exists(devIcon)) trayIcon = Path.GetFullPath(devIcon);
+        }
+
+        LinuxTray.EnsureDesktopIconRegistered(trayIcon);
+    }
+
     if (options.MigrateOnly)
     {
         Log.Information("Database migrations applied. Exiting because of --migrate-only.");
@@ -386,6 +426,10 @@ try
 
     app.UseMiddleware<ApiKeyAuthMiddleware>();
 
+    // Heartbeats only from requests that survived auth, so stray scanners cannot keep the
+    // desktop backend awake forever.
+    app.UseMiddleware<IdleDetectionMiddleware>();
+
     app.MapMediaEndpoints();
     app.MapListEndpoints();
     app.MapSeasonEndpoints();
@@ -439,6 +483,9 @@ try
     }
 
     app.Lifetime.ApplicationStopping.Register(() => fileLockGuard.Dispose());
+    // The app window must never outlive the server: a kill/crash would otherwise leave an
+    // orphaned Chromium --app window pointing at a dead port.
+    app.Lifetime.ApplicationStopping.Register(BrowserLauncher.CloseBrowser);
 
     await app.RunAsync();
 }

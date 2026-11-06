@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using MediaTracker.Server.Infrastructure.Persistence;
 using MediaTracker.Server.Infrastructure.Storage;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace MediaTracker.Server.Infrastructure.Desktop;
 
@@ -203,6 +204,7 @@ public static class BrowserLauncher
             ? "1280,720"
             : "1400,900";
         var profileDir = ProfileDirectory;
+        ClearStaleProfileLocks(profileDir);
 
         var startInfo = new ProcessStartInfo
         {
@@ -216,16 +218,37 @@ public static class BrowserLauncher
         };
         startInfo.ArgumentList.Add($"--app={url}");
         startInfo.ArgumentList.Add($"--user-data-dir={profileDir}");
+        // Window identity: WM_CLASS on X11, the Wayland app id and the shell's window name all
+        // must match StartupWMClass=Tsundoku in tsundoku.desktop, or the taskbar/dock pairs the
+        // --app window with the running Chromium instead of the Tsundoku icon.
         startInfo.ArgumentList.Add("--class=Tsundoku");
+        startInfo.ArgumentList.Add("--name=Tsundoku");
+        startInfo.ArgumentList.Add("--app-id=tsundoku");
         startInfo.ArgumentList.Add($"--window-size={windowSize}");
+        // Let Ozone pick the platform (native Wayland on Wayland sessions, X11 on X11): forcing
+        // XWayland broke mouse clicks in modal dialogs and flickered the whole screen on drag.
+        // The taskbar icon is still matched by the desktop entry's StartupWMClass, which the
+        // Wayland compositor pairs through the app window's resource class.
         startInfo.ArgumentList.Add("--ozone-platform-hint=auto");
         startInfo.ArgumentList.Add("--password-store=basic");
         startInfo.ArgumentList.Add("--no-first-run");
         startInfo.ArgumentList.Add("--no-default-browser-check");
+        // Anti-zombie flags: without these a closed --app window leaves background Chromium
+        // helper processes (network stack, extensions, component updater) pinned in RAM after
+        // the user believes the app is closed.
+        startInfo.ArgumentList.Add("--disable-background-mode");
+        startInfo.ArgumentList.Add("--disable-background-networking");
+        startInfo.ArgumentList.Add("--disable-component-update");
+        startInfo.ArgumentList.Add("--disable-sync");
+        startInfo.ArgumentList.Add("--disable-extensions");
         startInfo.ArgumentList.Add("--disable-features=Translate,GlobalMediaControls,MediaRouter,OptimizationHints");
         startInfo.ArgumentList.Add("--disable-translate");
+        // Hardware GPU pipeline: without --ignore-gpu-blocklist Chromium 150+ falls back to
+        // software rasterization on several Linux drivers, which shows up as window flicker
+        // on drag and a visible white flash on first paint.
         startInfo.ArgumentList.Add("--enable-gpu-rasterization");
         startInfo.ArgumentList.Add("--enable-zero-copy");
+        startInfo.ArgumentList.Add("--ignore-gpu-blocklist");
         startInfo.ArgumentList.Add("--force-dark-mode");
 
         try
@@ -282,12 +305,21 @@ public static class BrowserLauncher
             }
 
             var closeAction = CloseAction;
+            IMemoryCache? cache = null;
+            string? sqliteConnectionString = null;
             if (_services?.GetService(typeof(IServiceScopeFactory)) is IServiceScopeFactory scopeFactory)
             {
                 using var scope = scopeFactory.CreateScope();
                 var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
                 closeAction = await AppSettingStore.ReadAsync(db, CloseActionKey) ?? closeAction;
+                cache = scope.ServiceProvider.GetService<IMemoryCache>();
+                var appPaths = scope.ServiceProvider.GetService<AppPaths>();
+                sqliteConnectionString = appPaths is null ? null : $"Data Source={appPaths.DatabaseFilePath}";
             }
+
+            // Nothing may outlive the window: kill whatever of the Chromium tree survived the
+            // graceful exit (helper children on Windows, half-detached sandboxes on Linux).
+            KillBrowserTree();
 
             if (string.Equals(closeAction, "exit_all", StringComparison.OrdinalIgnoreCase))
             {
@@ -297,11 +329,41 @@ public static class BrowserLauncher
             else
             {
                 Serilog.Log.Information("[Desktop] App window closed. Tsundoku continues running in tray.");
+
+                // The shell just went quiet: no window means no requests for a while, so hand the
+                // freed caches and Chromium allocations back to the OS right away instead of
+                // waiting for the idle-sleep timer.
+                var before = MemoryOptimizer.TakeSnapshot();
+                MemoryOptimizer.TrimMemory(cache);
+                var after = MemoryOptimizer.TakeSnapshot();
+                Serilog.Log.Information(
+                    "[Memory] Trimmed after window close. Working set {BeforeMb} MB -> {AfterMb} MB.",
+                    before.WorkingSetMb,
+                    after.WorkingSetMb);
             }
         }
         catch (Exception error)
         {
             Serilog.Log.Warning(error, "Failed to handle the browser window exit");
+        }
+    }
+
+    /// <summary>Kills the whole Chromium process tree of the tracked launcher, if any of it is left.</summary>
+    private static void KillBrowserTree()
+    {
+        var process = ActiveBrowserProcess;
+        if (process is null || process.HasExited)
+        {
+            return;
+        }
+
+        try
+        {
+            process.Kill(entireProcessTree: true);
+        }
+        catch (Exception error)
+        {
+            Serilog.Log.Debug(error, "Chromium tree was already gone when closing");
         }
     }
 
@@ -319,19 +381,23 @@ public static class BrowserLauncher
 
         try
         {
-            if (process.HasExited)
+            if (!process.HasExited)
             {
-                return;
-            }
+                // CloseMainWindow is a no-op on Unix; fall back to a hard kill there.
+                if (!process.CloseMainWindow())
+                {
+                    process.Kill(entireProcessTree: true);
+                }
+                else if (!process.WaitForExit(milliseconds: 1500))
+                {
+                    process.Kill(entireProcessTree: true);
+                }
 
-            // CloseMainWindow is a no-op on Unix; fall back to a hard kill there.
-            if (!process.CloseMainWindow())
-            {
-                process.Kill(entireProcessTree: true);
-            }
-            else if (!process.WaitForExit(milliseconds: 1500))
-            {
-                process.Kill(entireProcessTree: true);
+                // The graceful close must never leave helper children behind.
+                if (!process.HasExited)
+                {
+                    process.Kill(entireProcessTree: true);
+                }
             }
         }
         catch (Exception error)
@@ -341,6 +407,69 @@ public static class BrowserLauncher
         finally
         {
             process.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// A hard-killed Chromium leaves SingletonLock/SingletonSocket/SingletonCookie in the profile,
+    /// and the next launch spends ~5 seconds probing the dead socket before giving up and starting
+    /// fresh. The lock is a symlink to "hostname-PID": clean it only when that PID is gone, so a
+    /// live window (tray relaunch while the app is open) keeps its handoff target intact. The same
+    /// hard kill sets exit_type=Crashed in Preferences, which makes Chromium show the restore
+    /// prompt and start the next session with GPU disabled — reset it to Normal.
+    /// </summary>
+    /// <summary>
+    /// Chromium writes "hostname-PID" into the SingletonLock symlink target. The PID is the
+    /// dash-free digit tail: a hostname containing its own dashes still parses, matching the
+    /// old two-part shape, and span slicing keeps the lock-cleanup path allocation-free.
+    /// </summary>
+    private static bool TryGetLockOwnerPid(string target, out int ownerPid)
+    {
+        ownerPid = 0;
+        var dash = target.IndexOf('-');
+        return dash >= 0
+            && dash < target.Length - 1
+            && char.IsAsciiDigit(target[dash + 1])
+            && int.TryParse(target.AsSpan(dash + 1), out ownerPid);
+    }
+
+    private static void ClearStaleProfileLocks(string profileDir)
+    {
+        try
+        {
+            foreach (var lockName in new[] { "SingletonLock", "SingletonSocket", "SingletonCookie" })
+            {
+                var lockPath = Path.Combine(profileDir, lockName);
+                if (!File.Exists(lockPath) && !Directory.Exists(lockPath))
+                {
+                    continue;
+                }
+
+                if (lockName == "SingletonLock"
+                    && Path.GetFileName(File.ResolveLinkTarget(lockPath, returnFinalTarget: false)?.FullName ?? string.Empty)
+                        is { Length: > 0 } target
+                    && TryGetLockOwnerPid(target, out var ownerPid)
+                    && Process.GetProcessById(ownerPid) is { HasExited: false })
+                {
+                    continue; // a live Chromium instance owns this profile
+                }
+
+                File.Delete(lockPath);
+            }
+
+            var prefsFile = Path.Combine(profileDir, "Default", "Preferences");
+            if (File.Exists(prefsFile))
+            {
+                var text = File.ReadAllText(prefsFile);
+                if (text.Contains("\"exit_type\":\"Crashed\"", StringComparison.Ordinal))
+                {
+                    File.WriteAllText(prefsFile, text.Replace("\"exit_type\":\"Crashed\"", "\"exit_type\":\"Normal\""));
+                }
+            }
+        }
+        catch (Exception error)
+        {
+            Serilog.Log.Debug(error, "Failed to clean stale Chromium profile locks");
         }
     }
 

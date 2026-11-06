@@ -246,7 +246,7 @@
                         }}
                       />
                     {:else}
-                        <MediaCoverPlaceholder class="h-full w-full" />
+                      <MediaCoverPlaceholder class="h-full w-full" />
                     {/if}
                   </div>
                 {/each}

@@ -648,9 +648,7 @@
   async function handleDeleteDump(db: OfflineDatabaseStatusDto) {
     if (deletingDump || !db.sourceDumpFileName) return;
     if (
-      !window.confirm(
-        i18n.t.settingsModal.sources.offline.deleteDumpConfirm(db.sourceDumpFileName),
-      )
+      !window.confirm(i18n.t.settingsModal.sources.offline.deleteDumpConfirm(db.sourceDumpFileName))
     ) {
       return;
     }
@@ -1350,7 +1348,9 @@
                             <span
                               aria-hidden="true"
                               class={`pointer-events-none inline-block h-4 w-4 transform rounded-full shadow transition duration-200 ease-in-out ${
-                                db.isActive ? "translate-x-4 bg-white" : "translate-x-0 bg-slate-400"
+                                db.isActive
+                                  ? "translate-x-4 bg-white"
+                                  : "translate-x-0 bg-slate-400"
                               }`}
                             ></span>
                           </button>
@@ -1625,8 +1625,8 @@
                           {:else}
                             <p class="text-muted mb-3 flex items-start gap-1.5 text-xs">
                               <Key size={12} class="mt-0.5 shrink-0 text-sky-400" />
-                              Ключ не требуется для поиска. Авторизация нужна только для каталога 18+ и
-                              личных закладок.
+                              Ключ не требуется для поиска. Авторизация нужна только для каталога 18+
+                              и личных закладок.
                             </p>
                           {/if}
 
@@ -1637,12 +1637,19 @@
                               disabled={detectingSocialLib}
                               onclick={handleDetectSocialLibSession}
                             >
-                              <RefreshCw size={13} class={detectingSocialLib ? "animate-spin" : ""} />
-                              <span>{detectingSocialLib ? i18n.t.common.loading : "Подхватить сессию из браузера"}</span>
+                              <RefreshCw
+                                size={13}
+                                class={detectingSocialLib ? "animate-spin" : ""}
+                              />
+                              <span
+                                >{detectingSocialLib
+                                  ? i18n.t.common.loading
+                                  : "Подхватить сессию из браузера"}</span
+                              >
                             </button>
                             <button
                               type="button"
-                              class="text-muted hover:text-ink hover:border-white/20 inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-white/10 px-3 text-xs font-medium transition"
+                              class="text-muted hover:text-ink inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-white/10 px-3 text-xs font-medium transition hover:border-white/20"
                               onclick={() => (showSocialLibManualToken = !showSocialLibManualToken)}
                             >
                               <Key size={13} />
@@ -1690,75 +1697,75 @@
                             </p>
                           {/if}
                         {:else}
-                        {#if source.optionalApiKey && !source.requiresApiKey}
-                          <p class="text-muted mb-2 flex items-start gap-1.5 text-xs">
-                            <Key size={12} class="mt-0.5 shrink-0 text-sky-400" />
-                            {i18n.t.settingsModal.sources.optionalKeyHint}
-                          </p>
-                        {/if}
-                        {#if source.maskedKey}
-                          <div class="text-muted mb-2 flex items-center gap-2 text-xs">
-                            <span>{i18n.t.settingsModal.sources.currentKey}</span>
-                            <code
-                              class="bg-canvas text-ink rounded px-2 py-0.5 font-mono text-[11px]"
-                              >{source.maskedKey}</code
-                            >
-                          </div>
-                        {/if}
+                          {#if source.optionalApiKey && !source.requiresApiKey}
+                            <p class="text-muted mb-2 flex items-start gap-1.5 text-xs">
+                              <Key size={12} class="mt-0.5 shrink-0 text-sky-400" />
+                              {i18n.t.settingsModal.sources.optionalKeyHint}
+                            </p>
+                          {/if}
+                          {#if source.maskedKey}
+                            <div class="text-muted mb-2 flex items-center gap-2 text-xs">
+                              <span>{i18n.t.settingsModal.sources.currentKey}</span>
+                              <code
+                                class="bg-canvas text-ink rounded px-2 py-0.5 font-mono text-[11px]"
+                                >{source.maskedKey}</code
+                              >
+                            </div>
+                          {/if}
 
-                        <div class="flex flex-wrap items-center gap-2">
-                          <div class="relative min-w-[200px] flex-1">
-                            <input
-                              type={showKeys[source.id] ? "text" : "password"}
-                              class="bg-field text-ink placeholder:text-muted focus:border-accent-soft focus:ring-accent-soft h-9 w-full rounded-md border border-white/10 px-3 pr-9 text-xs focus:ring-1 focus:outline-none"
-                              placeholder={source.hasKey
-                                ? i18n.t.settingsModal.sources.replaceKeyPlaceholder
-                                : i18n.t.settingsModal.sources.inputPlaceholder}
-                              value={inputKeys[source.id] ?? ""}
-                              oninput={(e) =>
-                                (inputKeys[source.id] = (
-                                  e.currentTarget as HTMLInputElement
-                                ).value)}
-                            />
+                          <div class="flex flex-wrap items-center gap-2">
+                            <div class="relative min-w-[200px] flex-1">
+                              <input
+                                type={showKeys[source.id] ? "text" : "password"}
+                                class="bg-field text-ink placeholder:text-muted focus:border-accent-soft focus:ring-accent-soft h-9 w-full rounded-md border border-white/10 px-3 pr-9 text-xs focus:ring-1 focus:outline-none"
+                                placeholder={source.hasKey
+                                  ? i18n.t.settingsModal.sources.replaceKeyPlaceholder
+                                  : i18n.t.settingsModal.sources.inputPlaceholder}
+                                value={inputKeys[source.id] ?? ""}
+                                oninput={(e) =>
+                                  (inputKeys[source.id] = (
+                                    e.currentTarget as HTMLInputElement
+                                  ).value)}
+                              />
+                              <button
+                                type="button"
+                                class="text-muted hover:text-ink absolute top-1/2 right-2 -translate-y-1/2 cursor-pointer"
+                                aria-label="Toggle key visibility"
+                                onclick={() => (showKeys[source.id] = !showKeys[source.id])}
+                              >
+                                {#if showKeys[source.id]}
+                                  <EyeOff size={14} />
+                                {:else}
+                                  <Eye size={14} />
+                                {/if}
+                              </button>
+                            </div>
+
+                            <!-- Save key button: Item 14 pointer cursor when active, not-allowed when disabled, no cursor-wait -->
                             <button
                               type="button"
-                              class="text-muted hover:text-ink absolute top-1/2 right-2 -translate-y-1/2 cursor-pointer"
-                              aria-label="Toggle key visibility"
-                              onclick={() => (showKeys[source.id] = !showKeys[source.id])}
+                              class="bg-field text-ink hover:bg-card hover:border-accent-soft inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-md border border-white/10 px-3 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60"
+                              class:cursor-wait={savingKey === source.id}
+                              disabled={savingKey === source.id || !inputKeys[source.id]?.trim()}
+                              onclick={() => void handleSaveKey(source.id)}
                             >
-                              {#if showKeys[source.id]}
-                                <EyeOff size={14} />
-                              {:else}
-                                <Eye size={14} />
-                              {/if}
+                              <ShieldCheck size={14} />
+                              {savingKey === source.id
+                                ? i18n.t.common.saving
+                                : i18n.t.settingsModal.sources.saveKey}
                             </button>
                           </div>
 
-                          <!-- Save key button: Item 14 pointer cursor when active, not-allowed when disabled, no cursor-wait -->
-                          <button
-                            type="button"
-                            class="bg-field text-ink hover:bg-card hover:border-accent-soft inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-md border border-white/10 px-3 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60"
-                            class:cursor-wait={savingKey === source.id}
-                            disabled={savingKey === source.id || !inputKeys[source.id]?.trim()}
-                            onclick={() => void handleSaveKey(source.id)}
-                          >
-                            <ShieldCheck size={14} />
-                            {savingKey === source.id
-                              ? i18n.t.common.saving
-                              : i18n.t.settingsModal.sources.saveKey}
-                          </button>
-                        </div>
-
-                        {#if keySuccess[source.id]}
-                          <p class="mt-2 text-xs font-medium text-emerald-400">
-                            {keySuccess[source.id]}
-                          </p>
-                        {/if}
-                        {#if keyErrors[source.id]}
-                          <p class="mt-2 text-xs text-rose-300">
-                            {errorMessage(keyErrors[source.id])}
-                          </p>
-                        {/if}
+                          {#if keySuccess[source.id]}
+                            <p class="mt-2 text-xs font-medium text-emerald-400">
+                              {keySuccess[source.id]}
+                            </p>
+                          {/if}
+                          {#if keyErrors[source.id]}
+                            <p class="mt-2 text-xs text-rose-300">
+                              {errorMessage(keyErrors[source.id])}
+                            </p>
+                          {/if}
                         {/if}
                       </div>
                     {/if}

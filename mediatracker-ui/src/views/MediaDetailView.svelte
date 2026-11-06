@@ -1,3 +1,11 @@
+<script module lang="ts">
+  // Module-level so the component body never re-allocates them on a re-render.
+  /** Offline database rating rows ("Offline Database", "[Офлайн] <file>") never render as badges. */
+  const OFFLINE_SOURCE_RE = /offline|офлайн/i;
+  /** The LibSocial umbrella and all of its per-site spellings share one rating row. */
+  const LIB_FAMILY_RE = /(sociallib|mangalib|animelib|ranobelib|slashlib|hentailib)/;
+</script>
+
 <script lang="ts">
   import {
     ArrowLeft,
@@ -793,16 +801,14 @@
 
     // Offline databases feed metadata, not scores: their rating rows ("Offline Database",
     // "[Офлайн] <file>") never render as badges.
-    ratings = ratings.filter((r) => !/offline|офлайн/i.test(r.source));
+    ratings = ratings.filter((r) => !OFFLINE_SOURCE_RE.test(r.source));
 
     // The LibSocial ecosystem answers under several aliases (SocialLib / MangaLib / AnimeLib...):
     // collapse them into one row per site, preferring the exact site name over the umbrella.
     const byFamily = new Map<string, RawRating>();
     for (const r of ratings) {
       const key = r.source.toLowerCase();
-      const family = /(sociallib|mangalib|animelib|ranobelib|slashlib|hentailib)/.test(key)
-        ? "lib"
-        : key;
+      const family = LIB_FAMILY_RE.test(key) ? "lib" : key;
       const existing = byFamily.get(family);
       if (!existing) {
         byFamily.set(family, r);
@@ -811,7 +817,9 @@
       const existingIsUmbrella = existing.source.toLowerCase() === "sociallib";
       const candidateIsUmbrella = key === "sociallib";
       const better =
-        (existingIsUmbrella && !candidateIsUmbrella) || (!existing.rating && r.rating) ? r : existing;
+        (existingIsUmbrella && !candidateIsUmbrella) || (!existing.rating && r.rating)
+          ? r
+          : existing;
       byFamily.set(family, better);
     }
     ratings = [...byFamily.values()];
@@ -2082,245 +2090,245 @@
 />
 
 <div class="isolate space-y-5 tracking-tight">
-    <button
-      type="button"
-      class="tap text-muted inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider transition hover:text-white"
-      onclick={onBack}
-    >
-      <ArrowLeft size={16} aria-hidden="true" />
-      {i18n.t.common.back}
-    </button>
+  <button
+    type="button"
+    class="tap text-muted inline-flex items-center gap-1.5 text-xs font-semibold tracking-wider uppercase transition hover:text-white"
+    onclick={onBack}
+  >
+    <ArrowLeft size={16} aria-hidden="true" />
+    {i18n.t.common.back}
+  </button>
 
-    {#if !media && isLoading}
-      <div class="grid gap-6 lg:grid-cols-[20rem_minmax(0,1fr)]" aria-hidden="true">
-        <div class="bg-card aspect-[2/3] w-full animate-pulse rounded-xl"></div>
-        <div class="space-y-4">
-          <div class="bg-card h-9 w-3/4 animate-pulse rounded"></div>
-          <div class="bg-card h-4 w-1/2 animate-pulse rounded"></div>
-          <div class="bg-card h-40 animate-pulse rounded-xl"></div>
-        </div>
+  {#if !media && isLoading}
+    <div class="grid gap-6 lg:grid-cols-[20rem_minmax(0,1fr)]" aria-hidden="true">
+      <div class="bg-card aspect-[2/3] w-full animate-pulse rounded-xl"></div>
+      <div class="space-y-4">
+        <div class="bg-card h-9 w-3/4 animate-pulse rounded"></div>
+        <div class="bg-card h-4 w-1/2 animate-pulse rounded"></div>
+        <div class="bg-card h-40 animate-pulse rounded-xl"></div>
       </div>
-      <p class="sr-only" role="status">{i18n.t.common.loading}</p>
-    {:else if !media}
-      <div
-        class="flex min-h-72 flex-col items-center justify-center gap-3 rounded-xl bg-rose-400/5 p-6 text-center"
-      >
-        <p class="text-sm text-rose-200" role="alert">
-          {loadError ? errorMessage(loadError) : i18n.t.detail.notFound}
-        </p>
-        {#if loadError}
-          <button
-            type="button"
-            class="bg-accent hover:bg-accent-hover inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium text-white transition"
-            onclick={retry}
-          >
-            <RefreshCw size={15} aria-hidden="true" />
-            {i18n.t.common.retry}
-          </button>
-        {/if}
-      </div>
-    {:else}
-      {@const support = progressInfo}
-      <div class="flex flex-col gap-6 lg:flex-row">
-        <!-- Left Column: Poster, Status + Rating, History, Actions, Details -->
-        <DetailSidebar
-          {media}
-          {statusOptions}
-          {statusBusy}
-          onChangeStatus={changeStatus}
-          {statusError}
-          {scoreValue}
-          ratingOpen={userRatingPopoverOpen}
-          onRatingOpen={openRatingPopover}
-          onRatingClose={closeRatingPopover}
-          onRatingHide={hideRatingPopover}
-          onSetScore={setScore}
-          onClearScore={clearScore}
-          onSaveDetailedScore={saveDetailedScore}
-          {formatDate}
-          {historyProgressText}
-          {watchedOnInput}
-          {watchedOnOptions}
-          onWatchedOnInput={(value) => (watchedOnInput = value)}
-          onWatchedOnDirty={() => (watchedOnDirty = true)}
-          onSaveWatchedOn={saveWatchedOn}
-          platformOptions={gamePlatformOptions}
-          onSelectPlatform={updateUserPlatform}
-          {refreshBusy}
-          {refreshError}
-          onRefreshMetadata={requestRefresh}
-          {fillMissingBusy}
-          onFillMissing={() => (fillMissingOpen = true)}
-          onRelink={() => (relinkOpen = true)}
-          onStartEdit={startEdit}
-          {deleteBusy}
-          {deleteError}
-          onDelete={removeMedia}
-          onAutoRefreshed={(updated) => {
-            media = updated;
-            syncFrom(updated);
-            onUpdate();
-          }}
-          onMediaUpdated={(updated) => {
-            media = updated;
-            syncFrom(updated);
-            onUpdate();
-          }}
-          {onNavigate}
-          specRows={specRows(media)}
-          syncing={isSyncing}
+    </div>
+    <p class="sr-only" role="status">{i18n.t.common.loading}</p>
+  {:else if !media}
+    <div
+      class="flex min-h-72 flex-col items-center justify-center gap-3 rounded-xl bg-rose-400/5 p-6 text-center"
+    >
+      <p class="text-sm text-rose-200" role="alert">
+        {loadError ? errorMessage(loadError) : i18n.t.detail.notFound}
+      </p>
+      {#if loadError}
+        <button
+          type="button"
+          class="bg-accent hover:bg-accent-hover inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium text-white transition"
+          onclick={retry}
+        >
+          <RefreshCw size={15} aria-hidden="true" />
+          {i18n.t.common.retry}
+        </button>
+      {/if}
+    </div>
+  {:else}
+    {@const support = progressInfo}
+    <div class="flex flex-col gap-6 lg:flex-row">
+      <!-- Left Column: Poster, Status + Rating, History, Actions, Details -->
+      <DetailSidebar
+        {media}
+        {statusOptions}
+        {statusBusy}
+        onChangeStatus={changeStatus}
+        {statusError}
+        {scoreValue}
+        ratingOpen={userRatingPopoverOpen}
+        onRatingOpen={openRatingPopover}
+        onRatingClose={closeRatingPopover}
+        onRatingHide={hideRatingPopover}
+        onSetScore={setScore}
+        onClearScore={clearScore}
+        onSaveDetailedScore={saveDetailedScore}
+        {formatDate}
+        {historyProgressText}
+        {watchedOnInput}
+        {watchedOnOptions}
+        onWatchedOnInput={(value) => (watchedOnInput = value)}
+        onWatchedOnDirty={() => (watchedOnDirty = true)}
+        onSaveWatchedOn={saveWatchedOn}
+        platformOptions={gamePlatformOptions}
+        onSelectPlatform={updateUserPlatform}
+        {refreshBusy}
+        {refreshError}
+        onRefreshMetadata={requestRefresh}
+        {fillMissingBusy}
+        onFillMissing={() => (fillMissingOpen = true)}
+        onRelink={() => (relinkOpen = true)}
+        onStartEdit={startEdit}
+        {deleteBusy}
+        {deleteError}
+        onDelete={removeMedia}
+        onAutoRefreshed={(updated) => {
+          media = updated;
+          syncFrom(updated);
+          onUpdate();
+        }}
+        onMediaUpdated={(updated) => {
+          media = updated;
+          syncFrom(updated);
+          onUpdate();
+        }}
+        {onNavigate}
+        specRows={specRows(media)}
+        syncing={isSyncing}
+      />
+
+      <!-- Right Column: Header, Badges, Tabs, Tab Content -->
+      <div class="min-w-0 flex-1 space-y-6">
+        <DetailHeader
+          title={media.title}
+          {originalTitle}
+          tags={tags(media)}
+          ratings={externalRatings}
+          {sourceBadgeClasses}
+          {synopsisText}
+          {synopsisExpanded}
+          {synopsisExpandable}
+          synopsisTranslated={isSynopsisTranslated}
+          {translatedSynopsis}
+          {translatingSynopsis}
+          onToggleTranslate={toggleTranslateSynopsis}
+          onToggleExpand={() => (synopsisExpanded = !synopsisExpanded)}
+        />
+        <!-- Sub-navigation tabs -->
+        <DetailTabs
+          active={activeSubTab}
+          mediaType={media.type}
+          seasonProgress={seriesEpisodes.total > 0 ? seriesEpisodes : null}
+          relatedCount={related?.length ?? 0}
+          onSelect={(tab) => (activeSubTab = tab)}
         />
 
-        <!-- Right Column: Header, Badges, Tabs, Tab Content -->
-        <div class="min-w-0 flex-1 space-y-6">
-          <DetailHeader
-            title={media.title}
-            {originalTitle}
-            tags={tags(media)}
-            ratings={externalRatings}
-            {sourceBadgeClasses}
-            {synopsisText}
-            {synopsisExpanded}
-            {synopsisExpandable}
-            synopsisTranslated={isSynopsisTranslated}
-            {translatedSynopsis}
-            {translatingSynopsis}
-            onToggleTranslate={toggleTranslateSynopsis}
-            onToggleExpand={() => (synopsisExpanded = !synopsisExpanded)}
-          />
-          <!-- Sub-navigation tabs -->
-          <DetailTabs
-            active={activeSubTab}
-            mediaType={media.type}
-            seasonProgress={seriesEpisodes.total > 0 ? seriesEpisodes : null}
-            relatedCount={related?.length ?? 0}
-            onSelect={(tab) => (activeSubTab = tab)}
-          />
-
-          <!-- One exclusive chain: a single {#if}/{:else if} guarantees at most one tab panel
+        <!-- One exclusive chain: a single {#if}/{:else if} guarantees at most one tab panel
                        exists in the DOM, so switching can never leave two screens stacked. -->
-          {#if activeSubTab === "overview"}
-            <OverviewTab
+        {#if activeSubTab === "overview"}
+          <OverviewTab
+            {media}
+            support={overviewSupport}
+            progressValue={overviewValue}
+            progressPercent={overviewPercent}
+            {progressError}
+            onStep={stepOverview}
+            onCounterChange={(val) => {
+              if (!media) return;
+              const next = Math.max(val, 0);
+              if (pendingSnapshot === null) pendingSnapshot = committedProgress;
+              progressValue = next;
+              progressError = null;
+              applyOptimisticProgress(media.id, next);
+              writeCardProgress(media, next);
+              progressDebounce.schedule(media.id, next);
+            }}
+            achievements={gameAchievements}
+            achievementsTotal={gameAchievementsTotal}
+            achievementsLoading={gameAchievementsLoading}
+            {achievementsBusy}
+            {achievementsTruncated}
+            {unlockedAchievementNames}
+            onOpenMedia={onOpenRelated}
+            onEdit={startEdit}
+            onOpenRelink={() => (relinkOpen = true)}
+            onSearch={(creatorName) => {
+              // The card's search button means "works of this creator": the
+              // type and source of the current record narrow the external search.
+              // Only tvshows/movies can be anime; manga keeps its own category.
+              const record = media;
+              if (!record) return onSearch(creatorName);
+              const type = "isAnime" in record && record.isAnime ? "anime" : record.type;
+              return onSearch({
+                query: creatorName,
+                type,
+                source: record.externalSource,
+                byCreator: true,
+              });
+            }}
+            onToggleAchievement={toggleAchievement}
+            onToggleAllAchievements={toggleAllAchievements}
+            onChangeStatus={changeStatus}
+          />
+        {:else if activeSubTab === "related"}
+          {#await import("$widgets/media-detail/tabs/RelatedTab.svelte") then { default: RelatedTab }}
+            <RelatedTab
               {media}
-              support={overviewSupport}
-              progressValue={overviewValue}
-              progressPercent={overviewPercent}
-              {progressError}
-              onStep={stepOverview}
-              onCounterChange={(val) => {
-                if (!media) return;
-                const next = Math.max(val, 0);
-                if (pendingSnapshot === null) pendingSnapshot = committedProgress;
-                progressValue = next;
-                progressError = null;
-                applyOptimisticProgress(media.id, next);
-                writeCardProgress(media, next);
-                progressDebounce.schedule(media.id, next);
+              {related}
+              loading={relatedLoading}
+              error={relatedError}
+              viewMode={relatedViewMode}
+              groups={relatedGroups}
+              timeline={timelineEntries}
+              onRetry={() => {
+                if (media && lastRelatedSource) void loadRelated(media, lastRelatedSource, true);
               }}
-              achievements={gameAchievements}
-              achievementsTotal={gameAchievementsTotal}
-              achievementsLoading={gameAchievementsLoading}
-              {achievementsBusy}
-              {achievementsTruncated}
-              {unlockedAchievementNames}
-              onOpenMedia={onOpenRelated}
-              onEdit={startEdit}
-              onOpenRelink={() => (relinkOpen = true)}
-              onSearch={(creatorName) => {
-                // The card's search button means "works of this creator": the
-                // type and source of the current record narrow the external search.
-                // Only tvshows/movies can be anime; manga keeps its own category.
-                const record = media;
-                if (!record) return onSearch(creatorName);
-                const type = "isAnime" in record && record.isAnime ? "anime" : record.type;
-                return onSearch({
-                  query: creatorName,
-                  type,
-                  source: record.externalSource,
-                  byCreator: true,
-                });
+              onSelectViewMode={(mode) => (relatedViewMode = mode)}
+              onOpen={handleRelatedClick}
+              onLoadFrom={(source, force) => {
+                lastRelatedSource = source;
+                if (media) void loadRelated(media, source, force ?? false);
               }}
-              onToggleAchievement={toggleAchievement}
-              onToggleAllAchievements={toggleAllAchievements}
-              onChangeStatus={changeStatus}
             />
-          {:else if activeSubTab === "related"}
-            {#await import("$widgets/media-detail/tabs/RelatedTab.svelte") then { default: RelatedTab }}
-              <RelatedTab
-                {media}
-                {related}
-                loading={relatedLoading}
-                error={relatedError}
-                viewMode={relatedViewMode}
-                groups={relatedGroups}
-                timeline={timelineEntries}
-                onRetry={() => {
-                  if (media && lastRelatedSource) void loadRelated(media, lastRelatedSource, true);
-                }}
-                onSelectViewMode={(mode) => (relatedViewMode = mode)}
-                onOpen={handleRelatedClick}
-                onLoadFrom={(source, force) => {
-                  lastRelatedSource = source;
-                  if (media) void loadRelated(media, source, force ?? false);
-                }}
-              />
-            {/await}
-          {:else if activeSubTab === "recommendations"}
-            {#await import("$widgets/media-detail/tabs/RecommendationsTab.svelte") then { default: RecommendationsTab }}
-              <RecommendationsTab items={recommendations} />
-            {/await}
-          {/if}
+          {/await}
+        {:else if activeSubTab === "recommendations"}
+          {#await import("$widgets/media-detail/tabs/RecommendationsTab.svelte") then { default: RecommendationsTab }}
+            <RecommendationsTab items={recommendations} />
+          {/await}
+        {/if}
 
-          <!-- The whole section is tab-gated: the season banner must not leak into Related/Recommendations. -->
-          {#if media.type === "tvshow" && activeSubTab === "episodes"}
-            {#if isSyncing}
-              <SyncRowsSkeleton label={i18n.t.activity.loadingSeasons} />
-            {:else}
-              {#await import("$widgets/media-detail/tabs/EpisodesTab.svelte") then { default: EpisodesTab }}
-                <EpisodesTab
-                  {seasons}
-                  showEpisodes={activeSubTab === "episodes"}
-                  {nextUp}
-                  {seriesEpisodes}
-                  {seriesProgressPercent}
-                  {episodeBusy}
-                  {progressError}
-                  sortOrder={episodeSortOrder}
-                  onToggleSort={() =>
-                    (episodeSortOrder = episodeSortOrder === "asc" ? "desc" : "asc")}
-                  onToggleSeasonCompleteOf={toggleSeasonCompleteOf}
-                  onToggleEpisodeOf={toggleEpisodeOf}
-                  onWatchNextUp={watchNextUp}
-                  episodesBySeason={seasonViews}
-                  onOpenEpisodesTab={() => (activeSubTab = "episodes")}
-                  onOpenLists={() => onNavigate("lists")}
-                  {formatDate}
-                />
-              {/await}
-            {/if}
-          {/if}
-
-          <!-- PREVIEW MODAL FOR UNADDED RELATED ITEMS -->
-          {#if previewRelatedItem}
-            {#await import("$widgets/media-detail/panels/RelatedPreviewModal.svelte") then { default: RelatedPreviewModal }}
-              <RelatedPreviewModal
-                item={previewRelatedItem}
-                badges={previewRelatedBadges}
-                loading={previewRelatedLoading}
-                adding={previewAddingBusy}
-                status={previewStatus}
-                onStatusChange={(v) => (previewStatus = v)}
-                onAdd={(status) => {
-                  if (previewRelatedItem) void addRelatedToLibrary(previewRelatedItem, status);
-                }}
-                onClose={() => (previewRelatedItem = null)}
+        <!-- The whole section is tab-gated: the season banner must not leak into Related/Recommendations. -->
+        {#if media.type === "tvshow" && activeSubTab === "episodes"}
+          {#if isSyncing}
+            <SyncRowsSkeleton label={i18n.t.activity.loadingSeasons} />
+          {:else}
+            {#await import("$widgets/media-detail/tabs/EpisodesTab.svelte") then { default: EpisodesTab }}
+              <EpisodesTab
+                {seasons}
+                showEpisodes={activeSubTab === "episodes"}
+                {nextUp}
+                {seriesEpisodes}
+                {seriesProgressPercent}
+                {episodeBusy}
+                {progressError}
+                sortOrder={episodeSortOrder}
+                onToggleSort={() =>
+                  (episodeSortOrder = episodeSortOrder === "asc" ? "desc" : "asc")}
+                onToggleSeasonCompleteOf={toggleSeasonCompleteOf}
+                onToggleEpisodeOf={toggleEpisodeOf}
+                onWatchNextUp={watchNextUp}
+                episodesBySeason={seasonViews}
+                onOpenEpisodesTab={() => (activeSubTab = "episodes")}
+                onOpenLists={() => onNavigate("lists")}
+                {formatDate}
               />
             {/await}
           {/if}
-        </div>
+        {/if}
+
+        <!-- PREVIEW MODAL FOR UNADDED RELATED ITEMS -->
+        {#if previewRelatedItem}
+          {#await import("$widgets/media-detail/panels/RelatedPreviewModal.svelte") then { default: RelatedPreviewModal }}
+            <RelatedPreviewModal
+              item={previewRelatedItem}
+              badges={previewRelatedBadges}
+              loading={previewRelatedLoading}
+              adding={previewAddingBusy}
+              status={previewStatus}
+              onStatusChange={(v) => (previewStatus = v)}
+              onAdd={(status) => {
+                if (previewRelatedItem) void addRelatedToLibrary(previewRelatedItem, status);
+              }}
+              onClose={() => (previewRelatedItem = null)}
+            />
+          {/await}
+        {/if}
       </div>
-    {/if}
-  </div>
+    </div>
+  {/if}
+</div>
 
 <!-- Re-point this record at a better provider match (Kinopoisk -> TMDb). -->
 {#if relinkOpen}

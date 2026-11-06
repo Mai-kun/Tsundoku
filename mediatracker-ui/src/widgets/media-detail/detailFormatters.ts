@@ -119,14 +119,8 @@ export function providerLink(item: MediaItem): { name: string; url: string } | n
   }
   if (src.includes("sociallib")) {
     const domain =
-      item.type === "book"
-        ? "ranobelib.me"
-        : isAnime(item)
-          ? "animelib.org"
-          : "mangalib.me";
-    return id
-      ? { name: "SocialLib", url: `https://${domain}/ru/${encodeURIComponent(id)}` }
-      : null;
+      item.type === "book" ? "ranobelib.me" : isAnime(item) ? "animelib.org" : "mangalib.me";
+    return id ? { name: "SocialLib", url: `https://${domain}/ru/${encodeURIComponent(id)}` } : null;
   }
   if (src.includes("shikimori")) {
     return id

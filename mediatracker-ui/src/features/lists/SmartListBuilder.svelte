@@ -80,7 +80,7 @@
     { value: "title", label: () => i18n.t.views.smartSortTitle },
   ];
 
-  /** 2×2 объёмные лимиты: фильм/серия, серии, страницы, главы. */
+  /** 2x2 volume limits: movie/episode, episodes, pages, chapters. */
   const volumeFields = $derived([
     {
       key: "duration",
@@ -279,7 +279,7 @@
 </script>
 
 <div class="space-y-4">
-  <!-- Пресеты: ряд карточек-чипов -->
+  <!-- Presets: a row of chip cards -->
   <section class="bg-surface/50 rounded-xl border border-white/5 p-4">
     <p class="text-muted mb-3 text-xs font-semibold tracking-widest uppercase">
       {i18n.t.views.smartPresets}
@@ -289,7 +289,7 @@
       {#each presets as preset (preset.icon)}
         <button
           type="button"
-          class="bg-card text-ink hover:border-violet-500/40 hover:bg-violet-500/10 inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-white/5 px-3 py-2 text-xs font-medium whitespace-nowrap transition"
+          class="bg-card text-ink inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-white/5 px-3 py-2 text-xs font-medium whitespace-nowrap transition hover:border-violet-500/40 hover:bg-violet-500/10"
           onclick={() => applyPreset(preset)}
         >
           <span aria-hidden="true">{preset.icon}</span>
@@ -299,7 +299,7 @@
     </div>
   </section>
 
-  <!-- Охват библиотеки: категории + статусы -->
+  <!-- Library scope: categories + statuses -->
   <section class="bg-surface/50 rounded-xl border border-white/5 p-4">
     <p class="text-muted mb-3 text-xs font-semibold tracking-widest uppercase">
       {i18n.t.views.smartSectionScope}
@@ -345,7 +345,7 @@
     </div>
   </section>
 
-  <!-- Оценки и качество: одна строка -->
+  <!-- Scores and quality: one row -->
   <section class="bg-surface/50 rounded-xl border border-white/5 p-4">
     <p class="text-muted mb-3 text-xs font-semibold tracking-widest uppercase">
       {i18n.t.views.smartSectionQuality}
@@ -369,7 +369,7 @@
                 ...query,
                 minScore: (e.currentTarget as HTMLInputElement).valueAsNumber || null,
               })}
-            class="bg-canvas focus:border-violet-500/60 w-full rounded-lg border border-white/10 py-1.5 pr-2.5 pl-7 text-sm outline-none"
+            class="bg-canvas w-full rounded-lg border border-white/10 py-1.5 pr-2.5 pl-7 text-sm outline-none focus:border-violet-500/60"
             placeholder="1–10"
           />
         </span>
@@ -392,7 +392,7 @@
                 ...query,
                 minExternalRating: (e.currentTarget as HTMLInputElement).valueAsNumber || null,
               })}
-            class="bg-canvas focus:border-violet-500/60 w-full rounded-lg border border-white/10 py-1.5 pr-2.5 pl-7 text-sm outline-none"
+            class="bg-canvas w-full rounded-lg border border-white/10 py-1.5 pr-2.5 pl-7 text-sm outline-none focus:border-violet-500/60"
             placeholder="0–10"
           />
         </span>
@@ -413,7 +413,7 @@
     </div>
   </section>
 
-  <!-- Объёмы и ограничения: сетка 2×2 -->
+  <!-- Volumes and limits: 2x2 grid -->
   <section class="bg-surface/50 rounded-xl border border-white/5 p-4">
     <p class="text-muted mb-3 text-xs font-semibold tracking-widest uppercase">
       {i18n.t.views.smartSectionVolumes}
@@ -429,7 +429,7 @@
               value={field.value()}
               oninput={(e) =>
                 field.apply((e.currentTarget as HTMLInputElement).valueAsNumber || null)}
-              class="bg-canvas focus:border-violet-500/60 w-full rounded-lg border border-white/10 py-1.5 pr-10 pl-2.5 text-sm outline-none"
+              class="bg-canvas w-full rounded-lg border border-white/10 py-1.5 pr-10 pl-2.5 text-sm outline-none focus:border-violet-500/60"
               placeholder={field.placeholder()}
             />
             <span
@@ -442,7 +442,7 @@
     </div>
   </section>
 
-  <!-- Период и авторство -->
+  <!-- Period and authorship -->
   <section class="bg-surface/50 rounded-xl border border-white/5 p-4">
     <p class="text-muted mb-3 text-xs font-semibold tracking-widest uppercase">
       {i18n.t.views.smartSectionPeriod}
@@ -462,7 +462,7 @@
                 ...query,
                 releaseYearFrom: (e.currentTarget as HTMLInputElement).valueAsNumber || null,
               })}
-            class="bg-canvas focus:border-violet-500/60 mt-1 w-full rounded-lg border border-white/10 px-2.5 py-1.5 text-sm outline-none"
+            class="bg-canvas mt-1 w-full rounded-lg border border-white/10 px-2.5 py-1.5 text-sm outline-none focus:border-violet-500/60"
             placeholder="2000"
           />
         </label>
@@ -480,7 +480,7 @@
                 ...query,
                 releaseYearTo: (e.currentTarget as HTMLInputElement).valueAsNumber || null,
               })}
-            class="bg-canvas focus:border-violet-500/60 mt-1 w-full rounded-lg border border-white/10 px-2.5 py-1.5 text-sm outline-none"
+            class="bg-canvas mt-1 w-full rounded-lg border border-white/10 px-2.5 py-1.5 text-sm outline-none focus:border-violet-500/60"
             placeholder="2024"
           />
         </label>
@@ -501,7 +501,7 @@
                 ...query,
                 creatorContains: (e.currentTarget as HTMLInputElement).value || null,
               })}
-            class="bg-canvas focus:border-violet-500/60 w-full rounded-lg border border-white/10 py-1.5 pr-2.5 pl-8 text-sm outline-none"
+            class="bg-canvas w-full rounded-lg border border-white/10 py-1.5 pr-2.5 pl-8 text-sm outline-none focus:border-violet-500/60"
             placeholder={i18n.t.views.smartCreatorPlaceholder}
           />
         </span>
@@ -509,7 +509,7 @@
     </div>
   </section>
 
-  <!-- Сортировка и лимит -->
+  <!-- Sorting and limit -->
   <section class="bg-surface/50 rounded-xl border border-white/5 p-4">
     <p class="text-muted mb-3 text-xs font-semibold tracking-widest uppercase">
       {i18n.t.views.smartSectionSort}
@@ -549,7 +549,7 @@
               ...query,
               limit: (e.currentTarget as HTMLInputElement).valueAsNumber || null,
             })}
-          class="bg-canvas focus:border-violet-500/60 mt-1 w-full rounded-lg border border-white/10 px-2.5 py-1.5 text-sm outline-none"
+          class="bg-canvas mt-1 w-full rounded-lg border border-white/10 px-2.5 py-1.5 text-sm outline-none focus:border-violet-500/60"
           placeholder={i18n.t.views.smartLimitPlaceholder}
         />
       </label>

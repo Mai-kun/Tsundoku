@@ -164,8 +164,9 @@
   const showQuotes = $derived(isBook || isManga || hasQuotes);
 
   // Franchise chronology: local library siblings of the same franchise, ordered by part number.
-  // Fetched once per item; an empty franchise id renders nothing.
-  let franchiseSiblings = $state<MediaItem[]>([]);
+  // Fetched once per item; an empty franchise id renders nothing. The list is always swapped
+  // wholesale, so a raw (non-proxied) state avoids a deep reactive proxy per API entity.
+  let franchiseSiblings = $state.raw<MediaItem[]>([]);
   $effect(() => {
     const id = media.franchiseId;
     franchiseSiblings = [];
@@ -182,7 +183,9 @@
               candidate.franchiseOrder !== null,
           )
           .sort(
-            (left, right) => (left.franchiseOrder ?? 0) - (right.franchiseOrder ?? 0) || left.title.localeCompare(right.title),
+            (left, right) =>
+              (left.franchiseOrder ?? 0) - (right.franchiseOrder ?? 0) ||
+              left.title.localeCompare(right.title),
           );
       })
       .catch(() => {});
@@ -195,9 +198,8 @@
     Boolean(media.franchiseName || media.franchiseId) && franchiseSiblings.length > 0,
   );
   const prequel = $derived(
-    franchiseSiblings
-      .filter((s) => (s.franchiseOrder ?? 0) < (media.franchiseOrder ?? 0))
-      .at(-1) ?? null,
+    franchiseSiblings.filter((s) => (s.franchiseOrder ?? 0) < (media.franchiseOrder ?? 0)).at(-1) ??
+      null,
   );
   const sequel = $derived(
     franchiseSiblings.find((s) => (s.franchiseOrder ?? 0) > (media.franchiseOrder ?? 0)) ?? null,

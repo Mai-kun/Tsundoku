@@ -150,9 +150,7 @@
     }
     return result;
   });
-  const visibleAltTitles = $derived(
-    showAllAltTitles ? splitAltTitles : splitAltTitles.slice(0, 2),
-  );
+  const visibleAltTitles = $derived(showAllAltTitles ? splitAltTitles : splitAltTitles.slice(0, 2));
   // The romaji row is noise when the romanized title just repeats the display title or one
   // of the alternatives; the genres and alt-title rows move out of the dl into full-width
   // blocks below the table.
@@ -167,9 +165,7 @@
   );
 
   const genreChips = $derived.by(() => {
-    const list = Array.isArray(media.genres)
-      ? media.genres
-      : (media.genres ?? "").split(/[,;]\s*/);
+    const list = Array.isArray(media.genres) ? media.genres : (media.genres ?? "").split(/[,;]\s*/);
     const seen = new Set<string>();
     const result: string[] = [];
     for (const part of list) {
@@ -181,9 +177,7 @@
     }
     return result;
   });
-  const visibleGenreChips = $derived(
-    showAllGenres ? genreChips : genreChips.slice(0, 6),
-  );
+  const visibleGenreChips = $derived(showAllGenres ? genreChips : genreChips.slice(0, 6));
 
   $effect(() => {
     void media.coverUrl;

@@ -236,7 +236,9 @@
           {#each rateLimits as limit (limit.provider)}
             <!-- limit <= 0 (Shikimori sends no headers): no 0/0 bar, just "unlimited". -->
             {#if limit.limit <= 0}
-              <div class="flex items-center justify-between gap-2 rounded-md border border-white/[0.06] bg-white/[0.03] p-2 text-xs">
+              <div
+                class="flex items-center justify-between gap-2 rounded-md border border-white/[0.06] bg-white/[0.03] p-2 text-xs"
+              >
                 <span class="truncate font-medium text-slate-200">{limit.provider}</span>
                 <span class="text-muted shrink-0 text-[11px]">
                   {i18n.t.activity.rateLimitsUnlimited}

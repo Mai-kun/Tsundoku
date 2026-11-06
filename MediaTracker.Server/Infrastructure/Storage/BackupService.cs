@@ -3,6 +3,7 @@ using System.Text;
 using MediaTracker.Server.Domain.Common;
 using MediaTracker.Server.Features.Media.GetMediaStats;
 using MediaTracker.Server.Infrastructure.ExternalApis;
+using MediaTracker.Server.Infrastructure.ExternalApis.Common;
 using MediaTracker.Server.Infrastructure.Persistence;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Caching.Memory;

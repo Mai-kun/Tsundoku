@@ -19,6 +19,8 @@ using Microsoft.Extensions.Options;
 using MediaTracker.Server.Common.Json;
 
 using MediaTracker.Server.Common.Utilities;
+using MediaTracker.Server.Infrastructure.ExternalApis.Common;
+using MediaTracker.Server.Infrastructure.ExternalApis.Providers.AniList;
 
 namespace MediaTracker.Server.Features.Media.Import;
 

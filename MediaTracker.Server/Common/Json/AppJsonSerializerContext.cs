@@ -31,8 +31,22 @@ using MediaTracker.Server.Features.Settings.ToggleSource;
 using MediaTracker.Server.Features.System.GetSources;
 using MediaTracker.Server.Features.System.Updates;
 using MediaTracker.Server.Infrastructure.ExternalApis;
+using MediaTracker.Server.Infrastructure.ExternalApis.Abstractions;
+using MediaTracker.Server.Infrastructure.ExternalApis.Common;
 using MediaTracker.Server.Infrastructure.ExternalApis.Offline;
-using MediaTracker.Server.Infrastructure.ExternalApis.Providers.MangaLib;
+using MediaTracker.Server.Infrastructure.ExternalApis.Providers.AniList;
+using MediaTracker.Server.Infrastructure.ExternalApis.Providers.Imdb;
+using MediaTracker.Server.Infrastructure.ExternalApis.Providers.Kinopoisk;
+using MediaTracker.Server.Infrastructure.ExternalApis.Providers.Kitsu;
+using MediaTracker.Server.Infrastructure.ExternalApis.Providers.MangaDex;
+using MediaTracker.Server.Infrastructure.ExternalApis.Providers.MangaUpdates;
+using MediaTracker.Server.Infrastructure.ExternalApis.Providers.OpenLibrary;
+using MediaTracker.Server.Infrastructure.ExternalApis.Providers.Rawg;
+using MediaTracker.Server.Infrastructure.ExternalApis.Providers.Shikimori;
+using MediaTracker.Server.Infrastructure.ExternalApis.Providers.Simkl;
+using MediaTracker.Server.Infrastructure.ExternalApis.Providers.SocialLib;
+using MediaTracker.Server.Infrastructure.ExternalApis.Providers.Steam;
+using MediaTracker.Server.Infrastructure.ExternalApis.Providers.Tmdb;
 using MediaTracker.Server.Infrastructure.Storage;
 using MediaTracker.Server.SelfChecks;
 using Microsoft.AspNetCore.Mvc;
@@ -146,7 +160,7 @@ namespace MediaTracker.Server.Common.Json;
 [JsonSerializable(typeof(IReadOnlyList<ExternalMediaDto>))]
 [JsonSerializable(typeof(List<ExternalMediaDto>))]
 [JsonSerializable(typeof(ExternalRatingDto))]
-[JsonSerializable(typeof(IReadOnlyList<MediaTracker.Server.Infrastructure.ExternalApis.SourceContributionDto>))]
+[JsonSerializable(typeof(IReadOnlyList<SourceContributionDto>))]
 [JsonSerializable(typeof(CastMemberDto))]
 [JsonSerializable(typeof(IReadOnlyList<CastMemberDto>))]
 [JsonSerializable(typeof(List<CastMemberDto>))]
@@ -187,6 +201,10 @@ namespace MediaTracker.Server.Common.Json;
 [JsonSerializable(typeof(MdCoverListResponse))]
 [JsonSerializable(typeof(KitsuSearchResponse))]
 [JsonSerializable(typeof(KitsuSingleResponse))]
+[JsonSerializable(typeof(KitsuRelatedResponse))]
+[JsonSerializable(typeof(KitsuMediaRelationshipsResponse))]
+[JsonSerializable(typeof(MediaTracker.Server.Infrastructure.Desktop.MemoryOptimizer.MemorySnapshot))]
+[JsonSerializable(typeof(MediaTracker.Server.Infrastructure.Desktop.MemoryOptimizer.TrimMemoryResponse))]
 [JsonSerializable(typeof(SteamStoreSearchResponse))]
 [JsonSerializable(typeof(Dictionary<string, SteamAppDetailsWrapper>))]
 [JsonSerializable(typeof(SteamReviewsResponse))]

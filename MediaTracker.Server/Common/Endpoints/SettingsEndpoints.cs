@@ -25,8 +25,10 @@ using MediaTracker.Server.Domain.Enums;
 using MediaTracker.Server.Infrastructure.Desktop;
 using MediaTracker.Server.Infrastructure.Persistence;
 using MediaTracker.Server.Infrastructure.ExternalApis;
+using MediaTracker.Server.Infrastructure.ExternalApis.Abstractions;
+using MediaTracker.Server.Infrastructure.ExternalApis.Common;
 using MediaTracker.Server.Infrastructure.ExternalApis.Offline;
-using MediaTracker.Server.Infrastructure.ExternalApis.Providers.MangaLib;
+using MediaTracker.Server.Infrastructure.ExternalApis.Providers.SocialLib;
 using MediaTracker.Server.Infrastructure.Jobs;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
@@ -309,7 +311,7 @@ public static class SettingsEndpoints
                 config.Mode ?? "default",
                 appPaths.DataDirectory,
                 Path.Combine(appDir, "data"),
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Tsundoku"),
+                AppPaths.GetSystemDataRoot(),
                 config.CustomPath,
                 appPaths.IsFirstRunSetupRequired));
         }).WithTags("Настройки / Settings").WithSummary("Получить настройки хранилища");
@@ -322,12 +324,14 @@ public static class SettingsEndpoints
             {
                 var appDir = AppPaths.GetAppDirectory();
                 var configPath = AppPaths.GetWritableStorageConfigPath(request.Mode);
+                // Captured BEFORE the config write: after it the first-run flag is already false.
+                var wasFirstRun = currentPaths.IsFirstRunSetupRequired;
 
                 string targetDataDir = request.Mode switch
                 {
                     "portable" => Path.Combine(appDir, "data"),
                     "custom" => request.CustomPath ?? throw new ArgumentException("CustomPath required for custom mode"),
-                    _ => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Tsundoku")
+                    _ => AppPaths.GetSystemDataRoot()
                 };
 
                 targetDataDir = Path.GetFullPath(targetDataDir);
@@ -375,14 +379,33 @@ public static class SettingsEndpoints
                 var config = new StorageConfig { Mode = request.Mode, CustomPath = request.CustomPath };
                 currentPaths.SaveStorageConfig(configPath, config);
 
+                // Leaving the first run: the provisional database folder (created before the user
+                // chose a mode) holds nothing but the freshly seeded schema — the setup modal
+                // blocks any real use — and when migration was requested its copy already lives
+                // at the target. Remove the whole provisional folder so no stray Tsundoku dir
+                // lingers in the system location after the user picked a different home.
+                if (wasFirstRun
+                    && !string.Equals(targetDataDir, currentPaths.DataDirectory, StringComparison.OrdinalIgnoreCase))
+                {
+                    try
+                    {
+                        Directory.Delete(currentPaths.DataDirectory, recursive: true);
+                        Serilog.Log.Information(
+                            "[Storage] Removed the provisional first-run data folder {Path}",
+                            currentPaths.DataDirectory);
+                    }
+                    catch (Exception error)
+                    {
+                        Serilog.Log.Warning(error, "Failed to remove the provisional first-run data folder");
+                    }
+                }
+
                 if (string.Equals(request.Mode, "portable", StringComparison.OrdinalIgnoreCase))
                 {
                     // Mode switch to portable: the previously created default-mode folder inside
                     // LocalApplicationData must not linger. Only an accidentally created empty
                     // folder (no files, only empty subfolders) is removed — user data is preserved.
-                    var legacyDir = Path.Combine(
-                        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                        "Tsundoku");
+                    var legacyDir = AppPaths.GetSystemDataRoot();
                     try
                     {
                         if (Directory.Exists(legacyDir)

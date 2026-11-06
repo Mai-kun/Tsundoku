@@ -20,9 +20,12 @@ public static class SqliteSchemaInitializer
     {
         // PRAGMA journal_mode = WAL is persistent, so only run once per process.
         // Other pragmas are per-connection and must be reapplied.
+        // 16 MB page cache + 8 MB mmap: a single-user desktop app gains nothing from the
+        // server-grade 64 MB cache / 256 MB mmap, which alone pinned 60-80 MB of RSS per
+        // connection pool even while the window sat in the tray untouched.
         var pragmaScript = Interlocked.Exchange(ref _journalModeApplied, 1) == 0
-            ? "PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA busy_timeout = 5000; PRAGMA cache_size = -64000; PRAGMA mmap_size = 268435456;"
-            : "PRAGMA synchronous = NORMAL; PRAGMA busy_timeout = 5000; PRAGMA cache_size = -64000; PRAGMA mmap_size = 268435456;";
+            ? "PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA busy_timeout = 5000; PRAGMA cache_size = -16000; PRAGMA mmap_size = 8388608;"
+            : "PRAGMA synchronous = NORMAL; PRAGMA busy_timeout = 5000; PRAGMA cache_size = -16000; PRAGMA mmap_size = 8388608;";
 
         // Foreign keys are per-connection. The EF-compatibility shim (SaveChangesAsync) suspends
         // them so test seeds may insert children before parents, matching Microsoft.Data.Sqlite's

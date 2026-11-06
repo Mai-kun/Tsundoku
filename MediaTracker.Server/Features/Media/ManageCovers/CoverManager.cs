@@ -5,6 +5,7 @@ using MediaTracker.Server.Domain.Entities;
 using MediaTracker.Server.Features.Media.GetMediaList;
 using MediaTracker.Server.Features.Media.MediaContract;
 using MediaTracker.Server.Infrastructure.ExternalApis;
+using MediaTracker.Server.Infrastructure.ExternalApis.Providers.MangaDex;
 using MediaTracker.Server.Infrastructure.Persistence;
 using MediaTracker.Server.Infrastructure.Storage;
 
@@ -78,8 +79,10 @@ public sealed class CoverManager(
                 Error.NotFound($"Cover variant '{command.CoverId}' was not found on media item '{command.MediaId}'."));
         }
 
+        // Picking a gallery variant is a display choice, not a manual edit: a later metadata
+        // refresh must not be treated as an overwrite confirm (covers are additive anyway — the
+        // refresh appends a variant and leaves the active poster alone).
         item.CoverUrl = chosen.ThumbUrl;
-        item.IsCustomEdited = true;
         item.MarkUpdated();
         await db.UpdateMediaItemAsync(item, ct);
         MediaListCache.Invalidate();
@@ -234,8 +237,8 @@ public sealed class CoverManager(
 
         if (setAsActive)
         {
+            // Same as SelectAsync: activating a variant is a display choice, not a manual edit.
             item.CoverUrl = variant.ThumbUrl;
-            item.IsCustomEdited = true;
         }
 
         item.MarkUpdated();

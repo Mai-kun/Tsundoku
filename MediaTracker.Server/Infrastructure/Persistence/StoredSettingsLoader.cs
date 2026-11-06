@@ -1,10 +1,9 @@
-using MediaTracker.Server.Domain.Entities;
-using MediaTracker.Server.Infrastructure.ExternalApis;
-using MediaTracker.Server.Infrastructure.Persistence;
+using MediaTracker.Server.Infrastructure.ExternalApis.Abstractions;
+using MediaTracker.Server.Infrastructure.ExternalApis.Common;
 using MediaTracker.Server.Infrastructure.Security;
 using Microsoft.Extensions.Options;
 
-namespace MediaTracker.Server.Infrastructure.ExternalApis;
+namespace MediaTracker.Server.Infrastructure.Persistence;
 
 /// <summary>
 /// Restores the API keys the user saved in the settings screen. Runs once at startup, before the app

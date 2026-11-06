@@ -5,6 +5,7 @@ using MediaTracker.Server.Infrastructure.ExternalApis;
 using MediaTracker.Server.Features.Media.GetMediaStats;
 
 using MediaTracker.Server.Common.Json;
+using MediaTracker.Server.Infrastructure.ExternalApis.Abstractions;
 
 namespace MediaTracker.Server.Features.Media.MediaContract;
 

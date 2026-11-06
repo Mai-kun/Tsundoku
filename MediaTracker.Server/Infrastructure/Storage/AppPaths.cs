@@ -184,6 +184,26 @@ public sealed class AppPaths
         return Environment.ProcessPath ?? Environment.GetCommandLineArgs()[0];
     }
 
+    /// <summary>
+    /// The per-user data root (~/.local/share/Tsundoku). GetFolderPath(LocalApplicationData)
+    /// returns an empty string when neither XDG_DATA_HOME nor HOME is resolvable, which silently
+    /// turned every derived path relative and scattered "Tsundoku/" folders into the working
+    /// directory — fall back to $HOME explicitly and to the app dir only as a last resort.
+    /// </summary>
+    public static string GetSystemDataRoot()
+    {
+        var baseDir = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        if (string.IsNullOrWhiteSpace(baseDir) || !Path.IsPathRooted(baseDir))
+        {
+            var home = Environment.GetEnvironmentVariable("HOME");
+            baseDir = string.IsNullOrWhiteSpace(home) || !Path.IsPathRooted(home)
+                ? GetAppDirectory()
+                : Path.Combine(home, ".local", "share");
+        }
+
+        return Path.Combine(baseDir, "Tsundoku");
+    }
+
     public static string GetStorageConfigPath()
     {
         var appDir = GetAppDirectory();
@@ -193,10 +213,7 @@ public sealed class AppPaths
         var currentConfig = Path.Combine(Directory.GetCurrentDirectory(), "storage.json");
         if (File.Exists(currentConfig)) return currentConfig;
 
-        var systemConfig = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "Tsundoku",
-            "storage.json");
+        var systemConfig = Path.Combine(GetSystemDataRoot(), "storage.json");
         if (File.Exists(systemConfig)) return systemConfig;
 
         return localConfig;
@@ -221,9 +238,7 @@ public sealed class AppPaths
         }
         catch
         {
-            var systemDir = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "Tsundoku");
+            var systemDir = GetSystemDataRoot();
             Directory.CreateDirectory(systemDir);
             return Path.Combine(systemDir, "storage.json");
         }
@@ -266,7 +281,7 @@ public sealed class AppPaths
             customPath = config?.CustomPath;
             if (mode == "portable") dataDirectory = Path.Combine(appDir, "data");
             else if (mode == "custom" && !string.IsNullOrEmpty(customPath)) dataDirectory = Path.GetFullPath(customPath);
-            else dataDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Tsundoku");
+            else dataDirectory = GetSystemDataRoot();
         }
         else if (!isDevelopment && !CommandLineOptions.IsRunningInContainer && (File.Exists(Path.Combine(appDir, ".portable")) || File.Exists(Path.Combine(AppContext.BaseDirectory, ".portable"))))
         {
@@ -291,25 +306,12 @@ public sealed class AppPaths
         }
         else
         {
-            // First run (no storage.json yet): keep every byte inside the program folder
-            // (honest portable behavior) instead of pre-creating ~/.local/share/Tsundoku.
-            // If the user later picks "default" in the setup modal, the restart relocates
-            // there; picking portable keeps ./data as-is with no restart at all.
-            var portableDataDir = Path.Combine(appDir, "data");
-            try
-            {
-                Directory.CreateDirectory(portableDataDir);
-                dataDirectory = portableDataDir;
-                mode = "portable";
-            }
-            catch
-            {
-                // App folder is read-only (installed copy): fall back to the system dir.
-                dataDirectory = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                    "Tsundoku"
-                );
-            }
+            // First run (no storage.json yet): the user has not chosen where data lives, so the
+            // provisional database goes to the system dir — NOT next to the binary. Creating
+            // ./data here would leave a stray folder beside the program the moment the user
+            // picks a different mode in the setup modal. After the choice the restart relocates
+            // everything; picking "default" needs no restart at all.
+            dataDirectory = GetSystemDataRoot();
         }
 
         return new AppPaths(dataDirectory, isDevelopment, hasExplicitDir, mode, customPath);

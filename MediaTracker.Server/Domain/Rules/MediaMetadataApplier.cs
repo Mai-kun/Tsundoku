@@ -7,6 +7,8 @@ using MediaTracker.Server.Infrastructure.Storage;
 using MediaTracker.Server.Features.Media.GetMediaStats;
 
 using MediaTracker.Server.Common.Json;
+using MediaTracker.Server.Infrastructure.ExternalApis.Abstractions;
+using MediaTracker.Server.Infrastructure.ExternalApis.Common;
 
 namespace MediaTracker.Server.Domain.Rules;
 
@@ -198,14 +200,21 @@ public static class MediaMetadataApplier
         UpdateAltTitles(item, TitleCandidates(external));
     }
 
-    /// <summary>Refresh: external data is authoritative and overwrites whatever is stored.</summary>
+    /// <summary>
+    /// Refresh: external data is authoritative and overwrites whatever is stored.
+    /// <paramref name="updateMainCover"/> gates the active poster, not the gallery: a metadata
+    /// refresh always appends the source's variant to the gallery, but the poster the user picked
+    /// (possibly from another source) stays until they change it — only an explicit re-point of the
+    /// primary source brings its own poster forward.
+    /// </summary>
     public static async Task ApplyOverwriteAsync(
         MediaItem item,
         ExternalMediaDto external,
         IImageStorageService imageStorage,
         CancellationToken ct,
         Action<TvSeason>? trackNewSeason = null,
-        bool fillMissing = true)
+        bool fillMissing = true,
+        bool updateMainCover = true)
     {
         ApplyTitle(item, external);
 
@@ -244,7 +253,9 @@ public static class MediaMetadataApplier
                     item.CoversJson = MediaCoverCollection.Serialize(covers);
 
                     // A failed download no longer clears the stored cover either: the gallery only grows.
-                    if (item.CoverUrl is null || !item.IsCustomEdited)
+                    // The active poster follows the source only on an explicit re-point (or when the
+                    // row has none yet) — a routine refresh keeps the user's picked cover.
+                    if (updateMainCover || item.CoverUrl is null)
                     {
                         item.CoverUrl = variant.ThumbUrl;
                     }

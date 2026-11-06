@@ -1,6 +1,7 @@
 using System.Text.Json;
 using MediaTracker.Server.Common.Json;
 using MediaTracker.Server.Domain.Entities;
+using MediaTracker.Server.Infrastructure.ExternalApis.Common;
 
 namespace MediaTracker.Server.Domain.Rules;
 
@@ -49,9 +50,12 @@ public static class LinkedSourceCatalog
         JsonSerializer.Serialize(sources, AppJsonSerializerContext.Default.ListLinkedSourceDto);
 
     /// <summary>
-    /// The item's sources, seeded with its own primary source when the blob is empty. The primary
-    /// row's field list is always recomputed from what the row actually holds — it is the source
-    /// that supplied the base record, so its contribution is whatever the entity currently has.
+    /// The item's sources, seeded with its own primary source when the blob is empty. The row that
+    /// matches the item's own <c>ExternalSource</c> — the source the title was added from — is
+    /// ALWAYS the primary one: the flag is re-imposed on every read, so a stale blob (a legacy row
+    /// that lost the flag, or an old switch that only flipped flags) can never leave the panel
+    /// without the crown on the true base record. That row's field list is likewise recomputed from
+    /// what the entity actually holds.
     /// </summary>
     public static List<LinkedSourceDto> GetFor(MediaItem item)
     {
@@ -67,16 +71,35 @@ public static class LinkedSourceCatalog
                 null));
         }
 
+        var ownKey = NormalizeSourceKey(item.ExternalSource);
+        var ownRowFound = false;
+        var anyPrimaryLeft = false;
         for (var i = 0; i < list.Count; i++)
         {
-            if (list[i].IsPrimary)
+            var isOwn = ownKey.Length > 0 && NormalizeSourceKey(list[i].Source) == ownKey;
+            ownRowFound |= isOwn;
+            var isPrimary = ownKey.Length > 0 ? isOwn : list[i].IsPrimary;
+            anyPrimaryLeft |= isPrimary;
+            list[i] = list[i] with
             {
-                list[i] = list[i] with { ProvidedFields = CollectItemFields(item) };
-            }
+                IsPrimary = isPrimary,
+                ProvidedFields = isOwn || isPrimary ? CollectItemFields(item) : list[i].ProvidedFields,
+            };
+        }
+
+        // An item whose own source vanished from the blob (legacy row, manual edit) still shows a
+        // crowned record: the first entry represents the base record until the blob is repaired.
+        if (!anyPrimaryLeft && list.Count > 0)
+        {
+            list[0] = list[0] with { IsPrimary = true, ProvidedFields = CollectItemFields(item) };
         }
 
         return list;
     }
+
+    /// <summary>Alias-tolerant comparison: blobs store display names ("MangaLib"), the row may carry the provider id.</summary>
+    private static string NormalizeSourceKey(string? source) =>
+        string.IsNullOrWhiteSpace(source) ? string.Empty : MediaMerger.NormalizeSourceKey(source);
 
     /// <summary>Writes the list back; a single primary source is enforced when any is flagged.</summary>
     public static void SaveFor(MediaItem item, IReadOnlyList<LinkedSourceDto> sources)
@@ -167,7 +190,9 @@ public static class LinkedSourceCatalog
 
     /// <summary>
     /// What the item actually holds, as the provenance of the source that supplied the base record:
-    /// every entry below is backed by a present value on the row, never by a static assumption.
+    /// every entry below is backed by a present value on the row, never by a static assumption. The
+    /// labels follow the media type's vocabulary — voice cast for anime, actors for films, characters
+    /// and authors/artists for manga and books.
     /// </summary>
     private static List<string> CollectItemFields(MediaItem item)
     {
@@ -197,9 +222,19 @@ public static class LinkedSourceCatalog
             fields.Add("Даты выхода");
         }
 
-        if (item.CoverUrl is not null || item.CoversJson is not null) fields.Add("Обложка");
-        if (item.CastJson is not null) fields.Add("Сэйю (персонажи)");
-        if (item.StaffJson is not null) fields.Add("Съёмочная группа");
+        if (item.CoverUrl is not null || item.CoversJson is not null) fields.Add("Постер");
+
+        var isAnime = item is TvShow { IsAnime: true } or Movie { IsAnime: true };
+        var isPrint = item is Manga or Book;
+        if (item.CastJson is not null)
+        {
+            fields.Add(isAnime ? "Сэйю (каст)" : isPrint ? "Персонажи" : "Актёры");
+        }
+
+        if (item.StaffJson is not null)
+        {
+            fields.Add(isPrint ? "Авторы/Художники" : "Съёмочная группа");
+        }
 
         switch (item)
         {

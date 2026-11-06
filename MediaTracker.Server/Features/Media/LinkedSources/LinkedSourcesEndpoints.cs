@@ -1,6 +1,10 @@
 using MediaTracker.Server.Domain.Common;
 using MediaTracker.Server.Domain.Entities;
 using MediaTracker.Server.Domain.Rules;
+using MediaTracker.Server.Features.External.EnrichMetadata;
+using MediaTracker.Server.Features.External.RefreshMetadata;
+using MediaTracker.Server.Infrastructure.ExternalApis;
+using MediaTracker.Server.Infrastructure.ExternalApis.Common;
 using MediaTracker.Server.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Mvc;
 
@@ -28,6 +32,7 @@ public static class LinkedSourcesEndpoints
             Guid id,
             [FromBody] LinkSourceRequest request,
             AppDbContext db,
+            [FromServices] IEnrichMetadataHandler enrichHandler,
             CancellationToken ct) =>
         {
             if (string.IsNullOrWhiteSpace(request.Source) || string.IsNullOrWhiteSpace(request.ExternalId))
@@ -39,7 +44,9 @@ public static class LinkedSourcesEndpoints
             if (item is null) return Results.NotFound();
 
             var sources = LinkedSourceCatalog.GetFor(item);
-            var key = request.Source.Trim();
+            // "mangadex" typed or pasted becomes the canonical display name ("MangaDex"), so the
+            // panel reads the same as rows the enrichment flow bound.
+            var key = MediaMerger.GetCanonicalSourceName(request.Source.Trim());
             if (sources.Any(s => s.Source.Equals(key, StringComparison.OrdinalIgnoreCase)))
             {
                 return Results.Conflict(new { error = $"Source '{key}' is already linked" });
@@ -56,8 +63,13 @@ public static class LinkedSourcesEndpoints
 
             LinkedSourceCatalog.SaveFor(item, sources);
             await db.UpdateMediaItemAsync(item, ct);
+
+            // A freshly bound source has data to give right now: fill the gaps from it
+            // immediately, the same way the "Дополнить данные" action does.
+            await enrichHandler.HandleAsync(new EnrichMetadataCommand(id, key), ct);
+
             return Results.Ok(sources);
-        }).WithTags("Медиа / Media").WithSummary("Привязать внешний источник");
+        }).WithTags("Медиа / Media").WithSummary("Привязать внешний источник и дополнить данные из него");
 
         group.MapDelete("/{source}", async (
             Guid id,
@@ -88,6 +100,7 @@ public static class LinkedSourcesEndpoints
             Guid id,
             string source,
             AppDbContext db,
+            [FromServices] IRefreshMetadataHandler refreshHandler,
             CancellationToken ct) =>
         {
             var item = await db.LoadMediaItemAsync(id, ct);
@@ -103,10 +116,28 @@ public static class LinkedSourcesEndpoints
                 result.Add(s with { IsPrimary = ReferenceEquals(s, target) || s.Source == target.Source });
             }
 
+            // The base record follows the crown: the promoted source becomes the source the title
+            // itself is bound to, so the next refresh and the aggregator query IT first.
+            item.ExternalSource = target.Source;
+            if (!string.IsNullOrWhiteSpace(target.ExternalId))
+            {
+                item.ExternalId = target.ExternalId;
+            }
+
             LinkedSourceCatalog.SaveFor(item, result);
             await db.UpdateMediaItemAsync(item, ct);
+
+            // The newly appointed source is authoritative: its poster, status and chapter counts
+            // must be in the card, not only in the binding table. The refresh runs as a job from
+            // the re-pointed source; the client re-fetches the card and picks the result up.
+            if (!string.IsNullOrWhiteSpace(item.ExternalId))
+            {
+                await refreshHandler.HandleAsync(
+                    new RefreshMetadataCommand(id, FillMissingOnly: false, UpdateMainCover: true), ct);
+            }
+
             return Results.Ok(result);
-        }).WithTags("Медиа / Media").WithSummary("Назначить источник основным");
+        }).WithTags("Медиа / Media").WithSummary("Назначить источник основным и синхронизировать данные");
 
         return app;
     }

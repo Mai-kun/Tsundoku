@@ -108,9 +108,11 @@ public sealed class ImageStorageService(
         coverId.Length > 0 && coverId.Length <= 40 && coverId.All(char.IsAsciiLetterOrDigit);
 
     /// <summary>
-    /// Builds the image request with the headers the DDoS-guarded lib CDNs demand (a browser UA
-    /// plus a mangalib referer). Shared with the image-proxy endpoint so preview URLs get exactly
-    /// the same treatment the cover downloader gives them.
+    /// Builds the image request with the headers each guarded CDN demands: the lib family wants a
+    /// browser UA plus a mangalib referer (DDoS-Guard), while MangaDex wants the opposite — a
+    /// browser-looking UA earns a bot-challenge redirect and a missing UA a 400, so only a plain
+    /// app UA passes. Shared with the image-proxy endpoint so preview URLs get exactly the same
+    /// treatment the cover downloader gives them.
     /// </summary>
     public static HttpRequestMessage CreateImageRequest(string url)
     {
@@ -123,6 +125,13 @@ public sealed class ImageStorageService(
             {
                 request.Headers.TryAddWithoutValidation("Referer", "https://mangalib.me/");
                 request.Headers.TryAddWithoutValidation("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36");
+            }
+            else if (host.EndsWith("mangadex.org", StringComparison.OrdinalIgnoreCase))
+            {
+                // The storage client ships a browser-ish default UA; drop it first so MangaDex
+                // sees exactly one plain app agent (a doubled UA can still look browser-ish).
+                request.Headers.Remove("User-Agent");
+                request.Headers.TryAddWithoutValidation("User-Agent", "Tsundoku/1.0");
             }
         }
         return request;

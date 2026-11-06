@@ -2,6 +2,7 @@ using MediaTracker.Server.Domain.Entities;
 using MediaTracker.Server.Domain.Rules;
 using MediaTracker.Server.Features.External.RefreshMetadata;
 using MediaTracker.Server.Infrastructure.ExternalApis;
+using MediaTracker.Server.Infrastructure.ExternalApis.Abstractions;
 
 namespace MediaTracker.Server.Features.Media.MediaContract;
 

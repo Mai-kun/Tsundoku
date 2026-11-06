@@ -3,6 +3,7 @@ using MediaTracker.Server.Domain.Enums;
 using MediaTracker.Server.Domain.Rules;
 using MediaTracker.Server.Features.Media.MediaContract;
 using MediaTracker.Server.Infrastructure.ExternalApis;
+using MediaTracker.Server.Infrastructure.ExternalApis.Abstractions;
 using MediaTracker.Server.Infrastructure.Storage;
 using MediaTracker.Server.Infrastructure.Persistence;
 

@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.Json;
 using MediaTracker.Server.Domain.Entities;
 using MediaTracker.Server.Infrastructure.ExternalApis;
+using MediaTracker.Server.Infrastructure.ExternalApis.Providers.SocialLib;
 
 namespace MediaTracker.Server.Features.Media.Import.Parsers;
 

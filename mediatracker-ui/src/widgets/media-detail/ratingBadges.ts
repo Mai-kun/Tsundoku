@@ -66,6 +66,9 @@ export function buildRatingBadges({
   for (const r of ratings) {
     const src = (r.source ?? "").trim();
     if (!src || disabledSources.has(src.toLowerCase())) continue;
+    // SocialLib is the umbrella over MangaLib/AnimeLib/RanobeLib: per-site badges carry the
+    // score when they exist, and the umbrella row itself never renders as a rating badge.
+    if (src.toLowerCase().includes("sociallib")) continue;
     const key = src.toLowerCase();
     if (seen.has(key)) continue;
     seen.add(key);
@@ -78,6 +81,9 @@ export function buildRatingBadges({
   }
 
   if (results.length === 0 && fallback && !disabledSources.has(fallback.source.toLowerCase())) {
+    // The umbrella badge is dropped even as a single-score fallback: an exact site name
+    // ("MangaLib") is preferable, and a bare SocialLib badge must not surface at all.
+    if (fallback.source.toLowerCase().includes("sociallib")) return results;
     seen.add(fallback.source.toLowerCase());
     results.push({
       source: fallback.source,
@@ -97,6 +103,9 @@ export function buildRatingBadges({
 
   for (const exp of expected) {
     const expNorm = exp.toLowerCase();
+    // Same umbrella rule for the "expected but missing" placeholders: SocialLib never
+    // gets an empty badge just because the settings list marks it enabled.
+    if (expNorm.includes("sociallib")) continue;
     // Provider names vary ("MyAnimeList" vs "MAL"), so match on containment either way.
     const found = Array.from(seen).some((s) => s.includes(expNorm) || expNorm.includes(s));
     if (!found) {

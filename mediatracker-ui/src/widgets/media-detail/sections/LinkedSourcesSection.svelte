@@ -1,10 +1,12 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { apiFetch, errorMessage } from "$shared/api/api";
+  import { apiFetch, errorMessage, getSources } from "$shared/api/api";
+  import type { SourceInfo } from "$shared/types";
   import { showToast } from "$shared/ui/toast.svelte";
   import { i18n } from "$shared/i18n/index.svelte";
+  import Select from "$shared/ui/Select.svelte";
   import { buildSourceUrl } from "$shared/utils/sourceUrlHelper";
-  import { Check, ExternalLink, Link2, Plus, Trash2, Crown } from "$shared/ui/Icons";
+  import { Crown, ExternalLink, Link2, Pencil, Plus, Trash2 } from "$shared/ui/Icons";
 
   interface LinkedSource {
     source: string;
@@ -12,7 +14,7 @@
     url: string | null;
     isPrimary: boolean;
     title: string | null;
-    details: string | null;
+    providedFields: string[] | null;
   }
 
   interface Props {
@@ -26,42 +28,76 @@
 
   let { mediaId, mediaType, onChanged, onOpenRelink }: Props = $props();
 
+  interface SourceOption {
+    value: string;
+    label: string;
+  }
+
   let sources = $state<LinkedSource[]>([]);
   let loading = $state(true);
   let loadError = $state<unknown>(null);
   let busy = $state("");
   let addOpen = $state(false);
-  let addSource = $state("mangalib");
+  let addSource = $state("");
   let addId = $state("");
+  let sourceOptions = $state<SourceOption[]>([]);
 
-  const sourceOptions = [
-    { value: "mangalib", label: "MangaLib" },
-    { value: "ranobelib", label: "RanobeLib" },
-    { value: "animelib", label: "AnimeLib" },
-    { value: "anilist", label: "AniList" },
-    { value: "shikimori", label: "Shikimori" },
-    { value: "mangadex", label: "MangaDex" },
-    { value: "tmdb", label: "TMDb" },
-    { value: "kinopoisk", label: "Кинопоиск" },
-    { value: "steam", label: "Steam" },
-    { value: "rawg", label: "RAWG" },
-    { value: "imdb", label: "IMDb" },
-  ];
-
-  /** Brand colors for the source badge. */
-  function badgeClass(source: string): string {
-    const key = source.toLowerCase();
-    if (key.includes("mangalib")) return "bg-violet-500/20 text-violet-300 border-violet-500/30";
-    if (key.includes("ranobelib")) return "bg-sky-500/20 text-sky-300 border-sky-500/30";
-    if (key.includes("animelib")) return "bg-rose-500/20 text-rose-300 border-rose-500/30";
-    if (key.includes("anilist")) return "bg-indigo-500/20 text-indigo-300 border-indigo-500/30";
-    if (key.includes("shikimori")) return "bg-blue-500/20 text-blue-300 border-blue-500/30";
-    if (key.includes("mangadex")) return "bg-pink-500/20 text-pink-300 border-pink-500/30";
-    if (key.includes("tmdb")) return "bg-emerald-500/20 text-emerald-300 border-emerald-500/30";
-    if (key.includes("kinopoisk")) return "bg-orange-500/20 text-orange-300 border-orange-500/30";
-    if (key.includes("steam")) return "bg-slate-500/20 text-slate-300 border-slate-500/30";
-    return "bg-white/10 text-slate-300 border-white/10";
+  /** Used when the settings source list has not loaded (or failed): the type's usual suspects. */
+  function fallbackOptions(): Record<string, SourceOption[]> {
+    const kinopoisk = { value: "kinopoisk", label: i18n.t.detail.linkedSourcesKinopoisk };
+    return {
+      anime: [
+        { value: "anilist", label: "AniList" },
+        { value: "shikimori", label: "Shikimori" },
+        { value: "animelib", label: "AnimeLib" },
+        { value: "kitsu", label: "Kitsu" },
+      ],
+      manga: [
+        { value: "mangalib", label: "MangaLib" },
+        { value: "mangadex", label: "MangaDex" },
+        { value: "shikimori", label: "Shikimori" },
+        { value: "anilist", label: "AniList" },
+      ],
+      book: [
+        { value: "ranobelib", label: "RanobeLib" },
+        { value: "openlibrary", label: "OpenLibrary" },
+      ],
+      movie: [{ value: "tmdb", label: "TMDb" }, kinopoisk, { value: "imdb", label: "IMDb" }],
+      tvshow: [
+        { value: "tmdb", label: "TMDb" },
+        kinopoisk,
+        { value: "imdb", label: "IMDb" },
+        { value: "tvdb", label: "TVDB" },
+      ],
+      game: [
+        { value: "steam", label: "Steam" },
+        { value: "rawg", label: "RAWG" },
+      ],
+    };
   }
+
+  /**
+   * The add form offers only what fits this title: sources enabled in settings that declare the
+   * media type, minus the ones already linked. The SocialLib umbrella is offered as the concrete
+   * site it fronts (AnimeLib / MangaLib / RanobeLib), matching the per-site names enrichment binds.
+   */
+  function toOption(info: SourceInfo): SourceOption | null {
+    if (!info.isEnabled || !info.mediaTypes?.includes(mediaType)) return null;
+    const id = info.id.toLowerCase();
+    if (id === "sociallib") {
+      if (mediaType === "anime") return { value: "animelib", label: "AnimeLib" };
+      if (mediaType === "manga") return { value: "mangalib", label: "MangaLib" };
+      if (mediaType === "book") return { value: "ranobelib", label: "RanobeLib" };
+      return null;
+    }
+    return { value: id, label: info.name };
+  }
+
+  const normalizeKey = (source: string) => source.trim().toLowerCase();
+
+  const availableOptions = $derived(
+    sourceOptions.filter((option) => !sources.some((s) => normalizeKey(s.source) === option.value)),
+  );
 
   function siteUrl(source: LinkedSource): string | null {
     return source.url ?? buildSourceUrl(source.source, source.externalId, mediaType);
@@ -81,6 +117,20 @@
     }
   }
 
+  async function loadSourceOptions() {
+    try {
+      const infos = await getSources();
+      sourceOptions = infos
+        .map(toOption)
+        .filter((option): option is SourceOption => option !== null);
+    } catch {
+      sourceOptions = fallbackOptions()[mediaType] ?? [];
+    }
+    if (!sourceOptions.some((option) => option.value === addSource)) {
+      addSource = sourceOptions[0]?.value ?? "";
+    }
+  }
+
   async function mutate(action: () => Promise<Response>, successMessage: string) {
     try {
       const response = await action();
@@ -95,7 +145,7 @@
 
   function add() {
     const externalId = addId.trim();
-    if (!externalId || busy) return;
+    if (!externalId || !addSource || busy) return;
     const payload = JSON.stringify({ source: addSource, externalId });
     busy = "add";
     void mutate(
@@ -140,45 +190,58 @@
 
   onMount(() => {
     void load();
+    void loadSourceOptions();
   });
 </script>
 
-<div
-  class="rounded-xl border border-white/[0.06] bg-[var(--color-panel-line)] p-5 shadow-sm"
+<section
+  class="space-y-3 rounded-xl border border-white/[0.06] bg-[var(--color-panel-line)] p-5 shadow-sm"
 >
-  <div class="flex flex-wrap items-center justify-between gap-2">
-    <h3 class="flex items-center gap-2 text-xs font-bold tracking-wider text-slate-300 uppercase">
-      <Link2 size={14} aria-hidden="true" />
-      {i18n.t.detail.linkedSourcesTitle}
-    </h3>
+  <!-- Section header -->
+  <div class="flex items-center justify-between">
+    <div class="flex items-center gap-2">
+      <Link2 size={16} class="text-accent-soft shrink-0" aria-hidden="true" />
+      <h2 class="text-xs font-bold tracking-wider text-slate-300 uppercase">
+        {i18n.t.detail.linkedSourcesTitle}
+      </h2>
+      {#if sources.length > 0}
+        <span class="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-bold text-slate-300">
+          {sources.length}
+        </span>
+      {/if}
+    </div>
+
     <button
       type="button"
-      class="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1 text-xs font-medium text-slate-300 transition hover:border-indigo-500/40 hover:text-white"
+      class="tap hover:border-accent hover:bg-accent/20 grid size-8 cursor-pointer place-items-center rounded-lg border border-white/10 bg-white/5 text-slate-300 transition hover:text-white"
       onclick={() => (addOpen = !addOpen)}
+      title={i18n.t.detail.linkedSourcesAdd}
+      aria-label={i18n.t.detail.linkedSourcesAdd}
     >
-      <Plus size={13} aria-hidden="true" />
-      {i18n.t.detail.linkedSourcesAdd}
+      <Plus size={16} />
     </button>
   </div>
 
   {#if addOpen}
     <form
-      class="mt-3 flex flex-wrap items-end gap-2"
+      class="mt-3 mb-4 flex flex-wrap items-end gap-2 rounded-xl border border-white/5 bg-white/[0.02] p-3.5"
       onsubmit={(event) => {
         event.preventDefault();
         add();
       }}
     >
-      <label class="block min-w-32 flex-1 space-y-1 text-xs font-medium text-white">
+      <label class="block min-w-36 flex-1 space-y-1 text-xs font-medium text-white">
         {i18n.t.detail.linkedSourcesSourceLabel}
-        <select
-          bind:value={addSource}
-          class="bg-canvas focus:border-accent w-full rounded-lg border border-white/10 px-2.5 py-1.5 text-sm outline-none"
-        >
-          {#each sourceOptions as option (option.value)}
-            <option value={option.value}>{option.label}</option>
-          {/each}
-        </select>
+        <Select
+          id="linked-source-select"
+          options={availableOptions}
+          value={addSource}
+          onChange={(value) => (addSource = value)}
+          disabled={availableOptions.length === 0}
+          placeholder={availableOptions.length === 0 ? "—" : ""}
+          class="h-9 w-full text-xs"
+          label={i18n.t.detail.linkedSourcesSourceLabel}
+        />
       </label>
       <label class="block min-w-40 flex-[2] space-y-1 text-xs font-medium text-white">
         {i18n.t.detail.linkedSourcesIdLabel}
@@ -186,96 +249,134 @@
           type="text"
           bind:value={addId}
           placeholder="35160--slug"
-          class="bg-canvas focus:border-accent w-full rounded-lg border border-white/10 px-2.5 py-1.5 text-sm outline-none"
+          class="bg-canvas focus:border-accent h-9 w-full rounded-lg border border-white/10 px-2.5 text-xs outline-none"
         />
       </label>
       <button
         type="submit"
-        disabled={!addId.trim() || busy === "add"}
-        class="bg-accent hover:bg-accent-hover rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition disabled:opacity-50"
+        disabled={!addId.trim() || !addSource || busy === "add"}
+        class="bg-accent hover:bg-accent-hover h-9 rounded-lg px-3.5 text-xs font-semibold text-white transition disabled:opacity-50"
       >
-        OK
+        {i18n.t.detail.linkedSourcesLink}
       </button>
     </form>
   {/if}
 
   {#if loading}
-    <div class="mt-3 h-16 animate-pulse rounded-lg bg-white/[0.03]"></div>
+    <div class="h-16 animate-pulse rounded-xl bg-white/[0.03]"></div>
   {:else if loadError}
-    <p class="text-muted mt-3 text-xs">{i18n.t.detail.linkedSourcesLoadError}</p>
+    <p class="text-muted text-xs">{i18n.t.detail.linkedSourcesLoadError}</p>
   {:else if sources.length === 0}
-    <p class="text-muted mt-3 text-xs">{i18n.t.detail.linkedSourcesEmpty}</p>
+    <p class="text-muted text-xs">{i18n.t.detail.linkedSourcesEmpty}</p>
   {:else}
-    <ul class="mt-3 space-y-2">
-      {#each sources as source (source.source)}
-        <li
-          class="rounded-lg border border-white/[0.06] bg-white/[0.03] p-2.5 transition hover:border-white/[0.12]"
+    <!-- Monolithic source cards -->
+    <div class="space-y-3 pt-1">
+      {#each sources as item (item.source + item.externalId)}
+        <div
+          class="space-y-3 rounded-xl border border-white/5 bg-[#151a26] p-4 transition hover:border-white/10"
         >
-          <div class="flex flex-wrap items-center gap-2">
-            <span
-              class="inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold tracking-wide uppercase {badgeClass(
-                source.source,
-              )}"
-            >
-              {source.source}
-            </span>
-            {#if source.isPrimary}
-              <span
-                class="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold text-amber-300"
-              >
-                <Crown size={11} aria-hidden="true" />
-                {i18n.t.detail.linkedSourcesPrimary}
+          <!-- Top row: name + crown + link -->
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="text-base font-bold tracking-tight text-white">
+                {item.source}
               </span>
-            {/if}
-            <span class="text-muted min-w-0 flex-1 truncate text-[11px]" title={source.externalId}>
-              {source.title || source.externalId}
-            </span>
-          </div>
+              {#if item.isPrimary}
+                <span
+                  class="inline-flex items-center gap-1 text-amber-400"
+                  title={i18n.t.detail.linkedSourcesPrimarySource}
+                >
+                  <Crown size={15} />
+                </span>
+              {/if}
+            </div>
 
-          <div class="mt-2 flex flex-wrap items-center gap-1.5">
-            {#if siteUrl(source)}
+            {#if siteUrl(item)}
               <a
-                href={siteUrl(source) ?? "#"}
+                href={siteUrl(item) ?? "#"}
                 target="_blank"
                 rel="noreferrer"
-                class="inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 text-[11px] font-medium text-slate-300 transition hover:border-indigo-500/40 hover:text-white"
+                class="tap text-accent-soft flex size-7 items-center justify-center rounded-md transition hover:bg-white/10 hover:text-white"
+                title={i18n.t.detail.linkedSourcesOpen}
               >
-                <ExternalLink size={12} aria-hidden="true" />
-                {i18n.t.detail.linkedSourcesOpen}
+                <ExternalLink size={15} />
               </a>
             {/if}
-            {#if !source.isPrimary}
+          </div>
+
+          <!-- Middle block: title/id + real provenance chips -->
+          <div class="space-y-1">
+            <p
+              class="truncate text-xs font-medium text-slate-200"
+              title={item.title || item.externalId}
+            >
+              {item.title || item.externalId}
+            </p>
+            {#if item.providedFields && item.providedFields.length > 0}
+              <div class="flex flex-wrap items-center gap-1 pt-1">
+                <span class="mr-1 text-[11px] text-slate-500"
+                  >{i18n.t.detail.linkedSourcesTakenLabel}</span
+                >
+                {#each item.providedFields as field (field)}
+                  <span
+                    class="rounded border border-white/5 bg-white/[0.04] px-1.5 py-0.5 text-[10px] text-slate-300"
+                  >
+                    {field}
+                  </span>
+                {/each}
+              </div>
+            {/if}
+          </div>
+
+          <!-- Bottom row: single action rail -->
+          <div
+            class="flex flex-wrap items-center justify-between gap-2 border-t border-white/5 pt-3"
+          >
+            <div>
+              {#if item.isPrimary}
+                <span class="flex items-center gap-1.5 text-xs font-semibold text-amber-400">
+                  <Crown size={13} />
+                  {i18n.t.detail.linkedSourcesPrimarySource}
+                </span>
+              {:else}
+                <button
+                  type="button"
+                  disabled={busy === `primary:${item.source}`}
+                  class="tap flex h-8 cursor-pointer items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 text-xs font-medium text-slate-300 transition hover:border-amber-400/40 hover:bg-white/10 hover:text-white disabled:opacity-50"
+                  onclick={() => makePrimary(item)}
+                >
+                  {i18n.t.detail.linkedSourcesMakePrimary}
+                </button>
+              {/if}
+            </div>
+
+            <div class="flex items-center gap-1.5">
               <button
                 type="button"
-                disabled={busy === `primary:${source.source}`}
-                class="inline-flex cursor-pointer items-center gap-1 rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 text-[11px] font-medium text-slate-300 transition hover:border-amber-500/40 hover:text-amber-200 disabled:opacity-50"
-                title={i18n.t.detail.linkedSourcesMakePrimary}
-                onclick={() => makePrimary(source)}
-              >
-                <Check size={12} aria-hidden="true" />
-                {i18n.t.detail.linkedSourcesMakePrimary}
-              </button>
-              <button
-                type="button"
-                class="inline-flex cursor-pointer items-center gap-1 rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 text-[11px] font-medium text-slate-300 transition hover:border-indigo-500/40 hover:text-white"
+                class="tap flex h-8 cursor-pointer items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 text-xs font-medium text-slate-300 transition hover:bg-white/10 hover:text-white"
                 onclick={() => onOpenRelink?.()}
               >
+                <Pencil size={13} />
                 {i18n.t.detail.linkedSourcesRelink}
               </button>
-            {/if}
-            <button
-              type="button"
-              disabled={busy === `remove:${source.source}`}
-              class="text-muted inline-flex cursor-pointer items-center gap-1 rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 text-[11px] font-medium transition hover:border-rose-500/40 hover:text-rose-300 disabled:opacity-50"
-              title={i18n.t.detail.linkedSourcesRemove}
-              aria-label={i18n.t.detail.linkedSourcesRemove}
-              onclick={() => remove(source)}
-            >
-              <Trash2 size={12} aria-hidden="true" />
-            </button>
+
+              {#if !item.isPrimary}
+                <button
+                  type="button"
+                  disabled={busy === `remove:${item.source}`}
+                  class="tap flex h-8 cursor-pointer items-center gap-1.5 rounded-lg border border-rose-500/20 bg-rose-500/10 px-3 text-xs font-medium text-rose-400 transition hover:bg-rose-500/20 hover:text-rose-300 disabled:opacity-50"
+                  title={i18n.t.detail.linkedSourcesRemove}
+                  aria-label={i18n.t.detail.linkedSourcesRemove}
+                  onclick={() => remove(item)}
+                >
+                  <Trash2 size={13} />
+                  {i18n.t.detail.linkedSourcesRemove}
+                </button>
+              {/if}
+            </div>
           </div>
-        </li>
+        </div>
       {/each}
-    </ul>
+    </div>
   {/if}
-</div>
+</section>

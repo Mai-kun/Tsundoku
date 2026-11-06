@@ -40,9 +40,7 @@ export function buildSourceUrl(
     return `https://openlibrary.org${id.startsWith("/") ? id : `/${id}`}`;
   }
   if (key.includes("kitsu")) {
-    return mediaType === "manga"
-      ? `https://kitsu.io/manga/${id}`
-      : `https://kitsu.io/anime/${id}`;
+    return mediaType === "manga" ? `https://kitsu.io/manga/${id}` : `https://kitsu.io/anime/${id}`;
   }
   if (key.includes("simkl")) return `https://simkl.com/${id}`;
 

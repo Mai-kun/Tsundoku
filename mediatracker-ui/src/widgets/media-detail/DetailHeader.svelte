@@ -95,8 +95,6 @@
           IGDB
         {:else if src.includes("kitsu")}
           Kitsu
-        {:else if src.includes("sociallib")}
-          SocialLib
         {:else if src.includes("simkl")}
           Simkl
         {:else if src.includes("kinopoisk")}

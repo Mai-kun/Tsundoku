@@ -39,7 +39,9 @@ const executionSources: string[] = [
   path.resolve(UI_DIR, 'package.json'),
   path.resolve(SCRIPTS_DIR, 'audit-runner.mjs'),
   path.resolve(CHECKS_DIR, 'audit/browserSuite.runner.ts'),
-  path.resolve(UI_DIR, 'vitest.config.ts')
+  path.resolve(UI_DIR, 'vitest.config.ts'),
+  // CI pipelines register their own scripts (e.g. the artifact smoke test in release.yml).
+  ...walk(path.resolve(ROOT_DIR, '.github/workflows'), f => f.endsWith('.yml') || f.endsWith('.yaml'))
 ];
 
 let pipelineContext = '';

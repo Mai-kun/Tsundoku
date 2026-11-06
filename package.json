@@ -10,6 +10,7 @@
     "fix": "node scripts/audit-runner.mjs fix",
     "audit": "node scripts/audit-runner.mjs audit",
     "smells": "node scripts/inspect-code-smells.mjs",
+    "genres:extract": "node scripts/extract-offline-genres.mjs",
     "visual": "node scripts/audit-runner.mjs visual",
     "visual:approve": "node scripts/audit-runner.mjs visual:approve",
     "check:orphans": "npm --prefix mediatracker-ui run check:orphans",

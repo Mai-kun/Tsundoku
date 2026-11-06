@@ -33,6 +33,7 @@
     "check:visual-qa": "node --experimental-strip-types checks/e2e/visualQa.check.ts",
     "check:related-matching": "node --experimental-strip-types checks/relatedMatching.check.ts",
     "check:parse-frontend-coverage": "node ../scripts/parse-frontend-coverage.mjs",
+    "bench:memory": "node ../scripts/measure-memory.mjs",
     "dev": "vite",
     "build": "vite build",
     "format:fix": "prettier --write \"src/**/*.{ts,svelte,css}\" && node --experimental-strip-types checks/deslopAndUiMath.check.ts --fix",

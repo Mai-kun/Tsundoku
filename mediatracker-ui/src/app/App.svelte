@@ -188,6 +188,30 @@
     renderedView = view;
   }
 
+  /** Bound to the persistent home wrapper; the Web Animations replay below targets it. */
+  let homeViewEl = $state<HTMLElement>();
+  /** Non-reactive on purpose: the effect subscribes to renderedView only, not to its own log. */
+  let lastSeenView: AppView | null = route.view;
+
+  // The home view stays mounted, so its mount-time .view-fade runs exactly once. Without this
+  // replay the hop back from a category is a hard cut while category-to-category hops animate
+  // (their wrapper remounts through {#key}).
+  $effect(() => {
+    const current = renderedView;
+    if (current === "home" && lastSeenView !== "home" && homeViewEl) {
+      if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        homeViewEl.animate(
+          [
+            { opacity: 0, transform: "translateY(2px)" },
+            { opacity: 1, transform: "translateY(0)" },
+          ],
+          { duration: 150, easing: "cubic-bezier(0.16, 1, 0.3, 1)" },
+        );
+      }
+    }
+    lastSeenView = current;
+  });
+
   $effect(() => {
     void offlineModeState.init();
   });
@@ -596,7 +620,7 @@
     {/await}
   {/if}
 
-  <div class="view-fade" class:hidden={renderedView !== "home"}>
+  <div class="view-fade" class:hidden={renderedView !== "home"} bind:this={homeViewEl}>
     <HomeView
       refreshKey={mediaRevision}
       onOpen={openDetail}
@@ -715,7 +739,12 @@
       onClose={closeSearch}
       onMediaAdded={handleCreated}
       onNavigateToMedia={(id) => {
-        closeSearch();
+        // No popModalState() here: its async history.back() races the pushState that
+        // openDetail does right after (same pitfall as onTestSearch below). Flip the
+        // flag directly instead — the modal entry stays in the stack, but its URL
+        // matches the underlying view, so Back from the detail page still lands there.
+        isSearchOpen = false;
+        restoreModalFocus();
         openDetailById(id);
       }}
     />

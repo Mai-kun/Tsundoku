@@ -24,11 +24,12 @@ export function isValidCoverUrl(value: string): boolean {
 }
 
 /**
- * Hosts whose image CDNs block hotlinking (DDoS-Guard answers a plain browser <img> with 403).
- * The server's /api/external/image-proxy fetches these with the headers the guard demands, so
- * external previews route through it; every other host keeps loading straight from its CDN.
+ * Hosts whose image CDNs block hotlinking (DDoS-Guard answers a plain browser <img> with 403;
+ * MangaDex's uploads CDN answers it with a bot-challenge redirect). The server's
+ * /api/external/image-proxy fetches these with the headers each guard demands, so external
+ * previews route through it; every other host keeps loading straight from its CDN.
  */
-const HOTLINK_BLOCKED_HOST_SUFFIXES = ["imglib.info", "mangalib.me"];
+const HOTLINK_BLOCKED_HOST_SUFFIXES = ["imglib.info", "mangalib.me", "mangadex.org"];
 
 /**
  * Rewrites an external cover URL to the server-side image proxy when its host needs it. Local

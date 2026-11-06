@@ -43,6 +43,8 @@
     onEdit: () => void;
     /** Opens the relink modal (re-pointing the primary external source). */
     onOpenRelink?: () => void;
+    /** Fired after a linked-sources mutation so the parent can re-fetch the card. */
+    onChanged?: () => void;
     onChangeStatus?: (status: MediaStatus) => void;
   }
 
@@ -66,6 +68,7 @@
     onSearch,
     onEdit,
     onOpenRelink,
+    onChanged,
     onChangeStatus,
   }: Props = $props();
 
@@ -372,7 +375,13 @@
 
       <!-- 8. БЛОК ВНЕШНИХ ИСТОЧНИКОВ: привязка MangaLib/AniList/... под заметками -->
       <div class="order-8 min-w-0">
-        <LinkedSourcesSection mediaId={media.id} mediaType={media.type} {onOpenRelink} />
+        <LinkedSourcesSection
+          mediaId={media.id}
+          mediaType={media.type}
+          {media}
+          {onOpenRelink}
+          {onChanged}
+        />
       </div>
     </div>
 

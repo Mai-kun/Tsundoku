@@ -86,4 +86,5 @@ export { default as Tv } from "lucide-svelte/icons/tv";
 export { default as Type } from "lucide-svelte/icons/type";
 export { default as Upload } from "lucide-svelte/icons/upload";
 export { default as User } from "lucide-svelte/icons/user";
+export { default as Users } from "lucide-svelte/icons/users";
 export { default as X } from "lucide-svelte/icons/x";

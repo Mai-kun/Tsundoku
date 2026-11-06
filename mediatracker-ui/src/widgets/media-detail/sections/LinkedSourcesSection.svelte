@@ -6,6 +6,7 @@
   import { i18n } from "$shared/i18n/index.svelte";
   import Select from "$shared/ui/Select.svelte";
   import { buildSourceUrl } from "$shared/utils/sourceUrlHelper";
+  import { parseMediaUrl } from "$shared/utils/urlMediaParser";
   import { Crown, ExternalLink, Link2, Pencil, Plus, Trash2 } from "$shared/ui/Icons";
 
   interface LinkedSource {
@@ -20,13 +21,16 @@
   interface Props {
     mediaId: string;
     mediaType: string;
+    /** The parent's media object; a new identity means the card was refetched (e.g. the
+     * enrichment job just committed) and the bound-source list must reload without F5. */
+    media?: unknown;
     /** Fired after any successful mutation so the parent can refresh the card. */
     onChanged?: () => void;
     /** Opens the full relink modal (re-pointing the primary source). */
     onOpenRelink?: () => void;
   }
 
-  let { mediaId, mediaType, onChanged, onOpenRelink }: Props = $props();
+  let { mediaId, mediaType, media, onChanged, onOpenRelink }: Props = $props();
 
   interface SourceOption {
     value: string;
@@ -144,9 +148,24 @@
   }
 
   function add() {
-    const externalId = addId.trim();
-    if (!externalId || !addSource || busy) return;
-    const payload = JSON.stringify({ source: addSource, externalId });
+    const raw = addId.trim();
+    if (!raw || !addSource || busy) return;
+
+    // A pasted link ("https://mangadex.org/title/<uuid>/...") is resolved to the bare id, and the
+    // target source follows the link's site when that source is still addable — typing the URL
+    // into the id field used to bind the whole URL as the external id.
+    let externalId = raw;
+    let sourceKey = addSource;
+    const parsed = /^https?:\/\//i.test(raw) ? parseMediaUrl(raw) : null;
+    if (parsed) {
+      externalId = parsed.id;
+      const linkIsAddable =
+        !sources.some((s) => normalizeKey(s.source) === parsed.source) &&
+        sourceOptions.some((o) => o.value === parsed.source);
+      if (linkIsAddable) sourceKey = parsed.source;
+    }
+
+    const payload = JSON.stringify({ source: sourceKey, externalId });
     busy = "add";
     void mutate(
       () =>
@@ -191,6 +210,14 @@
   onMount(() => {
     void load();
     void loadSourceOptions();
+  });
+
+  // The binding table lives in the DB row and grows while the enrichment job runs: after
+  // add-by-link the card refetches (media identity flips), and the panel must follow —
+  // otherwise the new sources only appear after a manual F5.
+  $effect(() => {
+    void media;
+    if (mediaId) void load();
   });
 </script>
 
@@ -342,7 +369,7 @@
                 <button
                   type="button"
                   disabled={busy === `primary:${item.source}`}
-                  class="tap flex h-8 cursor-pointer items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 text-xs font-medium text-slate-300 transition hover:border-amber-400/40 hover:bg-white/10 hover:text-white disabled:opacity-50"
+                  class="tap cursor-pointer rounded-lg border border-white/5 px-2.5 py-1.5 text-xs text-slate-400 transition hover:bg-white/5 hover:text-amber-400 disabled:opacity-50"
                   onclick={() => makePrimary(item)}
                 >
                   {i18n.t.detail.linkedSourcesMakePrimary}
@@ -353,24 +380,24 @@
             <div class="flex items-center gap-1.5">
               <button
                 type="button"
-                class="tap flex h-8 cursor-pointer items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 text-xs font-medium text-slate-300 transition hover:bg-white/10 hover:text-white"
+                class="tap flex size-8 cursor-pointer items-center justify-center rounded-lg border border-white/5 bg-white/[0.03] text-slate-400 transition hover:bg-white/10 hover:text-white"
+                title={i18n.t.detail.linkedSourcesRelink}
+                aria-label={i18n.t.detail.linkedSourcesRelink}
                 onclick={() => onOpenRelink?.()}
               >
-                <Pencil size={13} />
-                {i18n.t.detail.linkedSourcesRelink}
+                <Pencil size={14} />
               </button>
 
               {#if !item.isPrimary}
                 <button
                   type="button"
                   disabled={busy === `remove:${item.source}`}
-                  class="tap flex h-8 cursor-pointer items-center gap-1.5 rounded-lg border border-rose-500/20 bg-rose-500/10 px-3 text-xs font-medium text-rose-400 transition hover:bg-rose-500/20 hover:text-rose-300 disabled:opacity-50"
+                  class="tap flex size-8 cursor-pointer items-center justify-center rounded-lg border border-rose-500/10 bg-rose-500/5 text-rose-400/80 transition hover:bg-rose-500/15 hover:text-rose-300 disabled:opacity-50"
                   title={i18n.t.detail.linkedSourcesRemove}
                   aria-label={i18n.t.detail.linkedSourcesRemove}
                   onclick={() => remove(item)}
                 >
-                  <Trash2 size={13} />
-                  {i18n.t.detail.linkedSourcesRemove}
+                  <Trash2 size={14} />
                 </button>
               {/if}
             </div>

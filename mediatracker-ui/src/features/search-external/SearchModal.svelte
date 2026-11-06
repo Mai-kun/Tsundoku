@@ -988,7 +988,10 @@
                                   e.stopPropagation();
                                   const targetId = addedKeys[key];
                                   if (targetId) {
-                                    onClose();
+                                    // No onClose() here: the parent's onNavigateToMedia handler
+                                    // closes the modal itself. Closing twice queues two
+                                    // history.back() calls that eat the route entry openDetail
+                                    // is about to push, so the media page never opens.
                                     onNavigateToMedia(targetId);
                                   }
                                 }}
@@ -1254,7 +1257,8 @@
           onclick={() => {
             const targetId = addedKeys[prevKey];
             if (targetId) {
-              onClose();
+              // The parent's onNavigateToMedia handler closes the modal itself; a second
+              // close would queue an extra history.back() that breaks the navigation.
               onNavigateToMedia(targetId);
             }
           }}

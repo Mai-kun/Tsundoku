@@ -15,7 +15,7 @@
   import ListPicker from "$features/lists/ListPicker.svelte";
   import { errorMessage, triggerAutoRefresh } from "$shared/api/api";
   import { showToast } from "$shared/ui/toast.svelte";
-  import { fullSizeCoverUrl } from "$entities/media/model/coverUrl";
+  import { fullSizeCoverUrl, proxiedExternalCoverUrl } from "$entities/media/model/coverUrl";
   import { genreLabel } from "$entities/media/model/genreLabel";
   import MediaCoverPlaceholder from "$shared/ui/MediaCoverPlaceholder.svelte";
   import { openLightbox } from "$shared/ui/lightbox.svelte";
@@ -249,13 +249,13 @@
         class="block h-full w-full cursor-pointer border-0 bg-transparent p-0 text-left"
         onclick={() => {
           const cover = media.coverUrl;
-          if (cover) openLightbox(fullSizeCoverUrl(cover));
+          if (cover) openLightbox(proxiedExternalCoverUrl(fullSizeCoverUrl(cover)));
         }}
         title="Увеличить постер"
         aria-label="Увеличить постер"
       >
         <img
-          src={media.coverUrl}
+          src={proxiedExternalCoverUrl(media.coverUrl)}
           alt={media.title}
           referrerpolicy="no-referrer"
           class="h-full w-full object-cover object-top"

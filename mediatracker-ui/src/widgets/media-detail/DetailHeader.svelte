@@ -1,11 +1,17 @@
 <script lang="ts">
-  import { ChevronDown, Languages, Star } from "$shared/ui/Icons";
+  import { ChevronDown, Languages, Star, Users } from "$shared/ui/Icons";
   import { i18n } from "$shared/i18n/index.svelte";
 
   export interface RatingBadge {
     source: string;
     score: number | null;
     votes?: number | null;
+  }
+
+  /** 1317 → "1.3k"; the badge hover face has room for neither digits nor words to spare. */
+  function formatVotes(votes: number): string {
+    if (votes >= 1000) return `${(votes / 1000).toFixed(1)}k`;
+    return String(votes);
   }
 
   interface Props {
@@ -65,66 +71,78 @@
 <div class="flex flex-wrap items-center gap-2.5">
   {#each ratings.filter((r) => !/offline|офлайн/i.test(r.source)) as rating (rating.source)}
     {@const src = rating.source.toLowerCase()}
+    {@const hasVotes = (rating.votes ?? 0) > 0}
     <div
-      class="inline-flex h-9 items-center gap-2 rounded-lg border px-3 shadow-sm transition hover:brightness-125 {sourceBadgeClasses(
+      class="group relative inline-flex h-9 items-center overflow-hidden rounded-lg border px-3 shadow-sm transition {sourceBadgeClasses(
         src,
       )}"
-      title={`${rating.source}: ${rating.score !== null && rating.score > 0 ? rating.score.toFixed(1) : "—"}`}
+      aria-label={`${rating.source}: ${rating.score !== null && rating.score > 0 ? rating.score.toFixed(1) : "—"}${hasVotes ? ` (${rating.votes})` : ""}`}
     >
-      <span class="flex items-center gap-1.5 text-[11px] font-black tracking-wider uppercase">
-        {#if src.includes("anilist")}
-          <svg class="h-3.5 w-3.5 fill-current" viewBox="0 0 24 24" aria-hidden="true"
-            ><path
-              d="M24 17.561v4.425H13.678v-4.425zM12.924 2.014l7.157 15.547H14.88l-1.393-3.088H8.847l-1.385 3.088H2.179L9.345 2.014h3.579zm-.897 8.358L10.37 6.452l-1.65 3.92h3.307z"
-            /></svg
+      <!-- Front face: source + score. Votes moved to the hover overlay below. -->
+      <div
+        class="flex items-center gap-2 transition duration-200 ease-out group-hover:-translate-y-1.5 group-hover:opacity-0"
+      >
+        <span class="flex items-center gap-1.5 text-[11px] font-black tracking-wider uppercase">
+          {#if src.includes("anilist")}
+            <svg class="h-3.5 w-3.5 fill-current" viewBox="0 0 24 24" aria-hidden="true"
+              ><path
+                d="M24 17.561v4.425H13.678v-4.425zM12.924 2.014l7.157 15.547H14.88l-1.393-3.088H8.847l-1.385 3.088H2.179L9.345 2.014h3.579zm-.897 8.358L10.37 6.452l-1.65 3.92h3.307z"
+              /></svg
+            >
+            AniList
+          {:else if src.includes("shikimori")}
+            Shikimori
+          {:else if src.includes("mangadex")}
+            MangaDex
+          {:else if src.includes("myanimelist") || src.includes("jikan") || src.includes("mal")}
+            MAL
+          {:else if src.includes("tmdb")}
+            TMDB
+          {:else if src.includes("rawg")}
+            RAWG
+          {:else if src.includes("steam")}
+            Steam
+          {:else if src.includes("igdb")}
+            IGDB
+          {:else if src.includes("kitsu")}
+            Kitsu
+          {:else if src.includes("simkl")}
+            Simkl
+          {:else if src.includes("kinopoisk")}
+            Кинопоиск
+          {:else if src.includes("imdb")}
+            IMDb
+          {:else if src.includes("thetvdb") || src.includes("tvdb")}
+            TVDB
+          {:else if src.includes("mangaupdate")}
+            MangaUpdates
+          {:else if src.includes("openlibrary")}
+            OpenLibrary
+          {:else}
+            <Star size={13} fill="currentColor" aria-hidden="true" />
+            {rating.source}
+          {/if}
+        </span>
+        {#if rating.score !== null && rating.score > 0}
+          <span class="text-sm font-extrabold text-white tabular-nums"
+            >{rating.score.toFixed(1)}</span
           >
-          AniList
-        {:else if src.includes("shikimori")}
-          Shikimori
-        {:else if src.includes("mangadex")}
-          MangaDex
-        {:else if src.includes("myanimelist") || src.includes("jikan") || src.includes("mal")}
-          MAL
-        {:else if src.includes("tmdb")}
-          TMDB
-        {:else if src.includes("rawg")}
-          RAWG
-        {:else if src.includes("steam")}
-          Steam
-        {:else if src.includes("igdb")}
-          IGDB
-        {:else if src.includes("kitsu")}
-          Kitsu
-        {:else if src.includes("simkl")}
-          Simkl
-        {:else if src.includes("kinopoisk")}
-          Кинопоиск
-        {:else if src.includes("imdb")}
-          IMDb
-        {:else if src.includes("thetvdb") || src.includes("tvdb")}
-          TVDB
-        {:else if src.includes("mangaupdate")}
-          MangaUpdates
-        {:else if src.includes("openlibrary")}
-          OpenLibrary
         {:else}
-          <Star size={13} fill="currentColor" aria-hidden="true" />
-          {rating.source}
+          <!-- No spinner here on purpose: the badges are rendered from the local
+                       DB, so a source with no stored score means "no rating", not
+                       "still being fetched". -->
+          <span class="text-sm font-medium text-white/40">—</span>
         {/if}
-      </span>
-      {#if rating.score !== null && rating.score > 0}
-        <span class="text-sm font-extrabold text-white tabular-nums">{rating.score.toFixed(1)}</span
+      </div>
+      <!-- Hover face: the vote count slides in over the badge. Without votes nothing overlays
+                   and the badge stays static. -->
+      {#if hasVotes}
+        <div
+          class="absolute inset-0 flex translate-y-full items-center justify-center gap-1 bg-black/45 text-[11px] font-semibold text-white opacity-0 transition duration-200 ease-out group-hover:translate-y-0 group-hover:opacity-100"
         >
-        {#if rating.votes}
-          <span class="text-[11px] font-normal text-white/50"
-            >({rating.votes > 1000 ? (rating.votes / 1000).toFixed(1) + "k" : rating.votes})</span
-          >
-        {/if}
-      {:else}
-        <!-- No spinner here on purpose: the badges are rendered from the local
-                     DB, so a source with no stored score means "no rating", not
-                     "still being fetched". -->
-        <span class="text-sm font-medium text-white/40">—</span>
+          <Users size={11} aria-hidden="true" />
+          <span class="tabular-nums">{formatVotes(rating.votes ?? 0)}</span>
+        </div>
       {/if}
     </div>
   {/each}

@@ -7,6 +7,7 @@
   import type { MediaItem, MediaStatus } from "$shared/types";
   import { SYNC_STATUS } from "$shared/types";
   import { providerLink } from "$widgets/media-detail/detailFormatters";
+  import { proxiedExternalCoverUrl } from "$entities/media/model/coverUrl";
   import { schedulePrefetchMediaDetail } from "$features/prefetch-details/mediaDetailPrefetch";
   import type { MenuItem } from "$shared/ui/contextMenu.svelte";
   import { openContextMenu, openListPicker } from "$shared/ui/contextMenu.svelte";
@@ -318,7 +319,7 @@
   onfocus={() => schedulePrefetchMediaDetail(item.id)}
 >
   <MediaPoster
-    src={item.coverUrl}
+    src={item.coverUrl ? proxiedExternalCoverUrl(item.coverUrl) : null}
     alt={item.title}
     syncing={item.syncStatus === SYNC_STATUS.syncing}
     needsReview={item.syncStatus === SYNC_STATUS.needsReview}

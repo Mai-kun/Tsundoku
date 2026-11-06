@@ -13,8 +13,10 @@ const RELATION_SOURCES: Record<string, readonly string[]> = {
   movie: ["tmdb"],
   tvshow: ["tmdb"],
   game: ["rawg"],
-  anime: ["anilist", "shikimori"],
-  manga: ["anilist", "mangadex"],
+  anime: ["anilist", "shikimori", "kitsu"],
+  manga: ["anilist", "mangadex", "kitsu"],
+  // Kitsu stores novels in its manga tree and exposes the same media-relationships table.
+  book: ["kitsu"],
 };
 
 export interface RelationSourceOption {

@@ -40,7 +40,8 @@ export function buildSourceUrl(
     return `https://openlibrary.org${id.startsWith("/") ? id : `/${id}`}`;
   }
   if (key.includes("kitsu")) {
-    return mediaType === "manga" ? `https://kitsu.io/manga/${id}` : `https://kitsu.io/anime/${id}`;
+    // Kitsu keeps novels and manga in one /manga tree; only anime gets its own section.
+    return mediaType === "anime" ? `https://kitsu.io/anime/${id}` : `https://kitsu.io/manga/${id}`;
   }
   if (key.includes("simkl")) return `https://simkl.com/${id}`;
 

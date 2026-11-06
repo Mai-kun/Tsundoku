@@ -455,6 +455,12 @@
   let relatedViewMode = $state<"grouped" | "timeline" | "grid">("grouped");
   /** The source the user picked last, so "retry" repeats that request instead of guessing. */
   let lastRelatedSource = $state<string | null>(null);
+  /**
+   * The card whose default-source auto-load already ran. Without this, a source that answers an
+   * empty relation list leaves `related` empty with no error, and this effect — whose guards are
+   * all satisfied again after every completed (empty) load — refires the same request forever.
+   */
+  let autoRelatedAttemptedId = $state<string | null>(null);
 
   $effect(() => {
     if (
@@ -472,10 +478,13 @@
           media.id !== currentMedia.id ||
           (related?.length ?? 0) > 0 ||
           relatedLoading ||
-          relatedError
+          relatedError ||
+          autoRelatedAttemptedId === currentMedia.id
         ) {
           return;
         }
+
+        autoRelatedAttemptedId = currentMedia.id;
 
         const defaultSource =
           list.find(
@@ -2234,6 +2243,23 @@
             onOpenMedia={onOpenRelated}
             onEdit={startEdit}
             onOpenRelink={() => (relinkOpen = true)}
+            onChanged={() => {
+              // A linked-sources mutation (bind / primary switch / unbind) invalidates the card
+              // cache: the re-pointed binding and the Syncing badge must show right away, and the
+              // job-completion watcher below brings the refreshed metadata once the job commits.
+              if (!media) return;
+              void refreshMediaDetail(mediaId)
+                .then((loaded) => {
+                  if (loaded.id !== mediaId) return;
+                  media = loaded;
+                  syncFrom(loaded);
+                  mediaDetailCache.invalidate(loaded.id);
+                  onUpdate();
+                })
+                .catch((error) =>
+                  console.error("[MediaDetailView] Refresh after source change failed", error),
+                );
+            }}
             onSearch={(creatorName) => {
               // The card's search button means "works of this creator": the
               // type and source of the current record narrow the external search.

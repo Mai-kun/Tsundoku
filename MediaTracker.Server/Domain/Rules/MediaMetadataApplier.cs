@@ -96,6 +96,18 @@ public static class MediaMetadataApplier
         !string.IsNullOrEmpty(text) && text.Any(c => c is >= '\u0400' and <= '\u04FF');
 
     /// <summary>
+    /// Every title variant the payload carries — original, romaji and the synonym list — as the
+    /// candidate array for the AltTitles union. Synonyms joined the blob late: a secondary source
+    /// whose spellings all differ is exactly the multi-source "Альт. названия" provenance case.
+    /// </summary>
+    private static string?[] TitleCandidates(ExternalMediaDto external)
+    {
+        var candidates = new List<string?> { external.Title, external.OriginalTitle, external.RomajiTitle };
+        if (external.Synonyms is { Count: > 0 }) candidates.AddRange(external.Synonyms);
+        return [.. candidates];
+    }
+
+    /// <summary>
     /// Merges every non-empty title variant (localized, English, Romaji, Native) into the stored
     /// AltTitles blob, minus whatever <paramref name="displayTitle"/> currently shows, so all
     /// language variants stay searchable without ever overwriting the display title.
@@ -183,7 +195,7 @@ public static class MediaMetadataApplier
         }
 
         item.Title = external.Title;
-        UpdateAltTitles(item, external.OriginalTitle, external.RomajiTitle);
+        UpdateAltTitles(item, TitleCandidates(external));
     }
 
     /// <summary>Refresh: external data is authoritative and overwrites whatever is stored.</summary>
@@ -251,15 +263,20 @@ public static class MediaMetadataApplier
                 "creator");
         }
 
+        // The source the title was added from stays the primary binding: enrichment and refresh
+        // merge data across providers, and a merged payload must never re-point ExternalSource at
+        // a provider the user did not choose. Only a row with no source yet takes the incoming one.
         item.ExternalId = external.ExternalId;
-        item.ExternalSource = external.ExternalSource ?? item.ExternalSource;
+        item.ExternalSource = string.IsNullOrWhiteSpace(item.ExternalSource)
+            ? external.ExternalSource ?? item.ExternalSource
+            : item.ExternalSource;
         item.ExternalRating = external.Rating;
         item.ExternalRatingVotes = external.RatingVotes;
         item.OriginalLanguage = external.OriginalLanguage;
         item.CountryOfOrigin = external.CountryOfOrigin;
         item.CastJson = external.Cast is { Count: > 0 } cast ? JsonSerializer.Serialize(cast, AppJsonSerializerContext.Default.IReadOnlyListCastMemberDto) : null;
         item.OriginalTitle = external.OriginalTitle;
-        UpdateAltTitles(item, external.OriginalTitle, external.RomajiTitle);
+        UpdateAltTitles(item, TitleCandidates(external));
         item.StaffJson = external.Staff is { Count: > 0 } staff ? JsonSerializer.Serialize(staff, AppJsonSerializerContext.Default.IReadOnlyListExternalStaffMemberDto) : null;
 
         if (external.Ratings is { Count: > 0 } ratings)
@@ -285,7 +302,7 @@ public static class MediaMetadataApplier
         Action<TvSeason>? trackNewSeason = null)
     {
         var modified = ApplyRatings(item, external);
-        UpdateAltTitles(item, external.Title, external.OriginalTitle, external.RomajiTitle);
+        UpdateAltTitles(item, TitleCandidates(external));
         modified |= SetIfBlank(item.OriginalLanguage, external.OriginalLanguage, value => item.OriginalLanguage = value);
         modified |= SetIfBlank(item.CountryOfOrigin, external.CountryOfOrigin, value => item.CountryOfOrigin = value);
         if (string.IsNullOrWhiteSpace(item.CastJson) && external.Cast is { Count: > 0 } cast)

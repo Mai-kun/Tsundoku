@@ -426,22 +426,55 @@ public sealed class MetadataAggregatorService(
 
         var resultMap = results.ToDictionary(r => r.Source, StringComparer.OrdinalIgnoreCase);
 
+        // Provenance: each answering source is diffed against the state before its merge, so the
+        // linked-sources panel can auto-bind exactly the sources that actually contributed data,
+        // together with the honest list of fields they brought in.
+        var contributions = new List<SourceContributionDto>();
+
         foreach (var source in candidateSources)
         {
             if (!resultMap.TryGetValue(source, out var res)) continue;
 
-            if (res.MatchedMedia is not null)
-            {
-                current = MediaMerger.Merge(current, res.MatchedMedia);
-            }
-
-            if (res.Rating is not null && !ratings.Any(r => MediaMerger.NormalizeSourceKey(r.Source) == MediaMerger.NormalizeSourceKey(res.Rating.Source)))
+            var addedRating = false;
+            if (res.Rating is not null && res.Rating.Rating > 0
+                && !ratings.Any(r => MediaMerger.NormalizeSourceKey(r.Source) == MediaMerger.NormalizeSourceKey(res.Rating.Source)))
             {
                 ratings.Add(res.Rating);
+                addedRating = true;
+            }
+
+            if (res.MatchedMedia is not null)
+            {
+                var before = current;
+                current = MediaMerger.Merge(current, res.MatchedMedia);
+                var fields = new List<string>(MediaMerger.DiffProvidedFields(before, current, res.MatchedMedia, type));
+                // A rating of its own is a contribution too: the label rides on the same list so a
+                // score-only source is still auto-bound with an honest "Рейтинг" entry.
+                if (addedRating) fields.Add("Рейтинг");
+                if (fields.Count > 0)
+                {
+                    contributions.Add(new SourceContributionDto(
+                        res.Rating?.Source
+                            ?? res.MatchedMedia.ExternalSource
+                            ?? MediaMerger.GetCanonicalSourceName(source),
+                        res.MatchedMedia.ExternalId,
+                        res.MatchedMedia.Title,
+                        fields));
+                }
+            }
+            else if (addedRating)
+            {
+                // No merged payload, only a score: still a real contribution worth binding.
+                var ratingOnly = res.Rating!;
+                contributions.Add(new SourceContributionDto(
+                    ratingOnly.Source,
+                    null,
+                    null,
+                    ["Рейтинг"]));
             }
         }
 
-        return current with { Ratings = ratings };
+        return current with { Ratings = ratings, SourceContributions = contributions.Count > 0 ? contributions : null };
     }
 
     private async Task<SourceEnrichmentResult> QuerySourceEnrichmentAsync(

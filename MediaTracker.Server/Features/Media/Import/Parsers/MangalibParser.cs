@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 using MediaTracker.Server.Domain.Entities;
+using MediaTracker.Server.Infrastructure.ExternalApis;
 
 namespace MediaTracker.Server.Features.Media.Import.Parsers;
 

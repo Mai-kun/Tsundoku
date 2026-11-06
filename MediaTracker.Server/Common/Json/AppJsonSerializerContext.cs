@@ -146,6 +146,7 @@ namespace MediaTracker.Server.Common.Json;
 [JsonSerializable(typeof(IReadOnlyList<ExternalMediaDto>))]
 [JsonSerializable(typeof(List<ExternalMediaDto>))]
 [JsonSerializable(typeof(ExternalRatingDto))]
+[JsonSerializable(typeof(IReadOnlyList<MediaTracker.Server.Infrastructure.ExternalApis.SourceContributionDto>))]
 [JsonSerializable(typeof(CastMemberDto))]
 [JsonSerializable(typeof(IReadOnlyList<CastMemberDto>))]
 [JsonSerializable(typeof(List<CastMemberDto>))]

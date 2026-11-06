@@ -252,6 +252,21 @@ public static class MediaEnrichmentJob
         LinkedSourceCatalog.AppendFromExternal(
             item, external.ExternalSource, external.ExternalId, external.Title);
 
+        // A second source that actually added data (cast, trailer, genres...) auto-binds as a
+        // secondary source together with the honest list of the fields it contributed.
+        if (external.SourceContributions is { Count: > 0 } contributions)
+        {
+            foreach (var contribution in contributions)
+            {
+                LinkedSourceCatalog.AppendFromExternal(
+                    item,
+                    contribution.Source,
+                    contribution.ExternalId,
+                    contribution.Title,
+                    [.. contribution.Fields]);
+            }
+        }
+
         return true;
     }
 

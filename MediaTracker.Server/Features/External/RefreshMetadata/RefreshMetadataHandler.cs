@@ -93,6 +93,21 @@ public sealed class RefreshMetadataHandler(
                         current.IsCustomEdited = false;
                     }
 
+                    // A source that contributed data during this refresh auto-binds as a secondary
+                    // source, same as it does on the first-add enrichment job.
+                    if (external.SourceContributions is { Count: > 0 } contributions)
+                    {
+                        foreach (var contribution in contributions)
+                        {
+                            LinkedSourceCatalog.AppendFromExternal(
+                                current,
+                                contribution.Source,
+                                contribution.ExternalId,
+                                contribution.Title,
+                                [.. contribution.Fields]);
+                        }
+                    }
+
                     if (current is TvShow show)
                     {
                         foreach (var season in show.Seasons)

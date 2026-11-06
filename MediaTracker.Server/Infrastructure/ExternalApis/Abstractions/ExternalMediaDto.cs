@@ -59,6 +59,17 @@ public sealed record CastMemberDto(string Name, string? Character, string? Photo
 public sealed record ExternalStaffMemberDto(string Name, string? Role, string? ImageUrl);
 
 /// <summary>
+/// What one enrichment source actually added to the merged payload. Built by diffing the merge
+/// input and output per source, so the linked-sources panel can register the contributor with an
+/// honest list of the fields it supplied instead of a static label.
+/// </summary>
+public sealed record SourceContributionDto(
+    string Source,
+    string? ExternalId,
+    string? Title,
+    IReadOnlyList<string> Fields);
+
+/// <summary>
 /// A related title plus the relationship that produced it. The media payload reuses
 /// <see cref="ExternalMediaDto"/> rather than repeating it: every field the Related tab renders
 /// already lives there, so adding a second copy of them here would only create a second thing to keep
@@ -151,4 +162,10 @@ public sealed record ExternalMediaDto
     public IReadOnlyList<string>? Tags { get; init; }
 
     public IReadOnlyList<string>? Synonyms { get; init; }
+
+    /// <summary>
+    /// Per-source provenance of this payload, filled by the enrichment fan-out. Null whenever no
+    /// secondary source answered, so most payloads carry no extra weight.
+    /// </summary>
+    public IReadOnlyList<SourceContributionDto>? SourceContributions { get; init; }
 }

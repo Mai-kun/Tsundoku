@@ -11,7 +11,7 @@ public sealed record LinkedSourceDto(
     string? Url,
     bool IsPrimary,
     string? Title,
-    string? Details);
+    List<string>? ProvidedFields);
 
 /// <summary>Payload of POST /api/media/{id}/linked-sources.</summary>
 public sealed record LinkSourceRequest(
@@ -19,7 +19,7 @@ public sealed record LinkSourceRequest(
     string ExternalId,
     string? Url,
     string? Title,
-    string? Details,
+    List<string>? ProvidedFields,
     bool? IsPrimary);
 
 /// <summary>
@@ -48,7 +48,11 @@ public static class LinkedSourceCatalog
     public static string Serialize(IReadOnlyList<LinkedSourceDto> sources) =>
         JsonSerializer.Serialize(sources, AppJsonSerializerContext.Default.ListLinkedSourceDto);
 
-    /// <summary>The item's sources, seeded with its own primary source when the blob is empty.</summary>
+    /// <summary>
+    /// The item's sources, seeded with its own primary source when the blob is empty. The primary
+    /// row's field list is always recomputed from what the row actually holds — it is the source
+    /// that supplied the base record, so its contribution is whatever the entity currently has.
+    /// </summary>
     public static List<LinkedSourceDto> GetFor(MediaItem item)
     {
         var list = Parse(item.LinkedSourcesJson);
@@ -61,6 +65,14 @@ public static class LinkedSourceCatalog
                 true,
                 item.Title,
                 null));
+        }
+
+        for (var i = 0; i < list.Count; i++)
+        {
+            if (list[i].IsPrimary)
+            {
+                list[i] = list[i] with { ProvidedFields = CollectItemFields(item) };
+            }
         }
 
         return list;
@@ -90,9 +102,16 @@ public static class LinkedSourceCatalog
 
     /// <summary>
     /// Registers a source answered by an enrichment/import: appends when the source is not bound
-    /// yet, refreshes the external id of an existing binding, never steals the primary flag.
+    /// yet, refreshes the external id of an existing binding, never steals the primary flag. The
+    /// contributed field list grows by union, so a second enrichment that adds a trailer on top of
+    /// the genres a source already supplied keeps both entries.
     /// </summary>
-    public static void AppendFromExternal(MediaItem item, string? source, string? externalId, string? title)
+    public static void AppendFromExternal(
+        MediaItem item,
+        string? source,
+        string? externalId,
+        string? title,
+        List<string>? providedFields = null)
     {
         if (string.IsNullOrWhiteSpace(source)
             || string.IsNullOrWhiteSpace(externalId)
@@ -106,19 +125,110 @@ public static class LinkedSourceCatalog
         var existing = list.FirstOrDefault(s => NormalizeKey(s.Source) == NormalizeKey(source));
         if (existing is not null)
         {
-            if (existing.ExternalId == externalId) return;
+            var mergedFields = MergeFields(existing.ProvidedFields, providedFields);
+            if (existing.ExternalId == externalId
+                && (mergedFields ?? []).SequenceEqual(existing.ProvidedFields ?? [], StringComparer.Ordinal))
+            {
+                return;
+            }
+
             var updated = existing with
             {
                 ExternalId = externalId,
                 Title = string.IsNullOrWhiteSpace(existing.Title) ? title : existing.Title,
+                ProvidedFields = mergedFields,
             };
             list[list.IndexOf(existing)] = updated;
         }
         else
         {
-            list.Add(new LinkedSourceDto(source, externalId, null, false, title, null));
+            list.Add(new LinkedSourceDto(source, externalId, null, false, title, providedFields));
         }
 
         item.LinkedSourcesJson = Serialize(list);
+    }
+
+    private static List<string>? MergeFields(List<string>? current, List<string>? incoming)
+    {
+        if (incoming is not { Count: > 0 }) return current;
+        if (current is not { Count: > 0 }) return incoming;
+
+        var merged = new List<string>(current);
+        foreach (var field in incoming)
+        {
+            if (!merged.Contains(field, StringComparer.OrdinalIgnoreCase))
+            {
+                merged.Add(field);
+            }
+        }
+
+        return merged;
+    }
+
+    /// <summary>
+    /// What the item actually holds, as the provenance of the source that supplied the base record:
+    /// every entry below is backed by a present value on the row, never by a static assumption.
+    /// </summary>
+    private static List<string> CollectItemFields(MediaItem item)
+    {
+        var fields = new List<string>();
+
+        if (!string.IsNullOrWhiteSpace(item.Title)) fields.Add("Название");
+        if (!string.IsNullOrWhiteSpace(item.ReleaseStatus)) fields.Add("Статус");
+        if (item.AltTitles is not null) fields.Add("Альт. названия");
+
+        switch (item)
+        {
+            case TvShow show when show.Seasons.Count > 0:
+                fields.Add("Серии");
+                break;
+            case Manga manga:
+                if (manga.TotalChapters is > 0) fields.Add("Главы");
+                if (manga.TotalVolumes is > 0) fields.Add("Тома");
+                break;
+            case Book book:
+                if (book.TotalChapters is > 0) fields.Add("Главы");
+                if (book.TotalPages > 0) fields.Add("Страницы");
+                break;
+        }
+
+        if (item.ReleaseDate is not null || item.EndDate is not null || item.ReleaseYear is not null)
+        {
+            fields.Add("Даты выхода");
+        }
+
+        if (item.CoverUrl is not null || item.CoversJson is not null) fields.Add("Обложка");
+        if (item.CastJson is not null) fields.Add("Сэйю (персонажи)");
+        if (item.StaffJson is not null) fields.Add("Съёмочная группа");
+
+        switch (item)
+        {
+            case Movie movie:
+                if (movie.DurationMinutes > 0) fields.Add("Хронометраж");
+                if (!string.IsNullOrWhiteSpace(movie.Studio)) fields.Add("Студия");
+                if (!string.IsNullOrWhiteSpace(movie.Director)) fields.Add("Режиссёр");
+                break;
+            case TvShow tv when !string.IsNullOrWhiteSpace(tv.Studio):
+                if (tv.EpisodeDurationMinutes is > 0) fields.Add("Хронометраж");
+                fields.Add("Студия");
+                break;
+            case Manga manga when !string.IsNullOrWhiteSpace(manga.Author):
+                fields.Add("Автор");
+                break;
+            case Book book when !string.IsNullOrWhiteSpace(book.Author):
+                fields.Add("Автор");
+                break;
+            case VideoGame game:
+                if (!string.IsNullOrWhiteSpace(game.Studio)) fields.Add("Студия");
+                if (!string.IsNullOrWhiteSpace(game.Platform)) fields.Add("Платформа");
+                break;
+        }
+
+        if (!string.IsNullOrWhiteSpace(item.Genres)) fields.Add("Жанры");
+        if (!string.IsNullOrWhiteSpace(item.TrailerVideoId)) fields.Add("Трейлер");
+        if (item.ExternalRating is > 0 || item.ExternalRatingsJson is not null) fields.Add("Рейтинг");
+        if (!string.IsNullOrWhiteSpace(item.Description)) fields.Add("Синопсис");
+
+        return fields;
     }
 }

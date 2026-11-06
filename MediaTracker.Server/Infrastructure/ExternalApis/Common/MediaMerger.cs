@@ -254,6 +254,99 @@ public static class MediaMerger
         return a ?? b;
     }
 
+    /// <summary>
+    /// The human-readable labels of every field <paramref name="fallback"/> brought into the merge.
+    /// Two attribution rules live side by side:
+    ///  - single-winner fields (status, episode/chapter counts, runtime, studio, synopsis...) are
+    ///    credited only when the merge actually took the fallback's value over the primary's;
+    ///  - accumulative fields (genres, alt titles, cover) carry multi-attribution: every source
+    ///    that supplied data — even overlapping data — holds the label, because the stored list is
+    ///    a union of what several providers returned.
+    /// The "Рейтинг" label is not computed here: ratings bypass the merge and are credited by the
+    /// enrichment fan-out that collects them.
+    /// </summary>
+    public static IReadOnlyList<string> DiffProvidedFields(
+        ExternalMediaDto primary,
+        ExternalMediaDto merged,
+        ExternalMediaDto fallback,
+        string type)
+    {
+        var fields = new List<string>();
+        void Add(string label, bool changed)
+        {
+            if (changed && !fields.Contains(label)) fields.Add(label);
+        }
+
+        var episodeLabel = type is "anime" or "tvshow" ? "Серии" : "Главы";
+
+        // --- Single-winner fields: the value recorded in the card has exactly one author. ---
+        Add(episodeLabel, Num(merged.Chapters) != Num(primary.Chapters)
+            || Num(merged.TotalCount) != Num(primary.TotalCount)
+            || ListChanged(primary.Episodes, merged.Episodes)
+            || ListChanged(primary.Seasons, merged.Seasons));
+        Add("Тома", Num(merged.Volumes) != Num(primary.Volumes));
+        Add("Студия", merged.Studio != primary.Studio);
+        Add("Хронометраж", merged.RuntimeMinutes != primary.RuntimeMinutes);
+        Add("Статус", merged.ReleaseStatus != primary.ReleaseStatus);
+        Add("Даты выхода", merged.ReleaseYear != primary.ReleaseYear
+            || merged.ReleaseDate != primary.ReleaseDate
+            || merged.EndDate != primary.EndDate);
+        Add("Автор", merged.Author != primary.Author);
+        Add("Синопсис", merged.Description != primary.Description);
+        Add("Трейлер", merged.TrailerVideoId != primary.TrailerVideoId);
+        Add(type is "anime" ? "Сэйю (персонажи)" : "Актёры", CastChanged(primary.Cast, merged.Cast));
+        Add("Съёмочная группа", ListChanged(primary.Staff, merged.Staff));
+        Add("Теги", ListChanged(primary.Tags, merged.Tags));
+        Add("Формат", merged.MangaFormat != primary.MangaFormat);
+        Add("Платформа", merged.Platform != primary.Platform);
+
+        // --- Accumulative fields: several sources can hold the same label. ---
+        Add("Жанры", fallback.Genres is { Count: > 0 });
+        Add("Альт. названия", AddsNewAltTitle(primary, fallback));
+        Add("Обложка", !string.IsNullOrWhiteSpace(fallback.CoverUrl)
+            && string.Equals(merged.CoverUrl, fallback.CoverUrl, StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(primary.CoverUrl, fallback.CoverUrl, StringComparison.OrdinalIgnoreCase));
+
+        return fields;
+    }
+
+    private static int Num(int? value) => value is > 0 ? value.Value : 0;
+
+    /// <summary>
+    /// True when the fallback carries a title variant (romaji, original, synonym) that is not
+    /// already known to the primary — i.e. one that will join the stored AltTitles blob. Equal
+    /// spellings reported by both sources credit nobody twice.
+    /// </summary>
+    private static bool AddsNewAltTitle(ExternalMediaDto primary, ExternalMediaDto fallback)
+    {
+        var known = new[] { primary.Title, primary.OriginalTitle, primary.RomajiTitle }
+            .Concat(primary.Synonyms ?? [])
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Select(value => value!.Trim())
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        return new[] { fallback.RomajiTitle, fallback.OriginalTitle }
+            .Concat(fallback.Synonyms ?? [])
+            .Any(value => !string.IsNullOrWhiteSpace(value) && !known.Contains(value.Trim()));
+    }
+
+    /// <summary>First-wins fields: the fallback only matters when the primary side was empty.</summary>
+    private static bool ListChanged<T>(IReadOnlyList<T>? before, IReadOnlyList<T>? after) =>
+        before is not { Count: > 0 } && after is { Count: > 0 };
+
+    /// <summary>
+    /// Cast follows <see cref="BestCast"/>, so a non-empty primary list is still beaten when the
+    /// fallback is the first answer with photos.
+    /// </summary>
+    private static bool CastChanged(IReadOnlyList<CastMemberDto>? before, IReadOnlyList<CastMemberDto>? after)
+    {
+        if (after is not { Count: > 0 }) return false;
+        if (before is not { Count: > 0 }) return true;
+        var beforeHadPhotos = before.Any(member => !string.IsNullOrWhiteSpace(member.PhotoUrl));
+        var afterHasPhotos = after.Any(member => !string.IsNullOrWhiteSpace(member.PhotoUrl));
+        return afterHasPhotos && !beforeHadPhotos;
+    }
+
     private static string? FirstNonEmpty(string? first, string? second)
     {
         return !string.IsNullOrWhiteSpace(first) ? first : second;

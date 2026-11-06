@@ -52,7 +52,7 @@ public static class LinkedSourcesEndpoints
                 string.IsNullOrWhiteSpace(request.Url) ? null : request.Url!.Trim(),
                 request.IsPrimary is true || !hasPrimary,
                 string.IsNullOrWhiteSpace(request.Title) ? null : request.Title!.Trim(),
-                string.IsNullOrWhiteSpace(request.Details) ? null : request.Details!.Trim()));
+                request.ProvidedFields is { Count: > 0 } ? request.ProvidedFields : null));
 
             LinkedSourceCatalog.SaveFor(item, sources);
             await db.UpdateMediaItemAsync(item, ct);

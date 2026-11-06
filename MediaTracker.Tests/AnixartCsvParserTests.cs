@@ -3,6 +3,7 @@ using MediaTracker.Server.Domain.Entities;
 using MediaTracker.Server.Features.Media.Import;
 using MediaTracker.Server.Features.Media.Import.Parsers;
 using MediaTracker.Server.Infrastructure.ExternalApis;
+using MediaTracker.Server.Infrastructure.ExternalApis.Abstractions;
 using Xunit;
 
 namespace MediaTracker.Tests;

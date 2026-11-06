@@ -1,11 +1,7 @@
-using System.Diagnostics;
-using System.Globalization;
-using System.Net;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using MediaTracker.Server.Common.Utilities;
 
-namespace MediaTracker.Server.Infrastructure.ExternalApis;
+namespace MediaTracker.Server.Infrastructure.ExternalApis.Providers.Imdb;
 
 internal sealed class ImdbSuggestionResponse
 {

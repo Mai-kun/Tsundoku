@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace MediaTracker.Server.Infrastructure.ExternalApis;
+namespace MediaTracker.Server.Infrastructure.ExternalApis.Providers.AniList;
 
 internal interface IAniListEnvelope<TData>
     where TData : class

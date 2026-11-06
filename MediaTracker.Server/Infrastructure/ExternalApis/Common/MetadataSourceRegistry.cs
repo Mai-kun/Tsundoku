@@ -1,6 +1,6 @@
-using Microsoft.Extensions.DependencyInjection;
+using MediaTracker.Server.Infrastructure.ExternalApis.Abstractions;
 
-namespace MediaTracker.Server.Infrastructure.ExternalApis;
+namespace MediaTracker.Server.Infrastructure.ExternalApis.Common;
 
 /// <summary>
 /// The single place that knows every external source. Providers declare themselves through a static

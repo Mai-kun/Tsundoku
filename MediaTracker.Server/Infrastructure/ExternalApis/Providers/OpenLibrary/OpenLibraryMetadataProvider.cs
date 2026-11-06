@@ -1,10 +1,9 @@
 using System.Diagnostics;
-using System.Globalization;
-using System.Net.Http.Json;
-using System.Text.Json.Serialization;
 using MediaTracker.Server.Common.Json;
+using MediaTracker.Server.Infrastructure.ExternalApis.Abstractions;
+using MediaTracker.Server.Infrastructure.ExternalApis.Common;
 
-namespace MediaTracker.Server.Infrastructure.ExternalApis;
+namespace MediaTracker.Server.Infrastructure.ExternalApis.Providers.OpenLibrary;
 
 public sealed class OpenLibraryMetadataProvider(
     IHttpClientFactory httpClientFactory,

@@ -1,12 +1,6 @@
-using System.Diagnostics;
-using System.Net;
-using System.Net.Http.Json;
 using System.Text.Json.Serialization;
-using System.Text.RegularExpressions;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
-namespace MediaTracker.Server.Infrastructure.ExternalApis;
+namespace MediaTracker.Server.Infrastructure.ExternalApis.Providers.Rawg;
 
 internal sealed record RawgResponse(List<RawgGame>? Results);
 

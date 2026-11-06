@@ -1,9 +1,9 @@
-using System.Net.Http.Json;
-using System.Text.Json.Serialization;
-using Microsoft.Extensions.Options;
 using MediaTracker.Server.Common.Json;
+using MediaTracker.Server.Infrastructure.ExternalApis.Common;
+using MediaTracker.Server.Infrastructure.ExternalApis.Providers.Rawg;
+using Microsoft.Extensions.Options;
 
-namespace MediaTracker.Server.Infrastructure.ExternalApis;
+namespace MediaTracker.Server.Infrastructure.ExternalApis.Providers.Tmdb;
 
 /// <summary>
 /// TMDb's own "what to watch next" endpoints. The app had relations for games (RAWG) and for

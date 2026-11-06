@@ -1,9 +1,7 @@
-using System.Net.Http.Json;
-using System.Text.Json.Serialization;
-using Microsoft.Extensions.DependencyInjection;
 using MediaTracker.Server.Common.Json;
+using MediaTracker.Server.Infrastructure.ExternalApis.Abstractions;
 
-namespace MediaTracker.Server.Infrastructure.ExternalApis;
+namespace MediaTracker.Server.Infrastructure.ExternalApis.Providers.MangaUpdates;
 
 public sealed class MangaUpdatesMetadataProvider(
     IHttpClientFactory httpClientFactory) : MetadataProviderBase(Source)

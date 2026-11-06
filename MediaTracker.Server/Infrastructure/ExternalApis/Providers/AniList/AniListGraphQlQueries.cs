@@ -1,4 +1,4 @@
-namespace MediaTracker.Server.Infrastructure.ExternalApis;
+namespace MediaTracker.Server.Infrastructure.ExternalApis.Providers.AniList;
 
 internal static class AniListGraphQlQueries
 {

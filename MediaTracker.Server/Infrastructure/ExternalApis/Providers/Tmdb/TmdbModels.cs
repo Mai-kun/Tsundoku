@@ -1,12 +1,6 @@
-using System.Diagnostics;
-using System.Net;
-using System.Net.Http.Json;
 using System.Text.Json.Serialization;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
-namespace MediaTracker.Server.Infrastructure.ExternalApis;
+namespace MediaTracker.Server.Infrastructure.ExternalApis.Providers.Tmdb;
 
 internal sealed record TmdbResponse(List<TmdbItem>? Results);
 

@@ -1,6 +1,8 @@
 using System.Net;
 using FluentAssertions;
 using MediaTracker.Server.Infrastructure.ExternalApis;
+using MediaTracker.Server.Infrastructure.ExternalApis.Common;
+using MediaTracker.Server.Infrastructure.ExternalApis.Providers.SocialLib;
 using Microsoft.Extensions.Options;
 using Xunit;
 

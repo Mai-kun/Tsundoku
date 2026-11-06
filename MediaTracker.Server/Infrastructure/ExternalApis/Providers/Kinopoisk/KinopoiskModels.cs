@@ -1,12 +1,6 @@
-using System.Net.Http.Json;
-using System.Diagnostics;
-using System.Globalization;
 using System.Text.Json.Serialization;
-using MediaTracker.Server.Common.Utilities;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
 
-namespace MediaTracker.Server.Infrastructure.ExternalApis;
+namespace MediaTracker.Server.Infrastructure.ExternalApis.Providers.Kinopoisk;
 
 internal sealed class KinopoiskSearchResponse
 {

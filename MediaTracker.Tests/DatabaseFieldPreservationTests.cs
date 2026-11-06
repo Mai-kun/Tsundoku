@@ -20,6 +20,7 @@ using MediaTracker.Server.Infrastructure.Persistence.Franchises;
 using MediaTracker.Server.Infrastructure.Storage;
 using Microsoft.Extensions.Caching.Memory;
 using System.Threading.Channels;
+using MediaTracker.Server.Infrastructure.ExternalApis.Abstractions;
 using Xunit;
 
 namespace MediaTracker.Tests;

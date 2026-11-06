@@ -1,7 +1,10 @@
+using MediaTracker.Server.Infrastructure.ExternalApis.Abstractions;
 using MediaTracker.Server.Infrastructure.ExternalApis.Offline;
-using Microsoft.Extensions.DependencyInjection;
+using MediaTracker.Server.Infrastructure.ExternalApis.Providers.Rawg;
+using MediaTracker.Server.Infrastructure.ExternalApis.Providers.Tmdb;
+using MediaTracker.Server.Infrastructure.ExternalApis.Providers.Translation;
 
-namespace MediaTracker.Server.Infrastructure.ExternalApis;
+namespace MediaTracker.Server.Infrastructure.ExternalApis.Common;
 
 /// <summary>
 /// A metadata source was explicitly requested but could not be reached. Distinct from a

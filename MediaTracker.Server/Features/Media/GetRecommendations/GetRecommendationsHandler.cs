@@ -3,6 +3,8 @@ using MediaTracker.Server.Domain.Entities;
 using MediaTracker.Server.Features.External.GetExternalRelations;
 using MediaTracker.Server.Features.Media.MediaContract;
 using MediaTracker.Server.Infrastructure.ExternalApis;
+using MediaTracker.Server.Infrastructure.ExternalApis.Abstractions;
+using MediaTracker.Server.Infrastructure.ExternalApis.Providers.Tmdb;
 using MediaTracker.Server.Infrastructure.Persistence;
 
 namespace MediaTracker.Server.Features.Media.GetRecommendations;

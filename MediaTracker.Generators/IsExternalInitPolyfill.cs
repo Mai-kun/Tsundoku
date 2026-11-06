@@ -1,5 +1,5 @@
 // Polyfill for init-only property support on netstandard2.0.
-namespace System.Runtime.CompilerServices
+namespace MediaTracker.Generators
 {
     internal static class IsExternalInit { }
 }

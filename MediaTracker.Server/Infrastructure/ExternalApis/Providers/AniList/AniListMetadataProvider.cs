@@ -1,11 +1,10 @@
-using System.Net.Http.Json;
 using System.Text.RegularExpressions;
 using MediaTracker.Server.Common.Json;
 using MediaTracker.Server.Domain.Rules;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
+using MediaTracker.Server.Infrastructure.ExternalApis.Abstractions;
+using MediaTracker.Server.Infrastructure.ExternalApis.Common;
 
-namespace MediaTracker.Server.Infrastructure.ExternalApis;
+namespace MediaTracker.Server.Infrastructure.ExternalApis.Providers.AniList;
 
 public sealed partial class AniListMetadataProvider(
     IHttpClientFactory httpClientFactory,

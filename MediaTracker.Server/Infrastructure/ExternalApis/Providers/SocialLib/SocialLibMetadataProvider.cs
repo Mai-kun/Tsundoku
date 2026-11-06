@@ -1,11 +1,13 @@
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
+using MediaTracker.Server.Domain.Rules;
 using MediaTracker.Server.Features.Media.Import;
-using Microsoft.Extensions.DependencyInjection;
+using MediaTracker.Server.Infrastructure.ExternalApis.Abstractions;
+using MediaTracker.Server.Infrastructure.ExternalApis.Common;
 using Microsoft.Extensions.Options;
 
-namespace MediaTracker.Server.Infrastructure.ExternalApis;
+namespace MediaTracker.Server.Infrastructure.ExternalApis.Providers.SocialLib;
 
 public sealed class SocialLibMetadataProvider(
     IHttpClientFactory httpClientFactory,
@@ -52,12 +54,7 @@ public sealed class SocialLibMetadataProvider(
         var url = $"{BasePath}?q={Uri.EscapeDataString(effectiveQuery)}&site_id[]={SiteId}";
 
         var json = await SendWithFallbackAsync(url, ct);
-        if (string.IsNullOrWhiteSpace(json))
-        {
-            return [];
-        }
-
-        return ParseResults(json);
+        return string.IsNullOrWhiteSpace(json) ? [] : ParseResults(json);
     }
 
     public override async Task<ExternalMediaDto?> GetDetailsAsync(string externalId, string title, CancellationToken ct)
@@ -68,7 +65,7 @@ public sealed class SocialLibMetadataProvider(
         var dash = slug.IndexOf("--", StringComparison.Ordinal);
         if (dash > 0) slug = slug[(dash + 2)..];
 
-        var url = $"{BasePath}/{Uri.EscapeDataString(slug)}?fields[]=summary&fields[]=genres&fields[]=authors&fields[]=rate&site_id[]={SiteId}";
+        var url = $"{BasePath}/{Uri.EscapeDataString(slug)}?fields[]=summary&fields[]=genres&fields[]=authors&fields[]=rate&fields[]=chap_count&site_id[]={SiteId}";
         var json = await SendWithFallbackAsync(url, ct);
 
         if (!string.IsNullOrWhiteSpace(json))
@@ -310,10 +307,7 @@ public sealed class SocialLibMetadataProvider(
                 break;
         }
 
-        int? count = null;
-        if (elem.TryGetProperty("chap_count", out var cp) && cp.TryGetInt32(out var c)) count = c;
-        else if (elem.TryGetProperty("episodes_count", out var epCount) && epCount.TryGetInt32(out var ec)) count = ec;
-        else if (elem.TryGetProperty("items_count", out var ipCount) && ipCount.TryGetInt32(out var ic)) count = ic;
+        int? count = ExtractCount(elem);
 
         int? chapters = type != "anime" ? count : null;
         IReadOnlyList<ExternalEpisodeDto>? episodes = type == "anime" && count is > 0
@@ -340,11 +334,97 @@ public sealed class SocialLibMetadataProvider(
             TotalCount = count,
             Chapters = chapters,
             Episodes = episodes,
+            ReleaseStatus = ExtractReleaseStatus(elem),
             Rating = rating,
             RatingVotes = votes,
             Ratings = ratings,
             Genres = ExtractGenres(elem)
         };
+    }
+
+    /// <summary>
+    /// The catalog reports the chapter/episode total under several shapes: the legacy numeric
+    /// chap_count, episodes_count, and the newer items_count which arrived as a bare number and now
+    /// comes as an object ({ uploaded, total }) whose numeric fields are all the count there is.
+    /// </summary>
+    private static int? ExtractCount(JsonElement elem)
+    {
+        if (elem.TryGetProperty("chap_count", out var cp))
+        {
+            if (cp.TryGetInt32(out var c)) return c;
+        }
+
+        if (elem.TryGetProperty("episodes_count", out var epCount) && epCount.TryGetInt32(out var ec))
+        {
+            return ec;
+        }
+
+        if (elem.TryGetProperty("items_count", out var ic))
+        {
+            if (ic.ValueKind == JsonValueKind.Number && ic.TryGetInt32(out var plain)) return plain;
+            if (ic.ValueKind == JsonValueKind.Object)
+            {
+                foreach (var sub in new[] { "total", "uploaded" })
+                {
+                    if (ic.TryGetProperty(sub, out var subProp) && subProp.TryGetInt32(out var value) && value > 0)
+                    {
+                        return value;
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// The catalog's own release status: {"status": {"id": 2, "label": "Завершён"}}. Mapping the
+    /// Russian label keeps a finished manhwa from being re-derived as "RELEASING" by another
+    /// database that only knows the start date. The numeric id is the fallback for mirrors that
+    /// ship the object without a label (1 ongoing, 2 finished, 3 announced, 4 frozen, 5/6 dropped).
+    /// </summary>
+    private static string? ExtractReleaseStatus(JsonElement elem)
+    {
+        if (!elem.TryGetProperty("status", out var status)) return null;
+
+        if (status.ValueKind == JsonValueKind.Object)
+        {
+            if (status.TryGetProperty("label", out var label) && label.ValueKind == JsonValueKind.String)
+            {
+                var mapped = MapStatusLabel(label.GetString());
+                if (mapped is not null) return mapped;
+            }
+
+            if (status.TryGetProperty("id", out var idProp) && idProp.TryGetInt32(out var id))
+            {
+                return id switch
+                {
+                    1 => ReleaseStatusRules.Releasing,
+                    2 => ReleaseStatusRules.Finished,
+                    3 => ReleaseStatusRules.NotYetReleased,
+                    4 => "HIATUS",
+                    5 or 6 => "CANCELLED",
+                    _ => null
+                };
+            }
+
+            return null;
+        }
+
+        return status.ValueKind == JsonValueKind.String ? MapStatusLabel(status.GetString()) : null;
+    }
+
+    private static string? MapStatusLabel(string? label)
+    {
+        if (string.IsNullOrWhiteSpace(label)) return null;
+
+        var normalized = label.Trim().ToLowerInvariant();
+        if (normalized.Contains("заверш")) return ReleaseStatusRules.Finished;
+        if (normalized.Contains("онгоинг") || normalized.Contains("выходит")) return ReleaseStatusRules.Releasing;
+        if (normalized.Contains("заморож")) return "HIATUS";
+        if (normalized.Contains("анонс")) return ReleaseStatusRules.NotYetReleased;
+        if (normalized.Contains("отмен") || normalized.Contains("заброш")) return "CANCELLED";
+        return null;
     }
 
     /// <summary>

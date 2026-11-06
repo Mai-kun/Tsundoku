@@ -1,10 +1,7 @@
-using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using MediaTracker.Server.Domain.Rules;
-using Microsoft.Extensions.DependencyInjection;
 
-namespace MediaTracker.Server.Infrastructure.ExternalApis;
+namespace MediaTracker.Server.Infrastructure.ExternalApis.Providers.MangaDex;
 
 internal sealed class MdMangaListResponse
 {

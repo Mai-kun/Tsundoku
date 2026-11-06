@@ -1,6 +1,6 @@
 using MediaTracker.Server.Domain.Rules;
 
-namespace MediaTracker.Server.Infrastructure.ExternalApis;
+namespace MediaTracker.Server.Infrastructure.ExternalApis.Abstractions;
 
 public sealed record ExternalRatingDto
 {

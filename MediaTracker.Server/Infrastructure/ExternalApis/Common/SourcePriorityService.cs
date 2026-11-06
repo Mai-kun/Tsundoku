@@ -1,16 +1,13 @@
 using System.Collections.Frozen;
 using System.Text.Json;
-using MediaTracker.Server.Infrastructure.Persistence;
-using MediaTracker.Server.Domain.Entities;
-using Microsoft.Extensions.Caching.Memory;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-
 using MediaTracker.Server.Common.Json;
+using MediaTracker.Server.Infrastructure.ExternalApis.Abstractions;
 using MediaTracker.Server.Infrastructure.ExternalApis.Offline;
+using MediaTracker.Server.Infrastructure.Persistence;
 using MediaTracker.Server.Infrastructure.Storage;
+using Microsoft.Extensions.Caching.Memory;
 
-namespace MediaTracker.Server.Infrastructure.ExternalApis;
+namespace MediaTracker.Server.Infrastructure.ExternalApis.Common;
 
 public sealed class SourcePriorityService(
     IServiceScopeFactory scopeFactory,

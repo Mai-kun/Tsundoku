@@ -1,8 +1,6 @@
-using System.Globalization;
 using System.Text.Json.Serialization;
-using Microsoft.Extensions.DependencyInjection;
 
-namespace MediaTracker.Server.Infrastructure.ExternalApis;
+namespace MediaTracker.Server.Infrastructure.ExternalApis.Providers.Shikimori;
 
 internal sealed class ShikimoriItem
 {

@@ -2,9 +2,10 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using MediaTracker.Server.Infrastructure.ExternalApis.Abstractions;
 using Microsoft.Extensions.Caching.Memory;
 
-namespace MediaTracker.Server.Infrastructure.ExternalApis;
+namespace MediaTracker.Server.Infrastructure.ExternalApis.Providers.Translation;
 
 public sealed partial class TranslationService(
     IHttpClientFactory httpClientFactory,

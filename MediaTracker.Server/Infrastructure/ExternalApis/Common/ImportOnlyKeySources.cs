@@ -1,4 +1,4 @@
-namespace MediaTracker.Server.Infrastructure.ExternalApis;
+namespace MediaTracker.Server.Infrastructure.ExternalApis.Common;
 
 /// <summary>
 /// Sources that consume a credential only during media import (no metadata

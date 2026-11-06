@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Net;
 
-namespace MediaTracker.Server.Infrastructure.ExternalApis;
+namespace MediaTracker.Server.Infrastructure.ExternalApis.Common;
 
 /// <summary>
 /// The three lines every external call writes. The formats live here instead of being restated per

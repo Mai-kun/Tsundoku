@@ -5,6 +5,7 @@ using MediaTracker.Server.Domain.Enums;
 using MediaTracker.Server.Features.Media.MediaContract;
 using MediaTracker.Server.Features.Media.PendingMatches;
 using MediaTracker.Server.Infrastructure.ExternalApis;
+using MediaTracker.Server.Infrastructure.ExternalApis.Abstractions;
 using MediaTracker.Server.Infrastructure.Persistence;
 using Xunit;
 

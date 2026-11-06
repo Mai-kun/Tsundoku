@@ -5,6 +5,7 @@ using MediaTracker.Server.Features.Lists;
 using MediaTracker.Server.Features.Media.GetMediaStats;
 using MediaTracker.Server.Features.Media.Import;
 using MediaTracker.Server.Infrastructure.ExternalApis;
+using MediaTracker.Server.Infrastructure.ExternalApis.Abstractions;
 
 namespace MediaTracker.Benchmarks;
 

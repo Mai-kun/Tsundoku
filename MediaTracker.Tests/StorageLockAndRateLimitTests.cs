@@ -1,6 +1,7 @@
 using System.Net;
 using FluentAssertions;
 using MediaTracker.Server.Infrastructure.ExternalApis;
+using MediaTracker.Server.Infrastructure.ExternalApis.Common;
 using MediaTracker.Server.Infrastructure.Storage;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;

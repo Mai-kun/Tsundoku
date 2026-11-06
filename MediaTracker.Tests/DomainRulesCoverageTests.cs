@@ -8,6 +8,8 @@ using MediaTracker.Server.Features.Media.CreateMedia;
 using MediaTracker.Server.Features.Media.MediaContract;
 using MediaTracker.Server.Features.Media.UpdateMedia;
 using MediaTracker.Server.Infrastructure.ExternalApis;
+using MediaTracker.Server.Infrastructure.ExternalApis.Abstractions;
+using MediaTracker.Server.Infrastructure.ExternalApis.Common;
 using MediaTracker.Server.Infrastructure.Storage;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;

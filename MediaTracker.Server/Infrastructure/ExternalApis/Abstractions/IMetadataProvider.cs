@@ -1,4 +1,4 @@
-namespace MediaTracker.Server.Infrastructure.ExternalApis;
+namespace MediaTracker.Server.Infrastructure.ExternalApis.Abstractions;
 
 public sealed record ConnectionTestResult(bool Success, int LatencyMs, string Message);
 

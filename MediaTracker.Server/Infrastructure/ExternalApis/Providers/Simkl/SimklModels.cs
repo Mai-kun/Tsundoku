@@ -1,11 +1,6 @@
-using System.Diagnostics;
-using System.Globalization;
-using System.Net;
 using System.Text.Json.Serialization;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
 
-namespace MediaTracker.Server.Infrastructure.ExternalApis;
+namespace MediaTracker.Server.Infrastructure.ExternalApis.Providers.Simkl;
 
 internal sealed class SimklItem
 {

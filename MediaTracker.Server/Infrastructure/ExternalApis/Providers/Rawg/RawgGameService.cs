@@ -1,14 +1,12 @@
 using System.Diagnostics;
 using System.Net;
-using System.Net.Http.Json;
-using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
+using MediaTracker.Server.Common.Json;
+using MediaTracker.Server.Infrastructure.ExternalApis.Common;
 using Microsoft.Extensions.Options;
 
-using MediaTracker.Server.Common.Json;
-
-namespace MediaTracker.Server.Infrastructure.ExternalApis;
+namespace MediaTracker.Server.Infrastructure.ExternalApis.Providers.Rawg;
 
 public sealed record GameAchievementItem(string Name, string? Description, string? IconUrl);
 

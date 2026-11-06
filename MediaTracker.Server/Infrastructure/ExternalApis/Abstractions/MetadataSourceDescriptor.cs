@@ -1,4 +1,6 @@
-namespace MediaTracker.Server.Infrastructure.ExternalApis;
+using MediaTracker.Server.Infrastructure.ExternalApis.Common;
+
+namespace MediaTracker.Server.Infrastructure.ExternalApis.Abstractions;
 
 /// <summary>
 /// Everything the app needs to know about one external source. A provider declares this once and

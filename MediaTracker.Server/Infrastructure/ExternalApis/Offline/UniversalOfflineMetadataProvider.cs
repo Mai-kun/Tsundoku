@@ -1,9 +1,7 @@
-using MediaTracker.Server.Infrastructure.ExternalApis.Offline;
+using MediaTracker.Server.Infrastructure.ExternalApis.Abstractions;
 using MediaTracker.Server.Infrastructure.Storage;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 
-namespace MediaTracker.Server.Infrastructure.ExternalApis;
+namespace MediaTracker.Server.Infrastructure.ExternalApis.Offline;
 
 public sealed class UniversalOfflineMetadataProvider : MetadataProviderBase
 {

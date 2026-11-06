@@ -2,7 +2,7 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.Data.Sqlite;
 
-namespace MediaTracker.Server.Infrastructure.ExternalApis.Providers.MangaLib;
+namespace MediaTracker.Server.Infrastructure.ExternalApis.Providers.SocialLib;
 
 /// <summary>Detection result handed to the settings endpoint; the token is persisted encrypted.</summary>
 public sealed record BrowserSession(int UserId, string Username, string Token, string SourcePath);

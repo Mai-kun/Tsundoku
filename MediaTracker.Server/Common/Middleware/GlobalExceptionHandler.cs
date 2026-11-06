@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 
 using System.Text.Json;
 using MediaTracker.Server.Common.Json;
+using MediaTracker.Server.Infrastructure.ExternalApis.Common;
 
 namespace MediaTracker.Server.Common.Middleware;
 

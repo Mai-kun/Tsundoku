@@ -1,12 +1,9 @@
-using System.Net.Http.Json;
 using System.Text.Json;
-using System.Text.Json.Serialization;
-using MediaTracker.Server.Domain.Rules;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using MediaTracker.Server.Common.Json;
+using MediaTracker.Server.Domain.Rules;
+using MediaTracker.Server.Infrastructure.ExternalApis.Abstractions;
 
-namespace MediaTracker.Server.Infrastructure.ExternalApis;
+namespace MediaTracker.Server.Infrastructure.ExternalApis.Providers.MangaDex;
 
 public sealed class MangaDexMetadataProvider(
     IHttpClientFactory httpClientFactory,
@@ -18,7 +15,11 @@ public sealed class MangaDexMetadataProvider(
         Description: "Manga and Manhwa metadata, chapters, volumes & ratings provider",
         MediaTypes: ["manga"],
         BaseAddress: "https://api.mangadex.org/",
-        Priority: 3);
+        Priority: 3,
+        // MangaDex's bot wall answers a browser-looking User-Agent with an HTML challenge page
+        // ("if this isn't a browser, don't send a browser UA"), which failed every search and
+        // details call with a JSON parse error. A plain app UA passes clean.
+        UserAgent: "Tsundoku/1.0");
 
     public override async Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string query, CancellationToken ct)
     {

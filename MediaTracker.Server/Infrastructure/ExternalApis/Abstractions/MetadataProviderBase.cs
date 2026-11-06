@@ -1,6 +1,6 @@
 using System.Diagnostics;
 
-namespace MediaTracker.Server.Infrastructure.ExternalApis;
+namespace MediaTracker.Server.Infrastructure.ExternalApis.Abstractions;
 
 /// <summary>
 /// Base for every provider. The <see cref="MetadataSourceDescriptor"/> is passed directly through the

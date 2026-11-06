@@ -1,6 +1,8 @@
 using MediaTracker.Server.Domain.Common;
 using MediaTracker.Server.Features.Media.Import;
 using MediaTracker.Server.Infrastructure.ExternalApis;
+using MediaTracker.Server.Infrastructure.ExternalApis.Abstractions;
+using MediaTracker.Server.Infrastructure.ExternalApis.Common;
 
 namespace MediaTracker.Server.Features.External.SearchExternal;
 

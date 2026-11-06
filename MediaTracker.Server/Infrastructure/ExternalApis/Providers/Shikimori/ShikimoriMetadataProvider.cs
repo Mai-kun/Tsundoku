@@ -1,10 +1,9 @@
 using System.Globalization;
-using System.Text.Json.Serialization;
-using Microsoft.Extensions.DependencyInjection;
 using MediaTracker.Server.Common.Json;
 using MediaTracker.Server.Features.Media.Import;
+using MediaTracker.Server.Infrastructure.ExternalApis.Abstractions;
 
-namespace MediaTracker.Server.Infrastructure.ExternalApis;
+namespace MediaTracker.Server.Infrastructure.ExternalApis.Providers.Shikimori;
 
 public sealed class ShikimoriMetadataProvider(
     IHttpClientFactory httpClientFactory,

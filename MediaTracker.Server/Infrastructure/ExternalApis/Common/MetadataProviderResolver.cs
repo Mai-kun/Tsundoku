@@ -1,6 +1,6 @@
-using Microsoft.Extensions.DependencyInjection;
+using MediaTracker.Server.Infrastructure.ExternalApis.Abstractions;
 
-namespace MediaTracker.Server.Infrastructure.ExternalApis;
+namespace MediaTracker.Server.Infrastructure.ExternalApis.Common;
 
 public sealed class MetadataProviderResolver(IServiceProvider serviceProvider) : IMetadataProviderResolver
 {

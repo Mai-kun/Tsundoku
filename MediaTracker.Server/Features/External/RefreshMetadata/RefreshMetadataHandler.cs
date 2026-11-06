@@ -7,6 +7,8 @@ using MediaTracker.Server.Features.Media.GetMediaList;
 using MediaTracker.Server.Features.Media.GetMediaStats;
 using MediaTracker.Server.Features.Media.MediaContract;
 using MediaTracker.Server.Infrastructure.ExternalApis;
+using MediaTracker.Server.Infrastructure.ExternalApis.Abstractions;
+using MediaTracker.Server.Infrastructure.ExternalApis.Common;
 using MediaTracker.Server.Infrastructure.Jobs;
 using MediaTracker.Server.Infrastructure.Persistence;
 using MediaTracker.Server.Infrastructure.Storage;
@@ -14,7 +16,14 @@ using Microsoft.Extensions.Caching.Memory;
 
 namespace MediaTracker.Server.Features.External.RefreshMetadata;
 
-public sealed record RefreshMetadataCommand(Guid MediaId, bool FillMissingOnly = false);
+/// <summary>
+/// <c>UpdateMainCover</c> is only true for an explicit re-point of the primary source: a routine
+/// metadata refresh appends the source's cover to the gallery but keeps the poster the user picked.
+/// </summary>
+public sealed record RefreshMetadataCommand(
+    Guid MediaId,
+    bool FillMissingOnly = false,
+    bool UpdateMainCover = false);
 
 public interface IRefreshMetadataHandler
 {
@@ -88,7 +97,8 @@ public sealed class RefreshMetadataHandler(
                             imageStorage,
                             token,
                             _ => { },
-                            fillMissing: false);
+                            fillMissing: false,
+                            updateMainCover: command.UpdateMainCover);
 
                         current.IsCustomEdited = false;
                     }

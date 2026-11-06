@@ -1,5 +1,11 @@
 using MediaTracker.Server.Domain.Common;
 using MediaTracker.Server.Infrastructure.ExternalApis;
+using MediaTracker.Server.Infrastructure.ExternalApis.Abstractions;
+using MediaTracker.Server.Infrastructure.ExternalApis.Providers.AniList;
+using MediaTracker.Server.Infrastructure.ExternalApis.Providers.Kitsu;
+using MediaTracker.Server.Infrastructure.ExternalApis.Providers.MangaDex;
+using MediaTracker.Server.Infrastructure.ExternalApis.Providers.Rawg;
+using MediaTracker.Server.Infrastructure.ExternalApis.Providers.Tmdb;
 using Microsoft.Extensions.Caching.Memory;
 
 namespace MediaTracker.Server.Features.External.GetExternalRelations;
@@ -76,10 +82,23 @@ public sealed class GetExternalRelationsHandler(
             return [.. relations];
         }
 
+        // Kitsu is caught before the AniList catch-all too: its id space is its own, and its
+        // media-relationships table answers the whole relation list in one request.
+        if (!wantsRecommendations && Mentions(query.Source, KitsuMetadataProvider.Source.Id))
+        {
+            var kitsuType = query.Type is "anime" ? "anime" : "manga";
+            if (providerResolver.Resolve(kitsuType, KitsuMetadataProvider.Source.Id)
+                is not KitsuMetadataProvider kitsu)
+            {
+                return [];
+            }
+
+            return await kitsu.GetRelationsAsync(query.ExternalId, ct, query.Title);
+        }
+
         var isAnimeOrManga = query.Type is "anime" or "manga"
             || Mentions(query.Source, "anilist")
-            || Mentions(query.Source, "shikimori")
-            || Mentions(query.Source, "kitsu");
+            || Mentions(query.Source, "shikimori");
 
         // The frontend sends the bucket it used to pick sources from, so a film flagged as anime lands
         // on AniList exactly like it did when the browser issued the query itself.

@@ -1,8 +1,6 @@
-using System.Net.Http.Json;
 using System.Text.Json.Serialization;
-using Microsoft.Extensions.DependencyInjection;
 
-namespace MediaTracker.Server.Infrastructure.ExternalApis;
+namespace MediaTracker.Server.Infrastructure.ExternalApis.Providers.MangaUpdates;
 
 internal sealed class MuSearchResponse
 {

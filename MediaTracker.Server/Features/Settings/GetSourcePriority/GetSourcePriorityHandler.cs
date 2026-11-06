@@ -1,5 +1,6 @@
 using MediaTracker.Server.Domain.Common;
 using MediaTracker.Server.Infrastructure.ExternalApis;
+using MediaTracker.Server.Infrastructure.ExternalApis.Common;
 using MediaTracker.Server.Infrastructure.Persistence;
 
 namespace MediaTracker.Server.Features.Settings.GetSourcePriority;

@@ -1,4 +1,4 @@
-namespace MediaTracker.Server.Infrastructure.ExternalApis;
+namespace MediaTracker.Server.Infrastructure.ExternalApis.Abstractions;
 
 public interface ITranslationService
 {

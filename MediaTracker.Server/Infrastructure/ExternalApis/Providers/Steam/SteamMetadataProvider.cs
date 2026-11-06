@@ -1,8 +1,8 @@
 using System.Globalization;
-using System.Text.Json.Serialization;
 using MediaTracker.Server.Common.Json;
+using MediaTracker.Server.Infrastructure.ExternalApis.Abstractions;
 
-namespace MediaTracker.Server.Infrastructure.ExternalApis;
+namespace MediaTracker.Server.Infrastructure.ExternalApis.Providers.Steam;
 
 public sealed class SteamMetadataProvider(IHttpClientFactory httpClientFactory) : MetadataProviderBase(Source)
 {

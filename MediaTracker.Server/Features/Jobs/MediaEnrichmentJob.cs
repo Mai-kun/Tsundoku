@@ -9,6 +9,9 @@ using MediaTracker.Server.Features.External.GetExternalRelations;
 using MediaTracker.Server.Features.External.RefreshMetadata;
 using MediaTracker.Server.Features.Media.GetMediaList;
 using MediaTracker.Server.Infrastructure.ExternalApis;
+using MediaTracker.Server.Infrastructure.ExternalApis.Abstractions;
+using MediaTracker.Server.Infrastructure.ExternalApis.Common;
+using MediaTracker.Server.Infrastructure.ExternalApis.Providers.Rawg;
 using MediaTracker.Server.Infrastructure.Persistence;
 using MediaTracker.Server.Infrastructure.Storage;
 

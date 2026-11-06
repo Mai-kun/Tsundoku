@@ -1,8 +1,9 @@
 using System.Collections.Frozen;
 using MediaTracker.Server.Domain.Rules;
 using MediaTracker.Server.Features.Media.GetMediaStats;
+using MediaTracker.Server.Infrastructure.ExternalApis.Abstractions;
 
-namespace MediaTracker.Server.Infrastructure.ExternalApis;
+namespace MediaTracker.Server.Infrastructure.ExternalApis.Common;
 
 public static class MediaMerger
 {
@@ -141,6 +142,11 @@ public static class MediaMerger
             ReleaseStatus = FirstNonEmpty(primary.ReleaseStatus, fallback.ReleaseStatus),
             RomajiTitle = FirstNonEmpty(primary.RomajiTitle, fallback.RomajiTitle),
             OriginalTitle = FirstNonEmpty(primary.OriginalTitle, fallback.OriginalTitle),
+            // Alt titles are a union field: every source's synonyms join the pool, not just the
+            // primary's. Without this the enrichment fan-out merged Romaji/Original but silently
+            // dropped the fallback's synonyms, so the panel promised "Альт. названия" the merged
+            // payload then never delivered.
+            Synonyms = Union(primary.Synonyms, fallback.Synonyms),
             SteamAppId = FirstNonEmpty(primary.SteamAppId, fallback.SteamAppId),
             Platform = FirstNonEmpty(primary.Platform, fallback.Platform),
             // Runtime was silently dropped here: a source without a runtime used to overwrite the
@@ -278,6 +284,11 @@ public static class MediaMerger
         }
 
         var episodeLabel = type is "anime" or "tvshow" ? "Серии" : "Главы";
+        // The cast and staff labels follow the media type's vocabulary, same as the primary row's
+        // provenance list in LinkedSourceCatalog: voice cast for anime, actors for films, characters
+        // and authors/artists for manga and books.
+        var castLabel = type is "anime" ? "Сэйю (каст)" : type is "manga" or "book" ? "Персонажи" : "Актёры";
+        var staffLabel = type is "manga" or "book" ? "Авторы/Художники" : "Съёмочная группа";
 
         // --- Single-winner fields: the value recorded in the card has exactly one author. ---
         Add(episodeLabel, Num(merged.Chapters) != Num(primary.Chapters)
@@ -294,8 +305,8 @@ public static class MediaMerger
         Add("Автор", merged.Author != primary.Author);
         Add("Синопсис", merged.Description != primary.Description);
         Add("Трейлер", merged.TrailerVideoId != primary.TrailerVideoId);
-        Add(type is "anime" ? "Сэйю (персонажи)" : "Актёры", CastChanged(primary.Cast, merged.Cast));
-        Add("Съёмочная группа", ListChanged(primary.Staff, merged.Staff));
+        Add(castLabel, CastChanged(primary.Cast, merged.Cast));
+        Add(staffLabel, ListChanged(primary.Staff, merged.Staff));
         Add("Теги", ListChanged(primary.Tags, merged.Tags));
         Add("Формат", merged.MangaFormat != primary.MangaFormat);
         Add("Платформа", merged.Platform != primary.Platform);
@@ -311,6 +322,25 @@ public static class MediaMerger
     }
 
     private static int Num(int? value) => value is > 0 ? value.Value : 0;
+
+    /// <summary>Case-insensitive union; the primary's spellings keep their order, null when both sides are empty.</summary>
+    private static IReadOnlyList<string>? Union(IReadOnlyList<string>? first, IReadOnlyList<string>? second)
+    {
+        if (first is not { Count: > 0 }) return second;
+        if (second is not { Count: > 0 }) return first;
+
+        var merged = new List<string>(first);
+        foreach (var value in second)
+        {
+            if (!string.IsNullOrWhiteSpace(value)
+                && !merged.Contains(value, StringComparer.OrdinalIgnoreCase))
+            {
+                merged.Add(value);
+            }
+        }
+
+        return merged;
+    }
 
     /// <summary>
     /// True when the fallback carries a title variant (romaji, original, synonym) that is not

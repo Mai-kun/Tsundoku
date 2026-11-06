@@ -1,7 +1,6 @@
-using System.Globalization;
 using System.Text.Json.Serialization;
 
-namespace MediaTracker.Server.Infrastructure.ExternalApis;
+namespace MediaTracker.Server.Infrastructure.ExternalApis.Providers.Steam;
 
 internal sealed class SteamStoreSearchResponse
 {

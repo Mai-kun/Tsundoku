@@ -1,6 +1,7 @@
 using Dapper;
 using MediaTracker.Server.Domain.Common;
 using MediaTracker.Server.Infrastructure.ExternalApis;
+using MediaTracker.Server.Infrastructure.ExternalApis.Common;
 using MediaTracker.Server.Infrastructure.Persistence;
 using MediaTracker.Server.Infrastructure.Storage;
 using Microsoft.Data.Sqlite;

@@ -2,6 +2,7 @@ using System.Text;
 using MediaTracker.Server.Domain.Entities;
 using MediaTracker.Server.Features.Lists;
 using MediaTracker.Server.Infrastructure.ExternalApis;
+using MediaTracker.Server.Infrastructure.ExternalApis.Abstractions;
 
 namespace MediaTracker.Benchmarks.Data;
 

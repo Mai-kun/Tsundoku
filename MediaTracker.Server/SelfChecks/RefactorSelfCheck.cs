@@ -30,6 +30,20 @@ using UpdateMediaRequest = MediaTracker.Server.Features.Media.UpdateMedia.Update
 
 using System.Text.Json.Serialization.Metadata;
 using MediaTracker.Server.Common.Json;
+using MediaTracker.Server.Infrastructure.ExternalApis.Abstractions;
+using MediaTracker.Server.Infrastructure.ExternalApis.Common;
+using MediaTracker.Server.Infrastructure.ExternalApis.Providers.AniList;
+using MediaTracker.Server.Infrastructure.ExternalApis.Providers.Imdb;
+using MediaTracker.Server.Infrastructure.ExternalApis.Providers.Kinopoisk;
+using MediaTracker.Server.Infrastructure.ExternalApis.Providers.Kitsu;
+using MediaTracker.Server.Infrastructure.ExternalApis.Providers.MangaDex;
+using MediaTracker.Server.Infrastructure.ExternalApis.Providers.MangaUpdates;
+using MediaTracker.Server.Infrastructure.ExternalApis.Providers.OpenLibrary;
+using MediaTracker.Server.Infrastructure.ExternalApis.Providers.Rawg;
+using MediaTracker.Server.Infrastructure.ExternalApis.Providers.Shikimori;
+using MediaTracker.Server.Infrastructure.ExternalApis.Providers.Simkl;
+using MediaTracker.Server.Infrastructure.ExternalApis.Providers.Steam;
+using MediaTracker.Server.Infrastructure.ExternalApis.Providers.Tmdb;
 
 namespace MediaTracker.Server.SelfChecks;
 
@@ -4279,10 +4293,23 @@ public static class RefactorSelfCheck
 
             if (type == typeof(KitsuMetadataProvider))
             {
-                var factory = new StubHttpClientFactory(_ => Task.FromResult(new HttpResponseMessage
+                // Kitsu ships genres behind the JSON:API "genres" relationship, never inline in
+                // attributes — the detail stub must carry the related link like the real payload.
+                var factory = new StubHttpClientFactory(req =>
                 {
-                    Content = new StringContent("""{"data":{"id":"1","type":"anime","attributes":{"canonicalTitle":"Cowboy Bebop","categories":["Action","Sci-Fi"]}}}""")
-                }));
+                    var uri = req.RequestUri!.AbsoluteUri;
+                    if (uri.Contains("/genres"))
+                    {
+                        return Task.FromResult(new HttpResponseMessage
+                        {
+                            Content = new StringContent("""{"data":[{"id":"11","type":"genres","attributes":{"name":"Action"}},{"id":"12","type":"genres","attributes":{"name":"Sci-Fi"}}]}""")
+                        });
+                    }
+                    return Task.FromResult(new HttpResponseMessage
+                    {
+                        Content = new StringContent("""{"data":{"id":"1","type":"anime","attributes":{"canonicalTitle":"Cowboy Bebop"},"relationships":{"genres":{"links":{"related":"https://kitsu.io/api/edge/anime/1/genres"}}}}}""")
+                    });
+                });
                 var provider = new KitsuMetadataProvider(factory);
                 var dto = provider.GetDetailsAsync("1", "Cowboy Bebop", CancellationToken.None).GetAwaiter().GetResult();
                 return dto?.Genres is { Count: > 0 } && dto.Genres.Contains("Action");

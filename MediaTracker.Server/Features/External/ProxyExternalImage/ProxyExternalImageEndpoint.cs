@@ -14,10 +14,12 @@ public static class ProxyExternalImageEndpoint
 {
     /// <summary>
     /// Only the hosts that actually block hotlinking are proxied; everything else keeps loading
-    /// straight from its CDN. Keeping the list tight also pins the SSRF surface down: the endpoint
-    /// will never fetch anything but these image hosts.
+    /// straight from its CDN. MangaDex serves its uploads behind a bot wall that answers a browser
+    /// <img> with a challenge redirect, so its covers ride the proxy with a plain app UA.
+    /// Keeping the list tight also pins the SSRF surface down: the endpoint will never fetch
+    /// anything but these image hosts.
     /// </summary>
-    private static readonly string[] AllowedHostSuffixes = ["imglib.info", "mangalib.me"];
+    private static readonly string[] AllowedHostSuffixes = ["imglib.info", "mangalib.me", "mangadex.org"];
 
     public static IEndpointRouteBuilder MapProxyExternalImageEndpoint(this IEndpointRouteBuilder app)
     {
@@ -43,8 +45,15 @@ public static class ProxyExternalImageEndpoint
             }
 
             var contentType = response.Content.Headers.ContentType?.ToString() ?? "image/jpeg";
-            var stream = await response.Content.ReadAsStreamAsync(ct);
-            return Results.Stream(stream, contentType);
+
+            // Buffer before returning: the using-disposed request/response die the moment this
+            // lambda returns, while Results.Stream would only start copying the raw connection
+            // stream afterwards — that raced the disposal and answered the browser with a 500.
+            // Covers are capped at 10 MB upstream, so the memory copy is bounded.
+            var buffered = new MemoryStream();
+            await (await response.Content.ReadAsStreamAsync(ct)).CopyToAsync(buffered, ct);
+            buffered.Seek(0, SeekOrigin.Begin);
+            return Results.Stream(buffered, contentType);
         })
         .WithTags("Внешний поиск / External")
         .WithSummary("Прокси обложек с CDN, закрытых от хотлинка (DDoS-Guard)");

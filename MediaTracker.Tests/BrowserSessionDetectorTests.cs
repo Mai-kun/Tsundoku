@@ -1,7 +1,7 @@
 using System.Linq;
 using System.Text;
 using FluentAssertions;
-using MediaTracker.Server.Infrastructure.ExternalApis.Providers.MangaLib;
+using MediaTracker.Server.Infrastructure.ExternalApis.Providers.SocialLib;
 using Microsoft.Data.Sqlite;
 using Xunit;
 

@@ -1,13 +1,12 @@
-using System.Net.Http.Json;
 using System.Diagnostics;
 using System.Globalization;
-using System.Text.Json.Serialization;
-using MediaTracker.Server.Common.Utilities;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
 using MediaTracker.Server.Common.Json;
+using MediaTracker.Server.Common.Utilities;
+using MediaTracker.Server.Infrastructure.ExternalApis.Abstractions;
+using MediaTracker.Server.Infrastructure.ExternalApis.Common;
+using Microsoft.Extensions.Options;
 
-namespace MediaTracker.Server.Infrastructure.ExternalApis;
+namespace MediaTracker.Server.Infrastructure.ExternalApis.Providers.Kinopoisk;
 
 public sealed class KinopoiskMetadataProvider(
     IHttpClientFactory httpClientFactory,

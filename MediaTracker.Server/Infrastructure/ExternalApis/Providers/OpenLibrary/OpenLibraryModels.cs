@@ -1,9 +1,6 @@
-using System.Diagnostics;
-using System.Globalization;
-using System.Net.Http.Json;
 using System.Text.Json.Serialization;
 
-namespace MediaTracker.Server.Infrastructure.ExternalApis;
+namespace MediaTracker.Server.Infrastructure.ExternalApis.Providers.OpenLibrary;
 
 internal sealed record OpenLibraryResponse(List<OpenLibraryDoc>? Docs);
 

@@ -2,11 +2,12 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Net;
 using System.Text.Json;
-using System.Text.Json.Serialization;
-using MediaTracker.Server.Common.Utilities;
 using MediaTracker.Server.Common.Json;
+using MediaTracker.Server.Common.Utilities;
+using MediaTracker.Server.Infrastructure.ExternalApis.Abstractions;
+using MediaTracker.Server.Infrastructure.ExternalApis.Common;
 
-namespace MediaTracker.Server.Infrastructure.ExternalApis;
+namespace MediaTracker.Server.Infrastructure.ExternalApis.Providers.Imdb;
 
 public sealed class ImdbMetadataProvider(
     IHttpClientFactory httpClientFactory,

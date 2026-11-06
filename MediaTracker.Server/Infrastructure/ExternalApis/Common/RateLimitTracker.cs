@@ -1,6 +1,6 @@
 using System.Collections.Concurrent;
 
-namespace MediaTracker.Server.Infrastructure.ExternalApis;
+namespace MediaTracker.Server.Infrastructure.ExternalApis.Common;
 
 public sealed record ApiRateLimitStatus(
     string Provider,

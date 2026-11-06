@@ -3,6 +3,7 @@ using MediaTracker.Server.Features.External.GetExternalDetails;
 using MediaTracker.Server.Features.External.GetGameAchievements;
 using MediaTracker.Server.Features.External.GetGameRecommendations;
 using MediaTracker.Server.Features.External.GetGameRelated;
+using MediaTracker.Server.Features.External.ProxyExternalImage;
 using MediaTracker.Server.Features.External.SearchExternal;
 using MediaTracker.Server.Features.External.GetExternalRelations;
 using MediaTracker.Server.Features.External.TranslateText;
@@ -14,6 +15,8 @@ public static class ExternalMediaEndpoints
 {
     public static IEndpointRouteBuilder MapExternalMediaEndpoints(this IEndpointRouteBuilder app)
     {
+        app.MapProxyExternalImageEndpoint();
+
         var group = app.MapGroup("/api/external");
 
         group.MapGet("/search", (

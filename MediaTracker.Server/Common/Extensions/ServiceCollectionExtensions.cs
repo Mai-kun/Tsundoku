@@ -51,6 +51,13 @@ public static class ServiceCollectionExtensions
         })
         .AddHttpMessageHandler<ExternalHttpLoggingHandler>();
 
+        // The image-proxy endpoint streams covers for the search previews; a slightly larger budget
+        // than the cover downloader because the response reaches the browser live.
+        services.AddHttpClient("ExternalImageProxy", client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(10);
+        });
+
         services.AddScoped<IBackupService, BackupService>();
 
         return services;

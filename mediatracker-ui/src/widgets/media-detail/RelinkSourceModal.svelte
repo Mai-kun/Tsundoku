@@ -5,6 +5,7 @@
   import Modal from "$shared/ui/Modal.svelte";
   import Select from "$shared/ui/Select.svelte";
   import { sourceBadgeClasses } from "$entities/media/model/mediaLabels";
+  import { proxiedExternalCoverUrl } from "$entities/media/model/coverUrl";
   import type { ExternalMedia, MediaType, SearchScope, SourceInfo } from "$shared/types";
 
   /** Anime is its own search bucket; anything the aggregator does not know becomes "all". */
@@ -272,7 +273,7 @@
               >
                 {#if result.coverUrl}
                   <img
-                    src={result.coverUrl}
+                    src={proxiedExternalCoverUrl(result.coverUrl)}
                     alt={result.title}
                     class="h-full w-full object-cover"
                     loading="lazy"

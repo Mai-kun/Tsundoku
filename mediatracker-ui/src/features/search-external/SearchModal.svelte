@@ -21,6 +21,7 @@
     searchExternal,
   } from "$shared/api/api";
   import { parseMediaUrl } from "$shared/utils/urlMediaParser";
+  import { proxiedExternalCoverUrl } from "$entities/media/model/coverUrl";
   import { i18n } from "$shared/i18n/index.svelte";
   import Modal from "$shared/ui/Modal.svelte";
   import PopoverMenu from "$shared/ui/PopoverMenu.svelte";
@@ -774,7 +775,7 @@
           selected={selectedSource}
           onSelect={(value) => (selectedSource = value as string)}
           label={i18n.t.searchModal.sourceLabel}
-          class="min-w-[260px] max-w-sm"
+          class="max-w-sm min-w-[260px]"
         >
           {#snippet trigger({ popoverTargetId, anchorName, isOpen })}
             <button
@@ -927,7 +928,7 @@
                       <div class="bg-canvas h-24 w-16 shrink-0 overflow-hidden rounded-md">
                         {#if result.coverUrl}
                           <img
-                            src={result.coverUrl}
+                            src={proxiedExternalCoverUrl(result.coverUrl)}
                             alt={result.title}
                             class="h-full w-full object-cover"
                             loading="lazy"
@@ -1085,7 +1086,7 @@
               <div class="bg-canvas h-28 w-20 shrink-0 overflow-hidden rounded-md">
                 {#if result.coverUrl}
                   <img
-                    src={result.coverUrl}
+                    src={proxiedExternalCoverUrl(result.coverUrl)}
                     alt={result.title}
                     class="h-full w-full object-cover"
                     loading="lazy"

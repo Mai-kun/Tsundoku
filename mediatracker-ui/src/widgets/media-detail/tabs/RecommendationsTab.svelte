@@ -2,6 +2,7 @@
   import { Image as ImageIcon } from "$shared/ui/Icons";
   import { i18n } from "$shared/i18n/index.svelte";
   import type { RecommendationItem } from "../detailTypes";
+  import { proxiedExternalCoverUrl } from "$entities/media/model/coverUrl";
 
   interface Props {
     /** The ready-made `media.recommendations`: this tab only renders it — no source picker. */
@@ -22,7 +23,7 @@
         >
           {#if rec.coverUrl}
             <img
-              src={rec.coverUrl}
+              src={proxiedExternalCoverUrl(rec.coverUrl)}
               alt={rec.title}
               referrerpolicy="no-referrer"
               class="h-full w-full object-cover transition duration-300 group-hover:scale-105"

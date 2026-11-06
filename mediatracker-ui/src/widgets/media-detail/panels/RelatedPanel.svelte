@@ -11,6 +11,7 @@
   import { errorMessage } from "$shared/api/api";
   import { i18n } from "$shared/i18n/index.svelte";
   import MediaStatusBadge from "$entities/media/ui/MediaStatusBadge.svelte";
+  import { proxiedExternalCoverUrl } from "$entities/media/model/coverUrl";
   import type { MediaItem } from "$shared/types";
   import RelationLoadButton from "$widgets/media-detail/RelationLoadButton.svelte";
   import { availableRelationSources } from "$widgets/media-detail/relationSources";
@@ -253,7 +254,7 @@
   >
     {#if rel.coverUrl}
       <img
-        src={rel.coverUrl}
+        src={proxiedExternalCoverUrl(rel.coverUrl)}
         alt={rel.title}
         class="h-full w-full object-cover transition duration-500 group-hover:scale-105"
         loading="lazy"
@@ -351,7 +352,7 @@
       >
         {#if item.coverUrl}
           <img
-            src={item.coverUrl}
+            src={proxiedExternalCoverUrl(item.coverUrl)}
             alt={item.title}
             referrerpolicy="no-referrer"
             class="h-full w-full object-cover"

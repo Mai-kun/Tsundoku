@@ -6,6 +6,7 @@
   import { MEDIA_STATUS, type MediaStatus } from "$shared/types";
   import { formatMediaDisplayType, statusLabel } from "$widgets/media-detail/detailFormatters";
   import type { RatingBadge, RelatedEntry } from "$widgets/media-detail/detailTypes";
+  import { proxiedExternalCoverUrl } from "$entities/media/model/coverUrl";
 
   interface Props {
     /** Null when no external entry is being previewed. */
@@ -70,7 +71,7 @@
           >
             {#if item.coverUrl}
               <img
-                src={item.coverUrl}
+                src={proxiedExternalCoverUrl(item.coverUrl)}
                 alt={item.title}
                 referrerpolicy="no-referrer"
                 class="h-full w-full object-cover"

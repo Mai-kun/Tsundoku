@@ -12,6 +12,7 @@
   import { sourceBadgeClasses } from "$entities/media/model/mediaLabels";
   import { formatGenresList } from "$entities/media/model/genreLabel";
   import { joinOriginalTitle } from "./detailFormatters";
+  import { proxiedExternalCoverUrl } from "$entities/media/model/coverUrl";
 
   interface Props {
     /** The search hit. Rendered immediately, then enriched by the full details. */
@@ -340,7 +341,7 @@
             >
               {#if media.coverUrl && !imgError}
                 <img
-                  src={media.coverUrl}
+                  src={proxiedExternalCoverUrl(media.coverUrl)}
                   alt={media.title}
                   class="h-full w-full object-cover"
                   decoding="async"

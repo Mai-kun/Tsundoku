@@ -107,7 +107,12 @@ public sealed class ImageStorageService(
     private static bool IsSafeCoverId(string coverId) =>
         coverId.Length > 0 && coverId.Length <= 40 && coverId.All(char.IsAsciiLetterOrDigit);
 
-    private static HttpRequestMessage CreateImageRequest(string url)
+    /// <summary>
+    /// Builds the image request with the headers the DDoS-guarded lib CDNs demand (a browser UA
+    /// plus a mangalib referer). Shared with the image-proxy endpoint so preview URLs get exactly
+    /// the same treatment the cover downloader gives them.
+    /// </summary>
+    public static HttpRequestMessage CreateImageRequest(string url)
     {
         var request = new HttpRequestMessage(HttpMethod.Get, url);
         if (Uri.TryCreate(url, UriKind.Absolute, out var uri))

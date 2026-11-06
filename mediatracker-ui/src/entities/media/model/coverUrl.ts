@@ -22,3 +22,28 @@ export function isValidCoverUrl(value: string): boolean {
   const trimmed = value.trim();
   return trimmed === "" || trimmed.startsWith("/") || /^https?:\/\/\S+$/i.test(trimmed);
 }
+
+/**
+ * Hosts whose image CDNs block hotlinking (DDoS-Guard answers a plain browser <img> with 403).
+ * The server's /api/external/image-proxy fetches these with the headers the guard demands, so
+ * external previews route through it; every other host keeps loading straight from its CDN.
+ */
+const HOTLINK_BLOCKED_HOST_SUFFIXES = ["imglib.info", "mangalib.me"];
+
+/**
+ * Rewrites an external cover URL to the server-side image proxy when its host needs it. Local
+ * asset paths and regular CDNs are returned untouched, and a malformed URL falls through as-is.
+ */
+export function proxiedExternalCoverUrl(coverUrl: string): string {
+  const trimmed = coverUrl.trim();
+  if (!/^https?:\/\//i.test(trimmed)) return trimmed;
+  try {
+    const host = new URL(trimmed).host;
+    if (HOTLINK_BLOCKED_HOST_SUFFIXES.some((suffix) => host.endsWith(suffix))) {
+      return `/api/external/image-proxy?url=${encodeURIComponent(trimmed)}`;
+    }
+  } catch {
+    // Not a parseable URL: leave it alone and let the <img> handle the failure.
+  }
+  return trimmed;
+}

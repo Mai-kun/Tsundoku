@@ -19,11 +19,14 @@ public static class AutoRefreshRules
 
     /// <summary>
     /// Only titles whose source keeps publishing new material deserve a poll: dropped rows and
-    /// officially finished releases never change, and games/books have no ongoing half the API
-    /// could report on.
+    /// officially finished releases never change. Books and games are excluded outright — a game
+    /// library does not change upstream the way an airing season does, and a book's content is
+    /// fixed, so the scheduler never picks them up no matter what the row's status says.
     /// </summary>
     public static bool ShouldScheduleRefresh(MediaItem item) =>
-        item.Status != MediaStatus.Dropped
+        item is not VideoGame
+        && item is not Book
+        && item.Status != MediaStatus.Dropped
         && !IsFinished(item)
         && item is Manga or TvShow or Movie { IsAnime: true };
 

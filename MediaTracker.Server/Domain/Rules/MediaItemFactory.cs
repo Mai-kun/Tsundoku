@@ -151,5 +151,11 @@ public static class MediaItemFactory
             item.AutoRefreshIntervalDays = AutoRefreshRules.BaseIntervalDays;
             item.NextAutoRefreshAt = DateTime.UtcNow.AddDays(item.AutoRefreshIntervalDays);
         }
+        else
+        {
+            // No schedule means no schedule: games (and other unpollable types) must carry a null
+            // NextAutoRefreshAt so neither the scheduler nor the sidebar can show a stale date.
+            item.NextAutoRefreshAt = null;
+        }
     }
 }

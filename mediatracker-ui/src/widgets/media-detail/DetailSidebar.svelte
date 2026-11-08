@@ -207,7 +207,8 @@
   const finishedRelease = $derived(media.releaseStatus?.toUpperCase() === "FINISHED");
   // Games and books are never polled server-side; the button only makes sense for active ongoings.
   const isOngoing = $derived(
-    !finishedRelease &&
+    media.type !== "game" &&
+      !finishedRelease &&
       (media.type === "manga" || media.type === "tvshow" || !!media.nextAutoRefreshAt),
   );
 
@@ -676,7 +677,7 @@
             </dd>
           </div>
         {/if}
-        {#if media.nextAutoRefreshAt && !finishedRelease}
+        {#if media.type !== "game" && media.nextAutoRefreshAt && !finishedRelease}
           <!-- When the next background check runs, and at what cadence. -->
           <div class="flex items-center justify-between gap-3 py-2.5">
             <dt class="text-muted text-xs">

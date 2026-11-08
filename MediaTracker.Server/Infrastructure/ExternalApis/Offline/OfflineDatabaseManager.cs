@@ -128,7 +128,9 @@ public sealed class OfflineDatabaseManager
 
     private async Task CleanupDatabaseGenresAsync(string dbPath, CancellationToken ct)
     {
-        await using var conn = new SqliteConnection($"Data Source={dbPath};Mode=ReadWrite;");
+        // Разовая (один раз за жизнь базы) миграция — пул держать не за чем: соединение
+        // умирает вместе с попыткой, страницы SQLite не оседают в памяти.
+        await using var conn = new SqliteConnection($"Data Source={dbPath};Mode=ReadWrite;Pooling=False;Cache=Private;");
         await conn.OpenAsync(ct);
 
         await using var command = conn.CreateCommand();
@@ -434,7 +436,7 @@ public sealed class OfflineDatabaseManager
 
         try
         {
-            await using var conn = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly;");
+            await using var conn = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly;Pooling=False;Cache=Private;");
             await conn.OpenAsync(ct);
 
             await using var cmd = conn.CreateCommand();
@@ -523,7 +525,7 @@ public sealed class OfflineDatabaseManager
 
         try
         {
-            await using var conn = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly;");
+            await using var conn = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly;Pooling=False;Cache=Private;");
             await conn.OpenAsync(ct);
 
             await using var cmd = conn.CreateCommand();
@@ -579,7 +581,7 @@ public sealed class OfflineDatabaseManager
         {
             try
             {
-                await using var conn = new SqliteConnection($"Data Source={db};Mode=ReadOnly;");
+                await using var conn = new SqliteConnection($"Data Source={db};Mode=ReadOnly;Pooling=False;Cache=Private;");
                 await conn.OpenAsync(ct);
 
                 await using var cmd = conn.CreateCommand();
@@ -642,7 +644,7 @@ public sealed class OfflineDatabaseManager
             var isActive = false;
             try
             {
-                await using var conn = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly;");
+                await using var conn = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly;Pooling=False;Cache=Private;");
                 await conn.OpenAsync(ct);
                 await using var cmd = conn.CreateCommand();
                 cmd.CommandText = "SELECT COUNT(1) FROM OfflineMedia;";

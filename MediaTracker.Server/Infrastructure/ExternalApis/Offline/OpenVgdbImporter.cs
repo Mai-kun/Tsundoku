@@ -36,7 +36,9 @@ public sealed partial class OpenVgdbImporter
 
         try
         {
-            await using var srcConn = new SqliteConnection($"Data Source={resolvedSource};Mode=ReadOnly;");
+            // Источник ~40-тысячнострочной игры-базы: пулинг оставил бы его страницы висеть в
+            // памяти после импорта, поэтому соединение умирает вместе с job'ом.
+            await using var srcConn = new SqliteConnection($"Data Source={resolvedSource};Mode=ReadOnly;Pooling=False;Cache=Private;");
             await srcConn.OpenAsync(ct);
 
             // Read count first for realistic progress reporting

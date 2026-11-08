@@ -40,6 +40,10 @@ internal sealed class MuSeriesRecord
     [JsonPropertyName("year")]
     public string? Year { get; set; }
 
+    /// <summary>MangaUpdates' origin label: Manga, Manhwa, Manhua, OEL (Original English Language)...</summary>
+    [JsonPropertyName("type")]
+    public string? Type { get; set; }
+
     [JsonPropertyName("bayesian_rating")]
     public double? BayesianRating { get; set; }
 
@@ -61,14 +65,44 @@ internal sealed class MuSeriesRecord
     [JsonPropertyName("associated")]
     public List<MuAssociatedTitle>? Associated { get; set; }
 
+    /// <summary>The 3–5 curated genres — the only list that belongs in the genres block.</summary>
     [JsonPropertyName("genres")]
     public List<MuGenre>? Genres { get; set; }
+
+    /// <summary>
+    /// The large user-voted category list (tropes, themes, demographics — often dozens of rows).
+    /// Kept off Genres on purpose; at most the top few belong in Tags.
+    /// </summary>
+    [JsonPropertyName("categories")]
+    public List<MuCategory>? Categories { get; set; }
+
+    /// <summary>Inline neighbour list of the details answer; the source for native relations.</summary>
+    [JsonPropertyName("related_series")]
+    public List<MuRelatedSeries>? RelatedSeries { get; set; }
 }
 
 internal sealed class MuGenre
 {
     [JsonPropertyName("genre")]
     public string? Genre { get; set; }
+}
+
+internal sealed class MuCategory
+{
+    [JsonPropertyName("category")]
+    public string? Category { get; set; }
+}
+
+internal sealed class MuRelatedSeries
+{
+    [JsonPropertyName("relation_type")]
+    public string? RelationType { get; set; }
+
+    [JsonPropertyName("related_series_id")]
+    public long RelatedSeriesId { get; set; }
+
+    [JsonPropertyName("related_series_name")]
+    public string? RelatedSeriesName { get; set; }
 }
 
 internal sealed class MuImage

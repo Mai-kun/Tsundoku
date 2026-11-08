@@ -4,7 +4,9 @@ using MediaTracker.Server.Infrastructure.ExternalApis.Abstractions;
 using MediaTracker.Server.Infrastructure.ExternalApis.Providers.AniList;
 using MediaTracker.Server.Infrastructure.ExternalApis.Providers.Kitsu;
 using MediaTracker.Server.Infrastructure.ExternalApis.Providers.MangaDex;
+using MediaTracker.Server.Infrastructure.ExternalApis.Providers.MangaUpdates;
 using MediaTracker.Server.Infrastructure.ExternalApis.Providers.Rawg;
+using MediaTracker.Server.Infrastructure.ExternalApis.Providers.Shikimori;
 using MediaTracker.Server.Infrastructure.ExternalApis.Providers.Tmdb;
 using Microsoft.Extensions.Caching.Memory;
 
@@ -26,9 +28,9 @@ public interface IGetExternalRelationsHandler
 
 /// <summary>
 /// One endpoint behind the "load related from [source]" dropdown. Games go to RAWG, films and series
-/// to TMDb, and anime/manga to AniList — the last of which used to be called straight from the browser,
-/// which put the AniList wire shape in the client and left the Related tab the one screen that paid for
-/// a network round trip the server could have made. Every source answers in the same shape so the tab
+/// to TMDb, and anime/manga to AniList — except the sources that answer relations natively
+/// (MangaDex, Kitsu, Shikimori, MangaUpdates), which are caught before the AniList catch-all because
+/// they own id spaces AniList cannot resolve. Every source answers in the same shape so the tab
 /// maps one type instead of one per provider.
 /// </summary>
 public sealed class GetExternalRelationsHandler(
@@ -94,6 +96,34 @@ public sealed class GetExternalRelationsHandler(
             }
 
             return await kitsu.GetRelationsAsync(query.ExternalId, ct, query.Title);
+        }
+
+        // Shikimori is caught before the AniList catch-all too: it serves its own /related tree
+        // (animes, mangas, ranobe) with the neighbour inlined in every row, and its ids share
+        // MyAnimeList's space — the AniList detour answered relations Shikimori hosts natively,
+        // with one more upstream in the path and nothing to show for it.
+        if (!wantsRecommendations && Mentions(query.Source, ShikimoriMetadataProvider.Source.Id))
+        {
+            if (providerResolver.Resolve(query.Type ?? "anime", ShikimoriMetadataProvider.Source.Id)
+                is not ShikimoriMetadataProvider shikimori)
+            {
+                return [];
+            }
+
+            return await shikimori.GetRelationsAsync(query.ExternalId, query.Type, ct);
+        }
+
+        // MangaUpdates carries its relations inline in the series details answer and owns its id
+        // space, so the AniList catch-all below would look those ids up on the wrong site entirely.
+        if (!wantsRecommendations && Mentions(query.Source, MangaUpdatesMetadataProvider.Source.Id))
+        {
+            if (providerResolver.Resolve(query.Type ?? "manga", MangaUpdatesMetadataProvider.Source.Id)
+                is not MangaUpdatesMetadataProvider mangaUpdates)
+            {
+                return [];
+            }
+
+            return await mangaUpdates.GetRelationsAsync(query.ExternalId, ct);
         }
 
         var isAnimeOrManga = query.Type is "anime" or "manga"

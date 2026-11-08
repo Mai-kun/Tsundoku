@@ -14,9 +14,12 @@ const RELATION_SOURCES: Record<string, readonly string[]> = {
   tvshow: ["tmdb"],
   game: ["rawg"],
   anime: ["anilist", "shikimori", "kitsu"],
-  manga: ["anilist", "mangadex", "kitsu"],
-  // Kitsu stores novels in its manga tree and exposes the same media-relationships table.
-  book: ["kitsu"],
+  // Shikimori serves relations for manga and ranobe trees too, and MangaUpdates carries its
+  // related_series list inline in the details answer.
+  manga: ["anilist", "mangadex", "kitsu", "shikimori", "mangaupdates"],
+  // Kitsu stores novels in its manga tree and exposes the same media-relationships table;
+  // Shikimori serves novels from its dedicated ranobe tree.
+  book: ["kitsu", "shikimori"],
 };
 
 export interface RelationSourceOption {

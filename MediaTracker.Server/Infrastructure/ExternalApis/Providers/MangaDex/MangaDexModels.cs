@@ -92,6 +92,30 @@ internal sealed class MdRelationship
     public string? Related { get; set; }
 }
 
+/// <summary>Envelope of <c>GET /manga/{id}/relation</c> — the official relations endpoint, whose
+/// relation vocabulary lives in <c>attributes.relation</c> of each entry rather than on the linked
+/// entity the way the inline <c>relationships</c> array spells it.</summary>
+internal sealed class MdRelationListResponse
+{
+    [JsonPropertyName("data")]
+    public List<MdRelationEntry>? Data { get; set; }
+}
+
+internal sealed class MdRelationEntry
+{
+    [JsonPropertyName("attributes")]
+    public MdRelationAttributes? Attributes { get; set; }
+
+    [JsonPropertyName("relationships")]
+    public List<MdRelationship>? Relationships { get; set; }
+}
+
+internal sealed class MdRelationAttributes
+{
+    [JsonPropertyName("relation")]
+    public string? Relation { get; set; }
+}
+
 internal sealed class MdStatisticsResponse
 {
     [JsonPropertyName("statistics")]

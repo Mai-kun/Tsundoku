@@ -65,7 +65,7 @@ public static class LinkedSourceCatalog
             list.Add(new LinkedSourceDto(
                 item.ExternalSource,
                 item.ExternalId ?? string.Empty,
-                null,
+                BuildSourcePageUrl(item.ExternalSource, item.ExternalId, item),
                 true,
                 item.Title,
                 null));
@@ -83,6 +83,9 @@ public static class LinkedSourceCatalog
             list[i] = list[i] with
             {
                 IsPrimary = isPrimary,
+                // The Shikimori page link is rebuilt on every read: the site's domain moves, so a
+                // stored URL would rot with the mirror that was live when the row was written.
+                Url = BuildSourcePageUrl(list[i].Source, list[i].ExternalId, item) ?? list[i].Url,
                 ProvidedFields = isOwn || isPrimary ? CollectItemFields(item) : list[i].ProvidedFields,
             };
         }
@@ -100,6 +103,45 @@ public static class LinkedSourceCatalog
     /// <summary>Alias-tolerant comparison: blobs store display names ("MangaLib"), the row may carry the provider id.</summary>
     private static string NormalizeSourceKey(string? source) =>
         string.IsNullOrWhiteSpace(source) ? string.Empty : MediaMerger.NormalizeSourceKey(source);
+
+    /// <summary>
+    /// The web page of a bound Shikimori or AnimeLib record, rebuilt on every read: Shikimori's
+    /// domain moves between mirrors, and AnimeLib's canonical shape is the versioned host with
+    /// mandatory /ru/anime/ prefixes. Every other source's page link is built client-side, so null
+    /// leaves the stored URL untouched.
+    /// </summary>
+    private static string? BuildSourcePageUrl(string? source, string? externalId, MediaItem item)
+    {
+        if (string.IsNullOrWhiteSpace(source) || string.IsNullOrWhiteSpace(externalId))
+        {
+            return null;
+        }
+
+        var key = MediaMerger.NormalizeSourceKey(source);
+        if (key.Contains("shikimori", StringComparison.OrdinalIgnoreCase))
+        {
+            var section = item is TvShow { IsAnime: true } or Movie { IsAnime: true } ? "animes" : "mangas";
+            return $"https://{ShikimoriMirrors.ActiveDomain}/{section}/{Uri.EscapeDataString(externalId.Trim())}";
+        }
+
+        if (key.Contains("animelib", StringComparison.OrdinalIgnoreCase))
+        {
+            var slug = externalId.Trim();
+            // A slug may arrive with the site's own prefixes already on ("ru/anime/8231--x");
+            // both are stripped so the canonical shape is never doubled.
+            foreach (var prefix in (string[])["ru/", "anime/"])
+            {
+                if (slug.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                {
+                    slug = slug[prefix.Length..];
+                }
+            }
+
+            return $"https://v5.animelib.org/ru/anime/{Uri.EscapeDataString(slug)}";
+        }
+
+        return null;
+    }
 
     /// <summary>Writes the list back; a single primary source is enforced when any is flagged.</summary>
     public static void SaveFor(MediaItem item, IReadOnlyList<LinkedSourceDto> sources)

@@ -85,3 +85,26 @@ internal sealed class ShikimoriImage
     [JsonPropertyName("preview")]
     public string? Preview { get; set; }
 }
+
+/// <summary>
+/// One row of <c>GET /api/{animes|mangas|ranobe}/{id}/related</c>. Shikimori puts the relation kind in
+/// <c>relation</c> (its own vocabulary: sequel, prequel, adaptation...) with a Russian label next to
+/// it, and inlines the neighbour as <c>anime</c> or <c>manga</c> — novels answer in the <c>manga</c>
+/// slot because ranobe is served by the manga tree.
+/// </summary>
+internal sealed class ShikimoriRelatedEntry
+{
+    [JsonPropertyName("relation")]
+    public string? Relation { get; set; }
+
+    [JsonPropertyName("relation_russian")]
+    public string? RelationRussian { get; set; }
+
+    [JsonPropertyName("anime")]
+    public ShikimoriItem? Anime { get; set; }
+
+    [JsonPropertyName("manga")]
+    public ShikimoriItem? Manga { get; set; }
+
+    public ShikimoriItem? Target => Anime ?? Manga;
+}

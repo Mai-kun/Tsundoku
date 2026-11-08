@@ -2,6 +2,7 @@ using System.Text.Json;
 using MediaTracker.Server.Common.Json;
 using MediaTracker.Server.Domain.Rules;
 using MediaTracker.Server.Infrastructure.ExternalApis.Abstractions;
+using MediaTracker.Server.Infrastructure.ExternalApis.Common;
 
 namespace MediaTracker.Server.Infrastructure.ExternalApis.Providers.MangaDex;
 
@@ -107,10 +108,13 @@ public sealed class MangaDexMetadataProvider(
     }
 
     /// <summary>
-    /// Related titles straight from MangaDex. The relation lives on the relation object itself
-    /// (<c>{"type":"manga","related":"sequel"}</c>), not inside <c>attributes</c>, and MangaDex does
-    /// not inline the neighbour's title, cover or rating — those need a second, batched
-    /// <c>/manga?ids[]=</c> lookup, so this is two round trips instead of the one AniList makes.
+    /// Related titles from MangaDex's official <c>GET /manga/{id}/relation</c> endpoint, where each
+    /// entry carries its relation kind in <c>attributes.relation</c> and the neighbour as a
+    /// <c>relationships[]</c> entity of type <c>manga</c>. MangaDex does not inline the neighbour's
+    /// title, cover or rating — those need a second, batched <c>/manga?ids[]=</c> lookup, so this is
+    /// two round trips instead of the one AniList makes. When the relation endpoint answers empty or
+    /// unreadable, the legacy inline <c>relationships</c> of the details payload is parsed as a
+    /// fallback, because an older mirror answer is still better than an empty Related tab.
     ///
     /// <paramref name="externalId"/> is only a MangaDex id when the row was added from MangaDex; a row
     /// added from AniList carries a numeric id that answers nothing here, hence the title fallback
@@ -131,23 +135,8 @@ public sealed class MangaDexMetadataProvider(
                 return [];
             }
 
-            var res = await client.GetFromJsonAsync($"manga/{mangaId}?includes[]=manga", AppJsonSerializerContext.Default.MdMangaSingleResponse, ct);
-
-            // Order is kept as MangaDex reported it so prequels and sequels stay in reading order
-            // rather than being alphabetised; the same id reached twice is only kept once.
-            var links = new List<(string Id, string? Related)>();
-            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var rel in res?.Data?.Relationships ?? [])
-            {
-                if (!string.Equals(rel.Type, "manga", StringComparison.OrdinalIgnoreCase)
-                    || string.IsNullOrWhiteSpace(rel.Id)
-                    || !seen.Add(rel.Id))
-                {
-                    continue;
-                }
-
-                links.Add((rel.Id, rel.Related));
-            }
+            var links = await FetchRelationEndpointAsync(client, mangaId, ct)
+                        ?? await FetchInlineRelationshipsAsync(client, mangaId, ct);
 
             if (links.Count == 0)
             {
@@ -178,6 +167,94 @@ public sealed class MangaDexMetadataProvider(
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
             throw;
+        }
+    }
+
+    /// <summary>
+    /// The official <c>/manga/{id}/relation</c> listing: one entry per related title with the kind in
+    /// <c>attributes.relation</c>. Returns null (not empty) when the endpoint could not be read at
+    /// all, so the caller can tell "no relations exist" from "this answer is unusable" and fall back
+    /// to the inline relationships.
+    /// </summary>
+    private static async Task<List<(string Id, string? Related)>?> FetchRelationEndpointAsync(
+        HttpClient client,
+        string mangaId,
+        CancellationToken ct)
+    {
+        try
+        {
+            var res = await client.GetFromJsonAsync(
+                $"manga/{mangaId}/relation", AppJsonSerializerContext.Default.MdRelationListResponse, ct);
+
+            // Order is kept as MangaDex reported it so prequels and sequels stay in reading order
+            // rather than being alphabetised; the same id reached twice is only kept once.
+            var links = new List<(string Id, string? Related)>();
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var entry in res?.Data ?? [])
+            {
+                var target = (entry?.Relationships ?? []).FirstOrDefault(rel =>
+                    string.Equals(rel.Type, "manga", StringComparison.OrdinalIgnoreCase)
+                    && !string.IsNullOrWhiteSpace(rel.Id));
+
+                if (target is null || string.IsNullOrWhiteSpace(target.Id) || !seen.Add(target.Id))
+                {
+                    continue;
+                }
+
+                links.Add((target.Id, entry?.Attributes?.Relation));
+            }
+
+            return links;
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch
+        {
+            // A failed relation call is unusable, not empty: null sends the caller to the fallback.
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// The legacy shape: <c>related</c> riding the relationship object itself
+    /// (<c>{"type":"manga","related":"sequel"}</c>) inside the details payload. Kept as the fallback
+    /// path for answers where the relation endpoint came back unreadable.
+    /// </summary>
+    private static async Task<List<(string Id, string? Related)>> FetchInlineRelationshipsAsync(
+        HttpClient client,
+        string mangaId,
+        CancellationToken ct)
+    {
+        try
+        {
+            var res = await client.GetFromJsonAsync(
+                $"manga/{mangaId}?includes[]=manga", AppJsonSerializerContext.Default.MdMangaSingleResponse, ct);
+
+            var links = new List<(string Id, string? Related)>();
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var rel in res?.Data?.Relationships ?? [])
+            {
+                if (!string.Equals(rel.Type, "manga", StringComparison.OrdinalIgnoreCase)
+                    || string.IsNullOrWhiteSpace(rel.Id)
+                    || !seen.Add(rel.Id))
+                {
+                    continue;
+                }
+
+                links.Add((rel.Id, rel.Related));
+            }
+
+            return links;
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch
+        {
+            return [];
         }
     }
 
@@ -305,29 +382,18 @@ public sealed class MangaDexMetadataProvider(
     {
         var attr = d.Attributes;
 
-        // Title preference: en -> ja-ro -> first
+        // Title preference: en -> ja-ro -> first. ja-ro stays in the cascade as the display title of
+        // an English-less record; the ja/ja-ro → OriginalTitle/RomajiTitle mapping below is where the
+        // original-language special case belongs.
         string title = "Unknown Title";
-        if (attr?.Title != null && attr.Title.Count > 0)
+        if (attr?.Title is { Count: > 0 })
         {
-            if (attr.Title.TryGetValue("en", out var enTitle) && !string.IsNullOrWhiteSpace(enTitle))
-                title = enTitle;
-            else if (attr.Title.TryGetValue("ja-ro", out var roTitle) && !string.IsNullOrWhiteSpace(roTitle))
-                title = roTitle;
-            else
-                title = attr.Title.Values.FirstOrDefault(v => !string.IsNullOrWhiteSpace(v)) ?? title;
+            title = LocalizedText.Pick(attr.Title, "en", "ja-ro") ?? title;
         }
 
-        // Description preference: ru -> en -> first
-        string? description = null;
-        if (attr?.Description != null && attr.Description.Count > 0)
-        {
-            if (attr.Description.TryGetValue("ru", out var ruDesc) && !string.IsNullOrWhiteSpace(ruDesc))
-                description = ruDesc;
-            else if (attr.Description.TryGetValue("en", out var enDesc) && !string.IsNullOrWhiteSpace(enDesc))
-                description = enDesc;
-            else
-                description = attr.Description.Values.FirstOrDefault(v => !string.IsNullOrWhiteSpace(v));
-        }
+        // Description preference: ru -> en -> whatever the dictionary carries. The preference order
+        // lives in LocalizedText so a future system-language tiebreak does not get replayed here.
+        var description = LocalizedText.Pick(attr?.Description, "ru", "en");
 
         // Alt title (Original / Romaji)
         string? originalTitle = null;

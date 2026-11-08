@@ -44,15 +44,15 @@ const RULES: MatchRule[] = [
     extractId: (m) => m[1],
   },
 
-  // Shikimori
+  // Shikimori — the domain moves regularly (.one, .io, .me, shikimori.app...), so any TLD matches.
   {
-    pattern: /shikimori\.(?:one|me|io)\/animes\/(?:z?(\d+)|(\d+))/i,
+    pattern: /shikimori\.[a-z]{2,6}\/animes\/(?:z?(\d+)|(\d+))/i,
     source: "shikimori",
     type: "anime",
     extractId: (m) => m[1] || m[2],
   },
   {
-    pattern: /shikimori\.(?:one|me|io)\/mangas\/(?:z?(\d+)|(\d+))/i,
+    pattern: /shikimori\.[a-z]{2,6}\/mangas\/(?:z?(\d+)|(\d+))/i,
     source: "shikimori",
     type: "manga",
     extractId: (m) => m[1] || m[2],
@@ -117,9 +117,10 @@ const RULES: MatchRule[] = [
       return FORBIDDEN_SLUGS.has(id) ? null : m[1];
     },
   },
-  // AnimeLib (incl. the v5 host and the /anime/ path segment)
+  // AnimeLib — versioned subdomains (v5.animelib.org, v6.?, ...) and any TLD; the /ru/ language
+  // prefix and the /anime/ category are optional, so bare animelib.me/anime/... parses too.
   {
-    pattern: /(?:animelib\.(?:me|org)|v5\.animelib\.org)\/(?:ru\/)?(?:anime\/)?([0-9a-zA-Z\-_]+)/i,
+    pattern: /(?:v\d+\.)?animelib\.[a-z]{2,6}\/(?:ru\/)?(?:anime\/)?([0-9a-zA-Z\-_]+)/i,
     source: "animelib",
     type: "anime",
     extractId: (m) => {

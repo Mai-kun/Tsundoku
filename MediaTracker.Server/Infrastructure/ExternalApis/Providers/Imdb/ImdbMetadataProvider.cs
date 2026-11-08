@@ -11,8 +11,6 @@ namespace MediaTracker.Server.Infrastructure.ExternalApis.Providers.Imdb;
 
 public sealed class ImdbMetadataProvider(
     IHttpClientFactory httpClientFactory,
-    // The key carries the requested type ("movie" / "tvshow"), so a search in the Films tab can be
-    // filtered to films only instead of returning the whole mixed suggestion pool for both tabs.
     [ServiceKey] string? serviceKey = null,
     ILogger<ImdbMetadataProvider>? logger = null) : MetadataProviderBase(Source)
 {

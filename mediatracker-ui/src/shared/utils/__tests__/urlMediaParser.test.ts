@@ -41,6 +41,17 @@ describe("parseMediaUrl", () => {
       id: "8888",
       type: "manga",
     });
+    // Any future TLD parses too: the domain moves regularly, the mask must not care.
+    expect(parseMediaUrl("https://shikimori.app/animes/777")).toEqual({
+      source: "shikimori",
+      id: "777",
+      type: "anime",
+    });
+    expect(parseMediaUrl("https://shikimori.wtf/mangas/1234-some-title")).toEqual({
+      source: "shikimori",
+      id: "1234",
+      type: "manga",
+    });
   });
 
   it("parses MangaDex title URLs", () => {
@@ -113,9 +124,22 @@ describe("parseMediaUrl", () => {
       id: "some-anime",
       type: "anime",
     });
+    // The live AnimeLib shape: versioned subdomain, mandatory /ru/anime/ prefixes.
+    expect(parseMediaUrl("https://v5.animelib.org/ru/anime/8231--noragami-anime")).toEqual({
+      source: "animelib",
+      id: "8231--noragami-anime",
+      type: "anime",
+    });
+    // Future version bumps and unknown TLDs parse the same way.
+    expect(parseMediaUrl("https://v6.animelib.app/ru/anime/8231--noragami-anime")).toEqual({
+      source: "animelib",
+      id: "8231--noragami-anime",
+      type: "anime",
+    });
     // System pages should return null
     expect(parseMediaUrl("https://mangalib.me/ru/catalog")).toBeNull();
     expect(parseMediaUrl("https://mangalib.me/bookmarks")).toBeNull();
+    expect(parseMediaUrl("https://v5.animelib.org/ru/anime/catalog")).toBeNull();
   });
 
   it("parses Kitsu anime and manga URLs", () => {

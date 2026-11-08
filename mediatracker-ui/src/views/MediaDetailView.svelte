@@ -2211,6 +2211,7 @@
           mediaType={media.type}
           seasonProgress={seriesEpisodes.total > 0 ? seriesEpisodes : null}
           relatedCount={related?.length ?? 0}
+          galleryCount={media.gallery?.length ?? 0}
           onSelect={(tab) => (activeSubTab = tab)}
         />
 
@@ -2278,6 +2279,29 @@
             onToggleAllAchievements={toggleAllAchievements}
             onChangeStatus={changeStatus}
           />
+        {:else if activeSubTab === "gallery"}
+          {#await import("$widgets/media-detail/tabs/GalleryTab.svelte") then { default: GalleryTab }}
+            <GalleryTab
+              mediaId={media.id}
+              gallery={media.gallery ?? []}
+              onChanged={() => {
+                // A screenshot landed (Ctrl+V or upload) or was removed: re-fetch the card so
+                // the tab badge and any other gallery consumer see the new list.
+                if (!media) return;
+                void refreshMediaDetail(mediaId)
+                  .then((loaded) => {
+                    if (loaded.id !== mediaId) return;
+                    media = loaded;
+                    syncFrom(loaded);
+                    mediaDetailCache.invalidate(loaded.id);
+                    onUpdate();
+                  })
+                  .catch((error) =>
+                    console.error("[MediaDetailView] Refresh after gallery change failed", error),
+                  );
+              }}
+            />
+          {/await}
         {:else if activeSubTab === "related"}
           {#await import("$widgets/media-detail/tabs/RelatedTab.svelte") then { default: RelatedTab }}
             <RelatedTab

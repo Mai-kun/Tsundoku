@@ -103,6 +103,6 @@ export interface TimelineEntry {
   rawItem?: RelatedEntry;
 }
 
-export type SubTab = "overview" | "episodes" | "related" | "recommendations";
+export type SubTab = "overview" | "episodes" | "gallery" | "related" | "recommendations";
 
 export type RelatedViewMode = "grouped" | "timeline" | "grid";

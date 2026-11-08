@@ -21,6 +21,8 @@
     searchExternal,
   } from "$shared/api/api";
   import { parseMediaUrl } from "$shared/utils/urlMediaParser";
+  import { showToast } from "$shared/ui/toast.svelte";
+  import { jobsClient } from "$shared/api/jobsClient.svelte";
   import { proxiedExternalCoverUrl } from "$entities/media/model/coverUrl";
   import { i18n } from "$shared/i18n/index.svelte";
   import Modal from "$shared/ui/Modal.svelte";
@@ -655,9 +657,15 @@
           }
         } catch {}
       }
-      const created = await createMedia(buildPayload(result));
+      const payload = buildPayload(result);
+
+      // The duplicate guard lives on the server now: CreateMedia parks a clone candidate in
+      // "Уточнить" (NeedsReview) instead of asking here, so no extra dialog can interrupt
+      // bulk-adding. Refresh the review list so the badge lights up right away.
+      const created = await createMedia(payload);
       addedKeys = { ...addedKeys, [key]: created.id };
       onMediaAdded(created);
+      void jobsClient.refreshPendingMatches();
       // The dialog deliberately stays open: bulk-adding a run of titles is the common case, and
       // closing on the first one forces a reopen per title. The row now carries its own
       // "added" mark and a jump to the new detail.

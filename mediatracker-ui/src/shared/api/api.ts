@@ -33,6 +33,8 @@ import type {
   PendingMatchItemDto,
   GoalDto,
   CreateGoalPayload,
+  MediaAttachment,
+  MediaGalleryItem,
   StorageSettings,
   StorageRequest,
   OfflineDatabasesSummaryDto,
@@ -246,6 +248,62 @@ export function createMedia(payload: CreateMediaPayload): Promise<MediaDetail> {
   return requestJson<MediaDetail>(mediaEndpoint, jsonOptions("POST", payload));
 }
 
+export interface TitleDuplicateCandidate {
+  id: string;
+  title: string;
+  type: string;
+  isAnime: boolean;
+  externalSource: string | null;
+  externalId: string | null;
+  releaseYear: number | null;
+  coverUrl: string | null;
+  matchReason: string;
+}
+
+/** Duplicate guard for the add flow: same title may already exist under another provider's name. */
+export function findTitleDuplicates(params: {
+  title: string;
+  externalSource?: string | null;
+  externalId?: string | null;
+  romajiTitle?: string | null;
+  originalTitle?: string | null;
+  synonyms?: string[] | null;
+  releaseYear?: number | null;
+}): Promise<TitleDuplicateCandidate[]> {
+  return requestJson<TitleDuplicateCandidate[]>(`${mediaEndpoint}/duplicates/check`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      title: params.title,
+      externalSource: params.externalSource ?? null,
+      externalId: params.externalId ?? null,
+      romajiTitle: params.romajiTitle ?? null,
+      originalTitle: params.originalTitle ?? null,
+      synonyms: params.synonyms ?? null,
+      releaseYear: params.releaseYear ?? null,
+    }),
+  });
+}
+
+/**
+ * Binds an external source onto an EXISTING entry — the "Дополнить" half of the duplicate
+ * dialog. The backend binds and immediately fills missing fields from the new source.
+ */
+export function linkSourceToMedia(
+  id: string,
+  payload: { source: string; externalId: string; title?: string | null },
+): Promise<void> {
+  return requestJson<unknown>(`/api/media/${id}/linked-sources`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      source: payload.source,
+      externalId: payload.externalId,
+      title: payload.title ?? null,
+    }),
+  }).then(() => undefined);
+}
+
 export function updateMedia(id: string, payload: UpdateMediaPayload): Promise<MediaDetail> {
   return requestJson<MediaDetail>(`${mediaEndpoint}/${id}`, jsonOptions("PUT", payload));
 }
@@ -327,6 +385,82 @@ export function fetchVolumeCovers(id: string): Promise<MediaDetail> {
   return requestJson<MediaDetail>(`${mediaEndpoint}/${id}/covers/fetch-volumes`, {
     method: "POST",
   });
+}
+
+/** Attaches a file (book, archive, save) to the title; returns the refreshed attachment list. */
+export function attachMediaFile(id: string, file: File): Promise<MediaAttachment[]> {
+  const formData = new FormData();
+  formData.append("file", file);
+  return requestJson<MediaAttachment[]>(`${mediaEndpoint}/${id}/files`, {
+    method: "POST",
+    body: formData,
+  });
+}
+
+/** Removes one attachment from disk and from the index; returns the refreshed list. */
+export function detachMediaFile(id: string, fileId: string): Promise<MediaAttachment[]> {
+  return requestJson<MediaAttachment[]>(
+    `${mediaEndpoint}/${id}/files/${encodeURIComponent(fileId)}`,
+    {
+      method: "DELETE",
+    },
+  );
+}
+
+/** Browser-native download of a stored attachment (Content-Disposition is set server-side). */
+export function mediaFileDownloadUrl(id: string, fileId: string): string {
+  return `${mediaEndpoint}/${id}/files/${encodeURIComponent(fileId)}/download`;
+}
+
+/** Browser renders the file itself (PDF, TXT, images): Content-Disposition: inline. */
+export function mediaFileViewUrl(id: string, fileId: string): string {
+  return `${mediaEndpoint}/${id}/files/${encodeURIComponent(fileId)}/view`;
+}
+
+/** Opens the stored file in the OS program associated with its type (xdg-open / shell). */
+export function openMediaFile(id: string, fileId: string): Promise<void> {
+  return requestVoid(`${mediaEndpoint}/${id}/files/${encodeURIComponent(fileId)}/open`, {
+    method: "POST",
+  });
+}
+
+/** Reveals a server-side path (relative to the data dir) in the platform file manager. */
+export async function revealInExplorer(relativePath: string): Promise<void> {
+  return requestVoid("/api/system/reveal-in-explorer", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ path: relativePath }),
+  });
+}
+
+/** Adds a screenshot to the title's gallery; accepts a File or a pasted Clipboard blob. */
+export function uploadGalleryImage(
+  id: string,
+  image: Blob,
+  title?: string,
+): Promise<MediaGalleryItem> {
+  const formData = new FormData();
+  formData.append("image", image, title ?? "screenshot.png");
+  if (title) formData.append("title", title);
+  return requestJson<MediaGalleryItem>(`${mediaEndpoint}/${id}/gallery`, {
+    method: "POST",
+    body: formData,
+  });
+}
+
+/** Removes one gallery screenshot (folder on disk + index entry). */
+export function deleteGalleryImage(id: string, imgId: string): Promise<void> {
+  return requestVoid(`${mediaEndpoint}/${id}/gallery/${encodeURIComponent(imgId)}`, {
+    method: "DELETE",
+  });
+}
+
+/** Makes a gallery screenshot the title's active cover; returns the updated card. */
+export function setGalleryAsCover(id: string, imgId: string): Promise<MediaDetail> {
+  return requestJson<MediaDetail>(
+    `${mediaEndpoint}/${id}/gallery/${encodeURIComponent(imgId)}/set-as-cover`,
+    { method: "POST" },
+  );
 }
 
 export function importFile(formData: FormData): Promise<ImportResultDto> {
@@ -701,6 +835,19 @@ export function resolveAllPendingMatchesByPriority(): Promise<{
   );
 }
 
+/**
+ * Verdict "merge" on a duplicate-conflict review row: the duplicate's sources, ratings and missing
+ * data join the existing title and the duplicate row is deleted, so the library keeps one card.
+ */
+export function mergeDuplicateSources(
+  existingId: string,
+  duplicateId: string,
+): Promise<MediaDetail> {
+  return requestJson<MediaDetail>(`${mediaEndpoint}/${existingId}/merge-duplicate/${duplicateId}`, {
+    method: "POST",
+  });
+}
+
 export function getHistoryEvents(params?: {
   mediaId?: string;
   date?: string;
@@ -808,8 +955,10 @@ export function getStorageSettings(): Promise<StorageSettings> {
   return requestJson<StorageSettings>("/api/settings/storage");
 }
 
-export function saveStorageSettings(payload: StorageRequest): Promise<void> {
-  return requestVoid("/api/settings/storage", jsonOptions("POST", payload));
+export function saveStorageSettings(
+  payload: StorageRequest,
+): Promise<{ restartScheduled: boolean }> {
+  return requestJson("/api/settings/storage", jsonOptions("POST", payload));
 }
 
 export function getGoals(year: number): Promise<GoalDto[]> {
@@ -834,6 +983,16 @@ export function getOfflineDatabases(): Promise<OfflineDatabasesSummaryDto> {
 
 export function reindexOfflineDatabases(): Promise<void> {
   return requestVoid("/api/settings/offline-databases/reindex", { method: "POST" });
+}
+
+export interface FranchiseReindexResult {
+  updatedCount: number;
+}
+
+export function reindexFranchises(): Promise<FranchiseReindexResult> {
+  return requestJson<FranchiseReindexResult>("/api/settings/franchises/reindex", {
+    method: "POST",
+  });
 }
 
 export interface OfflineModeResponse {

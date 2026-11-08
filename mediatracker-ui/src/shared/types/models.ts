@@ -87,12 +87,34 @@ export interface MediaCoverItem {
   addedAt: string;
 }
 
+/** One file attached to a title (book, archive, save). */
+export interface MediaAttachment {
+  id: string;
+  fileName: string;
+  fileSizeBytes: number;
+  contentType?: string | null;
+  addedAt: string;
+}
+
+/** One user screenshot of the title's gallery. */
+export interface MediaGalleryItem {
+  id: string;
+  thumbUrl: string;
+  originalUrl: string;
+  title?: string | null;
+  addedAt: string;
+}
+
 /**
  * Payload the list endpoint deliberately omits: these are only read by the detail screen, so
  * carrying them for every item in the library was the bulk of the JSON list response.
  */
 export interface MediaDetailFields {
   covers?: MediaCoverItem[];
+  /** Files attached to the title (books, archives, saves), rendered by the overview's file block. */
+  attachments?: MediaAttachment[];
+  /** The user's screenshot gallery, rendered by the gallery tab. */
+  gallery?: MediaGalleryItem[];
   notes: string | null;
   detailedScoreJson?: string | null;
   quotesJson?: string | null;

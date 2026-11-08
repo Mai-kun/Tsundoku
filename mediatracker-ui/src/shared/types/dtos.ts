@@ -2,6 +2,20 @@ import type { MediaStatus } from "./enums";
 import type { ExternalMedia, MediaItem } from "./models";
 
 /**
+ * Marker of a duplicate conflict (`PendingMatchesJson` object shape on the server): the row was
+ * parked in review because the title being added matches one already in the library, and the
+ * verdict — merge the sources or keep both — is the user's to make.
+ */
+export interface DuplicateConflictDto {
+  conflictType: string;
+  existingMediaId: string;
+  existingTitle: string;
+  incomingSource?: string | null;
+  incomingExternalId?: string | null;
+  incomingTitle?: string | null;
+}
+
+/**
  * One row of the "review ambiguous matches" screen (`GET /api/media/pending-matches`): the library
  * title the user imported plus the candidates the scorer could not decide between. Mirrors
  * `PendingMatchReviewDto` on the server.
@@ -21,6 +35,8 @@ export interface PendingMatchItemDto {
   countryOfOrigin?: string | null;
   mangaFormat?: string | null;
   candidates: ExternalMedia[];
+  /** Set when the row is a duplicate-conflict verdict instead of a candidate list. */
+  duplicate?: DuplicateConflictDto | null;
 }
 
 export interface CustomListSummary {

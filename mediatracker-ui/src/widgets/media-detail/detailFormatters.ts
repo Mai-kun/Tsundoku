@@ -1,4 +1,5 @@
 import { i18n } from "$shared/i18n/index.svelte";
+import { buildAnimelibUrl } from "$shared/utils/sourceUrlHelper";
 import {
   isMangaDetail,
   isTvShowDetail,
@@ -108,9 +109,7 @@ export function providerLink(item: MediaItem): { name: string; url: string } | n
       : null;
   }
   if (src.includes("animelib")) {
-    return id
-      ? { name: "AnimeLib", url: `https://animelib.org/ru/${encodeURIComponent(id)}` }
-      : null;
+    return id ? { name: "AnimeLib", url: buildAnimelibUrl(id) } : null;
   }
   if (src.includes("slashlib")) {
     return id
@@ -118,9 +117,11 @@ export function providerLink(item: MediaItem): { name: string; url: string } | n
       : null;
   }
   if (src.includes("sociallib")) {
-    const domain =
-      item.type === "book" ? "ranobelib.me" : isAnime(item) ? "animelib.org" : "mangalib.me";
-    return id ? { name: "SocialLib", url: `https://${domain}/ru/${encodeURIComponent(id)}` } : null;
+    if (!id) return null;
+    // The anime corner of the shared catalog is AnimeLib itself: same v5 host, /ru/anime/ tree.
+    if (isAnime(item)) return { name: "SocialLib", url: buildAnimelibUrl(id) };
+    const domain = item.type === "book" ? "ranobelib.me" : "mangalib.me";
+    return { name: "SocialLib", url: `https://${domain}/ru/${encodeURIComponent(id)}` };
   }
   if (src.includes("shikimori")) {
     return id

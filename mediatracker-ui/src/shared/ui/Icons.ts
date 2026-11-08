@@ -59,6 +59,7 @@ export { default as LoaderCircle } from "lucide-svelte/icons/loader-circle";
 export { default as Menu } from "lucide-svelte/icons/menu";
 export { default as Minus } from "lucide-svelte/icons/minus";
 export { default as Pause } from "lucide-svelte/icons/pause";
+export { default as Paperclip } from "lucide-svelte/icons/paperclip";
 export { default as Pencil } from "lucide-svelte/icons/pencil";
 export { default as Play } from "lucide-svelte/icons/play";
 export { default as Power } from "lucide-svelte/icons/power";

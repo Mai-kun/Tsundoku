@@ -1365,6 +1365,25 @@ export const translations = {
       ru: "Вернуться к обычному поиску",
       en: "Back to a regular search",
     },
+    duplicateTitle: { ru: "Тайтл уже есть в библиотеке", en: "Title is already in the library" },
+    duplicateDescription: {
+      ru: "Похоже, этот тайтл уже добавлен из другого источника. Что сделать?",
+      en: "This title seems to already be added from another source. What should we do?",
+    },
+    duplicateSameSource: { ru: "тот же источник и запись", en: "same source record" },
+    duplicateExactName: { ru: "совпадение названия", en: "exact title match" },
+    duplicateBaseTitle: { ru: "совпадение базового названия", en: "base title match" },
+    duplicateMerge: { ru: "Дополнить существующую", en: "Merge into existing" },
+    duplicateSeparate: { ru: "Создать отдельную запись", en: "Create separate entry" },
+    duplicateCancel: { ru: "Отмена", en: "Cancel" },
+    mergeToast: {
+      ru: "Источник привязан, данные дополнены",
+      en: "Source linked and data merged",
+    },
+    mergeConflictToast: {
+      ru: "Этот источник уже привязан к существующему тайтлу",
+      en: "This source is already linked to the existing entry",
+    },
   },
   createModal: {
     eyebrow: { ru: "Новая запись", en: "New entry" },
@@ -1721,6 +1740,7 @@ export const translations = {
     sortDesc: { ru: "С конца", en: "From end" },
     tabOverview: { ru: "Обзор", en: "Overview" },
     tabEpisodes: { ru: "Эпизоды", en: "Episodes" },
+    tabGallery: { ru: "Галерея", en: "Gallery" },
     tabVolumes: { ru: "Тома", en: "Volumes" },
     volumesLabel: { ru: "Тома", en: "Volumes" },
     romajiTitle: { ru: "Название на ромадзи", en: "Romaji title" },
@@ -1734,6 +1754,102 @@ export const translations = {
     unmarkRead: { ru: "Отменить отметку", en: "Unmark" },
     tabRelatedMedia: { ru: "Связанное", en: "Related" },
     tabRecommendations: { ru: "Рекомендации", en: "Recommendations" },
+    // --- Файлы и документы (архив вложений тайтла) ---
+    filesTitle: { ru: "Файлы и документы", en: "Files & documents" },
+    filesAttach: { ru: "Прикрепить файл", en: "Attach file" },
+    filesEmpty: {
+      ru: "Пока нет прикреплённых файлов. Перетащите файл сюда или нажмите «Прикрепить файл».",
+      en: "No attached files yet. Drop a file here or click “Attach file”.",
+    },
+    filesDropHere: { ru: "Отпустите файл, чтобы прикрепить", en: "Drop the file to attach it" },
+    filesDownload: { ru: "Скачать", en: "Download" },
+    filesOpen: { ru: "Открыть в системной программе", en: "Open in system app" },
+    filesOpenFailed: {
+      ru: "Не удалось открыть файл в системной программе",
+      en: "Failed to open the file in a system app",
+    },
+    filesOpened: { ru: "Файл открыт в системной программе", en: "File opened in a system app" },
+    filesDelete: { ru: "Удалить файл", en: "Delete file" },
+    filesDeleteConfirm: {
+      ru: (name: string) => `Удалить файл «${name}» с диска?`,
+      en: (name: string) => `Delete the file “${name}” from disk?`,
+    },
+    filesAttached: { ru: "Файл прикреплён", en: "File attached" },
+    filesDeleted: { ru: "Файл удалён", en: "File deleted" },
+    filesAttachFailed: { ru: "Не удалось прикрепить файл", en: "Failed to attach the file" },
+    filesSize: {
+      ru: (bytes: number) =>
+        bytes < 1024
+          ? `${bytes} Б`
+          : bytes < 1024 * 1024
+            ? `${(bytes / 1024).toFixed(1)} КБ`
+            : `${(bytes / (1024 * 1024)).toFixed(1)} МБ`,
+      en: (bytes: number) =>
+        bytes < 1024
+          ? `${bytes} B`
+          : bytes < 1024 * 1024
+            ? `${(bytes / 1024).toFixed(1)} KB`
+            : `${(bytes / (1024 * 1024)).toFixed(1)} MB`,
+    },
+    filesDeleteFailed: { ru: "Не удалось удалить файл", en: "Failed to delete the file" },
+    filesUploading: { ru: "Загрузка файла…", en: "Uploading file…" },
+    // --- Галерея скриншотов ---
+    galleryUpload: { ru: "Загрузить картинку", en: "Upload image" },
+    galleryEmpty: {
+      ru: "Галерея пуста. Нажмите Ctrl+V, чтобы вставить скриншот из буфера обмена.",
+      en: "The gallery is empty. Press Ctrl+V to paste a screenshot from the clipboard.",
+    },
+    galleryPasteHint: {
+      ru: "Совет: скриншот можно вставить прямо из буфера обмена — Ctrl+V",
+      en: "Tip: paste a screenshot straight from the clipboard — Ctrl+V",
+    },
+    galleryScreenshotAdded: {
+      ru: "Скриншот добавлен в галерею!",
+      en: "Screenshot added to the gallery!",
+    },
+    galleryUploadFailed: {
+      ru: "Не удалось добавить скриншот",
+      en: "Failed to add the screenshot",
+    },
+    galleryDelete: { ru: "Удалить из галереи", en: "Delete from gallery" },
+    galleryDeleteConfirm: {
+      ru: "Удалить этот скриншот из галереи?",
+      en: "Remove this screenshot from the gallery?",
+    },
+    galleryDeleted: { ru: "Скриншот удалён", en: "Screenshot deleted" },
+    galleryDeleteFailed: {
+      ru: "Не удалось удалить скриншот",
+      en: "Failed to delete the screenshot",
+    },
+    galleryUploading: { ru: "Обработка скриншота…", en: "Processing screenshot…" },
+    galleryViewFull: { ru: "Открыть в полном размере", en: "Open in full size" },
+    galleryReveal: { ru: "Открыть файл в проводнике", en: "Reveal file in explorer" },
+    galleryRevealFailed: {
+      ru: "Не удалось открыть папку в проводнике",
+      en: "Failed to reveal the folder in the explorer",
+    },
+    galleryCopyImage: { ru: "Скопировать картинку в буфер", en: "Copy image to clipboard" },
+    galleryImageCopied: {
+      ru: "Картинка скопирована в буфер обмена",
+      en: "Image copied to the clipboard",
+    },
+    galleryCopyFailed: {
+      ru: "Не удалось скопировать картинку",
+      en: "Failed to copy the image",
+    },
+    galleryCopyUrl: { ru: "Скопировать ссылку", en: "Copy link" },
+    galleryUrlCopied: { ru: "Ссылка скопирована", en: "Link copied" },
+    galleryDownloadImage: { ru: "Скачать изображение", en: "Download image" },
+    galleryDownloadFailed: {
+      ru: "Не удалось скачать изображение",
+      en: "Failed to download the image",
+    },
+    gallerySetCover: { ru: "Сделать обложкой тайтла", en: "Set as title cover" },
+    gallerySetCoverDone: { ru: "Обложка обновлена", en: "Cover updated" },
+    gallerySetCoverFailed: {
+      ru: "Не удалось назначить обложку",
+      en: "Failed to set the cover",
+    },
     bannerNextEpisode: { ru: "Следующая серия", en: "Next episode" },
     bannerCompleted: {
       ru: "Все серии просмотрены",
@@ -2672,6 +2788,16 @@ export const translations = {
         ru: "Настройки сохранены. Приложение перезапустится...",
         en: "Settings saved. The app will restart...",
       },
+      franchiseRescanTitle: { ru: "Пересканировать франшизы", en: "Rescan Franchises" },
+      franchiseRescanDescription: {
+        ru: "Автоматически объединяет сезоны, сиквелы и связанные адаптации в общие франшизы и расставляет хронологический порядок.",
+        en: "Automatically groups seasons, sequels and related adaptations into franchises and arranges them in chronological order.",
+      },
+      franchiseRescanButton: { ru: "Запустить сканирование", en: "Run scan" },
+      franchiseDoneToast: {
+        ru: "Франшизы успешно сопоставлены!",
+        en: "Franchises matched successfully!",
+      },
     },
     reading: {
       title: { ru: "Темп чтения", en: "Reading Speed" },
@@ -2850,6 +2976,22 @@ export const translations = {
       en: (score: number) => `${score}% match`,
     },
     keepAll: { ru: "Оставить все как есть", en: "Keep all as is" },
+    duplicateIntro: {
+      ru: (incoming: string, existing: string) =>
+        `Возможный дубликат: добавляемый тайтл «${incoming}» совпадает с уже существующим «${existing}». Объедините их, чтобы источники жили в одной карточке.`,
+      en: (incoming: string, existing: string) =>
+        `Possible duplicate: the incoming title "${incoming}" matches the existing "${existing}". Merge them to keep both sources in one card.`,
+    },
+    duplicateMerge: { ru: "Объединить источники", en: "Merge sources" },
+    duplicateKeep: { ru: "Оставить отдельной записью", en: "Keep as separate entry" },
+    duplicateMergeToast: {
+      ru: "Источники объединены: дубликат удалён, данные перенесены в существующий тайтл.",
+      en: "Sources merged: the duplicate was removed, its data moved to the existing title.",
+    },
+    duplicateKeepToast: {
+      ru: "Тайтл сохранён как отдельная запись.",
+      en: "The title was kept as a separate entry.",
+    },
     resolveAllPriority: {
       ru: "Выбрать все по приоритету",
       en: "Pick all by priority",

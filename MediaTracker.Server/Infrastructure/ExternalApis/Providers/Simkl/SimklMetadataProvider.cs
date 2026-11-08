@@ -31,7 +31,15 @@ public sealed class SimklMetadataProvider(
 
     private string ClientId => options.Value.GetKey(Id) ?? string.Empty;
 
-    private const string AppName = "mediatracker";
+    /// <summary>
+    /// The user's Simkl bearer token (Auth V2), auto-picked from the browser session or pasted in
+    /// Settings. The public client_id is still required on every request — the Bearer rides on top
+    /// of it and only unlocks the user-scoped data.
+    /// </summary>
+    private string? UserToken =>
+        string.IsNullOrWhiteSpace(options.Value.SimklUserToken) ? null : options.Value.SimklUserToken;
+
+    private const string AppName = "tsundoku";
     private const string AppVersion = "1.0";
 
     /// <summary>
@@ -50,14 +58,18 @@ public sealed class SimklMetadataProvider(
     ///
     /// A per-request message rather than <c>DefaultRequestHeaders</c> on purpose: the named
     /// <see cref="HttpClient"/> is shared by every resolve, so anything added there outlives the
-    /// call that needed it. It also leaves no place for an <c>Authorization: Bearer</c> to creep in
-    /// — Simkl answers 401 <c>user_token_required</c> to a catalog endpoint that carries a token,
-    /// because the edge cache treats such a request as private and drops it.
+    /// call that needed it. When a user session is bound (Auth V2), the
+    /// <c>Authorization: Bearer</c> header rides on top of the client id and unlocks the
+    /// user-scoped data the anonymous call cannot see.
     /// </summary>
     private HttpRequestMessage KeyedRequest(string path)
     {
         var request = new HttpRequestMessage(HttpMethod.Get, Keyed(path));
         request.Headers.TryAddWithoutValidation("simkl-api-key", ClientId);
+        if (UserToken is { } token)
+        {
+            request.Headers.TryAddWithoutValidation("Authorization", $"Bearer {token}");
+        }
         return request;
     }
 

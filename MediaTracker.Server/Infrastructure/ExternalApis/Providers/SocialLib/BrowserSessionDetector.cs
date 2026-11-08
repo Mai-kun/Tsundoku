@@ -43,10 +43,21 @@ public static class BrowserSessionDetector
         "ranobelib",
         "slashlib",
         "hentailib",
+        "simkl",
+        "simkl.com",
     ];
 
     /// <summary>LocalStorage keys that carry the SocialLib auth JSON (any of them may hold it).</summary>
-    private static readonly string[] AuthKeys = ["auth", "token", "access_token", "user"];
+    private static readonly string[] AuthKeys = ["auth", "token", "access_token", "simkl_token", "user"];
+
+    /// <summary>
+    /// LocalStorage keys Simkl keeps its credentials under. <c>token</c>/<c>access_token</c> hold
+    /// the bearer token (a plain opaque string, not a JWT), <c>user</c> holds the profile JSON.
+    /// </summary>
+    private static readonly string[] SimklAuthKeys = ["token", "access_token", "simkl_token", "user"];
+
+    /// <summary>Origin folders that belong to Simkl and are skipped by the SocialLib scan.</summary>
+    private const string SimklOriginFragment = "simkl";
 
     public static Task<BrowserSession?> TryDetectSessionAsync(CancellationToken ct = default)
     {
@@ -133,6 +144,180 @@ public static class BrowserSessionDetector
             stats.Domains.Count == 0 ? "(none)" : string.Join(", ", stats.Domains));
 
         return Task.FromResult<BrowserSession?>(null);
+    }
+
+    /// <summary>
+    /// Picks up a Simkl session from the user's own browsers, mirroring <see cref="TryDetectSessionAsync"/>:
+    /// Firefox/Zen localStorage archives under <c>storage/default/https+++simkl.com/</c> (any TLD
+    /// variant the folder name carries) and the isolated Chromium profile's Local Storage leveldb.
+    /// Unlike SocialLib, Simkl keeps the bearer token as a plain opaque string (under
+    /// <c>token</c>/<c>access_token</c>/<c>simkl_token</c>) or inside a small JSON object — so the
+    /// extraction is value-shaped, not JWT-shaped.
+    /// </summary>
+    public static async Task<BrowserSession?> TryDetectSimklSessionAsync(CancellationToken ct = default)
+    {
+        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        var stats = new DetectionStats();
+
+        var zenProfiles = GetZenProfiles(home, out var checkedZenPaths);
+        var allCheckedPaths = new List<string>(checkedZenPaths)
+        {
+            Path.Combine(home, ".mozilla", "firefox"),
+            Path.Combine(home, ".var", "app", "org.mozilla.firefox", ".mozilla", "firefox"),
+            Path.Combine(home, "snap", "firefox", "common", ".mozilla", "firefox"),
+        };
+
+        foreach (var profile in zenProfiles)
+        {
+            ct.ThrowIfCancellationRequested();
+            var session = TrySimklFirefoxProfile(profile, stats);
+            if (session is not null)
+            {
+                Serilog.Log.Information(
+                    "Simkl session found in Zen profile: {Profile}. Checked paths: {Paths}",
+                    profile,
+                    string.Join(", ", allCheckedPaths));
+                return session;
+            }
+        }
+
+        foreach (var root in new[]
+                 {
+                     Path.Combine(home, ".mozilla", "firefox"),
+                     Path.Combine(home, ".var", "app", "org.mozilla.firefox", ".mozilla", "firefox"),
+                     Path.Combine(home, "snap", "firefox", "common", ".mozilla", "firefox"),
+                 }.Select(NormalizeHome).Where(Directory.Exists))
+        {
+            foreach (var profile in EnumerateProfileDirs(root))
+            {
+                ct.ThrowIfCancellationRequested();
+                var session = TrySimklFirefoxProfile(profile, stats);
+                if (session is not null)
+                {
+                    Serilog.Log.Information(
+                        "Simkl session found in Firefox profile: {Profile}. Checked paths: {Paths}",
+                        profile,
+                        string.Join(", ", allCheckedPaths));
+                    return session;
+                }
+            }
+        }
+
+        // The isolated Chromium profile the launcher keeps is the only Chromium store that counts
+        // as consent; its leveldb scan works for Simkl JSON the same way it does for SocialLib.
+        var chromiumLevelDb = Path.Combine(
+            home, ".local", "share", "Tsundoku", "tsundoku-chromium-profile",
+            "Default", "Local Storage", "leveldb");
+        if (Directory.Exists(chromiumLevelDb))
+        {
+            ct.ThrowIfCancellationRequested();
+            var session = TryChromiumLevelDb(chromiumLevelDb);
+            if (session is not null)
+            {
+                Serilog.Log.Information("Simkl session found in isolated Chromium profile.");
+                return session;
+            }
+        }
+
+        Serilog.Log.Information(
+            "Simkl session not found. Checked paths: {Paths}. data.sqlite checked: {Databases}. Domains seen: {Domains}",
+            string.Join(", ", allCheckedPaths),
+            stats.DatabaseCount,
+            stats.Domains.Count == 0 ? "(none)" : string.Join(", ", stats.Domains));
+        return null;
+
+        static BrowserSession? TrySimklFirefoxProfile(string profileDir, DetectionStats stats)
+        {
+            stats.ProfileDirs.Add(profileDir);
+
+            var storageDefault = Path.Combine(profileDir, "storage", "default");
+            if (!Directory.Exists(storageDefault)) return null;
+
+            foreach (var originDir in Directory.EnumerateDirectories(storageDefault))
+            {
+                var name = Path.GetFileName(originDir);
+                stats.Domains.Add(name);
+
+                if (!name.Contains(SimklOriginFragment, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                IEnumerable<string> sqliteFiles;
+                try
+                {
+                    sqliteFiles = Directory.EnumerateFiles(originDir, "data.sqlite", SearchOption.AllDirectories);
+                }
+                catch (Exception)
+                {
+                    continue;
+                }
+
+                foreach (var dbPath in sqliteFiles)
+                {
+                    stats.DatabaseCount++;
+                    foreach (var raw in ReadFirefoxAuthValues(dbPath))
+                    {
+                        var session = ParseSimklValue(raw, $"{Path.GetFileName(profileDir)}/{name}");
+                        if (session is not null) return session;
+                    }
+                }
+            }
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Simkl keeps the bearer token either as a plain opaque string under one of
+    /// <see cref="SimklAuthKeys"/> or as JSON carrying <c>access_token</c>/<c>user_token</c>.
+    /// A value counts as a token when it is long, single-word and printable — Simkl tokens are
+    /// not JWTs, so the "eyJ" shortcut does not apply here.
+    /// </summary>
+    internal static BrowserSession? ParseSimklValue(string raw, string sourcePath)
+    {
+        var trimmed = raw.Trim();
+        if (trimmed.Length == 0) return null;
+
+        string? token = null;
+        string? username = null;
+        var userId = 0;
+
+        if (trimmed.StartsWith('{'))
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(trimmed);
+                var root = doc.RootElement;
+
+                token = FirstString(root, "access_token", "user_token", "token");
+                if (root.TryGetProperty("user", out var userEl) && userEl.ValueKind == JsonValueKind.Object)
+                {
+                    username = FirstString(userEl, "username", "login", "name");
+                    if (userEl.TryGetProperty("id", out var idEl)
+                        && int.TryParse(idEl.ToString(), out var parsedId))
+                    {
+                        userId = parsedId;
+                    }
+                }
+            }
+            catch (JsonException)
+            {
+                return null;
+            }
+        }
+        else
+        {
+            // A bare token: one word of printable characters, long enough not to be a fragment.
+            if (trimmed.Length < 20 ||
+                trimmed.Any(ch => char.IsWhiteSpace(ch) || char.IsControl(ch) || ch is '{' or '}'))
+            {
+                return null;
+            }
+            token = trimmed;
+        }
+
+        if (string.IsNullOrWhiteSpace(token) || token.Length < 20) return null;
+        return new BrowserSession(userId, username ?? string.Empty, token, sourcePath);
     }
 
     private static List<string> GetZenProfiles(string home, out List<string> checkedZenPaths)
@@ -252,6 +437,14 @@ public static class BrowserSessionDetector
         {
             var name = Path.GetFileName(originDir);
             stats?.Domains.Add(name);
+
+            // Simkl stores live in the same storage/default tree (the shared pattern list covers
+            // them for the Simkl detector), but their tokens are not SocialLib sessions — a simkl
+            // JSON would parse cleanly here and get bound as a MangaLib token.
+            if (name.Contains(SimklOriginFragment, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
 
             var matchesOrigin = StorageFolderPatterns.Any(pattern =>
                 name.Contains(pattern, StringComparison.OrdinalIgnoreCase));

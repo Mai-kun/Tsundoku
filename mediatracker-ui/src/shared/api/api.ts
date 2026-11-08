@@ -629,6 +629,24 @@ export function openMangalibLoginPage(): Promise<void> {
   return requestVoid("/api/settings/sources/mangalib/open-login", { method: "POST" });
 }
 
+/**
+ * Picks up the Simkl session from the user's own browsers (Zen / Firefox / the
+ * isolated Tsundoku Chromium profile). Returns null when no session exists
+ * (HTTP 404). The token lands in its own slot — Simkl's client_id key stays
+ * untouched, Auth V2 requires both.
+ */
+export async function detectSimklBrowserSession(): Promise<MangalibDetectResult | null> {
+  const response = await apiFetch("/api/settings/sources/simkl/detect-token", {
+    method: "POST",
+  });
+  if (response.status === 404) return null;
+  if (!response.ok) {
+    await throwApiError(response);
+  }
+  invalidateSourcesCache();
+  return (await response.json()) as MangalibDetectResult;
+}
+
 /** Asks the Tsundoku server (tray + web) to shut down gracefully. */
 export function shutdownApp(): Promise<void> {
   return requestVoid("/api/system/shutdown", { method: "POST" });

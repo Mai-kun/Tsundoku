@@ -63,6 +63,8 @@
     reindexOfflineDatabases,
     reindexFranchises,
     detectMangalibBrowserSession,
+    detectSimklBrowserSession,
+    getSourceKeyStatus,
     apiFetch,
     type AppSettings,
   } from "$shared/api/api";
@@ -697,6 +699,14 @@
     sourcesError = null;
     try {
       sources = await getSources();
+      // The Simkl card carries a second credential (the browser-session bearer,
+      // stored next to — not instead of — the client_id): its presence is what
+      // the "Сессия активна" badge shows.
+      try {
+        simklSession = await getSourceKeyStatus("simkl_session");
+      } catch {
+        simklSession = null;
+      }
     } catch (e) {
       sourcesError = e;
     } finally {
@@ -828,6 +838,30 @@
 
   let detectingSocialLib = $state(false);
   let showSocialLibManualToken = $state(false);
+
+  let detectingSimkl = $state(false);
+  let simklSession: { success: boolean; hasKey: boolean; maskedKey: string | null } | null =
+    $state(null);
+
+  async function handleDetectSimklSession() {
+    detectingSimkl = true;
+    try {
+      const res = await detectSimklBrowserSession();
+      if (res && res.success) {
+        showToast("Авторизация Simkl успешно подхвачена из браузера", "success");
+        await loadSources();
+      } else {
+        showToast(
+          "Сессия Simkl в браузерах не найдена. Войдите на simkl.com в браузере и повторите попытку.",
+          "error",
+        );
+      }
+    } catch (err) {
+      showToast(errorMessage(err), "error");
+    } finally {
+      detectingSimkl = false;
+    }
+  }
 
   async function handleDetectSocialLibSession() {
     detectingSocialLib = true;
@@ -1685,6 +1719,97 @@
                               </button>
                             </div>
                           {/if}
+
+                          {#if keySuccess[source.id]}
+                            <p class="mt-2 text-xs font-medium text-emerald-400">
+                              {keySuccess[source.id]}
+                            </p>
+                          {/if}
+                          {#if keyErrors[source.id]}
+                            <p class="mt-2 text-xs text-rose-300">
+                              {errorMessage(keyErrors[source.id])}
+                            </p>
+                          {/if}
+                        {:else if source.id === "simkl"}
+                          <!-- Simkl: client_id below, plus a browser-session bearer on top —
+                               Auth V2 needs both, and the session can be picked up automatically. -->
+                          {#if simklSession?.hasKey}
+                            <div class="mb-3 flex flex-wrap items-center gap-2 text-xs">
+                              <span
+                                class="inline-flex items-center gap-1 rounded bg-emerald-500/15 px-2 py-0.5 font-semibold text-emerald-400"
+                              >
+                                <Check size={12} />
+                                Сессия активна
+                              </span>
+                              <span class="text-muted">Токен:</span>
+                              <code
+                                class="bg-canvas text-ink rounded px-2 py-0.5 font-mono text-[11px]"
+                                >{simklSession?.maskedKey}</code
+                              >
+                            </div>
+                          {:else}
+                            <p class="text-muted mb-3 flex items-start gap-1.5 text-xs">
+                              <Key size={12} class="mt-0.5 shrink-0 text-sky-400" />
+                              Client ID открывает публичный каталог. Сессия из браузера добавляет
+                              личные данные (списки, историю просмотров).
+                            </p>
+                          {/if}
+
+                          <div class="mb-3 flex flex-wrap items-center gap-2">
+                            <button
+                              type="button"
+                              class="bg-field text-ink hover:bg-card hover:border-accent-soft inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-white/10 px-3 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60"
+                              disabled={detectingSimkl}
+                              onclick={handleDetectSimklSession}
+                            >
+                              <RefreshCw size={13} class={detectingSimkl ? "animate-spin" : ""} />
+                              <span
+                                >{detectingSimkl
+                                  ? i18n.t.common.loading
+                                  : "Подхватить сессию из браузера"}</span
+                              >
+                            </button>
+                          </div>
+                          <p class="text-muted mt-1.5 text-[11px]">
+                            Ищет активную сессию simkl.com в браузерах; Client ID вводится ниже как
+                            обычно
+                          </p>
+
+                          {#if source.maskedKey}
+                            <div class="text-muted mb-2 flex items-center gap-2 text-xs">
+                              <span>{i18n.t.settingsModal.sources.currentKey}</span>
+                              <code
+                                class="bg-canvas text-ink rounded px-2 py-0.5 font-mono text-[11px]"
+                                >{source.maskedKey}</code
+                              >
+                            </div>
+                          {/if}
+
+                          <div class="flex flex-wrap items-center gap-2">
+                            <input
+                              type="password"
+                              class="bg-field text-ink placeholder:text-muted focus:border-accent-soft focus:ring-accent-soft h-8 min-w-[220px] flex-1 rounded-md border border-white/10 px-3 text-xs focus:ring-1 focus:outline-none"
+                              placeholder={source.hasKey
+                                ? i18n.t.settingsModal.sources.replaceKeyPlaceholder
+                                : i18n.t.settingsModal.sources.inputPlaceholder}
+                              value={inputKeys[source.id] ?? ""}
+                              oninput={(e) =>
+                                (inputKeys[source.id] = (
+                                  e.currentTarget as HTMLInputElement
+                                ).value)}
+                            />
+                            <button
+                              type="button"
+                              class="bg-field text-ink hover:bg-card hover:border-accent-soft inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-white/10 px-3 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60"
+                              disabled={savingKey === source.id || !inputKeys[source.id]?.trim()}
+                              onclick={() => void handleSaveKey(source.id)}
+                            >
+                              <ShieldCheck size={13} />
+                              {savingKey === source.id
+                                ? i18n.t.common.saving
+                                : i18n.t.settingsModal.sources.saveKey}
+                            </button>
+                          </div>
 
                           {#if keySuccess[source.id]}
                             <p class="mt-2 text-xs font-medium text-emerald-400">

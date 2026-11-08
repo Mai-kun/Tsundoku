@@ -5,6 +5,14 @@ public sealed class ExternalApiOptions
     public string TmdbApiKey { get; set; } = string.Empty;
     public string RawgApiKey { get; set; } = string.Empty;
     public string SimklApiKey { get; set; } = string.Empty;
+
+    /// <summary>
+    /// The Simkl <em>user</em> bearer token (Auth V2), picked from the browser session or pasted by
+    /// hand. Deliberately separate from <see cref="SimklApiKey"/>: that slot holds the app's public
+    /// client_id, which every request needs even when the Bearer is present.
+    /// </summary>
+    public string SimklUserToken { get; set; } = string.Empty;
+
     public string KinopoiskApiKey { get; set; } = string.Empty;
     public string SteamApiKey { get; set; } = string.Empty;
 
@@ -22,6 +30,7 @@ public sealed class ExternalApiOptions
         if (Is(id, "tmdb")) return TmdbApiKey;
         if (Is(id, "rawg")) return RawgApiKey;
         if (Is(id, "simkl")) return SimklApiKey;
+        if (Is(id, ImportOnlyKeySources.SimklSession)) return SimklUserToken;
         if (Is(id, "kinopoisk")) return KinopoiskApiKey;
         if (Is(id, "steam")) return SteamApiKey;
 
@@ -35,6 +44,7 @@ public sealed class ExternalApiOptions
         if (Is(id, "tmdb")) { TmdbApiKey = key; return; }
         if (Is(id, "rawg")) { RawgApiKey = key; return; }
         if (Is(id, "simkl")) { SimklApiKey = key; return; }
+        if (Is(id, ImportOnlyKeySources.SimklSession)) { SimklUserToken = key; return; }
         if (Is(id, "kinopoisk")) { KinopoiskApiKey = key; return; }
         if (Is(id, "steam")) { SteamApiKey = key; return; }
 
@@ -46,6 +56,7 @@ public sealed class ExternalApiOptions
         TmdbApiKey = string.Empty;
         RawgApiKey = string.Empty;
         SimklApiKey = string.Empty;
+        SimklUserToken = string.Empty;
         KinopoiskApiKey = string.Empty;
         SteamApiKey = string.Empty;
         _customKeys.Clear();

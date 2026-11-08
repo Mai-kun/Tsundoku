@@ -481,6 +481,7 @@ try
     // Headless Kestrel service: kick off the backfill concurrently instead of blocking startup.
     StartBackgroundFranchiseBackfill(app);
     StartBackgroundOfflineDatabaseImports(app);
+    StartBackgroundSessionPickup(app);
 
     if (enableDesktopShell && !options.StartMinimized)
     {
@@ -637,4 +638,73 @@ static void StartBackgroundOfflineDatabaseImports(WebApplication app)
     var jobManager = app.Services.GetRequiredService<IJobManager>();
     var dbManager = app.Services.GetRequiredService<MediaTracker.Server.Infrastructure.ExternalApis.Offline.OfflineDatabaseManager>();
     dbManager.EnqueuePendingImports(jobManager, app.Logger);
+}
+
+/// <summary>
+/// One-time browser-session pickup, a few seconds after startup: when the user never pasted a
+/// MangaLib or Simkl credential but is logged in on those sites in their own browser, the session
+/// is detected on disk, encrypted and bound — the sources then show "Сессия активна" without any
+/// manual key entry. Detection reads only local browser profiles and never blocks startup; a
+/// browser running at that moment just means this pass finds nothing and the user can still pick
+/// the session up from Settings later.
+/// </summary>
+static void StartBackgroundSessionPickup(WebApplication app)
+{
+    app.Lifetime.ApplicationStarted.Register(() =>
+    {
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                // Let the UI open first: the pickup scans several browser profiles on disk and must
+                // not compete with startup work for the disk.
+                await Task.Delay(TimeSpan.FromSeconds(3));
+
+                using var scope = app.Services.CreateScope();
+                var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var saveKey = scope.ServiceProvider.GetRequiredService<
+                    MediaTracker.Server.Features.Settings.SaveSourceKey.ISaveSourceKeyHandler>();
+
+                if (string.IsNullOrWhiteSpace(await AppSettingStore.ReadAsync(db, "ApiKey_mangalib")))
+                {
+                    var session = await MediaTracker.Server.Infrastructure.ExternalApis.Providers.SocialLib
+                        .BrowserSessionDetector.TryDetectSessionAsync();
+                    if (session is not null)
+                    {
+                        // Both spellings: ImportMediaHandler reads ApiKey_mangalib, the linked-sources
+                        // flow resolves "sociallib" — the manual detect endpoint binds the same pair.
+                        await saveKey.HandleAsync(new MediaTracker.Server.Features.Settings.SaveSourceKey
+                            .SaveSourceKeyCommand(ImportOnlyKeySources.MangaLib, session.Token), CancellationToken.None);
+                        await saveKey.HandleAsync(new MediaTracker.Server.Features.Settings.SaveSourceKey
+                            .SaveSourceKeyCommand("sociallib", session.Token), CancellationToken.None);
+                        Log.Information(
+                            "[Auth] Automatically detected and bound MangaLib session from {Source}",
+                            session.SourcePath);
+                    }
+                }
+
+                if (string.IsNullOrWhiteSpace(await AppSettingStore.ReadAsync(db, $"ApiKey_{ImportOnlyKeySources.SimklSession}")))
+                {
+                    var session = await MediaTracker.Server.Infrastructure.ExternalApis.Providers.SocialLib
+                        .BrowserSessionDetector.TryDetectSimklSessionAsync();
+                    if (session is not null)
+                    {
+                        // The session rides its own setting, not ApiKey_simkl: that slot is the
+                        // app's public client_id, which Auth V2 requires on top of the Bearer.
+                        await saveKey.HandleAsync(new MediaTracker.Server.Features.Settings.SaveSourceKey
+                            .SaveSourceKeyCommand(ImportOnlyKeySources.SimklSession, session.Token), CancellationToken.None);
+                        Log.Information(
+                            "[Auth] Automatically detected and bound Simkl session from {Source}",
+                            session.SourcePath);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // The pickup is a convenience: a failed scan (no browsers installed, locked files)
+                // must never surface as an error the user did nothing to cause.
+                Log.Debug(ex, "[Auth] Background session pickup did not complete");
+            }
+        });
+    });
 }

@@ -25,12 +25,12 @@ public sealed class StoredSettingsLoader(
 
         if (!settingsTableExists) return;
 
-        // Import-only sources (MangaLib) live in the same Settings table without
-        // a provider, so they are concatenated explicitly.
+        // Import-only sources (MangaLib, Simkl's user session) live in the same Settings table
+        // without a provider entry, so they are concatenated explicitly.
         var keySources = providers
             .Where(p => p.RequiresApiKey || p.OptionalApiKey)
             .Select(p => p.Id)
-            .Concat(new[] { ImportOnlyKeySources.MangaLib })
+            .Concat(new[] { ImportOnlyKeySources.MangaLib, ImportOnlyKeySources.SimklSession })
             .DistinctBy(id => id, StringComparer.OrdinalIgnoreCase);
         foreach (var sourceId in keySources)
         {

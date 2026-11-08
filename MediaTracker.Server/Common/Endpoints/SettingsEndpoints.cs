@@ -140,6 +140,11 @@ public static class SettingsEndpoints
             .WithSummary("Подхватить авторизацию SocialLib из браузера (Zen / Firefox / Chromium)")
             .WithDescription("Ищет localStorage-сессию SocialLib в профилях браузеров пользователя и сохраняет токен в зашифрованном хранилище.");
 
+        group.MapPost("/sources/simkl/detect-token", DetectSimklSessionAsync)
+            .WithTags("Настройки / Settings")
+            .WithSummary("Подхватить авторизацию Simkl из браузера (Zen / Firefox / Chromium)")
+            .WithDescription("Ищет localStorage-сессию Simkl в профилях браузеров пользователя и сохраняет токен в зашифрованном хранилище (отдельно от client_id).");
+
         group.MapPost("/sources/mangalib/open-login", () =>
             {
                 try
@@ -567,6 +572,42 @@ public static class SettingsEndpoints
             new SaveSourceKeyCommand("sociallib", session.Token), ct);
         var saved = await saveKey.HandleAsync(
             new SaveSourceKeyCommand(ImportOnlyKeySources.MangaLib, session.Token), ct);
+        if (!saved.TryGetValue(out var savedValue))
+        {
+            return Results.BadRequest(new ApiErrorDetail(
+                saved.Error?.Message ?? "Не удалось сохранить токен."));
+        }
+
+        return Results.Ok(new MangalibSessionResponse(
+            Success: savedValue.Success,
+            UserId: session.UserId,
+            Username: session.Username,
+            Source: session.SourcePath,
+            Message: null));
+    }
+
+    /// <summary>
+    /// Simkl's browser-session pickup. The token is bound to <see cref="ImportOnlyKeySources.SimklSession"/>,
+    /// not to the provider's own key slot: that slot holds the public client_id, which Simkl Auth V2
+    /// requires on every request even when the Bearer is present.
+    /// </summary>
+    private static async Task<IResult> DetectSimklSessionAsync(
+        [FromServices] ISaveSourceKeyHandler saveKey,
+        CancellationToken ct)
+    {
+        var session = await BrowserSessionDetector.TryDetectSimklSessionAsync(ct);
+        if (session is null)
+        {
+            return Results.NotFound(new MangalibSessionResponse(
+                Success: false,
+                UserId: null,
+                Username: null,
+                Source: null,
+                Message: "Сессия Simkl в браузерах не найдена. Войдите на simkl.com в браузере и повторите попытку."));
+        }
+
+        var saved = await saveKey.HandleAsync(
+            new SaveSourceKeyCommand(ImportOnlyKeySources.SimklSession, session.Token), ct);
         if (!saved.TryGetValue(out var savedValue))
         {
             return Results.BadRequest(new ApiErrorDetail(

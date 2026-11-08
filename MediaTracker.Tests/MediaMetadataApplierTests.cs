@@ -293,6 +293,16 @@ public class MediaMetadataApplierTests
         public void DeleteCover(string? localCoverUrl) { }
 
         public void DeleteMediaFolder(Guid mediaId) { }
+
+        public Task<MediaGalleryItemDto?> SaveGalleryImageAsync(Stream content, Guid itemId, string? title = null, CancellationToken ct = default)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void DeleteGalleryImage(Guid itemId, string imgId)
+        {
+            throw new NotImplementedException();
+        }
     }
 
     [Fact]

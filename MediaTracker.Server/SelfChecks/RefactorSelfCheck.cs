@@ -1061,6 +1061,12 @@ public static class RefactorSelfCheck
 
         public void DeleteCoverVariant(Guid itemId, string coverId) { }
 
+        public Task<Features.Media.MediaContract.MediaGalleryItemDto?> SaveGalleryImageAsync(
+            Stream content, Guid itemId, string? title = null, CancellationToken ct = default) =>
+            Task.FromResult<Features.Media.MediaContract.MediaGalleryItemDto?>(null);
+
+        public void DeleteGalleryImage(Guid itemId, string imgId) { }
+
         public void DeleteCover(string? localCoverUrl) { }
 
         public void DeleteMediaFolder(Guid mediaId) { }
@@ -1714,6 +1720,12 @@ public static class RefactorSelfCheck
             Task.FromResult<Features.Media.MediaContract.MediaCoverItemDto?>(null);
 
         public void DeleteCoverVariant(Guid itemId, string coverId) { }
+
+        public Task<Features.Media.MediaContract.MediaGalleryItemDto?> SaveGalleryImageAsync(
+            Stream content, Guid itemId, string? title = null, CancellationToken ct = default) =>
+            Task.FromResult<Features.Media.MediaContract.MediaGalleryItemDto?>(null);
+
+        public void DeleteGalleryImage(Guid itemId, string imgId) { }
 
         public void DeleteCover(string? path) { }
 
@@ -4533,6 +4545,12 @@ public static class RefactorSelfCheck
             Task.FromResult<Features.Media.MediaContract.MediaCoverItemDto?>(null);
 
         public void DeleteCoverVariant(Guid itemId, string coverId) { }
+
+        public Task<Features.Media.MediaContract.MediaGalleryItemDto?> SaveGalleryImageAsync(
+            Stream content, Guid itemId, string? title = null, CancellationToken ct = default) =>
+            Task.FromResult<Features.Media.MediaContract.MediaGalleryItemDto?>(null);
+
+        public void DeleteGalleryImage(Guid itemId, string imgId) { }
 
         public void DeleteCover(string? localCoverUrl) { }
 

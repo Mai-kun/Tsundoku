@@ -200,6 +200,12 @@ public sealed record MediaDetailDto : MediaListDto
     /// <summary>The title's saved cover variants, already parsed so the cover manager renders them as-is.</summary>
     public IReadOnlyList<MediaCoverItemDto> Covers { get; init; } = [];
 
+    /// <summary>Files attached to the title (books, archives, saves), already parsed for the overview's file block.</summary>
+    public IReadOnlyList<MediaAttachmentDto> Attachments { get; init; } = [];
+
+    /// <summary>The user's screenshot gallery, already parsed so the gallery tab renders it as-is.</summary>
+    public IReadOnlyList<MediaGalleryItemDto> Gallery { get; init; } = [];
+
     public IReadOnlyList<TvSeasonDto>? Seasons { get; init; }
 
     public IReadOnlyList<CastMemberDto> Cast { get; init; } = [];
@@ -428,6 +434,8 @@ public static class MediaResponseMapper
             Recommendations = MediaJsonCache.Deserialize<ExternalRecommendationDto>(item.RecommendationsJson),
             IsCustomEdited = item.IsCustomEdited,
             Covers = MediaCoverCollection.Parse(item.CoversJson),
+            Attachments = MediaAttachmentCollection.ParseAttachments(item.AttachmentsJson),
+            Gallery = MediaAttachmentCollection.ParseGallery(item.GalleryJson),
             Cast = MediaJsonCache.Deserialize<CastMemberDto>(item.CastJson),
             CreatorImageUrl = item.CreatorImageUrl,
             OriginalTitle = item.OriginalTitle,

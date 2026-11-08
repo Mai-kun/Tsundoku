@@ -64,11 +64,13 @@ public static partial class FeatureRegistration
         services.AddScoped<IGetCreatorSummaryHandler, GetCreatorSummaryHandler>();
         services.AddScoped<IGetRecommendationsHandler, GetRecommendationsHandler>();
         services.AddScoped<ICreateMediaHandler, CreateMediaHandler>();
+        services.AddScoped<
         services.AddScoped<IUpdateMediaHandler, UpdateMediaHandler>();
         services.AddScoped<IUpdateStatusHandler, UpdateStatusHandler>();
         services.AddScoped<IUpdateProgressHandler, UpdateProgressHandler>();
         services.AddScoped<IDeleteMediaHandler, DeleteMediaHandler>();
         services.AddScoped<ICoverManager, CoverManager>();
+        services.AddScoped<IAttachmentManager, AttachmentManager>();
         services.AddScoped<ImportMediaHandler>();
         services.AddScoped<IGetPendingMatchesHandler, GetPendingMatchesHandler>();
         services.AddScoped<IResolveMatchHandler, ResolveMatchHandler>();

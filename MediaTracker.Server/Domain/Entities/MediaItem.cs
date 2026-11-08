@@ -44,6 +44,20 @@ public abstract class MediaItem
     public string? CoversJson { get; set; }
 
     /// <summary>
+    /// The title's attached files (books, archives, saves), serialised as a list of
+    /// <see cref="MediaTracker.Server.Features.Media.MediaContract.MediaAttachmentDto"/>. The blobs
+    /// live on disk under <c>media/{id}/files/</c>; the row only carries the index.
+    /// </summary>
+    public string? AttachmentsJson { get; set; }
+
+    /// <summary>
+    /// The user's screenshot gallery, serialised as a list of
+    /// <see cref="MediaTracker.Server.Features.Media.MediaContract.MediaGalleryItemDto"/>. Renditions
+    /// live on disk under <c>media/{id}/gallery/</c>; the row only carries the index.
+    /// </summary>
+    public string? GalleryJson { get; set; }
+
+    /// <summary>
     /// Local path to the director's photo or the studio's logo, when a provider had one. Null is the
     /// normal case, and the UI falls back to a role icon rather than reserving space for nothing.
     /// </summary>

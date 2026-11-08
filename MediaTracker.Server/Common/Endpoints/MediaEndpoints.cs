@@ -16,6 +16,7 @@ using MediaTracker.Server.Features.Media.GetMediaStats;
 using MediaTracker.Server.Features.Media.GetRecommendations;
 using MediaTracker.Server.Features.Media.Import;
 using MediaTracker.Server.Features.Media.LinkedSources;
+using MediaTracker.Server.Features.Media.ManageAttachments;
 using MediaTracker.Server.Features.Media.ManageCovers;
 using MediaTracker.Server.Features.Media.MediaContract;
 using MediaTracker.Server.Features.Media.PendingMatches;
@@ -429,6 +430,158 @@ public static class MediaEndpoints
             .WithTags("Медиатека / Media")
             .WithSummary("Загрузить обложки томов MangaDex")
             .WithDescription("Для манги с подтверждённым MangaDex ID запрашивает официальные обложки томов и сохраняет их в галерею вариантов.");
+
+        // --- Файлы тайтла (книги, архивы, сейвы): multipart upload, потоковое скачивание, удаление. ---
+        group.MapPost("/{id:guid}/files", async (
+                Guid id,
+                [FromForm] IFormFile? file,
+                [FromServices] IAttachmentManager attachmentManager,
+                CancellationToken ct) =>
+        {
+            if (file is null || file.Length == 0)
+            {
+                return CoverEndpointHelpers.BadCoverRequest("The multipart form must contain a non-empty 'file'.");
+            }
+
+            var result = await attachmentManager.AddFileAsync(id, file, ct);
+            return result.TryGetValue(out var attachments)
+                ? Results.Ok(attachments)
+                : HttpResultMapper.Problem(result.Error!);
+        })
+        .DisableAntiforgery()
+        .WithTags("Медиатека / Media")
+        .WithSummary("Прикрепить файл к тайтлу")
+        .WithDescription("Принимает multipart/form-data с полем 'file' (книги, архивы, документы, сейвы; до 30 МБ) и возвращает обновлённый список файлов.");
+
+        group.MapGet("/{id:guid}/files/{fileId}/download", async (
+                Guid id,
+                string fileId,
+                [FromServices] IAttachmentManager attachmentManager,
+                CancellationToken ct) =>
+        {
+            var result = await attachmentManager.ResolveDownloadAsync(id, fileId, ct);
+            if (!result.TryGetValue(out var resolved))
+            {
+                return HttpResultMapper.Problem(result.Error!);
+            }
+
+            var (attachment, filePath) = resolved;
+            return Results.File(
+                filePath,
+                contentType: attachment.ContentType ?? "application/octet-stream",
+                fileDownloadName: attachment.FileName);
+        })
+        .WithTags("Медиатека / Media")
+        .WithSummary("Скачать прикреплённый файл");
+
+        // Inline view: no download name means the browser renders the payload itself
+        // (PDF, TXT, images) instead of saving it.
+        group.MapGet("/{id:guid}/files/{fileId}/view", async (
+                Guid id,
+                string fileId,
+                HttpContext httpContext,
+                [FromServices] IAttachmentManager attachmentManager,
+                CancellationToken ct) =>
+        {
+            var result = await attachmentManager.ResolveDownloadAsync(id, fileId, ct);
+            if (!result.TryGetValue(out var resolved))
+            {
+                return HttpResultMapper.Problem(result.Error!);
+            }
+
+            var (attachment, filePath) = resolved;
+            httpContext.Response.Headers.ContentDisposition =
+                $"inline; filename=\"{attachment.FileName.Replace("\"", "'", StringComparison.Ordinal)}\"";
+            return Results.File(
+                filePath,
+                contentType: attachment.ContentType ?? "application/octet-stream",
+                enableRangeProcessing: true);
+        })
+        .WithTags("Медиатека / Media")
+        .WithSummary("Открыть файл во вкладке браузера (inline)")
+        .WithDescription("Отдаёт файл с Content-Disposition: inline — браузер рендерит его сам (PDF, TXT, изображения).");
+
+        group.MapPost("/{id:guid}/files/{fileId}/open", async (
+                Guid id,
+                string fileId,
+                [FromServices] IAttachmentManager attachmentManager,
+                CancellationToken ct) =>
+        {
+            var result = await attachmentManager.OpenFileAsync(id, fileId, ct);
+            return result.IsSuccess
+                ? Results.NoContent()
+                : HttpResultMapper.Problem(result.Error!);
+        })
+        .WithTags("Медиатека / Media")
+        .WithSummary("Открыть файл в системной программе")
+        .WithDescription("Запускает файл в приложении по умолчанию ОС: xdg-open на Linux, shell на Windows, open на macOS.");
+
+        group.MapDelete("/{id:guid}/files/{fileId}", async (
+                Guid id,
+                string fileId,
+                [FromServices] IAttachmentManager attachmentManager,
+                CancellationToken ct) =>
+        {
+            var result = await attachmentManager.DeleteFileAsync(id, fileId, ct);
+            return result.TryGetValue(out var attachments)
+                ? Results.Ok(attachments)
+                : HttpResultMapper.Problem(result.Error!);
+        })
+        .WithTags("Медиатека / Media")
+        .WithSummary("Удалить прикреплённый файл")
+        .WithDescription("Удаляет файл с диска и запись из списка вложений; возвращает обновлённый список.");
+
+        // --- Галерея пользовательских скриншотов: multipart upload с WebP-рендициями, удаление. ---
+        group.MapPost("/{id:guid}/gallery", async (
+                Guid id,
+                [FromForm] IFormFile? image,
+                [FromServices] IAttachmentManager attachmentManager,
+                CancellationToken ct) =>
+        {
+            if (image is null || image.Length == 0)
+            {
+                return CoverEndpointHelpers.BadCoverRequest("The multipart form must contain a non-empty 'image'.");
+            }
+
+            var result = await attachmentManager.AddGalleryImageAsync(id, image.OpenReadStream(), image.FileName, ct);
+            return result.TryGetValue(out var entry)
+                ? Results.Ok(entry)
+                : HttpResultMapper.Problem(result.Error!);
+        })
+        .DisableAntiforgery()
+        .WithTags("Медиатека / Media")
+        .WithSummary("Добавить скриншот в галерею тайтла")
+        .WithDescription("Принимает multipart/form-data с полем 'image'. Создаёт original.webp (макс. 1920px, q85) и thumb.webp (макс. 480px, q80) и возвращает созданную запись.");
+
+        group.MapDelete("/{id:guid}/gallery/{imgId}", async (
+                Guid id,
+                string imgId,
+                [FromServices] IAttachmentManager attachmentManager,
+                CancellationToken ct) =>
+        {
+            var result = await attachmentManager.DeleteGalleryImageAsync(id, imgId, ct);
+            return result.IsSuccess
+                ? Results.NoContent()
+                : HttpResultMapper.Problem(result.Error!);
+        })
+        .WithTags("Медиатека / Media")
+        .WithSummary("Удалить скриншот из галереи")
+        .WithDescription("Удаляет папку скриншота с диска и запись из базы.");
+
+        group.MapPost("/{id:guid}/gallery/{imgId}/set-as-cover", async (
+                Guid id,
+                string imgId,
+                [FromServices] IAttachmentManager attachmentManager,
+                CancellationToken ct) =>
+        {
+            var result = await attachmentManager.SetGalleryImageAsCoverAsync(id, imgId, ct);
+            return result.TryGetValue(out var detail)
+                ? Results.Ok(detail)
+                : HttpResultMapper.Problem(result.Error!);
+        })
+        .WithTags("Медиатека / Media")
+        .WithSummary("Сделать скриншот обложкой тайтла")
+        .WithDescription("Берёт original.webp из папки скриншота, прогоняет через стандартный конвейер обложек и назначает активным постером.");
 
         var historyGroup = app.MapGroup("/api/history");
 

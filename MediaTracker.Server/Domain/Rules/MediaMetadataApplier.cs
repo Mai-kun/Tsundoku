@@ -94,6 +94,15 @@ public static class MediaMetadataApplier
         (url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
          url.StartsWith("https://", StringComparison.OrdinalIgnoreCase));
 
+    /// <summary>
+    /// True when the row's active poster IS the given gallery variant. The URL is compared without
+    /// its query part: the UI appends a cache-buster, and DeleteAsync tolerates it the same way.
+    /// </summary>
+    private static bool MatchesActiveCover(string? activeCoverUrl, MediaCoverItemDto variant) =>
+        activeCoverUrl is not null
+        && (activeCoverUrl.Split('?')[0].Equals(variant.ThumbUrl, StringComparison.OrdinalIgnoreCase)
+            || activeCoverUrl.Split('?')[0].Equals(variant.OriginalUrl, StringComparison.OrdinalIgnoreCase));
+
     private static bool ContainsCyrillic(string? text) =>
         !string.IsNullOrEmpty(text) && text.Any(c => c is >= '\u0400' and <= '\u04FF');
 
@@ -244,8 +253,14 @@ public static class MediaMetadataApplier
                 var variant = await imageStorage.SaveCoverVariantAsync(external.CoverUrl!, item.Id, external.ExternalSource, ct);
                 if (variant is not null)
                 {
+                    // The user's picked poster may BE the variant about to be replaced: its files
+                    // are deleted below, so the active pointer must move to the fresh copy — or
+                    // the refresh would leave CoverUrl aimed at a deleted file and the card would
+                    // render the placeholder while the gallery holds a perfectly good cover.
+                    var activeCoverReplaced = false;
                     if (existing is not null)
                     {
+                        activeCoverReplaced = MatchesActiveCover(item.CoverUrl, existing);
                         imageStorage.DeleteCoverVariant(item.Id, existing.Id);
                         covers.Remove(existing);
                     }
@@ -253,13 +268,29 @@ public static class MediaMetadataApplier
                     item.CoversJson = MediaCoverCollection.Serialize(covers);
 
                     // A failed download no longer clears the stored cover either: the gallery only grows.
-                    // The active poster follows the source only on an explicit re-point (or when the
-                    // row has none yet) — a routine refresh keeps the user's picked cover.
-                    if (updateMainCover || item.CoverUrl is null)
+                    // The active poster follows a freshly downloaded local copy whenever the row has
+                    // no local one yet, its current poster is an external hotlink, or the variant it
+                    // was pointing at has just been replaced by this download. The user's picked
+                    // LOCAL poster survives a routine refresh otherwise.
+                    if (updateMainCover
+                        || item.CoverUrl is null
+                        || IsExternalUrl(item.CoverUrl)
+                        || activeCoverReplaced)
                     {
                         item.CoverUrl = variant.ThumbUrl;
                     }
                 }
+            }
+        }
+        else if (IsExternalUrl(item.CoverUrl))
+        {
+            // The source gave no cover this time, but the active poster is an external hotlink
+            // while a local variant exists on disk: adopt the local copy, it is the one that
+            // actually renders. An existing local poster is never touched.
+            var stored = MediaCoverCollection.Parse(item.CoversJson);
+            if (stored is { Count: > 0 })
+            {
+                item.CoverUrl = stored[^1].ThumbUrl;
             }
         }
 
@@ -340,11 +371,12 @@ public static class MediaMetadataApplier
         // Runs last: deriving the status from dates is only correct once the dates themselves are in.
         if (string.IsNullOrWhiteSpace(item.ReleaseStatus))
         {
-            var status = !string.IsNullOrWhiteSpace(external.ReleaseStatus)
-                ? external.ReleaseStatus
-                // No source declared a status, but a past end date or a future start date still
-                // decides it, and the row would otherwise stay empty.
-                : ReleaseStatusRules.FromDates(item.ReleaseDate, item.EndDate);
+            var status = ReleaseStatusRules.NormalizeStatus(
+                !string.IsNullOrWhiteSpace(external.ReleaseStatus)
+                    ? external.ReleaseStatus
+                    // No source declared a status, but a past end date or a future start date still
+                    // decides it, and the row would otherwise stay empty.
+                    : ReleaseStatusRules.FromDates(item.ReleaseDate, item.EndDate));
 
             modified |= SetIfBlank(item.ReleaseStatus, status, value => item.ReleaseStatus = value);
         }
@@ -548,9 +580,11 @@ public static class MediaMetadataApplier
         item.SetReleaseDate(ParseDate(external.ReleaseDate), external.ReleaseYear);
         item.EndDate = ParseDate(external.EndDate);
 
-        item.ReleaseStatus = !string.IsNullOrWhiteSpace(external.ReleaseStatus)
-            ? external.ReleaseStatus
-            : ReleaseStatusRules.FromDates(item.ReleaseDate, item.EndDate);
+        // Every stored status goes through the canonical fold, whatever the source called it.
+        item.ReleaseStatus = ReleaseStatusRules.NormalizeStatus(
+            !string.IsNullOrWhiteSpace(external.ReleaseStatus)
+                ? external.ReleaseStatus
+                : ReleaseStatusRules.FromDates(item.ReleaseDate, item.EndDate));
     }
 
     private static void ApplyGenres(MediaItem item, ExternalMediaDto external)

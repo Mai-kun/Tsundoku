@@ -89,13 +89,43 @@ public static class SqliteSchemaInitializer
             await alterCmd.ExecuteNonQueryAsync(ct);
         }
 
+        if (!existingColumns.Contains("AttachmentsJson"))
+        {
+            using var alterCmd = connection.CreateCommand();
+            alterCmd.CommandText = "ALTER TABLE MediaItems ADD COLUMN AttachmentsJson TEXT NULL;";
+            await alterCmd.ExecuteNonQueryAsync(ct);
+        }
+
+        if (!existingColumns.Contains("GalleryJson"))
+        {
+            using var alterCmd = connection.CreateCommand();
+            alterCmd.CommandText = "ALTER TABLE MediaItems ADD COLUMN GalleryJson TEXT NULL;";
+            await alterCmd.ExecuteNonQueryAsync(ct);
+        }
+
         using (var cleanupCmd = connection.CreateCommand())
         {
             cleanupCmd.CommandText = @"
-                DELETE FROM MediaItems 
+                DELETE FROM MediaItems
                 WHERE (ImportSource = 'MangaLib' OR ImportSource COLLATE NOCASE IN ('MangaLib', 'AnimeLib', 'RanobeLib', 'SlashLib', 'HentaiLib'))
                   AND Title IN ('Читаю', 'В планах', 'Брошено', 'Прочитано', 'Любимые', 'Жду', 'Удалено', 'Смотрю', 'Запланировано', 'Пересматриваю', 'Отложено');";
             await cleanupCmd.ExecuteNonQueryAsync(ct);
+        }
+
+        // Canonicalize release statuses once per startup. Shikimori rows stored "RELEASED" while
+        // the auto-refresh rule only recognized "FINISHED", so completed titles kept being
+        // rescheduled forever. UPPER() is ASCII-only in SQLite, so the Cyrillic spellings are
+        // matched explicitly. FINISHED stays in the list too: legacy rows with odd casing are
+        // canonicalized and any stray check date on a finished row is cleared. New writes go
+        // through ReleaseStatusRules.NormalizeStatus.
+        using (var statusCmd = connection.CreateCommand())
+        {
+            statusCmd.CommandText = @"
+                UPDATE MediaItems
+                SET ReleaseStatus = 'FINISHED', NextAutoRefreshAt = NULL
+                WHERE UPPER(ReleaseStatus) IN ('FINISHED', 'RELEASED', 'COMPLETED', 'ENDED')
+                   OR ReleaseStatus IN ('Завершён', 'завершён', 'ЗАВЕРШЁН', 'Завершено', 'завершено', 'ЗАВЕРШЕНО');";
+            await statusCmd.ExecuteNonQueryAsync(ct);
         }
     }
 
@@ -151,6 +181,8 @@ CREATE TABLE IF NOT EXISTS MediaItems (
     TrailerVideoId TEXT,
     CoverUrl TEXT,
     CoversJson TEXT NULL,
+    AttachmentsJson TEXT NULL,
+    GalleryJson TEXT NULL,
     CreatorImageUrl TEXT,
     SyncStatus INTEGER NOT NULL,
     CreatedAt TEXT NOT NULL,

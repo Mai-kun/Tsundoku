@@ -1,6 +1,9 @@
 using System.Diagnostics;
 using MediaTracker.Server.Features.Media.MediaContract;
-using SkiaSharp;
+using PhotoSauce.MagicScaler;
+using PhotoSauce.NativeCodecs.Libjpeg;
+using PhotoSauce.NativeCodecs.Libpng;
+using PhotoSauce.NativeCodecs.Libwebp;
 
 namespace MediaTracker.Server.Infrastructure.Storage;
 
@@ -9,6 +12,18 @@ public sealed class ImageStorageService(
     AppPaths appPaths,
     ILogger<ImageStorageService> logger) : IImageStorageService
 {
+    static ImageStorageService()
+    {
+        // The native codecs are the only decoders/encoders MagicScaler has on Linux (the managed
+        // fallbacks are Windows/WIC only), so they must be registered once before the first cover.
+        CodecManager.Configure(codecs =>
+        {
+            codecs.UseLibjpeg();
+            codecs.UseLibpng();
+            codecs.UseLibwebp();
+        });
+    }
+
     private const string CoversRoutePrefix = "/covers/";
     private const string MediaAssetsRoutePrefix = "/media-assets/";
 
@@ -24,6 +39,15 @@ public sealed class ImageStorageService(
     private const int OriginalQuality = 88;
 
     private const long MaxCoverSizeBytes = 10 * 1024 * 1024; // 10 MB limit
+
+    // The gallery grid renders the thumb; 480px keeps a card crisp up to the 4-column breakpoint.
+    private const int MaxGalleryThumbWidth = 480;
+    private const int GalleryThumbQuality = 80;
+
+    // The lightbox shows the original. Capped at 1920px, q85: a screenshot that fills a
+    // full-screen window never needs more pixels, and re-encoding beyond it costs bytes.
+    private const int MaxGalleryOriginalWidth = 1920;
+    private const int GalleryOriginalQuality = 85;
 
     public async Task<string?> SaveCoverAsync(
         string externalUrl,
@@ -59,13 +83,15 @@ public sealed class ImageStorageService(
             var thumbPath = Path.Combine(coverDirectory, "thumb.webp");
 
             await using var source = await response.Content.ReadAsStreamAsync(ct);
-            using var image = await DecodeBitmapAsync(LimitStream(source), ct);
+            using var buffered = await BufferAsync(LimitStream(source), ct);
 
-            await SaveWebpAsync(image, originalPath, MaxOriginalWidth, OriginalQuality, ct);
+            ct.ThrowIfCancellationRequested();
+            SaveWebp(buffered, originalPath, MaxOriginalWidth, OriginalQuality);
 
-            // The thumb is what the grid renders. Resized from the same decoded bitmap, so the
-            // download and decode are still paid only once.
-            await SaveWebpAsync(image, thumbPath, MaxThumbWidth, ThumbQuality, ct);
+            // The thumb is what the grid renders. Resized from the same buffered source, so the
+            // download is still paid only once — and no raw pixels are held between the two passes.
+            ct.ThrowIfCancellationRequested();
+            SaveWebp(buffered, thumbPath, MaxThumbWidth, ThumbQuality);
 
             sw.Stop();
 
@@ -194,10 +220,12 @@ public sealed class ImageStorageService(
             var variantDirectory = Path.Combine(appPaths.MediaDirectory, itemId.ToString(), "covers", coverId);
             Directory.CreateDirectory(variantDirectory);
 
-            using var image = await DecodeBitmapAsync(LimitStream(content), ct);
+            using var buffered = await BufferAsync(LimitStream(content), ct);
 
-            await SaveWebpAsync(image, Path.Combine(variantDirectory, "original.webp"), MaxOriginalWidth, OriginalQuality, ct);
-            await SaveWebpAsync(image, Path.Combine(variantDirectory, "thumb.webp"), MaxThumbWidth, ThumbQuality, ct);
+            ct.ThrowIfCancellationRequested();
+            SaveWebp(buffered, Path.Combine(variantDirectory, "original.webp"), MaxOriginalWidth, OriginalQuality);
+            ct.ThrowIfCancellationRequested();
+            SaveWebp(buffered, Path.Combine(variantDirectory, "thumb.webp"), MaxThumbWidth, ThumbQuality);
 
             logger.LogInformation(
                 "[Storage] Saved cover variant {CoverId} for {MediaId} ({SizeKb} KB)",
@@ -225,22 +253,80 @@ public sealed class ImageStorageService(
 
     public void DeleteCoverVariant(Guid itemId, string coverId)
     {
-        if (!IsSafeCoverId(coverId))
+        DeleteMediaSubfolder(itemId, "covers", coverId);
+    }
+
+    public async Task<MediaGalleryItemDto?> SaveGalleryImageAsync(
+        Stream content,
+        Guid itemId,
+        string? title = null,
+        CancellationToken ct = default)
+    {
+        try
+        {
+            // Same short-hex folder scheme as the cover variants: cannot escape the media directory.
+            var imgId = Guid.NewGuid().ToString("N")[..10];
+            var imageDirectory = Path.Combine(appPaths.MediaDirectory, itemId.ToString(), "gallery", imgId);
+            Directory.CreateDirectory(imageDirectory);
+
+            using var buffered = await BufferAsync(LimitStream(content), ct);
+
+            ct.ThrowIfCancellationRequested();
+            SaveWebp(buffered, Path.Combine(imageDirectory, "original.webp"), MaxGalleryOriginalWidth, GalleryOriginalQuality);
+            ct.ThrowIfCancellationRequested();
+            SaveWebp(buffered, Path.Combine(imageDirectory, "thumb.webp"), MaxGalleryThumbWidth, GalleryThumbQuality);
+
+            logger.LogInformation(
+                "[Storage] Saved gallery screenshot {ImageId} for {MediaId} ({SizeKb} KB)",
+                imgId,
+                itemId,
+                new FileInfo(Path.Combine(imageDirectory, "original.webp")).Length / 1024);
+
+            return new MediaGalleryItemDto(
+                imgId,
+                $"{MediaAssetsRoutePrefix}{itemId}/gallery/{imgId}/thumb.webp",
+                $"{MediaAssetsRoutePrefix}{itemId}/gallery/{imgId}/original.webp",
+                title,
+                DateTime.UtcNow);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException or OversizedCoverException)
+        {
+            logger.LogWarning(ex, "[Storage] Failed to store gallery screenshot for {MediaId}, discarding", itemId);
+            return null;
+        }
+    }
+
+    public void DeleteGalleryImage(Guid itemId, string imgId)
+    {
+        DeleteMediaSubfolder(itemId, "gallery", imgId);
+    }
+
+    /// <summary>
+    /// Removes one per-title sub-folder (a cover variant or a gallery screenshot). Idempotent,
+    /// path-traversal safe: both ids and the item id must stay inside the media root.
+    /// </summary>
+    private void DeleteMediaSubfolder(Guid itemId, string subfolder, string folderId)
+    {
+        if (!IsSafeCoverId(folderId))
         {
             return;
         }
 
         var root = Path.GetFullPath(appPaths.MediaDirectory);
-        var variantFolder = Path.GetFullPath(Path.Combine(root, itemId.ToString(), "covers", coverId));
+        var folder = Path.GetFullPath(Path.Combine(root, itemId.ToString(), subfolder, folderId));
 
-        if (!variantFolder.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+        if (!folder.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
         {
             return;
         }
 
-        if (Directory.Exists(variantFolder))
+        if (Directory.Exists(folder))
         {
-            Directory.Delete(variantFolder, recursive: true);
+            Directory.Delete(folder, recursive: true);
         }
     }
 
@@ -248,78 +334,60 @@ public sealed class ImageStorageService(
         new SizeLimitedStream(source, MaxCoverSizeBytes);
 
     /// <summary>
-    /// Decodes an image into a bitmap. The limited stream is non-seekable, so it is buffered into
-    /// memory first: the codec must rewind for a full decode, and the 10 MB cap keeps that copy
-    /// bounded. Decode failures surface as IOException so the existing catch chain logs them.
+    /// Buffers the (non-seekable, size-limited) response stream into memory: MagicScaler needs to
+    /// rewind for the header pass and the decode pass, and the 10 MB cap keeps that copy bounded.
     /// </summary>
-    private static async Task<SKBitmap> DecodeBitmapAsync(Stream source, CancellationToken ct)
+    private static async Task<MemoryStream> BufferAsync(Stream source, CancellationToken ct)
     {
-        ct.ThrowIfCancellationRequested();
-
-        using var buffered = new MemoryStream();
+        var buffered = new MemoryStream();
         await source.CopyToAsync(buffered, ct);
         buffered.Seek(0, SeekOrigin.Begin); // CopyToAsync leaves the stream at its end
-
-        using var codec = SKCodec.Create(buffered);
-        if (codec is null)
-        {
-            throw new IOException("Unsupported or corrupt image data: no codec could decode the stream.");
-        }
-
-        var bitmap = SKBitmap.Decode(codec);
-        if (bitmap is null)
-        {
-            throw new IOException($"Failed to decode {codec.EncodedFormat} image data.");
-        }
-
-        return bitmap;
+        return buffered;
     }
 
     /// <summary>
     /// Writes one WebP rendition, never upscaling: a source narrower than the cap is encoded as-is,
-    /// because enlarging it would only add bytes and soften the poster.
+    /// because enlarging it would only add bytes and soften the poster. Dimensions are read from
+    /// the header without decoding raw pixels, so the scaler works at native resolution only once
+    /// per rendition and no full-size bitmap is ever held in managed memory.
     /// </summary>
-    private static async Task SaveWebpAsync(
-        SKBitmap source,
-        string path,
-        int maxWidth,
-        int quality,
-        CancellationToken ct)
+    private static void SaveWebp(Stream sourceStream, string outputPath, int maxWidth, int quality)
     {
-        ct.ThrowIfCancellationRequested();
+        sourceStream.Position = 0;
 
-        var width = source.Width;
-        var height = source.Height;
+        // Читаем размеры без декодирования сырых пикселей
+        var fileInfo = ImageFileInfo.Load(sourceStream);
+        var frame = fileInfo.Frames[0];
+        var targetWidth = frame.Width > maxWidth ? maxWidth : frame.Width;
 
-        SKBitmap bitmapToEncode = source;
-        SKBitmap? resizedBitmap = null;
+        sourceStream.Position = 0;
+        using var outputStream = File.Create(outputPath);
 
-        if (width > maxWidth)
+        var settings = new ProcessImageSettings
         {
-            var scale = (float)maxWidth / width;
-            var targetWidth = maxWidth;
-            var targetHeight = Math.Max(1, (int)Math.Round(height * scale));
+            Width = targetWidth,
+            ResizeMode = CropScaleMode.Max,
+        };
+        settings.TrySetEncoderFormat(ImageMimeTypes.Webp);
 
-            resizedBitmap = new SKBitmap(targetWidth, targetHeight, source.ColorType, source.AlphaType);
-            source.ScalePixels(resizedBitmap, SKFilterQuality.High);
-            bitmapToEncode = resizedBitmap;
+        try
+        {
+            settings.EncoderOptions = new WebpLossyEncoderOptions { Quality = quality };
+        }
+        catch
+        {
+            // Фоллбэк на дефолтные опции энкодера, если тип опций недоступен
         }
 
         try
         {
-            using var image = SKImage.FromBitmap(bitmapToEncode);
-            using var data = image.Encode(SKEncodedImageFormat.Webp, quality);
-            if (data is null)
-            {
-                throw new IOException("Failed to encode image to WebP format.");
-            }
-
-            await using var fileStream = File.Create(path);
-            data.SaveTo(fileStream);
+            MagicImageProcessor.ProcessImage(sourceStream, outputStream, settings);
         }
-        finally
+        catch (Exception ex) when (ex is not IOException and not OperationCanceledException)
         {
-            resizedBitmap?.Dispose();
+            // Unsupported/corrupt input and codec failures must reach the existing catch chain,
+            // which already logs them and returns null instead of crashing the request.
+            throw new IOException($"Failed to process {frame.Width}x{frame.Height} image into WebP: {outputPath}.", ex);
         }
     }
 

@@ -110,6 +110,8 @@ public static class MediaDetailProjection
             Recommendations = MediaJsonCache.Deserialize<ExternalRecommendationDto>(item.RecommendationsJson),
             IsCustomEdited = item.IsCustomEdited,
             Covers = MediaCoverCollection.Parse(item.CoversJson),
+            Attachments = MediaAttachmentCollection.ParseAttachments(item.AttachmentsJson),
+            Gallery = MediaAttachmentCollection.ParseGallery(item.GalleryJson),
             Cast = MediaJsonCache.Deserialize<CastMemberDto>(item.CastJson),
             OriginalTitle = item.OriginalTitle,
             AltTitles = MediaMetadataApplier.DeserializeAltTitles(item.AltTitles),

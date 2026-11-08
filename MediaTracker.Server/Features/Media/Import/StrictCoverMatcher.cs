@@ -83,6 +83,34 @@ public static partial class StrictCoverMatcher
         return false;
     }
 
+    /// <summary>
+    /// Same season/part comparison for two library rows — the duplicate guard pairs the title being
+    /// added against existing ones. Both sides without a marker count as season 1, mirroring the
+    /// provider-candidate overload.
+    /// </summary>
+    public static bool SeasonMarkersMatch(MediaItem left, MediaItem right)
+    {
+        var leftMarker = ItemSeasonMarker(left);
+        var rightMarker = ItemSeasonMarker(right);
+        return (leftMarker ?? 1) == (rightMarker ?? 1);
+    }
+
+    /// <summary>First season/part marker found among the row's title variants, if any.</summary>
+    public static int? ItemSeasonMarker(MediaItem item)
+    {
+        string? romaji = item switch
+        {
+            Manga m => m.RomajiTitle,
+            Movie mov => mov.RomajiTitle,
+            TvShow tv => tv.RomajiTitle,
+            _ => null
+        };
+
+        return ExtractSeasonMarker(item.Title)
+            ?? ExtractSeasonMarker(romaji)
+            ?? ExtractSeasonMarker(item.OriginalTitle);
+    }
+
     public static bool SeasonMarkersMatch(MediaItem item, ExternalMediaDto candidate)
     {
         string? itemRomaji = item switch

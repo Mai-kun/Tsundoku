@@ -1616,6 +1616,16 @@ public sealed class DatabaseFieldPreservationTests
         public void DeleteMediaFolder(Guid mediaId)
         {
         }
+
+        public Task<MediaGalleryItemDto?> SaveGalleryImageAsync(Stream content, Guid itemId, string? title = null, CancellationToken ct = default)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void DeleteGalleryImage(Guid itemId, string imgId)
+        {
+            throw new NotImplementedException();
+        }
     }
 
     private sealed class StubJobManager : IJobManager

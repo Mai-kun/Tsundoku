@@ -395,6 +395,8 @@ public sealed class AppDbContext : IDisposable, IAsyncDisposable
         public readonly int TrailerVideoId = reader.GetOrdinal("TrailerVideoId");
         public readonly int CoverUrl = reader.GetOrdinal("CoverUrl");
         public readonly int CoversJson = reader.GetOrdinal("CoversJson");
+        public readonly int AttachmentsJson = reader.GetOrdinal("AttachmentsJson");
+        public readonly int GalleryJson = reader.GetOrdinal("GalleryJson");
         public readonly int CreatorImageUrl = reader.GetOrdinal("CreatorImageUrl");
         public readonly int SyncStatus = reader.GetOrdinal("SyncStatus");
         public readonly int CreatedAt = reader.GetOrdinal("CreatedAt");
@@ -487,6 +489,8 @@ public sealed class AppDbContext : IDisposable, IAsyncDisposable
             TrailerVideoId = reader.IsDBNull(ordinals.TrailerVideoId) ? null : reader.GetString(ordinals.TrailerVideoId),
             CoverUrl = reader.IsDBNull(ordinals.CoverUrl) ? null : reader.GetString(ordinals.CoverUrl),
             CoversJson = reader.IsDBNull(ordinals.CoversJson) ? null : reader.GetString(ordinals.CoversJson),
+            AttachmentsJson = reader.IsDBNull(ordinals.AttachmentsJson) ? null : reader.GetString(ordinals.AttachmentsJson),
+            GalleryJson = reader.IsDBNull(ordinals.GalleryJson) ? null : reader.GetString(ordinals.GalleryJson),
             CreatorImageUrl = reader.IsDBNull(ordinals.CreatorImageUrl) ? null : reader.GetString(ordinals.CreatorImageUrl),
             SyncStatus = (SyncStatus)reader.GetInt32(ordinals.SyncStatus),
             CreatedAt = reader.GetDateTime(ordinals.CreatedAt),
@@ -934,7 +938,7 @@ public sealed class AppDbContext : IDisposable, IAsyncDisposable
             INSERT INTO MediaItems (
                 Id, Title, Status, Score, DetailedScoreJson, StartedAt, FinishedAt, LastActivityAt,
                 Notes, DropReason, DropNotes, QuotesJson, Description, TrailerVideoId, CoverUrl,
-                CoversJson, CreatorImageUrl, SyncStatus, CreatedAt, UpdatedAt, FranchiseId, FranchiseOrder,
+                CoversJson, AttachmentsJson, GalleryJson, CreatorImageUrl, SyncStatus, CreatedAt, UpdatedAt, FranchiseId, FranchiseOrder,
                 ExternalId, ExternalSource, ImportSource, ExternalRating, ExternalRatingVotes,
                 ExternalRatingsJson, NextAutoRefreshAt, AutoRefreshIntervalDays, LastAutoRefreshedAt,
                 ReleaseDate, ReleaseYear, EndDate, WatchedOn, ReleaseStatus, OriginalLanguage,
@@ -952,7 +956,7 @@ public sealed class AppDbContext : IDisposable, IAsyncDisposable
             ) VALUES (
                 @Id, @Title, @Status, @Score, @DetailedScoreJson, @StartedAt, @FinishedAt, @LastActivityAt,
                 @Notes, @DropReason, @DropNotes, @QuotesJson, @Description, @TrailerVideoId, @CoverUrl,
-                @CoversJson, @CreatorImageUrl, @SyncStatus, @CreatedAt, @UpdatedAt, @FranchiseId, @FranchiseOrder,
+                @CoversJson, @AttachmentsJson, @GalleryJson, @CreatorImageUrl, @SyncStatus, @CreatedAt, @UpdatedAt, @FranchiseId, @FranchiseOrder,
                 @ExternalId, @ExternalSource, @ImportSource, @ExternalRating, @ExternalRatingVotes,
                 @ExternalRatingsJson, @NextAutoRefreshAt, @AutoRefreshIntervalDays, @LastAutoRefreshedAt,
                 @ReleaseDate, @ReleaseYear, @EndDate, @WatchedOn, @ReleaseStatus, @OriginalLanguage,
@@ -987,7 +991,8 @@ public sealed class AppDbContext : IDisposable, IAsyncDisposable
                 StartedAt = @StartedAt, FinishedAt = @FinishedAt, LastActivityAt = @LastActivityAt,
                 Notes = @Notes, DropReason = @DropReason, DropNotes = @DropNotes, QuotesJson = @QuotesJson,
                 Description = @Description, TrailerVideoId = @TrailerVideoId, CoverUrl = @CoverUrl,
-                CoversJson = @CoversJson, CreatorImageUrl = @CreatorImageUrl, SyncStatus = @SyncStatus, UpdatedAt = @UpdatedAt,
+                CoversJson = @CoversJson, AttachmentsJson = @AttachmentsJson, GalleryJson = @GalleryJson,
+                CreatorImageUrl = @CreatorImageUrl, SyncStatus = @SyncStatus, UpdatedAt = @UpdatedAt,
                 FranchiseId = @FranchiseId, FranchiseOrder = @FranchiseOrder, ExternalId = @ExternalId,
                 ExternalSource = @ExternalSource, ImportSource = @ImportSource, ExternalRating = @ExternalRating,
                 ExternalRatingVotes = @ExternalRatingVotes, ExternalRatingsJson = @ExternalRatingsJson,

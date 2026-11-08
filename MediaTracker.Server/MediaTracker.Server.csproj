@@ -102,11 +102,10 @@
         <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="10.0.12" />
         <PackageReference Include="Serilog.AspNetCore" Version="10.0.0" />
         <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
-        <PackageReference Include="SkiaSharp" Version="2.88.9" />
-        <!-- NoDependencies builds libSkiaSharp without fontconfig, so headless CI /
-             container images need no extra system packages. -->
-        <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="2.88.9" Condition="'$(RuntimeIdentifier)' == 'linux-x64' or '$(OS)' != 'Windows_NT'" />
-        <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="2.88.9" Condition="'$(RuntimeIdentifier)' == 'win-x64' or '$(OS)' == 'Windows_NT'" />
+        <PackageReference Include="PhotoSauce.MagicScaler" Version="0.15.0" />
+        <PackageReference Include="PhotoSauce.NativeCodecs.Libwebp" Version="1.6.0-preview1" />
+        <PackageReference Include="PhotoSauce.NativeCodecs.Libjpeg" Version="3.2.0-preview1" />
+        <PackageReference Include="PhotoSauce.NativeCodecs.Libpng" Version="1.6.59-preview1" />
     </ItemGroup>
 
     <ItemGroup>

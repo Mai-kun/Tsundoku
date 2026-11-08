@@ -14,11 +14,11 @@
   import TrailerSection from "../sections/TrailerSection.svelte";
   import BookProgressSection from "../sections/BookProgressSection.svelte";
   import BookEditionSection from "../sections/BookEditionSection.svelte";
+  import MediaFilesSection from "../sections/MediaFilesSection.svelte";
   import MangaProgressSection from "../sections/MangaProgressSection.svelte";
   import MovieStatusSection from "../sections/MovieStatusSection.svelte";
   import TvShowProgressSection from "../sections/TvShowProgressSection.svelte";
   import type { CreatorRole, MangaDetail, MediaItem } from "$shared/types";
-  import { getMedia } from "$shared/api/api";
 
   interface Props {
     media: MediaDetail;
@@ -165,48 +165,6 @@
   const isTvShow = $derived(media.type === "tvshow");
   const hasQuotes = $derived(Boolean(media.quotesJson && media.quotesJson !== "[]"));
   const showQuotes = $derived(isBook || isManga || hasQuotes);
-
-  // Franchise chronology: local library siblings of the same franchise, ordered by part number.
-  // Fetched once per item; an empty franchise id renders nothing. The list is always swapped
-  // wholesale, so a raw (non-proxied) state avoids a deep reactive proxy per API entity.
-  let franchiseSiblings = $state.raw<MediaItem[]>([]);
-  $effect(() => {
-    const id = media.franchiseId;
-    franchiseSiblings = [];
-    if (!id) return;
-    let cancelled = false;
-    void getMedia()
-      .then((items) => {
-        if (cancelled) return;
-        franchiseSiblings = items
-          .filter(
-            (candidate) =>
-              candidate.franchiseId === id &&
-              candidate.id !== media.id &&
-              candidate.franchiseOrder !== null,
-          )
-          .sort(
-            (left, right) =>
-              (left.franchiseOrder ?? 0) - (right.franchiseOrder ?? 0) ||
-              left.title.localeCompare(right.title),
-          );
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  });
-
-  const hasFranchiseBlock = $derived(
-    Boolean(media.franchiseName || media.franchiseId) && franchiseSiblings.length > 0,
-  );
-  const prequel = $derived(
-    franchiseSiblings.filter((s) => (s.franchiseOrder ?? 0) < (media.franchiseOrder ?? 0)).at(-1) ??
-      null,
-  );
-  const sequel = $derived(
-    franchiseSiblings.find((s) => (s.franchiseOrder ?? 0) > (media.franchiseOrder ?? 0)) ?? null,
-  );
 </script>
 
 <div class="space-y-5">
@@ -311,53 +269,6 @@
         </div>
       {/if}
 
-      <!-- 6. БЛОК ФРАНШИЗЫ И ХРОНОЛОГИИ: часть номера + быстрые переходы преквел/сиквел -->
-      {#if hasFranchiseBlock}
-        <div class="order-6 min-w-0">
-          <div
-            class="rounded-xl border border-white/[0.06] bg-[var(--color-panel-line)] p-5 shadow-sm"
-          >
-            <div class="flex flex-wrap items-center justify-between gap-2">
-              <h3 class="text-xs font-bold tracking-wider text-slate-300 uppercase">
-                {i18n.t.detail.franchiseTitle}
-              </h3>
-              {#if media.franchiseOrder}
-                <span
-                  class="inline-flex items-center rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-0.5 text-[10px] font-semibold text-slate-300"
-                >
-                  {i18n.t.detail.franchisePart(media.franchiseOrder)}
-                </span>
-              {/if}
-            </div>
-            <p class="mt-1.5 text-sm font-semibold text-white">{media.franchiseName}</p>
-            {#if prequel || sequel}
-              <div class="mt-3 flex flex-wrap gap-2">
-                {#if prequel}
-                  <button
-                    type="button"
-                    class="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1 text-xs font-medium text-slate-300 transition hover:border-indigo-500/40 hover:text-white"
-                    onclick={() => onOpenMedia(prequel)}
-                    title={prequel.title}
-                  >
-                    ← {i18n.t.detail.franchisePrequel}
-                  </button>
-                {/if}
-                {#if sequel}
-                  <button
-                    type="button"
-                    class="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1 text-xs font-medium text-slate-300 transition hover:border-indigo-500/40 hover:text-white"
-                    onclick={() => onOpenMedia(sequel)}
-                    title={sequel.title}
-                  >
-                    {i18n.t.detail.franchiseSequel} →
-                  </button>
-                {/if}
-              </div>
-            {/if}
-          </div>
-        </div>
-      {/if}
-
       <!-- 5. БЛОК ВИДЕО / ТРЕЙЛЕРА -->
       {#if media.trailerVideoId}
         <div class="order-5 min-w-0">
@@ -373,11 +284,22 @@
         <NotesSection notes={media.notes} {onEdit} />
       </div>
 
-      <!-- 8. БЛОК ВНЕШНИХ ИСТОЧНИКОВ: привязка MangaLib/AniList/... под заметками -->
+      <!-- 8. БЛОК ФАЙЛОВ И ДОКУМЕНТОВ: вложения тайтла (книги, архивы, сейвы) -->
       <div class="order-8 min-w-0">
+        <MediaFilesSection mediaId={media.id} attachments={media.attachments ?? []} {onChanged} />
+      </div>
+
+      <!-- 9. БЛОК ВНЕШНИХ ИСТОЧНИКОВ: привязка MangaLib/AniList/... Источники регистрируются как
+           anime/manga/book, поэтому аниме-сериалы и фильмы надо отдавать им как "anime" — иначе
+           ссылки уходят в /manga/ и панель показывает не те источники. -->
+      <div class="order-9 min-w-0">
         <LinkedSourcesSection
           mediaId={media.id}
-          mediaType={media.type}
+          mediaType={media.type === "tvshow" || media.type === "movie"
+            ? media.isAnime
+              ? "anime"
+              : media.type
+            : media.type}
           {media}
           {onOpenRelink}
           {onChanged}

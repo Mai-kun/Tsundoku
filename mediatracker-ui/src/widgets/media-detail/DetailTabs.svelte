@@ -9,10 +9,19 @@
     /** Undefined for non-shows; drives the "3/12" badge on the episodes tab. */
     seasonProgress: { current: number; total: number | null } | null;
     relatedCount?: number;
+    /** User screenshots stored on the row; drives the badge on the gallery tab. */
+    galleryCount?: number;
     onSelect: (tab: SubTab) => void;
   }
 
-  let { active, mediaType, seasonProgress, relatedCount = 0, onSelect }: Props = $props();
+  let {
+    active,
+    mediaType,
+    seasonProgress,
+    relatedCount = 0,
+    galleryCount = 0,
+    onSelect,
+  }: Props = $props();
 
   function tabClass(tab: SubTab): string {
     return `flex items-center gap-2 whitespace-nowrap border-b-2 px-3 py-2.5 text-sm font-semibold transition sm:px-4 ${
@@ -38,6 +47,16 @@
       {/if}
     </button>
   {/if}
+
+  <!-- The gallery tab is type-agnostic: every title can carry user screenshots. -->
+  <button type="button" class={tabClass("gallery")} onclick={() => onSelect("gallery")}>
+    {i18n.t.detail.tabGallery}
+    {#if galleryCount > 0}
+      <span class="text-muted rounded-full bg-white/10 px-2 py-0.5 text-xs">
+        {galleryCount}
+      </span>
+    {/if}
+  </button>
 
   <button type="button" class={tabClass("related")} onclick={() => onSelect("related")}>
     {i18n.t.detail.tabRelatedMedia}

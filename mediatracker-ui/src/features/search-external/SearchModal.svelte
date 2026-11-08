@@ -384,6 +384,9 @@
     signal: AbortSignal,
   ) {
     if (signal.aborted) return;
+    // The link carries its own category: jump to it so the hit renders in the right tab even when
+    // the modal was left on another one ("all" included, whose sections would never fill).
+    activeType = parsed.type;
     searching = true;
     searchError = null;
     results = [];

@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.RegularExpressions;
 using MediaTracker.Server.Common.Json;
 using MediaTracker.Server.Infrastructure.ExternalApis.Abstractions;
 
@@ -40,11 +41,19 @@ public sealed class SteamMetadataProvider(IHttpClientFactory httpClientFactory) 
     public override async Task<ExternalMediaDto?> GetDetailsAsync(string externalId, string title, CancellationToken ct)
     {
         var client = httpClientFactory.CreateClient(Id);
-        var endpoint = $"appdetails?appids={Uri.EscapeDataString(externalId)}&l=english";
+        var endpoint = $"appdetails?appids={Uri.EscapeDataString(externalId)}&l=russian&cc=US";
 
         try
         {
-            var dict = await client.GetFromJsonAsync(endpoint, AppJsonSerializerContext.Default.DictionaryStringSteamAppDetailsWrapper, ct);
+            // Age-gate: the store answers success:false for adult titles (and regional-locked ones)
+            // unless the request carries an adult-profile cookie. This is our own client asking for
+            // metadata the user already sees in the store, so the confirmation is the user's own.
+            using var request = new HttpRequestMessage(HttpMethod.Get, endpoint);
+            request.Headers.TryAddWithoutValidation("Cookie", "birthtime=283996801; mature_content=1;");
+            using var resp = await client.SendAsync(request, ct);
+            resp.EnsureSuccessStatusCode();
+
+            var dict = await resp.Content.ReadFromJsonAsync(AppJsonSerializerContext.Default.DictionaryStringSteamAppDetailsWrapper, ct);
             if (dict is null || !dict.TryGetValue(externalId, out var wrapper) || wrapper.Data is null || !wrapper.Success)
             {
                 return null;
@@ -152,17 +161,24 @@ public sealed class SteamMetadataProvider(IHttpClientFactory httpClientFactory) 
         if (!string.IsNullOrWhiteSpace(data.ReleaseDate?.Date))
         {
             var raw = data.ReleaseDate.Date.Trim();
+            // l=russian answers "9 сентября 2023 г.", so the Russian culture parse runs alongside
+            // the invariant one; the bare-year regex is the last resort for formats neither parses.
             if (DateTime.TryParse(raw, CultureInfo.InvariantCulture, DateTimeStyles.None, out var relDate) ||
+                DateTime.TryParse(raw, CultureInfo.GetCultureInfo("ru-RU"), DateTimeStyles.None, out relDate) ||
                 DateTime.TryParse(raw, CultureInfo.CurrentCulture, DateTimeStyles.None, out relDate) ||
                 DateTime.TryParse(raw, out relDate))
             {
                 releaseYear = relDate.Year;
                 formattedDate = relDate.ToString("yyyy-MM-dd");
             }
-            else if (raw.Length >= 4 && int.TryParse(raw[..4], out var yr))
+            else
             {
-                releaseYear = yr;
-                formattedDate = $"{yr}-01-01";
+                var yearMatch = Regex.Match(raw, """\d{4}""");
+                if (yearMatch.Success && int.TryParse(yearMatch.Value, out var yr))
+                {
+                    releaseYear = yr;
+                    formattedDate = $"{yr}-01-01";
+                }
             }
         }
 

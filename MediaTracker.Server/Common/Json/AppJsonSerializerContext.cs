@@ -153,6 +153,7 @@ namespace MediaTracker.Server.Common.Json;
 [JsonSerializable(typeof(CreatedEntityId))]
 [JsonSerializable(typeof(DismissedCount))]
 [JsonSerializable(typeof(StorageInfoResponse))]
+[JsonSerializable(typeof(MediaTracker.Server.Common.Endpoints.FranchiseReindexResponse))]
 [JsonSerializable(typeof(OfflineDatabaseStatusDto))]
 [JsonSerializable(typeof(IReadOnlyList<OfflineDatabaseStatusDto>))]
 [JsonSerializable(typeof(List<OfflineDatabaseStatusDto>))]

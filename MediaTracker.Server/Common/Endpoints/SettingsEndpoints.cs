@@ -18,12 +18,14 @@ using MediaTracker.Server.Features.Settings.ReadingSettings;
 using MediaTracker.Server.Features.Settings.ResetData;
 using MediaTracker.Server.Features.Settings.TestSource;
 using MediaTracker.Server.Features.Settings.ToggleSource;
+using MediaTracker.Server.Features.Media.GetMediaList;
 using MediaTracker.Server.Features.System.GetSources;
 using MediaTracker.Server.Features.System.Updates;
 using MediaTracker.Server.Domain.Entities;
 using MediaTracker.Server.Domain.Enums;
 using MediaTracker.Server.Infrastructure.Desktop;
 using MediaTracker.Server.Infrastructure.Persistence;
+using MediaTracker.Server.Infrastructure.Persistence.Franchises;
 using MediaTracker.Server.Infrastructure.ExternalApis;
 using MediaTracker.Server.Infrastructure.ExternalApis.Abstractions;
 using MediaTracker.Server.Infrastructure.ExternalApis.Common;
@@ -472,6 +474,18 @@ public static class SettingsEndpoints
             .WithTags("Настройки / Settings")
             .WithSummary("Переиндексировать офлайн-дампы");
 
+        group.MapPost("/franchises/reindex", async (
+            [FromServices] AppDbContext db,
+            [FromServices] IFranchiseService franchiseService,
+            CancellationToken ct) =>
+        {
+            var updatedCount = await franchiseService.AutoBackfillFranchisesAsync(db, ct);
+            MediaListCache.Invalidate();
+            return Results.Ok(new FranchiseReindexResponse(updatedCount));
+        })
+            .WithTags("Настройки / Settings")
+            .WithSummary("Пересканировать франшизы");
+
         group.MapDelete("/offline-databases/dumps/{fileName}", (
             string fileName,
             [FromServices] OfflineDatabaseManager dbManager) =>
@@ -568,6 +582,11 @@ public sealed record StorageRequest(string Mode, string? CustomPath, bool Migrat
 public sealed record AppSettingsDto(string LaunchMode, string CloseAction);
 public sealed record ToggleSourceRequest(bool Enabled);
 public sealed record UpdateKeyRequest(string? ApiKey);
+
+/// <summary>AOT-safe response for the franchise rescan: anonymous types have no source-gen JSON
+/// metadata, so the first click on "Пересканировать франшизы" died in the serializer under
+/// NativeAOT before this record replaced it.</summary>
+public sealed record FranchiseReindexResponse(int UpdatedCount);
 
 /// <summary>
 /// One flat library row in the privacy-first export. The column names are exactly the aliases

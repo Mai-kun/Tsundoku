@@ -29,17 +29,12 @@ using Serilog.Events;
 using OpenApiUi;
 using Microsoft.OpenApi;
 
-var options = CommandLineOptions.Parse(args);
+// glibc allocator caps must land before the first thread spins up: mallopt is the only path that
+// actually works from inside the process (MALLOC_* env vars are read by libc at its own startup,
+// so setting them here is a no-op — the AppRun/AppImage wrapper exports them for the same reason).
+MemoryOptimizer.ConfigureGlibcAllocators();
 
-// glibc arena caps, set before any thread spins up: without them a multi-threaded server
-// fragments virtual memory across dozens of mostly-empty 64 MB arenas that malloc_trim cannot
-// merge back, so RSS never returns to earth after a load spike. The env var must be set before
-// the first allocation race — doing it here (process start) is the only reliable moment.
-if (OperatingSystem.IsLinux())
-{
-    Environment.SetEnvironmentVariable("MALLOC_ARENA_MAX", "2");
-    Environment.SetEnvironmentVariable("MALLOC_TRIM_THRESHOLD_", "131072");
-}
+var options = CommandLineOptions.Parse(args);
 
 if (options.ShowHelp)
 {
@@ -63,13 +58,11 @@ if (options.RunSelfCheck)
     return await RefactorSelfCheck.Run() == 0 ? 0 : 1;
 }
 
-// One Tsundoku per port: a second launch pings the running instance to surface its UI
-// and exits immediately (replaces the Tauri single-instance plugin).
 SingleInstanceService.EnsureSingleInstance(options);
 
 var isContainer = CommandLineOptions.IsRunningInContainer;
 
-var builder = WebApplication.CreateBuilder();
+var builder = WebApplication.CreateSlimBuilder(args);
 var isDevelopment = builder.Environment.IsDevelopment() || options.IsDevMode;
 if (options.IsDevMode)
 {
@@ -189,6 +182,9 @@ try
     // negotiation only added handshake paths (and binary size) nobody could use.
     builder.WebHost.ConfigureKestrel(serverOptions =>
     {
+        // Стриппинг заголовка Server из ответов: маркетинговая строка для сканеров, лишние
+        // байты в каждом ответе десктопного приложения.
+        serverOptions.AddServerHeader = false;
         serverOptions.ConfigureEndpointDefaults(listenOptions =>
         {
             listenOptions.Protocols = Microsoft.AspNetCore.Server.Kestrel.Core.HttpProtocols.Http1;
@@ -231,40 +227,45 @@ try
         options.SerializerOptions.TypeInfoResolverChain.Insert(0, AppJsonSerializerContext.Default);
     });
 
-    builder.Services.AddOpenApi(options =>
+    // OpenAPI-схемы нужны только при разработке и диагностике API: в релизном десктопном
+    // запуске дерево схем генератора съедало ~3-5 МБ RAM впустую.
+    if (isDevelopment)
     {
-        options.AddDocumentTransformer((document, context, cancellationToken) =>
+        builder.Services.AddOpenApi(options =>
         {
-            document.Info ??= new OpenApiInfo();
-            document.Info.Title = "Tsundoku API";
-            document.Info.Version = "v1";
-            document.Info.Description = "Персональный автономный REST API для управления медиатекой (книги, манга, аниме, фильмы, сериалы, игры), интеграций с Home Assistant, ботами и скриптами автоматизации. Поддерживает Bearer/X-Api-Key авторизацию.";
-
-            document.Components ??= new OpenApiComponents();
-            document.Components.SecuritySchemes ??= new Dictionary<string, IOpenApiSecurityScheme>();
-
-            var bearerScheme = new OpenApiSecurityScheme
+            options.AddDocumentTransformer((document, context, cancellationToken) =>
             {
-                Type = SecuritySchemeType.Http,
-                Scheme = "bearer",
-                BearerFormat = "Token",
-                Description = "Enter your API token (tsk_live_...)"
-            };
+                document.Info ??= new OpenApiInfo();
+                document.Info.Title = "Tsundoku API";
+                document.Info.Version = "v1";
+                document.Info.Description = "Персональный автономный REST API для управления медиатекой (книги, манга, аниме, фильмы, сериалы, игры), интеграций с Home Assistant, ботами и скриптами автоматизации. Поддерживает Bearer/X-Api-Key авторизацию.";
 
-            var apiKeyScheme = new OpenApiSecurityScheme
-            {
-                Type = SecuritySchemeType.ApiKey,
-                Name = "X-Api-Key",
-                In = ParameterLocation.Header,
-                Description = "Enter your API token in the X-Api-Key header"
-            };
+                document.Components ??= new OpenApiComponents();
+                document.Components.SecuritySchemes ??= new Dictionary<string, IOpenApiSecurityScheme>();
 
-            document.Components.SecuritySchemes["Bearer"] = bearerScheme;
-            document.Components.SecuritySchemes["ApiKey"] = apiKeyScheme;
+                var bearerScheme = new OpenApiSecurityScheme
+                {
+                    Type = SecuritySchemeType.Http,
+                    Scheme = "bearer",
+                    BearerFormat = "Token",
+                    Description = "Enter your API token (tsk_live_...)"
+                };
 
-            return Task.CompletedTask;
+                var apiKeyScheme = new OpenApiSecurityScheme
+                {
+                    Type = SecuritySchemeType.ApiKey,
+                    Name = "X-Api-Key",
+                    In = ParameterLocation.Header,
+                    Description = "Enter your API token in the X-Api-Key header"
+                };
+
+                document.Components.SecuritySchemes["Bearer"] = bearerScheme;
+                document.Components.SecuritySchemes["ApiKey"] = apiKeyScheme;
+
+                return Task.CompletedTask;
+            });
         });
-    });
+    }
 
     builder.Services.AddProblemDetails();
     builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
@@ -317,6 +318,9 @@ try
 
     await InitializeDatabaseAsync(app);
     await BrowserLauncher.InitializeAsync(app.Services, app.Lifetime);
+    // Окно Chromium, пережившее внутренний перезапуск (execv сохраняет child-процессы, но не
+    // managed-состояние): усыновляем, чтобы закрытие окна и финальный выход работали как раньше.
+    BrowserLauncher.AdoptSurvivingWindow(options.BrowserPidToAdopt);
 
     if (enableDesktopShell)
     {
@@ -343,9 +347,12 @@ try
 
     app.UseCors("DevCorsPolicy");
 
-    app.MapOpenApi();
-    app.UseOpenApiUi(config => config.OpenApiSpecPath = "/openapi/v1.json");
-    app.MapGet("/api/docs", () => Results.Redirect("/openapi-ui")).ExcludeFromDescription();
+    if (isDevelopment)
+    {
+        app.MapOpenApi();
+        app.UseOpenApiUi(config => config.OpenApiSpecPath = "/openapi/v1.json");
+        app.MapGet("/api/docs", () => Results.Redirect("/openapi-ui")).ExcludeFromDescription();
+    }
 
     var wwwrootCandidates = new[]
     {
@@ -482,10 +489,38 @@ try
         app.Lifetime.ApplicationStarted.Register(() => BrowserLauncher.OpenUrl(links.UiUrl));
     }
 
+    // Разовый старт-трим: старт тратит ~20 МБ на регистрацию DI, инициализацию Kestrel и чтение
+    // схемы БД. Через 3 секунды после запуска (когда UI уже открыт и прогрет) этот буфер
+    // возвращается системе и не висит в Cold Idle.
+    app.Lifetime.ApplicationStarted.Register(() =>
+    {
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(3000);
+                MemoryOptimizer.TrimMemory(app.Services.GetService<Microsoft.Extensions.Caching.Memory.IMemoryCache>());
+                Log.Information("[Memory] Post-startup baseline trim complete.");
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "[Memory] Post-startup baseline trim failed");
+            }
+        });
+    });
+
     app.Lifetime.ApplicationStopping.Register(() => fileLockGuard.Dispose());
     // The app window must never outlive the server: a kill/crash would otherwise leave an
-    // orphaned Chromium --app window pointing at a dead port.
-    app.Lifetime.ApplicationStopping.Register(BrowserLauncher.CloseBrowser);
+    // orphaned Chromium --app window pointing at a dead port. Исключение — внутренний
+    // перезапуск (смена хранилища, обновление): окно остаётся открытым, показывает спиннер
+    // и само перезагружается через waitForServerAndReload(), а новый процесс усыновляет его.
+    app.Lifetime.ApplicationStopping.Register(() =>
+    {
+        if (!AppRestartService.IsRestartScheduled)
+        {
+            BrowserLauncher.CloseBrowser();
+        }
+    });
 
     await app.RunAsync();
 }

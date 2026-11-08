@@ -25,6 +25,28 @@ public static class AppRestartService
         }
     }
 
+    /// <summary>
+    /// Перезапуск с сохранением уже открытого окна Chromium: ApplicationStopping не закрывает
+    /// окно, новый процесс стартует свернутым (--no-browser) и усыновляет живое окно по PID
+    /// (--adopt-browser-pid) — иначе после execv терялось managed-состояние BrowserLauncher:
+    /// закрытие окна пользователем переставало работать, а финальный выход из трея оставлял
+    /// бы окно висеть на мёртвом порту. Если окна нет, новый процесс открывает его сам.
+    /// </summary>
+    public static void ScheduleRestartKeepingWindow()
+    {
+        var windowPid = BrowserLauncher.GetWindowPidForHandoff();
+        if (windowPid > 0)
+        {
+            // Значение отдельным токеном: CLI-парсер матчит метки case по точному равенству,
+            // и форма --adopt-browser-pid=123 не доходит до своего case (Unknown option).
+            ScheduleRestart("--no-browser", "--adopt-browser-pid", windowPid.ToString());
+        }
+        else
+        {
+            ScheduleRestart();
+        }
+    }
+
     public static void ExecuteRestart()
     {
         var exePath = AppPaths.GetExecutablePath();

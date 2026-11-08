@@ -54,6 +54,60 @@ public static class BrowserLauncher
             await AppSettingStore.ReadAsync(db, CloseActionKey) ?? DefaultCloseAction);
     }
 
+    /// <summary>
+    /// PID живого окна Chromium для передачи новому процессу при перезапуске: после execv
+    /// child-процессы выживают, но managed-состояние BrowserLauncher теряется. 0 — окна нет
+    /// (или оно уже умерло), тогда новый процесс открывает окно сам.
+    /// </summary>
+    public static int GetWindowPidForHandoff()
+    {
+        try
+        {
+            return ActiveBrowserProcess is { HasExited: false } process ? process.Id : 0;
+        }
+        catch
+        {
+            // Process.Id может бросить, если процесс умер между проверкой и чтением.
+            return 0;
+        }
+    }
+
+    /// <summary>
+    /// Усыновляет окно Chromium, пережившее перезапуск: без этого закрытие окна пользователем
+    /// не запускало exit_all/trim, а финальный выход из приложения оставлял бы окно висеть на
+    /// мёртвом порту. Вызывается только при старте нового процесса, поэтому окно гонки PID
+    /// переиспользования практически не оставляет (execv идёт сразу за остановкой хоста).
+    /// </summary>
+    public static void AdoptSurvivingWindow(int? pid)
+    {
+        if (pid is null or <= 0)
+        {
+            return;
+        }
+
+        var windowPid = pid.Value;
+        try
+        {
+            var process = Process.GetProcessById(windowPid);
+            if (process.HasExited)
+            {
+                return;
+            }
+
+            process.EnableRaisingEvents = true;
+            process.Exited += (_, _) => OnBrowserWindowClosed();
+            ActiveBrowserProcess = process;
+            Serilog.Log.Information(
+                "[Desktop] Adopted the Chromium window (pid {Pid}) surviving from the previous instance.",
+                windowPid);
+        }
+        catch (Exception error)
+        {
+            // Окно умерло между перезапуском и усыновлением — новый процесс живёт без него.
+            Serilog.Log.Debug(error, "Could not adopt the surviving Chromium window (pid {Pid})", windowPid);
+        }
+    }
+
     public static void ApplySettings(string launchMode, string closeAction)
     {
         LaunchMode = launchMode;

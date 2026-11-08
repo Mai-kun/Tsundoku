@@ -25,6 +25,12 @@ public sealed class CommandLineOptions
     /// <summary>Keep the process in the tray without surfacing the UI (autostart, shortcuts).</summary>
     public bool StartMinimized { get; private set; }
 
+    /// <summary>
+    /// Internal: PID окна Chromium, пережившего перезапуск (--adopt-browser-pid). Новый процесс
+    /// усыновляет его, чтобы закрытие окна и финальный выход работали как в исходном процессе.
+    /// </summary>
+    public int? BrowserPidToAdopt { get; private set; }
+
     public bool ImportOfflineDb { get; private set; }
     public string? OfflineDbDumpPath { get; private set; }
 
@@ -80,6 +86,24 @@ public sealed class CommandLineOptions
                 case "--minimized":
                     options.StartMinimized = true;
                     break;
+
+                // Internal: adopt the Chromium window surviving from the previous instance
+                // after a scheduled restart (see AppRestartService.ScheduleRestartKeepingWindow).
+                // The value is emitted as a separate token — the parser matches case labels by
+                // exact equality, so an attached "--adopt-browser-pid=123" would be rejected
+                // as an unknown option before this case ever runs.
+                case "--adopt-browser-pid":
+                    {
+                        if (!TryTakeValue(args, ref i, out var rawPid)
+                            || !int.TryParse(rawPid, out var adoptPid)
+                            || adoptPid <= 0)
+                        {
+                            return options.WithError($"Invalid value for '{arg}'. Expected a positive process id.");
+                        }
+
+                        options.BrowserPidToAdopt = adoptPid;
+                        break;
+                    }
 
                 case "--import-offline-db":
                     options.ImportOfflineDb = true;

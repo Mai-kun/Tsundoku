@@ -10,6 +10,7 @@
     ChevronDown,
     ChevronUp,
     Copy,
+    GitBranch,
     ExternalLink,
     Eye,
     EyeOff,
@@ -60,11 +61,13 @@
     saveStorageSettings,
     getOfflineDatabases,
     reindexOfflineDatabases,
+    reindexFranchises,
     detectMangalibBrowserSession,
     apiFetch,
     type AppSettings,
   } from "$shared/api/api";
   import { showToast } from "$shared/ui/toast.svelte";
+  import { waitForBackendRestart } from "$shared/api/serverRestart.svelte";
   import { i18n } from "$shared/i18n/index.svelte";
   import { offlineModeState } from "$shared/api/offlineMode.svelte";
   import type { OfflineDatabaseStatusDto } from "$shared/types";
@@ -208,15 +211,9 @@
     try {
       await applyAppUpdate();
       showToast("Обновление применено, сервер перезапускается...", "success");
-      const interval = setInterval(async () => {
-        try {
-          await checkAppUpdate();
-          window.location.reload();
-          clearInterval(interval);
-        } catch {
-          /* ignored, still down */
-        }
-      }, 1500);
+      // Ждём «лёг → поднялся» и перезагружаемся уже на новом сервере.
+      await waitForBackendRestart(true);
+      window.location.reload();
     } catch (e) {
       showToast(errorMessage(e), "error");
       isApplyingUpdate = false;
@@ -342,22 +339,10 @@
     }
   }
 
-  async function waitForServerAndReload() {
-    await new Promise((r) => setTimeout(r, 600));
-    for (let i = 0; i < 40; i++) {
-      try {
-        const res = await fetch("/api/settings/storage?t=" + Date.now(), {
-          cache: "no-store",
-        });
-        if (res.ok) {
-          window.location.reload();
-          return;
-        }
-      } catch {
-        // Server restarting, wait and retry
-      }
-      await new Promise((r) => setTimeout(r, 500));
-    }
+  async function waitForServerAndReload(restartScheduled: boolean) {
+    // Модалка держит свой лоадер; перезагрузка — только когда уже отвечает новый
+    // бэкенд (двухфазное «лёг → поднялся», см. waitForBackendRestart).
+    await waitForBackendRestart(restartScheduled);
     window.location.reload();
   }
 
@@ -365,13 +350,13 @@
     if (isSavingStorage) return;
     isSavingStorage = true;
     try {
-      await saveStorageSettings({
+      const { restartScheduled } = await saveStorageSettings({
         mode: storageMode,
         customPath: customPathInput.trim() || "",
         migrateExistingData,
       });
       showToast(i18n.t.settingsModal.storage.savedToast, "success");
-      await waitForServerAndReload();
+      await waitForServerAndReload(restartScheduled);
     } catch (e) {
       showToast(errorMessage(e), "error");
       isSavingStorage = false;
@@ -627,6 +612,21 @@
       showToast(errorMessage(e), "error");
     } finally {
       offlineReindexing = false;
+    }
+  }
+
+  let franchiseRescanning = $state(false);
+
+  async function handleRescanFranchises() {
+    if (franchiseRescanning) return;
+    franchiseRescanning = true;
+    try {
+      await reindexFranchises();
+      showToast(i18n.t.settingsModal.storage.franchiseDoneToast, "success");
+    } catch (e) {
+      showToast(errorMessage(e), "error");
+    } finally {
+      franchiseRescanning = false;
     }
   }
 
@@ -2387,6 +2387,36 @@
                 </button>
               </div>
             {/if}
+
+            <!-- Franchise rescan tool: groups seasons/sequels/adaptations into franchises -->
+            <div
+              class="rounded-2xl border border-white/10 bg-white/[0.02] p-5 transition hover:border-white/[0.14]"
+            >
+              <div class="flex items-start gap-3">
+                <GitBranch size={18} class="mt-0.5 shrink-0 text-indigo-400" />
+                <div class="min-w-0 flex-1">
+                  <h4 class="text-ink text-sm font-bold">
+                    {i18n.t.settingsModal.storage.franchiseRescanTitle}
+                  </h4>
+                  <p class="text-muted mt-0.5 text-xs leading-relaxed">
+                    {i18n.t.settingsModal.storage.franchiseRescanDescription}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                disabled={franchiseRescanning}
+                class="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
+                onclick={handleRescanFranchises}
+              >
+                {#if franchiseRescanning}
+                  <LoaderCircle size={15} class="animate-spin" />
+                {:else}
+                  <GitBranch size={15} />
+                {/if}
+                {i18n.t.settingsModal.storage.franchiseRescanButton}
+              </button>
+            </div>
           </section>
         {:else if activeTab === "appearance"}
           <section class="space-y-6">

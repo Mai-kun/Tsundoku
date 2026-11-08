@@ -1,3 +1,5 @@
+import { serverRestart } from "$shared/api/serverRestart.svelte";
+
 export type ToastType = "success" | "warning" | "error";
 
 export interface ToastAction {
@@ -26,6 +28,12 @@ class ToastStore {
   items = $state<ToastItem[]>([]);
 
   show(message: string, type: ToastType = "success", durationMs = 4000, description?: string) {
+    // During a backend restart the background refresh catches "connection failed" and tries
+    // to show an "unexpected error" — that failure is expected, the modal state already
+    // shows a spinner.
+    if (type === "error" && serverRestart.isRestarting) {
+      return "";
+    }
     const id = Math.random().toString(36).substring(2, 9);
     const item: ToastItem = { id, message, type, description, durationMs };
     this.items = [...this.items.slice(-4), item];
@@ -48,6 +56,9 @@ class ToastStore {
     showTimerProgress?: boolean;
     onClose?: () => void;
   }) {
+    if ((options.type ?? "success") === "error" && serverRestart.isRestarting) {
+      return "";
+    }
     const id = Math.random().toString(36).substring(2, 9);
     const durationMs = options.durationMs ?? 4000;
     const item: ToastItem = {

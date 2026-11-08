@@ -25,6 +25,7 @@
     dismissPendingMatch,
     errorMessage,
     getExternalDetails,
+    mergeDuplicateSources,
     resolveAllPendingMatchesByPriority,
     resolvePendingMatch,
     searchExternal,
@@ -63,6 +64,8 @@
     null,
   );
   let resolvingCandidates = $state<Record<string, boolean>>({});
+  /** Duplicate-conflict rows currently being merged into their existing titles. */
+  let mergingDuplicates = $state<Record<string, boolean>>({});
   /** Master-detail: the row picked in the left list, or null while the list settles. */
   let selectedMatchId = $state<string | null>(null);
   let pendingQuery = $state("");
@@ -294,14 +297,16 @@
   }
 
   // Every selected row gets its own search draft; a row with no candidates searches itself once.
+  // Duplicate-conflict rows have no candidate list at all — their verdict is merge or keep.
   $effect(() => {
     const item = selectedItem;
     if (!item || manualSearches[item.id]) return;
     manualSearches[item.id] = emptySearch(item);
-    if (!item.candidates || item.candidates.length === 0) void runSearch(item);
+    if (!item.duplicate && (!item.candidates || item.candidates.length === 0)) void runSearch(item);
   });
 
   async function runSearch(item: PendingMatchItemDto) {
+    if (item.duplicate) return;
     const search = manualSearches[item.id];
     if (!search || !search.query.trim() || search.loading) return;
 
@@ -448,6 +453,33 @@
       onMediaChanged?.();
     } catch (error) {
       showToast(errorMessage(error), "error");
+    }
+  }
+
+  /** Duplicate verdict "leave as separate": the phantom row goes back to a normal library card. */
+  async function keepSeparate(item: PendingMatchItemDto) {
+    await keep(item);
+    showToast(i18n.t.backgroundJobs.duplicateKeepToast, "success");
+  }
+
+  /**
+   * Duplicate verdict "merge": the row's sources and ratings join the existing title and the
+   * duplicate is deleted, so the library keeps one card with both providers bound.
+   */
+  async function mergeDuplicate(item: PendingMatchItemDto) {
+    const duplicate = item.duplicate;
+    if (!duplicate || mergingDuplicates[item.id]) return;
+    mergingDuplicates[item.id] = true;
+    advanceSelection(item.id);
+    try {
+      await mergeDuplicateSources(duplicate.existingMediaId, item.id);
+      jobsClient.dropPendingMatch(item.id);
+      showToast(i18n.t.backgroundJobs.duplicateMergeToast, "success");
+    } catch (error) {
+      showToast(errorMessage(error), "error");
+    } finally {
+      delete mergingDuplicates[item.id];
+      onMediaChanged?.();
     }
   }
 
@@ -966,236 +998,275 @@
                     </div>
                   </div>
 
-                  <!-- Row 2: search field with in-field language toggles -->
-                  <div class="mt-2 flex items-center gap-2">
-                    <div
-                      class="bg-field focus-within:border-accent-soft focus-within:ring-accent-soft flex min-w-0 flex-1 items-center rounded-lg border border-white/10 transition focus-within:ring-1"
-                    >
-                      <input
-                        type="search"
-                        bind:value={search.query}
-                        placeholder={i18n.t.backgroundJobs.searchPlaceholder}
-                        class="text-ink min-w-0 flex-1 bg-transparent px-3 py-1.5 text-sm outline-none placeholder:text-zinc-500"
-                        onkeydown={(event) => {
-                          if (event.key === "Enter") void runSearch(item);
-                        }}
-                      />
-                      <div class="flex shrink-0 items-center gap-1 pr-2">
-                        <button
-                          type="button"
-                          class="cursor-pointer rounded-md border px-1.5 py-0.5 text-[10px] font-bold transition {search.query ===
-                          extractRussian(item.title)
-                            ? 'border-accent bg-accent text-white'
-                            : 'text-muted border-white/10 bg-white/[0.04] hover:text-white'}"
-                          title="Искать по русскому названию"
-                          onclick={() => {
-                            search.query = extractRussian(item.title);
-                            void runSearch(item);
+                  <!-- Row 2: search field with in-field language toggles (not for duplicate verdicts) -->
+                  {#if !item.duplicate}
+                    <div class="mt-2 flex items-center gap-2">
+                      <div
+                        class="bg-field focus-within:border-accent-soft focus-within:ring-accent-soft flex min-w-0 flex-1 items-center rounded-lg border border-white/10 transition focus-within:ring-1"
+                      >
+                        <input
+                          type="search"
+                          bind:value={search.query}
+                          placeholder={i18n.t.backgroundJobs.searchPlaceholder}
+                          class="text-ink min-w-0 flex-1 bg-transparent px-3 py-1.5 text-sm outline-none placeholder:text-zinc-500"
+                          onkeydown={(event) => {
+                            if (event.key === "Enter") void runSearch(item);
                           }}
-                        >
-                          RU
-                        </button>
-                        <button
-                          type="button"
-                          class="cursor-pointer rounded-md border px-1.5 py-0.5 text-[10px] font-bold transition {search.query ===
-                          getPreferredSearchQuery(item)
-                            ? 'border-accent bg-accent text-white'
-                            : 'text-muted border-white/10 bg-white/[0.04] hover:text-white'}"
-                          title="Искать по латинице / Romaji"
-                          onclick={() => {
-                            search.query = getPreferredSearchQuery(item);
-                            void runSearch(item);
-                          }}
-                        >
-                          EN
-                        </button>
+                        />
+                        <div class="flex shrink-0 items-center gap-1 pr-2">
+                          <button
+                            type="button"
+                            class="cursor-pointer rounded-md border px-1.5 py-0.5 text-[10px] font-bold transition {search.query ===
+                            extractRussian(item.title)
+                              ? 'border-accent bg-accent text-white'
+                              : 'text-muted border-white/10 bg-white/[0.04] hover:text-white'}"
+                            title="Искать по русскому названию"
+                            onclick={() => {
+                              search.query = extractRussian(item.title);
+                              void runSearch(item);
+                            }}
+                          >
+                            RU
+                          </button>
+                          <button
+                            type="button"
+                            class="cursor-pointer rounded-md border px-1.5 py-0.5 text-[10px] font-bold transition {search.query ===
+                            getPreferredSearchQuery(item)
+                              ? 'border-accent bg-accent text-white'
+                              : 'text-muted border-white/10 bg-white/[0.04] hover:text-white'}"
+                            title="Искать по латинице / Romaji"
+                            onclick={() => {
+                              search.query = getPreferredSearchQuery(item);
+                              void runSearch(item);
+                            }}
+                          >
+                            EN
+                          </button>
+                        </div>
                       </div>
+                      <button
+                        type="button"
+                        disabled={search.loading}
+                        class="bg-accent hover:bg-accent-hover inline-flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-lg text-white transition disabled:cursor-wait disabled:opacity-60"
+                        title={i18n.t.backgroundJobs.findManually}
+                        aria-label={i18n.t.backgroundJobs.findManually}
+                        onclick={() => void runSearch(item)}
+                      >
+                        {#if search.loading}
+                          <LoaderCircle size={15} class="animate-spin" />
+                        {:else}
+                          <Search size={15} aria-hidden="true" />
+                        {/if}
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      disabled={search.loading}
-                      class="bg-accent hover:bg-accent-hover inline-flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-lg text-white transition disabled:cursor-wait disabled:opacity-60"
-                      title={i18n.t.backgroundJobs.findManually}
-                      aria-label={i18n.t.backgroundJobs.findManually}
-                      onclick={() => void runSearch(item)}
-                    >
-                      {#if search.loading}
-                        <LoaderCircle size={15} class="animate-spin" />
-                      {:else}
-                        <Search size={15} aria-hidden="true" />
-                      {/if}
-                    </button>
-                  </div>
+                  {/if}
                 </div>
 
                 <div class="space-y-3 p-4">
-                  <div class="flex items-center gap-2">
-                    <div class="min-w-0 flex-1">
-                      <input
-                        type="search"
-                        bind:value={search.query}
-                        placeholder={i18n.t.backgroundJobs.searchPlaceholder}
-                        class="bg-field text-ink focus:border-accent-soft focus:ring-accent-soft w-full rounded-lg border border-white/10 px-3 py-2 text-sm transition outline-none focus:ring-1"
-                        onkeydown={(event) => {
-                          if (event.key === "Enter") void runSearch(item);
-                        }}
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      disabled={search.loading}
-                      class="bg-accent hover:bg-accent-hover inline-flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-lg text-white transition disabled:cursor-wait disabled:opacity-60"
-                      title={i18n.t.backgroundJobs.findManually}
-                      aria-label={i18n.t.backgroundJobs.findManually}
-                      onclick={() => void runSearch(item)}
-                    >
-                      {#if search.loading}
-                        <LoaderCircle size={15} class="animate-spin" />
-                      {:else}
-                        <Search size={15} aria-hidden="true" />
-                      {/if}
-                    </button>
-                  </div>
-
-                  {#if candidates.length === 0}
-                    <p class="text-muted text-xs leading-relaxed">
-                      {i18n.t.backgroundJobs.noCandidates}
-                    </p>
-                  {:else}
-                    <div class="grid grid-cols-1 gap-4 xl:grid-cols-2">
-                      {#each candidates as candidate, index (candidate.externalSource + candidate.externalId)}
-                        {@const key = candidate.externalSource + candidate.externalId}
-                        {@const candKey = `${item.id}:${candidate.externalSource}:${candidate.externalId}`}
-                        {@const isResolving = Boolean(resolvingCandidates[candKey])}
-                        {@const match = scoreCandidate(item, candidate)}
-                        <div
-                          class="relative flex gap-4 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-3.5 shadow-sm transition hover:border-white/20 hover:bg-white/[0.06] sm:p-4"
+                  {#if item.duplicate}
+                    <!-- Duplicate verdict card: no candidates to pick, just merge or keep both. -->
+                    <div class="rounded-2xl border border-amber-500/30 bg-amber-500/[0.07] p-4">
+                      <p class="text-sm leading-relaxed text-amber-200">
+                        {i18n.t.backgroundJobs.duplicateIntro(
+                          item.duplicate.incomingTitle ?? item.title,
+                          item.duplicate.existingTitle,
+                        )}
+                      </p>
+                      <div class="mt-4 flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          disabled={mergingDuplicates[item.id]}
+                          class="bg-accent hover:bg-accent-hover inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-lg px-4 py-2 text-xs font-bold text-white shadow-sm transition active:scale-95 disabled:cursor-wait disabled:opacity-60"
+                          title={i18n.t.backgroundJobs.duplicateMerge}
+                          onclick={() => void mergeDuplicate(item)}
                         >
-                          <button
-                            type="button"
-                            class="group/poster relative aspect-[2/3] w-24 shrink-0 cursor-pointer overflow-hidden rounded-xl shadow-md ring-1 ring-white/10 transition hover:ring-white/25 active:scale-[0.98] sm:w-28"
-                            title="Нажмите для подробного просмотра"
-                            onclick={() =>
-                              (previewCandidate = { item: candidate, parentItem: item })}
+                          {#if mergingDuplicates[item.id]}
+                            <LoaderCircle size={14} class="animate-spin" />
+                          {:else}
+                            <Check size={14} stroke-width={2.5} />
+                          {/if}
+                          <span>{i18n.t.backgroundJobs.duplicateMerge}</span>
+                        </button>
+                        <button
+                          type="button"
+                          class="bg-field hover:bg-elevated inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-white/10 px-4 py-2 text-xs font-medium text-slate-300 transition hover:text-white"
+                          title={i18n.t.backgroundJobs.duplicateKeep}
+                          onclick={() => void keepSeparate(item)}
+                        >
+                          <X size={14} aria-hidden="true" />
+                          <span>{i18n.t.backgroundJobs.duplicateKeep}</span>
+                        </button>
+                      </div>
+                    </div>
+                  {:else}
+                    <div class="flex items-center gap-2">
+                      <div class="min-w-0 flex-1">
+                        <input
+                          type="search"
+                          bind:value={search.query}
+                          placeholder={i18n.t.backgroundJobs.searchPlaceholder}
+                          class="bg-field text-ink focus:border-accent-soft focus:ring-accent-soft w-full rounded-lg border border-white/10 px-3 py-2 text-sm transition outline-none focus:ring-1"
+                          onkeydown={(event) => {
+                            if (event.key === "Enter") void runSearch(item);
+                          }}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        disabled={search.loading}
+                        class="bg-accent hover:bg-accent-hover inline-flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-lg text-white transition disabled:cursor-wait disabled:opacity-60"
+                        title={i18n.t.backgroundJobs.findManually}
+                        aria-label={i18n.t.backgroundJobs.findManually}
+                        onclick={() => void runSearch(item)}
+                      >
+                        {#if search.loading}
+                          <LoaderCircle size={15} class="animate-spin" />
+                        {:else}
+                          <Search size={15} aria-hidden="true" />
+                        {/if}
+                      </button>
+                    </div>
+
+                    {#if candidates.length === 0}
+                      <p class="text-muted text-xs leading-relaxed">
+                        {i18n.t.backgroundJobs.noCandidates}
+                      </p>
+                    {:else}
+                      <div class="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                        {#each candidates as candidate, index (candidate.externalSource + candidate.externalId)}
+                          {@const key = candidate.externalSource + candidate.externalId}
+                          {@const candKey = `${item.id}:${candidate.externalSource}:${candidate.externalId}`}
+                          {@const isResolving = Boolean(resolvingCandidates[candKey])}
+                          {@const match = scoreCandidate(item, candidate)}
+                          <div
+                            class="relative flex gap-4 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-3.5 shadow-sm transition hover:border-white/20 hover:bg-white/[0.06] sm:p-4"
                           >
-                            {#if candidate.coverUrl && !candidateImgErrors[key]}
-                              <img
-                                src={candidate.coverUrl}
-                                alt={candidate.title}
-                                referrerpolicy="no-referrer"
-                                class="bg-canvas h-full w-full object-cover transition-transform duration-300 group-hover/poster:scale-105"
-                                loading="lazy"
-                                decoding="async"
-                                onerror={() => (candidateImgErrors[key] = true)}
-                              />
-                            {:else}
-                              <div class="h-full w-full">
-                                <Placeholder404 />
+                            <button
+                              type="button"
+                              class="group/poster relative aspect-[2/3] w-24 shrink-0 cursor-pointer overflow-hidden rounded-xl shadow-md ring-1 ring-white/10 transition hover:ring-white/25 active:scale-[0.98] sm:w-28"
+                              title="Нажмите для подробного просмотра"
+                              onclick={() =>
+                                (previewCandidate = { item: candidate, parentItem: item })}
+                            >
+                              {#if candidate.coverUrl && !candidateImgErrors[key]}
+                                <img
+                                  src={candidate.coverUrl}
+                                  alt={candidate.title}
+                                  referrerpolicy="no-referrer"
+                                  class="bg-canvas h-full w-full object-cover transition-transform duration-300 group-hover/poster:scale-105"
+                                  loading="lazy"
+                                  decoding="async"
+                                  onerror={() => (candidateImgErrors[key] = true)}
+                                />
+                              {:else}
+                                <div class="h-full w-full">
+                                  <Placeholder404 />
+                                </div>
+                              {/if}
+                              <div
+                                class="absolute inset-0 grid place-items-center bg-black/40 opacity-0 backdrop-blur-[1px] transition-opacity duration-200 group-hover/poster:opacity-100"
+                              >
+                                <Eye size={20} class="text-white drop-shadow-md" />
                               </div>
-                            {/if}
-                            <div
-                              class="absolute inset-0 grid place-items-center bg-black/40 opacity-0 backdrop-blur-[1px] transition-opacity duration-200 group-hover/poster:opacity-100"
-                            >
-                              <Eye size={20} class="text-white drop-shadow-md" />
-                            </div>
-                          </button>
+                            </button>
 
-                          <div class="flex min-w-0 flex-1 flex-col">
-                            <div class="flex items-start gap-1.5">
-                              {#if index < 4}
-                                <span
-                                  class="bg-accent-bright mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-md text-[10px] font-bold text-white"
-                                >
-                                  {index + 1}
-                                </span>
-                              {/if}
-                              <p
-                                class="line-clamp-2 text-sm leading-snug font-bold tracking-tight text-white sm:text-base"
-                                title={candidate.title}
-                              >
-                                {candidate.title}
-                              </p>
-                            </div>
-                            {#if candidate.originalTitle || candidate.romajiTitle}
-                              <p class="text-muted mt-0.5 truncate text-xs">
-                                {candidate.originalTitle ?? candidate.romajiTitle}
-                              </p>
-                            {/if}
-
-                            <div
-                              class="mt-2 flex flex-wrap items-center gap-1.5 text-[10px] sm:text-[11px]"
-                            >
-                              {#if candidate.externalSource}
-                                <span
-                                  class="rounded-md px-2 py-0.5 font-bold tracking-wide {sourceBadgeClass(
-                                    candidate.externalSource,
-                                  )}"
-                                >
-                                  {candidate.externalSource}
-                                </span>
-                              {/if}
-                              {#if candidate.releaseYear}
-                                <span
-                                  class="text-muted rounded-md bg-white/[0.07] px-2 py-0.5 font-medium tabular-nums"
-                                >
-                                  {candidate.releaseYear}
-                                </span>
-                              {/if}
-                              {#if (candidate.totalCount ?? candidate.chapters) !== null && (candidate.totalCount ?? candidate.chapters) !== undefined}
-                                <span
-                                  class="text-muted rounded-md bg-white/[0.07] px-2 py-0.5 font-medium tabular-nums"
-                                >
-                                  {candidate.totalCount ?? candidate.chapters}
-                                  {candidate.type === "anime" || item.isAnime ? "эп." : "гл."}
-                                </span>
-                              {/if}
-                              {#if candidate.author || candidate.studio}
-                                <span
-                                  class="text-muted max-w-[140px] truncate rounded-md bg-white/[0.07] px-2 py-0.5 font-medium"
-                                  title={candidate.author ?? candidate.studio}
-                                >
-                                  {candidate.author ?? candidate.studio}
-                                </span>
-                              {/if}
-                              <span
-                                class="rounded-md border border-emerald-500/30 bg-emerald-500/15 px-2 py-0.5 font-bold text-emerald-300 tabular-nums"
-                                title={i18n.t.backgroundJobs.matchScore(match)}
-                              >
-                                {i18n.t.backgroundJobs.matchScore(match)}
-                              </span>
-                            </div>
-
-                            <div class="mt-auto flex gap-2 pt-3">
-                              <button
-                                type="button"
-                                disabled={isResolving}
-                                class="bg-accent hover:bg-accent-hover inline-flex min-w-0 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold text-white shadow-sm transition active:scale-95 disabled:cursor-wait"
-                                title="Выбрать этот вариант"
-                                onclick={() => resolve(item, candidate)}
-                              >
-                                {#if isResolving}
-                                  <LoaderCircle size={14} class="animate-spin" />
-                                {:else}
-                                  <Check size={14} stroke-width={2.5} />
+                            <div class="flex min-w-0 flex-1 flex-col">
+                              <div class="flex items-start gap-1.5">
+                                {#if index < 4}
+                                  <span
+                                    class="bg-accent-bright mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-md text-[10px] font-bold text-white"
+                                  >
+                                    {index + 1}
+                                  </span>
                                 {/if}
-                                <span class="truncate">{i18n.t.backgroundJobs.choose}</span>
-                              </button>
-                              <button
-                                type="button"
-                                class="bg-field hover:bg-elevated inline-flex shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-white/10 px-3 py-2 text-xs font-medium text-slate-300 transition hover:text-white"
-                                title="Подробнее"
-                                aria-label="Подробнее"
-                                onclick={() =>
-                                  (previewCandidate = { item: candidate, parentItem: item })}
+                                <p
+                                  class="line-clamp-2 text-sm leading-snug font-bold tracking-tight text-white sm:text-base"
+                                  title={candidate.title}
+                                >
+                                  {candidate.title}
+                                </p>
+                              </div>
+                              {#if candidate.originalTitle || candidate.romajiTitle}
+                                <p class="text-muted mt-0.5 truncate text-xs">
+                                  {candidate.originalTitle ?? candidate.romajiTitle}
+                                </p>
+                              {/if}
+
+                              <div
+                                class="mt-2 flex flex-wrap items-center gap-1.5 text-[10px] sm:text-[11px]"
                               >
-                                <Eye size={14} aria-hidden="true" />
-                                <span>{i18n.t.common.details}</span>
-                              </button>
+                                {#if candidate.externalSource}
+                                  <span
+                                    class="rounded-md px-2 py-0.5 font-bold tracking-wide {sourceBadgeClass(
+                                      candidate.externalSource,
+                                    )}"
+                                  >
+                                    {candidate.externalSource}
+                                  </span>
+                                {/if}
+                                {#if candidate.releaseYear}
+                                  <span
+                                    class="text-muted rounded-md bg-white/[0.07] px-2 py-0.5 font-medium tabular-nums"
+                                  >
+                                    {candidate.releaseYear}
+                                  </span>
+                                {/if}
+                                {#if (candidate.totalCount ?? candidate.chapters) !== null && (candidate.totalCount ?? candidate.chapters) !== undefined}
+                                  <span
+                                    class="text-muted rounded-md bg-white/[0.07] px-2 py-0.5 font-medium tabular-nums"
+                                  >
+                                    {candidate.totalCount ?? candidate.chapters}
+                                    {candidate.type === "anime" || item.isAnime ? "эп." : "гл."}
+                                  </span>
+                                {/if}
+                                {#if candidate.author || candidate.studio}
+                                  <span
+                                    class="text-muted max-w-[140px] truncate rounded-md bg-white/[0.07] px-2 py-0.5 font-medium"
+                                    title={candidate.author ?? candidate.studio}
+                                  >
+                                    {candidate.author ?? candidate.studio}
+                                  </span>
+                                {/if}
+                                <span
+                                  class="rounded-md border border-emerald-500/30 bg-emerald-500/15 px-2 py-0.5 font-bold text-emerald-300 tabular-nums"
+                                  title={i18n.t.backgroundJobs.matchScore(match)}
+                                >
+                                  {i18n.t.backgroundJobs.matchScore(match)}
+                                </span>
+                              </div>
+
+                              <div class="mt-auto flex gap-2 pt-3">
+                                <button
+                                  type="button"
+                                  disabled={isResolving}
+                                  class="bg-accent hover:bg-accent-hover inline-flex min-w-0 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold text-white shadow-sm transition active:scale-95 disabled:cursor-wait"
+                                  title="Выбрать этот вариант"
+                                  onclick={() => resolve(item, candidate)}
+                                >
+                                  {#if isResolving}
+                                    <LoaderCircle size={14} class="animate-spin" />
+                                  {:else}
+                                    <Check size={14} stroke-width={2.5} />
+                                  {/if}
+                                  <span class="truncate">{i18n.t.backgroundJobs.choose}</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  class="bg-field hover:bg-elevated inline-flex shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-white/10 px-3 py-2 text-xs font-medium text-slate-300 transition hover:text-white"
+                                  title="Подробнее"
+                                  aria-label="Подробнее"
+                                  onclick={() =>
+                                    (previewCandidate = { item: candidate, parentItem: item })}
+                                >
+                                  <Eye size={14} aria-hidden="true" />
+                                  <span>{i18n.t.common.details}</span>
+                                </button>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      {/each}
-                    </div>
+                        {/each}
+                      </div>
+                    {/if}
                   {/if}
                 </div>
               {/if}

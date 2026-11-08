@@ -13,8 +13,16 @@ namespace MediaTracker.Server.Infrastructure.Desktop;
 /// </summary>
 public static partial class MemoryOptimizer
 {
+    // Константы glibc (mallopt.h).
+    private const int MTrimThreshold = -1;
+    private const int MMmapThreshold = -3;
+    private const int MArenaMax = -8;
+
     [LibraryImport("libc", EntryPoint = "malloc_trim", SetLastError = true)]
     private static partial int MallocTrim(nuint pad);
+
+    [LibraryImport("libc", EntryPoint = "mallopt", SetLastError = true)]
+    private static partial int Mallopt(int param, int value);
 
     [LibraryImport("kernel32.dll", EntryPoint = "SetProcessWorkingSetSize", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
@@ -33,6 +41,35 @@ public static partial class MemoryOptimizer
         new(
             Math.Round(Process.GetCurrentProcess().WorkingSet64 / 1_048_576.0, 1),
             Math.Round(GC.GetTotalMemory(forceFullCollection: false) / 1_048_576.0, 1));
+
+    /// <summary>
+    /// Реальное управление аллокатором glibc через P/Invoke mallopt. Переменные окружения
+    /// MALLOC_* игнорируются glibc, если заданы внутри уже запущенного C# процесса (прочитать их
+    /// можно только на старте самого libc), поэтому единственный надёжный путь — прямой вызов
+    /// mallopt до того, как процесс породит первые потоки.
+    /// </summary>
+    public static void ConfigureGlibcAllocators()
+    {
+        if (!OperatingSystem.IsLinux())
+        {
+            return;
+        }
+
+        try
+        {
+            // Ограничиваем количество арен до одной: каждая дополнительная арена glibc — это
+            // до 64 МБ виртуальной памяти, которую malloc_trim не может слить обратно.
+            Mallopt(MArenaMax, 1);
+            // Агрессивный порог возврата памяти ядру: свободные верхушки куч отдаются уже
+            // после 64 КБ вместо дефолтных мегабайтов.
+            Mallopt(MTrimThreshold, 65536);
+            Mallopt(MMmapThreshold, 65536);
+        }
+        catch
+        {
+            // Нет libc (Windows) или старый musl — живём с дефолтными настройками аллокатора.
+        }
+    }
 
     public static void TrimMemory(IMemoryCache? cache = null, string? sqliteConnectionString = null)
     {
@@ -61,18 +98,6 @@ public static partial class MemoryOptimizer
         catch
         {
             // База ещё не создана или пулы уже мертвы — чистить нечего.
-        }
-
-        // 2b. Нативные кэши SkiaSharp: декодированные глифы, шрифты и растровые ресурсы живут
-        //     вне managed heap и не видны сборщику мусора.
-        try
-        {
-            SkiaSharp.SKGraphics.PurgeFontCache();
-            SkiaSharp.SKGraphics.PurgeResourceCache();
-        }
-        catch
-        {
-            // Skia может быть не инициализирована, если обложек ещё не качали.
         }
 
         // 3. Агрессивная сборка мусора .NET с компактизацией кучи: две проходки нужны, чтобы

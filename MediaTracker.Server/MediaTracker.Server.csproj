@@ -13,8 +13,13 @@
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        <!-- Workstation, non-concurrent GC: фоновый сборщик держит лишние мегабайты запаса памяти,
+             а доли секунды пауз на десктопе никто не замечает. -->
         <ServerGarbageCollection>false</ServerGarbageCollection>
+        <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
         <GarbageCollectionAdaptationMode>1</GarbageCollectionAdaptationMode>
+        <!-- DebuggerSupport=false в релизе выкидывает структуры отладчика из рантайма и бинарника. -->
+        <DebuggerSupport Condition="'$(Configuration)' == 'Release'">false</DebuggerSupport>
         <AllowMissingPrunePackageData>true</AllowMissingPrunePackageData>
 
         <RuntimeIdentifier Condition="'$(OS)' == 'Windows_NT'">win-x64</RuntimeIdentifier>
@@ -56,7 +61,10 @@
              compression are inherent to AOT publishing; the old PublishSingleFile switches conflict. -->
         <PublishAot>true</PublishAot>
         <StripSymbols>true</StripSymbols>
-        <OptimizationPreference>Speed</OptimizationPreference>
+        <!-- Размер важнее долей процента скорости: десктоп-приложение живёт в RSS, а не в бенчмарках. -->
+        <OptimizationPreference>Size</OptimizationPreference>
+        <!-- Объединение одинаковых тел методов: дубликаты от дженериков и source-gen схлопываются. -->
+        <IlcFoldIdenticalMethodBodies>true</IlcFoldIdenticalMethodBodies>
         <!-- Tsundoku serves only its own localhost UI over HTTP/1.1: cut HTTP/2, HTTP/3 (QUIC),
              event sources, metrics and macOS pools out of the NativeAOT binary and the runtime. -->
         <HttpEnableHttp2>false</HttpEnableHttp2>

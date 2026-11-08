@@ -3,6 +3,7 @@
   import { i18n } from "$shared/i18n/index.svelte";
   import Modal from "$shared/ui/Modal.svelte";
   import { getStorageSettings, saveStorageSettings } from "$shared/api/api";
+  import { waitForBackendRestart } from "$shared/api/serverRestart.svelte";
   import type { StorageSettings } from "$shared/types";
   import { onMount } from "svelte";
   import { slide } from "svelte/transition";
@@ -32,32 +33,10 @@
     }
   });
 
-  async function waitForServerAndReload() {
-    // Give the old server a moment to write storage.json and start shutting down.
-    await new Promise((r) => setTimeout(r, 250));
-
-    // Fast poll (300 ms interval, 500 ms request timeout): reload as soon as the new
-    // server answers 200 OK, so the user never sees a connection-lost error screen.
-    const deadline = Date.now() + 20_000;
-    while (Date.now() < deadline) {
-      try {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 500);
-        const res = await fetch("/api/settings/storage?t=" + Date.now(), {
-          cache: "no-store",
-          signal: controller.signal,
-        });
-        clearTimeout(timeout);
-        if (res.ok) {
-          window.location.reload();
-          return;
-        }
-      } catch {
-        // Server restarting — retry
-      }
-      await new Promise((r) => setTimeout(r, 300));
-    }
-
+  async function waitForServerAndReload(restartScheduled: boolean) {
+    // The modal keeps its loader visible the whole time; the reload happens only once
+    // the NEW backend is already responding (see waitForBackendRestart).
+    await waitForBackendRestart(restartScheduled);
     window.location.reload();
   }
 
@@ -67,12 +46,12 @@
 
     saving = true;
     try {
-      await saveStorageSettings({
+      const { restartScheduled } = await saveStorageSettings({
         mode,
         customPath: mode === "custom" ? customPath.trim() : "",
         migrateExistingData: false,
       });
-      await waitForServerAndReload();
+      await waitForServerAndReload(restartScheduled);
     } catch (e) {
       console.error("Failed to save storage settings:", e);
       saving = false;

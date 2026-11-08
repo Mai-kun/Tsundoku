@@ -440,12 +440,18 @@ public static class SettingsEndpoints
                     _ = Task.Run(async () =>
                     {
                         await Task.Delay(300);
-                        AppRestartService.ScheduleRestart("--no-browser");
+                        // Окно Chromium не закрывается (Program.cs пропускает CloseBrowser при
+                        // запланированном перезапуске): оно показывает спиннер и само перезагрузится,
+                        // когда новый бэкенд начнёт отвечать. Новый процесс стартует свернутым и
+                        // усыновляет живое окно по PID.
+                        AppRestartService.ScheduleRestartKeepingWindow();
                         hostLifetime.StopApplication();
                     });
                 }
 
-                return Results.Accepted();
+                // Тело сообщает, будет ли перезапуск: фронтенд в этом случае ждёт «лёг → поднялся»
+                // и только потом перезагружает страницу (иначе гонка с умирающим старым сервером).
+                return Results.Accepted(value: new StorageRestartResponse(needsRestart));
             }).WithTags("Настройки / Settings").WithSummary("Сохранить настройки хранилища");
 
         group.MapPost("/update/apply", async (

@@ -90,11 +90,12 @@ public sealed class UpdateService(
 
         logger.LogInformation("[Update] Applied release {Version}, restarting", check.LatestVersion);
 
-        // 4. Restart
+        // 4. Restart: окно приложения сохраняется и перезагружается само (см. Program.cs —
+        // CloseBrowser пропускается при запланированном перезапуске).
         _ = Task.Run(() =>
         {
             Thread.Sleep(500);
-            AppRestartService.ScheduleRestart();
+            AppRestartService.ScheduleRestartKeepingWindow();
             hostLifetime.StopApplication();
         }, CancellationToken.None);
     }

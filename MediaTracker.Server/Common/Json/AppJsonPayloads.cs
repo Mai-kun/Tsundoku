@@ -20,6 +20,9 @@ public sealed record StorageInfoResponse(
     string? CustomPath,
     bool IsFirstRunSetupRequired);
 
+/// <summary>POST /api/settings/storage response: whether the backend scheduled a restart.</summary>
+public sealed record StorageRestartResponse(bool RestartScheduled);
+
 public sealed record OfflineDatabaseStatusDto(
     string Name,
     string FileName,

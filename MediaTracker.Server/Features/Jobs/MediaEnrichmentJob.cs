@@ -54,14 +54,29 @@ public static class MediaEnrichmentJob
         {
             Report(progress, 20, "Поиск метаданных");
 
-            var external = await services.GetRequiredService<MetadataAggregatorService>()
-                .GetDetailsAsync(
-                    AggregatorTypes.Resolve(item),
-                    item.ExternalId ?? string.Empty,
-                    item.Title,
-                    jobCts.Token,
-                    item.ExternalSource)
-                .ConfigureAwait(false);
+            ExternalMediaDto? external;
+            try
+            {
+                external = await services.GetRequiredService<MetadataAggregatorService>()
+                    .GetDetailsAsync(
+                        AggregatorTypes.Resolve(item),
+                        item.ExternalId ?? string.Empty,
+                        item.Title,
+                        jobCts.Token,
+                        item.ExternalSource)
+                    .ConfigureAwait(false);
+            }
+            catch (SourceUnavailableException)
+            {
+                // The pinned provider is unreachable (down, region-blocked, hard rate-limited): a
+                // title-based fan-out still fills the row from the sources that answer, instead of
+                // leaving a bare card with no linked sources and a rotting hotlink cover.
+                external = await FallbackByTitleAsync(services, item, jobCts.Token).ConfigureAwait(false);
+                if (external is null)
+                {
+                    throw;
+                }
+            }
 
             Report(progress, 60, "Скачивание обложки");
 
@@ -108,6 +123,39 @@ public static class MediaEnrichmentJob
             await MarkFailedAsync(db, item).ConfigureAwait(false);
             throw;
         }
+    }
+
+    /// <summary>
+    /// Title-based fallback for a row whose pinned provider is unreachable: the aggregator searches
+    /// every priority source by the stored titles (romaji and original included) and merges whatever
+    /// answers. Only a merge that actually found something is trusted — an all-empty answer would
+    /// overwrite the row's data with nulls.
+    /// </summary>
+    public static async Task<ExternalMediaDto?> FallbackByTitleAsync(
+        IServiceProvider services,
+        MediaItem item,
+        CancellationToken ct)
+    {
+        var aggregator = services.GetRequiredService<MetadataAggregatorService>();
+        string? romaji = item switch
+        {
+            Manga manga => manga.RomajiTitle,
+            Movie movie => movie.RomajiTitle,
+            TvShow show => show.RomajiTitle,
+            _ => null,
+        };
+        var stub = new ExternalMediaDto
+        {
+            ExternalId = item.ExternalId ?? string.Empty,
+            Title = item.Title,
+            Type = AggregatorTypes.Resolve(item),
+            RomajiTitle = romaji,
+            OriginalTitle = item.OriginalTitle,
+            ExternalSource = item.ExternalSource,
+        };
+
+        var merged = await aggregator.EnrichAsync(stub, AggregatorTypes.Resolve(item), ct).ConfigureAwait(false);
+        return merged.SourceContributions is { Count: > 0 } ? merged : null;
     }
 
     /// <summary>

@@ -67,12 +67,27 @@ public sealed class RefreshMetadataHandler(
                     progress.Report(new JobProgressDto(
                         Guid.Empty, null, string.Empty, 20, "Поиск метаданных", JobStatus.Running, DateTime.MinValue, null));
 
-                    var external = await metadataAggregator.GetDetailsAsync(
-                        AggregatorTypes.Resolve(current),
-                        current.ExternalId ?? string.Empty,
-                        current.Title,
-                        token,
-                        current.ExternalSource);
+                    ExternalMediaDto? external;
+                    try
+                    {
+                        external = await metadataAggregator.GetDetailsAsync(
+                            AggregatorTypes.Resolve(current),
+                            current.ExternalId ?? string.Empty,
+                            current.Title,
+                            token,
+                            current.ExternalSource);
+                    }
+                    catch (SourceUnavailableException)
+                    {
+                        // The pinned provider is unreachable: a title-based fan-out across the other
+                        // sources still refreshes what it can, instead of failing the whole job and
+                        // leaving the card with no data and a dead hotlink cover.
+                        external = await MediaEnrichmentJob.FallbackByTitleAsync(sp, current, token);
+                        if (external is null)
+                        {
+                            throw;
+                        }
+                    }
 
                     if (external is null)
                     {

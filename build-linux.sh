@@ -22,6 +22,12 @@ echo "==> Шаг 2/3: Публикация NativeAOT (dotnet)..."
 dotnet publish MediaTracker.Server -c Release -r linux-x64 -o dist/Tsundoku-Portable
 chmod +x dist/Tsundoku-Portable/Tsundoku
 
+# Нативные библиотеки (.so кодеков и sqlite) не должны мусорить в корне портативной папки:
+# складываем их в lib/. Бинарник ищет их там через зашитый на линковке RUNPATH $ORIGIN/lib
+# (см. LinkerArg в csproj), поэтому patchelf после сборки не нужен.
+mkdir -p dist/Tsundoku-Portable/lib
+mv dist/Tsundoku-Portable/*.so* dist/Tsundoku-Portable/lib/ 2>/dev/null || true
+
 # Автономный установщик едет рядом с бинарником: распаковал архив — запустил установку.
 cp install-linux.sh uninstall-linux.sh dist/Tsundoku-Portable/
 chmod +x dist/Tsundoku-Portable/install-linux.sh dist/Tsundoku-Portable/uninstall-linux.sh
@@ -49,11 +55,13 @@ APPDIR="dist/.appdir"
 mkdir -p "$APPDIR/bin"
 cp dist/Tsundoku-Portable/Tsundoku "$APPDIR/bin/Tsundoku"
 chmod +x "$APPDIR/bin/Tsundoku"
-# Every native library ships next to the binary: the DllNotFoundException for a
-# missing libSkiaSharp.so surfaced only at first cover download, as a fatal
-# TypeInitializationException on the finalizer thread that killed the process.
-cp dist/Tsundoku-Portable/*.so "$APPDIR/bin/"
-chmod +x "$APPDIR/bin/"*.so
+# Every native library ships next to the binary — including the PhotoSauce codec
+# libs (libwebp, libjpeg, libpng): a missing one surfaced only at first cover
+# download, as a fatal TypeInitializationException that killed the process.
+# В портативной папке они переехали в lib/ — в AppImage живут по-прежнему в bin/,
+# куда AppRun прописывает LD_LIBRARY_PATH.
+cp dist/Tsundoku-Portable/lib/*.so* "$APPDIR/bin/" 2>/dev/null || true
+chmod +x "$APPDIR/bin/"*.so* 2>/dev/null || true
 cp -r dist/Tsundoku-Portable/wwwroot "$APPDIR/wwwroot"
 
 cat > "$APPDIR/AppRun" <<'APPRUN'

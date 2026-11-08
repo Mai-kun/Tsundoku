@@ -22,13 +22,15 @@ if (!fs.existsSync(reportsDir)) {
 }
 
 function auditNuget() {
-  console.log("🔍 [Security] Scanning .NET NuGet packages for vulnerabilities...");
+  console.log(
+    "🔍 [Security] Scanning .NET NuGet packages for vulnerabilities...",
+  );
   const csprojPath = "MediaTracker.Server/MediaTracker.Server.csproj";
   let output = "";
   try {
     output = execSync(
       `dotnet list "${csprojPath}" package --vulnerable --include-transitive`,
-      { cwd: rootDir, encoding: "utf-8", stdio: ["ignore", "pipe", "pipe"] }
+      { cwd: rootDir, encoding: "utf-8", stdio: ["ignore", "pipe", "pipe"] },
     );
   } catch (err) {
     output = err.stdout?.toString() || err.stderr?.toString() || "";
@@ -43,7 +45,9 @@ function auditNuget() {
     if (!line) continue;
 
     // Line starting with `> PackageName` or `PackageName`
-    const pkgMatch = line.match(/^>\s*([A-Za-z0-9_.-]+)\s+([0-9_.-]+)\s+([0-9_.-]+)\s+(Critical|High|Moderate|Low)\s+(https:\/\/\S+)/i);
+    const pkgMatch = line.match(
+      /^>\s*([A-Za-z0-9_.-]+)\s+([0-9_.-]+)\s+([0-9_.-]+)\s+(Critical|High|Moderate|Low)\s+(https:\/\/\S+)/i,
+    );
     if (pkgMatch) {
       currentPkg = {
         name: pkgMatch[1],
@@ -61,7 +65,9 @@ function auditNuget() {
     }
 
     // Additional advisory lines for the same package
-    const advMatch = line.match(/^(Critical|High|Moderate|Low)\s+(https:\/\/\S+)/i);
+    const advMatch = line.match(
+      /^(Critical|High|Moderate|Low)\s+(https:\/\/\S+)/i,
+    );
     if (advMatch && currentPkg) {
       currentPkg.advisories.push({
         severity: advMatch[1],
@@ -70,34 +76,42 @@ function auditNuget() {
     }
   }
 
-  // No suppression allowlist anymore: ImageSharp was replaced by SkiaSharp, so every
-  // vulnerable package reported here is a real finding that must fail the audit.
   const evaluatedPackages = packages.map((pkg) => ({
     ...pkg,
     suppressed: false,
     suppressionReason: null,
   }));
 
-  const unsuppressedCount = evaluatedPackages.filter((p) => !p.suppressed).length;
+  const unsuppressedCount = evaluatedPackages.filter(
+    (p) => !p.suppressed,
+  ).length;
 
   return {
     passed: unsuppressedCount === 0,
     totalVulnerablePackages: packages.length,
     unsuppressedCount,
     packages: evaluatedPackages,
-    rawOutputSummary: evaluatedPackages.length > 0 ? `${evaluatedPackages.length} package(s) reported` : "No vulnerable packages found",
+    rawOutputSummary:
+      evaluatedPackages.length > 0
+        ? `${evaluatedPackages.length} package(s) reported`
+        : "No vulnerable packages found",
   };
 }
 
 function auditNpm() {
-  console.log("🔍 [Security] Auditing NPM production dependencies (--omit=dev)...");
+  console.log(
+    "🔍 [Security] Auditing NPM production dependencies (--omit=dev)...",
+  );
   let auditJson = null;
   try {
-    const raw = execSync("npm --prefix mediatracker-ui audit --omit=dev --json", {
-      cwd: rootDir,
-      encoding: "utf-8",
-      stdio: ["ignore", "pipe", "pipe"],
-    });
+    const raw = execSync(
+      "npm --prefix mediatracker-ui audit --omit=dev --json",
+      {
+        cwd: rootDir,
+        encoding: "utf-8",
+        stdio: ["ignore", "pipe", "pipe"],
+      },
+    );
     auditJson = JSON.parse(raw);
   } catch (err) {
     try {
@@ -129,13 +143,21 @@ const SECRET_PATTERNS = [
   { name: "Stripe Live Secret Key", regex: /\bsk_live_[0-9a-zA-Z]{24,}\b/ },
   { name: "Google API Key", regex: /\bAIzaSy[0-9A-Za-z\-_]{33}\b/ },
   { name: "AWS Access Key ID", regex: /\bAKIA[0-9A-Z]{16}\b/ },
-  { name: "GitHub Personal Access Token", regex: /\b(?:ghp|gho|ghu|ghs|ghr)_[0-9a-zA-Z]{36,}\b/ },
+  {
+    name: "GitHub Personal Access Token",
+    regex: /\b(?:ghp|gho|ghu|ghs|ghr)_[0-9a-zA-Z]{36,}\b/,
+  },
   { name: "Slack Token", regex: /\bxox[baprs]-[0-9a-zA-Z]{10,}\b/ },
-  { name: "Private RSA/OpenSSH Key", regex: /-----BEGIN (?:RSA|EC|OPENSSH|PGP|PRIVATE) KEY-----/ },
+  {
+    name: "Private RSA/OpenSSH Key",
+    regex: /-----BEGIN (?:RSA|EC|OPENSSH|PGP|PRIVATE) KEY-----/,
+  },
 ];
 
 function scanSecrets() {
-  console.log("🔍 [Security] Scanning codebase for leaked secrets and private keys...");
+  console.log(
+    "🔍 [Security] Scanning codebase for leaked secrets and private keys...",
+  );
   const targetDirs = [
     "MediaTracker.Server",
     "MediaTracker.Benchmarks",
@@ -145,7 +167,14 @@ function scanSecrets() {
     "scripts",
   ];
 
-  const allowedExts = new Set([".cs", ".ts", ".svelte", ".json", ".js", ".mjs"]);
+  const allowedExts = new Set([
+    ".cs",
+    ".ts",
+    ".svelte",
+    ".json",
+    ".js",
+    ".mjs",
+  ]);
   const ignoreFiles = new Set(["package-lock.json", ".cache-manifest.json"]);
 
   const filesToScan = [];
@@ -154,13 +183,22 @@ function scanSecrets() {
     if (!fs.existsSync(currentDir)) return;
     const entries = fs.readdirSync(currentDir, { withFileTypes: true });
     for (const ent of entries) {
-      if (ent.name === "bin" || ent.name === "obj" || ent.name === "node_modules" || ent.name === ".git" || ent.name === "dist") {
+      if (
+        ent.name === "bin" ||
+        ent.name === "obj" ||
+        ent.name === "node_modules" ||
+        ent.name === ".git" ||
+        ent.name === "dist"
+      ) {
         continue;
       }
       const full = path.join(currentDir, ent.name);
       if (ent.isDirectory()) {
         walk(full);
-      } else if (allowedExts.has(path.extname(ent.name)) && !ignoreFiles.has(ent.name)) {
+      } else if (
+        allowedExts.has(path.extname(ent.name)) &&
+        !ignoreFiles.has(ent.name)
+      ) {
         filesToScan.push(full);
       }
     }
@@ -187,7 +225,8 @@ function scanSecrets() {
         const match = pat.regex.exec(lineText);
         if (match) {
           const matchedVal = match[0];
-          const redacted = matchedVal.slice(0, 4) + "..." + matchedVal.slice(-4);
+          const redacted =
+            matchedVal.slice(0, 4) + "..." + matchedVal.slice(-4);
           leaks.push({
             file: path.relative(rootDir, file),
             line: lineIdx + 1,
@@ -212,7 +251,8 @@ export function runSecurityAudit() {
   const npmResult = auditNpm();
   const secretsResult = scanSecrets();
 
-  const allPassed = nugetResult.passed && npmResult.passed && secretsResult.passed;
+  const allPassed =
+    nugetResult.passed && npmResult.passed && secretsResult.passed;
 
   const summary = {
     timestamp: new Date().toISOString(),
@@ -228,15 +268,24 @@ export function runSecurityAudit() {
 
   console.log("\n=======================================================");
   console.log(`🛡️  [Security Summary] Status: ${summary.status}`);
-  console.log(`   NuGet:   ${nugetResult.passed ? "✅ PASS" : "❌ FAIL"} (${nugetResult.packages.length} reported, ${nugetResult.unsuppressedCount} unsuppressed)`);
-  console.log(`   NPM:     ${npmResult.passed ? "✅ PASS" : "❌ FAIL"} (${npmResult.vulnerabilities.total} total vulnerabilities in prod)`);
-  console.log(`   Secrets: ${secretsResult.passed ? "✅ PASS" : "❌ FAIL"} (${secretsResult.scannedFilesCount} files scanned, ${secretsResult.leaksCount} leaks)`);
+  console.log(
+    `   NuGet:   ${nugetResult.passed ? "✅ PASS" : "❌ FAIL"} (${nugetResult.packages.length} reported, ${nugetResult.unsuppressedCount} unsuppressed)`,
+  );
+  console.log(
+    `   NPM:     ${npmResult.passed ? "✅ PASS" : "❌ FAIL"} (${npmResult.vulnerabilities.total} total vulnerabilities in prod)`,
+  );
+  console.log(
+    `   Secrets: ${secretsResult.passed ? "✅ PASS" : "❌ FAIL"} (${secretsResult.scannedFilesCount} files scanned, ${secretsResult.leaksCount} leaks)`,
+  );
   console.log("=======================================================\n");
 
   return summary;
 }
 
-if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
+if (
+  process.argv[1] &&
+  fileURLToPath(import.meta.url) === path.resolve(process.argv[1])
+) {
   const report = runSecurityAudit();
   if (!report.passed) {
     process.exitCode = 1;

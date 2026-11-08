@@ -221,7 +221,9 @@ async function main() {
     await waitForServer(baseUrl);
 
     // ── 1. Старт (Cold Idle) ────────────────────────────────────────────────
-    await sleep(2000); // let the start-up migrations and shell hooks settle
+    // 4s: the server runs its own post-startup baseline trim 3s after ApplicationStarted, so
+    // sampling at 2s measured the pre-trim peak and Cold Idle could never show the new floor.
+    await sleep(4000); // let the start-up migrations, shell hooks and baseline trim settle
     let rss = readRssMb(serverProc.pid);
     let mem = await readServerMemory(baseUrl);
     result.stages.coldIdle = { rssMb: rss, gcHeapMb: mem.after.gcHeapMb, workingSetMb: mem.after.workingSetMb };

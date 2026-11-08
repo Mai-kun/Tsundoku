@@ -3,7 +3,8 @@ using System.Text;
 using Microsoft.Data.Sqlite;
 using MediaTracker.Server.Domain.Entities;
 using MediaTracker.Server.Infrastructure.Persistence;
-using SkiaSharp;
+using PhotoSauce.MagicScaler;
+using PhotoSauce.NativeCodecs.Libwebp;
 using BenchmarkDotNet.Running;
 
 namespace MediaTracker.Benchmarks;
@@ -12,6 +13,9 @@ public static class Program
 {
     public static async Task Main(string[] args)
     {
+        // Same registration as the server: libwebp is the only codec the cover-pool seeder needs.
+        CodecManager.Configure(codecs => codecs.UseLibwebp());
+
         if (args.Length >= 3 && args[0] == "--seed-db")
         {
             var count = int.Parse(args[1]);
@@ -279,82 +283,27 @@ public static class Program
     {
         Directory.CreateDirectory(coversDir);
 
-        // Contrasting hue palettes: indigo, amber, emerald, crimson, cyan.
-        var palettes = new (SKColor Dark, SKColor Light, SKColor Accent)[]
-        {
-            (new SKColor(45, 30, 110), new SKColor(90, 70, 180), new SKColor(255, 215, 0)),   // indigo / gold
-            (new SKColor(160, 90, 0), new SKColor(230, 160, 40), new SKColor(20, 60, 140)),   // amber / blue
-            (new SKColor(15, 120, 90), new SKColor(60, 200, 150), new SKColor(180, 30, 60)),   // emerald / crimson
-            (new SKColor(140, 20, 40), new SKColor(210, 70, 90), new SKColor(0, 140, 180)),    // crimson / cyan
-            (new SKColor(0, 120, 140), new SKColor(60, 200, 220), new SKColor(160, 40, 0)),    // cyan / amber
-        };
+        // Public sample pixel source (stair-stepped color bars): the pool exists purely to
+        // exercise the decode/list/UI paths with a realistic file count, so the fixtures don't
+        // need per-cover art — one deterministic pattern encoded once per file is enough.
+        const int width = 360, height = 480;
+        using var pattern = new TestPatternPixelSource(width, height, PixelFormats.Bgra32bpp);
 
-        var rng = new Random(7);
+        var settings = new ProcessImageSettings();
+        settings.TrySetEncoderFormat(ImageMimeTypes.Webp);
+        try
+        {
+            settings.EncoderOptions = new WebpLossyEncoderOptions { Quality = 60 };
+        }
+        catch
+        {
+            // Дефолтные опции энкодера, если тип опций недоступен.
+        }
 
         for (var i = 1; i <= poolSize; i++)
         {
-            var (dark, light, accent) = palettes[(i - 1) % palettes.Length];
-            using var bitmap = new SKBitmap(360, 480);
-
-            using (var canvas = new SKCanvas(bitmap))
-            {
-                // Background: a few horizontal gradient bands from dark to light.
-                var bands = 6;
-                var bandHeight = 480f / bands;
-                for (var b = 0; b < bands; b++)
-                {
-                    var t = b / (float)Math.Max(1, bands - 1);
-                    var r = (byte)(dark.Red + (light.Red - dark.Red) * t);
-                    var g = (byte)(dark.Green + (light.Green - dark.Green) * t);
-                    var bb = (byte)(dark.Blue + (light.Blue - dark.Blue) * t);
-                    using var bandPaint = new SKPaint { Color = new SKColor(r, g, bb) };
-                    canvas.DrawRect(0, b * bandHeight, 360, bandHeight + 1, bandPaint);
-                }
-
-                // Contrasting procedural geometric badge: central ellipse accent.
-                using (var accentPaint = new SKPaint { Color = accent, IsAntialias = true })
-                {
-                    canvas.DrawOval(180f, 240f, 90f, 130f, accentPaint);
-                }
-
-                // Inner darker shape for contrast.
-                using (var darkPaint = new SKPaint { Color = dark, IsAntialias = true })
-                {
-                    canvas.DrawOval(180f, 240f, 55f, 85f, darkPaint);
-                }
-
-                using (var lightPaint = new SKPaint { Color = light })
-                {
-                    // Corner squares.
-                    canvas.DrawRect(20, 20, 40, 40, lightPaint);
-                    canvas.DrawRect(300, 20, 40, 40, lightPaint);
-                    canvas.DrawRect(20, 420, 40, 40, lightPaint);
-                    canvas.DrawRect(300, 420, 40, 40, lightPaint);
-
-                    // Diagonal accent stripes.
-                    canvas.DrawRect(60, 300, 240, 6, lightPaint);
-                    canvas.DrawRect(60, 174, 240, 6, lightPaint);
-                }
-
-                // Deterministic noise rectangles seeded by index so every cover differs.
-                var nr = new Random(i * 31);
-                for (var n = 0; n < 3; n++)
-                {
-                    var nx = nr.Next(0, 340);
-                    var ny = nr.Next(0, 460);
-                    var nw = nr.Next(10, 60);
-                    var nh = nr.Next(10, 60);
-                    var nc = new SKColor((byte)nr.Next(0, 255), (byte)nr.Next(0, 255), (byte)nr.Next(0, 255), 90);
-                    using var noisePaint = new SKPaint { Color = nc };
-                    canvas.DrawRect(nx, ny, Math.Min(nw, 360 - nx), Math.Min(nh, 480 - ny), noisePaint);
-                }
-            }
-
-            using var image = SKImage.FromBitmap(bitmap);
-            using var data = image.Encode(SKEncodedImageFormat.Webp, 60);
-            using var ms = new System.IO.MemoryStream();
-            data.SaveTo(ms);
-            System.IO.File.WriteAllBytes(Path.Combine(coversDir, $"cover_{i:D4}.webp"), ms.ToArray());
+            using var file = File.Create(Path.Combine(coversDir, $"cover_{i:D4}.webp"));
+            MagicImageProcessor.ProcessImage(pattern, file, settings);
         }
     }
 

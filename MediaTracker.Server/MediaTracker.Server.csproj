@@ -84,6 +84,16 @@
         <GenerateDocumentationFile>false</GenerateDocumentationFile>
     </PropertyGroup>
 
+    <!-- RUNPATH $ORIGIN/lib: build-linux.sh складывает нативные кодеки (libwebp/libjpeg/libpng)
+         в подпапку lib/, и dlopen должен находить их там без patchelf. Не мешает и обычной
+         раскладке с .so рядом с бинарником — .NET всё равно пробует каталог приложения.
+         %24 — экранирование $: без него MSBuild/шелл разворачивают $ORIGIN как пустую
+         переменную окружения, и в бинарник попадает бессмысленный RUNPATH /lib. -->
+    <ItemGroup Condition="'$(RuntimeIdentifier)' == 'linux-x64' and '$(Configuration)' == 'Release'">
+        <LinkerArg Include="-Wl,--enable-new-dtags" />
+        <LinkerArg Include="-Wl,-rpath,'$ORIGIN/lib'" />
+    </ItemGroup>
+
     <ItemGroup>
         <Compile Remove="bin\**" />
         <Compile Remove="obj\**" />

@@ -17,6 +17,7 @@
     "check:colors": "npm --prefix mediatracker-ui run check:colors",
     "check:jank": "npm --prefix mediatracker-ui run check:jank",
     "check:browser-suite": "npm --prefix mediatracker-ui run check:browser-suite",
+    "bench:memory": "npm --prefix mediatracker-ui run bench:memory",
     "report": "node scripts/generate-audit-report.mjs",
     "review:ai": "node scripts/ai-ui-review.mjs",
     "test:stress": "node scripts/stress-test.mjs",

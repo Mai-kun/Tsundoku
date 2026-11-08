@@ -37,7 +37,7 @@ public static class AutoRefreshRunner
         var oldVolumes = item is Manga manga2 ? manga2.TotalVolumes : null;
         var oldEpisodes = item is TvShow show ? show.TotalEpisodesCount : 0;
         var oldSeasons = item is TvShow show2 ? show2.Seasons.Count : 0;
-        var wasFinished = string.Equals(item.ReleaseStatus, ReleaseStatusRules.Finished, StringComparison.OrdinalIgnoreCase);
+        var wasFinished = ReleaseStatusRules.IsFinishedStatus(item.ReleaseStatus);
 
         ExternalMediaDto? external;
         try
@@ -69,7 +69,7 @@ public static class AutoRefreshRunner
         var newEpisodes = external.TotalCount ?? external.Seasons?.Sum(season => season.TotalEpisodes) ?? external.Episodes?.Count ?? 0;
         var newSeasons = external.Seasons?.Count ?? 0;
         var hasNewContent =
-            external.ReleaseStatus?.ToUpperInvariant() == ReleaseStatusRules.Finished && !wasFinished;
+            ReleaseStatusRules.IsFinishedStatus(external.ReleaseStatus) && !wasFinished;
 
         switch (item)
         {

@@ -33,7 +33,7 @@ public static class AutoRefreshRules
     /// </summary>
     public static int CalculateNextInterval(int currentInterval, bool hasNewContent, string? releaseStatus)
     {
-        if (string.Equals(releaseStatus, "HIATUS", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(ReleaseStatusRules.NormalizeStatus(releaseStatus), ReleaseStatusRules.Hiatus, StringComparison.OrdinalIgnoreCase))
         {
             return HiatusIntervalDays;
         }
@@ -69,7 +69,10 @@ public static class AutoRefreshRules
         item.NextAutoRefreshAt = now.AddDays(item.AutoRefreshIntervalDays);
     }
 
-    /// <summary>Stored casing varies by source; only the meaning matters.</summary>
+    /// <summary>
+    /// "Finished" in every source's spelling — Shikimori's RELEASED counts the same as AniList's
+    /// FINISHED. A literal comparison here is what kept scheduling completed anime forever.
+    /// </summary>
     private static bool IsFinished(MediaItem item) =>
-        string.Equals(item.ReleaseStatus, ReleaseStatusRules.Finished, StringComparison.OrdinalIgnoreCase);
+        ReleaseStatusRules.IsFinishedStatus(item.ReleaseStatus);
 }

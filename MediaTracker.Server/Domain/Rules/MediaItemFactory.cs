@@ -136,9 +136,10 @@ public static class MediaItemFactory
         item.SetReleaseDate(request.ReleaseDate, request.ReleaseYear);
         item.WatchedOn = request.WatchedOn;
         item.EndDate = request.EndDate;
-        item.ReleaseStatus = !string.IsNullOrWhiteSpace(request.ReleaseStatus)
-            ? request.ReleaseStatus
-            : ReleaseStatusRules.FromDates(request.ReleaseDate, request.EndDate);
+        item.ReleaseStatus = ReleaseStatusRules.NormalizeStatus(
+            !string.IsNullOrWhiteSpace(request.ReleaseStatus)
+                ? request.ReleaseStatus
+                : ReleaseStatusRules.FromDates(request.ReleaseDate, request.EndDate));
         item.Genres = GenreNormalizer.NormalizeToCommaString(request.Genres);
         item.Tags = request.Tags;
         item.UnlockedAchievements = request.UnlockedAchievements;

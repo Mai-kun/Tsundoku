@@ -1,10 +1,13 @@
+using System.Text.Json;
 using Dapper;
+using MediaTracker.Server.Common.Json;
 using MediaTracker.Server.Domain.Common;
 using MediaTracker.Server.Domain.Entities;
 using MediaTracker.Server.Domain.Enums;
 using MediaTracker.Server.Domain.Rules;
 using MediaTracker.Server.Features.External.RefreshMetadata;
 using MediaTracker.Server.Features.Jobs;
+using MediaTracker.Server.Features.Media.DeleteMedia;
 using MediaTracker.Server.Features.Media.GetMediaList;
 using MediaTracker.Server.Features.Media.GetMediaStats;
 using MediaTracker.Server.Features.Media.Import;
@@ -20,6 +23,19 @@ using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 
 namespace MediaTracker.Server.Features.Media.PendingMatches;
+
+/// <summary>
+/// The object shape stored in <c>PendingMatchesJson</c> when a freshly added title hit the
+/// duplicate guard: the row awaits the merge-vs-keep verdict, and the marker points at the library
+/// title it collided with. (Ambiguous import matches keep the array-of-candidates shape.)
+/// </summary>
+public sealed record DuplicateConflictDto(
+    string ConflictType,
+    Guid ExistingMediaId,
+    string ExistingTitle,
+    string? IncomingSource,
+    string? IncomingExternalId,
+    string? IncomingTitle);
 
 /// <summary>
 /// One row of the "review ambiguous matches" screen: the library title as the user imported it plus
@@ -41,6 +57,8 @@ public sealed record PendingMatchReviewDto
     public string? CountryOfOrigin { get; init; }
     public string? MangaFormat { get; init; }
     public IReadOnlyList<ExternalMediaDto> Candidates { get; init; } = [];
+    /// <summary>Set when the row is a duplicate-conflict phantom, not an ambiguous import match.</summary>
+    public DuplicateConflictDto? Duplicate { get; init; }
 }
 
 public interface IGetPendingMatchesHandler
@@ -79,36 +97,74 @@ public sealed class GetPendingMatchesHandler(AppDbContext db) : IGetPendingMatch
         return [.. items.Select(ToDto)];
     }
 
-    private static PendingMatchReviewDto ToDto(MediaItem item) => new()
+    private static PendingMatchReviewDto ToDto(MediaItem item)
     {
-        Id = item.Id,
-        Title = item.Title,
-        RomajiTitle = (item switch
+        var (candidates, conflict) = ParsePending(item.PendingMatchesJson);
+        return new()
         {
-            Manga manga => manga.RomajiTitle,
-            Movie movie => movie.RomajiTitle,
-            TvShow show => show.RomajiTitle,
-            _ => null,
-        }) ?? MediaMetadataApplier.DeserializeAltTitles(item.AltTitles).FirstOrDefault(MediaTitleHelper.IsLatin)
-           ?? (MediaTitleHelper.IsLatin(item.OriginalTitle) ? item.OriginalTitle : null)
-           ?? MediaTitleHelper.ExtractLatinFromTitle(item.Title),
-        OriginalTitle = item.OriginalTitle,
-        AltTitles = MediaMetadataApplier.DeserializeAltTitles(item.AltTitles),
-        Type = MediaResponseMapper.GetType(item),
-        IsAnime = item switch { Movie movie => movie.IsAnime, TvShow show => show.IsAnime, _ => null },
-        ReleaseYear = item.ReleaseYear,
-        Author = item switch
+            Id = item.Id,
+            Title = item.Title,
+            RomajiTitle = (item switch
+            {
+                Manga manga => manga.RomajiTitle,
+                Movie movie => movie.RomajiTitle,
+                TvShow show => show.RomajiTitle,
+                _ => null,
+            }) ?? MediaMetadataApplier.DeserializeAltTitles(item.AltTitles).FirstOrDefault(MediaTitleHelper.IsLatin)
+               ?? (MediaTitleHelper.IsLatin(item.OriginalTitle) ? item.OriginalTitle : null)
+               ?? MediaTitleHelper.ExtractLatinFromTitle(item.Title),
+            OriginalTitle = item.OriginalTitle,
+            AltTitles = MediaMetadataApplier.DeserializeAltTitles(item.AltTitles),
+            Type = MediaResponseMapper.GetType(item),
+            IsAnime = item switch { Movie movie => movie.IsAnime, TvShow show => show.IsAnime, _ => null },
+            ReleaseYear = item.ReleaseYear,
+            Author = item switch
+            {
+                Book book => book.Author,
+                Manga manga => manga.Author,
+                _ => null,
+            },
+            CurrentProgress = Progress(item),
+            TotalCount = Total(item),
+            CountryOfOrigin = item.CountryOfOrigin,
+            MangaFormat = item switch { Manga manga => manga.Format, _ => null },
+            Candidates = candidates,
+            Duplicate = conflict,
+        };
+    }
+
+    /// <summary>
+    /// Two payload shapes share the blob: ambiguous imports store a candidate array, duplicate
+    /// conflicts store a single marker object. The first character is the discriminator, and an
+    /// unreadable payload reads as empty rather than breaking the review list.
+    /// </summary>
+    private static (IReadOnlyList<ExternalMediaDto> Candidates, DuplicateConflictDto? Conflict) ParsePending(string? json)
+    {
+        var trimmed = json?.TrimStart();
+        if (string.IsNullOrWhiteSpace(trimmed))
         {
-            Book book => book.Author,
-            Manga manga => manga.Author,
-            _ => null,
-        },
-        CurrentProgress = Progress(item),
-        TotalCount = Total(item),
-        CountryOfOrigin = item.CountryOfOrigin,
-        MangaFormat = item switch { Manga manga => manga.Format, _ => null },
-        Candidates = MediaJsonCache.Deserialize<ExternalMediaDto>(item.PendingMatchesJson),
-    };
+            return ([], null);
+        }
+
+        if (trimmed.StartsWith('{'))
+        {
+            try
+            {
+                var marker = JsonSerializer.Deserialize(trimmed, AppJsonSerializerContext.Default.DuplicateConflictDto);
+                if (marker is not null)
+                {
+                    return ([], marker);
+                }
+            }
+            catch (JsonException)
+            {
+            }
+
+            return ([], null);
+        }
+
+        return (MediaJsonCache.Deserialize<ExternalMediaDto>(json), null);
+    }
 
     private static int? Progress(MediaItem item) => item switch
     {
@@ -373,6 +429,13 @@ public sealed class ResolveAllByPriorityHandler(AppDbContext db, IJobManager? jo
 
         foreach (var item in pending)
         {
+            // A duplicate-conflict row carries a marker object, not a candidate list: its verdict is
+            // merge-vs-keep, which the bulk "pick the best candidate" pass must not touch.
+            if (item.PendingMatchesJson?.TrimStart().StartsWith('{') is true)
+            {
+                continue;
+            }
+
             var top = MediaJsonCache
                 .Deserialize<ExternalMediaDto>(item.PendingMatchesJson)
                 ?.FirstOrDefault(candidate => !string.IsNullOrWhiteSpace(candidate.ExternalId));
@@ -445,6 +508,304 @@ public sealed class DismissMatchHandler(AppDbContext db) : IDismissMatchHandler
         await db.UpdateMediaItemAsync(mediaItem, ct);
         MediaListCache.Invalidate();
         return true;
+    }
+}
+
+public sealed record MergeDuplicateCommand(Guid ExistingMediaId, Guid DuplicateMediaId);
+
+public interface IMergeDuplicateHandler
+{
+    Task<Result<MediaDetailDto>> HandleAsync(MergeDuplicateCommand command, CancellationToken ct);
+}
+
+/// <summary>
+/// "Объединить источники" on a duplicate-conflict review card: the duplicate row's external
+/// bindings, ratings and any missing counts/synopsis join the kept title, then the duplicate row
+/// leaves the library for good and a background pass fills the remaining gaps from the newly
+/// bound source (studio, rating, cast...). The library keeps ONE card with both sources.
+/// </summary>
+public sealed class MergeDuplicateHandler(
+    AppDbContext db,
+    IDeleteMediaHandler deleteMedia,
+    IJobManager jobs) : IMergeDuplicateHandler
+{
+    public async Task<Result<MediaDetailDto>> HandleAsync(MergeDuplicateCommand command, CancellationToken ct)
+    {
+        if (command.ExistingMediaId == command.DuplicateMediaId)
+        {
+            return Result<MediaDetailDto>.Failure(
+                Error.Validation("Нельзя объединять тайтл с самим собой."));
+        }
+
+        var existing = await db.LoadMediaItemAsync(command.ExistingMediaId, ct);
+        if (existing is null)
+        {
+            return Result<MediaDetailDto>.Failure(
+                Error.NotFound($"Media item '{command.ExistingMediaId}' was not found."));
+        }
+
+        var duplicate = await db.LoadMediaItemAsync(command.DuplicateMediaId, ct);
+        if (duplicate is null)
+        {
+            return Result<MediaDetailDto>.Failure(
+                Error.NotFound($"Media item '{command.DuplicateMediaId}' was not found."));
+        }
+
+        MergeSources(existing, duplicate);
+        var seasonsAdded = EnrichGaps(existing, duplicate);
+        MergeRatings(existing, duplicate);
+
+        existing.MarkUpdated();
+        await db.UpdateMediaItemAsync(existing, ct);
+        if (seasonsAdded && existing is TvShow show)
+        {
+            foreach (var season in show.Seasons)
+            {
+                await db.InsertTvSeasonAsync(season, ct);
+            }
+        }
+
+        MediaListCache.Invalidate();
+
+        // The duplicate row (and its covers) leaves the library entirely.
+        await deleteMedia.HandleAsync(new DeleteMediaCommand(command.DuplicateMediaId), ct);
+
+        // Binding the source alone does not move its data over: fill the kept row's gaps from the
+        // newly bound provider in the background (studio, rating, cast...), the same promise the
+        // "Внешние источники" panel makes when a source is linked by hand.
+        if (!string.IsNullOrWhiteSpace(duplicate.ExternalSource)
+            && !string.IsNullOrWhiteSpace(duplicate.ExternalId))
+        {
+            existing.SyncStatus = SyncStatus.Syncing;
+            existing.MarkUpdated();
+            await db.UpdateMediaItemAsync(existing, ct);
+            MediaListCache.Invalidate();
+
+            jobs.Enqueue(
+                existing.Id,
+                existing.Title,
+                CreateEnrichmentWork(existing.Id, duplicate.ExternalSource, duplicate.ExternalId),
+                highPriority: true);
+        }
+
+        return Result<MediaDetailDto>.Success(MediaDetailProjection.ToDetailDto(existing));
+    }
+
+    /// <summary>
+    /// Fetches the duplicate's record from ITS provider (the duplicate's own external id, not the
+    /// kept row's) and gap-fills the kept row. Best effort: a provider failure leaves the merged
+    /// row as it is, Ready and fully usable.
+    /// </summary>
+    private static Func<IServiceProvider, CancellationToken, IProgress<JobProgressDto>, Task> CreateEnrichmentWork(
+        Guid mediaId,
+        string source,
+        string externalId) =>
+        async (sp, token, progress) =>
+        {
+            var scopedDb = sp.GetRequiredService<AppDbContext>();
+            var aggregator = sp.GetRequiredService<MetadataAggregatorService>();
+            var cache = sp.GetRequiredService<IMemoryCache>();
+
+            var current = await scopedDb.LoadMediaItemAsync(mediaId, token);
+            if (current is null) return;
+
+            try
+            {
+                progress.Report(new JobProgressDto(
+                    Guid.Empty, null, string.Empty, 20, "Загрузка данных нового источника", JobStatus.Running, DateTime.MinValue, null));
+
+                ExternalMediaDto? details;
+                try
+                {
+                    details = await aggregator.GetDetailsAsync(
+                        AggregatorTypes.Resolve(current),
+                        externalId,
+                        current.Title,
+                        token,
+                        source);
+                }
+                catch (SourceUnavailableException)
+                {
+                    // The new source is unreachable: the merged row stays as it is, no failure.
+                    details = null;
+                }
+
+                progress.Report(new JobProgressDto(
+                    Guid.Empty, null, string.Empty, 60, "Дополнение данных", JobStatus.Running, DateTime.MinValue, null));
+
+                if (details is not null && MediaMetadataApplier.ApplyIfMissing(current, details, _ => { }))
+                {
+                    if (current is TvShow show)
+                    {
+                        foreach (var season in show.Seasons)
+                        {
+                            await scopedDb.InsertTvSeasonAsync(season, token);
+                        }
+                    }
+
+                    current.SyncStatus = SyncStatus.Ready;
+                    current.MarkUpdated();
+                    await scopedDb.UpdateMediaItemAsync(current, CancellationToken.None);
+                    MediaListCache.Invalidate();
+                    AdvancedStatsCalculator.InvalidateCache(cache);
+                    TasteProfileCalculator.InvalidateCache(cache);
+                }
+                else
+                {
+                    current.SyncStatus = SyncStatus.Ready;
+                    current.MarkUpdated();
+                    await scopedDb.UpdateMediaItemAsync(current, CancellationToken.None);
+                    MediaListCache.Invalidate();
+                }
+            }
+            catch
+            {
+                try
+                {
+                    current.SyncStatus = SyncStatus.Ready;
+                    current.MarkUpdated();
+                    await scopedDb.UpdateMediaItemAsync(current, CancellationToken.None);
+                    MediaListCache.Invalidate();
+                }
+                catch
+                {
+                }
+            }
+        };
+
+    /// <summary>
+    /// Every external binding the duplicate carried joins the kept row. The primary flag never
+    /// moves: the title the user already had keeps its crowned source.
+    /// </summary>
+    private static void MergeSources(MediaItem existing, MediaItem duplicate)
+    {
+        var sources = LinkedSourceCatalog.GetFor(existing);
+        foreach (var source in LinkedSourceCatalog.GetFor(duplicate))
+        {
+            if (string.IsNullOrWhiteSpace(source.ExternalId)
+                || source.Source.StartsWith("offline", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            if (sources.Any(s => s.Source.Equals(source.Source, StringComparison.OrdinalIgnoreCase)))
+            {
+                continue;
+            }
+
+            sources.Add(source with { IsPrimary = false });
+        }
+
+        LinkedSourceCatalog.SaveFor(existing, sources);
+    }
+
+    /// <summary>
+    /// Only true gaps are filled: the kept row's own values always win. Seasons transfer only when
+    /// the kept show has none at all.
+    /// </summary>
+    private static bool EnrichGaps(MediaItem existing, MediaItem duplicate)
+    {
+        if (string.IsNullOrWhiteSpace(existing.Description)
+            && !string.IsNullOrWhiteSpace(duplicate.Description))
+        {
+            existing.Description = duplicate.Description;
+        }
+
+        switch (existing, duplicate)
+        {
+            case (TvShow show, TvShow dupShow) when show.Seasons.Count == 0 && dupShow.Seasons.Count > 0:
+                foreach (var season in dupShow.Seasons)
+                {
+                    show.Seasons.Add(new TvSeason
+                    {
+                        Id = season.Id,
+                        SeasonNumber = season.SeasonNumber,
+                        Title = season.Title,
+                        CoverUrl = season.CoverUrl,
+                        TotalEpisodes = season.TotalEpisodes,
+                        AirDate = season.AirDate,
+                        EpisodesData = season.EpisodesData,
+                        TvShowId = show.Id,
+                        TvShow = show,
+                    });
+                }
+                return true;
+
+            case (Manga manga, Manga dupManga):
+                if (manga.TotalChapters is not > 0 && dupManga.TotalChapters is > 0)
+                {
+                    manga.RecordTotalChapters(dupManga.TotalChapters.Value);
+                }
+                if (manga.TotalVolumes is not > 0 && dupManga.TotalVolumes is > 0)
+                {
+                    manga.RecordTotalVolumes(dupManga.TotalVolumes.Value);
+                }
+                break;
+
+            case (Book book, Book dupBook):
+                if (book.TotalPages == 0 && dupBook.TotalPages > 0)
+                {
+                    book.TotalPages = dupBook.TotalPages;
+                }
+                if (book.TotalChapters is not > 0 && dupBook.TotalChapters is > 0)
+                {
+                    book.TotalChapters = dupBook.TotalChapters;
+                }
+                break;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// The new source's rating joins the stored rating list (union by normalized source); the
+    /// headline number only moves when the kept row had none.
+    /// </summary>
+    private static void MergeRatings(MediaItem existing, MediaItem duplicate)
+    {
+        try
+        {
+            List<MediaMetadataApplier.StoredRating> stored = [];
+            if (!string.IsNullOrWhiteSpace(existing.ExternalRatingsJson))
+            {
+                stored = JsonSerializer.Deserialize(
+                    existing.ExternalRatingsJson, AppJsonSerializerContext.Default.ListStoredRating) ?? [];
+            }
+
+            List<MediaMetadataApplier.StoredRating> incoming = [];
+            if (!string.IsNullOrWhiteSpace(duplicate.ExternalRatingsJson))
+            {
+                incoming = JsonSerializer.Deserialize(
+                    duplicate.ExternalRatingsJson, AppJsonSerializerContext.Default.ListStoredRating) ?? [];
+            }
+
+            if (incoming.Count > 0)
+            {
+                var merged = new List<RatingSnapshot>(
+                    stored.Select(row => new RatingSnapshot(row.Source, row.Score, row.Votes)));
+                foreach (var row in incoming)
+                {
+                    if (string.IsNullOrWhiteSpace(row.Source)
+                        || merged.Any(r => MediaMerger.NormalizeSourceKey(r.Source) == MediaMerger.NormalizeSourceKey(row.Source)))
+                    {
+                        continue;
+                    }
+                    merged.Add(new RatingSnapshot(row.Source, row.Score, row.Votes));
+                }
+
+                existing.ExternalRatingsJson = MediaRatingSerializer.Serialize(merged);
+            }
+        }
+        catch (JsonException)
+        {
+            // An unreadable payload on either side keeps the kept row's ratings untouched.
+        }
+
+        if (existing.ExternalRating is null or 0 && duplicate.ExternalRating is > 0)
+        {
+            existing.ExternalRating = duplicate.ExternalRating;
+            existing.ExternalRatingVotes ??= duplicate.ExternalRatingVotes;
+        }
     }
 }
 

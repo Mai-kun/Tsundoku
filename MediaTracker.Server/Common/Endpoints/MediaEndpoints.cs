@@ -304,6 +304,17 @@ public static class MediaEndpoints
             .WithSummary("Тайтлы, ожидающие подтверждения совпадения")
             .WithDescription("Все строки библиотеки в статусе NeedsReview: что импортировано и какие кандидаты нашлись.");
 
+        // Duplicate guard for the add flow: run before createMedia so the same title coming from a
+        // second provider (Shikimori after AniList) asks instead of silently forking the row.
+        group.MapPost("/duplicates/check", async (
+                [FromBody] Features.Media.FindDuplicates.FindDuplicatesQuery query,
+                [FromServices] Features.Media.FindDuplicates.IFindDuplicatesHandler handler,
+                CancellationToken ct) =>
+            Results.Ok(await handler.HandleAsync(query, ct)))
+            .WithTags("Медиатека / Media")
+            .WithSummary("Найти возможные дубликаты тайтла в библиотеке")
+            .WithDescription("Сравнивает все варианты названия и базовые корни с существующими строками; возвращает кандидатов с причиной совпадения.");
+
         group.MapPost("/{id:guid}/resolve-match", (
                 Guid id,
                 ResolveMatchRequest request,
@@ -332,6 +343,18 @@ public static class MediaEndpoints
             .WithTags("Медиатека / Media")
             .WithSummary("Оставить тайтл без привязки")
             .WithDescription("Убирает спорных кандидатов и возвращает тайтл в статус Ready без изменения данных.");
+
+        // Duplicate-conflict verdict "merge": the review row's sources, ratings and gaps join the
+        // existing title and the duplicate row is deleted, so the library keeps one card.
+        group.MapPost("/{existingId:guid}/merge-duplicate/{newId:guid}", (
+                Guid existingId,
+                Guid newId,
+                [FromServices] IMergeDuplicateHandler handler,
+                CancellationToken ct) =>
+            handler.HandleAsync(new MergeDuplicateCommand(existingId, newId), ct).ToOk())
+            .WithTags("Медиатека / Media")
+            .WithSummary("Объединить дубликат с существующим тайтлом")
+            .WithDescription("Переносит внешние источники, рейтинги и недостающие данные дубликата в существующий тайтл и удаляет дубликат из библиотеки.");
 
         group.MapPost("/dismiss-all-matches", async (
                 [FromServices] IDismissAllMatchesHandler handler,

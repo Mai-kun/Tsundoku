@@ -741,6 +741,14 @@ public sealed class AppDbContext : IDisposable, IAsyncDisposable
             cmd.Parameters.Add(new SqliteParameter("@search", search));
         }
 
+        // A duplicate-conflict row is a phantom awaiting its review verdict (merge into the existing
+        // title or keep as separate), not a library card: it sits in NeedsReview carrying an
+        // object-shaped marker. Import rows keep the candidate array shape there, so the first
+        // character is what tells the two kinds apart.
+        sb.Append(" AND NOT (m.SyncStatus = @needsReview"
+            + " AND substr(COALESCE(m.PendingMatchesJson, ''), 1, 1) = '{')");
+        cmd.Parameters.Add(new SqliteParameter("@needsReview", (int)SyncStatus.NeedsReview));
+
         var orderBy = sortBy?.Trim()?.ToLowerInvariant() switch
         {
             "score" => "CASE WHEN m.Score IS NULL THEN 1 ELSE 0 END, m.Score",
@@ -877,6 +885,14 @@ public sealed class AppDbContext : IDisposable, IAsyncDisposable
             sb.Append(" OR contains_ci(f.Name, @search) = 1)");
             cmd.Parameters.Add(new SqliteParameter("@search", search));
         }
+
+        // A duplicate-conflict row is a phantom awaiting its review verdict (merge into the existing
+        // title or keep as separate), not a library card: it sits in NeedsReview carrying an
+        // object-shaped marker. Import rows keep the candidate array shape there, so the first
+        // character is what tells the two kinds apart.
+        sb.Append(" AND NOT (m.SyncStatus = @needsReview"
+            + " AND substr(COALESCE(m.PendingMatchesJson, ''), 1, 1) = '{')");
+        cmd.Parameters.Add(new SqliteParameter("@needsReview", (int)SyncStatus.NeedsReview));
 
         cmd.CommandText = sb.ToString();
         var result = await cmd.ExecuteScalarAsync(ct);

@@ -23,6 +23,7 @@ using MediaTracker.Server.Features.Media.GetMediaList;
 using MediaTracker.Server.Features.Media.GetMediaStats;
 using MediaTracker.Server.Features.Media.GetRecommendations;
 using MediaTracker.Server.Features.Media.Import;
+using MediaTracker.Server.Features.Media.ManageAttachments;
 using MediaTracker.Server.Features.Media.ManageCovers;
 using MediaTracker.Server.Features.Media.PendingMatches;
 using MediaTracker.Server.Features.Media.UpdateMedia;
@@ -65,6 +66,8 @@ public static partial class FeatureRegistration
         services.AddScoped<IGetRecommendationsHandler, GetRecommendationsHandler>();
         services.AddScoped<ICreateMediaHandler, CreateMediaHandler>();
         services.AddScoped<
+            Features.Media.FindDuplicates.IFindDuplicatesHandler,
+            Features.Media.FindDuplicates.FindDuplicatesHandler>();
         services.AddScoped<IUpdateMediaHandler, UpdateMediaHandler>();
         services.AddScoped<IUpdateStatusHandler, UpdateStatusHandler>();
         services.AddScoped<IUpdateProgressHandler, UpdateProgressHandler>();
@@ -77,6 +80,7 @@ public static partial class FeatureRegistration
         services.AddScoped<IResolveAllByPriorityHandler, ResolveAllByPriorityHandler>();
         services.AddScoped<IDismissMatchHandler, DismissMatchHandler>();
         services.AddScoped<IDismissAllMatchesHandler, DismissAllMatchesHandler>();
+        services.AddScoped<IMergeDuplicateHandler, MergeDuplicateHandler>();
 
         // Seasons
         services.AddScoped<IUpdateSeasonProgressHandler, UpdateSeasonProgressHandler>();

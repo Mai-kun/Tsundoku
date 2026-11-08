@@ -1,3 +1,5 @@
+using System.Buffers.Binary;
+using System.IO.Compression;
 using System.Net;
 using System.Text.Json;
 using FluentAssertions;
@@ -9,7 +11,6 @@ using MediaTracker.Server.Features.Media.MediaContract;
 using MediaTracker.Server.Infrastructure.Persistence;
 using MediaTracker.Server.Infrastructure.Storage;
 using Microsoft.Extensions.Logging.Abstractions;
-using SkiaSharp;
 using Xunit;
 
 namespace MediaTracker.Tests;
@@ -301,13 +302,73 @@ public class BusinessLogicGapTests : IDisposable
         }
     }
 
+    /// <summary>
+    /// Hand-rolled minimal PNG (truecolor RGB, filter-none rows, zlib IDAT): the fixture only has
+    /// to be a decodable image for the cover pipeline, and keeping the encoder local avoids
+    /// pulling a whole imaging library into the tests.
+    /// </summary>
     private static byte[] BuildPngBytes(int width, int height)
     {
-        using var bitmap = new SKBitmap(width, height, SKColorType.Rgba8888, SKAlphaType.Opaque);
-        using var image = SKImage.FromBitmap(bitmap);
-        using var encoded = image.Encode(SKEncodedImageFormat.Png, 100);
         using var ms = new MemoryStream();
-        encoded.SaveTo(ms);
+        ms.Write([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]); // PNG signature
+
+        Span<byte> ihdr = stackalloc byte[13];
+        BinaryPrimitives.WriteUInt32BigEndian(ihdr, (uint)width);
+        BinaryPrimitives.WriteUInt32BigEndian(ihdr[4..], (uint)height);
+        ihdr[8] = 8;  // bit depth
+        ihdr[9] = 2;  // color type: truecolor RGB
+        // bytes 10-12 stay zero: deflate, adaptive filtering, no interlace
+        WriteChunk(ms, "IHDR"u8, ihdr);
+
+        var stride = 1 + width * 3;
+        var raw = new byte[height * stride];
+        for (var y = 0; y < height; y++)
+        {
+            raw[y * stride] = 0; // filter: none
+            for (var x = 0; x < width; x++)
+            {
+                raw[y * stride + 1 + x * 3] = (byte)(x * 255 / Math.Max(1, width - 1));
+                raw[y * stride + 2 + x * 3] = (byte)(y * 255 / Math.Max(1, height - 1));
+                raw[y * stride + 3 + x * 3] = 128;
+            }
+        }
+
+        using var compressed = new MemoryStream();
+        using (var zlib = new ZLibStream(compressed, CompressionLevel.Fastest))
+        {
+            zlib.Write(raw);
+        }
+        WriteChunk(ms, "IDAT"u8, compressed.ToArray());
+        WriteChunk(ms, "IEND"u8, []);
+
         return ms.ToArray();
+    }
+
+    private static void WriteChunk(Stream stream, ReadOnlySpan<byte> type, ReadOnlySpan<byte> data)
+    {
+        Span<byte> be = stackalloc byte[4];
+        BinaryPrimitives.WriteUInt32BigEndian(be, (uint)data.Length);
+        stream.Write(be);
+        stream.Write(type);
+        stream.Write(data);
+
+        var crc = Crc32Update(0xFFFFFFFFu, type);
+        crc = ~Crc32Update(crc, data);
+        BinaryPrimitives.WriteUInt32BigEndian(be, crc);
+        stream.Write(be);
+    }
+
+    private static uint Crc32Update(uint crc, ReadOnlySpan<byte> data)
+    {
+        foreach (var b in data)
+        {
+            crc ^= b;
+            for (var bit = 0; bit < 8; bit++)
+            {
+                var mask = (crc & 1) != 0 ? 0xEDB88320u : 0u;
+                crc = (crc >> 1) ^ mask;
+            }
+        }
+        return crc;
     }
 }

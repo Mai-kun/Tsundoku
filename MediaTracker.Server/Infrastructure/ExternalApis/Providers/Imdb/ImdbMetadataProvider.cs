@@ -19,7 +19,7 @@ public sealed class ImdbMetadataProvider(
         Name: "IMDb",
         Description: "Internet Movie Database movies and TV shows metadata provider",
         MediaTypes: ["movie", "tvshow"],
-        BaseAddress: "https://v2.sg.media-imdb.com/suggestion/",
+        BaseAddress: "https://v3.sg.media-imdb.com/suggestion/",
         Priority: 2);
 
     private readonly string? _requestedType =

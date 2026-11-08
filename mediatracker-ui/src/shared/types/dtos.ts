@@ -109,6 +109,10 @@ export interface SteamImportPayload {
   skipDuplicates: boolean;
   targetListId?: string;
   newListName?: string;
+  /** Drop games under this many played minutes (random launches, refund-bait). */
+  minPlaytimeMinutes?: number;
+  /** Pull the player's unlocked achievements per game (needs the Steam Web API key). */
+  syncAchievements?: boolean;
 }
 
 export interface AniListProfilePayload {

@@ -24,6 +24,27 @@ public static class MediaAchievements
             .ToList();
     }
 
+    /// <summary>
+    /// Union of the stored payload and an incoming batch of unlocked names, returned in the same
+    /// JSON-array shape the column stores. The stored spellings win, so a name the user (or an
+    /// earlier sync) already wrote is never rewritten by a differently-cased duplicate.
+    /// </summary>
+    public static string? MergeUnlocked(string? stored, IReadOnlyList<string> incoming)
+    {
+        if (incoming.Count == 0) return stored;
+
+        var merged = new List<string>(ParseNames(stored).Values);
+        foreach (var name in incoming)
+        {
+            if (!merged.Contains(name, StringComparer.OrdinalIgnoreCase))
+            {
+                merged.Add(name);
+            }
+        }
+
+        return JsonSerializer.Serialize(merged, MediaTracker.Server.Common.Json.AppJsonSerializerContext.Default.ListString);
+    }
+
     private static Dictionary<string, string> ParseNames(string? json)
     {
         if (string.IsNullOrWhiteSpace(json))

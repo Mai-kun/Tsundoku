@@ -9,7 +9,7 @@ public sealed class SteamMetadataProvider(IHttpClientFactory httpClientFactory) 
     public static MetadataSourceDescriptor Source { get; } = new(
         Id: "steam",
         Name: "Steam",
-        Description: "PC games metadata, store reviews & achievements (API key optional — only needed for Steam profile library import)",
+        Description: "PC games metadata & achievements. The Steam Web API key enables the full achievement database and syncing the player's unlocked achievements by SteamID64",
         MediaTypes: ["game"],
         BaseAddress: "https://store.steampowered.com/api/",
         RequiresApiKey: false,

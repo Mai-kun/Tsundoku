@@ -158,3 +158,76 @@ internal sealed class RawgSeriesItem
     [JsonPropertyName("rating")]
     public double? Rating { get; set; }
 }
+
+// --- Steam Web API (ISteamUserStats), used when a Steam API key is configured ---
+
+/// <summary>Envelope of <c>GetSchemaForGame/v2</c>: the game's full achievement schema.</summary>
+internal sealed class SteamWebApiSchemaRoot
+{
+    [JsonPropertyName("game")]
+    public SteamWebApiGame? Game { get; set; }
+}
+
+internal sealed class SteamWebApiGame
+{
+    [JsonPropertyName("availableGameStats")]
+    public SteamWebApiGameStats? AvailableGameStats { get; set; }
+}
+
+internal sealed class SteamWebApiGameStats
+{
+    [JsonPropertyName("achievements")]
+    public List<SteamWebApiAchievement>? Achievements { get; set; }
+}
+
+internal sealed class SteamWebApiAchievement
+{
+    /// <summary>Internal id ("<c>ACH_KILL_FIRST</c>"); the display name is the localized one.</summary>
+    [JsonPropertyName("name")]
+    public string? Name { get; set; }
+
+    [JsonPropertyName("displayName")]
+    public string? DisplayName { get; set; }
+
+    [JsonPropertyName("description")]
+    public string? Description { get; set; }
+
+    /// <summary>Colored (unlocked) icon.</summary>
+    [JsonPropertyName("icon")]
+    public string? Icon { get; set; }
+
+    /// <summary>Gray (locked) icon variant the community page never carries.</summary>
+    [JsonPropertyName("icongray")]
+    public string? IconGray { get; set; }
+}
+
+/// <summary>Envelope of <c>GetPlayerAchievements/v1</c>.</summary>
+internal sealed class SteamPlayerAchievementsRoot
+{
+    [JsonPropertyName("playerstats")]
+    public SteamPlayerStats? Playerstats { get; set; }
+}
+
+internal sealed class SteamPlayerStats
+{
+    /// <summary>False when the profile is private or the app has no stats — an empty list then.</summary>
+    [JsonPropertyName("success")]
+    public bool Success { get; set; }
+
+    [JsonPropertyName("achievements")]
+    public List<SteamPlayerAchievement>? Achievements { get; set; }
+}
+
+internal sealed class SteamPlayerAchievement
+{
+    [JsonPropertyName("apiname")]
+    public string? Apiname { get; set; }
+
+    /// <summary>Localized name (<c>l=russian</c>) — the same spelling the schema list shows.</summary>
+    [JsonPropertyName("name")]
+    public string? Name { get; set; }
+
+    /// <summary>1 when the player has unlocked it.</summary>
+    [JsonPropertyName("achieved")]
+    public int Achieved { get; set; }
+}

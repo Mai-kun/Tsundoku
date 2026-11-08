@@ -44,7 +44,17 @@ public sealed record ImportResultDto(
     string? DumpUrl = null,
     string? DumpFileName = null);
 
-public sealed record SteamImportRequest(string? SteamId = null, string? ProfileUrl = null, bool SkipDuplicates = true, Guid? TargetListId = null, string? NewListName = null, string? SteamApiKey = null);
+public sealed record SteamImportRequest(
+    string? SteamId = null,
+    string? ProfileUrl = null,
+    bool SkipDuplicates = true,
+    Guid? TargetListId = null,
+    string? NewListName = null,
+    string? SteamApiKey = null,
+    /// <summary>Games under this many played minutes are dropped (random launches, refund-bait).</summary>
+    int? MinPlaytimeMinutes = null,
+    /// <summary>Pull the player's unlocked achievements per game (needs the Steam Web API key).</summary>
+    bool SyncAchievements = false);
 
 public sealed record CustomFolderSetting(
     string? Status = null,

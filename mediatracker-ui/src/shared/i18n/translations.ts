@@ -1993,6 +1993,18 @@ export const translations = {
       ru: "Steam Web API key (необязательно, если настроен на сервере)",
       en: "Steam Web API key (optional if configured on the server)",
     },
+    steamSkipShortSessions: {
+      ru: "Пропускать игры с временем менее 15 минут",
+      en: "Skip games with less than 15 minutes played",
+    },
+    steamSyncAchievements: {
+      ru: "Подтянуть выбитые достижения из Steam профиля",
+      en: "Pull unlocked achievements from the Steam profile",
+    },
+    steamAchievementsNeedKey: {
+      ru: "Для синхронизации достижений нужен Steam Web API key",
+      en: "A Steam Web API key is required to sync achievements",
+    },
     steamKeyConfigured: {
       ru: "✓ API-ключ настроен на сервере",
       en: "✓ API key is configured on the server",

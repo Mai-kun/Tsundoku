@@ -21,6 +21,8 @@ using MediaTracker.Server.Common.Json;
 using MediaTracker.Server.Common.Utilities;
 using MediaTracker.Server.Infrastructure.ExternalApis.Common;
 using MediaTracker.Server.Infrastructure.ExternalApis.Providers.AniList;
+using MediaTracker.Server.Infrastructure.ExternalApis.Providers.Rawg;
+using MediaTracker.Server.Features.Media.UpdateMedia;
 
 namespace MediaTracker.Server.Features.Media.Import;
 
@@ -128,9 +130,83 @@ public sealed class ImportMediaHandler(
         var result = await api.GetAsync($"https://api.steampowered.com/IPlayerService/GetOwnedGames/v1/?steamid={Uri.EscapeDataString(steamId)}&include_appinfo=true&include_played_free_games=true{keyParameter}", ct);
         result.EnsureSuccessStatusCode();
         var json = await result.Content.ReadAsStringAsync(ct);
-        var games = SteamLibraryParser.Parse(json);
+        var minPlaytimeMinutes = request.MinPlaytimeMinutes is > 0 ? request.MinPlaytimeMinutes.Value : 0;
+        var games = SteamLibraryParser.Parse(json, minPlaytimeMinutes);
         if (games.Count == 0) throw new FormatException("Steam returned no games. Check that the profile and game details are public.");
-        return await ImportAsync(games, request.SkipDuplicates, request.TargetListId, request.NewListName, ct);
+        var importResult = await ImportAsync(games, request.SkipDuplicates, request.TargetListId, request.NewListName, ct);
+
+        // Remember whose library this is: the enrichment job later uses the stored SteamID64 to sync
+        // per-game unlocked achievements without asking again.
+        await AppSettingStore.SetAsync(db, "Steam_SteamId64", steamId, ct);
+
+        if (request.SyncAchievements && !string.IsNullOrWhiteSpace(key))
+        {
+            await SyncSteamAchievementsAsync(steamId, key, ct);
+        }
+
+        return importResult;
+    }
+
+    /// <summary>
+    /// Pulls the player's unlocked achievements for every imported Steam game and writes them onto
+    /// the rows (merged with what the user already had), recording an
+    /// <see cref="MediaEventType.AchievementUnlocked"/> event per newly unlocked name. A few games
+    /// in flight at a time: the Web API tolerates it and a 200-game library settles in seconds, not
+    /// minutes. Games whose stats Steam will not share (private profile) are skipped silently.
+    /// </summary>
+    private async Task SyncSteamAchievementsAsync(string steamId, string apiKey, CancellationToken ct)
+    {
+        var gameService = new RawgGameService(clients, apiOptions, Microsoft.Extensions.Logging.Abstractions.NullLogger<RawgGameService>.Instance);
+        var library = await db.LoadAllMediaItemsAsync(ct);
+        var steamGames = library
+            .Where(item => item is VideoGame
+                && string.Equals(item.ExternalSource, "Steam", StringComparison.OrdinalIgnoreCase)
+                && !string.IsNullOrWhiteSpace(item.ExternalId))
+            .ToList();
+        if (steamGames.Count == 0) return;
+
+        // Stage 1, parallel: the reads are the slow part and the Web API tolerates a few games in
+        // flight, so a 200-game library settles in seconds rather than minutes.
+        var fetched = new global::System.Collections.Concurrent.ConcurrentBag<(MediaItem Item, IReadOnlyList<string> Unlocked)>();
+        await Parallel.ForEachAsync(
+            steamGames,
+            new ParallelOptions { MaxDegreeOfParallelism = 4, CancellationToken = ct },
+            async (item, token) =>
+            {
+                var unlocked = await gameService.GetPlayerAchievementsAsync(
+                    steamId, item.ExternalId!, token);
+                if (unlocked.Count > 0)
+                {
+                    fetched.Add((item, unlocked));
+                }
+            });
+
+        // Stage 2, sequential: one shared SQLite context is not for concurrent writers.
+        var updated = 0;
+        foreach (var entry in fetched)
+        {
+            var item = entry.Item;
+            var unlocked = entry.Unlocked;
+        {
+            var merged = MediaAchievements.MergeUnlocked(item.UnlockedAchievements, unlocked);
+            if (string.Equals(merged, item.UnlockedAchievements, StringComparison.Ordinal)) continue;
+
+            foreach (var name in MediaAchievements.NewlyUnlocked(item.UnlockedAchievements, merged))
+            {
+                await db.InsertMediaEventAsync(MediaEventRecorder.AchievementUnlocked(item, name), ct);
+            }
+
+            item.UnlockedAchievements = merged;
+            item.MarkUpdated();
+            await db.UpdateMediaItemAsync(item, ct);
+            updated++;
+        }
+        }
+
+        if (updated > 0)
+        {
+            Console.WriteLine($"[Steam] Synced unlocked achievements for {updated} games.");
+        }
     }
 
     /// <summary>

@@ -43,6 +43,7 @@
     saveMangalibToken,
   } from "./mangalibAuth.svelte";
   import {
+    AlertCircle,
     Check,
     CheckCircle2,
     ChevronDown,
@@ -85,6 +86,8 @@
   let steamProfile = $state("");
   let steamApiKey = $state("");
   let steamKeyConfigured = $state(false);
+  let steamSkipShortSessions = $state(true);
+  let steamSyncAchievements = $state(true);
   let saveSteamKey = $state(false);
   let anilistMode = $state<"profile" | "file">("profile");
   let anilistUsername = $state("");
@@ -711,6 +714,8 @@
           ...(STEAM_ID_RE.test(value) ? { steamId: value } : { profileUrl: value }),
           steamApiKey: steamApiKey.trim() || undefined,
           skipDuplicates,
+          minPlaytimeMinutes: steamSkipShortSessions ? 15 : undefined,
+          syncAchievements: steamSyncAchievements,
           ...listFields,
         });
       } else {
@@ -1919,6 +1924,31 @@
                 />
                 <span>{i18n.t.importModal.saveSteamKey}</span>
               </label>
+
+              <div class="space-y-2 border-t border-white/5 pt-3">
+                <label class="text-ink flex cursor-pointer items-center gap-2 text-xs select-none">
+                  <input
+                    type="checkbox"
+                    bind:checked={steamSkipShortSessions}
+                    class="bg-field rounded border-white/20 accent-[var(--imp-accent)]"
+                  />
+                  <span>{i18n.t.importModal.steamSkipShortSessions}</span>
+                </label>
+                <label class="text-ink flex cursor-pointer items-center gap-2 text-xs select-none">
+                  <input
+                    type="checkbox"
+                    bind:checked={steamSyncAchievements}
+                    class="bg-field rounded border-white/20 accent-[var(--imp-accent)]"
+                  />
+                  <span>{i18n.t.importModal.steamSyncAchievements}</span>
+                </label>
+                {#if steamSyncAchievements && !steamKeyConfigured && !steamApiKey.trim()}
+                  <p class="text-muted flex items-start gap-1.5 text-[11px]">
+                    <AlertCircle size={12} class="mt-0.5 shrink-0 text-amber-400" />
+                    {i18n.t.importModal.steamAchievementsNeedKey}
+                  </p>
+                {/if}
+              </div>
             </div>
           {:else}
             <!-- Steam JSON File Drag & Drop -->
@@ -2897,7 +2927,9 @@
       {/if}
 
       <!-- Folder Selection Filter (Common Options) -->
-      {#if provider !== "mangalib" && provider !== "anixart"}
+      <!-- Steam is excluded: its statuses come from playtime, and the "reading/watching" folders
+           belong to book and show sources that never match a game library. -->
+      {#if provider !== "mangalib" && provider !== "anixart" && provider !== "steam"}
         <div class="space-y-2 border-t border-white/5 pt-2">
           <div class="flex items-center justify-between">
             <h3

@@ -8,7 +8,11 @@ using Microsoft.Extensions.Options;
 
 namespace MediaTracker.Server.Infrastructure.ExternalApis.Providers.Rawg;
 
-public sealed record GameAchievementItem(string Name, string? Description, string? IconUrl);
+public sealed record GameAchievementItem(
+    string Name,
+    string? Description,
+    string? IconUrl,
+    string? LockedIconUrl = null);
 
 public sealed record GameAchievementsResponse(
     int TotalCount,
@@ -34,6 +38,7 @@ public sealed partial class RawgGameService(
 )
 {
     private const string SteamStoreUrl = "https://store.steampowered.com/api";
+    private const string SteamWebApiUrl = "https://api.steampowered.com";
     private const string RawgApiUrl = "https://api.rawg.io/api";
 
     /// <summary>RAWG's largest accepted page size for this endpoint.</summary>
@@ -44,10 +49,11 @@ public sealed partial class RawgGameService(
 
     /// <summary>
     /// Strict provider choice: a game is only ever asked of the source it was added with, so a Steam
-    /// row can never carry RAWG's definitions and vice versa. Within Steam the community list comes
-    /// first — it is the only public endpoint with every achievement (Payday 2: 1342, icons and
-    /// descriptions included, no key) — while the store API's ~10 highlighted entries stay behind as
-    /// a fallback.
+    /// row can never carry RAWG's definitions and vice versa. Within Steam the official Web API
+    /// schema comes first when a key is configured (100% of achievements with localized names,
+    /// descriptions and the locked-icon variant the community page never carries), the community
+    /// list follows as the keyless full-coverage fallback, and the store API's ~10 highlighted
+    /// entries stay last.
     /// </summary>
     public async Task<GameAchievementsResponse> GetAchievementsAsync(
         string? steamAppId,
@@ -68,6 +74,13 @@ public sealed partial class RawgGameService(
         if (fromSteam)
         {
             var appId = steamAppId ?? externalId;
+
+            var webApi = await TryGetSteamWebApiAchievementsAsync(appId, ct);
+            if (webApi is not null)
+            {
+                ExternalApiLog.Returned(logger, "Steam Web API", webApi.Achievements.Count, sw.ElapsedMilliseconds);
+                return webApi;
+            }
 
             var community = await TryGetSteamCommunityAchievementsAsync(appId, ct);
             if (community is not null)
@@ -249,6 +262,114 @@ public sealed partial class RawgGameService(
         );
         return search?.Results is { Count: > 0 } ? search.Results[0].Id.ToString() : null;
     }
+
+    /// <summary>Store API: only the ~10 highlighted achievements, kept as a backup for when the
+    /// community list cannot be reached.</summary>
+    private async Task<GameAchievementsResponse?> TryGetSteamWebApiAchievementsAsync(
+        string? steamAppId,
+        CancellationToken ct
+    )
+    {
+        if (string.IsNullOrWhiteSpace(steamAppId) || string.IsNullOrWhiteSpace(SteamApiKey))
+        {
+            return null;
+        }
+
+        try
+        {
+            var url =
+                $"{SteamWebApiUrl}/ISteamUserStats/GetSchemaForGame/v2/?key={Uri.EscapeDataString(SteamApiKey)}"
+                + $"&appid={Uri.EscapeDataString(steamAppId)}&l=russian";
+            var schema = await httpClientFactory.CreateClient().GetFromJsonAsync(
+                url, AppJsonSerializerContext.Default.SteamWebApiSchemaRoot, ct);
+
+            var achievements = schema?.Game?.AvailableGameStats?.Achievements;
+            if (achievements is not { Count: > 0 })
+            {
+                return null;
+            }
+
+            var items = achievements
+                .Where(a => !string.IsNullOrWhiteSpace(a.DisplayName) || !string.IsNullOrWhiteSpace(a.Name))
+                .Select(a => new GameAchievementItem(
+                    a.DisplayName ?? a.Name ?? "Achievement",
+                    string.IsNullOrWhiteSpace(a.Description) ? null : a.Description,
+                    a.Icon,
+                    string.IsNullOrWhiteSpace(a.IconGray) ? null : a.IconGray))
+                .ToList();
+            return new GameAchievementsResponse(items.Count, items);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(
+                ex,
+                "Steam Web API schema lookup failed for app '{SteamAppId}'",
+                steamAppId
+            );
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// The achievements the player actually unlocked, straight from
+    /// <c>ISteamUserStats/GetPlayerAchievements</c> (localized with <c>l=russian</c>, so the names
+    /// match the schema list the panel renders). An empty list is a valid answer — a game with zero
+    /// progress — and is only reported when Steam confirms the stats (<c>success</c>).
+    /// </summary>
+    public async Task<IReadOnlyList<string>> GetPlayerAchievementsAsync(
+        string steamId64,
+        string appId,
+        CancellationToken ct
+    )
+    {
+        if (string.IsNullOrWhiteSpace(SteamApiKey)
+            || string.IsNullOrWhiteSpace(steamId64)
+            || string.IsNullOrWhiteSpace(appId))
+        {
+            return [];
+        }
+
+        try
+        {
+            var url =
+                $"{SteamWebApiUrl}/ISteamUserStats/GetPlayerAchievements/v1/?key={Uri.EscapeDataString(SteamApiKey)}"
+                + $"&steamid={Uri.EscapeDataString(steamId64)}&appid={Uri.EscapeDataString(appId)}&l=russian";
+            var payload = await httpClientFactory.CreateClient().GetFromJsonAsync(
+                url, AppJsonSerializerContext.Default.SteamPlayerAchievementsRoot, ct);
+
+            if (payload?.Playerstats?.Success is not true)
+            {
+                return [];
+            }
+
+            return [.. (payload.Playerstats.Achievements ?? [])
+                .Where(a => a.Achieved == 1)
+                .Select(a => !string.IsNullOrWhiteSpace(a.Name) ? a.Name : a.Apiname)
+                .Where(n => !string.IsNullOrWhiteSpace(n))
+                .Select(n => n!)];
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(
+                ex,
+                "Steam player achievements lookup failed for '{SteamId64}' app '{AppId}'",
+                steamId64,
+                appId
+            );
+            return [];
+        }
+    }
+
+    /// <summary>The Steam Web API key from the settings screen; empty means the keyless fallbacks run.</summary>
+    private string SteamApiKey => options.Value.GetKey("steam") ?? string.Empty;
 
     /// <summary>Store API: only the ~10 highlighted achievements, kept as a backup for when the
     /// community list cannot be reached.</summary>

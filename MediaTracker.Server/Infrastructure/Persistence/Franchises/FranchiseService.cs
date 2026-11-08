@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using MediaTracker.Server.Domain.Entities;
 using MediaTracker.Server.Domain.Rules;
+using MediaTracker.Server.Features.Media.GetMediaList;
 using MediaTracker.Server.Features.Media.MediaContract;
 using MediaTracker.Server.Infrastructure.ExternalApis.Abstractions;
 using Dapper;
@@ -15,6 +16,7 @@ public interface IFranchiseService
     Task<int> AutoBackfillFranchisesAsync(AppDbContext db, CancellationToken ct = default);
     Task LinkFranchiseOnCreateAsync(AppDbContext db, MediaItem item, string? requestedFranchiseName, CancellationToken ct = default);
     Task LinkFranchiseOnUpdateAsync(AppDbContext db, MediaItem item, Guid? requestedFranchiseId, string? requestedFranchiseName, CancellationToken ct = default);
+    Task<int> LinkGameSeriesAsync(AppDbContext db, MediaItem item, IReadOnlyList<ExternalRelationDto> series, CancellationToken ct = default);
 }
 
 /// <summary>
@@ -717,5 +719,97 @@ public sealed partial class FranchiseService : IFranchiseService
 
         item.FranchiseId = franchise.Id;
         item.Franchise = franchise;
+    }
+
+    /// <summary>
+    /// Binds games that RAWG's <c>/game-series</c> put on one row into a single franchise: every
+    /// library game whose RAWG id or normalized title appears in the series joins the same
+    /// <c>FranchiseId</c>, and <c>FranchiseOrder</c> is renumbered chronologically (release year
+    /// first, via the same <see cref="AssignChronologicalOrder"/> the scans use). An explicit user
+    /// binding always wins — a row that already has a franchise is left alone, and if no other
+    /// member carries the series, two lone titles never make a franchise.
+    /// Returns how many rows were written.
+    /// </summary>
+    public async Task<int> LinkGameSeriesAsync(
+        AppDbContext db,
+        MediaItem item,
+        IReadOnlyList<ExternalRelationDto> series,
+        CancellationToken ct = default)
+    {
+        if (item is not VideoGame || item.FranchiseId is not null || series.Count == 0)
+        {
+            return 0;
+        }
+
+        var conn = db.Connection;
+        if (conn.State != System.Data.ConnectionState.Open) await conn.OpenAsync(ct);
+
+        var seriesIds = series
+            .Select(s => s.Media?.ExternalId?.Trim())
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var seriesNames = series
+            .Select(s => NormalizeKey(s.Media?.Title))
+            .Where(n => n.Length > 0)
+            .ToHashSet(StringComparer.Ordinal);
+
+        var library = await db.LoadMediaItemsAsync(null, null, null, null, null, null, ct);
+        var members = library
+            .Where(game => game is VideoGame)
+            .Where(game =>
+                (string.Equals(game.ExternalSource, "rawg", StringComparison.OrdinalIgnoreCase)
+                    && game.ExternalId is not null && seriesIds.Contains(game.ExternalId))
+                || seriesNames.Contains(NormalizeKey(game.Title)))
+            .ToList();
+
+        // One hit is just the game itself: a single title is not evidence of a franchise.
+        if (members.Count < 2)
+        {
+            return 0;
+        }
+
+        // Join the franchise one of the members already belongs to; otherwise name it after the
+        // shortest title in the group — the base game ("The Witcher"), not its longest sequel.
+        var franchiseId = members
+            .Select(m => m.FranchiseId)
+            .Where(id => id is not null)
+            .FirstOrDefault();
+        if (franchiseId is null)
+        {
+            var name = members
+                .Select(m => m.Title.Trim())
+                .OrderBy(t => t.Length)
+                .First();
+            var franchise = new Franchise { Id = Guid.NewGuid(), Name = name };
+            await db.CreateFranchiseAsync(franchise, ct);
+            franchiseId = franchise.Id;
+        }
+
+        var facts = members.Select(BuildFacts).ToList();
+        var before = facts.ToDictionary(f => f.Item.Id, f => (f.Item.FranchiseId, f.Item.FranchiseOrder));
+
+        foreach (var fact in facts)
+        {
+            fact.Item.FranchiseId = franchiseId;
+        }
+
+        AssignChronologicalOrder(facts);
+        var changed = 0;
+        foreach (var fact in facts)
+        {
+            var (prevId, prevOrder) = before[fact.Item.Id];
+            if (NullableGuidEquals(prevId, fact.Item.FranchiseId)
+                && NullableIntEquals(prevOrder, fact.Item.FranchiseOrder))
+            {
+                continue;
+            }
+
+            fact.Item.MarkUpdated();
+            await db.UpdateMediaItemAsync(fact.Item, ct);
+            changed++;
+        }
+
+        MediaListCache.Invalidate();
+        return changed;
     }
 }

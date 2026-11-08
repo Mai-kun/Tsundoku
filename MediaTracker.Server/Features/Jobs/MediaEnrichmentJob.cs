@@ -8,11 +8,14 @@ using MediaTracker.Server.Features.External;
 using MediaTracker.Server.Features.External.GetExternalRelations;
 using MediaTracker.Server.Features.External.RefreshMetadata;
 using MediaTracker.Server.Features.Media.GetMediaList;
+using MediaTracker.Server.Features.Media.MediaContract;
+using MediaTracker.Server.Features.Media.UpdateMedia;
 using MediaTracker.Server.Infrastructure.ExternalApis;
 using MediaTracker.Server.Infrastructure.ExternalApis.Abstractions;
 using MediaTracker.Server.Infrastructure.ExternalApis.Common;
 using MediaTracker.Server.Infrastructure.ExternalApis.Providers.Rawg;
 using MediaTracker.Server.Infrastructure.Persistence;
+using MediaTracker.Server.Infrastructure.Persistence.Franchises;
 using MediaTracker.Server.Infrastructure.Storage;
 
 namespace MediaTracker.Server.Features.Jobs;
@@ -112,6 +115,8 @@ public static class MediaEnrichmentJob
             if (item is VideoGame)
             {
                 await CacheAchievementsAsync(services, item, external?.SteamAppId, jobCts.Token).ConfigureAwait(false);
+                await SyncPlayerAchievementsAsync(services, db, item, jobCts.Token).ConfigureAwait(false);
+                await LinkGameFranchiseAsync(services, db, item, jobCts.Token).ConfigureAwait(false);
             }
 
             await db.UpdateMediaItemAsync(item, jobCts.Token).ConfigureAwait(false);
@@ -268,6 +273,91 @@ public static class MediaEnrichmentJob
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             // Achievements are decoration: the row stays valid without them.
+        }
+    }
+
+    /// <summary>
+    /// The explicit-refresh path for the player's own achievements: when a Steam Web API key and a
+    /// SteamID64 are known (the import stores it), the unlocked achievements are re-read and merged,
+    /// with an <see cref="MediaEventType.AchievementUnlocked"/> event per name the player gained
+    /// since the last sync. Best effort — an unreachable or private profile just skips the step.
+    /// </summary>
+    private static async Task SyncPlayerAchievementsAsync(
+        IServiceProvider services,
+        AppDbContext db,
+        MediaItem item,
+        CancellationToken ct)
+    {
+        try
+        {
+            if (!string.Equals(item.ExternalSource, "Steam", StringComparison.OrdinalIgnoreCase)
+                || string.IsNullOrWhiteSpace(item.ExternalId))
+            {
+                return;
+            }
+
+            var rawg = services.GetRequiredService<RawgGameService>();
+            var steamId = await AppSettingStore.ReadAsync(db, "Steam_SteamId64", ct);
+            if (string.IsNullOrWhiteSpace(steamId))
+            {
+                return;
+            }
+
+            var unlocked = await rawg.GetPlayerAchievementsAsync(steamId, item.ExternalId, ct);
+            if (unlocked.Count == 0)
+            {
+                return;
+            }
+
+            var merged = MediaAchievements.MergeUnlocked(item.UnlockedAchievements, unlocked);
+            if (string.Equals(merged, item.UnlockedAchievements, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            foreach (var name in MediaAchievements.NewlyUnlocked(item.UnlockedAchievements, merged))
+            {
+                await db.InsertMediaEventAsync(MediaEventRecorder.AchievementUnlocked(item, name), ct);
+            }
+
+            item.UnlockedAchievements = merged;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // Player progress is decoration too; the metadata write must survive its failure.
+        }
+    }
+
+    /// <summary>
+    /// RAWG's <c>game-series</c> rows (cached into RelatedMediaJson by <see cref="CacheRelatedAsync"/>)
+    /// are franchise evidence for games: titles sharing a series join one franchise with a
+    /// chronological order. The FranchiseService does the matching and refuses lone titles.
+    /// </summary>
+    private static async Task LinkGameFranchiseAsync(
+        IServiceProvider services,
+        AppDbContext db,
+        MediaItem item,
+        CancellationToken ct)
+    {
+        try
+        {
+            if (item.FranchiseId is not null) return;
+
+            var series = (MediaJsonCache.Deserialize<ExternalRelationDto>(item.RelatedMediaJson) ?? [])
+                .Where(r => r.Media is not null
+                    && string.Equals(r.Media.Type, "game", StringComparison.OrdinalIgnoreCase)
+                    && r.Media.ExternalSource is not null)
+                .Select(r => r)
+                .ToList();
+            if (series.Count == 0) return;
+
+            await services.GetRequiredService<IFranchiseService>()
+                .LinkGameSeriesAsync(db, item, series, ct)
+                .ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // A missed franchise link is cosmetic; the enrichment must not fail over it.
         }
     }
 

@@ -88,11 +88,27 @@ const RULES: MatchRule[] = [
     extractId: (m) => m[1],
   },
 
-  // Steam
+  // Steam — store and community links, with or without the title slug and query string
+  // (?snr=..., /?l=russian): /app/2237970, /app/2237970/Lies_of_P/, steamcommunity.com/app/2237970.
   {
-    pattern: /store\.steampowered\.com\/app\/(\d+)/i,
+    pattern: /(?:store\.steampowered|steamcommunity)\.com\/app\/(\d+)/i,
     source: "steam",
     type: "game",
+    extractId: (m) => m[1],
+  },
+
+  // OpenLibrary — direct links: the ISBN form resolves through the exact isbn index, edition
+  // (books/OL…M) and work (works/OL…W) links resolve through the search index's key: field.
+  {
+    pattern: /openlibrary\.org\/isbn\/([0-9Xx\-]+)/i,
+    source: "openlibrary",
+    type: "book",
+    extractId: (m) => m[1].replace(/[\s\-]/g, ""),
+  },
+  {
+    pattern: /openlibrary\.org\/(?:books|works)\/(OL\w+)/i,
+    source: "openlibrary",
+    type: "book",
     extractId: (m) => m[1],
   },
 

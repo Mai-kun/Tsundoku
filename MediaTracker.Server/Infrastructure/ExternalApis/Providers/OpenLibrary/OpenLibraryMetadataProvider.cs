@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text.RegularExpressions;
 using MediaTracker.Server.Common.Json;
 using MediaTracker.Server.Infrastructure.ExternalApis.Abstractions;
 using MediaTracker.Server.Infrastructure.ExternalApis.Common;
@@ -30,7 +31,13 @@ public sealed class OpenLibraryMetadataProvider(
     {
         var client = httpClientFactory.CreateClient(Id);
 
-        var endpoint = $"search.json?q={Uri.EscapeDataString(query)}&limit=10&fields={SearchFields}";
+        // An ISBN (typed bare with hyphens/spaces or prefixed "isbn:") is an exact lookup, not a
+        // text query: search.json?q= on a raw ISBN matches random text fragments, while the isbn=
+        // parameter answers the exact edition.
+        var isbnCandidate = IsbnCandidateOf(query);
+        var endpoint = IsIsbn(isbnCandidate)
+            ? $"search.json?isbn={Uri.EscapeDataString(isbnCandidate)}&limit=10&fields={SearchFields}"
+            : $"search.json?q={Uri.EscapeDataString(query)}&limit=10&fields={SearchFields}";
 
         try
         {
@@ -58,6 +65,17 @@ public sealed class OpenLibraryMetadataProvider(
             ExternalApiLog.Failed(logger, Name, ex, client.BaseAddress + endpoint);
             return [];
         }
+    }
+
+    /// <summary>ISBN-10 (digits + optional check X) or ISBN-13 (13 digits), separators already stripped.</summary>
+    internal static bool IsIsbn(string value) =>
+        Regex.IsMatch(value, """^(?:\d{9}[\dxX]|\d{13})$""");
+
+    /// <summary>The query with hyphens, spaces and an optional "isbn:" prefix stripped away.</summary>
+    internal static string IsbnCandidateOf(string query)
+    {
+        var cleaned = Regex.Replace(query.Trim(), @"[\s\-]", "");
+        return cleaned.StartsWith("isbn:", StringComparison.OrdinalIgnoreCase) ? cleaned[5..] : cleaned;
     }
 
     /// <summary>A "works by author" query: OpenLibrary's own <c>author</c> index instead of a title match.</summary>
@@ -95,8 +113,79 @@ public sealed class OpenLibraryMetadataProvider(
 
     public override async Task<ExternalMediaDto?> GetDetailsAsync(string externalId, string title, CancellationToken ct)
     {
+        // An ISBN from a link or the search box resolves through the exact isbn= index instead of
+        // guessing which hit the title search ranks first.
+        var isbn = IsbnCandidateOf(externalId ?? string.Empty);
+        if (IsIsbn(isbn))
+        {
+            var byIsbn = await SearchByExactQueryAsync($"isbn={Uri.EscapeDataString(isbn)}", ct);
+            return byIsbn is { Count: > 0 } ? byIsbn[0] : null;
+        }
+
+        // OpenLibrary ids (openlibrary.org/works/OL45804W, /books/OL7353617M) resolve through the
+        // search index's key: field. The index only knows work keys, so an edition id first asks
+        // the edition's own JSON for its work.
+        var olId = (externalId ?? string.Empty).Trim();
+        if (olId.StartsWith("OL", StringComparison.OrdinalIgnoreCase))
+        {
+            var workKey = $"/works/{olId}";
+            if (!olId.EndsWith('W'))
+            {
+                workKey = await ResolveEditionWorkAsync(olId, ct) ?? workKey;
+            }
+
+            var byKey = await SearchByExactQueryAsync(
+                $"q={Uri.EscapeDataString($"key:{workKey}")}", ct);
+            if (byKey is { Count: > 0 })
+            {
+                return byKey[0];
+            }
+        }
+
         var searchResults = await SearchAsync(title, ct);
         return searchResults.FirstOrDefault(d => d.ExternalId == externalId) ?? (searchResults.Count > 0 ? searchResults[0] : null);
+    }
+
+    /// <summary>One exact-lookup request against search.json with the shared field list.</summary>
+    private async Task<IReadOnlyList<ExternalMediaDto>?> SearchByExactQueryAsync(string queryParameter, CancellationToken ct)
+    {
+        try
+        {
+            var client = httpClientFactory.CreateClient(Id);
+            var result = await client.GetFromJsonAsync(
+                $"search.json?{queryParameter}&limit=10&fields={SearchFields}",
+                AppJsonSerializerContext.Default.OpenLibraryResponse, ct);
+            return result?.Docs is { Count: > 0 } docs ? docs.ConvertAll(MapDoc) : null;
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>An edition's own JSON answers with the work it belongs to; null when it does not.</summary>
+    private async Task<string?> ResolveEditionWorkAsync(string editionId, CancellationToken ct)
+    {
+        try
+        {
+            var client = httpClientFactory.CreateClient(Id);
+            var edition = await client.GetFromJsonAsync(
+                $"books/{Uri.EscapeDataString(editionId)}.json",
+                AppJsonSerializerContext.Default.OpenLibraryEdition, ct);
+            return edition?.Works?.FirstOrDefault(w => !string.IsNullOrWhiteSpace(w.Key))?.Key;
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     private static ExternalMediaDto MapDoc(OpenLibraryDoc doc)

@@ -16,3 +16,20 @@ internal sealed record OpenLibraryDoc(
     [property: JsonPropertyName("number_of_pages")] List<int>? NumberOfPages,
     [property: JsonPropertyName("ratings_average")] double? RatingsAverage,
     [property: JsonPropertyName("ratings_count")] int? RatingsCount);
+
+/// <summary>
+/// Edition answer of <c>openlibrary.org/books/{id}.json</c>. Only the work reference is read:
+/// an edition id is resolved to its work so the search index (which indexes works, not editions)
+/// can be queried by key.
+/// </summary>
+internal sealed class OpenLibraryEdition
+{
+    [JsonPropertyName("works")]
+    public List<OpenLibraryWorkRef>? Works { get; set; }
+}
+
+internal sealed class OpenLibraryWorkRef
+{
+    [JsonPropertyName("key")]
+    public string? Key { get; set; }
+}

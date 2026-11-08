@@ -155,6 +155,52 @@ describe("parseMediaUrl", () => {
     });
   });
 
+  it("parses Steam store and community URLs, with or without slugs and queries", () => {
+    expect(parseMediaUrl("https://store.steampowered.com/app/2237970/Lies_of_P/")).toEqual({
+      source: "steam",
+      id: "2237970",
+      type: "game",
+    });
+    expect(parseMediaUrl("https://store.steampowered.com/app/2237970")).toEqual({
+      source: "steam",
+      id: "2237970",
+      type: "game",
+    });
+    expect(parseMediaUrl("https://store.steampowered.com/app/292030/The_Witcher_3_Wild_Hunt/?l=russian")).toEqual({
+      source: "steam",
+      id: "292030",
+      type: "game",
+    });
+    expect(parseMediaUrl("https://steamcommunity.com/app/2237970")).toEqual({
+      source: "steam",
+      id: "2237970",
+      type: "game",
+    });
+  });
+
+  it("parses OpenLibrary ISBN, edition and work URLs", () => {
+    expect(parseMediaUrl("https://openlibrary.org/isbn/9780140328721")).toEqual({
+      source: "openlibrary",
+      id: "9780140328721",
+      type: "book",
+    });
+    expect(parseMediaUrl("https://openlibrary.org/isbn/978-0-14-032872-1")).toEqual({
+      source: "openlibrary",
+      id: "9780140328721",
+      type: "book",
+    });
+    expect(parseMediaUrl("https://openlibrary.org/books/OL7353617M")).toEqual({
+      source: "openlibrary",
+      id: "OL7353617M",
+      type: "book",
+    });
+    expect(parseMediaUrl("https://openlibrary.org/works/OL45804W")).toEqual({
+      source: "openlibrary",
+      id: "OL45804W",
+      type: "book",
+    });
+  });
+
   it("returns null for non-URLs and regular search strings", () => {
     expect(parseMediaUrl("")).toBeNull();
     expect(parseMediaUrl("Naruto")).toBeNull();

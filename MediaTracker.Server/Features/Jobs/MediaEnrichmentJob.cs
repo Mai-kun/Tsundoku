@@ -42,31 +42,58 @@ public static class MediaEnrichmentJob
         using var jobCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         jobCts.CancelAfter(JobTimeout);
 
-        var db = services.GetRequiredService<AppDbContext>();
-
-        // Loaded without the job token on purpose: a single-row lookup that always completes is what
-        // lets the catch below mark the item even when the cancellation landed on this very call.
-        var item = await LoadAsync(db, mediaId).ConfigureAwait(false);
-
-        if (item is null)
-        {
-            return;
-        }
+        AppDbContext? db = null;
+        MediaItem? item = null;
 
         try
         {
+            db = services.GetRequiredService<AppDbContext>();
+
+            // Loaded without the job token on purpose: a single-row lookup that always completes is what
+            // lets the catch below mark the item even when the cancellation landed on this very call.
+            item = await LoadAsync(db, mediaId).ConfigureAwait(false);
+
+            if (item is null)
+            {
+                Report(progress, 100, "Готово", JobStatus.Completed);
+                return;
+            }
+
             Report(progress, 20, "Поиск метаданных");
 
             ExternalMediaDto? external;
             try
             {
-                external = await services.GetRequiredService<MetadataAggregatorService>()
-                    .GetDetailsAsync(
-                        AggregatorTypes.Resolve(item),
-                        item.ExternalId ?? string.Empty,
-                        item.Title,
-                        jobCts.Token,
-                        item.ExternalSource)
+                var linkedSources = LinkedSourceCatalog.GetFor(item);
+                var primary = linkedSources.FirstOrDefault(source => source.IsPrimary);
+                var source = !string.IsNullOrWhiteSpace(primary?.Source)
+                    ? primary.Source
+                    : item.ExternalSource;
+                var externalId = primary is not null
+                    ? primary.ExternalId
+                    : item.ExternalId;
+                var altTitles = MediaMetadataApplier.DeserializeAltTitles(item.AltTitles);
+
+                external = await ExternalApiRetry.RunAsync(
+                    async retryToken => await services.GetRequiredService<MetadataAggregatorService>()
+                        .GetDetailsAsync(
+                            AggregatorTypes.Resolve(item),
+                            externalId ?? string.Empty,
+                            item.Title,
+                            retryToken,
+                            source,
+                            linkedSources,
+                            altTitles,
+                            TimeSpan.FromSeconds(45),
+                            sources => Report(progress, 30, $"Обогащение: {string.Join(", ", sources)}...")),
+                    services.GetService<RateLimitTracker>(),
+                    source ?? string.Empty,
+                    jobCts.Token,
+                    seconds =>
+                    {
+                        Report(progress, 20, $"Ожидание лимита API (повтор через {seconds} сек)...");
+                        return Task.CompletedTask;
+                    })
                     .ConfigureAwait(false);
             }
             catch (SourceUnavailableException)
@@ -121,11 +148,24 @@ public static class MediaEnrichmentJob
 
             await db.UpdateMediaItemAsync(item, jobCts.Token).ConfigureAwait(false);
 
-            Report(progress, 100, "Готово");
+            Report(progress, 100, "Готово", JobStatus.Completed);
         }
-        catch
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
-            await MarkFailedAsync(db, item).ConfigureAwait(false);
+            if (db is not null && item is not null)
+            {
+                await MarkFailedAsync(db, item).ConfigureAwait(false);
+            }
+            Report(progress, 0, "Отменено", JobStatus.Cancelled);
+            throw;
+        }
+        catch (Exception ex)
+        {
+            if (db is not null && item is not null)
+            {
+                await MarkFailedAsync(db, item).ConfigureAwait(false);
+            }
+            Report(progress, 0, "Ошибка", JobStatus.Failed, ex.Message);
             throw;
         }
     }
@@ -149,6 +189,8 @@ public static class MediaEnrichmentJob
             TvShow show => show.RomajiTitle,
             _ => null,
         };
+        var linkedSources = LinkedSourceCatalog.GetFor(item);
+        var altTitles = MediaMetadataApplier.DeserializeAltTitles(item.AltTitles);
         var stub = new ExternalMediaDto
         {
             ExternalId = item.ExternalId ?? string.Empty,
@@ -157,9 +199,16 @@ public static class MediaEnrichmentJob
             RomajiTitle = romaji,
             OriginalTitle = item.OriginalTitle,
             ExternalSource = item.ExternalSource,
+            Synonyms = altTitles.Count > 0 ? altTitles : null,
         };
 
-        var merged = await aggregator.EnrichAsync(stub, AggregatorTypes.Resolve(item), ct).ConfigureAwait(false);
+        var merged = await aggregator.EnrichAsync(
+            stub,
+            AggregatorTypes.Resolve(item),
+            ct,
+            linkedSources,
+            altTitles,
+            TimeSpan.FromSeconds(45)).ConfigureAwait(false);
         return merged.SourceContributions is { Count: > 0 } ? merged : null;
     }
 
@@ -412,16 +461,21 @@ public static class MediaEnrichmentJob
     }
 
     /// <summary>JobId/Title are re-stamped by the worker, which owns the job identity.</summary>
-    private static void Report(IProgress<JobProgressDto> progress, int percent, string step) =>
+    private static void Report(
+        IProgress<JobProgressDto> progress,
+        int percent,
+        string step,
+        JobStatus status = JobStatus.Running,
+        string? error = null) =>
         progress.Report(new JobProgressDto(
             Guid.Empty,
             null,
             string.Empty,
             percent,
             step,
-            JobStatus.Running,
+            status,
             DateTime.MinValue,
-            null));
+            error));
 }
 
 /// <summary>The stored shape of <c>AchievementsJson</c>: <c>{"total":N,"items":[...]}</c>.</summary>

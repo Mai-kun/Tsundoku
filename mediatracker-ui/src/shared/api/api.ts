@@ -111,7 +111,8 @@ export { networkActivity };
 export async function apiFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   networkActivity.begin();
   try {
-    return await fetch(input, init);
+    const signal = init?.signal ?? (typeof AbortSignal !== "undefined" && "timeout" in AbortSignal ? AbortSignal.timeout(15000) : undefined);
+    return await fetch(input, { ...init, signal });
   } finally {
     networkActivity.end();
   }

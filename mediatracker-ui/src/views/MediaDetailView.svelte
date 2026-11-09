@@ -585,7 +585,20 @@
 
   $effect(() => {
     const job = media ? jobsClient.jobFor(media.id) : undefined;
-    if (!job || job.status !== "Completed") return;
+    if (!job) return;
+    if (job.status === "Failed") {
+      if (job.jobId === settledJobId) return;
+      settledJobId = job.jobId;
+      refreshError = job.errorMessage || "Metadata refresh failed";
+      showToast(errorMessage(refreshError), "error");
+      void refreshMediaDetail(mediaId).then((loaded) => {
+        if (loaded.id !== mediaId) return;
+        media = loaded;
+        syncFrom(loaded);
+      });
+      return;
+    }
+    if (job.status !== "Completed") return;
     if (job.jobId === settledJobId) return;
 
     settledJobId = job.jobId;
@@ -605,7 +618,11 @@
       })
       .catch((error) => console.error("[MediaDetailView] Silent refresh after sync failed", error));
   });
-  let refreshBusy = $state(false);
+  let refreshInFlight = $state(false);
+  // The POST only enqueues the job, so the button must stay blocked until the live job settles;
+  // otherwise it flips back to idle while the providers are still being queried.
+  let refreshBusy = $derived(refreshInFlight || isSyncing);
+  let syncStep = $derived(media ? (jobsClient.jobFor(media.id)?.currentStep ?? null) : null);
   let refreshError = $state<unknown>(null);
   let relinkOpen = $state(false);
   let overwritePromptOpen = $state(false);
@@ -2060,7 +2077,7 @@
   async function handleRefreshMetadata(fillMissing = false) {
     const target = media;
     if (!target || refreshBusy) return;
-    refreshBusy = true;
+    refreshInFlight = true;
     refreshError = null;
     try {
       const updated = await refreshMetadata(target.id, fillMissing);
@@ -2074,7 +2091,7 @@
       refreshError = error;
       showToast(errorMessage(error), "error");
     } finally {
-      refreshBusy = false;
+      refreshInFlight = false;
     }
   }
 
@@ -2185,6 +2202,7 @@
         platformOptions={gamePlatformOptions}
         onSelectPlatform={updateUserPlatform}
         {refreshBusy}
+        {syncStep}
         {refreshError}
         onRefreshMetadata={requestRefresh}
         {fillMissingBusy}

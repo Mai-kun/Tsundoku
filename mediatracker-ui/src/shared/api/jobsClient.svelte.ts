@@ -4,6 +4,12 @@ import { getPendingMatches } from "$shared/api/api";
 /** A finished job stays visible long enough for the eye to catch the 100% before it vanishes. */
 const COMPLETED_TTL_MS = 4000;
 
+/** Safety timeout for active jobs if SSE updates stop arriving (server limit is 60s). */
+const ACTIVE_JOB_TIMEOUT_MS = 70_000;
+
+/** Interval to reconcile active jobs with the backend snapshot in case SSE events were lost. */
+const SYNC_INTERVAL_MS = 10_000;
+
 /**
  * The queue '+ results' pair must not be hammered on every SSE tick: a running batch job re-reads
  * the review list at most this often, so the count shows up within seconds, not twice a second.
@@ -18,7 +24,8 @@ const isActive = (job: JobProgress) => job.status === "Running" || job.status ==
  */
 class JobsClient {
   jobs = $state<JobProgress[]>([]);
-  activeCount = $derived(this.jobs.filter(isActive).length);
+  activeJobs = $derived(this.jobs.filter(isActive));
+  activeCount = $derived(this.activeJobs.length);
 
   /** "Фоновые процессы" modal visibility and its active tab. */
   isModalOpen = $state(false);
@@ -30,6 +37,8 @@ class JobsClient {
 
   #source: EventSource | null = null;
   #evictionTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  #safetyTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  #syncInterval: ReturnType<typeof setInterval> | null = null;
   #pendingRefreshedAt = 0;
   #pendingSequence = 0;
   #jobSettledListeners = new Set<(job: JobProgress) => void>();
@@ -47,12 +56,65 @@ class JobsClient {
     const source = new EventSource("/api/jobs/stream");
     this.#source = source;
     source.onmessage = (event) => this.#apply(event.data);
+    source.onerror = () => {
+      // Reconcile on reconnect / disconnect in case events were lost
+      void this.syncJobs();
+    };
     void this.refreshPendingMatches();
+
+    if (!this.#syncInterval) {
+      this.#syncInterval = setInterval(() => {
+        if (this.activeCount > 0) {
+          void this.syncJobs();
+        }
+      }, SYNC_INTERVAL_MS);
+    }
   }
 
   disconnect() {
     this.#source?.close();
     this.#source = null;
+    if (this.#syncInterval) {
+      clearInterval(this.#syncInterval);
+      this.#syncInterval = null;
+    }
+    for (const timer of this.#safetyTimers.values()) clearTimeout(timer);
+    this.#safetyTimers.clear();
+    for (const timer of this.#evictionTimers.values()) clearTimeout(timer);
+    this.#evictionTimers.clear();
+  }
+
+  /** Direct snapshot sync with backend to clean up any desynced active jobs. */
+  async syncJobs() {
+    if (typeof window === "undefined") return;
+    try {
+      const response = await fetch("/api/jobs");
+      if (!response.ok) return;
+      const snapshot = (await response.json()) as JobProgress[];
+      const activeServerJobMap = new Map(snapshot.map((j) => [j.jobId, j]));
+
+      for (const localJob of this.jobs) {
+        if (isActive(localJob)) {
+          const serverJob = activeServerJobMap.get(localJob.jobId);
+          if (!serverJob) {
+            // Job is no longer on server (already finished/forgotten)
+            this.#apply(
+              JSON.stringify({
+                ...localJob,
+                status: "Completed",
+                progressPercent: 100,
+                currentStep: "Готово",
+              }),
+            );
+          } else if (
+            serverJob.status !== localJob.status ||
+            serverJob.progressPercent !== localJob.progressPercent
+          ) {
+            this.#apply(JSON.stringify(serverJob));
+          }
+        }
+      }
+    } catch {}
   }
 
   openModal(tab: "jobs" | "review" = "jobs") {
@@ -133,12 +195,38 @@ class JobsClient {
     if (isActive(job)) {
       // A batch job re-checks ambiguous rows as it walks through the import.
       this.#refreshPendingMatchesThrottled(false);
-    } else if (settled) {
+
+      // Arm safety timer in case server or SSE stalls indefinitely
+      const existingSafety = this.#safetyTimers.get(job.jobId);
+      if (existingSafety) clearTimeout(existingSafety);
+      this.#safetyTimers.set(
+        job.jobId,
+        setTimeout(() => {
+          this.#safetyTimers.delete(job.jobId);
+          this.#apply(
+            JSON.stringify({
+              ...job,
+              status: "Failed",
+              currentStep: "Таймаут выполнения",
+              errorMessage: "Превышено время ожидания задачи",
+            }),
+          );
+        }, ACTIVE_JOB_TIMEOUT_MS),
+      );
+      return;
+    }
+
+    // Job is now terminal: clear safety timer
+    const safetyTimer = this.#safetyTimers.get(job.jobId);
+    if (safetyTimer) {
+      clearTimeout(safetyTimer);
+      this.#safetyTimers.delete(job.jobId);
+    }
+
+    if (settled) {
       // Completed / failed / cancelled jobs can leave newly parked rows behind.
       this.#refreshPendingMatchesThrottled(true);
     }
-
-    if (isActive(job)) return;
 
     const timer = this.#evictionTimers.get(job.jobId);
     if (timer) clearTimeout(timer);

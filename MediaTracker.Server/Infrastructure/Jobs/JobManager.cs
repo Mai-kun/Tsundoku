@@ -30,12 +30,13 @@ public sealed class JobManager : IJobManager
         Guid? mediaId,
         string title,
         Func<IServiceProvider, CancellationToken, IProgress<JobProgressDto>, Task> work,
-        bool highPriority = false)
+        bool highPriority = false,
+        string initialStep = "В очереди")
     {
         var job = new QueuedJob(Guid.NewGuid(), mediaId, title, DateTime.UtcNow, work);
 
         _cancellations[job.JobId] = new CancellationTokenSource();
-        Publish(job, 0, "В очереди", JobStatus.Queued, null);
+        Publish(job, 0, initialStep, JobStatus.Queued, null);
 
         var queue = highPriority ? _highPriorityQueue : _queue;
         if (!queue.Writer.TryWrite(job))
@@ -101,23 +102,33 @@ public sealed class JobManager : IJobManager
         string? error,
         CancellationToken ct = default)
     {
-        ct.ThrowIfCancellationRequested();
-
-        var update = new JobProgressDto(
-            job.JobId,
-            job.MediaId,
-            job.Title,
-            Math.Clamp(percent, 0, 100),
-            step,
-            status,
-            job.StartedAt,
-            error);
-
-        _jobs[job.JobId] = update;
-
-        foreach (var subscriber in _subscribers.Values)
+        try
         {
-            subscriber.Writer.TryWrite(update);
+            var update = new JobProgressDto(
+                job.JobId,
+                job.MediaId,
+                job.Title,
+                Math.Clamp(percent, 0, 100),
+                step,
+                status,
+                job.StartedAt,
+                error);
+
+            _jobs[job.JobId] = update;
+
+            if (status is JobStatus.Completed or JobStatus.Failed or JobStatus.Cancelled)
+            {
+                _ = Task.Delay(CompletedRetention).ContinueWith(_ => Forget(job.JobId), TaskScheduler.Default);
+            }
+
+            foreach (var subscriber in _subscribers.Values)
+            {
+                subscriber.Writer.TryWrite(update);
+            }
+        }
+        catch
+        {
+            // Guaranteed not to crash terminal state publishing
         }
     }
 

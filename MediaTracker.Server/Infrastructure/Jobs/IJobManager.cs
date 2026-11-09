@@ -23,7 +23,8 @@ public interface IJobManager
         Guid? mediaId,
         string title,
         Func<IServiceProvider, CancellationToken, IProgress<JobProgressDto>, Task> work,
-        bool highPriority = false);
+        bool highPriority = false,
+        string initialStep = "В очереди");
 
     /// <summary>Snapshot of the jobs the UI has to draw right now.</summary>
     IReadOnlyList<JobProgressDto> GetSnapshot();

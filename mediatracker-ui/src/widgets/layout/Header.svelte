@@ -2,6 +2,7 @@
   import { ChevronDown, CloudOff, Languages, LoaderCircle, Power, Search } from "$shared/ui/Icons";
   import { i18n, locales, type Locale } from "$shared/i18n/index.svelte";
   import { networkActivity } from "$shared/api/networkActivity.svelte";
+  import { jobsClient } from "$shared/api/jobsClient.svelte";
   import { offlineModeState } from "$shared/api/offlineMode.svelte";
   import PopoverMenu from "$shared/ui/PopoverMenu.svelte";
   import ActivityDropdown from "./ActivityDropdown.svelte";
@@ -18,6 +19,8 @@
     value: locale,
     label: locale.toUpperCase(),
   }));
+
+  const isUpdating = $derived(networkActivity.isLoading || jobsClient.activeJobs.length > 0);
 </script>
 
 <div class="relative flex h-full w-full items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
@@ -73,7 +76,7 @@
 
   <!-- Right cluster: [ Loading indicator ] -> [ Language selector ] -> [ Power button ] -->
   <div class="flex shrink-0 items-center justify-end gap-2.5">
-    {#if networkActivity.isLoading}
+    {#if isUpdating}
       <div
         class="flex size-9 items-center justify-center text-[var(--color-accent-soft,#818cf8)]"
         title={i18n.t.header.updatingData}

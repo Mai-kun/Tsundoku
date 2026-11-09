@@ -43,6 +43,7 @@ public sealed class JobWorkerService(
         // The body reports its own checkpoints; the worker only owns the terminal states, which is
         // what guarantees a crashed or cancelled job still leaves a renderable state behind.
         var percent = 0;
+        var terminalPublished = false;
 
         try
         {
@@ -55,6 +56,10 @@ public sealed class JobWorkerService(
             var progress = new InlineProgress(update =>
             {
                 percent = update.ProgressPercent;
+                if (update.Status is JobStatus.Completed or JobStatus.Failed or JobStatus.Cancelled)
+                {
+                    terminalPublished = true;
+                }
                 if (update.Status == JobStatus.Completed && !string.IsNullOrWhiteSpace(update.CurrentStep))
                 {
                     completedStep = update.CurrentStep;
@@ -64,7 +69,10 @@ public sealed class JobWorkerService(
 
             await job.Work(scope.ServiceProvider, cts.Token, progress).ConfigureAwait(false);
 
-            jobs.Publish(job, 100, completedStep, JobStatus.Completed, null);
+            if (!terminalPublished)
+            {
+                jobs.Publish(job, 100, completedStep, JobStatus.Completed, null);
+            }
         }
         catch (OperationCanceledException) when (cts.IsCancellationRequested)
         {

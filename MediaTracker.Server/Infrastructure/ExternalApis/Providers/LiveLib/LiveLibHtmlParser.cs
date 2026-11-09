@@ -50,6 +50,18 @@ public sealed record LiveLibBookDetails(
 
     /// <summary>Edition staff the page names, e.g. the illustrator.</summary>
     public IReadOnlyList<ExternalStaffMemberDto>? Staff { get; init; }
+
+    /// <summary>Age restriction string (e.g. "6+").</summary>
+    public string? AgeRating { get; init; }
+
+    /// <summary>List of adaptation titles from the overview section.</summary>
+    public IReadOnlyList<string>? Adaptations { get; init; }
+
+    /// <summary>Interesting facts overview section text.</summary>
+    public string? Facts { get; init; }
+
+    /// <summary>History or creation story overview section text.</summary>
+    public string? History { get; init; }
 }
 
 /// <summary>
@@ -194,6 +206,16 @@ public static partial class LiveLibHtmlParser
         description ??= ExtractAnnotation(html);
         description ??= UsableDescription(MetaContent(html, "property", "og:description"));
         description ??= UsableDescription(MetaContent(html, "name", "description"));
+        // If no full synopsis exists on the edition, fall back to cleaned og:description
+        // so description is never left null.
+        description ??= CleanOgDescription(MetaContent(html, "property", "og:description"));
+        description ??= CleanOgDescription(MetaContent(html, "name", "description"));
+
+        var facts = ExtractOverviewSection(html, FactsSectionRegex());
+        var history = ExtractOverviewSection(html, HistorySectionRegex());
+        var adaptations = ExtractAdaptations(html);
+
+        description = ComposeDescription(description, facts, history);
 
         // The boocover asset beats the opengraph renderer: it is the real cover file with its
         // original name, and it is what the search rows carry too.
@@ -216,10 +238,20 @@ public static partial class LiveLibHtmlParser
             rating = ExtractRatingValue(html);
         }
 
-        publisher ??= ExtractLabeledValue(html, "Издательство");
+        var pagePublisher = CleanPublisher(ExtractLabeledValue(html, "Издательство"));
+        if (!string.IsNullOrWhiteSpace(pagePublisher))
+        {
+            if (string.IsNullOrWhiteSpace(publisher)
+                || pagePublisher.Length > publisher.Length
+                || pagePublisher.Contains(publisher, StringComparison.OrdinalIgnoreCase))
+            {
+                publisher = pagePublisher;
+            }
+        }
         format ??= FormatOf(ExtractLabeledValue(html, "Переплет"));
         language ??= ExtractLabeledValue(html, "Язык");
         var series = ExtractLabeledValue(html, "Серия");
+        var ageRating = ExtractAgeRating(html);
 
         // The link's visible text ("Русская классика") beats the slug ("Русская-классика"); the
         // slug is the fallback for genre links that render no text.
@@ -259,6 +291,10 @@ public static partial class LiveLibHtmlParser
             RatingIsTenPoint = ratingIsTenPoint,
             Series = series,
             Staff = ExtractStaff(html),
+            AgeRating = ageRating,
+            Adaptations = adaptations,
+            Facts = facts,
+            History = history,
         };
     }
 
@@ -343,25 +379,144 @@ public static partial class LiveLibHtmlParser
         return text;
     }
 
+    /// <summary>Fallback cleaned description when no custom annotation exists.</summary>
+    private static string? CleanOgDescription(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        var text = DecodeHtml(value).Trim().TrimStart('-', ' ');
+        return string.IsNullOrWhiteSpace(text) ? null : text;
+    }
+
     /// <summary>
-    /// The book annotation from the page. The old LiveLib layout marks it with
-    /// <c>itemprop="description"</c> or the lenta-card/description block; markup is flattened to
-    /// plain text while paragraph boundaries stay.
+    /// The book annotation from the page. Checks modern LiveLib sections (ShortInfoDescription,
+    /// TruncateContent), older layout blocks, and Next.js artDescription.
     /// </summary>
     private static string? ExtractAnnotation(string html)
     {
         foreach (var opening in new[]
                  {
+                     ShortInfoDescriptionRegex(),
+                     TruncateContentRegex(),
                      ItempropDescriptionRegex(),
                      LentaDescriptionRegex(),
                      CardDescriptionRegex(),
                  })
         {
             var text = HtmlToText(InnerHtmlOf(html, opening));
-            if (text is { Length: >= 40 }) return text;
+            if (text is { Length: >= 20 }) return text;
+        }
+
+        var artMatch = ArtDescriptionRegex().Match(html);
+        if (artMatch.Success)
+        {
+            var raw = artMatch.Groups[1].Value;
+            var unescaped = Regex.Unescape(raw);
+            var text = HtmlToText(unescaped);
+            if (text is { Length: >= 20 }) return text;
         }
 
         return null;
+    }
+
+    private static string? ExtractOverviewSection(string html, Regex sectionRegex)
+    {
+        var match = sectionRegex.Match(html);
+        if (!match.Success) return null;
+
+        var raw = HtmlButtonRegex().Replace(match.Groups[1].Value, string.Empty);
+        return HtmlToText(raw);
+    }
+
+    private static IReadOnlyList<string>? ExtractAdaptations(string html)
+    {
+        var section = ExtractOverviewSection(html, AdaptationsSectionRegex());
+        if (string.IsNullOrWhiteSpace(section)) return null;
+
+        var items = section.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(line => line.Length > 0 && !line.Equals("Ещё", StringComparison.OrdinalIgnoreCase))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        return items.Count > 0 ? items : null;
+    }
+
+    private static string? FormatFacts(string rawFacts)
+    {
+        if (string.IsNullOrWhiteSpace(rawFacts)) return null;
+        var lines = rawFacts.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var formatted = new List<string>();
+        foreach (var line in lines)
+        {
+            if (AttributionRegex().IsMatch(line)) continue;
+            if (line.Equals("Ещё", StringComparison.OrdinalIgnoreCase)) continue;
+            var cleaned = BulletPrefixRegex().Replace(line, string.Empty).Trim();
+            if (cleaned.Length > 0)
+            {
+                formatted.Add($"• {cleaned}");
+            }
+        }
+
+        return formatted.Count > 0 ? string.Join("\n", formatted) : null;
+    }
+
+    private static string? CleanHistory(string rawHistory)
+    {
+        if (string.IsNullOrWhiteSpace(rawHistory)) return null;
+        var lines = rawHistory.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(line => !line.Equals("Ещё", StringComparison.OrdinalIgnoreCase) && !AttributionRegex().IsMatch(line));
+        var cleaned = string.Join("\n", lines).Trim();
+        return cleaned.Length > 0 ? cleaned : null;
+    }
+
+    private static string? ComposeDescription(string? baseDescription, string? facts, string? history)
+    {
+        var parts = new List<string>();
+
+        if (!string.IsNullOrWhiteSpace(baseDescription))
+        {
+            parts.Add(baseDescription.Trim());
+        }
+
+        if (!string.IsNullOrWhiteSpace(facts))
+        {
+            var formattedFacts = FormatFacts(facts);
+            if (!string.IsNullOrWhiteSpace(formattedFacts))
+            {
+                parts.Add($"💡 Интересные факты:\n{formattedFacts}");
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(history))
+        {
+            var cleanedHistory = CleanHistory(history);
+            if (!string.IsNullOrWhiteSpace(cleanedHistory))
+            {
+                parts.Add($"📖 История:\n{cleanedHistory}");
+            }
+        }
+
+        return parts.Count > 0 ? string.Join("\n\n", parts) : null;
+    }
+
+    private static string? CleanPublisher(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        var cleaned = CommaSpacingRegex().Replace(value.Trim(), ", ");
+        return string.IsNullOrWhiteSpace(cleaned) ? null : cleaned;
+    }
+
+    private static string? ExtractAgeRating(string html)
+    {
+        var raw = ExtractLabeledValue(html, "Возрастные ограничения")
+            ?? ExtractLabeledValue(html, "Возрастное ограничение");
+        if (!string.IsNullOrWhiteSpace(raw))
+        {
+            var match = AgeRatingRegex().Match(raw);
+            return match.Success ? match.Value : raw.Trim();
+        }
+
+        var directMatch = DirectAgeRatingRegex().Match(html);
+        return directMatch.Success ? directMatch.Groups[1].Value : null;
     }
 
     /// <summary>Inner HTML of the first element matched by <paramref name="openingTag"/>, balancing nesting.</summary>
@@ -664,6 +819,42 @@ public static partial class LiveLibHtmlParser
     [GeneratedRegex("""<([a-zA-Z0-9]+)[^>]*class="[^"]*(?:block-border|card-block)[^"]*"[^>]*>""",
         RegexOptions.IgnoreCase)]
     private static partial Regex CardDescriptionRegex();
+
+    [GeneratedRegex("""<([a-zA-Z0-9]+)[^>]*class="[^"]*ShortInfoDescription[^"]*"[^>]*>""", RegexOptions.IgnoreCase)]
+    private static partial Regex ShortInfoDescriptionRegex();
+
+    [GeneratedRegex("""<([a-zA-Z0-9]+)[^>]*class="[^"]*TruncateContent[^"]*"[^>]*>""", RegexOptions.IgnoreCase)]
+    private static partial Regex TruncateContentRegex();
+
+    [GeneratedRegex(@"\\""artDescription\\""\s*:\s*\\""((?:\\\\|\\""|[^""\\])*)\\""", RegexOptions.Singleline)]
+    private static partial Regex ArtDescriptionRegex();
+
+    [GeneratedRegex("""<h3[^>]*>\s*Интересные\s+факты\s*</h3>\s*(.+?)(?=<div[^>]*>\s*<h3|</div>\s*</div>|<button|</main|$)""", RegexOptions.Singleline | RegexOptions.IgnoreCase)]
+    private static partial Regex FactsSectionRegex();
+
+    [GeneratedRegex("""<h3[^>]*>\s*История(?:\s+создания)?\s*</h3>\s*(.+?)(?=<div[^>]*>\s*<h3|</div>\s*</div>|<button|</main|$)""", RegexOptions.Singleline | RegexOptions.IgnoreCase)]
+    private static partial Regex HistorySectionRegex();
+
+    [GeneratedRegex("""<h3[^>]*>\s*Экранизации\s*</h3>\s*(.+?)(?=<div[^>]*>\s*<h3|</div>\s*</div>|<button|</main|$)""", RegexOptions.Singleline | RegexOptions.IgnoreCase)]
+    private static partial Regex AdaptationsSectionRegex();
+
+    [GeneratedRegex("""<button\b[^>]*>.*?</button>""", RegexOptions.Singleline | RegexOptions.IgnoreCase)]
+    private static partial Regex HtmlButtonRegex();
+
+    [GeneratedRegex(@"^\s*\([сc]\)\s*", RegexOptions.IgnoreCase)]
+    private static partial Regex AttributionRegex();
+
+    [GeneratedRegex(@"^[-*•]\s*")]
+    private static partial Regex BulletPrefixRegex();
+
+    [GeneratedRegex(@"\s*,\s*")]
+    private static partial Regex CommaSpacingRegex();
+
+    [GeneratedRegex(@"\b\d+\+\b")]
+    private static partial Regex AgeRatingRegex();
+
+    [GeneratedRegex(@"(?:Возрастные ограничения|Возрастное ограничение)[^0-9\n]{0,30}(\d+\+)", RegexOptions.IgnoreCase)]
+    private static partial Regex DirectAgeRatingRegex();
 
     [GeneratedRegex("""^<\s*([a-zA-Z0-9]+)""")]
     private static partial Regex TagNameRegex();

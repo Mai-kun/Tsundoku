@@ -194,6 +194,24 @@ public sealed partial class LiveLibMetadataProvider(
             ? Math.Round(details.RatingIsTenPoint ? rawRating : rawRating * 2.0, 1)
             : null;
 
+        var tags = new List<string>();
+        if (!string.IsNullOrWhiteSpace(details.Series))
+        {
+            tags.Add(details.Series);
+        }
+        if (!string.IsNullOrWhiteSpace(details.AgeRating))
+        {
+            tags.Add(details.AgeRating);
+        }
+        if (details.Adaptations is { Count: > 0 })
+        {
+            tags.AddRange(details.Adaptations);
+        }
+
+        var synonyms = details.Adaptations is { Count: > 0 }
+            ? details.Adaptations.Distinct(StringComparer.OrdinalIgnoreCase).ToList()
+            : null;
+
         return new ExternalMediaDto
         {
             ExternalId = bookId,
@@ -224,7 +242,8 @@ public sealed partial class LiveLibMetadataProvider(
                 }]
                 : null,
             Staff = details.Staff,
-            Tags = details.Series is { Length: > 0 } series ? [series] : null,
+            Tags = tags.Count > 0 ? tags.Distinct(StringComparer.OrdinalIgnoreCase).ToList() : null,
+            Synonyms = synonyms,
             Genres = GenreNormalizer.NormalizeList(details.Genres) is { Count: > 0 } genres
                 ? genres.Distinct(StringComparer.OrdinalIgnoreCase).Take(8).ToList()
                 : null,
@@ -255,17 +274,19 @@ public sealed partial class LiveLibMetadataProvider(
 
     private async Task<string?> FetchHtmlAsync(System.Net.Http.HttpClient client, string url, CancellationToken ct)
     {
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeoutCts.CancelAfter(TimeSpan.FromSeconds(12));
         try
         {
             using var request = CreateRequest(url, withReferer: true);
-            using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+            using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, timeoutCts.Token);
             if (!response.IsSuccessStatusCode)
             {
                 ExternalApiLog.Failed(logger, Name, response.StatusCode, url);
                 return null;
             }
 
-            var html = await response.Content.ReadAsStringAsync(ct);
+            var html = await response.Content.ReadAsStringAsync(timeoutCts.Token);
             // A rate-limit or anti-bot interstitial renders as an HTML challenge with no results;
             // parsing it would only ever produce nothing, so it is treated as an empty answer.
             return IsCaptchaPage(html) ? null : html;

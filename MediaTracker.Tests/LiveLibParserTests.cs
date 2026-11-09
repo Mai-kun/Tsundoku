@@ -187,7 +187,7 @@ public class LiveLibParserTests
     }
 
     [Fact]
-    public void ParseBookPage_RejectsTemplatedDescription()
+    public void ParseBookPage_FallsBackToCleanedOgDescription_WhenNoAnnotationPresent()
     {
         var details = LiveLibHtmlParser.ParseBookPage("""
             <html><head>
@@ -196,7 +196,7 @@ public class LiveLibParserTests
             </head><body></body></html>
             """);
 
-        details.Description.Should().BeNull();
+        details.Description.Should().Be("Книга «Белая гвардия». Автор: Михаил Булгаков.");
     }
 
     [Fact]

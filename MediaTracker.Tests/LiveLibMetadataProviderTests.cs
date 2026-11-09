@@ -80,6 +80,52 @@ public class LiveLibMetadataProviderTests
         </body></html>
         """;
 
+    private const string ModernBookHtml = """
+        <html><head>
+        <meta property="og:title" content="«Маленький принц». Автор: Антуан де Сент-Экзюпери">
+        <meta property="og:description" content="Книга «Маленький принц». Автор: Антуан де Сент-Экзюпери.">
+        <script id="orbitalis-book-card-schema" type="application/ld+json">
+        {"@context":"https://schema.org","@graph":[
+          {"@type":"Book","name":"Маленький принц",
+           "isbn":"978-5-17-191259-8",
+           "publisher":{"@type":"Organization","name":"АСТ"}}
+        ]}
+        </script>
+        </head><body>
+        <div class="DetailedInfo_DetailedInfoRow__XXovq"><p class="DetailedInfo_DetailedInfoRowValue__CFIWF">Издательство<!-- -->: </p><p class="DetailedInfo_DetailedInfoRowValue__CFIWF"><a href="https://www.livelib.ru/publisher/68-act">АСТ</a>, <a href="https://www.livelib.ru/publisher/60863-villi-vinki">Вилли-Винки</a></p></div>
+        <div class="DetailedInfo_DetailedInfoRow__XXovq"><p class="DetailedInfo_DetailedInfoRowValue__CFIWF">Серия<!-- -->: </p><p class="DetailedInfo_DetailedInfoRowValue__CFIWF"><a href="https://www.livelib.ru/pubseries/123">Шедевры иллюстрации</a></p></div>
+        <div class="DetailedInfo_DetailedInfoRow__XXovq"><p class="DetailedInfo_DetailedInfoRowValue__CFIWF">Возрастные ограничения<!-- -->: </p><p class="DetailedInfo_DetailedInfoRowValue__CFIWF">6+</p></div>
+        <div class="OverviewSections_OverviewSectionsContainer__y1TkO">
+          <div class="OverviewSections_OverviewSection__xUaTb">
+            <h3 class="OverviewSections_OverviewSectionTitle__p__mP">Интересные факты</h3>
+            <span class="OverviewSections_OverviewSectionText__KWBSe">
+              <span class="OverviewSections_OverviewSectionTextContent__OA_5U">
+                <p>- Многие изучавшие французский язык (включая профессиональных филологов) считают «Маленького принца» лучшим пособием для освоения французского языка на начальном этапе.<br/>- В 2003 году луна астероида «45 Eugenia» (открыт астрономами в 1998 году на телескопе в Mauna Kea, Гавайи) была названа «Маленький принц». Одновременно название связано с погибшим в молодости принцем Наполеоном-Эженом (Наполеон IV), сыном императрицы Евгении, в честь которой назван сам астероид.<br/>- В 2011 году в Москве сербским режиссером Срджаном Симичем был поставлен спектакль по мотивам «Маленького принца», в котором действие книги переносится в современное Косово.</p>
+                <p>(с)Вики</p>
+              </span>
+              <button type="button"><span>Ещё</span></button>
+            </span>
+          </div>
+          <div class="OverviewSections_OverviewSection__xUaTb">
+            <h3 class="OverviewSections_OverviewSectionTitle__p__mP">История</h3>
+            <span class="OverviewSections_OverviewSectionText__KWBSe">
+              <span class="OverviewSections_OverviewSectionTextContent__OA_5U">
+                <p>Сказка посвящена «Леону Верту, когда он был маленьким»</p>
+              </span>
+            </span>
+          </div>
+          <div class="OverviewSections_OverviewSection__xUaTb">
+            <h3 class="OverviewSections_OverviewSectionTitle__p__mP">Экранизации</h3>
+            <span class="OverviewSections_OverviewSectionText__KWBSe">
+              <span class="OverviewSections_OverviewSectionTextContent__OA_5U">
+                <p>Приключения Маленького принца (сериал 1978)<br/>Маленький принц (1974)</p>
+              </span>
+            </span>
+          </div>
+        </div>
+        </body></html>
+        """;
+
     [Fact]
     public async Task GetDetailsAsync_MapsGraphRatingGenresIsbnDescriptionAndPages()
     {
@@ -108,6 +154,75 @@ public class LiveLibMetadataProviderTests
         details.Format.Should().Be("Твёрдый переплёт");
         details.Publisher.Should().Be("АСТ");
         details.Studio.Should().Be("АСТ");
+    }
+
+    [Fact]
+    public async Task GetDetailsAsync_WithModernLiveLibPage_ExtractsFullPublisherAgeRatingOverviewSectionsAndAdaptations()
+    {
+        var factory = new StubHttpClientFactory(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(ModernBookHtml)
+        }));
+
+        var provider = new LiveLibMetadataProvider(factory);
+        var details = await provider.GetDetailsAsync("1018210915", "Маленький принц", CancellationToken.None);
+
+        details.Should().NotBeNull();
+        details!.Description.Should().NotBeNull();
+        details.Description.Should().Contain("💡 Интересные факты:");
+        details.Description.Should().Contain("• Многие изучавшие французский язык");
+        details.Description.Should().Contain("• В 2003 году луна астероида «45 Eugenia»");
+        details.Description.Should().Contain("📖 История:");
+        details.Description.Should().Contain("Сказка посвящена «Леону Верту, когда он был маленьким»");
+        details.Description.Should().NotContain("(с)Вики");
+        details.Description.Should().NotContain("Ещё");
+
+        details.Publisher.Should().Be("АСТ, Вилли-Винки");
+        details.Studio.Should().Be("АСТ, Вилли-Винки");
+
+        details.Tags.Should().Contain("6+");
+        details.Tags.Should().Contain("Шедевры иллюстрации");
+        details.Tags.Should().Contain("Приключения Маленького принца (сериал 1978)");
+        details.Tags.Should().Contain("Маленький принц (1974)");
+
+        details.Synonyms.Should().Contain("Приключения Маленького принца (сериал 1978)");
+        details.Synonyms.Should().Contain("Маленький принц (1974)");
+    }
+
+    [Fact]
+    public void ParseBookPage_WithShortInfoDescription_ExtractsAnnotation()
+    {
+        const string html = """
+            <html><body>
+            <section class="ShortInfo_ShortInfoDescription__zHhJE">
+              <div class="Truncate_TruncateContent__RRK1x">
+                <span class="Truncate_TruncateText__NMALG">Альберт Эйнштейн - самый известный ученый XX века.</span>
+              </div>
+            </section>
+            </body></html>
+            """;
+
+        var details = LiveLibHtmlParser.ParseBookPage(html);
+        details.Description.Should().Be("Альберт Эйнштейн - самый известный ученый XX века.");
+    }
+
+    [Fact]
+    public void ParseBookPage_WithReal1018210915Html_ParsesAllEnhancedFields()
+    {
+        var html = File.Exists("/tmp/livelib_1018210915_real.html")
+            ? File.ReadAllText("/tmp/livelib_1018210915_real.html")
+            : ModernBookHtml;
+
+        var details = LiveLibHtmlParser.ParseBookPage(html);
+
+        details.Description.Should().NotBeNull();
+        details.Description.Should().Contain("💡 Интересные факты:");
+        details.Description.Should().Contain("📖 История:");
+        details.Publisher.Should().Be("АСТ, Вилли-Винки");
+        details.AgeRating.Should().Be("6+");
+        details.Series.Should().Be("Шедевры иллюстрации");
+        details.Adaptations.Should().Contain("Приключения Маленького принца (сериал 1978)");
+        details.Adaptations.Should().Contain("Маленький принц (1974)");
     }
 
     [Fact]

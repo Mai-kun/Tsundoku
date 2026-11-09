@@ -172,6 +172,8 @@ export interface CreateGamePayload extends CreateMediaBase {
 export interface CreateBookPayload extends CreateMediaBase {
   type: "book";
   author: string;
+  studio?: string | null;
+  isbn?: string | null;
   totalPages?: number | null;
   format?: string | null;
   currentChapter?: number | null;
@@ -273,6 +275,7 @@ export interface UpdateMediaPayload {
   franchiseName?: string | null;
   franchiseOrder?: number | null;
   author?: string | null;
+  isbn?: string | null;
   format?: string | null;
   romajiTitle?: string | null;
   totalVolumes?: number | null;

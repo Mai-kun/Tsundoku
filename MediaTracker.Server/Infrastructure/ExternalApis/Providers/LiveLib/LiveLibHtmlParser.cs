@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using MediaTracker.Server.Infrastructure.ExternalApis.Abstractions;
 
 namespace MediaTracker.Server.Infrastructure.ExternalApis.Providers.LiveLib;
 
@@ -25,7 +26,31 @@ public sealed record LiveLibBookDetails(
     int? Year,
     double? Rating,
     string? CoverUrl,
-    IReadOnlyList<string> Genres);
+    IReadOnlyList<string> Genres)
+{
+    /// <summary>The edition's publisher, from JSON-LD <c>publisher.name</c> or the page label.</summary>
+    public string? Publisher { get; init; }
+
+    /// <summary>Binding as a readable label ("Твёрдый переплёт"), mapped from <c>bookFormat</c>.</summary>
+    public string? Format { get; init; }
+
+    /// <summary>Edition language, from JSON-LD <c>inLanguage</c> or the "Язык" row.</summary>
+    public string? Language { get; init; }
+
+    /// <summary>Publication date (yyyy-MM-dd) from <c>datePublished</c>; null when the source has none.</summary>
+    public string? ReleaseDate { get; init; }
+
+    public int? RatingVotes { get; init; }
+
+    /// <summary>True when the JSON-LD rating is already on a 10-point scale (bestRating 10).</summary>
+    public bool RatingIsTenPoint { get; init; }
+
+    /// <summary>The "Серия" row value; the provider exposes it as a tag.</summary>
+    public string? Series { get; init; }
+
+    /// <summary>Edition staff the page names, e.g. the illustrator.</summary>
+    public IReadOnlyList<ExternalStaffMemberDto>? Staff { get; init; }
+}
 
 /// <summary>
 /// Extracts LiveLib data from raw HTML with content-anchored matching only: URL shapes
@@ -79,12 +104,16 @@ public static partial class LiveLibHtmlParser
             return new LiveLibBookDetails(null, null, null, null, null, null, null, null, []);
         }
 
-        // Level 1: schema.org JSON-LD (type "Book"). Absent on most current pages, but it is the
-        // most stable contract the site can grow into, so it leads the cascade.
+        // Level 1: schema.org JSON-LD (type "Book"). It may sit at the root or inside an @graph
+        // wrapper, and it is the most stable contract the site offers, so it leads the cascade.
         string? title = null, author = null, description = null, isbn = null, cover = null;
+        string? publisher = null, format = null, language = null, releaseDate = null;
         int? pages = null;
         int? year = null;
+        int? ratingVotes = null;
         double? rating = null;
+        var ratingIsTenPoint = false;
+        var jsonGenres = new List<string>();
 
         foreach (var json in JsonLdBlocks(html))
         {
@@ -94,8 +123,12 @@ public static partial class LiveLibHtmlParser
             {
                 title ??= StringProperty(element, "name");
                 author ??= StringProperty(element, "author");
-                description ??= StringProperty(element, "description");
+                description ??= UsableDescription(StringProperty(element, "description"));
                 isbn ??= StringProperty(element, "isbn");
+                publisher ??= StringProperty(element, "publisher");
+                format ??= FormatOf(StringProperty(element, "bookFormat"));
+                language ??= StringProperty(element, "inLanguage");
+                cover ??= ImageUrlProperty(element, "image");
 
                 if (pages is null && element.TryGetProperty("numberOfPages", out var pagesEl)
                     && pagesEl.ValueKind == JsonValueKind.Number)
@@ -103,28 +136,37 @@ public static partial class LiveLibHtmlParser
                     pages = pagesEl.GetInt32();
                 }
 
-                if (year is null)
+                var published = StringProperty(element, "datePublished");
+                if (published is { Length: >= 4 })
                 {
-                    var published = StringProperty(element, "datePublished");
-                    if (published is { Length: >= 4 } raw && int.TryParse(raw[..4], out var parsedYear))
+                    if (year is null && int.TryParse(published[..4], out var parsedYear))
                     {
                         year = parsedYear;
                     }
+
+                    releaseDate ??= DatePartRegex().Match(published) is { Success: true } dateMatch
+                        ? dateMatch.Value
+                        : published;
                 }
 
-                cover ??= StringProperty(element, "image");
-
-                if (rating is null && element.TryGetProperty("aggregateRating", out var agg)
-                    && agg.ValueKind == JsonValueKind.Object
-                    && agg.TryGetProperty("ratingValue", out var ratingEl))
+                if (jsonGenres.Count == 0)
                 {
-                    rating = ratingEl.ValueKind switch
+                    jsonGenres.AddRange(StringArrayProperty(element, "genre"));
+                }
+
+                if (element.TryGetProperty("aggregateRating", out var agg)
+                    && agg.ValueKind == JsonValueKind.Object)
+                {
+                    if (rating is null && TryDoubleProperty(agg, "ratingValue") is { } parsedRating)
                     {
-                        JsonValueKind.Number => ratingEl.GetDouble(),
-                        JsonValueKind.String when double.TryParse(
-                            ratingEl.GetString(), NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed) => parsed,
-                        _ => null,
-                    };
+                        rating = parsedRating;
+                        var best = TryDoubleProperty(agg, "bestRating");
+                        // LiveLib's newer JSON-LD is already 1-10 (bestRating 10); the older
+                        // pages used the site's 0-5 stars.
+                        ratingIsTenPoint = best >= 10 || parsedRating > 5;
+                    }
+
+                    ratingVotes ??= TryIntProperty(agg, "ratingCount");
                 }
             }
         }
@@ -147,8 +189,11 @@ public static partial class LiveLibHtmlParser
             }
         }
 
-        description ??= MetaContent(html, "property", "og:description")
-            ?? MetaContent(html, "name", "description");
+        // The real book annotation on the page beats the templated og/meta blurb
+        // ("Книга «…». Автор: …"), which is not a synopsis at all.
+        description ??= ExtractAnnotation(html);
+        description ??= UsableDescription(MetaContent(html, "property", "og:description"));
+        description ??= UsableDescription(MetaContent(html, "name", "description"));
 
         // The boocover asset beats the opengraph renderer: it is the real cover file with its
         // original name, and it is what the search rows carry too.
@@ -166,11 +211,19 @@ public static partial class LiveLibHtmlParser
         year ??= NonNegative(YearRegex().Match(html) is { Success: true } yearMatch
             ? yearMatch.Groups[1].Value
             : null);
-        rating ??= ExtractRatingValue(html);
+        if (rating is null)
+        {
+            rating = ExtractRatingValue(html);
+        }
+
+        publisher ??= ExtractLabeledValue(html, "Издательство");
+        format ??= FormatOf(ExtractLabeledValue(html, "Переплет"));
+        language ??= ExtractLabeledValue(html, "Язык");
+        var series = ExtractLabeledValue(html, "Серия");
 
         // The link's visible text ("Русская классика") beats the slug ("Русская-классика"); the
         // slug is the fallback for genre links that render no text.
-        var genres = GenreRegex().Matches(html)
+        var pageGenres = GenreRegex().Matches(html)
             .Select(m =>
             {
                 var label = m.Groups[2].Success && m.Groups[2].Value.Trim().Length > 1
@@ -183,6 +236,9 @@ public static partial class LiveLibHtmlParser
             .Where(g => g.Length > 1)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
+        var genres = jsonGenres.Count > 0
+            ? jsonGenres.Distinct(StringComparer.OrdinalIgnoreCase).ToList()
+            : pageGenres;
 
         return new LiveLibBookDetails(
             Title: title is null ? null : DecodeHtml(title),
@@ -193,7 +249,17 @@ public static partial class LiveLibHtmlParser
             Year: year,
             Rating: rating,
             CoverUrl: cover,
-            Genres: genres);
+            Genres: genres)
+        {
+            Publisher = publisher,
+            Format = format,
+            Language = language,
+            ReleaseDate = releaseDate,
+            RatingVotes = ratingVotes,
+            RatingIsTenPoint = ratingIsTenPoint,
+            Series = series,
+            Staff = ExtractStaff(html),
+        };
     }
 
     private sealed record HtmlBlock(string Id, string Html);
@@ -263,6 +329,182 @@ public static partial class LiveLibHtmlParser
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// The JSON-LD/OpenGraph description, unless it is LiveLib's templated blurb
+    /// ("Книга «…». Автор: …" / "Предлагаем вашему вниманию книгу …"), which carries no synopsis.
+    /// </summary>
+    private static string? UsableDescription(string? value)
+    {
+        var text = value is null ? null : DecodeHtml(value).Trim().TrimStart('-', ' ');
+        if (string.IsNullOrWhiteSpace(text)) return null;
+        if (TemplateDescriptionRegex().IsMatch(text)) return null;
+        return text;
+    }
+
+    /// <summary>
+    /// The book annotation from the page. The old LiveLib layout marks it with
+    /// <c>itemprop="description"</c> or the lenta-card/description block; markup is flattened to
+    /// plain text while paragraph boundaries stay.
+    /// </summary>
+    private static string? ExtractAnnotation(string html)
+    {
+        foreach (var opening in new[]
+                 {
+                     ItempropDescriptionRegex(),
+                     LentaDescriptionRegex(),
+                     CardDescriptionRegex(),
+                 })
+        {
+            var text = HtmlToText(InnerHtmlOf(html, opening));
+            if (text is { Length: >= 40 }) return text;
+        }
+
+        return null;
+    }
+
+    /// <summary>Inner HTML of the first element matched by <paramref name="openingTag"/>, balancing nesting.</summary>
+    private static string? InnerHtmlOf(string html, Regex openingTag)
+    {
+        var open = openingTag.Match(html);
+        if (!open.Success) return null;
+        var tagMatch = TagNameRegex().Match(open.Value);
+        if (!tagMatch.Success) return null;
+
+        var tag = tagMatch.Groups[1].Value;
+        var contentStart = open.Index + open.Length;
+        var depth = 1;
+        var tokens = Regex.Matches(
+            html[contentStart..],
+            $"""<\s*(/?)\s*{Regex.Escape(tag)}\b[^>]*>""",
+            RegexOptions.IgnoreCase);
+        foreach (Match token in tokens)
+        {
+            if (token.Groups[1].Value == "/")
+            {
+                depth--;
+                if (depth == 0) return html.Substring(contentStart, token.Index);
+            }
+            else if (!token.Value.TrimEnd().EndsWith("/>", StringComparison.Ordinal))
+            {
+                depth++;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>Value of a "Label: value" row, either the structured two-paragraph markup or plain text.</summary>
+    private static string? ExtractLabeledValue(string html, string label)
+    {
+        var escaped = Regex.Escape(label);
+        var structured = Regex.Match(
+            html,
+            $"""<p[^>]*>\s*{escaped}(?:<!-- -->)?:\s*</p>\s*<p[^>]*>(.*?)</p>""",
+            RegexOptions.IgnoreCase | RegexOptions.Singleline);
+        if (structured.Success)
+        {
+            var structuredValue = HtmlToText(structured.Groups[1].Value);
+            if (!string.IsNullOrWhiteSpace(structuredValue)) return structuredValue;
+        }
+
+        var plain = Regex.Match(
+            html,
+            $"""{escaped}(?:<!-- -->)?:\s*([^<\r\n]+)""",
+            RegexOptions.IgnoreCase);
+        return plain.Success ? HtmlToText(plain.Groups[1].Value) : null;
+    }
+
+    /// <summary>The illustrator row ("илл. Антонио Лоренте") as key staff.</summary>
+    private static IReadOnlyList<ExternalStaffMemberDto>? ExtractStaff(string html)
+    {
+        var match = IllustratorRegex().Match(html);
+        if (!match.Success) return null;
+        var name = HtmlToText(match.Groups[1].Value);
+        return string.IsNullOrWhiteSpace(name)
+            ? null
+            : [new ExternalStaffMemberDto(name, "Иллюстратор", null)];
+    }
+
+    /// <summary>HTML fragment to readable text: tags dropped, entities decoded, paragraphs kept.</summary>
+    private static string? HtmlToText(string? fragment)
+    {
+        if (string.IsNullOrWhiteSpace(fragment)) return null;
+        var text = Regex.Replace(fragment, """<br\s*/?>|</(?:p|div|li)\s*>""", "\n",
+            RegexOptions.IgnoreCase);
+        text = Regex.Replace(text, "<[^>]+>", " ");
+        text = DecodeHtml(text);
+        text = Regex.Replace(text, @"[ \t\f\v]+", " ");
+        text = Regex.Replace(text, @" *\n *", "\n");
+        text = Regex.Replace(text, @"\n{3,}", "\n\n");
+        return text.Trim();
+    }
+
+    /// <summary>schema.org bookFormat URL/text to the Russian binding label.</summary>
+    private static string? FormatOf(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        if (value.Contains("Hardcover", StringComparison.OrdinalIgnoreCase)) return "Твёрдый переплёт";
+        if (value.Contains("Paperback", StringComparison.OrdinalIgnoreCase)) return "Мягкая обложка";
+        return value.Trim();
+    }
+
+    private static IReadOnlyList<string> StringArrayProperty(JsonElement element, string name)
+    {
+        if (!element.TryGetProperty(name, out var value)) return [];
+        return value.ValueKind switch
+        {
+            JsonValueKind.Array => value.EnumerateArray()
+                .Select(item => item.ValueKind == JsonValueKind.Object
+                    ? StringProperty(item, "name")
+                    : NullIfBlank(item.ToString()))
+                .Where(item => item is not null)
+                .Select(item => item!)
+                .ToList(),
+            JsonValueKind.String => NullIfBlank(value.GetString()) is { } single ? [single] : [],
+            _ => [],
+        };
+    }
+
+    /// <summary>Image may be a string or an ImageObject with a <c>url</c>.</summary>
+    private static string? ImageUrlProperty(JsonElement element, string name)
+    {
+        if (!element.TryGetProperty(name, out var value)) return null;
+        return value.ValueKind switch
+        {
+            JsonValueKind.String => NullIfBlank(value.GetString()),
+            JsonValueKind.Object => StringProperty(value, "url"),
+            JsonValueKind.Array => value.EnumerateArray()
+                .Select(item => item.ValueKind == JsonValueKind.Object
+                    ? StringProperty(item, "url")
+                    : NullIfBlank(item.ToString()))
+                .FirstOrDefault(item => item is not null),
+            _ => null,
+        };
+    }
+
+    private static double? TryDoubleProperty(JsonElement element, string name)
+    {
+        if (!element.TryGetProperty(name, out var value)) return null;
+        return value.ValueKind switch
+        {
+            JsonValueKind.Number => value.GetDouble(),
+            JsonValueKind.String when double.TryParse(
+                value.GetString(), NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed) => parsed,
+            _ => null,
+        };
+    }
+
+    private static int? TryIntProperty(JsonElement element, string name)
+    {
+        if (!element.TryGetProperty(name, out var value)) return null;
+        return value.ValueKind switch
+        {
+            JsonValueKind.Number when value.TryGetInt32(out var parsed) => parsed,
+            JsonValueKind.String when int.TryParse(value.GetString(), out var parsed) => parsed,
+            _ => null,
+        };
     }
 
     /// <summary>Protocol-relative and bare asset URLs get a scheme; anything else passes through.</summary>
@@ -401,8 +643,33 @@ public static partial class LiveLibHtmlParser
     [GeneratedRegex("""aria-label="Рейтинг:\s*([0-9.]+) из 5""")]
     private static partial Regex RatingAriaRegex();
 
-    [GeneratedRegex("""<script type="application/ld\+json">\s*(\{.*?\})\s*</script>""", RegexOptions.Singleline)]
+    [GeneratedRegex("""<script[^>]*type="application/ld\+json"[^>]*>\s*(\{.*?\})\s*</script>""",
+        RegexOptions.IgnoreCase | RegexOptions.Singleline)]
     private static partial Regex JsonLdRegex();
+
+    [GeneratedRegex("""^(\d{4}-\d{2}-\d{2})""")]
+    private static partial Regex DatePartRegex();
+
+    [GeneratedRegex("""^(?:Книга\s+[«"].*?[»"]\.\s*Автор:|Предлагаем вашему вниманию книгу)""",
+        RegexOptions.IgnoreCase | RegexOptions.Singleline)]
+    private static partial Regex TemplateDescriptionRegex();
+
+    [GeneratedRegex("""<([a-zA-Z0-9]+)[^>]*itemprop="description"[^>]*>""", RegexOptions.IgnoreCase)]
+    private static partial Regex ItempropDescriptionRegex();
+
+    [GeneratedRegex("""<([a-zA-Z0-9]+)[^>]*id="lenta-card__text-actions-description"[^>]*>""",
+        RegexOptions.IgnoreCase)]
+    private static partial Regex LentaDescriptionRegex();
+
+    [GeneratedRegex("""<([a-zA-Z0-9]+)[^>]*class="[^"]*(?:block-border|card-block)[^"]*"[^>]*>""",
+        RegexOptions.IgnoreCase)]
+    private static partial Regex CardDescriptionRegex();
+
+    [GeneratedRegex("""^<\s*([a-zA-Z0-9]+)""")]
+    private static partial Regex TagNameRegex();
+
+    [GeneratedRegex("""(?:илл\.|Иллюстратор:)\s*([^<\r\n]+)""", RegexOptions.IgnoreCase)]
+    private static partial Regex IllustratorRegex();
 
     [GeneratedRegex("""«(.+?)»""", RegexOptions.Singleline)]
     private static partial Regex QuotedTitleRegex();

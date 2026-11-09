@@ -131,6 +131,74 @@ public class LiveLibParserTests
         details.Genres.Should().Contain("Русская классика");
     }
 
+    private const string BookPageGraphHtml = """
+        <html><head>
+        <meta property="og:title" content="«Маленький принц». Автор: Антуан де Сент-Экзюпери">
+        <meta property="og:description" content="Книга «Маленький принц». Автор: Антуан де Сент-Экзюпери.">
+        <script id="orbitalis-book-card-schema" type="application/ld+json">
+        {"@context":"https://schema.org","@graph":[
+          {"@type":"BreadcrumbList","itemListElement":[]},
+          {"@type":"Book","name":"Маленький принц",
+           "image":{"@type":"ImageObject","url":"https://s1.livelib.ru/boocover/1018210915/200x305/0d8e/cover.jpg"},
+           "isbn":"978-5-17-191259-8",
+           "genre":["Сказки","Зарубежная классика","Зарубежные детские книги"],
+           "inLanguage":"ru","bookFormat":"https://schema.org/Hardcover",
+           "datePublished":"2026-01-01T00:00:00+03:00",
+           "author":{"@type":"Person","name":"Антуан де Сент-Экзюпери"},
+           "publisher":{"@type":"Organization","name":"АСТ"},
+           "aggregateRating":{"@type":"AggregateRating","ratingValue":9,"ratingCount":89258,"bestRating":10,"worstRating":1}}
+        ]}
+        </script>
+        </head><body>
+        <div id="lenta-card__text-actions-description">
+          <span itemprop="description"><p>«Маленький принц» — самое знаменитое произведение Антуана де Сент-Экзюпери.</p><p>История о дружбе, любви и ответственности.</p></span>
+        </div>
+        <div class="DetailedInfo_DetailedInfoRow__XXovq"><p class="DetailedInfo_DetailedInfoRowValue__CFIWF">Издательство<!-- -->: </p><p class="DetailedInfo_DetailedInfoRowValue__CFIWF"><a href="/publisher/68-act">АСТ</a></p></div>
+        <div class="DetailedInfo_DetailedInfoRow__XXovq"><p class="DetailedInfo_DetailedInfoRowValue__CFIWF">Серия<!-- -->: </p><p class="DetailedInfo_DetailedInfoRowValue__CFIWF">Шедевры иллюстрации</p></div>
+        <div class="DetailedInfo_DetailedInfoRow__XXovq"><p class="DetailedInfo_DetailedInfoRowValue__CFIWF">Кол-во страниц: 160</p></div>
+        <div class="DetailedInfo_DetailedInfoRow__XXovq"><p class="DetailedInfo_DetailedInfoRowValue__CFIWF">илл. Антонио Лоренте</p></div>
+        </body></html>
+        """;
+
+    [Fact]
+    public void ParseBookPage_ReadsGraphJsonLdAndPageBlocks()
+    {
+        var details = LiveLibHtmlParser.ParseBookPage(BookPageGraphHtml);
+
+        details.Title.Should().Be("Маленький принц");
+        details.Author.Should().Be("Антуан де Сент-Экзюпери");
+        details.Isbn.Should().Be("978-5-17-191259-8");
+        details.Rating.Should().Be(9.0);
+        details.RatingIsTenPoint.Should().BeTrue();
+        details.RatingVotes.Should().Be(89258);
+        details.Genres.Should().Equal("Сказки", "Зарубежная классика", "Зарубежные детские книги");
+        details.Pages.Should().Be(160);
+        details.Year.Should().Be(2026);
+        details.ReleaseDate.Should().Be("2026-01-01");
+        details.Publisher.Should().Be("АСТ");
+        details.Format.Should().Be("Твёрдый переплёт");
+        details.Language.Should().Be("ru");
+        details.Series.Should().Be("Шедевры иллюстрации");
+        details.Staff.Should().ContainSingle(member =>
+            member.Name == "Антонио Лоренте" && member.Role == "Иллюстратор");
+        details.Description.Should().Contain("самое знаменитое произведение")
+            .And.Contain("История о дружбе")
+            .And.NotContain("Автор:");
+    }
+
+    [Fact]
+    public void ParseBookPage_RejectsTemplatedDescription()
+    {
+        var details = LiveLibHtmlParser.ParseBookPage("""
+            <html><head>
+            <meta property="og:title" content="«Белая гвардия». Автор: Михаил Булгаков">
+            <meta property="og:description" content="Книга «Белая гвардия». Автор: Михаил Булгаков.">
+            </head><body></body></html>
+            """);
+
+        details.Description.Should().BeNull();
+    }
+
     [Fact]
     public void ParseBookPage_HandlesEmptyAndCaptchaHtml()
     {

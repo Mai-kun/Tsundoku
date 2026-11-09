@@ -36,6 +36,8 @@ public sealed record UpdateMediaRequest
 
     public string? Author { get; init; }
 
+    public string? Isbn { get; init; }
+
     public string? RomajiTitle { get; init; }
 
     /// <summary>Replaces the stored alternative titles when supplied.</summary>

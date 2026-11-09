@@ -116,6 +116,16 @@ export interface MediaDetailFields {
   /** The user's screenshot gallery, rendered by the gallery tab. */
   gallery?: MediaGalleryItem[];
   notes: string | null;
+  isbn?: string | null;
+  linkedSourcesJson?: string | null;
+  linkedSources?: {
+    source: string;
+    externalId: string;
+    url?: string | null;
+    isPrimary: boolean;
+    title?: string | null;
+    providedFields?: string[] | null;
+  }[];
   detailedScoreJson?: string | null;
   quotesJson?: string | null;
   description?: string | null;
@@ -178,6 +188,8 @@ export interface BookMedia extends MediaBase {
   totalChapters?: number | null;
   currentVolume?: number | null;
   totalVolumes?: number | null;
+  isbn?: string | null;
+  studio?: string | null;
 }
 
 export interface MangaMedia extends MediaBase {
@@ -436,6 +448,8 @@ export interface ExternalMedia {
   type: SearchMediaType;
   author: string | null;
   studio: string | null;
+  isbn?: string | null;
+  covers?: string[] | null;
   totalCount: number | null;
   chapters?: number | null;
   volumes?: number | null;

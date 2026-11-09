@@ -36,6 +36,15 @@ export interface RatingBadgeInput {
   fallbackSources?: readonly string[];
   /** Appends a placeholder for expected sources that never answered. */
   includeMissing?: boolean;
+  /** When provided, badges are rendered ONLY for sources linked to the media item. */
+  linkedSources?: readonly string[];
+}
+
+function matchesSource(s1: string, s2: string): boolean {
+  const a = s1.trim().toLowerCase();
+  const b = s2.trim().toLowerCase();
+  if (a === b) return true;
+  return a.includes(b) || b.includes(a);
 }
 
 /**
@@ -54,6 +63,7 @@ export function buildRatingBadges({
   availableSources,
   fallbackSources = CATEGORY_EXPECTED_SOURCES[category] ?? [],
   includeMissing = true,
+  linkedSources,
 }: RatingBadgeInput): RatingBadge[] {
   const results: RatingBadge[] = [];
   const seen = new Set<string>();
@@ -90,6 +100,30 @@ export function buildRatingBadges({
       score: fallback.score,
       votes: fallback.votes ?? null,
     });
+  }
+
+  if (linkedSources !== undefined) {
+    const isLinked = (src: string) => linkedSources.some((ls) => matchesSource(ls, src));
+    const linkedResults = results.filter((r) => isLinked(r.source));
+    const seenLinked = new Set(linkedResults.map((r) => r.source.toLowerCase()));
+
+    for (const ls of linkedSources) {
+      const lsClean = ls.trim();
+      if (!lsClean) continue;
+      const lsNorm = lsClean.toLowerCase();
+      if (disabledSources.has(lsNorm) || lsNorm.includes("sociallib")) continue;
+
+      const found = Array.from(seenLinked).some((s) => s.includes(lsNorm) || lsNorm.includes(s));
+      if (!found) {
+        seenLinked.add(lsNorm);
+        const resolvedName =
+          availableSources.find((s) => matchesSource(s.id, lsClean) || matchesSource(s.name, lsClean))?.name ??
+          lsClean;
+        linkedResults.push({ source: resolvedName, score: null, votes: null });
+      }
+    }
+
+    return linkedResults;
   }
 
   if (!includeMissing) return results;

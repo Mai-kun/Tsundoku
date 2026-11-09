@@ -25,6 +25,8 @@ public static class MediaItemFactory
             "book" => new Book
             {
                 Author = request.Author ?? string.Empty,
+                Publisher = request.Studio,
+                Isbn = request.Isbn,
                 TotalPages = request.TotalPages ?? 0,
                 Title = request.Title,
                 Format = request.Format,

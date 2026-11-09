@@ -70,7 +70,8 @@ public sealed class MediaItemRow
     public bool IsCustomEdited { get; set; }
     public string MediaType { get; set; } = string.Empty;
 
-    // Manga/base fields
+    // Book/Manga/base fields
+    public string? Isbn { get; set; }
     public string? Author { get; set; }
     public int? CurrentPage { get; set; }
     public int? TotalPages { get; set; }
@@ -123,6 +124,7 @@ public sealed class MediaItemRow
             {
                 Title = Title,
                 Author = Author ?? string.Empty,
+                Publisher = Studio,
                 TotalPages = TotalPages ?? 0,
                 CurrentPage = CurrentPage ?? 0,
                 Format = Book_Format,
@@ -130,6 +132,7 @@ public sealed class MediaItemRow
                 TotalChapters = TotalChapters,
                 CurrentVolume = CurrentVolume,
                 TotalVolumes = Manga_TotalVolumes,
+                Isbn = Isbn,
             },
             SqliteSchemaInitializer.MediaTypes.Manga => (MediaItem)new Manga
             {
@@ -304,6 +307,7 @@ public sealed class MediaItemRow
                 _ => throw new InvalidOperationException($"Unknown media item type '{item.GetType().Name}'.")
             },
             // Type-specific
+            Isbn = item is Book bIsbn ? bIsbn.Isbn : null,
             Author = item is Book b ? b.Author : item is Manga m ? m.Author : null,
             CurrentPage = item is Book b2 ? b2.CurrentPage : null,
             TotalPages = item is Book b3 ? b3.TotalPages : null,
@@ -327,7 +331,7 @@ public sealed class MediaItemRow
             TvShow_EpisodeDurationMinutes = item is TvShow tv9 ? tv9.EpisodeDurationMinutes : null,
             Platform = item is VideoGame g ? g.Platform : null,
             HoursPlayed = item is VideoGame g2 ? g2.HoursPlayed : null,
-            Studio = item is VideoGame g3 ? g3.Studio : item is TvShow tvStudio ? tvStudio.Studio : item is Movie mvStudio ? mvStudio.Studio : null,
+            Studio = item is VideoGame g3 ? g3.Studio : item is TvShow tvStudio ? tvStudio.Studio : item is Movie mvStudio ? mvStudio.Studio : item is Book bPub ? bPub.Publisher : null,
         };
     }
 }

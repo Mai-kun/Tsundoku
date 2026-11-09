@@ -103,6 +103,13 @@ public static class SqliteSchemaInitializer
             await alterCmd.ExecuteNonQueryAsync(ct);
         }
 
+        if (!existingColumns.Contains("Isbn"))
+        {
+            using var alterCmd = connection.CreateCommand();
+            alterCmd.CommandText = "ALTER TABLE MediaItems ADD COLUMN Isbn TEXT NULL;";
+            await alterCmd.ExecuteNonQueryAsync(ct);
+        }
+
         using (var cleanupCmd = connection.CreateCommand())
         {
             cleanupCmd.CommandText = @"
@@ -208,6 +215,7 @@ CREATE TABLE IF NOT EXISTS MediaItems (
     OriginalTitle TEXT,
     AltTitles TEXT,
     Book_Format TEXT,
+    Isbn TEXT NULL,
     CastJson TEXT,
     StaffJson TEXT,
     TranslatedSynopsis TEXT,

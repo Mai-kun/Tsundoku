@@ -84,7 +84,7 @@ public static class MediaMerger
         }
         else if (type == "book")
         {
-            if (d.TotalCount == null || string.IsNullOrWhiteSpace(d.Author))
+            if (d.TotalCount == null || string.IsNullOrWhiteSpace(d.Author) || string.IsNullOrWhiteSpace(d.Isbn))
             {
                 return true;
             }
@@ -138,6 +138,8 @@ public static class MediaMerger
             CreatorImageUrl = FirstNonEmpty(primary.CreatorImageUrl, fallback.CreatorImageUrl),
             Description = FirstNonEmpty(primary.Description, fallback.Description),
             CoverUrl = FirstNonEmpty(primary.CoverUrl, fallback.CoverUrl),
+            Covers = Union(primary.Covers, fallback.Covers),
+            Isbn = FirstNonEmpty(primary.Isbn, fallback.Isbn),
             ReleaseYear = primary.ReleaseYear ?? fallback.ReleaseYear,
             ReleaseDate = FirstNonEmpty(primary.ReleaseDate, fallback.ReleaseDate),
             EndDate = FirstNonEmpty(primary.EndDate, fallback.EndDate),
@@ -315,6 +317,9 @@ public static class MediaMerger
         Add("Теги", ListChanged(primary.Tags, merged.Tags));
         Add("Формат", merged.MangaFormat != primary.MangaFormat);
         Add("Платформа", merged.Platform != primary.Platform);
+        Add("ISBN", !string.IsNullOrWhiteSpace(fallback.Isbn)
+            && string.Equals(merged.Isbn, fallback.Isbn, StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(primary.Isbn, fallback.Isbn, StringComparison.OrdinalIgnoreCase));
 
         // --- Accumulative fields: several sources can hold the same label. ---
         Add("Жанры", fallback.Genres is { Count: > 0 });

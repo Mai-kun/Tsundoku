@@ -4,6 +4,10 @@ public class Book : MediaItem
 {
     public required string Author { get; set; }
 
+    public string? Publisher { get; set; }
+
+    public string? Isbn { get; set; }
+
     /// <summary>book / light_novel / web_novel</summary>
     public string? Format { get; set; }
 

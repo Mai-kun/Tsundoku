@@ -98,7 +98,9 @@ public sealed partial class LiveLibMetadataProvider(
     public override async Task<ExternalMediaDto?> GetDetailsAsync(string externalId, string title, CancellationToken ct)
     {
         var isExternalIdIsbn = !string.IsNullOrWhiteSpace(externalId) && IsIsbn(IsbnCandidateOf(externalId));
-        var bookId = isExternalIdIsbn ? null : (BookIdOf(externalId) ?? BookIdOf(title));
+        // A numeric LiveLib id wins even when it is also shaped like an ISBN-10: the id came from
+        // this source, so fetching the book page is the right call.
+        var bookId = BookIdOf(externalId) ?? (isExternalIdIsbn ? null : BookIdOf(title));
         if (bookId is null)
         {
             // Not a LiveLib id: resolve through the search so an ISBN or title-only lookup still works.
@@ -186,10 +188,10 @@ public sealed partial class LiveLibMetadataProvider(
 
     private static ExternalMediaDto MapDetails(string bookId, LiveLibBookDetails details)
     {
-        // LiveLib rates on 0–5 stars; the library's external rating lives on the 0–10 scale the
-        // other providers map into (OpenLibrary does the same ×2).
+        // Older LiveLib pages rate on 0–5 stars; the newer JSON-LD already reports 1–10
+        // (bestRating 10). The library's external rating always lives on the 0–10 scale.
         double? rating = details.Rating is { } rawRating && rawRating > 0
-            ? Math.Round(rawRating * 2.0, 1)
+            ? Math.Round(details.RatingIsTenPoint ? rawRating : rawRating * 2.0, 1)
             : null;
 
         return new ExternalMediaDto
@@ -201,14 +203,28 @@ public sealed partial class LiveLibMetadataProvider(
             CoverUrl = details.CoverUrl,
             // og:description carries a leading "- " dash on LiveLib pages; strip it once here.
             Description = details.Description?.TrimStart('-', ' '),
+            Isbn = details.Isbn,
+            Publisher = details.Publisher,
+            // Book persistence keeps the publisher in MediaItem.Studio, so fill both.
+            Studio = details.Publisher,
+            ReleaseDate = details.ReleaseDate,
             ReleaseYear = details.Year,
+            OriginalLanguage = details.Language,
+            Format = details.Format,
             Type = MediaType.Book,
             TotalCount = details.Pages,
             Rating = rating,
-            RatingVotes = null,
+            RatingVotes = details.RatingVotes,
             Ratings = rating is not null
-                ? [new ExternalRatingDto { Source = "LiveLib", Rating = rating.Value }]
+                ? [new ExternalRatingDto
+                {
+                    Source = "LiveLib",
+                    Rating = rating.Value,
+                    Votes = details.RatingVotes,
+                }]
                 : null,
+            Staff = details.Staff,
+            Tags = details.Series is { Length: > 0 } series ? [series] : null,
             Genres = GenreNormalizer.NormalizeList(details.Genres) is { Count: > 0 } genres
                 ? genres.Distinct(StringComparer.OrdinalIgnoreCase).Take(8).ToList()
                 : null,
@@ -291,6 +307,6 @@ public sealed partial class LiveLibMetadataProvider(
         || html.Contains("Подтвердите, что запросы отправляли вы", StringComparison.OrdinalIgnoreCase)
         || (html.Contains("captcha", StringComparison.OrdinalIgnoreCase)
             && html.Contains("yandex", StringComparison.OrdinalIgnoreCase));
-    [GeneratedRegex("""(\d{6,12})""")]
+    [GeneratedRegex("""(?<!\d)(\d{6,12})(?!\d)""")]
     private static partial Regex BookIdRegex();
 }

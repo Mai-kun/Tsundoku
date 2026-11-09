@@ -32,6 +32,8 @@ public sealed record CreateMediaRequest
 
     public string? Author { get; init; }
 
+    public string? Isbn { get; init; }
+
     public string? Format { get; init; }
 
     public int? TotalPages { get; init; }

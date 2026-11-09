@@ -56,6 +56,60 @@ public class LiveLibMetadataProviderTests
         </body></html>
         """;
 
+    private const string GraphBookHtml = """
+        <html><head>
+        <meta property="og:title" content="«Маленький принц». Автор: Антуан де Сент-Экзюпери">
+        <script id="orbitalis-book-card-schema" type="application/ld+json">
+        {"@context":"https://schema.org","@graph":[
+          {"@type":"BreadcrumbList"},
+          {"@type":"Book","name":"Маленький принц",
+           "isbn":"978-5-17-191259-8",
+           "genre":["Сказки","Зарубежная классика","Зарубежные детские книги"],
+           "inLanguage":"ru","bookFormat":"https://schema.org/Hardcover",
+           "datePublished":"2026-01-01T00:00:00+03:00",
+           "author":{"@type":"Person","name":"Антуан де Сент-Экзюпери"},
+           "publisher":{"@type":"Organization","name":"АСТ"},
+           "aggregateRating":{"@type":"AggregateRating","ratingValue":9,"ratingCount":89258,"bestRating":10}}
+        ]}
+        </script>
+        </head><body>
+        <span itemprop="description"><p>«Маленький принц» — самое знаменитое произведение Антуана де Сент-Экзюпери.</p></span>
+        <div><p>Серия<!-- -->: </p><p>Шедевры иллюстрации</p></div>
+        <div><p>Кол-во страниц: 160</p></div>
+        <div><p>илл. Антонио Лоренте</p></div>
+        </body></html>
+        """;
+
+    [Fact]
+    public async Task GetDetailsAsync_MapsGraphRatingGenresIsbnDescriptionAndPages()
+    {
+        var factory = new StubHttpClientFactory(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(GraphBookHtml)
+        }));
+
+        var provider = new LiveLibMetadataProvider(factory);
+        var details = await provider.GetDetailsAsync("1018210915", "Маленький принц", CancellationToken.None);
+
+        details.Should().NotBeNull();
+        details!.Rating.Should().Be(9.0);
+        details.RatingVotes.Should().Be(89258);
+        details.Ratings.Should().ContainSingle(rating =>
+            rating.Source == "LiveLib" && rating.Rating == 9.0 && rating.Votes == 89258);
+        details.Genres.Should().Equal("Сказки", "Зарубежная классика", "Зарубежные детские книги");
+        details.Isbn.Should().Be("978-5-17-191259-8");
+        details.Description.Should().Contain("самое знаменитое произведение").And.NotContain("Автор:");
+        details.TotalCount.Should().Be(160);
+        details.Tags.Should().Contain("Шедевры иллюстрации");
+        details.Staff.Should().ContainSingle(member => member.Role == "Иллюстратор");
+        details.ReleaseYear.Should().Be(2026);
+        details.ReleaseDate.Should().Be("2026-01-01");
+        details.OriginalLanguage.Should().Be("ru");
+        details.Format.Should().Be("Твёрдый переплёт");
+        details.Publisher.Should().Be("АСТ");
+        details.Studio.Should().Be("АСТ");
+    }
+
     [Fact]
     public void SourceDescriptor_ShouldHaveBookMediaTypeOnly()
     {

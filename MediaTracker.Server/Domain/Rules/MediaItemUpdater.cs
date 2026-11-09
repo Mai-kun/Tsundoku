@@ -117,6 +117,7 @@ public static class MediaItemUpdater
                 break;
             case Book book:
                 book.Author = request.Author ?? book.Author;
+                book.Isbn = request.Isbn ?? book.Isbn;
                 book.TotalPages = request.TotalPages ?? book.TotalPages;
                 book.CurrentPage = request.CurrentPage ?? book.CurrentPage;
                 book.Format = request.Format ?? book.Format;

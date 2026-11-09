@@ -835,6 +835,26 @@
 
     const cat = (media as { isAnime?: boolean }).isAnime ? "anime" : media.type;
 
+    const linkedSourceNames: string[] = [];
+    if (media.externalSource) {
+      linkedSourceNames.push(media.externalSource);
+    }
+    if (media.linkedSources && Array.isArray(media.linkedSources)) {
+      for (const s of media.linkedSources) {
+        if (s.source) linkedSourceNames.push(s.source);
+      }
+    } else if (typeof media.linkedSourcesJson === "string" && media.linkedSourcesJson.trim()) {
+      try {
+        const parsed = JSON.parse(media.linkedSourcesJson);
+        if (Array.isArray(parsed)) {
+          for (const s of parsed) {
+            const name = s.source ?? s.Source;
+            if (name) linkedSourceNames.push(name);
+          }
+        }
+      } catch {}
+    }
+
     return buildRatingBadges({
       ratings,
       fallback:
@@ -848,6 +868,7 @@
       category: cat,
       availableSources,
       fallbackSources: CATEGORY_EXPECTED_SOURCES[cat] ?? [],
+      linkedSources: linkedSourceNames,
     });
   });
 

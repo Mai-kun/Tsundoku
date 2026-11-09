@@ -5,6 +5,7 @@ using MediaTracker.Server.Infrastructure.ExternalApis;
 using MediaTracker.Server.Features.Media.GetMediaStats;
 
 using MediaTracker.Server.Common.Json;
+using MediaTracker.Server.Domain.Rules;
 using MediaTracker.Server.Infrastructure.ExternalApis.Abstractions;
 
 namespace MediaTracker.Server.Features.Media.MediaContract;
@@ -221,6 +222,12 @@ public sealed record MediaDetailDto : MediaListDto
     /// <summary>Key crew, already parsed so the overview renders it without knowing the stored shape.</summary>
     public IReadOnlyList<ExternalStaffMemberDto> Staff { get; init; } = [];
 
+    /// <summary>ISBN of a book title (10 or 13 digits), null for non-books.</summary>
+    public string? Isbn { get; init; }
+
+    /// <summary>Every external source bound to this title, parsed and validated.</summary>
+    public IReadOnlyList<LinkedSourceDto> LinkedSources { get; init; } = [];
+
     public IReadOnlyList<MangaVolumeDto>? Volumes { get; init; }
 }
 
@@ -297,6 +304,7 @@ public static class MediaResponseMapper
             Book book => dto with
             {
                 Author = book.Author,
+                Studio = book.Publisher,
                 CurrentPage = book.CurrentPage,
                 TotalPages = book.TotalPages,
                 Format = book.Format,
@@ -441,6 +449,8 @@ public static class MediaResponseMapper
             OriginalTitle = item.OriginalTitle,
             StaffJson = item.StaffJson,
             Staff = MediaJsonCache.Deserialize<ExternalStaffMemberDto>(item.StaffJson),
+            Isbn = (item as Book)?.Isbn,
+            LinkedSources = LinkedSourceCatalog.GetFor(item),
         };
     }
 

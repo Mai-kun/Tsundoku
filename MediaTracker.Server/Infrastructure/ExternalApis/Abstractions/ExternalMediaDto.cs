@@ -87,6 +87,8 @@ public sealed record ExternalMediaDto
 
     public string? RomajiTitle { get; init; }
 
+    public string? Isbn { get; init; }
+
     public string? SteamAppId { get; init; }
     public string? AnilistId { get; init; }
     public string? MalId { get; init; }
@@ -94,6 +96,9 @@ public sealed record ExternalMediaDto
     public string? AnidbId { get; init; }
 
     public string? CoverUrl { get; init; }
+
+    /// <summary>Alternative cover URLs discovered during enrichment / search.</summary>
+    public IReadOnlyList<string>? Covers { get; init; }
 
     public string? Description { get; init; }
 
@@ -127,6 +132,9 @@ public sealed record ExternalMediaDto
     public required string Type { get; init; }
 
     public string? Author { get; init; }
+
+    /// <summary>Book publisher / edition house (LiveLib's "Издательство"); null for other media.</summary>
+    public string? Publisher { get; init; }
 
     /// <summary>Movie/TV director name. Separate from Author so movies and books never cross-wire.</summary>
     public string? Director { get; init; }

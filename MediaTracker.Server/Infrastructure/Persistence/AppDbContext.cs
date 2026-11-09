@@ -422,6 +422,7 @@ public sealed class AppDbContext : IDisposable, IAsyncDisposable
         public readonly int OriginalTitle = reader.GetOrdinal("OriginalTitle");
         public readonly int AltTitles = reader.GetOrdinal("AltTitles");
         public readonly int Book_Format = reader.GetOrdinal("Book_Format");
+        public readonly int Isbn = reader.GetOrdinal("Isbn");
         public readonly int CastJson = reader.GetOrdinal("CastJson");
         public readonly int StaffJson = reader.GetOrdinal("StaffJson");
         public readonly int TranslatedSynopsis = reader.GetOrdinal("TranslatedSynopsis");
@@ -516,6 +517,7 @@ public sealed class AppDbContext : IDisposable, IAsyncDisposable
             OriginalTitle = reader.IsDBNull(ordinals.OriginalTitle) ? null : reader.GetString(ordinals.OriginalTitle),
             AltTitles = reader.IsDBNull(ordinals.AltTitles) ? null : reader.GetString(ordinals.AltTitles),
             Book_Format = reader.IsDBNull(ordinals.Book_Format) ? null : reader.GetString(ordinals.Book_Format),
+            Isbn = reader.IsDBNull(ordinals.Isbn) ? null : reader.GetString(ordinals.Isbn),
             CastJson = reader.IsDBNull(ordinals.CastJson) ? null : reader.GetString(ordinals.CastJson),
             StaffJson = reader.IsDBNull(ordinals.StaffJson) ? null : reader.GetString(ordinals.StaffJson),
             TranslatedSynopsis = reader.IsDBNull(ordinals.TranslatedSynopsis) ? null : reader.GetString(ordinals.TranslatedSynopsis),
@@ -964,6 +966,7 @@ public sealed class AppDbContext : IDisposable, IAsyncDisposable
                 RecommendationsJson, RecommendationsUpdatedAt, IsCustomEdited, MediaType,
                 AltTitles,
                 Book_Format,
+                Isbn,
                 Author, CurrentPage, TotalPages, CurrentChapter, TotalChapters,
                 Manga_Author, Manga_RomajiTitle, Manga_Format, CurrentVolume, Manga_TotalVolumes,
                 DurationMinutes, Director, Movie_IsAnime, Movie_Studio, Movie_RomajiTitle,
@@ -982,6 +985,7 @@ public sealed class AppDbContext : IDisposable, IAsyncDisposable
                 @RecommendationsJson, @RecommendationsUpdatedAt, @IsCustomEdited, @MediaType,
                 @AltTitles,
                 @Book_Format,
+                @Isbn,
                 @Author, @CurrentPage, @TotalPages, @CurrentChapter, @TotalChapters,
                 @Manga_Author, @Manga_RomajiTitle, @Manga_Format, @CurrentVolume, @Manga_TotalVolumes,
                 @DurationMinutes, @Director, @Movie_IsAnime, @Movie_Studio, @Movie_RomajiTitle,
@@ -1035,7 +1039,7 @@ public sealed class AppDbContext : IDisposable, IAsyncDisposable
                 TvShow_RomajiTitle = @TvShow_RomajiTitle,
                 TvShow_EpisodeDurationMinutes = @TvShow_EpisodeDurationMinutes,
                 Platform = @Platform, HoursPlayed = @HoursPlayed, Studio = @Studio,
-                AltTitles = @AltTitles, Book_Format = @Book_Format
+                AltTitles = @AltTitles, Book_Format = @Book_Format, Isbn = @Isbn
             WHERE Id = @Id;
             """,
             row);

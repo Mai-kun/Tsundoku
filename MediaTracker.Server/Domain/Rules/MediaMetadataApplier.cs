@@ -294,6 +294,31 @@ public static class MediaMetadataApplier
             }
         }
 
+        if (external.Covers is { Count: > 0 })
+        {
+            var covers = MediaCoverCollection.EnsureLegacyCoverRegistered(item);
+            var addedAny = false;
+            foreach (var altCoverUrl in external.Covers.Take(8))
+            {
+                if (string.IsNullOrWhiteSpace(altCoverUrl) || !IsExternalUrl(altCoverUrl)) continue;
+                if (covers.Any(c => string.Equals(c.OriginalUrl, altCoverUrl, StringComparison.OrdinalIgnoreCase)
+                                 || string.Equals(c.ThumbUrl, altCoverUrl, StringComparison.OrdinalIgnoreCase)))
+                {
+                    continue;
+                }
+                var variant = await imageStorage.SaveCoverVariantAsync(altCoverUrl, item.Id, external.ExternalSource, ct);
+                if (variant is not null)
+                {
+                    covers.Add(variant);
+                    addedAny = true;
+                }
+            }
+            if (addedAny)
+            {
+                item.CoversJson = MediaCoverCollection.Serialize(covers);
+            }
+        }
+
         // Only written when the source had one: a provider without a creator photo must not erase the
         // one a previous refresh already saved, and the UI falls back to a role icon either way.
         if (IsExternalUrl(external.CreatorImageUrl))
@@ -470,6 +495,8 @@ public static class MediaMetadataApplier
                 }
 
                 modified |= SetIfBlank(book.Author, external.Author, value => book.Author = value);
+                modified |= SetIfBlank(book.Isbn, external.Isbn, value => book.Isbn = value);
+                modified |= SetIfBlank(book.Publisher, external.Studio, value => book.Publisher = value);
                 break;
 
             case VideoGame game:
@@ -635,6 +662,8 @@ public static class MediaMetadataApplier
                     book.TotalPages = external.TotalCount.Value;
                 }
                 if (!string.IsNullOrWhiteSpace(external.Author)) book.Author = external.Author;
+                if (!string.IsNullOrWhiteSpace(external.Isbn)) book.Isbn = external.Isbn;
+                if (!string.IsNullOrWhiteSpace(external.Studio)) book.Publisher = external.Studio;
                 break;
             case Manga manga:
                 if (external.TotalCount is > 0) manga.RecordTotalChapters(external.TotalCount.Value);

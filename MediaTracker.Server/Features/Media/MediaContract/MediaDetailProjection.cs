@@ -117,6 +117,8 @@ public static class MediaDetailProjection
             AltTitles = MediaMetadataApplier.DeserializeAltTitles(item.AltTitles),
             StaffJson = item.StaffJson,
             Staff = MediaJsonCache.Deserialize<ExternalStaffMemberDto>(item.StaffJson),
+            Isbn = (item as Book)?.Isbn,
+            LinkedSources = LinkedSourceCatalog.GetFor(item),
         };
     }
 

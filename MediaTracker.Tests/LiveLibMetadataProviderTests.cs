@@ -112,4 +112,46 @@ public class LiveLibMetadataProviderTests
         details.Title.Should().Be("Маленький принц");
         details.Author.Should().Be("Антуан де Сент-Экзюпери");
     }
+
+    [Theory]
+    [InlineData("978-5-353-07328-4", "9785353073284")]
+    [InlineData("978 5 353 07328 4", "9785353073284")]
+    [InlineData("isbn: 978-5-353-07328-4", "9785353073284")]
+    [InlineData("0-306-40615-2", "0306406152")]
+    public async Task SearchAsync_WithIsbn_CleansSeparatorsInRequestUrl(string input, string expectedClean)
+    {
+        string? capturedUrl = null;
+        var factory = new StubHttpClientFactory(req =>
+        {
+            capturedUrl = req.RequestUri?.ToString();
+            var response = new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(SampleSearchHtml)
+            };
+            return Task.FromResult(response);
+        });
+
+        var provider = new LiveLibMetadataProvider(factory);
+        await provider.SearchAsync(input, CancellationToken.None);
+
+        capturedUrl.Should().Be($"https://www.livelib.ru/find/books/{expectedClean}");
+    }
+
+    [Theory]
+    [InlineData("978-5-353-07328-4", true, "9785353073284")]
+    [InlineData("9785353073284", true, "9785353073284")]
+    [InlineData("isbn: 978-5-353-07328-4", true, "9785353073284")]
+    [InlineData("0-8044-2957-X", true, "080442957X")]
+    [InlineData("Маленький принц", false, "")]
+    [InlineData("https://example.com", false, "")]
+    [InlineData("12345", false, "")]
+    public void IsIsbnQuery_DetectsValidIsbnStrings(string query, bool expectedValid, string expectedClean)
+    {
+        var isValid = SearchExternalHandler.IsIsbnQuery(query, out var clean);
+        isValid.Should().Be(expectedValid);
+        if (expectedValid)
+        {
+            clean.Should().Be(expectedClean);
+        }
+    }
 }

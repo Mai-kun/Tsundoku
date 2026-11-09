@@ -20,7 +20,7 @@
     getSources,
     searchExternal,
   } from "$shared/api/api";
-  import { parseMediaUrl } from "$shared/utils/urlMediaParser";
+  import { detectQueryBadge, parseMediaUrl } from "$shared/utils/urlMediaParser";
   import { showToast } from "$shared/ui/toast.svelte";
   import { jobsClient } from "$shared/api/jobsClient.svelte";
   import { proxiedExternalCoverUrl } from "$entities/media/model/coverUrl";
@@ -39,9 +39,8 @@
   } from "$shared/types";
 
   const categories = ["all", "anime", "manga", "movie", "tvshow", "game", "book"] as const;
-  // 500ms beats natural typing pauses: every intermediate prefix used to fire a full aggregate
-  // search (2-3 AniList requests for "all"), which drained the per-minute quota on one query.
-  const debounceDelay = 500;
+  // 2000ms debounce gives a relaxed typing window without spamming requests while typing; Enter triggers instantly.
+  const debounceDelay = 2000;
   // 3 characters instead of 2: two-char prefixes ("Тщ" from a mistyped layout) matched nothing
   // useful anywhere and still paid for the whole fan-out.
   const minQueryLength = 3;
@@ -205,6 +204,58 @@
 
   let allSectionsSettled = $derived(groupedResults.every((g) => !g.loading));
   let hasAnyResults = $derived(Object.values(resultsByCategory).some((items) => items.length > 0));
+  let queryBadge = $derived(detectQueryBadge(query));
+
+  let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function handleKeydown(event: KeyboardEvent) {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      triggerImmediateSearch();
+    }
+  }
+
+  function triggerImmediateSearch() {
+    const pendingTerm = term;
+    if (pendingTerm.length < minQueryLength) return;
+
+    if (debounceTimer) {
+      clearTimeout(debounceTimer);
+      debounceTimer = null;
+    }
+
+    const sequence = ++requestSequence;
+    searchController?.abort();
+    const controller = new AbortController();
+    searchController = controller;
+
+    searching = true;
+    searchError = null;
+
+    const parsedUrl = parseMediaUrl(pendingTerm);
+    if (parsedUrl) {
+      void loadUrlResult(parsedUrl, sequence, controller.signal);
+      return;
+    }
+
+    if (pendingTerm.startsWith("http://") || pendingTerm.startsWith("https://")) {
+      results = [];
+      resultsByCategory = {};
+      loadingByCategory = {};
+      searching = false;
+      searchError = i18n.t.searchModal.unsupportedLinkError;
+      return;
+    }
+
+    void loadResults(
+      activeType,
+      pendingTerm,
+      sequence,
+      controller.signal,
+      selectedSource || undefined,
+      Boolean(creatorFilter),
+    );
+  }
 
   $effect(() => {
     if (!isOpen) return;
@@ -218,6 +269,10 @@
     addError = null;
 
     if (pendingTerm.length < minQueryLength) {
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+        debounceTimer = null;
+      }
       results = [];
       resultsByCategory = {};
       loadingByCategory = {};
@@ -238,6 +293,10 @@
 
     const parsedUrl = parseMediaUrl(pendingTerm);
     if (parsedUrl) {
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+        debounceTimer = null;
+      }
       void loadUrlResult(parsedUrl, sequence, controller.signal);
       return () => {
         controller.abort();
@@ -245,6 +304,10 @@
     }
 
     if (pendingTerm.startsWith("http://") || pendingTerm.startsWith("https://")) {
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+        debounceTimer = null;
+      }
       results = [];
       resultsByCategory = {};
       loadingByCategory = {};
@@ -255,21 +318,28 @@
       };
     }
 
-    const delay = setTimeout(
-      () =>
-        void loadResults(
-          pendingType,
-          pendingTerm,
-          sequence,
-          controller.signal,
-          pendingSource || undefined,
-          Boolean(pendingCreator),
-        ),
-      debounceDelay,
-    );
+    if (debounceTimer) {
+      clearTimeout(debounceTimer);
+      debounceTimer = null;
+    }
+
+    debounceTimer = setTimeout(() => {
+      debounceTimer = null;
+      void loadResults(
+        pendingType,
+        pendingTerm,
+        sequence,
+        controller.signal,
+        pendingSource || undefined,
+        Boolean(pendingCreator),
+      );
+    }, debounceDelay);
 
     return () => {
-      clearTimeout(delay);
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+        debounceTimer = null;
+      }
       controller.abort();
     };
   });
@@ -765,11 +835,19 @@
           <input
             bind:this={searchInput}
             bind:value={query}
-            class="bg-elevated h-10 w-full rounded-md border border-white/[0.08] pr-3 pl-9 text-sm text-white outline-none placeholder:text-zinc-500 focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/30"
+            onkeydown={handleKeydown}
+            class="bg-elevated h-10 w-full rounded-md border border-white/[0.08] pl-9 text-sm text-white outline-none placeholder:text-zinc-500 focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/30 {queryBadge ? 'pr-20' : 'pr-3'}"
             type="search"
             placeholder={i18n.t.searchModal.placeholder(labelForCategory(activeType))}
             autocomplete="off"
           />
+          {#if queryBadge}
+            <span
+              class="pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 select-none rounded-md border border-white/10 bg-white/5 px-2 py-0.5 font-mono text-[11px] text-white/70"
+            >
+              {queryBadge.label}
+            </span>
+          {/if}
         </label>
 
         <label class="sr-only" for="search-category">{i18n.t.searchModal.categoriesLabel}</label>

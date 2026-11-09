@@ -195,3 +195,37 @@ export function parseMediaUrl(input: string): ParsedMediaUrl | null {
 
   return null;
 }
+
+export type QueryBadgeType = "LINK" | "ISBN";
+
+export interface QueryBadge {
+  type: QueryBadgeType;
+  label: string;
+}
+
+export function isIsbn(input: string): boolean {
+  if (!input || typeof input !== "string") return false;
+  const cleaned = input.trim().replace(/[\s-]/g, "").replace(/^isbn:/i, "");
+  return /^(?:\d{9}[\dxX]|\d{13})$/.test(cleaned);
+}
+
+export function isUrl(input: string): boolean {
+  if (!input || typeof input !== "string") return false;
+  return /^https?:\/\//i.test(input.trim());
+}
+
+export function detectQueryBadge(input: string): QueryBadge | null {
+  if (!input || typeof input !== "string") return null;
+  const trimmed = input.trim();
+  if (!trimmed) return null;
+
+  if (isUrl(trimmed)) {
+    return { type: "LINK", label: "Ссылка" };
+  }
+
+  if (isIsbn(trimmed)) {
+    return { type: "ISBN", label: "ISBN" };
+  }
+
+  return null;
+}

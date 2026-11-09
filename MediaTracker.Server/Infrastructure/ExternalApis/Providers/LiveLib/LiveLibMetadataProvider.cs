@@ -38,6 +38,12 @@ public sealed partial class LiveLibMetadataProvider(
         var clean = query.Trim();
         if (clean.Length == 0) return [];
 
+        var isbnCandidate = IsbnCandidateOf(clean);
+        if (IsIsbn(isbnCandidate))
+        {
+            clean = isbnCandidate;
+        }
+
         var client = httpClientFactory.CreateClient(Id);
         var url = $"https://www.livelib.ru/find/books/{Uri.EscapeDataString(clean)}";
 
@@ -91,11 +97,13 @@ public sealed partial class LiveLibMetadataProvider(
 
     public override async Task<ExternalMediaDto?> GetDetailsAsync(string externalId, string title, CancellationToken ct)
     {
-        var bookId = BookIdOf(externalId) ?? BookIdOf(title);
+        var isExternalIdIsbn = !string.IsNullOrWhiteSpace(externalId) && IsIsbn(IsbnCandidateOf(externalId));
+        var bookId = isExternalIdIsbn ? null : (BookIdOf(externalId) ?? BookIdOf(title));
         if (bookId is null)
         {
-            // Not a LiveLib id: resolve through the search so a title-only lookup still works.
-            var search = string.IsNullOrWhiteSpace(title) ? [] : await SearchAsync(title, ct);
+            // Not a LiveLib id: resolve through the search so an ISBN or title-only lookup still works.
+            var target = isExternalIdIsbn ? externalId : title;
+            var search = string.IsNullOrWhiteSpace(target) ? [] : await SearchAsync(target, ct);
             return search.Count > 0 ? search[0] with { Type = MediaType.Book } : null;
         }
 
@@ -205,6 +213,17 @@ public sealed partial class LiveLibMetadataProvider(
                 ? genres.Distinct(StringComparer.OrdinalIgnoreCase).Take(8).ToList()
                 : null,
         };
+    }
+
+    /// <summary>ISBN-10 (digits + optional check X) or ISBN-13 (13 digits), separators already stripped.</summary>
+    internal static bool IsIsbn(string value) =>
+        Regex.IsMatch(value, """^(?:\d{9}[\dxX]|\d{13})$""");
+
+    /// <summary>The query with hyphens, spaces and an optional "isbn:" prefix stripped away.</summary>
+    internal static string IsbnCandidateOf(string query)
+    {
+        var cleaned = Regex.Replace(query.Trim(), @"[\s\-]", "");
+        return cleaned.StartsWith("isbn:", StringComparison.OrdinalIgnoreCase) ? cleaned[5..] : cleaned;
     }
 
     /// <summary>

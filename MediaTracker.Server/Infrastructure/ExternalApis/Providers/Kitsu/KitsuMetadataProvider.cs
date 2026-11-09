@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Net;
 using System.Text.Json;
 using MediaTracker.Server.Common.Json;
 using MediaTracker.Server.Infrastructure.ExternalApis.Abstractions;
@@ -52,31 +53,44 @@ public sealed class KitsuMetadataProvider(
 
     public override async Task<ExternalMediaDto?> GetDetailsAsync(string externalId, string title, CancellationToken ct)
     {
-        var client = httpClientFactory.CreateClient(Id);
-        try
+        if (!string.IsNullOrWhiteSpace(externalId))
         {
-            var res = await client.GetFromJsonAsync(
-                $"edge/{Category}/{Uri.EscapeDataString(externalId)}",
-                AppJsonSerializerContext.Default.KitsuSingleResponse,
-                ct);
-
-            if (res?.Data is not null)
+            var client = httpClientFactory.CreateClient(Id);
+            try
             {
-                var dto = MapItem(res.Data);
-                return await EnrichRelatedAsync(client, res.Data, dto, ct);
+                var res = await client.GetFromJsonAsync(
+                    $"edge/{Category}/{Uri.EscapeDataString(externalId)}",
+                    AppJsonSerializerContext.Default.KitsuSingleResponse,
+                    ct);
+
+                if (res?.Data is not null)
+                {
+                    var dto = MapItem(res.Data);
+                    return await EnrichRelatedAsync(client, res.Data, dto, ct);
+                }
+                return null;
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.TooManyRequests)
+            {
+                throw;
+            }
+            catch
+            {
+                return null;
             }
         }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+
+        if (string.IsNullOrWhiteSpace(externalId) && !string.IsNullOrWhiteSpace(title))
         {
-            throw;
-        }
-        catch
-        {
-            // Fall back to title search
+            var results = await SearchAsync(title, ct);
+            return results.Count > 0 ? results[0] : null;
         }
 
-        var results = await SearchAsync(title, ct);
-        return results.FirstOrDefault(r => r.ExternalId == externalId) ?? (results.Count > 0 ? results[0] : null);
+        return null;
     }
 
     private ExternalMediaDto MapItem(KitsuData item)

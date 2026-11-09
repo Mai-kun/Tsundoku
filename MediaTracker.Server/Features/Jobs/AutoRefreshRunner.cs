@@ -42,12 +42,24 @@ public static class AutoRefreshRunner
         ExternalMediaDto? external;
         try
         {
-            external = await aggregator.GetDetailsAsync(
-                AggregatorTypes.Resolve(item),
-                item.ExternalId ?? string.Empty,
-                item.Title,
-                ct,
-                item.ExternalSource);
+            var linkedSources = LinkedSourceCatalog.GetFor(item);
+            var primary = linkedSources.FirstOrDefault(source => source.IsPrimary);
+            var source = !string.IsNullOrWhiteSpace(primary?.Source) ? primary.Source : item.ExternalSource;
+            var externalId = primary is not null ? primary.ExternalId : item.ExternalId;
+
+            external = await ExternalApiRetry.RunAsync(
+                async token => await aggregator.GetDetailsAsync(
+                    AggregatorTypes.Resolve(item),
+                    externalId ?? string.Empty,
+                    item.Title,
+                    token,
+                    source,
+                    linkedSources,
+                    MediaMetadataApplier.DeserializeAltTitles(item.AltTitles),
+                    TimeSpan.FromSeconds(20)),
+                null,
+                source ?? string.Empty,
+                ct);
         }
         catch (OperationCanceledException)
         {

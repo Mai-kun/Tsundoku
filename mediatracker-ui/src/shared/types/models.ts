@@ -84,6 +84,8 @@ export interface MediaCoverItem {
   thumbUrl: string;
   originalUrl: string;
   source?: string | null;
+  /** The provider URL this variant was downloaded from; lets a refresh reuse it. */
+  sourceUrl?: string | null;
   addedAt: string;
 }
 

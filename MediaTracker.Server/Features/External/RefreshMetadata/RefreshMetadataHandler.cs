@@ -67,15 +67,44 @@ public sealed class RefreshMetadataHandler(
                     progress.Report(new JobProgressDto(
                         Guid.Empty, null, string.Empty, 20, "Поиск метаданных", JobStatus.Running, DateTime.MinValue, null));
 
+                    var linkedSources = LinkedSourceCatalog.GetFor(current);
+                    var primary = linkedSources.FirstOrDefault(source => source.IsPrimary);
+                    var source = !string.IsNullOrWhiteSpace(primary?.Source)
+                        ? primary.Source
+                        : current.ExternalSource;
+                    var externalId = primary is not null
+                        ? primary.ExternalId
+                        : current.ExternalId;
+                    var altTitles = MediaMetadataApplier.DeserializeAltTitles(current.AltTitles);
+
                     ExternalMediaDto? external;
                     try
                     {
-                        external = await metadataAggregator.GetDetailsAsync(
-                            AggregatorTypes.Resolve(current),
-                            current.ExternalId ?? string.Empty,
-                            current.Title,
+                        external = await ExternalApiRetry.RunAsync(
+                            async retryToken => await metadataAggregator.GetDetailsAsync(
+                                AggregatorTypes.Resolve(current),
+                                externalId ?? string.Empty,
+                                current.Title,
+                                retryToken,
+                                source,
+                                linkedSources,
+                                altTitles,
+                                TimeSpan.FromSeconds(50),
+                                sources => progress.Report(new JobProgressDto(
+                                    Guid.Empty, null, string.Empty, 30,
+                                    $"Обогащение: {string.Join(", ", sources)}...",
+                                    JobStatus.Running, DateTime.MinValue, null))),
+                            sp.GetService<RateLimitTracker>(),
+                            source ?? string.Empty,
                             token,
-                            current.ExternalSource);
+                            seconds =>
+                            {
+                                progress.Report(new JobProgressDto(
+                                    Guid.Empty, null, string.Empty, 20,
+                                    $"Ожидание лимита API (повтор через {seconds} сек)...",
+                                    JobStatus.Running, DateTime.MinValue, null));
+                                return Task.CompletedTask;
+                            });
                     }
                     catch (SourceUnavailableException)
                     {
@@ -148,6 +177,9 @@ public sealed class RefreshMetadataHandler(
                     progress.Report(new JobProgressDto(
                         Guid.Empty, null, string.Empty, 90, "Сохранение", JobStatus.Running, DateTime.MinValue, null));
 
+                    var finalSources = LinkedSourceCatalog.GetFor(current);
+                    LinkedSourceCatalog.SaveFor(current, finalSources);
+
                     current.SyncStatus = SyncStatus.Ready;
                     current.MarkUpdated();
                     await scopedDb.UpdateMediaItemAsync(current, token);
@@ -169,7 +201,9 @@ public sealed class RefreshMetadataHandler(
                     }
                     throw;
                 }
-            });
+            },
+            highPriority: true,
+            initialStep: "В очереди на обновление...");
 
         return Result<MediaDetailDto>.Success(MediaDetailProjection.ToDetailDto(item));
     }

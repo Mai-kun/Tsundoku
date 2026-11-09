@@ -66,6 +66,7 @@
     platformOptions: readonly string[];
     onSelectPlatform: (platform: string) => Promise<void>;
     refreshBusy: boolean;
+    syncStep?: string | null;
     refreshError: unknown;
     onRefreshMetadata: () => Promise<void>;
     fillMissingBusy: boolean;
@@ -108,6 +109,7 @@
     platformOptions,
     onSelectPlatform,
     refreshBusy,
+    syncStep = null,
     refreshError,
     onRefreshMetadata,
     fillMissingBusy,
@@ -821,6 +823,9 @@
         />
         {i18n.t.detail.updateMetadata}
       </button>
+      {#if refreshBusy && syncStep}<p class="text-muted px-1 text-[11px]" role="status">
+          {syncStep}
+        </p>{/if}
       {#if refreshError}<p class="text-xs text-rose-300" role="alert">
           {errorMessage(refreshError)}
         </p>{/if}

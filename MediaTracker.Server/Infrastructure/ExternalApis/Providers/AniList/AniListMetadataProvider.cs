@@ -1,3 +1,4 @@
+using System.Net;
 using System.Text.RegularExpressions;
 using MediaTracker.Server.Common.Json;
 using MediaTracker.Server.Domain.Rules;
@@ -38,9 +39,7 @@ public sealed partial class AniListMetadataProvider(
             "", payload, AppJsonSerializerContext.Default.AniListGraphQlPayload, ct);
         if (IsRateLimited(response))
         {
-            // AniList's per-minute bucket: an empty result degrades gracefully, an exception used to
-            // escalate into SourceUnavailableException and fail the whole aggregate search.
-            return [];
+            throw new HttpRequestException("AniList rate limited", null, HttpStatusCode.TooManyRequests);
         }
         response.EnsureSuccessStatusCode();
 
@@ -142,6 +141,10 @@ public sealed partial class AniListMetadataProvider(
 
             using var response = await client.PostAsJsonAsync(
                 "", payload, AppJsonSerializerContext.Default.AniListGraphQlPayload, ct);
+            if (IsRateLimited(response))
+            {
+                throw new HttpRequestException("AniList rate limited", null, HttpStatusCode.TooManyRequests);
+            }
             if (response.IsSuccessStatusCode)
             {
                 var result = await response.Content.ReadFromJsonAsync(AppJsonSerializerContext.Default.AniListDetailResponse, ct);
@@ -156,10 +159,16 @@ public sealed partial class AniListMetadataProvider(
                     return dtoList[0];
                 }
             }
+            return null;
         }
 
-        var searchResults = await SearchAsync(title, ct);
-        return searchResults.Count > 0 ? searchResults[0] : null;
+        if (string.IsNullOrWhiteSpace(externalId) && !string.IsNullOrWhiteSpace(title))
+        {
+            var searchResults = await SearchAsync(title, ct);
+            return searchResults.Count > 0 ? searchResults[0] : null;
+        }
+
+        return null;
     }
 
     /// <summary>

@@ -98,6 +98,7 @@ public static class RefactorSelfCheck
         CheckEnrichStoresEpisodeCountWithoutEpisodes(failures);
         CheckRealSeasonsCreateOneTvSeasonEach(failures);
         CheckRefreshDropsRatingsOfDisabledSources(failures);
+        CheckRatingAndLinkedSourceMerge(failures);
         CheckSqliteTuningIsPreserved(failures);
         CheckMetadataProvidersAreDiscovered(failures);
         CheckImdbSuggestionPartition(failures);
@@ -1026,6 +1027,25 @@ public static class RefactorSelfCheck
             .GetResult();
 
         AssertEqual(failures, 1, storage.Downloads, "an entry with the same URL is not downloaded again");
+
+        // A full refresh (the actual "Обновить метаданные" path) must reuse the same remote cover
+        // too; only the gap-fill path used to be covered.
+        var fullRefresh = new Movie { Title = "Дюна" };
+        MediaMetadataApplier
+            .ApplyOverwriteAsync(fullRefresh, external, storage, CancellationToken.None, fillMissing: false)
+            .GetAwaiter()
+            .GetResult();
+        MediaMetadataApplier
+            .ApplyOverwriteAsync(fullRefresh, external, storage, CancellationToken.None, fillMissing: false)
+            .GetAwaiter()
+            .GetResult();
+
+        AssertEqual(failures, 2, storage.Downloads, "a full refresh reuses the same source URL");
+        AssertEqual(
+            failures,
+            1,
+            Features.Media.MediaContract.MediaCoverCollection.Parse(fullRefresh.CoversJson).Count,
+            "a full refresh keeps one variant per source");
     }
 
     private sealed class CountingImageStorage : IImageStorageService
@@ -1037,7 +1057,11 @@ public static class RefactorSelfCheck
             Guid itemId,
             CancellationToken ct = default,
             string folder = "cover"
-        ) => Task.FromResult<string?>(externalUrl);
+        )
+        {
+            Downloads++;
+            return Task.FromResult<string?>($"/media-assets/{itemId}/{folder}/thumb.webp");
+        }
 
         public Task<Features.Media.MediaContract.MediaCoverItemDto?> SaveCoverVariantAsync(
             string externalUrl, Guid itemId, string? source = null, CancellationToken ct = default)
@@ -2752,6 +2776,112 @@ public static class RefactorSelfCheck
         );
         AssertEqual(failures, null, item.ExternalRatingsJson, "an empty rating list stores null");
         AssertEqual(failures, null, item.ExternalRating, "the scalar rating goes with it");
+    }
+
+    /// <summary>
+    /// A provider that fails or answers without a score must not erase another provider's badge,
+    /// and a rating-only source must still appear in "Внешние источники" with the Рейтинг tag.
+    /// </summary>
+    private static void CheckRatingAndLinkedSourceMerge(List<string> failures)
+    {
+        var item = new Movie { Title = "Дюна" };
+        MediaMetadataApplier.ApplyRatings(
+            item,
+            new ExternalMediaDto
+            {
+                ExternalId = "1",
+                Title = "Дюна",
+                Type = "movie",
+                ExternalSource = "Kinopoisk",
+                Rating = 8.1,
+                Ratings =
+                [
+                    new ExternalRatingDto { Source = "Kinopoisk", Rating = 8.1, Votes = 500 },
+                    new ExternalRatingDto { Source = "IMDb", Rating = 8.0, Votes = 9000 },
+                ],
+            });
+
+        // A later refresh from another source returns no score: keep everything already stored.
+        MediaMetadataApplier.ApplyRatings(
+            item,
+            new ExternalMediaDto
+            {
+                ExternalId = "2",
+                Title = "Дюна",
+                Type = "movie",
+                ExternalSource = "TMDB",
+            });
+
+        AssertEqual(failures, 8.1, item.ExternalRating, "a failed provider keeps the headline rating");
+        AssertTrue(
+            failures,
+            (item.ExternalRatingsJson ?? "").Contains("IMDb", StringComparison.Ordinal),
+            "a failed provider keeps the other source's badge");
+
+        // A successful refresh updates only its own score and leaves the other source alone.
+        MediaMetadataApplier.ApplyRatings(
+            item,
+            new ExternalMediaDto
+            {
+                ExternalId = "1",
+                Title = "Дюна",
+                Type = "movie",
+                ExternalSource = "Kinopoisk",
+                Rating = 8.4,
+                Ratings = [new ExternalRatingDto { Source = "Kinopoisk", Rating = 8.4, Votes = 600 }],
+            });
+
+        AssertEqual(failures, 8.4, item.ExternalRating, "the refreshed source updates its score");
+        AssertTrue(
+            failures,
+            (item.ExternalRatingsJson ?? "").Contains("IMDb", StringComparison.Ordinal),
+            "the other source's badge survives a refresh");
+
+        // A score-only source binds with an empty external id and a Рейтинг tag.
+        var linked = new Movie { Title = "Дюна", ExternalSource = "TMDB", ExternalId = "1" };
+        linked.ExternalRatingsJson = MediaMetadataApplier.SerializeRatings(
+            [new ExternalRatingDto { Source = "AniList", Rating = 8.1 }]);
+        var sources = LinkedSourceCatalog.GetFor(linked);
+
+        AssertEqual(failures, "TMDB", sources.First(source => source.IsPrimary).Source,
+            "the item's own source stays crowned when no flag was stored");
+        var anilist = sources.FirstOrDefault(source =>
+            string.Equals(source.Source, "AniList", StringComparison.OrdinalIgnoreCase));
+        AssertTrue(failures, anilist is not null, "a rating-only source appears in the panel");
+        AssertEqual(failures, string.Empty, anilist?.ExternalId, "a rating-only source has no id");
+        AssertTrue(
+            failures,
+            anilist?.ProvidedFields?.Contains("Рейтинг", StringComparer.OrdinalIgnoreCase) == true,
+            "a rating-only source carries the Рейтинг tag");
+
+        LinkedSourceCatalog.AppendFromExternal(linked, "AniList", null, null, ["Рейтинг"]);
+        AssertTrue(
+            failures,
+            LinkedSourceCatalog.Parse(linked.LinkedSourcesJson)
+                .Any(source => string.Equals(source.Source, "AniList", StringComparison.OrdinalIgnoreCase)),
+            "a null-id rating contribution is not dropped");
+
+        // A stored crown wins over the legacy ExternalSource column, and SaveFor syncs the column.
+        var switched = new Movie
+        {
+            Title = "Дюна",
+            ExternalSource = "TMDB",
+            ExternalId = "1",
+            LinkedSourcesJson = LinkedSourceCatalog.Serialize(
+            [
+                new LinkedSourceDto("TMDB", "1", null, false, "Дюна", null),
+                new LinkedSourceDto("Kinopoisk", "2", null, true, "Дюна", null),
+            ]),
+        };
+
+        var switchedSources = LinkedSourceCatalog.GetFor(switched);
+        AssertTrue(
+            failures,
+            switchedSources.First(source => source.Source == "Kinopoisk").IsPrimary,
+            "the stored primary is authoritative");
+        LinkedSourceCatalog.SaveFor(switched, switchedSources);
+        AssertEqual(failures, "Kinopoisk", switched.ExternalSource, "SaveFor syncs the left source field");
+        AssertEqual(failures, "2", switched.ExternalId, "SaveFor syncs the primary id");
     }
 
     private static void CheckEnrichStoresEpisodeCountWithoutEpisodes(List<string> failures)

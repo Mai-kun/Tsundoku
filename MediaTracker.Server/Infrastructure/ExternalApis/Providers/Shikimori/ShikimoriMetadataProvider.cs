@@ -56,6 +56,7 @@ public sealed class ShikimoriMetadataProvider(
         try
         {
             using var response = await SendWithFailoverAsync(domain => BuildGetRequest(domain, endpoint), ct);
+            response.EnsureSuccessStatusCode();
             var items = await response.Content.ReadFromJsonAsync(
                 AppJsonSerializerContext.Default.ListShikimoriItem, ct);
             if (items is null || items.Count == 0)
@@ -83,6 +84,7 @@ public sealed class ShikimoriMetadataProvider(
         try
         {
             using var response = await SendWithFailoverAsync(domain => BuildGetRequest(domain, endpoint), ct);
+            response.EnsureSuccessStatusCode();
             var item = await response.Content.ReadFromJsonAsync(
                 AppJsonSerializerContext.Default.ShikimoriItem, ct);
 

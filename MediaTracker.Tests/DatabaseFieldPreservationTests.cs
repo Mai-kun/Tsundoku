@@ -1635,7 +1635,8 @@ public sealed class DatabaseFieldPreservationTests
         public Guid Enqueue(
             Guid? mediaId, string title,
             Func<IServiceProvider, CancellationToken, IProgress<JobProgressDto>, Task> work,
-            bool highPriority = false)
+            bool highPriority = false,
+            string initialStep = "В очереди")
         {
             EnqueuedCount++;
             return Guid.NewGuid();

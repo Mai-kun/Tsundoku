@@ -10,7 +10,13 @@ namespace MediaTracker.Server.Features.Media.MediaContract;
 /// active row's <c>CoverUrl</c> points at; <see cref="OriginalUrl"/> is the same folder's full-size
 /// rendition, so the detail page rewrites the filename instead of re-downloading.
 /// </summary>
-public sealed record MediaCoverItemDto(string Id, string ThumbUrl, string OriginalUrl, string? Source, DateTime AddedAt);
+public sealed record MediaCoverItemDto(
+    string Id,
+    string ThumbUrl,
+    string OriginalUrl,
+    string? Source,
+    DateTime AddedAt,
+    string? SourceUrl = null);
 
 /// <summary>Body of POST /api/media/{id}/covers when the cover is added by URL.</summary>
 public sealed record AddCoverRequest(string Url, string? Source = null, bool SetAsActive = false);
@@ -44,8 +50,18 @@ public static class MediaCoverCollection
         covers.FirstOrDefault(cover =>
             (!string.IsNullOrWhiteSpace(source)
                 && string.Equals(cover.Source, source, StringComparison.OrdinalIgnoreCase))
-            || (!string.IsNullOrWhiteSpace(url)
-                && string.Equals(cover.ThumbUrl, url, StringComparison.OrdinalIgnoreCase)));
+            || SameRemote(cover, url));
+
+    /// <summary>
+    /// The remote URL a variant was downloaded from. It is stored separately from the local
+    /// ThumbUrl, which is what the refresh loop used to compare against the remote URL and never
+    /// matched, so every refresh downloaded the same poster again.
+    /// </summary>
+    public static bool SameRemote(MediaCoverItemDto cover, string? url) =>
+        !string.IsNullOrWhiteSpace(url)
+        && (string.Equals(cover.SourceUrl, url, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(cover.ThumbUrl, url, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(cover.OriginalUrl, url, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>
     /// A title that got its cover before the gallery existed has the files on disk but an empty

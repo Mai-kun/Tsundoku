@@ -48,7 +48,22 @@ export function formatLabel(item: MediaItem): string {
 
 export { statusLabel };
 
+/**
+ * The crowned source from "Внешние источники". The stored `IsPrimary` flag is authoritative, so
+ * the left "Источник данных" field and the provider link must read from it rather than from the
+ * legacy `externalSource` column, which can lag behind a user-switched primary.
+ */
+type WithLinkedSources = MediaItem & {
+  linkedSources?: { source: string; externalId: string; isPrimary: boolean; url?: string | null }[] | null;
+};
+
+function primaryLinkedSource(item: MediaItem) {
+  return (item as WithLinkedSources).linkedSources?.find((source) => source.isPrimary) ?? null;
+}
+
 export function dataSource(item: MediaItem): string {
+  const primary = primaryLinkedSource(item);
+  if (primary?.source) return primary.source;
   if (item.externalSource) return item.externalSource;
   if (isAnime(item) || item.type === "manga") return "AniList";
 
@@ -70,8 +85,12 @@ export function dataSource(item: MediaItem): string {
  * source and an unknown source yields no link at all rather than a wrong one.
  */
 export function providerLink(item: MediaItem): { name: string; url: string } | null {
-  const src = (item.externalSource || dataSource(item)).toLowerCase();
-  const id = (item.externalId ?? "").trim();
+  const primary = primaryLinkedSource(item);
+  if (primary?.url) {
+    return { name: primary.source, url: primary.url };
+  }
+  const src = (primary?.source || item.externalSource || dataSource(item)).toLowerCase();
+  const id = (primary?.externalId || item.externalId || "").trim();
 
   if (src.includes("kinopoisk")) {
     return id
@@ -124,8 +143,9 @@ export function providerLink(item: MediaItem): { name: string; url: string } | n
     return { name: "SocialLib", url: `https://${domain}/ru/${encodeURIComponent(id)}` };
   }
   if (src.includes("shikimori")) {
+    const section = item.type === "tvshow" || isAnime(item) ? "animes" : "mangas";
     return id
-      ? { name: "Shikimori", url: `https://shikimori.io/mangas/${encodeURIComponent(id)}` }
+      ? { name: "Shikimori", url: `https://shikimori.io/${section}/${encodeURIComponent(id)}` }
       : null;
   }
   if (src.includes("anilist")) {
@@ -694,7 +714,8 @@ export function specRows(item: MediaItem): SpecRow[] {
   });
 
   const link = providerLink(item);
-  const targetSource = link?.name ?? (item.externalSource || dataSource(item));
+  const primarySource = primaryLinkedSource(item)?.source;
+  const targetSource = link?.name ?? (primarySource || item.externalSource || dataSource(item));
   const importSrc = item.importSource?.trim();
   const showLineage = Boolean(
     importSrc &&

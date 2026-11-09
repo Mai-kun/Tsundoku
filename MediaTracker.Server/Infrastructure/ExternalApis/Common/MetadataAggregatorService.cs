@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using MediaTracker.Server.Domain.Rules;
 using MediaTracker.Server.Features.Media.Import;
 using MediaTracker.Server.Infrastructure.ExternalApis.Abstractions;
 using MediaTracker.Server.Infrastructure.ExternalApis.Offline;
@@ -14,7 +15,8 @@ public sealed class MetadataAggregatorService(
     IMemoryCache cache,
     ILogger<MetadataAggregatorService> logger,
     OfflineDatabaseManager? offlineDbManager = null,
-    IServiceScopeFactory? scopeFactory = null)
+    IServiceScopeFactory? scopeFactory = null,
+    RateLimitTracker? rateLimiter = null)
 {
     private static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(10);
 
@@ -237,7 +239,16 @@ public sealed class MetadataAggregatorService(
         return results;
     }
 
-    public async ValueTask<ExternalMediaDto?> GetDetailsAsync(string type, string externalId, string title, CancellationToken ct, string? source = null)
+    public async ValueTask<ExternalMediaDto?> GetDetailsAsync(
+        string type,
+        string externalId,
+        string title,
+        CancellationToken ct,
+        string? source = null,
+        IReadOnlyList<LinkedSourceDto>? knownSources = null,
+        IReadOnlyList<string>? altTitles = null,
+        TimeSpan? enrichTimeout = null,
+        Action<IReadOnlyList<string>>? onSources = null)
     {
         var normalizedType = MediaMerger.NormalizeMediaType(type, source);
         var cacheKey = DetailsCacheKey(normalizedType, source ?? string.Empty, externalId, title);
@@ -266,19 +277,23 @@ public sealed class MetadataAggregatorService(
         var shared = inFlightDetails.GetOrAdd(
             cacheKey,
             _ => new Lazy<Task<ExternalMediaDto?>>(
-                () => RunCoalescedDetailsAsync(cacheKey, normalizedType, externalId, title, source),
+                () => RunCoalescedDetailsAsync(cacheKey, normalizedType, externalId, title, source, knownSources, altTitles, enrichTimeout, onSources),
                 LazyThreadSafetyMode.ExecutionAndPublication));
 
         return await shared.Value.WaitAsync(ct);
     }
 
     private async Task<ExternalMediaDto?> RunCoalescedDetailsAsync(
-        string cacheKey, string normalizedType, string externalId, string title, string? source)
+        string cacheKey, string normalizedType, string externalId, string title, string? source,
+        IReadOnlyList<LinkedSourceDto>? knownSources,
+        IReadOnlyList<string>? altTitles,
+        TimeSpan? enrichTimeout,
+        Action<IReadOnlyList<string>>? onSources)
     {
         using var timeout = new CancellationTokenSource(CoalescedDetailsTimeout);
         try
         {
-            var result = await DetailsCoreAsync(normalizedType, externalId, title, source, timeout.Token);
+            var result = await DetailsCoreAsync(normalizedType, externalId, title, source, timeout.Token, knownSources, altTitles, enrichTimeout, onSources);
             if (result is not null)
             {
                 cache.Set(cacheKey, result, CacheDuration);
@@ -295,7 +310,11 @@ public sealed class MetadataAggregatorService(
     }
 
     private async ValueTask<ExternalMediaDto?> DetailsCoreAsync(
-        string normalizedType, string externalId, string title, string? source, CancellationToken ct)
+        string normalizedType, string externalId, string title, string? source, CancellationToken ct,
+        IReadOnlyList<LinkedSourceDto>? knownSources = null,
+        IReadOnlyList<string>? altTitles = null,
+        TimeSpan? enrichTimeout = null,
+        Action<IReadOnlyList<string>>? onSources = null)
     {
         if (await IsOfflineModeAsync(ct))
         {
@@ -338,7 +357,7 @@ public sealed class MetadataAggregatorService(
                 return null;
             }
 
-            return await EnrichAsync(initialDetails, normalizedType, ct);
+            return await EnrichAsync(initialDetails, normalizedType, ct, knownSources, altTitles, enrichTimeout, onSources);
         }
 
         initialDetails = null;
@@ -361,10 +380,17 @@ public sealed class MetadataAggregatorService(
 
         if (initialDetails is null) return null;
 
-        return await EnrichAsync(initialDetails, normalizedType, ct);
+        return await EnrichAsync(initialDetails, normalizedType, ct, knownSources, altTitles, enrichTimeout, onSources);
     }
 
-    public async Task<ExternalMediaDto> EnrichAsync(ExternalMediaDto details, string type, CancellationToken ct)
+    public async Task<ExternalMediaDto> EnrichAsync(
+        ExternalMediaDto details,
+        string type,
+        CancellationToken ct,
+        IReadOnlyList<LinkedSourceDto>? knownSources = null,
+        IReadOnlyList<string>? altTitles = null,
+        TimeSpan? timeout = null,
+        Action<IReadOnlyList<string>>? onSources = null)
     {
         if (await IsOfflineModeAsync(ct))
         {
@@ -412,12 +438,17 @@ public sealed class MetadataAggregatorService(
             return current with { Ratings = ratings };
         }
 
-        var tasks = candidateSources.Select(source => QuerySourceEnrichmentAsync(source, type, current, ratings, ct));
+        onSources?.Invoke(candidateSources);
+
+        var queryTimeout = timeout ?? EnrichmentQueryTimeout;
+        var tasks = candidateSources.Select(source =>
+            QuerySourceEnrichmentAsync(source, type, current, ratings, ct, knownSources, altTitles, queryTimeout));
 
         // A hung provider must not hold the request open: the batch deadline aborts whatever has not
         // answered yet, and the partial answers already collected are still merged below.
+        var batchTimeout = timeout ?? EnrichmentBatchTimeout;
         using var batchCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        batchCts.CancelAfter(EnrichmentBatchTimeout);
+        batchCts.CancelAfter(batchTimeout);
 
         SourceEnrichmentResult[] results;
         try
@@ -428,7 +459,7 @@ public sealed class MetadataAggregatorService(
         {
             logger.LogDebug(
                 "[Aggregator] Enrichment batch exceeded {Timeout}s for '{Title}'; merging the answers that arrived",
-                EnrichmentBatchTimeout.TotalSeconds,
+                batchTimeout.TotalSeconds,
                 current.Title);
             return current with { Ratings = ratings };
         }
@@ -491,7 +522,10 @@ public sealed class MetadataAggregatorService(
         string type,
         ExternalMediaDto current,
         List<ExternalRatingDto> existingRatings,
-        CancellationToken ct)
+        CancellationToken ct,
+        IReadOnlyList<LinkedSourceDto>? knownSources,
+        IReadOnlyList<string>? altTitles,
+        TimeSpan queryTimeout)
     {
         var normalizedSource = MediaMerger.NormalizeSourceKey(source);
         bool hasRatingFromSource = existingRatings.Any(r => MediaMerger.NormalizeSourceKey(r.Source) == normalizedSource);
@@ -506,38 +540,75 @@ public sealed class MetadataAggregatorService(
         try
         {
             using var queryCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            queryCts.CancelAfter(EnrichmentQueryTimeout);
+            queryCts.CancelAfter(queryTimeout);
 
             var sw = Stopwatch.StartNew();
-            var search = await provider.SearchAsync(current.Title, queryCts.Token);
-            ExternalApiLog.Returned(logger, provider.Name, search.Count, sw.ElapsedMilliseconds);
 
-            // A Russian title answers nothing on AniList/Shikimori, which index romaji and English
-            // names: "Гачиакута" finds no rating while its romaji spelling ("Gachiakuta") does, so
-            // an empty first search retries with the alternate spellings before giving up on the source.
-            foreach (var altTitle in AlternativeTitles(current))
+            // A source already bound to this title has an id: query it directly instead of guessing
+            // from a localized title, which is what failed after the display title turned Russian.
+            var knownId = knownSources?
+                .FirstOrDefault(known =>
+                    MediaMerger.NormalizeSourceKey(known.Source) == normalizedSource
+                    && !string.IsNullOrWhiteSpace(known.ExternalId))
+                ?.ExternalId;
+
+            ExternalMediaDto? fullMatch = null;
+            ExternalMediaDto? match = null;
+
+            if (!string.IsNullOrWhiteSpace(knownId))
             {
-                if (search.Count > 0)
-                {
-                    break;
-                }
+                // A bound source is queried strictly by id. Falling back to a text search here would
+                // resolve a different edition — or the localized title — and overwrite the binding.
+                fullMatch = await ExternalApiRetry.RunAsync(
+                    async token => await provider.GetDetailsAsync(knownId, current.Title, token),
+                    rateLimiter,
+                    source,
+                    queryCts.Token);
 
-                search = await provider.SearchAsync(altTitle, queryCts.Token);
-                ExternalApiLog.Returned(logger, provider.Name, search.Count, sw.ElapsedMilliseconds);
+                if (fullMatch is null)
+                {
+                    return new SourceEnrichmentResult(source, null, null);
+                }
+            }
+            else
+            {
+                // Foreign providers index romaji/English, not the localized Russian title. Try the
+                // candidate spellings in the order that source actually searches, and keep trying
+                // until one produces a strict match — a non-empty answer is not the same as a match.
+                foreach (var title in SearchTitles(current, altTitles, source))
+                {
+                    var search = await ExternalApiRetry.RunAsync(
+                        async token => await provider.SearchAsync(title, token),
+                        rateLimiter,
+                        source,
+                        queryCts.Token);
+                    if (search is null)
+                    {
+                        continue;
+                    }
+
+                    ExternalApiLog.Returned(logger, provider.Name, search.Count, sw.ElapsedMilliseconds);
+                    match = FindStrictEnrichmentMatch(current, search, source);
+                    if (match is not null)
+                    {
+                        break;
+                    }
+                }
             }
 
-            var match = FindStrictEnrichmentMatch(current, search, source);
-
-            if (match is not null)
+            if (fullMatch is null && match is not null)
             {
-                var fullMatch = match;
                 bool shouldFetchDetails = !string.IsNullOrWhiteSpace(match.ExternalId) &&
                     (needsData || (!hasRatingFromSource && (match.Rating == null || match.Rating <= 0)));
                 if (shouldFetchDetails)
                 {
                     try
                     {
-                        var deeper = await provider.GetDetailsAsync(match.ExternalId, current.Title, queryCts.Token);
+                        var deeper = await ExternalApiRetry.RunAsync(
+                            async token => await provider.GetDetailsAsync(match.ExternalId, current.Title, token),
+                            rateLimiter,
+                            source,
+                            queryCts.Token);
                         if (deeper is not null) fullMatch = deeper;
                     }
                     catch (Exception ex)
@@ -546,30 +617,33 @@ public sealed class MetadataAggregatorService(
                     }
                 }
 
-                ExternalRatingDto? ratingDto = null;
-                if (!hasRatingFromSource)
-                {
-                    var sourceRating = fullMatch.Ratings?.FirstOrDefault(r => MediaMerger.NormalizeSourceKey(r.Source) == normalizedSource);
-                    var ratingVal = sourceRating?.Rating ?? fullMatch.Rating ?? match.Rating;
-                    var ratingVotes = sourceRating?.Votes ?? fullMatch.RatingVotes ?? match.RatingVotes;
-
-                    if (ratingVal is > 0)
-                    {
-                        ratingDto = new ExternalRatingDto
-                        {
-                            Source = sourceRating?.Source ?? fullMatch.ExternalSource ?? match.ExternalSource ?? MediaMerger.GetCanonicalSourceName(source),
-                            Rating = ratingVal.Value,
-                            Votes = ratingVotes
-                        };
-                    }
-                }
-
-                return new SourceEnrichmentResult(source, fullMatch, ratingDto);
+                fullMatch ??= match;
             }
-            else
+
+            if (fullMatch is null)
             {
                 return new SourceEnrichmentResult(source, null, null);
             }
+
+            ExternalRatingDto? ratingDto = null;
+            if (!hasRatingFromSource)
+            {
+                var sourceRating = fullMatch.Ratings?.FirstOrDefault(r => MediaMerger.NormalizeSourceKey(r.Source) == normalizedSource);
+                var ratingVal = sourceRating?.Rating ?? fullMatch.Rating ?? match?.Rating;
+                var ratingVotes = sourceRating?.Votes ?? fullMatch.RatingVotes ?? match?.RatingVotes;
+
+                if (ratingVal is > 0)
+                {
+                    ratingDto = new ExternalRatingDto
+                    {
+                        Source = sourceRating?.Source ?? fullMatch.ExternalSource ?? match?.ExternalSource ?? MediaMerger.GetCanonicalSourceName(source),
+                        Rating = ratingVal.Value,
+                        Votes = ratingVotes
+                    };
+                }
+            }
+
+            return new SourceEnrichmentResult(source, fullMatch, ratingDto);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
@@ -639,24 +713,39 @@ public sealed class MetadataAggregatorService(
     }
 
     /// <summary>
-    /// The stored title's alternate spellings for the retry search: romaji first (what AniList and
-    /// Shikimori actually match on), then the native/English alt. Duplicates of the title that was
-    /// already tried are skipped.
+    /// Every spelling this title is known by, in the order the source actually indexes: a foreign
+    /// provider gets romaji/English/native first, a Russian-indexing source keeps the display title
+    /// first. Duplicates of the display title are skipped.
     /// </summary>
-    private static IEnumerable<string> AlternativeTitles(ExternalMediaDto current)
+    private static IEnumerable<string> SearchTitles(
+        ExternalMediaDto current,
+        IReadOnlyList<string>? altTitles,
+        string source)
     {
-        if (!string.IsNullOrWhiteSpace(current.RomajiTitle)
-            && !current.RomajiTitle.Equals(current.Title, StringComparison.OrdinalIgnoreCase))
-        {
-            yield return current.RomajiTitle;
-        }
+        var candidates = new List<string?> { current.Title, current.RomajiTitle, current.OriginalTitle };
+        if (current.Synonyms is { Count: > 0 } synonyms) candidates.AddRange(synonyms);
+        if (altTitles is { Count: > 0 }) candidates.AddRange(altTitles);
 
-        if (!string.IsNullOrWhiteSpace(current.OriginalTitle)
-            && !current.OriginalTitle.Equals(current.Title, StringComparison.OrdinalIgnoreCase))
-        {
-            yield return current.OriginalTitle;
-        }
+        var titles = candidates
+            .Where(title => !string.IsNullOrWhiteSpace(title))
+            .Select(title => title!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase);
+
+        // AniList/Kitsu/MangaUpdates/MAL index romaji and English, so a Cyrillic display title is
+        // the worst first query: trying it first was why a localized title stopped re-enriching.
+        return PrefersLatin(source)
+            ? titles.OrderBy(title => ContainsCyrillic(title) ? 1 : 0)
+            : titles;
     }
+
+    private static readonly HashSet<string> LatinFirstSources =
+        new(StringComparer.OrdinalIgnoreCase) { "anilist", "kitsu", "mangaupdates", "mal", "myanimelist", "jikan", "mangadex" };
+
+    private static bool PrefersLatin(string source) =>
+        LatinFirstSources.Contains(MediaMerger.NormalizeSourceKey(source));
+
+    private static bool ContainsCyrillic(string text) =>
+        text.Any(c => c is >= '\u0400' and <= '\u04FF');
 
     /// <summary>
     /// The id is the fallback label: a details request may carry no title, and an empty query in the

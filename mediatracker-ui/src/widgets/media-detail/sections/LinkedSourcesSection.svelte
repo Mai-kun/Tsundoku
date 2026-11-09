@@ -335,9 +335,9 @@
           <div class="space-y-1">
             <p
               class="truncate text-xs font-medium text-slate-200"
-              title={item.title || item.externalId}
+              title={item.title || item.externalId || item.source}
             >
-              {item.title || item.externalId}
+              {item.title || item.externalId || item.source}
             </p>
             {#if item.providedFields && item.providedFields.length > 0}
               <div class="flex flex-wrap items-center gap-1 pt-1">

@@ -87,7 +87,7 @@ public static partial class MetadataSourceRegistry
             services.AddHttpClient(descriptor.Id, client =>
             {
                 client.BaseAddress = new Uri(descriptor.BaseAddress);
-                client.Timeout = ClientTimeout;
+                client.Timeout = descriptor.IsScraper ? TimeSpan.FromSeconds(15) : ClientTimeout;
                 client.DefaultRequestHeaders.UserAgent.ParseAdd(descriptor.UserAgent ?? DefaultUserAgent);
             }).AddHttpMessageHandler<ExternalHttpLoggingHandler>();
         }

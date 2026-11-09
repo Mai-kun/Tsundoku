@@ -236,48 +236,76 @@ public static class MediaMetadataApplier
             // variant is appended, or the first refresh would orphan the only copy of it.
             var covers = MediaCoverCollection.EnsureLegacyCoverRegistered(item);
 
-            // A cover from this source already in the gallery.
+            // The active poster, the source's own entry, or the exact same remote URL. The URL is
+            // compared against SourceUrl: comparing it with the local ThumbUrl never matched, so
+            // every refresh downloaded the same poster again.
             var existing = covers.FirstOrDefault(cover =>
-                !string.IsNullOrWhiteSpace(cover.Source)
-                && string.Equals(cover.Source, external.ExternalSource, StringComparison.OrdinalIgnoreCase));
+                    !string.IsNullOrWhiteSpace(cover.Source)
+                    && string.Equals(cover.Source, external.ExternalSource, StringComparison.OrdinalIgnoreCase))
+                ?? covers.FirstOrDefault(cover => MediaCoverCollection.SameRemote(cover, external.CoverUrl))
+                ?? covers.FirstOrDefault(cover => MatchesActiveCover(item.CoverUrl, cover));
 
-            if (existing is not null && fillMissing)
+            var sameRemote = existing is not null
+                && MediaCoverCollection.SameRemote(existing, external.CoverUrl);
+
+            if (sameRemote)
+            {
+                // The source URL did not change: keep the files and the gallery untouched.
+            }
+            else if (fillMissing && existing is not null)
             {
                 // Enrichment gap-fill: preserve the existing cover, do not re-download.
             }
             else
             {
-                // Full refresh (or no existing variant yet): download the new variant first, and
-                // only then remove the old same-source variant so a failed download never clears
-                // the cover the row already has.
-                var variant = await imageStorage.SaveCoverVariantAsync(external.CoverUrl!, item.Id, external.ExternalSource, ct);
-                if (variant is not null)
+                // The main poster lives in data/media/{id}/cover/, not in the alternative gallery:
+                // overwrite those files directly and keep a single CoversJson entry for its remote
+                // URL, so a refresh can never pile up duplicate gallery copies.
+                var localUrl = await imageStorage.SaveCoverAsync(external.CoverUrl!, item.Id, ct);
+                if (localUrl is not null)
                 {
-                    // The user's picked poster may BE the variant about to be replaced: its files
-                    // are deleted below, so the active pointer must move to the fresh copy — or
-                    // the refresh would leave CoverUrl aimed at a deleted file and the card would
-                    // render the placeholder while the gallery holds a perfectly good cover.
-                    var activeCoverReplaced = false;
-                    if (existing is not null)
+                    var wasActive = existing is not null && MatchesActiveCover(item.CoverUrl, existing);
+                    if (existing is not null && existing.Id != MediaCoverCollection.LegacyCoverId)
                     {
-                        activeCoverReplaced = MatchesActiveCover(item.CoverUrl, existing);
                         imageStorage.DeleteCoverVariant(item.Id, existing.Id);
                         covers.Remove(existing);
                     }
-                    covers.Add(variant);
+
+                    var originalUrl = localUrl.Replace("thumb.webp", "original.webp", StringComparison.Ordinal);
+                    var legacy = covers.FirstOrDefault(cover => cover.Id == MediaCoverCollection.LegacyCoverId);
+                    if (legacy is null)
+                    {
+                        covers.Insert(0, new MediaCoverItemDto(
+                            MediaCoverCollection.LegacyCoverId,
+                            localUrl,
+                            originalUrl,
+                            external.ExternalSource,
+                            DateTime.UtcNow,
+                            external.CoverUrl));
+                    }
+                    else
+                    {
+                        covers[covers.IndexOf(legacy)] = legacy with
+                        {
+                            ThumbUrl = localUrl,
+                            OriginalUrl = originalUrl,
+                            Source = external.ExternalSource ?? legacy.Source,
+                            SourceUrl = external.CoverUrl,
+                            AddedAt = DateTime.UtcNow,
+                        };
+                    }
+
                     item.CoversJson = MediaCoverCollection.Serialize(covers);
 
-                    // A failed download no longer clears the stored cover either: the gallery only grows.
-                    // The active poster follows a freshly downloaded local copy whenever the row has
-                    // no local one yet, its current poster is an external hotlink, or the variant it
-                    // was pointing at has just been replaced by this download. The user's picked
-                    // LOCAL poster survives a routine refresh otherwise.
+                    // A failed download never clears the stored cover: only a successful write
+                    // moves the active pointer.
                     if (updateMainCover
                         || item.CoverUrl is null
                         || IsExternalUrl(item.CoverUrl)
-                        || activeCoverReplaced)
+                        || wasActive
+                        || existing is null)
                     {
-                        item.CoverUrl = variant.ThumbUrl;
+                        item.CoverUrl = localUrl;
                     }
                 }
             }
@@ -301,15 +329,14 @@ public static class MediaMetadataApplier
             foreach (var altCoverUrl in external.Covers.Take(8))
             {
                 if (string.IsNullOrWhiteSpace(altCoverUrl) || !IsExternalUrl(altCoverUrl)) continue;
-                if (covers.Any(c => string.Equals(c.OriginalUrl, altCoverUrl, StringComparison.OrdinalIgnoreCase)
-                                 || string.Equals(c.ThumbUrl, altCoverUrl, StringComparison.OrdinalIgnoreCase)))
+                if (covers.Any(c => MediaCoverCollection.SameRemote(c, altCoverUrl)))
                 {
                     continue;
                 }
                 var variant = await imageStorage.SaveCoverVariantAsync(altCoverUrl, item.Id, external.ExternalSource, ct);
                 if (variant is not null)
                 {
-                    covers.Add(variant);
+                    covers.Add(variant with { SourceUrl = altCoverUrl });
                     addedAny = true;
                 }
             }
@@ -333,23 +360,22 @@ public static class MediaMetadataApplier
         // The source the title was added from stays the primary binding: enrichment and refresh
         // merge data across providers, and a merged payload must never re-point ExternalSource at
         // a provider the user did not choose. Only a row with no source yet takes the incoming one.
-        item.ExternalId = external.ExternalId;
+        // A blank incoming id is a provider that answered without one, not a reason to erase the
+        // id the row already has.
+        if (!string.IsNullOrWhiteSpace(external.ExternalId))
+        {
+            item.ExternalId = external.ExternalId;
+        }
         item.ExternalSource = string.IsNullOrWhiteSpace(item.ExternalSource)
             ? external.ExternalSource ?? item.ExternalSource
             : item.ExternalSource;
-        item.ExternalRating = external.Rating;
-        item.ExternalRatingVotes = external.RatingVotes;
+        ApplyRatings(item, external);
         item.OriginalLanguage = external.OriginalLanguage;
         item.CountryOfOrigin = external.CountryOfOrigin;
         item.CastJson = external.Cast is { Count: > 0 } cast ? JsonSerializer.Serialize(cast, AppJsonSerializerContext.Default.IReadOnlyListCastMemberDto) : null;
         item.OriginalTitle = external.OriginalTitle;
         UpdateAltTitles(item, TitleCandidates(external));
         item.StaffJson = external.Staff is { Count: > 0 } staff ? JsonSerializer.Serialize(staff, AppJsonSerializerContext.Default.IReadOnlyListExternalStaffMemberDto) : null;
-
-        if (external.Ratings is { Count: > 0 } ratings)
-        {
-            item.ExternalRatingsJson = SerializeRatings(ratings);
-        }
 
         ApplyDates(item, external);
         ApplyGenres(item, external);
@@ -553,20 +579,90 @@ public static class MediaMetadataApplier
 
     internal static bool ApplyRatings(MediaItem item, ExternalMediaDto external)
     {
-        if (external.Ratings is not { Count: > 0 } ratings)
+        var modified = false;
+
+        var incoming = external.Ratings is { Count: > 0 } ratings
+            ? new List<ExternalRatingDto>(ratings)
+            : [];
+
+        // A source can report only the headline score (AniList in a search row), and that is still
+        // a rating worth keeping in the per-source badge list.
+        if (incoming.Count == 0
+            && external.Rating is > 0
+            && !string.IsNullOrWhiteSpace(external.ExternalSource))
         {
-            return false;
+            incoming.Add(new ExternalRatingDto
+            {
+                Source = external.ExternalSource,
+                Rating = external.Rating.Value,
+                Votes = external.RatingVotes,
+            });
         }
 
-        item.ExternalRatingsJson = SerializeRatings(ratings);
+        if (incoming.Count > 0)
+        {
+            // Merge instead of replace: a provider that answers only its own score must not delete
+            // the badges another provider contributed on an earlier refresh.
+            var merged = ReadStoredRatings(item.ExternalRatingsJson);
+            if (merged.Count == 0 && item.ExternalRating is > 0 && !string.IsNullOrWhiteSpace(item.ExternalSource))
+            {
+                merged.Add(new RatingSnapshot(item.ExternalSource, item.ExternalRating.Value, item.ExternalRatingVotes));
+            }
+            foreach (var rating in incoming)
+            {
+                var key = MediaMerger.NormalizeSourceKey(rating.Source);
+                var index = merged.FindIndex(stored =>
+                    MediaMerger.NormalizeSourceKey(stored.Source) == key);
+                var snapshot = new RatingSnapshot(rating.Source, rating.Rating, rating.Votes);
+                if (index >= 0)
+                {
+                    merged[index] = snapshot;
+                }
+                else
+                {
+                    merged.Add(snapshot);
+                }
+            }
 
+            var serialized = MediaRatingSerializer.Serialize(merged);
+            if (!string.Equals(serialized, item.ExternalRatingsJson, StringComparison.Ordinal))
+            {
+                item.ExternalRatingsJson = serialized;
+                modified = true;
+            }
+        }
+
+        // An empty incoming score means the provider had no rating this time (or failed), never
+        // that the stored headline should be erased.
         if (external.Rating is > 0)
         {
             item.ExternalRating = external.Rating;
             item.ExternalRatingVotes = external.RatingVotes;
+            modified = true;
         }
 
-        return true;
+        return modified;
+    }
+
+    /// <summary>Reads the persisted per-source badges; an unreadable blob is treated as empty.</summary>
+    public static List<RatingSnapshot> ReadStoredRatings(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return [];
+        }
+
+        try
+        {
+            var stored = JsonSerializer.Deserialize(json, AppJsonSerializerContext.Default.ListStoredRating);
+            return stored is null
+                ? []
+                : [.. stored.Select(rating => new RatingSnapshot(rating.Source, rating.Score, rating.Votes))];
+        }
+        catch (JsonException)
+        {
+            return [];
+        }
     }
 
     private static bool ApplyMangaGaps(

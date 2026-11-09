@@ -26,6 +26,10 @@ public sealed class MangaUpdatesMetadataProvider(
                 "series/search", requestPayload, AppJsonSerializerContext.Default.MuSearchRequest, ct);
             if (!res.IsSuccessStatusCode)
             {
+                if (res.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+                {
+                    throw new HttpRequestException("MangaUpdates rate limited", null, System.Net.HttpStatusCode.TooManyRequests);
+                }
                 return [];
             }
 

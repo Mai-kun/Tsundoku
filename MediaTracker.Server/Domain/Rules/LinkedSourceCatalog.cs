@@ -47,15 +47,14 @@ public static class LinkedSourceCatalog
     }
 
     public static string Serialize(IReadOnlyList<LinkedSourceDto> sources) =>
-        JsonSerializer.Serialize(sources, AppJsonSerializerContext.Default.ListLinkedSourceDto);
+        JsonSerializer.Serialize(new List<LinkedSourceDto>(sources), AppJsonSerializerContext.Default.ListLinkedSourceDto);
 
     /// <summary>
-    /// The item's sources, seeded with its own primary source when the blob is empty. The row that
-    /// matches the item's own <c>ExternalSource</c> — the source the title was added from — is
-    /// ALWAYS the primary one: the flag is re-imposed on every read, so a stale blob (a legacy row
-    /// that lost the flag, or an old switch that only flipped flags) can never leave the panel
-    /// without the crown on the true base record. That row's field list is likewise recomputed from
-    /// what the entity actually holds.
+    /// The item's sources, seeded with its own primary source when the blob is empty. The stored
+    /// <c>IsPrimary</c> flag is authoritative: the crown decides the left "Источник данных" field,
+    /// so forcing it onto <c>ExternalSource</c> every read made a user-switched primary impossible.
+    /// Legacy blobs with no flag fall back to the item's own source, then to the first row. The
+    /// primary row's field list is recomputed from what the entity actually holds.
     /// </summary>
     public static List<LinkedSourceDto> GetFor(MediaItem item)
     {
@@ -71,33 +70,87 @@ public static class LinkedSourceCatalog
                 null));
         }
 
-        var ownKey = NormalizeSourceKey(item.ExternalSource);
-        var ownRowFound = false;
-        var anyPrimaryLeft = false;
-        for (var i = 0; i < list.Count; i++)
+        if (list.Count > 0)
         {
-            var isOwn = ownKey.Length > 0 && NormalizeSourceKey(list[i].Source) == ownKey;
-            ownRowFound |= isOwn;
-            var isPrimary = ownKey.Length > 0 ? isOwn : list[i].IsPrimary;
-            anyPrimaryLeft |= isPrimary;
-            list[i] = list[i] with
+            var primaryIndex = list.FindIndex(source => source.IsPrimary);
+            if (primaryIndex < 0)
             {
-                IsPrimary = isPrimary,
-                // The Shikimori page link is rebuilt on every read: the site's domain moves, so a
-                // stored URL would rot with the mirror that was live when the row was written.
-                Url = BuildSourcePageUrl(list[i].Source, list[i].ExternalId, item) ?? list[i].Url,
-                ProvidedFields = isOwn || isPrimary ? CollectItemFields(item) : list[i].ProvidedFields,
-            };
+                var ownKey = NormalizeSourceKey(item.ExternalSource);
+                primaryIndex = ownKey.Length > 0
+                    ? list.FindIndex(source => NormalizeSourceKey(source.Source) == ownKey)
+                    : -1;
+                if (primaryIndex < 0)
+                {
+                    primaryIndex = 0;
+                }
+            }
+
+            for (var i = 0; i < list.Count; i++)
+            {
+                var isPrimary = i == primaryIndex;
+                list[i] = list[i] with
+                {
+                    IsPrimary = isPrimary,
+                    // The Shikimori page link is rebuilt on every read: the site's domain moves, so a
+                    // stored URL would rot with the mirror that was live when the row was written.
+                    Url = BuildSourcePageUrl(list[i].Source, list[i].ExternalId, item) ?? list[i].Url,
+                    ProvidedFields = isPrimary ? CollectItemFields(item) : list[i].ProvidedFields,
+                };
+            }
         }
 
-        // An item whose own source vanished from the blob (legacy row, manual edit) still shows a
-        // crowned record: the first entry represents the base record until the blob is repaired.
-        if (!anyPrimaryLeft && list.Count > 0)
-        {
-            list[0] = list[0] with { IsPrimary = true, ProvidedFields = CollectItemFields(item) };
-        }
-
+        AddRatingOnlySources(item, list);
         return list;
+    }
+
+    /// <summary>
+    /// A source that only contributed a score never reaches <see cref="AppendFromExternal"/> with an
+    /// external id, so it used to vanish from the panel. Any stored rating whose source is missing
+    /// (or is present without the tag) gets a "Рейтинг" row, keeping the provenance honest.
+    /// </summary>
+    private static void AddRatingOnlySources(MediaItem item, List<LinkedSourceDto> list)
+    {
+        foreach (var rating in MediaMetadataApplier.ReadStoredRatings(item.ExternalRatingsJson))
+        {
+            if (string.IsNullOrWhiteSpace(rating.Source))
+            {
+                continue;
+            }
+
+            var key = NormalizeSourceKey(rating.Source);
+            var index = list.FindIndex(source => NormalizeSourceKey(source.Source) == key);
+            if (index >= 0)
+            {
+                var row = list[index];
+                if (row.ProvidedFields?.Contains("Рейтинг", StringComparer.OrdinalIgnoreCase) == true)
+                {
+                    continue;
+                }
+
+                list[index] = row with { ProvidedFields = MergeFields(row.ProvidedFields, ["Рейтинг"]) };
+                continue;
+            }
+
+            list.Add(new LinkedSourceDto(rating.Source, string.Empty, null, false, null, ["Рейтинг"]));
+        }
+
+        if (item.ExternalRating is > 0 && !string.IsNullOrWhiteSpace(item.ExternalSource))
+        {
+            var key = NormalizeSourceKey(item.ExternalSource);
+            var index = list.FindIndex(source => NormalizeSourceKey(source.Source) == key);
+            if (index >= 0)
+            {
+                var row = list[index];
+                if (row.ProvidedFields?.Contains("Рейтинг", StringComparer.OrdinalIgnoreCase) != true)
+                {
+                    list[index] = row with { ProvidedFields = MergeFields(row.ProvidedFields, ["Рейтинг"]) };
+                }
+            }
+            else
+            {
+                list.Add(new LinkedSourceDto(item.ExternalSource, item.ExternalId ?? string.Empty, null, false, null, ["Рейтинг"]));
+            }
+        }
     }
 
     /// <summary>Alias-tolerant comparison: blobs store display names ("MangaLib"), the row may carry the provider id.</summary>
@@ -162,6 +215,19 @@ public static class LinkedSourceCatalog
         }
 
         item.LinkedSourcesJson = sources.Count > 0 ? Serialize(sources) : null;
+
+        // The left "Источник данных" field follows the crown: the base record is whichever source
+        // the user marked primary, so refresh and the aggregator query it by its own id next time.
+        var primary = sources.FirstOrDefault(source => source.IsPrimary);
+        if (primary is not null && !string.IsNullOrWhiteSpace(primary.Source))
+        {
+            item.ExternalSource = primary.Source;
+            if (!string.IsNullOrWhiteSpace(primary.ExternalId))
+            {
+                item.ExternalId = primary.ExternalId;
+            }
+        }
+
         item.MarkUpdated();
     }
 
@@ -179,19 +245,29 @@ public static class LinkedSourceCatalog
         List<string>? providedFields = null)
     {
         if (string.IsNullOrWhiteSpace(source)
-            || string.IsNullOrWhiteSpace(externalId)
             || source.Equals("offline", StringComparison.OrdinalIgnoreCase)
             || source.StartsWith("offline", StringComparison.OrdinalIgnoreCase))
         {
             return;
         }
 
+        var hasFields = providedFields is { Count: > 0 };
+        // A rating-only contribution has no external id: it is still a real source, and dropping it
+        // was why AniList/AnimeLib disappeared from the panel after a score-only enrichment.
+        if (string.IsNullOrWhiteSpace(externalId) && !hasFields)
+        {
+            return;
+        }
+
+        var normalizedId = externalId?.Trim() ?? string.Empty;
         var list = Parse(item.LinkedSourcesJson);
         var existing = list.FirstOrDefault(s => NormalizeKey(s.Source) == NormalizeKey(source));
         if (existing is not null)
         {
             var mergedFields = MergeFields(existing.ProvidedFields, providedFields);
-            if (existing.ExternalId == externalId
+            // A provider that answers without an id must not erase the id already bound.
+            var nextId = string.IsNullOrWhiteSpace(normalizedId) ? existing.ExternalId : normalizedId;
+            if (existing.ExternalId == nextId
                 && (mergedFields ?? []).SequenceEqual(existing.ProvidedFields ?? [], StringComparer.Ordinal))
             {
                 return;
@@ -199,7 +275,7 @@ public static class LinkedSourceCatalog
 
             var updated = existing with
             {
-                ExternalId = externalId,
+                ExternalId = nextId,
                 Title = string.IsNullOrWhiteSpace(existing.Title) ? title : existing.Title,
                 ProvidedFields = mergedFields,
             };
@@ -207,7 +283,7 @@ public static class LinkedSourceCatalog
         }
         else
         {
-            list.Add(new LinkedSourceDto(source, externalId, null, false, title, providedFields));
+            list.Add(new LinkedSourceDto(source, normalizedId, null, false, title, providedFields));
         }
 
         item.LinkedSourcesJson = Serialize(list);

@@ -265,7 +265,10 @@ public class MediaMetadataApplierTests
         public List<string> SavedUrls = [];
 
         public Task<string?> SaveCoverAsync(string externalUrl, Guid itemId, CancellationToken ct = default, string folder = "cover")
-            => Task.FromResult<string?>($"local/{itemId}/{folder}.webp");
+        {
+            SavedUrls.Add(externalUrl);
+            return Task.FromResult<string?>($"/media-assets/{itemId}/{folder}/thumb.webp");
+        }
 
         public Task<MediaCoverItemDto?> SaveCoverVariantAsync(
             string externalUrl, Guid itemId, string? source = null, CancellationToken ct = default)
@@ -344,7 +347,7 @@ public class MediaMetadataApplierTests
 
         movie.Title.Should().Be("Dune");
         movie.Description.Should().Be("Provider synopsis");
-        movie.CoverUrl.Should().Be($"/media-assets/{movie.Id}/covers/v1/thumb.webp");
+        movie.CoverUrl.Should().Be($"/media-assets/{movie.Id}/cover/thumb.webp");
         movie.CoversJson.Should().NotBeNullOrEmpty();
         movie.ExternalId.Should().Be("123");
         movie.ExternalSource.Should().Be("TMDb");

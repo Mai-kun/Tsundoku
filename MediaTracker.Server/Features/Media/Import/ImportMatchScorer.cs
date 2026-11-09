@@ -1,8 +1,11 @@
+using System.Globalization;
 using System.Text;
+using System.Text.RegularExpressions;
 using MediaTracker.Server.Domain.Entities;
 using MediaTracker.Server.Domain.Rules;
 using MediaTracker.Server.Infrastructure.ExternalApis;
 using MediaTracker.Server.Infrastructure.ExternalApis.Abstractions;
+using MediaTracker.Server.Infrastructure.ExternalApis.Common;
 
 namespace MediaTracker.Server.Features.Media.Import;
 
@@ -75,6 +78,39 @@ public static class ImportMatchScorer
     public static int ScoreCandidate(MediaItem item, ExternalMediaDto candidate, out bool hasContradiction)
     {
         hasContradiction = false;
+
+        // Author Guard: If both specify author and they are incompatible, hard contradiction (score = 0)
+        var rawItemAuthor = ItemAuthor(item);
+        var candAuthorKnown = !string.IsNullOrWhiteSpace(candidate.Author) || !string.IsNullOrWhiteSpace(candidate.Studio);
+        if (!string.IsNullOrWhiteSpace(rawItemAuthor) && candAuthorKnown && !AuthorMatches(item, candidate))
+        {
+            hasContradiction = true;
+        }
+
+        // Year Guard: If release year difference exceeds 3 years and not 100% title match, hard contradiction (score = 0)
+        if (item.ReleaseYear is > 0 && candidate.ReleaseYear is > 0)
+        {
+            var yearDiff = Math.Abs(item.ReleaseYear.Value - candidate.ReleaseYear.Value);
+            if (yearDiff > 3 && !Is100PercentTitleMatch(item, candidate))
+            {
+                hasContradiction = true;
+            }
+        }
+
+        // Isolation Guard: classic books must not match Asian light novel/manga providers unless 100% title and author match
+        if (MediaMerger.IsClassicBook(item) && MediaMerger.IsAsianNovelOrMangaSource(candidate.ExternalSource))
+        {
+            if (!Is100PercentTitleMatch(item, candidate) || !AuthorMatches(item, candidate))
+            {
+                hasContradiction = true;
+            }
+        }
+
+        if (hasContradiction)
+        {
+            return 0;
+        }
+
         int best = 0;
 
         // Every stored name against every source name, so a romaji row can match an English hit and
@@ -114,10 +150,13 @@ public static class ImportMatchScorer
             {
                 total += SameYearBonus;
             }
-            else if (diff > 2)
+            else if (diff > 3)
             {
                 total -= DivergentYearPenalty;
-                hasContradiction = true;
+            }
+            else
+            {
+                total -= DivergentYearPenalty;
             }
         }
         else if (best >= ExactTitleBonus)
@@ -126,23 +165,17 @@ public static class ImportMatchScorer
         }
 
         // 2. Author / Studio
-        var itemAuthor = NormalizeTitle(ItemAuthor(item));
-        var candAuthor = NormalizeTitle(candidate.Author);
-        var candStudio = NormalizeTitle(candidate.Studio);
-        var candAuthorKnown = candAuthor is not null || candStudio is not null;
-
-        if (itemAuthor is not null && candAuthorKnown)
+        if (!string.IsNullOrWhiteSpace(rawItemAuthor) && candAuthorKnown)
         {
-            var authorMatches = (candAuthor is not null && itemAuthor == candAuthor)
-                             || (candStudio is not null && itemAuthor == candStudio);
+            var authorMatches = AuthorMatches(item, candidate);
             if (authorMatches)
             {
                 total += AuthorBonus;
             }
             else
             {
-                total -= 40;
                 hasContradiction = true;
+                return 0;
             }
         }
         else if (best >= ExactTitleBonus)
@@ -346,19 +379,24 @@ public static class ImportMatchScorer
             return ExactTitleBonus;
         }
 
+        var similarity = CalculateTitleSimilarity(a, b);
+        if (similarity >= 0.88)
+        {
+            return SimilarTitleBonus;
+        }
+
         var longer = Math.Max(a.Length, b.Length);
         var shorter = Math.Min(a.Length, b.Length);
-        if (longer >= 5 && (a.Contains(b, StringComparison.Ordinal) || b.Contains(a, StringComparison.Ordinal)))
+        if (longer >= 5 && shorter >= 5 && (a.Contains(b, StringComparison.Ordinal) || b.Contains(a, StringComparison.Ordinal)))
         {
-            // Complete containment of one name in the other: "Клинок" inside "Клинок рассекающий...".
-            // A 3-letter prefix inside a long name is noise, hence the length floor on the shorter side.
-            if (shorter >= 5)
+            // Complete containment of one name in the other: only if remainder is chapter/volume noise
+            if (IsNoiseOnlyDifference(a, b))
             {
                 return SimilarTitleBonus;
             }
         }
 
-        if (WordOverlap(itemTitle!, candidateTitle!) >= 0.8)
+        if (WordOverlap(itemTitle!, candidateTitle!) >= 0.8 && similarity >= 0.70)
         {
             return SimilarTitleBonus;
         }
@@ -435,13 +473,37 @@ public static class ImportMatchScorer
             foreach (var candName in CandidateTitles(candidate))
             {
                 if (string.IsNullOrWhiteSpace(candName)) continue;
+
+                // Subtitle split: if candidate has a colon/dash/slash, check base title
+                var splitIdx = candName.IndexOfAny([':', '—', '–', '/']);
+                if (splitIdx > 0)
+                {
+                    var baseTitle = candName[..splitIdx].Trim();
+                    var baseNorm = NormalizeTitle(baseTitle);
+                    var itemNorm = NormalizeTitle(itemName);
+                    if (baseNorm is not null && itemNorm is not null && baseNorm == itemNorm)
+                    {
+                        return true;
+                    }
+                }
+
                 var candTokens = Tokens(candName);
                 if (candTokens.Count == 0) continue;
 
+                var maxTokens = Math.Max(itemTokens.Count, candTokens.Count);
                 var sharedCount = itemTokens.Count(t => t.Length >= 3 && candTokens.Contains(t));
-                if (sharedCount > 0 && (sharedCount / (double)Math.Min(itemTokens.Count, candTokens.Count)) >= 0.3)
+                if (sharedCount >= 2 && (sharedCount / (double)itemTokens.Count) >= 0.8)
                 {
-                    return true;
+                    if (splitIdx < 0 && (candTokens.Count - sharedCount) > 1)
+                    {
+                        continue;
+                    }
+
+                    var sim = CalculateTitleSimilarity(itemName, candName);
+                    if (sim >= 0.70 || splitIdx > 0)
+                    {
+                        return true;
+                    }
                 }
             }
         }
@@ -532,20 +594,18 @@ public static class ImportMatchScorer
     /// <summary>One human picks an adaptation by its author as often as by its name.</summary>
     private static bool AuthorMatches(MediaItem item, ExternalMediaDto candidate)
     {
-        var itemAuthor = NormalizeTitle(ItemAuthor(item));
-        if (itemAuthor is null)
+        var rawAuthor = ItemAuthor(item);
+        if (string.IsNullOrWhiteSpace(rawAuthor))
         {
             return false;
         }
 
-        var candAuthor = NormalizeTitle(candidate.Author);
-        if (candAuthor is not null && candAuthor == itemAuthor)
+        if (!string.IsNullOrWhiteSpace(candidate.Author) && AreAuthorsCompatible(rawAuthor, candidate.Author))
         {
             return true;
         }
 
-        var candStudio = NormalizeTitle(candidate.Studio);
-        if (candStudio is not null && candStudio == itemAuthor)
+        if (!string.IsNullOrWhiteSpace(candidate.Studio) && AreAuthorsCompatible(rawAuthor, candidate.Studio))
         {
             return true;
         }
@@ -589,8 +649,328 @@ public static class ImportMatchScorer
         return false;
     }
 
-    private static bool CanAutoMatch(MediaItem item, ScoredCandidate scored) =>
-        !scored.HasContradiction && HasSolidConfirmation(item, scored.Candidate);
+    internal static bool CanAutoMatch(MediaItem item, ScoredCandidate scored)
+    {
+        if (scored.HasContradiction || !HasSolidConfirmation(item, scored.Candidate))
+        {
+            return false;
+        }
+
+        // Substring containment without strict similarity must not auto-match
+        var maxSim = MaxTitleSimilarity(item, scored.Candidate);
+        if (maxSim < 0.88)
+        {
+            return false;
+        }
+
+        // Classic books must be isolated from Asian light novel/manga providers
+        if (MediaMerger.IsClassicBook(item) && MediaMerger.IsAsianNovelOrMangaSource(scored.Candidate.ExternalSource))
+        {
+            if (!Is100PercentTitleMatch(item, scored.Candidate) || !AuthorMatches(item, scored.Candidate))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    public static bool AreAuthorsCompatible(string? authorA, string? authorB)
+    {
+        if (string.IsNullOrWhiteSpace(authorA) || string.IsNullOrWhiteSpace(authorB))
+        {
+            return true;
+        }
+
+        var a = authorA.Trim();
+        var b = authorB.Trim();
+
+        if (string.Equals(a, b, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        var normA = NormalizeAuthorString(a);
+        var normB = NormalizeAuthorString(b);
+        if (normA == normB)
+        {
+            return true;
+        }
+
+        var latinA = RemoveDiacritics(TransliterateCyrillicToLatin(normA));
+        var latinB = RemoveDiacritics(TransliterateCyrillicToLatin(normB));
+        if (latinA == latinB)
+        {
+            return true;
+        }
+
+        var tokensA = GetAuthorTokens(latinA);
+        var tokensB = GetAuthorTokens(latinB);
+
+        if (tokensA.Count > 0 && tokensB.Count > 0)
+        {
+            var sharedSignificant = tokensA.Any(ta => ta.Length >= 4 && tokensB.Contains(ta));
+            if (sharedSignificant)
+            {
+                return true;
+            }
+
+            var overlap = tokensA.Count(tokensB.Contains);
+            if (overlap > 0 && (double)overlap / Math.Min(tokensA.Count, tokensB.Count) >= 0.5)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static string NormalizeAuthorString(string value)
+    {
+        var sb = new StringBuilder(value.Length);
+        foreach (var c in value)
+        {
+            if (char.IsLetter(c) || c == ' ')
+            {
+                sb.Append(char.ToLowerInvariant(c));
+            }
+        }
+        return sb.ToString().Trim();
+    }
+
+    private static List<string> GetAuthorTokens(string value)
+    {
+        var list = new List<string>();
+        foreach (var part in value.Split([' ', ',', '.', '-', '_'], StringSplitOptions.RemoveEmptyEntries))
+        {
+            var t = part.Trim().ToLowerInvariant();
+            if (t.Length > 1 && t is not "de" and not "van" and not "von" and not "der" and not "del" and not "la" and not "le" and not "де")
+            {
+                list.Add(t);
+            }
+        }
+        return list;
+    }
+
+    public static string RemoveDiacritics(string text)
+    {
+        var normalized = text.Normalize(NormalizationForm.FormD);
+        var sb = new StringBuilder(text.Length);
+        foreach (var c in normalized)
+        {
+            if (CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark)
+            {
+                sb.Append(c);
+            }
+        }
+        return sb.ToString().Normalize(NormalizationForm.FormC);
+    }
+
+    public static string TransliterateCyrillicToLatin(string text)
+    {
+        var t = text.ToLowerInvariant();
+        t = Regex.Replace(t, @"\bантуан\b", "antoine");
+        t = Regex.Replace(t, @"\bсент\b", "saint");
+        t = Regex.Replace(t, @"\bэкзюпери\b", "exupery");
+        t = Regex.Replace(t, @"\bстивен\b", "stephen");
+        t = Regex.Replace(t, @"\bкинг\b", "king");
+        t = Regex.Replace(t, @"\bджон\b", "john");
+        t = Regex.Replace(t, @"\bроулинг\b", "rowling");
+        t = Regex.Replace(t, @"\bджордж\b", "george");
+        t = Regex.Replace(t, @"\bоруэлл\b", "orwell");
+        t = Regex.Replace(t, @"\bартур\b", "arthur");
+        t = Regex.Replace(t, @"\bдоил\b", "doyle");
+        t = Regex.Replace(t, @"\bдостоевск[а-я]*\b", "dostoevsky");
+        t = Regex.Replace(t, @"\bтолст[а-я]*\b", "tolstoy");
+
+        var sb = new StringBuilder(t.Length * 2);
+        for (int i = 0; i < t.Length; i++)
+        {
+            char c = t[i];
+            var mapped = c switch
+            {
+                'а' => "a", 'б' => "b", 'в' => "v", 'г' => "g", 'д' => "d",
+                'е' or 'ё' => "e", 'ж' => "zh", 'з' => "z", 'и' => "i", 'й' => "y",
+                'к' => "k", 'л' => "l", 'м' => "m", 'н' => "n", 'о' => "o",
+                'п' => "p", 'р' => "r", 'с' => "s", 'т' => "t", 'у' => "u",
+                'ф' => "f", 'х' => "kh", 'ц' => "ts", 'ч' => "ch", 'ш' => "sh",
+                'щ' => "shch", 'ъ' or 'ь' => "", 'ы' => "y", 'э' => "e",
+                'ю' => "yu", 'я' => "ya",
+                _ => c.ToString()
+            };
+            sb.Append(mapped);
+        }
+        return sb.ToString();
+    }
+
+    public static double CalculateTitleSimilarity(string? titleA, string? titleB)
+    {
+        var a = NormalizeTitle(titleA);
+        var b = NormalizeTitle(titleB);
+        if (a is null || b is null) return 0.0;
+        if (a == b) return 1.0;
+
+        int maxLen = Math.Max(a.Length, b.Length);
+        if (maxLen == 0) return 1.0;
+
+        int distance = LevenshteinDistance(a, b);
+        double levenshteinSim = 1.0 - (double)distance / maxLen;
+        double diceSim = DiceCoefficient(a, b);
+
+        return Math.Max(levenshteinSim, diceSim);
+    }
+
+    public static int LevenshteinDistance(string s, string t)
+    {
+        if (string.IsNullOrEmpty(s)) return t?.Length ?? 0;
+        if (string.IsNullOrEmpty(t)) return s.Length;
+
+        int n = s.Length;
+        int m = t.Length;
+        int[] d = new int[m + 1];
+
+        for (int j = 0; j <= m; j++) d[j] = j;
+
+        for (int i = 1; i <= n; i++)
+        {
+            int prevDiag = d[0];
+            d[0] = i;
+            char sc = s[i - 1];
+
+            for (int j = 1; j <= m; j++)
+            {
+                int temp = d[j];
+                int cost = sc == t[j - 1] ? 0 : 1;
+                d[j] = Math.Min(Math.Min(d[j] + 1, d[j - 1] + 1), prevDiag + cost);
+                prevDiag = temp;
+            }
+        }
+
+        return d[m];
+    }
+
+    public static double DiceCoefficient(string s, string t)
+    {
+        if (s == t) return 1.0;
+        if (s.Length < 2 || t.Length < 2) return 0.0;
+
+        var sBigrams = new HashSet<int>(s.Length - 1);
+        for (int i = 0; i < s.Length - 1; i++)
+        {
+            sBigrams.Add((s[i] << 16) | s[i + 1]);
+        }
+
+        int matches = 0;
+        for (int i = 0; i < t.Length - 1; i++)
+        {
+            if (sBigrams.Contains((t[i] << 16) | t[i + 1]))
+            {
+                matches++;
+            }
+        }
+
+        int maxBigrams = Math.Max(s.Length - 1, t.Length - 1);
+        return maxBigrams > 0 ? (double)matches / maxBigrams : 0.0;
+    }
+
+    private static bool IsNoiseOnlyDifference(string a, string b)
+    {
+        var longer = a.Length >= b.Length ? a : b;
+        var shorter = a.Length < b.Length ? a : b;
+
+        var remainder = longer.Replace(shorter, string.Empty);
+        if (remainder.Length == 0) return true;
+
+        if (remainder.All(char.IsDigit)) return true;
+
+        var cleaned = remainder;
+        foreach (var noise in new[] { "chapter", "ch", "volume", "vol", "season", "episode", "ep", "part", "ova", "special" })
+        {
+            cleaned = cleaned.Replace(noise, string.Empty);
+        }
+
+        return cleaned.All(char.IsDigit);
+    }
+
+    public static bool Is100PercentTitleMatch(string? titleA, string? titleB)
+    {
+        if (string.IsNullOrWhiteSpace(titleA) || string.IsNullOrWhiteSpace(titleB)) return false;
+        var a = NormalizeTitle(titleA);
+        var b = NormalizeTitle(titleB);
+        return a is not null && a == b;
+    }
+
+    public static bool Is100PercentTitleMatch(MediaItem item, ExternalMediaDto candidate)
+    {
+        foreach (var itemName in ItemTitles(item))
+        {
+            if (string.IsNullOrWhiteSpace(itemName)) continue;
+            foreach (var candName in CandidateTitles(candidate))
+            {
+                if (string.IsNullOrWhiteSpace(candName)) continue;
+                if (Is100PercentTitleMatch(itemName, candName)) return true;
+            }
+        }
+        return false;
+    }
+
+    public static bool Is100PercentTitleMatch(ExternalMediaDto primary, ExternalMediaDto fallback)
+    {
+        var primaryTitles = new[] { primary.Title, primary.RomajiTitle, primary.OriginalTitle }
+            .Concat(primary.Synonyms ?? [])
+            .Where(t => !string.IsNullOrWhiteSpace(t));
+
+        var fallbackTitles = new[] { fallback.Title, fallback.RomajiTitle, fallback.OriginalTitle }
+            .Concat(fallback.Synonyms ?? [])
+            .Where(t => !string.IsNullOrWhiteSpace(t));
+
+        foreach (var pt in primaryTitles)
+        {
+            foreach (var ft in fallbackTitles)
+            {
+                if (Is100PercentTitleMatch(pt, ft)) return true;
+            }
+        }
+        return false;
+    }
+
+    public static double MaxTitleSimilarity(MediaItem item, ExternalMediaDto candidate)
+    {
+        double max = 0.0;
+        foreach (var it in ItemTitles(item))
+        {
+            if (string.IsNullOrWhiteSpace(it)) continue;
+            foreach (var ct in CandidateTitles(candidate))
+            {
+                if (string.IsNullOrWhiteSpace(ct)) continue;
+                var sim = CalculateTitleSimilarity(it, ct);
+                if (sim > max) max = sim;
+            }
+        }
+        return max;
+    }
+
+    public static double MaxTitleSimilarity(ExternalMediaDto primary, ExternalMediaDto fallback)
+    {
+        var primaryTitles = new[] { primary.Title, primary.RomajiTitle, primary.OriginalTitle }
+            .Concat(primary.Synonyms ?? [])
+            .Where(t => !string.IsNullOrWhiteSpace(t));
+
+        var fallbackTitles = new[] { fallback.Title, fallback.RomajiTitle, fallback.OriginalTitle }
+            .Concat(fallback.Synonyms ?? [])
+            .Where(t => !string.IsNullOrWhiteSpace(t));
+
+        double max = 0.0;
+        foreach (var pt in primaryTitles)
+        {
+            foreach (var ft in fallbackTitles)
+            {
+                var sim = CalculateTitleSimilarity(pt, ft);
+                if (sim > max) max = sim;
+            }
+        }
+        return max;
+    }
 
     private static bool HasHomonymConflict(ScoredCandidate target, IReadOnlyList<ScoredCandidate> allScored)
     {

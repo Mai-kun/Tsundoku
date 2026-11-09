@@ -67,6 +67,22 @@ public sealed class SearchExternalHandler(MetadataAggregatorService aggregator) 
             ? await aggregator.SearchAsync(normalizedType, normalizedQuery, ct, query.ByCreator)
             : await aggregator.SearchSourceAsync(normalizedType, normalizedQuery, query.Source, ct, query.ByCreator);
 
-        return Result<IReadOnlyList<ExternalMediaDto>>.Success(results);
+        // Ensure each item has a strictly valid Type so grouping in UI never falls back to defaults
+        var mappedResults = results.Select(item =>
+        {
+            if (string.Equals(item.ExternalSource, "LiveLib", StringComparison.OrdinalIgnoreCase))
+            {
+                return item.Type == MediaType.Book ? item : item with { Type = MediaType.Book };
+            }
+
+            if (string.IsNullOrWhiteSpace(item.Type))
+            {
+                return item with { Type = normalizedType == SearchTypes.All ? MediaType.Book : normalizedType };
+            }
+
+            return item;
+        }).ToList();
+
+        return Result<IReadOnlyList<ExternalMediaDto>>.Success(mappedResults);
     }
 }

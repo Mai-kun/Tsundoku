@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using MediaTracker.Server.Features.Media.Import;
 using MediaTracker.Server.Infrastructure.ExternalApis.Abstractions;
 using MediaTracker.Server.Infrastructure.ExternalApis.Offline;
 using MediaTracker.Server.Infrastructure.Persistence;
@@ -171,7 +172,7 @@ public sealed class MetadataAggregatorService(
         CancellationToken ct,
         bool byCreator = false)
     {
-        var normalizedType = MediaMerger.NormalizeMediaType(type);
+        var normalizedType = MediaMerger.NormalizeMediaType(type, source);
         var normalizedQuery = query.Trim();
         var cacheKey = $"search:v{priorityService.Version}:{normalizedType}:{normalizedQuery.ToLowerInvariant()}:{MediaMerger.NormalizeSourceKey(source)}{(byCreator ? ":creator" : "")}";
 
@@ -385,11 +386,20 @@ public sealed class MetadataAggregatorService(
         var prioritySources = await priorityService.GetPrioritiesAsync(type, ct);
         var candidateSources = new List<string>();
 
+        var isClassicBook = MediaMerger.IsClassicBook(current);
+
         foreach (var source in prioritySources)
         {
             var normalizedSource = MediaMerger.NormalizeSourceKey(source);
             bool hasRatingFromSource = ratings.Any(r => MediaMerger.NormalizeSourceKey(r.Source) == normalizedSource);
             bool needsData = MediaMerger.HasMissingMetadata(current, type);
+
+            // Isolation Guard: if current is a classic book and source is an Asian novel/manga provider,
+            // do not connect it for background auto-enrichment.
+            if (isClassicBook && MediaMerger.IsAsianNovelOrMangaSource(source))
+            {
+                continue;
+            }
 
             if (!hasRatingFromSource || needsData)
             {
@@ -516,8 +526,7 @@ public sealed class MetadataAggregatorService(
                 ExternalApiLog.Returned(logger, provider.Name, search.Count, sw.ElapsedMilliseconds);
             }
 
-            var match = search.FirstOrDefault(s => s.Title.Equals(current.Title, StringComparison.OrdinalIgnoreCase))
-                        ?? (search.Count > 0 ? search[0] : null);
+            var match = FindStrictEnrichmentMatch(current, search, source);
 
             if (match is not null)
             {
@@ -553,27 +562,13 @@ public sealed class MetadataAggregatorService(
                             Votes = ratingVotes
                         };
                     }
-                    else
-                    {
-                        ratingDto = new ExternalRatingDto
-                        {
-                            Source = MediaMerger.GetCanonicalSourceName(source),
-                            Rating = 0,
-                            Votes = null
-                        };
-                    }
                 }
 
                 return new SourceEnrichmentResult(source, fullMatch, ratingDto);
             }
-            else if (!hasRatingFromSource)
+            else
             {
-                return new SourceEnrichmentResult(source, null, new ExternalRatingDto
-                {
-                    Source = MediaMerger.GetCanonicalSourceName(source),
-                    Rating = 0,
-                    Votes = null
-                });
+                return new SourceEnrichmentResult(source, null, null);
             }
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
@@ -584,18 +579,63 @@ public sealed class MetadataAggregatorService(
         {
             ExternalApiLog.Failed(logger, source, ex, $"enrichment '{current.Title}'");
             logger.LogDebug(ex, "[Aggregator] Enrichment query failed for source '{Source}' and title '{Title}': {Message}", source, current.Title, ex.Message);
-            if (!hasRatingFromSource)
+            return new SourceEnrichmentResult(source, null, null);
+        }
+    }
+
+    internal static ExternalMediaDto? FindStrictEnrichmentMatch(
+        ExternalMediaDto current,
+        IReadOnlyList<ExternalMediaDto> search,
+        string source)
+    {
+        if (search.Count == 0) return null;
+
+        var isClassicBook = MediaMerger.IsClassicBook(current);
+        var isAsianSource = MediaMerger.IsAsianNovelOrMangaSource(source);
+
+        foreach (var candidate in search)
+        {
+            // 1. Isolation Guard: classic books must not auto-enrich from Asian novel/manga providers
+            // unless there is a 100% match on BOTH title AND author
+            if (isClassicBook && isAsianSource)
             {
-                return new SourceEnrichmentResult(source, null, new ExternalRatingDto
+                if (!ImportMatchScorer.Is100PercentTitleMatch(current, candidate) ||
+                    !ImportMatchScorer.AreAuthorsCompatible(current.Author, candidate.Author))
                 {
-                    Source = MediaMerger.GetCanonicalSourceName(source),
-                    Rating = 0,
-                    Votes = null
-                });
+                    continue;
+                }
             }
+
+            // 2. Author Guard: if both specify authors, they must match
+            if (!string.IsNullOrWhiteSpace(current.Author) && !string.IsNullOrWhiteSpace(candidate.Author))
+            {
+                if (!ImportMatchScorer.AreAuthorsCompatible(current.Author, candidate.Author))
+                {
+                    continue;
+                }
+            }
+
+            // 3. Year Guard: if year difference > 3 years, forbidden unless 100% title match
+            if (current.ReleaseYear is > 0 && candidate.ReleaseYear is > 0)
+            {
+                var diff = Math.Abs(current.ReleaseYear.Value - candidate.ReleaseYear.Value);
+                if (diff > 3 && !ImportMatchScorer.Is100PercentTitleMatch(current, candidate))
+                {
+                    continue;
+                }
+            }
+
+            // 4. Title similarity Guard: no pure substring matching (>= 0.88 required)
+            var similarity = ImportMatchScorer.MaxTitleSimilarity(current, candidate);
+            if (similarity < 0.88)
+            {
+                continue;
+            }
+
+            return candidate;
         }
 
-        return new SourceEnrichmentResult(source, null, null);
+        return null;
     }
 
     /// <summary>

@@ -119,9 +119,11 @@ public static class MediaMerger
 
     public static ExternalMediaDto Merge(ExternalMediaDto primary, ExternalMediaDto fallback)
     {
+        var isClassicBook = IsClassicBook(primary);
+
         return primary with
         {
-            Chapters = primary.Chapters is > 0 ? primary.Chapters : fallback.Chapters,
+            Chapters = isClassicBook ? primary.Chapters : (primary.Chapters is > 0 ? primary.Chapters : fallback.Chapters),
             Volumes = primary.Volumes is > 0 ? primary.Volumes : fallback.Volumes,
             TotalCount = primary.TotalCount is > 0 ? primary.TotalCount : fallback.TotalCount,
             Author = FirstNonEmpty(primary.Author, fallback.Author),
@@ -154,11 +156,14 @@ public static class MediaMerger
             RuntimeMinutes = primary.RuntimeMinutes ?? fallback.RuntimeMinutes,
             // Union used to keep provider duplicates like "Action" + "Экшен" alive; the normalizer
             // collapses them into one canonical genre.
-            Genres = GenreNormalizer.NormalizeList(
-                primary.Genres is { Count: > 0 } ? primary.Genres.Concat(fallback.Genres ?? []) : fallback.Genres),
-            Tags = primary.Tags is { Count: > 0 } ? primary.Tags : fallback.Tags,
+            Genres = FilterIncompatibleGenres(
+                isClassicBook,
+                GenreNormalizer.NormalizeList(
+                    primary.Genres is { Count: > 0 } ? primary.Genres.Concat(fallback.Genres ?? []) : fallback.Genres)),
+            Tags = isClassicBook ? primary.Tags : (primary.Tags is { Count: > 0 } ? primary.Tags : fallback.Tags),
             // OEL can only come from the second source, so the plain "first wins" rule is wrong here.
-            MangaFormat = MangaFormats.Pick(primary.MangaFormat, fallback.MangaFormat),
+            MangaFormat = isClassicBook ? primary.MangaFormat : MangaFormats.Pick(primary.MangaFormat, fallback.MangaFormat),
+            Format = isClassicBook ? primary.Format : FirstNonEmpty(primary.Format, fallback.Format),
             Episodes = primary.Episodes is { Count: > 0 } ? primary.Episodes : fallback.Episodes,
             // A source that knows the real season split (Kinopoisk) must not be overwritten by one
             // that only reports a flat episode count, or the split is lost again on merge.
@@ -171,7 +176,7 @@ public static class MediaMerger
     /// arrays rather than params: this runs once per source per enrichment, so no call may allocate.
     /// </summary>
     private static readonly string[] GameSourceFragments = ["steam", "rawg"];
-    private static readonly string[] BookSourceFragments = ["openlibrary", "ranobelib"];
+    private static readonly string[] BookSourceFragments = ["openlibrary", "ranobelib", "livelib"];
     private static readonly string[] MangaSourceFragments = ["mangaupdates", "mangadex"];
     private static readonly string[] AnimeSourceFragments = ["anilist", "shikimori", "kitsu"];
     private static readonly string[] MovieSourceFragments = ["kinopoisk", "imdb"];
@@ -380,5 +385,56 @@ public static class MediaMerger
     private static string? FirstNonEmpty(string? first, string? second)
     {
         return !string.IsNullOrWhiteSpace(first) ? first : second;
+    }
+
+    public static bool IsClassicBook(ExternalMediaDto? media)
+    {
+        if (media is null || media.Type != "book") return false;
+
+        if (media.MangaFormat is "light_novel" or "web_novel" || media.Format is "NOVEL" or "light_novel" or "web_novel")
+            return false;
+
+        if (string.Equals(media.ExternalSource, "LiveLib", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(media.ExternalSource, "OpenLibrary", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        return media.Format is null or "book";
+    }
+
+    public static bool IsClassicBook(Domain.Entities.MediaItem? item)
+    {
+        if (item is not Domain.Entities.Book book) return false;
+
+        if (book.Format is "light_novel" or "web_novel")
+            return false;
+
+        if (string.Equals(item.ImportSource, "LiveLib", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(item.ImportSource, "OpenLibrary", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(item.ExternalSource, "LiveLib", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(item.ExternalSource, "OpenLibrary", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        return book.Format is null or "book";
+    }
+
+    public static bool IsAsianNovelOrMangaSource(string? source)
+    {
+        if (string.IsNullOrWhiteSpace(source)) return false;
+        var norm = NormalizeSourceKey(source);
+        return norm is "ranobelib" or "sociallib" or "shikimori" or "mangadex" or "kitsu" or "anilist" or "mangaupdates";
+    }
+
+    private static readonly HashSet<string> InappropriateClassicBookGenres = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Hentai", "Хентай", "Эротика", "Ecchi", "Этти", "Эччи", "Etchi", "Adult", "18+", "Smut", "Смат", "Yaoi", "Yuri", "Яой", "Юри", "Erotica", "BDSM", "БДСМ"
+    };
+
+    private static IReadOnlyList<string>? FilterIncompatibleGenres(bool isClassicBook, IReadOnlyList<string>? genres)
+    {
+        if (!isClassicBook || genres is null || genres.Count == 0) return genres;
+        return genres.Where(g =>
+            !InappropriateClassicBookGenres.Contains(g) &&
+            !InappropriateClassicBookGenres.Contains(GenreNormalizer.Normalize(g)) &&
+            !InappropriateClassicBookGenres.Contains(GenreNormalizer.ToRussian(g))).ToList();
     }
 }

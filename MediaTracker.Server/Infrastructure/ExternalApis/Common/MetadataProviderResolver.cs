@@ -18,6 +18,12 @@ public sealed class MetadataProviderResolver(IServiceProvider serviceProvider) :
 
             if (provider is not null)
             {
+                if (!string.IsNullOrWhiteSpace(normType) && normType != "all" &&
+                    !provider.MediaTypes.Contains(normType, StringComparer.OrdinalIgnoreCase))
+                {
+                    return null;
+                }
+
                 return provider;
             }
         }

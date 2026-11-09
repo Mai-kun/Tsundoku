@@ -358,13 +358,31 @@
       orderedTypes.map(async (cat) => {
         let found: ExternalMedia[] = [];
         try {
-          found = await searchExternal(cat, pendingTerm, signal, source, byCreator);
+          if (source && !sourceSupports(source, cat)) {
+            found = [];
+          } else {
+            found = await searchExternal(cat, pendingTerm, signal, source, byCreator);
+          }
         } catch {
           found = [];
         }
         if (sequence !== requestSequence) return;
 
-        resultsByCategory = { ...resultsByCategory, [cat]: found };
+        // Group into actual category based on item.type so books are never grouped under anime
+        const updated = { ...resultsByCategory };
+        for (const item of found) {
+          const itemCat = (item.type as SearchMediaType) || cat;
+          if (!updated[itemCat]) {
+            updated[itemCat] = [];
+          }
+          if (!updated[itemCat].some((r) => r.externalId === item.externalId && r.externalSource === item.externalSource)) {
+            updated[itemCat].push(item);
+          }
+        }
+        if (!updated[cat]) {
+          updated[cat] = [];
+        }
+        resultsByCategory = updated;
         loadingByCategory = { ...loadingByCategory, [cat]: false };
         results = orderedTypes.flatMap((c) => resultsByCategory[c] ?? []);
         completedCount++;

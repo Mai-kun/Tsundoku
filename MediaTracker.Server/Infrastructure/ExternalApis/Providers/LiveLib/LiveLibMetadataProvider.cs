@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Net;
 using System.Text.RegularExpressions;
 using MediaTracker.Server.Common.Json;
+using MediaTracker.Server.Features.External.SearchExternal;
 using MediaTracker.Server.Features.Media.GetMediaStats;
 using MediaTracker.Server.Infrastructure.ExternalApis.Abstractions;
 using MediaTracker.Server.Infrastructure.ExternalApis.Common;
@@ -70,7 +71,7 @@ public sealed partial class LiveLibMetadataProvider(
                             Rating = Math.Round(searchRating2 * 2.0, 1),
                         }]
                         : null,
-                    Type = "book",
+                    Type = MediaType.Book,
                 })
                 .ToList();
 
@@ -95,7 +96,7 @@ public sealed partial class LiveLibMetadataProvider(
         {
             // Not a LiveLib id: resolve through the search so a title-only lookup still works.
             var search = string.IsNullOrWhiteSpace(title) ? [] : await SearchAsync(title, ct);
-            return search.Count > 0 ? search[0] : null;
+            return search.Count > 0 ? search[0] with { Type = MediaType.Book } : null;
         }
 
         var client = httpClientFactory.CreateClient(Id);
@@ -193,7 +194,7 @@ public sealed partial class LiveLibMetadataProvider(
             // og:description carries a leading "- " dash on LiveLib pages; strip it once here.
             Description = details.Description?.TrimStart('-', ' '),
             ReleaseYear = details.Year,
-            Type = "book",
+            Type = MediaType.Book,
             TotalCount = details.Pages,
             Rating = rating,
             RatingVotes = null,

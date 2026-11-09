@@ -435,10 +435,9 @@ public static class MediaMetadataApplier
                 break;
 
             case Book book:
-                // Books had no branch here at all, so enrichment never wrote the page count: only an
-                // explicit refresh (ApplyTypeSpecific) did. A book added from a search kept 0 pages
-                // even when a source had already reported the real length.
-                if (book.Format is null && (external.MangaFormat is not null || external.Format is not null))
+                var isClassicBook = MediaMerger.IsClassicBook(item);
+
+                if (!isClassicBook && book.Format is null && (external.MangaFormat is not null || external.Format is not null))
                 {
                     var fmt = external.MangaFormat ?? external.Format;
                     if (fmt is "light_novel" or "web_novel" or "novel")
@@ -615,7 +614,9 @@ public static class MediaMetadataApplier
                 else if (!string.IsNullOrWhiteSpace(external.Author)) movie.Director = external.Author;
                 break;
             case Book book:
-                if (external.MangaFormat is not null || external.Format is not null)
+                var isClassic = MediaMerger.IsClassicBook(item);
+
+                if (!isClassic && (external.MangaFormat is not null || external.Format is not null))
                 {
                     var fmt = external.MangaFormat ?? external.Format;
                     if (fmt is "light_novel" or "web_novel" or "novel" or "book")

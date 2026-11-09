@@ -589,7 +589,7 @@
 
 <svelte:window onkeydown={handleKeydown} />
 
-<AppShell mainRef={(el) => (mainScrollContainer = el)}>
+<AppShell mainRef={(el) => (mainScrollContainer = el)} noPadding={renderedView === "settings"}>
   {#snippet sidebar()}
     <Sidebar {activeView} onNavigate={navigate} onCreate={openCreate} />
   {/snippet}
@@ -668,7 +668,7 @@
     {/await}
   {:else if renderedView === "settings"}
     {#await import("$views/SettingsView.svelte") then { default: SettingsView }}
-      <div class="view-fade">
+      <div class="view-fade h-full w-full">
         <SettingsView
           initialTab={settingsTabRequest}
           onImportCompleted={mediaChanged}

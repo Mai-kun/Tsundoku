@@ -1098,41 +1098,17 @@
   }
 </script>
 
-{#snippet body()}
-  <div class="flex h-full min-h-0 flex-col overflow-hidden">
-    <!-- Header -->
-    <header
-      class="flex shrink-0 items-center justify-between border-b border-white/[0.08] px-6 py-4"
-    >
-      <div class="flex items-center gap-3">
-        <div class="bg-accent-bright/15 grid h-9 w-9 place-items-center rounded-lg text-[#a5b4fc]">
-          <Settings size={20} />
-        </div>
-        <div>
-          <h2 id="settings-title" class="text-lg font-bold tracking-tight text-white">
-            {i18n.t.settingsModal.title}
-          </h2>
-        </div>
-      </div>
-      {#if !embedded}
-        <button
-          type="button"
-          class="text-muted grid h-8 w-8 cursor-pointer place-items-center rounded-lg transition hover:bg-white/10 hover:text-white"
-          aria-label={i18n.t.common.close}
-          onclick={onClose}
-        >
-          <X size={18} />
-        </button>
-      {/if}
-    </header>
-
-    <!-- Modal Body: 2 columns -->
-    <div class="flex min-h-0 flex-1 overflow-hidden">
-      <!-- Left sidebar navigation -->
-      <nav
-        class="thin-scroll w-56 shrink-0 space-y-1.5 overflow-y-auto border-r border-white/[0.08] bg-[#12151c]/60 p-3 sm:w-64"
-        aria-label={i18n.t.settingsModal.title}
-      >
+{#snippet innerPanels()}
+  <!-- Left sidebar navigation -->
+  <nav
+    class={`thin-scroll ${
+      embedded
+        ? "w-64 flex-shrink-0 h-full border-r border-white/5 bg-[#12151c]/40 flex flex-col justify-between overflow-y-auto"
+        : "w-56 shrink-0 space-y-1.5 overflow-y-auto border-r border-white/[0.08] bg-[#12151c]/60 sm:w-64"
+    } p-3`}
+    aria-label={i18n.t.settingsModal.title}
+  >
+    <div class="space-y-1.5">
         <button
           type="button"
           class={`tap flex w-full cursor-pointer items-center gap-3 rounded-lg px-3.5 py-2.5 text-left text-xs transition ${
@@ -1249,10 +1225,17 @@
           <AppWindow size={16} />
           <span>{i18n.t.settingsModal.tabs.desktop}</span>
         </button>
-      </nav>
+      </div>
+    </nav>
 
-      <!-- Right content area -->
-      <div class="thin-scroll min-w-0 flex-1 overflow-y-auto bg-[#151a26]/40 p-6">
+    <!-- Right content area -->
+    <div
+      class={`thin-scroll ${
+        embedded
+          ? "flex-1 h-full overflow-y-auto p-6 md:p-8"
+          : "min-w-0 flex-1 overflow-y-auto p-6"
+      } bg-[#151a26]/40`}
+    >
         {#if activeTab === "sources"}
           <div class="space-y-6">
             <!-- Local Offline Databases (Layer 0) Premium Block -->
@@ -2987,8 +2970,43 @@
           </section>
         {/if}
       </div>
+{/snippet}
+
+{#snippet body()}
+  {#if !embedded}
+    <div class="flex h-full min-h-0 flex-col overflow-hidden">
+      <!-- Header -->
+      <header
+        class="flex shrink-0 items-center justify-between border-b border-white/[0.08] px-6 py-4"
+      >
+        <div class="flex items-center gap-3">
+          <div class="bg-accent-bright/15 grid h-9 w-9 place-items-center rounded-lg text-[#a5b4fc]">
+            <Settings size={20} />
+          </div>
+          <div>
+            <h2 id="settings-title" class="text-lg font-bold tracking-tight text-white">
+              {i18n.t.settingsModal.title}
+            </h2>
+          </div>
+        </div>
+        <button
+          type="button"
+          class="text-muted grid h-8 w-8 cursor-pointer place-items-center rounded-lg transition hover:bg-white/10 hover:text-white"
+          aria-label={i18n.t.common.close}
+          onclick={onClose}
+        >
+          <X size={18} />
+        </button>
+      </header>
+
+      <!-- Modal Body: 2 columns -->
+      <div class="flex min-h-0 flex-1 overflow-hidden">
+        {@render innerPanels()}
+      </div>
     </div>
-  </div>
+  {:else}
+    {@render innerPanels()}
+  {/if}
 {/snippet}
 
 <!-- App-level confirmation dialogs: rendered in both shells (modal overlay and full view) -->
@@ -3348,7 +3366,7 @@
 
 {#if embedded}
   <!-- Full-screen view shell (SettingsView): the same panel, no overlay chrome. -->
-  <div class="bg-canvas h-full min-h-0 w-full overflow-hidden rounded-none border-0">
+  <div class="h-full w-full flex overflow-hidden bg-canvas">
     {@render body()}
   </div>
   {@render dialogs()}

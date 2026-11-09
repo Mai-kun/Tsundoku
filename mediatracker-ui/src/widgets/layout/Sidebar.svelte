@@ -23,10 +23,9 @@
     activeView: AppView;
     onNavigate: (view: AppView) => void;
     onCreate: () => void;
-    onOpenSettings?: () => void;
   }
 
-  let { activeView, onNavigate, onCreate, onOpenSettings = () => {} }: Props = $props();
+  let { activeView, onNavigate, onCreate }: Props = $props();
 
   let toolsOpen = $state(false);
 
@@ -191,11 +190,9 @@
       >
       <button
         type="button"
-        class="text-muted hover:bg-card hover:text-ink inline-flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition"
-        onclick={() => {
-          toolsOpen = false;
-          onOpenSettings();
-        }}><Settings size={18} aria-hidden="true" />{i18n.t.navigation.settings}</button
+        class={`inline-flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition ${itemClass("settings")}`}
+        onclick={() => navigate("settings")}
+        ><Settings size={18} aria-hidden="true" />{i18n.t.navigation.settings}</button
       >
     </div>
   {/if}
@@ -238,8 +235,9 @@
       >
       <button
         type="button"
-        class="text-muted hover:bg-card hover:text-ink inline-flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition"
-        onclick={onOpenSettings}><Settings size={17} />{i18n.t.navigation.settings}</button
+        class={`inline-flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition ${itemClass("settings")}`}
+        onclick={() => navigate("settings")}
+        ><Settings size={17} />{i18n.t.navigation.settings}</button
       >
     </div>
   </div>

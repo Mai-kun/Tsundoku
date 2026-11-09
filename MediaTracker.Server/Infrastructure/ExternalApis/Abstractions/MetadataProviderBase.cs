@@ -29,6 +29,7 @@ public abstract class MetadataProviderBase : IMetadataProvider
     public bool RequiresApiKey => _source.RequiresApiKey;
     public bool OptionalApiKey => _source.OptionalApiKey;
     public bool IsDefault => _source.IsDefault;
+    public bool IsScraper => _source.IsScraper;
 
     public abstract Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string query, CancellationToken ct);
     public abstract Task<ExternalMediaDto?> GetDetailsAsync(string externalId, string title, CancellationToken ct);

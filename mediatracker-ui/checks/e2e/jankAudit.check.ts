@@ -133,12 +133,16 @@ function check(name: string, condition: boolean, details?: unknown) {
     await page.keyboard.press("Escape");
     await searchDialog.waitFor({ state: "hidden" });
 
-    // --- PHASE 4: Open and close SettingsModal ---
+    // --- PHASE 4: Open the full-screen settings view and navigate away from it ---
+    // Settings stopped being an overlay: the view renders a tab rail, not a dialog[open].
     await page.locator("button", { hasText: /Настройки|Settings/ }).first().click();
-    const settingsDialog = page.locator("dialog[open]").first();
-    await settingsDialog.waitFor({ state: "visible", timeout: 10000 });
-    await page.keyboard.press("Escape");
-    await settingsDialog.waitFor({ state: "hidden" });
+    const settingsRail = page.locator('nav[aria-label="Настройки"]');
+    await settingsRail.waitFor({ state: "visible", timeout: 10000 });
+    await page.evaluate(() => {
+      window.history.pushState(null, "", "/?view=home");
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+    await settingsRail.waitFor({ state: "hidden", timeout: 10000 });
 
     // --- PHASE 5: Rapid virtual grid scroll (down 3000px and back up) ---
     await page.evaluate(() => {

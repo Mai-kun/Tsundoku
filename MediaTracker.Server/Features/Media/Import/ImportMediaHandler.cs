@@ -187,20 +187,20 @@ public sealed class ImportMediaHandler(
         {
             var item = entry.Item;
             var unlocked = entry.Unlocked;
-        {
-            var merged = MediaAchievements.MergeUnlocked(item.UnlockedAchievements, unlocked);
-            if (string.Equals(merged, item.UnlockedAchievements, StringComparison.Ordinal)) continue;
-
-            foreach (var name in MediaAchievements.NewlyUnlocked(item.UnlockedAchievements, merged))
             {
-                await db.InsertMediaEventAsync(MediaEventRecorder.AchievementUnlocked(item, name), ct);
-            }
+                var merged = MediaAchievements.MergeUnlocked(item.UnlockedAchievements, unlocked);
+                if (string.Equals(merged, item.UnlockedAchievements, StringComparison.Ordinal)) continue;
 
-            item.UnlockedAchievements = merged;
-            item.MarkUpdated();
-            await db.UpdateMediaItemAsync(item, ct);
-            updated++;
-        }
+                foreach (var name in MediaAchievements.NewlyUnlocked(item.UnlockedAchievements, merged))
+                {
+                    await db.InsertMediaEventAsync(MediaEventRecorder.AchievementUnlocked(item, name), ct);
+                }
+
+                item.UnlockedAchievements = merged;
+                item.MarkUpdated();
+                await db.UpdateMediaItemAsync(item, ct);
+                updated++;
+            }
         }
 
         if (updated > 0)

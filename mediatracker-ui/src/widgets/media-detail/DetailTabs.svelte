@@ -32,7 +32,12 @@
   }
 </script>
 
-<nav class="flex items-center gap-1 border-b border-white/[0.08] pb-px" aria-label="Sections">
+<!-- Horizontal scroll on narrow screens: the nowrap tabs (four on games, five on shows) no
+     longer fit a 320-390px viewport, and wrapping would break the active underline. -->
+<nav
+  class="thin-scroll flex items-center gap-1 overflow-x-auto border-b border-white/[0.08] pb-px"
+  aria-label="Sections"
+>
   <button type="button" class={tabClass("overview")} onclick={() => onSelect("overview")}>
     {i18n.t.detail.tabOverview}
   </button>

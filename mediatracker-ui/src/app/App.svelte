@@ -17,6 +17,7 @@
   import { bumpGridLayout } from "$widgets/media-grid/gridLayout.svelte";
   import type {
     AppView,
+    SettingsTab,
     JobProgress,
     MediaItem,
     SearchModalContext,
@@ -40,6 +41,7 @@
     "calendar",
     "goals",
     "seasons",
+    "settings",
     "detail",
   ];
 
@@ -64,7 +66,7 @@
   let isCreateOpen = $state(false);
   let editingItem = $state<MediaItem | null>(null);
   let isSearchOpen = $state(false);
-  let isSettingsOpen = $state(false);
+  let settingsTabRequest = $state<SettingsTab>("sources");
   let initialSearchType = $state<SearchScope>("all");
   let initialSearchQuery = $state("");
   let initialSearchSource = $state("");
@@ -291,6 +293,8 @@
         return i18n.t.detail.eyebrow;
       case "anime":
         return i18n.t.navigation.anime;
+      case "settings":
+        return i18n.t.navigation.settings;
       default:
         return i18n.t.navigation[view];
     }
@@ -330,18 +334,13 @@
 
   function isModalOpen() {
     return (
-      isSearchOpen ||
-      isSettingsOpen ||
-      isCreateOpen ||
-      jobsClient.isModalOpen ||
-      dropPromptState.target !== null
+      isSearchOpen || isCreateOpen || jobsClient.isModalOpen || dropPromptState.target !== null
     );
   }
 
   /** Closes every app-level modal without touching the route or scroll. */
   function closeAllModals() {
     isSearchOpen = false;
-    isSettingsOpen = false;
     isCreateOpen = false;
     editingItem = null;
     jobsClient.closeModal();
@@ -393,16 +392,14 @@
     restoreModalFocus();
   }
 
-  function openSettings() {
+  /**
+   * Settings live as a full-screen view now, not an overlay. The tab is deep-linkable: callers can
+   * land directly on "sources", "storage" and so on; the request is consumed by the view at mount.
+   */
+  function openSettings(tab?: SettingsTab) {
     rememberTrigger();
-    isSettingsOpen = true;
-    pushModalState();
-  }
-
-  function closeSettings() {
-    isSettingsOpen = false;
-    popModalState();
-    restoreModalFocus();
+    settingsTabRequest = tab ?? "sources";
+    navigate("settings");
   }
 
   function mediaChanged() {
@@ -594,12 +591,7 @@
 
 <AppShell mainRef={(el) => (mainScrollContainer = el)}>
   {#snippet sidebar()}
-    <Sidebar
-      {activeView}
-      onNavigate={navigate}
-      onCreate={openCreate}
-      onOpenSettings={openSettings}
-    />
+    <Sidebar {activeView} onNavigate={navigate} onCreate={openCreate} />
   {/snippet}
 
   {#snippet header()}
@@ -669,6 +661,27 @@
           refreshKey={mediaRevision}
           onBack={closeDetail}
           onMediaChanged={mediaChanged}
+        />
+      </div>
+    {:catch error}
+      {@const _ = console.error("Failed to load view/modal:", error)}
+    {/await}
+  {:else if renderedView === "settings"}
+    {#await import("$views/SettingsView.svelte") then { default: SettingsView }}
+      <div class="view-fade">
+        <SettingsView
+          initialTab={settingsTabRequest}
+          onImportCompleted={mediaChanged}
+          onNavigateToList={navigateToList}
+          onTestSearch={(source, type) => {
+            // The settings view stays mounted underneath; the search modal overlays it, so no
+            // flag flipping is needed the way the old overlay required.
+            openSearch({
+              query: "",
+              source,
+              type: type === "movie" || type === "anime" || type === "game" ? type : "all",
+            });
+          }}
         />
       </div>
     {:catch error}
@@ -746,29 +759,6 @@
         isSearchOpen = false;
         restoreModalFocus();
         openDetailById(id);
-      }}
-    />
-  {:catch error}
-    {@const _ = console.error("Failed to load view/modal:", error)}
-  {/await}
-{/if}
-{#if isSettingsOpen}
-  {#await import("$features/settings/SettingsModal.svelte") then { default: SettingsModal }}
-    <SettingsModal
-      isOpen={isSettingsOpen}
-      onClose={closeSettings}
-      onImportCompleted={mediaChanged}
-      onNavigateToList={navigateToList}
-      onTestSearch={(source, type) => {
-        // No popModalState() here: closeSettings() would call history.back(), and its
-        // delayed popstate event would close the SearchModal that openSearch just opened.
-        // Flip the flags directly instead.
-        isSettingsOpen = false;
-        openSearch({
-          query: "",
-          source,
-          type: type === "movie" || type === "anime" || type === "game" ? type : "all",
-        });
       }}
     />
   {:catch error}

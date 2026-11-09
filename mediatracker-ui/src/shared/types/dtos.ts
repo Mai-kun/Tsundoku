@@ -317,6 +317,8 @@ export interface SourceInfo {
   hasKey: boolean;
   maskedKey: string | null;
   isEnabled: boolean;
+  /** True for site scrapers (no public API) — the settings list splits on this flag. */
+  isScraper: boolean;
 }
 
 /**

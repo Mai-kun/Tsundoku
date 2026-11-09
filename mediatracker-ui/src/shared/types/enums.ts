@@ -45,7 +45,21 @@ export type AppView =
   | "calendar"
   | "goals"
   | "seasons"
+  | "settings"
   | "detail";
+
+/** Settings sections, deep-linkable through the view. */
+export type SettingsTab =
+  | "sources"
+  | "search"
+  | "backup"
+  | "import"
+  | "reading"
+  | "apiTokens"
+  | "update"
+  | "storage"
+  | "desktop"
+  | "appearance";
 export type SortBy = "createdAt" | "score" | "title";
 export type SortOrder = "asc" | "desc";
 

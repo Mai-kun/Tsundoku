@@ -2553,6 +2553,17 @@ export const translations = {
       },
       filterLabel: { ru: "Фильтр по типу", en: "Filter by type" },
       filterAll: { ru: "Все типы", en: "All types" },
+      kindApi: { ru: "Официальные API", en: "Official APIs" },
+      kindScrapers: { ru: "Веб-парсеры сайтов", en: "Site scrapers" },
+      scraperBadge: { ru: "Веб-парсер (Без API)", en: "Web scraper (No API)" },
+      scraperEmptyTitle: {
+        ru: "Веб-парсеров пока нет",
+        en: "No site scrapers yet",
+      },
+      scraperEmptyText: {
+        ru: "Веб-парсеры позволяют находить и добавлять тайтлы с площадок, у которых нет публичного API (в стиле расширений Mihon/Tachiyomi). Когда такие источники появятся, они будут перечислены здесь — со своим тумблером и проверкой доступности.",
+        en: "Site scrapers let you find and add titles from platforms with no public API (in the Mihon/Tachiyomi extension style). Once such sources ship, they will be listed here — each with its own toggle and a reachability check.",
+      },
       noKeyRequired: { ru: "Ключ не требуется", en: "No API key needed" },
       keyRequired: { ru: "Требуется API ключ", en: "API key required" },
       optionalKey: { ru: "Ключ необязателен", en: "API key optional" },

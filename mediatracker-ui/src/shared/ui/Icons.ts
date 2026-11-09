@@ -89,3 +89,4 @@ export { default as Upload } from "lucide-svelte/icons/upload";
 export { default as User } from "lucide-svelte/icons/user";
 export { default as Users } from "lucide-svelte/icons/users";
 export { default as X } from "lucide-svelte/icons/x";
+export { default as Zap } from "lucide-svelte/icons/zap";

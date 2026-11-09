@@ -85,7 +85,7 @@ public sealed class ShikimoriMetadataProvider(
             using var response = await SendWithFailoverAsync(domain => BuildGetRequest(domain, endpoint), ct);
             var item = await response.Content.ReadFromJsonAsync(
                 AppJsonSerializerContext.Default.ShikimoriItem, ct);
-            
+
             return item is null ? null : MapItem(item, _mediaType);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)

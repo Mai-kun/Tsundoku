@@ -12,7 +12,9 @@ public sealed record SourceInfo(
     bool IsConfigured,
     bool HasKey,
     string? MaskedKey,
-    bool IsEnabled);
+    bool IsEnabled,
+    /// <summary>True for site scrapers (no public API); the settings list splits on it.</summary>
+    bool IsScraper = false);
 
 /// <summary>
 /// The settings screen's source list. It is produced by asking the container what providers exist,

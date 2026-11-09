@@ -48,7 +48,8 @@ public sealed class GetSourcesHandler(
                     MaskedKey: ApiKeyMask.Mask(key),
                     IsEnabled: (!disabled.Contains(provider.Id)
                         && !disabled.Contains(MediaMerger.NormalizeSourceKey(provider.Id)))
-                        && isConfigured);
+                        && isConfigured,
+                    IsScraper: provider.IsScraper);
             })
             .OrderByDescending(source => source.IsEnabled)
             .ToList();

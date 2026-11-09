@@ -166,7 +166,9 @@ describe("parseMediaUrl", () => {
       id: "2237970",
       type: "game",
     });
-    expect(parseMediaUrl("https://store.steampowered.com/app/292030/The_Witcher_3_Wild_Hunt/?l=russian")).toEqual({
+    expect(
+      parseMediaUrl("https://store.steampowered.com/app/292030/The_Witcher_3_Wild_Hunt/?l=russian"),
+    ).toEqual({
       source: "steam",
       id: "292030",
       type: "game",

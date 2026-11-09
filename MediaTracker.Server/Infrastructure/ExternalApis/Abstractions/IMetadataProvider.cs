@@ -12,6 +12,9 @@ public interface IMetadataProvider
     bool OptionalApiKey { get; }
     bool IsDefault { get; }
 
+    /// <summary>True when the source scrapes a site without a public API (Mihon-style extension).</summary>
+    bool IsScraper { get; }
+
     Task<IReadOnlyList<ExternalMediaDto>> SearchAsync(string query, CancellationToken ct);
     Task<ExternalMediaDto?> GetDetailsAsync(string externalId, string title, CancellationToken ct);
 

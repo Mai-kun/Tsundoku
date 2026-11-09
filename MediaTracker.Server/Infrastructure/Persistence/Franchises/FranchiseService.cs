@@ -303,22 +303,22 @@ public sealed partial class FranchiseService : IFranchiseService
         // "noragami" only as its prefix), so a long-enough shared prefix is franchise evidence too.
         // Checked both ways — the shorter root may sit on either side.
         foreach (var rootA in a.Roots)
-        foreach (var rootB in b.Roots)
-        {
-            if (rootA.Length > ShortBaseTitleLength
-                && rootA.Length < rootB.Length
-                && rootB.StartsWith(rootA, StringComparison.Ordinal))
+            foreach (var rootB in b.Roots)
             {
-                return true;
-            }
+                if (rootA.Length > ShortBaseTitleLength
+                    && rootA.Length < rootB.Length
+                    && rootB.StartsWith(rootA, StringComparison.Ordinal))
+                {
+                    return true;
+                }
 
-            if (rootB.Length > ShortBaseTitleLength
-                && rootB.Length < rootA.Length
-                && rootA.StartsWith(rootB, StringComparison.Ordinal))
-            {
-                return true;
+                if (rootB.Length > ShortBaseTitleLength
+                    && rootB.Length < rootA.Length
+                    && rootA.StartsWith(rootB, StringComparison.Ordinal))
+                {
+                    return true;
+                }
             }
-        }
 
         return false;
     }
@@ -772,8 +772,7 @@ public sealed partial class FranchiseService : IFranchiseService
         // shortest title in the group — the base game ("The Witcher"), not its longest sequel.
         var franchiseId = members
             .Select(m => m.FranchiseId)
-            .Where(id => id is not null)
-            .FirstOrDefault();
+            .FirstOrDefault(id => id is not null);
         if (franchiseId is null)
         {
             var name = members

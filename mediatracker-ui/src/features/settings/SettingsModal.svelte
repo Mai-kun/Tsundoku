@@ -16,6 +16,7 @@
     EyeOff,
     FolderInput,
     FolderOpen,
+    Globe,
     GripVertical,
     Key,
     LoaderCircle,
@@ -30,8 +31,9 @@
     ShieldCheck,
     Trash2,
     X,
+    Zap,
   } from "$shared/ui/Icons";
-  import { onMount } from "svelte";
+  import { onMount, untrack } from "svelte";
   import { slide } from "svelte/transition";
   import { uiSettings } from "$shared/utils/uiSettings.svelte";
   import { exitApp } from "$shared/utils/appExit";
@@ -93,9 +95,29 @@
     onImportCompleted: () => void;
     onNavigateToList?: (id: string) => void;
     onTestSearch?: (sourceId: string, type?: string) => void;
+    /**
+     * Full-screen view mode: the panel renders without the Modal chrome (no overlay, no close
+     * button) and treats itself as always visible. Set by SettingsView, which hosts the settings
+     * as a proper view instead of an overlay.
+     */
+    embedded?: boolean;
+    /** Tab to land on at mount; the view deep-links into a specific section (default "sources"). */
+    initialTab?: Tab;
   }
 
-  let { isOpen, onClose, onImportCompleted, onNavigateToList, onTestSearch }: Props = $props();
+  let {
+    isOpen,
+    onClose,
+    onImportCompleted,
+    onNavigateToList,
+    onTestSearch,
+    embedded = false,
+    initialTab = "sources",
+  }: Props = $props();
+
+  // One visibility for both shells: the modal flips isOpen, the embedded view is always shown.
+  // Every data-loading effect keys off this, not isOpen, so the view loads its data too.
+  const visible = $derived(embedded || isOpen);
 
   type Tab =
     | "sources"
@@ -108,7 +130,9 @@
     | "storage"
     | "desktop"
     | "appearance";
-  let activeTab = $state<Tab>("sources");
+  // Deliberately the mount-time value: the view deep-links into a section by passing
+  // initialTab, and after that the user drives the tab rail freely.
+  let activeTab = $state<Tab>(untrack(() => initialTab));
 
   const launchModeOptions = $derived([
     {
@@ -183,16 +207,16 @@
   let isApplyingUpdate = $state(false);
 
   $effect(() => {
-    if (isOpen && activeTab === "apiTokens") {
+    if (visible && activeTab === "apiTokens") {
       loadTokens();
     }
-    if (isOpen && activeTab === "update") {
+    if (visible && activeTab === "update") {
       handleCheckUpdate();
     }
-    if (isOpen && activeTab === "storage") {
+    if (visible && activeTab === "storage") {
       loadStorage();
     }
-    if (isOpen && activeTab === "desktop") {
+    if (visible && activeTab === "desktop") {
       loadAppSettings();
     }
   });
@@ -370,7 +394,7 @@
   let isSavingReading = $state(false);
 
   $effect(() => {
-    if (isOpen) {
+    if (visible) {
       readingBookPageMinutes = uiSettings.bookPageMinutes;
       readingMangaChapterMinutes = uiSettings.mangaChapterMinutes;
     }
@@ -529,6 +553,9 @@
   let sourcesError = $state<unknown>(null);
 
   let selectedTypeFilter = $state<string>("all");
+  // The pill tabs split documented APIs from site scrapers (Mihon-style extensions). The media
+  // type filter deliberately survives switching between the two.
+  let sourceKindFilter = $state<"api" | "scraper">("api");
   let filteredSources = $derived(
     // Offline entries (the generic "offline" provider and every "offline:{file}" database) live
     // exclusively in the Layer-0 block above; the supported-sources list below stays external-only.
@@ -537,6 +564,7 @@
       : sources.filter((s) => s.mediaTypes.includes(selectedTypeFilter))
     )
       .filter((s) => s.id !== "offline" && !s.id.startsWith("offline:"))
+      .filter((s) => (sourceKindFilter === "scraper" ? s.isScraper === true : s.isScraper !== true))
       .slice()
       .sort((a, b) => Number(b.isEnabled) - Number(a.isEnabled)),
   );
@@ -686,7 +714,7 @@
   }
 
   $effect(() => {
-    if (isOpen) {
+    if (visible) {
       void loadSources();
       void loadOrder();
       void loadPriority();
@@ -1070,7 +1098,7 @@
   }
 </script>
 
-<Modal {isOpen} {onClose} size="xl" labelledBy="settings-title">
+{#snippet body()}
   <div class="flex h-full min-h-0 flex-col overflow-hidden">
     <!-- Header -->
     <header
@@ -1086,14 +1114,16 @@
           </h2>
         </div>
       </div>
-      <button
-        type="button"
-        class="text-muted grid h-8 w-8 cursor-pointer place-items-center rounded-lg transition hover:bg-white/10 hover:text-white"
-        aria-label={i18n.t.common.close}
-        onclick={onClose}
-      >
-        <X size={18} />
-      </button>
+      {#if !embedded}
+        <button
+          type="button"
+          class="text-muted grid h-8 w-8 cursor-pointer place-items-center rounded-lg transition hover:bg-white/10 hover:text-white"
+          aria-label={i18n.t.common.close}
+          onclick={onClose}
+        >
+          <X size={18} />
+        </button>
+      {/if}
     </header>
 
     <!-- Modal Body: 2 columns -->
@@ -1449,7 +1479,37 @@
                 </p>
               </div>
 
-              <!-- Media Type Filter Dropdown (Item 15) -->
+              <!-- Kind switcher: documented APIs vs site scrapers (Mihon-style extensions) -->
+              <div
+                class="bg-card/60 flex items-center gap-1 rounded-full border border-white/[0.06] p-1"
+              >
+                <button
+                  type="button"
+                  class={`inline-flex cursor-pointer items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${
+                    sourceKindFilter === "api"
+                      ? "bg-accent-bright/20 text-[#a5b4fc] shadow-sm"
+                      : "text-muted hover:text-ink"
+                  }`}
+                  onclick={() => (sourceKindFilter = "api")}
+                >
+                  <Zap size={13} />
+                  {i18n.t.settingsModal.sources.kindApi}
+                </button>
+                <button
+                  type="button"
+                  class={`inline-flex cursor-pointer items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${
+                    sourceKindFilter === "scraper"
+                      ? "bg-accent-bright/20 text-[#a5b4fc] shadow-sm"
+                      : "text-muted hover:text-ink"
+                  }`}
+                  onclick={() => (sourceKindFilter = "scraper")}
+                >
+                  <Globe size={13} />
+                  {i18n.t.settingsModal.sources.kindScrapers}
+                </button>
+              </div>
+
+              <!-- Media Type Filter Dropdown (kept across the kind switcher) -->
               <div class="flex items-center gap-2">
                 <label for="source-type-filter" class="text-muted shrink-0 text-xs"
                   >{i18n.t.settingsModal.sources.filterLabel}:</label
@@ -1509,6 +1569,15 @@
                               class="inline-flex items-center rounded bg-zinc-500/15 px-2 py-0.5 text-[11px] font-semibold text-zinc-400"
                             >
                               {i18n.t.settingsModal.sources.disabledBadge}
+                            </span>
+                          {/if}
+                          {#if source.isScraper}
+                            <span
+                              class="inline-flex items-center gap-1 rounded bg-violet-500/15 px-2 py-0.5 text-[11px] font-semibold text-violet-300"
+                              title={i18n.t.settingsModal.sources.scraperBadge}
+                            >
+                              <Globe size={12} />
+                              {i18n.t.settingsModal.sources.scraperBadge}
                             </span>
                           {/if}
                           {#if source.id === "sociallib"}
@@ -1750,8 +1819,8 @@
                           {:else}
                             <p class="text-muted mb-3 flex items-start gap-1.5 text-xs">
                               <Key size={12} class="mt-0.5 shrink-0 text-sky-400" />
-                              Client ID открывает публичный каталог. Сессия из браузера добавляет
-                              личные данные (списки, историю просмотров).
+                              Client ID открывает публичный каталог. Сессия из браузера добавляет личные
+                              данные (списки, историю просмотров).
                             </p>
                           {/if}
 
@@ -1896,6 +1965,24 @@
                     {/if}
                   </div>
                 {/each}
+
+                {#if sourceKindFilter === "scraper" && filteredSources.length === 0}
+                  <div
+                    class="rounded-xl border border-dashed border-white/15 bg-white/[0.02] p-8 text-center"
+                  >
+                    <div
+                      class="mx-auto grid h-12 w-12 place-items-center rounded-full bg-violet-500/15 text-violet-300"
+                    >
+                      <Globe size={22} />
+                    </div>
+                    <h4 class="text-ink mt-3 text-sm font-bold">
+                      {i18n.t.settingsModal.sources.scraperEmptyTitle}
+                    </h4>
+                    <p class="text-muted mx-auto mt-1.5 max-w-md text-xs leading-relaxed">
+                      {i18n.t.settingsModal.sources.scraperEmptyText}
+                    </p>
+                  </div>
+                {/if}
               </div>
             {/if}
           </div>
@@ -2902,350 +2989,372 @@
       </div>
     </div>
   </div>
-</Modal>
+{/snippet}
 
-<!-- Double confirmation for full library reset -->
-<Modal isOpen={showResetConfirm} onClose={handleCancelReset} labelledBy="reset-confirm-title">
-  <div class="p-6">
-    <div class="flex items-start gap-4">
-      <div
-        class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-rose-500/15 text-rose-400"
-      >
-        <AlertTriangle size={20} />
-      </div>
-      <div class="min-w-0 flex-1">
-        <h3 id="reset-confirm-title" class="text-ink text-base font-bold">
-          {i18n.t.settingsModal.backup.resetConfirmTitle}
-        </h3>
-        <p class="text-muted mt-2 text-xs leading-relaxed">
-          {i18n.t.settingsModal.backup.resetWarning}
-        </p>
-        <label class="text-ink mt-4 flex items-center gap-2 text-xs">
-          <input
-            type="checkbox"
-            bind:checked={keepApiKeys}
-            disabled={isResetting}
-            class="accent-rose-500"
-          />
-          {i18n.t.settingsModal.backup.keepApiKeys}
-        </label>
-        <label for="reset-confirmation-input" class="text-muted mt-4 block text-xs">
-          {i18n.t.settingsModal.backup.typeToConfirm}
-          <span class="ml-1 font-mono font-semibold text-rose-300"
-            >{i18n.t.settingsModal.backup.confirmationWord}</span
-          >
-        </label>
-        <input
-          id="reset-confirmation-input"
-          type="text"
-          bind:value={resetConfirmationInput}
-          disabled={isResetting}
-          autocomplete="off"
-          spellcheck="false"
-          class="bg-field text-ink mt-2 h-9 w-full rounded-md border border-white/10 px-3 text-sm outline-none focus:border-rose-500/60"
-        />
-      </div>
-    </div>
-    <div class="mt-6 flex items-center justify-end gap-3 border-t border-white/[0.07] pt-4">
-      <button
-        type="button"
-        class="bg-field text-ink hover:bg-card inline-flex h-9 cursor-pointer items-center rounded-md border border-white/10 px-4 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60"
-        disabled={isResetting}
-        onclick={handleCancelReset}
-      >
-        {i18n.t.settingsModal.backup.cancelButton}
-      </button>
-      <button
-        type="button"
-        class="inline-flex h-9 cursor-pointer items-center gap-2 rounded-md bg-rose-700 px-4 text-xs font-semibold text-white transition hover:bg-rose-600 disabled:cursor-not-allowed disabled:opacity-60"
-        class:cursor-wait={isResetting}
-        disabled={isResetting ||
-          resetConfirmationInput.trim() !== i18n.t.settingsModal.backup.confirmationWord}
-        onclick={handleConfirmReset}
-      >
-        {#if isResetting}
-          <LoaderCircle size={14} class="animate-spin" />
-          {i18n.t.settingsModal.backup.resetting}
-        {:else}
-          <Trash2 size={14} />
-          {i18n.t.settingsModal.backup.resetConfirmButton}
-        {/if}
-      </button>
-    </div>
-  </div>
-</Modal>
-
-<!-- Confirmation Modal for Restore -->
-<Modal isOpen={showRestoreConfirm} onClose={handleCancelRestore} labelledBy="restore-confirm-title">
-  <div class="p-6">
-    <div class="flex items-start gap-4">
-      <div
-        class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-rose-500/15 text-rose-400"
-      >
-        <AlertTriangle size={20} />
-      </div>
-      <div>
-        <h3 id="restore-confirm-title" class="text-ink text-base font-bold">
-          {i18n.t.settingsModal.backup.confirmModalTitle}
-        </h3>
-        <p class="text-muted mt-2 text-xs leading-relaxed">
-          {i18n.t.settingsModal.backup.confirmModalWarning}
-        </p>
-        {#if selectedBackupFile}
-          <div
-            class="bg-field text-ink mt-3 rounded-md border border-white/10 px-3 py-2 font-mono text-xs"
-          >
-            <span class="text-muted mr-1 font-sans"
-              >{i18n.t.settingsModal.backup.selectedFileLabel}</span
+<!-- App-level confirmation dialogs: rendered in both shells (modal overlay and full view) -->
+{#snippet dialogs()}
+  <!-- Double confirmation for full library reset -->
+  <Modal isOpen={showResetConfirm} onClose={handleCancelReset} labelledBy="reset-confirm-title">
+    <div class="p-6">
+      <div class="flex items-start gap-4">
+        <div
+          class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-rose-500/15 text-rose-400"
+        >
+          <AlertTriangle size={20} />
+        </div>
+        <div class="min-w-0 flex-1">
+          <h3 id="reset-confirm-title" class="text-ink text-base font-bold">
+            {i18n.t.settingsModal.backup.resetConfirmTitle}
+          </h3>
+          <p class="text-muted mt-2 text-xs leading-relaxed">
+            {i18n.t.settingsModal.backup.resetWarning}
+          </p>
+          <label class="text-ink mt-4 flex items-center gap-2 text-xs">
+            <input
+              type="checkbox"
+              bind:checked={keepApiKeys}
+              disabled={isResetting}
+              class="accent-rose-500"
+            />
+            {i18n.t.settingsModal.backup.keepApiKeys}
+          </label>
+          <label for="reset-confirmation-input" class="text-muted mt-4 block text-xs">
+            {i18n.t.settingsModal.backup.typeToConfirm}
+            <span class="ml-1 font-mono font-semibold text-rose-300"
+              >{i18n.t.settingsModal.backup.confirmationWord}</span
             >
-            {selectedBackupFile.name} ({(selectedBackupFile.size / (1024 * 1024)).toFixed(2)} MB)
-          </div>
-        {/if}
+          </label>
+          <input
+            id="reset-confirmation-input"
+            type="text"
+            bind:value={resetConfirmationInput}
+            disabled={isResetting}
+            autocomplete="off"
+            spellcheck="false"
+            class="bg-field text-ink mt-2 h-9 w-full rounded-md border border-white/10 px-3 text-sm outline-none focus:border-rose-500/60"
+          />
+        </div>
+      </div>
+      <div class="mt-6 flex items-center justify-end gap-3 border-t border-white/[0.07] pt-4">
+        <button
+          type="button"
+          class="bg-field text-ink hover:bg-card inline-flex h-9 cursor-pointer items-center rounded-md border border-white/10 px-4 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60"
+          disabled={isResetting}
+          onclick={handleCancelReset}
+        >
+          {i18n.t.settingsModal.backup.cancelButton}
+        </button>
+        <button
+          type="button"
+          class="inline-flex h-9 cursor-pointer items-center gap-2 rounded-md bg-rose-700 px-4 text-xs font-semibold text-white transition hover:bg-rose-600 disabled:cursor-not-allowed disabled:opacity-60"
+          class:cursor-wait={isResetting}
+          disabled={isResetting ||
+            resetConfirmationInput.trim() !== i18n.t.settingsModal.backup.confirmationWord}
+          onclick={handleConfirmReset}
+        >
+          {#if isResetting}
+            <LoaderCircle size={14} class="animate-spin" />
+            {i18n.t.settingsModal.backup.resetting}
+          {:else}
+            <Trash2 size={14} />
+            {i18n.t.settingsModal.backup.resetConfirmButton}
+          {/if}
+        </button>
       </div>
     </div>
+  </Modal>
 
-    <div class="mt-6 flex items-center justify-end gap-3 border-t border-white/[0.07] pt-4">
-      <button
-        type="button"
-        class="bg-field text-ink hover:bg-card inline-flex h-9 cursor-pointer items-center rounded-md border border-white/10 px-4 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60"
-        disabled={isRestoring}
-        onclick={handleCancelRestore}
-      >
-        {i18n.t.settingsModal.backup.cancelButton}
-      </button>
-      <button
-        type="button"
-        class="inline-flex h-9 cursor-pointer items-center gap-2 rounded-md bg-rose-600 px-4 text-xs font-semibold text-white transition hover:bg-rose-500 disabled:cursor-not-allowed disabled:opacity-60"
-        class:cursor-wait={isRestoring}
-        disabled={isRestoring}
-        onclick={handleConfirmRestore}
-      >
-        {#if isRestoring}
-          <LoaderCircle size={14} class="animate-spin" />
-          {i18n.t.settingsModal.backup.restoring}
-        {:else}
-          <AlertTriangle size={14} />
-          {i18n.t.settingsModal.backup.confirmButton}
-        {/if}
-      </button>
-    </div>
-  </div>
-</Modal>
-
-<!-- Create API Token Modal -->
-<Modal
-  isOpen={showCreateTokenModal}
-  onClose={() => (showCreateTokenModal = false)}
-  labelledBy="create-token-title"
->
-  <div class="p-6">
-    <div class="mb-5 flex items-start gap-4">
-      <div
-        class="bg-accent-bright/15 grid h-10 w-10 shrink-0 place-items-center rounded-full text-[#a5b4fc]"
-      >
-        <Key size={20} />
-      </div>
-      <div>
-        <h3 id="create-token-title" class="text-ink text-base font-bold">
-          {i18n.t.settingsModal.apiTokens.modalTitle}
-        </h3>
-        <p class="text-muted mt-1 text-xs leading-relaxed">
-          {i18n.t.settingsModal.apiTokens.description}
-        </p>
-      </div>
-    </div>
-
-    <form
-      onsubmit={(e) => {
-        e.preventDefault();
-        handleCreateToken();
-      }}
-      class="space-y-4"
-    >
-      <div class="space-y-1.5">
-        <label for="token-name-input" class="block text-xs font-semibold text-slate-300">
-          {i18n.t.settingsModal.apiTokens.nameLabel} <span class="text-rose-400">*</span>
-        </label>
-        <input
-          id="token-name-input"
-          type="text"
-          required
-          maxlength="100"
-          placeholder={i18n.t.settingsModal.apiTokens.namePlaceholder}
-          class="bg-field text-ink focus:border-accent-soft focus:ring-accent-soft w-full rounded-lg border border-white/10 px-3 py-2 text-sm transition outline-none focus:ring-1"
-          bind:value={newTokenName}
-        />
-      </div>
-
-      <div class="space-y-1.5">
-        <label for="token-expires-input" class="block text-xs font-semibold text-slate-300">
-          {i18n.t.settingsModal.apiTokens.expiresInDaysLabel}
-        </label>
-        <input
-          id="token-expires-input"
-          type="number"
-          min="1"
-          max="3650"
-          placeholder={i18n.t.settingsModal.apiTokens.expiresInDaysPlaceholder}
-          class="bg-field text-ink focus:border-accent-soft focus:ring-accent-soft w-full rounded-lg border border-white/10 px-3 py-2 text-sm transition outline-none focus:ring-1"
-          bind:value={newTokenExpiresInDays}
-        />
+  <!-- Confirmation Modal for Restore -->
+  <Modal
+    isOpen={showRestoreConfirm}
+    onClose={handleCancelRestore}
+    labelledBy="restore-confirm-title"
+  >
+    <div class="p-6">
+      <div class="flex items-start gap-4">
+        <div
+          class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-rose-500/15 text-rose-400"
+        >
+          <AlertTriangle size={20} />
+        </div>
+        <div>
+          <h3 id="restore-confirm-title" class="text-ink text-base font-bold">
+            {i18n.t.settingsModal.backup.confirmModalTitle}
+          </h3>
+          <p class="text-muted mt-2 text-xs leading-relaxed">
+            {i18n.t.settingsModal.backup.confirmModalWarning}
+          </p>
+          {#if selectedBackupFile}
+            <div
+              class="bg-field text-ink mt-3 rounded-md border border-white/10 px-3 py-2 font-mono text-xs"
+            >
+              <span class="text-muted mr-1 font-sans"
+                >{i18n.t.settingsModal.backup.selectedFileLabel}</span
+              >
+              {selectedBackupFile.name} ({(selectedBackupFile.size / (1024 * 1024)).toFixed(2)} MB)
+            </div>
+          {/if}
+        </div>
       </div>
 
       <div class="mt-6 flex items-center justify-end gap-3 border-t border-white/[0.07] pt-4">
         <button
           type="button"
-          class="bg-field text-ink hover:bg-card inline-flex h-9 cursor-pointer items-center rounded-md border border-white/10 px-4 text-xs font-semibold transition"
-          disabled={isCreatingToken}
-          onclick={() => (showCreateTokenModal = false)}
+          class="bg-field text-ink hover:bg-card inline-flex h-9 cursor-pointer items-center rounded-md border border-white/10 px-4 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60"
+          disabled={isRestoring}
+          onclick={handleCancelRestore}
+        >
+          {i18n.t.settingsModal.backup.cancelButton}
+        </button>
+        <button
+          type="button"
+          class="inline-flex h-9 cursor-pointer items-center gap-2 rounded-md bg-rose-600 px-4 text-xs font-semibold text-white transition hover:bg-rose-500 disabled:cursor-not-allowed disabled:opacity-60"
+          class:cursor-wait={isRestoring}
+          disabled={isRestoring}
+          onclick={handleConfirmRestore}
+        >
+          {#if isRestoring}
+            <LoaderCircle size={14} class="animate-spin" />
+            {i18n.t.settingsModal.backup.restoring}
+          {:else}
+            <AlertTriangle size={14} />
+            {i18n.t.settingsModal.backup.confirmButton}
+          {/if}
+        </button>
+      </div>
+    </div>
+  </Modal>
+
+  <!-- Create API Token Modal -->
+  <Modal
+    isOpen={showCreateTokenModal}
+    onClose={() => (showCreateTokenModal = false)}
+    labelledBy="create-token-title"
+  >
+    <div class="p-6">
+      <div class="mb-5 flex items-start gap-4">
+        <div
+          class="bg-accent-bright/15 grid h-10 w-10 shrink-0 place-items-center rounded-full text-[#a5b4fc]"
+        >
+          <Key size={20} />
+        </div>
+        <div>
+          <h3 id="create-token-title" class="text-ink text-base font-bold">
+            {i18n.t.settingsModal.apiTokens.modalTitle}
+          </h3>
+          <p class="text-muted mt-1 text-xs leading-relaxed">
+            {i18n.t.settingsModal.apiTokens.description}
+          </p>
+        </div>
+      </div>
+
+      <form
+        onsubmit={(e) => {
+          e.preventDefault();
+          handleCreateToken();
+        }}
+        class="space-y-4"
+      >
+        <div class="space-y-1.5">
+          <label for="token-name-input" class="block text-xs font-semibold text-slate-300">
+            {i18n.t.settingsModal.apiTokens.nameLabel} <span class="text-rose-400">*</span>
+          </label>
+          <input
+            id="token-name-input"
+            type="text"
+            required
+            maxlength="100"
+            placeholder={i18n.t.settingsModal.apiTokens.namePlaceholder}
+            class="bg-field text-ink focus:border-accent-soft focus:ring-accent-soft w-full rounded-lg border border-white/10 px-3 py-2 text-sm transition outline-none focus:ring-1"
+            bind:value={newTokenName}
+          />
+        </div>
+
+        <div class="space-y-1.5">
+          <label for="token-expires-input" class="block text-xs font-semibold text-slate-300">
+            {i18n.t.settingsModal.apiTokens.expiresInDaysLabel}
+          </label>
+          <input
+            id="token-expires-input"
+            type="number"
+            min="1"
+            max="3650"
+            placeholder={i18n.t.settingsModal.apiTokens.expiresInDaysPlaceholder}
+            class="bg-field text-ink focus:border-accent-soft focus:ring-accent-soft w-full rounded-lg border border-white/10 px-3 py-2 text-sm transition outline-none focus:ring-1"
+            bind:value={newTokenExpiresInDays}
+          />
+        </div>
+
+        <div class="mt-6 flex items-center justify-end gap-3 border-t border-white/[0.07] pt-4">
+          <button
+            type="button"
+            class="bg-field text-ink hover:bg-card inline-flex h-9 cursor-pointer items-center rounded-md border border-white/10 px-4 text-xs font-semibold transition"
+            disabled={isCreatingToken}
+            onclick={() => (showCreateTokenModal = false)}
+          >
+            {i18n.t.settingsModal.apiTokens.cancel}
+          </button>
+          <button
+            type="submit"
+            class="bg-accent-bright inline-flex h-9 cursor-pointer items-center gap-2 rounded-md px-4 text-xs font-semibold text-white transition hover:bg-[#6854f0] disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={isCreatingToken || !newTokenName.trim()}
+          >
+            {#if isCreatingToken}
+              <LoaderCircle size={14} class="animate-spin" />
+              {i18n.t.settingsModal.apiTokens.generating}
+            {:else}
+              <Plus size={14} />
+              {i18n.t.settingsModal.apiTokens.generateSubmit}
+            {/if}
+          </button>
+        </div>
+      </form>
+    </div>
+  </Modal>
+
+  <!-- Generated API Token Reveal Modal (Shown once!) -->
+  <Modal
+    isOpen={createdTokenResult !== null}
+    onClose={() => (createdTokenResult = null)}
+    labelledBy="token-reveal-title"
+  >
+    <div class="p-6">
+      <div class="mb-4 flex items-start gap-4">
+        <div
+          class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-emerald-500/15 text-emerald-400"
+        >
+          <ShieldCheck size={22} />
+        </div>
+        <div>
+          <h3 id="token-reveal-title" class="text-ink text-base font-bold">
+            {createdTokenResult?.name}
+          </h3>
+          <p class="text-muted mt-0.5 text-xs">
+            {i18n.t.settingsModal.apiTokens.modalTitle}
+          </p>
+        </div>
+      </div>
+
+      <!-- Warning in gold/amber -->
+      <div
+        class="mb-4 flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5 text-xs leading-relaxed text-amber-200"
+      >
+        <AlertTriangle size={18} class="mt-0.5 shrink-0 text-amber-400" />
+        <div>
+          <strong class="mb-0.5 block font-semibold text-amber-300"
+            >{i18n.t.settingsModal.apiTokens.warningTitle}</strong
+          >
+          {i18n.t.settingsModal.apiTokens.warningText}
+        </div>
+      </div>
+
+      {#if createdTokenResult}
+        <div class="mb-6 space-y-2">
+          <div
+            class="flex items-center gap-2 rounded-xl border border-white/[0.12] bg-black/60 p-3"
+          >
+            <code
+              class="flex-1 font-mono text-xs tracking-wide break-all text-emerald-400 select-all sm:text-sm"
+            >
+              {createdTokenResult.rawToken}
+            </code>
+            <button
+              type="button"
+              class="tap bg-accent-bright inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-[#6854f0]"
+              onclick={() => handleCopyToken(createdTokenResult!.rawToken)}
+            >
+              {#if hasCopiedToken}
+                <Check size={14} class="text-emerald-300" />
+                <span>{i18n.t.settingsModal.apiTokens.copied}</span>
+              {:else}
+                <Copy size={14} />
+                <span>{i18n.t.settingsModal.apiTokens.copyToken}</span>
+              {/if}
+            </button>
+          </div>
+        </div>
+      {/if}
+
+      <div class="flex justify-end pt-2">
+        <button
+          type="button"
+          class="tap inline-flex h-9 w-full cursor-pointer items-center justify-center rounded-lg bg-white/10 px-5 text-xs font-semibold text-white transition hover:bg-white/15 sm:w-auto"
+          onclick={() => (createdTokenResult = null)}
+        >
+          {i18n.t.settingsModal.apiTokens.closeModal}
+        </button>
+      </div>
+    </div>
+  </Modal>
+
+  <!-- Revoke API Token Confirmation Modal -->
+  <Modal
+    isOpen={tokenToRevoke !== null}
+    onClose={() => (tokenToRevoke = null)}
+    labelledBy="revoke-token-title"
+  >
+    <div class="p-6">
+      <div class="flex items-start gap-4">
+        <div
+          class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-rose-500/15 text-rose-400"
+        >
+          <AlertTriangle size={20} />
+        </div>
+        <div>
+          <h3 id="revoke-token-title" class="text-ink text-base font-bold">
+            {i18n.t.settingsModal.apiTokens.revokeConfirmTitle}
+          </h3>
+          <p class="text-muted mt-2 text-xs leading-relaxed">
+            {i18n.t.settingsModal.apiTokens.revokeConfirmText}
+          </p>
+          {#if tokenToRevoke}
+            <div
+              class="bg-field text-ink mt-3 rounded-md border border-white/10 px-3 py-2 font-mono text-xs"
+            >
+              <span class="text-muted mr-2 font-sans">{tokenToRevoke.name}:</span>
+              {tokenToRevoke.tokenPrefix}••••••••
+            </div>
+          {/if}
+        </div>
+      </div>
+
+      <div class="mt-6 flex items-center justify-end gap-3 border-t border-white/[0.07] pt-4">
+        <button
+          type="button"
+          class="bg-field text-ink hover:bg-card inline-flex h-9 cursor-pointer items-center rounded-md border border-white/10 px-4 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60"
+          disabled={isRevokingToken}
+          onclick={() => (tokenToRevoke = null)}
         >
           {i18n.t.settingsModal.apiTokens.cancel}
         </button>
         <button
-          type="submit"
-          class="bg-accent-bright inline-flex h-9 cursor-pointer items-center gap-2 rounded-md px-4 text-xs font-semibold text-white transition hover:bg-[#6854f0] disabled:cursor-not-allowed disabled:opacity-60"
-          disabled={isCreatingToken || !newTokenName.trim()}
+          type="button"
+          class="inline-flex h-9 cursor-pointer items-center gap-2 rounded-md bg-rose-600 px-4 text-xs font-semibold text-white transition hover:bg-rose-500 disabled:cursor-not-allowed disabled:opacity-60"
+          disabled={isRevokingToken}
+          onclick={handleRevokeToken}
         >
-          {#if isCreatingToken}
+          {#if isRevokingToken}
             <LoaderCircle size={14} class="animate-spin" />
-            {i18n.t.settingsModal.apiTokens.generating}
+            {i18n.t.settingsModal.apiTokens.revoking}
           {:else}
-            <Plus size={14} />
-            {i18n.t.settingsModal.apiTokens.generateSubmit}
+            <Trash2 size={14} />
+            {i18n.t.settingsModal.apiTokens.revokeButton}
           {/if}
         </button>
       </div>
-    </form>
+    </div>
+  </Modal>
+{/snippet}
+
+{#if embedded}
+  <!-- Full-screen view shell (SettingsView): the same panel, no overlay chrome. -->
+  <div class="bg-canvas h-full min-h-0 w-full overflow-hidden rounded-none border-0">
+    {@render body()}
   </div>
-</Modal>
-
-<!-- Generated API Token Reveal Modal (Shown once!) -->
-<Modal
-  isOpen={createdTokenResult !== null}
-  onClose={() => (createdTokenResult = null)}
-  labelledBy="token-reveal-title"
->
-  <div class="p-6">
-    <div class="mb-4 flex items-start gap-4">
-      <div
-        class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-emerald-500/15 text-emerald-400"
-      >
-        <ShieldCheck size={22} />
-      </div>
-      <div>
-        <h3 id="token-reveal-title" class="text-ink text-base font-bold">
-          {createdTokenResult?.name}
-        </h3>
-        <p class="text-muted mt-0.5 text-xs">
-          {i18n.t.settingsModal.apiTokens.modalTitle}
-        </p>
-      </div>
-    </div>
-
-    <!-- Warning in gold/amber -->
-    <div
-      class="mb-4 flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5 text-xs leading-relaxed text-amber-200"
-    >
-      <AlertTriangle size={18} class="mt-0.5 shrink-0 text-amber-400" />
-      <div>
-        <strong class="mb-0.5 block font-semibold text-amber-300"
-          >{i18n.t.settingsModal.apiTokens.warningTitle}</strong
-        >
-        {i18n.t.settingsModal.apiTokens.warningText}
-      </div>
-    </div>
-
-    {#if createdTokenResult}
-      <div class="mb-6 space-y-2">
-        <div class="flex items-center gap-2 rounded-xl border border-white/[0.12] bg-black/60 p-3">
-          <code
-            class="flex-1 font-mono text-xs tracking-wide break-all text-emerald-400 select-all sm:text-sm"
-          >
-            {createdTokenResult.rawToken}
-          </code>
-          <button
-            type="button"
-            class="tap bg-accent-bright inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-[#6854f0]"
-            onclick={() => handleCopyToken(createdTokenResult!.rawToken)}
-          >
-            {#if hasCopiedToken}
-              <Check size={14} class="text-emerald-300" />
-              <span>{i18n.t.settingsModal.apiTokens.copied}</span>
-            {:else}
-              <Copy size={14} />
-              <span>{i18n.t.settingsModal.apiTokens.copyToken}</span>
-            {/if}
-          </button>
-        </div>
-      </div>
-    {/if}
-
-    <div class="flex justify-end pt-2">
-      <button
-        type="button"
-        class="tap inline-flex h-9 w-full cursor-pointer items-center justify-center rounded-lg bg-white/10 px-5 text-xs font-semibold text-white transition hover:bg-white/15 sm:w-auto"
-        onclick={() => (createdTokenResult = null)}
-      >
-        {i18n.t.settingsModal.apiTokens.closeModal}
-      </button>
-    </div>
-  </div>
-</Modal>
-
-<!-- Revoke API Token Confirmation Modal -->
-<Modal
-  isOpen={tokenToRevoke !== null}
-  onClose={() => (tokenToRevoke = null)}
-  labelledBy="revoke-token-title"
->
-  <div class="p-6">
-    <div class="flex items-start gap-4">
-      <div
-        class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-rose-500/15 text-rose-400"
-      >
-        <AlertTriangle size={20} />
-      </div>
-      <div>
-        <h3 id="revoke-token-title" class="text-ink text-base font-bold">
-          {i18n.t.settingsModal.apiTokens.revokeConfirmTitle}
-        </h3>
-        <p class="text-muted mt-2 text-xs leading-relaxed">
-          {i18n.t.settingsModal.apiTokens.revokeConfirmText}
-        </p>
-        {#if tokenToRevoke}
-          <div
-            class="bg-field text-ink mt-3 rounded-md border border-white/10 px-3 py-2 font-mono text-xs"
-          >
-            <span class="text-muted mr-2 font-sans">{tokenToRevoke.name}:</span>
-            {tokenToRevoke.tokenPrefix}••••••••
-          </div>
-        {/if}
-      </div>
-    </div>
-
-    <div class="mt-6 flex items-center justify-end gap-3 border-t border-white/[0.07] pt-4">
-      <button
-        type="button"
-        class="bg-field text-ink hover:bg-card inline-flex h-9 cursor-pointer items-center rounded-md border border-white/10 px-4 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60"
-        disabled={isRevokingToken}
-        onclick={() => (tokenToRevoke = null)}
-      >
-        {i18n.t.settingsModal.apiTokens.cancel}
-      </button>
-      <button
-        type="button"
-        class="inline-flex h-9 cursor-pointer items-center gap-2 rounded-md bg-rose-600 px-4 text-xs font-semibold text-white transition hover:bg-rose-500 disabled:cursor-not-allowed disabled:opacity-60"
-        disabled={isRevokingToken}
-        onclick={handleRevokeToken}
-      >
-        {#if isRevokingToken}
-          <LoaderCircle size={14} class="animate-spin" />
-          {i18n.t.settingsModal.apiTokens.revoking}
-        {:else}
-          <Trash2 size={14} />
-          {i18n.t.settingsModal.apiTokens.revokeButton}
-        {/if}
-      </button>
-    </div>
-  </div>
-</Modal>
+  {@render dialogs()}
+{:else}
+  <Modal {isOpen} {onClose} size="xl" labelledBy="settings-title">
+    {@render body()}
+  </Modal>
+  {@render dialogs()}
+{/if}

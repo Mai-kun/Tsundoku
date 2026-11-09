@@ -20,7 +20,13 @@ public sealed record MetadataSourceDescriptor(
     int Priority = int.MaxValue,
     string? CanonicalName = null,
     IReadOnlyList<string>? Aliases = null,
-    string? UserAgent = null)
+    string? UserAgent = null,
+    /// <summary>
+    /// True for sources that work by scraping a site with no public API (the Mihon/Tachiyomi
+    /// extension model) rather than calling a documented API. The settings screen splits the list
+    /// on this flag; every current provider is a documented API and stays false.
+    /// </summary>
+    bool IsScraper = false)
 {
     /// <summary>
     /// Display name for a rating row. Usually <see cref="Name"/>, but a provider needs its own when

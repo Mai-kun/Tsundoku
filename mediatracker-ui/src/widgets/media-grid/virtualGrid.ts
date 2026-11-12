@@ -12,11 +12,12 @@ export function columnsForWidth(viewportWidth: number): number {
   return 6; // 6 cards per row on 2xl / desktop (enlarged card width ~190-220px)
 }
 
-// Seed value for the fixed per-breakpoint row height (poster 3:4 + title block
-// + controls). The seed is derived from the actual column width at this
-// viewport — including the dynamic ultra-wide range — so the virtualizer never
-// spaces rows tighter than the real rendered card height. MediaGrid replaces
-// the seed with one exact measurement of the first rendered row.
+// Seed value for the fixed per-breakpoint row height (2:3 poster only — the
+// title now lives on the poster, so there is no info block below it). The seed
+// is derived from the actual column width at this viewport — including the
+// dynamic ultra-wide range — so the virtualizer never spaces rows tighter than
+// the real rendered card height. MediaGrid replaces the seed with one exact
+// measurement of the first rendered row.
 export function estimateRowHeight(viewportWidth: number): number {
   const cols = columnsForWidth(viewportWidth);
   const sidebarWidth = viewportWidth >= 1024 ? 240 : 0;
@@ -24,8 +25,7 @@ export function estimateRowHeight(viewportWidth: number): number {
   const gapTotal = (cols - 1) * 16;
   const cardWidth = Math.max(120, (availableWidth - gapTotal) / cols);
   const posterHeight = cardWidth * 1.5; // 2:3 poster ratio
-  const infoHeight = 90; // title, subtitle, stepper padding
-  return Math.round(posterHeight + infoHeight);
+  return Math.round(posterHeight);
 }
 
 /**

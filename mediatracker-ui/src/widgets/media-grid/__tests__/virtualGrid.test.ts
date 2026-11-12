@@ -46,24 +46,23 @@ describe("virtualGrid", () => {
   });
 
   it("derives row height from the actual column width at each viewport", () => {
-    // Formula: round(cardWidth * 1.5 + 90) with cardWidth clamped to >= 120
-    // (2:3 poster ratio + info block).
+    // Formula: round(cardWidth * 1.5), the card is a pure 2:3 poster.
     const expected = (viewportWidth: number) => {
       const cols = columnsForWidth(viewportWidth);
       const sidebarWidth = viewportWidth >= 1024 ? 240 : 0;
       const availableWidth = Math.max(300, viewportWidth - sidebarWidth - 64);
       const gapTotal = (cols - 1) * 16;
       const cardWidth = Math.max(120, (availableWidth - gapTotal) / cols);
-      return Math.round(cardWidth * 1.5 + 90);
+      return Math.round(cardWidth * 1.5);
     };
     for (const width of [0, 639, 640, 1023, 1024, 1279, 1280, 1535, 1536, 1919, 2560, 20000]) {
       expect(estimateRowHeight(width)).toBe(expected(width));
     }
-    // Sanity: heights stay plausible for real posters (poster ratio + info block).
-    expect(estimateRowHeight(0)).toBeGreaterThanOrEqual(250);
+    // Sanity: heights stay plausible for real posters (2:3 ratio only).
+    expect(estimateRowHeight(0)).toBeGreaterThanOrEqual(200);
     expect(estimateRowHeight(0)).toBeLessThanOrEqual(350);
     // The estimate tracks the rendered card width: at 2560px with 6 columns
     // the card spans (2560 - 240 - 64 - 5*16) / 6 px and the row grows with it.
-    expect(estimateRowHeight(2560)).toBe(Math.round(((2256 - 5 * 16) / 6) * 1.5 + 90));
+    expect(estimateRowHeight(2560)).toBe(Math.round(((2256 - 5 * 16) / 6) * 1.5));
   });
 });

@@ -2,7 +2,6 @@
   import type { MangaMedia } from "$shared/types";
   import { i18n } from "$shared/i18n/index.svelte";
   import BaseCard from "./BaseCard.svelte";
-  import CardProgressBar from "./CardProgressBar.svelte";
   import CardProgressControls from "./CardProgressControls.svelte";
   import CardTitleBlock from "./CardTitleBlock.svelte";
   import { createCardProgress } from "$features/update-progress/progressController.svelte";
@@ -31,7 +30,6 @@
   const totalChapters = $derived(
     item.totalChapters && item.totalChapters > 0 ? item.totalChapters : null,
   );
-  const ratio = $derived(totalChapters !== null ? progress.value / totalChapters : null);
   const subtitle = $derived(
     item.author?.trim() ? item.author : item.mangaFormat?.trim() || i18n.t.types.manga,
   );
@@ -39,10 +37,6 @@
 
 <BaseCard {item} {timeHint} {onOpen} {onStatusChange} {onProgressCommitted} {onDelete} {onEdit}>
   <CardTitleBlock title={item.title} {subtitle} />
-
-  {#if showProgress}
-    <CardProgressBar label={i18n.t.card.chapters(progress.value, totalChapters)} {ratio} />
-  {/if}
 
   {#snippet hover()}
     {#if showProgress}

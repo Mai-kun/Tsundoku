@@ -2,7 +2,6 @@
   import type { BookMedia } from "$shared/types";
   import { i18n } from "$shared/i18n/index.svelte";
   import BaseCard from "./BaseCard.svelte";
-  import CardProgressBar from "./CardProgressBar.svelte";
   import CardProgressControls from "./CardProgressControls.svelte";
   import CardTitleBlock from "./CardTitleBlock.svelte";
   import { createCardProgress } from "$features/update-progress/progressController.svelte";
@@ -28,8 +27,6 @@
   });
 
   const isNovel = $derived(item.format === "light_novel" || item.format === "web_novel");
-  const total = $derived(isNovel ? (item.totalChapters ?? 0) : item.totalPages);
-  const ratio = $derived(total > 0 ? progress.value / total : null);
   const progressText = $derived(
     isNovel
       ? i18n.t.card.chapters(progress.value, item.totalChapters ?? null)
@@ -47,10 +44,6 @@
           : i18n.t.detail.mangaFormats.light_novel
         : i18n.t.types.book)}
   />
-
-  {#if showProgress}
-    <CardProgressBar label={progressText} {ratio} />
-  {/if}
 
   {#snippet hover()}
     {#if showProgress}

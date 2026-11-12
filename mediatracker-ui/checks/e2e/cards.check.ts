@@ -25,7 +25,17 @@ const expect = (name, ok, extra) => {
 
   const go = async (url) => {
     await page.goto(BASE + url, { waitUntil: "domcontentloaded" });
-    await page.waitForTimeout(1500);
+    // The home grid stays mounted but hidden behind category views, so wait
+    // until a *visible* card exists before asserting anything about it.
+    await page
+      .waitForFunction(
+        () =>
+          [...document.querySelectorAll("article")].some((a) => a.offsetParent !== null),
+        undefined,
+        { timeout: 15000 },
+      )
+      .catch(() => {});
+    await page.waitForTimeout(300);
   };
 
   // Pick one item of each type straight from the API — no seeded ids hardcoded.
@@ -59,13 +69,17 @@ const expect = (name, ok, extra) => {
   // 2. Hover-prefetch warms the detail cache for the hovered card.
   await go("/?view=tvshow");
   const prefetch = await page.evaluate(async () => {
+    // The home grid stays mounted but hidden behind category views, so query
+    // the first *visible* card — a hidden home article would answer every
+    // query below with stale home-section data.
+    const firstVisibleArticle = () =>
+      [...document.querySelectorAll("article")].find((a) => a.offsetParent !== null) ?? null;
     const count = () =>
       performance
         .getEntriesByType("resource")
         .filter((r) => r.name.includes("/api/media/")).length;
     const before = count();
-    document
-      .querySelector("article")
+    firstVisibleArticle()
       ?.dispatchEvent(new PointerEvent("pointerenter", { bubbles: true }));
     await new Promise((r) => setTimeout(r, 900));
     return { before, after: count() };
@@ -86,7 +100,8 @@ const expect = (name, ok, extra) => {
   const stepperFor = async (view) => {
     await go(`/?view=${view}`);
     return page.evaluate(async () => {
-      const article = document.querySelector("article");
+      const article =
+        [...document.querySelectorAll("article")].find((a) => a.offsetParent !== null) ?? null;
       if (!article) return { card: false };
       const plus = [...article.querySelectorAll("button")].find((b) =>
         /Increase|\u0443\u0432\u0435\u043b\u0438\u0447/i.test(
@@ -101,11 +116,27 @@ const expect = (name, ok, extra) => {
         };
       }
       const box = plus.closest("div");
-      const read = () => box?.querySelector("span")?.textContent?.trim();
-      const before = read();
+      const before = box?.querySelector("span")?.textContent?.trim();
       plus.click();
-      await new Promise((r) => setTimeout(r, 150));
-      return { card: true, stepper: true, before, after: read() };
+      // The flip is optimistic and can re-key the card (e.g. a status flip
+      // moves it between sections), so poll the LIVE visible card's counter
+      // instead of the captured (possibly detached) node.
+      const liveText = () => {
+        const visible = [...document.querySelectorAll("article")].find(
+          (a) => a.offsetParent !== null,
+        );
+        const btn = [...(visible?.querySelectorAll("button") ?? [])].find((b) =>
+          /Increase|\u0443\u0432\u0435\u043b\u0438\u0447/i.test(b.getAttribute("aria-label") || ""),
+        );
+        return btn?.closest("div")?.querySelector("span")?.textContent?.trim();
+      };
+      let after = before;
+      for (let i = 0; i < 12; i++) {
+        await new Promise((r) => setTimeout(r, 100));
+        after = liveText();
+        if (after !== before) break;
+      }
+      return { card: true, stepper: true, before, after };
     });
   };
 
@@ -124,10 +155,10 @@ const expect = (name, ok, extra) => {
   const tvStepper = await stepperFor("tvshow");
   expect("tvshow card has an episode stepper", tvStepper.stepper === true, tvStepper);
   const movieStepper = await stepperFor("movie");
-  expect("movie card has no stepper", movieStepper.stepper === false, movieStepper);
+  expect("movie card has a watched toggle", movieStepper.stepper === true, movieStepper);
   expect(
-    "movie card shows a runtime",
-    /\d+\s*(min|\u043c)/i.test(movieStepper.text || ""),
+    "movie toggle goes 0 / 1 -> 1 / 1",
+    movieStepper.before === "0 / 1" && movieStepper.after === "1 / 1",
     movieStepper,
   );
   // 4. Detail sections per media type.

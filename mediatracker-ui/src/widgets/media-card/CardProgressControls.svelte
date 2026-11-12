@@ -31,20 +31,24 @@
 </script>
 
 <div class="flex w-full items-center gap-1.5">
+  <!-- Matte-glass buttons: visible on any poster or art background. -->
   <button
     type="button"
-    class="tap bg-field text-muted hover:text-ink flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition hover:bg-white/10 disabled:opacity-40"
+    class="tap flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-white/20 bg-white/15 font-semibold text-white/90 shadow-sm transition-colors select-none hover:bg-white/25 active:bg-white/35 disabled:opacity-40"
     aria-label={i18n.t.card.decrement}
     disabled={decrementDisabled}
-    onclick={(event) => step(event, -1)}><Minus size={16} aria-hidden="true" /></button
+    onclick={(event) => step(event, -1)}><Minus size={14} aria-hidden="true" /></button
   >
-  <span class="flex-1 text-center text-xs font-bold text-white tabular-nums">{text}</span>
+  <span
+    class="flex-1 px-2 text-center text-xs font-medium text-white/90 tabular-nums drop-shadow-sm"
+    >{text}</span
+  >
   <button
     type="button"
-    class="tap bg-field text-muted hover:text-ink flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition hover:bg-white/10 disabled:opacity-40"
+    class="tap flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-white/20 bg-white/15 font-semibold text-white/90 shadow-sm transition-colors select-none hover:bg-white/25 active:bg-white/35 disabled:opacity-40"
     aria-label={i18n.t.card.increment}
     disabled={incrementDisabled}
-    onclick={(event) => step(event, 1)}><Plus size={16} aria-hidden="true" /></button
+    onclick={(event) => step(event, 1)}><Plus size={14} aria-hidden="true" /></button
   >
 </div>
 

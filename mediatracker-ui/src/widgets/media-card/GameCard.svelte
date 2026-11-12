@@ -2,7 +2,6 @@
   import type { GameMedia } from "$shared/types";
   import { i18n } from "$shared/i18n/index.svelte";
   import BaseCard from "./BaseCard.svelte";
-  import CardProgressBar from "./CardProgressBar.svelte";
   import CardProgressControls from "./CardProgressControls.svelte";
   import CardTitleBlock from "./CardTitleBlock.svelte";
   import { createCardProgress } from "$features/update-progress/progressController.svelte";
@@ -32,10 +31,6 @@
 
 <BaseCard {item} {timeHint} {onOpen} {onStatusChange} {onProgressCommitted} {onDelete} {onEdit}>
   <CardTitleBlock title={item.title} subtitle={platform ?? i18n.t.types.game} />
-
-  {#if showProgress}
-    <CardProgressBar label={i18n.t.card.hours(progress.value)} ratio={null} />
-  {/if}
 
   {#snippet hover()}
     {#if showProgress}

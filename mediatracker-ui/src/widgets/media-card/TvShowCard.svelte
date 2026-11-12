@@ -8,7 +8,6 @@
   import { stepSeriesEpisodes } from "$features/update-progress/seriesProgressController.svelte";
   import { cardTypeLabel } from "$entities/media/model/mediaLabels";
   import BaseCard from "./BaseCard.svelte";
-  import CardProgressBar from "./CardProgressBar.svelte";
   import CardProgressControls from "./CardProgressControls.svelte";
   import CardTitleBlock from "./CardTitleBlock.svelte";
   import type { MediaCardProps } from "./cardTypes";
@@ -39,14 +38,12 @@
   // seasons have not been written yet, so a known episode count is still shown instead of "0".
   const totalEpisodes = $derived(item.totalEpisodesCount > 0 ? item.totalEpisodesCount : null);
 
-  const ratio = $derived(totalEpisodes !== null ? localEpisodesWatched / totalEpisodes : null);
-
   const subtitle = $derived(
     item.seasonsCount > 0 ? `${cardTypeLabel(item)} • ${item.seasonsCount}` : cardTypeLabel(item),
   );
 
-  /* A single-episode "show" has nothing to step through. */
-  const showStepper = $derived(Boolean(onEpisodeStep) && totalEpisodes !== 1);
+  /* A single-episode title still needs the stepper: 0/1 -> 1/1 is a valid step. */
+  const showStepper = $derived(Boolean(onEpisodeStep));
 
   const episodeText = $derived(
     totalEpisodes !== null
@@ -82,13 +79,6 @@
 
 <BaseCard {item} {timeHint} {onOpen} {onStatusChange} {onProgressCommitted} {onDelete} {onEdit}>
   <CardTitleBlock title={item.title} {subtitle} />
-
-  {#if showProgress}
-    <CardProgressBar
-      label={i18n.t.card.episodes(localEpisodesWatched, totalEpisodes ?? 0)}
-      {ratio}
-    />
-  {/if}
 
   {#snippet hover()}
     {#if showStepper && onEpisodeStep}

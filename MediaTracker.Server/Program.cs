@@ -343,6 +343,16 @@ try
         return 0;
     }
 
+    // The window does not wait for Kestrel: Chromium needs roughly a second to spawn its helpers
+    // and bring up the Wayland surface, while the remaining host wiring plus socket bind take tens
+    // of milliseconds, so the server is listening long before the window sends its first request.
+    // A port of 0 has no address to point at yet, so those runs fall back to the sequential launch
+    // right after StartAsync below.
+    var deferredWindow = enableDesktopShell && !options.StartMinimized && options.EffectivePort == 0;
+    var windowLaunch = enableDesktopShell && !options.StartMinimized && !deferredWindow
+        ? BrowserLauncher.LaunchAsync(links.UiUrl)
+        : Task.CompletedTask;
+
     app.UseExceptionHandler();
 
     app.UseCors("DevCorsPolicy");
@@ -483,13 +493,6 @@ try
     StartBackgroundOfflineDatabaseImports(app);
     StartBackgroundSessionPickup(app);
 
-    if (enableDesktopShell && !options.StartMinimized)
-    {
-        // Surface the UI as soon as Kestrel accepts connections (replaces the Tauri
-        // startup path that opened the browser once the server port was ready).
-        app.Lifetime.ApplicationStarted.Register(() => BrowserLauncher.OpenUrl(links.UiUrl));
-    }
-
     // Разовый старт-трим: старт тратит ~20 МБ на регистрацию DI, инициализацию Kestrel и чтение
     // схемы БД. Через 3 секунды после запуска (когда UI уже открыт и прогрет) этот буфер
     // возвращается системе и не висит в Cold Idle.
@@ -523,7 +526,28 @@ try
         }
     });
 
-    await app.RunAsync();
+    try
+    {
+        await app.StartAsync();
+        await windowLaunch;
+
+        if (deferredWindow)
+        {
+            // --port 0: the bound port is only known now, so this run launches sequentially.
+            var boundPort = new Uri(app.Urls.First()).Port;
+            BrowserLauncher.OpenUrl($"http://127.0.0.1:{boundPort}");
+        }
+
+        await app.WaitForShutdownAsync();
+    }
+    catch
+    {
+        // A failed bind must not leave a speculative window pointing at a dead port: let the spawn
+        // finish first so there is a process for CloseBrowser to track.
+        await windowLaunch;
+        BrowserLauncher.CloseBrowser();
+        throw;
+    }
 }
 finally
 {

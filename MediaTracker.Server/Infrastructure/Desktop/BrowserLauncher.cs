@@ -133,6 +133,14 @@ public static class BrowserLauncher
             "tab",
             StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Spawns the window on a worker thread and returns at once, so Chromium can spend its ~1 s
+    /// process/graphics warm-up while the host is still wiring routes and binding Kestrel. The
+    /// started process is registered by <see cref="OpenUrl"/> exactly like a synchronous launch,
+    /// so shutdown still kills the whole tree.
+    /// </summary>
+    public static Task LaunchAsync(string url) => Task.Run(() => OpenUrl(url));
+
     public static void OpenUrl(string url, bool preferAppWindow = true)
     {
         // The persisted setting wins over the caller's preference (e.g. the log console).
@@ -264,7 +272,7 @@ public static class BrowserLauncher
         {
             FileName = browser.FullName,
             UseShellExecute = false,
-            CreateNoWindow = true,
+            CreateNoWindow = false,
             // Chromium chatters on stderr (zygote broken-pipe noise when handing off to
             // an existing instance); drain the pipes to keep the server console clean.
             RedirectStandardOutput = true,
@@ -272,6 +280,12 @@ public static class BrowserLauncher
         };
         startInfo.ArgumentList.Add($"--app={url}");
         startInfo.ArgumentList.Add($"--user-data-dir={profileDir}");
+        // Cache on tmpfs: no disk I/O for the resource cache, which shaves the first-paint
+        // stall. The profile itself stays on disk so sessions/localStorage survive restarts.
+        if (OperatingSystem.IsLinux() && Directory.Exists("/dev/shm"))
+        {
+            startInfo.ArgumentList.Add($"--disk-cache-dir=/dev/shm/tsundoku-chromium-cache-{Environment.UserName}");
+        }
         // Window identity: WM_CLASS on X11, the Wayland app id and the shell's window name all
         // must match StartupWMClass=Tsundoku in tsundoku.desktop, or the taskbar/dock pairs the
         // --app window with the running Chromium instead of the Tsundoku icon.
@@ -287,15 +301,27 @@ public static class BrowserLauncher
         startInfo.ArgumentList.Add("--password-store=basic");
         startInfo.ArgumentList.Add("--no-first-run");
         startInfo.ArgumentList.Add("--no-default-browser-check");
+        startInfo.ArgumentList.Add("--disable-search-engine-choice-screen");
+        startInfo.ArgumentList.Add("--disable-default-apps");
         // Anti-zombie flags: without these a closed --app window leaves background Chromium
         // helper processes (network stack, extensions, component updater) pinned in RAM after
         // the user believes the app is closed.
         startInfo.ArgumentList.Add("--disable-background-mode");
         startInfo.ArgumentList.Add("--disable-background-networking");
         startInfo.ArgumentList.Add("--disable-component-update");
+        startInfo.ArgumentList.Add("--disable-component-extensions-with-background-pages");
         startInfo.ArgumentList.Add("--disable-sync");
         startInfo.ArgumentList.Add("--disable-extensions");
-        startInfo.ArgumentList.Add("--disable-features=Translate,GlobalMediaControls,MediaRouter,OptimizationHints");
+        startInfo.ArgumentList.Add("--disable-breakpad");
+        startInfo.ArgumentList.Add("--disable-domain-reliability");
+        startInfo.ArgumentList.Add("--disable-client-side-phishing-detection");
+        startInfo.ArgumentList.Add("--dns-prefetch-disable");
+        // One --disable-features switch only: Chromium reads the last occurrence, so a second
+        // one would silently drop the features listed in the first.
+        startInfo.ArgumentList.Add(
+            "--disable-features=Translate,GlobalMediaControls,MediaRouter,OptimizationHints,"
+            + "DialMediaRouteProvider,CalculateNativeWinOcclusion,InterestFeedContentSuggestions,"
+            + "CertificateTransparencyComponentUpdater");
         startInfo.ArgumentList.Add("--disable-translate");
         // Hardware GPU pipeline: without --ignore-gpu-blocklist Chromium 150+ falls back to
         // software rasterization on several Linux drivers, which shows up as window flicker

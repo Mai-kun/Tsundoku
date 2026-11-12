@@ -28,8 +28,12 @@ const BASE = process.env.TS_BASE || 'http://localhost:5000';
       Array.from(main.children).filter((el) => {
         const s = getComputedStyle(el);
         return s.visibility !== 'hidden' && s.display !== 'none' && s.opacity !== '0';
-      }).length;
-    const bars = () => main.querySelectorAll('input[placeholder]').length;
+      });
+    // The home wrapper stays mounted (hidden) behind category views, so count
+    // filter bars inside painted roots only — a hidden home search field is
+    // not a second visible view.
+    const bars = () =>
+      visibleRoots().reduce((n, root) => n + root.querySelectorAll('input[placeholder]').length, 0);
 
     const links = Array.from(document.querySelectorAll('aside a, aside button'));
     const nav = (label) => {

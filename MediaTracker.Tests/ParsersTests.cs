@@ -263,12 +263,52 @@ public class ParsersTests
                 countBefore.Should().Be(3);
             }
 
-            // Re-initialize to trigger migration cleanup
+            // Re-initialize to trigger migration cleanup. Schema migrations now run only when the
+            // database is not stamped with the current PRAGMA user_version, so simulate a legacy
+            // (pre-versioning) file first.
+            using (var cmd = db.Connection.CreateCommand())
+            {
+                cmd.CommandText = "PRAGMA user_version = 0;";
+                await cmd.ExecuteNonQueryAsync();
+            }
+
             await MediaTracker.Server.Infrastructure.Persistence.SqliteSchemaInitializer.InitializeAsync(db.Connection);
 
             var itemsAfter = await db.LoadAllMediaItemsAsync();
             itemsAfter.Should().HaveCount(1);
             itemsAfter[0].Title.Should().Be("Берсерк");
+        }
+        finally
+        {
+            if (File.Exists(dbPath)) File.Delete(dbPath);
+        }
+    }
+
+    [Fact]
+    public async Task SqliteSchemaInitializer_ShouldSkipDdlWhenSchemaVersionMatches()
+    {
+        var dbPath = Path.Combine(Path.GetTempPath(), $"schema_version_test_{Guid.NewGuid():N}.db");
+        try
+        {
+            await using var db = new MediaTracker.Server.Infrastructure.Persistence.AppDbContext($"Data Source={dbPath}");
+            await db.Database.EnsureCreatedAsync();
+
+            using (var versionCmd = db.Connection.CreateCommand())
+            {
+                versionCmd.CommandText = "PRAGMA user_version;";
+                Convert.ToInt32(await versionCmd.ExecuteScalarAsync()).Should().BeGreaterThan(0);
+            }
+
+            // A matching stamp must short-circuit the initializer: a manually dropped index stays
+            // dropped on the next schema check instead of being recreated by the DDL batch.
+            await db.Database.ExecuteSqlRawAsync("DROP INDEX IX_MediaItems_Status;");
+            await db.Database.EnsureCreatedAsync();
+
+            using (var checkCmd = db.Connection.CreateCommand())
+            {
+                checkCmd.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'index' AND name = 'IX_MediaItems_Status';";
+                Convert.ToInt32(await checkCmd.ExecuteScalarAsync()).Should().Be(0);
+            }
         }
         finally
         {

@@ -13,6 +13,13 @@ public static class SqliteSchemaInitializer
     private static int _journalModeApplied;
 
     /// <summary>
+    /// Schema revision stored in <c>PRAGMA user_version</c>. MUST be bumped whenever
+    /// <see cref="SchemaSql"/> or <see cref="MigrateAsync"/> changes, otherwise databases that are
+    /// already stamped skip the new DDL/migration. A matching stamp skips all of it per connection.
+    /// </summary>
+    private const int CurrentSchemaVersion = 1;
+
+    /// <summary>
     /// Applies PRAGMA settings and creates all tables/indexes if they don't exist.
     /// <paramref name="connection"/> must already be open.
     /// </summary>
@@ -36,11 +43,33 @@ public static class SqliteSchemaInitializer
         pragmaCmd.CommandText = pragmaScript;
         await pragmaCmd.ExecuteNonQueryAsync(ct);
 
+        // Fast path: the schema revision is stamped into the database file itself, so a matching
+        // value proves the tables, columns and indexes are in place. Skips the ~40 DDL statements
+        // and the table_info scan this connection would otherwise redo on every schema check.
+        // New/legacy databases report 0 and take the full path below.
+        if (await ReadSchemaVersionAsync(connection, ct) == CurrentSchemaVersion)
+        {
+            return;
+        }
+
         using var cmd = connection.CreateCommand();
         cmd.CommandText = SchemaSql;
         await cmd.ExecuteNonQueryAsync(ct);
 
         await MigrateAsync(connection, ct);
+
+        // Stamped only after the DDL and migrations succeeded: a failure leaves version 0, so the
+        // next start simply retries the full path instead of trusting a half-applied schema.
+        using var versionCmd = connection.CreateCommand();
+        versionCmd.CommandText = $"PRAGMA user_version = {CurrentSchemaVersion};";
+        await versionCmd.ExecuteNonQueryAsync(ct);
+    }
+
+    private static async Task<int> ReadSchemaVersionAsync(DbConnection connection, CancellationToken ct)
+    {
+        using var cmd = connection.CreateCommand();
+        cmd.CommandText = "PRAGMA user_version;";
+        return Convert.ToInt32(await cmd.ExecuteScalarAsync(ct));
     }
 
     /// <summary>
@@ -119,12 +148,12 @@ public static class SqliteSchemaInitializer
             await cleanupCmd.ExecuteNonQueryAsync(ct);
         }
 
-        // Canonicalize release statuses once per startup. Shikimori rows stored "RELEASED" while
-        // the auto-refresh rule only recognized "FINISHED", so completed titles kept being
-        // rescheduled forever. UPPER() is ASCII-only in SQLite, so the Cyrillic spellings are
-        // matched explicitly. FINISHED stays in the list too: legacy rows with odd casing are
-        // canonicalized and any stray check date on a finished row is cleared. New writes go
-        // through ReleaseStatusRules.NormalizeStatus.
+        // Canonicalize legacy release statuses once, as part of the schema migration. Shikimori rows
+        // stored "RELEASED" while the auto-refresh rule only recognized "FINISHED", so completed
+        // titles kept being rescheduled forever. UPPER() is ASCII-only in SQLite, so the Cyrillic
+        // spellings are matched explicitly. FINISHED stays in the list too: legacy rows with odd
+        // casing are canonicalized and any stray check date on a finished row is cleared. New writes
+        // go through ReleaseStatusRules.NormalizeStatus, so the fast path can skip this.
         using (var statusCmd = connection.CreateCommand())
         {
             statusCmd.CommandText = @"

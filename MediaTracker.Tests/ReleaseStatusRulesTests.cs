@@ -98,7 +98,15 @@ public class ReleaseStatusRulesTests
             new TvShow { Title = "Ongoing Untouched", IsAnime = true, ReleaseStatus = "RELEASING", NextAutoRefreshAt = DateTime.UtcNow.AddDays(2) });
         await db.SaveChangesAsync();
 
-        // Any later db call re-runs the startup migration on the saved rows.
+        // Legacy databases carry no schema stamp; migrations now run on that upgrade instead of on
+        // every database call, so simulate a pre-versioning file before the next call.
+        using (var cmd = db.Connection.CreateCommand())
+        {
+            cmd.CommandText = "PRAGMA user_version = 0;";
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        // Any later db call on the un-stamped file runs the startup migration on the saved rows.
         await db.LoadMediaItemsAsync(null, null, null, null, null, null, CancellationToken.None);
 
         var rows = db.MediaItems.ToList();

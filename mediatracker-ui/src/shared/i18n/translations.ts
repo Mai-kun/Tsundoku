@@ -95,11 +95,10 @@ export const translations = {
   },
   home: {
     searchPlaceholder: { ru: "Поиск на главной...", en: "Search home..." },
-    limitCompact: { ru: "21", en: "21" },
     limitAll: { ru: "Все", en: "All" },
     limitTooltip: {
-      ru: "Переключить лимит: 21 тайтл / Все",
-      en: "Toggle limit: 21 items / All",
+      ru: "Переключить лимит: 3 полных ряда / Все",
+      en: "Toggle limit: 3 full rows / All",
     },
     grouping: { ru: "Группировка", en: "Grouping" },
     groupByStatus: { ru: "По статусу", en: "By status" },

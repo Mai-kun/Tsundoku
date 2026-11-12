@@ -35,6 +35,9 @@
   import { i18n } from "$shared/i18n/index.svelte";
   import { MEDIA_STATUS, SYNC_STATUS, type MediaItem, type MediaStatus } from "$shared/types";
   import MediaGrid from "$widgets/media-grid/MediaGrid.svelte";
+  import { columnsForWidth } from "$widgets/media-grid/virtualGrid";
+  import { windowWidth } from "$shared/utils/viewport.svelte";
+  import TotalBadge from "$shared/ui/TotalBadge.svelte";
   import PopoverMenu from "$shared/ui/PopoverMenu.svelte";
   import {
     evaluateTimeFit,
@@ -201,8 +204,12 @@
   }
 
   // Default keeps a compact per-section slice; "Show all" removes the cap entirely.
-  // Compact mode shows 21 = three full rows on the 7-column grid; "All" lifts the cap.
-  const HOME_SECTION_LIMIT = 21;
+  // The slice is a live grid-math product — columns x full rows (3 on desktop
+  // ladders, 5 on tablet/mobile) — derived from the same viewport signal as the
+  // grid, so a resize recomputes the limit instantly and compact mode always
+  // renders complete rows without orphan cards.
+  let sectionColumns = $derived(columnsForWidth(windowWidth()));
+  let sectionLimit = $derived(sectionColumns * (windowWidth() < 1024 ? 5 : 3));
 
   // 200ms debounce so typing doesn't refilter the whole library on every keystroke.
   $effect(() => {
@@ -305,19 +312,19 @@
     (timeBudget !== null
       ? sortBudgetItems(inProgressFitting, timeBudget, false, sort)
       : sortItems(filteredInProgress, false, sort)
-    ).slice(0, showAll ? Number.POSITIVE_INFINITY : HOME_SECTION_LIMIT),
+    ).slice(0, showAll ? Number.POSITIVE_INFINITY : sectionLimit),
   );
   let displayUpNext = $derived(
     (timeBudget !== null
       ? sortBudgetItems(upNextFitting, timeBudget, false, sort)
       : sortItems(filteredUpNext, false, sort)
-    ).slice(0, showAll ? Number.POSITIVE_INFINITY : HOME_SECTION_LIMIT),
+    ).slice(0, showAll ? Number.POSITIVE_INFINITY : sectionLimit),
   );
   let displayRecentlyCompleted = $derived(
     timeBudget === null
       ? sortItems(filteredRecentlyCompleted, false, sort).slice(
           0,
-          showAll ? Number.POSITIVE_INFINITY : HOME_SECTION_LIMIT,
+          showAll ? Number.POSITIVE_INFINITY : sectionLimit,
         )
       : [],
   );
@@ -329,7 +336,7 @@
       timeBudget !== null
         ? [...inProgressFitting, ...upNextFitting]
         : [...filteredInProgress, ...filteredUpNext, ...filteredRecentlyCompleted];
-    const limit = showAll ? Number.POSITIVE_INFINITY : HOME_SECTION_LIMIT;
+    const limit = showAll ? Number.POSITIVE_INFINITY : sectionLimit;
     return groupByMediaType(sortItems(pool, false, sort)).map((group) => ({
       ...group,
       items: group.items.slice(0, limit),
@@ -343,10 +350,7 @@
       timeBudget !== null
         ? [...inProgressFitting, ...upNextFitting]
         : [...filteredInProgress, ...filteredUpNext, ...filteredRecentlyCompleted];
-    return sortItems(pool, false, sort).slice(
-      0,
-      showAll ? Number.POSITIVE_INFINITY : HOME_SECTION_LIMIT,
-    );
+    return sortItems(pool, false, sort).slice(0, showAll ? Number.POSITIVE_INFINITY : sectionLimit);
   });
 
   /** 🎲 "Что выбрать?": random pick from what is actually on screen. */
@@ -502,9 +506,11 @@
 
     try {
       const sortParams = sortFilters(sort);
-      // Compact mode fetches just over the 21-item slice; "All" pulls up to the
-      // server cap so every matching title reaches the section.
-      const fetchLimit = showAll ? 500 : HOME_SECTION_LIMIT;
+      // Compact mode fetches a fixed generous pool (enough for the widest
+      // ladder's 3 rows) so a live resize never triggers a refetch — the
+      // visible slice is derived client-side from the current column count.
+      // "All" pulls up to the server cap so every title reaches the section.
+      const fetchLimit = showAll ? 500 : 60;
       const [active, planned, completed] = await Promise.all([
         getMedia({ status: MEDIA_STATUS.inProgress, limit: fetchLimit, ...sortParams }),
         getMedia({ status: MEDIA_STATUS.planned, limit: fetchLimit, ...sortParams }),
@@ -659,11 +665,11 @@
   </section>
 {/snippet}
 
-<div class="space-y-8">
+<div class="space-y-6">
   <!-- Полноразмерная панель управления (точная копия FilterBar категорий) -->
   {#if (!loading && !loadError) || hasLoaded || inProgress.length > 0 || upNext.length > 0 || recentlyCompleted.length > 0}
     <section
-      class="bg-surface mb-6 space-y-3 rounded-lg p-3 sm:p-4"
+      class="bg-surface space-y-3 rounded-lg p-3 sm:p-4"
       aria-label="Панель управления главной"
     >
       <div class="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
@@ -830,8 +836,16 @@
           </button>
         </div>
 
+        <!-- Счётчик по центру тулбара: badge убирает пустую зону между
+             панелью и заголовками секций. -->
+        <div class="order-last flex items-center justify-center lg:order-none">
+          {#if !loading && !loadError}
+            <TotalBadge total={filteredTotal} />
+          {/if}
+        </div>
+
         <!-- Правый кластер: поиск, лимит, сортировка -->
-        <div class="flex items-center gap-2">
+        <div class="flex flex-1 items-center justify-end gap-2 lg:justify-end">
           <label class="relative min-w-0 flex-1 lg:w-56 lg:flex-none">
             <span class="sr-only">{i18n.t.home.searchPlaceholder}</span>
             <Search
@@ -847,7 +861,7 @@
             />
           </label>
 
-          <!-- Лимит секций: 21 / Все -->
+          <!-- Лимит секций: динамический (columns x rows) / Все -->
           <button
             type="button"
             role="switch"
@@ -860,7 +874,7 @@
             onclick={() => (showAll = !showAll)}
             title={i18n.t.home.limitTooltip}
           >
-            <span>{showAll ? i18n.t.home.limitAll : i18n.t.home.limitCompact}</span>
+            <span>{showAll ? i18n.t.home.limitAll : String(sectionLimit)}</span>
           </button>
 
           <!-- Меню сортировки -->
@@ -953,13 +967,6 @@
         </div>
       {/if}
     </section>
-  {/if}
-
-  <!-- Счётчик отфильтрованных тайтлов (как в CategoryView) -->
-  {#if !loading && !loadError}
-    <p class="text-muted -mt-4 mb-2 flex items-center gap-2 text-xs font-medium">
-      {i18n.t.library.resultCount(filteredTotal)}
-    </p>
   {/if}
 
   <!-- Сводка при активном фильтре времени -->

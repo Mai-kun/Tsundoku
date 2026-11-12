@@ -35,6 +35,7 @@
   import { ChevronDown } from "$shared/ui/Icons";
   import { MEDIA_STATUS, type MediaStatus, type StatusFilter } from "$shared/types";
   import PopoverMenu from "$shared/ui/PopoverMenu.svelte";
+  import TotalBadge from "$shared/ui/TotalBadge.svelte";
 
   interface Props {
     status: StatusFilter;
@@ -42,6 +43,10 @@
     groupBy?: GroupBy;
     search: string;
     counts?: Partial<Record<StatusFilter, number>>;
+    /** Full DB-side total; when shown, the centered badge replaces the floating counter. */
+    totalCount?: number;
+    /** How many of the total the current filters show through. */
+    shownCount?: number;
     onStatusChange: (status: StatusFilter) => void;
     onSortChange: (sort: LibrarySort) => void;
     onGroupByChange?: (groupBy: GroupBy) => void;
@@ -54,6 +59,8 @@
     groupBy = "status",
     search,
     counts = {},
+    totalCount,
+    shownCount,
     onStatusChange,
     onSortChange,
     onGroupByChange = () => {},
@@ -204,7 +211,14 @@
       </PopoverMenu>
     </div>
 
-    <div class="flex items-center gap-2">
+    <!-- Счётчик по центру тулбара: badge сидит в геометрическом центре панели. -->
+    <div class="order-last flex items-center justify-center lg:order-none">
+      {#if totalCount !== undefined}
+        <TotalBadge total={totalCount} shown={shownCount} />
+      {/if}
+    </div>
+
+    <div class="flex flex-1 items-center justify-end gap-2 lg:justify-end">
       <label class="relative min-w-0 flex-1 lg:w-52 lg:flex-none">
         <span class="sr-only">{i18n.t.header.searchButton}</span>
         <Search

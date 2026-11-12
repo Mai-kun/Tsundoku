@@ -411,20 +411,14 @@
       {groupBy}
       {search}
       counts={statusCounts}
+      {totalCount}
+      shownCount={filteredItems.length}
       onStatusChange={updateStatus}
       onSortChange={updateSort}
       onGroupByChange={updateGroupBy}
       onSearchChange={updateSearch}
     />
   {/if}
-
-  <p class="text-muted flex items-center gap-2 text-xs font-medium">
-    {#if totalCount > filteredItems.length}
-      {i18n.t.library.resultCountWithShown(totalCount, filteredItems.length)}
-    {:else}
-      {i18n.t.library.resultCount(filteredItems.length)}
-    {/if}
-  </p>
 
   <div>
     {#if loadError && allItems.length === 0}

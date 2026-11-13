@@ -1270,6 +1270,18 @@ export const translations = {
       ru: (current: number, total: number) => `${current} / ${total > 0 ? total : "—"} эп.`,
       en: (current: number, total: number) => `${current} / ${total > 0 ? total : "—"} ep.`,
     },
+    episodesTotal: {
+      ru: (total: number) => `${total > 0 ? total : "—"} эп.`,
+      en: (total: number) => `${total > 0 ? total : "—"} ep.`,
+    },
+    chaptersTotal: {
+      ru: (total: number | null) => `${total && total > 0 ? total : "—"} гл.`,
+      en: (total: number | null) => `${total && total > 0 ? total : "—"} ch.`,
+    },
+    pagesTotal: {
+      ru: (total: number | null) => `${total && total > 0 ? `${total} стр.` : "—"}`,
+      en: (total: number | null) => `${total && total > 0 ? `${total} pp.` : "—"}`,
+    },
     movie: {
       ru: (minutes: number) => `${minutes} мин.`,
       en: (minutes: number) => `${minutes} min`,
@@ -1288,6 +1300,102 @@ export const translations = {
     },
     decrement: { ru: "Уменьшить прогресс", en: "Decrease progress" },
     increment: { ru: "Увеличить прогресс", en: "Increase progress" },
+  },
+  progress: {
+    unitsEpisodes: { ru: "Серии", en: "Episodes" },
+    unitsChapters: { ru: "Главы", en: "Chapters" },
+    unitsPages: { ru: "Страницы", en: "Pages" },
+    unitsHours: { ru: "Часы", en: "Hours" },
+    unitShortEp: { ru: "эп.", en: "ep." },
+    unitShortCh: { ru: "гл.", en: "ch." },
+    unitShortPg: { ru: "стр.", en: "pp." },
+    unitShortH: { ru: "ч", en: "h" },
+    pacePerDay: {
+      ru: (unit: string) => `${unit}/день`,
+      en: (unit: string) => `${unit}/day`,
+    },
+    watchedVerb: { ru: "Просмотрено", en: "Watched" },
+    readVerb: { ru: "Прочитано", en: "Read" },
+    playedVerb: { ru: "Наиграно", en: "Played" },
+    remainWatchVerb: { ru: "Осталось смотреть", en: "Left to watch" },
+    remainReadVerb: { ru: "Осталось читать", en: "Left to read" },
+    remainPlayVerb: { ru: "До финала", en: "To finish" },
+    startSeries: { ru: "Начните с 1-й серии", en: "Start with episode 1" },
+    startChapters: { ru: "Начните с 1-й главы", en: "Start with chapter 1" },
+    startPages: { ru: "Начните с 1-й страницы", en: "Start with page 1" },
+    startHours: { ru: "Запишите первые часы", en: "Log your first hours" },
+    startGeneric: { ru: "Отметьте первый шаг", en: "Take the first step" },
+    startButton: { ru: "Начать", en: "Start" },
+    completedBadge: { ru: "Завершено", en: "Completed" },
+    finishedOn: { ru: "Дата окончания", en: "Finished on" },
+    totalTimeLabel: { ru: "Всего", en: "Total" },
+    remainingTimeLabel: { ru: "Осталось", en: "Remaining" },
+    remainingOf: {
+      ru: (remaining: number, total: number) => `Осталось ${remaining} из ${total}`,
+      en: (remaining: number, total: number) => `${remaining} of ${total} left`,
+    },
+    minShort: { ru: "мин", en: "min" },
+    durationHM: {
+      ru: (hours: number, minutes: number) => `${hours} ч ${minutes} мин`,
+      en: (hours: number, minutes: number) => `${hours} h ${minutes} min`,
+    },
+    durationH: {
+      ru: (hours: number) => `${hours} ч`,
+      en: (hours: number) => `${hours} h`,
+    },
+    durationM: {
+      ru: (minutes: number) => `${minutes} мин`,
+      en: (minutes: number) => `${minutes} min`,
+    },
+    totalDuration: {
+      ru: (time: string) => `всего ${time}`,
+      en: (time: string) => `${time} total`,
+    },
+    unitNounSeries: { ru: "Серия", en: "Episode" },
+    unitNounChapter: { ru: "Глава", en: "Chapter" },
+    unitNounPage: { ru: "Страница", en: "Page" },
+    unitDuration: {
+      ru: (noun: string, minutes: string) => `${noun} ${minutes}`,
+      en: (noun: string, minutes: string) => `${noun} ${minutes}`,
+    },
+    seasonN: {
+      ru: (n: number) => `Сезон ${n}`,
+      en: (n: number) => `Season ${n}`,
+    },
+    paceLabel: { ru: "Темп", en: "Pace" },
+    manualInputTitle: {
+      ru: "Нажмите для ручного ввода",
+      en: "Click to enter number",
+    },
+    finishAt: {
+      ru: (date: string, days: number) => `закончите ~${date} (${days} дн.)`,
+      en: (date: string, days: number) => `finish ~${date} (${days} d)`,
+    },
+  },
+  episodes: {
+    seriesHeading: {
+      ru: (n: number) => `Сериал · ${n} сез.`,
+      en: (n: number) => `Series · ${n} seasons`,
+    },
+    markAll: { ru: "Всё", en: "All" },
+    resetAll: { ru: "Сбросить всё", en: "Reset all" },
+    filterAll: { ru: "Все", en: "All" },
+    filterUnwatched: { ru: "Не просмотрены", en: "Unwatched" },
+    filterWatched: { ru: "Просмотрены", en: "Watched" },
+    markUpTo: { ru: "все до этой", en: "watch up to this" },
+    nextBadge: { ru: "Следующая", en: "Next" },
+    markSeason: { ru: "Отметить сезон", en: "Mark season" },
+    unmarkSeason: { ru: "Снять сезон", en: "Clear season" },
+    perDay: { ru: "эп./день", en: "ep./day" },
+    noEpisodes: { ru: "Список серий недоступен", en: "Episode list unavailable" },
+    sortTitle: { ru: "Порядок серий", en: "Episode sort order" },
+    sortOldFirst: { ru: "Сначала старые", en: "Oldest first" },
+    sortNewFirst: { ru: "Сначала новые", en: "Newest first" },
+    confirmReset: { ru: "Точно сбросить?", en: "Really reset?" },
+    titlePrefixPattern: {
+      ru: "^(?:Episode|Ep\\.?|Серия|Эпизод)\\s*\\d+\\s*[-–:.]\\s*",
+      en: "^(?:Episode|Ep\\.?|Серия|Эпизод)\\s*\\d+\\s*[-–:.]\\s*",
+    },
   },
   searchModal: {
     eyebrow: { ru: "Внешние базы", en: "External databases" },
@@ -1509,7 +1617,48 @@ export const translations = {
       en: "Progress is not tracked for this type.",
     },
     actionsTitle: { ru: "Действия", en: "Actions" },
+    actionsMore: { ru: "Другие действия", en: "More actions" },
     detailsTitle: { ru: "Характеристики", en: "Details" },
+    voiceStudioLabel: { ru: "Студия озвучки", en: "Voice studio" },
+    readingFormatLabel: { ru: "Формат чтения", en: "Reading format" },
+    comboUseTyped: {
+      ru: (value: string) => `Использовать «${value}»`,
+      en: (value: string) => `Use “${value}”`,
+    },
+    voiceStudioPresets: {
+      ru: (isAnime: boolean) =>
+        isAnime
+          ? ["AniLibria", "Студийная Банда", "AniDUB", "Оригинал", "Субтитры", "HDRezka"]
+          : [
+              "Netflix",
+              "Кинопоиск",
+              "HDRezka",
+              "LostFilm",
+              "Оригинал",
+              "Субтитры",
+              "Amazon Prime Video",
+            ],
+      en: (isAnime: boolean) =>
+        isAnime
+          ? ["AniLibria", "Studio Band", "AniDUB", "Original", "Subtitles", "HDRezka"]
+          : [
+              "Netflix",
+              "Kinopoisk",
+              "HDRezka",
+              "LostFilm",
+              "Original",
+              "Subtitles",
+              "Amazon Prime Video",
+            ],
+    },
+    readingFormatPresets: {
+      ru: () => ["Электронная", "Печатная", "Аудиокнига"],
+      en: () => ["E-book", "Print", "Audiobook"],
+    },
+    hideSupporting: { ru: "Скрыть второстепенных", en: "Hide supporting" },
+    showSupporting: { ru: "Показать второстепенных", en: "Show supporting" },
+    markFavorite: { ru: "Добавить в избранное", en: "Add to favorites" },
+    unmarkFavorite: { ru: "Убрать из избранного", en: "Remove from favorites" },
     altTitlesLabel: { ru: "Альтернативные названия", en: "Alternative titles" },
     altTitlesMore: {
       ru: (count: number) => `+ ещё ${count}`,
@@ -1530,6 +1679,20 @@ export const translations = {
     linkedSourcesPrimarySource: { ru: "Основной источник", en: "Primary source" },
     linkedSourcesLink: { ru: "Привязать", en: "Link" },
     linkedSourcesTakenLabel: { ru: "Взятые данные:", en: "Data taken:" },
+    linkedSourcesFieldsCount: {
+      ru: (count: number) => {
+        const mod10 = count % 10;
+        const mod100 = count % 100;
+        const unit =
+          mod10 === 1 && mod100 !== 11
+            ? "поле"
+            : mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)
+              ? "поля"
+              : "полей";
+        return `${count} ${unit}`;
+      },
+      en: (count: number) => `${count} ${count === 1 ? "field" : "fields"}`,
+    },
     linkedSourcesSourceLabel: { ru: "Источник", en: "Source" },
     linkedSourcesIdLabel: { ru: "ID или ссылка", en: "ID or link" },
     linkedSourcesEmpty: {
@@ -3258,8 +3421,16 @@ export const translations = {
 } as const;
 
 type Leaf = {
-  ru: string | ((...args: never[]) => string) | readonly string[] | string[];
-  en: string | ((...args: never[]) => string) | readonly string[] | string[];
+  ru:
+    | string
+    | ((...args: never[]) => string | readonly string[] | string[])
+    | readonly string[]
+    | string[];
+  en:
+    | string
+    | ((...args: never[]) => string | readonly string[] | string[])
+    | readonly string[]
+    | string[];
 };
 
 /** Strips the pair wrapper, leaving the shape the UI actually indexes into. */

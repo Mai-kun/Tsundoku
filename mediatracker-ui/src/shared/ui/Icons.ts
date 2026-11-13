@@ -27,6 +27,7 @@ export { default as Clock3 } from "lucide-svelte/icons/clock-3";
 export { default as CloudOff } from "lucide-svelte/icons/cloud-off";
 export { default as Copy } from "lucide-svelte/icons/copy";
 export { default as Download } from "lucide-svelte/icons/download";
+export { default as Ellipsis } from "lucide-svelte/icons/ellipsis";
 export { default as Dices } from "lucide-svelte/icons/dices";
 export { default as ExternalLink } from "lucide-svelte/icons/external-link";
 export { default as Eye } from "lucide-svelte/icons/eye";

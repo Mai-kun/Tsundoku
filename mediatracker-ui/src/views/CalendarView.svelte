@@ -96,7 +96,7 @@
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (error) {
-      showToast(errorMessage(error), "error");
+      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(error), type: "error" });
     } finally {
       isExportingIcs = false;
     }
@@ -314,7 +314,7 @@
     checkingIds[item.mediaId] = true;
     try {
       const updated = await triggerAutoRefresh(item.mediaId);
-      showToast(i18n.t.detail.autoRefreshDone, "success");
+      showToast({ title: i18n.t.detail.autoRefreshDone, description: i18n.t.toast.descUpdated });
 
       if (schedule) {
         const newDays: CalendarDayDto[] = [];
@@ -380,7 +380,7 @@
         };
       }
     } catch (error) {
-      showToast(errorMessage(error), "error");
+      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(error), type: "error" });
     } finally {
       const next = { ...checkingIds };
       delete next[item.mediaId];

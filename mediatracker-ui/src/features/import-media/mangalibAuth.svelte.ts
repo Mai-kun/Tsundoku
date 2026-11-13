@@ -56,11 +56,18 @@ export async function saveMangalibToken(token: string): Promise<boolean> {
   try {
     await saveSourceKey("mangalib", trimmed);
     await readMangalibStatus();
-    showToast(i18n.t.importModal.mangalibAuth.connectedToast, "success");
+    showToast({
+      title: i18n.t.importModal.mangalibAuth.connectedToast,
+      description: i18n.t.toast.descAuth,
+    });
     return true;
   } catch (error) {
     console.error("save mangalib token failed:", error);
-    showToast(i18n.t.importModal.mangalibAuth.saveFailed, "error");
+    showToast({
+      title: i18n.t.importModal.mangalibAuth.saveFailed,
+      description: i18n.t.toast.descRetry,
+      type: "error",
+    });
     return false;
   }
 }
@@ -80,7 +87,10 @@ export async function adoptBrowserSession(userId: number | null): Promise<void> 
   }
   // Read the server status directly: the detector already persisted the token.
   await readMangalibStatus();
-  showToast(i18n.t.importModal.mangalibAuth.connectedToast, "success");
+  showToast({
+    title: i18n.t.importModal.mangalibAuth.connectedToast,
+    description: i18n.t.toast.descAuth,
+  });
 }
 
 /** Clears the stored token and the remembered User ID. */
@@ -93,9 +103,16 @@ export async function disconnectMangalib(): Promise<void> {
       // Ignore: nothing to clean up locally.
     }
     await refreshMangalibAuth();
-    showToast(i18n.t.importModal.mangalibAuth.disconnectedToast, "success");
+    showToast({
+      title: i18n.t.importModal.mangalibAuth.disconnectedToast,
+      description: i18n.t.toast.descAuthOff,
+    });
   } catch (error) {
     console.error("clear mangalib token failed:", error);
-    showToast(i18n.t.importModal.mangalibAuth.saveFailed, "error");
+    showToast({
+      title: i18n.t.importModal.mangalibAuth.saveFailed,
+      description: i18n.t.toast.descRetry,
+      type: "error",
+    });
   }
 }

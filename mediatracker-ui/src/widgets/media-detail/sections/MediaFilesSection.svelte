@@ -62,10 +62,10 @@
     uploading = true;
     try {
       await attachMediaFile(mediaId, file);
-      showToast(t.filesAttached, "success");
+      showToast({ title: t.filesAttached, description: i18n.t.toast.descCreated });
       onChanged?.();
     } catch (error) {
-      showToast(t.filesAttachFailed, "error", 5000, errorMessage(error));
+      showToast({ title: t.filesAttachFailed, description: errorMessage(error), type: "error", durationMs: 5000 });
     } finally {
       uploading = false;
     }
@@ -90,9 +90,9 @@
     busyId = attachment.id;
     try {
       await openMediaFile(mediaId, attachment.id);
-      showToast(t.filesOpened, "success");
+      showToast({ title: t.filesOpened, description: i18n.t.toast.descOpened });
     } catch (error) {
-      showToast(t.filesOpenFailed, "error", 5000, errorMessage(error));
+      showToast({ title: t.filesOpenFailed, description: errorMessage(error), type: "error", durationMs: 5000 });
     } finally {
       busyId = null;
     }
@@ -115,10 +115,10 @@
     busyId = attachment.id;
     try {
       await detachMediaFile(mediaId, attachment.id);
-      showToast(t.filesDeleted, "success");
+      showToast({ title: t.filesDeleted, description: i18n.t.toast.descDeleted });
       onChanged?.();
     } catch (error) {
-      showToast(t.filesDeleteFailed, "error", 5000, errorMessage(error));
+      showToast({ title: t.filesDeleteFailed, description: errorMessage(error), type: "error", durationMs: 5000 });
     } finally {
       busyId = null;
     }

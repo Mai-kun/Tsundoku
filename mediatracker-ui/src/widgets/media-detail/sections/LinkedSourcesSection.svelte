@@ -148,10 +148,10 @@
       const response = await action();
       if (!response.ok) throw new Error(await response.text());
       sources = await response.json();
-      showToast(successMessage, "success");
+      showToast({ title: successMessage, description: i18n.t.toast.descUpdated });
       onChanged?.();
     } catch (error) {
-      showToast(errorMessage(error), "error");
+      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(error), type: "error" });
     }
   }
 
@@ -326,7 +326,7 @@
                   href={siteUrl(item) ?? "#"}
                   target="_blank"
                   rel="noreferrer"
-                  class="text-accent-soft min-w-0 truncate text-xs font-medium hover:underline"
+                  class="text-accent-soft min-w-0 truncate text-xs font-medium transition-colors duration-150 hover:underline"
                   title={item.title || item.externalId || item.source}
                 >
                   {item.title || item.externalId || item.source}
@@ -434,7 +434,7 @@
                     href={siteUrl(item) ?? "#"}
                     target="_blank"
                     rel="noreferrer"
-                    class="text-accent-soft inline-flex min-w-0 items-center gap-1 font-medium hover:underline"
+                    class="text-accent-soft inline-flex min-w-0 items-center gap-1 font-medium transition-colors duration-150 hover:underline"
                     title={item.title || item.externalId || item.source}
                   >
                     <span class="truncate">{item.title || item.externalId || item.source}</span>

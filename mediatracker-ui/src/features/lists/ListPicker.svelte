@@ -43,7 +43,11 @@
     try {
       [lists, included] = await Promise.all([getLists(), getListsForMedia(mediaId)]);
     } catch (error) {
-      showToast(errorMessage(error), "error");
+      showToast({
+        title: i18n.t.toast.actionFailed,
+        description: errorMessage(error),
+        type: "error",
+      });
     } finally {
       loading = false;
     }
@@ -57,12 +61,17 @@
     try {
       if (wasIncluded) await removeMediaFromList(list.id, mediaId);
       else await addMediaToList(list.id, mediaId);
-      showToast(
-        wasIncluded ? i18n.t.views.listRemoved(list.name) : i18n.t.views.listAdded(list.name),
-      );
+      showToast({
+        title: wasIncluded ? i18n.t.views.listRemoved(list.name) : i18n.t.views.listAdded(list.name),
+        description: i18n.t.toast.descCreated,
+      });
     } catch (error) {
       included = wasIncluded ? [...included, list.id] : included.filter((id) => id !== list.id);
-      showToast(errorMessage(error), "error");
+      showToast({
+        title: i18n.t.toast.actionFailed,
+        description: errorMessage(error),
+        type: "error",
+      });
     } finally {
       busyIds = busyIds.filter((id) => id !== list.id);
     }
@@ -72,7 +81,11 @@
     try {
       lists = await getLists();
     } catch (error) {
-      showToast(errorMessage(error), "error");
+      showToast({
+        title: i18n.t.toast.actionFailed,
+        description: errorMessage(error),
+        type: "error",
+      });
     }
   }
 </script>
@@ -96,7 +109,7 @@
       </h2>
       <button
         type="button"
-        class="text-accent-soft inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold hover:bg-white/5"
+        class="text-accent-soft inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors duration-150 hover:bg-white/5"
         onclick={() => (createOpen = true)}><Plus size={14} />{i18n.t.views.listNew}</button
       >
     </div>

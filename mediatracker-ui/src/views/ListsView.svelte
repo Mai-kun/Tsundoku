@@ -113,10 +113,10 @@
     try {
       await deleteList(list.id);
       if (selected?.id === list.id) selected = null;
-      showToast(i18n.t.views.listDeleted);
+      showToast({ title: i18n.t.views.listDeleted, description: i18n.t.toast.descDeleted });
       await loadLists();
     } catch (caught) {
-      showToast(errorMessage(caught), "error");
+      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(caught), type: "error" });
     }
   }
 
@@ -126,10 +126,10 @@
     selected = { ...active, items: active.items.filter((value) => value.id !== item.id) };
     try {
       await removeMediaFromList(active.id, item.id);
-      showToast(i18n.t.views.listRemoved(active.name));
+      showToast({ title: i18n.t.views.listRemoved(active.name), description: i18n.t.toast.descDeleted });
       await loadLists();
     } catch (caught) {
-      showToast(errorMessage(caught), "error");
+      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(caught), type: "error" });
       selected = await getListDetail(active.id).catch(() => null);
     }
   }
@@ -176,7 +176,7 @@
       <div class="min-w-0">
         <button
           type="button"
-          class="text-muted mb-4 inline-flex items-center gap-2 text-sm hover:text-white"
+          class="text-muted mb-4 inline-flex items-center gap-2 text-sm transition-colors duration-150 hover:text-white"
           onclick={closeList}
         >
           <span aria-hidden="true">←</span>{i18n.t.views.listBack}
@@ -200,13 +200,13 @@
       <div class="flex gap-2 pt-10">
         <button
           type="button"
-          class="bg-card text-ink hover:bg-card-hover inline-flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-sm"
+          class="bg-card text-ink hover:bg-card-hover inline-flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-sm transition-colors duration-150"
           onclick={() => openCreate(lists.find((list) => list.id === selected?.id) ?? null)}
           ><Pencil size={15} />{i18n.t.views.listEdit}</button
         >
         <button
           type="button"
-          class="inline-flex items-center gap-2 rounded-lg border border-rose-400/20 bg-rose-400/5 px-3 py-2 text-sm text-rose-300 hover:bg-rose-400/10"
+          class="inline-flex items-center gap-2 rounded-lg border border-rose-400/20 bg-rose-400/5 px-3 py-2 text-sm text-rose-300 transition-colors duration-150 hover:bg-rose-400/10"
           onclick={() => {
             const list = lists.find((value) => value.id === selected?.id);
             if (list) void removeList(list);
@@ -249,7 +249,7 @@
           </div>
           <button
             type="button"
-            class="inline-flex items-center gap-1.5 rounded-lg border border-violet-400/30 bg-violet-400/10 px-2.5 py-1 text-xs font-medium text-violet-200 hover:bg-violet-400/20"
+            class="inline-flex items-center gap-1.5 rounded-lg border border-violet-400/30 bg-violet-400/10 px-2.5 py-1 text-xs font-medium text-violet-200 transition-colors duration-150 hover:bg-violet-400/20"
             onclick={() => openCreate(lists.find((list) => list.id === selected?.id) ?? null)}
           >
             <Pencil size={12} />
@@ -281,11 +281,11 @@
       <div class="flex gap-2">
         <button
           type="button"
-          class="bg-card text-ink hover:bg-card-hover inline-flex items-center gap-2 rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold"
+          class="bg-card text-ink hover:bg-card-hover inline-flex items-center gap-2 rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold transition-colors duration-150"
           onclick={() => (importOpen = true)}><Layers size={16} />{i18n.t.importModal.start}</button
         >{#if lists.length > 0}<button
             type="button"
-            class="tap bg-accent hover:bg-accent-hover inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white"
+            class="tap bg-accent hover:bg-accent-hover inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors duration-150"
             onclick={() => openCreate()}><Plus size={16} />{i18n.t.views.listsCreate}</button
           >{/if}
       </div>
@@ -318,7 +318,7 @@
         <p class="text-muted mt-2 max-w-md text-sm leading-6">{i18n.t.views.listsEmptyHint}</p>
         <button
           type="button"
-          class="bg-accent hover:bg-accent-hover mt-6 inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white"
+          class="bg-accent hover:bg-accent-hover mt-6 inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white transition-colors duration-150"
           onclick={() => openCreate()}><Plus size={16} />{i18n.t.views.listCreateFirst}</button
         >
       </div>
@@ -470,14 +470,14 @@
                   type="button"
                   title={i18n.t.views.listEdit}
                   aria-label={i18n.t.views.listEdit}
-                  class="grid h-8 w-8 place-items-center rounded-md hover:bg-white/10 hover:text-white"
+                  class="grid h-8 w-8 place-items-center rounded-md transition-colors duration-150 hover:bg-white/10 hover:text-white"
                   onclick={() => openCreate(list)}><Pencil size={15} /></button
                 >
                 <button
                   type="button"
                   title={i18n.t.views.listDelete}
                   aria-label={i18n.t.views.listDelete}
-                  class="grid h-8 w-8 place-items-center rounded-md hover:bg-rose-400/10 hover:text-rose-300"
+                  class="grid h-8 w-8 place-items-center rounded-md transition-colors duration-150 hover:bg-rose-400/10 hover:text-rose-300"
                   onclick={() => void removeList(list)}><Trash2 size={15} /></button
                 >
               </span>

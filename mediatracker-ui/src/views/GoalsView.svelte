@@ -81,9 +81,9 @@
     try {
       await deleteGoal(goal.id);
       goals = goals.filter((g) => g.id !== goal.id);
-      showToast(i18n.t.goals.deleted, "success");
+      showToast({ title: i18n.t.goals.deleted, description: i18n.t.toast.descDeleted });
     } catch {
-      showToast(i18n.t.errors.unexpected, "error");
+      showToast({ title: i18n.t.errors.unexpected, description: i18n.t.toast.descRetry, type: "error" });
     }
   }
 
@@ -93,12 +93,6 @@
 </script>
 
 <div class="space-y-6">
-  <p class="text-muted flex items-center gap-2 text-xs font-medium">
-    {#if loading && goals.length === 0}
-      {i18n.t.common.loading}
-    {/if}
-  </p>
-
   <div class="flex flex-wrap items-center justify-between gap-4">
     <div class="flex items-center gap-4">
       <!-- Summary ring: share of goals closed this year -->

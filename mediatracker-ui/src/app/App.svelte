@@ -474,7 +474,7 @@
           kind: "default",
           action: () => {
             navigator.clipboard.writeText(selectedText).catch(() => {});
-            showToast(i18n.t.common.copied);
+            showToast({ title: i18n.t.common.copied, description: i18n.t.toast.descCopied });
           },
         },
         {

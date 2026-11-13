@@ -56,7 +56,7 @@
       await updateMedia(media.id, { quotesJson: nextJson });
     } catch (err) {
       media.quotesJson = previousJson;
-      showToast(errorMessage(err), "error");
+      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(err), type: "error" });
     } finally {
       isSaving = false;
     }
@@ -79,7 +79,7 @@
       await updateMedia(media.id, { quotesJson: nextJson });
     } catch (err) {
       media.quotesJson = previousJson;
-      showToast(errorMessage(err), "error");
+      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(err), type: "error" });
     }
   }
 </script>

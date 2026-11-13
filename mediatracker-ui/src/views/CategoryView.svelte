@@ -338,7 +338,7 @@
     } catch {
       allItems = prevItems;
       categoryCache.set(category, prevItems);
-      showToast(i18n.t.errors.unexpected, "error");
+      showToast({ title: i18n.t.errors.unexpected, description: i18n.t.toast.descRetry, type: "error" });
     }
 
     setTimeout(() => {

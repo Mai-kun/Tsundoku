@@ -29,13 +29,75 @@ export const translations = {
     details: { ru: "Подробнее", en: "Details" },
   },
   toast: {
-    statusPending: {
-      ru: (title: string) => `Статус тайтла «${title}» будет изменён на «В процессе» через 10 сек.`,
-      en: (title: string) => `The status of “${title}” will change to “In progress” in 10 sec.`,
-    },
-    applyNow: { ru: "Применить", en: "Apply" },
     expand: { ru: "Развернуть", en: "Expand" },
     collapse: { ru: "Свернуть", en: "Collapse" },
+    ok: { ru: "Ок", en: "OK" },
+    undo: { ru: "Откатить", en: "Undo" },
+    keepStatus: { ru: "Не менять статус", en: "Keep status" },
+    statusAutoChangedTitle: { ru: "Статус изменён на «В процессе»", en: "Status changed to “In progress”" },
+    statusAutoChangedDesc: {
+      ru: (title: string) =>
+        `Прогресс по тайтлу «${title}» увеличен с 0 до 1, поэтому статус автоматически переведён в «В процессе».`,
+      en: (title: string) =>
+        `Progress for “${title}” moved from 0 to 1, so the status was automatically set to “In progress”.`,
+    },
+    actionFailed: { ru: "Действие не выполнено", en: "The action failed" },
+    descSaved: {
+      ru: "Изменения сохранены в библиотеке и останутся после перезагрузки страницы.",
+      en: "The changes are saved in the library and will survive a page reload.",
+    },
+    descDeleted: {
+      ru: "Элемент удалён из библиотеки безвозвратно.",
+      en: "The item was removed from the library permanently.",
+    },
+    descCreated: {
+      ru: "Новый элемент добавлен в библиотеку и готов к работе.",
+      en: "The new item was added to the library and is ready to use.",
+    },
+    descUpdated: {
+      ru: "Данные успешно обновлены в библиотеке.",
+      en: "The data was updated in the library.",
+    },
+    descCopied: {
+      ru: "Значение скопировано в буфер обмена.",
+      en: "The value was copied to the clipboard.",
+    },
+    descOpened: {
+      ru: "Файл открыт в системном приложении по умолчанию.",
+      en: "The file was opened in the default system application.",
+    },
+    descRevealed: {
+      ru: "Папка с файлом открыта в проводнике.",
+      en: "The file folder was revealed in the file manager.",
+    },
+    descAuth: {
+      ru: "Токен авторизации сохранён, запросы к источнику будут выполняться от вашего аккаунта.",
+      en: "The auth token is stored; requests to the source now run under your account.",
+    },
+    descAuthOff: {
+      ru: "Привязка аккаунта отвязана, источник доступен без авторизации.",
+      en: "The account link was removed; the source stays available without auth.",
+    },
+    descRetry: {
+      ru: "Проверьте подключение к серверу и повторите попытку.",
+      en: "Check the server connection and try again.",
+    },
+    descNoItems: {
+      ru: "Добавьте хотя бы один тайтл в библиотеку, чтобы получить рекомендацию.",
+      en: "Add at least one title to the library to get a recommendation.",
+    },
+    descValidation: {
+      ru: "Проверьте введённые значения и исправьте выделенные поля.",
+      en: "Check the entered values and fix the highlighted fields.",
+    },
+    descResolved: {
+      ru: "Выбор применён: дубликат обработан согласно решению.",
+      en: "The choice was applied: the duplicate was handled as decided.",
+    },
+    descActionDone: {
+      ru: "Действие выполнено успешно.",
+      en: "The action completed successfully.",
+    },
   },
   header: {
     description: {

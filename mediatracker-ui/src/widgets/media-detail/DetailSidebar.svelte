@@ -310,9 +310,9 @@
     try {
       const updated = await triggerAutoRefresh(media.id);
       onAutoRefreshed?.(updated);
-      showToast(i18n.t.detail.autoRefreshDone, "success");
+      showToast({ title: i18n.t.detail.autoRefreshDone, description: i18n.t.toast.descUpdated });
     } catch (error) {
-      showToast(errorMessage(error), "error");
+      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(error), type: "error" });
     } finally {
       autoRefreshBusy = false;
     }
@@ -1137,7 +1137,7 @@
                   href={row.href}
                   target="_blank"
                   rel="noreferrer"
-                  class="text-accent-soft inline-flex items-center gap-1 hover:underline"
+                  class="text-accent-soft inline-flex items-center gap-1 transition-colors duration-150 hover:underline"
                 >
                   {row.value}
                   <ExternalLink size={11} aria-hidden="true" />

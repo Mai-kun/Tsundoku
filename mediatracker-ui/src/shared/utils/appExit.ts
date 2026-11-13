@@ -27,6 +27,10 @@ export async function exitApp(): Promise<void> {
 export function closeToTray(): void {
   window.close();
   setTimeout(() => {
-    if (!window.closed) showToast(i18n.t.closeAppModal.backgroundToast, "success");
+    if (!window.closed)
+      showToast({
+        title: i18n.t.closeAppModal.backgroundToast,
+        description: i18n.t.toast.descActionDone,
+      });
   }, 400);
 }

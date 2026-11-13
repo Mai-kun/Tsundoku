@@ -330,7 +330,11 @@
           search.results = [details];
         } else {
           search.results = [];
-          showToast(i18n.t.searchModal.directLinkError, "error");
+          showToast({
+            title: i18n.t.searchModal.directLinkError,
+            description: i18n.t.toast.descRetry,
+            type: "error",
+          });
         }
         return;
       }
@@ -338,7 +342,11 @@
       const trimmedQuery = search.query.trim();
       if (trimmedQuery.startsWith("http://") || trimmedQuery.startsWith("https://")) {
         search.results = [];
-        showToast(i18n.t.searchModal.unsupportedLinkError, "error");
+        showToast({
+          title: i18n.t.searchModal.unsupportedLinkError,
+          description: i18n.t.toast.descValidation,
+          type: "error",
+        });
         return;
       }
 
@@ -390,7 +398,7 @@
         search.results = sortCandidates(results.slice(0, 4), item);
       }
     } catch (error) {
-      showToast(errorMessage(error), "error");
+      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(error), type: "error" });
     } finally {
       search.loading = false;
     }
@@ -428,14 +436,16 @@
     resolvingCandidates[candKey] = true;
     advanceSelection(item.id);
 
-    showToast(i18n.t.backgroundJobs.resolvedAsyncToast, "success");
+    showToast({ title: i18n.t.backgroundJobs.resolvedAsyncToast, description: i18n.t.toast.descResolved });
     void resolvePendingMatch(item.id, {
       externalId: String(candidate.externalId),
       source: candidate.externalSource ?? "",
       type: candidate.type || item.type,
       title: candidate.title,
     })
-      .catch((error) => showToast(errorMessage(error), "error"))
+      .catch((error) =>
+        showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(error), type: "error" }),
+      )
       .finally(() => {
         delete resolvingCandidates[candKey];
         onMediaChanged?.();
@@ -452,14 +462,14 @@
       jobsClient.dropPendingMatch(item.id);
       onMediaChanged?.();
     } catch (error) {
-      showToast(errorMessage(error), "error");
+      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(error), type: "error" });
     }
   }
 
   /** Duplicate verdict "leave as separate": the phantom row goes back to a normal library card. */
   async function keepSeparate(item: PendingMatchItemDto) {
     await keep(item);
-    showToast(i18n.t.backgroundJobs.duplicateKeepToast, "success");
+    showToast({ title: i18n.t.backgroundJobs.duplicateKeepToast, description: i18n.t.toast.descResolved });
   }
 
   /**
@@ -474,9 +484,9 @@
     try {
       await mergeDuplicateSources(duplicate.existingMediaId, item.id);
       jobsClient.dropPendingMatch(item.id);
-      showToast(i18n.t.backgroundJobs.duplicateMergeToast, "success");
+      showToast({ title: i18n.t.backgroundJobs.duplicateMergeToast, description: i18n.t.toast.descResolved });
     } catch (error) {
-      showToast(errorMessage(error), "error");
+      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(error), type: "error" });
     } finally {
       delete mergingDuplicates[item.id];
       onMediaChanged?.();
@@ -490,10 +500,11 @@
     try {
       await dismissAllPendingMatches();
       jobsClient.pendingMatches = [];
-      if (count > 0) showToast(i18n.t.backgroundJobs.keptToast(count));
+      if (count > 0)
+        showToast({ title: i18n.t.backgroundJobs.keptToast(count), description: i18n.t.toast.descResolved });
       onMediaChanged?.();
     } catch (error) {
-      showToast(errorMessage(error), "error");
+      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(error), type: "error" });
     } finally {
       dismissingAll = false;
     }
@@ -504,17 +515,17 @@
     resolvingAll = true;
     try {
       const result = await resolveAllPendingMatchesByPriority();
-      showToast(
-        i18n.t.backgroundJobs.resolvedByPriorityToast(result.resolvedCount, result.skippedCount),
-        "success",
-      );
+      showToast({
+        title: i18n.t.backgroundJobs.resolvedByPriorityToast(result.resolvedCount, result.skippedCount),
+        description: i18n.t.toast.descResolved,
+      });
       // Weak rows stay in review on purpose: reread so they appear back in the list.
       await jobsClient.refreshPendingMatches();
       if (jobsClient.pendingCount === 0) {
         jobsClient.modalTab = "jobs";
       }
     } catch (error) {
-      showToast(errorMessage(error), "error");
+      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(error), type: "error" });
     } finally {
       resolvingAll = false;
       onMediaChanged?.();
@@ -526,8 +537,12 @@
     advanceSelection(id);
     jobsClient.dropPendingMatch(id);
     void deleteMedia(id)
-      .then(() => showToast(i18n.t.backgroundJobs.deletedToast, "success"))
-      .catch((error) => showToast(errorMessage(error), "error"))
+      .then(() =>
+        showToast({ title: i18n.t.backgroundJobs.deletedToast, description: i18n.t.toast.descDeleted }),
+      )
+      .catch((error) =>
+        showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(error), type: "error" }),
+      )
       .finally(() => onMediaChanged?.());
   }
 

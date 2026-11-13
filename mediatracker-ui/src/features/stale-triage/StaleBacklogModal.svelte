@@ -38,7 +38,7 @@
           allInProgress = res;
         })
         .catch((e) => {
-          showToast(errorMessage(e), "error");
+          showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(e), type: "error" });
         })
         .finally(() => {
           loading = false;
@@ -95,29 +95,29 @@
 
   async function handleFocus(item: MediaItem) {
     allInProgress = allInProgress.filter((x) => x.id !== item.id);
-    showToast(i18n.t.staleTriage.toastFocus, "success");
+    showToast({ title: i18n.t.staleTriage.toastFocus, description: i18n.t.toast.descUpdated });
     try {
       await updateMedia(item.id, { lastActivityAt: new Date().toISOString() });
       onMediaChanged?.();
     } catch (e) {
-      showToast(errorMessage(e), "error");
+      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(e), type: "error" });
     }
   }
 
   async function handlePause(item: MediaItem) {
     allInProgress = allInProgress.filter((x) => x.id !== item.id);
-    showToast(i18n.t.staleTriage.toastOnHold, "success");
+    showToast({ title: i18n.t.staleTriage.toastOnHold, description: i18n.t.toast.descUpdated });
     try {
       await updateStatus(item.id, MEDIA_STATUS.onHold);
       onMediaChanged?.();
     } catch (e) {
-      showToast(errorMessage(e), "error");
+      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(e), type: "error" });
     }
   }
 
   async function handleDrop(item: MediaItem) {
     allInProgress = allInProgress.filter((x) => x.id !== item.id);
-    showToast(i18n.t.staleTriage.toastDropped, "success");
+    showToast({ title: i18n.t.staleTriage.toastDropped, description: i18n.t.toast.descUpdated });
     try {
       await updateStatus(item.id, MEDIA_STATUS.dropped);
       onMediaChanged?.();
@@ -133,18 +133,18 @@
         },
       });
     } catch (e) {
-      showToast(errorMessage(e), "error");
+      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(e), type: "error" });
     }
   }
 
   async function handleToPlanned(item: MediaItem) {
     allInProgress = allInProgress.filter((x) => x.id !== item.id);
-    showToast(i18n.t.staleTriage.toastPlanned, "success");
+    showToast({ title: i18n.t.staleTriage.toastPlanned, description: i18n.t.toast.descUpdated });
     try {
       await updateStatus(item.id, MEDIA_STATUS.planned);
       onMediaChanged?.();
     } catch (e) {
-      showToast(errorMessage(e), "error");
+      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(e), type: "error" });
     }
   }
 </script>

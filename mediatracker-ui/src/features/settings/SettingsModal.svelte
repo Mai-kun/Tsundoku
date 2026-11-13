@@ -34,7 +34,7 @@
     Zap,
   } from "$shared/ui/Icons";
   import { onMount, untrack } from "svelte";
-  import { slide } from "svelte/transition";
+  import { fade, slide } from "svelte/transition";
   import { uiSettings } from "$shared/utils/uiSettings.svelte";
   import { exitApp } from "$shared/utils/appExit";
   import {
@@ -181,9 +181,9 @@
     appSettingsSaving = true;
     try {
       appSettings = await saveAppSettings(next);
-      showToast(i18n.t.settingsModal.closeBehavior.savedToast, "success");
+      showToast({ title: i18n.t.settingsModal.closeBehavior.savedToast, description: i18n.t.toast.descSaved });
     } catch (e) {
-      showToast(errorMessage(e), "error");
+      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(e), type: "error" });
     } finally {
       appSettingsSaving = false;
     }
@@ -226,7 +226,7 @@
     try {
       updateCheck = await checkAppUpdate();
     } catch (e) {
-      showToast(errorMessage(e), "error");
+      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(e), type: "error" });
     } finally {
       isCheckingUpdate = false;
     }
@@ -236,12 +236,12 @@
     isApplyingUpdate = true;
     try {
       await applyAppUpdate();
-      showToast("Обновление применено, сервер перезапускается...", "success");
+      showToast({ title: "Обновление применено, сервер перезапускается...", description: i18n.t.toast.descActionDone });
       // Ждём «лёг → поднялся» и перезагружаемся уже на новом сервере.
       await waitForBackendRestart(true);
       window.location.reload();
     } catch (e) {
-      showToast(errorMessage(e), "error");
+      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(e), type: "error" });
       isApplyingUpdate = false;
     }
   }
@@ -252,7 +252,7 @@
       tokens = await getApiTokens();
     } catch (e) {
       console.error(e);
-      showToast(errorMessage(e), "error");
+      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(e), type: "error" });
     } finally {
       isLoadingTokens = false;
     }
@@ -271,11 +271,11 @@
       showCreateTokenModal = false;
       newTokenName = "";
       newTokenExpiresInDays = undefined;
-      showToast(i18n.t.settingsModal.apiTokens.createdToast, "success");
+      showToast({ title: i18n.t.settingsModal.apiTokens.createdToast, description: i18n.t.toast.descCreated });
       await loadTokens();
     } catch (e) {
       console.error(e);
-      showToast(errorMessage(e), "error");
+      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(e), type: "error" });
     } finally {
       isCreatingToken = false;
     }
@@ -285,13 +285,13 @@
     try {
       await navigator.clipboard.writeText(token);
       hasCopiedToken = true;
-      showToast(i18n.t.settingsModal.apiTokens.copied, "success");
+      showToast({ title: i18n.t.settingsModal.apiTokens.copied, description: i18n.t.toast.descCopied });
       setTimeout(() => {
         hasCopiedToken = false;
       }, 3000);
     } catch (e) {
       console.error(e);
-      showToast("Failed to copy", "error");
+      showToast({ title: "Failed to copy", description: i18n.t.toast.descRetry, type: "error" });
     }
   }
 
@@ -301,11 +301,11 @@
     try {
       await revokeApiToken(tokenToRevoke.id);
       tokens = tokens.filter((t) => t.id !== tokenToRevoke!.id);
-      showToast(i18n.t.settingsModal.apiTokens.revokedToast, "success");
+      showToast({ title: i18n.t.settingsModal.apiTokens.revokedToast, description: i18n.t.toast.descDeleted });
       tokenToRevoke = null;
     } catch (e) {
       console.error(e);
-      showToast(errorMessage(e), "error");
+      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(e), type: "error" });
     } finally {
       isRevokingToken = false;
     }
@@ -381,10 +381,10 @@
         customPath: customPathInput.trim() || "",
         migrateExistingData,
       });
-      showToast(i18n.t.settingsModal.storage.savedToast, "success");
+      showToast({ title: i18n.t.settingsModal.storage.savedToast, description: i18n.t.toast.descSaved });
       await waitForServerAndReload(restartScheduled);
     } catch (e) {
-      showToast(errorMessage(e), "error");
+      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(e), type: "error" });
       isSavingStorage = false;
     }
   }
@@ -406,21 +406,21 @@
     const mangaMin = Number(readingMangaChapterMinutes);
 
     if (isNaN(bookMin) || bookMin < 0.2 || bookMin > 10.0) {
-      showToast(i18n.t.settingsModal.reading.bookSpeedValidation, "error");
+      showToast({ title: i18n.t.settingsModal.reading.bookSpeedValidation, description: i18n.t.toast.descValidation, type: "error" });
       return;
     }
     if (isNaN(mangaMin) || mangaMin < 0.5 || mangaMin > 30.0) {
-      showToast(i18n.t.settingsModal.reading.mangaSpeedValidation, "error");
+      showToast({ title: i18n.t.settingsModal.reading.mangaSpeedValidation, description: i18n.t.toast.descValidation, type: "error" });
       return;
     }
 
     isSavingReading = true;
     try {
       await uiSettings.setReadingSpeed(bookMin, mangaMin);
-      showToast(i18n.t.settingsModal.reading.savedToast, "success");
+      showToast({ title: i18n.t.settingsModal.reading.savedToast, description: i18n.t.toast.descSaved });
     } catch (e) {
       console.error(e);
-      showToast(errorMessage(e), "error");
+      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(e), type: "error" });
     } finally {
       isSavingReading = false;
     }
@@ -457,7 +457,7 @@
       URL.revokeObjectURL(url);
     } catch (e) {
       console.error(e);
-      showToast(errorMessage(e), "error");
+      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(e), type: "error" });
     } finally {
       isExporting = false;
     }
@@ -481,7 +481,7 @@
       URL.revokeObjectURL(url);
     } catch (e) {
       console.error(e);
-      showToast(errorMessage(e), "error");
+      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(e), type: "error" });
     } finally {
       exportingTableFormat = "";
     }
@@ -503,13 +503,13 @@
       await restoreBackup(selectedBackupFile);
       showRestoreConfirm = false;
       selectedBackupFile = null;
-      showToast(i18n.t.settingsModal.backup.restoreSuccess, "success", 5000);
+      showToast({ title: i18n.t.settingsModal.backup.restoreSuccess, description: i18n.t.toast.descSaved, durationMs: 5000 });
       setTimeout(() => {
         window.location.reload();
       }, 1500);
     } catch (e) {
       console.error(e);
-      showToast(errorMessage(e), "error");
+      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(e), type: "error" });
       isRestoring = false;
     }
   }
@@ -537,13 +537,13 @@
     try {
       await resetAllData(keepApiKeys);
       showResetConfirm = false;
-      showToast(i18n.t.settingsModal.backup.resetSuccess, "success", 5000);
+      showToast({ title: i18n.t.settingsModal.backup.resetSuccess, description: i18n.t.toast.descSaved, durationMs: 5000 });
       setTimeout(() => {
         window.location.href = "/";
       }, 1000);
     } catch (e) {
       console.error(e);
-      showToast(errorMessage(e), "error");
+      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(e), type: "error" });
       isResetting = false;
     }
   }
@@ -625,7 +625,7 @@
     try {
       await offlineModeState.toggle(!offlineModeState.isOffline);
     } catch (e) {
-      showToast(errorMessage(e), "error");
+      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(e), type: "error" });
     } finally {
       offlineModeToggling = false;
     }
@@ -636,10 +636,10 @@
     offlineReindexing = true;
     try {
       await reindexOfflineDatabases();
-      showToast(i18n.t.settingsModal.sources.offline.reindexToast, "success");
+      showToast({ title: i18n.t.settingsModal.sources.offline.reindexToast, description: i18n.t.toast.descSaved });
       await loadOfflineDatabases();
     } catch (e) {
-      showToast(errorMessage(e), "error");
+      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(e), type: "error" });
     } finally {
       offlineReindexing = false;
     }
@@ -652,9 +652,9 @@
     franchiseRescanning = true;
     try {
       await reindexFranchises();
-      showToast(i18n.t.settingsModal.storage.franchiseDoneToast, "success");
+      showToast({ title: i18n.t.settingsModal.storage.franchiseDoneToast, description: i18n.t.toast.descSaved });
     } catch (e) {
-      showToast(errorMessage(e), "error");
+      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(e), type: "error" });
     } finally {
       franchiseRescanning = false;
     }
@@ -669,7 +669,7 @@
       await loadOfflineDatabases();
       await loadSources();
     } catch (e) {
-      showToast(errorMessage(e), "error");
+      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(e), type: "error" });
     } finally {
       offlineDbToggling = "";
     }
@@ -689,10 +689,10 @@
         { method: "DELETE" },
       );
       if (!response.ok) throw new Error(await response.text());
-      showToast(i18n.t.settingsModal.sources.offline.deleteDumpDone, "success");
+      showToast({ title: i18n.t.settingsModal.sources.offline.deleteDumpDone, description: i18n.t.toast.descSaved });
       await loadOfflineDatabases();
     } catch (e) {
-      showToast(errorMessage(e), "error");
+      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(e), type: "error" });
     } finally {
       deletingDump = "";
     }
@@ -807,7 +807,7 @@
     try {
       const res = await saveSourceKey(sourceId, key);
       keySuccess[sourceId] = i18n.t.settingsModal.sources.saved;
-      showToast(i18n.t.settingsModal.sources.saved, "success");
+      showToast({ title: i18n.t.settingsModal.sources.saved, description: i18n.t.toast.descSaved });
       // Update local source record
       const s = sources.find((x) => x.id === sourceId);
       if (s) {
@@ -818,7 +818,7 @@
       inputKeys[sourceId] = "";
     } catch (e) {
       keyErrors[sourceId] = e;
-      showToast(errorMessage(e), "error");
+      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(e), type: "error" });
     } finally {
       savingKey = "";
     }
@@ -831,14 +831,14 @@
       const res = await toggleSourceEnabled(source.id, nextState);
       source.isEnabled = res.isEnabled;
       sources = [...sources];
-      showToast(
-        res.isEnabled
+      showToast({
+        title: res.isEnabled
           ? `${source.name}: ${i18n.t.settingsModal.sources.enabledBadge}`
           : `${source.name}: ${i18n.t.settingsModal.sources.disabledBadge}`,
-        "success",
-      );
+        description: i18n.t.toast.descSaved,
+      });
     } catch (e) {
-      showToast(errorMessage(e), "error");
+      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(e), type: "error" });
     } finally {
       togglingSource = "";
     }
@@ -850,7 +850,7 @@
       const res = await testSourceConnection(sourceId);
       testResults[sourceId] = res;
       if (!res.success) {
-        showToast(res.message || i18n.t.settingsModal.sources.testFailed, "error");
+        showToast({ title: res.message || i18n.t.settingsModal.sources.testFailed, description: i18n.t.toast.descRetry, type: "error" });
       }
     } catch (e) {
       testResults[sourceId] = {
@@ -858,7 +858,7 @@
         latencyMs: 0,
         message: errorMessage(e),
       };
-      showToast(errorMessage(e), "error");
+      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(e), type: "error" });
     } finally {
       testingSource = "";
     }
@@ -876,16 +876,18 @@
     try {
       const res = await detectSimklBrowserSession();
       if (res && res.success) {
-        showToast("Авторизация Simkl успешно подхвачена из браузера", "success");
+        showToast({ title: "Авторизация Simkl успешно подхвачена из браузера", description: i18n.t.toast.descAuth });
         await loadSources();
       } else {
-        showToast(
-          "Сессия Simkl в браузерах не найдена. Войдите на simkl.com в браузере и повторите попытку.",
-          "error",
-        );
+        showToast({
+          title:
+            "Сессия Simkl в браузерах не найдена. Войдите на simkl.com в браузере и повторите попытку.",
+          description: i18n.t.toast.descRetry,
+          type: "error",
+        });
       }
     } catch (err) {
-      showToast(errorMessage(err), "error");
+      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(err), type: "error" });
     } finally {
       detectingSimkl = false;
     }
@@ -896,16 +898,18 @@
     try {
       const res = await detectMangalibBrowserSession();
       if (res && res.success) {
-        showToast("Авторизация SocialLib успешно подхвачена из браузера", "success");
+        showToast({ title: "Авторизация SocialLib успешно подхвачена из браузера", description: i18n.t.toast.descAuth });
         await loadSources();
       } else {
-        showToast(
-          "Сессия SocialLib в браузерах не найдена. Войдите на lib.social в браузере и повторите попытку.",
-          "error",
-        );
+        showToast({
+          title:
+            "Сессия SocialLib в браузерах не найдена. Войдите на lib.social в браузере и повторите попытку.",
+          description: i18n.t.toast.descRetry,
+          type: "error",
+        });
       }
     } catch (err) {
-      showToast(errorMessage(err), "error");
+      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(err), type: "error" });
     } finally {
       detectingSocialLib = false;
     }
@@ -926,11 +930,11 @@
     try {
       await saveCategoryOrder(newOrder);
       orderSuccess = true;
-      showToast(i18n.t.settingsModal.search.saved, "success");
+      showToast({ title: i18n.t.settingsModal.search.saved, description: i18n.t.toast.descSaved });
       setTimeout(() => (orderSuccess = false), 2000);
     } catch (e) {
       console.error(e);
-      showToast(errorMessage(e), "error");
+      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(e), type: "error" });
     } finally {
       orderSaving = false;
     }
@@ -950,10 +954,10 @@
     prioritySaving = true;
     try {
       await saveSourcePriority(sourcePriority);
-      showToast(i18n.t.settingsModal.search.prioritySaved, "success");
+      showToast({ title: i18n.t.settingsModal.search.prioritySaved, description: i18n.t.toast.descSaved });
     } catch (e) {
       console.error(e);
-      showToast(errorMessage(e), "error");
+      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(e), type: "error" });
     } finally {
       prioritySaving = false;
     }
@@ -1018,10 +1022,10 @@
 
     try {
       await saveCategoryOrder(categoryOrder);
-      showToast(i18n.t.settingsModal.search.saved, "success");
+      showToast({ title: i18n.t.settingsModal.search.saved, description: i18n.t.toast.descSaved });
     } catch (err) {
       console.error(err);
-      showToast(errorMessage(err), "error");
+      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(err), type: "error" });
     }
   }
 
@@ -1062,10 +1066,10 @@
 
     try {
       await saveSourcePriority(sourcePriority);
-      showToast(i18n.t.settingsModal.search.prioritySaved, "success");
+      showToast({ title: i18n.t.settingsModal.search.prioritySaved, description: i18n.t.toast.descSaved });
     } catch (err) {
       console.error(err);
-      showToast(errorMessage(err), "error");
+      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(err), type: "error" });
     }
   }
 
@@ -1884,7 +1888,7 @@
                           />
                           <button
                             type="button"
-                            class="text-muted hover:text-ink absolute top-1/2 right-2 -translate-y-1/2 cursor-pointer"
+                            class="text-muted hover:text-ink absolute top-1/2 right-2 -translate-y-1/2 cursor-pointer transition-colors duration-150"
                             aria-label="Toggle key visibility"
                             onclick={() => (showKeys[source.id] = !showKeys[source.id])}
                           >
@@ -3059,6 +3063,7 @@
           {#if selectedBackupFile}
             <div
               class="bg-field text-ink mt-3 rounded-md border border-white/10 px-3 py-2 font-mono text-xs"
+              transition:slide={{ duration: 180 }}
             >
               <span class="text-muted mr-1 font-sans"
                 >{i18n.t.settingsModal.backup.selectedFileLabel}</span
@@ -3282,6 +3287,7 @@
           {#if tokenToRevoke}
             <div
               class="bg-field text-ink mt-3 rounded-md border border-white/10 px-3 py-2 font-mono text-xs"
+              transition:slide={{ duration: 180 }}
             >
               <span class="text-muted mr-2 font-sans">{tokenToRevoke.name}:</span>
               {tokenToRevoke.tokenPrefix}••••••••
@@ -3319,8 +3325,10 @@
 {/snippet}
 
 {#if embedded}
-  <!-- Full-screen view shell (SettingsView): the same panel, no overlay chrome. -->
-  <div class="bg-canvas flex h-full w-full overflow-hidden">
+  <!-- Full-screen view shell (SettingsView): the same panel, no overlay chrome.
+       in-only fade: the shell settles in when the settings view mounts; no out
+       phase, so the outgoing shell never lingers under the next view. -->
+  <div class="bg-canvas flex h-full w-full overflow-hidden" in:fade={{ duration: 150 }}>
     {@render body()}
   </div>
   {@render dialogs()}

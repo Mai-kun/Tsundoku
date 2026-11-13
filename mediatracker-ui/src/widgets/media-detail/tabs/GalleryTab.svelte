@@ -62,10 +62,10 @@
     uploading = true;
     try {
       await uploadGalleryImage(mediaId, image, title);
-      showToast(t.galleryScreenshotAdded, "success");
+      showToast({ title: t.galleryScreenshotAdded, description: i18n.t.toast.descCreated });
       onChanged?.();
     } catch (error) {
-      showToast(t.galleryUploadFailed, "error", 5000, errorMessage(error));
+      showToast({ title: t.galleryUploadFailed, description: errorMessage(error), type: "error", durationMs: 5000 });
     } finally {
       uploading = false;
     }
@@ -84,10 +84,10 @@
     deletingId = entry.id;
     try {
       await deleteGalleryImage(mediaId, entry.id);
-      showToast(t.galleryDeleted, "success");
+      showToast({ title: t.galleryDeleted, description: i18n.t.toast.descDeleted });
       onChanged?.();
     } catch (error) {
-      showToast(t.galleryDeleteFailed, "error", 5000, errorMessage(error));
+      showToast({ title: t.galleryDeleteFailed, description: errorMessage(error), type: "error", durationMs: 5000 });
     } finally {
       deletingId = null;
     }
@@ -153,7 +153,7 @@
     try {
       await revealInExplorer(`media/${mediaId}/gallery/${entry.id}`);
     } catch (error) {
-      showToast(t.galleryRevealFailed, "error", 5000, errorMessage(error));
+      showToast({ title: t.galleryRevealFailed, description: errorMessage(error), type: "error", durationMs: 5000 });
     }
   }
 
@@ -164,9 +164,9 @@
       const blob = await response.blob();
       const pngBlob = blob.type === "image/png" ? blob : await toPng(blob);
       await navigator.clipboard.write([new ClipboardItem({ "image/png": pngBlob })]);
-      showToast(t.galleryImageCopied, "success");
+      showToast({ title: t.galleryImageCopied, description: i18n.t.toast.descCopied });
     } catch (error) {
-      showToast(t.galleryCopyFailed, "error", 5000, errorMessage(error));
+      showToast({ title: t.galleryCopyFailed, description: errorMessage(error), type: "error", durationMs: 5000 });
     }
   }
 
@@ -206,9 +206,9 @@
   async function copyUrl(entry: MediaGalleryItem) {
     try {
       await navigator.clipboard.writeText(entry.originalUrl);
-      showToast(t.galleryUrlCopied, "success");
+      showToast({ title: t.galleryUrlCopied, description: i18n.t.toast.descCopied });
     } catch (error) {
-      showToast(t.galleryCopyFailed, "error", 5000, errorMessage(error));
+      showToast({ title: t.galleryCopyFailed, description: errorMessage(error), type: "error", durationMs: 5000 });
     }
   }
 
@@ -228,11 +228,11 @@
   async function setCover(entry: MediaGalleryItem) {
     try {
       await setGalleryAsCover(mediaId, entry.id);
-      showToast(t.gallerySetCoverDone, "success");
+      showToast({ title: t.gallerySetCoverDone, description: i18n.t.toast.descSaved });
       // The sidebar caches the poster by URL: a refetch brings the new cover cache-buster along.
       onChanged?.();
     } catch (error) {
-      showToast(t.gallerySetCoverFailed, "error", 5000, errorMessage(error));
+      showToast({ title: t.gallerySetCoverFailed, description: errorMessage(error), type: "error", durationMs: 5000 });
     }
   }
 </script>

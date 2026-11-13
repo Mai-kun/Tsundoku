@@ -139,7 +139,7 @@
         kind: "default",
         action: () => {
           navigator.clipboard.writeText(item.title).catch(() => {});
-          showToast(i18n.t.common.copied);
+          showToast({ title: i18n.t.common.copied, description: i18n.t.toast.descCopied });
         },
       },
       { id: "separator-poster", kind: "separator" },
@@ -177,7 +177,7 @@
               kind: "default" as const,
               action: () => {
                 navigator.clipboard.writeText(absoluteCoverUrl(item.coverUrl)).catch(() => {});
-                showToast(i18n.t.common.copied);
+                showToast({ title: i18n.t.common.copied, description: i18n.t.toast.descCopied });
               },
             },
           ]
@@ -248,12 +248,20 @@
         body: JSON.stringify({ path: dataPath }),
       });
       if (response.ok) {
-        showToast(i18n.t.contextMenu.revealed, "success");
+        showToast({ title: i18n.t.contextMenu.revealed, description: i18n.t.toast.descRevealed });
       } else {
-        showToast(errorMessage(new Error(await response.text())), "error");
+        showToast({
+          title: i18n.t.toast.actionFailed,
+          description: errorMessage(new Error(await response.text())),
+          type: "error",
+        });
       }
     } catch (error) {
-      showToast(errorMessage(error), "error");
+      showToast({
+        title: i18n.t.toast.actionFailed,
+        description: errorMessage(error),
+        type: "error",
+      });
     }
   }
 
@@ -291,9 +299,13 @@
         blob = png;
       }
       await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
-      showToast(i18n.t.common.copied);
+      showToast({ title: i18n.t.common.copied, description: i18n.t.toast.descCopied });
     } catch (error) {
-      showToast(errorMessage(error), "error");
+      showToast({
+        title: i18n.t.toast.actionFailed,
+        description: errorMessage(error),
+        type: "error",
+      });
     }
   }
 </script>

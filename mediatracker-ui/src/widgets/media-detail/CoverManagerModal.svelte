@@ -72,7 +72,7 @@
       const updated = await addCoverByUrl(media.id, trimmed, null, setAsActive);
       urlInput = "";
       onUpdate(updated);
-      showToast(i18n.t.coversModal.coverAdded, "success");
+      showToast({ title: i18n.t.coversModal.coverAdded, description: i18n.t.toast.descCreated });
     } catch (err) {
       error = err;
     } finally {
@@ -89,7 +89,7 @@
       selectedFile = null;
       if (fileInput) fileInput.value = "";
       onUpdate(updated);
-      showToast(i18n.t.coversModal.coverUploaded, "success");
+      showToast({ title: i18n.t.coversModal.coverUploaded, description: i18n.t.toast.descCreated });
     } catch (err) {
       error = err;
     } finally {
@@ -105,7 +105,7 @@
     try {
       const updated = await selectCover(media.id, coverId);
       onUpdate(updated);
-      showToast(i18n.t.coversModal.coverSelected, "success");
+      showToast({ title: i18n.t.coversModal.coverSelected, description: i18n.t.toast.descSaved });
     } catch (err) {
       error = err;
     } finally {
@@ -123,7 +123,7 @@
       const updated = await deleteCover(media.id, coverId);
       deletingId = null;
       onUpdate(updated);
-      showToast(i18n.t.coversModal.coverDeleted, "success");
+      showToast({ title: i18n.t.coversModal.coverDeleted, description: i18n.t.toast.descDeleted });
     } catch (err) {
       error = err;
     } finally {
@@ -140,7 +140,7 @@
     try {
       const updated = await fetchVolumeCovers(media.id);
       onUpdate(updated);
-      showToast(i18n.t.coversModal.volumesLoaded, "success");
+      showToast({ title: i18n.t.coversModal.volumesLoaded, description: i18n.t.toast.descCreated });
     } catch (err) {
       error = err;
     } finally {

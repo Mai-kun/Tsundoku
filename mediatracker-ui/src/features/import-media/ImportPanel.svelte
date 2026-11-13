@@ -878,7 +878,11 @@
       await adoptBrowserSession(result.userId);
     } catch (caught) {
       console.error("mangalib browser session detection failed:", caught);
-      showToast(i18n.t.importModal.mangalibAuth.detectFailedToast, "error");
+      showToast({
+        title: i18n.t.importModal.mangalibAuth.detectFailedToast,
+        description: i18n.t.toast.descRetry,
+        type: "error",
+      });
     } finally {
       mangalibDetectBusy = false;
     }
@@ -1788,7 +1792,7 @@
                   </div>
                   <button
                     type="button"
-                    class="bg-field text-muted hover:bg-elevated mt-1 cursor-pointer rounded-md border border-white/10 px-3 py-1 text-xs font-medium hover:text-white"
+                    class="bg-field text-muted hover:bg-elevated mt-1 cursor-pointer rounded-md border border-white/10 px-3 py-1 text-xs font-medium transition-colors duration-150 hover:text-white"
                     onclick={(e) => {
                       e.stopPropagation();
                       file = null;
@@ -1997,7 +2001,7 @@
                   </div>
                   <button
                     type="button"
-                    class="bg-field text-muted hover:bg-elevated mt-1 cursor-pointer rounded-md border border-white/10 px-3 py-1 text-xs font-medium hover:text-white"
+                    class="bg-field text-muted hover:bg-elevated mt-1 cursor-pointer rounded-md border border-white/10 px-3 py-1 text-xs font-medium transition-colors duration-150 hover:text-white"
                     onclick={(e) => {
                       e.stopPropagation();
                       file = null;
@@ -2029,7 +2033,7 @@
               href="https://steamcommunity.com/dev/apikey"
               target="_blank"
               rel="noreferrer"
-              class="inline-flex items-center gap-1 text-[var(--imp-text)] underline hover:text-white"
+              class="inline-flex items-center gap-1 text-[var(--imp-text)] underline transition-colors duration-150 hover:text-white"
             >
               steamcommunity.com/dev/apikey
               <ExternalLink size={12} />
@@ -2196,14 +2200,14 @@
                   <div class="flex items-center gap-3">
                     <button
                       type="button"
-                      class="cursor-pointer text-xs text-[var(--color-import-mangalib-text)] underline hover:text-white"
+                      class="cursor-pointer text-xs text-[var(--color-import-mangalib-text)] underline transition-colors duration-150 hover:text-white"
                       onclick={() => void openMangalibLoginPage()}
                     >
                       {i18n.t.importModal.mangalibAuth.reconnect}
                     </button>
                     <button
                       type="button"
-                      class="cursor-pointer text-xs text-rose-300 underline hover:text-rose-200"
+                      class="cursor-pointer text-xs text-rose-300 underline transition-colors duration-150 hover:text-rose-200"
                       onclick={() => void disconnectMangalib()}
                     >
                       {i18n.t.importModal.mangalibAuth.logout}
@@ -2391,7 +2395,7 @@
                       </div>
                       <button
                         type="button"
-                        class="cursor-pointer text-xs text-[var(--color-import-mangalib-text)] underline hover:text-white"
+                        class="cursor-pointer text-xs text-[var(--color-import-mangalib-text)] underline transition-colors duration-150 hover:text-white"
                         onclick={() => void copyBookmarkletUrl()}
                       >
                         {#if bookmarkletCopied}
@@ -2441,21 +2445,21 @@
                           href="https://mangalib.org"
                           target="_blank"
                           rel="noreferrer"
-                          class="font-medium text-[var(--color-import-mangalib-text)] hover:underline"
+                          class="font-medium text-[var(--color-import-mangalib-text)] transition-colors duration-150 hover:underline"
                           >MangaLib</a
                         >,
                         <a
                           href="https://animelib.org"
                           target="_blank"
                           rel="noreferrer"
-                          class="font-medium text-[var(--color-import-mangalib-text)] hover:underline"
+                          class="font-medium text-[var(--color-import-mangalib-text)] transition-colors duration-150 hover:underline"
                           >AnimeLib</a
                         >,
                         <a
                           href="https://ranobelib.me"
                           target="_blank"
                           rel="noreferrer"
-                          class="font-medium text-[var(--color-import-mangalib-text)] hover:underline"
+                          class="font-medium text-[var(--color-import-mangalib-text)] transition-colors duration-150 hover:underline"
                           >RanobeLib</a
                         >).
                       </span>
@@ -2570,7 +2574,7 @@
                   </div>
                   <button
                     type="button"
-                    class="bg-field text-muted hover:bg-elevated mt-1 cursor-pointer rounded-md border border-white/10 px-3 py-1 text-xs font-medium hover:text-white"
+                    class="bg-field text-muted hover:bg-elevated mt-1 cursor-pointer rounded-md border border-white/10 px-3 py-1 text-xs font-medium transition-colors duration-150 hover:text-white"
                     onclick={(e) => {
                       e.stopPropagation();
                       file = null;
@@ -2645,7 +2649,7 @@
                 </div>
                 <button
                   type="button"
-                  class="bg-field text-muted hover:bg-elevated mt-1 cursor-pointer rounded-md border border-white/10 px-3 py-1 text-xs font-medium hover:text-white"
+                  class="bg-field text-muted hover:bg-elevated mt-1 cursor-pointer rounded-md border border-white/10 px-3 py-1 text-xs font-medium transition-colors duration-150 hover:text-white"
                   onclick={(e) => {
                     e.stopPropagation();
                     file = null;
@@ -2795,7 +2799,7 @@
                 </div>
                 <button
                   type="button"
-                  class="bg-field text-muted hover:bg-elevated mt-1 cursor-pointer rounded-md border border-white/10 px-3 py-1 text-xs font-medium hover:text-white"
+                  class="bg-field text-muted hover:bg-elevated mt-1 cursor-pointer rounded-md border border-white/10 px-3 py-1 text-xs font-medium transition-colors duration-150 hover:text-white"
                   onclick={(e) => {
                     e.stopPropagation();
                     file = null;

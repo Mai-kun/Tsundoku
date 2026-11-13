@@ -72,10 +72,10 @@
 
     try {
       await deleteHistoryEvent(event.id);
-      showToast(i18n.t.views.historyEntryDeleted, "success");
+      showToast({ title: i18n.t.views.historyEntryDeleted, description: i18n.t.toast.descDeleted });
     } catch (err) {
       events = prevEvents;
-      showToast(errorMessage(err), "error");
+      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(err), type: "error" });
     } finally {
       deletingId = null;
     }

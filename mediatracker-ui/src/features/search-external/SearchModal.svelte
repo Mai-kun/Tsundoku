@@ -205,6 +205,9 @@
   let allSectionsSettled = $derived(groupedResults.every((g) => !g.loading));
   let hasAnyResults = $derived(Object.values(resultsByCategory).some((items) => items.length > 0));
   let queryBadge = $derived(detectQueryBadge(query));
+  let queryBadgeLabel = $derived(
+    queryBadge?.type === "LINK" ? i18n.t.searchModal.badgeLink : i18n.t.searchModal.badgeIsbn,
+  );
 
   let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -445,7 +448,11 @@
           if (!updated[itemCat]) {
             updated[itemCat] = [];
           }
-          if (!updated[itemCat].some((r) => r.externalId === item.externalId && r.externalSource === item.externalSource)) {
+          if (
+            !updated[itemCat].some(
+              (r) => r.externalId === item.externalId && r.externalSource === item.externalSource,
+            )
+          ) {
             updated[itemCat].push(item);
           }
         }
@@ -688,7 +695,7 @@
           author: result.author || i18n.t.searchModal.unknownAuthor,
           studio: result.studio,
           isbn: result.isbn,
-          format: isNovel ? "light_novel" : (result.format || "book"),
+          format: isNovel ? "light_novel" : result.format || "book",
           totalPages: isNovel ? undefined : result.totalCount,
           totalChapters: isNovel ? (result.chapters ?? result.totalCount ?? undefined) : undefined,
           totalVolumes: isNovel ? (result.volumes ?? undefined) : undefined,
@@ -838,16 +845,18 @@
             bind:this={searchInput}
             bind:value={query}
             onkeydown={handleKeydown}
-            class="bg-elevated h-10 w-full rounded-md border border-white/[0.08] pl-9 text-sm text-white outline-none placeholder:text-zinc-500 focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/30 {queryBadge ? 'pr-20' : 'pr-3'}"
+            class="bg-elevated h-10 w-full rounded-md border border-white/[0.08] pl-9 text-sm text-white outline-none placeholder:text-zinc-500 focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/30 {queryBadge
+              ? 'pr-20'
+              : 'pr-3'}"
             type="search"
             placeholder={i18n.t.searchModal.placeholder(labelForCategory(activeType))}
             autocomplete="off"
           />
           {#if queryBadge}
             <span
-              class="pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 select-none rounded-md border border-white/10 bg-white/5 px-2 py-0.5 font-mono text-[11px] text-white/70"
+              class="pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 rounded-md border border-white/10 bg-white/5 px-2 py-0.5 font-mono text-[11px] text-white/70 select-none"
             >
-              {queryBadge.label}
+              {queryBadgeLabel}
             </span>
           {/if}
         </label>

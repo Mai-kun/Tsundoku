@@ -1103,1873 +1103,1825 @@
   <nav
     class={`thin-scroll ${
       embedded
-        ? "w-64 flex-shrink-0 h-full border-r border-white/5 bg-[#12151c]/40 flex flex-col justify-between overflow-y-auto"
+        ? "flex h-full w-64 flex-shrink-0 flex-col justify-between overflow-y-auto border-r border-white/5 bg-[#12151c]/40"
         : "w-56 shrink-0 space-y-1.5 overflow-y-auto border-r border-white/[0.08] bg-[#12151c]/60 sm:w-64"
     } p-3`}
     aria-label={i18n.t.settingsModal.title}
   >
     <div class="space-y-1.5">
-        <button
-          type="button"
-          class={`tap flex w-full cursor-pointer items-center gap-3 rounded-lg px-3.5 py-2.5 text-left text-xs transition ${
-            activeTab === "sources"
-              ? "border-accent-bright/30 bg-accent-bright/15 border font-semibold text-[#a5b4fc] shadow-sm"
-              : "text-muted border border-transparent font-medium hover:bg-white/5 hover:text-white"
-          }`}
-          onclick={() => (activeTab = "sources")}
+      <button
+        type="button"
+        class={`tap flex w-full cursor-pointer items-center gap-3 rounded-lg px-3.5 py-2.5 text-left text-xs transition ${
+          activeTab === "sources"
+            ? "border-accent-bright/30 bg-accent-bright/15 border font-semibold text-[#a5b4fc] shadow-sm"
+            : "text-muted border border-transparent font-medium hover:bg-white/5 hover:text-white"
+        }`}
+        onclick={() => (activeTab = "sources")}
+      >
+        <Server size={16} />
+        <span>{i18n.t.settingsModal.tabs.sources}</span>
+      </button>
+
+      <button
+        type="button"
+        class={`tap flex w-full cursor-pointer items-center gap-3 rounded-lg px-3.5 py-2.5 text-left text-xs transition ${
+          activeTab === "search"
+            ? "border-accent-bright/30 bg-accent-bright/15 border font-semibold text-[#a5b4fc] shadow-sm"
+            : "text-muted border border-transparent font-medium hover:bg-white/5 hover:text-white"
+        }`}
+        onclick={() => (activeTab = "search")}
+      >
+        <Search size={16} />
+        <span>{i18n.t.settingsModal.tabs.search}</span>
+      </button>
+
+      <button
+        type="button"
+        class={`tap flex w-full cursor-pointer items-center gap-3 rounded-lg px-3.5 py-2.5 text-left text-xs transition ${
+          activeTab === "backup"
+            ? "border-accent-bright/30 bg-accent-bright/15 border font-semibold text-[#a5b4fc] shadow-sm"
+            : "text-muted border border-transparent font-medium hover:bg-white/5 hover:text-white"
+        }`}
+        onclick={() => (activeTab = "backup")}
+      >
+        <RotateCcw size={16} />
+        <span>{i18n.t.settingsModal.tabs.backup}</span>
+      </button>
+
+      <button
+        type="button"
+        class={`tap flex w-full cursor-pointer items-center gap-3 rounded-lg px-3.5 py-2.5 text-left text-xs transition ${
+          activeTab === "import"
+            ? "border-accent-bright/30 bg-accent-bright/15 border font-semibold text-[#a5b4fc] shadow-sm"
+            : "text-muted border border-transparent font-medium hover:bg-white/5 hover:text-white"
+        }`}
+        onclick={() => (activeTab = "import")}
+      >
+        <FolderInput size={16} />
+        <span>{i18n.t.settingsModal.tabs.import}</span>
+      </button>
+
+      <button
+        type="button"
+        class={`tap flex w-full cursor-pointer items-center gap-3 rounded-lg px-3.5 py-2.5 text-left text-xs transition ${
+          activeTab === "reading"
+            ? "border-accent-bright/30 bg-accent-bright/15 border font-semibold text-[#a5b4fc] shadow-sm"
+            : "text-muted border border-transparent font-medium hover:bg-white/5 hover:text-white"
+        }`}
+        onclick={() => (activeTab = "reading")}
+      >
+        <BookOpen size={16} />
+        <span>{i18n.t.settingsModal.tabs.reading}</span>
+      </button>
+
+      <button
+        type="button"
+        class={`tap flex w-full cursor-pointer items-center gap-3 rounded-lg px-3.5 py-2.5 text-left text-xs transition ${
+          activeTab === "update"
+            ? "border-accent-bright/30 bg-accent-bright/15 border font-semibold text-[#a5b4fc] shadow-sm"
+            : "text-muted border border-transparent font-medium hover:bg-white/5 hover:text-white"
+        }`}
+        onclick={() => (activeTab = "update")}
+      >
+        <RefreshCw size={16} />
+        <span>{i18n.t.settingsModal.tabs.update}</span>
+      </button>
+
+      <button
+        type="button"
+        class={`tap flex w-full cursor-pointer items-center gap-3 rounded-lg px-3.5 py-2.5 text-left text-xs transition ${
+          activeTab === "storage"
+            ? "border-accent-bright/30 bg-accent-bright/15 border font-semibold text-[#a5b4fc] shadow-sm"
+            : "text-muted border border-transparent font-medium hover:bg-white/5 hover:text-white"
+        }`}
+        onclick={() => (activeTab = "storage")}
+      >
+        <FolderInput size={16} />
+        <span>{i18n.t.settingsModal.tabs.storage}</span>
+      </button>
+
+      <button
+        type="button"
+        class={`tap flex w-full cursor-pointer items-center gap-3 rounded-lg px-3.5 py-2.5 text-left text-xs transition ${
+          activeTab === "appearance"
+            ? "border-accent-bright/30 bg-accent-bright/15 border font-semibold text-[#a5b4fc] shadow-sm"
+            : "text-muted border border-transparent font-medium hover:bg-white/5 hover:text-white"
+        }`}
+        onclick={() => (activeTab = "appearance")}
+      >
+        <Palette size={16} />
+        <span>{i18n.t.settingsModal.tabs.appearance}</span>
+      </button>
+
+      <button
+        type="button"
+        class={`tap flex w-full cursor-pointer items-center gap-3 rounded-lg px-3.5 py-2.5 text-left text-xs transition ${
+          activeTab === "desktop"
+            ? "border-accent-bright/30 bg-accent-bright/15 border font-semibold text-[#a5b4fc] shadow-sm"
+            : "text-muted border border-transparent font-medium hover:bg-white/5 hover:text-white"
+        }`}
+        onclick={() => (activeTab = "desktop")}
+      >
+        <AppWindow size={16} />
+        <span>{i18n.t.settingsModal.tabs.desktop}</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- Right content area -->
+  <div
+    class={`thin-scroll ${
+      embedded ? "h-full flex-1 overflow-y-auto p-6 md:p-8" : "min-w-0 flex-1 overflow-y-auto p-6"
+    } bg-[#151a26]/40`}
+  >
+    {#if activeTab === "sources"}
+      <div class="space-y-6">
+        <!-- Local Offline Databases (Layer 0) Premium Block -->
+        <div
+          class="rounded-2xl border border-indigo-500/25 bg-gradient-to-br from-indigo-950/40 via-[#151a26]/70 to-[#10141d]/90 p-5 shadow-xl backdrop-blur-sm"
         >
-          <Server size={16} />
-          <span>{i18n.t.settingsModal.tabs.sources}</span>
-        </button>
-
-        <button
-          type="button"
-          class={`tap flex w-full cursor-pointer items-center gap-3 rounded-lg px-3.5 py-2.5 text-left text-xs transition ${
-            activeTab === "search"
-              ? "border-accent-bright/30 bg-accent-bright/15 border font-semibold text-[#a5b4fc] shadow-sm"
-              : "text-muted border border-transparent font-medium hover:bg-white/5 hover:text-white"
-          }`}
-          onclick={() => (activeTab = "search")}
-        >
-          <Search size={16} />
-          <span>{i18n.t.settingsModal.tabs.search}</span>
-        </button>
-
-        <button
-          type="button"
-          class={`tap flex w-full cursor-pointer items-center gap-3 rounded-lg px-3.5 py-2.5 text-left text-xs transition ${
-            activeTab === "backup"
-              ? "border-accent-bright/30 bg-accent-bright/15 border font-semibold text-[#a5b4fc] shadow-sm"
-              : "text-muted border border-transparent font-medium hover:bg-white/5 hover:text-white"
-          }`}
-          onclick={() => (activeTab = "backup")}
-        >
-          <RotateCcw size={16} />
-          <span>{i18n.t.settingsModal.tabs.backup}</span>
-        </button>
-
-        <button
-          type="button"
-          class={`tap flex w-full cursor-pointer items-center gap-3 rounded-lg px-3.5 py-2.5 text-left text-xs transition ${
-            activeTab === "import"
-              ? "border-accent-bright/30 bg-accent-bright/15 border font-semibold text-[#a5b4fc] shadow-sm"
-              : "text-muted border border-transparent font-medium hover:bg-white/5 hover:text-white"
-          }`}
-          onclick={() => (activeTab = "import")}
-        >
-          <FolderInput size={16} />
-          <span>{i18n.t.settingsModal.tabs.import}</span>
-        </button>
-
-        <button
-          type="button"
-          class={`tap flex w-full cursor-pointer items-center gap-3 rounded-lg px-3.5 py-2.5 text-left text-xs transition ${
-            activeTab === "reading"
-              ? "border-accent-bright/30 bg-accent-bright/15 border font-semibold text-[#a5b4fc] shadow-sm"
-              : "text-muted border border-transparent font-medium hover:bg-white/5 hover:text-white"
-          }`}
-          onclick={() => (activeTab = "reading")}
-        >
-          <BookOpen size={16} />
-          <span>{i18n.t.settingsModal.tabs.reading}</span>
-        </button>
-
-        <button
-          type="button"
-          class={`tap flex w-full cursor-pointer items-center gap-3 rounded-lg px-3.5 py-2.5 text-left text-xs transition ${
-            activeTab === "update"
-              ? "border-accent-bright/30 bg-accent-bright/15 border font-semibold text-[#a5b4fc] shadow-sm"
-              : "text-muted border border-transparent font-medium hover:bg-white/5 hover:text-white"
-          }`}
-          onclick={() => (activeTab = "update")}
-        >
-          <RefreshCw size={16} />
-          <span>{i18n.t.settingsModal.tabs.update}</span>
-        </button>
-
-        <button
-          type="button"
-          class={`tap flex w-full cursor-pointer items-center gap-3 rounded-lg px-3.5 py-2.5 text-left text-xs transition ${
-            activeTab === "storage"
-              ? "border-accent-bright/30 bg-accent-bright/15 border font-semibold text-[#a5b4fc] shadow-sm"
-              : "text-muted border border-transparent font-medium hover:bg-white/5 hover:text-white"
-          }`}
-          onclick={() => (activeTab = "storage")}
-        >
-          <FolderInput size={16} />
-          <span>{i18n.t.settingsModal.tabs.storage}</span>
-        </button>
-
-        <button
-          type="button"
-          class={`tap flex w-full cursor-pointer items-center gap-3 rounded-lg px-3.5 py-2.5 text-left text-xs transition ${
-            activeTab === "appearance"
-              ? "border-accent-bright/30 bg-accent-bright/15 border font-semibold text-[#a5b4fc] shadow-sm"
-              : "text-muted border border-transparent font-medium hover:bg-white/5 hover:text-white"
-          }`}
-          onclick={() => (activeTab = "appearance")}
-        >
-          <Palette size={16} />
-          <span>{i18n.t.settingsModal.tabs.appearance}</span>
-        </button>
-
-        <button
-          type="button"
-          class={`tap flex w-full cursor-pointer items-center gap-3 rounded-lg px-3.5 py-2.5 text-left text-xs transition ${
-            activeTab === "desktop"
-              ? "border-accent-bright/30 bg-accent-bright/15 border font-semibold text-[#a5b4fc] shadow-sm"
-              : "text-muted border border-transparent font-medium hover:bg-white/5 hover:text-white"
-          }`}
-          onclick={() => (activeTab = "desktop")}
-        >
-          <AppWindow size={16} />
-          <span>{i18n.t.settingsModal.tabs.desktop}</span>
-        </button>
-      </div>
-    </nav>
-
-    <!-- Right content area -->
-    <div
-      class={`thin-scroll ${
-        embedded
-          ? "flex-1 h-full overflow-y-auto p-6 md:p-8"
-          : "min-w-0 flex-1 overflow-y-auto p-6"
-      } bg-[#151a26]/40`}
-    >
-        {#if activeTab === "sources"}
-          <div class="space-y-6">
-            <!-- Local Offline Databases (Layer 0) Premium Block -->
-            <div
-              class="rounded-2xl border border-indigo-500/25 bg-gradient-to-br from-indigo-950/40 via-[#151a26]/70 to-[#10141d]/90 p-5 shadow-xl backdrop-blur-sm"
-            >
-              <!-- Header -->
-              <div class="flex flex-wrap items-center justify-between gap-3">
-                <div class="flex items-center gap-3">
-                  <div
-                    class="grid size-10 shrink-0 place-items-center rounded-xl border border-indigo-500/30 bg-indigo-500/20 text-indigo-400 shadow-inner"
-                  >
-                    <Server size={20} />
-                  </div>
-                  <div>
-                    <div class="flex flex-wrap items-center gap-2">
-                      <h3 class="text-ink text-sm font-bold tracking-tight">
-                        {i18n.t.settingsModal.sources.offline.title}
-                      </h3>
-                      {#if offlineSummary && offlineSummary.totalIndexedTitles > 0}
-                        <span
-                          class="inline-flex items-center rounded-full border border-indigo-500/30 bg-indigo-500/15 px-2.5 py-0.5 text-[11px] font-semibold text-indigo-300"
-                        >
-                          {offlineSummary.totalIndexedTitles.toLocaleString("ru-RU")} тайтлов
-                        </span>
-                      {/if}
-                    </div>
-                    <p class="text-muted mt-0.5 text-xs">
-                      {i18n.t.settingsModal.sources.offline.subtitle}
-                    </p>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onclick={handleReindexOffline}
-                  disabled={offlineReindexing}
-                  class="inline-flex items-center gap-2 rounded-xl border border-indigo-500/30 bg-indigo-500/15 px-3.5 py-2 text-xs font-semibold text-indigo-200 transition-transform hover:border-indigo-400/50 hover:bg-indigo-500/25 active:scale-95 disabled:pointer-events-none disabled:opacity-50"
-                  title={i18n.t.settingsModal.sources.offline.reindexBtn}
-                >
-                  <RefreshCw
-                    size={14}
-                    class={offlineReindexing ? "animate-spin text-indigo-400" : "text-indigo-300"}
-                  />
-                  <span>{i18n.t.settingsModal.sources.offline.reindexBtn}</span>
-                </button>
-              </div>
-
-              <!-- Offline Autonomy Mode Toggle (visible only if local databases exist) -->
-              {#if offlineModeState.hasDatabases}
-                <div
-                  class="mt-4 flex items-center justify-between gap-4 rounded-xl border border-amber-500/20 bg-amber-500/[0.06] p-3.5 transition-colors"
-                >
-                  <div class="min-w-0 flex-1 space-y-0.5">
-                    <div class="flex flex-wrap items-center gap-2">
-                      <span class="text-ink text-xs font-bold">
-                        {i18n.t.settingsModal.sources.offline.offlineModeTitle}
-                      </span>
-                      {#if offlineModeState.isOffline}
-                        <span
-                          class="inline-flex items-center rounded-full border border-amber-500/30 bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold text-amber-400"
-                        >
-                          {i18n.t.settingsModal.sources.offline.offlineModeActive}
-                        </span>
-                      {/if}
-                    </div>
-                    <p class="text-muted text-[11px]">
-                      {i18n.t.settingsModal.sources.offline.offlineModeDesc}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={offlineModeState.isOffline}
-                    class={`focus:ring-accent-soft focus:ring-offset-surface relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border transition-colors duration-200 focus:ring-2 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 ${
-                      offlineModeState.isOffline
-                        ? "border-amber-400 bg-amber-600"
-                        : "border-white/10 bg-white/10"
-                    }`}
-                    onclick={handleToggleOfflineMode}
-                    disabled={offlineModeToggling}
-                    title={offlineModeState.isOffline
-                      ? i18n.t.settingsModal.sources.disable
-                      : i18n.t.settingsModal.sources.enable}
-                  >
-                    <span
-                      aria-hidden="true"
-                      class={`pointer-events-none inline-block h-5 w-5 transform rounded-full shadow ring-0 transition duration-200 ease-in-out ${
-                        offlineModeState.isOffline
-                          ? "translate-x-5 bg-white"
-                          : "translate-x-0 bg-slate-400"
-                      }`}
-                    ></span>
-                  </button>
-                </div>
-              {/if}
-
-              <!-- Raw Dumps Warning Banner -->
-              {#if offlineSummary && offlineSummary.pendingDumps && offlineSummary.pendingDumps.length > 0}
-                <div
-                  class="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5 text-xs text-amber-200"
-                >
-                  <div class="flex items-start gap-2.5">
-                    <AlertTriangle size={16} class="mt-0.5 shrink-0 text-amber-400" />
-                    <div class="flex-1">
-                      <span class="font-medium">
-                        {i18n.t.settingsModal.sources.offline.pendingDumpsWarning(
-                          offlineSummary.pendingDumps.join(", "),
-                        )}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              {/if}
-
-              <!-- Databases Grid -->
-              {#if offlineLoading}
-                <div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  {#each Array(3) as _, i (i)}
-                    <div class="bg-card h-20 animate-pulse rounded-xl"></div>
-                  {/each}
-                </div>
-              {:else if offlineSummary && offlineSummary.databases && offlineSummary.databases.length > 0}
-                <div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  {#each offlineSummary.databases as db (db.fileName)}
-                    <div
-                      class="group relative flex flex-col justify-between rounded-xl border border-white/10 bg-white/[0.03] p-3.5 transition hover:border-indigo-500/40 hover:bg-white/[0.05]"
-                    >
-                      <div>
-                        <div class="flex items-start justify-between gap-2">
-                          <div class="flex min-w-0 items-center gap-2">
-                            <span class="shrink-0 text-base select-none"
-                              >{getOfflineDbIcon(db.type, db.name)}</span
-                            >
-                            <h4 class="text-ink truncate text-xs font-bold" title={db.name}>
-                              {db.name}
-                            </h4>
-                          </div>
-                          <!-- Per-database toggle: switches this database alone, independent of
-                               the offline mode and of every other database. -->
-                          <button
-                            type="button"
-                            role="switch"
-                            aria-checked={db.isActive}
-                            aria-label={db.name}
-                            disabled={offlineDbToggling === db.fileName}
-                            class={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border transition-colors duration-200 disabled:cursor-wait disabled:opacity-50 ${
-                              db.isActive
-                                ? "border-emerald-500/40 bg-emerald-600"
-                                : "border-white/10 bg-white/10"
-                            }`}
-                            onclick={() => handleToggleOfflineDb(db.fileName, !db.isActive)}
-                            title={db.isActive
-                              ? i18n.t.settingsModal.sources.offline.dbDisableTitle
-                              : i18n.t.settingsModal.sources.offline.dbEnableTitle}
-                          >
-                            <span
-                              aria-hidden="true"
-                              class={`pointer-events-none inline-block h-4 w-4 transform rounded-full shadow transition duration-200 ease-in-out ${
-                                db.isActive
-                                  ? "translate-x-4 bg-white"
-                                  : "translate-x-0 bg-slate-400"
-                              }`}
-                            ></span>
-                          </button>
-                        </div>
-                        <div class="mt-2.5 flex items-center gap-2 text-[11px] text-slate-300">
-                          <span class="font-medium text-white"
-                            >{db.totalTitles.toLocaleString("ru-RU")} тайтлов</span
-                          >
-                          <span class="text-slate-500">•</span>
-                          <span>{formatBytes(db.fileSizeBytes)}</span>
-                        </div>
-                      </div>
-                      <div
-                        class="mt-2 flex items-center justify-between border-t border-white/5 pt-2 text-[10px] text-slate-500"
-                      >
-                        <code class="truncate text-slate-400">{db.fileName}</code>
-                        {#if deletingDump === db.fileName}
-                          <RefreshCw size={12} class="animate-spin text-slate-400" />
-                        {:else if db.sourceDumpFileName}
-                          <button
-                            type="button"
-                            onclick={() => handleDeleteDump(db)}
-                            class="shrink-0 rounded-lg border border-rose-500/30 bg-rose-500/10 px-2 py-0.5 text-[10px] font-medium text-rose-300 transition-colors hover:border-rose-400/50 hover:bg-rose-500/20 active:scale-95"
-                            title={i18n.t.settingsModal.sources.offline.deleteDumpTooltip}
-                          >
-                            {i18n.t.settingsModal.sources.offline.deleteDumpBtn}
-                          </button>
-                        {:else if db.isActive}
-                          <button
-                            type="button"
-                            onclick={() => onTestSearch?.(`offline:${db.fileName}`, db.type)}
-                            class="inline-flex items-center gap-1 rounded-lg border border-indigo-500/30 bg-indigo-500/15 px-2 py-0.5 text-[11px] font-medium text-indigo-200 transition-colors hover:border-indigo-400/50 hover:bg-indigo-500/25 active:scale-95"
-                            title={i18n.t.settingsModal.sources.offline.testSearchTooltip}
-                          >
-                            <span>🔍 {i18n.t.settingsModal.sources.offline.testSearchBtn}</span>
-                          </button>
-                        {/if}
-                      </div>
-                    </div>
-                  {/each}
-                </div>
-              {/if}
-
-              <!-- Bottom Directory Hint -->
-              <div class="mt-4 border-t border-white/10 pt-3">
-                <p class="text-muted flex flex-wrap items-center gap-1.5 text-[11px]">
-                  <FolderOpen size={13} class="shrink-0 text-slate-400" />
-                  <span>
-                    {i18n.t.settingsModal.sources.offline.hint}
-                  </span>
-                </p>
-              </div>
-            </div>
-
-            <div class="flex flex-wrap items-center justify-between gap-3 pt-2">
-              <div>
-                <h3 class="text-ink text-sm font-semibold">
-                  {i18n.t.settingsModal.sources.title}
-                </h3>
-                <p class="text-muted mt-0.5 text-xs">
-                  {i18n.t.settingsModal.sources.description}
-                </p>
-              </div>
-
-              <!-- Kind switcher: documented APIs vs site scrapers (Mihon-style extensions) -->
+          <!-- Header -->
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
               <div
-                class="bg-card/60 flex items-center gap-1 rounded-full border border-white/[0.06] p-1"
+                class="grid size-10 shrink-0 place-items-center rounded-xl border border-indigo-500/30 bg-indigo-500/20 text-indigo-400 shadow-inner"
               >
-                <button
-                  type="button"
-                  class={`inline-flex cursor-pointer items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${
-                    sourceKindFilter === "api"
-                      ? "bg-accent-bright/20 text-[#a5b4fc] shadow-sm"
-                      : "text-muted hover:text-ink"
-                  }`}
-                  onclick={() => (sourceKindFilter = "api")}
-                >
-                  <Zap size={13} />
-                  {i18n.t.settingsModal.sources.kindApi}
-                </button>
-                <button
-                  type="button"
-                  class={`inline-flex cursor-pointer items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${
-                    sourceKindFilter === "scraper"
-                      ? "bg-accent-bright/20 text-[#a5b4fc] shadow-sm"
-                      : "text-muted hover:text-ink"
-                  }`}
-                  onclick={() => (sourceKindFilter = "scraper")}
-                >
-                  <Globe size={13} />
-                  {i18n.t.settingsModal.sources.kindScrapers}
-                </button>
+                <Server size={20} />
               </div>
-
-              <!-- Media Type Filter Dropdown (kept across the kind switcher) -->
-              <div class="flex items-center gap-2">
-                <label for="source-type-filter" class="text-muted shrink-0 text-xs"
-                  >{i18n.t.settingsModal.sources.filterLabel}:</label
-                >
-                <Select
-                  id="source-type-filter"
-                  options={[
-                    { value: "all", label: i18n.t.settingsModal.sources.filterAll },
-                    { value: "anime", label: i18n.t.navigation.anime },
-                    { value: "manga", label: i18n.t.types.manga },
-                    { value: "movie", label: i18n.t.types.movie },
-                    { value: "tvshow", label: i18n.t.types.tvshow },
-                    { value: "game", label: i18n.t.types.game },
-                    { value: "book", label: i18n.t.types.book },
-                  ]}
-                  value={selectedTypeFilter}
-                  onChange={(next) => (selectedTypeFilter = next)}
-                  class="h-8 rounded-md px-2.5 text-xs"
-                />
+              <div>
+                <div class="flex flex-wrap items-center gap-2">
+                  <h3 class="text-ink text-sm font-bold tracking-tight">
+                    {i18n.t.settingsModal.sources.offline.title}
+                  </h3>
+                  {#if offlineSummary && offlineSummary.totalIndexedTitles > 0}
+                    <span
+                      class="inline-flex items-center rounded-full border border-indigo-500/30 bg-indigo-500/15 px-2.5 py-0.5 text-[11px] font-semibold text-indigo-300"
+                    >
+                      {offlineSummary.totalIndexedTitles.toLocaleString("ru-RU")} тайтлов
+                    </span>
+                  {/if}
+                </div>
+                <p class="text-muted mt-0.5 text-xs">
+                  {i18n.t.settingsModal.sources.offline.subtitle}
+                </p>
               </div>
             </div>
 
-            {#if sourcesLoading}
-              <div class="space-y-4">
-                {#each Array(4) as _, i (i)}
-                  <div class="bg-card h-24 animate-pulse rounded-xl"></div>
-                {/each}
+            <button
+              type="button"
+              onclick={handleReindexOffline}
+              disabled={offlineReindexing}
+              class="inline-flex items-center gap-2 rounded-xl border border-indigo-500/30 bg-indigo-500/15 px-3.5 py-2 text-xs font-semibold text-indigo-200 transition-transform hover:border-indigo-400/50 hover:bg-indigo-500/25 active:scale-95 disabled:pointer-events-none disabled:opacity-50"
+              title={i18n.t.settingsModal.sources.offline.reindexBtn}
+            >
+              <RefreshCw
+                size={14}
+                class={offlineReindexing ? "animate-spin text-indigo-400" : "text-indigo-300"}
+              />
+              <span>{i18n.t.settingsModal.sources.offline.reindexBtn}</span>
+            </button>
+          </div>
+
+          <!-- Offline Autonomy Mode Toggle (visible only if local databases exist) -->
+          {#if offlineModeState.hasDatabases}
+            <div
+              class="mt-4 flex items-center justify-between gap-4 rounded-xl border border-amber-500/20 bg-amber-500/[0.06] p-3.5 transition-colors"
+            >
+              <div class="min-w-0 flex-1 space-y-0.5">
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="text-ink text-xs font-bold">
+                    {i18n.t.settingsModal.sources.offline.offlineModeTitle}
+                  </span>
+                  {#if offlineModeState.isOffline}
+                    <span
+                      class="inline-flex items-center rounded-full border border-amber-500/30 bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold text-amber-400"
+                    >
+                      {i18n.t.settingsModal.sources.offline.offlineModeActive}
+                    </span>
+                  {/if}
+                </div>
+                <p class="text-muted text-[11px]">
+                  {i18n.t.settingsModal.sources.offline.offlineModeDesc}
+                </p>
               </div>
-            {:else if sourcesError}
-              <p class="rounded-lg bg-rose-400/10 p-3 text-xs text-rose-300">
-                {errorMessage(sourcesError)}
-              </p>
-            {:else}
-              <div class="space-y-4">
-                {#each filteredSources as source (source.id)}
-                  {@const theme = sourceThemeVars(source.id)}
-                  <div
-                    class="rounded-xl border bg-white/[0.02] p-4 transition hover:border-white/15 sm:p-5 {source.isEnabled ===
-                    false
-                      ? 'opacity-65'
-                      : ''}"
-                    style={`border-color: ${theme.border};`}
-                  >
-                    <div class="flex flex-wrap items-start justify-between gap-3">
-                      <div class="min-w-[200px] flex-1">
-                        <div class="flex flex-wrap items-center gap-2">
-                          <span
-                            class="size-2.5 shrink-0 rounded-full"
-                            style={`background: ${theme.accent};`}
-                            aria-hidden="true"
-                          ></span>
-                          <h4 class="text-ink text-sm font-bold">
-                            {source.name}
-                          </h4>
-                          {#if !source.isEnabled}
-                            <span
-                              class="inline-flex items-center rounded bg-zinc-500/15 px-2 py-0.5 text-[11px] font-semibold text-zinc-400"
-                            >
-                              {i18n.t.settingsModal.sources.disabledBadge}
-                            </span>
-                          {/if}
-                          {#if source.isScraper}
-                            <span
-                              class="inline-flex items-center gap-1 rounded bg-violet-500/15 px-2 py-0.5 text-[11px] font-semibold text-violet-300"
-                              title={i18n.t.settingsModal.sources.scraperBadge}
-                            >
-                              <Globe size={12} />
-                              {i18n.t.settingsModal.sources.scraperBadge}
-                            </span>
-                          {/if}
-                          {#if source.id === "sociallib"}
-                            <span
-                              class="inline-flex items-center gap-1 rounded bg-violet-500/15 px-2 py-0.5 text-[11px] font-semibold text-violet-300"
-                              title="Токен не нужен для поиска; нужен только для каталога 18+ и личных закладок"
-                            >
-                              <ShieldCheck size={12} />
-                              Опциональный токен (18+ / закладки)
-                            </span>
-                          {:else if source.optionalApiKey && !source.requiresApiKey}
-                            <span
-                              class="inline-flex items-center gap-1 rounded bg-sky-500/15 px-2 py-0.5 text-[11px] font-semibold text-sky-400"
-                              title={i18n.t.settingsModal.sources.optionalKeyHint}
-                            >
-                              <Key size={12} />
-                              {i18n.t.settingsModal.sources.optionalKey}
-                            </span>
-                          {:else if source.requiresApiKey}
-                            {#if source.hasKey}
-                              <span
-                                class="inline-flex items-center gap-1 rounded bg-emerald-500/15 px-2 py-0.5 text-[11px] font-semibold text-emerald-400"
-                              >
-                                <Check size={12} />
-                                {i18n.t.settingsModal.sources.keyConfigured}
-                              </span>
-                            {:else}
-                              <span
-                                class="inline-flex items-center gap-1 rounded bg-amber-500/15 px-2 py-0.5 text-[11px] font-semibold text-amber-400"
-                              >
-                                <Key size={12} />
-                                {i18n.t.settingsModal.sources.keyRequired}
-                              </span>
-                            {/if}
-                          {:else}
-                            <span
-                              class="inline-flex items-center gap-1 rounded bg-sky-500/15 px-2 py-0.5 text-[11px] font-semibold text-sky-400"
-                            >
-                              <ShieldCheck size={12} />
-                              {i18n.t.settingsModal.sources.noKeyRequired}
-                            </span>
-                          {/if}
-                        </div>
-                        <p class="text-muted mt-1 text-xs">
-                          {source.description}
-                        </p>
-                        <div class="mt-2 flex flex-wrap gap-1.5">
-                          {#each source.mediaTypes as mt}
-                            <span
-                              class="bg-canvas text-muted rounded px-2 py-0.5 text-[10px] font-medium"
-                            >
-                              {categoryLabel(mt)}
-                            </span>
-                          {/each}
-                        </div>
-                      </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={offlineModeState.isOffline}
+                class={`focus:ring-accent-soft focus:ring-offset-surface relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border transition-colors duration-200 focus:ring-2 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 ${
+                  offlineModeState.isOffline
+                    ? "border-amber-400 bg-amber-600/90"
+                    : "border-white/10 bg-white/10"
+                }`}
+                onclick={handleToggleOfflineMode}
+                disabled={offlineModeToggling}
+                title={offlineModeState.isOffline
+                  ? i18n.t.settingsModal.sources.disable
+                  : i18n.t.settingsModal.sources.enable}
+              >
+                <span
+                  aria-hidden="true"
+                  class={`pointer-events-none inline-block h-5 w-5 transform rounded-full shadow ring-0 transition duration-200 ease-in-out ${
+                    offlineModeState.isOffline
+                      ? "translate-x-5 bg-white"
+                      : "translate-x-0 bg-slate-400"
+                  }`}
+                ></span>
+              </button>
+            </div>
+          {/if}
 
-                      <div class="flex shrink-0 items-center gap-2.5">
-                        <button
-                          type="button"
-                          class="bg-field text-ink hover:bg-card hover:border-accent-soft inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-white/10 px-2.5 text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-60"
-                          disabled={testingSource === source.id}
-                          title={i18n.t.settingsModal.sources.testConnection}
-                          onclick={() => void handleTestSource(source.id)}
+          <!-- Raw Dumps Warning Banner -->
+          {#if offlineSummary && offlineSummary.pendingDumps && offlineSummary.pendingDumps.length > 0}
+            <div
+              class="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5 text-xs text-amber-200"
+            >
+              <div class="flex items-start gap-2.5">
+                <AlertTriangle size={16} class="mt-0.5 shrink-0 text-amber-400" />
+                <div class="flex-1">
+                  <span class="font-medium">
+                    {i18n.t.settingsModal.sources.offline.pendingDumpsWarning(
+                      offlineSummary.pendingDumps.join(", "),
+                    )}
+                  </span>
+                </div>
+              </div>
+            </div>
+          {/if}
+
+          <!-- Databases Grid -->
+          {#if offlineLoading}
+            <div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {#each Array(3) as _, i (i)}
+                <div class="bg-card h-20 animate-pulse rounded-xl"></div>
+              {/each}
+            </div>
+          {:else if offlineSummary && offlineSummary.databases && offlineSummary.databases.length > 0}
+            <div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {#each offlineSummary.databases as db (db.fileName)}
+                <div
+                  class="group relative flex flex-col justify-between rounded-xl border border-white/10 bg-white/[0.03] p-3.5 transition hover:border-indigo-500/40 hover:bg-white/[0.05]"
+                >
+                  <div>
+                    <div class="flex items-start justify-between gap-2">
+                      <div class="flex min-w-0 items-center gap-2">
+                        <span class="shrink-0 text-base select-none"
+                          >{getOfflineDbIcon(db.type, db.name)}</span
                         >
-                          <RefreshCw
-                            size={12}
-                            class={testingSource === source.id
-                              ? "text-accent-soft animate-spin"
-                              : "text-muted"}
-                          />
-                          <span
-                            >{testingSource === source.id
-                              ? i18n.t.settingsModal.sources.testing
-                              : i18n.t.settingsModal.sources.testConnection}</span
-                          >
-                        </button>
-
-                        <button
-                          type="button"
-                          role="switch"
-                          aria-checked={source.isEnabled}
-                          class={`focus:ring-accent-soft focus:ring-offset-surface relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border transition-colors duration-200 focus:ring-2 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 ${
-                            source.isEnabled
-                              ? "border-indigo-400 bg-indigo-600"
-                              : "border-white/10 bg-white/10"
+                        <h4 class="text-ink truncate text-xs font-bold" title={db.name}>
+                          {db.name}
+                        </h4>
+                      </div>
+                      <!-- Per-database toggle: switches this database alone, independent of
+                               the offline mode and of every other database. -->
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={db.isActive}
+                        aria-label={db.name}
+                        disabled={offlineDbToggling === db.fileName}
+                        class={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border transition-colors duration-200 disabled:cursor-wait disabled:opacity-50 ${
+                          db.isActive
+                            ? "border-emerald-500/40 bg-emerald-600/90"
+                            : "border-white/10 bg-white/10"
+                        }`}
+                        onclick={() => handleToggleOfflineDb(db.fileName, !db.isActive)}
+                        title={db.isActive
+                          ? i18n.t.settingsModal.sources.offline.dbDisableTitle
+                          : i18n.t.settingsModal.sources.offline.dbEnableTitle}
+                      >
+                        <span
+                          aria-hidden="true"
+                          class={`pointer-events-none inline-block h-4 w-4 transform rounded-full shadow transition duration-200 ease-in-out ${
+                            db.isActive ? "translate-x-4 bg-white" : "translate-x-0 bg-slate-400"
                           }`}
-                          onclick={() => void handleToggleSource(source)}
-                          disabled={togglingSource === source.id}
-                          title={source.isEnabled
-                            ? i18n.t.settingsModal.sources.disable
-                            : i18n.t.settingsModal.sources.enable}
-                        >
-                          <span
-                            aria-hidden="true"
-                            class={`pointer-events-none inline-block h-5 w-5 transform rounded-full shadow ring-0 transition duration-200 ease-in-out ${
-                              source.isEnabled
-                                ? "translate-x-5 bg-white"
-                                : "translate-x-0 bg-slate-400"
-                            }`}
-                          ></span>
-                        </button>
-                      </div>
+                        ></span>
+                      </button>
                     </div>
+                    <div class="mt-2.5 flex items-center gap-2 text-[11px] text-slate-300">
+                      <span class="font-medium text-white"
+                        >{db.totalTitles.toLocaleString("ru-RU")} тайтлов</span
+                      >
+                      <span class="text-slate-500">•</span>
+                      <span>{formatBytes(db.fileSizeBytes)}</span>
+                    </div>
+                  </div>
+                  <div
+                    class="mt-2 flex items-center justify-between border-t border-white/5 pt-2 text-[10px] text-slate-500"
+                  >
+                    <code class="truncate text-slate-400">{db.fileName}</code>
+                    {#if deletingDump === db.fileName}
+                      <RefreshCw size={12} class="animate-spin text-slate-400" />
+                    {:else if db.sourceDumpFileName}
+                      <button
+                        type="button"
+                        onclick={() => handleDeleteDump(db)}
+                        class="shrink-0 rounded-lg border border-rose-500/30 bg-rose-500/10 px-2 py-0.5 text-[10px] font-medium text-rose-300 transition-colors hover:border-rose-400/50 hover:bg-rose-500/20 active:scale-95"
+                        title={i18n.t.settingsModal.sources.offline.deleteDumpTooltip}
+                      >
+                        {i18n.t.settingsModal.sources.offline.deleteDumpBtn}
+                      </button>
+                    {:else if db.isActive}
+                      <button
+                        type="button"
+                        onclick={() => onTestSearch?.(`offline:${db.fileName}`, db.type)}
+                        class="inline-flex items-center gap-1 rounded-lg border border-indigo-500/30 bg-indigo-500/15 px-2 py-0.5 text-[11px] font-medium text-indigo-200 transition-colors hover:border-indigo-400/50 hover:bg-indigo-500/25 active:scale-95"
+                        title={i18n.t.settingsModal.sources.offline.testSearchTooltip}
+                      >
+                        <span>🔍 {i18n.t.settingsModal.sources.offline.testSearchBtn}</span>
+                      </button>
+                    {/if}
+                  </div>
+                </div>
+              {/each}
+            </div>
+          {/if}
 
-                    {#if testResults[source.id]}
-                      <div class="mt-2.5 flex items-center gap-1.5 text-xs">
-                        {#if testResults[source.id].success}
+          <!-- Bottom Directory Hint -->
+          <div class="mt-4 border-t border-white/10 pt-3">
+            <p class="text-muted flex flex-wrap items-center gap-1.5 text-[11px]">
+              <FolderOpen size={13} class="shrink-0 text-slate-400" />
+              <span>
+                {i18n.t.settingsModal.sources.offline.hint}
+              </span>
+            </p>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-center justify-between gap-3 pt-2">
+          <div>
+            <h3 class="text-ink text-sm font-semibold">
+              {i18n.t.settingsModal.sources.title}
+            </h3>
+            <p class="text-muted mt-0.5 text-xs">
+              {i18n.t.settingsModal.sources.description}
+            </p>
+          </div>
+
+          <!-- Kind switcher: documented APIs vs site scrapers (Mihon-style extensions) -->
+          <div
+            class="bg-card/60 flex items-center gap-1 rounded-full border border-white/[0.06] p-1"
+          >
+            <button
+              type="button"
+              class={`inline-flex cursor-pointer items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${
+                sourceKindFilter === "api"
+                  ? "bg-accent-bright/20 text-[#a5b4fc] shadow-sm"
+                  : "text-muted hover:text-ink"
+              }`}
+              onclick={() => (sourceKindFilter = "api")}
+            >
+              <Zap size={13} />
+              {i18n.t.settingsModal.sources.kindApi}
+            </button>
+            <button
+              type="button"
+              class={`inline-flex cursor-pointer items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${
+                sourceKindFilter === "scraper"
+                  ? "bg-accent-bright/20 text-[#a5b4fc] shadow-sm"
+                  : "text-muted hover:text-ink"
+              }`}
+              onclick={() => (sourceKindFilter = "scraper")}
+            >
+              <Globe size={13} />
+              {i18n.t.settingsModal.sources.kindScrapers}
+            </button>
+          </div>
+
+          <!-- Media Type Filter Dropdown (kept across the kind switcher) -->
+          <div class="flex items-center gap-2">
+            <label for="source-type-filter" class="text-muted shrink-0 text-xs"
+              >{i18n.t.settingsModal.sources.filterLabel}:</label
+            >
+            <Select
+              id="source-type-filter"
+              options={[
+                { value: "all", label: i18n.t.settingsModal.sources.filterAll },
+                { value: "anime", label: i18n.t.navigation.anime },
+                { value: "manga", label: i18n.t.types.manga },
+                { value: "movie", label: i18n.t.types.movie },
+                { value: "tvshow", label: i18n.t.types.tvshow },
+                { value: "game", label: i18n.t.types.game },
+                { value: "book", label: i18n.t.types.book },
+              ]}
+              value={selectedTypeFilter}
+              onChange={(next) => (selectedTypeFilter = next)}
+              class="h-8 rounded-md px-2.5 text-xs"
+            />
+          </div>
+        </div>
+
+        {#if sourcesLoading}
+          <div class="space-y-4">
+            {#each Array(4) as _, i (i)}
+              <div class="bg-card h-24 animate-pulse rounded-xl"></div>
+            {/each}
+          </div>
+        {:else if sourcesError}
+          <p class="rounded-lg bg-rose-400/10 p-3 text-xs text-rose-300">
+            {errorMessage(sourcesError)}
+          </p>
+        {:else}
+          <div class="space-y-4">
+            {#each filteredSources as source (source.id)}
+              {@const theme = sourceThemeVars(source.id)}
+              <div
+                class="rounded-xl border bg-white/[0.02] p-4 transition hover:border-white/15 sm:p-5 {source.isEnabled ===
+                false
+                  ? 'opacity-65'
+                  : ''}"
+                style={`border-color: ${theme.border};`}
+              >
+                <div class="flex flex-wrap items-start justify-between gap-3">
+                  <div class="min-w-[200px] flex-1">
+                    <div class="flex flex-wrap items-center gap-2">
+                      <span
+                        class="size-2.5 shrink-0 rounded-full"
+                        style={`background: ${theme.accent};`}
+                        aria-hidden="true"
+                      ></span>
+                      <h4 class="text-ink text-sm font-bold">
+                        {source.name}
+                      </h4>
+                      {#if !source.isEnabled}
+                        <span
+                          class="inline-flex items-center rounded bg-zinc-500/15 px-2 py-0.5 text-[11px] font-semibold text-zinc-400"
+                        >
+                          {i18n.t.settingsModal.sources.disabledBadge}
+                        </span>
+                      {/if}
+                      {#if source.isScraper}
+                        <span
+                          class="inline-flex items-center gap-1 rounded bg-violet-500/15 px-2 py-0.5 text-[11px] font-semibold text-violet-300"
+                          title={i18n.t.settingsModal.sources.scraperBadge}
+                        >
+                          <Globe size={12} />
+                          {i18n.t.settingsModal.sources.scraperBadge}
+                        </span>
+                      {/if}
+                      {#if source.id === "sociallib"}
+                        <span
+                          class="inline-flex items-center gap-1 rounded bg-violet-500/15 px-2 py-0.5 text-[11px] font-semibold text-violet-300"
+                          title="Токен не нужен для поиска; нужен только для каталога 18+ и личных закладок"
+                        >
+                          <ShieldCheck size={12} />
+                          Опциональный токен (18+ / закладки)
+                        </span>
+                      {:else if source.optionalApiKey && !source.requiresApiKey}
+                        <span
+                          class="inline-flex items-center gap-1 rounded bg-sky-500/15 px-2 py-0.5 text-[11px] font-semibold text-sky-400"
+                          title={i18n.t.settingsModal.sources.optionalKeyHint}
+                        >
+                          <Key size={12} />
+                          {i18n.t.settingsModal.sources.optionalKey}
+                        </span>
+                      {:else if source.requiresApiKey}
+                        {#if source.hasKey}
                           <span
-                            class="inline-flex items-center gap-1 rounded bg-emerald-500/15 px-2 py-0.5 font-medium text-emerald-400"
+                            class="inline-flex items-center gap-1 rounded bg-emerald-500/15 px-2 py-0.5 text-[11px] font-semibold text-emerald-400"
                           >
                             <Check size={12} />
-                            {i18n.t.settingsModal.sources.testSuccess(
-                              testResults[source.id].latencyMs,
-                            )}
+                            {i18n.t.settingsModal.sources.keyConfigured}
                           </span>
                         {:else}
                           <span
-                            class="inline-flex items-center gap-1 rounded bg-rose-500/15 px-2 py-0.5 font-medium text-rose-400"
-                            title={testResults[source.id].message}
+                            class="inline-flex items-center gap-1 rounded bg-amber-500/15 px-2 py-0.5 text-[11px] font-semibold text-amber-400"
                           >
-                            <AlertCircle size={12} />
-                            {testResults[source.id].message ||
-                              i18n.t.settingsModal.sources.testFailed}
+                            <Key size={12} />
+                            {i18n.t.settingsModal.sources.keyRequired}
                           </span>
                         {/if}
-                      </div>
-                    {/if}
-
-                    {#if source.requiresApiKey || source.optionalApiKey}
-                      <div class="border-white/[0.07]/60 mt-3 border-t pt-3">
-                        {#if source.id === "sociallib"}
-                          <!-- SocialLib: авторизация через сессию браузера, форма API-ключа не нужна -->
-                          {#if source.hasKey && source.maskedKey}
-                            <div class="mb-3 flex flex-wrap items-center gap-2 text-xs">
-                              <span
-                                class="inline-flex items-center gap-1 rounded bg-emerald-500/15 px-2 py-0.5 font-semibold text-emerald-400"
-                              >
-                                <Check size={12} />
-                                Сессия активна
-                              </span>
-                              <span class="text-muted">Токен:</span>
-                              <code
-                                class="bg-canvas text-ink rounded px-2 py-0.5 font-mono text-[11px]"
-                                >{source.maskedKey}</code
-                              >
-                            </div>
-                          {:else}
-                            <p class="text-muted mb-3 flex items-start gap-1.5 text-xs">
-                              <Key size={12} class="mt-0.5 shrink-0 text-sky-400" />
-                              Ключ не требуется для поиска. Авторизация нужна только для каталога 18+
-                              и личных закладок.
-                            </p>
-                          {/if}
-
-                          <div class="flex flex-wrap items-center gap-2">
-                            <button
-                              type="button"
-                              class="bg-field text-ink hover:bg-card hover:border-accent-soft inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-white/10 px-3 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60"
-                              disabled={detectingSocialLib}
-                              onclick={handleDetectSocialLibSession}
-                            >
-                              <RefreshCw
-                                size={13}
-                                class={detectingSocialLib ? "animate-spin" : ""}
-                              />
-                              <span
-                                >{detectingSocialLib
-                                  ? i18n.t.common.loading
-                                  : "Подхватить сессию из браузера"}</span
-                              >
-                            </button>
-                            <button
-                              type="button"
-                              class="text-muted hover:text-ink inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-white/10 px-3 text-xs font-medium transition hover:border-white/20"
-                              onclick={() => (showSocialLibManualToken = !showSocialLibManualToken)}
-                            >
-                              <Key size={13} />
-                              <span>Ввести токен вручную</span>
-                            </button>
-                          </div>
-                          <p class="text-muted mt-1.5 text-[11px]">
-                            Ищет активную сессию MangaLib / RanobeLib / AnimeLib в браузерах
-                          </p>
-
-                          {#if showSocialLibManualToken}
-                            <div class="mt-3 flex flex-wrap items-center gap-2">
-                              <input
-                                type="password"
-                                class="bg-field text-ink placeholder:text-muted focus:border-accent-soft focus:ring-accent-soft h-8 min-w-[220px] flex-1 rounded-md border border-white/10 px-3 text-xs focus:ring-1 focus:outline-none"
-                                placeholder="Bearer-токен (accessToken с lib.social)"
-                                value={inputKeys[source.id] ?? ""}
-                                oninput={(e) =>
-                                  (inputKeys[source.id] = (
-                                    e.currentTarget as HTMLInputElement
-                                  ).value)}
-                              />
-                              <button
-                                type="button"
-                                class="bg-field text-ink hover:bg-card hover:border-accent-soft inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-white/10 px-3 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60"
-                                disabled={savingKey === source.id || !inputKeys[source.id]?.trim()}
-                                onclick={() => void handleSaveKey(source.id)}
-                              >
-                                <ShieldCheck size={13} />
-                                {savingKey === source.id
-                                  ? i18n.t.common.saving
-                                  : i18n.t.settingsModal.sources.saveKey}
-                              </button>
-                            </div>
-                          {/if}
-
-                          {#if keySuccess[source.id]}
-                            <p class="mt-2 text-xs font-medium text-emerald-400">
-                              {keySuccess[source.id]}
-                            </p>
-                          {/if}
-                          {#if keyErrors[source.id]}
-                            <p class="mt-2 text-xs text-rose-300">
-                              {errorMessage(keyErrors[source.id])}
-                            </p>
-                          {/if}
-                        {:else if source.id === "simkl"}
-                          <!-- Simkl: client_id below, plus a browser-session bearer on top —
-                               Auth V2 needs both, and the session can be picked up automatically. -->
-                          {#if simklSession?.hasKey}
-                            <div class="mb-3 flex flex-wrap items-center gap-2 text-xs">
-                              <span
-                                class="inline-flex items-center gap-1 rounded bg-emerald-500/15 px-2 py-0.5 font-semibold text-emerald-400"
-                              >
-                                <Check size={12} />
-                                Сессия активна
-                              </span>
-                              <span class="text-muted">Токен:</span>
-                              <code
-                                class="bg-canvas text-ink rounded px-2 py-0.5 font-mono text-[11px]"
-                                >{simklSession?.maskedKey}</code
-                              >
-                            </div>
-                          {:else}
-                            <p class="text-muted mb-3 flex items-start gap-1.5 text-xs">
-                              <Key size={12} class="mt-0.5 shrink-0 text-sky-400" />
-                              Client ID открывает публичный каталог. Сессия из браузера добавляет личные
-                              данные (списки, историю просмотров).
-                            </p>
-                          {/if}
-
-                          <div class="mb-3 flex flex-wrap items-center gap-2">
-                            <button
-                              type="button"
-                              class="bg-field text-ink hover:bg-card hover:border-accent-soft inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-white/10 px-3 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60"
-                              disabled={detectingSimkl}
-                              onclick={handleDetectSimklSession}
-                            >
-                              <RefreshCw size={13} class={detectingSimkl ? "animate-spin" : ""} />
-                              <span
-                                >{detectingSimkl
-                                  ? i18n.t.common.loading
-                                  : "Подхватить сессию из браузера"}</span
-                              >
-                            </button>
-                          </div>
-                          <p class="text-muted mt-1.5 text-[11px]">
-                            Ищет активную сессию simkl.com в браузерах; Client ID вводится ниже как
-                            обычно
-                          </p>
-
-                          {#if source.maskedKey}
-                            <div class="text-muted mb-2 flex items-center gap-2 text-xs">
-                              <span>{i18n.t.settingsModal.sources.currentKey}</span>
-                              <code
-                                class="bg-canvas text-ink rounded px-2 py-0.5 font-mono text-[11px]"
-                                >{source.maskedKey}</code
-                              >
-                            </div>
-                          {/if}
-
-                          <div class="flex flex-wrap items-center gap-2">
-                            <input
-                              type="password"
-                              class="bg-field text-ink placeholder:text-muted focus:border-accent-soft focus:ring-accent-soft h-8 min-w-[220px] flex-1 rounded-md border border-white/10 px-3 text-xs focus:ring-1 focus:outline-none"
-                              placeholder={source.hasKey
-                                ? i18n.t.settingsModal.sources.replaceKeyPlaceholder
-                                : i18n.t.settingsModal.sources.inputPlaceholder}
-                              value={inputKeys[source.id] ?? ""}
-                              oninput={(e) =>
-                                (inputKeys[source.id] = (
-                                  e.currentTarget as HTMLInputElement
-                                ).value)}
-                            />
-                            <button
-                              type="button"
-                              class="bg-field text-ink hover:bg-card hover:border-accent-soft inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-white/10 px-3 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60"
-                              disabled={savingKey === source.id || !inputKeys[source.id]?.trim()}
-                              onclick={() => void handleSaveKey(source.id)}
-                            >
-                              <ShieldCheck size={13} />
-                              {savingKey === source.id
-                                ? i18n.t.common.saving
-                                : i18n.t.settingsModal.sources.saveKey}
-                            </button>
-                          </div>
-
-                          {#if keySuccess[source.id]}
-                            <p class="mt-2 text-xs font-medium text-emerald-400">
-                              {keySuccess[source.id]}
-                            </p>
-                          {/if}
-                          {#if keyErrors[source.id]}
-                            <p class="mt-2 text-xs text-rose-300">
-                              {errorMessage(keyErrors[source.id])}
-                            </p>
-                          {/if}
-                        {:else}
-                          {#if source.optionalApiKey && !source.requiresApiKey}
-                            <p class="text-muted mb-2 flex items-start gap-1.5 text-xs">
-                              <Key size={12} class="mt-0.5 shrink-0 text-sky-400" />
-                              {i18n.t.settingsModal.sources.optionalKeyHint}
-                            </p>
-                          {/if}
-                          {#if source.maskedKey}
-                            <div class="text-muted mb-2 flex items-center gap-2 text-xs">
-                              <span>{i18n.t.settingsModal.sources.currentKey}</span>
-                              <code
-                                class="bg-canvas text-ink rounded px-2 py-0.5 font-mono text-[11px]"
-                                >{source.maskedKey}</code
-                              >
-                            </div>
-                          {/if}
-
-                          <div class="flex flex-wrap items-center gap-2">
-                            <div class="relative min-w-[200px] flex-1">
-                              <input
-                                type={showKeys[source.id] ? "text" : "password"}
-                                class="bg-field text-ink placeholder:text-muted focus:border-accent-soft focus:ring-accent-soft h-9 w-full rounded-md border border-white/10 px-3 pr-9 text-xs focus:ring-1 focus:outline-none"
-                                placeholder={source.hasKey
-                                  ? i18n.t.settingsModal.sources.replaceKeyPlaceholder
-                                  : i18n.t.settingsModal.sources.inputPlaceholder}
-                                value={inputKeys[source.id] ?? ""}
-                                oninput={(e) =>
-                                  (inputKeys[source.id] = (
-                                    e.currentTarget as HTMLInputElement
-                                  ).value)}
-                              />
-                              <button
-                                type="button"
-                                class="text-muted hover:text-ink absolute top-1/2 right-2 -translate-y-1/2 cursor-pointer"
-                                aria-label="Toggle key visibility"
-                                onclick={() => (showKeys[source.id] = !showKeys[source.id])}
-                              >
-                                {#if showKeys[source.id]}
-                                  <EyeOff size={14} />
-                                {:else}
-                                  <Eye size={14} />
-                                {/if}
-                              </button>
-                            </div>
-
-                            <!-- Save key button: Item 14 pointer cursor when active, not-allowed when disabled, no cursor-wait -->
-                            <button
-                              type="button"
-                              class="bg-field text-ink hover:bg-card hover:border-accent-soft inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-md border border-white/10 px-3 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60"
-                              class:cursor-wait={savingKey === source.id}
-                              disabled={savingKey === source.id || !inputKeys[source.id]?.trim()}
-                              onclick={() => void handleSaveKey(source.id)}
-                            >
-                              <ShieldCheck size={14} />
-                              {savingKey === source.id
-                                ? i18n.t.common.saving
-                                : i18n.t.settingsModal.sources.saveKey}
-                            </button>
-                          </div>
-
-                          {#if keySuccess[source.id]}
-                            <p class="mt-2 text-xs font-medium text-emerald-400">
-                              {keySuccess[source.id]}
-                            </p>
-                          {/if}
-                          {#if keyErrors[source.id]}
-                            <p class="mt-2 text-xs text-rose-300">
-                              {errorMessage(keyErrors[source.id])}
-                            </p>
-                          {/if}
-                        {/if}
-                      </div>
-                    {/if}
-                  </div>
-                {/each}
-
-                {#if sourceKindFilter === "scraper" && filteredSources.length === 0}
-                  <div
-                    class="rounded-xl border border-dashed border-white/15 bg-white/[0.02] p-8 text-center"
-                  >
-                    <div
-                      class="mx-auto grid h-12 w-12 place-items-center rounded-full bg-violet-500/15 text-violet-300"
-                    >
-                      <Globe size={22} />
-                    </div>
-                    <h4 class="text-ink mt-3 text-sm font-bold">
-                      {i18n.t.settingsModal.sources.scraperEmptyTitle}
-                    </h4>
-                    <p class="text-muted mx-auto mt-1.5 max-w-md text-xs leading-relaxed">
-                      {i18n.t.settingsModal.sources.scraperEmptyText}
-                    </p>
-                  </div>
-                {/if}
-              </div>
-            {/if}
-          </div>
-        {:else if activeTab === "import"}
-          <ImportPanel
-            {onImportCompleted}
-            onNavigateToList={(id) => {
-              onClose();
-              onNavigateToList?.(id);
-            }}
-          />
-        {:else if activeTab === "search"}
-          <div class="space-y-6">
-            <!-- Category order in All search -->
-            <div class="space-y-4">
-              <div>
-                <h3 class="text-ink text-sm font-semibold">
-                  {i18n.t.settingsModal.search.orderTitle}
-                </h3>
-                <p class="text-muted mt-0.5 text-xs">
-                  {i18n.t.settingsModal.search.orderHint}
-                </p>
-              </div>
-
-              {#if orderLoading}
-                <div class="bg-card h-32 animate-pulse rounded-lg"></div>
-              {:else}
-                <div class="space-y-2" role="list">
-                  {#each categoryOrder as cat, idx (cat)}
-                    <div
-                      role="listitem"
-                      animate:flip={{ duration: 180 }}
-                      class="group flex cursor-grab items-center justify-between rounded-lg border p-3 transition-colors {draggedIndex ===
-                      idx
-                        ? 'pointer-events-none border-indigo-500/60 bg-indigo-500/[0.06] opacity-40'
-                        : 'border-white/10 bg-white/[0.02] hover:border-white/20'}"
-                      draggable="true"
-                      ondragstart={(e) => handleDragStart(idx, e)}
-                      ondragover={(e) => handleDragOver(idx, e)}
-                      ondrop={(e) => {
-                        e.preventDefault();
-                        void finishCategoryDrag();
-                      }}
-                      ondragend={() => void finishCategoryDrag()}
-                    >
-                      <!-- Left: position number + category name -->
-                      <div class="flex min-w-36 items-center gap-3">
+                      {:else}
                         <span
-                          class="flex h-6 w-6 items-center justify-center rounded bg-white/5 text-xs font-semibold text-slate-400 tabular-nums"
+                          class="inline-flex items-center gap-1 rounded bg-sky-500/15 px-2 py-0.5 text-[11px] font-semibold text-sky-400"
                         >
-                          {idx + 1}
+                          <ShieldCheck size={12} />
+                          {i18n.t.settingsModal.sources.noKeyRequired}
                         </span>
-                        <span class="text-ink text-sm font-semibold">{categoryLabel(cat)}</span>
-                      </div>
-
-                      <!-- Center: drag handle in the middle of the row -->
-                      <div class="flex flex-1 items-center justify-center">
-                        <div
-                          class="rounded-md p-1.5 text-slate-500 transition group-hover:text-slate-300 hover:bg-white/5 active:cursor-grabbing"
-                          title={i18n.t.settingsModal.search.dragHint}
-                        >
-                          <GripVertical size={18} class="rotate-90 sm:rotate-0" />
-                        </div>
-                      </div>
-
-                      <!-- Right: accessible fallback buttons -->
-                      <div class="flex items-center gap-1">
-                        <button
-                          type="button"
-                          class="text-muted hover:bg-elevated hover:text-ink grid h-7 w-7 cursor-pointer place-items-center rounded-md transition disabled:cursor-not-allowed disabled:opacity-30"
-                          disabled={idx === 0 || orderSaving}
-                          aria-label={i18n.t.settingsModal.search.moveUp}
-                          onclick={() => void moveCategory(idx, "up")}
-                        >
-                          <ChevronUp size={16} />
-                        </button>
-                        <button
-                          type="button"
-                          class="text-muted hover:bg-elevated hover:text-ink grid h-7 w-7 cursor-pointer place-items-center rounded-md transition disabled:cursor-not-allowed disabled:opacity-30"
-                          disabled={idx === categoryOrder.length - 1 || orderSaving}
-                          aria-label={i18n.t.settingsModal.search.moveDown}
-                          onclick={() => void moveCategory(idx, "down")}
-                        >
-                          <ChevronDown size={16} />
-                        </button>
-                      </div>
+                      {/if}
                     </div>
-                  {/each}
-                </div>
-
-                {#if orderSuccess}
-                  <p class="text-xs font-medium text-emerald-400">
-                    {i18n.t.settingsModal.search.saved}
-                  </p>
-                {/if}
-              {/if}
-            </div>
-
-            <!-- Source search priority with fallback (Item 16) -->
-            <div class="space-y-4 border-t border-white/[0.07] pt-6">
-              <div>
-                <h3 class="text-ink text-sm font-semibold">
-                  {i18n.t.settingsModal.search.sourcePriorityTitle}
-                </h3>
-                <p class="text-muted mt-0.5 text-xs">
-                  {i18n.t.settingsModal.search.sourcePriorityHint}
-                </p>
-              </div>
-
-              {#if priorityLoading}
-                <div class="bg-card h-28 animate-pulse rounded-lg"></div>
-              {:else}
-                <div class="space-y-4">
-                  {#each Object.entries(sourcePriority) as [mediaType, providers] (mediaType)}
-                    {#if providers && providers.length > 1}
-                      <div class="bg-field/60 space-y-2 rounded-lg border border-white/10 p-3.5">
-                        <div class="flex items-center justify-between">
-                          <h4 class="text-accent-soft text-xs font-bold tracking-wider uppercase">
-                            {categoryLabel(mediaType)}
-                          </h4>
-                          <span class="text-muted text-[11px]"
-                            >{i18n.t.settingsModal.sources.providersCount(providers.length)}</span
-                          >
-                        </div>
-                        <div class="space-y-1.5" role="list">
-                          {#each providers as provId, pIdx (provId)}
-                            <div
-                              role="listitem"
-                              animate:flip={{ duration: 180 }}
-                              draggable="true"
-                              ondragstart={(e) => handleSourceDragStart(mediaType, pIdx, e)}
-                              ondragover={(e) => handleSourceDragOver(mediaType, pIdx, e)}
-                              ondrop={(e) => {
-                                e.preventDefault();
-                                void finishSourceDrag();
-                              }}
-                              ondragend={() => void finishSourceDrag()}
-                              class="border-border/70 bg-surface flex cursor-grab items-center justify-between rounded-md border px-3 py-2 {draggedSource?.type ===
-                                mediaType && draggedSource.index === pIdx
-                                ? 'pointer-events-none border-indigo-500/60 bg-indigo-500/10 opacity-40'
-                                : draggedSource?.type === mediaType
-                                  ? 'border-indigo-500/25'
-                                  : ''} {isSourceDisabled(provId)
-                                ? 'bg-surface/50 opacity-60'
-                                : ''}"
-                            >
-                              <div class="flex items-center gap-2.5">
-                                <GripVertical
-                                  size={14}
-                                  class="text-muted/60 shrink-0 cursor-grab"
-                                  aria-hidden="true"
-                                />
-                                <span
-                                  class="bg-canvas text-muted grid h-5 w-5 place-items-center rounded text-[11px] font-bold"
-                                >
-                                  {pIdx + 1}
-                                </span>
-                                <span class="text-ink text-xs font-medium"
-                                  >{getSourceName(provId)}</span
-                                >
-                                {#if isSourceDisabled(provId)}
-                                  <span
-                                    class="rounded bg-zinc-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-400"
-                                  >
-                                    {i18n.t.settingsModal.sources.disabledBadge}
-                                  </span>
-                                {/if}
-                                {#if pIdx === 0}
-                                  <span
-                                    class="rounded bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-400"
-                                    >{i18n.t.settingsModal.search.primary}</span
-                                  >
-                                {:else}
-                                  <span
-                                    class="bg-canvas text-muted rounded px-1.5 py-0.5 text-[10px]"
-                                    >{i18n.t.settingsModal.search.fallback(pIdx + 1)}</span
-                                  >
-                                {/if}
-                              </div>
-                              <div class="flex items-center gap-1">
-                                <button
-                                  type="button"
-                                  class="text-muted hover:bg-elevated hover:text-ink grid h-6 w-6 cursor-pointer place-items-center rounded transition disabled:cursor-not-allowed disabled:opacity-30"
-                                  disabled={pIdx === 0 || prioritySaving}
-                                  aria-label={i18n.t.settingsModal.search.moveUp}
-                                  onclick={() => void moveSourcePriority(mediaType, pIdx, "up")}
-                                >
-                                  <ChevronUp size={14} />
-                                </button>
-                                <button
-                                  type="button"
-                                  class="text-muted hover:bg-elevated hover:text-ink grid h-6 w-6 cursor-pointer place-items-center rounded transition disabled:cursor-not-allowed disabled:opacity-30"
-                                  disabled={pIdx === providers.length - 1 || prioritySaving}
-                                  aria-label={i18n.t.settingsModal.search.moveDown}
-                                  onclick={() => void moveSourcePriority(mediaType, pIdx, "down")}
-                                >
-                                  <ChevronDown size={14} />
-                                </button>
-                              </div>
-                            </div>
-                          {/each}
-                        </div>
-                      </div>
-                    {/if}
-                  {/each}
-                </div>
-              {/if}
-            </div>
-          </div>
-        {:else if activeTab === "backup"}
-          <div class="space-y-6">
-            <!-- Export Section (Neutral / Safe) -->
-            <div class="rounded-xl border border-white/10 bg-white/[0.02] p-5">
-              <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div class="max-w-xl">
-                  <h3 class="text-ink text-sm font-semibold">
-                    {i18n.t.settingsModal.backup.exportTitle}
-                  </h3>
-                  <p class="text-muted mt-1 text-xs leading-relaxed">
-                    {i18n.t.settingsModal.backup.exportDescription}
-                  </p>
-                </div>
-                <div class="shrink-0">
-                  <button
-                    type="button"
-                    class="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-60"
-                    class:cursor-wait={isExporting}
-                    disabled={isExporting}
-                    onclick={handleExportBackup}
-                  >
-                    {#if isExporting}
-                      <LoaderCircle size={14} class="animate-spin" />
-                      {i18n.t.settingsModal.backup.exporting}
-                    {:else}
-                      <ArrowDown size={14} />
-                      {i18n.t.settingsModal.backup.exportButton}
-                    {/if}
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <!-- Data Table Export (Neutral / Safe) -->
-            <div class="rounded-xl border border-white/10 bg-white/[0.02] p-5">
-              <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div class="max-w-xl">
-                  <h3 class="text-ink text-sm font-semibold">
-                    {i18n.t.settingsModal.backup.exportDataTitle}
-                  </h3>
-                  <p class="text-muted mt-1 text-xs leading-relaxed">
-                    {i18n.t.settingsModal.backup.exportDataDescription}
-                  </p>
-                </div>
-                <div class="flex shrink-0 gap-2">
-                  <button
-                    type="button"
-                    class="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-indigo-500/40 bg-indigo-500/10 px-4 py-2 text-xs font-semibold text-indigo-300 transition hover:bg-indigo-500/20 disabled:cursor-not-allowed disabled:opacity-60"
-                    disabled={Boolean(exportingTableFormat)}
-                    onclick={() => handleExportTable("json")}
-                  >
-                    {#if exportingTableFormat === "json"}
-                      <LoaderCircle size={14} class="animate-spin" />
-                      {i18n.t.settingsModal.backup.exportingTable}
-                    {:else}
-                      <FileText size={14} />
-                      {i18n.t.settingsModal.backup.exportJsonButton}
-                    {/if}
-                  </button>
-                  <button
-                    type="button"
-                    class="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 text-xs font-semibold text-emerald-300 transition hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-60"
-                    disabled={Boolean(exportingTableFormat)}
-                    onclick={() => handleExportTable("csv")}
-                  >
-                    {#if exportingTableFormat === "csv"}
-                      <LoaderCircle size={14} class="animate-spin" />
-                      {i18n.t.settingsModal.backup.exportingTable}
-                    {:else}
-                      <ArrowDown size={14} />
-                      {i18n.t.settingsModal.backup.exportCsvButton}
-                    {/if}
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <!-- Restore Section (Warning Zone - Amber) -->
-            <div class="rounded-xl border border-amber-500/25 bg-amber-500/5 p-5">
-              <div
-                class="flex items-center gap-2 text-xs font-bold tracking-wider text-amber-400 uppercase"
-              >
-                <AlertTriangle size={16} />
-                <h3>
-                  {i18n.t.settingsModal.backup.dangerZone}: {i18n.t.settingsModal.backup
-                    .restoreTitle}
-                </h3>
-              </div>
-              <p class="mt-1 text-xs text-slate-400">
-                {i18n.t.settingsModal.backup.restoreDescription}
-              </p>
-              <div class="mt-4">
-                <input
-                  bind:this={fileInputRef}
-                  type="file"
-                  accept=".zip"
-                  class="hidden"
-                  onchange={handleFileSelected}
-                />
-                <button
-                  type="button"
-                  class="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-2 text-xs font-semibold text-amber-300 transition hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-60"
-                  disabled={isRestoring}
-                  onclick={() => fileInputRef?.click()}
-                >
-                  <RotateCcw size={14} />
-                  {i18n.t.settingsModal.backup.selectFileButton}
-                </button>
-              </div>
-            </div>
-
-            <!-- Reset Section (Danger Zone - Rose) -->
-            <div class="rounded-xl border border-rose-500/25 bg-rose-500/5 p-5">
-              <div
-                class="flex items-center gap-2 text-xs font-bold tracking-wider text-rose-400 uppercase"
-              >
-                <AlertCircle size={16} />
-                <h3>
-                  {i18n.t.settingsModal.backup.dangerZone}: {i18n.t.settingsModal.backup.resetTitle}
-                </h3>
-              </div>
-              <p class="mt-1 text-xs text-slate-400">
-                {i18n.t.settingsModal.backup.resetDescription}
-              </p>
-              <button
-                type="button"
-                class="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-lg bg-rose-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-rose-500 disabled:cursor-not-allowed disabled:opacity-60"
-                disabled={isResetting}
-                onclick={() => (showResetConfirm = true)}
-              >
-                <Trash2 size={14} />
-                {i18n.t.settingsModal.backup.resetButton}
-              </button>
-            </div>
-          </div>
-        {:else if activeTab === "reading"}
-          <section class="space-y-6">
-            <div>
-              <h3 class="text-ink text-sm font-semibold">
-                {i18n.t.settingsModal.reading.title}
-              </h3>
-              <p class="text-muted mt-1 text-xs">
-                {i18n.t.settingsModal.reading.description}
-              </p>
-            </div>
-
-            <div class="max-w-md space-y-5">
-              <div class="space-y-1.5">
-                <label for="book-page-speed" class="block text-xs font-semibold text-slate-300">
-                  {i18n.t.settingsModal.reading.bookPageMinutes}
-                </label>
-                <input
-                  id="book-page-speed"
-                  type="number"
-                  min="0.2"
-                  max="10.0"
-                  step="0.1"
-                  class="bg-field text-ink focus:border-accent-soft focus:ring-accent-soft w-full rounded-lg border border-white/10 px-3 py-2 text-sm transition outline-none focus:ring-1"
-                  bind:value={readingBookPageMinutes}
-                />
-                <p class="text-muted text-[11px]">
-                  По умолчанию: 1.5 мин/стр. Диапазон: 0.2 – 10.0
-                </p>
-              </div>
-
-              <div class="space-y-1.5">
-                <label for="manga-chapter-speed" class="block text-xs font-semibold text-slate-300">
-                  {i18n.t.settingsModal.reading.mangaChapterMinutes}
-                </label>
-                <input
-                  id="manga-chapter-speed"
-                  type="number"
-                  min="0.5"
-                  max="30.0"
-                  step="0.5"
-                  class="bg-field text-ink focus:border-accent-soft focus:ring-accent-soft w-full rounded-lg border border-white/10 px-3 py-2 text-sm transition outline-none focus:ring-1"
-                  bind:value={readingMangaChapterMinutes}
-                />
-                <p class="text-muted text-[11px]">По умолчанию: 6.0 мин/гл. Диапазон: 0.5 – 30.0</p>
-              </div>
-
-              <div class="pt-2">
-                <button
-                  type="button"
-                  disabled={isSavingReading}
-                  class="bg-accent hover:bg-accent-hover inline-flex cursor-pointer items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-50"
-                  onclick={handleSaveReadingSpeed}
-                >
-                  {#if isSavingReading}
-                    <LoaderCircle size={15} class="animate-spin" />
-                  {/if}
-                  {i18n.t.settingsModal.reading.saveButton}
-                </button>
-              </div>
-            </div>
-          </section>
-        {:else if activeTab === "update"}
-          <section class="space-y-6">
-            <h3 class="text-ink text-base font-bold">Обновление</h3>
-            {#if isCheckingUpdate}
-              <div class="text-muted flex items-center gap-2 text-sm">
-                <LoaderCircle class="animate-spin" size={16} /> Проверка...
-              </div>
-            {:else if updateCheck}
-              <div class="space-y-2">
-                <p class="text-sm">Версия: {updateCheck.currentVersion}</p>
-                {#if updateCheck.isUpdateAvailable && updateCheck.canSelfUpdate}
-                  <p class="font-bold text-emerald-400">
-                    Доступна версия {updateCheck.latestVersion}
-                  </p>
-                  <button
-                    type="button"
-                    onclick={handleApplyUpdate}
-                    disabled={isApplyingUpdate}
-                    class="bg-accent rounded px-4 py-2 text-xs font-semibold text-white"
-                    >Обновить и перезапустить</button
-                  >
-                  {#if updateCheck.releaseNotes}
-                    <div
-                      class="text-muted mt-4 rounded bg-black/20 p-4 text-xs whitespace-pre-wrap"
-                    >
-                      {updateCheck.releaseNotes}
-                    </div>
-                  {/if}
-                {:else if updateCheck.isUpdateAvailable}
-                  <p class="text-xs text-rose-400">
-                    Обновление доступно, но автообновление недоступно.
-                  </p>
-                {:else}
-                  <p class="text-muted text-sm">Установлена актуальная версия.</p>
-                {/if}
-              </div>
-            {/if}
-          </section>
-        {:else if activeTab === "storage"}
-          <section class="space-y-6">
-            <div>
-              <h3 class="text-ink text-base font-bold">
-                {i18n.t.settingsModal.storage.title}
-              </h3>
-              <p class="text-muted mt-1 text-xs leading-relaxed">
-                {i18n.t.settingsModal.storage.description}
-              </p>
-            </div>
-
-            {#if storageError}
-              <p class="rounded-lg bg-rose-400/10 p-3 text-xs text-rose-300">
-                {errorMessage(storageError)}
-              </p>
-            {:else if storage}
-              <div class="bg-card space-y-5 rounded-xl border border-white/[0.08] p-5">
-                <div class="space-y-2">
-                  <span class="block text-xs font-semibold text-slate-300">
-                    {i18n.t.settingsModal.storage.title}
-                  </span>
-                  <div class="grid gap-2.5 sm:grid-cols-3">
-                    <label
-                      class={`flex cursor-pointer items-center gap-3 rounded-xl border p-3.5 transition ${
-                        storageMode === "default"
-                          ? "border-indigo-500/60 bg-indigo-500/15 text-white ring-1 ring-indigo-500/30"
-                          : "border-white/10 bg-white/[0.02] text-slate-300 hover:border-white/20"
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        bind:group={storageMode}
-                        value="default"
-                        class="sr-only"
-                      />
-                      <Server
-                        size={18}
-                        class="shrink-0 {storageMode === 'default'
-                          ? 'text-indigo-400'
-                          : 'text-slate-400'}"
-                      />
-                      <span class="text-xs leading-snug font-semibold">
-                        {i18n.t.settingsModal.storage.modeDefault}
-                      </span>
-                    </label>
-                    <label
-                      class={`flex cursor-pointer items-center gap-3 rounded-xl border p-3.5 transition ${
-                        storageMode === "portable"
-                          ? "border-indigo-500/60 bg-indigo-500/15 text-white ring-1 ring-indigo-500/30"
-                          : "border-white/10 bg-white/[0.02] text-slate-300 hover:border-white/20"
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        bind:group={storageMode}
-                        value="portable"
-                        class="sr-only"
-                      />
-                      <Archive
-                        size={18}
-                        class="shrink-0 {storageMode === 'portable'
-                          ? 'text-indigo-400'
-                          : 'text-slate-400'}"
-                      />
-                      <span class="text-xs leading-snug font-semibold">
-                        {i18n.t.settingsModal.storage.modePortable}
-                      </span>
-                    </label>
-                    <label
-                      class={`flex cursor-pointer items-center gap-3 rounded-xl border p-3.5 transition ${
-                        storageMode === "custom"
-                          ? "border-indigo-500/60 bg-indigo-500/15 text-white ring-1 ring-indigo-500/30"
-                          : "border-white/10 bg-white/[0.02] text-slate-300 hover:border-white/20"
-                      }`}
-                    >
-                      <input type="radio" bind:group={storageMode} value="custom" class="sr-only" />
-                      <FolderOpen
-                        size={18}
-                        class="shrink-0 {storageMode === 'custom'
-                          ? 'text-indigo-400'
-                          : 'text-slate-400'}"
-                      />
-                      <span class="text-xs leading-snug font-semibold">
-                        {i18n.t.settingsModal.storage.modeCustom}
-                      </span>
-                    </label>
-                  </div>
-                </div>
-
-                {#if storageMode === "custom"}
-                  <div class="space-y-1.5" transition:slide={{ duration: 150 }}>
-                    <label
-                      for="custom-path-input"
-                      class="block text-xs font-semibold text-slate-300"
-                    >
-                      {i18n.t.settingsModal.storage.customPathLabel}
-                    </label>
-                    <input
-                      id="custom-path-input"
-                      type="text"
-                      bind:value={customPathInput}
-                      placeholder={i18n.t.settingsModal.storage.customPathPlaceholder}
-                      class="bg-field text-ink focus:border-accent-soft focus:ring-accent-soft h-10 w-full rounded-lg border border-white/10 px-3 text-xs transition outline-none focus:ring-1"
-                    />
-                  </div>
-                {/if}
-
-                <label
-                  class="flex cursor-pointer items-center gap-2 text-sm text-slate-200 hover:text-white"
-                >
-                  <input
-                    type="checkbox"
-                    bind:checked={migrateExistingData}
-                    class="accent-accent-soft shrink-0"
-                  />
-                  {i18n.t.settingsModal.storage.migrateLabel}
-                </label>
-
-                <div class="space-y-2 border-t border-white/5 pt-2">
-                  <div
-                    class="flex items-center justify-between gap-3 rounded-lg border border-white/5 bg-black/20 p-2.5 text-xs"
-                  >
-                    <span class="shrink-0 font-medium text-slate-400">
-                      {i18n.t.settingsModal.storage.dbPathLabel}
-                    </span>
-                    <span
-                      class="truncate font-mono text-[11px] text-slate-200 select-all"
-                      title={storage.defaultDirectory}
-                    >
-                      {storage.defaultDirectory}
-                    </span>
-                  </div>
-                  <div
-                    class="flex items-center justify-between gap-3 rounded-lg border border-white/5 bg-black/20 p-2.5 text-xs"
-                  >
-                    <span class="shrink-0 font-medium text-slate-400">
-                      {i18n.t.settingsModal.storage.coversPathLabel}
-                    </span>
-                    <span
-                      class="truncate font-mono text-[11px] text-slate-200 select-all"
-                      title={storage.portableDirectory}
-                    >
-                      {storage.portableDirectory}
-                    </span>
-                  </div>
-                  <div
-                    class="flex items-center justify-between gap-3 rounded-lg border border-white/5 bg-black/20 p-2.5 text-xs"
-                  >
-                    <span class="shrink-0 font-medium text-slate-400">
-                      {i18n.t.settingsModal.storage.logsPathLabel}
-                    </span>
-                    <span
-                      class="truncate font-mono text-[11px] text-slate-200 select-all"
-                      title={storage.defaultDirectory}
-                    >
-                      {storage.defaultDirectory}
-                    </span>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  disabled={isSavingStorage}
-                  class="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
-                  onclick={handleSaveStorage}
-                >
-                  {#if isSavingStorage}
-                    <LoaderCircle size={15} class="animate-spin" />
-                  {/if}
-                  {i18n.t.settingsModal.storage.saveButton}
-                </button>
-              </div>
-            {/if}
-
-            <!-- Franchise rescan tool: groups seasons/sequels/adaptations into franchises -->
-            <div
-              class="rounded-2xl border border-white/10 bg-white/[0.02] p-5 transition hover:border-white/[0.14]"
-            >
-              <div class="flex items-start gap-3">
-                <GitBranch size={18} class="mt-0.5 shrink-0 text-indigo-400" />
-                <div class="min-w-0 flex-1">
-                  <h4 class="text-ink text-sm font-bold">
-                    {i18n.t.settingsModal.storage.franchiseRescanTitle}
-                  </h4>
-                  <p class="text-muted mt-0.5 text-xs leading-relaxed">
-                    {i18n.t.settingsModal.storage.franchiseRescanDescription}
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                disabled={franchiseRescanning}
-                class="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
-                onclick={handleRescanFranchises}
-              >
-                {#if franchiseRescanning}
-                  <LoaderCircle size={15} class="animate-spin" />
-                {:else}
-                  <GitBranch size={15} />
-                {/if}
-                {i18n.t.settingsModal.storage.franchiseRescanButton}
-              </button>
-            </div>
-          </section>
-        {:else if activeTab === "appearance"}
-          <section class="space-y-6">
-            <div>
-              <h3 class="text-ink text-base font-bold">
-                {i18n.t.settingsModal.appearance.title}
-              </h3>
-              <p class="text-muted mt-1 text-xs leading-relaxed">
-                {i18n.t.settingsModal.appearance.description}
-              </p>
-            </div>
-
-            <!-- App icon picker -->
-            <div
-              class="rounded-2xl border border-white/10 bg-white/[0.02] p-5 transition hover:border-white/[0.14]"
-            >
-              <h4 class="text-ink text-sm font-bold">
-                {i18n.t.settingsModal.appearance.appIconTitle}
-              </h4>
-              <p class="text-muted mt-0.5 text-xs">
-                {i18n.t.settingsModal.appearance.appIconDescription}
-              </p>
-
-              <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <!-- Default icon -->
-                <button
-                  type="button"
-                  class={`relative cursor-pointer rounded-2xl border p-4 text-left transition ${
-                    uiSettings.appIcon === "default"
-                      ? "border-indigo-500/60 bg-indigo-500/10 ring-1 ring-indigo-500/30"
-                      : "border-white/10 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04]"
-                  }`}
-                  onclick={() => uiSettings.setAppIcon("default")}
-                >
-                  {#if uiSettings.appIcon === "default"}
-                    <span
-                      class="absolute top-3 right-3 grid size-6 place-items-center rounded-full bg-indigo-500 text-white shadow-md"
-                    >
-                      <Check size={14} />
-                    </span>
-                  {/if}
-                  <div class="flex items-center gap-4">
-                    <img
-                      src="/icons/default.png"
-                      alt={i18n.t.settingsModal.appearance.iconDefaultTitle}
-                      class="size-16 rounded-2xl object-cover shadow-lg ring-1 ring-white/10"
-                    />
-                    <div class="min-w-0">
-                      <p class="text-ink text-sm font-semibold">
-                        {i18n.t.settingsModal.appearance.iconDefaultTitle}
-                      </p>
-                      <p class="text-muted mt-0.5 text-xs">
-                        {i18n.t.settingsModal.appearance.iconDefaultDescription}
-                      </p>
-                    </div>
-                  </div>
-                </button>
-
-                <!-- Alternative icon; falls back to the default when the file is not shipped yet -->
-                <button
-                  type="button"
-                  class={`relative cursor-pointer rounded-2xl border p-4 text-left transition ${
-                    uiSettings.appIcon === "alt"
-                      ? "border-indigo-500/60 bg-indigo-500/10 ring-1 ring-indigo-500/30"
-                      : "border-white/10 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04]"
-                  }`}
-                  onclick={() => uiSettings.setAppIcon("alt")}
-                >
-                  {#if uiSettings.appIcon === "alt"}
-                    <span
-                      class="absolute top-3 right-3 grid size-6 place-items-center rounded-full bg-indigo-500 text-white shadow-md"
-                    >
-                      <Check size={14} />
-                    </span>
-                  {/if}
-                  <div class="flex items-center gap-4">
-                    <img
-                      src="/icons/alt.png"
-                      alt={i18n.t.settingsModal.appearance.iconAltTitle}
-                      class="size-16 rounded-2xl object-cover shadow-lg ring-1 ring-white/10"
-                      onerror={(e) => {
-                        (e.currentTarget as HTMLImageElement).src = "/icons/default.png";
-                      }}
-                    />
-                    <div class="min-w-0">
-                      <p class="text-ink text-sm font-semibold">
-                        {i18n.t.settingsModal.appearance.iconAltTitle}
-                      </p>
-                      <p class="text-muted mt-0.5 text-xs">
-                        {i18n.t.settingsModal.appearance.iconAltDescription}
-                      </p>
-                    </div>
-                  </div>
-                </button>
-              </div>
-            </div>
-
-            <!-- Accent color: reserved for a future release -->
-            <div
-              class="relative overflow-hidden rounded-2xl border border-dashed border-white/10 bg-white/[0.01] p-5 opacity-60"
-            >
-              <span
-                class="absolute top-4 right-4 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-0.5 text-[10px] font-semibold tracking-wide text-slate-400 uppercase"
-              >
-                {i18n.t.settingsModal.appearance.comingSoon}
-              </span>
-              <h4 class="text-ink text-sm font-bold">
-                {i18n.t.settingsModal.appearance.accentColorTitle}
-              </h4>
-              <p class="text-muted mt-0.5 text-xs">
-                {i18n.t.settingsModal.appearance.accentColorDescription}
-              </p>
-              <div class="mt-3 flex gap-2">
-                {#each ["#8b5cf6", "#10b981", "#06b6d4"] as color (color)}
-                  <span
-                    class="size-7 rounded-full ring-1 ring-white/15"
-                    style={`background:${color}`}
-                  ></span>
-                {/each}
-              </div>
-            </div>
-          </section>
-        {:else if activeTab === "desktop"}
-          <section class="space-y-6">
-            <div>
-              <h3 class="text-ink text-base font-bold">
-                {i18n.t.settingsModal.launchMode.title}
-              </h3>
-              <p class="text-muted mt-1 text-xs leading-relaxed">
-                {i18n.t.settingsModal.launchMode.description}
-              </p>
-            </div>
-
-            <div class="bg-card grid gap-2.5 rounded-xl border border-white/[0.08] p-5">
-              {#each launchModeOptions as option (option.value)}
-                <label
-                  class={`flex items-start gap-3 rounded-xl border p-3.5 transition ${
-                    appSettingsSaving ? "cursor-wait opacity-70" : "cursor-pointer"
-                  } ${
-                    appSettings.launchMode === option.value
-                      ? "border-indigo-500/60 bg-indigo-500/15 ring-1 ring-indigo-500/30"
-                      : "border-white/10 bg-white/[0.02] hover:border-white/20"
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="launch-mode"
-                    value={option.value}
-                    checked={appSettings.launchMode === option.value}
-                    onchange={() => void updateAppSettings({ launchMode: option.value })}
-                    disabled={appSettingsSaving}
-                    class="sr-only"
-                  />
-                  <span
-                    class={`mt-0.5 h-4 w-4 shrink-0 rounded-full border transition ${
-                      appSettings.launchMode === option.value
-                        ? "border-4 border-indigo-400"
-                        : "border-white/25"
-                    }`}
-                  ></span>
-                  <span>
-                    <span class="block text-sm font-semibold text-white">{option.label}</span>
-                    <span class="text-muted mt-0.5 block text-xs leading-snug">
-                      {option.description}
-                    </span>
-                  </span>
-                </label>
-              {/each}
-            </div>
-
-            <div>
-              <h3 class="text-ink text-base font-bold">
-                {i18n.t.settingsModal.closeBehavior.title}
-              </h3>
-              <p class="text-muted mt-1 text-xs leading-relaxed">
-                {i18n.t.settingsModal.closeBehavior.description}
-              </p>
-            </div>
-
-            <div
-              class={`bg-card grid gap-2.5 rounded-xl border border-white/[0.08] p-5 transition ${
-                appSettings.launchMode === "app_window" ? "" : "opacity-50"
-              }`}
-            >
-              {#each closeActionOptions as option (option.value)}
-                {@const disabled = appSettings.launchMode !== "app_window" || appSettingsSaving}
-                <label
-                  class={`flex items-start gap-3 rounded-xl border p-3.5 transition ${
-                    disabled ? "cursor-not-allowed" : "cursor-pointer"
-                  } ${
-                    appSettings.closeAction === option.value
-                      ? "border-indigo-500/60 bg-indigo-500/15 ring-1 ring-indigo-500/30"
-                      : "border-white/10 bg-white/[0.02] hover:border-white/20"
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="close-action"
-                    value={option.value}
-                    checked={appSettings.closeAction === option.value}
-                    onchange={() => void updateAppSettings({ closeAction: option.value })}
-                    {disabled}
-                    class="sr-only"
-                  />
-                  <span
-                    class={`mt-0.5 h-4 w-4 shrink-0 rounded-full border transition ${
-                      appSettings.closeAction === option.value
-                        ? "border-4 border-indigo-400"
-                        : "border-white/25"
-                    }`}
-                  ></span>
-                  <span>
-                    <span class="block text-sm font-semibold text-white">{option.label}</span>
-                    <span class="text-muted mt-0.5 block text-xs leading-snug">
-                      {option.description}
-                    </span>
-                  </span>
-                </label>
-              {/each}
-            </div>
-
-            <div class="bg-card rounded-xl border border-white/[0.08] p-5">
-              <button
-                type="button"
-                class="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-rose-400/30 bg-rose-500/10 px-4 py-2 text-sm font-semibold text-rose-200 transition hover:bg-rose-500/20"
-                onclick={() => void exitApp()}
-              >
-                <X size={16} />
-                {i18n.t.settingsModal.exitApp.button}
-              </button>
-            </div>
-          </section>
-        {:else if activeTab === "apiTokens"}
-          <section class="space-y-6">
-            <!-- Header -->
-            <div
-              class="flex flex-col gap-4 border-b border-white/[0.08] pb-5 sm:flex-row sm:items-center sm:justify-between"
-            >
-              <div>
-                <h3 class="text-ink text-base font-bold">
-                  {i18n.t.settingsModal.apiTokens.title}
-                </h3>
-                <p class="text-muted mt-1 max-w-xl text-xs leading-relaxed">
-                  {i18n.t.settingsModal.apiTokens.description}
-                </p>
-              </div>
-              <div class="flex shrink-0 items-center gap-2.5">
-                <a
-                  href="/api/docs"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="inline-flex h-9 cursor-pointer items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3.5 text-xs font-semibold text-slate-200 transition hover:bg-white/10"
-                >
-                  <span>{i18n.t.settingsModal.apiTokens.docsButton}</span>
-                  <ExternalLink size={13} />
-                </a>
-                {#if tokens.length > 0}
-                  <button
-                    type="button"
-                    class="bg-accent hover:bg-accent-hover shadow-accent/20 inline-flex h-9 cursor-pointer items-center gap-2 rounded-lg px-3.5 text-xs font-semibold text-white shadow-md transition"
-                    onclick={() => {
-                      newTokenName = "";
-                      newTokenExpiresInDays = undefined;
-                      showCreateTokenModal = true;
-                    }}
-                  >
-                    <Plus size={14} />
-                    <span>{i18n.t.settingsModal.apiTokens.createButton}</span>
-                  </button>
-                {/if}
-              </div>
-            </div>
-
-            <!-- Token list or empty state -->
-            {#if isLoadingTokens}
-              <div class="flex flex-col items-center justify-center p-12 text-center">
-                <LoaderCircle size={28} class="mb-3 animate-spin text-[#a5b4fc]" />
-                <p class="text-muted text-xs">Загрузка...</p>
-              </div>
-            {:else if tokens.length === 0}
-              <div
-                class="flex flex-col items-center justify-center rounded-2xl border border-dashed border-white/[0.1] bg-white/[0.02] p-12 text-center"
-              >
-                <div
-                  class="bg-accent-bright/10 mb-3 grid h-12 w-12 place-items-center rounded-2xl text-[#a5b4fc]"
-                >
-                  <Key size={22} />
-                </div>
-                <p class="text-sm font-medium text-slate-300">
-                  {i18n.t.settingsModal.apiTokens.emptyState}
-                </p>
-                <p class="text-muted mt-1 max-w-sm text-xs">
-                  {i18n.t.settingsModal.apiTokens.description}
-                </p>
-                <button
-                  type="button"
-                  class="bg-accent hover:bg-accent-hover shadow-accent/20 mt-4 inline-flex h-9 cursor-pointer items-center gap-2 rounded-lg px-3.5 text-xs font-semibold text-white shadow-md transition"
-                  onclick={() => {
-                    newTokenName = "";
-                    newTokenExpiresInDays = undefined;
-                    showCreateTokenModal = true;
-                  }}
-                >
-                  <Plus size={14} />
-                  <span>{i18n.t.settingsModal.apiTokens.createButton}</span>
-                </button>
-              </div>
-            {:else}
-              <div class="space-y-3">
-                {#each tokens as token (token.id)}
-                  <div
-                    class="bg-field flex items-center justify-between rounded-xl border border-white/[0.08] p-4 shadow-sm transition hover:border-white/[0.15]"
-                  >
-                    <div class="min-w-0 space-y-1.5 pr-4">
-                      <div class="flex flex-wrap items-center gap-2.5">
-                        <span class="text-ink truncate text-sm font-bold">{token.name}</span>
-                        <code
-                          class="rounded border border-white/[0.06] bg-black/40 px-2 py-0.5 font-mono text-[11px] text-indigo-300"
+                    <p class="text-muted mt-1 text-xs">
+                      {source.description}
+                    </p>
+                    <div class="mt-2 flex flex-wrap gap-1.5">
+                      {#each source.mediaTypes as mt}
+                        <span
+                          class="bg-canvas text-muted rounded px-2 py-0.5 text-[10px] font-medium"
                         >
-                          {token.tokenPrefix}••••••••
-                        </code>
-                      </div>
-                      <div class="text-muted flex flex-wrap items-center gap-4 text-[11px]">
-                        <span>
-                          {i18n.t.settingsModal.apiTokens.created}: {formatDate(token.createdAt)}
+                          {categoryLabel(mt)}
                         </span>
-                        <span>•</span>
-                        <span>
-                          {i18n.t.settingsModal.apiTokens.lastUsed}:
-                          <strong class="font-normal text-slate-300"
-                            >{formatRelativeTime(token.lastUsedAt)}</strong
-                          >
-                        </span>
-                        {#if token.expiresAt}
-                          <span>•</span>
-                          <span class="text-amber-400/90">
-                            {i18n.t.settingsModal.apiTokens.expiresAt}: {formatDate(
-                              token.expiresAt,
-                            )}
-                          </span>
-                        {/if}
-                      </div>
+                      {/each}
                     </div>
+                  </div>
+
+                  <div class="flex shrink-0 items-center gap-2.5">
                     <button
                       type="button"
-                      class="tap shrink-0 cursor-pointer rounded-lg p-2 text-rose-400 transition hover:bg-rose-500/10 hover:text-rose-300"
-                      title={i18n.t.settingsModal.apiTokens.revokeButton}
-                      onclick={() => (tokenToRevoke = token)}
+                      class="bg-field text-ink hover:bg-card hover:border-accent-soft inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-white/10 px-2.5 text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-60"
+                      disabled={testingSource === source.id}
+                      title={i18n.t.settingsModal.sources.testConnection}
+                      onclick={() => void handleTestSource(source.id)}
                     >
-                      <Trash2 size={16} />
+                      <RefreshCw
+                        size={12}
+                        class={testingSource === source.id
+                          ? "text-accent-soft animate-spin"
+                          : "text-muted"}
+                      />
+                      <span
+                        >{testingSource === source.id
+                          ? i18n.t.settingsModal.sources.testing
+                          : i18n.t.settingsModal.sources.testConnection}</span
+                      >
+                    </button>
+
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={source.isEnabled}
+                      class={`focus:ring-accent-soft focus:ring-offset-surface relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border transition-colors duration-200 focus:ring-2 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 ${
+                        source.isEnabled
+                          ? "border-indigo-400 bg-indigo-600"
+                          : "border-white/10 bg-white/10"
+                      }`}
+                      onclick={() => void handleToggleSource(source)}
+                      disabled={togglingSource === source.id}
+                      title={source.isEnabled
+                        ? i18n.t.settingsModal.sources.disable
+                        : i18n.t.settingsModal.sources.enable}
+                    >
+                      <span
+                        aria-hidden="true"
+                        class={`pointer-events-none inline-block h-5 w-5 transform rounded-full shadow ring-0 transition duration-200 ease-in-out ${
+                          source.isEnabled ? "translate-x-5 bg-white" : "translate-x-0 bg-slate-400"
+                        }`}
+                      ></span>
                     </button>
                   </div>
-                {/each}
+                </div>
+
+                {#if testResults[source.id]}
+                  <div class="mt-2.5 flex items-center gap-1.5 text-xs">
+                    {#if testResults[source.id].success}
+                      <span
+                        class="inline-flex items-center gap-1 rounded bg-emerald-500/15 px-2 py-0.5 font-medium text-emerald-400"
+                      >
+                        <Check size={12} />
+                        {i18n.t.settingsModal.sources.testSuccess(testResults[source.id].latencyMs)}
+                      </span>
+                    {:else}
+                      <span
+                        class="inline-flex items-center gap-1 rounded bg-rose-500/15 px-2 py-0.5 font-medium text-rose-400"
+                        title={testResults[source.id].message}
+                      >
+                        <AlertCircle size={12} />
+                        {testResults[source.id].message || i18n.t.settingsModal.sources.testFailed}
+                      </span>
+                    {/if}
+                  </div>
+                {/if}
+
+                {#if source.requiresApiKey || source.optionalApiKey}
+                  <div class="border-white/[0.07]/60 mt-3 border-t pt-3">
+                    {#if source.id === "sociallib"}
+                      <!-- SocialLib: авторизация через сессию браузера, форма API-ключа не нужна -->
+                      {#if source.hasKey && source.maskedKey}
+                        <div class="mb-3 flex flex-wrap items-center gap-2 text-xs">
+                          <span
+                            class="inline-flex items-center gap-1 rounded bg-emerald-500/15 px-2 py-0.5 font-semibold text-emerald-400"
+                          >
+                            <Check size={12} />
+                            Сессия активна
+                          </span>
+                          <span class="text-muted">Токен:</span>
+                          <code class="bg-canvas text-ink rounded px-2 py-0.5 font-mono text-[11px]"
+                            >{source.maskedKey}</code
+                          >
+                        </div>
+                      {:else}
+                        <p class="text-muted mb-3 flex items-start gap-1.5 text-xs">
+                          <Key size={12} class="mt-0.5 shrink-0 text-sky-400" />
+                          Ключ не требуется для поиска. Авторизация нужна только для каталога 18+ и личных
+                          закладок.
+                        </p>
+                      {/if}
+
+                      <div class="flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          class="bg-field text-ink hover:bg-card hover:border-accent-soft inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-white/10 px-3 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60"
+                          disabled={detectingSocialLib}
+                          onclick={handleDetectSocialLibSession}
+                        >
+                          <RefreshCw size={13} class={detectingSocialLib ? "animate-spin" : ""} />
+                          <span
+                            >{detectingSocialLib
+                              ? i18n.t.common.loading
+                              : "Подхватить сессию из браузера"}</span
+                          >
+                        </button>
+                        <button
+                          type="button"
+                          class="text-muted hover:text-ink inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-white/10 px-3 text-xs font-medium transition hover:border-white/20"
+                          onclick={() => (showSocialLibManualToken = !showSocialLibManualToken)}
+                        >
+                          <Key size={13} />
+                          <span>Ввести токен вручную</span>
+                        </button>
+                      </div>
+                      <p class="text-muted mt-1.5 text-[11px]">
+                        Ищет активную сессию MangaLib / RanobeLib / AnimeLib в браузерах
+                      </p>
+
+                      {#if showSocialLibManualToken}
+                        <div class="mt-3 flex flex-wrap items-center gap-2">
+                          <input
+                            type="password"
+                            class="bg-field text-ink placeholder:text-muted focus:border-accent-soft focus:ring-accent-soft h-8 min-w-[220px] flex-1 rounded-md border border-white/10 px-3 text-xs focus:ring-1 focus:outline-none"
+                            placeholder="Bearer-токен (accessToken с lib.social)"
+                            value={inputKeys[source.id] ?? ""}
+                            oninput={(e) =>
+                              (inputKeys[source.id] = (e.currentTarget as HTMLInputElement).value)}
+                          />
+                          <button
+                            type="button"
+                            class="bg-field text-ink hover:bg-card hover:border-accent-soft inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-white/10 px-3 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60"
+                            disabled={savingKey === source.id || !inputKeys[source.id]?.trim()}
+                            onclick={() => void handleSaveKey(source.id)}
+                          >
+                            <ShieldCheck size={13} />
+                            {savingKey === source.id
+                              ? i18n.t.common.saving
+                              : i18n.t.settingsModal.sources.saveKey}
+                          </button>
+                        </div>
+                      {/if}
+
+                      {#if keySuccess[source.id]}
+                        <p class="mt-2 text-xs font-medium text-emerald-400">
+                          {keySuccess[source.id]}
+                        </p>
+                      {/if}
+                      {#if keyErrors[source.id]}
+                        <p class="mt-2 text-xs text-rose-300">
+                          {errorMessage(keyErrors[source.id])}
+                        </p>
+                      {/if}
+                    {:else if source.id === "simkl"}
+                      <!-- Simkl: client_id below, plus a browser-session bearer on top —
+                               Auth V2 needs both, and the session can be picked up automatically. -->
+                      {#if simklSession?.hasKey}
+                        <div class="mb-3 flex flex-wrap items-center gap-2 text-xs">
+                          <span
+                            class="inline-flex items-center gap-1 rounded bg-emerald-500/15 px-2 py-0.5 font-semibold text-emerald-400"
+                          >
+                            <Check size={12} />
+                            Сессия активна
+                          </span>
+                          <span class="text-muted">Токен:</span>
+                          <code class="bg-canvas text-ink rounded px-2 py-0.5 font-mono text-[11px]"
+                            >{simklSession?.maskedKey}</code
+                          >
+                        </div>
+                      {:else}
+                        <p class="text-muted mb-3 flex items-start gap-1.5 text-xs">
+                          <Key size={12} class="mt-0.5 shrink-0 text-sky-400" />
+                          Client ID открывает публичный каталог. Сессия из браузера добавляет личные данные
+                          (списки, историю просмотров).
+                        </p>
+                      {/if}
+
+                      <div class="mb-3 flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          class="bg-field text-ink hover:bg-card hover:border-accent-soft inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-white/10 px-3 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60"
+                          disabled={detectingSimkl}
+                          onclick={handleDetectSimklSession}
+                        >
+                          <RefreshCw size={13} class={detectingSimkl ? "animate-spin" : ""} />
+                          <span
+                            >{detectingSimkl
+                              ? i18n.t.common.loading
+                              : "Подхватить сессию из браузера"}</span
+                          >
+                        </button>
+                      </div>
+                      <p class="text-muted mt-1.5 text-[11px]">
+                        Ищет активную сессию simkl.com в браузерах; Client ID вводится ниже как
+                        обычно
+                      </p>
+
+                      {#if source.maskedKey}
+                        <div class="text-muted mb-2 flex items-center gap-2 text-xs">
+                          <span>{i18n.t.settingsModal.sources.currentKey}</span>
+                          <code class="bg-canvas text-ink rounded px-2 py-0.5 font-mono text-[11px]"
+                            >{source.maskedKey}</code
+                          >
+                        </div>
+                      {/if}
+
+                      <div class="flex flex-wrap items-center gap-2">
+                        <input
+                          type="password"
+                          class="bg-field text-ink placeholder:text-muted focus:border-accent-soft focus:ring-accent-soft h-8 min-w-[220px] flex-1 rounded-md border border-white/10 px-3 text-xs focus:ring-1 focus:outline-none"
+                          placeholder={source.hasKey
+                            ? i18n.t.settingsModal.sources.replaceKeyPlaceholder
+                            : i18n.t.settingsModal.sources.inputPlaceholder}
+                          value={inputKeys[source.id] ?? ""}
+                          oninput={(e) =>
+                            (inputKeys[source.id] = (e.currentTarget as HTMLInputElement).value)}
+                        />
+                        <button
+                          type="button"
+                          class="bg-field text-ink hover:bg-card hover:border-accent-soft inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-white/10 px-3 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60"
+                          disabled={savingKey === source.id || !inputKeys[source.id]?.trim()}
+                          onclick={() => void handleSaveKey(source.id)}
+                        >
+                          <ShieldCheck size={13} />
+                          {savingKey === source.id
+                            ? i18n.t.common.saving
+                            : i18n.t.settingsModal.sources.saveKey}
+                        </button>
+                      </div>
+
+                      {#if keySuccess[source.id]}
+                        <p class="mt-2 text-xs font-medium text-emerald-400">
+                          {keySuccess[source.id]}
+                        </p>
+                      {/if}
+                      {#if keyErrors[source.id]}
+                        <p class="mt-2 text-xs text-rose-300">
+                          {errorMessage(keyErrors[source.id])}
+                        </p>
+                      {/if}
+                    {:else}
+                      {#if source.optionalApiKey && !source.requiresApiKey}
+                        <p class="text-muted mb-2 flex items-start gap-1.5 text-xs">
+                          <Key size={12} class="mt-0.5 shrink-0 text-sky-400" />
+                          {i18n.t.settingsModal.sources.optionalKeyHint}
+                        </p>
+                      {/if}
+                      {#if source.maskedKey}
+                        <div class="text-muted mb-2 flex items-center gap-2 text-xs">
+                          <span>{i18n.t.settingsModal.sources.currentKey}</span>
+                          <code class="bg-canvas text-ink rounded px-2 py-0.5 font-mono text-[11px]"
+                            >{source.maskedKey}</code
+                          >
+                        </div>
+                      {/if}
+
+                      <div class="flex flex-wrap items-center gap-2">
+                        <div class="relative min-w-[200px] flex-1">
+                          <input
+                            type={showKeys[source.id] ? "text" : "password"}
+                            class="bg-field text-ink placeholder:text-muted focus:border-accent-soft focus:ring-accent-soft h-9 w-full rounded-md border border-white/10 px-3 pr-9 text-xs focus:ring-1 focus:outline-none"
+                            placeholder={source.hasKey
+                              ? i18n.t.settingsModal.sources.replaceKeyPlaceholder
+                              : i18n.t.settingsModal.sources.inputPlaceholder}
+                            value={inputKeys[source.id] ?? ""}
+                            oninput={(e) =>
+                              (inputKeys[source.id] = (e.currentTarget as HTMLInputElement).value)}
+                          />
+                          <button
+                            type="button"
+                            class="text-muted hover:text-ink absolute top-1/2 right-2 -translate-y-1/2 cursor-pointer"
+                            aria-label="Toggle key visibility"
+                            onclick={() => (showKeys[source.id] = !showKeys[source.id])}
+                          >
+                            {#if showKeys[source.id]}
+                              <EyeOff size={14} />
+                            {:else}
+                              <Eye size={14} />
+                            {/if}
+                          </button>
+                        </div>
+
+                        <!-- Save key button: Item 14 pointer cursor when active, not-allowed when disabled, no cursor-wait -->
+                        <button
+                          type="button"
+                          class="bg-field text-ink hover:bg-card hover:border-accent-soft inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-md border border-white/10 px-3 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60"
+                          class:cursor-wait={savingKey === source.id}
+                          disabled={savingKey === source.id || !inputKeys[source.id]?.trim()}
+                          onclick={() => void handleSaveKey(source.id)}
+                        >
+                          <ShieldCheck size={14} />
+                          {savingKey === source.id
+                            ? i18n.t.common.saving
+                            : i18n.t.settingsModal.sources.saveKey}
+                        </button>
+                      </div>
+
+                      {#if keySuccess[source.id]}
+                        <p class="mt-2 text-xs font-medium text-emerald-400">
+                          {keySuccess[source.id]}
+                        </p>
+                      {/if}
+                      {#if keyErrors[source.id]}
+                        <p class="mt-2 text-xs text-rose-300">
+                          {errorMessage(keyErrors[source.id])}
+                        </p>
+                      {/if}
+                    {/if}
+                  </div>
+                {/if}
+              </div>
+            {/each}
+
+            {#if sourceKindFilter === "scraper" && filteredSources.length === 0}
+              <div
+                class="rounded-xl border border-dashed border-white/15 bg-white/[0.02] p-8 text-center"
+              >
+                <div
+                  class="mx-auto grid h-12 w-12 place-items-center rounded-full bg-violet-500/15 text-violet-300"
+                >
+                  <Globe size={22} />
+                </div>
+                <h4 class="text-ink mt-3 text-sm font-bold">
+                  {i18n.t.settingsModal.sources.scraperEmptyTitle}
+                </h4>
+                <p class="text-muted mx-auto mt-1.5 max-w-md text-xs leading-relaxed">
+                  {i18n.t.settingsModal.sources.scraperEmptyText}
+                </p>
               </div>
             {/if}
-          </section>
+          </div>
         {/if}
       </div>
+    {:else if activeTab === "import"}
+      <ImportPanel
+        {onImportCompleted}
+        onNavigateToList={(id) => {
+          onClose();
+          onNavigateToList?.(id);
+        }}
+      />
+    {:else if activeTab === "search"}
+      <div class="space-y-6">
+        <!-- Category order in All search -->
+        <div class="space-y-4">
+          <div>
+            <h3 class="text-ink text-sm font-semibold">
+              {i18n.t.settingsModal.search.orderTitle}
+            </h3>
+            <p class="text-muted mt-0.5 text-xs">
+              {i18n.t.settingsModal.search.orderHint}
+            </p>
+          </div>
+
+          {#if orderLoading}
+            <div class="bg-card h-32 animate-pulse rounded-lg"></div>
+          {:else}
+            <div class="space-y-2" role="list">
+              {#each categoryOrder as cat, idx (cat)}
+                <div
+                  role="listitem"
+                  animate:flip={{ duration: 180 }}
+                  class="group flex cursor-grab items-center justify-between rounded-lg border p-3 transition-colors {draggedIndex ===
+                  idx
+                    ? 'pointer-events-none border-indigo-500/60 bg-indigo-500/[0.06] opacity-40'
+                    : 'border-white/10 bg-white/[0.02] hover:border-white/20'}"
+                  draggable="true"
+                  ondragstart={(e) => handleDragStart(idx, e)}
+                  ondragover={(e) => handleDragOver(idx, e)}
+                  ondrop={(e) => {
+                    e.preventDefault();
+                    void finishCategoryDrag();
+                  }}
+                  ondragend={() => void finishCategoryDrag()}
+                >
+                  <!-- Left: position number + category name -->
+                  <div class="flex min-w-36 items-center gap-3">
+                    <span
+                      class="flex h-6 w-6 items-center justify-center rounded bg-white/5 text-xs font-semibold text-slate-400 tabular-nums"
+                    >
+                      {idx + 1}
+                    </span>
+                    <span class="text-ink text-sm font-semibold">{categoryLabel(cat)}</span>
+                  </div>
+
+                  <!-- Center: drag handle in the middle of the row -->
+                  <div class="flex flex-1 items-center justify-center">
+                    <div
+                      class="rounded-md p-1.5 text-slate-500 transition group-hover:text-slate-300 hover:bg-white/5 active:cursor-grabbing"
+                      title={i18n.t.settingsModal.search.dragHint}
+                    >
+                      <GripVertical size={18} class="rotate-90 sm:rotate-0" />
+                    </div>
+                  </div>
+
+                  <!-- Right: accessible fallback buttons -->
+                  <div class="flex items-center gap-1">
+                    <button
+                      type="button"
+                      class="text-muted hover:bg-elevated hover:text-ink grid h-7 w-7 cursor-pointer place-items-center rounded-md transition disabled:cursor-not-allowed disabled:opacity-30"
+                      disabled={idx === 0 || orderSaving}
+                      aria-label={i18n.t.settingsModal.search.moveUp}
+                      onclick={() => void moveCategory(idx, "up")}
+                    >
+                      <ChevronUp size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      class="text-muted hover:bg-elevated hover:text-ink grid h-7 w-7 cursor-pointer place-items-center rounded-md transition disabled:cursor-not-allowed disabled:opacity-30"
+                      disabled={idx === categoryOrder.length - 1 || orderSaving}
+                      aria-label={i18n.t.settingsModal.search.moveDown}
+                      onclick={() => void moveCategory(idx, "down")}
+                    >
+                      <ChevronDown size={16} />
+                    </button>
+                  </div>
+                </div>
+              {/each}
+            </div>
+
+            {#if orderSuccess}
+              <p class="text-xs font-medium text-emerald-400">
+                {i18n.t.settingsModal.search.saved}
+              </p>
+            {/if}
+          {/if}
+        </div>
+
+        <!-- Source search priority with fallback (Item 16) -->
+        <div class="space-y-4 border-t border-white/[0.07] pt-6">
+          <div>
+            <h3 class="text-ink text-sm font-semibold">
+              {i18n.t.settingsModal.search.sourcePriorityTitle}
+            </h3>
+            <p class="text-muted mt-0.5 text-xs">
+              {i18n.t.settingsModal.search.sourcePriorityHint}
+            </p>
+          </div>
+
+          {#if priorityLoading}
+            <div class="bg-card h-28 animate-pulse rounded-lg"></div>
+          {:else}
+            <div class="space-y-4">
+              {#each Object.entries(sourcePriority) as [mediaType, providers] (mediaType)}
+                {#if providers && providers.length > 1}
+                  <div class="bg-field/60 space-y-2 rounded-lg border border-white/10 p-3.5">
+                    <div class="flex items-center justify-between">
+                      <h4 class="text-accent-soft text-xs font-bold tracking-wider uppercase">
+                        {categoryLabel(mediaType)}
+                      </h4>
+                      <span class="text-muted text-[11px]"
+                        >{i18n.t.settingsModal.sources.providersCount(providers.length)}</span
+                      >
+                    </div>
+                    <div class="space-y-1.5" role="list">
+                      {#each providers as provId, pIdx (provId)}
+                        <div
+                          role="listitem"
+                          animate:flip={{ duration: 180 }}
+                          draggable="true"
+                          ondragstart={(e) => handleSourceDragStart(mediaType, pIdx, e)}
+                          ondragover={(e) => handleSourceDragOver(mediaType, pIdx, e)}
+                          ondrop={(e) => {
+                            e.preventDefault();
+                            void finishSourceDrag();
+                          }}
+                          ondragend={() => void finishSourceDrag()}
+                          class="border-border/70 bg-surface flex cursor-grab items-center justify-between rounded-md border px-3 py-2 {draggedSource?.type ===
+                            mediaType && draggedSource.index === pIdx
+                            ? 'pointer-events-none border-indigo-500/60 bg-indigo-500/10 opacity-40'
+                            : draggedSource?.type === mediaType
+                              ? 'border-indigo-500/25'
+                              : ''} {isSourceDisabled(provId) ? 'bg-surface/50 opacity-60' : ''}"
+                        >
+                          <div class="flex items-center gap-2.5">
+                            <GripVertical
+                              size={14}
+                              class="text-muted/60 shrink-0 cursor-grab"
+                              aria-hidden="true"
+                            />
+                            <span
+                              class="bg-canvas text-muted grid h-5 w-5 place-items-center rounded text-[11px] font-bold"
+                            >
+                              {pIdx + 1}
+                            </span>
+                            <span class="text-ink text-xs font-medium">{getSourceName(provId)}</span
+                            >
+                            {#if isSourceDisabled(provId)}
+                              <span
+                                class="rounded bg-zinc-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-400"
+                              >
+                                {i18n.t.settingsModal.sources.disabledBadge}
+                              </span>
+                            {/if}
+                            {#if pIdx === 0}
+                              <span
+                                class="rounded bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-400"
+                                >{i18n.t.settingsModal.search.primary}</span
+                              >
+                            {:else}
+                              <span class="bg-canvas text-muted rounded px-1.5 py-0.5 text-[10px]"
+                                >{i18n.t.settingsModal.search.fallback(pIdx + 1)}</span
+                              >
+                            {/if}
+                          </div>
+                          <div class="flex items-center gap-1">
+                            <button
+                              type="button"
+                              class="text-muted hover:bg-elevated hover:text-ink grid h-6 w-6 cursor-pointer place-items-center rounded transition disabled:cursor-not-allowed disabled:opacity-30"
+                              disabled={pIdx === 0 || prioritySaving}
+                              aria-label={i18n.t.settingsModal.search.moveUp}
+                              onclick={() => void moveSourcePriority(mediaType, pIdx, "up")}
+                            >
+                              <ChevronUp size={14} />
+                            </button>
+                            <button
+                              type="button"
+                              class="text-muted hover:bg-elevated hover:text-ink grid h-6 w-6 cursor-pointer place-items-center rounded transition disabled:cursor-not-allowed disabled:opacity-30"
+                              disabled={pIdx === providers.length - 1 || prioritySaving}
+                              aria-label={i18n.t.settingsModal.search.moveDown}
+                              onclick={() => void moveSourcePriority(mediaType, pIdx, "down")}
+                            >
+                              <ChevronDown size={14} />
+                            </button>
+                          </div>
+                        </div>
+                      {/each}
+                    </div>
+                  </div>
+                {/if}
+              {/each}
+            </div>
+          {/if}
+        </div>
+      </div>
+    {:else if activeTab === "backup"}
+      <div class="space-y-6">
+        <!-- Export Section (Neutral / Safe) -->
+        <div class="rounded-xl border border-white/10 bg-white/[0.02] p-5">
+          <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div class="max-w-xl">
+              <h3 class="text-ink text-sm font-semibold">
+                {i18n.t.settingsModal.backup.exportTitle}
+              </h3>
+              <p class="text-muted mt-1 text-xs leading-relaxed">
+                {i18n.t.settingsModal.backup.exportDescription}
+              </p>
+            </div>
+            <div class="shrink-0">
+              <button
+                type="button"
+                class="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-60"
+                class:cursor-wait={isExporting}
+                disabled={isExporting}
+                onclick={handleExportBackup}
+              >
+                {#if isExporting}
+                  <LoaderCircle size={14} class="animate-spin" />
+                  {i18n.t.settingsModal.backup.exporting}
+                {:else}
+                  <ArrowDown size={14} />
+                  {i18n.t.settingsModal.backup.exportButton}
+                {/if}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Data Table Export (Neutral / Safe) -->
+        <div class="rounded-xl border border-white/10 bg-white/[0.02] p-5">
+          <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div class="max-w-xl">
+              <h3 class="text-ink text-sm font-semibold">
+                {i18n.t.settingsModal.backup.exportDataTitle}
+              </h3>
+              <p class="text-muted mt-1 text-xs leading-relaxed">
+                {i18n.t.settingsModal.backup.exportDataDescription}
+              </p>
+            </div>
+            <div class="flex shrink-0 gap-2">
+              <button
+                type="button"
+                class="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-indigo-500/40 bg-indigo-500/10 px-4 py-2 text-xs font-semibold text-indigo-300 transition hover:bg-indigo-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={Boolean(exportingTableFormat)}
+                onclick={() => handleExportTable("json")}
+              >
+                {#if exportingTableFormat === "json"}
+                  <LoaderCircle size={14} class="animate-spin" />
+                  {i18n.t.settingsModal.backup.exportingTable}
+                {:else}
+                  <FileText size={14} />
+                  {i18n.t.settingsModal.backup.exportJsonButton}
+                {/if}
+              </button>
+              <button
+                type="button"
+                class="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 text-xs font-semibold text-emerald-300 transition hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={Boolean(exportingTableFormat)}
+                onclick={() => handleExportTable("csv")}
+              >
+                {#if exportingTableFormat === "csv"}
+                  <LoaderCircle size={14} class="animate-spin" />
+                  {i18n.t.settingsModal.backup.exportingTable}
+                {:else}
+                  <ArrowDown size={14} />
+                  {i18n.t.settingsModal.backup.exportCsvButton}
+                {/if}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Restore Section (Warning Zone - Amber) -->
+        <div class="rounded-xl border border-amber-500/25 bg-amber-500/5 p-5">
+          <div
+            class="flex items-center gap-2 text-xs font-bold tracking-wider text-amber-400 uppercase"
+          >
+            <AlertTriangle size={16} />
+            <h3>
+              {i18n.t.settingsModal.backup.dangerZone}: {i18n.t.settingsModal.backup.restoreTitle}
+            </h3>
+          </div>
+          <p class="mt-1 text-xs text-slate-400">
+            {i18n.t.settingsModal.backup.restoreDescription}
+          </p>
+          <div class="mt-4">
+            <input
+              bind:this={fileInputRef}
+              type="file"
+              accept=".zip"
+              class="hidden"
+              onchange={handleFileSelected}
+            />
+            <button
+              type="button"
+              class="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-2 text-xs font-semibold text-amber-300 transition hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={isRestoring}
+              onclick={() => fileInputRef?.click()}
+            >
+              <RotateCcw size={14} />
+              {i18n.t.settingsModal.backup.selectFileButton}
+            </button>
+          </div>
+        </div>
+
+        <!-- Reset Section (Danger Zone - Rose) -->
+        <div class="rounded-xl border border-rose-500/25 bg-rose-500/5 p-5">
+          <div
+            class="flex items-center gap-2 text-xs font-bold tracking-wider text-rose-400 uppercase"
+          >
+            <AlertCircle size={16} />
+            <h3>
+              {i18n.t.settingsModal.backup.dangerZone}: {i18n.t.settingsModal.backup.resetTitle}
+            </h3>
+          </div>
+          <p class="mt-1 text-xs text-slate-400">
+            {i18n.t.settingsModal.backup.resetDescription}
+          </p>
+          <button
+            type="button"
+            class="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-lg bg-rose-600/90 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-rose-500/90 disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={isResetting}
+            onclick={() => (showResetConfirm = true)}
+          >
+            <Trash2 size={14} />
+            {i18n.t.settingsModal.backup.resetButton}
+          </button>
+        </div>
+      </div>
+    {:else if activeTab === "reading"}
+      <section class="space-y-6">
+        <div>
+          <h3 class="text-ink text-sm font-semibold">
+            {i18n.t.settingsModal.reading.title}
+          </h3>
+          <p class="text-muted mt-1 text-xs">
+            {i18n.t.settingsModal.reading.description}
+          </p>
+        </div>
+
+        <div class="max-w-md space-y-5">
+          <div class="space-y-1.5">
+            <label for="book-page-speed" class="block text-xs font-semibold text-slate-300">
+              {i18n.t.settingsModal.reading.bookPageMinutes}
+            </label>
+            <input
+              id="book-page-speed"
+              type="number"
+              min="0.2"
+              max="10.0"
+              step="0.1"
+              class="bg-field text-ink focus:border-accent-soft focus:ring-accent-soft w-full rounded-lg border border-white/10 px-3 py-2 text-sm transition outline-none focus:ring-1"
+              bind:value={readingBookPageMinutes}
+            />
+            <p class="text-muted text-[11px]">По умолчанию: 1.5 мин/стр. Диапазон: 0.2 – 10.0</p>
+          </div>
+
+          <div class="space-y-1.5">
+            <label for="manga-chapter-speed" class="block text-xs font-semibold text-slate-300">
+              {i18n.t.settingsModal.reading.mangaChapterMinutes}
+            </label>
+            <input
+              id="manga-chapter-speed"
+              type="number"
+              min="0.5"
+              max="30.0"
+              step="0.5"
+              class="bg-field text-ink focus:border-accent-soft focus:ring-accent-soft w-full rounded-lg border border-white/10 px-3 py-2 text-sm transition outline-none focus:ring-1"
+              bind:value={readingMangaChapterMinutes}
+            />
+            <p class="text-muted text-[11px]">По умолчанию: 6.0 мин/гл. Диапазон: 0.5 – 30.0</p>
+          </div>
+
+          <div class="pt-2">
+            <button
+              type="button"
+              disabled={isSavingReading}
+              class="bg-accent hover:bg-accent-hover inline-flex cursor-pointer items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-50"
+              onclick={handleSaveReadingSpeed}
+            >
+              {#if isSavingReading}
+                <LoaderCircle size={15} class="animate-spin" />
+              {/if}
+              {i18n.t.settingsModal.reading.saveButton}
+            </button>
+          </div>
+        </div>
+      </section>
+    {:else if activeTab === "update"}
+      <section class="space-y-6">
+        <h3 class="text-ink text-base font-bold">Обновление</h3>
+        {#if isCheckingUpdate}
+          <div class="text-muted flex items-center gap-2 text-sm">
+            <LoaderCircle class="animate-spin" size={16} /> Проверка...
+          </div>
+        {:else if updateCheck}
+          <div class="space-y-2">
+            <p class="text-sm">Версия: {updateCheck.currentVersion}</p>
+            {#if updateCheck.isUpdateAvailable && updateCheck.canSelfUpdate}
+              <p class="font-bold text-emerald-400">
+                Доступна версия {updateCheck.latestVersion}
+              </p>
+              <button
+                type="button"
+                onclick={handleApplyUpdate}
+                disabled={isApplyingUpdate}
+                class="bg-accent rounded px-4 py-2 text-xs font-semibold text-white"
+                >Обновить и перезапустить</button
+              >
+              {#if updateCheck.releaseNotes}
+                <div class="text-muted mt-4 rounded bg-black/20 p-4 text-xs whitespace-pre-wrap">
+                  {updateCheck.releaseNotes}
+                </div>
+              {/if}
+            {:else if updateCheck.isUpdateAvailable}
+              <p class="text-xs text-rose-400">
+                Обновление доступно, но автообновление недоступно.
+              </p>
+            {:else}
+              <p class="text-muted text-sm">Установлена актуальная версия.</p>
+            {/if}
+          </div>
+        {/if}
+      </section>
+    {:else if activeTab === "storage"}
+      <section class="space-y-6">
+        <div>
+          <h3 class="text-ink text-base font-bold">
+            {i18n.t.settingsModal.storage.title}
+          </h3>
+          <p class="text-muted mt-1 text-xs leading-relaxed">
+            {i18n.t.settingsModal.storage.description}
+          </p>
+        </div>
+
+        {#if storageError}
+          <p class="rounded-lg bg-rose-400/10 p-3 text-xs text-rose-300">
+            {errorMessage(storageError)}
+          </p>
+        {:else if storage}
+          <div class="bg-card space-y-5 rounded-xl border border-white/[0.08] p-5">
+            <div class="space-y-2">
+              <span class="block text-xs font-semibold text-slate-300">
+                {i18n.t.settingsModal.storage.title}
+              </span>
+              <div class="grid gap-2.5 sm:grid-cols-3">
+                <label
+                  class={`flex cursor-pointer items-center gap-3 rounded-xl border p-3.5 transition ${
+                    storageMode === "default"
+                      ? "border-indigo-500/60 bg-indigo-500/15 text-white ring-1 ring-indigo-500/30"
+                      : "border-white/10 bg-white/[0.02] text-slate-300 hover:border-white/20"
+                  }`}
+                >
+                  <input type="radio" bind:group={storageMode} value="default" class="sr-only" />
+                  <Server
+                    size={18}
+                    class="shrink-0 {storageMode === 'default'
+                      ? 'text-indigo-400'
+                      : 'text-slate-400'}"
+                  />
+                  <span class="text-xs leading-snug font-semibold">
+                    {i18n.t.settingsModal.storage.modeDefault}
+                  </span>
+                </label>
+                <label
+                  class={`flex cursor-pointer items-center gap-3 rounded-xl border p-3.5 transition ${
+                    storageMode === "portable"
+                      ? "border-indigo-500/60 bg-indigo-500/15 text-white ring-1 ring-indigo-500/30"
+                      : "border-white/10 bg-white/[0.02] text-slate-300 hover:border-white/20"
+                  }`}
+                >
+                  <input type="radio" bind:group={storageMode} value="portable" class="sr-only" />
+                  <Archive
+                    size={18}
+                    class="shrink-0 {storageMode === 'portable'
+                      ? 'text-indigo-400'
+                      : 'text-slate-400'}"
+                  />
+                  <span class="text-xs leading-snug font-semibold">
+                    {i18n.t.settingsModal.storage.modePortable}
+                  </span>
+                </label>
+                <label
+                  class={`flex cursor-pointer items-center gap-3 rounded-xl border p-3.5 transition ${
+                    storageMode === "custom"
+                      ? "border-indigo-500/60 bg-indigo-500/15 text-white ring-1 ring-indigo-500/30"
+                      : "border-white/10 bg-white/[0.02] text-slate-300 hover:border-white/20"
+                  }`}
+                >
+                  <input type="radio" bind:group={storageMode} value="custom" class="sr-only" />
+                  <FolderOpen
+                    size={18}
+                    class="shrink-0 {storageMode === 'custom'
+                      ? 'text-indigo-400'
+                      : 'text-slate-400'}"
+                  />
+                  <span class="text-xs leading-snug font-semibold">
+                    {i18n.t.settingsModal.storage.modeCustom}
+                  </span>
+                </label>
+              </div>
+            </div>
+
+            {#if storageMode === "custom"}
+              <div class="space-y-1.5" transition:slide={{ duration: 150 }}>
+                <label for="custom-path-input" class="block text-xs font-semibold text-slate-300">
+                  {i18n.t.settingsModal.storage.customPathLabel}
+                </label>
+                <input
+                  id="custom-path-input"
+                  type="text"
+                  bind:value={customPathInput}
+                  placeholder={i18n.t.settingsModal.storage.customPathPlaceholder}
+                  class="bg-field text-ink focus:border-accent-soft focus:ring-accent-soft h-10 w-full rounded-lg border border-white/10 px-3 text-xs transition outline-none focus:ring-1"
+                />
+              </div>
+            {/if}
+
+            <label
+              class="flex cursor-pointer items-center gap-2 text-sm text-slate-200 hover:text-white"
+            >
+              <input
+                type="checkbox"
+                bind:checked={migrateExistingData}
+                class="accent-accent-soft shrink-0"
+              />
+              {i18n.t.settingsModal.storage.migrateLabel}
+            </label>
+
+            <div class="space-y-2 border-t border-white/5 pt-2">
+              <div
+                class="flex items-center justify-between gap-3 rounded-lg border border-white/5 bg-black/20 p-2.5 text-xs"
+              >
+                <span class="shrink-0 font-medium text-slate-400">
+                  {i18n.t.settingsModal.storage.dbPathLabel}
+                </span>
+                <span
+                  class="truncate font-mono text-[11px] text-slate-200 select-all"
+                  title={storage.defaultDirectory}
+                >
+                  {storage.defaultDirectory}
+                </span>
+              </div>
+              <div
+                class="flex items-center justify-between gap-3 rounded-lg border border-white/5 bg-black/20 p-2.5 text-xs"
+              >
+                <span class="shrink-0 font-medium text-slate-400">
+                  {i18n.t.settingsModal.storage.coversPathLabel}
+                </span>
+                <span
+                  class="truncate font-mono text-[11px] text-slate-200 select-all"
+                  title={storage.portableDirectory}
+                >
+                  {storage.portableDirectory}
+                </span>
+              </div>
+              <div
+                class="flex items-center justify-between gap-3 rounded-lg border border-white/5 bg-black/20 p-2.5 text-xs"
+              >
+                <span class="shrink-0 font-medium text-slate-400">
+                  {i18n.t.settingsModal.storage.logsPathLabel}
+                </span>
+                <span
+                  class="truncate font-mono text-[11px] text-slate-200 select-all"
+                  title={storage.defaultDirectory}
+                >
+                  {storage.defaultDirectory}
+                </span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              disabled={isSavingStorage}
+              class="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
+              onclick={handleSaveStorage}
+            >
+              {#if isSavingStorage}
+                <LoaderCircle size={15} class="animate-spin" />
+              {/if}
+              {i18n.t.settingsModal.storage.saveButton}
+            </button>
+          </div>
+        {/if}
+
+        <!-- Franchise rescan tool: groups seasons/sequels/adaptations into franchises -->
+        <div
+          class="rounded-2xl border border-white/10 bg-white/[0.02] p-5 transition hover:border-white/[0.14]"
+        >
+          <div class="flex items-start gap-3">
+            <GitBranch size={18} class="mt-0.5 shrink-0 text-indigo-400" />
+            <div class="min-w-0 flex-1">
+              <h4 class="text-ink text-sm font-bold">
+                {i18n.t.settingsModal.storage.franchiseRescanTitle}
+              </h4>
+              <p class="text-muted mt-0.5 text-xs leading-relaxed">
+                {i18n.t.settingsModal.storage.franchiseRescanDescription}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            disabled={franchiseRescanning}
+            class="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
+            onclick={handleRescanFranchises}
+          >
+            {#if franchiseRescanning}
+              <LoaderCircle size={15} class="animate-spin" />
+            {:else}
+              <GitBranch size={15} />
+            {/if}
+            {i18n.t.settingsModal.storage.franchiseRescanButton}
+          </button>
+        </div>
+      </section>
+    {:else if activeTab === "appearance"}
+      <section class="space-y-6">
+        <div>
+          <h3 class="text-ink text-base font-bold">
+            {i18n.t.settingsModal.appearance.title}
+          </h3>
+          <p class="text-muted mt-1 text-xs leading-relaxed">
+            {i18n.t.settingsModal.appearance.description}
+          </p>
+        </div>
+
+        <!-- App icon picker -->
+        <div
+          class="rounded-2xl border border-white/10 bg-white/[0.02] p-5 transition hover:border-white/[0.14]"
+        >
+          <h4 class="text-ink text-sm font-bold">
+            {i18n.t.settingsModal.appearance.appIconTitle}
+          </h4>
+          <p class="text-muted mt-0.5 text-xs">
+            {i18n.t.settingsModal.appearance.appIconDescription}
+          </p>
+
+          <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <!-- Default icon -->
+            <button
+              type="button"
+              class={`relative cursor-pointer rounded-2xl border p-4 text-left transition ${
+                uiSettings.appIcon === "default"
+                  ? "border-indigo-500/60 bg-indigo-500/10 ring-1 ring-indigo-500/30"
+                  : "border-white/10 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04]"
+              }`}
+              onclick={() => uiSettings.setAppIcon("default")}
+            >
+              {#if uiSettings.appIcon === "default"}
+                <span
+                  class="absolute top-3 right-3 grid size-6 place-items-center rounded-full bg-indigo-500 text-white shadow-md"
+                >
+                  <Check size={14} />
+                </span>
+              {/if}
+              <div class="flex items-center gap-4">
+                <img
+                  src="/icons/default.png"
+                  alt={i18n.t.settingsModal.appearance.iconDefaultTitle}
+                  class="size-16 rounded-2xl object-cover shadow-lg ring-1 ring-white/10"
+                />
+                <div class="min-w-0">
+                  <p class="text-ink text-sm font-semibold">
+                    {i18n.t.settingsModal.appearance.iconDefaultTitle}
+                  </p>
+                  <p class="text-muted mt-0.5 text-xs">
+                    {i18n.t.settingsModal.appearance.iconDefaultDescription}
+                  </p>
+                </div>
+              </div>
+            </button>
+
+            <!-- Alternative icon; falls back to the default when the file is not shipped yet -->
+            <button
+              type="button"
+              class={`relative cursor-pointer rounded-2xl border p-4 text-left transition ${
+                uiSettings.appIcon === "alt"
+                  ? "border-indigo-500/60 bg-indigo-500/10 ring-1 ring-indigo-500/30"
+                  : "border-white/10 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04]"
+              }`}
+              onclick={() => uiSettings.setAppIcon("alt")}
+            >
+              {#if uiSettings.appIcon === "alt"}
+                <span
+                  class="absolute top-3 right-3 grid size-6 place-items-center rounded-full bg-indigo-500 text-white shadow-md"
+                >
+                  <Check size={14} />
+                </span>
+              {/if}
+              <div class="flex items-center gap-4">
+                <img
+                  src="/icons/alt.png"
+                  alt={i18n.t.settingsModal.appearance.iconAltTitle}
+                  class="size-16 rounded-2xl object-cover shadow-lg ring-1 ring-white/10"
+                  onerror={(e) => {
+                    (e.currentTarget as HTMLImageElement).src = "/icons/default.png";
+                  }}
+                />
+                <div class="min-w-0">
+                  <p class="text-ink text-sm font-semibold">
+                    {i18n.t.settingsModal.appearance.iconAltTitle}
+                  </p>
+                  <p class="text-muted mt-0.5 text-xs">
+                    {i18n.t.settingsModal.appearance.iconAltDescription}
+                  </p>
+                </div>
+              </div>
+            </button>
+          </div>
+        </div>
+
+        <!-- Accent color: reserved for a future release -->
+        <div
+          class="relative overflow-hidden rounded-2xl border border-dashed border-white/10 bg-white/[0.01] p-5 opacity-60"
+        >
+          <span
+            class="absolute top-4 right-4 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-0.5 text-[10px] font-semibold tracking-wide text-slate-400 uppercase"
+          >
+            {i18n.t.settingsModal.appearance.comingSoon}
+          </span>
+          <h4 class="text-ink text-sm font-bold">
+            {i18n.t.settingsModal.appearance.accentColorTitle}
+          </h4>
+          <p class="text-muted mt-0.5 text-xs">
+            {i18n.t.settingsModal.appearance.accentColorDescription}
+          </p>
+          <div class="mt-3 flex gap-2">
+            {#each ["var(--color-chart-violet)", "var(--color-chart-emerald)", "var(--color-chart-cyan)"] as color (color)}
+              <span class="size-7 rounded-full ring-1 ring-white/15" style={`background:${color}`}
+              ></span>
+            {/each}
+          </div>
+        </div>
+      </section>
+    {:else if activeTab === "desktop"}
+      <section class="space-y-6">
+        <div>
+          <h3 class="text-ink text-base font-bold">
+            {i18n.t.settingsModal.launchMode.title}
+          </h3>
+          <p class="text-muted mt-1 text-xs leading-relaxed">
+            {i18n.t.settingsModal.launchMode.description}
+          </p>
+        </div>
+
+        <div class="bg-card grid gap-2.5 rounded-xl border border-white/[0.08] p-5">
+          {#each launchModeOptions as option (option.value)}
+            <label
+              class={`flex items-start gap-3 rounded-xl border p-3.5 transition ${
+                appSettingsSaving ? "cursor-wait opacity-70" : "cursor-pointer"
+              } ${
+                appSettings.launchMode === option.value
+                  ? "border-indigo-500/60 bg-indigo-500/15 ring-1 ring-indigo-500/30"
+                  : "border-white/10 bg-white/[0.02] hover:border-white/20"
+              }`}
+            >
+              <input
+                type="radio"
+                name="launch-mode"
+                value={option.value}
+                checked={appSettings.launchMode === option.value}
+                onchange={() => void updateAppSettings({ launchMode: option.value })}
+                disabled={appSettingsSaving}
+                class="sr-only"
+              />
+              <span
+                class={`mt-0.5 h-4 w-4 shrink-0 rounded-full border transition ${
+                  appSettings.launchMode === option.value
+                    ? "border-4 border-indigo-400"
+                    : "border-white/25"
+                }`}
+              ></span>
+              <span>
+                <span class="block text-sm font-semibold text-white">{option.label}</span>
+                <span class="text-muted mt-0.5 block text-xs leading-snug">
+                  {option.description}
+                </span>
+              </span>
+            </label>
+          {/each}
+        </div>
+
+        <div>
+          <h3 class="text-ink text-base font-bold">
+            {i18n.t.settingsModal.closeBehavior.title}
+          </h3>
+          <p class="text-muted mt-1 text-xs leading-relaxed">
+            {i18n.t.settingsModal.closeBehavior.description}
+          </p>
+        </div>
+
+        <div
+          class={`bg-card grid gap-2.5 rounded-xl border border-white/[0.08] p-5 transition ${
+            appSettings.launchMode === "app_window" ? "" : "opacity-50"
+          }`}
+        >
+          {#each closeActionOptions as option (option.value)}
+            {@const disabled = appSettings.launchMode !== "app_window" || appSettingsSaving}
+            <label
+              class={`flex items-start gap-3 rounded-xl border p-3.5 transition ${
+                disabled ? "cursor-not-allowed" : "cursor-pointer"
+              } ${
+                appSettings.closeAction === option.value
+                  ? "border-indigo-500/60 bg-indigo-500/15 ring-1 ring-indigo-500/30"
+                  : "border-white/10 bg-white/[0.02] hover:border-white/20"
+              }`}
+            >
+              <input
+                type="radio"
+                name="close-action"
+                value={option.value}
+                checked={appSettings.closeAction === option.value}
+                onchange={() => void updateAppSettings({ closeAction: option.value })}
+                {disabled}
+                class="sr-only"
+              />
+              <span
+                class={`mt-0.5 h-4 w-4 shrink-0 rounded-full border transition ${
+                  appSettings.closeAction === option.value
+                    ? "border-4 border-indigo-400"
+                    : "border-white/25"
+                }`}
+              ></span>
+              <span>
+                <span class="block text-sm font-semibold text-white">{option.label}</span>
+                <span class="text-muted mt-0.5 block text-xs leading-snug">
+                  {option.description}
+                </span>
+              </span>
+            </label>
+          {/each}
+        </div>
+
+        <div class="bg-card rounded-xl border border-white/[0.08] p-5">
+          <button
+            type="button"
+            class="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-rose-400/30 bg-rose-500/10 px-4 py-2 text-sm font-semibold text-rose-200 transition hover:bg-rose-500/20"
+            onclick={() => void exitApp()}
+          >
+            <X size={16} />
+            {i18n.t.settingsModal.exitApp.button}
+          </button>
+        </div>
+      </section>
+    {:else if activeTab === "apiTokens"}
+      <section class="space-y-6">
+        <!-- Header -->
+        <div
+          class="flex flex-col gap-4 border-b border-white/[0.08] pb-5 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <div>
+            <h3 class="text-ink text-base font-bold">
+              {i18n.t.settingsModal.apiTokens.title}
+            </h3>
+            <p class="text-muted mt-1 max-w-xl text-xs leading-relaxed">
+              {i18n.t.settingsModal.apiTokens.description}
+            </p>
+          </div>
+          <div class="flex shrink-0 items-center gap-2.5">
+            <a
+              href="/api/docs"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="inline-flex h-9 cursor-pointer items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3.5 text-xs font-semibold text-slate-200 transition hover:bg-white/10"
+            >
+              <span>{i18n.t.settingsModal.apiTokens.docsButton}</span>
+              <ExternalLink size={13} />
+            </a>
+            {#if tokens.length > 0}
+              <button
+                type="button"
+                class="bg-accent hover:bg-accent-hover shadow-accent/20 inline-flex h-9 cursor-pointer items-center gap-2 rounded-lg px-3.5 text-xs font-semibold text-white shadow-md transition"
+                onclick={() => {
+                  newTokenName = "";
+                  newTokenExpiresInDays = undefined;
+                  showCreateTokenModal = true;
+                }}
+              >
+                <Plus size={14} />
+                <span>{i18n.t.settingsModal.apiTokens.createButton}</span>
+              </button>
+            {/if}
+          </div>
+        </div>
+
+        <!-- Token list or empty state -->
+        {#if isLoadingTokens}
+          <div class="flex flex-col items-center justify-center p-12 text-center">
+            <LoaderCircle size={28} class="mb-3 animate-spin text-[#a5b4fc]" />
+            <p class="text-muted text-xs">Загрузка...</p>
+          </div>
+        {:else if tokens.length === 0}
+          <div
+            class="flex flex-col items-center justify-center rounded-2xl border border-dashed border-white/[0.1] bg-white/[0.02] p-12 text-center"
+          >
+            <div
+              class="bg-accent-bright/10 mb-3 grid h-12 w-12 place-items-center rounded-2xl text-[#a5b4fc]"
+            >
+              <Key size={22} />
+            </div>
+            <p class="text-sm font-medium text-slate-300">
+              {i18n.t.settingsModal.apiTokens.emptyState}
+            </p>
+            <p class="text-muted mt-1 max-w-sm text-xs">
+              {i18n.t.settingsModal.apiTokens.description}
+            </p>
+            <button
+              type="button"
+              class="bg-accent hover:bg-accent-hover shadow-accent/20 mt-4 inline-flex h-9 cursor-pointer items-center gap-2 rounded-lg px-3.5 text-xs font-semibold text-white shadow-md transition"
+              onclick={() => {
+                newTokenName = "";
+                newTokenExpiresInDays = undefined;
+                showCreateTokenModal = true;
+              }}
+            >
+              <Plus size={14} />
+              <span>{i18n.t.settingsModal.apiTokens.createButton}</span>
+            </button>
+          </div>
+        {:else}
+          <div class="space-y-3">
+            {#each tokens as token (token.id)}
+              <div
+                class="bg-field flex items-center justify-between rounded-xl border border-white/[0.08] p-4 shadow-sm transition hover:border-white/[0.15]"
+              >
+                <div class="min-w-0 space-y-1.5 pr-4">
+                  <div class="flex flex-wrap items-center gap-2.5">
+                    <span class="text-ink truncate text-sm font-bold">{token.name}</span>
+                    <code
+                      class="rounded border border-white/[0.06] bg-black/40 px-2 py-0.5 font-mono text-[11px] text-indigo-300"
+                    >
+                      {token.tokenPrefix}••••••••
+                    </code>
+                  </div>
+                  <div class="text-muted flex flex-wrap items-center gap-4 text-[11px]">
+                    <span>
+                      {i18n.t.settingsModal.apiTokens.created}: {formatDate(token.createdAt)}
+                    </span>
+                    <span>•</span>
+                    <span>
+                      {i18n.t.settingsModal.apiTokens.lastUsed}:
+                      <strong class="font-normal text-slate-300"
+                        >{formatRelativeTime(token.lastUsedAt)}</strong
+                      >
+                    </span>
+                    {#if token.expiresAt}
+                      <span>•</span>
+                      <span class="text-amber-400/90">
+                        {i18n.t.settingsModal.apiTokens.expiresAt}: {formatDate(token.expiresAt)}
+                      </span>
+                    {/if}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  class="tap shrink-0 cursor-pointer rounded-lg p-2 text-rose-400 transition hover:bg-rose-500/10 hover:text-rose-300"
+                  title={i18n.t.settingsModal.apiTokens.revokeButton}
+                  onclick={() => (tokenToRevoke = token)}
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            {/each}
+          </div>
+        {/if}
+      </section>
+    {/if}
+  </div>
 {/snippet}
 
 {#snippet body()}
@@ -2980,7 +2932,9 @@
         class="flex shrink-0 items-center justify-between border-b border-white/[0.08] px-6 py-4"
       >
         <div class="flex items-center gap-3">
-          <div class="bg-accent-bright/15 grid h-9 w-9 place-items-center rounded-lg text-[#a5b4fc]">
+          <div
+            class="bg-accent-bright/15 grid h-9 w-9 place-items-center rounded-lg text-[#a5b4fc]"
+          >
             <Settings size={20} />
           </div>
           <div>
@@ -3064,7 +3018,7 @@
         </button>
         <button
           type="button"
-          class="inline-flex h-9 cursor-pointer items-center gap-2 rounded-md bg-rose-700 px-4 text-xs font-semibold text-white transition hover:bg-rose-600 disabled:cursor-not-allowed disabled:opacity-60"
+          class="inline-flex h-9 cursor-pointer items-center gap-2 rounded-md bg-rose-700 px-4 text-xs font-semibold text-white transition hover:bg-rose-600/90 disabled:cursor-not-allowed disabled:opacity-60"
           class:cursor-wait={isResetting}
           disabled={isResetting ||
             resetConfirmationInput.trim() !== i18n.t.settingsModal.backup.confirmationWord}
@@ -3126,7 +3080,7 @@
         </button>
         <button
           type="button"
-          class="inline-flex h-9 cursor-pointer items-center gap-2 rounded-md bg-rose-600 px-4 text-xs font-semibold text-white transition hover:bg-rose-500 disabled:cursor-not-allowed disabled:opacity-60"
+          class="inline-flex h-9 cursor-pointer items-center gap-2 rounded-md bg-rose-600/90 px-4 text-xs font-semibold text-white transition hover:bg-rose-500/90 disabled:cursor-not-allowed disabled:opacity-60"
           class:cursor-wait={isRestoring}
           disabled={isRestoring}
           onclick={handleConfirmRestore}
@@ -3214,7 +3168,7 @@
           </button>
           <button
             type="submit"
-            class="bg-accent-bright inline-flex h-9 cursor-pointer items-center gap-2 rounded-md px-4 text-xs font-semibold text-white transition hover:bg-[#6854f0] disabled:cursor-not-allowed disabled:opacity-60"
+            class="bg-accent-bright inline-flex h-9 cursor-pointer items-center gap-2 rounded-md px-4 text-xs font-semibold text-white transition hover:bg-[var(--color-accent-bright-hover)] disabled:cursor-not-allowed disabled:opacity-60"
             disabled={isCreatingToken || !newTokenName.trim()}
           >
             {#if isCreatingToken}
@@ -3278,7 +3232,7 @@
             </code>
             <button
               type="button"
-              class="tap bg-accent-bright inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-[#6854f0]"
+              class="tap bg-accent-bright inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-[var(--color-accent-bright-hover)]"
               onclick={() => handleCopyToken(createdTokenResult!.rawToken)}
             >
               {#if hasCopiedToken}
@@ -3347,7 +3301,7 @@
         </button>
         <button
           type="button"
-          class="inline-flex h-9 cursor-pointer items-center gap-2 rounded-md bg-rose-600 px-4 text-xs font-semibold text-white transition hover:bg-rose-500 disabled:cursor-not-allowed disabled:opacity-60"
+          class="inline-flex h-9 cursor-pointer items-center gap-2 rounded-md bg-rose-600/90 px-4 text-xs font-semibold text-white transition hover:bg-rose-500/90 disabled:cursor-not-allowed disabled:opacity-60"
           disabled={isRevokingToken}
           onclick={handleRevokeToken}
         >
@@ -3366,7 +3320,7 @@
 
 {#if embedded}
   <!-- Full-screen view shell (SettingsView): the same panel, no overlay chrome. -->
-  <div class="h-full w-full flex overflow-hidden bg-canvas">
+  <div class="bg-canvas flex h-full w-full overflow-hidden">
     {@render body()}
   </div>
   {@render dialogs()}

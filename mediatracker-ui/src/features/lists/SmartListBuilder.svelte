@@ -1,6 +1,7 @@
 <script lang="ts">
-  import type { SmartListQuery, MediaItem } from "$shared/types";
+  import type { SmartListQuery, MediaItem, MediaStatus } from "$shared/types";
   import { i18n } from "$shared/i18n/index.svelte";
+  import { statusLabel } from "$entities/media/model/mediaLabels";
   import Select from "$shared/ui/Select.svelte";
   import { Search } from "$shared/ui/Icons";
 
@@ -58,11 +59,11 @@
   ];
 
   const statusOptions = [
-    { value: 0, label: () => i18n.t.views.smartStatusPlanned },
-    { value: 1, label: () => i18n.t.views.smartStatusInProgress },
-    { value: 2, label: () => i18n.t.views.smartStatusCompleted },
-    { value: 3, label: () => i18n.t.views.smartStatusOnHold },
-    { value: 4, label: () => i18n.t.views.smartStatusDropped },
+    { value: 0, label: () => statusLabel(0 as MediaStatus) },
+    { value: 1, label: () => statusLabel(1 as MediaStatus) },
+    { value: 2, label: () => statusLabel(2 as MediaStatus) },
+    { value: 3, label: () => statusLabel(3 as MediaStatus) },
+    { value: 4, label: () => statusLabel(4 as MediaStatus) },
   ];
 
   const releaseStatusOptions = [

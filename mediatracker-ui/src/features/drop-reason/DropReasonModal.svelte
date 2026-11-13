@@ -198,7 +198,7 @@
           </button>
           <button
             type="button"
-            class="tap rounded-lg bg-rose-600 px-4 py-1.5 text-xs font-semibold text-white shadow-md transition hover:bg-rose-500 disabled:opacity-50"
+            class="tap rounded-lg bg-rose-600/90 px-4 py-1.5 text-xs font-semibold text-white shadow-md transition hover:bg-rose-500/90 disabled:opacity-50"
             onclick={handleSave}
             disabled={saving}
           >

@@ -118,7 +118,7 @@
             />
             <span
               class="grid h-8 w-8 place-items-center rounded-lg text-white"
-              style={`background:${list.color ?? "#5844e0"}`}><List size={15} /></span
+              style={`background:${list.color ?? "var(--color-accent)"}`}><List size={15} /></span
             >
             <span class="text-ink min-w-0 flex-1 truncate text-sm font-medium">{list.name}</span>
             <span class="text-muted text-xs">{i18n.t.views.listTitles(list.itemsCount)}</span>

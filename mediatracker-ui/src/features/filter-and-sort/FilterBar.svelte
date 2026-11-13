@@ -211,7 +211,7 @@
       </PopoverMenu>
     </div>
 
-    <!-- Счётчик по центру тулбара: badge сидит в геометрическом центре панели. -->
+    <!-- Centered counter: the badge sits in the toolbar's geometric center. -->
     <div class="order-last flex items-center justify-center lg:order-none">
       {#if totalCount !== undefined}
         <TotalBadge total={totalCount} shown={shownCount} />

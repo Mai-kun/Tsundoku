@@ -22,7 +22,7 @@
   let { isOpen, list = null, onClose, onSaved }: Props = $props();
   let name = $state("");
   let description = $state("");
-  let color = $state("#5844e0");
+  let color = $state("#473bb8");
   let icon = $state("list");
   let busy = $state(false);
   let error = $state("");
@@ -33,7 +33,9 @@
   let allMedia = $state.raw<MediaItem[]>([]);
   let matchedItems = $state.raw<MediaItem[]>([]);
 
-  const colors = ["#5844e0", "#3b82f6", "#10b981", "#f59e0b", "#ec4899", "#06b6d4"];
+  // Persisted list colors must be concrete values (they are stored in the DB and reused
+  // outside CSS), so this palette keeps muted hexes rather than var() references.
+  const colors = ["#473bb8", "#4a72b8", "#3f8f6b", "#c08a3e", "#b85a86", "#3d8fa3"];
   const icons = [
     { key: "list", component: List },
     { key: "bookmark", component: Bookmark },

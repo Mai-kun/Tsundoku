@@ -32,9 +32,12 @@
   }: Props = $props();
 </script>
 
-<div class="h-full w-full flex overflow-hidden">
+<div class="flex h-full w-full overflow-hidden">
   {#await import("$features/settings/SettingsModal.svelte") then { default: SettingsPanel }}
-    <div class="view-fade h-full w-full flex overflow-hidden" aria-label={i18n.t.settingsModal.title}>
+    <div
+      class="view-fade flex h-full w-full overflow-hidden"
+      aria-label={i18n.t.settingsModal.title}
+    >
       <SettingsPanel
         isOpen={false}
         onClose={() => {}}

@@ -19,12 +19,13 @@
     removeMediaFromList,
   } from "$shared/api/api";
   import { fullSizeCoverUrl } from "$entities/media/model/coverUrl";
+  import { statusLabel } from "$entities/media/model/mediaLabels";
   import MediaCoverPlaceholder from "$shared/ui/MediaCoverPlaceholder.svelte";
   import CreateListModal from "$features/lists/CreateListModal.svelte";
   import MediaGrid from "$widgets/media-grid/MediaGrid.svelte";
   import { i18n } from "$shared/i18n/index.svelte";
   import { showToast } from "$shared/ui/toast.svelte";
-  import type { CustomListDetail, CustomListSummary, MediaItem } from "$shared/types";
+  import type { CustomListDetail, CustomListSummary, MediaItem, MediaStatus } from "$shared/types";
   import ImportModal from "$features/import-media/ImportModal.svelte";
 
   interface Props {
@@ -183,7 +184,7 @@
         <div class="flex items-center gap-3">
           <span
             class="grid h-12 w-12 shrink-0 place-items-center rounded-xl text-white"
-            style={`background:${selected.color ?? "#5844e0"}`}
+            style={`background:${selected.color ?? "var(--color-accent)"}`}
           >
             <SelectedIcon size={23}></SelectedIcon>
           </span>
@@ -231,12 +232,7 @@
                 >{sq.categories.join(" · ")}</span
               >{/if}
             {#if sq.statuses?.length}<span class="rounded-full bg-violet-400/15 px-2 py-0.5"
-                >{sq.statuses
-                  .map(
-                    (s: number) =>
-                      ["В планах", "В процессе", "Завершено", "На паузе", "Брошено"][s],
-                  )
-                  .join(" · ")}</span
+                >{sq.statuses.map((s: number) => statusLabel(s as MediaStatus)).join(" · ")}</span
               >{/if}
             {#if sq.maxEpisodes}<span class="rounded-full bg-violet-400/15 px-2 py-0.5"
                 >≤{sq.maxEpisodes} эп.</span
@@ -342,11 +338,12 @@
                   {@const Icon = iconComponents[list.icon as keyof typeof iconComponents] ?? List}
                   <div
                     class="flex h-full w-full items-center justify-center"
-                    style={`background:linear-gradient(135deg, ${list.color ?? "#5844e0"}44, transparent)`}
+                    style={`background:linear-gradient(135deg, color-mix(in srgb, ${list.color ?? "var(--color-accent)"} 27%, transparent), transparent)`}
                   >
                     <span
                       class="grid h-16 w-16 place-items-center rounded-2xl border border-white/10 text-white shadow-lg"
-                      style={`background:${list.color ?? "#5844e0"}`}><Icon size={27} /></span
+                      style={`background:${list.color ?? "var(--color-accent)"}`}
+                      ><Icon size={27} /></span
                     >
                   </div>
                 {:else if list.previewCovers.length === 1}

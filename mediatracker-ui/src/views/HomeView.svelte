@@ -47,6 +47,7 @@
   } from "$entities/media/model/timeBudget";
   import { uiSettings } from "$shared/utils/uiSettings.svelte";
   import { isStaleInProgress } from "$entities/media/model/staleTriage";
+  import { statusLabel } from "$entities/media/model/mediaLabels";
   import { reconcileListProgress } from "$features/update-progress/optimisticProgress.svelte";
 
   const timeBudgetOptions = $derived<{ value: TimeBudgetMinutes; label: string }[]>([
@@ -665,7 +666,7 @@
   </section>
 {/snippet}
 
-<div class="space-y-6">
+<div class="space-y-4">
   <!-- Полноразмерная панель управления (точная копия FilterBar категорий) -->
   {#if (!loading && !loadError) || hasLoaded || inProgress.length > 0 || upNext.length > 0 || recentlyCompleted.length > 0}
     <section
@@ -1040,13 +1041,13 @@
     />
   {:else}
     {#if displayInProgress.length > 0}
-      {@render section(displayInProgress, i18n.t.views.inProgress, true)}
+      {@render section(displayInProgress, statusLabel(MEDIA_STATUS.inProgress), true)}
     {/if}
     {#if displayUpNext.length > 0}
-      {@render section(displayUpNext, i18n.t.views.upNext, false)}
+      {@render section(displayUpNext, statusLabel(MEDIA_STATUS.planned), false)}
     {/if}
     {#if timeBudget === null && displayRecentlyCompleted.length > 0}
-      {@render section(displayRecentlyCompleted, i18n.t.views.recentlyCompleted, false)}
+      {@render section(displayRecentlyCompleted, statusLabel(MEDIA_STATUS.completed), false)}
     {/if}
   {/if}
 

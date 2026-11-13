@@ -255,26 +255,26 @@
 </div>
 
 <style>
-  /* Micro-animation on open: 150ms fade + settle. The native popover attribute
+  /* Micro-animation on open: 150ms fade + settle + light scale. The native popover attribute
      needs `display`/`overlay` in the transition list and @starting-style so the
      entry animation actually plays from the closed state. */
   div[popover] {
     opacity: 0;
-    transform: translateY(-4px);
+    transform: translateY(-4px) scale(0.96);
     transition:
-      opacity 150ms ease,
-      transform 150ms ease,
-      display 150ms allow-discrete,
-      overlay 150ms allow-discrete;
+      opacity 140ms cubic-bezier(0.16, 1, 0.3, 1),
+      transform 140ms cubic-bezier(0.16, 1, 0.3, 1),
+      display 140ms allow-discrete,
+      overlay 140ms allow-discrete;
   }
 
   div[popover]:popover-open {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
 
     @starting-style {
       opacity: 0;
-      transform: translateY(-4px);
+      transform: translateY(-4px) scale(0.96);
     }
   }
 </style>

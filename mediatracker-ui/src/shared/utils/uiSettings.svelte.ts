@@ -8,6 +8,7 @@ const MANGA_CHAPTER_MINUTES_KEY = "tsundoku_reading_manga_chapter_minutes";
 const CAST_SIZE_BY_CATEGORY_KEY = "tsundoku_cast_size_by_category";
 const STAFF_SIZE_BY_CATEGORY_KEY = "tsundoku_staff_size_by_category";
 const ON_CLOSE_ACTION_KEY = "tsundoku_on_close_action";
+const VOICE_OPTION_MEMORY_KEY = "tsundoku_voice_option_memory";
 
 export const DEFAULT_BOOK_PAGE_MINUTES = 1.5;
 export const DEFAULT_MANGA_CHAPTER_MINUTES = 6.0;
@@ -15,6 +16,31 @@ export const DEFAULT_MANGA_CHAPTER_MINUTES = 6.0;
 export type PeopleCardSize = "compact" | "large";
 export type OnCloseAction = "tray" | "exit" | "ask";
 type PeopleSizeMap = Record<string, PeopleCardSize>;
+
+/** Which combobox scope an option belongs to: watching (studios/sites) or reading (formats). */
+export type VoiceOptionScope = "watch" | "read";
+/** User-remembered combobox options: values the user typed themselves plus their starred picks. */
+export interface VoiceOptionMemory {
+  custom: string[];
+  favorites: string[];
+}
+type VoiceOptionMemoryMap = Record<VoiceOptionScope, VoiceOptionMemory>;
+
+function readVoiceOptionMemory(): VoiceOptionMemoryMap {
+  const empty: VoiceOptionMemory = { custom: [], favorites: [] };
+  if (typeof localStorage === "undefined") return { watch: empty, read: { ...empty } };
+  try {
+    const parsed = JSON.parse(localStorage.getItem(VOICE_OPTION_MEMORY_KEY) ?? "{}");
+    const pick = (raw: unknown): string[] =>
+      Array.isArray(raw) ? raw.filter((v): v is string => typeof v === "string") : [];
+    return {
+      watch: { custom: pick(parsed?.watch?.custom), favorites: pick(parsed?.watch?.favorites) },
+      read: { custom: pick(parsed?.read?.custom), favorites: pick(parsed?.read?.favorites) },
+    };
+  } catch {
+    return { watch: { ...empty }, read: { ...empty } };
+  }
+}
 
 function readOnCloseAction(): OnCloseAction {
   if (typeof localStorage === "undefined") return "tray";
@@ -91,6 +117,9 @@ class UiSettingsService {
       : "completed",
   );
   onCloseAction = $state<OnCloseAction>(readOnCloseAction());
+  /** Combobox memory for the "voice studio / reading format" field: every value the user applied
+        at least once stays in the list and is starred, so it always floats to the top. */
+  voiceOptionMemory = $state<VoiceOptionMemoryMap>(readVoiceOptionMemory());
   /** Selected app icon variant ("default" | "alt"), persisted and applied to the favicon. */
   appIcon = $state<string>(this.read("app_icon", "default"));
   isLoaded = $state<boolean>(false);
@@ -160,6 +189,46 @@ class UiSettingsService {
   setStaffSize(category: string, size: PeopleCardSize): void {
     this.staffSizeByCategory = { ...this.staffSizeByCategory, [category]: size };
     writeStoredMap(STAFF_SIZE_BY_CATEGORY_KEY, this.staffSizeByCategory);
+  }
+
+  getVoiceOptions(scope: VoiceOptionScope): VoiceOptionMemory {
+    return this.voiceOptionMemory[scope];
+  }
+
+  /** A user-applied value lands in the permanent list and is starred automatically. */
+  rememberVoiceOption(scope: VoiceOptionScope, rawValue: string): void {
+    const value = rawValue.trim();
+    if (!value) return;
+    const current = this.voiceOptionMemory[scope];
+    if (current.favorites.includes(value)) return;
+    const next = {
+      custom: current.custom.includes(value) ? current.custom : [...current.custom, value],
+      favorites: [...current.favorites, value],
+    };
+    this.voiceOptionMemory = { ...this.voiceOptionMemory, [scope]: next };
+    this.writeVoiceOptionMemory();
+  }
+
+  toggleVoiceFavorite(scope: VoiceOptionScope, rawValue: string): void {
+    const value = rawValue.trim();
+    if (!value) return;
+    const current = this.voiceOptionMemory[scope];
+    const isFavorite = current.favorites.includes(value);
+    const next = {
+      custom: isFavorite || current.custom.includes(value)
+        ? current.custom
+        : [...current.custom, value],
+      favorites: isFavorite
+        ? current.favorites.filter((v) => v !== value)
+        : [...current.favorites, value],
+    };
+    this.voiceOptionMemory = { ...this.voiceOptionMemory, [scope]: next };
+    this.writeVoiceOptionMemory();
+  }
+
+  private writeVoiceOptionMemory(): void {
+    if (typeof localStorage === "undefined") return;
+    localStorage.setItem(VOICE_OPTION_MEMORY_KEY, JSON.stringify(this.voiceOptionMemory));
   }
 
   setStatsScope(scope: "completed" | "all"): void {

@@ -2,10 +2,13 @@
   import {
     Ban,
     CalendarDays,
+    Check,
     ChevronDown,
+    Ellipsis,
     ExternalLink,
     Image as ImageIcon,
     Link2,
+    List,
     Pencil,
     RefreshCw,
     Sparkles,
@@ -13,6 +16,7 @@
     Trash2,
   } from "$shared/ui/Icons";
   import ListPicker from "$features/lists/ListPicker.svelte";
+  import { slide } from "svelte/transition";
   import { errorMessage, triggerAutoRefresh } from "$shared/api/api";
   import { showToast } from "$shared/ui/toast.svelte";
   import { fullSizeCoverUrl, proxiedExternalCoverUrl } from "$entities/media/model/coverUrl";
@@ -25,6 +29,7 @@
   import { statusLabel } from "$entities/media/model/mediaLabels";
   import { getDropReasonLabel } from "$entities/media/model/dropReasons";
   import { dropPromptState } from "$features/drop-reason/dropReasonPrompt.svelte";
+  import { uiSettings, type VoiceOptionScope } from "$shared/utils/uiSettings.svelte";
   import {
     getCriteriaAxes,
     parseDetailedScore,
@@ -57,9 +62,7 @@
     onClearScore: () => void;
     onSaveDetailedScore?: (detailedJson: string | null, newScore?: number | null) => Promise<void>;
     formatDate: (value: string | null) => string;
-    historyProgressText: () => string;
     watchedOnInput: string;
-    watchedOnOptions: readonly string[];
     onWatchedOnInput: (value: string) => void;
     onWatchedOnDirty: () => void;
     onSaveWatchedOn: () => Promise<void>;
@@ -100,9 +103,7 @@
     onClearScore,
     onSaveDetailedScore,
     formatDate,
-    historyProgressText,
     watchedOnInput,
-    watchedOnOptions,
     onWatchedOnInput,
     onWatchedOnDirty,
     onSaveWatchedOn,
@@ -128,6 +129,7 @@
 
   let isCoverManagerOpen = $state(false);
   let isActivityOpen = $state(false);
+  let isListPickerOpen = $state(false);
   let detailedExpanded = $state(false);
   let detailedDraft = $state<DetailedScoreMap>({});
   let lastMediaJson = $state<string | null | undefined>(undefined);
@@ -152,7 +154,6 @@
     }
     return result;
   });
-  const visibleAltTitles = $derived(showAllAltTitles ? splitAltTitles : splitAltTitles.slice(0, 2));
   // The romaji row is noise when the romanized title just repeats the display title or one
   // of the alternatives; the genres and alt-title rows move out of the dl into full-width
   // blocks below the table.
@@ -179,7 +180,6 @@
     }
     return result;
   });
-  const visibleGenreChips = $derived(showAllGenres ? genreChips : genreChips.slice(0, 6));
 
   $effect(() => {
     void media.coverUrl;
@@ -204,7 +204,95 @@
 
   const platformMenuItems = $derived(platformOptions.map((value) => ({ value, label: value })));
 
-  const watchedOnMenuItems = $derived(watchedOnOptions.map((value) => ({ value, label: value })));
+  // Rare actions hide behind the compact "…" menu next to the section title; only the frequent
+  // ones stay on the panel face.
+  type MoreAction = "covers" | "lists" | "relink" | "activity";
+  const moreActionItems = $derived(
+    [
+      { value: "covers", label: i18n.t.coversModal.openCovers, icon: ImageIcon },
+      { value: "lists", label: i18n.t.views.listAddTo, icon: List },
+      { value: "relink", label: i18n.t.detail.changeSource, icon: Link2 },
+      { value: "activity", label: i18n.t.detail.activity, icon: CalendarDays },
+    ] satisfies Array<{ value: MoreAction; label: string; icon: typeof ImageIcon }>,
+  );
+
+  function runMoreAction(value: MoreAction) {
+    switch (value) {
+      case "covers":
+        isCoverManagerOpen = true;
+        break;
+      case "lists":
+        isListPickerOpen = true;
+        break;
+      case "relink":
+        onRelink();
+        break;
+      case "activity":
+        isActivityOpen = true;
+        break;
+    }
+  }
+
+  const moreActionIcon = (value: string) =>
+    moreActionItems.find((item) => item.value === value)?.icon;
+
+  // One combobox replaces the old input + list-button pair. Its scope follows the media type:
+  // watching types get voice studios / streaming sites, books get reading formats, manga and
+  // games have no such field at all.
+  const comboScope = $derived<VoiceOptionScope | null>(
+    media.type === "book"
+      ? "read"
+      : media.type === "movie" || media.type === "tvshow"
+        ? "watch"
+        : null,
+  );
+  const isAnimeMedia = $derived((media as { isAnime?: boolean }).isAnime === true);
+  const comboLabel = $derived(
+    comboScope === "read" ? i18n.t.detail.readingFormatLabel : i18n.t.detail.voiceStudioLabel,
+  );
+  const comboPresets = $derived(
+    comboScope === "read"
+      ? i18n.t.detail.readingFormatPresets()
+      : i18n.t.detail.voiceStudioPresets(isAnimeMedia),
+  );
+  const comboMemory = $derived(comboScope ? uiSettings.getVoiceOptions(comboScope) : null);
+
+  // Favorites float to the top; the rest follows preset order with the user's own values
+  // (which are auto-favorited the moment they are applied) merged in.
+  const comboOptions = $derived.by(() => {
+    if (!comboMemory) return [] as string[];
+    const isFavorite = (value: string) =>
+      comboMemory.favorites.some((v) => v.toLowerCase() === value.toLowerCase());
+    const seen = new Set<string>();
+    const merged: string[] = [];
+    for (const value of [...comboPresets, ...comboMemory.custom]) {
+      const key = value.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      merged.push(value);
+    }
+    return merged.sort(
+      (a, b) => Number(isFavorite(b)) - Number(isFavorite(a)),
+    );
+  });
+
+  const comboMenuItems = $derived(comboOptions.map((value) => ({ value, label: value })));
+  const comboIsFavorite = $derived.by(
+    () => (value: string) =>
+      (comboMemory?.favorites ?? []).some((v) => v.toLowerCase() === value.toLowerCase()),
+  );
+
+  function toggleComboFavorite(value: string) {
+    if (!comboScope) return;
+    uiSettings.toggleVoiceFavorite(comboScope, value);
+  }
+
+  /** Save + remember: every value the user applies once is kept forever and starred. */
+  function commitComboValue(value: string) {
+    onWatchedOnInput(value);
+    if (comboScope) uiSettings.rememberVoiceOption(comboScope, value);
+    void onSaveWatchedOn();
+  }
 
   const finishedRelease = $derived(media.releaseStatus?.toUpperCase() === "FINISHED");
   // Games and books are never polled server-side; the button only makes sense for active ongoings.
@@ -361,10 +449,12 @@
         aria-expanded={ratingOpen}
       >
         {#if scoreValue !== null && scoreValue > 0}
-          <span
-            class="text-[17px] font-black tracking-tight text-amber-300 tabular-nums select-none"
-            >{scoreValue}</span
-          >
+          {#key scoreValue}
+            <span
+              class="score-pop text-[17px] font-black tracking-tight text-amber-300 tabular-nums select-none"
+              >{scoreValue}</span
+            >
+          {/key}
         {:else}
           <Star size={18} class="text-white/80" aria-hidden="true" />
         {/if}
@@ -372,13 +462,17 @@
 
       {#if ratingOpen}
         <div
-          class={`absolute top-full right-0 z-30 mt-2 rounded-xl border border-white/[0.12] bg-[var(--color-overlay)] p-3 shadow-2xl shadow-black/90 transition ${
+          class={`rating-pop absolute top-full right-0 z-30 mt-2 rounded-xl border border-white/[0.12] bg-[var(--color-overlay)] p-3 shadow-2xl shadow-black/90 ${
             detailedExpanded ? "w-72 sm:w-80" : "w-48"
           }`}
         >
           <div class="mb-2 text-center text-xs font-semibold text-slate-300">
             {#if scoreValue !== null}
-              <span class="font-bold text-amber-300 tabular-nums">{scoreValue}</span>
+              {#key scoreValue}
+                <span class="score-pop inline-block font-bold text-amber-300 tabular-nums"
+                  >{scoreValue}</span
+                >
+              {/key}
               {i18n.t.detail.yourRating}
             {:else}
               {i18n.t.detail.rateButton}
@@ -669,16 +763,6 @@
             {formatDate(media.finishedAt)}
           </dd>
         </div>
-        {#if media.type !== "movie"}
-          <div class="flex items-center justify-between gap-3 py-2.5">
-            <dt class="text-muted text-xs">
-              {i18n.t.detail.progressShort}
-            </dt>
-            <dd class="text-xs font-medium text-white tabular-nums">
-              {historyProgressText()}
-            </dd>
-          </div>
-        {/if}
         {#if media.type !== "game" && media.nextAutoRefreshAt && !finishedRelease}
           <!-- When the next background check runs, and at what cadence. -->
           <div class="flex items-center justify-between gap-3 py-2.5">
@@ -697,62 +781,101 @@
             </dd>
           </div>
         {/if}
-        {#if media.type === "movie" || media.type === "tvshow"}
-          <!-- Pick a known site or type your own; saved on change/blur. The sites come from
-                         our PopoverMenu rather than a native <datalist>: the browser popup ignores the
-                         app palette and renders its own arrow, which is what the datalist arrow
-                         pointed at. -->
+        {#if comboScope !== null}
+          <!-- Seamless combobox in one frame: the input and the dropdown chevron share a single
+                 border. The list comes from our PopoverMenu (never a native <datalist>): its popup
+                 ignores the app palette and renders its own arrow. -->
           <div class="flex items-center justify-between gap-3 py-2.5">
-            <dt class="text-muted text-xs">
-              {i18n.t.detail.watchedOnLabel}
+            <dt class="text-muted shrink-0 text-xs">
+              {comboLabel}
             </dt>
-            <dd class="flex min-w-0 flex-1 items-center justify-end gap-1.5">
-              <input
-                id="watched-on-input"
-                class="bg-elevated focus:border-accent focus:ring-accent/30 h-8 w-full max-w-[12rem] min-w-0 rounded-lg border border-white/10 px-2 text-right text-xs text-white outline-none focus:ring-2"
-                placeholder={i18n.t.detail.watchedOnPlaceholder}
-                value={watchedOnInput}
-                oninput={(e) => {
-                  onWatchedOnInput(e.currentTarget.value);
-                  onWatchedOnDirty();
-                }}
-                onchange={() => void onSaveWatchedOn()}
-                onblur={() => void onSaveWatchedOn()}
-              />
-              <PopoverMenu
-                id={`watched-on-${media.id}`}
-                options={watchedOnMenuItems}
-                selected={watchedOnInput}
-                onSelect={(value) => {
-                  onWatchedOnInput(String(value));
-                  void onSaveWatchedOn();
-                }}
-                label={i18n.t.detail.watchedOnLabel}
-                placement="bottom-end"
-                matchTriggerWidth={false}
-                class="max-h-64 min-w-[180px] overflow-y-auto"
-                optionClass="text-xs"
-                openOnHover
-                closeDelay={220}
+            <dd class="flex min-w-0 flex-1 items-center justify-end">
+              <div
+                class="focus-within:border-accent focus-within:ring-accent/30 flex h-8 w-full max-w-[13rem] items-center rounded-lg border border-white/10 bg-[var(--color-field)] transition focus-within:ring-2"
               >
-                {#snippet trigger({ popoverTargetId, anchorName, isOpen })}
-                  <button
-                    type="button"
-                    popovertarget={popoverTargetId}
-                    popovertargetaction="toggle"
-                    style={isOpen ? `anchor-name: ${anchorName}` : undefined}
-                    class="tap flex h-8 shrink-0 items-center justify-center gap-1 rounded-lg border border-white/[0.08] bg-[var(--color-field)] px-2 text-xs text-white transition hover:bg-[var(--color-track-faint)] has-[:popover-open]:ring-1 has-[:popover-open]:ring-[var(--color-accent)]"
-                    aria-label={i18n.t.detail.watchedOnLabel}
-                    aria-haspopup="listbox"
-                  >
-                    <ChevronDown
-                      size={13}
-                      class="text-muted transition duration-200 has-[:popover-open]:rotate-180 has-[:popover-open]:text-white"
-                      aria-hidden="true"
-                    />
-                  </button>
-                {/snippet}
-              </PopoverMenu>
+                <input
+                  id="watched-on-input"
+                  class="h-full w-full min-w-0 bg-transparent px-2 text-right text-xs text-white outline-none placeholder:text-white/30"
+                  placeholder={i18n.t.detail.watchedOnPlaceholder}
+                  value={watchedOnInput}
+                  oninput={(e) => {
+                    onWatchedOnInput(e.currentTarget.value);
+                    onWatchedOnDirty();
+                  }}
+                  onkeydown={(e) => {
+                    // Enter commits through the blur handler; no duplicate save here.
+                    if (e.key === "Enter") e.currentTarget.blur();
+                  }}
+                  onblur={() => commitComboValue(watchedOnInput)}
+                />
+                <PopoverMenu
+                  id={`watched-on-${media.id}`}
+                  options={comboMenuItems}
+                  selected={watchedOnInput}
+                  onSelect={(value) => commitComboValue(String(value))}
+                  label={comboLabel}
+                  placement="bottom-end"
+                  matchTriggerWidth={false}
+                  class="max-h-64 min-w-[190px] overflow-y-auto"
+                  optionClass="text-xs"
+                >
+                  {#snippet trigger({ popoverTargetId, anchorName, isOpen })}
+                    <button
+                      type="button"
+                      popovertarget={popoverTargetId}
+                      popovertargetaction="toggle"
+                      style={isOpen ? `anchor-name: ${anchorName}` : undefined}
+                      class="tap flex h-full w-7 shrink-0 items-center justify-center text-white/60 transition hover:text-white has-[:popover-open]:text-white"
+                      aria-label={comboLabel}
+                      aria-haspopup="listbox"
+                    >
+                      <ChevronDown
+                        size={13}
+                        class="transition duration-200 has-[:popover-open]:rotate-180"
+                        aria-hidden="true"
+                      />
+                    </button>
+                  {/snippet}
+                  {#snippet renderOption({ option })}
+                    <span class="min-w-0 flex-1 truncate">{option.label}</span>
+                    <span class="flex shrink-0 items-center gap-1">
+                      <span
+                        role="button"
+                        tabindex={0}
+                        class="grid size-5 cursor-pointer place-items-center rounded transition hover:bg-white/10"
+                        title={comboIsFavorite(option.value)
+                          ? i18n.t.detail.unmarkFavorite
+                          : i18n.t.detail.markFavorite}
+                        aria-label={comboIsFavorite(option.value)
+                          ? i18n.t.detail.unmarkFavorite
+                          : i18n.t.detail.markFavorite}
+                        onclick={(e) => {
+                          e.stopPropagation();
+                          toggleComboFavorite(option.value);
+                        }}
+                        onkeydown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            toggleComboFavorite(option.value);
+                          }
+                        }}
+                      >
+                        <Star
+                          size={13}
+                          class={comboIsFavorite(option.value)
+                            ? "fill-amber-300 text-amber-300"
+                            : "text-muted hover:text-amber-200"}
+                          aria-hidden="true"
+                        />
+                      </span>
+                      {#if option.value === watchedOnInput}
+                        <Check size={14} class="text-accent-soft shrink-0" aria-hidden="true" />
+                      {/if}
+                    </span>
+                  {/snippet}
+                </PopoverMenu>
+              </div>
             </dd>
           </div>
         {/if}
@@ -806,18 +929,56 @@
   </div>
   <!-- Panel 2: Actions -->
   <div>
-    <h2 class="mb-2 text-xs font-bold tracking-wider text-slate-200 uppercase">
-      {i18n.t.detail.actionsTitle}
-    </h2>
-    <div class="panel space-y-2">
+    <div class="mb-2 flex items-center justify-between gap-2">
+      <h2 class="text-xs font-bold tracking-wider text-slate-200 uppercase">
+        {i18n.t.detail.actionsTitle}
+      </h2>
+      <!-- Rare actions (covers, lists, source, activity) live in the compact "…" menu. -->
+      <PopoverMenu
+        id={`detail-actions-more-${media.id}`}
+        options={moreActionItems}
+        selected=""
+        onSelect={(value) => runMoreAction(value as MoreAction)}
+        label={i18n.t.detail.actionsMore}
+        placement="bottom-end"
+        matchTriggerWidth={false}
+        class="min-w-[170px]"
+        optionClass="text-xs"
+      >
+        {#snippet trigger({ popoverTargetId, anchorName, isOpen })}
+          <button
+            type="button"
+            popovertarget={popoverTargetId}
+            popovertargetaction="toggle"
+            style={isOpen ? `anchor-name: ${anchorName}` : undefined}
+            class="tap grid size-7 cursor-pointer place-items-center rounded-md text-slate-300 transition hover:bg-white/[0.08] hover:text-white"
+            title={i18n.t.detail.actionsMore}
+            aria-label={i18n.t.detail.actionsMore}
+            aria-haspopup="menu"
+          >
+            <Ellipsis size={15} aria-hidden="true" />
+          </button>
+        {/snippet}
+        {#snippet renderOption({ option })}
+          {@const Icon = moreActionIcon(option.value)}
+          <span class="flex min-w-0 flex-1 items-center gap-2">
+            {#if Icon}
+              <Icon size={14} class="text-[var(--color-accent-soft)]" aria-hidden="true" />
+            {/if}
+            <span class="truncate">{option.label}</span>
+          </span>
+        {/snippet}
+      </PopoverMenu>
+    </div>
+    <div class="panel space-y-1.5">
       <button
         type="button"
-        class="bg-surface/50 flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-xs font-medium text-[var(--color-ink-dim)] transition hover:bg-[var(--color-panel-raised)] hover:text-white disabled:cursor-not-allowed disabled:opacity-70"
+        class="bg-surface/50 flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium text-[var(--color-ink-dim)] transition hover:bg-[var(--color-panel-raised)] hover:text-white disabled:cursor-not-allowed disabled:opacity-70"
         disabled={refreshBusy}
         onclick={() => void onRefreshMetadata()}
       >
         <RefreshCw
-          size={15}
+          size={14}
           class={`text-[var(--color-success-line)] ${refreshBusy ? "animate-spin" : ""}`}
           aria-hidden="true"
         />
@@ -833,12 +994,12 @@
       {#if isOngoing}
         <button
           type="button"
-          class="bg-surface/50 flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-xs font-medium text-[var(--color-ink-dim)] transition hover:bg-[var(--color-panel-raised)] hover:text-white disabled:cursor-not-allowed disabled:opacity-70"
+          class="bg-surface/50 flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium text-[var(--color-ink-dim)] transition hover:bg-[var(--color-panel-raised)] hover:text-white disabled:cursor-not-allowed disabled:opacity-70"
           disabled={autoRefreshBusy}
           onclick={() => void handleAutoRefresh()}
         >
           <RefreshCw
-            size={15}
+            size={14}
             class={`text-[var(--color-accent-soft)] ${autoRefreshBusy ? "animate-spin" : ""}`}
             aria-hidden="true"
           />
@@ -850,75 +1011,34 @@
                  names the provider. Fills only empty fields, so it can never cost them data. -->
       <button
         type="button"
-        class="bg-surface/50 flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-xs font-medium text-[var(--color-ink-dim)] transition hover:bg-[var(--color-panel-raised)] hover:text-white disabled:cursor-not-allowed disabled:opacity-70"
+        class="bg-surface/50 flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium text-[var(--color-ink-dim)] transition hover:bg-[var(--color-panel-raised)] hover:text-white disabled:cursor-not-allowed disabled:opacity-70"
         disabled={fillMissingBusy || refreshBusy}
         onclick={onFillMissing}
       >
         <Sparkles
-          size={15}
+          size={14}
           class={`text-[var(--color-accent-soft)] ${fillMissingBusy ? "animate-pulse" : ""}`}
           aria-hidden="true"
         />
         {fillMissingBusy ? i18n.t.detail.fillMissingRunning : i18n.t.detail.fillMissing}
       </button>
 
-      <!-- Refresh re-reads the id already stored; this is for when that id belongs to the wrong
-                 provider's match, so the user can point the row at a better one. -->
       <button
         type="button"
-        class="bg-surface/50 flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-xs font-medium text-[var(--color-ink-dim)] transition hover:bg-[var(--color-panel-raised)] hover:text-white"
-        onclick={onRelink}
-      >
-        <Link2 size={15} class="text-[var(--color-accent-soft)]" aria-hidden="true" />
-        {i18n.t.detail.changeSource}
-      </button>
-
-      <!-- Cover Gallery Manager -->
-      <button
-        type="button"
-        class="bg-surface/50 flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-xs font-medium text-[var(--color-ink-dim)] transition hover:bg-[var(--color-panel-raised)] hover:text-white"
-        onclick={() => (isCoverManagerOpen = true)}
-      >
-        <div class="flex items-center gap-2.5">
-          <ImageIcon size={15} class="text-[var(--color-accent-soft)]" aria-hidden="true" />
-          <span>{i18n.t.coversModal.openCovers}</span>
-        </div>
-        {#if media.covers && media.covers.length > 1}
-          <span
-            class="rounded-full bg-indigo-500/20 px-2 py-0.5 text-[10px] font-semibold text-indigo-400"
-          >
-            {media.covers.length}
-          </span>
-        {/if}
-      </button>
-
-      <ListPicker mediaId={media.id} />
-
-      <button
-        type="button"
-        class="bg-surface/50 flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-xs font-medium text-[var(--color-ink-dim)] transition hover:bg-[var(--color-panel-raised)] hover:text-white"
-        onclick={() => (isActivityOpen = true)}
-      >
-        <CalendarDays size={15} class="text-[var(--color-star)]" aria-hidden="true" />
-        {i18n.t.detail.activity}
-      </button>
-
-      <button
-        type="button"
-        class="bg-surface/50 flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-xs font-medium text-[var(--color-ink-dim)] transition hover:bg-[var(--color-panel-raised)] hover:text-white"
+        class="bg-surface/50 flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium text-[var(--color-ink-dim)] transition hover:bg-[var(--color-panel-raised)] hover:text-white"
         onclick={onStartEdit}
       >
-        <Pencil size={15} class="text-[var(--color-info-soft)]" aria-hidden="true" />
+        <Pencil size={14} class="text-[var(--color-info-soft)]" aria-hidden="true" />
         {i18n.t.detailModal.edit}
       </button>
 
       <button
         type="button"
-        class="tap bg-surface/50 flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-xs font-medium text-rose-300 transition hover:bg-[var(--color-panel-raised)] disabled:cursor-not-allowed disabled:opacity-70"
+        class="tap bg-surface/50 flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium text-rose-300 transition hover:bg-[var(--color-panel-raised)] disabled:cursor-not-allowed disabled:opacity-70"
         disabled={deleteBusy}
         onclick={() => void onDelete()}
       >
-        <Trash2 size={15} class="text-rose-400" aria-hidden="true" />
+        <Trash2 size={14} class="text-rose-400" aria-hidden="true" />
         {i18n.t.detailModal.delete}
       </button>
       {#if deleteError}<p class="text-xs text-rose-300" role="alert">
@@ -932,23 +1052,31 @@
       {i18n.t.detail.detailsTitle}
     </h2>
     <div class="panel">
-      <!-- Alt titles live outside the dl: a squashed right column cannot fit them. -->
+      <!-- Alt titles live outside the dl: a squashed right column cannot fit them.
+           The tail beyond the first two folds in/out with a smooth slide. -->
       {#if splitAltTitles.length > 0}
         <div class="border-b border-white/5 pb-3">
           <h3 class="text-muted text-xs font-medium">{i18n.t.detail.altTitlesLabel}</h3>
           <ul class="mt-2 space-y-1">
-            {#each visibleAltTitles as alt (alt)}
+            {#each splitAltTitles.slice(0, 2) as alt (alt)}
               <li class="text-xs leading-5 text-white/85">• {alt}</li>
             {/each}
           </ul>
-          {#if splitAltTitles.length > 3}
+          {#if showAllAltTitles && splitAltTitles.length > 2}
+            <ul transition:slide={{ duration: 200 }} class="space-y-1 pt-1">
+              {#each splitAltTitles.slice(2) as alt (alt)}
+                <li class="text-xs leading-5 text-white/85">• {alt}</li>
+              {/each}
+            </ul>
+          {/if}
+          {#if splitAltTitles.length > 2}
             <button
               type="button"
               class="text-muted mt-1 inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-md transition hover:bg-white/[0.08] hover:text-white"
               aria-expanded={showAllAltTitles}
               title={showAllAltTitles
                 ? i18n.t.detail.altTitlesLess
-                : i18n.t.detail.altTitlesMore(splitAltTitles.length - 3)}
+                : i18n.t.detail.altTitlesMore(splitAltTitles.length - 2)}
               onclick={() => (showAllAltTitles = !showAllAltTitles)}
             >
               <ChevronDown size={14} class={`transition ${showAllAltTitles ? "rotate-180" : ""}`} />
@@ -957,12 +1085,13 @@
         </div>
       {/if}
 
-      <!-- Genres as matte chips across the full panel width; the long tail hides behind a spoiler. -->
+      <!-- Genres as matte chips across the full panel width; the long tail hides behind a
+           spoiler that folds in/out with a smooth slide. -->
       {#if genreChips.length > 0}
         <div class="mt-3 border-b border-white/5 pb-3">
           <h3 class="text-muted text-xs font-medium">{i18n.t.detail.genresLabel}</h3>
           <div class="flex flex-wrap gap-1.5 pt-2">
-            {#each visibleGenreChips as genre (genre)}
+            {#each genreChips.slice(0, 6) as genre (genre)}
               <span class="rounded-md bg-white/[0.04] px-2.5 py-1 text-xs text-slate-300"
                 >{genreLabel(genre)}</span
               >
@@ -981,6 +1110,15 @@
               </button>
             {/if}
           </div>
+          {#if showAllGenres && genreChips.length > 6}
+            <div transition:slide={{ duration: 200 }} class="mt-1.5 flex flex-wrap gap-1.5">
+              {#each genreChips.slice(6) as genre (genre)}
+                <span class="rounded-md bg-white/[0.04] px-2.5 py-1 text-xs text-slate-300"
+                  >{genreLabel(genre)}</span
+                >
+              {/each}
+            </div>
+          {/if}
         </div>
       {/if}
 
@@ -1039,6 +1177,13 @@
   {/await}
 {/if}
 
+<!-- Rendered hidden while closed; the "…" menu flips `isOpen` to show the picker modal. -->
+<ListPicker
+  mediaId={media.id}
+  isOpen={isListPickerOpen}
+  onClose={() => (isListPickerOpen = false)}
+/>
+
 {#if isCoverManagerOpen}
   {#await import("./CoverManagerModal.svelte") then { default: CoverManagerModal }}
     <CoverManagerModal
@@ -1053,3 +1198,35 @@
     />
   {/await}
 {/if}
+
+<style>
+  /* Rating popover entry: opacity + a light lift/scale, transform & opacity only. */
+  .rating-pop {
+    animation: rating-pop 140ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  @keyframes rating-pop {
+    from {
+      opacity: 0;
+      transform: translateY(-4px) scale(0.96);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  /* The score number rolls over softly when the rating changes. */
+  .score-pop {
+    animation: score-pop 160ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  @keyframes score-pop {
+    from {
+      transform: scale(1.3);
+    }
+    to {
+      transform: scale(1);
+    }
+  }
+</style>

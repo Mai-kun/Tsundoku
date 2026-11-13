@@ -606,21 +606,22 @@ export function specRows(item: MediaItem): SpecRow[] {
   }
 
   switch (item.type) {
+    // Totals only: the current progress lives in the main progress card, a "0 / 12" repeat
+    // next to it read as a second, competing counter.
     case "tvshow":
       rows.push({
         label: i18n.t.detail.episodesLabel,
-        value: i18n.t.card.episodes(item.totalEpisodesWatched, item.totalEpisodesCount),
+        value: i18n.t.card.episodesTotal(item.totalEpisodesCount),
       });
       break;
     case "book": {
       const isNovel = item.format === "light_novel" || item.format === "web_novel";
       if (isNovel) {
-        const currentChapter = (item as { currentChapter?: number | null }).currentChapter ?? 0;
         const totalChapters = (item as { totalChapters?: number | null }).totalChapters;
         const totalVolumes = (item as { totalVolumes?: number | null }).totalVolumes;
         rows.push({
           label: i18n.t.detail.chaptersLabel,
-          value: i18n.t.card.chapters(currentChapter, totalChapters ?? null),
+          value: i18n.t.card.chaptersTotal(totalChapters ?? null),
         });
         if (totalVolumes && totalVolumes > 0) {
           rows.push({
@@ -631,7 +632,7 @@ export function specRows(item: MediaItem): SpecRow[] {
       } else {
         rows.push({
           label: i18n.t.detail.pagesLabel,
-          value: i18n.t.card.pages(item.currentPage, item.totalPages),
+          value: i18n.t.card.pagesTotal(item.totalPages),
         });
       }
       break;
@@ -640,7 +641,7 @@ export function specRows(item: MediaItem): SpecRow[] {
       const chapters = mangaChapterProgress(item);
       rows.push({
         label: i18n.t.detail.chaptersLabel,
-        value: i18n.t.card.chapters(chapters.current, chapters.total),
+        value: i18n.t.card.chaptersTotal(chapters.total),
       });
 
       const vols = (item as { volumes?: unknown }).volumes;

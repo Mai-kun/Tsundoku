@@ -74,6 +74,7 @@
     type SearchModalContext,
     type SourceInfo,
     type TvSeason,
+    type TvShowMedia,
     type UpdateMediaPayload,
   } from "$shared/types";
   import { clampProgress, writeCardProgress } from "$entities/media/model/progressRules";
@@ -363,6 +364,7 @@
   import DetailHeader from "$widgets/media-detail/DetailHeader.svelte";
   import DetailSidebar from "$widgets/media-detail/DetailSidebar.svelte";
   import DetailTabs from "$widgets/media-detail/DetailTabs.svelte";
+  import { cubicOut } from "svelte/easing";
   import OverviewTab from "$widgets/media-detail/tabs/OverviewTab.svelte";
   import SyncRowsSkeleton from "$widgets/media-detail/SyncRowsSkeleton.svelte";
   import { jobsClient } from "$shared/api/jobsClient.svelte";
@@ -406,6 +408,44 @@
   let trackedMediaId: string | null = null;
 
   let activeSubTab = $state<SubTab>("overview");
+
+  // Directional tab panels: forward tabs enter from the right, backward from the left.
+  const TAB_ORDER: readonly SubTab[] = [
+    "overview",
+    "episodes",
+    "gallery",
+    "related",
+    "recommendations",
+  ];
+  let tabDirection = $state(1);
+
+  function selectSubTab(tab: SubTab) {
+    const from = TAB_ORDER.indexOf(activeSubTab);
+    const to = TAB_ORDER.indexOf(tab);
+    tabDirection = to >= from ? 1 : -1;
+    activeSubTab = tab;
+  }
+
+  /** Incoming panel slides over the outgoing one (transform + opacity only). */
+  function panelIn(node: HTMLElement, { direction = 1 }: { direction?: number }) {
+    node.style.zIndex = "10";
+    return {
+      duration: 220,
+      easing: cubicOut,
+      css: (t: number) => `transform: translateX(${(1 - t) * 28 * direction}px); opacity: ${t};`,
+    };
+  }
+
+  /** Outgoing panel recedes immediately; pointer-events die on the first frame so
+      the receding panel can never eat a click aimed at the incoming one. */
+  function panelOut(node: HTMLElement) {
+    node.style.pointerEvents = "none";
+    node.style.zIndex = "0";
+    return {
+      duration: 180,
+      css: (t: number) => `transform: scale(${0.97 + 0.03 * t}); opacity: ${t};`,
+    };
+  }
   let episodeSortOrder = $state<"asc" | "desc">("asc");
   let synopsisExpanded = $state(false);
   let userRatingPopoverOpen = $state(false);
@@ -739,14 +779,6 @@
     return null;
   });
 
-  function historyProgressText(): string {
-    const info = progressInfo;
-    if (!info) return i18n.t.detailModal.valueEmpty;
-    return info.total !== null
-      ? `${formatNumber(progressValue)} / ${formatNumber(info.total)}`
-      : formatNumber(progressValue);
-  }
-
   let progressPercent = $derived.by(() => {
     const info = progressInfo;
     if (!info || info.total === null || info.total <= 0) return 0;
@@ -1004,37 +1036,6 @@
 
   let watchedOnInput = $state("");
   let watchedOnDirty = $state(false);
-
-  const WATCHED_ON_SITES = [
-    "Kinopoisk",
-    "Netflix",
-    "YouTube",
-    "Okko",
-    "ivi",
-    "Megogo",
-    "Wink",
-    "Antonline",
-    "Disney+",
-    "Apple TV+",
-    "Amazon Prime Video",
-    "Hulu",
-    "Max",
-    "Criterion Channel",
-    "Letterboxd",
-  ];
-
-  // Offers the built-in sites plus whatever this library already uses, so a second pick of the
-  // same service is available without retyping it.
-  let watchedOnOptions = $derived.by<string[]>(() => {
-    const fromLibrary = media?.watchedOn?.trim();
-    const custom =
-      fromLibrary &&
-      fromLibrary.toLowerCase() !== "кинопоиск" &&
-      fromLibrary.toLowerCase() !== "kinopoisk"
-        ? [fromLibrary]
-        : [];
-    return Array.from(new Set([...WATCHED_ON_SITES, ...custom]));
-  });
 
   $effect(() => {
     // Only follow the server value while the field is untouched, so typing is not overwritten.
@@ -1815,6 +1816,149 @@
     stepProgress(delta);
   }
 
+  /** Absolute per-season write used by the episodes tab ("watch up to this", season bars). */
+  async function setSeasonProgressOf(seasonId: string, number: number) {
+    const target = seasonViews.find((view) => view.season.id === seasonId)?.season;
+    if (!target) return;
+    await setEpisodeProgress(target, number);
+  }
+
+  /** Marks every season of the series fully watched in one optimistic sweep. */
+  async function markAllSeries() {
+    const target = media;
+    if (!target) return;
+    const pending = seasons
+      .filter((season) => season.totalEpisodes > 0 && (season.currentEpisode ?? 0) < season.totalEpisodes)
+      .map((season) => ({ season, previous: season.currentEpisode ?? 0 }));
+    if (pending.length === 0) return;
+
+    for (const { season } of pending) season.currentEpisode = season.totalEpisodes;
+    episodeBusy = "mark-all";
+    applyOptimisticProgress(target.id, seriesEpisodes.total);
+    progressError = null;
+    try {
+      for (const { season } of pending) await setSeasonProgress(season.id, season.totalEpisodes);
+      onUpdate();
+    } catch (error) {
+      for (const { season, previous } of pending) season.currentEpisode = previous;
+      clearOptimisticProgress(target.id);
+      progressError = error;
+      showToast(errorMessage(error), "error");
+    } finally {
+      episodeBusy = "";
+    }
+  }
+
+  /** Rolls every started season of the series back to zero. */
+  async function resetSeries() {
+    const target = media;
+    if (!target) return;
+    const pending = seasons
+      .filter((season) => (season.currentEpisode ?? 0) > 0)
+      .map((season) => ({ season, previous: season.currentEpisode ?? 0 }));
+    if (pending.length === 0) return;
+
+    for (const { season } of pending) season.currentEpisode = 0;
+    episodeBusy = "reset-all";
+    applyOptimisticProgress(target.id, 0);
+    progressError = null;
+    try {
+      for (const { season } of pending) await setSeasonProgress(season.id, 0);
+      onUpdate();
+    } catch (error) {
+      for (const { season, previous } of pending) season.currentEpisode = previous;
+      clearOptimisticProgress(target.id);
+      progressError = error;
+      showToast(errorMessage(error), "error");
+    } finally {
+      episodeBusy = "";
+    }
+  }
+
+  let seriesCommitBusy = $state(false);
+  let seriesPendingValue: number | null = null;
+  let seriesBaseline: number | null = null;
+
+  /**
+   * Absolute series-wide counter (bar click/drag, manual input). The generic PUT /progress
+   * endpoint rejects shows, so the desired total is distributed across the seasons in order
+   * and written through the per-season endpoint. A busy loop drains the latest desired value,
+   * so a fast drag across several segments never interleaves season writes.
+   */
+  async function commitSeriesCounter(val: number) {
+    const target = media;
+    if (!target || !isSeriesOverview) return;
+    const max = seriesEpisodes.total;
+    const desired = max > 0 ? Math.min(Math.max(val, 0), max) : Math.max(val, 0);
+    if (seriesBaseline === null) {
+      if (desired === seriesEpisodes.current) return;
+      seriesBaseline = seriesEpisodes.current;
+    }
+
+    // Optimistic: fill the live seasons in order, so the counter moves at once.
+    let remaining = desired;
+    for (const season of seasons) {
+      const total = season.totalEpisodes ?? 0;
+      if (total <= 0) continue;
+      const fill = Math.min(remaining, total);
+      remaining -= fill;
+      if (fill !== (season.currentEpisode ?? 0)) season.currentEpisode = fill;
+    }
+    applyOptimisticProgress(target.id, desired - Math.max(remaining, 0));
+
+    seriesPendingValue = desired;
+    if (seriesCommitBusy) return;
+    seriesCommitBusy = true;
+    progressError = null;
+    try {
+      while (seriesPendingValue !== null) {
+        const value = seriesPendingValue;
+        seriesPendingValue = null;
+        const step = absoluteSeasonTarget(seasons, value);
+        if (!step) continue;
+        await setSeasonProgress(step.seasonId, step.currentEpisode);
+        onUpdate();
+      }
+    } catch (error) {
+      // Roll the whole burst back to where the pointer interaction started.
+      if (seriesBaseline !== null) {
+        let rest = seriesBaseline;
+        for (const season of seasons) {
+          const total = season.totalEpisodes ?? 0;
+          if (total <= 0) continue;
+          const fill = Math.min(rest, total);
+          rest -= fill;
+          season.currentEpisode = fill;
+        }
+      }
+      clearOptimisticProgress(target.id);
+      progressError = error;
+      showToast(errorMessage(error), "error");
+    } finally {
+      seriesCommitBusy = false;
+      seriesPendingValue = null;
+      seriesBaseline = null;
+    }
+  }
+
+  /** Season write that puts the series at exactly `value` watched episodes. */
+  function absoluteSeasonTarget(
+    list: readonly TvSeason[],
+    value: number,
+  ): { seasonId: string; currentEpisode: number } | null {
+    if (list.length === 0) return null;
+    let cumulative = 0;
+    for (const season of list) {
+      const total = season.totalEpisodes ?? 0;
+      if (total <= 0 || value <= cumulative + total) {
+        return { seasonId: season.id, currentEpisode: Math.max(0, value - cumulative) };
+      }
+      cumulative += total;
+    }
+    const last = list[list.length - 1];
+    return { seasonId: last.id, currentEpisode: last.totalEpisodes ?? 0 };
+  }
+
   async function changeStatus(value: MediaStatus) {
     const target = media;
     if (!target || statusBusy) return;
@@ -2193,9 +2337,7 @@
         onClearScore={clearScore}
         onSaveDetailedScore={saveDetailedScore}
         {formatDate}
-        {historyProgressText}
         {watchedOnInput}
-        {watchedOnOptions}
         onWatchedOnInput={(value) => (watchedOnInput = value)}
         onWatchedOnDirty={() => (watchedOnDirty = true)}
         onSaveWatchedOn={saveWatchedOn}
@@ -2251,12 +2393,18 @@
           seasonProgress={seriesEpisodes.total > 0 ? seriesEpisodes : null}
           relatedCount={related?.length ?? 0}
           galleryCount={media.gallery?.length ?? 0}
-          onSelect={(tab) => (activeSubTab = tab)}
+          onSelect={selectSubTab}
         />
 
-        <!-- One exclusive chain: a single {#if}/{:else if} guarantees at most one tab panel
-                       exists in the DOM, so switching can never leave two screens stacked. -->
-        {#if activeSubTab === "overview"}
+        <!-- Panel stack: outgoing and incoming panels overlap in the same grid cell during
+               the switch, so the flow never jumps; the incoming one carries an opaque canvas
+               background, the outgoing one dies for clicks on the first frame of its exit. -->
+        <div class="grid grid-cols-1 grid-rows-1 overflow-x-hidden [&>*]:col-start-1 [&>*]:row-start-1">
+          {#key activeSubTab}
+            <div class="bg-[#0d0f14]" in:panelIn={{ direction: tabDirection }} out:panelOut>
+              <!-- One exclusive chain: a single {#if}/{:else if} guarantees at most one tab panel
+                     exists in the DOM, so switching can never leave two screens stacked. -->
+              {#if activeSubTab === "overview"}
           <OverviewTab
             {media}
             support={overviewSupport}
@@ -2266,6 +2414,12 @@
             onStep={stepOverview}
             onCounterChange={(val) => {
               if (!media) return;
+              // Shows route through the per-season endpoint; the generic PUT /progress
+              // endpoint rejects them with "unsupported media type".
+              if (isSeriesOverview) {
+                void commitSeriesCounter(val);
+                return;
+              }
               const next = Math.max(val, 0);
               if (pendingSnapshot === null) pendingSnapshot = committedProgress;
               progressValue = next;
@@ -2369,33 +2523,45 @@
         {/if}
 
         <!-- The whole section is tab-gated: the season banner must not leak into Related/Recommendations. -->
-        {#if media.type === "tvshow" && activeSubTab === "episodes"}
-          {#if isSyncing}
-            <SyncRowsSkeleton label={i18n.t.activity.loadingSeasons} />
-          {:else}
-            {#await import("$widgets/media-detail/tabs/EpisodesTab.svelte") then { default: EpisodesTab }}
-              <EpisodesTab
-                {seasons}
-                showEpisodes={activeSubTab === "episodes"}
-                {nextUp}
-                {seriesEpisodes}
-                {seriesProgressPercent}
-                {episodeBusy}
-                {progressError}
-                sortOrder={episodeSortOrder}
-                onToggleSort={() =>
-                  (episodeSortOrder = episodeSortOrder === "asc" ? "desc" : "asc")}
-                onToggleSeasonCompleteOf={toggleSeasonCompleteOf}
-                onToggleEpisodeOf={toggleEpisodeOf}
-                onWatchNextUp={watchNextUp}
-                episodesBySeason={seasonViews}
-                onOpenEpisodesTab={() => (activeSubTab = "episodes")}
-                onOpenLists={() => onNavigate("lists")}
-                {formatDate}
-              />
-            {/await}
-          {/if}
-        {/if}
+              {#if media.type === "tvshow" && activeSubTab === "episodes"}
+                {#if isSyncing}
+                  <SyncRowsSkeleton label={i18n.t.activity.loadingSeasons} />
+                {:else}
+                  {#await import("$widgets/media-detail/tabs/EpisodesTab.svelte") then { default: EpisodesTab }}
+                    <EpisodesTab
+                      {seasons}
+                      {nextUp}
+                      {seriesEpisodes}
+                      {seriesProgressPercent}
+                      {episodeBusy}
+                      {progressError}
+                      sortOrder={episodeSortOrder}
+                      onToggleSort={() =>
+                        (episodeSortOrder = episodeSortOrder === "asc" ? "desc" : "asc")}
+                      onToggleSeasonCompleteOf={toggleSeasonCompleteOf}
+                      onToggleEpisodeOf={toggleEpisodeOf}
+                      onSetSeasonProgressOf={setSeasonProgressOf}
+                      onWatchNextUp={watchNextUp}
+                      onSetSeriesCounter={(value) => void commitSeriesCounter(value)}
+                      onMarkAll={markAllSeries}
+                      onResetAll={resetSeries}
+                      onOpenLists={() => onNavigate("lists")}
+                      {formatDate}
+                      startedAt={media.startedAt}
+                      finishedAt={media.finishedAt}
+                      episodeDuration={
+                        (media as TvShowMedia).episodeDurationMinutes ||
+                        media.durationMinutes ||
+                        24
+                      }
+                      episodesBySeason={seasonViews}
+                    />
+                  {/await}
+                {/if}
+              {/if}
+            </div>
+          {/key}
+        </div>
 
         <!-- PREVIEW MODAL FOR UNADDED RELATED ITEMS -->
         {#if previewRelatedItem}

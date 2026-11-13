@@ -2,7 +2,9 @@ namespace MediaTracker.Server.Domain.Entities;
 
 public class TvSeason
 {
-    public Guid Id { get; set; }
+    // A fresh Guid by default: seasons built without an explicit id (the create-request factory)
+    // used to collide on the all-zero row, so every insert overwrote the previous season.
+    public Guid Id { get; set; } = Guid.NewGuid();
 
     public int SeasonNumber { get; set; }
 

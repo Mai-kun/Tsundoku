@@ -1,7 +1,6 @@
 <script lang="ts">
   import { type Snippet } from "svelte";
-  import { slide } from "svelte/transition";
-  import { ChevronDown, ChevronUp, type FileText } from "$shared/ui/Icons";
+  import { ChevronUp, type FileText } from "$shared/ui/Icons";
   import { i18n } from "$shared/i18n/index.svelte";
   import { minWindowSize, type WorkspaceRect, type WorkspaceWindowId } from "./workspaceLayout";
 
@@ -52,9 +51,12 @@
 
   // Height of a collapsed window: just the title bar.
   const HEADER_H = 40;
+  /** Collapse/expand animates the container height; live resize must stay instant. */
+  const HEIGHT_TRANSITION = "height 220ms cubic-bezier(0.16, 1, 0.3, 1)";
 
   let pending: { x?: number; y?: number; w?: number; h?: number } | null = null;
   let rafId = 0;
+  let resizing = $state(false);
   let drag: null | {
     mode: "move" | "resize";
     pointerId: number;
@@ -101,6 +103,7 @@
     event.stopPropagation();
     onFront();
     onDragStateChange(true);
+    resizing = true;
     drag = {
       mode: "resize",
       pointerId: event.pointerId,
@@ -159,6 +162,7 @@
     }
     onDragStateChange(false);
     onSettled();
+    resizing = false;
   }
 
   function endDrag(event: PointerEvent) {
@@ -180,6 +184,7 @@
   style:transform={`translate3d(${rect.x}px, ${rect.y}px, 0)`}
   style:width={`${rect.w}px`}
   style:height={`${collapsed ? HEADER_H : rect.h}px`}
+  style:transition={resizing ? "none" : HEIGHT_TRANSITION}
   style:z-index={z}
 >
   <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -218,17 +223,26 @@
         onpointerdown={(event) => event.stopPropagation()}
         onclick={() => (collapsed = !collapsed)}
       >
-        {#if collapsed}
-          <ChevronDown size={14} aria-hidden="true" />
-        {:else}
+        <span
+          class="grid place-items-center transition-transform duration-200 {collapsed
+            ? 'rotate-180'
+            : ''}"
+        >
           <ChevronUp size={14} aria-hidden="true" />
-        {/if}
+        </span>
       </button>
     </header>
+    <!-- The body always stays mounted: collapse fades it out while the container height
+         animates shut, so the motion is smooth in both directions. -->
+    <div
+      class="thin-scroll min-h-0 flex-1 overflow-y-auto p-3 transition-opacity duration-200 {collapsed
+        ? 'pointer-events-none opacity-0'
+        : 'opacity-100'}"
+      inert={collapsed}
+    >
+      {@render children()}
+    </div>
     {#if !collapsed}
-      <div class="thin-scroll min-h-0 flex-1 overflow-y-auto p-3" transition:slide={{ duration: 180 }}>
-        {@render children()}
-      </div>
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div
         class="absolute right-0 bottom-0 z-10 size-5 cursor-nwse-resize touch-none"

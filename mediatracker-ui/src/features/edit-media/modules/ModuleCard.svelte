@@ -24,7 +24,7 @@
 </script>
 
 {#if flat}
-  <section class="flex flex-col gap-2.5">
+  <section class="flex h-full min-h-0 flex-col gap-2.5">
     {#if showLabel}
       <div class="flex items-center gap-1.5">
         <span class="text-muted">{@render icon()}</span>

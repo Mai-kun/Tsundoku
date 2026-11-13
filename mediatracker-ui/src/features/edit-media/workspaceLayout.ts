@@ -83,59 +83,59 @@ export function clampPoint(
 }
 
 /**
- * Default composition: the cover floats slightly above the vertical center and each side column
- * is distributed evenly across the full viewport height, so every window fits on screen at any
- * reasonable size — no window hangs over the bottom edge out of the box.
+ * Default composition, matching the target mockup: two windows per side column with the
+ * alternative-titles window above the cover in the middle. Coordinates adapt to the viewport, so
+ * every node fits on screen without overlaps at any reasonable window size.
  */
 export function defaultLayout(viewportW: number, viewportH: number): WorkspaceLayout {
   const cx = viewportW / 2;
-  const cy = viewportH / 2;
-  const bandTop = TOP_BAR;
+  const bandTop = TOP_BAR + 20;
   const bandBottom = viewportH - BOTTOM_MARGIN;
   const bandH = bandBottom - bandTop;
-  const columnGap = 36;
-  const columnW = Math.min(420, Math.max(300, (cx - columnGap / 2 - COVER_SIZE.w / 2 - 60)));
 
-  // Three right-side windows share the band in thirds; the left column splits 58/42.
-  const rightH = Math.floor((bandH - 2 * 16) / 3);
+  // Three columns: side columns flank the central one (alt titles + cover) without touching it.
+  const centerW = Math.min(470, Math.max(360, viewportW * 0.29));
+  const centerLeft = cx - centerW / 2;
+  const centerRight = cx + centerW / 2;
+  const sideW = Math.min(
+    520,
+    Math.max(
+      MIN_SIZES.main.w,
+      centerLeft - 40 - 24,
+      viewportW - SIDE_MARGIN - (centerRight + 40),
+    ),
+  );
+  const leftX = 24;
+  const rightX = centerRight + 40;
+
+  // Left column: basics (taller) over quotes; right column: notes over images.
   const mainH = Math.floor(bandH * 0.58);
-  const altH = bandH - mainH - 16;
-  const leftX = cx - COVER_SIZE.w / 2 - columnGap - columnW;
-  const rightX = cx + COVER_SIZE.w / 2 + columnGap;
+  const quotesH = bandH - mainH - 16;
+  const notesH = Math.floor(bandH * 0.38);
+  const imagesH = bandH - notesH - 16;
+
+  // Central column: alt titles right under the toolbar, the cover floating below it.
+  const altH = Math.min(260, bandH - COVER_SIZE.h - 60);
 
   return {
-    cover: clampPoint(
-      { x: cx - COVER_SIZE.w / 2, y: cy - COVER_SIZE.h / 2 - 24 },
-      viewportW,
-      viewportH,
-    ),
+    cover: clampPoint({ x: cx - COVER_SIZE.w / 2, y: bandTop + altH + 40 }, viewportW, viewportH),
     windows: {
-      main: clampWindowRect(
-        { x: leftX, y: bandTop, w: columnW, h: mainH },
-        "main",
-        viewportW,
-        viewportH,
-      ),
-      alt: clampWindowRect(
-        { x: leftX, y: bandTop + mainH + 16, w: columnW, h: altH },
-        "alt",
-        viewportW,
-        viewportH,
-      ),
-      notes: clampWindowRect(
-        { x: rightX, y: bandTop, w: columnW, h: rightH },
-        "notes",
-        viewportW,
-        viewportH,
-      ),
+      main: clampWindowRect({ x: leftX, y: bandTop, w: sideW, h: mainH }, "main", viewportW, viewportH),
       quotes: clampWindowRect(
-        { x: rightX, y: bandTop + rightH + 16, w: columnW, h: rightH },
+        { x: leftX, y: bandTop + mainH + 16, w: sideW, h: quotesH },
         "quotes",
         viewportW,
         viewportH,
       ),
+      alt: clampWindowRect(
+        { x: centerLeft, y: bandTop, w: centerW, h: altH },
+        "alt",
+        viewportW,
+        viewportH,
+      ),
+      notes: clampWindowRect({ x: rightX, y: bandTop, w: sideW, h: notesH }, "notes", viewportW, viewportH),
       images: clampWindowRect(
-        { x: rightX, y: bandTop + (rightH + 16) * 2, w: columnW, h: rightH },
+        { x: rightX, y: bandTop + notesH + 16, w: sideW, h: imagesH },
         "images",
         viewportW,
         viewportH,
@@ -144,7 +144,9 @@ export function defaultLayout(viewportW: number, viewportH: number): WorkspaceLa
   };
 }
 
-const STORAGE_KEY = "tsundoku.editWorkspace.layout.v1";
+// v2: the target composition (basics+quotes left, alt titles+cover center, notes+images right).
+// Bumping the key makes the new scheme apply for everyone on the next open.
+const STORAGE_KEY = "tsundoku.editWorkspace.layout.v2";
 
 export function loadLayout(viewportW: number, viewportH: number): WorkspaceLayout {
   const layout = defaultLayout(viewportW, viewportH);

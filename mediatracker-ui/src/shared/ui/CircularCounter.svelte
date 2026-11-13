@@ -203,7 +203,7 @@
       >
         <!-- Indicator notch at top of knob -->
         <div
-          class="absolute top-1.5 h-2.5 w-1 rounded-full bg-[var(--color-accent)] shadow-[0_0_8px_#5844e0]"
+          class="absolute top-1.5 h-2.5 w-1 rounded-full bg-[var(--color-accent)] shadow-[0_0_8px_var(--color-accent)]"
         ></div>
       </div>
 

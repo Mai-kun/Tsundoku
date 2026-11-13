@@ -111,7 +111,11 @@ export { networkActivity };
 export async function apiFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   networkActivity.begin();
   try {
-    const signal = init?.signal ?? (typeof AbortSignal !== "undefined" && "timeout" in AbortSignal ? AbortSignal.timeout(15000) : undefined);
+    const signal =
+      init?.signal ??
+      (typeof AbortSignal !== "undefined" && "timeout" in AbortSignal
+        ? AbortSignal.timeout(15000)
+        : undefined);
     return await fetch(input, { ...init, signal });
   } finally {
     networkActivity.end();
@@ -249,62 +253,6 @@ export function createMedia(payload: CreateMediaPayload): Promise<MediaDetail> {
   return requestJson<MediaDetail>(mediaEndpoint, jsonOptions("POST", payload));
 }
 
-export interface TitleDuplicateCandidate {
-  id: string;
-  title: string;
-  type: string;
-  isAnime: boolean;
-  externalSource: string | null;
-  externalId: string | null;
-  releaseYear: number | null;
-  coverUrl: string | null;
-  matchReason: string;
-}
-
-/** Duplicate guard for the add flow: same title may already exist under another provider's name. */
-export function findTitleDuplicates(params: {
-  title: string;
-  externalSource?: string | null;
-  externalId?: string | null;
-  romajiTitle?: string | null;
-  originalTitle?: string | null;
-  synonyms?: string[] | null;
-  releaseYear?: number | null;
-}): Promise<TitleDuplicateCandidate[]> {
-  return requestJson<TitleDuplicateCandidate[]>(`${mediaEndpoint}/duplicates/check`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      title: params.title,
-      externalSource: params.externalSource ?? null,
-      externalId: params.externalId ?? null,
-      romajiTitle: params.romajiTitle ?? null,
-      originalTitle: params.originalTitle ?? null,
-      synonyms: params.synonyms ?? null,
-      releaseYear: params.releaseYear ?? null,
-    }),
-  });
-}
-
-/**
- * Binds an external source onto an EXISTING entry — the "Дополнить" half of the duplicate
- * dialog. The backend binds and immediately fills missing fields from the new source.
- */
-export function linkSourceToMedia(
-  id: string,
-  payload: { source: string; externalId: string; title?: string | null },
-): Promise<void> {
-  return requestJson<unknown>(`/api/media/${id}/linked-sources`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      source: payload.source,
-      externalId: payload.externalId,
-      title: payload.title ?? null,
-    }),
-  }).then(() => undefined);
-}
-
 export function updateMedia(id: string, payload: UpdateMediaPayload): Promise<MediaDetail> {
   return requestJson<MediaDetail>(`${mediaEndpoint}/${id}`, jsonOptions("PUT", payload));
 }
@@ -411,11 +359,6 @@ export function detachMediaFile(id: string, fileId: string): Promise<MediaAttach
 /** Browser-native download of a stored attachment (Content-Disposition is set server-side). */
 export function mediaFileDownloadUrl(id: string, fileId: string): string {
   return `${mediaEndpoint}/${id}/files/${encodeURIComponent(fileId)}/download`;
-}
-
-/** Browser renders the file itself (PDF, TXT, images): Content-Disposition: inline. */
-export function mediaFileViewUrl(id: string, fileId: string): string {
-  return `${mediaEndpoint}/${id}/files/${encodeURIComponent(fileId)}/view`;
 }
 
 /** Opens the stored file in the OS program associated with its type (xdg-open / shell). */

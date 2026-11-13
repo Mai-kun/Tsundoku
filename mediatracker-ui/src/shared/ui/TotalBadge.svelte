@@ -11,10 +11,8 @@
   let { total, shown = total }: Props = $props();
 </script>
 
-<!-- Neutral "Всего: N" pill for toolbars: matte glass, readable on any surface. -->
-<span
-  class="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-white/70 tabular-nums select-none"
->
+<!-- Plain counter for toolbars: no pill, no border, no background. -->
+<span class="text-xs text-white/50 tabular-nums select-none">
   {#if shown < total}
     {i18n.t.library.resultCountWithShown(total, shown)}
   {:else}

@@ -119,9 +119,6 @@ export const translations = {
   },
   views: {
     homeTitle: { ru: "Моя медиатека", en: "My library" },
-    inProgress: { ru: "В Процессе", en: "In progress" },
-    upNext: { ru: "В Планах", en: "Up next" },
-    recentlyCompleted: { ru: "Завершено", en: "Recently completed" },
     seasonsOf: {
       ru: (title: string) => `Сезоны: ${title}`,
       en: (title: string) => `Seasons: ${title}`,
@@ -307,11 +304,6 @@ export const translations = {
     smartCategoryTvShow: { ru: "Сериалы", en: "TV Shows" },
     smartCategoryBook: { ru: "Книги", en: "Books" },
     smartStatuses: { ru: "Статусы", en: "Statuses" },
-    smartStatusPlanned: { ru: "В планах", en: "Planned" },
-    smartStatusInProgress: { ru: "В процессе", en: "In progress" },
-    smartStatusCompleted: { ru: "Завершено", en: "Completed" },
-    smartStatusOnHold: { ru: "На паузе", en: "On hold" },
-    smartStatusDropped: { ru: "Брошено", en: "Dropped" },
     smartReleaseStatusLabel: {
       ru: "Статус релиза произведения",
       en: "Work release status",
@@ -535,7 +527,7 @@ export const translations = {
     planned: { ru: "В планах", en: "Planned" },
     inProgress: { ru: "В процессе", en: "In progress" },
     completed: { ru: "Завершено", en: "Completed" },
-    paused: { ru: "На паузе", en: "On hold" },
+    paused: { ru: "Отложено", en: "On hold" },
     dropped: { ru: "Брошено", en: "Dropped" },
   },
   creator: {
@@ -1303,6 +1295,8 @@ export const translations = {
     categoriesLabel: { ru: "Категории поиска", en: "Search categories" },
     inputLabel: { ru: "Поиск тайтла", en: "Search titles" },
     allCategories: { ru: "Все", en: "All" },
+    badgeLink: { ru: "Ссылка", en: "Link" },
+    badgeIsbn: { ru: "ISBN", en: "ISBN" },
     placeholder: {
       ru: (category: string) => `Поиск: ${category.toLowerCase()}…`,
       en: (category: string) => `Search: ${category.toLowerCase()}…`,

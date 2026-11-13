@@ -200,12 +200,14 @@ export type QueryBadgeType = "LINK" | "ISBN";
 
 export interface QueryBadge {
   type: QueryBadgeType;
-  label: string;
 }
 
 export function isIsbn(input: string): boolean {
   if (!input || typeof input !== "string") return false;
-  const cleaned = input.trim().replace(/[\s-]/g, "").replace(/^isbn:/i, "");
+  const cleaned = input
+    .trim()
+    .replace(/[\s-]/g, "")
+    .replace(/^isbn:/i, "");
   return /^(?:\d{9}[\dxX]|\d{13})$/.test(cleaned);
 }
 
@@ -220,11 +222,11 @@ export function detectQueryBadge(input: string): QueryBadge | null {
   if (!trimmed) return null;
 
   if (isUrl(trimmed)) {
-    return { type: "LINK", label: "Ссылка" };
+    return { type: "LINK" };
   }
 
   if (isIsbn(trimmed)) {
-    return { type: "ISBN", label: "ISBN" };
+    return { type: "ISBN" };
   }
 
   return null;

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { slide } from "svelte/transition";
   import { Bookmark, Flame, Heart, List, Sparkles, Star, X } from "$shared/ui/Icons";
   import { createList, errorMessage, getMedia, updateList } from "$shared/api/api";
   import { fullSizeCoverUrl } from "$entities/media/model/coverUrl";
@@ -202,7 +203,10 @@
       </fieldset>
 
       {#if listType === "smart"}
-        <div class="rounded-xl border border-violet-400/20 bg-violet-400/5 p-4 sm:p-5">
+        <div
+          class="rounded-xl border border-violet-400/20 bg-violet-400/5 p-4 sm:p-5"
+          transition:slide={{ duration: 200 }}
+        >
           <SmartListBuilder
             query={smartQuery}
             onQueryChange={(q) => (smartQuery = q)}
@@ -221,7 +225,7 @@
     >
       <div class="min-w-0 flex-1">
         {#if listType === "smart"}
-          <div class="flex items-center gap-3">
+          <div class="flex items-center gap-3" transition:slide={{ duration: 180 }}>
             <span
               class="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-violet-500/40 bg-violet-500/15 px-3 py-1 text-xs font-bold text-violet-200 shadow-sm shadow-violet-500/10"
             >

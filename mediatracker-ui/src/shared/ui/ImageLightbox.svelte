@@ -40,7 +40,7 @@
     aria-label="Увеличенное изображение"
     onclick={handleBackdropClick}
     onkeydown={handleKeydown}
-    class="fixed inset-0 z-[100000] flex items-center justify-center bg-black/85 p-4 text-white backdrop-blur-md sm:p-8"
+    class="view-fade fixed inset-0 z-[100000] flex items-center justify-center bg-black/85 p-4 text-white backdrop-blur-md sm:p-8"
   >
     <button
       type="button"

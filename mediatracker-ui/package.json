@@ -33,6 +33,8 @@
     "check:visual-qa": "node --experimental-strip-types checks/e2e/visualQa.check.ts",
     "check:related-matching": "node --experimental-strip-types checks/relatedMatching.check.ts",
     "check:parse-frontend-coverage": "node ../scripts/parse-frontend-coverage.mjs",
+    "audit:animations": "node ../scripts/audit-animations.mjs",
+    "audit:animations:runtime": "node ../scripts/audit-animations.mjs --runtime",
     "bench:memory": "node ../scripts/measure-memory.mjs",
     "dev": "vite",
     "build": "vite build",

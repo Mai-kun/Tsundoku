@@ -191,6 +191,85 @@
   }
 }
 
+/* Native popover panels (PopoverMenu, ActivityDropdown, the toast stack, …): 140ms
+   fade + settle on open, symmetric fade-out on close. `display`/`overlay` need
+   `allow-discrete` so the display:none ↔ block flip animates instead of snapping,
+   and @starting-style gives the entry transition a "from" frame (the element would
+   otherwise mount already in its open state). opacity + transform only, so both
+   phases stay on the compositor. Unlayered on purpose: it must win over any
+   component-layer rule that touches the same properties. */
+[popover] {
+  opacity: 0;
+  transform: translateY(-4px) scale(0.97);
+  transition:
+    opacity 140ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 140ms cubic-bezier(0.16, 1, 0.3, 1),
+    display 140ms allow-discrete,
+    overlay 140ms allow-discrete;
+}
+
+[popover]:popover-open {
+  opacity: 1;
+  transform: none;
+
+  @starting-style {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.97);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [popover] {
+    transition-duration: 0ms;
+  }
+}
+
+/* Native <dialog> modals (Modal.svelte): same 150ms fade + settle as popovers,
+   applied via dialog[open] so every modal in the app animates identically.
+   `overlay`/`display` need allow-discrete for the close phase to play out in the
+   top layer instead of being cut by display:none. */
+dialog {
+  opacity: 0;
+  transform: translateY(6px) scale(0.98);
+  transition:
+    opacity 150ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 150ms cubic-bezier(0.16, 1, 0.3, 1),
+    display 150ms allow-discrete,
+    overlay 150ms allow-discrete;
+}
+
+dialog[open] {
+  opacity: 1;
+  transform: none;
+
+  @starting-style {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+}
+
+dialog::backdrop {
+  opacity: 0;
+  transition:
+    opacity 150ms cubic-bezier(0.16, 1, 0.3, 1),
+    display 150ms allow-discrete,
+    overlay 150ms allow-discrete;
+}
+
+dialog[open]::backdrop {
+  opacity: 1;
+
+  @starting-style {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  dialog {
+    transition-duration: 0ms;
+  }
+}
+
 :root {
   font-family: var(--font-sans);
   color: var(--color-ink);

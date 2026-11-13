@@ -1,5 +1,6 @@
 <script lang="ts">
   import { untrack } from "svelte";
+  import { slide } from "svelte/transition";
   import { Sparkles, Trophy } from "$shared/ui/Icons";
   import Modal from "$shared/ui/Modal.svelte";
   import Select from "$shared/ui/Select.svelte";
@@ -252,6 +253,7 @@
       <div
         class="flex items-center gap-2.5 rounded-lg border border-rose-400/25 bg-rose-400/10 p-3 text-xs text-rose-200"
         role="alert"
+        transition:slide={{ duration: 180 }}
       >
         <span class="shrink-0 font-bold">!</span>
         <span>{error}</span>

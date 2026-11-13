@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { slide } from "svelte/transition";
   import { Image as ImageIcon, Link2, LoaderCircle, Search, X } from "$shared/ui/Icons";
   import { errorMessage, getSources, relinkMedia, searchExternal } from "$shared/api/api";
   import { i18n } from "$shared/i18n/index.svelte";
@@ -225,7 +226,7 @@
         {/if}
       </div>
       {#if providerOptions.length > 0}
-        <div class="mt-2">
+        <div class="mt-2" transition:slide={{ duration: 180 }}>
           <label
             class="text-muted mb-1 block text-[11px] font-semibold tracking-wider uppercase"
             for="relink-provider"
@@ -241,7 +242,7 @@
         </div>
       {/if}
       {#if currentSource}
-        <p class="text-muted mt-2 text-xs">
+        <p class="text-muted mt-2 text-xs" transition:slide={{ duration: 180 }}>
           {i18n.current === "ru" ? "Текущий источник" : "Current source"}:
           <span class="text-slate-300">{currentSource}</span>
         </p>

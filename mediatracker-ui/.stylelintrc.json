@@ -4,7 +4,14 @@
     "plugin/no-low-performance-animation-properties": [
       true,
       {
-        "ignoreProperties": ["background-color", "color", "border-color", "outline-color"]
+        "ignoreProperties": [
+          "background-color",
+          "color",
+          "border-color",
+          "outline-color",
+          "display",
+          "overlay"
+        ]
       }
     ],
     "declaration-property-value-disallowed-list": {

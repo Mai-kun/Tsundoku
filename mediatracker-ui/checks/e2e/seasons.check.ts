@@ -37,47 +37,45 @@ const BASE = process.env.TS_BASE || 'http://localhost:5099';
     await page.getByRole('button', { name: /(\u042d\u043f\u0438\u0437\u043e\u0434\u044b|Episodes)/ }).first().click();
     await page.waitForTimeout(900);
 
-    // The banner action is the button whose name ends in "S1 E1" / "S2 E1" - ASCII, so it survives
+    // The banner action is the button whose name ends in "S1E1" / "S2E1" - ASCII, so it survives
     // either UI language.
-    const banner = () => page.getByRole('button', { name: /S\d+ E\d+/ }).first();
+    const banner = () => page.getByRole('button', { name: /S\d+E\d+/ }).first();
     const header = async () => (await banner().count()) ? flat(await banner().innerText()) : '(none)';
 
-    ok('banner starts at S1 E1 ("' + (await header()) + '")', (await header()).includes('S1 E1'));
+    ok('banner starts at S1E1 ("' + (await header()) + '")', (await header()).includes('S1E1'));
 
-    const eyes = page.locator('details').first().locator('summary button[aria-label]');
-    ok('every unfinished season has an eye (' + (await eyes.count()) + ')', (await eyes.count()) === 1);
+    // Season ribbon: select Season 1 and complete it through the season action button.
+    const seasonCard = () => page.getByRole('button', { name: /(\u0421\u0435\u0437\u043e\u043d 1|Season 1)/ }).first();
+    const seasonAction = () => page.getByRole('button', { name: /(\u041e\u0442\u043c\u0435\u0442\u0438\u0442\u044c \u0441\u0435\u0437\u043e\u043d|Mark season)/ }).first();
+    const seasonClear = () => page.getByRole('button', { name: /(\u0421\u043d\u044f\u0442\u044c \u0441\u0435\u0437\u043e\u043d|Clear season)/ }).first();
 
-    // The eye closes season 1 out; the banner must roll to S2 E1 with no further input.
-    await eyes.click();
+    await seasonCard().click();
+    await page.waitForTimeout(300);
+    ok('season action visible for the active season', (await seasonAction().count()) === 1);
+
+    // Completing season 1 through its action; the banner must roll to S2E1 with no further input.
+    await seasonAction().click();
     await page.waitForTimeout(1800);
     const afterEye = await page.evaluate(async (m) => (await fetch('/api/media/' + m)).json(), id);
-    ok('eye stored S1 7/7 (' + afterEye.seasons[0].currentEpisode + ')', afterEye.seasons[0].currentEpisode === 7);
-    ok('eye stored S1 completed (' + afterEye.seasons[0].status + ')', afterEye.seasons[0].status === 2);
-    ok('banner rolled to S2 E1 ("' + (await header()) + '")', (await header()).includes('S2 E1'));
+    ok('season action stored S1 7/7 (' + afterEye.seasons[0].currentEpisode + ')', afterEye.seasons[0].currentEpisode === 7);
+    ok('season action stored S1 completed (' + afterEye.seasons[0].status + ')', afterEye.seasons[0].status === 2);
+    ok('banner rolled to S2E1 ("' + (await header()) + '")', (await header()).includes('S2E1'));
 
-    // Expanding a season is a purely visual action: it must not move the banner and must not
-    // refetch. With S1 closed the banner still reads S2 E1.
-    const beforeExpand = await header();
-    await page.locator('details').first().locator('summary').first().click();
-    await page.waitForTimeout(600);
-    ok('expanding S1 left the banner alone ("' + (await header()) + '")', (await header()) === beforeExpand);
-
-    // Two-way toggle: a second click on a finished season rolls it back to 0.
-    const toggle = page.locator('details').first().locator('summary button[aria-label]').first();
-    await toggle.click();
+    // Two-way toggle: clearing the finished season rolls it back to 0.
+    await seasonClear().click();
     await page.waitForTimeout(1500);
     const afterReset = await page.evaluate(async (m) => (await fetch('/api/media/' + m)).json(), id);
-    ok('toggle rolled S1 back to 0 (' + afterReset.seasons[0].currentEpisode + ')', afterReset.seasons[0].currentEpisode === 0);
-    ok('toggle rolled S1 back out of completed (' + afterReset.seasons[0].status + ')', afterReset.seasons[0].status !== 2);
+    ok('clear rolled S1 back to 0 (' + afterReset.seasons[0].currentEpisode + ')', afterReset.seasons[0].currentEpisode === 0);
+    ok('clear rolled S1 back out of completed (' + afterReset.seasons[0].status + ')', afterReset.seasons[0].status !== 2);
 
     // Put it back so the next-up assertions below still start from a completed S1.
-    await toggle.click();
+    await seasonAction().click();
     await page.waitForTimeout(1500);
 
     // Next-up keeps walking inside the season it rolled into.
     await banner().click();
     await page.waitForTimeout(1800);
-    ok('banner advanced to S2 E2 ("' + (await header()) + '")', (await header()).includes('S2 E2'));
+    ok('banner advanced to S2E2 ("' + (await header()) + '")', (await header()).includes('S2E2'));
 
     const detail = await page.evaluate(async (m) => (await fetch('/api/media/' + m)).json(), id);
     ok('S1 stored 7/7 (' + detail.seasons[0].currentEpisode + ')', detail.seasons[0].currentEpisode === 7);

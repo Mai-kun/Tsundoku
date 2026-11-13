@@ -3,10 +3,11 @@
 
   interface Props {
     url?: string | null;
+    caption?: string | null;
     onclose?: () => void;
   }
 
-  let { url = null, onclose }: Props = $props();
+  let { url = null, caption = null, onclose }: Props = $props();
 
   let box = $state<HTMLDivElement | null>(null);
 
@@ -50,12 +51,17 @@
       <X size={24} />
     </button>
 
-    <div class="relative flex max-h-[90dvh] max-w-full items-center justify-center">
+    <div class="relative flex max-h-[90dvh] max-w-full flex-col items-center justify-center">
       <img
         src={url}
         alt=""
-        class="zoom-in max-h-[90dvh] max-w-full scale-100 rounded-lg border border-white/20 object-contain shadow-2xl"
+        class="zoom-in max-h-[85dvh] max-w-full scale-100 rounded-lg border border-white/20 object-contain shadow-2xl"
       />
+      {#if caption}
+        <p class="zoom-in mt-3 max-w-full truncate px-2 text-center text-sm font-medium text-slate-200">
+          {caption}
+        </p>
+      {/if}
     </div>
   </div>
 {/if}

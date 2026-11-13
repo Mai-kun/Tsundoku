@@ -77,7 +77,12 @@
     type TvShowMedia,
     type UpdateMediaPayload,
   } from "$shared/types";
-  import { clampProgress, writeCardProgress } from "$entities/media/model/progressRules";
+  import {
+    clampProgress,
+    readCardProgress,
+    shouldPromoteToInProgress,
+    writeCardProgress,
+  } from "$entities/media/model/progressRules";
   import { nextSeriesEpisodeStep } from "$entities/media/model/seriesStep";
   import {
     applyOptimisticProgress,
@@ -85,6 +90,7 @@
     reconcileProgress,
     resolveOptimisticProgress,
   } from "$features/update-progress/optimisticProgress.svelte";
+  import { notifyAutoInProgress } from "$features/update-progress/statusPromotionToast.svelte";
   import { createProgressDebounce } from "$shared/utils/progressDebounce";
   import { formatNumber, sourceBadgeClasses } from "$entities/media/model/mediaLabels";
   import {
@@ -124,6 +130,7 @@
   import {
     loadMediaDetail,
     mediaDetailCache,
+    updateCachedDetailProgress,
   } from "$features/prefetch-details/mediaDetailPrefetch";
   import { createPrefetchCache } from "$shared/utils/prefetchCache";
 
@@ -630,7 +637,7 @@
       if (job.jobId === settledJobId) return;
       settledJobId = job.jobId;
       refreshError = job.errorMessage || "Metadata refresh failed";
-      showToast(errorMessage(refreshError), "error");
+      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(refreshError), type: "error" });
       void refreshMediaDetail(mediaId).then((loaded) => {
         if (loaded.id !== mediaId) return;
         media = loaded;
@@ -680,7 +687,7 @@
     relinkOpen = false;
     void loadRelated(payload, null);
     onUpdate();
-    showToast(i18n.current === "ru" ? "Источник изменён." : "Source changed.", "success");
+    showToast({ title: i18n.current === "ru" ? "Источник изменён." : "Source changed.", description: i18n.t.toast.descUpdated });
   }
 
   const progressDebounce = createProgressDebounce({
@@ -755,7 +762,7 @@
         }).catch(() => {});
       }
     } catch (err) {
-      showToast(errorMessage(err), "error");
+      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(err), type: "error" });
     } finally {
       translatingSynopsis = false;
     }
@@ -1015,7 +1022,7 @@
       await updateMedia(media.id, { unlockedAchievements: jsonStr });
     } catch (err) {
       media.unlockedAchievements = previousJson;
-      showToast(errorMessage(err), "error");
+      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(err), type: "error" });
     } finally {
       achievementsBusy = false;
     }
@@ -1056,7 +1063,7 @@
     } catch (err) {
       media.watchedOn = previous;
       watchedOnDirty = false;
-      showToast(errorMessage(err), "error");
+      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(err), type: "error" });
     }
   }
 
@@ -1749,7 +1756,7 @@
         });
       }
 
-      showToast(i18n.t.searchModal.inLibrary, "success");
+      showToast({ title: i18n.t.searchModal.inLibrary, description: i18n.t.toast.descCreated });
       // Update the related grid immediately to show the "added" badge
       related = (related ?? []).map((r) => (r.id === rel.id ? { ...r, localItem: created } : r));
       previewRelatedItem = null;
@@ -1757,7 +1764,7 @@
       onOpenRelated(created);
     } catch (e) {
       console.error(e);
-      showToast(errorMessage(e), "error");
+      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(e), type: "error" });
     } finally {
       previewAddingBusy = false;
     }
@@ -1771,6 +1778,19 @@
     const next = clampProgress(progressValue + delta, info.total);
     if (next === progressValue) return;
 
+    // Rule 1: only the exact 0 → 1 step implies the title started; the flip is
+    // optimistic here and the debounced PUT applies the same rule server-side.
+    // The flip is announced by an interactive toast with persisted outcomes.
+    if (shouldPromoteToInProgress(progressValue, next) && target.status !== MEDIA_STATUS.inProgress) {
+      const previousStatus = target.status;
+      target.status = MEDIA_STATUS.inProgress;
+      statusValue = MEDIA_STATUS.inProgress;
+      notifyAutoInProgress(target, previousStatus, {
+        undo: () => revertPromotion(target, previousStatus),
+        keepStatus: () => keepProgressOnly(target, previousStatus, next),
+      });
+    }
+
     if (pendingSnapshot === null) pendingSnapshot = committedProgress;
     progressValue = next;
     progressError = null;
@@ -1779,6 +1799,37 @@
     applyOptimisticProgress(target.id, next);
     writeCardProgress(target, next);
     progressDebounce.schedule(target.id, next);
+  }
+
+  /** Undo on the detail banner: cancel the pending progress write, then persist
+   *  progress 0 and the previous status — exactly what the server stores after an F5. */
+  function revertPromotion(target: MediaDetail, previousStatus: MediaStatus) {
+    progressDebounce.cancel();
+    clearOptimisticProgress(target.id);
+    pendingSnapshot = null;
+    progressValue = 0;
+    committedProgress = 0;
+    writeCardProgress(target, 0);
+    updateCachedDetailProgress(target.id, 0);
+    target.status = previousStatus;
+    statusValue = previousStatus;
+    void setProgress(target.id, 0)
+      .then(() => updateStatus(target.id, previousStatus))
+      .catch((failure) => console.error(failure));
+  }
+
+  /** Keep-status on the detail banner: progress stays (persisted explicitly, since the
+   *  debounced write is cancelled) and the previous status is restored. */
+  function keepProgressOnly(target: MediaDetail, previousStatus: MediaStatus, value: number) {
+    progressDebounce.cancel();
+    pendingSnapshot = null;
+    committedProgress = value;
+    target.status = previousStatus;
+    statusValue = previousStatus;
+    void setProgress(target.id, value)
+      .then(() => resolveOptimisticProgress(target.id, value))
+      .catch((failure) => console.error(failure));
+    void updateStatus(target.id, previousStatus).catch((failure) => console.error(failure));
   }
 
   async function stepEpisodeProgress(delta: number) {
@@ -1793,18 +1844,63 @@
     const previousEpisode = season?.currentEpisode ?? 0;
     const previousTotal = seriesEpisodes.current;
     if (season) season.currentEpisode = step.currentEpisode;
+    // Rule 1 for the series total: only the exact 0 → 1 step flips the badge.
+    // The flip is announced by an interactive toast with persisted outcomes;
+    // the season write is not debounced here, so undo chains after its promise.
+    let seasonWrite: Promise<void> | null = null;
+    if (shouldPromoteToInProgress(previousTotal, previousTotal + delta) && target.status !== MEDIA_STATUS.inProgress) {
+      const previousStatus = target.status;
+      target.status = MEDIA_STATUS.inProgress;
+      statusValue = MEDIA_STATUS.inProgress;
+      notifyAutoInProgress(target, previousStatus, {
+        undo: () => revertSeriesPromotion(target, previousStatus, season, previousEpisode, () => seasonWrite),
+        keepStatus: () => {
+          target.status = previousStatus;
+          statusValue = previousStatus;
+        },
+      });
+    }
     applyOptimisticProgress(target.id, previousTotal + delta);
 
     try {
-      await setSeasonProgress(step.seasonId, step.currentEpisode);
+      seasonWrite = setSeasonProgress(step.seasonId, step.currentEpisode);
+      await seasonWrite;
       onUpdate();
     } catch (error) {
       if (season) season.currentEpisode = previousEpisode;
       writeCardProgress(target, previousTotal);
       clearOptimisticProgress(target.id);
       progressError = error;
-      showToast(errorMessage(error), "error");
+      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(error), type: "error" });
     }
+  }
+
+  /** Undo for a series step: after the in-flight season write settles, the first season
+   *  is zeroed and the previous status restored — both persisted server-side. */
+  function revertSeriesPromotion(
+    target: MediaDetail,
+    previousStatus: MediaStatus,
+    season: TvSeason | undefined,
+    previousEpisode: number,
+    getWrite: () => Promise<void> | null,
+  ) {
+    target.status = previousStatus;
+    statusValue = previousStatus;
+    if (season) season.currentEpisode = previousEpisode;
+    writeCardProgress(target, 0);
+    clearOptimisticProgress(target.id);
+    void (async () => {
+      try {
+        const write = getWrite();
+        if (write) await write.catch(() => {});
+        const zero = absoluteSeasonTarget(seasons, 0);
+        if (zero) await setSeasonProgress(zero.seasonId, zero.currentEpisode);
+        onUpdate();
+      } catch (failure) {
+        console.error(failure);
+      }
+    })();
+    void updateStatus(target.id, previousStatus).catch((failure) => console.error(failure));
   }
 
   function stepOverview(delta: number) {
@@ -1843,7 +1939,7 @@
       for (const { season, previous } of pending) season.currentEpisode = previous;
       clearOptimisticProgress(target.id);
       progressError = error;
-      showToast(errorMessage(error), "error");
+      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(error), type: "error" });
     } finally {
       episodeBusy = "";
     }
@@ -1869,7 +1965,7 @@
       for (const { season, previous } of pending) season.currentEpisode = previous;
       clearOptimisticProgress(target.id);
       progressError = error;
-      showToast(errorMessage(error), "error");
+      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(error), type: "error" });
     } finally {
       episodeBusy = "";
     }
@@ -1933,7 +2029,7 @@
       }
       clearOptimisticProgress(target.id);
       progressError = error;
-      showToast(errorMessage(error), "error");
+      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(error), type: "error" });
     } finally {
       seriesCommitBusy = false;
       seriesPendingValue = null;
@@ -1965,13 +2061,27 @@
     if (value === statusValue) return;
 
     const previous = statusValue;
+    const leavesCompleted =
+      previous === MEDIA_STATUS.completed && value !== MEDIA_STATUS.completed;
+    const progressBeforeReset = leavesCompleted ? readCardProgress(target) : null;
     statusValue = value;
     statusBusy = true;
     statusError = null;
 
     try {
       await updateStatus(target.id, value);
-      showToast(i18n.t.status.label + ": " + statusLabel(value), "success");
+      if (leavesCompleted) {
+        // Rule 2: leaving Completed is the only status change that resets
+        // progress — mirror the server's reset on the raw item, the banner and
+        // the season rows so the screen never disagrees with a fresh refetch.
+        writeCardProgress(target, 0);
+        updateCachedDetailProgress(target.id, 0);
+        progressValue = 0;
+        committedProgress = 0;
+        pendingSnapshot = null;
+        for (const season of seasons) season.currentEpisode = 0;
+      }
+      showToast({ title: i18n.t.status.label + ": " + statusLabel(value), description: i18n.t.toast.descUpdated });
       if (value === MEDIA_STATUS.dropped) {
         dropPromptState.open({
           id: target.id,
@@ -1993,8 +2103,13 @@
       onUpdate();
     } catch (error) {
       statusValue = previous;
+      if (progressBeforeReset !== null) {
+        // The reset never happened server-side: restore the old progress.
+        writeCardProgress(target, progressBeforeReset);
+        updateCachedDetailProgress(target.id, progressBeforeReset);
+      }
       statusError = error;
-      showToast(errorMessage(error), "error");
+      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(error), type: "error" });
     } finally {
       statusBusy = false;
     }
@@ -2015,12 +2130,12 @@
         score: next,
         clearScore: next === null,
       });
-      showToast(next ? `${next} ★` : i18n.t.detail.clearRating, "success");
+      showToast({ title: next ? `${next} ★` : i18n.t.detail.clearRating, description: i18n.t.toast.descUpdated });
       onUpdate();
     } catch (error) {
       scoreValue = previous;
       ratingError = error;
-      showToast(errorMessage(error), "error");
+      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(error), type: "error" });
     } finally {
       ratingBusy = false;
     }
@@ -2044,13 +2159,13 @@
         clearScore: true,
         clearDetailedScore: true,
       });
-      showToast(i18n.t.detail.clearRating, "success");
+      showToast({ title: i18n.t.detail.clearRating, description: i18n.t.toast.descUpdated });
       onUpdate();
     } catch (error) {
       scoreValue = previousScore;
       target.detailedScoreJson = previousDetailed;
       ratingError = error;
-      showToast(errorMessage(error), "error");
+      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(error), type: "error" });
     } finally {
       ratingBusy = false;
     }
@@ -2082,13 +2197,16 @@
         }
       }
       await updateMedia(target.id, payload);
-      showToast(newScore ? `${newScore} ★` : i18n.t.detail.notesSaved, "success");
+      showToast({
+        title: newScore ? `${newScore} ★` : i18n.t.detail.notesSaved,
+        description: newScore ? i18n.t.toast.descUpdated : i18n.t.toast.descSaved,
+      });
       onUpdate();
     } catch (error) {
       scoreValue = previousScore;
       target.detailedScoreJson = previousDetailed;
       ratingError = error;
-      showToast(errorMessage(error), "error");
+      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(error), type: "error" });
     } finally {
       ratingBusy = false;
     }
@@ -2113,12 +2231,12 @@
     deleteError = null;
 
     try {
-      showToast(i18n.t.detailModal.delete, "warning");
+      showToast({ title: i18n.t.detailModal.delete, description: i18n.t.toast.descDeleted, type: "warning" });
       await onDelete(target.id);
       onBack();
     } catch (error) {
       deleteError = error;
-      showToast(errorMessage(error), "error");
+      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(error), type: "error" });
     } finally {
       deleteBusy = false;
     }
@@ -2142,7 +2260,14 @@
     episodeBusy = target.id;
     progressError = null;
     if (owner) {
-      applyOptimisticProgress(owner.id, seriesTotalBefore + (nextVal - current));
+      // Rule 1: the exact 0 → 1 step of the series total flips the badge; the
+      // season PUT applies the same rule server-side.
+      const seriesTotalAfter = seriesTotalBefore + (nextVal - current);
+      if (shouldPromoteToInProgress(seriesTotalBefore, seriesTotalAfter) && owner.status !== MEDIA_STATUS.inProgress) {
+        owner.status = MEDIA_STATUS.inProgress;
+        statusValue = MEDIA_STATUS.inProgress;
+      }
+      applyOptimisticProgress(owner.id, seriesTotalAfter);
     }
 
     try {
@@ -2155,7 +2280,7 @@
       if (owner) clearOptimisticProgress(owner.id);
       onUpdate();
       progressError = error;
-      showToast(errorMessage(error), "error");
+      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(error), type: "error" });
     } finally {
       episodeBusy = "";
     }
@@ -2203,16 +2328,17 @@
       await setSeasonProgress(target.id, nextVal);
       // Refresh only after the write landed, for the same reason as in setEpisodeProgress.
       onUpdate();
-      showToast(
-        completing ? i18n.t.detail.markSeasonWatched : i18n.t.detail.resetSeason,
-        completing ? "success" : "warning",
-      );
+      showToast({
+        title: completing ? i18n.t.detail.markSeasonWatched : i18n.t.detail.resetSeason,
+        description: i18n.t.toast.descUpdated,
+        type: completing ? "success" : "warning",
+      });
     } catch (error) {
       target.currentEpisode = previous;
       if (owner) clearOptimisticProgress(owner.id);
       onUpdate();
       progressError = error;
-      showToast(errorMessage(error), "error");
+      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(error), type: "error" });
     } finally {
       episodeBusy = "";
     }
@@ -2227,13 +2353,13 @@
       const updated = await refreshMetadata(target.id, fillMissing);
       media = updated;
       syncFrom(updated);
-      showToast(
-        fillMissing ? i18n.t.detail.metadataMergeKept : i18n.t.detail.metadataUpdated,
-        "success",
-      );
+      showToast({
+        title: fillMissing ? i18n.t.detail.metadataMergeKept : i18n.t.detail.metadataUpdated,
+        description: i18n.t.toast.descUpdated,
+      });
     } catch (error) {
       refreshError = error;
-      showToast(errorMessage(error), "error");
+      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(error), type: "error" });
     } finally {
       refreshInFlight = false;
     }
@@ -2265,9 +2391,9 @@
       media = updated;
       syncFrom(updated);
       fillMissingOpen = false;
-      showToast(i18n.t.detail.fillMissingDone, "success");
+      showToast({ title: i18n.t.detail.fillMissingDone, description: i18n.t.toast.descUpdated });
     } catch (error) {
-      showToast(errorMessage(error), "error");
+      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(error), type: "error" });
     } finally {
       fillMissingBusy = false;
     }

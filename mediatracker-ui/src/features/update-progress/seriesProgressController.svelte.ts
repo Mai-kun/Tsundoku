@@ -1,10 +1,11 @@
 import { SvelteMap } from "svelte/reactivity";
 import { createProgressDebounce } from "$shared/utils/progressDebounce";
-import { errorMessage, setSeasonProgress } from "$shared/api/api";
+import { errorMessage, setSeasonProgress, updateStatus } from "$shared/api/api";
 import { showToast } from "$shared/ui/toast.svelte";
 import { i18n } from "$shared/i18n/index.svelte";
-import { isTvShowDetail, type TvSeason, type TvShowMedia } from "$shared/types";
-import { writeCardProgress } from "$entities/media/model/progressRules";
+import { MEDIA_STATUS, isTvShowDetail, type MediaStatus, type TvSeason, type TvShowMedia } from "$shared/types";
+import { shouldPromoteToInProgress, writeCardProgress } from "$entities/media/model/progressRules";
+import { notifyAutoInProgress } from "$features/update-progress/statusPromotionToast.svelte";
 import { nextSeriesEpisodeStep, type SeriesEpisodeStep } from "$entities/media/model/seriesStep";
 import {
   loadMediaDetail,
@@ -109,7 +110,11 @@ function getDebouncer(id: string) {
           // Roll the raw item back; the card's $effect reads this field, so
           // the visible counter resnaps without any extra plumbing.
           writeCardProgress(context.item, context.previousTotal);
-          showToast(errorMessage(failure), "error");
+          showToast({
+            title: i18n.t.toast.actionFailed,
+            description: errorMessage(failure),
+            type: "error",
+          });
         }
       },
     });
@@ -138,6 +143,20 @@ export function stepSeriesEpisodes(
   const next = Math.max(0, current + delta);
   if (next === current) return;
 
+  // Rule 1 of the status contract: only the exact 0 → 1 step of the series
+  // total implies watching started. The badge flips optimistically here; the
+  // debounced season PUT carries the same rule server-side, so a refetch (or
+  // an F5) shows the very same status. The flip is announced by an interactive
+  // toast with persisted undo / keep-status outcomes.
+  if (shouldPromoteToInProgress(current, next) && item.status !== MEDIA_STATUS.inProgress) {
+    const previousStatus = item.status;
+    item.status = MEDIA_STATUS.inProgress;
+    notifyAutoInProgress(item, previousStatus, {
+      undo: () => revertSeriesPromotion(item, previousStatus),
+      keepStatus: () => keepSeriesProgressOnly(item, previousStatus, next),
+    });
+  }
+
   writeCardProgress(item, next);
   applyOptimisticProgress(item.id, next);
   updateCachedDetailProgress(item.id, next);
@@ -151,4 +170,39 @@ export function stepSeriesEpisodes(
     onCommitted: options?.onCommitted ?? existing?.onCommitted,
   });
   getDebouncer(item.id).schedule(item.id, next);
+}
+
+/** Undo for a series: the pending season write is cancelled, then the first season is
+ *  zeroed and the previous status restored — both persisted server-side. */
+async function revertSeriesPromotion(item: TvShowMedia, previousStatus: MediaStatus): Promise<void> {
+  getDebouncer(item.id).cancel();
+  clearOptimisticProgress(item.id);
+  mediaDetailCache.invalidate(item.id);
+  writeCardProgress(item, 0);
+  item.status = previousStatus;
+  try {
+    const step = await resolveSeriesStep(item.id, 0);
+    if (step) await setSeasonProgress(step.seasonId, step.currentEpisode);
+  } catch (failure) {
+    console.error(failure);
+  }
+  void updateStatus(item.id, previousStatus).catch((failure) => console.error(failure));
+}
+
+/** Keep-status for a series: the progress stays (persisted explicitly, since the
+ *  debounced write is cancelled) and the previous status is restored. */
+async function keepSeriesProgressOnly(
+  item: TvShowMedia,
+  previousStatus: MediaStatus,
+  value: number,
+): Promise<void> {
+  getDebouncer(item.id).cancel();
+  item.status = previousStatus;
+  try {
+    const step = await resolveSeriesStep(item.id, value);
+    if (step) await setSeasonProgress(step.seasonId, step.currentEpisode);
+  } catch (failure) {
+    console.error(failure);
+  }
+  void updateStatus(item.id, previousStatus).catch((failure) => console.error(failure));
 }

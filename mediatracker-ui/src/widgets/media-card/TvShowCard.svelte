@@ -3,7 +3,6 @@
   import { untrack } from "svelte";
   import { i18n } from "$shared/i18n/index.svelte";
   import MediaStatusBadge from "$entities/media/ui/MediaStatusBadge.svelte";
-  import { scheduleDeferredInProgress } from "$features/update-progress/progressController.svelte";
   import { reconcileProgress } from "$features/update-progress/optimisticProgress.svelte";
   import { stepSeriesEpisodes } from "$features/update-progress/seriesProgressController.svelte";
   import { cardTypeLabel } from "$entities/media/model/mediaLabels";
@@ -68,11 +67,8 @@
     void onStatusChange?.(item, next);
   }
 
-  /** Hover stepper: stepping a non-InProgress show means watching resumed. */
+  /** Hover stepper: the series controller owns the status rule (0 → 1 ⇒ InProgress). */
   function stepFromHover(delta: number) {
-    // Read before stepping: an idle start (0 episodes watched / Planned) defers
-    // the status flip behind the 10s toast instead of switching immediately.
-    scheduleDeferredInProgress(item, localEpisodesWatched === 0, onStatusChange);
     void stepEpisode(delta);
   }
 </script>

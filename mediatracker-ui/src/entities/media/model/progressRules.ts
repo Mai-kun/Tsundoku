@@ -87,3 +87,14 @@ export function supportsProgressStepper(item: MediaItem): boolean {
 export function nextCardProgress(item: MediaItem, current: number, delta: number): number {
   return clampProgress(current + delta, cardProgressTotal(item));
 }
+
+/**
+ * Rule 1 of the status contract: the exact 0 → 1 step implies the title is being consumed
+ * right now and promotes it to InProgress. Any other progress change keeps the current status —
+ * dropped stays dropped, on hold stays on hold, planned stays planned. Mirrors the backend's
+ * ProgressStepperRules.PromotesToInProgress, so an optimistic click never diverges from the
+ * server's stored state.
+ */
+export function shouldPromoteToInProgress(previous: number, next: number): boolean {
+  return previous === 0 && next === 1;
+}

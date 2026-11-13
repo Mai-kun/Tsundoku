@@ -114,5 +114,11 @@ export function createProgressDebounce(options: ProgressDebounceOptions) {
     await commit(task);
   }
 
-  return { schedule, flush };
+  /** Drops a scheduled write without sending it — e.g. an undo action that must
+   *  not race the still-pending optimistic progress PUT. */
+  function cancel() {
+    clearPending(instance);
+  }
+
+  return { schedule, flush, cancel };
 }

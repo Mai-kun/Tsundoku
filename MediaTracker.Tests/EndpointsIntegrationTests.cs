@@ -72,7 +72,7 @@ public class EndpointsIntegrationTests : IClassFixture<CustomWebApplicationFacto
     }
 
     [Fact]
-    public async Task SeasonProgress_ShouldClampAndPropagateStatusToParentShow()
+    public async Task SeasonProgress_ShouldClamp_AndPromoteShowOnlyOnZeroToOne()
     {
         var seasonId = Guid.NewGuid();
         var showId = Guid.NewGuid();
@@ -81,11 +81,14 @@ public class EndpointsIntegrationTests : IClassFixture<CustomWebApplicationFacto
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
             var show = SeedShow("Show", totalEpisodes: 12, currentEpisode: 0);
             show.Id = showId;
+            show.Status = MediaStatus.Planned;
             show.Seasons.Single().Id = seasonId;
             db.MediaItems.Add(show);
             await db.SaveChangesAsync();
         }
 
+        // 0 -> 99: the season clamps to its length, but the step is not 0 -> 1, so neither the
+        // season nor the show changes status.
         var response = await _client.PutAsJsonAsync($"/api/seasons/{seasonId}/progress", new UpdateSeasonProgressRequest { CurrentEpisode = 99 });
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
@@ -94,7 +97,23 @@ public class EndpointsIntegrationTests : IClassFixture<CustomWebApplicationFacto
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
             var reloaded = db.TvShows.AsNoTracking().Include(s => s.Seasons).Single(s => s.Id == showId);
             reloaded.Seasons.Single().CurrentEpisode.Should().Be(12);
-            reloaded.Status.Should().Be(MediaStatus.Completed);
+            reloaded.Seasons.Single().Status.Should().Be(MediaStatus.Planned);
+            reloaded.Status.Should().Be(MediaStatus.Planned);
+        }
+
+        // Back to 0, then the exact 0 -> 1 step promotes the season and the show to InProgress.
+        await _client.PutAsJsonAsync($"/api/seasons/{seasonId}/progress", new UpdateSeasonProgressRequest { CurrentEpisode = 0 });
+        await _client.PutAsJsonAsync($"/api/seasons/{seasonId}/progress", new UpdateSeasonProgressRequest { CurrentEpisode = 1 });
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var reloaded = db.TvShows.AsNoTracking().Include(s => s.Seasons).Single(s => s.Id == showId);
+            reloaded.Seasons.Single().CurrentEpisode.Should().Be(1);
+            reloaded.Seasons.Single().Status.Should().Be(MediaStatus.InProgress);
+            reloaded.Status.Should().Be(MediaStatus.InProgress);
+            reloaded.StartedAt.Should().NotBeNull();
+            reloaded.FinishedAt.Should().BeNull();
         }
 
         // unknown season -> 404 problem detail

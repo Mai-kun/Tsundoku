@@ -52,6 +52,53 @@ public class MediaItemUpdaterTests
     }
 
     [Fact]
+    public void Apply_StatusChangeFromCompleted_ShouldResetProgress()
+    {
+        // Rule 2 through the edit-form endpoint: leaving Completed resets the counters.
+        var book = new Book { Title = "Dune", Author = string.Empty, TotalPages = 412, CurrentPage = 300, CurrentChapter = 21 };
+        book.ChangeStatus(MediaStatus.Completed);
+
+        MediaItemUpdater.Apply(book, new UpdateMediaRequest { Status = MediaStatus.Planned });
+
+        book.Status.Should().Be(MediaStatus.Planned);
+        book.CurrentPage.Should().Be(0);
+        book.CurrentChapter.Should().Be(0);
+
+        var game = new VideoGame { Title = "Hollow Knight", Platform = "PC", HoursPlayed = 42 };
+        game.ChangeStatus(MediaStatus.Completed);
+
+        MediaItemUpdater.Apply(game, new UpdateMediaRequest { Status = MediaStatus.InProgress });
+
+        game.Status.Should().Be(MediaStatus.InProgress);
+        game.HoursPlayed.Should().Be(0);
+    }
+
+    [Fact]
+    public void Apply_StatusChangeNotFromCompleted_ShouldKeepProgress()
+    {
+        // InProgress -> Planned through the edit-form endpoint keeps the counters.
+        var book = new Book { Title = "Dune", Author = string.Empty, TotalPages = 412, CurrentPage = 300, Status = MediaStatus.InProgress };
+
+        MediaItemUpdater.Apply(book, new UpdateMediaRequest { Status = MediaStatus.Planned });
+
+        book.Status.Should().Be(MediaStatus.Planned);
+        book.CurrentPage.Should().Be(300);
+    }
+
+    [Fact]
+    public void Apply_StatusChangeFromCompleted_ExplicitProgressWins()
+    {
+        // Progress fields carried by the same request are re-applied after the rule-2 reset.
+        var book = new Book { Title = "Dune", Author = string.Empty, TotalPages = 412, CurrentPage = 300 };
+        book.ChangeStatus(MediaStatus.Completed);
+
+        MediaItemUpdater.Apply(book, new UpdateMediaRequest { Status = MediaStatus.OnHold, CurrentPage = 42 });
+
+        book.Status.Should().Be(MediaStatus.OnHold);
+        book.CurrentPage.Should().Be(42);
+    }
+
+    [Fact]
     public void Apply_MissingAltTitles_ShouldLeaveStoredTitlesUntouched()
     {
         var game = new VideoGame { Title = "Hollow Knight", Platform = "PC" };

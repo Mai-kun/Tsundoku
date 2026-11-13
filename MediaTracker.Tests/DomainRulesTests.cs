@@ -20,66 +20,111 @@ public class DomainRulesTests
     }
 
     [Fact]
-    public void ProgressStepperRules_ResolveEpisodeStatus_ShouldDetermineCorrectStatus()
+    public void ProgressStepperRules_PromotesToInProgress_ShouldFireOnlyOnExactZeroToOne()
     {
-        ProgressStepperRules.ResolveEpisodeStatus(0, 12).Should().Be(MediaStatus.Planned);
-        ProgressStepperRules.ResolveEpisodeStatus(5, 12).Should().Be(MediaStatus.InProgress);
-        ProgressStepperRules.ResolveEpisodeStatus(12, 12).Should().Be(MediaStatus.Completed);
+        // Rule 1: only the exact 0 -> 1 step implies the title started.
+        ProgressStepperRules.PromotesToInProgress(0, 1).Should().BeTrue();
+
+        // Every other progress change keeps the current status.
+        ProgressStepperRules.PromotesToInProgress(0, 5).Should().BeFalse();
+        ProgressStepperRules.PromotesToInProgress(1, 2).Should().BeFalse();
+        ProgressStepperRules.PromotesToInProgress(3, 4).Should().BeFalse();
+        ProgressStepperRules.PromotesToInProgress(5, 4).Should().BeFalse();
+        ProgressStepperRules.PromotesToInProgress(3, 0).Should().BeFalse();
+        ProgressStepperRules.PromotesToInProgress(2, 0).Should().BeFalse();
     }
 
     [Fact]
-    public void ProgressStepperRules_ResolveVolumeStatus_ShouldDetermineCorrectStatus()
+    public void ChangeStatus_LeavingCompleted_ShouldResetProgress()
     {
-        ProgressStepperRules.ResolveVolumeStatus(0, 200, 0, 10).Should().Be(MediaStatus.Planned);
-        ProgressStepperRules.ResolveVolumeStatus(50, 200, 0, 10).Should().Be(MediaStatus.InProgress);
-        ProgressStepperRules.ResolveVolumeStatus(0, 200, 5, 10).Should().Be(MediaStatus.InProgress);
-        ProgressStepperRules.ResolveVolumeStatus(200, 200, 10, 10).Should().Be(MediaStatus.Completed);
+        // Rule 2: Completed -> any other status is the only status change that resets progress.
+        var book = new Book { Title = "Dune", Author = string.Empty, TotalPages = 412, CurrentPage = 300, CurrentChapter = 21 };
+        book.ChangeStatus(MediaStatus.Completed);
+
+        book.ChangeStatus(MediaStatus.Planned);
+        book.CurrentPage.Should().Be(0);
+        book.CurrentChapter.Should().Be(0);
+        book.Status.Should().Be(MediaStatus.Planned);
+
+        var game = new VideoGame { Title = "Hollow Knight", Platform = "PC", HoursPlayed = 42 };
+        game.ChangeStatus(MediaStatus.Completed);
+        game.ChangeStatus(MediaStatus.OnHold);
+        game.HoursPlayed.Should().Be(0);
+
+        var manga = new Manga { Title = "One Piece", TotalChapters = 1100, CurrentChapter = 950 };
+        manga.ChangeStatus(MediaStatus.Completed);
+        manga.ChangeStatus(MediaStatus.Dropped);
+        manga.CurrentChapter.Should().Be(0);
+        manga.CurrentVolume.Should().Be(0);
     }
 
     [Fact]
-    public void ProgressStepperRules_ResolveShowStatus_ShouldHandleRollupAndRewinds()
+    public void ChangeStatus_NotLeavingCompleted_ShouldKeepProgress()
     {
-        var started = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-        var now = new DateTime(2026, 2, 2, 0, 0, 0, DateTimeKind.Utc);
+        // InProgress -> Planned keeps the counters: no hidden reset outside rule 2.
+        var book = new Book { Title = "Dune", Author = string.Empty, TotalPages = 412, CurrentPage = 300, CurrentChapter = 21, Status = MediaStatus.InProgress };
+        book.ChangeStatus(MediaStatus.Planned);
+        book.CurrentPage.Should().Be(300);
+        book.CurrentChapter.Should().Be(21);
 
-        // 1. All seasons completed
-        var allDone = ProgressStepperRules.ResolveShowStatus(
-            MediaStatus.InProgress,
-            started,
-            null,
-            allCompleted: true,
-            anyWatched: true,
-            now);
+        // Planned -> OnHold keeps them, OnHold -> Planned keeps them.
+        var game = new VideoGame { Title = "Elden Ring", Platform = "PC", HoursPlayed = 17, Status = MediaStatus.Planned };
+        game.ChangeStatus(MediaStatus.OnHold);
+        game.HoursPlayed.Should().Be(17);
+        game.ChangeStatus(MediaStatus.Planned);
+        game.HoursPlayed.Should().Be(17);
 
-        allDone.Status.Should().Be(MediaStatus.Completed);
-        allDone.StartedAt.Should().Be(started);
-        allDone.FinishedAt.Should().Be(now);
+        // Dropped -> Planned keeps them too.
+        var manga = new Manga { Title = "Bleach", CurrentChapter = 340, CurrentVolume = 30, Status = MediaStatus.Dropped };
+        manga.ChangeStatus(MediaStatus.Planned);
+        manga.CurrentChapter.Should().Be(340);
+        manga.CurrentVolume.Should().Be(30);
 
-        // 2. Part of show watched -> InProgress
-        var inProgress = ProgressStepperRules.ResolveShowStatus(
-            MediaStatus.Planned,
-            null,
-            null,
-            allCompleted: false,
-            anyWatched: true,
-            now);
+        // Completed -> Completed is a no-op for the counters as well.
+        var finished = new Book { Title = "Dune Messiah", Author = string.Empty, TotalPages = 256, CurrentPage = 256 };
+        finished.ChangeStatus(MediaStatus.Completed);
+        finished.ChangeStatus(MediaStatus.Completed);
+        finished.CurrentPage.Should().Be(256);
+    }
 
-        inProgress.Status.Should().Be(MediaStatus.InProgress);
-        inProgress.StartedAt.Should().Be(now);
-        inProgress.FinishedAt.Should().BeNull();
+    [Fact]
+    public void TvShow_ChangeStatus_LeavingCompleted_ShouldRollResetOntoSeasons()
+    {
+        var show = new TvShow { Title = "Naruto", Status = MediaStatus.Completed };
+        show.Seasons.Add(new TvSeason { SeasonNumber = 1, Title = "S1", TotalEpisodes = 220, CurrentEpisode = 110, Status = MediaStatus.InProgress });
+        show.Seasons.Add(new TvSeason { SeasonNumber = 2, Title = "S2", TotalEpisodes = 24, CurrentEpisode = 24, Status = MediaStatus.Completed });
 
-        // 3. Rewind across season boundary -> rewind to Planned
-        var rewound = ProgressStepperRules.ResolveShowStatus(
-            MediaStatus.Completed,
-            started,
-            now,
-            allCompleted: false,
-            anyWatched: false,
-            now);
+        show.ChangeStatus(MediaStatus.Planned);
 
-        rewound.Status.Should().Be(MediaStatus.Planned);
-        rewound.StartedAt.Should().BeNull();
-        rewound.FinishedAt.Should().BeNull();
+        show.Status.Should().Be(MediaStatus.Planned);
+        show.TotalEpisodesWatched.Should().Be(0);
+        show.Seasons[0].CurrentEpisode.Should().Be(0);
+        show.Seasons[0].Status.Should().Be(MediaStatus.Planned);
+        show.Seasons[1].CurrentEpisode.Should().Be(0);
+        show.Seasons[1].Status.Should().Be(MediaStatus.Planned);
+    }
+
+    [Fact]
+    public void TvShow_ChangeStatus_NotLeavingCompleted_ShouldKeepSeasons()
+    {
+        // InProgress -> Planned keeps the watched episodes on every season.
+        var show = new TvShow { Title = "Frieren", Status = MediaStatus.InProgress };
+        show.Seasons.Add(new TvSeason { SeasonNumber = 1, Title = "S1", TotalEpisodes = 28, CurrentEpisode = 12, Status = MediaStatus.InProgress });
+
+        show.ChangeStatus(MediaStatus.Planned);
+        show.TotalEpisodesWatched.Should().Be(12);
+        show.Seasons[0].Status.Should().Be(MediaStatus.InProgress);
+
+        // Planned -> OnHold keeps them; OnHold -> Dropped keeps them.
+        show.ChangeStatus(MediaStatus.OnHold);
+        show.TotalEpisodesWatched.Should().Be(12);
+        show.ChangeStatus(MediaStatus.Dropped);
+        show.TotalEpisodesWatched.Should().Be(12);
+
+        // Completed -> Completed does not touch the seasons either.
+        show.ChangeStatus(MediaStatus.Completed);
+        show.ChangeStatus(MediaStatus.Completed);
+        show.TotalEpisodesWatched.Should().Be(12);
     }
 
     [Fact]

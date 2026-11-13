@@ -1195,7 +1195,7 @@ public sealed class DatabaseFieldPreservationTests
     // ------------------------------------------------------------------
 
     [Fact]
-    public async Task UpdateSeasonProgress_CompletesSeasonAndShow()
+    public async Task UpdateSeasonProgress_LastEpisode_KeepsStatusesUntouched()
     {
         using var db = CreateDbContext();
         var catalog = await SeedFullCatalogAsync(db);
@@ -1208,11 +1208,12 @@ public sealed class DatabaseFieldPreservationTests
         // ExecuteUpdateAsync пишет мимо change tracker, поэтому перечитываем без трекинга.
         var season = await db.TvSeasons.AsNoTracking().SingleAsync(s => s.Id == catalog.TvSeason.Id);
         Assert.Equal(12, season.CurrentEpisode);
-        Assert.Equal(MediaStatus.Completed, season.Status);
+        // Правило 1: 4 -> 12 — не шаг 0 -> 1, статусы сезона и шоу не трогаются.
+        Assert.Equal(MediaStatus.InProgress, season.Status);
 
         var show = await db.TvShows.AsNoTracking().SingleAsync(s => s.Id == catalog.TvShow.Id);
-        Assert.Equal(MediaStatus.Completed, show.Status);
-        Assert.NotNull(show.FinishedAt);
+        Assert.Equal(MediaStatus.InProgress, show.Status);
+        Assert.Equal(T2, show.FinishedAt);
 
         var progressEvent = Assert.Single(
             await db.Events.Where(e => e.MediaId == catalog.TvShow.Id && e.Type == MediaEventType.ProgressChanged).ToListAsync());
@@ -1355,7 +1356,7 @@ public sealed class DatabaseFieldPreservationTests
         var plannedBook = new Book { Title = $"Stats Planned Book {k}", Author = "B" };
 
         var season = new TvSeason { Id = Guid.NewGuid(), SeasonNumber = 1, Title = "Season 1", TotalEpisodes = 12, CurrentEpisode = 5 };
-        var inProgressShow = new TvShow { Title = $"Stats Show {k}", EpisodeDurationMinutes = 45 };
+        var inProgressShow = new TvShow { Title = $"Stats Show {k}", EpisodeDurationMinutes = 45, Status = MediaStatus.InProgress };
         inProgressShow.Seasons.Add(season);
         season.TvShow = inProgressShow;
         season.TvShowId = inProgressShow.Id;
@@ -1671,11 +1672,10 @@ file static class DatabaseFieldPreservationTestExtensions
 {
     public static void SetEpisodeProgressAndSync(this TvShow show)
     {
+        // Status changes no longer roll up from the seasons; the helper only keeps the counters.
         foreach (var season in show.Seasons)
         {
             season.SetEpisode(season.CurrentEpisode);
         }
-
-        show.SyncStatusFromSeasons();
     }
 }

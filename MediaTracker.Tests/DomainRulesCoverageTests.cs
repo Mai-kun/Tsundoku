@@ -22,8 +22,8 @@ namespace MediaTracker.Tests;
 
 /// <summary>
 /// Closes the remaining branch gaps in the domain rules: applier overwrite/enrich branches per
-/// entity type, updater partial updates and clear flags, factory type mapping, TvShow season
-/// roll-ups and the global exception handler.
+/// entity type, updater partial updates and clear flags, factory type mapping, TvShow status-change
+/// rules and the global exception handler.
 /// </summary>
 public class DomainRulesCoverageTests
 {
@@ -704,96 +704,32 @@ public class DomainRulesCoverageTests
         new() { SeasonNumber = 1, Title = "S", TotalEpisodes = total, CurrentEpisode = current };
 
     [Fact]
-    public void TvShow_SyncStatus_AllSeasonsCompleted_ShouldComplete()
+    public void TvShow_ChangeStatus_ShouldKeepTotalsAndRollResetOnlyFromCompleted()
     {
-        var stamp = new DateTime(2026, 2, 2, 0, 0, 0, DateTimeKind.Utc);
-        var show = new TvShow { Title = "S", Status = MediaStatus.InProgress, StartedAt = new DateTime(2025, 1, 1), FinishedAt = new DateTime(2026, 1, 1) };
-        show.Seasons.Add(Season(10, 10));
-        show.Seasons.Add(Season(5, 5));
+        // Rule 2 cascade: leaving Completed zeroes every season and its status.
+        var completed = new TvShow { Title = "S", Status = MediaStatus.Completed };
+        completed.Seasons.Add(Season(2, 10));
+        completed.Seasons.Add(Season(10, 10));
 
-        show.SyncStatusFromSeasons(stamp);
+        completed.ChangeStatus(MediaStatus.Planned, new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+        completed.Status.Should().Be(MediaStatus.Planned);
+        completed.TotalEpisodesWatched.Should().Be(0);
+        completed.Seasons[0].CurrentEpisode.Should().Be(0);
+        completed.Seasons.Select(s => (int)s.Status).Should().OnlyContain(s => s == (int)MediaStatus.Planned);
 
-        show.Status.Should().Be(MediaStatus.Completed);
-        show.StartedAt.Should().Be(new DateTime(2025, 1, 1));
-        show.FinishedAt.Should().Be(new DateTime(2026, 1, 1)); // stored stamp wins over "now"
-        show.TotalEpisodesWatched.Should().Be(15);
-        show.TotalEpisodesCount.Should().Be(15);
-        show.AllSeasonsCompleted.Should().BeTrue();
-    }
-
-    [Fact]
-    public void TvShow_SyncStatus_WatchedEpisodes_ShouldMoveToInProgress()
-    {
-        var stamp = new DateTime(2026, 2, 2, 0, 0, 0, DateTimeKind.Utc);
-
-        // Completed row with un-watched seasons never keeps the completed badge
-        var completed = new TvShow { Title = "C", Status = MediaStatus.Completed };
-        completed.Seasons.Add(Season(3, 10));
-        completed.SyncStatusFromSeasons(stamp);
-        completed.Status.Should().Be(MediaStatus.InProgress);
-        completed.StartedAt.Should().Be(stamp);
-        completed.FinishedAt.Should().BeNull();
-
-        // Planned → in progress
-        var planned = new TvShow { Title = "P", Status = MediaStatus.Planned, FinishedAt = stamp };
-        planned.Seasons.Add(Season(1, 10));
-        planned.SyncStatusFromSeasons(stamp);
-        planned.Status.Should().Be(MediaStatus.InProgress);
-        planned.FinishedAt.Should().BeNull();
-
-        // OnHold → already mid-lifecycle, the watched check only stamps the start
-        var onHold = new TvShow { Title = "H", Status = MediaStatus.OnHold };
-        onHold.Seasons.Add(Season(2, 10));
-        onHold.SyncStatusFromSeasons(stamp);
-        onHold.Status.Should().Be(MediaStatus.OnHold);
-        onHold.StartedAt.Should().Be(stamp);
-        onHold.FinishedAt.Should().BeNull();
-    }
-
-    [Fact]
-    public void TvShow_SyncStatus_NoWatchedEpisodes_ShouldRewindToPlanned()
-    {
-        var stamp = new DateTime(2026, 2, 2, 0, 0, 0, DateTimeKind.Utc);
-
-        var inProgress = new TvShow { Title = "A", Status = MediaStatus.InProgress, StartedAt = stamp, FinishedAt = stamp };
-        inProgress.Seasons.Add(Season(0, 10));
-        inProgress.SyncStatusFromSeasons(stamp);
-        inProgress.Status.Should().Be(MediaStatus.Planned);
-        inProgress.StartedAt.Should().BeNull();
-        inProgress.FinishedAt.Should().BeNull();
-
-        // Already planned: stays planned; an empty season list keeps AllSeasonsCompleted false
-        var planned = new TvShow { Title = "B", Status = MediaStatus.Planned, StartedAt = stamp };
-        planned.SyncStatusFromSeasons(stamp);
-        planned.Status.Should().Be(MediaStatus.Planned);
-        planned.StartedAt.Should().BeNull();
-        planned.AllSeasonsCompleted.Should().BeFalse();
-        show_SumTotalsOfEmptyListsAreZero(planned);
-    }
-
-    private void show_SumTotalsOfEmptyListsAreZero(TvShow show)
-    {
-        show.TotalEpisodesWatched.Should().Be(0);
-        show.TotalEpisodesCount.Should().Be(0);
-    }
-
-    [Fact]
-    public void TvShow_ChangeStatus_ShouldRollOntoSeasons()
-    {
-        var show = new TvShow { Title = "S" };
+        // Any other status change keeps the season counters exactly as they are.
+        var show = new TvShow { Title = "S2", Status = MediaStatus.InProgress };
         show.Seasons.Add(Season(2, 10));
         show.Seasons.Add(Season(10, 10));
 
-        show.ChangeStatus(MediaStatus.Completed);
-        show.Status.Should().Be(MediaStatus.Completed);
-        show.Seasons[0].CurrentEpisode.Should().Be(10);
-        show.Seasons[0].Status.Should().Be(MediaStatus.Completed);
+        show.ChangeStatus(MediaStatus.Planned);
+        show.TotalEpisodesWatched.Should().Be(12);
         show.Seasons[1].CurrentEpisode.Should().Be(10);
 
-        show.ChangeStatus(MediaStatus.Planned, new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc));
-        show.Status.Should().Be(MediaStatus.Planned);
-        show.Seasons[0].CurrentEpisode.Should().Be(0);
-        show.Seasons.Select(s => (int)s.Status).Should().OnlyContain(s => s == (int)MediaStatus.Planned);
+        // Reaching Completed from Planned no longer fills the seasons either.
+        show.ChangeStatus(MediaStatus.Completed);
+        show.TotalEpisodesWatched.Should().Be(12);
+        show.Seasons[0].CurrentEpisode.Should().Be(2);
     }
 
     // ---- GlobalExceptionHandler ----

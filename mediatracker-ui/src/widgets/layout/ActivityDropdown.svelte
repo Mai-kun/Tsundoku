@@ -118,7 +118,7 @@
       </span>
     {:else if jobsClient.pendingCount > 0}
       <span
-        class="absolute -top-1 -right-1 min-w-4 rounded-full bg-amber-500 px-1 text-[10px] leading-4 font-bold text-black tabular-nums"
+        class="absolute -top-1 -right-1 min-w-4 rounded-full bg-amber-500/90 px-1 text-[10px] leading-4 font-bold text-black tabular-nums"
       >
         {jobsClient.pendingCount}
       </span>
@@ -151,7 +151,7 @@
     {#if jobsClient.pendingCount > 0}
       <button
         type="button"
-        class="mb-2 flex w-full cursor-pointer items-center justify-center gap-2 rounded-md bg-amber-500 px-3 py-2 text-xs font-bold text-black transition hover:bg-amber-400"
+        class="mb-2 flex w-full cursor-pointer items-center justify-center gap-2 rounded-md bg-amber-500/90 px-3 py-2 text-xs font-bold text-black transition hover:bg-amber-400/90"
         onclick={() => openProcesses("review")}
       >
         {i18n.t.backgroundJobs.pendingCount(jobsClient.pendingCount)}
@@ -249,10 +249,10 @@
               {@const percent = Math.max(0, Math.min(100, Math.round(ratio * 100)))}
               {@const barColor =
                 limit.remaining <= 0
-                  ? "bg-rose-500"
+                  ? "bg-rose-500/90"
                   : ratio < 0.3
-                    ? "bg-amber-500"
-                    : "bg-emerald-500"}
+                    ? "bg-amber-500/90"
+                    : "bg-emerald-500/90"}
               <div class="rounded-md border border-white/[0.06] bg-white/[0.03] p-2">
                 <div class="flex items-center justify-between gap-2 text-xs">
                   <span class="truncate font-medium text-slate-200">{limit.provider}</span>

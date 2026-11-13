@@ -31,10 +31,10 @@
 </script>
 
 <div class="flex w-full items-center gap-1.5">
-  <!-- Matte-glass buttons: visible on any poster or art background. -->
+  <!-- Graphite glass: sits on the card's dark overlay without the white glare. -->
   <button
     type="button"
-    class="tap flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-white/20 bg-white/15 font-semibold text-white/90 shadow-sm transition-colors select-none hover:bg-white/25 active:bg-white/35 disabled:opacity-40"
+    class="tap flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-white/10 bg-[#1a202c]/90 text-zinc-300 shadow-sm transition-colors select-none hover:border-white/20 hover:bg-[#252d3d] hover:text-white active:bg-[#2d374a] disabled:opacity-40"
     aria-label={i18n.t.card.decrement}
     disabled={decrementDisabled}
     onclick={(event) => step(event, -1)}><Minus size={14} aria-hidden="true" /></button
@@ -45,7 +45,7 @@
   >
   <button
     type="button"
-    class="tap flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-white/20 bg-white/15 font-semibold text-white/90 shadow-sm transition-colors select-none hover:bg-white/25 active:bg-white/35 disabled:opacity-40"
+    class="tap flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-white/10 bg-[#1a202c]/90 text-zinc-300 shadow-sm transition-colors select-none hover:border-white/20 hover:bg-[#252d3d] hover:text-white active:bg-[#2d374a] disabled:opacity-40"
     aria-label={i18n.t.card.increment}
     disabled={incrementDisabled}
     onclick={(event) => step(event, 1)}><Plus size={14} aria-hidden="true" /></button

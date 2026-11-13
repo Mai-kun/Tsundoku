@@ -10,12 +10,12 @@
   let { sunkCost }: Props = $props();
 
   const PALETTE: Record<string, string> = {
-    game: "#f43f5e",
-    movie: "#fb923c",
-    series: "#f59e0b",
-    anime: "#eab308",
-    book: "#a3e635",
-    manga: "#84cc16",
+    game: "var(--color-chart-rose)",
+    movie: "var(--color-chart-orange)",
+    series: "var(--color-chart-amber)",
+    anime: "var(--color-chart-yellow)",
+    book: "var(--color-chart-lime)",
+    manga: "var(--color-chart-green)",
   };
 
   const breakdown = $derived(
@@ -69,7 +69,7 @@
         <div
           class="h-full transition-[width] duration-300"
           style="width: {(hours / breakdownSum) * 100}%; background-color: {PALETTE[type] ??
-            '#f43f5e'};"
+            'var(--color-chart-rose)'};"
           title="{categoryLabel(type)}: {Math.round(hours)} {i18n.t.stats.hoursShort}"
         ></div>
       {/each}
@@ -77,7 +77,9 @@
     <div class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-400">
       {#each breakdown as [type, hours] (type)}
         <span class="flex items-center gap-1.5">
-          <span class="size-2 rounded-full" style="background-color: {PALETTE[type] ?? '#f43f5e'};"
+          <span
+            class="size-2 rounded-full"
+            style="background-color: {PALETTE[type] ?? 'var(--color-chart-rose)'};"
           ></span>
           {categoryLabel(type)}
           <span class="text-slate-500 tabular-nums"

@@ -54,7 +54,8 @@ export { statusLabel };
  * legacy `externalSource` column, which can lag behind a user-switched primary.
  */
 type WithLinkedSources = MediaItem & {
-  linkedSources?: { source: string; externalId: string; isPrimary: boolean; url?: string | null }[] | null;
+  linkedSources?:
+    { source: string; externalId: string; isPrimary: boolean; url?: string | null }[] | null;
 };
 
 function primaryLinkedSource(item: MediaItem) {

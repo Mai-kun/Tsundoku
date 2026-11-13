@@ -88,7 +88,7 @@
       >
         {#if earlyShare > 0}
           <div
-            class="h-full bg-emerald-400 transition-[width] duration-300"
+            class="h-full bg-emerald-400/90 transition-[width] duration-300"
             style="width: {earlyShare}%;"
             title="{i18n.t.stats.taste.dropAnalytics
               .earlyDrop}: {analytics.earlyDropCount} ({earlyShare}%)"
@@ -96,7 +96,7 @@
         {/if}
         {#if midShare > 0}
           <div
-            class="h-full bg-amber-400 transition-[width] duration-300"
+            class="h-full bg-amber-400/90 transition-[width] duration-300"
             style="width: {midShare}%;"
             title="{i18n.t.stats.taste.dropAnalytics
               .midDrop}: {analytics.midDropCount} ({midShare}%)"
@@ -104,7 +104,7 @@
         {/if}
         {#if lateShare > 0}
           <div
-            class="h-full bg-rose-400 transition-[width] duration-300"
+            class="h-full bg-rose-400/90 transition-[width] duration-300"
             style="width: {lateShare}%;"
             title="{i18n.t.stats.taste.dropAnalytics
               .lateDrop}: {analytics.lateDropCount} ({lateShare}%)"
@@ -115,17 +115,17 @@
       <!-- Legend -->
       <div class="flex flex-wrap gap-x-4 gap-y-1 pt-1 text-xs text-slate-400">
         <span class="flex items-center gap-1.5">
-          <span class="size-2 rounded-full bg-emerald-400"></span>
+          <span class="size-2 rounded-full bg-emerald-400/90"></span>
           <span>{i18n.t.stats.taste.dropAnalytics.earlyDrop}</span>
           <span class="font-semibold text-slate-400 tabular-nums">{analytics.earlyDropCount}</span>
         </span>
         <span class="flex items-center gap-1.5">
-          <span class="size-2 rounded-full bg-amber-400"></span>
+          <span class="size-2 rounded-full bg-amber-400/90"></span>
           <span>{i18n.t.stats.taste.dropAnalytics.midDrop}</span>
           <span class="font-semibold text-slate-400 tabular-nums">{analytics.midDropCount}</span>
         </span>
         <span class="flex items-center gap-1.5">
-          <span class="size-2 rounded-full bg-rose-400"></span>
+          <span class="size-2 rounded-full bg-rose-400/90"></span>
           <span>{i18n.t.stats.taste.dropAnalytics.lateDrop}</span>
           <span class="font-semibold text-slate-400 tabular-nums">{analytics.lateDropCount}</span>
         </span>

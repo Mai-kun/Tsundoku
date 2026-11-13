@@ -137,7 +137,7 @@
             </button>
             <button
               type="button"
-              class="cursor-pointer rounded-lg bg-amber-400 px-3.5 py-1.5 text-xs font-semibold text-black transition hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-50"
+              class="cursor-pointer rounded-lg bg-amber-400/90 px-3.5 py-1.5 text-xs font-semibold text-black transition hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-50"
               onclick={handleSave}
               disabled={!newText.trim() || isSaving}
             >

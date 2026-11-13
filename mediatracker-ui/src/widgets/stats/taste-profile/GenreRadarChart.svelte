@@ -117,7 +117,7 @@
       {/each}
       <polygon
         points={dataPath()}
-        fill="#5844e0"
+        fill="var(--color-accent)"
         fill-opacity="0.25"
         stroke="#818cf8"
         stroke-width="2"

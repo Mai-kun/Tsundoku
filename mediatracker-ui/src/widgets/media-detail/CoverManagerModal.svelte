@@ -395,7 +395,7 @@
               <!-- Delete (top-right, on hover) -->
               <button
                 type="button"
-                class="absolute top-2 right-2 z-10 grid size-8 place-items-center rounded-lg border border-white/20 bg-black/70 text-slate-300 opacity-0 shadow-md transition duration-150 group-hover:opacity-100 hover:border-rose-500 hover:bg-rose-600 hover:text-white disabled:opacity-50"
+                class="absolute top-2 right-2 z-10 grid size-8 place-items-center rounded-lg border border-white/20 bg-black/70 text-slate-300 opacity-0 shadow-md transition duration-150 group-hover:opacity-100 hover:border-rose-500 hover:bg-rose-600/90 hover:text-white disabled:opacity-50"
                 title={i18n.t.coversModal.delete}
                 aria-label={i18n.t.coversModal.delete}
                 disabled={busy}
@@ -421,7 +421,7 @@
                     <div class="flex items-center gap-2">
                       <button
                         type="button"
-                        class="rounded-md bg-rose-600 px-2.5 py-1 text-xs font-bold text-white transition hover:bg-rose-500 disabled:opacity-50"
+                        class="rounded-md bg-rose-600/90 px-2.5 py-1 text-xs font-bold text-white transition hover:bg-rose-500/90 disabled:opacity-50"
                         disabled={busy}
                         onclick={() => void handleDelete(cover.id)}
                       >

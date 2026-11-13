@@ -39,7 +39,7 @@
         onclick={() => (playing = true)}
       >
         <span
-          class="grid size-14 place-items-center rounded-2xl bg-red-600 text-white shadow-xl transition group-hover:scale-[1.03] group-hover:bg-red-500"
+          class="grid size-14 place-items-center rounded-2xl bg-red-600/90 text-white shadow-xl transition group-hover:scale-[1.03] group-hover:bg-red-500/90"
         >
           <Play size={25} class="fill-current" />
         </span>

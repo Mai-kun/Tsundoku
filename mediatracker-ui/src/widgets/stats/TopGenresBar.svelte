@@ -18,14 +18,14 @@
   let selectedType = $state<string>("all");
 
   const PALETTE = [
-    "#f59e0b",
-    "#06b6d4",
-    "#6366f1",
-    "#f43f5e",
-    "#3b82f6",
-    "#ec4899",
-    "#10b981",
-    "#8b5cf6",
+    "var(--color-chart-amber)",
+    "var(--color-chart-cyan)",
+    "var(--color-chart-indigo)",
+    "var(--color-chart-rose)",
+    "var(--color-chart-blue)",
+    "var(--color-chart-pink)",
+    "var(--color-chart-emerald)",
+    "var(--color-chart-violet)",
   ];
   const categories = ["all", "game", "movie", "series", "anime", "manga", "book"] as const;
   const displayGenres = $derived(

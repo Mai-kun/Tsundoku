@@ -240,7 +240,7 @@
                 {/if}
                 {#if isUnlocked}
                   <div
-                    class="absolute -right-1 -bottom-1 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 text-black shadow ring-1 ring-[var(--color-success-deep)]"
+                    class="absolute -right-1 -bottom-1 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500/90 text-black shadow ring-1 ring-[var(--color-success-deep)]"
                   >
                     <Check size={10} stroke-width={3} />
                   </div>

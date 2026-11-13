@@ -21,11 +21,11 @@
     </div>
     <div class="flex items-center gap-3 text-[11px] text-slate-400">
       <span class="flex items-center gap-1.5">
-        <span class="size-2 rounded-full bg-emerald-400"></span>
+        <span class="size-2 rounded-full bg-emerald-400/90"></span>
         {i18n.t.stats.taste.paradoxCompletion}
       </span>
       <span class="flex items-center gap-1.5">
-        <span class="size-2 rounded-full bg-rose-400"></span>
+        <span class="size-2 rounded-full bg-rose-400/90"></span>
         {i18n.t.stats.taste.paradoxDrop}
       </span>
     </div>
@@ -48,13 +48,13 @@
           <div class="min-w-0 flex-1 space-y-1">
             <div class="h-2.5 w-full overflow-hidden rounded-full bg-white/5">
               <div
-                class="h-full rounded-full bg-emerald-400 transition-[width] duration-300"
+                class="h-full rounded-full bg-emerald-400/90 transition-[width] duration-300"
                 style="width: {stat.completionRate}%;"
               ></div>
             </div>
             <div class="h-2.5 w-full overflow-hidden rounded-full bg-white/5">
               <div
-                class="h-full rounded-full bg-rose-400 transition-[width] duration-300"
+                class="h-full rounded-full bg-rose-400/90 transition-[width] duration-300"
                 style="width: {stat.dropRate}%;"
               ></div>
             </div>

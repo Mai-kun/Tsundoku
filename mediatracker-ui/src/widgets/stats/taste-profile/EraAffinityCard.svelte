@@ -42,7 +42,7 @@
               style="width: {(era.percentage / maxPercentage) * 100}%; background-color: {index %
                 2 ===
               0
-                ? '#5844e0'
+                ? 'var(--color-accent)'
                 : '#818cf8'};"
             ></div>
           </div>

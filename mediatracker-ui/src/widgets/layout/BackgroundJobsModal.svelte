@@ -678,13 +678,13 @@
             aria-selected={jobsClient.modalTab === "review"}
             class="inline-flex cursor-pointer items-center gap-2 rounded-md px-3.5 py-1.5 text-xs font-semibold transition {jobsClient.modalTab ===
             'review'
-              ? 'bg-amber-500 text-black'
+              ? 'bg-amber-500/90 text-black'
               : 'text-muted hover:text-ink'}"
             onclick={() => (jobsClient.modalTab = "review")}
           >
             {i18n.t.backgroundJobs.tabReview}
             <span
-              class="min-w-4 rounded-full bg-amber-500 px-1 text-[10px] leading-4 font-bold text-black tabular-nums"
+              class="min-w-4 rounded-full bg-amber-500/90 px-1 text-[10px] leading-4 font-bold text-black tabular-nums"
             >
               {jobsClient.pendingCount}
             </span>
@@ -709,7 +709,7 @@
             </p>
             <button
               type="button"
-              class="cursor-pointer rounded-lg bg-amber-500 px-3.5 py-1.5 text-xs font-bold text-black transition hover:bg-amber-400"
+              class="cursor-pointer rounded-lg bg-amber-500/90 px-3.5 py-1.5 text-xs font-bold text-black transition hover:bg-amber-400/90"
               onclick={() => (jobsClient.modalTab = "review")}
             >
               {i18n.t.backgroundJobs.gotoReview}
@@ -769,9 +769,9 @@
                   <div
                     class={`h-full w-full origin-left rounded-full transition-transform duration-500 ease-out ${
                       job.status === "Failed"
-                        ? "bg-rose-500"
+                        ? "bg-rose-500/90"
                         : job.status === "Completed"
-                          ? "bg-emerald-500"
+                          ? "bg-emerald-500/90"
                           : "bg-accent-bright"
                     }`}
                     style={`transform: scaleX(${job.progressPercent / 100})`}
@@ -1287,7 +1287,7 @@
     {#snippet actions()}
       <button
         type="button"
-        class="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white shadow-md transition hover:bg-emerald-500 active:scale-95"
+        class="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-emerald-600/90 px-4 py-2.5 text-xs font-bold text-white shadow-md transition hover:bg-emerald-500/90 active:scale-95"
         onclick={() => {
           const pc = previewCandidate;
           previewCandidate = null;

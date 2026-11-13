@@ -374,7 +374,7 @@
 
     {#if hover}
       <div
-        class="pointer-events-none absolute inset-x-0 bottom-0 px-3 pb-3 opacity-0 transition-all duration-200 group-focus-within:pointer-events-auto group-focus-within:opacity-100 group-hover:pointer-events-auto group-hover:opacity-100"
+        class="pointer-events-none absolute inset-x-0 bottom-0 px-3 pb-3 opacity-0 transition duration-200 group-focus-within:pointer-events-auto group-focus-within:opacity-100 group-hover:pointer-events-auto group-hover:opacity-100"
       >
         {@render hover()}
       </div>

@@ -28,9 +28,9 @@
   };
 
   const timerBarClasses: Record<ToastType, string> = {
-    error: "bg-rose-400",
-    success: "bg-emerald-400",
-    warning: "bg-amber-400",
+    error: "bg-rose-400/90",
+    success: "bg-emerald-400/90",
+    warning: "bg-amber-400/90",
   };
 
   function isExpandable(toast: (typeof toastStore.items)[number]): boolean {

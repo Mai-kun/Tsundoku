@@ -117,8 +117,9 @@ export function buildRatingBadges({
       if (!found) {
         seenLinked.add(lsNorm);
         const resolvedName =
-          availableSources.find((s) => matchesSource(s.id, lsClean) || matchesSource(s.name, lsClean))?.name ??
-          lsClean;
+          availableSources.find(
+            (s) => matchesSource(s.id, lsClean) || matchesSource(s.name, lsClean),
+          )?.name ?? lsClean;
         linkedResults.push({ source: resolvedName, score: null, votes: null });
       }
     }

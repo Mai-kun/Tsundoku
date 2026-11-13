@@ -391,7 +391,7 @@
                 type="button"
                 class={`flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-xs font-bold transition ${
                   val === scoreValue
-                    ? "bg-[#3b82f6] text-white shadow-md"
+                    ? "bg-[var(--color-chart-blue)] text-white shadow-md"
                     : "bg-white/5 text-slate-300 hover:bg-white/15 hover:text-white"
                 }`}
                 onclick={() => {

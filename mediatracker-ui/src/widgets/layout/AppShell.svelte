@@ -43,7 +43,9 @@
     <main
       id="main-scroll"
       bind:this={mainElement}
-      class="min-h-0 flex-1 overflow-x-hidden {noPadding ? 'h-full overflow-hidden p-0' : 'overflow-y-auto p-6'}"
+      class="min-h-0 flex-1 overflow-x-hidden {noPadding
+        ? 'h-full overflow-hidden p-0'
+        : 'overflow-y-auto p-6'}"
     >
       {@render children()}
     </main>

@@ -60,7 +60,7 @@
     {:else}
       {#if completedPercent > 0}
         <div
-          class="h-full bg-[#10b981] first:rounded-l-full last:rounded-r-full"
+          class="h-full bg-[var(--color-chart-emerald)] first:rounded-l-full last:rounded-r-full"
           style="width: {completedPercent}%;"
           title={i18n.t.stats.segmentTooltip(
             i18n.t.stats.completed,
@@ -71,7 +71,7 @@
       {/if}
       {#if inProgressPercent > 0}
         <div
-          class="h-full bg-[#8b5cf6] first:rounded-l-full last:rounded-r-full"
+          class="h-full bg-[var(--color-chart-violet)] first:rounded-l-full last:rounded-r-full"
           style="width: {inProgressPercent}%;"
           title={i18n.t.stats.segmentTooltip(
             i18n.t.stats.inProgress,
@@ -82,7 +82,7 @@
       {/if}
       {#if plannedPercent > 0}
         <div
-          class="h-full bg-[#3b82f6] first:rounded-l-full last:rounded-r-full"
+          class="h-full bg-[var(--color-chart-blue)] first:rounded-l-full last:rounded-r-full"
           style="width: {plannedPercent}%;"
           title={i18n.t.stats.segmentTooltip(
             i18n.t.stats.planned,
@@ -96,21 +96,21 @@
 
   <div class="mt-3.5 flex flex-wrap items-center gap-4 text-xs sm:gap-6">
     <div class="flex items-center gap-2">
-      <span class="size-2.5 shrink-0 rounded-full bg-[#10b981]"></span>
+      <span class="size-2.5 shrink-0 rounded-full bg-[var(--color-chart-emerald)]"></span>
       <span class="text-slate-300">
         {i18n.t.stats.completed}:
         <span class="font-semibold text-white tabular-nums">{completedTitles}</span>
       </span>
     </div>
     <div class="flex items-center gap-2">
-      <span class="size-2.5 shrink-0 rounded-full bg-[#8b5cf6]"></span>
+      <span class="size-2.5 shrink-0 rounded-full bg-[var(--color-chart-violet)]"></span>
       <span class="text-slate-300">
         {i18n.t.stats.inProgress}:
         <span class="font-semibold text-white tabular-nums">{inProgressCount}</span>
       </span>
     </div>
     <div class="flex items-center gap-2">
-      <span class="size-2.5 shrink-0 rounded-full bg-[#3b82f6]"></span>
+      <span class="size-2.5 shrink-0 rounded-full bg-[var(--color-chart-blue)]"></span>
       <span class="text-slate-300">
         {i18n.t.stats.planned}:
         <span class="font-semibold text-white tabular-nums">{plannedCount}</span>

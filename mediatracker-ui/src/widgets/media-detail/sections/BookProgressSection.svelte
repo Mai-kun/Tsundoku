@@ -1,9 +1,7 @@
 <script lang="ts">
   import { i18n } from "$shared/i18n/index.svelte";
   import { uiSettings } from "$shared/utils/uiSettings.svelte";
-  import { Clock, Minus, Plus } from "$shared/ui/Icons";
-  import { formatNumber } from "$entities/media/model/mediaLabels";
-  import { errorMessage } from "$shared/api/api";
+  import ProgressCard from "./ProgressCard.svelte";
   import type { ProgressInfo } from "../detailTypes";
 
   interface Props {
@@ -12,6 +10,7 @@
     format?: string | null;
     totalChapters?: number | null;
     currentChapter?: number | null;
+    finishedAt?: string | null;
     progress: ProgressInfo;
     value: number;
     percent: number;
@@ -26,6 +25,7 @@
     format,
     totalChapters,
     currentChapter,
+    finishedAt = null,
     progress,
     value,
     percent,
@@ -36,7 +36,6 @@
 
   const isNovel = $derived(format === "light_novel" || format === "web_novel");
   const minsPerUnit = $derived(isNovel ? 6 : uiSettings.bookPageMinutes || 1.5);
-  const DAILY_PACE = $derived(isNovel ? 3 : 20);
 
   const effectiveTotal = $derived(
     isNovel
@@ -47,247 +46,24 @@
         ? totalPages
         : (progress.total ?? 0),
   );
-  const totalMinutes = $derived(Math.round(effectiveTotal * minsPerUnit));
-  const totalHours = $derived((totalMinutes / 60).toFixed(1));
-  const remainingUnits = $derived(Math.max(0, effectiveTotal - value));
-  const remainingMinutes = $derived(Math.round(remainingUnits * minsPerUnit));
-  const remainingHours = $derived((remainingMinutes / 60).toFixed(1));
-  const daysAtPace = $derived(Math.ceil(remainingUnits / DAILY_PACE));
-
-  const isRu = $derived(i18n.current === "ru");
-
-  let isEditing = $state(false);
-  let editValue = $state("");
-  let isDragging = $state(false);
-  let barElement: HTMLElement | null = $state(null);
-
-  function focusOnMount(el: HTMLElement) {
-    el.focus();
-    if (el instanceof HTMLInputElement) el.select();
-  }
-
-  function applyValue(nextVal: number) {
-    const clamped = Math.max(0, effectiveTotal > 0 ? Math.min(nextVal, effectiveTotal) : nextVal);
-    if (clamped === value) return;
-    if (onCounterChange) {
-      onCounterChange(clamped);
-    } else {
-      onStep(clamped - value);
-    }
-  }
-
-  function startEditing() {
-    editValue = String(value);
-    isEditing = true;
-  }
-
-  function commitEditing() {
-    if (!isEditing) return;
-    isEditing = false;
-    const parsed = parseInt(editValue, 10);
-    if (!isNaN(parsed)) {
-      applyValue(parsed);
-    }
-  }
-
-  function handleKeydown(e: KeyboardEvent) {
-    if (e.key === "Enter") {
-      commitEditing();
-    } else if (e.key === "Escape") {
-      isEditing = false;
-    }
-  }
-
-  function calculateValueFromPointer(clientX: number): number {
-    if (!barElement || effectiveTotal <= 0) return value;
-    const rect = barElement.getBoundingClientRect();
-    if (rect.width <= 0) return value;
-    const offsetX = Math.max(0, Math.min(clientX - rect.left, rect.width));
-    const ratio = offsetX / rect.width;
-    return Math.round(ratio * effectiveTotal);
-  }
-
-  function handlePointerDown(e: PointerEvent) {
-    if (effectiveTotal <= 0) return;
-    isDragging = true;
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    applyValue(calculateValueFromPointer(e.clientX));
-  }
-
-  function handlePointerMove(e: PointerEvent) {
-    if (!isDragging || effectiveTotal <= 0) return;
-    applyValue(calculateValueFromPointer(e.clientX));
-  }
-
-  function handlePointerUp(e: PointerEvent) {
-    if (isDragging) {
-      isDragging = false;
-      try {
-        (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
-      } catch {}
-    }
-  }
 </script>
 
-<section
-  class="space-y-4 rounded-xl border border-white/[0.06] bg-[var(--color-panel-line)] p-5 shadow-sm"
->
-  <!-- 1. Верхняя строка: СТРАНИЦЫ, счетчик и капсула кнопок -->
-  <div class="flex items-center justify-between gap-3">
-    <div class="flex min-w-0 flex-wrap items-center gap-2.5">
-      <span class="text-xs font-bold tracking-wider text-slate-300 uppercase">
-        {isNovel ? (isRu ? "ГЛАВЫ" : "CHAPTERS") : isRu ? "СТРАНИЦЫ" : "PAGES"}
-      </span>
-      <div class="flex items-center gap-1.5">
-        {#if isEditing}
-          <input
-            type="number"
-            min="0"
-            max={effectiveTotal > 0 ? effectiveTotal : undefined}
-            class="border-accent focus:border-accent h-7 w-16 rounded-lg border bg-black/60 px-1 text-center text-lg font-black text-white tabular-nums ring-0 outline-none"
-            bind:value={editValue}
-            onblur={commitEditing}
-            onkeydown={handleKeydown}
-            use:focusOnMount
-          />
-        {:else}
-          <button
-            type="button"
-            class="hover:text-accent-soft cursor-pointer text-xl font-black text-white tabular-nums transition"
-            onclick={startEditing}
-            title={isRu ? "Нажмите для ручного ввода" : "Click to enter number"}
-          >
-            {formatNumber(value)}
-          </button>
-        {/if}
-        {#if effectiveTotal > 0}
-          <span class="text-muted text-xs font-bold tabular-nums">
-            / {formatNumber(effectiveTotal)}
-          </span>
-          <span
-            class="bg-accent-soft/10 text-accent-soft rounded-full px-2 py-0.5 text-xs font-bold tabular-nums"
-          >
-            {Math.round(percent)}%
-          </span>
-        {/if}
-      </div>
-    </div>
-
-    <!-- Компактная сгруппированная капсула кнопок -->
-    <div class="flex shrink-0 items-center gap-1.5">
-      <button
-        type="button"
-        class="grid h-8 w-8 cursor-pointer place-items-center rounded-lg border border-white/10 bg-[var(--color-field)] text-slate-300 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
-        aria-label={i18n.t.card.decrement}
-        disabled={value <= 0}
-        onclick={() => onStep(-1)}
-      >
-        <Minus size={15} aria-hidden="true" />
-      </button>
-      <button
-        type="button"
-        class="bg-accent/20 border-accent/40 text-accent-soft hover:bg-accent flex h-8 cursor-pointer items-center justify-center rounded-lg border px-2.5 text-xs font-bold transition hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
-        aria-label="+1"
-        disabled={effectiveTotal > 0 && value >= effectiveTotal}
-        onclick={() => onStep(1)}
-      >
-        +1
-      </button>
-      {#if effectiveTotal === 0 || effectiveTotal - value >= 5}
-        <button
-          type="button"
-          class="flex h-8 cursor-pointer items-center justify-center rounded-lg border border-white/10 bg-[var(--color-field)] px-2 text-xs font-bold text-slate-300 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
-          aria-label="+5"
-          disabled={effectiveTotal > 0 && value >= effectiveTotal}
-          onclick={() => onStep(5)}
-        >
-          +5
-        </button>
-      {/if}
-    </div>
-  </div>
-
-  <!-- 2. Интерактивная шкала-прогрессбар -->
-  {#if effectiveTotal > 0}
-    <div
-      bind:this={barElement}
-      role="slider"
-      tabindex="0"
-      aria-label={isNovel
-        ? isRu
-          ? "Прогресс чтения глав"
-          : "Chapter progress"
-        : isRu
-          ? "Прогресс чтения страниц"
-          : "Page progress"}
-      aria-valuenow={value}
-      aria-valuemin="0"
-      aria-valuemax={effectiveTotal}
-      class="relative h-2.5 w-full cursor-pointer touch-none overflow-hidden rounded-full border border-white/[0.06] bg-[var(--color-field)] shadow-inner select-none"
-      onpointerdown={handlePointerDown}
-      onpointermove={handlePointerMove}
-      onpointerup={handlePointerUp}
-      onpointercancel={handlePointerUp}
-    >
-      <div
-        class="from-accent-bright h-full rounded-full bg-gradient-to-r to-[#818cf8] shadow-[0_0_8px_rgba(129,140,248,0.4)] transition-[width] duration-150 ease-out"
-        style="width: {Math.min(100, Math.max(0, percent))}%"
-      ></div>
-    </div>
-  {/if}
-
-  {#if error}
-    <p class="text-xs text-rose-300" role="alert">
-      {errorMessage(error)}
-    </p>
-  {/if}
-
-  <!-- 3. Расчет времени и темп -->
-  {#if effectiveTotal > 0}
-    <div class="grid grid-cols-2 gap-2 pt-1 text-xs">
-      <div
-        class="flex flex-col gap-0.5 rounded-lg border border-white/[0.06] bg-black/15 px-3 py-2"
-      >
-        <span class="text-muted"
-          >{isRu
-            ? isNovel
-              ? "Ориентировочно на новеллу"
-              : "Ориентировочно на книгу"
-            : "Estimated total time"}</span
-        >
-        <span class="font-semibold text-white">~{totalHours} {isRu ? "ч." : "h"}</span>
-      </div>
-      <div
-        class="flex flex-col gap-0.5 rounded-lg border border-white/[0.06] bg-black/15 px-3 py-2"
-      >
-        <span class="text-muted">{isRu ? "Осталось читать" : "Remaining reading time"}</span>
-        <span class="font-semibold text-white">~{remainingHours} {isRu ? "ч." : "h"}</span>
-      </div>
-    </div>
-
-    {#if remainingUnits > 0}
-      <div class="text-muted flex items-center gap-2 text-xs">
-        <Clock size={13} class="text-accent-soft shrink-0" />
-        <span>
-          {isRu
-            ? isNovel
-              ? `При темпе ${DAILY_PACE} гл./день чтение займет ~${daysAtPace} дн.`
-              : `При темпе ${DAILY_PACE} стр./день чтение займет ~${daysAtPace} дн.`
-            : isNovel
-              ? `At ${DAILY_PACE} ch./day reading will take ~${daysAtPace} days`
-              : `At ${DAILY_PACE} pages/day reading will take ~${daysAtPace} days`}
-        </span>
-      </div>
-    {:else}
-      <div class="text-xs font-semibold text-emerald-400">
-        {isRu
-          ? isNovel
-            ? "✓ Новелла полностью прочитана!"
-            : "✓ Книга полностью прочитана!"
-          : isNovel
-            ? "✓ Novel completed!"
-            : "✓ Book completed!"}
-      </div>
-    {/if}
-  {/if}
-</section>
+<ProgressCard
+  label={isNovel ? i18n.t.progress.unitsChapters : i18n.t.progress.unitsPages}
+  unitShort={isNovel ? i18n.t.progress.unitShortCh : i18n.t.progress.unitShortPg}
+  unitNoun={isNovel ? i18n.t.progress.unitNounChapter : i18n.t.progress.unitNounPage}
+  accent="amber"
+  {value}
+  total={effectiveTotal}
+  {percent}
+  {minsPerUnit}
+  doneLabel={i18n.t.progress.readVerb}
+  remainLabel={i18n.t.progress.remainReadVerb}
+  paceOptions={isNovel ? [1, 2, 3, 5] : [10, 20, 30, 50]}
+  paceDefault={isNovel ? 3 : 20}
+  startHint={isNovel ? i18n.t.progress.startChapters : i18n.t.progress.startPages}
+  {finishedAt}
+  {error}
+  {onStep}
+  {onCounterChange}
+/>

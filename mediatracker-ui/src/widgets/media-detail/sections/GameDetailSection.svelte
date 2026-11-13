@@ -1,8 +1,7 @@
 <script lang="ts">
   import { Check, ChevronLeft, ChevronRight, LoaderCircle, Trophy, X } from "$shared/ui/Icons";
-  import { errorMessage } from "$shared/api/api";
-  import CircularCounter from "$shared/ui/CircularCounter.svelte";
   import { i18n } from "$shared/i18n/index.svelte";
+  import ProgressCard from "./ProgressCard.svelte";
   import type { GameAchievementItem } from "$shared/types";
 
   interface Props {
@@ -100,14 +99,23 @@
 </script>
 
 <div class="flex flex-col gap-4">
-  <section
-    class="flex flex-col items-center justify-center rounded-xl border border-white/[0.06] bg-[var(--color-panel-line)] p-5 shadow-sm"
-  >
-    <CircularCounter value={progressValue} label={progressLabel} onChange={onCounterChange} />
-    {#if progressError}<p class="mt-2 text-center text-xs text-rose-300" role="alert">
-        {errorMessage(progressError)}
-      </p>{/if}
-  </section>
+  <!-- Games track hours without a known total: teal accent, no ring, no time math. -->
+  <ProgressCard
+    label={progressLabel}
+    unitShort={i18n.t.progress.unitShortH}
+    accent="teal"
+    value={progressValue}
+    total={0}
+    percent={0}
+    minsPerUnit={null}
+    doneLabel={i18n.t.progress.playedVerb}
+    remainLabel={i18n.t.progress.remainPlayVerb}
+    paceOptions={[]}
+    startHint={i18n.t.progress.startHours}
+    error={progressError}
+    onStep={(delta) => onCounterChange(progressValue + delta)}
+    {onCounterChange}
+  />
   <section
     bind:this={sectionElement}
     class="space-y-3 rounded-xl border border-white/[0.06] bg-[var(--color-panel-line)] p-5 shadow-sm"

@@ -202,6 +202,7 @@
             format={(media as { format?: string | null }).format}
             totalChapters={(media as { totalChapters?: number | null }).totalChapters}
             currentChapter={(media as { currentChapter?: number | null }).currentChapter}
+            finishedAt={(media as { finishedAt?: string | null }).finishedAt ?? null}
             progress={support}
             value={progressValue}
             percent={progressPercent}

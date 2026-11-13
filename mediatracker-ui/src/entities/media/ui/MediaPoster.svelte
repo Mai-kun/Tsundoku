@@ -37,7 +37,7 @@
       {src}
       {alt}
       referrerpolicy="no-referrer"
-      class="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
+      class="h-full w-full object-cover"
       loading="lazy"
       decoding="async"
       fetchpriority="low"

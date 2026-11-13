@@ -207,13 +207,15 @@ public abstract class MediaItem
     public bool IsCustomEdited { get; set; }
 
     /// <summary>
-    /// Moves the item to <paramref name="status"/> and brings every dependent field along with it:
-    /// timestamps, the type-specific counters and, for a show, its seasons. The status setter is
-    /// private so a caller cannot change the status without these rules running.
+    /// Moves the item to <paramref name="status"/>. Exactly one automatic progress rule applies
+    /// (rule 2): leaving <see cref="MediaStatus.Completed"/> resets the counters; every other
+    /// status change keeps the progress exactly as it is. The status setter is private so a caller
+    /// cannot change the status without this rule running.
     /// </summary>
     public void ChangeStatus(MediaStatus status, DateTime? now = null)
     {
         var stamp = now ?? DateTime.UtcNow;
+        var previous = Status;
         Status = status;
 
         if (status != MediaStatus.Dropped)
@@ -222,11 +224,15 @@ public abstract class MediaItem
             DropNotes = null;
         }
 
+        if (previous == MediaStatus.Completed && status != MediaStatus.Completed)
+        {
+            ResetProgress();
+        }
+
         switch (status)
         {
             case MediaStatus.Completed:
                 FinishedAt ??= stamp;
-                MarkProgressAsFinished();
                 break;
             case MediaStatus.InProgress:
                 StartedAt ??= stamp;
@@ -236,7 +242,6 @@ public abstract class MediaItem
             case MediaStatus.Planned:
                 StartedAt = null;
                 FinishedAt = null;
-                ClearProgress();
                 break;
             case MediaStatus.OnHold:
                 FinishedAt = null;
@@ -252,14 +257,6 @@ public abstract class MediaItem
     /// already owns those fields, such as an explicit field-by-field update.
     /// </summary>
     public void SetStatus(MediaStatus status) => Status = status;
-
-    /// <summary>Applies a rolled-up progress verdict without re-running the full status transition.</summary>
-    public void ApplyProgressStatus(MediaStatus status, DateTime? startedAt, DateTime? finishedAt)
-    {
-        Status = status;
-        StartedAt = startedAt;
-        FinishedAt = finishedAt;
-    }
 
     /// <summary>Stamps the row as changed so the cover cache-buster moves with the payload.</summary>
     public void MarkUpdated(DateTime? now = null) => UpdatedAt = now ?? DateTime.UtcNow;
@@ -290,15 +287,11 @@ public abstract class MediaItem
     }
 
     /// <summary>
-    /// "Planned" means nothing has been started yet, so a title moved back to it must not keep the
-    /// counters it accumulated — otherwise a planned anime reads as 220/220 and every progress bar
-    /// (card, banner, spec sheet) is full while the status says otherwise.
+    /// Rule 2's counter reset, fired only when a "Completed" title moves to another status — so a
+    /// planned show never keeps watched seasons and a planned book never keeps its pages. Nothing
+    /// else may clear counters implicitly: other status changes leave the progress untouched.
     /// </summary>
-    protected virtual void ClearProgress()
-    {
-    }
-
-    protected virtual void MarkProgressAsFinished()
+    public virtual void ResetProgress()
     {
     }
 }

@@ -102,8 +102,8 @@ public static class MediaItemFactory
     private static void ApplyCommonFields(MediaItem item, CreateMediaRequest request)
     {
         item.ChangeStatus(request.Status);
-        // ChangeStatus(Planned) clears progress counters, so explicitly requested progress is
-        // re-applied only after the status transition has done its reset work.
+        // A fresh entity starts as Planned, so ChangeStatus never fires the Completed reset here;
+        // explicitly requested progress is re-applied after the status transition anyway.
         if (item is Manga manga && request.CurrentVolume is { } currentVolume)
         {
             manga.CurrentVolume = currentVolume;

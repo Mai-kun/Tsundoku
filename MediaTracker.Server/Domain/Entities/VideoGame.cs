@@ -12,5 +12,5 @@ public class VideoGame : MediaItem
 
     public void SetHoursPlayed(int hours) => HoursPlayed = Math.Max(hours, 0);
 
-    protected override void ClearProgress() => HoursPlayed = 0;
+    public override void ResetProgress() => HoursPlayed = 0;
 }

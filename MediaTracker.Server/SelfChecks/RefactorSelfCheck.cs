@@ -2057,77 +2057,10 @@ public static class RefactorSelfCheck
             "an unknown total does not clamp"
         );
 
-        AssertEqual(
-            failures,
-            MediaStatus.Completed,
-            ProgressStepperRules.ResolveEpisodeStatus(12, 12),
-            "last episode completes"
-        );
-        AssertEqual(
-            failures,
-            MediaStatus.InProgress,
-            ProgressStepperRules.ResolveEpisodeStatus(5, 12),
-            "partial episode is in progress"
-        );
-        AssertEqual(
-            failures,
-            MediaStatus.Planned,
-            ProgressStepperRules.ResolveEpisodeStatus(0, 12),
-            "no episodes is planned"
-        );
-
-        var started = new DateTime(2026, 1, 1);
-        var now = new DateTime(2026, 2, 2);
-
-        var allDone = ProgressStepperRules.ResolveShowStatus(
-            MediaStatus.InProgress,
-            started,
-            null,
-            allCompleted: true,
-            anyWatched: true,
-            now
-        );
-        AssertEqual(
-            failures,
-            MediaStatus.Completed,
-            allDone.Status,
-            "all seasons done completes the show"
-        );
-        AssertEqual(failures, started, allDone.StartedAt, "existing start date is kept");
-        AssertEqual(failures, now, allDone.FinishedAt, "completing stamps a finish date");
-
-        var partly = ProgressStepperRules.ResolveShowStatus(
-            MediaStatus.Planned,
-            null,
-            null,
-            allCompleted: false,
-            anyWatched: true,
-            now
-        );
-        AssertEqual(
-            failures,
-            MediaStatus.InProgress,
-            partly.Status,
-            "a watched season moves a planned show to in progress"
-        );
-        AssertEqual(failures, now, partly.StartedAt, "starting stamps the start date");
-
-        var rewound = ProgressStepperRules.ResolveShowStatus(
-            MediaStatus.Completed,
-            started,
-            now,
-            allCompleted: false,
-            anyWatched: false,
-            now
-        );
-        AssertEqual(
-            failures,
-            MediaStatus.Planned,
-            rewound.Status,
-            "rewinding to zero returns the show to planned"
-        );
-        AssertEqual(failures, null, rewound.StartedAt, "rewinding clears the start date");
-        AssertEqual(failures, null, rewound.FinishedAt, "rewinding clears the finish date");
+        AssertEqual(failures, true, ProgressStepperRules.PromotesToInProgress(0, 1), "0 -> 1 promotes to in progress");
+        AssertEqual(failures, false, ProgressStepperRules.PromotesToInProgress(0, 5), "0 -> 5 does not promote");
+        AssertEqual(failures, false, ProgressStepperRules.PromotesToInProgress(3, 4), "3 -> 4 does not promote");
+        AssertEqual(failures, false, ProgressStepperRules.PromotesToInProgress(4, 0), "4 -> 0 does not promote");
     }
 
     private static void CheckStatusTransitions(List<string> failures)
@@ -2146,15 +2079,15 @@ public static class RefactorSelfCheck
         MediaStatusTransitions.Apply(show, MediaStatus.Completed);
         AssertEqual(
             failures,
-            12,
+            4,
             show.Seasons[0].CurrentEpisode,
-            "completing a show finishes the season"
+            "completing a show keeps the season counters as they are"
         );
         AssertEqual(
             failures,
-            MediaStatus.Completed,
+            MediaStatus.Planned,
             show.Seasons[0].Status,
-            "completing a show completes the season"
+            "completing a show does not rewrite the season status"
         );
 
         var planned = new Book
@@ -2174,12 +2107,23 @@ public static class RefactorSelfCheck
         );
         AssertEqual(
             failures,
-            0,
+            300,
             planned.CurrentPage,
-            "moving to planned clears the phantom progress"
+            "a non-completed status change keeps the progress"
         );
 
-        var plannedShow = new TvShow { Title = "Naruto" };
+        // Rule 2: leaving Completed is the only status change that resets the counters.
+        planned.ChangeStatus(MediaStatus.Completed);
+        planned.CurrentPage = 300;
+        MediaStatusTransitions.Apply(planned, MediaStatus.Planned);
+        AssertEqual(
+            failures,
+            0,
+            planned.CurrentPage,
+            "leaving Completed resets the progress"
+        );
+
+        var plannedShow = new TvShow { Title = "Naruto", Status = MediaStatus.Completed };
         plannedShow.Seasons.Add(
             new TvSeason
             {
@@ -2195,7 +2139,7 @@ public static class RefactorSelfCheck
             failures,
             0,
             plannedShow.TotalEpisodesWatched,
-            "a planned show watches no episodes"
+            "leaving Completed rolls the reset down onto the seasons"
         );
         AssertEqual(
             failures,

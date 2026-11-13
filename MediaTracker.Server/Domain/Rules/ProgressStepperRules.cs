@@ -1,57 +1,21 @@
 namespace MediaTracker.Server.Domain.Rules;
 
 /// <summary>
-/// The clamps and verdicts behind every progress stepper. They live in the domain because they decide
-/// business state (planned / in progress / completed) from raw counters, not because they format
-/// anything. The stepper writes bypass the change tracker, so the entity methods delegate here.
+/// The strict status/progress contract shared by every progress write path. Exactly two automatic
+/// transitions exist and nothing else may touch status or progress implicitly:
+/// <list type="bullet">
+/// <item>Rule 1 — progress moving exactly 0 → 1 promotes the title to <c>InProgress</c>; any other
+/// progress change keeps the current status (a dropped title stays dropped, on hold stays on hold).</item>
+/// <item>Rule 2 — leaving <c>Completed</c> resets the counters to zero; every other status change
+/// keeps the progress (implemented by <see cref="Entities.MediaItem.ChangeStatus"/>).</item>
+/// </list>
 /// </summary>
 public static class ProgressStepperRules
 {
     public static int Clamp(int value, int total) =>
         total > 0 ? Math.Min(Math.Max(value, 0), total) : Math.Max(value, 0);
 
-    public static Entities.MediaStatus ResolveEpisodeStatus(int currentEpisode, int totalEpisodes) =>
-        Entities.TvSeason.ResolveStatus(currentEpisode, totalEpisodes);
-
-    public static Entities.MediaStatus ResolveVolumeStatus(
-        int currentPage,
-        int totalPages,
-        int currentChapter,
-        int totalChapters) =>
-        Entities.MangaVolume.ResolveStatus(currentPage, totalPages, currentChapter, totalChapters);
-
-    /// <summary>
-    /// Rolls the season totals up onto the parent show. Mirrors the per-season rules so a show never
-    /// keeps a "completed" badge with un-watched seasons.
-    /// </summary>
-    public static (Entities.MediaStatus Status, DateTime? StartedAt, DateTime? FinishedAt) ResolveShowStatus(
-        Entities.MediaStatus currentStatus,
-        DateTime? currentStartedAt,
-        DateTime? currentFinishedAt,
-        bool allCompleted,
-        bool anyWatched,
-        DateTime now)
-    {
-        if (allCompleted)
-        {
-            return (Entities.MediaStatus.Completed, currentStartedAt ?? now, currentFinishedAt ?? now);
-        }
-
-        if (anyWatched)
-        {
-            return (
-                currentStatus is Entities.MediaStatus.Completed or Entities.MediaStatus.Planned
-                    ? Entities.MediaStatus.InProgress
-                    : currentStatus,
-                currentStartedAt ?? now,
-                null);
-        }
-
-        return (
-            currentStatus is Entities.MediaStatus.InProgress or Entities.MediaStatus.Completed
-                ? Entities.MediaStatus.Planned
-                : currentStatus,
-            null,
-            null);
-    }
+    /// <summary>Rule 1: only the exact 0 → 1 step implies the title is being consumed right now.</summary>
+    public static bool PromotesToInProgress(int oldProgress, int newProgress) =>
+        oldProgress == 0 && newProgress == 1;
 }

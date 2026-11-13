@@ -7,6 +7,7 @@ using MediaTracker.Server.Domain.Enums;
 using MediaTracker.Server.Features.Media.GetMediaList;
 using MediaTracker.Server.Features.Media.GetMediaStats;
 using MediaTracker.Server.Features.Seasons.UpdateSeasonProgress;
+using MediaTracker.Server.Domain.Rules;
 using MediaTracker.Server.Infrastructure.Persistence;
 using Microsoft.Extensions.Caching.Memory;
 
@@ -35,10 +36,10 @@ public sealed class UpdateSeasonProgressHandler(
             return Result.Failure(validationError);
         }
 
-        // Stepper hot path: read only the two scalars the decision needs, then UPDATE directly.
+        // Stepper hot path: read only the scalars the decision needs, then UPDATE directly.
         var idStr = command.SeasonId.ToString().ToUpperInvariant();
         var season = await db.Connection.QueryFirstOrDefaultAsync<TvSeasonRow>(
-            "SELECT Id, TotalEpisodes, TvShowId, CurrentEpisode, SeasonNumber FROM TvSeasons WHERE Id = @id",
+            "SELECT Id, TotalEpisodes, TvShowId, CurrentEpisode, Status, SeasonNumber FROM TvSeasons WHERE Id = @id",
             new { id = idStr });
 
         if (season is null)
@@ -47,11 +48,15 @@ public sealed class UpdateSeasonProgressHandler(
         }
 
         var currentEpisode = TvSeason.Clamp(command.CurrentEpisode, season.TotalEpisodes);
-        var newStatus = TvSeason.ResolveStatus(currentEpisode, season.TotalEpisodes);
+        // Rule 1 for the season: only the exact 0 → 1 step flips the season to InProgress; every
+        // other episode change keeps the stored season status (no auto-complete on the finale,
+        // no auto-planned on a rewind).
+        var promoteSeason = ProgressStepperRules.PromotesToInProgress(season.CurrentEpisode, currentEpisode);
+        var seasonStatus = promoteSeason ? MediaStatus.InProgress : season.Status;
 
         await db.Connection.ExecuteAsync(
             "UPDATE TvSeasons SET CurrentEpisode = @ep, Status = @status WHERE Id = @id",
-            new { ep = currentEpisode, status = (int)newStatus, id = idStr });
+            new { ep = currentEpisode, status = (int)seasonStatus, id = idStr });
 
         if (season.CurrentEpisode != currentEpisode)
         {
@@ -68,17 +73,20 @@ public sealed class UpdateSeasonProgressHandler(
         // Aggregate season totals for the parent show.
         var totals = await db.Connection.QueryFirstOrDefaultAsync<TvShowTotalsRow>(
             """
-            SELECT 
+            SELECT
                 SUM(CurrentEpisode) as TotalWatched,
-                COUNT(*) as SeasonCount,
-                CASE WHEN MIN(CASE WHEN Status = 2 THEN 0 ELSE 1 END) = 0 THEN 1 ELSE 0 END as AllCompleted
+                COUNT(*) as SeasonCount
             FROM TvSeasons WHERE TvShowId = @showId
             """,
             new { showId = season.TvShowId });
 
         if (totals is { SeasonCount: > 0 })
         {
-            await SyncShowAsync(db, season.TvShowId, totals.AllCompleted == 1, totals.TotalWatched > 0, ct);
+            // Rule 1 for the show: only the exact 0 → 1 move of the aggregated watched total
+            // promotes the show to InProgress; no auto-complete, no rewind to Planned.
+            var newTotal = totals.TotalWatched ?? 0;
+            var oldTotal = newTotal - (currentEpisode - season.CurrentEpisode);
+            await TouchShowAsync(db, season.TvShowId, ProgressStepperRules.PromotesToInProgress(oldTotal, newTotal), ct);
         }
         else
         {
@@ -96,7 +104,12 @@ public sealed class UpdateSeasonProgressHandler(
         return Result.Success();
     }
 
-    private static async Task SyncShowAsync(AppDbContext db, Guid tvShowId, bool allCompleted, bool anyWatched, CancellationToken ct)
+    /// <summary>
+    /// Applies rule 1 to the parent show: a 0 → 1 move of the aggregated watched total promotes it
+    /// to InProgress. Every other season change only refreshes LastActivityAt — the show's status
+    /// and timestamps stay exactly as the user set them.
+    /// </summary>
+    private static async Task TouchShowAsync(AppDbContext db, Guid tvShowId, bool totalMovedZeroToOne, CancellationToken ct)
     {
         var showIdStr = tvShowId.ToString().ToUpperInvariant();
         var show = await db.Connection.QueryFirstOrDefaultAsync<ShowStatusRow>(
@@ -105,20 +118,30 @@ public sealed class UpdateSeasonProgressHandler(
 
         if (show is null) return;
 
-        var (newShowStatus, startedAt, finishedAt) = Domain.Rules.ProgressStepperRules.ResolveShowStatus(
-            show.Status,
-            show.StartedAt,
-            show.FinishedAt,
-            allCompleted,
-            anyWatched,
-            DateTime.UtcNow);
+        if (totalMovedZeroToOne && show.Status != MediaStatus.InProgress)
+        {
+            var now = DateTime.UtcNow;
+            await db.Connection.ExecuteAsync(
+                """
+                UPDATE MediaItems SET Status = @inProgress, StartedAt = COALESCE(StartedAt, @now),
+                    FinishedAt = NULL, LastActivityAt = @now WHERE Id = @id
+                """,
+                new { inProgress = (int)MediaStatus.InProgress, now, id = showIdStr });
+
+            await db.InsertMediaEventAsync(new MediaEvent
+            {
+                MediaId = tvShowId,
+                Type = MediaEventType.StatusChanged,
+                OldValue = show.Status.ToString(),
+                NewValue = MediaStatus.InProgress.ToString(),
+                CreatedAt = now
+            }, ct);
+            return;
+        }
 
         await db.Connection.ExecuteAsync(
-            """
-            UPDATE MediaItems SET Status = @status, StartedAt = @startedAt, FinishedAt = @finishedAt,
-                LastActivityAt = @now WHERE Id = @id
-            """,
-            new { status = (int)newShowStatus, startedAt, finishedAt, now = DateTime.UtcNow, id = showIdStr });
+            "UPDATE MediaItems SET LastActivityAt = @now WHERE Id = @id",
+            new { now = DateTime.UtcNow, id = showIdStr });
     }
 }
 
@@ -129,6 +152,7 @@ public sealed class TvSeasonRow
     public int TotalEpisodes { get; set; }
     public Guid TvShowId { get; set; }
     public int CurrentEpisode { get; set; }
+    public MediaStatus Status { get; set; }
     public int SeasonNumber { get; set; }
 }
 
@@ -137,7 +161,6 @@ public sealed class TvShowTotalsRow
 {
     public int? TotalWatched { get; set; }
     public int SeasonCount { get; set; }
-    public int AllCompleted { get; set; }
 }
 
 /// <summary>Flat read row for show status.</summary>

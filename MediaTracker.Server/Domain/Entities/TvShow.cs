@@ -23,50 +23,15 @@ public class TvShow : MediaItem
     public bool AllSeasonsCompleted => Seasons.Count > 0 && Seasons.All(season => season.IsCompleted);
 
     /// <summary>
-    /// Rolls the season totals up onto the show: every season finished completes the show, any watched
-    /// episode moves it to in progress, and dropping back to zero returns it to planned. Mirrors the
-    /// per-season rules so a show never keeps a "completed" badge with un-watched seasons.
+    /// Rule 2's counter reset for a show: the seasons roll down with it, so a title that left
+    /// "Completed" never keeps watched seasons behind the zeroed banner. No other status change
+    /// touches the seasons.
     /// </summary>
-    public void SyncStatusFromSeasons(DateTime? now = null)
-    {
-        var stamp = now ?? DateTime.UtcNow;
-
-        if (AllSeasonsCompleted)
-        {
-            ApplyProgressStatus(MediaStatus.Completed, StartedAt ?? stamp, FinishedAt ?? stamp);
-            return;
-        }
-
-        if (TotalEpisodesWatched > 0)
-        {
-            var status = Status is MediaStatus.Completed or MediaStatus.Planned
-                ? MediaStatus.InProgress
-                : Status;
-
-            ApplyProgressStatus(status, StartedAt ?? stamp, null);
-            return;
-        }
-
-        var rewound = Status is MediaStatus.InProgress or MediaStatus.Completed
-            ? MediaStatus.Planned
-            : Status;
-
-        ApplyProgressStatus(rewound, null, null);
-    }
-
-    protected override void ClearProgress()
+    public override void ResetProgress()
     {
         foreach (var season in Seasons)
         {
             season.ResetProgress();
-        }
-    }
-
-    protected override void MarkProgressAsFinished()
-    {
-        foreach (var season in Seasons)
-        {
-            season.MarkCompleted();
         }
     }
 }

@@ -57,17 +57,9 @@ public class Manga : MediaItem
             ? MediaStatus.Completed
             : currentChapter > 0 ? MediaStatus.InProgress : MediaStatus.Planned;
 
-    protected override void ClearProgress()
+    public override void ResetProgress()
     {
         CurrentChapter = 0;
         CurrentVolume = 0;
-    }
-
-    protected override void MarkProgressAsFinished()
-    {
-        if (TotalChapters is > 0)
-        {
-            CurrentChapter = TotalChapters.Value;
-        }
     }
 }

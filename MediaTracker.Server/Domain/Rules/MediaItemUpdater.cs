@@ -78,7 +78,15 @@ public static class MediaItemUpdater
 
         if (request.Status is { } status)
         {
+            // Rule 2 is the only automatic progress change: leaving "Completed" resets the counters;
+            // every other status change keeps the progress. Explicit progress fields carried by the
+            // same request are re-applied afterwards by ApplyTypeSpecific.
+            var previousStatus = item.Status;
             item.SetStatus(status);
+            if (previousStatus == MediaStatus.Completed && status != MediaStatus.Completed)
+            {
+                item.ResetProgress();
+            }
             if (status != MediaStatus.Dropped)
             {
                 item.DropReason = null;

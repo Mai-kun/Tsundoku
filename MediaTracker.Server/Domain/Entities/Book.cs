@@ -39,22 +39,10 @@ public class Book : MediaItem
             : Math.Max(chapter, 0);
     }
 
-    protected override void ClearProgress()
+    public override void ResetProgress()
     {
         CurrentPage = 0;
         CurrentChapter = 0;
         CurrentVolume = 0;
-    }
-
-    protected override void MarkProgressAsFinished()
-    {
-        if (TotalPages > 0)
-        {
-            CurrentPage = TotalPages;
-        }
-        if (TotalChapters is > 0)
-        {
-            CurrentChapter = TotalChapters.Value;
-        }
     }
 }

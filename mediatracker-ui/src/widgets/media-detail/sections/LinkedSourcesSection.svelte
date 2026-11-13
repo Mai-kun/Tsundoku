@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { slide } from "svelte/transition";
   import { onMount } from "svelte";
   import { apiFetch, errorMessage, getSources } from "$shared/api/api";
   import type { SourceInfo } from "$shared/types";
@@ -7,7 +8,7 @@
   import Select from "$shared/ui/Select.svelte";
   import { buildSourceUrl } from "$shared/utils/sourceUrlHelper";
   import { parseMediaUrl } from "$shared/utils/urlMediaParser";
-  import { Crown, ExternalLink, Link2, Pencil, Plus, Trash2 } from "$shared/ui/Icons";
+  import { ChevronDown, Crown, ExternalLink, Link2, Pencil, Plus, Trash2 } from "$shared/ui/Icons";
 
   interface LinkedSource {
     source: string;
@@ -45,6 +46,13 @@
   let addSource = $state("");
   let addId = $state("");
   let sourceOptions = $state<SourceOption[]>([]);
+  // "Taken data" chips stay folded behind an "N fields" button by default; a row with 10-14
+  // chips buried the title/id above them. Expanded state is tracked per source.
+  let expandedFields = $state<Record<string, boolean>>({});
+
+  function toggleFields(source: string) {
+    expandedFields = { ...expandedFields, [source]: !expandedFields[source] };
+  }
 
   /** Used when the settings source list has not loaded (or failed): the type's usual suspects. */
   function fallbackOptions(): Record<string, SourceOption[]> {
@@ -296,51 +304,149 @@
   {:else if sources.length === 0}
     <p class="text-muted text-xs">{i18n.t.detail.linkedSourcesEmpty}</p>
   {:else}
-    <!-- Monolithic source cards -->
-    <div class="space-y-3 pt-1">
+    <!-- Ultra-minimal source rows: the collapsed line carries only the service name and the
+         field counter; the title and provenance chips unfold underneath via slide. -->
+    <div class="space-y-1.5 pt-1">
       {#each sources as item (item.source + item.externalId)}
         <div
-          class="space-y-3 rounded-xl border border-white/5 bg-[#151a26] p-4 transition hover:border-white/10"
+          class="rounded-lg border border-white/5 bg-white/[0.02] px-3 py-2 transition-colors hover:border-white/10"
         >
-          <!-- Top row: name + crown + link -->
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-2">
-              <span class="text-base font-bold tracking-tight text-white">
-                {item.source}
-              </span>
-              {#if item.isPrimary}
-                <span
-                  class="inline-flex items-center gap-1 text-amber-400"
-                  title={i18n.t.detail.linkedSourcesPrimarySource}
+          <div class="flex items-center gap-2">
+            <span
+              class="min-w-0 flex-1 truncate text-sm font-bold tracking-tight text-white"
+              title={item.source}
+            >
+              {item.source}
+            </span>
+
+            {#if !(item.providedFields && item.providedFields.length > 0)}
+              <!-- No field counter to expand: the bound title stays on the line. -->
+              {#if siteUrl(item)}
+                <a
+                  href={siteUrl(item) ?? "#"}
+                  target="_blank"
+                  rel="noreferrer"
+                  class="text-accent-soft min-w-0 truncate text-xs font-medium hover:underline"
+                  title={item.title || item.externalId || item.source}
                 >
-                  <Crown size={15} />
+                  {item.title || item.externalId || item.source}
+                </a>
+              {:else}
+                <span
+                  class="text-muted min-w-0 truncate text-xs font-medium"
+                  title={item.title || item.externalId || item.source}
+                >
+                  {item.title || item.externalId || item.source}
                 </span>
               {/if}
-            </div>
-
-            {#if siteUrl(item)}
-              <a
-                href={siteUrl(item) ?? "#"}
-                target="_blank"
-                rel="noreferrer"
-                class="tap text-accent-soft flex size-7 items-center justify-center rounded-md transition hover:bg-white/10 hover:text-white"
-                title={i18n.t.detail.linkedSourcesOpen}
-              >
-                <ExternalLink size={15} />
-              </a>
             {/if}
+
+            <div class="flex shrink-0 items-center gap-0.5">
+              {#if item.providedFields && item.providedFields.length > 0}
+                <!-- Bare field counter: just the number and a flipping chevron. -->
+                <button
+                  type="button"
+                  class="flex cursor-pointer items-center gap-1 px-1 py-1 text-xs font-medium text-white/50 transition-colors hover:text-white"
+                  title={i18n.t.detail.linkedSourcesFieldsCount(item.providedFields.length)}
+                  aria-label={i18n.t.detail.linkedSourcesFieldsCount(item.providedFields.length)}
+                  aria-expanded={!!expandedFields[item.source]}
+                  onclick={() => toggleFields(item.source)}
+                >
+                  {item.providedFields.length}
+                  <ChevronDown
+                    size={12}
+                    class={`transition-transform duration-200 ${expandedFields[item.source] ? "rotate-180" : ""}`}
+                    aria-hidden="true"
+                  />
+                </button>
+              {/if}
+
+              {#if siteUrl(item)}
+                <a
+                  href={siteUrl(item) ?? "#"}
+                  target="_blank"
+                  rel="noreferrer"
+                  class="flex h-7 w-7 items-center justify-center text-white/40 transition-colors hover:text-white"
+                  title={i18n.t.detail.linkedSourcesOpen}
+                  aria-label={i18n.t.detail.linkedSourcesOpen}
+                >
+                  <ExternalLink size={14} aria-hidden="true" />
+                </a>
+              {:else}
+                <span class="h-7 w-7" aria-hidden="true"></span>
+              {/if}
+
+              {#if item.isPrimary}
+                <span
+                  class="grid h-7 w-7 place-items-center text-amber-400 transition-colors duration-200"
+                  title={i18n.t.detail.linkedSourcesPrimarySource}
+                  aria-label={i18n.t.detail.linkedSourcesPrimarySource}
+                >
+                  <Crown size={15} class="fill-amber-400/25" aria-hidden="true" />
+                </span>
+              {:else}
+                <button
+                  type="button"
+                  class="grid h-7 w-7 cursor-pointer place-items-center text-white/25 transition-colors duration-200 hover:text-amber-400 disabled:cursor-not-allowed disabled:opacity-50"
+                  title={i18n.t.detail.linkedSourcesMakePrimary}
+                  aria-label={i18n.t.detail.linkedSourcesMakePrimary}
+                  disabled={busy === `primary:${item.source}`}
+                  onclick={() => makePrimary(item)}
+                >
+                  <Crown size={15} aria-hidden="true" />
+                </button>
+              {/if}
+
+              <button
+                type="button"
+                class="flex h-7 w-7 cursor-pointer items-center justify-center text-white/40 transition-colors hover:text-white"
+                title={i18n.t.detail.linkedSourcesRelink}
+                aria-label={i18n.t.detail.linkedSourcesRelink}
+                onclick={() => onOpenRelink?.()}
+              >
+                <Pencil size={14} aria-hidden="true" />
+              </button>
+
+              {#if !item.isPrimary}
+                <button
+                  type="button"
+                  class="flex h-7 w-7 cursor-pointer items-center justify-center text-white/30 transition-colors hover:text-rose-400 disabled:cursor-not-allowed disabled:opacity-50"
+                  title={i18n.t.detail.linkedSourcesRemove}
+                  aria-label={i18n.t.detail.linkedSourcesRemove}
+                  disabled={busy === `remove:${item.source}`}
+                  onclick={() => remove(item)}
+                >
+                  <Trash2 size={14} aria-hidden="true" />
+                </button>
+              {:else}
+                <!-- Invisible spacer: keeps every icon column aligned across the list. -->
+                <span class="h-7 w-7 invisible pointer-events-none" aria-hidden="true"></span>
+              {/if}
+            </div>
           </div>
 
-          <!-- Middle block: title/id + real provenance chips -->
-          <div class="space-y-1">
-            <p
-              class="truncate text-xs font-medium text-slate-200"
-              title={item.title || item.externalId || item.source}
-            >
-              {item.title || item.externalId || item.source}
-            </p>
-            {#if item.providedFields && item.providedFields.length > 0}
-              <div class="flex flex-wrap items-center gap-1 pt-1">
+          {#if item.providedFields && item.providedFields.length > 0 && expandedFields[item.source]}
+            <div transition:slide={{ duration: 180 }} class="space-y-1.5 pt-2">
+              <div class="flex items-center gap-2 text-xs">
+                <span class="text-muted shrink-0">{item.source}:</span>
+                {#if siteUrl(item)}
+                  <a
+                    href={siteUrl(item) ?? "#"}
+                    target="_blank"
+                    rel="noreferrer"
+                    class="text-accent-soft inline-flex min-w-0 items-center gap-1 font-medium hover:underline"
+                    title={item.title || item.externalId || item.source}
+                  >
+                    <span class="truncate">{item.title || item.externalId || item.source}</span>
+                    <ExternalLink size={11} class="shrink-0" aria-hidden="true" />
+                  </a>
+                {:else}
+                  <span class="text-muted min-w-0 truncate">
+                    {item.title || item.externalId || item.source}
+                  </span>
+                {/if}
+              </div>
+              <div class="flex flex-wrap items-center gap-1">
                 <span class="mr-1 text-[11px] text-slate-500"
                   >{i18n.t.detail.linkedSourcesTakenLabel}</span
                 >
@@ -351,57 +457,18 @@
                     {field}
                   </span>
                 {/each}
+                <button
+                  type="button"
+                  class="text-muted ml-1 inline-flex h-5 w-5 cursor-pointer items-center justify-center rounded transition-colors hover:text-white"
+                  title={i18n.t.detail.altTitlesLess}
+                  aria-label={i18n.t.detail.altTitlesLess}
+                  onclick={() => toggleFields(item.source)}
+                >
+                  <ChevronDown size={11} class="rotate-180" aria-hidden="true" />
+                </button>
               </div>
-            {/if}
-          </div>
-
-          <!-- Bottom row: single action rail -->
-          <div
-            class="flex flex-wrap items-center justify-between gap-2 border-t border-white/5 pt-3"
-          >
-            <div>
-              {#if item.isPrimary}
-                <span class="flex items-center gap-1.5 text-xs font-semibold text-amber-400">
-                  <Crown size={13} />
-                  {i18n.t.detail.linkedSourcesPrimarySource}
-                </span>
-              {:else}
-                <button
-                  type="button"
-                  disabled={busy === `primary:${item.source}`}
-                  class="tap cursor-pointer rounded-lg border border-white/5 px-2.5 py-1.5 text-xs text-slate-400 transition hover:bg-white/5 hover:text-amber-400 disabled:opacity-50"
-                  onclick={() => makePrimary(item)}
-                >
-                  {i18n.t.detail.linkedSourcesMakePrimary}
-                </button>
-              {/if}
             </div>
-
-            <div class="flex items-center gap-1.5">
-              <button
-                type="button"
-                class="tap flex size-8 cursor-pointer items-center justify-center rounded-lg border border-white/5 bg-white/[0.03] text-slate-400 transition hover:bg-white/10 hover:text-white"
-                title={i18n.t.detail.linkedSourcesRelink}
-                aria-label={i18n.t.detail.linkedSourcesRelink}
-                onclick={() => onOpenRelink?.()}
-              >
-                <Pencil size={14} />
-              </button>
-
-              {#if !item.isPrimary}
-                <button
-                  type="button"
-                  disabled={busy === `remove:${item.source}`}
-                  class="tap flex size-8 cursor-pointer items-center justify-center rounded-lg border border-rose-500/10 bg-rose-500/5 text-rose-400/80 transition hover:bg-rose-500/15 hover:text-rose-300 disabled:opacity-50"
-                  title={i18n.t.detail.linkedSourcesRemove}
-                  aria-label={i18n.t.detail.linkedSourcesRemove}
-                  onclick={() => remove(item)}
-                >
-                  <Trash2 size={14} />
-                </button>
-              {/if}
-            </div>
-          </div>
+          {/if}
         </div>
       {/each}
     </div>

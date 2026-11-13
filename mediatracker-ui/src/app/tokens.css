@@ -5,9 +5,29 @@
   --color-card: #151a26;
   --color-accent: #473bb8;
   --color-accent-soft: #a5b4fc;
+  /* Hover step for accent-bright CTAs: one notch lighter, still matte. */
+  --color-accent-bright-hover: #5f52b8;
 
   /* Тонкие границы */
   --color-panel-border: rgba(255, 255, 255, 0.06);
+
+  /* --- Chart series palette ---
+     Muted hues for multi-series charts (stats donuts, bars, radar, breakdowns).
+     Saturation is deliberately lowered so eight series stay distinguishable
+     without neon glare on the graphite canvas. */
+  --color-chart-indigo: #6366f1;
+  --color-chart-cyan: #3d8fa3;
+  --color-chart-blue: #4a72b8;
+  --color-chart-violet: #7a63c4;
+  --color-chart-purple: #8f63c4;
+  --color-chart-amber: #c08a3e;
+  --color-chart-orange: #c98a5a;
+  --color-chart-yellow: #b39a3c;
+  --color-chart-lime: #8fae4a;
+  --color-chart-green: #7fa63f;
+  --color-chart-emerald: #3f8f6b;
+  --color-chart-rose: #c94f68;
+  --color-chart-pink: #b85a86;
 
   /* --- Source Themes (import providers + settings sources) ---
      One accent/border/surface/text group per external source; both the import

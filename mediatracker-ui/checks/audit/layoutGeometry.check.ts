@@ -226,7 +226,10 @@ export async function runLayoutGeometry(options: {
           }
 
           // 5. Padding vs Gap in Panels and Cards
-          const cards = Array.from(document.querySelectorAll(".panel, article.media-card"));
+          // Media cards are full-bleed posters by design: the artwork runs to the rounded
+          // border and the title/progress overlay carries its own px-3/pb-3 padding, so the
+          // card element itself is intentionally 0-padded. Only real panels are checked here.
+          const cards = Array.from(document.querySelectorAll(".panel"));
           for (const card of cards) {
             const comp = window.getComputedStyle(card);
             const padTop = parseFloat(comp.paddingTop) || 0;

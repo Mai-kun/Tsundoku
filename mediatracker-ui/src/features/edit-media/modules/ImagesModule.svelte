@@ -20,6 +20,8 @@
    * so the caller keeps its preview in sync.
    */
   interface Props {
+    flat?: boolean;
+    showLabel?: boolean;
     mediaId: string | null;
     coverUrl: string;
     /** Alt text for previews; the title being edited. */
@@ -34,6 +36,8 @@
     title,
     covers = [],
     onCoversChange,
+    flat = false,
+    showLabel = true,
   }: Props = $props();
 
   let busy = $state(false);
@@ -137,7 +141,7 @@
   }
 </script>
 
-<ModuleCard title={i18n.t.createModal.modules.images} count={mediaId ? covers.length : undefined}>
+<ModuleCard flat={flat} showLabel={showLabel} title={i18n.t.createModal.modules.images} count={mediaId ? covers.length : undefined}>
   {#snippet icon()}
     <ImageIcon size={15} aria-hidden="true" />
   {/snippet}
@@ -240,7 +244,9 @@
                 loading="lazy"
                 decoding="async"
                 referrerpolicy="no-referrer"
-                class="h-full w-full object-cover"
+                class="h-full w-full object-cover select-none"
+                draggable="false"
+                ondragstart={(event) => event.preventDefault()}
               />
               {#if active}
                 <span

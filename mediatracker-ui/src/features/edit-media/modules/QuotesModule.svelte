@@ -10,10 +10,15 @@
    * save (or renders the same module read-only elsewhere).
    */
   interface Props {
+    flat?: boolean;
+    showLabel?: boolean;
     quotes: QuoteDraft[];
   }
 
-  let { quotes = $bindable([]) }: Props = $props();
+  let { quotes = $bindable([]),
+    flat = false,
+    showLabel = true,
+  }: Props = $props();
 
   let isAdding = $state(false);
   let newText = $state("");
@@ -69,7 +74,7 @@
   }
 </script>
 
-<ModuleCard title={i18n.t.createModal.modules.quotes} count={quotes.length}>
+<ModuleCard flat={flat} showLabel={showLabel} title={i18n.t.createModal.modules.quotes} count={quotes.length}>
   {#snippet icon()}
     <Quote size={15} aria-hidden="true" />
   {/snippet}

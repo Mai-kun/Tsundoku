@@ -17,16 +17,19 @@
    * show's detail screen, so the form must not promise otherwise.
    */
   interface Props {
+    flat?: boolean;
     type: MediaType;
     category: CategoryDraft;
     /** True when editing an existing row — switches the tv-show season list to read-only. */
     isEditing?: boolean;
   }
 
-  let { type, category = $bindable(), isEditing = false }: Props = $props();
+  let { type, category = $bindable(), isEditing = false,
+    flat = false,
+  }: Props = $props();
 </script>
 
-<ModuleCard title={i18n.t.createModal.modules.category}>
+<ModuleCard flat={flat} title={i18n.t.createModal.modules.category}>
   {#snippet icon()}
     <Clapperboard size={15} aria-hidden="true" />
   {/snippet}

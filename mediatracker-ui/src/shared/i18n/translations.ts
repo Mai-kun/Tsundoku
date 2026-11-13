@@ -17,6 +17,8 @@ export const translations = {
     cancel: { ru: "Отмена", en: "Cancel" },
     retry: { ru: "Повторить", en: "Retry" },
     close: { ru: "Закрыть", en: "Close" },
+    collapse: { ru: "Свернуть", en: "Collapse" },
+    expand: { ru: "Развернуть", en: "Expand" },
     loading: { ru: "Загрузка…", en: "Loading…" },
     saving: { ru: "Сохранение…", en: "Saving…" },
     back: { ru: "Назад", en: "Back" },
@@ -25,7 +27,6 @@ export const translations = {
     noData: { ru: "Пока нет данных", en: "No data yet" },
     comingSoon: { ru: "Скоро", en: "Coming soon" },
     details: { ru: "Подробнее", en: "Details" },
-    collapse: { ru: "Свернуть", en: "Collapse" },
   },
   toast: {
     statusPending: {

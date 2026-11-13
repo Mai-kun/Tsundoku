@@ -10,10 +10,15 @@
    * the list and decides how to persist it.
    */
   interface Props {
+    flat?: boolean;
+    showLabel?: boolean;
     altTitles: string[];
   }
 
-  let { altTitles = $bindable([]) }: Props = $props();
+  let { altTitles = $bindable([]),
+    flat = false,
+    showLabel = true,
+  }: Props = $props();
 
   let quickInput = $state("");
   let editingIndex = $state<number | null>(null);
@@ -60,7 +65,7 @@
   }
 </script>
 
-<ModuleCard title={i18n.t.createModal.modules.altTitles} count={altTitles.length}>
+<ModuleCard flat={flat} showLabel={showLabel} title={i18n.t.createModal.modules.altTitles} count={altTitles.length}>
   {#snippet icon()}
     <Tag size={15} aria-hidden="true" />
   {/snippet}

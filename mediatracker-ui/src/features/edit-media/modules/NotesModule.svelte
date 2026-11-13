@@ -8,13 +8,18 @@
    * decides when (and whether) to persist the text.
    */
   interface Props {
+    flat?: boolean;
+    showLabel?: boolean;
     notes: string;
   }
 
-  let { notes = $bindable("") }: Props = $props();
+  let { notes = $bindable(""),
+    flat = false,
+    showLabel = true,
+  }: Props = $props();
 </script>
 
-<ModuleCard title={i18n.t.createModal.modules.notes}>
+<ModuleCard flat={flat} showLabel={showLabel} title={i18n.t.createModal.modules.notes}>
   {#snippet icon()}
     <FileText size={15} aria-hidden="true" />
   {/snippet}

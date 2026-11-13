@@ -229,6 +229,7 @@
 
   function resetLayout() {
     layout = defaultLayout(window.innerWidth, window.innerHeight);
+    collapsedMap = { main: false, alt: false, notes: false, quotes: false, images: false };
     zMap = { cover: 1, main: 2, alt: 2, notes: 2, quotes: 2, images: 2 };
     topZ = 10;
     persist();
@@ -275,38 +276,43 @@
     "main-alt": null,
   });
 
+  /** Collapsed windows render as a bare title bar; thread anchors follow the shrunk shape.
+   * Every id must exist up front: binding undefined into a fallback prop is a Svelte error. */
+  let collapsedMap = $state<Record<string, boolean>>({
+    main: false,
+    alt: false,
+    notes: false,
+    quotes: false,
+    images: false,
+  });
+
   function nodeRect(id: string): Rect {
     if (id === "cover") {
       return { x: layout.cover.x, y: layout.cover.y, w: COVER_SIZE.w, h: COVER_SIZE.h };
     }
-    return layout.windows[id as WorkspaceWindowId];
+    const rect = layout.windows[id as WorkspaceWindowId];
+    return collapsedMap[id] ? { ...rect, h: 40 } : rect;
   }
 
   $effect(() => {
     if (!isOpen || !isDesktop) return;
     const springs = new Map<ThreadKey, ThreadSpring>();
-    const firstTargets = new Map<ThreadKey, ReturnType<typeof nearestFaceAnchors>>();
-    for (const thread of THREADS) {
+    for (const [index, thread] of THREADS.entries()) {
       const target = nearestFaceAnchors(nodeRect(thread.from), nodeRect(thread.to));
-      firstTargets.set(thread.key, target);
-      springs.set(thread.key, new ThreadSpring(target));
-    }
-    // Seed paths immediately so the cables appear in place instead of flying from (0,0).
-    for (const [key, spring] of springs) {
-      const target = firstTargets.get(key);
-      if (target) spring.step(target, 1);
+      springs.set(thread.key, new ThreadSpring(target, index * 1.3));
     }
 
     let rafId = requestAnimationFrame(tick);
     function tick() {
-      for (const thread of THREADS) {
+      const now = performance.now();
+      for (const [index, thread] of THREADS.entries()) {
         const spring = springs.get(thread.key);
         const path = threadPaths[thread.key];
         if (!spring || !path) continue;
         const target = nearestFaceAnchors(nodeRect(thread.from), nodeRect(thread.to));
         // Dragging cables get a stiffer spring: they hug the moving window closely.
         const active = draggingId === thread.from || draggingId === thread.to;
-        const { d } = spring.step(target, active ? 0.35 : 0.16);
+        const { d } = spring.step(target, now, active ? 0.35 : 0.14);
         path.setAttribute("d", d);
       }
       rafId = requestAnimationFrame(tick);
@@ -360,6 +366,10 @@
 
   function endCoverDrag(event: PointerEvent) {
     if (!coverDrag || event.pointerId !== coverDrag.pointerId) return;
+    finishCoverDrag();
+  }
+
+  function finishCoverDrag() {
     coverDrag = null;
     draggingId = null;
     if (coverRaf) {
@@ -371,6 +381,23 @@
       coverPending = null;
     }
     persist();
+  }
+
+  // Losing the window mid-drag must never leave the editor (or the OS cursor) stuck.
+  function handleWindowBlur() {
+    if (coverDrag) finishCoverDrag();
+    draggingId = null;
+  }
+
+  /**
+   * The page behind the blur owns a custom context menu; the editor stops the event from reaching
+   * it. Inside text fields the native browser menu (copy/paste) stays untouched.
+   */
+  function handleContextMenu(event: MouseEvent) {
+    const target = event.target as HTMLElement | null;
+    const inTextField = Boolean(target?.closest("input, textarea, [contenteditable='true']"));
+    event.stopPropagation();
+    if (!inTextField) event.preventDefault();
   }
 
   // ---------------------------------------------------------------------------
@@ -556,12 +583,15 @@
   const renderedWindowIds = WORKSPACE_WINDOW_IDS;
 </script>
 
+<svelte:window onblur={handleWindowBlur} />
+
 <dialog
   bind:this={dialogElement}
   aria-labelledby="edit-workspace-title"
-  class="m-0 h-dvh max-h-none w-screen max-w-none overflow-visible border-0 bg-transparent p-0 text-ink backdrop:bg-[#0d0f14]/80 backdrop:backdrop-blur-md"
+  class="m-0 h-dvh max-h-none w-screen max-w-none cursor-default overflow-visible border-0 bg-transparent p-0 text-ink backdrop:bg-[#0d0f14]/80 backdrop:backdrop-blur-md"
   style="contain: layout style;"
   oncancel={handleCancel}
+  oncontextmenu={handleContextMenu}
 >
   <!-- Thread layer: fixed to the viewport, always behind the windows. -->
   <svg
@@ -572,7 +602,7 @@
       <path
         bind:this={threadPaths[thread.key]}
         fill="none"
-        stroke={isThreadActive(thread) ? "rgba(139, 124, 246, 0.6)" : "rgba(255, 255, 255, 0.12)"}
+        stroke={isThreadActive(thread) ? "rgba(139, 124, 246, 0.65)" : "rgba(255, 255, 255, 0.16)"}
         stroke-width="1.5"
       />
     {/each}
@@ -660,13 +690,17 @@
       onpointerleave={() => (draggingId === "cover" ? null : (hoveredId = null))}
     >
       <figure
-        class="aspect-[2/3] w-full overflow-hidden rounded-xl border border-white/[0.1] bg-[#12151c] shadow-2xl shadow-black/50"
+        class="aspect-[2/3] w-full touch-none overflow-hidden rounded-xl border border-white/[0.1] bg-[#12151c] shadow-2xl shadow-black/50 select-none"
       >
         {#if coverUrl}
+          <!-- draggable=false + dragstart guard: the node moves with the pointer, the browser
+               must never start its native ghost-image drag of the <img>. -->
           <img
             src={fullSizeCoverUrl(coverUrl)}
             alt={title}
-            class="h-full w-full object-cover"
+            class="h-full w-full object-cover select-none"
+            draggable="false"
+            ondragstart={(event) => event.preventDefault()}
             referrerpolicy="no-referrer"
           />
         {:else}
@@ -684,14 +718,15 @@
         rect={layout.windows[winId]}
         z={zMap[winId] ?? 2}
         highlighted={hoveredId === winId || draggingId === winId}
-        onFront={() => bringToFront(winId)}
-        onHoverChange={(hovered) => (hoveredId = hovered ? winId : null)}
+        bind:collapsed={collapsedMap[winId]}
+        onFront={() => bringToFront(winId)}        onHoverChange={(hovered) => (hoveredId = hovered ? winId : null)}
         onDragStateChange={(dragging) => (draggingId = dragging ? winId : null)}
         onSettled={persist}
       >
         {#if winId === "main"}
-          <div class="space-y-3">
+          <div class="space-y-4">
             <BaseMediaModule
+              flat
               idPrefix="create"
               bind:type
               bind:title
@@ -700,16 +735,18 @@
               bind:startedAt
               bind:finishedAt
             />
-            <CategoryFieldsModule {type} bind:category isEditing={Boolean(editingItem)} />
+            <CategoryFieldsModule flat {type} bind:category isEditing={Boolean(editingItem)} />
           </div>
         {:else if winId === "alt"}
-          <AltTitlesModule bind:altTitles />
+          <AltTitlesModule flat showLabel={false} bind:altTitles />
         {:else if winId === "notes"}
-          <NotesModule bind:notes />
+          <NotesModule flat showLabel={false} bind:notes />
         {:else if winId === "quotes"}
-          <QuotesModule bind:quotes />
+          <QuotesModule flat showLabel={false} bind:quotes />
         {:else}
           <ImagesModule
+            flat
+            showLabel={false}
             mediaId={editingItem?.id ?? null}
             bind:coverUrl
             {title}

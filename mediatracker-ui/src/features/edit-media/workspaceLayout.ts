@@ -40,9 +40,10 @@ export function minWindowSize(id: WorkspaceWindowId): { w: number; h: number } {
   return MIN_SIZES[id];
 }
 
-/** Edges kept inside the viewport so a window can never be dragged fully out of reach. */
-const EDGE_MARGIN = 96;
+/** Hard viewport bounds: 16px side/bottom margin, 64px reserved for the floating toolbar. */
+const SIDE_MARGIN = 16;
 const TOP_BAR = 64;
+const BOTTOM_MARGIN = 16;
 
 export function clampWindowRect(
   rect: WorkspaceRect,
@@ -51,15 +52,21 @@ export function clampWindowRect(
   viewportH: number,
 ): WorkspaceRect {
   const min = MIN_SIZES[id];
-  const maxW = Math.max(viewportW - 2 * EDGE_MARGIN, min.w);
-  const maxH = Math.max(viewportH - 2 * TOP_BAR, min.h);
-  const w = Math.min(Math.max(rect.w, min.w), maxW);
-  const h = Math.min(Math.max(rect.h, min.h), maxH);
+  // Size first: never wider/taller than the visible band between the hard margins.
+  const w = Math.min(Math.max(rect.w, min.w), Math.max(viewportW - 2 * SIDE_MARGIN, min.w));
+  const h = Math.min(
+    Math.max(rect.h, min.h),
+    Math.max(viewportH - TOP_BAR - BOTTOM_MARGIN, min.h),
+  );
+  // Then position: the whole rect must stay inside the band, even if that shrinks it below min.
   return {
     w,
     h,
-    x: Math.min(Math.max(rect.x, EDGE_MARGIN - w), viewportW - EDGE_MARGIN),
-    y: Math.min(Math.max(rect.y, TOP_BAR), viewportH - EDGE_MARGIN),
+    x: Math.min(Math.max(rect.x, SIDE_MARGIN), Math.max(viewportW - SIDE_MARGIN - w, SIDE_MARGIN)),
+    y: Math.min(
+      Math.max(rect.y, TOP_BAR),
+      Math.max(viewportH - BOTTOM_MARGIN - h, TOP_BAR),
+    ),
   };
 }
 
@@ -68,28 +75,71 @@ export function clampPoint(
   viewportW: number,
   viewportH: number,
 ): { x: number; y: number } {
-  const { w } = COVER_SIZE;
+  const { w, h } = COVER_SIZE;
   return {
-    x: Math.min(Math.max(point.x, EDGE_MARGIN - w), viewportW - EDGE_MARGIN),
-    y: Math.min(Math.max(point.y, TOP_BAR), viewportH - EDGE_MARGIN),
+    x: Math.min(Math.max(point.x, SIDE_MARGIN), Math.max(viewportW - SIDE_MARGIN - w, SIDE_MARGIN)),
+    y: Math.min(Math.max(point.y, TOP_BAR), Math.max(viewportH - BOTTOM_MARGIN - h, TOP_BAR)),
   };
 }
 
 /**
- * Default composition: the cover in the exact center, windows floating around it in two loose
- * columns. Values are computed from the viewport, so the arrangement scales with screen size.
+ * Default composition: the cover floats slightly above the vertical center and each side column
+ * is distributed evenly across the full viewport height, so every window fits on screen at any
+ * reasonable size — no window hangs over the bottom edge out of the box.
  */
 export function defaultLayout(viewportW: number, viewportH: number): WorkspaceLayout {
   const cx = viewportW / 2;
   const cy = viewportH / 2;
+  const bandTop = TOP_BAR;
+  const bandBottom = viewportH - BOTTOM_MARGIN;
+  const bandH = bandBottom - bandTop;
+  const columnGap = 36;
+  const columnW = Math.min(420, Math.max(300, (cx - columnGap / 2 - COVER_SIZE.w / 2 - 60)));
+
+  // Three right-side windows share the band in thirds; the left column splits 58/42.
+  const rightH = Math.floor((bandH - 2 * 16) / 3);
+  const mainH = Math.floor(bandH * 0.58);
+  const altH = bandH - mainH - 16;
+  const leftX = cx - COVER_SIZE.w / 2 - columnGap - columnW;
+  const rightX = cx + COVER_SIZE.w / 2 + columnGap;
+
   return {
-    cover: clampPoint({ x: cx - COVER_SIZE.w / 2, y: cy - COVER_SIZE.h / 2 }, viewportW, viewportH),
+    cover: clampPoint(
+      { x: cx - COVER_SIZE.w / 2, y: cy - COVER_SIZE.h / 2 - 24 },
+      viewportW,
+      viewportH,
+    ),
     windows: {
-      main: clampWindowRect({ x: cx - 780, y: cy - 240, w: 480, h: 480 }, "main", viewportW, viewportH),
-      alt: clampWindowRect({ x: cx - 780, y: cy + 260, w: 480, h: 260 }, "alt", viewportW, viewportH),
-      notes: clampWindowRect({ x: cx + 240, y: cy - 280, w: 380, h: 260 }, "notes", viewportW, viewportH),
-      quotes: clampWindowRect({ x: cx + 240, y: cy + 10, w: 380, h: 300 }, "quotes", viewportW, viewportH),
-      images: clampWindowRect({ x: cx + 240, y: cy + 340, w: 380, h: 300 }, "images", viewportW, viewportH),
+      main: clampWindowRect(
+        { x: leftX, y: bandTop, w: columnW, h: mainH },
+        "main",
+        viewportW,
+        viewportH,
+      ),
+      alt: clampWindowRect(
+        { x: leftX, y: bandTop + mainH + 16, w: columnW, h: altH },
+        "alt",
+        viewportW,
+        viewportH,
+      ),
+      notes: clampWindowRect(
+        { x: rightX, y: bandTop, w: columnW, h: rightH },
+        "notes",
+        viewportW,
+        viewportH,
+      ),
+      quotes: clampWindowRect(
+        { x: rightX, y: bandTop + rightH + 16, w: columnW, h: rightH },
+        "quotes",
+        viewportW,
+        viewportH,
+      ),
+      images: clampWindowRect(
+        { x: rightX, y: bandTop + (rightH + 16) * 2, w: columnW, h: rightH },
+        "images",
+        viewportW,
+        viewportH,
+      ),
     },
   };
 }

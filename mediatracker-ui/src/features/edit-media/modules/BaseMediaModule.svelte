@@ -13,6 +13,7 @@
    * modal, a quick-edit popover, a dedicated screen) without knowing about the modal's state.
    */
   interface Props {
+    flat?: boolean;
     /** Prefix for inner Select ids, so several instances can coexist on one page. */
     idPrefix?: string;
     type: MediaType;
@@ -24,6 +25,7 @@
   }
 
   let {
+    flat = false,
     idPrefix = "edit-media",
     type = $bindable(),
     title = $bindable(),
@@ -39,7 +41,7 @@
   }));
 </script>
 
-<ModuleCard title={i18n.t.createModal.modules.base}>
+<ModuleCard flat={flat} title={i18n.t.createModal.modules.base}>
   {#snippet icon()}
     <Layers size={15} aria-hidden="true" />
   {/snippet}

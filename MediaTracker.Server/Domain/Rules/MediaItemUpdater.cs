@@ -35,6 +35,15 @@ public static class MediaItemUpdater
         }
         item.TranslatedSynopsis = request.TranslatedSynopsis ?? item.TranslatedSynopsis;
         item.TranslationLanguage = request.TranslationLanguage ?? item.TranslationLanguage;
+        // Alt titles live on the base entity, so the request list applies to every category, not just
+        // manga. An explicit list — including an empty one — is the user's intent and replaces what
+        // is stored; a missing list (null) means "not supplied" and leaves the row untouched.
+        if (request.AltTitles is not null)
+        {
+            item.AltTitles = request.AltTitles.Count > 0
+                ? MediaMetadataApplier.SerializeAltTitles(request.AltTitles)
+                : null;
+        }
         item.Genres = GenreNormalizer.NormalizeToCommaString(request.Genres) ?? item.Genres;
         item.Tags = request.Tags ?? item.Tags;
         item.UnlockedAchievements = request.UnlockedAchievements ?? item.UnlockedAchievements;
@@ -129,10 +138,6 @@ public static class MediaItemUpdater
             case Manga manga:
                 manga.Author = request.Author ?? manga.Author;
                 manga.RomajiTitle = request.RomajiTitle ?? manga.RomajiTitle;
-                if (request.AltTitles is { Count: > 0 } altTitles)
-                {
-                    item.AltTitles = MediaMetadataApplier.SerializeAltTitles(altTitles);
-                }
                 manga.TotalVolumes = request.TotalVolumes ?? manga.TotalVolumes;
                 manga.CurrentVolume = request.CurrentVolume ?? manga.CurrentVolume;
                 manga.TotalChapters = request.TotalChapters ?? manga.TotalChapters;

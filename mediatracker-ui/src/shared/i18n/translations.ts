@@ -1488,7 +1488,47 @@ export const translations = {
   },
   createModal: {
     eyebrow: { ru: "Новая запись", en: "New entry" },
+    eyebrowEdit: { ru: "Редактирование", en: "Editing" },
     title: { ru: "Добавить медиа", en: "Add media" },
+    editTitle: { ru: "Редактировать медиа", en: "Edit Media" },
+    modules: {
+      main: { ru: "Основные данные и категория", en: "Basics & category" },
+      base: { ru: "Базовые данные", en: "Basics" },
+      notes: { ru: "Заметки", en: "Notes" },
+      quotes: { ru: "Цитаты и выписки", en: "Quotes & highlights" },
+      altTitles: { ru: "Альтернативные названия", en: "Alternative titles" },
+      category: { ru: "Категория", en: "Category" },
+      images: { ru: "Обложки и изображения", en: "Covers & images" },
+    },
+    altTitlesModule: {
+      quickAddPlaceholder: {
+        ru: "Название 1 / Название 2",
+        en: "Title 1 / Title 2",
+      },
+      add: { ru: "Добавить", en: "Add" },
+      empty: {
+        ru: "Пока нет альтернативных названий",
+        en: "No alternative titles yet",
+      },
+    },
+    imagesModule: {
+      multiUrlsPlaceholder: {
+        ru: "https://… (по одной ссылке в строке)",
+        en: "https://… (one URL per line)",
+      },
+      dropHere: {
+        ru: "Нажмите или перетащите изображения сюда",
+        en: "Click or drop images here",
+      },
+      createModeHint: {
+        ru: "Загрузка файлов и галерея обложек станут доступны после создания записи",
+        en: "File upload and the cover gallery become available after the entry is created",
+      },
+    },
+    seasonsReadonly: {
+      ru: "Сезоны редактируются на странице сериала",
+      en: "Seasons are edited on the show's page",
+    },
     fields: {
       type: { ru: "Тип", en: "Type" },
       title: { ru: "Название", en: "Title" },
@@ -1547,6 +1587,9 @@ export const translations = {
         en: "Cover: an http(s) link or a local path, e.g. /media-assets/...",
       },
     },
+  },
+  editWorkspace: {
+    resetLayout: { ru: "Сбросить раскладку", en: "Reset layout" },
   },
   coversModal: {
     title: { ru: "Управление обложками", en: "Manage covers" },

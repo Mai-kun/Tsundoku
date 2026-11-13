@@ -948,7 +948,7 @@ public static class RefactorSelfCheck
         );
         AssertEqual(
             failures,
-            "sociallib,shikimori,anilist,kitsu,openlibrary",
+            "sociallib,shikimori,anilist,kitsu,openlibrary,livelib",
             string.Join(',', SourcePriorityService.DefaultPriorities["book"]),
             "book cascade order"
         );
@@ -4400,7 +4400,9 @@ public static class RefactorSelfCheck
                 }));
                 var provider = new OpenLibraryMetadataProvider(factory);
                 var dtos = provider.SearchAsync("Dune", CancellationToken.None).GetAwaiter().GetResult();
-                return dtos.FirstOrDefault()?.Genres is { Count: > 0 } && dtos[0].Genres!.Contains("Science Fiction");
+                // Subjects are normalized through GenreNormalizer, so the DTO carries the Russian
+                // display name ("Фантастика"), not the raw OpenLibrary subject string.
+                return dtos.FirstOrDefault()?.Genres is { Count: > 0 } && dtos[0].Genres!.Contains("Фантастика");
             }
 
             if (type == typeof(MangaDexMetadataProvider))
@@ -4496,7 +4498,7 @@ public static class RefactorSelfCheck
                     && item.Type == "book"
                     && item.MangaFormat == "light_novel"
                     && requestedUri is not null
-                    && requestedUri.Contains("mangas?kind=light_novel&search=")
+                    && requestedUri.Contains("ranobe?search=")
                     && item.Genres is { Count: > 0 }
                     && item.Genres.Contains("Экшен");
             }

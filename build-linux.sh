@@ -51,7 +51,11 @@ StartupWMClass=Tsundoku
 DESKTOP
 
 # Монолитный автономный AppImage: bin/ + wwwroot/ рядом с AppRun.
-APPDIR="dist/.appdir"
+# Absolute paths on purpose: --appimage-extract-and-run changes the working directory while the
+# tool runs, so relative AppDir/output arguments resolve against the wrong root and appimagetool
+# aborts with an empty "no such file or directory".
+APPDIR="$ROOT/dist/Tsundoku.AppDir"
+APPIMAGE_OUT="$ROOT/dist/Tsundoku.AppImage"
 mkdir -p "$APPDIR/bin"
 cp dist/Tsundoku-Portable/Tsundoku "$APPDIR/bin/Tsundoku"
 chmod +x "$APPDIR/bin/Tsundoku"
@@ -121,6 +125,9 @@ cat > "$APPDIR/usr/share/metainfo/io.github.Maikun.Tsundoku.appdata.xml" <<'APPD
   </description>
   <launchable type="desktop-id">tsundoku.desktop</launchable>
   <url type="homepage">https://github.com/Mai-kun/Tsundoku</url>
+  <developer id="io.github.maikun">
+    <name>Mai-kun</name>
+  </developer>
   <content_rating type="oars-1.1"/>
   <releases>
     <release version="1.0.0" date="2026-11-05"/>
@@ -140,7 +147,7 @@ ARCH="x86_64"
 if command -v appimagetool >/dev/null 2>&1; then
   # --no-appstream: appimagetool's legacy check expects a tsundoku.appdata.xml
   # filename that conflicts with the cid-based naming appstreamcli validates above.
-  ARCH=x86_64 appimagetool --no-appstream "$APPDIR" dist/Tsundoku.AppImage
+  ARCH=x86_64 appimagetool --no-appstream "$APPDIR" "$APPIMAGE_OUT"
 else
   # Build-only cache: the produced binary/AppImage never reads or creates this path.
   TOOL_DIR="$HOME/.cache/tsundoku-build"
@@ -154,9 +161,9 @@ else
     mv "$TOOL.download" "$TOOL"
   fi
   # --appimage-extract-and-run: работает даже без FUSE в системе.
-  ARCH=x86_64 "$TOOL" --appimage-extract-and-run --no-appstream "$APPDIR" dist/Tsundoku.AppImage
+  ARCH=x86_64 "$TOOL" --appimage-extract-and-run --no-appstream "$APPDIR" "$APPIMAGE_OUT"
 fi
-chmod +x dist/Tsundoku.AppImage
+chmod +x "$APPIMAGE_OUT"
 rm -rf "$APPDIR"
 
 # Контроль чистоты: в корне dist/ только финальные артефакты.

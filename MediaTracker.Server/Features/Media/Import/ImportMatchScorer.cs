@@ -113,12 +113,16 @@ public static class ImportMatchScorer
 
         int best = 0;
 
+        // Materialize the candidate's names once: CandidateTitles runs a regex per name, and the
+        // nested loop below would otherwise re-run it for every stored title of the item.
+        var candidateTitles = CandidateTitles(candidate).ToList();
+
         // Every stored name against every source name, so a romaji row can match an English hit and
         // vice versa; the title heuristics take the single best pair rather than stacking.
         foreach (var itemName in ItemTitles(item))
         {
             if (string.IsNullOrWhiteSpace(itemName)) continue;
-            foreach (var candName in CandidateTitles(candidate))
+            foreach (var candName in candidateTitles)
             {
                 if (string.IsNullOrWhiteSpace(candName)) continue;
                 var score = TitlePairScore(itemName, candName);
@@ -365,6 +369,10 @@ public static class ImportMatchScorer
     }
 
     /// <summary>Exact normalised hit beats a partial hit; the pair contributes the better one.</summary>
+    /// <summary>Chapter/volume noise words stripped when comparing a title to its numbered sibling.</summary>
+    private static readonly string[] NoiseWords =
+        ["chapter", "ch", "volume", "vol", "season", "episode", "ep", "part", "ova", "special"];
+
     internal static int TitlePairScore(string? itemTitle, string? candidateTitle)
     {
         var a = NormalizeTitle(itemTitle);
@@ -379,7 +387,7 @@ public static class ImportMatchScorer
             return ExactTitleBonus;
         }
 
-        var similarity = CalculateTitleSimilarity(a, b);
+        var similarity = SimilarityOfNormalized(a, b);
         if (similarity >= 0.88)
         {
             return SimilarTitleBonus;
@@ -412,16 +420,17 @@ public static class ImportMatchScorer
             return null;
         }
 
-        var builder = new StringBuilder(value.Length);
+        Span<char> buffer = value.Length <= 128 ? stackalloc char[value.Length] : new char[value.Length];
+        var length = 0;
         foreach (var rawCh in value)
         {
             if (char.IsLetterOrDigit(rawCh))
             {
-                builder.Append(char.ToLowerInvariant(rawCh));
+                buffer[length++] = char.ToLowerInvariant(rawCh);
             }
         }
 
-        return builder.Length == 0 ? null : builder.ToString();
+        return length == 0 ? null : new string(buffer[..length]);
     }
 
     /// <summary>Share of the shorter title's words the other title also contains.</summary>
@@ -437,7 +446,7 @@ public static class ImportMatchScorer
         var hits = 0;
         for (var i = 0; i < a.Count; i++)
         {
-            if (b.Contains(a[i])) hits++;
+            if (b.Contains(a[i], StringComparer.OrdinalIgnoreCase)) hits++;
         }
         return hits / (double)Math.Min(a.Count, b.Count);
     }
@@ -454,7 +463,9 @@ public static class ImportMatchScorer
                 var token = span[start..i].Trim();
                 if (!token.IsEmpty && token.Length >= 2)
                 {
-                    list.Add(token.ToString().ToLowerInvariant());
+                    // Raw casing: callers compare with OrdinalIgnoreCase, which avoids one
+                    // lowercased string allocation per token on the hot matching path.
+                    list.Add(token.ToString());
                 }
                 start = i + 1;
             }
@@ -491,7 +502,8 @@ public static class ImportMatchScorer
                 if (candTokens.Count == 0) continue;
 
                 var maxTokens = Math.Max(itemTokens.Count, candTokens.Count);
-                var sharedCount = itemTokens.Count(t => t.Length >= 3 && candTokens.Contains(t));
+                var sharedCount = itemTokens.Count(t =>
+                    t.Length >= 3 && candTokens.Contains(t, StringComparer.OrdinalIgnoreCase));
                 if (sharedCount >= 2 && (sharedCount / (double)itemTokens.Count) >= 0.8)
                 {
                     if (splitIdx < 0 && (candTokens.Count - sharedCount) > 1)
@@ -789,13 +801,37 @@ public static class ImportMatchScorer
             char c = t[i];
             var mapped = c switch
             {
-                'а' => "a", 'б' => "b", 'в' => "v", 'г' => "g", 'д' => "d",
-                'е' or 'ё' => "e", 'ж' => "zh", 'з' => "z", 'и' => "i", 'й' => "y",
-                'к' => "k", 'л' => "l", 'м' => "m", 'н' => "n", 'о' => "o",
-                'п' => "p", 'р' => "r", 'с' => "s", 'т' => "t", 'у' => "u",
-                'ф' => "f", 'х' => "kh", 'ц' => "ts", 'ч' => "ch", 'ш' => "sh",
-                'щ' => "shch", 'ъ' or 'ь' => "", 'ы' => "y", 'э' => "e",
-                'ю' => "yu", 'я' => "ya",
+                'а' => "a",
+                'б' => "b",
+                'в' => "v",
+                'г' => "g",
+                'д' => "d",
+                'е' or 'ё' => "e",
+                'ж' => "zh",
+                'з' => "z",
+                'и' => "i",
+                'й' => "y",
+                'к' => "k",
+                'л' => "l",
+                'м' => "m",
+                'н' => "n",
+                'о' => "o",
+                'п' => "p",
+                'р' => "r",
+                'с' => "s",
+                'т' => "t",
+                'у' => "u",
+                'ф' => "f",
+                'х' => "kh",
+                'ц' => "ts",
+                'ч' => "ch",
+                'ш' => "sh",
+                'щ' => "shch",
+                'ъ' or 'ь' => "",
+                'ы' => "y",
+                'э' => "e",
+                'ю' => "yu",
+                'я' => "ya",
                 _ => c.ToString()
             };
             sb.Append(mapped);
@@ -808,6 +844,15 @@ public static class ImportMatchScorer
         var a = NormalizeTitle(titleA);
         var b = NormalizeTitle(titleB);
         if (a is null || b is null) return 0.0;
+        return SimilarityOfNormalized(a, b);
+    }
+
+    /// <summary>
+    /// Similarity for a pair that is already normalized. TitlePairScore normalizes both names
+    /// before comparing, so re-normalizing here would allocate two throwaway strings per pair.
+    /// </summary>
+    private static double SimilarityOfNormalized(string a, string b)
+    {
         if (a == b) return 1.0;
 
         int maxLen = Math.Max(a.Length, b.Length);
@@ -854,16 +899,20 @@ public static class ImportMatchScorer
         if (s == t) return 1.0;
         if (s.Length < 2 || t.Length < 2) return 0.0;
 
-        var sBigrams = new HashSet<int>(s.Length - 1);
-        for (int i = 0; i < s.Length - 1; i++)
+        // Sorted stack buffer instead of a HashSet: titles are short, and this keeps the
+        // per-comparison allocation at zero on the matching hot path.
+        int sCount = s.Length - 1;
+        Span<int> sBigrams = sCount <= 128 ? stackalloc int[sCount] : new int[sCount];
+        for (int i = 0; i < sCount; i++)
         {
-            sBigrams.Add((s[i] << 16) | s[i + 1]);
+            sBigrams[i] = (s[i] << 16) | s[i + 1];
         }
+        sBigrams.Sort();
 
         int matches = 0;
         for (int i = 0; i < t.Length - 1; i++)
         {
-            if (sBigrams.Contains((t[i] << 16) | t[i + 1]))
+            if (sBigrams.BinarySearch((t[i] << 16) | t[i + 1]) >= 0)
             {
                 matches++;
             }
@@ -884,7 +933,7 @@ public static class ImportMatchScorer
         if (remainder.All(char.IsDigit)) return true;
 
         var cleaned = remainder;
-        foreach (var noise in new[] { "chapter", "ch", "volume", "vol", "season", "episode", "ep", "part", "ova", "special" })
+        foreach (var noise in NoiseWords)
         {
             cleaned = cleaned.Replace(noise, string.Empty);
         }

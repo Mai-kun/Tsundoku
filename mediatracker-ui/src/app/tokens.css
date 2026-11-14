@@ -1,15 +1,47 @@
-:root {
-  /* Базовые цвета палитры Steam Deck Dark */
-  --color-canvas: #0d0f14;
-  --color-surface: #12151c;
-  --color-card: #151a26;
-  --color-accent: #473bb8;
-  --color-accent-soft: #a5b4fc;
-  /* Hover step for accent-bright CTAs: one notch lighter, still matte. */
-  --color-accent-bright-hover: #5f52b8;
+/* ============================================================================
+   Semantic primitives (Radix/Catppuccin-style hierarchy).
+   Single source of truth for surface/border/text/accent colors. app.css maps
+   them into `--color-*` @theme entries, so Tailwind utilities (bg-surface,
+   text-ink, border-subtle, ...) resolve through these variables and a future
+   theme only redefines this block via `html[data-theme="..."]`.
+   ========================================================================== */
+:root,
+[data-theme="obsidian"] {
+  /* --- Surfaces (Steam Deck Dark base) --- */
+  --bg-canvas: #0d0f14;
+  --bg-surface: #12151c;
+  --bg-card: #151a26;
+  --bg-elevated: #171b24;
+  /* Popovers, dialogs and other chrome that must stay fully opaque over posters. */
+  --bg-overlay: #181b24;
+  --bg-hover: rgba(255, 255, 255, 0.06);
+  --bg-active: rgba(255, 255, 255, 0.1);
 
-  /* Тонкие границы */
-  --color-panel-border: rgba(255, 255, 255, 0.06);
+  /* --- Borders --- */
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-strong: rgba(255, 255, 255, 0.14);
+
+  /* --- Text --- */
+  --text-primary: #f3f4f6;
+  --text-secondary: #d1d5db;
+  --text-muted: #9ca3af;
+
+  /* --- Accent --- */
+  --accent: #473bb8;
+  --accent-hover: #3d32a0;
+  --accent-soft: #a5b4fc;
+  --accent-bright: #5446cf;
+  /* Hover step for accent-bright CTAs: one notch lighter, still matte. */
+  --accent-bright-hover: #5f52b8;
+
+  /* --- Status --- */
+  --danger: #b92b42;
+  --danger-hover: #c63349;
+  --danger-soft: rgba(185, 43, 66, 0.12);
+  --danger-text: #fda4af;
+  --success: #228b57;
+  --warning: #b87c14;
+  --warning-text: #fcd34d;
 
   /* --- Chart series palette ---
      Muted hues for multi-series charts (stats donuts, bars, radar, breakdowns).

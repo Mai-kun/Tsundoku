@@ -54,47 +54,65 @@
   /* Yamtrack Obsidian: neutral graphite, no blue cast.
        MUST be @theme, not a bare :root block — Tailwind v4 only turns --color-*
        entries into utilities (bg-surface, text-ink, border-border) when declared
-       in @theme. In a plain :root rule the var() resolves but no class is emitted. */
-  --color-canvas: #0d0f14;
+       in @theme. In a plain :root rule the var() resolves but no class is emitted.
+       Values below are var() references into the semantic primitives defined in
+       tokens.css (:root / [data-theme="obsidian"]) — that single block owns the
+       actual palette, so a future theme overrides it via html[data-theme="..."]. */
+  --color-canvas: var(--bg-canvas);
   /* Chrome (sidebar/header) sits one step above the canvas so the two blocks read
        as separate surfaces instead of one dark mass. */
-  --color-surface: #12151c;
-  --color-card: #151a26;
+  --color-surface: var(--bg-surface);
+  --color-card: var(--bg-card);
   --color-card-hover: #1a1e28;
-  --color-elevated: #171b24;
+  --color-elevated: var(--bg-elevated);
   --color-panel: #1a1e28;
-  --color-panel-border: rgba(255, 255, 255, 0.06);
-  --color-border: rgba(255, 255, 255, 0.05);
-  --color-accent: #473bb8;
-  --color-accent-hover: #3d32a0;
-  --color-accent-soft: #a5b4fc;
+  --color-panel-border: var(--border-subtle);
+  --color-border: var(--border-subtle);
+  /* `border-subtle` / `border-strong` utilities resolve from these bare names
+     (Tailwind maps candidate `border-X` to --color-X, not --color-border-X). */
+  --color-subtle: var(--border-subtle);
+  --color-strong: var(--border-strong);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-soft: var(--accent-soft);
   --color-star: #f59e0b;
-  --color-muted: #9ca3af;
-  --color-ink: #f3f4f6;
+  --color-muted: var(--text-muted);
+  --color-ink: var(--text-primary);
   --font-sans:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 
-  --color-panel-line: #14171f;
-  --color-field: #12151c;
+  /* Panel/field chrome: surface steps kept distinct from card fills. */
+  --color-panel-line: var(--bg-surface);
+  --color-field: var(--bg-surface);
   --color-panel-raised: #1a1e28;
   /* Popovers and dialogs sit over posters: must be fully opaque, never translucent. */
-  --color-overlay: #181b24;
+  --color-overlay: var(--bg-overlay);
   --color-overlay-strong: #1e222d;
-  --color-modal: #181b24;
-  --color-accent-bright: #5446cf;
+  --color-modal: var(--bg-overlay);
+  --color-accent-bright: var(--accent-bright);
+  --color-accent-bright-hover: var(--accent-bright-hover);
   --color-accent-line: #7786ee;
   --color-accent-deep: #6b58eb;
-  --color-ink-dim: #d1d5db;
+  --color-ink-dim: var(--text-secondary);
   --color-ink-faint: #93c5fd;
+  --color-hover: var(--bg-hover);
+  --color-active: var(--bg-active);
   --color-info-soft: #7dd3fc;
   --color-info-line: #66c0f4;
   --color-success-soft: #86efac;
   --color-success-line: #34d399;
   --color-success-deep: #13231b;
   --color-success-surface: #0f241d;
+  --color-success: var(--success);
   --color-warning-line: #d97706;
   --color-warning-surface: #281e0e;
-  --color-danger-line: #b92b42;
+  --color-warning: var(--warning);
+  --color-warning-text: var(--warning-text);
+  --color-danger: var(--danger);
+  --color-danger-hover: var(--danger-hover);
+  --color-danger-soft: var(--danger-soft);
+  --color-danger-text: var(--danger-text);
+  --color-danger-line: var(--danger);
   --color-danger-surface: #2b1016;
   --color-score-bg: #4a63c9;
   --color-track: #2a3040;

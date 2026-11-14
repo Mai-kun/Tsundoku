@@ -1,6 +1,7 @@
 <script lang="ts">
   import { tick } from "svelte";
-  import { contextMenuStore, closeContextMenu } from "./contextMenu.svelte";
+  import { contextMenuStore, closeContextMenu, type MenuItem } from "./contextMenu.svelte";
+  import { createHoldToDelete } from "./holdToDelete.svelte";
   import { i18n } from "$shared/i18n/index.svelte";
   import {
     Pencil,
@@ -29,6 +30,29 @@
   let isPositioned = $state(false);
   let expandedSubmenu = $state<string | null>(null);
   let openSubmenuToLeft = $state(false);
+
+  // Hold-to-delete items: one shared controller (only one item can be pressed at a time).
+  // The menu must NOT close while the hold runs — it closes only when the hold completes
+  // (or on an outside click / Esc / scroll, which cancels the hold via the cleanup below).
+  let heldItem: MenuItem | null = null;
+  let heldItemId = $state<string | null>(null);
+  let hintItemId = $state<string | null>(null);
+
+  const menuHold = createHoldToDelete({
+    onComplete: () => {
+      const item = heldItem;
+      heldItem = null;
+      heldItemId = null;
+      if (item?.action) item.action();
+      closeContextMenu();
+    },
+    onShortPress: () => {
+      hintItemId = heldItemId;
+    },
+    isEnabled: () => heldItem?.disabled !== true,
+  });
+
+  $effect(() => () => menuHold.destroy());
 
   function getIcon(name: string | undefined) {
     if (!name) return null;
@@ -96,6 +120,11 @@
 
   $effect(() => {
     if ($contextMenuStore.isOpen) {
+      // A fresh menu resets any half-finished hold from the previous one.
+      menuHold.destroy();
+      heldItem = null;
+      heldItemId = null;
+      hintItemId = null;
       expandedSubmenu = null;
       isPositioned = false;
       openSubmenuToLeft = false;
@@ -200,6 +229,58 @@
               </div>
             {/if}
           </div>
+        {:else if item.holdToDelete}
+          <button
+            type="button"
+            role="menuitem"
+            class="context-menu-item relative z-0 overflow-hidden"
+            class:context-menu-item_danger={item.kind === "danger"}
+            class:context-menu-item_disabled={item.disabled}
+            disabled={item.disabled}
+            onpointerdown={() => {
+              heldItem = item;
+              heldItemId = item.id;
+              menuHold.press();
+            }}
+            onpointerup={() => menuHold.release()}
+            onpointerleave={() => menuHold.release()}
+            onpointercancel={() => menuHold.release()}
+            onkeydown={(event) => {
+              // Keyboard path: Enter/Space confirms immediately instead of holding.
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                heldItem = item;
+                menuHold.completeNow();
+              }
+            }}
+            onmouseenter={() => {
+              expandedSubmenu = null;
+            }}
+          >
+            <!-- Hold-to-confirm fill: transform-only, stays on the compositor. -->
+            <span
+              aria-hidden="true"
+              class="pointer-events-none absolute inset-0 origin-left -z-10 bg-danger/30"
+              style:transform="scaleX({heldItemId === item.id ? menuHold.progress : 0})"
+            ></span>
+            <div class="context-menu-item-content">
+              {#if Icon}
+                <span
+                  class="context-menu-icon-wrap"
+                  class:context-menu-icon-wrap_danger={item.kind === "danger"}
+                >
+                  <Icon size={15} aria-hidden="true" />
+                </span>
+              {/if}
+              <span class="context-menu-label"
+                >{heldItemId === item.id && menuHold.holding
+                  ? i18n.t.holdToDelete.deleting
+                  : hintItemId === item.id && menuHold.hintVisible
+                    ? i18n.t.holdToDelete.hint
+                    : item.label}</span
+              >
+            </div>
+          </button>
         {:else}
           <button
             type="button"

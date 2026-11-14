@@ -3,6 +3,7 @@
   import { Trash2 } from "$shared/ui/Icons";
   import { apiFetch, errorMessage } from "$shared/api/api";
   import { showToast } from "$shared/ui/toast.svelte";
+  import { confirmAction } from "$shared/ui/confirmDialog.svelte";
   import { i18n } from "$shared/i18n/index.svelte";
   import type { MediaItem, MediaStatus } from "$shared/types";
   import { SYNC_STATUS } from "$shared/types";
@@ -60,7 +61,16 @@
   }
 
   async function removeItem() {
-    if (!onDelete || !window.confirm(i18n.t.card.confirmDelete(item.title))) return;
+    if (!onDelete) return;
+    if (
+      !(await confirmAction({
+        key: "delete-media",
+        title: i18n.t.card.confirmDelete(item.title),
+        confirmLabel: i18n.t.common.delete,
+        danger: true,
+      }))
+    )
+      return;
 
     deleteError = null;
     try {
@@ -206,10 +216,16 @@
         label: i18n.t.detailModal.delete,
         icon: "delete",
         kind: "danger",
+        holdToDelete: true,
         action: async () => {
           if (!onDelete) return;
-          if (!window.confirm(i18n.t.card.confirmDelete(item.title))) return;
-          await onDelete(item);
+          // Hold-to-delete: the menu item's 2-second hold is the confirmation,
+          // so no extra modal on this path.
+          try {
+            await onDelete(item);
+          } catch (error) {
+            deleteError = error;
+          }
         },
       },
     ];

@@ -16,6 +16,8 @@
     Trash2,
   } from "$shared/ui/Icons";
   import ListPicker from "$features/lists/ListPicker.svelte";
+  import Badge from "$shared/ui/Badge.svelte";
+  import Button from "$shared/ui/Button.svelte";
   import { slide } from "svelte/transition";
   import { errorMessage, triggerAutoRefresh } from "$shared/api/api";
   import { showToast } from "$shared/ui/toast.svelte";
@@ -24,6 +26,7 @@
   import MediaCoverPlaceholder from "$shared/ui/MediaCoverPlaceholder.svelte";
   import { openLightbox } from "$shared/ui/lightbox.svelte";
   import PopoverMenu from "$shared/ui/PopoverMenu.svelte";
+  import { createHoldToDelete } from "$shared/ui/holdToDelete.svelte";
   import { i18n } from "$shared/i18n/index.svelte";
   import { MEDIA_STATUS, type AppView, type MediaDetail, type MediaStatus } from "$shared/types";
   import { statusLabel } from "$entities/media/model/mediaLabels";
@@ -304,6 +307,15 @@
 
   let autoRefreshBusy = $state(false);
 
+  // Hold-to-delete: a 2-second press replaces the confirm modal (the hold IS the
+  // confirmation). A plain tap only shows the "hold for 2 s" hint on the button.
+  const deleteHold = createHoldToDelete({
+    onComplete: () => void onDelete(),
+    isEnabled: () => !deleteBusy,
+  });
+
+  $effect(() => () => deleteHold.destroy());
+
   async function handleAutoRefresh() {
     if (autoRefreshBusy) return;
     autoRefreshBusy = true;
@@ -407,13 +419,14 @@
         optionClass="hover:bg-[var(--color-panel-raised)]"
       >
         {#snippet trigger({ popoverTargetId, anchorName, isOpen })}
-          <button
-            type="button"
+          <Button
+            variant="secondary"
+            size="lg"
             popovertarget={popoverTargetId}
             popovertargetaction="toggle"
             style={isOpen ? `anchor-name: ${anchorName}` : undefined}
             disabled={statusBusy}
-            class="tap has-[:popover-open]:ring-accent-soft flex h-10 w-full items-center justify-between gap-2 rounded-lg border border-white/[0.08] bg-[var(--color-panel-line)] px-3.5 text-sm font-medium text-white transition hover:bg-[var(--color-panel-raised)] disabled:cursor-not-allowed disabled:opacity-70 has-[:popover-open]:ring-2"
+            class="w-full justify-between px-3.5 has-[:popover-open]:ring-2 has-[:popover-open]:ring-accent-soft"
             aria-haspopup="listbox"
           >
             <span class="truncate">{statusLabel(media.status)}</span>
@@ -422,7 +435,7 @@
               class="shrink-0 transition group-[:popover-open]:rotate-180 has-[:popover-open]:rotate-180"
               aria-hidden="true"
             />
-          </button>
+          </Button>
         {/snippet}
       </PopoverMenu>
     </div>
@@ -499,19 +512,18 @@
           </div>
 
           <div class="mt-2.5 border-t border-white/[0.08] pt-2">
-            <button
-              type="button"
-              class="flex w-full cursor-pointer items-center justify-between rounded-lg px-2 py-1.5 text-xs font-medium text-slate-300 transition hover:bg-white/[0.06] hover:text-white"
+            <Button
+              variant="ghost"
+              size="sm"
+              class="w-full justify-between px-2"
               onclick={() => (detailedExpanded = !detailedExpanded)}
             >
               <span class="flex items-center gap-1.5">
                 <span>{i18n.t.detail.byCriteria}</span>
                 {#if savedSummary}
-                  <span
-                    class="rounded bg-amber-400/20 px-1.5 py-0.5 text-[10px] font-bold text-amber-300 tabular-nums"
-                  >
+                  <Badge tone="warning" size="xs" class="font-bold tabular-nums">
                     ★ {savedSummary.exact}
-                  </span>
+                  </Badge>
                 {/if}
               </span>
               <ChevronDown
@@ -519,7 +531,7 @@
                 class={`shrink-0 transition-transform duration-200 ${detailedExpanded ? "rotate-180" : ""}`}
                 aria-hidden="true"
               />
-            </button>
+            </Button>
           </div>
 
           {#if detailedExpanded}
@@ -946,18 +958,19 @@
         optionClass="text-xs"
       >
         {#snippet trigger({ popoverTargetId, anchorName, isOpen })}
-          <button
-            type="button"
+          <Button
+            variant="ghost"
+            iconOnly
+            size="sm"
             popovertarget={popoverTargetId}
             popovertargetaction="toggle"
             style={isOpen ? `anchor-name: ${anchorName}` : undefined}
-            class="tap grid size-7 cursor-pointer place-items-center rounded-md text-slate-300 transition hover:bg-white/[0.08] hover:text-white"
             title={i18n.t.detail.actionsMore}
             aria-label={i18n.t.detail.actionsMore}
             aria-haspopup="menu"
           >
             <Ellipsis size={15} aria-hidden="true" />
-          </button>
+          </Button>
         {/snippet}
         {#snippet renderOption({ option })}
           {@const Icon = moreActionIcon(option.value)}
@@ -971,9 +984,10 @@
       </PopoverMenu>
     </div>
     <div class="panel space-y-1.5">
-      <button
-        type="button"
-        class="bg-surface/50 flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium text-[var(--color-ink-dim)] transition hover:bg-[var(--color-panel-raised)] hover:text-white disabled:cursor-not-allowed disabled:opacity-70"
+      <Button
+        variant="ghost"
+        size="sm"
+        class="w-full justify-start px-2.5"
         disabled={refreshBusy}
         onclick={() => void onRefreshMetadata()}
       >
@@ -983,7 +997,7 @@
           aria-hidden="true"
         />
         {i18n.t.detail.updateMetadata}
-      </button>
+      </Button>
       {#if refreshBusy && syncStep}<p class="text-muted px-1 text-[11px]" role="status">
           {syncStep}
         </p>{/if}
@@ -992,9 +1006,10 @@
         </p>{/if}
 
       {#if isOngoing}
-        <button
-          type="button"
-          class="bg-surface/50 flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium text-[var(--color-ink-dim)] transition hover:bg-[var(--color-panel-raised)] hover:text-white disabled:cursor-not-allowed disabled:opacity-70"
+        <Button
+          variant="ghost"
+          size="sm"
+          class="w-full justify-start px-2.5"
           disabled={autoRefreshBusy}
           onclick={() => void handleAutoRefresh()}
         >
@@ -1004,14 +1019,15 @@
             aria-hidden="true"
           />
           {autoRefreshBusy ? i18n.t.views.calendarChecking : i18n.t.detail.autoRefreshCheckNow}
-        </button>
+        </Button>
       {/if}
 
       <!-- Same gap-fill rules as the safe-merge branch of the refresh dialog, but the user
                  names the provider. Fills only empty fields, so it can never cost them data. -->
-      <button
-        type="button"
-        class="bg-surface/50 flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium text-[var(--color-ink-dim)] transition hover:bg-[var(--color-panel-raised)] hover:text-white disabled:cursor-not-allowed disabled:opacity-70"
+      <Button
+        variant="ghost"
+        size="sm"
+        class="w-full justify-start px-2.5"
         disabled={fillMissingBusy || refreshBusy}
         onclick={onFillMissing}
       >
@@ -1021,26 +1037,40 @@
           aria-hidden="true"
         />
         {fillMissingBusy ? i18n.t.detail.fillMissingRunning : i18n.t.detail.fillMissing}
-      </button>
+      </Button>
 
-      <button
-        type="button"
-        class="bg-surface/50 flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium text-[var(--color-ink-dim)] transition hover:bg-[var(--color-panel-raised)] hover:text-white"
+      <Button
+        variant="ghost"
+        size="sm"
+        class="w-full justify-start px-2.5"
         onclick={onStartEdit}
       >
         <Pencil size={14} class="text-[var(--color-info-soft)]" aria-hidden="true" />
         {i18n.t.detailModal.edit}
-      </button>
+      </Button>
 
-      <button
-        type="button"
-        class="tap bg-surface/50 flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium text-rose-300 transition hover:bg-[var(--color-panel-raised)] disabled:cursor-not-allowed disabled:opacity-70"
+      <Button
+        variant="ghost"
+        size="sm"
+        class="w-full justify-start px-2.5 text-danger-text! hover:text-danger-text!"
         disabled={deleteBusy}
-        onclick={() => void onDelete()}
+        holdProgress={deleteHold.progress}
+        {...deleteHold.handlers}
+        onkeydown={(event) => {
+          // Keyboard path: Enter/Space confirms immediately instead of holding.
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            deleteHold.completeNow();
+          }
+        }}
       >
         <Trash2 size={14} class="text-rose-400" aria-hidden="true" />
-        {i18n.t.detailModal.delete}
-      </button>
+        {deleteHold.holding
+          ? i18n.t.holdToDelete.deleting
+          : deleteHold.hintVisible
+            ? i18n.t.holdToDelete.hint
+            : i18n.t.detailModal.delete}
+      </Button>
       {#if deleteError}<p class="text-xs text-rose-300" role="alert">
           {errorMessage(deleteError)}
         </p>{/if}
@@ -1070,9 +1100,11 @@
             </ul>
           {/if}
           {#if splitAltTitles.length > 2}
-            <button
-              type="button"
-              class="text-muted mt-1 inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-md transition hover:bg-white/[0.08] hover:text-white"
+            <Button
+              variant="ghost"
+              iconOnly
+              size="xs"
+              class="mt-1"
               aria-expanded={showAllAltTitles}
               title={showAllAltTitles
                 ? i18n.t.detail.altTitlesLess
@@ -1080,44 +1112,43 @@
               onclick={() => (showAllAltTitles = !showAllAltTitles)}
             >
               <ChevronDown size={14} class={`transition ${showAllAltTitles ? "rotate-180" : ""}`} />
-            </button>
+            </Button>
           {/if}
         </div>
       {/if}
 
       <!-- Genres as matte chips across the full panel width; the long tail hides behind a
-           spoiler that folds in/out with a smooth slide. -->
+           spoiler that folds in/out with a smooth slide. The toggle reuses the exact
+           alt-titles chevron: a quiet icon below the flow, never a boxed chip. -->
       {#if genreChips.length > 0}
         <div class="mt-3 border-b border-white/5 pb-3">
           <h3 class="text-muted text-xs font-medium">{i18n.t.detail.genresLabel}</h3>
           <div class="flex flex-wrap gap-1.5 pt-2">
             {#each genreChips.slice(0, 6) as genre (genre)}
-              <span class="rounded-md bg-white/[0.04] px-2.5 py-1 text-xs text-slate-300"
-                >{genreLabel(genre)}</span
-              >
+              <Badge tone="neutral" size="sm" class="px-2.5 py-1">{genreLabel(genre)}</Badge>
             {/each}
-            {#if genreChips.length > 6}
-              <button
-                type="button"
-                class="grid size-[30px] cursor-pointer place-items-center rounded-md bg-white/[0.04] text-slate-300 transition hover:bg-white/[0.08] hover:text-white"
-                aria-expanded={showAllGenres}
-                title={showAllGenres
-                  ? i18n.t.detail.altTitlesLess
-                  : i18n.t.detail.genresMore(genreChips.length - 6)}
-                onclick={() => (showAllGenres = !showAllGenres)}
-              >
-                <ChevronDown size={14} class={`transition ${showAllGenres ? "rotate-180" : ""}`} />
-              </button>
-            {/if}
           </div>
           {#if showAllGenres && genreChips.length > 6}
             <div transition:slide={{ duration: 200 }} class="mt-1.5 flex flex-wrap gap-1.5">
               {#each genreChips.slice(6) as genre (genre)}
-                <span class="rounded-md bg-white/[0.04] px-2.5 py-1 text-xs text-slate-300"
-                  >{genreLabel(genre)}</span
-                >
+                <Badge tone="neutral" size="sm" class="px-2.5 py-1">{genreLabel(genre)}</Badge>
               {/each}
             </div>
+          {/if}
+          {#if genreChips.length > 6}
+            <Button
+              variant="ghost"
+              iconOnly
+              size="xs"
+              class="mt-1"
+              aria-expanded={showAllGenres}
+              title={showAllGenres
+                ? i18n.t.detail.altTitlesLess
+                : i18n.t.detail.genresMore(genreChips.length - 6)}
+              onclick={() => (showAllGenres = !showAllGenres)}
+            >
+              <ChevronDown size={14} class={`transition ${showAllGenres ? "rotate-180" : ""}`} />
+            </Button>
           {/if}
         </div>
       {/if}

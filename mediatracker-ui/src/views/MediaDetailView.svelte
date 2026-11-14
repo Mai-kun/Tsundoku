@@ -221,7 +221,6 @@
         releaseStatus: media.ReleaseStatus ?? media.releaseStatus ?? null,
         score,
         ratings,
-        description: media.Description ?? media.description ?? null,
         trailerVideoId: media.TrailerVideoId ?? media.trailerVideoId ?? null,
         duration: media.RuntimeMinutes ?? media.runtimeMinutes ?? media.duration ?? null,
         episodes: media.TotalCount ?? media.totalCount ?? media.episodes ?? null,
@@ -2225,8 +2224,8 @@
   async function removeMedia() {
     const target = media;
     if (!target || deleteBusy) return;
-    if (!window.confirm(i18n.t.card.confirmDelete(target.title))) return;
-
+    // The hold-to-delete gesture (2s) in the sidebar is the confirmation itself;
+    // no extra modal on this path anymore.
     deleteBusy = true;
     deleteError = null;
 
@@ -2330,8 +2329,8 @@
       onUpdate();
       showToast({
         title: completing ? i18n.t.detail.markSeasonWatched : i18n.t.detail.resetSeason,
-        description: i18n.t.toast.descUpdated,
         type: completing ? "success" : "warning",
+        description: i18n.t.toast.descUpdated,
       });
     } catch (error) {
       target.currentEpisode = previous;

@@ -81,6 +81,20 @@ public sealed class AppPaths
 
     public string OfflineDirectory => Path.Combine(DataDirectory, "offline");
 
+    /// <summary>
+    /// Persistent external-search cache. Kept next to the main database in data/ but in its own
+    /// file so user backups of tracker.db never carry throwaway cache rows.
+    /// </summary>
+    public string SearchCacheDbPath => Path.Combine(DataDirectory, "search_cache.db");
+
+    /// <summary>
+    /// Disk cache of external search preview images. Strictly separate from
+    /// <see cref="MediaDirectory"/>: only throwaway previews with a short TTL ever land here,
+    /// the permanent library is never touched by the search cache. The directory is created
+    /// lazily on the first cached write, so a cold start does no extra work.
+    /// </summary>
+    public string SearchImageCacheDirectory => Path.Combine(DataDirectory, "search_cache_images");
+
     public string OfflineDatabasePath
     {
         get

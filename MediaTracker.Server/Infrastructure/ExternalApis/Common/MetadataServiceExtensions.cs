@@ -3,6 +3,7 @@ using MediaTracker.Server.Infrastructure.ExternalApis.Offline;
 using MediaTracker.Server.Infrastructure.ExternalApis.Providers.Rawg;
 using MediaTracker.Server.Infrastructure.ExternalApis.Providers.Tmdb;
 using MediaTracker.Server.Infrastructure.ExternalApis.Providers.Translation;
+using MediaTracker.Server.Infrastructure.Persistence;
 
 namespace MediaTracker.Server.Infrastructure.ExternalApis.Common;
 
@@ -30,6 +31,7 @@ public static class MetadataServiceExtensions
         MetadataSourceRegistry.ConfigureHttpClients(services);
 
         services.AddSingleton<OfflineDatabaseManager>();
+        services.AddSingleton<SearchCacheService>();
         services.AddSingleton<IMetadataProviderResolver, MetadataProviderResolver>();
         services.AddSingleton<ISourcePriorityService, SourcePriorityService>();
 

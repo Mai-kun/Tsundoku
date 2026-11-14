@@ -7,6 +7,7 @@
   import { i18n } from "$shared/i18n/index.svelte";
   import type { CreatorRole, MediaItem, StaffMember } from "$shared/types";
   import { BookOpen, Clapperboard, Gamepad2, Search } from "$shared/ui/Icons";
+  import { isUnknownCreatorName } from "$shared/utils/unknownCreator";
   import { uiSettings } from "$shared/utils/uiSettings.svelte";
   import PeopleSizeToggle from "./PeopleSizeToggle.svelte";
   import { openLightbox } from "$shared/ui/lightbox.svelte";
@@ -48,8 +49,10 @@
     const currentId = currentMediaId;
     const currentRole = role;
     let active = true;
-    if (!name) {
-      // No studio/author on the row: the card still renders, but only the staff grid.
+    if (isUnknownCreatorName(name)) {
+      // No studio/author on the row — or a placeholder ("Неизвестный автор") that must never
+      // group unrelated titles into one fake collection: the card still renders, but only the
+      // staff grid.
       loading = false;
       summary = null;
       return;
@@ -162,7 +165,8 @@
             ★ {summary.averageScore.toFixed(1)}
           </div>
         {/if}
-        <button
+        {#if !isUnknownCreatorName(creatorName)}
+          <button
           type="button"
           class="tap text-muted hover:border-accent/40 hover:bg-accent/10 hover:text-accent-soft grid size-8 cursor-pointer place-items-center rounded-lg border border-white/10 bg-white/[0.04] transition"
           onclick={() => onSearch(creatorName)}
@@ -171,6 +175,7 @@
         >
           <Search size={15} />
         </button>
+        {/if}
       </div>
     </div>
   {/if}

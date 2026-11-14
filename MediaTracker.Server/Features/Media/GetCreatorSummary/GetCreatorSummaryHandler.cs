@@ -21,12 +21,35 @@ public interface IGetCreatorSummaryHandler
 
 public sealed class GetCreatorSummaryHandler(AppDbContext db) : IGetCreatorSummaryHandler
 {
+    /// <summary>
+    /// Imported rows carry placeholder names when a source answered no author ("Неизвестный
+    /// автор", "unknown", "n/a", "-"). Matching such a name would group every unlabeled book or
+    /// manga in the library into one fake "author's works" collection, so a placeholder answers
+    /// an empty summary instead of a query.
+    /// </summary>
+    internal static bool IsPlaceholderName(string? name)
+    {
+        var normalized = name?.Trim().ToLowerInvariant();
+        if (string.IsNullOrEmpty(normalized)) return true;
+
+        return normalized is "-" or "--" or "—"
+            || normalized.Equals("n/a", StringComparison.Ordinal)
+            || normalized.Equals("unknown", StringComparison.Ordinal)
+            || normalized.Equals("unknown author", StringComparison.Ordinal)
+            || normalized.Equals("неизвестный автор", StringComparison.Ordinal);
+    }
+
     public async Task<CreatorSummaryDto> HandleAsync(
         string name,
         string role,
         Guid? excludeId,
         CancellationToken ct)
     {
+        if (IsPlaceholderName(name))
+        {
+            return new CreatorSummaryDto(name, role, 0, 0, null, []);
+        }
+
         var conn = db.Connection;
         if (conn.State != global::System.Data.ConnectionState.Open) await conn.OpenAsync(ct);
 

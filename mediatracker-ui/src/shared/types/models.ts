@@ -571,3 +571,12 @@ export interface OfflineDatabasesSummaryDto {
   offlineDirectoryPath: string;
   pendingDumps: string[];
 }
+
+/** Stats of the persistent external-search cache: SQLite DB + cached preview images. */
+export interface SearchCacheInfoDto {
+  entryCount: number;
+  fileSizeBytes: number;
+  imageFileCount: number;
+  imageFileSizeBytes: number;
+  databasePath: string;
+}

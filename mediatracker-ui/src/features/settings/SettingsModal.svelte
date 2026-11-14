@@ -64,6 +64,8 @@
     getOfflineDatabases,
     reindexOfflineDatabases,
     reindexFranchises,
+    getSearchCacheInfo,
+    clearSearchCache,
     detectMangalibBrowserSession,
     detectSimklBrowserSession,
     getSourceKeyStatus,
@@ -88,6 +90,7 @@
     SourceInfo,
     StorageSettings,
     OfflineDatabasesSummaryDto,
+    SearchCacheInfoDto,
   } from "$shared/types";
   import type { UpdateCheckResult } from "$shared/api/api";
 
@@ -217,6 +220,7 @@
     }
     if (visible && activeTab === "storage") {
       loadStorage();
+      loadSearchCacheInfo();
     }
     if (visible && activeTab === "desktop") {
       loadAppSettings();
@@ -659,6 +663,40 @@
       showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(e), type: "error" });
     } finally {
       franchiseRescanning = false;
+    }
+  }
+
+  let searchCacheInfo = $state<SearchCacheInfoDto | null>(null);
+  let searchCacheClearing = $state(false);
+
+  async function loadSearchCacheInfo() {
+    try {
+      searchCacheInfo = await getSearchCacheInfo();
+    } catch (e) {
+      console.error("Failed to load search cache info:", e);
+    }
+  }
+
+  async function handleClearSearchCache() {
+    if (searchCacheClearing) return;
+    if (
+      !(await confirmAction({
+        key: "clear-search-cache",
+        title: i18n.t.settingsModal.storage.searchCacheConfirm,
+        confirmLabel: i18n.t.settingsModal.storage.searchCacheClearButton,
+        danger: true,
+      }))
+    )
+      return;
+    searchCacheClearing = true;
+    try {
+      await clearSearchCache();
+      showToast({ title: i18n.t.settingsModal.storage.searchCacheClearedToast, description: i18n.t.toast.descSaved });
+      await loadSearchCacheInfo();
+    } catch (e) {
+      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(e), type: "error" });
+    } finally {
+      searchCacheClearing = false;
     }
   }
 
@@ -2606,6 +2644,45 @@
               <GitBranch size={15} />
             {/if}
             {i18n.t.settingsModal.storage.franchiseRescanButton}
+          </button>
+        </div>
+
+        <!-- Persistent search cache: repeat searches answer locally without spending provider rate limits -->
+        <div
+          class="rounded-2xl border border-white/10 bg-white/[0.02] p-5 transition hover:border-white/[0.14]"
+        >
+          <div class="flex items-start gap-3">
+            <Search size={18} class="mt-0.5 shrink-0 text-indigo-400" />
+            <div class="min-w-0 flex-1">
+              <h4 class="text-ink text-sm font-bold">
+                {i18n.t.settingsModal.storage.searchCacheTitle}
+              </h4>
+              <p class="text-muted mt-0.5 text-xs leading-relaxed">
+                {i18n.t.settingsModal.storage.searchCacheDescription}
+              </p>
+              {#if searchCacheInfo}
+                <p class="text-muted mt-3 inline-flex items-center gap-1.5 rounded-lg border border-white/5 bg-black/20 px-2.5 py-1.5 text-xs">
+                  {i18n.t.settingsModal.storage.searchCacheStats(
+                    searchCacheInfo.entryCount,
+                    searchCacheInfo.imageFileCount,
+                    formatBytes(searchCacheInfo.fileSizeBytes + searchCacheInfo.imageFileSizeBytes),
+                  )}
+                </p>
+              {/if}
+            </div>
+          </div>
+          <button
+            type="button"
+            disabled={searchCacheClearing}
+            class="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-lg bg-rose-600/90 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-rose-500 disabled:cursor-not-allowed disabled:opacity-50"
+            onclick={handleClearSearchCache}
+          >
+            {#if searchCacheClearing}
+              <LoaderCircle size={15} class="animate-spin" />
+            {:else}
+              <Trash2 size={15} />
+            {/if}
+            {i18n.t.settingsModal.storage.searchCacheClearButton}
           </button>
         </div>
       </section>

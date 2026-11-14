@@ -24,27 +24,24 @@ export function isValidCoverUrl(value: string): boolean {
 }
 
 /**
- * Hosts whose image CDNs block hotlinking (DDoS-Guard answers a plain browser <img> with 403;
- * MangaDex's uploads CDN answers it with a bot-challenge redirect). The server's
- * /api/external/image-proxy fetches these with the headers each guard demands, so external
- * previews route through it; every other host keeps loading straight from its CDN.
+ * Every external cover URL routes through the server's /api/external/image-proxy instead of
+ * loading straight from its CDN: the proxy fetches with the headers each guard demands
+ * (DDoS-Guard answers a plain browser <img> with 403; MangaDex's uploads CDN answers it with a
+ * bot-challenge redirect), caches the bytes on disk and serves repeat previews locally — zero
+ * requests to the CDN for a cached URL within the server-side TTL. `forceRefresh` skips the
+ * disk cache for an explicit re-download.
  */
-const HOTLINK_BLOCKED_HOST_SUFFIXES = ["imglib.info", "cdnlibs.org", "mangalib.me", "mangadex.org"];
-
-/**
- * Rewrites an external cover URL to the server-side image proxy when its host needs it. Local
- * asset paths and regular CDNs are returned untouched, and a malformed URL falls through as-is.
- */
-export function proxiedExternalCoverUrl(coverUrl: string): string {
+export function proxiedExternalCoverUrl(coverUrl: string, forceRefresh = false): string {
   const trimmed = coverUrl.trim();
   if (!/^https?:\/\//i.test(trimmed)) return trimmed;
   try {
-    const host = new URL(trimmed).host;
-    if (HOTLINK_BLOCKED_HOST_SUFFIXES.some((suffix) => host.endsWith(suffix))) {
-      return `/api/external/image-proxy?url=${encodeURIComponent(trimmed)}`;
-    }
+    // Parseable URL: proxy it. Local asset paths and non-http schemes were already filtered out.
+    // The server validates the host again, so a malformed edge case just fails the <img>.
+    return `/api/external/image-proxy?url=${encodeURIComponent(trimmed)}${
+      forceRefresh ? "&forceRefresh=true" : ""
+    }`;
   } catch {
     // Not a parseable URL: leave it alone and let the <img> handle the failure.
+    return trimmed;
   }
-  return trimmed;
 }

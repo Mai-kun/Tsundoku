@@ -38,6 +38,7 @@ import type {
   StorageSettings,
   StorageRequest,
   OfflineDatabasesSummaryDto,
+  SearchCacheInfoDto,
   ApiRateLimitStatus,
 } from "$shared/types";
 
@@ -945,6 +946,14 @@ export function getOfflineDatabases(): Promise<OfflineDatabasesSummaryDto> {
 
 export function reindexOfflineDatabases(): Promise<void> {
   return requestVoid("/api/settings/offline-databases/reindex", { method: "POST" });
+}
+
+export function getSearchCacheInfo(): Promise<SearchCacheInfoDto> {
+  return requestJson<SearchCacheInfoDto>("/api/settings/search-cache");
+}
+
+export function clearSearchCache(): Promise<void> {
+  return requestVoid("/api/settings/search-cache", { method: "DELETE" });
 }
 
 export interface FranchiseReindexResult {

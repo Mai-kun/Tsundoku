@@ -3113,6 +3113,26 @@ export const translations = {
         ru: "Франшизы успешно сопоставлены!",
         en: "Franchises matched successfully!",
       },
+      searchCacheTitle: { ru: "Кэш поисковых запросов", en: "Search Query Cache" },
+      searchCacheDescription: {
+        ru: "Успешные ответы внешних источников поиска и картинки-превью сохраняются на 3 дня (72 часа) в отдельном кэше (search_cache.db и search_cache_images/), чтобы повторные запросы не тратили лимиты API и не ловили капчи. Основная база данных и медиатека не затрагиваются.",
+        en: "Successful answers from external search providers and their preview images are stored for 3 days (72 hours) in a separate cache (search_cache.db and search_cache_images/), so repeat queries don't burn API rate limits or hit captchas. The main database and the media library are untouched.",
+      },
+      searchCacheStats: {
+        ru: (entries: number, images: number, size: string) =>
+          `Записей: ${entries} · Картинок: ${images} · На диске: ${size}`,
+        en: (entries: number, images: number, size: string) =>
+          `Entries: ${entries} · Images: ${images} · On disk: ${size}`,
+      },
+      searchCacheClearButton: { ru: "Очистить кэш поиска", en: "Clear search cache" },
+      searchCacheConfirm: {
+        ru: "Очистить кэш поисковых запросов? Все сохранённые ответы будут удалены, а следующие поиски снова обратятся к внешним источникам.",
+        en: "Clear the search query cache? All stored answers will be removed and the next searches will go back to the external providers.",
+      },
+      searchCacheClearedToast: {
+        ru: "Кэш поисковых запросов очищен",
+        en: "Search query cache cleared",
+      },
     },
     reading: {
       title: { ru: "Темп чтения", en: "Reading Speed" },

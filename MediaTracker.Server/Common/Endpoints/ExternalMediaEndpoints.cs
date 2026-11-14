@@ -24,9 +24,11 @@ public static class ExternalMediaEndpoints
                 string? query,
                 string? source,
                 bool? byCreator,
+                bool? refresh,
                 [FromServices] ISearchExternalHandler handler,
                 CancellationToken ct) =>
-            handler.HandleAsync(new SearchExternalQuery(type, query, source, byCreator == true), ct).ToOk())
+            handler.HandleAsync(
+                new SearchExternalQuery(type, query, source, byCreator == true, refresh == true), ct).ToOk())
             .WithTags("Внешний поиск / External")
             .WithSummary("Поиск по внешним базам (с поддержкой выбора источника и студии/автора)");
 

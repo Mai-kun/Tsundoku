@@ -4,6 +4,7 @@ using MediaTracker.Server.Features.Media.Import;
 using MediaTracker.Server.Infrastructure.ExternalApis;
 using MediaTracker.Server.Infrastructure.ExternalApis.Abstractions;
 using MediaTracker.Server.Infrastructure.ExternalApis.Common;
+using MediaTracker.Server.Infrastructure.Persistence;
 
 namespace MediaTracker.Server.Features.External.SearchExternal;
 
@@ -15,7 +16,16 @@ namespace MediaTracker.Server.Features.External.SearchExternal;
 /// The query names a studio/author, not a title: providers ask their upstream creator index and
 /// results are filtered to works the creator actually made.
 /// </param>
-public sealed record SearchExternalQuery(string? Type, string? Query, string? Source = null, bool ByCreator = false);
+/// <param name="BypassCache">
+/// Skips the persistent search-cache lookup and answers straight from the providers, refreshing
+/// the cached entry afterwards — the user's explicit "refresh" click.
+/// </param>
+public sealed record SearchExternalQuery(
+    string? Type,
+    string? Query,
+    string? Source = null,
+    bool ByCreator = false,
+    bool BypassCache = false);
 
 public interface ISearchExternalHandler
 {
@@ -24,9 +34,14 @@ public interface ISearchExternalHandler
 
 /// <summary>
 /// Fans the search out across the sources of one media type. The aggregator applies the per-source
-/// deadline and the cascade order, so this slice only owns the input contract.
+/// deadline and the cascade order, so this slice only owns the input contract. Successful
+/// non-empty answers are persisted in <see cref="SearchCacheService"/> (three days TTL) so a
+/// repeat search answers from <c>search_cache.db</c> instead of spending the providers' rate
+/// limits.
 /// </summary>
-public sealed class SearchExternalHandler(MetadataAggregatorService aggregator) : ISearchExternalHandler
+public sealed class SearchExternalHandler(
+    MetadataAggregatorService aggregator,
+    SearchCacheService? searchCache = null) : ISearchExternalHandler
 {
     public async Task<Result<IReadOnlyList<ExternalMediaDto>>> HandleAsync(
         SearchExternalQuery query,
@@ -64,6 +79,35 @@ public sealed class SearchExternalHandler(MetadataAggregatorService aggregator) 
             return Result<IReadOnlyList<ExternalMediaDto>>.Failure(Error.Validation(errors));
         }
 
+        var cacheKey = SearchCacheService.BuildKey(query.Source, normalizedType, normalizedQuery, query.ByCreator);
+
+        if (!query.BypassCache && searchCache is not null)
+        {
+            var cached = await searchCache.TryGetAsync(cacheKey, ct);
+            if (cached is { Count: > 0 })
+            {
+                return Result<IReadOnlyList<ExternalMediaDto>>.Success(cached);
+            }
+        }
+
+        var result = await SearchUncachedAsync(query, normalizedType, normalizedQuery, ct);
+
+        // Only successful non-empty answers are cached: a dry search or a provider failure keeps
+        // going upstream on the next request, and an explicit bypass refreshes the entry.
+        if (result.IsSuccess && result.Value is { Count: > 0 } && searchCache is not null)
+        {
+            await searchCache.SetAsync(cacheKey, result.Value, ct);
+        }
+
+        return result;
+    }
+
+    private async Task<Result<IReadOnlyList<ExternalMediaDto>>> SearchUncachedAsync(
+        SearchExternalQuery query,
+        string normalizedType,
+        string normalizedQuery,
+        CancellationToken ct)
+    {
         // ISBN search handler: if query is an ISBN and general mode ("All" / null) or Book category is selected,
         // execute search in OpenLibrary AND LiveLib concurrently and merge results under Book.
         if (IsIsbnQuery(normalizedQuery, out var cleanIsbn) &&

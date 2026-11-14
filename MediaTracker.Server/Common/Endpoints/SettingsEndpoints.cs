@@ -541,6 +541,25 @@ public static class SettingsEndpoints
             .WithTags("Настройки / Settings")
             .WithSummary("Сохранить статус офлайн-режима");
 
+        // Persistent external-search cache (data/search_cache.db): read-only stats for the Storage
+        // panel plus a manual reset. The cache lives in its own file, so clearing it never touches
+        // tracker.db or the user's backups.
+        group.MapGet("/search-cache", async (
+            [FromServices] SearchCacheService searchCache,
+            CancellationToken ct) => Results.Ok(await searchCache.GetInfoAsync(ct)))
+            .WithTags("Настройки / Settings")
+            .WithSummary("Статистика кэша поисковых запросов");
+
+        group.MapDelete("/search-cache", async (
+            [FromServices] SearchCacheService searchCache,
+            CancellationToken ct) =>
+        {
+            await searchCache.ClearAsync(ct);
+            return Results.NoContent();
+        })
+            .WithTags("Настройки / Settings")
+            .WithSummary("Очистить кэш поисковых запросов");
+
         return app;
     }
 

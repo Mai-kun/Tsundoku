@@ -34,6 +34,7 @@ using MediaTracker.Server.Infrastructure.ExternalApis;
 using MediaTracker.Server.Infrastructure.ExternalApis.Abstractions;
 using MediaTracker.Server.Infrastructure.ExternalApis.Common;
 using MediaTracker.Server.Infrastructure.ExternalApis.Offline;
+using MediaTracker.Server.Infrastructure.Persistence;
 using MediaTracker.Server.Infrastructure.ExternalApis.Providers.AniList;
 using MediaTracker.Server.Infrastructure.ExternalApis.Providers.Imdb;
 using MediaTracker.Server.Infrastructure.ExternalApis.Providers.Kinopoisk;
@@ -159,6 +160,7 @@ namespace MediaTracker.Server.Common.Json;
 [JsonSerializable(typeof(IReadOnlyList<OfflineDatabaseStatusDto>))]
 [JsonSerializable(typeof(List<OfflineDatabaseStatusDto>))]
 [JsonSerializable(typeof(OfflineDatabasesSummaryDto))]
+[JsonSerializable(typeof(SearchCacheInfoDto))]
 [JsonSerializable(typeof(TelemetryDto))]
 // --- Privacy-first library export (import-compatible with CustomImportParser) ---
 [JsonSerializable(typeof(LibraryExportItemDto))]

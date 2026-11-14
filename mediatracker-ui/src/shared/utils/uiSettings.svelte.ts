@@ -95,8 +95,7 @@ const APP_ICON_MAP: Record<string, { icon: string; favicon: string }> = {
   alt: { icon: "/icons/alt.png", favicon: "/icons/alt.png" },
 };
 
-/** Color themes: each id maps to a `[data-theme="..."]` block in tokens.css.
-    "obsidian" is the default graphite palette (defined on :root too). */
+/** Color themes: each id maps to a `[data-theme="..."]` block in tokens.css. */
 export type ThemeId = "obsidian";
 const THEMES: readonly ThemeId[] = ["obsidian"];
 
@@ -106,8 +105,6 @@ function readTheme(): ThemeId {
   return THEMES.includes(raw as ThemeId) ? (raw as ThemeId) : "obsidian";
 }
 
-/** Applies the theme by mirroring it onto `html[data-theme="..."]`; the CSS side
-    lives in tokens.css, which redefines the bg/border/text/accent primitives. */
 function applyTheme(theme: ThemeId): void {
   if (typeof document === "undefined") return;
   document.documentElement.dataset.theme = theme;
@@ -140,7 +137,7 @@ class UiSettingsService {
   voiceOptionMemory = $state<VoiceOptionMemoryMap>(readVoiceOptionMemory());
   /** Selected app icon variant ("default" | "alt"), persisted and applied to the favicon. */
   appIcon = $state<string>(this.read("app_icon", "default"));
-  /** Color theme id ("obsidian" for now); mirrored to <html data-theme="...">. */
+  /** Color theme id, mirrored to html[data-theme="..."]. */
   theme = $state<ThemeId>(readTheme());
   isLoaded = $state<boolean>(false);
 

@@ -31,9 +31,8 @@
   let expandedSubmenu = $state<string | null>(null);
   let openSubmenuToLeft = $state(false);
 
-  // Hold-to-delete items: one shared controller (only one item can be pressed at a time).
-  // The menu must NOT close while the hold runs — it closes only when the hold completes
-  // (or on an outside click / Esc / scroll, which cancels the hold via the cleanup below).
+  // Hold-to-delete items: one shared controller. The menu stays open while the hold
+  // runs; it closes only when the hold completes (or on an outside click / Esc).
   let heldItem: MenuItem | null = null;
   let heldItemId = $state<string | null>(null);
   let hintItemId = $state<string | null>(null);
@@ -120,7 +119,6 @@
 
   $effect(() => {
     if ($contextMenuStore.isOpen) {
-      // A fresh menu resets any half-finished hold from the previous one.
       menuHold.destroy();
       heldItem = null;
       heldItemId = null;
@@ -246,7 +244,6 @@
             onpointerleave={() => menuHold.release()}
             onpointercancel={() => menuHold.release()}
             onkeydown={(event) => {
-              // Keyboard path: Enter/Space confirms immediately instead of holding.
               if (event.key === "Enter" || event.key === " ") {
                 event.preventDefault();
                 heldItem = item;
@@ -257,7 +254,6 @@
               expandedSubmenu = null;
             }}
           >
-            <!-- Hold-to-confirm fill: transform-only, stays on the compositor. -->
             <span
               aria-hidden="true"
               class="pointer-events-none absolute inset-0 origin-left -z-10 bg-danger/30"

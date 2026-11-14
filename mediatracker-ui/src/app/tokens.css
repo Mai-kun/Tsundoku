@@ -1,10 +1,6 @@
-/* ============================================================================
-   Semantic primitives (Radix/Catppuccin-style hierarchy).
-   Single source of truth for surface/border/text/accent colors. app.css maps
-   them into `--color-*` @theme entries, so Tailwind utilities (bg-surface,
-   text-ink, border-subtle, ...) resolve through these variables and a future
-   theme only redefines this block via `html[data-theme="..."]`.
-   ========================================================================== */
+/* Semantic primitives — the single source of truth for surface/border/text/accent
+   colors. app.css maps them into --color-* @theme entries; a future theme only
+   redefines this block via html[data-theme="..."]. */
 :root,
 [data-theme="obsidian"] {
   /* --- Surfaces (Steam Deck Dark base) --- */

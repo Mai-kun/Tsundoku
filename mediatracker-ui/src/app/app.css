@@ -51,13 +51,11 @@
    actually uses, so tokens that are only read via var() (e.g. --color-modal in
    an inline style) would silently vanish from :root. */
 @theme static {
-  /* Yamtrack Obsidian: neutral graphite, no blue cast.
-       MUST be @theme, not a bare :root block — Tailwind v4 only turns --color-*
-       entries into utilities (bg-surface, text-ink, border-border) when declared
-       in @theme. In a plain :root rule the var() resolves but no class is emitted.
-       Values below are var() references into the semantic primitives defined in
-       tokens.css (:root / [data-theme="obsidian"]) — that single block owns the
-       actual palette, so a future theme overrides it via html[data-theme="..."]. */
+  /* MUST be @theme, not a bare :root block — Tailwind v4 only turns --color-*
+       entries into utilities (bg-surface, text-ink, ...) when declared in @theme.
+       Values reference the semantic primitives owned by tokens.css
+       (:root / [data-theme="obsidian"]), so a future theme overrides the palette
+       there without touching this block. */
   --color-canvas: var(--bg-canvas);
   /* Chrome (sidebar/header) sits one step above the canvas so the two blocks read
        as separate surfaces instead of one dark mass. */

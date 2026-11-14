@@ -307,8 +307,7 @@
 
   let autoRefreshBusy = $state(false);
 
-  // Hold-to-delete: a 1-second press replaces the confirm modal (the hold IS the
-  // confirmation). A plain tap only shows the "hold for 1 s" hint on the button.
+  // Hold-to-delete: the 1-second hold is the confirmation, no modal.
   const deleteHold = createHoldToDelete({
     onComplete: () => void onDelete(),
     isEnabled: () => !deleteBusy,
@@ -1057,7 +1056,6 @@
         holdProgress={deleteHold.progress}
         {...deleteHold.handlers}
         onkeydown={(event) => {
-          // Keyboard path: Enter/Space confirms immediately instead of holding.
           if (event.key === "Enter" || event.key === " ") {
             event.preventDefault();
             deleteHold.completeNow();

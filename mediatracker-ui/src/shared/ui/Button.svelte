@@ -37,7 +37,7 @@
     ...rest
   }: Props = $props();
 
-  // All colors come strictly from tokens.css primitives (mapped in app.css @theme).
+  // Colors come strictly from tokens.css primitives (mapped in app.css @theme).
   const variantClasses: Record<Variant, string> = {
     primary: "bg-accent text-white hover:bg-accent-hover",
     secondary: "border border-subtle bg-elevated text-ink hover:bg-hover",
@@ -62,9 +62,7 @@
   };
 
   // Bare `transition` (not transition-colors) so active:scale actually animates;
-  // the animation audit requires an animating class next to hover: variants.
-  // relative + z-0 (stacking context) + overflow-hidden clip the hold-to-confirm
-  // fill to the radius while keeping it under the label (fill is -z-10).
+  // relative + z-0 + overflow-hidden clip the holdProgress fill (-z-10) under the label.
   const baseClasses =
     "relative z-0 inline-flex shrink-0 cursor-pointer select-none items-center justify-center overflow-hidden whitespace-nowrap font-medium transition duration-150 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50";
 </script>
@@ -77,7 +75,6 @@
   aria-busy={loading || undefined}
   {...rest}
 >
-  <!-- Hold-to-confirm fill: transform-only so it stays on the compositor at any Hz. -->
   {#if holdProgress !== null}
     <span
       aria-hidden="true"

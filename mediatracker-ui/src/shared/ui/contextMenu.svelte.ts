@@ -10,8 +10,7 @@ export interface MenuItem {
   action?: () => void;
   children?: MenuItem[];
   mediaId?: string;
-  /** Requires a 1-second hold instead of a click; the menu stays open until the
-      hold completes (the hold is the confirmation). */
+  /** Requires a 1-second hold instead of a click; the menu stays open until it completes. */
   holdToDelete?: boolean;
 }
 

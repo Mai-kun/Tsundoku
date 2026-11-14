@@ -1,17 +1,8 @@
 /**
- * Hold-to-confirm controller: a requestAnimationFrame-driven 1-second press with a
- * horizontal fill that lives entirely on the compositor (the caller animates
- * `transform: scaleX(progress)`, this class only computes the value every frame).
- *
- * Behavior contract:
- *  - `press()` starts the countdown; `progress` rises 0 → 1 over `durationMs`.
- *  - Releasing early (`release()` on pointerup/leave/cancel) rolls the fill back to 0
- *    smoothly and never fires `onComplete`. A tap shorter than `shortPressMs` instead
- *    shows the "hold for 2 s" hint for `hintMs` so the gesture is discoverable.
- *  - Holding the full duration fires `onComplete` exactly once.
- *
- * All timers/rAF handles are cleaned up by `destroy()`; call it from `$effect`
- * teardown so closing a menu or unmounting a page never leaks a frame loop.
+ * Hold-to-confirm controller: computes `progress` (0..1) every rAF frame while the
+ * pointer is held; the caller animates `transform: scaleX(progress)`. An early
+ * release rolls the fill back and never completes; a tap shorter than
+ * `shortPressMs` shows the hint instead. `destroy()` clears rAF/timers.
  */
 
 export interface HoldToDeleteOptions {
@@ -39,9 +30,7 @@ const DEFAULT_ROLLBACK_MS = 220;
 export class HoldToDeleteController {
   /** Fill ratio 0..1; bind to `transform: scaleX(progress)` with `origin-left`. */
   progress = $state(0);
-  /** True while the pointer is down and the countdown is running. */
   holding = $state(false);
-  /** True during the hint window after a too-short tap. */
   hintVisible = $state(false);
 
   #options: HoldToDeleteOptions;
@@ -70,7 +59,6 @@ export class HoldToDeleteController {
     this.holding = false;
     const heldMs = performance.now() - this.#startedAt;
     if (heldMs < (this.#options.shortPressMs ?? DEFAULT_SHORT_PRESS_MS)) {
-      // A plain click: roll back instantly and teach the gesture instead.
       this.#startRollback();
       this.#showHint();
       this.#options.onShortPress?.();
@@ -86,7 +74,6 @@ export class HoldToDeleteController {
     this.#options.onComplete();
   }
 
-  /** Pointer-handler bundle for spreading onto the triggering element. */
   readonly handlers = {
     onpointerdown: () => this.press(),
     onpointerup: () => this.release(),

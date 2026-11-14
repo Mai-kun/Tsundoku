@@ -12,9 +12,9 @@
   // The two memory checkboxes are mutually exclusive: ticking one unticks the other,
   // and re-ticking the active one clears both.
   let remember = $state<ConfirmRemember>("none");
-  // Focus lands on the dialog body (not the Cancel button): a programmatic focus on a
-  // button would paint the accent ring right at open time for mouse users. The body
-  // takes focus silently; Tab then reaches Cancel with a proper :focus-visible ring.
+  // Focus lands on the dialog body, not the Cancel button: a programmatic focus on a
+  // button paints the accent ring at open time for mouse users, while Tab still gives
+  // Cancel a proper :focus-visible outline.
   let dialogBody = $state<HTMLDivElement | null>(null);
 
   $effect(() => {
@@ -56,7 +56,6 @@
       aria-describedby="confirm-dialog-description"
       tabindex="-1"
     >
-      <!-- Status icon + heading: the visual anchor of the question. -->
       <div class="flex items-start gap-3.5">
         <div
           class={`grid size-10 shrink-0 place-items-center rounded-xl border ${
@@ -82,8 +81,7 @@
         </div>
       </div>
 
-      <!-- Memory choices: strictly one at a time, none pre-ticked. Custom checkboxes
-           keep the rows compact; the soft fill groups them away from the question. -->
+      <!-- Memory choices: strictly one at a time, none pre-ticked. -->
       <div class="bg-hover/60 mt-4 space-y-1 rounded-lg p-1.5">
         <label
           class="text-secondary hover:bg-active flex cursor-pointer items-center gap-2.5 rounded-md px-2 py-1.5 text-xs transition-colors duration-150 hover:text-white"

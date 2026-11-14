@@ -2224,8 +2224,7 @@
   async function removeMedia() {
     const target = media;
     if (!target || deleteBusy) return;
-    // The hold-to-delete gesture (1s) in the sidebar is the confirmation itself;
-    // no extra modal on this path anymore.
+    // The 1-second hold in the sidebar is the confirmation; no modal on this path.
     deleteBusy = true;
     deleteError = null;
 

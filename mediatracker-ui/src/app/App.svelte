@@ -143,8 +143,7 @@
     return () => window.removeEventListener("popstate", syncFromHistory);
   });
 
-  // Theme switching: uiSettings.theme persists the choice and this mirrors it onto
-  // <html data-theme="...">; tokens.css redefines its primitives per data-theme block.
+  // Mirror the persisted theme onto <html data-theme>; tokens.css owns the palette.
   $effect(() => {
     document.documentElement.dataset.theme = uiSettings.theme;
   });

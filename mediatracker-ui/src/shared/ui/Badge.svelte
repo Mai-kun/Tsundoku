@@ -20,8 +20,8 @@
     ...rest
   }: Props = $props();
 
-  // Unified chip geometry + token-only colors. Brand/source palettes
-  // (--color-badge-*, --color-import-*) stay applied from outside via style/class.
+  // Brand/source palettes (--color-badge-*, --color-import-*) stay applied from
+  // outside via style/class; the component owns geometry and token tones only.
   const toneClasses: Record<Tone, string> = {
     neutral: "border-subtle bg-hover text-secondary",
     accent: "border-accent-bright/30 bg-accent-bright/15 text-accent-soft",

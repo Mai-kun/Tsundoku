@@ -8,6 +8,7 @@
   import { openLightbox } from "$shared/ui/lightbox.svelte";
   import { openContextMenu } from "$shared/ui/contextMenu.svelte";
   import { showToast } from "$shared/ui/toast.svelte";
+  import { confirmAction } from "$shared/ui/confirmDialog.svelte";
   import {
     deleteGalleryImage,
     errorMessage,
@@ -80,7 +81,15 @@
 
   async function remove(entry: MediaGalleryItem) {
     if (deletingId) return;
-    if (!window.confirm(t.galleryDeleteConfirm)) return;
+    if (
+      !(await confirmAction({
+        key: "delete-gallery-photo",
+        title: t.galleryDeleteConfirm,
+        confirmLabel: i18n.t.common.delete,
+        danger: true,
+      }))
+    )
+      return;
     deletingId = entry.id;
     try {
       await deleteGalleryImage(mediaId, entry.id);

@@ -112,12 +112,23 @@
     const dialog = dialogElement;
     if (!dialog) return;
     if (isOpen && !dialog.open) {
+      if (closeTimer !== null) {
+        clearTimeout(closeTimer);
+        closeTimer = null;
+      }
+      delete dialog.dataset.closing;
       dialog.showModal();
       editingInitialized = false;
       submitError = null;
       validationError = "";
     } else if (!isOpen && dialog.open) {
-      dialog.close();
+      // data-closing runs the fade-out keyframes; the native close waits for them.
+      dialog.dataset.closing = "";
+      closeTimer = setTimeout(() => {
+        closeTimer = null;
+        delete dialog.dataset.closing;
+        dialog.close();
+      }, CLOSE_ANIMATION_MS);
     }
   });
 
@@ -201,6 +212,10 @@
   // ---------------------------------------------------------------------------
   let dialogElement = $state<HTMLDialogElement | null>(null);
   let isDesktop = $state(false);
+
+  /** Matches the 150ms close fade; closing the dialog early would skip it. */
+  const CLOSE_ANIMATION_MS = 160;
+  let closeTimer: ReturnType<typeof setTimeout> | null = null;
 
   function trackDesktop(media: MediaQueryList | MediaQueryListEvent) {
     isDesktop = media.matches;
@@ -810,3 +825,60 @@
     </div>
   {/if}
 </dialog>
+
+<style>
+  /* The spatial workspace fades as one surface: backdrop blur, thread layer and the
+     floating windows all inherit the dialog's opacity, so nothing flashes in a frame.
+     Opacity only — the window layout must never be transformed mid-drag. */
+  dialog[open] {
+    animation: workspace-in 180ms ease-out;
+  }
+
+  dialog[open]::backdrop {
+    animation: workspace-backdrop-in 160ms ease-out;
+  }
+
+  dialog:global([data-closing]) {
+    animation: workspace-out 150ms ease-in forwards;
+  }
+
+  dialog:global([data-closing])::backdrop {
+    animation: workspace-backdrop-out 150ms ease-in forwards;
+  }
+
+  @keyframes workspace-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes workspace-out {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0;
+    }
+  }
+
+  @keyframes workspace-backdrop-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes workspace-backdrop-out {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0;
+    }
+  }
+</style>

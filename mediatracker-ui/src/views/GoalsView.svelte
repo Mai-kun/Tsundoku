@@ -3,6 +3,7 @@
   import { Trophy } from "$shared/ui/Icons";
   import { deleteGoal, getGoals } from "$shared/api/api";
   import { showToast } from "$shared/ui/toast.svelte";
+  import { confirmAction } from "$shared/ui/confirmDialog.svelte";
   import { i18n } from "$shared/i18n/index.svelte";
   import { markStart, markEnd } from "$shared/utils/perfMarks";
   import GoalCard from "$widgets/goals/GoalCard.svelte";
@@ -77,7 +78,15 @@
   const RING_LENGTH = 2 * Math.PI * 34;
 
   async function removeGoal(goal: GoalDto) {
-    if (!window.confirm(i18n.t.goals.deleteConfirm(goal.title))) return;
+    if (
+      !(await confirmAction({
+        key: "delete-goal",
+        title: i18n.t.goals.deleteConfirm(goal.title),
+        confirmLabel: i18n.t.common.delete,
+        danger: true,
+      }))
+    )
+      return;
     try {
       await deleteGoal(goal.id);
       goals = goals.filter((g) => g.id !== goal.id);

@@ -28,6 +28,17 @@ export const translations = {
     comingSoon: { ru: "Скоро", en: "Coming soon" },
     details: { ru: "Подробнее", en: "Details" },
   },
+  confirmDialog: {
+    confirm: { ru: "Подтвердить", en: "Confirm" },
+    cancel: { ru: "Отмена", en: "Cancel" },
+    rememberForever: { ru: "Запомнить выбор", en: "Remember my choice" },
+    rememberHour: { ru: "Запомнить выбор на 1 час", en: "Remember for 1 hour" },
+    irreversible: { ru: "Это действие необратимо.", en: "This action cannot be undone." },
+  },
+  holdToDelete: {
+    deleting: { ru: "Удаление…", en: "Deleting…" },
+    hint: { ru: "Удерживайте 2 сек", en: "Hold for 2 sec" },
+  },
   toast: {
     expand: { ru: "Развернуть", en: "Expand" },
     collapse: { ru: "Свернуть", en: "Collapse" },
@@ -2720,6 +2731,25 @@ export const translations = {
     apply: { ru: "Применить", en: "Apply" },
   },
   settingsModal: {
+    confirmMemory: {
+      title: { ru: "Запомненные подтверждения", en: "Remembered confirmations" },
+      hint: {
+        ru: (count: number) =>
+          count === 0
+            ? "Нет запомненных решений: каждое подтверждение спрашивает заново."
+            : `Запомнено решений: ${count}. Кнопка ниже сбрасывает их — диалоги подтверждения будут спрашивать снова.`,
+        en: (count: number) =>
+          count === 0
+            ? "No remembered decisions yet: every confirmation asks again."
+            : `${count} remembered decision(s). The button below clears them — confirmation dialogs will ask again.`,
+      },
+      clear: { ru: "Сбросить запомненные решения", en: "Clear remembered decisions" },
+      clearedTitle: { ru: "Подтверждения сброшены", en: "Confirmations reset" },
+      clearedDesc: {
+        ru: "Все запомненные решения удалены — диалоги подтверждения будут спрашивать снова.",
+        en: "All remembered decisions were cleared — confirmation dialogs will ask again.",
+      },
+    },
     exitApp: {
       title: { ru: "Завершение работы", en: "Shut Down" },
       description: {

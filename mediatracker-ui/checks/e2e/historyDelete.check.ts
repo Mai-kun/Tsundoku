@@ -51,9 +51,12 @@ const BASE = process.env.TS_BASE || 'http://localhost:5000';
   await page.waitForTimeout(250);
   const opacityAfter = await button.evaluate((el) => getComputedStyle(el).opacity);
 
-  // Confirm the dialog rather than letting it block.
-  page.once('dialog', (d) => d.accept());
+  // The app no longer uses the native window.confirm(): its own centered ConfirmModal
+  // pops instead, so the check clicks the in-app confirm button (native dialogs never fire).
   await button.click();
+  const confirmButton = page.locator('[data-testid="confirm-dialog-confirm"]');
+  await confirmButton.waitFor({ state: 'visible', timeout: 5000 });
+  await confirmButton.click();
   await page.waitForTimeout(1200);
 
   const after = await page.locator('ol > li').count();

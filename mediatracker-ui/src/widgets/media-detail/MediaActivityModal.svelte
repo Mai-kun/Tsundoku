@@ -3,6 +3,7 @@
   import Modal from "$shared/ui/Modal.svelte";
   import { deleteHistoryEvent, errorMessage, getHistoryEvents } from "$shared/api/api";
   import { showToast } from "$shared/ui/toast.svelte";
+  import { confirmAction } from "$shared/ui/confirmDialog.svelte";
   import { i18n } from "$shared/i18n/index.svelte";
   import type { HistoryEvent } from "$shared/types";
   import {
@@ -64,7 +65,15 @@
 
   async function handleDeleteEvent(event: HistoryEvent) {
     if (deletingId !== null) return;
-    if (!window.confirm(i18n.t.views.confirmDeleteHistoryEntry)) return;
+    if (
+      !(await confirmAction({
+        key: "delete-history-entry",
+        title: i18n.t.views.confirmDeleteHistoryEntry,
+        confirmLabel: i18n.t.common.delete,
+        danger: true,
+      }))
+    )
+      return;
 
     deletingId = event.id;
     const prevEvents = events;

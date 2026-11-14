@@ -25,6 +25,7 @@
     openMediaFile,
   } from "$shared/api/api";
   import { showToast } from "$shared/ui/toast.svelte";
+  import { confirmAction } from "$shared/ui/confirmDialog.svelte";
   import type { MediaAttachment } from "$shared/types";
 
   interface Props {
@@ -111,7 +112,15 @@
 
   async function remove(attachment: MediaAttachment) {
     if (busyId) return;
-    if (!window.confirm(t.filesDeleteConfirm(attachment.fileName))) return;
+    if (
+      !(await confirmAction({
+        key: "delete-media-file",
+        title: t.filesDeleteConfirm(attachment.fileName),
+        confirmLabel: i18n.t.common.delete,
+        danger: true,
+      }))
+    )
+      return;
     busyId = attachment.id;
     try {
       await detachMediaFile(mediaId, attachment.id);

@@ -229,6 +229,7 @@ namespace MediaTracker.Server.Common.Json;
 [JsonSerializable(typeof(MuSearchRequest))]
 [JsonSerializable(typeof(ImdbSuggestionResponse))]
 [JsonSerializable(typeof(CinemetaResponse))]
+[JsonSerializable(typeof(CinemetaVideo))]
 [JsonSerializable(typeof(OpenLibraryResponse))]
 [JsonSerializable(typeof(OpenLibraryEdition))]
 [JsonSerializable(typeof(OpenLibraryWork))]

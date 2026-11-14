@@ -64,4 +64,43 @@ internal sealed class CinemetaMeta
 
     [JsonPropertyName("votes")]
     public JsonElement? Votes { get; set; }
+
+    /// <summary>
+    /// Series only: the full episode tree Cinemeta carries from TVDB — one entry per episode with
+    /// its season, number, title, air date and overview.
+    /// </summary>
+    [JsonPropertyName("videos")]
+    public List<CinemetaVideo>? Videos { get; set; }
+}
+
+/// <summary>One episode of a Cinemeta series meta ("tt0944947:1:1").</summary>
+internal sealed class CinemetaVideo
+{
+    [JsonPropertyName("season")]
+    public int Season { get; set; }
+
+    [JsonPropertyName("episode")]
+    public int Episode { get; set; }
+
+    /// <summary>Older metas number the episode here instead of the "episode" field.</summary>
+    [JsonPropertyName("number")]
+    public int? Number { get; set; }
+
+    [JsonPropertyName("name")]
+    public string? Name { get; set; }
+
+    [JsonPropertyName("title")]
+    public string? Title { get; set; }
+
+    [JsonPropertyName("released")]
+    public string? Released { get; set; }
+
+    [JsonPropertyName("overview")]
+    public string? Overview { get; set; }
+
+    [JsonPropertyName("description")]
+    public string? Description { get; set; }
+
+    [JsonPropertyName("thumbnail")]
+    public string? Thumbnail { get; set; }
 }

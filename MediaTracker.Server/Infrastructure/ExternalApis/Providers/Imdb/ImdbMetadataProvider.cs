@@ -125,6 +125,15 @@ public sealed class ImdbMetadataProvider(
             ? [new ExternalRatingDto { Source = "IMDb", Rating = rating.Value, Votes = votes }]
             : result.Ratings;
 
+        // Cinemeta's series metas carry the full episode tree (verified against
+        // v3-cinemeta.strem.io/meta/series/tt0944947.json: one entry per episode with season,
+        // episode/number, name, released, overview, thumbnail). Real seasons feed the refresh
+        // path, the flat list feeds the import dialog, which builds its Season 1 from it.
+        var seasons = MapSeasons(meta.Videos);
+        IReadOnlyList<ExternalEpisodeDto>? flatEpisodes = seasons.Count > 0
+            ? [.. seasons.SelectMany(season => season.Episodes ?? [])]
+            : null;
+
         return result with
         {
             Title = hasTitle ? result.Title : meta.Name ?? result.Title,
@@ -134,8 +143,58 @@ public sealed class ImdbMetadataProvider(
             Rating = rating ?? result.Rating,
             RatingVotes = votes ?? result.RatingVotes,
             Ratings = ratings,
-            Genres = meta.Genres is { Count: > 0 } genres ? genres : result.Genres
+            Genres = meta.Genres is { Count: > 0 } genres ? genres : result.Genres,
+            Seasons = seasons.Count > 0 ? seasons : null,
+            Episodes = flatEpisodes,
+            TotalCount = flatEpisodes is { Count: > 0 } list ? list.Count : null,
         };
+    }
+
+    /// <summary>
+    /// Cinemeta's videos into real seasons. Season 0 holds specials and behind-the-scenes extras
+    /// rather than aired episodes, so it is skipped — a progress-tracked "season 0" row would only
+    /// confuse the count. Entries without a usable episode number are dropped the same way.
+    /// </summary>
+    internal static IReadOnlyList<ExternalSeasonDto> MapSeasons(List<CinemetaVideo>? videos)
+    {
+        if (videos is not { Count: > 0 })
+        {
+            return [];
+        }
+
+        var seasons = new SortedDictionary<int, List<ExternalEpisodeDto>>();
+        foreach (var video in videos)
+        {
+            if (video.Season <= 0) continue;
+            var number = video.Episode > 0 ? video.Episode : video.Number ?? 0;
+            if (number <= 0) continue;
+
+            if (!seasons.TryGetValue(video.Season, out var episodes))
+            {
+                episodes = [];
+                seasons[video.Season] = episodes;
+            }
+
+            var title = video.Name ?? video.Title;
+            episodes.Add(new ExternalEpisodeDto
+            {
+                Number = number,
+                Title = string.IsNullOrWhiteSpace(title) ? $"Episode {number}" : title,
+                AirDate = string.IsNullOrWhiteSpace(video.Released)
+                    ? null
+                    : DateTime.TryParse(video.Released, CultureInfo.InvariantCulture,
+                        DateTimeStyles.None, out var aired)
+                        ? aired.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
+                        : video.Released,
+            });
+        }
+
+        return [.. seasons.Select(season => new ExternalSeasonDto
+        {
+            Number = season.Key,
+            TotalEpisodes = season.Value.Count,
+            Episodes = [.. season.Value.OrderBy(episode => episode.Number)],
+        })];
     }
 
     private const string CinemetaMetaUrl = "https://v3-cinemeta.strem.io/meta";

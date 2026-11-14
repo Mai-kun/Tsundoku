@@ -174,7 +174,8 @@ public class LiveLibParserTests
         details.Genres.Should().Equal("Сказки", "Зарубежная классика", "Зарубежные детские книги");
         details.Pages.Should().Be(160);
         details.Year.Should().Be(2026);
-        details.ReleaseDate.Should().Be("2026-01-01");
+        // The page only knows the year; the JSON-LD "2026-01-01" is the site's own placeholder.
+        details.ReleaseDate.Should().BeNull();
         details.Publisher.Should().Be("АСТ");
         details.Format.Should().Be("Твёрдый переплёт");
         details.Language.Should().Be("ru");
@@ -184,6 +185,58 @@ public class LiveLibParserTests
         details.Description.Should().Contain("самое знаменитое произведение")
             .And.Contain("История о дружбе")
             .And.NotContain("Автор:");
+    }
+
+    private const string BookPageYearOnlyHtml = """
+        <html><head>
+        <meta property="og:title" content="«Маленький принц. Планета людей». Автор: Антуан де Сент-Экзюпери">
+        <script type="application/ld+json">
+        {"@context":"https://schema.org","@type":"Book","name":"Маленький принц. Планета людей",
+         "isbn":"978-5-04-233778-9","bookFormat":"https://schema.org/Hardcover",
+         "datePublished":"2026-01-01T00:00:00+03:00",
+         "author":{"@type":"Person","name":"Антуан де Сент-Экзюпери"},
+         "aggregateRating":{"@type":"AggregateRating","ratingValue":8.4,"ratingCount":312,"bestRating":10,"worstRating":1}}
+        </script>
+        </head><body>
+        <div class="DetailedInfo_DetailedInfoRow__XXovq"><p class="DetailedInfo_DetailedInfoRowValue__CFIWF">Год издания<!-- -->: </p><p class="DetailedInfo_DetailedInfoRowValue__CFIWF">2026</p></div>
+        <div class="DetailedInfo_DetailedInfoRow__XXovq"><p class="DetailedInfo_DetailedInfoRowValue__CFIWF">Мягкая обложка</p></div>
+        <div class="DetailedInfo_DetailedInfoRow__XXovq"><p class="DetailedInfo_DetailedInfoRowValue__CFIWF">Страниц: 288</p></div>
+        </body></html>
+        """;
+
+    private const string BookPageConfirmedDateHtml = """
+        <html><head>
+        <script type="application/ld+json">
+        {"@context":"https://schema.org","@type":"Book","name":"Тест","datePublished":"2026-01-01T00:00:00+03:00"}
+        </script>
+        </head><body>
+        self.__next_f.push([1,"edition\":{\"isbn\":\"978-5-04-233778-9\",\"publication_year\":2026,\"publication_date\":\"2026-05-12\",\"details\":\"Мягкая обложка\r\nСтраниц: 288\"}"])
+        </body></html>
+        """;
+
+    [Fact]
+    public void ParseBookPage_YearOnlyEditionKeepsPagesAndBindingButDropsFakeDate()
+    {
+        var details = LiveLibHtmlParser.ParseBookPage(BookPageYearOnlyHtml);
+
+        details.Title.Should().Be("Маленький принц. Планета людей");
+        details.Isbn.Should().Be("978-5-04-233778-9");
+        // The modern detailed-info row spells it plainly, without the "Кол-во" prefix.
+        details.Pages.Should().Be(288);
+        // The page's own binding row beats JSON-LD's bookFormat (Hardcover).
+        details.Format.Should().Be("Мягкая обложка");
+        details.Year.Should().Be(2026);
+        // "2026-01-01" is the site's fabricated placeholder; the UI renders just "2026".
+        details.ReleaseDate.Should().BeNull();
+    }
+
+    [Fact]
+    public void ParseBookPage_ConfirmedFullDateReplacesThePlaceholder()
+    {
+        var details = LiveLibHtmlParser.ParseBookPage(BookPageConfirmedDateHtml);
+
+        details.ReleaseDate.Should().Be("2026-05-12");
+        details.Year.Should().Be(2026);
     }
 
     [Fact]

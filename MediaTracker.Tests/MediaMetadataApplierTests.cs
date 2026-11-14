@@ -145,6 +145,47 @@ public class MediaMetadataApplierTests
     }
 
     [Fact]
+    public void ApplyIfMissing_ShouldStoreBindingLabelOnClassicBook()
+    {
+        // LiveLib/OpenLibrary books are "classic" — the guard shields the novel taxonomy, but the
+        // physical binding must still land on the row so the edition section stops guessing e-book.
+        var book = new Book { Title = "Маленький принц", Author = string.Empty, Format = "book" };
+        var external = new ExternalMediaDto
+        {
+            ExternalId = "b2",
+            ExternalSource = "LiveLib",
+            Title = "Маленький принц",
+            Type = "book",
+            Format = "Мягкая обложка",
+            TotalCount = 288,
+        };
+
+        MediaMetadataApplier.ApplyIfMissing(book, external).Should().BeTrue();
+
+        book.Format.Should().Be("Мягкая обложка");
+        book.TotalPages.Should().Be(288);
+    }
+
+    [Fact]
+    public void ApplyIfMissing_ShouldNotClobberNovelTaxonomyWithBinding()
+    {
+        var book = new Book { Title = "Ранобэ", Author = string.Empty, Format = "light_novel" };
+        var external = new ExternalMediaDto
+        {
+            ExternalId = "b3",
+            ExternalSource = "RanobeLib",
+            Title = "Ранобэ",
+            Type = "book",
+            Format = "Мягкая обложка",
+        };
+
+        // Nothing to fill on this row, and the novel taxonomy must not be touched by a binding.
+        MediaMetadataApplier.ApplyIfMissing(book, external).Should().BeFalse();
+
+        book.Format.Should().Be("light_novel");
+    }
+
+    [Fact]
     public void ApplyIfMissing_ShouldFillMangaGaps()
     {
         var manga = new Manga { Title = "One Piece" };

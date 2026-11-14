@@ -158,10 +158,10 @@ public static class LinkedSourceCatalog
         string.IsNullOrWhiteSpace(source) ? string.Empty : MediaMerger.NormalizeSourceKey(source);
 
     /// <summary>
-    /// The web page of a bound Shikimori or AnimeLib record, rebuilt on every read: Shikimori's
-    /// domain moves between mirrors, and AnimeLib's canonical shape is the versioned host with
-    /// mandatory /ru/anime/ prefixes. Every other source's page link is built client-side, so null
-    /// leaves the stored URL untouched.
+    /// The web page of a bound LiveLib, Shikimori or AnimeLib record, rebuilt on every read:
+    /// Shikimori's domain moves between mirrors, and AnimeLib's canonical shape is the versioned
+    /// host with mandatory /ru/anime/ prefixes. Every other source's page link is built
+    /// client-side, so null leaves the stored URL untouched.
     /// </summary>
     private static string? BuildSourcePageUrl(string? source, string? externalId, MediaItem item)
     {
@@ -171,6 +171,12 @@ public static class LinkedSourceCatalog
         }
 
         var key = MediaMerger.NormalizeSourceKey(source);
+        if (key.Contains("livelib", StringComparison.OrdinalIgnoreCase))
+        {
+            // The numeric book id resolves to the full slug on the site itself.
+            return $"https://www.livelib.ru/book/{Uri.EscapeDataString(externalId.Trim())}";
+        }
+
         if (key.Contains("shikimori", StringComparison.OrdinalIgnoreCase))
         {
             var section = item is TvShow { IsAnime: true } or Movie { IsAnime: true } ? "animes" : "mangas";

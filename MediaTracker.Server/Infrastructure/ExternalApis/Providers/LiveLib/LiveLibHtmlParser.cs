@@ -238,6 +238,11 @@ public static partial class LiveLibHtmlParser
             rating = ExtractRatingValue(html);
         }
 
+        // The detailed-info row names the binding plainly ("Мягкая обложка") with no "Переплет:"
+        // label, and the real page beats JSON-LD's bookFormat — the current edition of "Маленький
+        // принц" ships Hardcover in JSON-LD while the row says "Мягкая обложка".
+        format = BindingRowOf(html) ?? format;
+
         var pagePublisher = CleanPublisher(ExtractLabeledValue(html, "Издательство"));
         if (!string.IsNullOrWhiteSpace(pagePublisher))
         {
@@ -271,6 +276,16 @@ public static partial class LiveLibHtmlParser
         var genres = jsonGenres.Count > 0
             ? jsonGenres.Distinct(StringComparer.OrdinalIgnoreCase).ToList()
             : pageGenres;
+
+        // LiveLib fabricates "YYYY-01-01T00:00:00+03:00" when the page only knows the publication
+        // year ("Год издания: 2026", publication_date: null): mapping it straight through made the
+        // UI print a fake "1 января 2026 г.". A January 1st date is dropped unless the page data
+        // itself confirms a full publication_date — which then replaces the placeholder.
+        if (releaseDate is { Length: >= 10 }
+            && releaseDate.EndsWith("-01-01", StringComparison.Ordinal))
+        {
+            releaseDate = ConfirmedPublicationDateOf(html);
+        }
 
         return new LiveLibBookDetails(
             Title: title is null ? null : DecodeHtml(title),
@@ -605,6 +620,28 @@ public static partial class LiveLibHtmlParser
         return value.Trim();
     }
 
+    /// <summary>
+    /// The binding from the detailed-info row, which is a standalone value paragraph
+    /// ("Мягкая обложка") with no "Переплет:" label at all. Scoped to a paragraph element so a
+    /// mention in the annotation or reviews never answers the edition's binding.
+    /// </summary>
+    private static string? BindingRowOf(string html)
+    {
+        var match = BindingRowRegex().Match(html);
+        return match.Success ? match.Groups[1].Value.Trim() : null;
+    }
+
+    /// <summary>
+    /// The real publication date from the Next.js payload's <c>publication_date</c> field, or null
+    /// when it is null/absent (year-only edition). The field is serialized with escaped quotes in
+    /// the flight data, so the backslash is optional in the pattern.
+    /// </summary>
+    private static string? ConfirmedPublicationDateOf(string html)
+    {
+        var match = FullPublicationDateRegex().Match(html);
+        return match.Success ? match.Groups[1].Value : null;
+    }
+
     private static IReadOnlyList<string> StringArrayProperty(JsonElement element, string name)
     {
         if (!element.TryGetProperty(name, out var value)) return [];
@@ -871,8 +908,15 @@ public static partial class LiveLibHtmlParser
     [GeneratedRegex("""ISBN[^0-9\n]{0,24}(97[89][\d\-]{10,16}|\d{9}[\dXx])""")]
     private static partial Regex IsbnRegex();
 
-    [GeneratedRegex("""(?:Кол-во|Число) страниц:\s*(\d{1,4})""")]
+    // "Кол-во страниц: 528" on the older pages, plain "Страниц: 288" on the modern detailed-info row.
+    [GeneratedRegex("""(?:(?:Кол-во|Число)\s+)?[Сс]траниц:\s*(\d{1,4})""")]
     private static partial Regex PagesRegex();
+
+    [GeneratedRegex(""">\s*(Мягкая обложка|Твёрдый переплёт)\s*<""")]
+    private static partial Regex BindingRowRegex();
+
+    [GeneratedRegex("""publication_date\\?":\s*\\?"(\d{4}-\d{2}-\d{2})""")]
+    private static partial Regex FullPublicationDateRegex();
 
     [GeneratedRegex("""Год издания[^0-9]{0,24}(\d{4})""")]
     private static partial Regex YearRegex();

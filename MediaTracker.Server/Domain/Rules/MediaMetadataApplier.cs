@@ -488,14 +488,22 @@ public static class MediaMetadataApplier
             case Book book:
                 var isClassicBook = MediaMerger.IsClassicBook(item);
 
-                if (!isClassicBook && book.Format is null && (external.MangaFormat is not null || external.Format is not null))
+                var fmt = external.MangaFormat ?? external.Format;
+                if (!isClassicBook && fmt is "light_novel" or "web_novel" or "novel")
                 {
-                    var fmt = external.MangaFormat ?? external.Format;
-                    if (fmt is "light_novel" or "web_novel" or "novel")
+                    if (book.Format is null)
                     {
                         book.Format = fmt == "novel" ? "light_novel" : fmt;
                         modified = true;
                     }
+                }
+                else if (IsBindingLabel(fmt) && book.Format is null or "book")
+                {
+                    // The source names the physical binding ("Мягкая обложка"); the edition section
+                    // renders it, so a classic LiveLib/OpenLibrary book gets the real binding too —
+                    // the classic guard only shields the novel taxonomy from these sources.
+                    book.Format = fmt;
+                    modified = true;
                 }
 
                 if (book.Format is "light_novel" or "web_novel")
@@ -739,13 +747,14 @@ public static class MediaMetadataApplier
             case Book book:
                 var isClassic = MediaMerger.IsClassicBook(item);
 
-                if (!isClassic && (external.MangaFormat is not null || external.Format is not null))
+                var fmt = external.MangaFormat ?? external.Format;
+                if (!isClassic && fmt is "light_novel" or "web_novel" or "novel" or "book")
                 {
-                    var fmt = external.MangaFormat ?? external.Format;
-                    if (fmt is "light_novel" or "web_novel" or "novel" or "book")
-                    {
-                        book.Format = fmt == "novel" ? "light_novel" : fmt;
-                    }
+                    book.Format = fmt == "novel" ? "light_novel" : fmt;
+                }
+                else if (IsBindingLabel(fmt) && book.Format is null or "book")
+                {
+                    book.Format = fmt;
                 }
                 if (book.Format is "light_novel" or "web_novel")
                 {
@@ -860,6 +869,14 @@ public static class MediaMetadataApplier
 
     private static DateTime? ParseDate(string? value) =>
         DateTime.TryParse(value, out var parsed) ? parsed : null;
+
+    /// <summary>
+    /// The physical binding labels the book sources emit (OpenLibrary's MapPhysicalFormat, LiveLib's
+    /// binding row). Unlike the format taxonomy ("book", "light_novel") they are display strings the
+    /// edition section renders verbatim.
+    /// </summary>
+    private static bool IsBindingLabel(string? fmt) =>
+        fmt is "Мягкая обложка" or "Твёрдый переплёт" or "Электронная книга" or "Аудиокнига";
 
     private static string? JoinGenres(IReadOnlyList<string>? genres) =>
         GenreNormalizer.NormalizeToCommaString(genres);

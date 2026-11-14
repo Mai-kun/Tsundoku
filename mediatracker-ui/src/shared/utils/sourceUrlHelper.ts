@@ -21,6 +21,9 @@ export function buildSourceUrl(
   const id = encodeURIComponent(externalId.trim());
   if (!id) return null;
 
+  // LiveLib: the stored id is the numeric book id; the site resolves it to the full slug itself.
+  if (key.includes("livelib")) return `https://www.livelib.ru/book/${id}`;
+
   // LibSocial ecosystem: the stored id is the site's slug_url ("35160--slug").
   if (key.includes("mangalib")) return `https://mangalib.me/ru/${id}`;
   if (key.includes("ranobelib")) return `https://ranobelib.me/ru/${id}`;

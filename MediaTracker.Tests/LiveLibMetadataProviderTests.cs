@@ -149,7 +149,9 @@ public class LiveLibMetadataProviderTests
         details.Tags.Should().Contain("Шедевры иллюстрации");
         details.Staff.Should().ContainSingle(member => member.Role == "Иллюстратор");
         details.ReleaseYear.Should().Be(2026);
-        details.ReleaseDate.Should().Be("2026-01-01");
+        // The "2026-01-01" JSON-LD date is the site's year-only placeholder; without a page-side
+        // full-date confirmation only the year survives.
+        details.ReleaseDate.Should().BeNull();
         details.OriginalLanguage.Should().Be("ru");
         details.Format.Should().Be("Твёрдый переплёт");
         details.Publisher.Should().Be("АСТ");

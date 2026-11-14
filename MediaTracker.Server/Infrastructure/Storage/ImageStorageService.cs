@@ -134,11 +134,12 @@ public sealed class ImageStorageService(
         coverId.Length > 0 && coverId.Length <= 40 && coverId.All(char.IsAsciiLetterOrDigit);
 
     /// <summary>
-    /// Builds the image request with the headers each guarded CDN demands: the lib family wants a
-    /// browser UA plus a mangalib referer (DDoS-Guard), while MangaDex wants the opposite — a
-    /// browser-looking UA earns a bot-challenge redirect and a missing UA a 400, so only a plain
-    /// app UA passes. Shared with the image-proxy endpoint so preview URLs get exactly the same
-    /// treatment the cover downloader gives them.
+    /// Builds the image request with the headers each guarded CDN demands: the lib family
+    /// (cover.imglib.info, cover.cdnlibs.org) wants a browser UA plus a lib referer (DDoS-Guard
+    /// answers 403 to a bare request), while MangaDex wants the opposite — a browser-looking UA
+    /// earns a bot-challenge redirect and a missing UA a 400, so only a plain app UA passes.
+    /// Shared with the image-proxy endpoint so preview URLs get exactly the same treatment the
+    /// cover downloader gives them.
     /// </summary>
     public static HttpRequestMessage CreateImageRequest(string url)
     {
@@ -147,6 +148,7 @@ public sealed class ImageStorageService(
         {
             var host = uri.Host;
             if (host.EndsWith("imglib.info", StringComparison.OrdinalIgnoreCase)
+                || host.EndsWith("cdnlibs.org", StringComparison.OrdinalIgnoreCase)
                 || host.EndsWith("mangalib.me", StringComparison.OrdinalIgnoreCase))
             {
                 request.Headers.TryAddWithoutValidation("Referer", "https://mangalib.me/");

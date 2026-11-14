@@ -121,11 +121,11 @@ const RULES: MatchRule[] = [
   },
 
   // LibSocial ecosystem: MangaLib / SlashLib / HentaiLib / lib.social (manga sites).
-  // Ids arrive both as bare slugs and as "35160--slug" pairs; /ru/ and /manga/ path
-  // segments are optional.
+  // Ids arrive both as bare slugs and as "35160--slug" pairs; /ru/ and /manga/ or /ranobe/
+  // path segments are optional.
   {
     pattern:
-      /(?:mangalib\.(?:me|org)|slashlib\.me|hentailib\.me|lib\.social)\/(?:ru\/)?(?:manga\/)?([0-9a-zA-Z\-_]+)/i,
+      /(?:mangalib\.(?:me|org)|slashlib\.me|hentailib\.me|lib\.social)\/(?:ru\/)?(?:manga\/|ranobe\/)?([0-9a-zA-Z\-_]+)/i,
     source: "mangalib",
     type: "manga",
     extractId: (m) => {
@@ -144,9 +144,11 @@ const RULES: MatchRule[] = [
       return FORBIDDEN_SLUGS.has(id) ? null : m[1];
     },
   },
-  // RanobeLib (novels; /ranobe/ path segment tolerated)
+  // RanobeLib — novels, but the site also hosts manga trees; the /ru/ language prefix and the
+  // /ranobe/ or /manga/ category are optional, so the current "/ru/manga/202007--slug" shape
+  // resolves to the title id, not to the literal "manga" segment.
   {
-    pattern: /ranobelib\.me\/(?:ru\/)?(?:ranobe\/)?([0-9a-zA-Z\-_]+)/i,
+    pattern: /ranobelib\.me\/(?:ru\/)?(?:ranobe\/|manga\/)?([0-9a-zA-Z\-_]+)/i,
     source: "ranobelib",
     type: "book",
     extractId: (m) => {

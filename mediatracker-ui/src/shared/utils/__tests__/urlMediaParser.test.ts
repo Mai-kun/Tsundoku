@@ -142,6 +142,48 @@ describe("parseMediaUrl", () => {
     expect(parseMediaUrl("https://v5.animelib.org/ru/anime/catalog")).toBeNull();
   });
 
+  it("parses the current RanobeLib /ru/manga/{id}--{slug} shape", () => {
+    expect(parseMediaUrl("https://ranobelib.me/ru/manga/202007--shoushimin-series")).toEqual({
+      source: "ranobelib",
+      id: "202007--shoushimin-series",
+      type: "book",
+    });
+    // The classic novel shape keeps working, with or without /ru/.
+    expect(parseMediaUrl("https://ranobelib.me/ru/ranobe/195--naruto")).toEqual({
+      source: "ranobelib",
+      id: "195--naruto",
+      type: "book",
+    });
+    expect(parseMediaUrl("ranobelib.me/195--naruto")).toEqual({
+      source: "ranobelib",
+      id: "195--naruto",
+      type: "book",
+    });
+  });
+
+  it("parses the whole Lib family: slashlib, hentailib, lib.social and manga trees", () => {
+    expect(parseMediaUrl("https://slashlib.me/ru/manga/35160--solo-leveling")).toEqual({
+      source: "mangalib",
+      id: "35160--solo-leveling",
+      type: "manga",
+    });
+    expect(parseMediaUrl("https://hentailib.me/ru/manga/402--some-title")).toEqual({
+      source: "mangalib",
+      id: "402--some-title",
+      type: "manga",
+    });
+    expect(parseMediaUrl("https://lib.social/manga/35160--solo-leveling")).toEqual({
+      source: "mangalib",
+      id: "35160--solo-leveling",
+      type: "manga",
+    });
+    expect(parseMediaUrl("https://mangalib.me/ru/manga/11214--one-piece")).toEqual({
+      source: "mangalib",
+      id: "11214--one-piece",
+      type: "manga",
+    });
+  });
+
   it("parses Kitsu anime and manga URLs", () => {
     expect(parseMediaUrl("https://kitsu.app/anime/cowboy-bebop")).toEqual({
       source: "kitsu",

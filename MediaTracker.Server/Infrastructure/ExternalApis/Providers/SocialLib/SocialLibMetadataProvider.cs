@@ -498,7 +498,9 @@ public sealed class SocialLibMetadataProvider(
 
     /// <summary>
     /// The catalog sometimes serves relative upload paths or scheme-less hosts; the card renders
-    /// them only as absolute https URLs pointing at the shared cover CDN.
+    /// them only as absolute https URLs pointing at the shared cover CDN. Relative /uploads/
+    /// paths resolve against cover.cdnlibs.org — the host the detail API itself returns them on
+    /// (cover.imglib.info is the legacy mirror of the same tree).
     /// </summary>
     public static string? NormalizeCoverUrl(string? url)
     {
@@ -507,7 +509,7 @@ public sealed class SocialLibMetadataProvider(
         if (value.StartsWith("//", StringComparison.Ordinal)) return $"https:{value}";
         if (value.StartsWith("/uploads/", StringComparison.OrdinalIgnoreCase) || value.StartsWith("uploads/", StringComparison.OrdinalIgnoreCase))
         {
-            return $"https://cover.imglib.info/{value.TrimStart('/')}";
+            return $"https://cover.cdnlibs.org/{value.TrimStart('/')}";
         }
 
         return value;

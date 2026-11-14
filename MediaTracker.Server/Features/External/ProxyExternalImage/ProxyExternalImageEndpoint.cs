@@ -19,7 +19,7 @@ public static class ProxyExternalImageEndpoint
     /// Keeping the list tight also pins the SSRF surface down: the endpoint will never fetch
     /// anything but these image hosts.
     /// </summary>
-    private static readonly string[] AllowedHostSuffixes = ["imglib.info", "mangalib.me", "mangadex.org"];
+    private static readonly string[] AllowedHostSuffixes = ["imglib.info", "cdnlibs.org", "mangalib.me", "mangadex.org"];
 
     public static IEndpointRouteBuilder MapProxyExternalImageEndpoint(this IEndpointRouteBuilder app)
     {

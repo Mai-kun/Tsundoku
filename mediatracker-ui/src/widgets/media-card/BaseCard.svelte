@@ -219,8 +219,8 @@
         holdToDelete: true,
         action: async () => {
           if (!onDelete) return;
-          // Hold-to-delete: the menu item's 2-second hold is the confirmation,
-          // so no extra modal on this path.
+        // Hold-to-delete: the menu item's 1-second hold is the confirmation,
+        // so no extra modal on this path.
           try {
             await onDelete(item);
           } catch (error) {

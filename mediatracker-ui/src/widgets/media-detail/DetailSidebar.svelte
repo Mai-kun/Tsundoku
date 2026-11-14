@@ -307,8 +307,8 @@
 
   let autoRefreshBusy = $state(false);
 
-  // Hold-to-delete: a 2-second press replaces the confirm modal (the hold IS the
-  // confirmation). A plain tap only shows the "hold for 2 s" hint on the button.
+  // Hold-to-delete: a 1-second press replaces the confirm modal (the hold IS the
+  // confirmation). A plain tap only shows the "hold for 1 s" hint on the button.
   const deleteHold = createHoldToDelete({
     onComplete: () => void onDelete(),
     isEnabled: () => !deleteBusy,

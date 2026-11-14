@@ -1,5 +1,5 @@
 /**
- * Hold-to-confirm controller: a requestAnimationFrame-driven 2-second press with a
+ * Hold-to-confirm controller: a requestAnimationFrame-driven 1-second press with a
  * horizontal fill that lives entirely on the compositor (the caller animates
  * `transform: scaleX(progress)`, this class only computes the value every frame).
  *
@@ -15,7 +15,7 @@
  */
 
 export interface HoldToDeleteOptions {
-  /** Full-hold duration in ms (default 2000). */
+  /** Hold duration in ms (default 1000). */
   durationMs?: number;
   /** Releases shorter than this count as a tap and trigger `onShortPress` (default 300). */
   shortPressMs?: number;
@@ -31,7 +31,7 @@ export interface HoldToDeleteOptions {
   isEnabled?: () => boolean;
 }
 
-const DEFAULT_DURATION_MS = 2000;
+const DEFAULT_DURATION_MS = 1000;
 const DEFAULT_SHORT_PRESS_MS = 300;
 const DEFAULT_HINT_MS = 1500;
 const DEFAULT_ROLLBACK_MS = 220;

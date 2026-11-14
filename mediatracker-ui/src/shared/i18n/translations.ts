@@ -37,7 +37,7 @@ export const translations = {
   },
   holdToDelete: {
     deleting: { ru: "Удаление…", en: "Deleting…" },
-    hint: { ru: "Удерживайте 2 сек", en: "Hold for 2 sec" },
+    hint: { ru: "Удерживайте 1 сек", en: "Hold for 1 sec" },
   },
   toast: {
     expand: { ru: "Развернуть", en: "Expand" },

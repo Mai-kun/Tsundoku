@@ -35,6 +35,8 @@
   import { ChevronDown } from "$shared/ui/Icons";
   import { MEDIA_STATUS, type MediaStatus, type StatusFilter } from "$shared/types";
   import PopoverMenu from "$shared/ui/PopoverMenu.svelte";
+  import Badge from "$shared/ui/Badge.svelte";
+  import Button from "$shared/ui/Button.svelte";
   import TotalBadge from "$shared/ui/TotalBadge.svelte";
 
   interface Props {
@@ -157,17 +159,19 @@
       >
         {#snippet trigger({ popoverTargetId, anchorName, isOpen })}
           {@const GroupIcon = GROUP_ICONS[groupBy]}
-          <button
-            type="button"
+          <Button
+            variant="secondary"
+            iconOnly
+            size="lg"
             popovertarget={popoverTargetId}
             popovertargetaction="toggle"
             style={isOpen ? `anchor-name: ${anchorName}` : undefined}
-            class="tap bg-field text-muted hover:text-ink grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-white/10 transition hover:border-white/20 has-[:popover-open]:ring-2 has-[:popover-open]:ring-indigo-500/40"
+            class="shrink-0 has-[:popover-open]:ring-2 has-[:popover-open]:ring-accent-line/40"
             title={i18n.t.grouping.label}
             aria-label={i18n.t.grouping.label}
           >
             <GroupIcon size={18} stroke-width={2} aria-hidden="true" />
-          </button>
+          </Button>
         {/snippet}
         {#snippet renderOption({ option })}
           {@const GroupIcon = GROUP_ICONS[option.value as GroupBy]}
@@ -190,23 +194,23 @@
         closeDelay={220}
       >
         {#snippet trigger({ popoverTargetId, anchorName, isOpen })}
-          <button
-            type="button"
+          <Button
+            variant="secondary"
+            size="lg"
             popovertarget={popoverTargetId}
             popovertargetaction="toggle"
             style={isOpen ? `anchor-name: ${anchorName}` : undefined}
-            class="tap bg-field text-ink flex h-10 shrink-0 items-center gap-2 rounded-lg border border-white/10 px-3 text-xs font-semibold transition hover:border-white/20 has-[:popover-open]:ring-2 has-[:popover-open]:ring-indigo-500/40"
+            class="shrink-0 px-3 text-xs font-semibold has-[:popover-open]:ring-2 has-[:popover-open]:ring-accent-line/40"
             title={i18n.t.status.label}
           >
             <span class="truncate">{labelForStatus(status)}</span>
             {#if counts[status] !== undefined}
-              <span
-                class="bg-card text-muted rounded-full px-2 py-0.5 text-[10px] font-bold"
-                aria-live="polite">{counts[status]}</span
-              >
+              <Badge tone="neutral" size="xs" class="rounded-full font-bold" aria-live="polite">
+                {counts[status]}
+              </Badge>
             {/if}
             <ChevronDown size={14} class="text-muted shrink-0" aria-hidden="true" />
-          </button>
+          </Button>
         {/snippet}
       </PopoverMenu>
     </div>
@@ -245,17 +249,19 @@
       >
         {#snippet trigger({ popoverTargetId, anchorName, isOpen })}
           {@const SortIcon = SORT_ICONS[sort]}
-          <button
-            type="button"
+          <Button
+            variant="secondary"
+            iconOnly
+            size="lg"
             popovertarget={popoverTargetId}
             popovertargetaction="toggle"
             style={isOpen ? `anchor-name: ${anchorName}` : undefined}
-            class="tap bg-field text-muted hover:text-ink grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-white/10 transition hover:border-white/20 has-[:popover-open]:ring-2 has-[:popover-open]:ring-indigo-500/40"
+            class="shrink-0 has-[:popover-open]:ring-2 has-[:popover-open]:ring-accent-line/40"
             title={i18n.t.sort.label}
             aria-label={i18n.t.sort.label}
           >
             <SortIcon size={18} stroke-width={2} aria-hidden="true" />
-          </button>
+          </Button>
         {/snippet}
         {#snippet renderOption({ option })}
           {@const SortIcon = SORT_ICONS[option.value as LibrarySort]}

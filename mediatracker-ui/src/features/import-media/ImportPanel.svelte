@@ -33,6 +33,7 @@
   import { showToast } from "$shared/ui/toast.svelte";
   import { jobsClient } from "$shared/api/jobsClient.svelte";
   import Modal from "$shared/ui/Modal.svelte";
+  import Button from "$shared/ui/Button.svelte";
   import Select from "$shared/ui/Select.svelte";
   import PopoverMenu, { type PopoverOption } from "$shared/ui/PopoverMenu.svelte";
   import {
@@ -1497,14 +1498,9 @@
       </p>
     </div>
     {#if showCloseButton && onClose}
-      <button
-        type="button"
-        class="text-muted grid h-8 w-8 place-items-center rounded-lg transition hover:bg-white/10 hover:text-white"
-        aria-label={i18n.t.common.close}
-        onclick={onClose}
-      >
+      <Button variant="ghost" iconOnly size="sm" aria-label={i18n.t.common.close} onclick={onClose}>
         <X size={18} />
-      </button>
+      </Button>
     {/if}
   </div>
 
@@ -1547,9 +1543,10 @@
 
       {#if result.skippedTitles && result.skippedTitles.length > 0}
         <div class="bg-card/40 mt-3 rounded-lg border border-white/10 p-3">
-          <button
-            type="button"
-            class="text-muted hover:text-ink flex w-full cursor-pointer items-center justify-between text-xs font-medium transition"
+          <Button
+            variant="ghost"
+            size="sm"
+            class="w-full justify-between"
             onclick={() => (showSkippedDuplicates = !showSkippedDuplicates)}
           >
             <span>{i18n.t.importModal.skippedDuplicatesWithCount(result.skippedTitles.length)}</span
@@ -1559,7 +1556,7 @@
             {:else}
               <ChevronDown size={14} />
             {/if}
-          </button>
+          </Button>
           {#if showSkippedDuplicates}
             <p class="text-muted mt-1 text-xs leading-relaxed break-words">
               {i18n.t.importModal.duplicatesWithTitles(result.skippedTitles.join(", "))}
@@ -1584,18 +1581,14 @@
         {/if}
         <button
           type="button"
-          class="cursor-pointer rounded-lg border border-[#5446cf]/40 bg-[#5446cf]/15 px-4 py-2 text-sm font-semibold text-[#8f7fff] transition hover:bg-[#5446cf]/25 hover:text-white"
+          class="cursor-pointer rounded-lg border border-accent-bright/40 bg-accent-bright/15 px-4 py-2 text-sm font-semibold text-accent-soft transition hover:bg-accent-bright/25 hover:text-white"
           onclick={() => jobsClient.openModal("jobs")}
         >
           {i18n.t.backgroundJobs.openProcesses}
         </button>
-        <button
-          type="button"
-          class="bg-field text-ink hover:bg-elevated cursor-pointer rounded-lg border border-white/10 px-4 py-2 text-sm font-medium transition hover:text-white"
-          onclick={resetImport}
-        >
+        <Button variant="secondary" size="lg" onclick={resetImport}>
           {i18n.t.importModal.importAnother}
-        </button>
+        </Button>
         {#if result.dumpUrl || provider === "mangalib"}
           <a
             href={result.dumpUrl || "/api/media/import/sociallib/latest-dump"}
@@ -1606,13 +1599,9 @@
           </a>
         {/if}
         {#if showCloseButton && onClose}
-          <button
-            type="button"
-            class="text-muted hover:text-ink cursor-pointer rounded-lg border border-white/10 px-4 py-2 text-sm transition hover:bg-white/5"
-            onclick={onClose}
-          >
+          <Button variant="ghost" size="lg" class="border border-subtle" onclick={onClose}>
             {i18n.t.common.close}
-          </button>
+          </Button>
         {/if}
       </div>
     </section>
@@ -1790,9 +1779,10 @@
                       {(file.size / 1024).toFixed(1)} KB
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    class="bg-field text-muted hover:bg-elevated mt-1 cursor-pointer rounded-md border border-white/10 px-3 py-1 text-xs font-medium transition-colors duration-150 hover:text-white"
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    class="mt-1"
                     onclick={(e) => {
                       e.stopPropagation();
                       file = null;
@@ -1800,7 +1790,7 @@
                     }}
                   >
                     {i18n.t.importModal.changeFile}
-                  </button>
+                  </Button>
                 </div>
               {:else}
                 <div
@@ -1876,9 +1866,9 @@
                     placeholder="https://steamcommunity.com/id/... or 76561198..."
                     class="bg-field text-ink min-w-0 flex-1 rounded-lg border border-white/10 px-3 py-2 text-sm transition outline-none focus:border-[var(--imp-accent)] focus:ring-1 focus:ring-[var(--imp-accent)]"
                   />
-                  <button
-                    type="button"
-                    class="bg-field text-ink hover:bg-elevated cursor-pointer rounded-lg border border-white/10 px-3.5 text-xs font-medium transition hover:text-white"
+                  <Button
+                    variant="secondary"
+                    size="sm"
                     onclick={() => {
                       const val = steamProfile.trim();
                       profileChecked =
@@ -1890,7 +1880,7 @@
                     }}
                   >
                     {i18n.t.importModal.checkProfile}
-                  </button>
+                  </Button>
                 </div>
                 {#if profileChecked}
                   <p class="mt-1.5 flex items-center gap-1.5 text-xs text-emerald-300">
@@ -1999,9 +1989,10 @@
                       {(file.size / 1024).toFixed(1)} KB
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    class="bg-field text-muted hover:bg-elevated mt-1 cursor-pointer rounded-md border border-white/10 px-3 py-1 text-xs font-medium transition-colors duration-150 hover:text-white"
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    class="mt-1"
                     onclick={(e) => {
                       e.stopPropagation();
                       file = null;
@@ -2009,7 +2000,7 @@
                     }}
                   >
                     {i18n.t.importModal.changeFile}
-                  </button>
+                  </Button>
                 </div>
               {:else}
                 <div
@@ -2287,14 +2278,14 @@
                         {/if}
                         <span>{i18n.t.importModal.mangalibAuth.detectButton}</span>
                       </button>
-                      <button
-                        type="button"
-                        class="inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-2 text-xs text-slate-400 transition hover:text-white"
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         onclick={() => void openMangalibLoginPage()}
                       >
                         <span>{i18n.t.importModal.mangalibAuth.openLoginPage}</span>
                         <ExternalLink size={13} aria-hidden="true" />
-                      </button>
+                      </Button>
                     </div>
                     <p class="text-muted max-w-sm text-[11px] leading-tight sm:text-right">
                       {i18n.t.importModal.mangalibAuth.browserTimingHint}
@@ -2304,10 +2295,11 @@
 
                 <!-- Manual token fallback: subtle spoiler link at the bottom -->
                 <div>
-                  <button
-                    type="button"
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    class="px-1"
                     aria-expanded={showManualTokenInput}
-                    class="text-muted inline-flex cursor-pointer items-center gap-1.5 px-1 text-left text-xs transition hover:text-white"
                     onclick={() => (showManualTokenInput = !showManualTokenInput)}
                   >
                     <span>{i18n.t.importModal.mangalibAuth.manualTokenTitle}</span>
@@ -2316,7 +2308,7 @@
                     {:else}
                       <ChevronDown size={13} />
                     {/if}
-                  </button>
+                  </Button>
                   {#if showManualTokenInput}
                     <div class="mt-2 flex flex-col gap-2 sm:flex-row">
                       <input
@@ -2324,19 +2316,18 @@
                         placeholder={i18n.t.importModal.mangalibAuth.manualTokenPlaceholder}
                         class="bg-field text-ink min-w-0 flex-1 rounded-lg border border-white/10 px-3 py-2 text-sm transition outline-none focus:border-[var(--imp-accent)] focus:ring-1 focus:ring-[var(--imp-border)]"
                       />
-                      <button
-                        type="button"
+                      <Button
+                        variant="secondary"
+                        size="lg"
                         disabled={manualTokenBusy || manualTokenInput.trim() === ""}
-                        class="bg-field text-ink hover:bg-elevated inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-white/10 px-4 py-2 text-sm font-medium whitespace-nowrap transition hover:text-white disabled:cursor-wait disabled:opacity-60"
+                        loading={manualTokenBusy}
                         onclick={() => void saveManualMangalibToken()}
                       >
-                        {#if manualTokenBusy}
-                          <LoaderCircle size={14} class="animate-spin" />
-                        {:else}
+                        {#if !manualTokenBusy}
                           <Check size={14} />
                         {/if}
                         <span>{i18n.t.importModal.mangalibAuth.manualTokenSave}</span>
-                      </button>
+                      </Button>
                     </div>
                   {/if}
                 </div>
@@ -2357,10 +2348,10 @@
                     {i18n.t.importModal.collectViaScript}
                   </p>
                 </div>
-                <button
-                  type="button"
+                <Button
+                  variant="secondary"
+                  size="sm"
                   aria-expanded={showBrowserCollector}
-                  class="inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs font-medium text-slate-300 transition hover:text-white"
                   onclick={() => (showBrowserCollector = !showBrowserCollector)}
                 >
                   <span
@@ -2373,7 +2364,7 @@
                   {:else}
                     <ChevronDown size={13} />
                   {/if}
-                </button>
+                </Button>
               </div>
 
               {#if showBrowserCollector}
@@ -2495,9 +2486,10 @@
                   </ol>
                   <!-- Actions -->
                   <div class="grid grid-cols-1 gap-2.5 pt-1 sm:grid-cols-2">
-                    <button
-                      type="button"
-                      class="bg-field inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-white/10 px-4 py-2.5 text-sm font-medium text-slate-200 transition hover:border-[var(--color-import-mangalib-border)] hover:bg-[var(--color-import-mangalib-surface)] hover:text-[var(--color-import-mangalib-text)]"
+                    <Button
+                      variant="secondary"
+                      size="lg"
+                      class="w-full"
                       onclick={() => void copySocialLibScript()}
                     >
                       {#if scriptCopied}
@@ -2507,7 +2499,7 @@
                         <Copy size={16} />
                         <span>{i18n.t.importModal.copyCollectorScript}</span>
                       {/if}
-                    </button>
+                    </Button>
                     <button
                       type="button"
                       disabled={busy}
@@ -2572,9 +2564,10 @@
                       {(file.size / 1024).toFixed(1)} KB
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    class="bg-field text-muted hover:bg-elevated mt-1 cursor-pointer rounded-md border border-white/10 px-3 py-1 text-xs font-medium transition-colors duration-150 hover:text-white"
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    class="mt-1"
                     onclick={(e) => {
                       e.stopPropagation();
                       file = null;
@@ -2582,7 +2575,7 @@
                     }}
                   >
                     {i18n.t.importModal.changeFile}
-                  </button>
+                  </Button>
                 </div>
               {:else}
                 <div
@@ -2647,9 +2640,10 @@
                     {(file.size / 1024).toFixed(1)} KB
                   </p>
                 </div>
-                <button
-                  type="button"
-                  class="bg-field text-muted hover:bg-elevated mt-1 cursor-pointer rounded-md border border-white/10 px-3 py-1 text-xs font-medium transition-colors duration-150 hover:text-white"
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  class="mt-1"
                   onclick={(e) => {
                     e.stopPropagation();
                     file = null;
@@ -2657,7 +2651,7 @@
                   }}
                 >
                   {i18n.t.importModal.changeFile}
-                </button>
+                </Button>
               </div>
             {:else}
               <div class="bg-field text-muted mb-2 grid h-11 w-11 place-items-center rounded-full">
@@ -2706,9 +2700,10 @@
                     <span class="text-muted text-xs font-semibold tracking-wider uppercase">
                       {i18n.t.importModal.templateJsonLabel}
                     </span>
-                    <button
-                      type="button"
-                      class="bg-field text-ink hover:bg-elevated inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-white/10 px-2.5 py-1 text-xs transition hover:text-white"
+                    <Button
+                      variant="secondary"
+                      size="xs"
+                      class="gap-1.5 px-2.5"
                       onclick={() => void copyJsonTemplate()}
                     >
                       {#if templateCopied}
@@ -2718,7 +2713,7 @@
                         <Copy size={12} />
                         <span>{i18n.t.importModal.copyTemplate}</span>
                       {/if}
-                    </button>
+                    </Button>
                   </div>
                   <pre
                     class="thin-scroll max-h-44 overflow-auto rounded-lg border border-white/10 bg-black/40 p-3 font-mono text-[11px] leading-relaxed text-emerald-300">{templateJson}</pre>
@@ -2729,9 +2724,10 @@
                     <span class="text-muted text-xs font-semibold tracking-wider uppercase">
                       {i18n.t.importModal.templateCsvLabel}
                     </span>
-                    <button
-                      type="button"
-                      class="bg-field text-ink hover:bg-elevated inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-white/10 px-2.5 py-1 text-xs transition hover:text-white"
+                    <Button
+                      variant="secondary"
+                      size="xs"
+                      class="gap-1.5 px-2.5"
                       onclick={() => void copyCsvTemplate()}
                     >
                       {#if csvCopied}
@@ -2741,7 +2737,7 @@
                         <Copy size={12} />
                         <span>{i18n.t.importModal.copyTemplate}</span>
                       {/if}
-                    </button>
+                    </Button>
                   </div>
                   <pre
                     class="thin-scroll overflow-auto rounded-lg border border-white/10 bg-black/40 p-2.5 font-mono text-[11px] text-emerald-300">{templateCsv}</pre>
@@ -2797,9 +2793,10 @@
                     {(file.size / 1024).toFixed(1)} KB
                   </p>
                 </div>
-                <button
-                  type="button"
-                  class="bg-field text-muted hover:bg-elevated mt-1 cursor-pointer rounded-md border border-white/10 px-3 py-1 text-xs font-medium transition-colors duration-150 hover:text-white"
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  class="mt-1"
                   onclick={(e) => {
                     e.stopPropagation();
                     file = null;
@@ -2807,7 +2804,7 @@
                   }}
                 >
                   {i18n.t.importModal.changeFile}
-                </button>
+                </Button>
               </div>
             {:else}
               <div class="bg-field text-muted mb-2 grid h-11 w-11 place-items-center rounded-full">
@@ -2992,19 +2989,16 @@
 
     <!-- Block 4: Launch button -->
     <div class="flex justify-end pt-2">
-      <button
-        type="button"
+      <Button
+        variant="primary"
+        size="lg"
+        class="px-5"
+        loading={busy}
         disabled={busy}
-        class="bg-accent hover:bg-accent-hover inline-flex cursor-pointer items-center gap-2 rounded-lg border border-white/10 px-5 py-2.5 text-sm font-semibold text-white transition disabled:cursor-wait disabled:opacity-60"
         onclick={() => void runImport()}
       >
-        {#if busy}
-          <LoaderCircle size={16} class="animate-spin" />
-          <span>{i18n.t.importModal.importing}</span>
-        {:else}
-          <span>{i18n.t.importModal.start}</span>
-        {/if}
-      </button>
+        <span>{busy ? i18n.t.importModal.importing : i18n.t.importModal.start}</span>
+      </Button>
     </div>
   {/if}
 
@@ -3058,19 +3052,20 @@
                   placement="bottom-end"
                 >
                   {#snippet trigger({ popoverTargetId, anchorName, isOpen })}
-                    <button
-                      type="button"
+                    <Button
+                      variant="secondary"
+                      size="md"
                       popovertarget={popoverTargetId}
                       popovertargetaction="toggle"
                       style={isOpen ? `anchor-name: ${anchorName}` : undefined}
-                      class="tap bg-field flex h-9 min-w-[140px] items-center justify-between gap-2 rounded-lg border border-white/10 px-3 text-xs font-semibold text-white transition hover:border-white/20"
+                      class="min-w-[140px] justify-between px-3 text-xs font-semibold"
                     >
                       <span class="truncate">
                         {customFolderStatusOptions.find((o) => o.value === folder.status)?.label ??
                           folder.status}
                       </span>
                       <ChevronDown size={14} class="text-muted shrink-0" aria-hidden="true" />
-                    </button>
+                    </Button>
                   {/snippet}
                 </PopoverMenu>
               </div>
@@ -3096,14 +3091,15 @@
       </div>
 
       <div class="flex items-center justify-end gap-2.5 border-t border-white/[0.07] pt-4">
-        <button
-          type="button"
+        <Button
+          variant="secondary"
+          size="md"
+          class="px-4 text-xs"
           disabled={busy}
-          class="bg-field hover:bg-card inline-flex h-9 cursor-pointer items-center rounded-lg border border-white/10 px-4 text-xs font-semibold text-slate-300 transition hover:text-white disabled:opacity-50"
           onclick={cancelCustomFolderModal}
         >
           {i18n.t.common.cancel}
-        </button>
+        </Button>
         <button
           type="button"
           disabled={busy}

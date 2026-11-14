@@ -1,5 +1,8 @@
 <script lang="ts">
-  import { ChevronDown, Languages, Star, Users } from "$shared/ui/Icons";
+  import { ChevronDown, Star, Users } from "$shared/ui/Icons";
+  import Badge from "$shared/ui/Badge.svelte";
+  import Button from "$shared/ui/Button.svelte";
+  import Panel from "$shared/ui/Panel.svelte";
   import { i18n } from "$shared/i18n/index.svelte";
 
   export interface RatingBadge {
@@ -46,6 +49,44 @@
     onToggleTranslate,
     onToggleExpand,
   }: Props = $props();
+
+  // The expand/collapse animates a measured height swap: the shell clips the paragraph,
+  // so the full scrollHeight stays measurable in both states and px→px always interpolates.
+  const COLLAPSED_LINES = 4;
+  let synopsisShell = $state<HTMLDivElement | null>(null);
+  let synopsisParagraph = $state<HTMLParagraphElement | null>(null);
+  let synopsisMounted = false;
+
+  function collapsedSynopsisHeight(p: HTMLElement): number {
+    const style = getComputedStyle(p);
+    const fontSize = Number.parseFloat(style.fontSize);
+    const lineHeight = Number.parseFloat(style.lineHeight);
+    const line = Number.isNaN(lineHeight) ? 1.625 * (Number.isNaN(fontSize) ? 14 : fontSize) : lineHeight;
+    return Math.round(line * COLLAPSED_LINES);
+  }
+
+  $effect(() => {
+    void synopsisText;
+    void synopsisTranslated;
+    void translatedSynopsis;
+    const shell = synopsisShell;
+    const p = synopsisParagraph;
+    if (!shell || !p) return;
+    const canClamp = synopsisExpandable && !synopsisExpanded;
+    if (!synopsisMounted) {
+      // First render snaps to the target height — no motion on mount.
+      synopsisMounted = true;
+      shell.style.height = canClamp ? `${collapsedSynopsisHeight(p)}px` : "auto";
+      return;
+    }
+    const from = canClamp ? `${p.scrollHeight}px` : `${collapsedSynopsisHeight(p)}px`;
+    const to = canClamp ? `${collapsedSynopsisHeight(p)}px` : `${p.scrollHeight}px`;
+    shell.style.transition = "none";
+    shell.style.height = from;
+    void shell.offsetHeight; // flush the starting height before re-enabling the transition
+    shell.style.transition = "";
+    shell.style.height = to;
+  });
 </script>
 
 <header class="flex flex-wrap items-start justify-between gap-4">
@@ -61,10 +102,8 @@
 
 <ul class="flex flex-wrap gap-2">
   {#each tags as tag, idx (`${tag}-${idx}`)}
-    <li
-      class="rounded-full bg-[color-mix(in_oklab,var(--color-accent)_20%,transparent)] px-3 py-1 text-xs font-medium text-[var(--color-accent-soft)]"
-    >
-      {tag}
+    <li>
+      <Badge tone="accent" size="sm" class="rounded-full px-3 py-1">{tag}</Badge>
     </li>
   {/each}
 </ul>
@@ -147,43 +186,59 @@
     </div>
   {/each}
 </div>
-<section
-  class="space-y-2 rounded-xl border border-white/[0.06] bg-[color-mix(in_oklab,var(--color-panel-line)_60%,transparent)] p-5"
->
+<Panel class="space-y-2">
   <div class="flex items-center justify-between">
     <h2 class="text-xs font-bold tracking-wider text-slate-300 uppercase">
       {i18n.t.detail.synopsisTitle}
     </h2>
     {#if synopsisText}
-      <button
-        type="button"
-        class="inline-flex cursor-pointer items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium text-[var(--color-accent-soft)] transition hover:bg-white/10 hover:text-white disabled:opacity-50"
+      <Button
+        variant="ghost"
+        size="xs"
+        loading={translatingSynopsis}
         disabled={translatingSynopsis}
-        onclick={onToggleTranslate}
+        class="text-accent-soft! hover:text-white!"
         title={synopsisTranslated ? i18n.t.detail.showOriginal : i18n.t.detail.translate}
+        onclick={onToggleTranslate}
       >
-        {#if translatingSynopsis}
-          <div
-            class="border-accent h-3 w-3 animate-spin rounded-full border border-t-transparent"
-          ></div>
-          <span>{i18n.t.detail.translating}</span>
-        {:else}
-          <Languages size={13} aria-hidden="true" />
-          <span>{synopsisTranslated ? i18n.t.detail.showOriginal : i18n.t.detail.translate}</span>
-        {/if}
-      </button>
+        <span
+          >{translatingSynopsis
+          ? i18n.t.detail.translating
+          : synopsisTranslated
+            ? i18n.t.detail.showOriginal
+            : i18n.t.detail.translate}</span
+        >
+      </Button>
     {/if}
   </div>
   {#if synopsisText}
-    <p
-      class={`text-sm leading-relaxed break-words whitespace-pre-line text-[var(--color-ink-dim)] ${synopsisExpandable && !synopsisExpanded ? "line-clamp-4" : ""}`}
+    <div
+      bind:this={synopsisShell}
+      class="relative overflow-hidden transition-[height] duration-200 ease-out"
+      ontransitionend={(e) => {
+        // Release the fixed height once expanded, so viewport resizes keep the text visible.
+        if (e.propertyName === "height" && synopsisExpanded && synopsisShell) {
+          synopsisShell.style.height = "auto";
+        }
+      }}
     >
-      {synopsisTranslated && translatedSynopsis ? translatedSynopsis : synopsisText}
-    </p>
+      <p
+        bind:this={synopsisParagraph}
+        class="text-sm leading-relaxed break-words whitespace-pre-line text-[var(--color-ink-dim)]"
+      >
+        {synopsisTranslated && translatedSynopsis ? translatedSynopsis : synopsisText}
+      </p>
+      <!-- The tail fades into the panel instead of being chopped by a hard clip edge. -->
+      <div
+        class={`pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-[var(--color-panel-line)] to-transparent transition-opacity duration-200 ${synopsisExpandable && !synopsisExpanded ? "opacity-100" : "opacity-0"}`}
+        aria-hidden="true"
+      ></div>
+    </div>
     {#if synopsisExpandable}
-      <button
-        type="button"
-        class="inline-flex items-center gap-1 pt-1 text-xs font-semibold text-[var(--color-accent-soft)] transition hover:text-white"
+      <Button
+        variant="ghost"
+        size="xs"
+        class="pt-1 text-accent-soft! hover:text-white!"
         onclick={onToggleExpand}
       >
         {synopsisExpanded ? i18n.t.detail.collapse : i18n.t.detail.readMore}
@@ -192,9 +247,9 @@
           class={`transition ${synopsisExpanded ? "rotate-180" : ""}`}
           aria-hidden="true"
         />
-      </button>
+      </Button>
     {/if}
   {:else}
     <p class="text-muted text-sm">{i18n.t.detail.noSynopsis}</p>
   {/if}
-</section>
+</Panel>

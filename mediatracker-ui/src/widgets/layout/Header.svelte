@@ -5,6 +5,7 @@
   import { jobsClient } from "$shared/api/jobsClient.svelte";
   import { offlineModeState } from "$shared/api/offlineMode.svelte";
   import PopoverMenu from "$shared/ui/PopoverMenu.svelte";
+  import Button from "$shared/ui/Button.svelte";
   import ActivityDropdown from "./ActivityDropdown.svelte";
 
   interface Props {
@@ -45,9 +46,9 @@
         </div>
       {/if}
 
-      <button
-        type="button"
-        class="bg-elevated hover:bg-card-hover pointer-events-auto hidden h-9 w-[28rem] items-center gap-2 rounded-lg border border-white/[0.08] px-3 text-left text-sm text-white transition hover:border-indigo-500/40 focus:ring-1 focus:ring-indigo-500/30 focus:outline-none sm:flex sm:w-[32rem]"
+      <Button
+        variant="secondary"
+        class="pointer-events-auto hidden w-[28rem] justify-start px-3 text-left font-normal hover:border-accent-line/40 focus:ring-1 focus:ring-accent-line/30 focus:outline-none sm:flex sm:w-[32rem]"
         title={i18n.t.header.searchTooltip}
         onclick={onSearch}
       >
@@ -57,16 +58,17 @@
           class="bg-canvas text-muted shrink-0 rounded border border-white/[0.08] px-1.5 py-0.5 text-[10px] font-medium"
           >Ctrl K</kbd
         >
-      </button>
+      </Button>
 
-      <button
-        type="button"
-        class="bg-elevated text-muted hover:text-ink pointer-events-auto inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/[0.08] transition hover:border-indigo-500/40 focus:ring-1 focus:ring-indigo-500/30 focus:outline-none sm:hidden"
+      <Button
+        variant="secondary"
+        iconOnly
+        class="pointer-events-auto sm:hidden hover:border-accent-line/40 focus:ring-1 focus:ring-accent-line/30 focus:outline-none"
         aria-label={i18n.t.header.searchButton}
         onclick={onSearch}
       >
         <Search size={17} aria-hidden="true" />
-      </button>
+      </Button>
 
       <div class="pointer-events-auto absolute left-full ml-2.5 flex items-center">
         <ActivityDropdown />
@@ -95,31 +97,32 @@
       placement="bottom-end"
     >
       {#snippet trigger({ popoverTargetId, anchorName, isOpen })}
-        <button
-          type="button"
+        <Button
+          variant="secondary"
           popovertarget={popoverTargetId}
           popovertargetaction="toggle"
           style={isOpen ? `anchor-name: ${anchorName}` : undefined}
-          class="tap bg-elevated text-ink inline-flex h-9 w-[88px] items-center justify-between rounded-lg border border-white/[0.08] px-2.5 text-xs font-semibold transition hover:border-indigo-500/40 hover:text-white focus:ring-1 focus:ring-indigo-500/30 focus:outline-none"
+          class="w-[88px] justify-between px-2.5 text-xs font-semibold hover:border-accent-line/40 hover:text-white focus:ring-1 focus:ring-accent-line/30 focus:outline-none"
           title={i18n.t.header.language}
         >
           <Languages size={15} class="text-muted" aria-hidden="true" />
           {i18n.current.toUpperCase()}
           <ChevronDown size={14} class="text-muted" aria-hidden="true" />
-        </button>
+        </Button>
       {/snippet}
     </PopoverMenu>
 
     {#if onExitClick}
-      <button
-        type="button"
-        class="bg-elevated text-muted hover:text-ink inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/[0.08] transition hover:border-rose-400/40 focus:ring-1 focus:ring-rose-500/30 focus:outline-none"
+      <Button
+        variant="secondary"
+        iconOnly
+        class="hover:border-danger/40 focus:ring-1 focus:ring-danger/30 focus:outline-none"
         title={i18n.t.header.exit}
         aria-label={i18n.t.header.exit}
         onclick={onExitClick}
       >
         <Power size={16} class="shrink-0" aria-hidden="true" />
-      </button>
+      </Button>
     {/if}
   </div>
 </div>

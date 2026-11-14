@@ -21,9 +21,11 @@
   import { fullSizeCoverUrl } from "$entities/media/model/coverUrl";
   import { statusLabel } from "$entities/media/model/mediaLabels";
   import MediaCoverPlaceholder from "$shared/ui/MediaCoverPlaceholder.svelte";
+  import Button from "$shared/ui/Button.svelte";
   import CreateListModal from "$features/lists/CreateListModal.svelte";
   import MediaGrid from "$widgets/media-grid/MediaGrid.svelte";
   import { i18n } from "$shared/i18n/index.svelte";
+  import { confirmAction } from "$shared/ui/confirmDialog.svelte";
   import { showToast } from "$shared/ui/toast.svelte";
   import type { CustomListDetail, CustomListSummary, MediaItem, MediaStatus } from "$shared/types";
   import ImportModal from "$features/import-media/ImportModal.svelte";
@@ -109,7 +111,15 @@
   }
 
   async function removeList(list: CustomListSummary) {
-    if (!window.confirm(i18n.t.views.listConfirmDelete(list.name))) return;
+    if (
+      !(await confirmAction({
+        key: "delete-list",
+        title: i18n.t.views.listConfirmDelete(list.name),
+        confirmLabel: i18n.t.common.delete,
+        danger: true,
+      }))
+    )
+      return;
     try {
       await deleteList(list.id);
       if (selected?.id === list.id) selected = null;
@@ -174,13 +184,9 @@
   {#if selected}
     <div class="flex flex-wrap items-start justify-between gap-4">
       <div class="min-w-0">
-        <button
-          type="button"
-          class="text-muted mb-4 inline-flex items-center gap-2 text-sm transition-colors duration-150 hover:text-white"
-          onclick={closeList}
-        >
+        <Button variant="ghost" size="sm" class="mb-4" onclick={closeList}>
           <span aria-hidden="true">←</span>{i18n.t.views.listBack}
-        </button>
+        </Button>
         <div class="flex items-center gap-3">
           <span
             class="grid h-12 w-12 shrink-0 place-items-center rounded-xl text-white"
@@ -198,19 +204,19 @@
           </p>{/if}
       </div>
       <div class="flex gap-2 pt-10">
-        <button
-          type="button"
-          class="bg-card text-ink hover:bg-card-hover inline-flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-sm transition-colors duration-150"
+        <Button
+          variant="secondary"
+          size="lg"
           onclick={() => openCreate(lists.find((list) => list.id === selected?.id) ?? null)}
-          ><Pencil size={15} />{i18n.t.views.listEdit}</button
+          ><Pencil size={15} />{i18n.t.views.listEdit}</Button
         >
-        <button
-          type="button"
-          class="inline-flex items-center gap-2 rounded-lg border border-rose-400/20 bg-rose-400/5 px-3 py-2 text-sm text-rose-300 transition-colors duration-150 hover:bg-rose-400/10"
+        <Button
+          variant="danger"
+          size="lg"
           onclick={() => {
             const list = lists.find((value) => value.id === selected?.id);
             if (list) void removeList(list);
-          }}><Trash2 size={15} />{i18n.t.views.listDelete}</button
+          }}><Trash2 size={15} />{i18n.t.views.listDelete}</Button
         >
       </div>
     </div>
@@ -279,14 +285,10 @@
         <h2 class="text-ink mt-1 text-2xl font-bold tracking-tight">{i18n.t.views.listsTitle}</h2>
       </div>
       <div class="flex gap-2">
-        <button
-          type="button"
-          class="bg-card text-ink hover:bg-card-hover inline-flex items-center gap-2 rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold transition-colors duration-150"
-          onclick={() => (importOpen = true)}><Layers size={16} />{i18n.t.importModal.start}</button
-        >{#if lists.length > 0}<button
-            type="button"
-            class="tap bg-accent hover:bg-accent-hover inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors duration-150"
-            onclick={() => openCreate()}><Plus size={16} />{i18n.t.views.listsCreate}</button
+        <Button variant="secondary" size="lg" onclick={() => (importOpen = true)}
+          ><Layers size={16} />{i18n.t.importModal.start}</Button
+        >{#if lists.length > 0}<Button variant="primary" size="lg" onclick={() => openCreate()}
+            ><Plus size={16} />{i18n.t.views.listsCreate}</Button
           >{/if}
       </div>
     </div>
@@ -316,10 +318,8 @@
         </div>
         <h3 class="text-ink mt-5 text-lg font-semibold">{i18n.t.views.listsEmptyTitle}</h3>
         <p class="text-muted mt-2 max-w-md text-sm leading-6">{i18n.t.views.listsEmptyHint}</p>
-        <button
-          type="button"
-          class="bg-accent hover:bg-accent-hover mt-6 inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white transition-colors duration-150"
-          onclick={() => openCreate()}><Plus size={16} />{i18n.t.views.listCreateFirst}</button
+        <Button variant="primary" size="lg" class="mt-6" onclick={() => openCreate()}
+          ><Plus size={16} />{i18n.t.views.listCreateFirst}</Button
         >
       </div>
     {:else}
@@ -466,19 +466,22 @@
               <span
                 class="flex gap-1 opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100"
               >
-                <button
-                  type="button"
+                <Button
+                  variant="ghost"
+                  iconOnly
+                  size="sm"
                   title={i18n.t.views.listEdit}
                   aria-label={i18n.t.views.listEdit}
-                  class="grid h-8 w-8 place-items-center rounded-md transition-colors duration-150 hover:bg-white/10 hover:text-white"
-                  onclick={() => openCreate(list)}><Pencil size={15} /></button
+                  onclick={() => openCreate(list)}><Pencil size={15} /></Button
                 >
-                <button
-                  type="button"
+                <Button
+                  variant="ghost"
+                  iconOnly
+                  size="sm"
+                  class="hover:bg-danger-soft! hover:text-danger-text!"
                   title={i18n.t.views.listDelete}
                   aria-label={i18n.t.views.listDelete}
-                  class="grid h-8 w-8 place-items-center rounded-md transition-colors duration-150 hover:bg-rose-400/10 hover:text-rose-300"
-                  onclick={() => void removeList(list)}><Trash2 size={15} /></button
+                  onclick={() => void removeList(list)}><Trash2 size={15} /></Button
                 >
               </span>
             </div>

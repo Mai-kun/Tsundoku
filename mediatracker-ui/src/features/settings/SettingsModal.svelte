@@ -71,10 +71,12 @@
     type AppSettings,
   } from "$shared/api/api";
   import { showToast } from "$shared/ui/toast.svelte";
+  import { confirmAction, confirmDialog } from "$shared/ui/confirmDialog.svelte";
   import { waitForBackendRestart } from "$shared/api/serverRestart.svelte";
   import { i18n } from "$shared/i18n/index.svelte";
   import { offlineModeState } from "$shared/api/offlineMode.svelte";
   import type { OfflineDatabaseStatusDto } from "$shared/types";
+  import Button from "$shared/ui/Button.svelte";
   import Modal from "$shared/ui/Modal.svelte";
   import Select from "$shared/ui/Select.svelte";
   import { flip } from "svelte/animate";
@@ -678,10 +680,14 @@
   async function handleDeleteDump(db: OfflineDatabaseStatusDto) {
     if (deletingDump || !db.sourceDumpFileName) return;
     if (
-      !window.confirm(i18n.t.settingsModal.sources.offline.deleteDumpConfirm(db.sourceDumpFileName))
-    ) {
+      !(await confirmAction({
+        key: "delete-source-dump",
+        title: i18n.t.settingsModal.sources.offline.deleteDumpConfirm(db.sourceDumpFileName),
+        confirmLabel: i18n.t.common.delete,
+        danger: true,
+      }))
+    )
       return;
-    }
     deletingDump = db.fileName;
     try {
       const response = await apiFetch(
@@ -696,6 +702,21 @@
     } finally {
       deletingDump = "";
     }
+  }
+
+  // Remembered confirm-dialog decisions: the count refreshes whenever the store writes
+  // (memoryVersion) so clearing here updates the hint text immediately.
+  const confirmMemoryCount = $derived.by(() => {
+    void confirmDialog.memoryVersion;
+    return confirmDialog.rememberedCount();
+  });
+
+  function clearConfirmMemory() {
+    confirmDialog.clearMemory();
+    showToast({
+      title: i18n.t.settingsModal.confirmMemory.clearedTitle,
+      description: i18n.t.settingsModal.confirmMemory.clearedDesc,
+    });
   }
 
   function formatBytes(bytes: number): string {
@@ -1113,122 +1134,131 @@
     aria-label={i18n.t.settingsModal.title}
   >
     <div class="space-y-1.5">
-      <button
-        type="button"
-        class={`tap flex w-full cursor-pointer items-center gap-3 rounded-lg px-3.5 py-2.5 text-left text-xs transition ${
+      <Button
+        variant="ghost"
+        size="md"
+        class={`tap w-full justify-start gap-3 px-3.5 text-left text-xs ${
           activeTab === "sources"
-            ? "border-accent-bright/30 bg-accent-bright/15 border font-semibold text-[#a5b4fc] shadow-sm"
-            : "text-muted border border-transparent font-medium hover:bg-white/5 hover:text-white"
+            ? "border-accent-bright/30! bg-accent-bright/15! border! text-accent-soft! font-semibold! shadow-sm"
+            : ""
         }`}
         onclick={() => (activeTab = "sources")}
       >
         <Server size={16} />
         <span>{i18n.t.settingsModal.tabs.sources}</span>
-      </button>
+      </Button>
 
-      <button
-        type="button"
-        class={`tap flex w-full cursor-pointer items-center gap-3 rounded-lg px-3.5 py-2.5 text-left text-xs transition ${
+      <Button
+        variant="ghost"
+        size="md"
+        class={`tap w-full justify-start gap-3 px-3.5 text-left text-xs ${
           activeTab === "search"
-            ? "border-accent-bright/30 bg-accent-bright/15 border font-semibold text-[#a5b4fc] shadow-sm"
-            : "text-muted border border-transparent font-medium hover:bg-white/5 hover:text-white"
+            ? "border-accent-bright/30! bg-accent-bright/15! border! text-accent-soft! font-semibold! shadow-sm"
+            : ""
         }`}
         onclick={() => (activeTab = "search")}
       >
         <Search size={16} />
         <span>{i18n.t.settingsModal.tabs.search}</span>
-      </button>
+      </Button>
 
-      <button
-        type="button"
-        class={`tap flex w-full cursor-pointer items-center gap-3 rounded-lg px-3.5 py-2.5 text-left text-xs transition ${
+      <Button
+        variant="ghost"
+        size="md"
+        class={`tap w-full justify-start gap-3 px-3.5 text-left text-xs ${
           activeTab === "backup"
-            ? "border-accent-bright/30 bg-accent-bright/15 border font-semibold text-[#a5b4fc] shadow-sm"
-            : "text-muted border border-transparent font-medium hover:bg-white/5 hover:text-white"
+            ? "border-accent-bright/30! bg-accent-bright/15! border! text-accent-soft! font-semibold! shadow-sm"
+            : ""
         }`}
         onclick={() => (activeTab = "backup")}
       >
         <RotateCcw size={16} />
         <span>{i18n.t.settingsModal.tabs.backup}</span>
-      </button>
+      </Button>
 
-      <button
-        type="button"
-        class={`tap flex w-full cursor-pointer items-center gap-3 rounded-lg px-3.5 py-2.5 text-left text-xs transition ${
+      <Button
+        variant="ghost"
+        size="md"
+        class={`tap w-full justify-start gap-3 px-3.5 text-left text-xs ${
           activeTab === "import"
-            ? "border-accent-bright/30 bg-accent-bright/15 border font-semibold text-[#a5b4fc] shadow-sm"
-            : "text-muted border border-transparent font-medium hover:bg-white/5 hover:text-white"
+            ? "border-accent-bright/30! bg-accent-bright/15! border! text-accent-soft! font-semibold! shadow-sm"
+            : ""
         }`}
         onclick={() => (activeTab = "import")}
       >
         <FolderInput size={16} />
         <span>{i18n.t.settingsModal.tabs.import}</span>
-      </button>
+      </Button>
 
-      <button
-        type="button"
-        class={`tap flex w-full cursor-pointer items-center gap-3 rounded-lg px-3.5 py-2.5 text-left text-xs transition ${
+      <Button
+        variant="ghost"
+        size="md"
+        class={`tap w-full justify-start gap-3 px-3.5 text-left text-xs ${
           activeTab === "reading"
-            ? "border-accent-bright/30 bg-accent-bright/15 border font-semibold text-[#a5b4fc] shadow-sm"
-            : "text-muted border border-transparent font-medium hover:bg-white/5 hover:text-white"
+            ? "border-accent-bright/30! bg-accent-bright/15! border! text-accent-soft! font-semibold! shadow-sm"
+            : ""
         }`}
         onclick={() => (activeTab = "reading")}
       >
         <BookOpen size={16} />
         <span>{i18n.t.settingsModal.tabs.reading}</span>
-      </button>
+      </Button>
 
-      <button
-        type="button"
-        class={`tap flex w-full cursor-pointer items-center gap-3 rounded-lg px-3.5 py-2.5 text-left text-xs transition ${
+      <Button
+        variant="ghost"
+        size="md"
+        class={`tap w-full justify-start gap-3 px-3.5 text-left text-xs ${
           activeTab === "update"
-            ? "border-accent-bright/30 bg-accent-bright/15 border font-semibold text-[#a5b4fc] shadow-sm"
-            : "text-muted border border-transparent font-medium hover:bg-white/5 hover:text-white"
+            ? "border-accent-bright/30! bg-accent-bright/15! border! text-accent-soft! font-semibold! shadow-sm"
+            : ""
         }`}
         onclick={() => (activeTab = "update")}
       >
         <RefreshCw size={16} />
         <span>{i18n.t.settingsModal.tabs.update}</span>
-      </button>
+      </Button>
 
-      <button
-        type="button"
-        class={`tap flex w-full cursor-pointer items-center gap-3 rounded-lg px-3.5 py-2.5 text-left text-xs transition ${
+      <Button
+        variant="ghost"
+        size="md"
+        class={`tap w-full justify-start gap-3 px-3.5 text-left text-xs ${
           activeTab === "storage"
-            ? "border-accent-bright/30 bg-accent-bright/15 border font-semibold text-[#a5b4fc] shadow-sm"
-            : "text-muted border border-transparent font-medium hover:bg-white/5 hover:text-white"
+            ? "border-accent-bright/30! bg-accent-bright/15! border! text-accent-soft! font-semibold! shadow-sm"
+            : ""
         }`}
         onclick={() => (activeTab = "storage")}
       >
         <FolderInput size={16} />
         <span>{i18n.t.settingsModal.tabs.storage}</span>
-      </button>
+      </Button>
 
-      <button
-        type="button"
-        class={`tap flex w-full cursor-pointer items-center gap-3 rounded-lg px-3.5 py-2.5 text-left text-xs transition ${
+      <Button
+        variant="ghost"
+        size="md"
+        class={`tap w-full justify-start gap-3 px-3.5 text-left text-xs ${
           activeTab === "appearance"
-            ? "border-accent-bright/30 bg-accent-bright/15 border font-semibold text-[#a5b4fc] shadow-sm"
-            : "text-muted border border-transparent font-medium hover:bg-white/5 hover:text-white"
+            ? "border-accent-bright/30! bg-accent-bright/15! border! text-accent-soft! font-semibold! shadow-sm"
+            : ""
         }`}
         onclick={() => (activeTab = "appearance")}
       >
         <Palette size={16} />
         <span>{i18n.t.settingsModal.tabs.appearance}</span>
-      </button>
+      </Button>
 
-      <button
-        type="button"
-        class={`tap flex w-full cursor-pointer items-center gap-3 rounded-lg px-3.5 py-2.5 text-left text-xs transition ${
+      <Button
+        variant="ghost"
+        size="md"
+        class={`tap w-full justify-start gap-3 px-3.5 text-left text-xs ${
           activeTab === "desktop"
-            ? "border-accent-bright/30 bg-accent-bright/15 border font-semibold text-[#a5b4fc] shadow-sm"
-            : "text-muted border border-transparent font-medium hover:bg-white/5 hover:text-white"
+            ? "border-accent-bright/30! bg-accent-bright/15! border! text-accent-soft! font-semibold! shadow-sm"
+            : ""
         }`}
         onclick={() => (activeTab = "desktop")}
       >
         <AppWindow size={16} />
         <span>{i18n.t.settingsModal.tabs.desktop}</span>
-      </button>
+      </Button>
     </div>
   </nav>
 
@@ -1466,30 +1496,32 @@
           <div
             class="bg-card/60 flex items-center gap-1 rounded-full border border-white/[0.06] p-1"
           >
-            <button
-              type="button"
-              class={`inline-flex cursor-pointer items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${
+            <Button
+              variant="ghost"
+              size="sm"
+              class={`rounded-full px-3.5 font-semibold ${
                 sourceKindFilter === "api"
-                  ? "bg-accent-bright/20 text-[#a5b4fc] shadow-sm"
-                  : "text-muted hover:text-ink"
+                  ? "bg-accent-bright/20! text-accent-soft! shadow-sm"
+                  : ""
               }`}
               onclick={() => (sourceKindFilter = "api")}
             >
               <Zap size={13} />
               {i18n.t.settingsModal.sources.kindApi}
-            </button>
-            <button
-              type="button"
-              class={`inline-flex cursor-pointer items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              class={`rounded-full px-3.5 font-semibold ${
                 sourceKindFilter === "scraper"
-                  ? "bg-accent-bright/20 text-[#a5b4fc] shadow-sm"
-                  : "text-muted hover:text-ink"
+                  ? "bg-accent-bright/20! text-accent-soft! shadow-sm"
+                  : ""
               }`}
               onclick={() => (sourceKindFilter = "scraper")}
             >
               <Globe size={13} />
               {i18n.t.settingsModal.sources.kindScrapers}
-            </button>
+            </Button>
           </div>
 
           <!-- Media Type Filter Dropdown (kept across the kind switcher) -->
@@ -1619,9 +1651,10 @@
                   </div>
 
                   <div class="flex shrink-0 items-center gap-2.5">
-                    <button
-                      type="button"
-                      class="bg-field text-ink hover:bg-card hover:border-accent-soft inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-white/10 px-2.5 text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-60"
+                    <Button
+                      variant="secondary"
+                      size="xs"
+                      class="px-2.5"
                       disabled={testingSource === source.id}
                       title={i18n.t.settingsModal.sources.testConnection}
                       onclick={() => void handleTestSource(source.id)}
@@ -1637,7 +1670,7 @@
                           ? i18n.t.settingsModal.sources.testing
                           : i18n.t.settingsModal.sources.testConnection}</span
                       >
-                    </button>
+                    </Button>
 
                     <button
                       type="button"
@@ -1711,9 +1744,9 @@
                       {/if}
 
                       <div class="flex flex-wrap items-center gap-2">
-                        <button
-                          type="button"
-                          class="bg-field text-ink hover:bg-card hover:border-accent-soft inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-white/10 px-3 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60"
+                        <Button
+                          variant="secondary"
+                          size="sm"
                           disabled={detectingSocialLib}
                           onclick={handleDetectSocialLibSession}
                         >
@@ -1723,7 +1756,7 @@
                               ? i18n.t.common.loading
                               : "Подхватить сессию из браузера"}</span
                           >
-                        </button>
+                        </Button>
                         <button
                           type="button"
                           class="text-muted hover:text-ink inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-white/10 px-3 text-xs font-medium transition hover:border-white/20"
@@ -1747,9 +1780,9 @@
                             oninput={(e) =>
                               (inputKeys[source.id] = (e.currentTarget as HTMLInputElement).value)}
                           />
-                          <button
-                            type="button"
-                            class="bg-field text-ink hover:bg-card hover:border-accent-soft inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-white/10 px-3 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60"
+                          <Button
+                            variant="secondary"
+                            size="sm"
                             disabled={savingKey === source.id || !inputKeys[source.id]?.trim()}
                             onclick={() => void handleSaveKey(source.id)}
                           >
@@ -1757,7 +1790,7 @@
                             {savingKey === source.id
                               ? i18n.t.common.saving
                               : i18n.t.settingsModal.sources.saveKey}
-                          </button>
+                          </Button>
                         </div>
                       {/if}
 
@@ -1796,9 +1829,9 @@
                       {/if}
 
                       <div class="mb-3 flex flex-wrap items-center gap-2">
-                        <button
-                          type="button"
-                          class="bg-field text-ink hover:bg-card hover:border-accent-soft inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-white/10 px-3 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60"
+                        <Button
+                          variant="secondary"
+                          size="sm"
                           disabled={detectingSimkl}
                           onclick={handleDetectSimklSession}
                         >
@@ -1808,7 +1841,7 @@
                               ? i18n.t.common.loading
                               : "Подхватить сессию из браузера"}</span
                           >
-                        </button>
+                        </Button>
                       </div>
                       <p class="text-muted mt-1.5 text-[11px]">
                         Ищет активную сессию simkl.com в браузерах; Client ID вводится ниже как
@@ -1835,9 +1868,9 @@
                           oninput={(e) =>
                             (inputKeys[source.id] = (e.currentTarget as HTMLInputElement).value)}
                         />
-                        <button
-                          type="button"
-                          class="bg-field text-ink hover:bg-card hover:border-accent-soft inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-white/10 px-3 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60"
+                        <Button
+                          variant="secondary"
+                          size="sm"
                           disabled={savingKey === source.id || !inputKeys[source.id]?.trim()}
                           onclick={() => void handleSaveKey(source.id)}
                         >
@@ -1845,7 +1878,7 @@
                           {savingKey === source.id
                             ? i18n.t.common.saving
                             : i18n.t.settingsModal.sources.saveKey}
-                        </button>
+                        </Button>
                       </div>
 
                       {#if keySuccess[source.id]}
@@ -1901,10 +1934,10 @@
                         </div>
 
                         <!-- Save key button: Item 14 pointer cursor when active, not-allowed when disabled, no cursor-wait -->
-                        <button
-                          type="button"
-                          class="bg-field text-ink hover:bg-card hover:border-accent-soft inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-md border border-white/10 px-3 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60"
-                          class:cursor-wait={savingKey === source.id}
+                        <Button
+                          variant="secondary"
+                          size="md"
+                          class={`px-3 ${savingKey === source.id ? "cursor-wait" : ""}`}
                           disabled={savingKey === source.id || !inputKeys[source.id]?.trim()}
                           onclick={() => void handleSaveKey(source.id)}
                         >
@@ -1912,7 +1945,7 @@
                           {savingKey === source.id
                             ? i18n.t.common.saving
                             : i18n.t.settingsModal.sources.saveKey}
-                        </button>
+                        </Button>
                       </div>
 
                       {#if keySuccess[source.id]}
@@ -2015,24 +2048,26 @@
 
                   <!-- Right: accessible fallback buttons -->
                   <div class="flex items-center gap-1">
-                    <button
-                      type="button"
-                      class="text-muted hover:bg-elevated hover:text-ink grid h-7 w-7 cursor-pointer place-items-center rounded-md transition disabled:cursor-not-allowed disabled:opacity-30"
+                    <Button
+                      variant="ghost"
+                      iconOnly
+                      size="sm"
                       disabled={idx === 0 || orderSaving}
                       aria-label={i18n.t.settingsModal.search.moveUp}
                       onclick={() => void moveCategory(idx, "up")}
                     >
                       <ChevronUp size={16} />
-                    </button>
-                    <button
-                      type="button"
-                      class="text-muted hover:bg-elevated hover:text-ink grid h-7 w-7 cursor-pointer place-items-center rounded-md transition disabled:cursor-not-allowed disabled:opacity-30"
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      iconOnly
+                      size="sm"
                       disabled={idx === categoryOrder.length - 1 || orderSaving}
                       aria-label={i18n.t.settingsModal.search.moveDown}
                       onclick={() => void moveCategory(idx, "down")}
                     >
                       <ChevronDown size={16} />
-                    </button>
+                    </Button>
                   </div>
                 </div>
               {/each}
@@ -2124,24 +2159,26 @@
                             {/if}
                           </div>
                           <div class="flex items-center gap-1">
-                            <button
-                              type="button"
-                              class="text-muted hover:bg-elevated hover:text-ink grid h-6 w-6 cursor-pointer place-items-center rounded transition disabled:cursor-not-allowed disabled:opacity-30"
+                            <Button
+                              variant="ghost"
+                              iconOnly
+                              size="xs"
                               disabled={pIdx === 0 || prioritySaving}
                               aria-label={i18n.t.settingsModal.search.moveUp}
                               onclick={() => void moveSourcePriority(mediaType, pIdx, "up")}
                             >
                               <ChevronUp size={14} />
-                            </button>
-                            <button
-                              type="button"
-                              class="text-muted hover:bg-elevated hover:text-ink grid h-6 w-6 cursor-pointer place-items-center rounded transition disabled:cursor-not-allowed disabled:opacity-30"
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              iconOnly
+                              size="xs"
                               disabled={pIdx === providers.length - 1 || prioritySaving}
                               aria-label={i18n.t.settingsModal.search.moveDown}
                               onclick={() => void moveSourcePriority(mediaType, pIdx, "down")}
                             >
                               <ChevronDown size={14} />
-                            </button>
+                            </Button>
                           </div>
                         </div>
                       {/each}
@@ -2276,15 +2313,16 @@
           <p class="mt-1 text-xs text-slate-400">
             {i18n.t.settingsModal.backup.resetDescription}
           </p>
-          <button
-            type="button"
-            class="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-lg bg-rose-600/90 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-rose-500/90 disabled:cursor-not-allowed disabled:opacity-60"
+          <Button
+            variant="danger"
+            size="lg"
+            class="mt-4"
             disabled={isResetting}
             onclick={() => (showResetConfirm = true)}
           >
             <Trash2 size={14} />
             {i18n.t.settingsModal.backup.resetButton}
-          </button>
+          </Button>
         </div>
       </div>
     {:else if activeTab === "reading"}
@@ -2332,17 +2370,14 @@
           </div>
 
           <div class="pt-2">
-            <button
-              type="button"
-              disabled={isSavingReading}
-              class="bg-accent hover:bg-accent-hover inline-flex cursor-pointer items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-50"
+            <Button
+              variant="primary"
+              size="lg"
+              loading={isSavingReading}
               onclick={handleSaveReadingSpeed}
             >
-              {#if isSavingReading}
-                <LoaderCircle size={15} class="animate-spin" />
-              {/if}
               {i18n.t.settingsModal.reading.saveButton}
-            </button>
+            </Button>
           </div>
         </div>
       </section>
@@ -2360,13 +2395,14 @@
               <p class="font-bold text-emerald-400">
                 Доступна версия {updateCheck.latestVersion}
               </p>
-              <button
-                type="button"
+              <Button
+                variant="primary"
+                size="lg"
                 onclick={handleApplyUpdate}
                 disabled={isApplyingUpdate}
-                class="bg-accent rounded px-4 py-2 text-xs font-semibold text-white"
-                >Обновить и перезапустить</button
               >
+                Обновить и перезапустить
+              </Button>
               {#if updateCheck.releaseNotes}
                 <div class="text-muted mt-4 rounded bg-black/20 p-4 text-xs whitespace-pre-wrap">
                   {updateCheck.releaseNotes}
@@ -2791,6 +2827,26 @@
           {/each}
         </div>
 
+        <!-- Remembered confirm-dialog decisions: the escape hatch for the
+             "Запомнить выбор" checkboxes on every confirmation modal. -->
+        <div class="bg-card rounded-xl border border-white/[0.08] p-5">
+          <h4 class="text-ink text-sm font-bold">
+            {i18n.t.settingsModal.confirmMemory.title}
+          </h4>
+          <p class="text-muted mt-0.5 text-xs leading-relaxed">
+            {i18n.t.settingsModal.confirmMemory.hint(confirmMemoryCount)}
+          </p>
+          <button
+            type="button"
+            class="mt-3 inline-flex cursor-pointer items-center gap-2 rounded-lg border border-white/[0.10] bg-white/[0.04] px-4 py-2 text-sm font-medium text-slate-200 transition hover:bg-white/[0.09] hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={confirmMemoryCount === 0}
+            onclick={clearConfirmMemory}
+          >
+            <RotateCcw size={15} aria-hidden="true" />
+            {i18n.t.settingsModal.confirmMemory.clear}
+          </button>
+        </div>
+
         <div class="bg-card rounded-xl border border-white/[0.08] p-5">
           <button
             type="button"
@@ -2827,9 +2883,10 @@
               <ExternalLink size={13} />
             </a>
             {#if tokens.length > 0}
-              <button
-                type="button"
-                class="bg-accent hover:bg-accent-hover shadow-accent/20 inline-flex h-9 cursor-pointer items-center gap-2 rounded-lg px-3.5 text-xs font-semibold text-white shadow-md transition"
+              <Button
+                variant="primary"
+                size="md"
+                class="shadow-accent/20 shadow-md"
                 onclick={() => {
                   newTokenName = "";
                   newTokenExpiresInDays = undefined;
@@ -2838,7 +2895,7 @@
               >
                 <Plus size={14} />
                 <span>{i18n.t.settingsModal.apiTokens.createButton}</span>
-              </button>
+              </Button>
             {/if}
           </div>
         </div>
@@ -2864,9 +2921,10 @@
             <p class="text-muted mt-1 max-w-sm text-xs">
               {i18n.t.settingsModal.apiTokens.description}
             </p>
-            <button
-              type="button"
-              class="bg-accent hover:bg-accent-hover shadow-accent/20 mt-4 inline-flex h-9 cursor-pointer items-center gap-2 rounded-lg px-3.5 text-xs font-semibold text-white shadow-md transition"
+            <Button
+              variant="primary"
+              size="md"
+              class="mt-4 shadow-accent/20 shadow-md"
               onclick={() => {
                 newTokenName = "";
                 newTokenExpiresInDays = undefined;
@@ -2875,7 +2933,7 @@
             >
               <Plus size={14} />
               <span>{i18n.t.settingsModal.apiTokens.createButton}</span>
-            </button>
+            </Button>
           </div>
         {:else}
           <div class="space-y-3">
@@ -2930,7 +2988,7 @@
 
 {#snippet body()}
   {#if !embedded}
-    <div class="flex h-full min-h-0 flex-col overflow-hidden">
+    <div class="flex h-full min-h-0 flex-col overflow-hidden transition">
       <!-- Header -->
       <header
         class="flex shrink-0 items-center justify-between border-b border-white/[0.08] px-6 py-4"
@@ -2947,14 +3005,15 @@
             </h2>
           </div>
         </div>
-        <button
-          type="button"
-          class="text-muted grid h-8 w-8 cursor-pointer place-items-center rounded-lg transition hover:bg-white/10 hover:text-white"
+        <Button
+          variant="ghost"
+          iconOnly
+          size="sm"
           aria-label={i18n.t.common.close}
           onclick={onClose}
         >
           <X size={18} />
-        </button>
+        </Button>
       </header>
 
       <!-- Modal Body: 2 columns -->
@@ -3012,30 +3071,31 @@
         </div>
       </div>
       <div class="mt-6 flex items-center justify-end gap-3 border-t border-white/[0.07] pt-4">
-        <button
-          type="button"
-          class="bg-field text-ink hover:bg-card inline-flex h-9 cursor-pointer items-center rounded-md border border-white/10 px-4 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60"
+        <Button
+          variant="secondary"
+          size="md"
+          class="px-4"
           disabled={isResetting}
           onclick={handleCancelReset}
         >
           {i18n.t.settingsModal.backup.cancelButton}
-        </button>
-        <button
-          type="button"
-          class="inline-flex h-9 cursor-pointer items-center gap-2 rounded-md bg-rose-700 px-4 text-xs font-semibold text-white transition hover:bg-rose-600/90 disabled:cursor-not-allowed disabled:opacity-60"
-          class:cursor-wait={isResetting}
+        </Button>
+        <Button
+          variant="danger"
+          size="md"
+          class={`px-4 ${isResetting ? "cursor-wait" : ""}`}
+          loading={isResetting}
           disabled={isResetting ||
             resetConfirmationInput.trim() !== i18n.t.settingsModal.backup.confirmationWord}
           onclick={handleConfirmReset}
         >
-          {#if isResetting}
-            <LoaderCircle size={14} class="animate-spin" />
-            {i18n.t.settingsModal.backup.resetting}
-          {:else}
+          {#if !isResetting}
             <Trash2 size={14} />
-            {i18n.t.settingsModal.backup.resetConfirmButton}
           {/if}
-        </button>
+          {isResetting
+            ? i18n.t.settingsModal.backup.resetting
+            : i18n.t.settingsModal.backup.resetConfirmButton}
+        </Button>
       </div>
     </div>
   </Modal>
@@ -3075,29 +3135,30 @@
       </div>
 
       <div class="mt-6 flex items-center justify-end gap-3 border-t border-white/[0.07] pt-4">
-        <button
-          type="button"
-          class="bg-field text-ink hover:bg-card inline-flex h-9 cursor-pointer items-center rounded-md border border-white/10 px-4 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60"
+        <Button
+          variant="secondary"
+          size="md"
+          class="px-4"
           disabled={isRestoring}
           onclick={handleCancelRestore}
         >
           {i18n.t.settingsModal.backup.cancelButton}
-        </button>
-        <button
-          type="button"
-          class="inline-flex h-9 cursor-pointer items-center gap-2 rounded-md bg-rose-600/90 px-4 text-xs font-semibold text-white transition hover:bg-rose-500/90 disabled:cursor-not-allowed disabled:opacity-60"
-          class:cursor-wait={isRestoring}
+        </Button>
+        <Button
+          variant="danger"
+          size="md"
+          class={`px-4 ${isRestoring ? "cursor-wait" : ""}`}
+          loading={isRestoring}
           disabled={isRestoring}
           onclick={handleConfirmRestore}
         >
-          {#if isRestoring}
-            <LoaderCircle size={14} class="animate-spin" />
-            {i18n.t.settingsModal.backup.restoring}
-          {:else}
+          {#if !isRestoring}
             <AlertTriangle size={14} />
-            {i18n.t.settingsModal.backup.confirmButton}
           {/if}
-        </button>
+          {isRestoring
+            ? i18n.t.settingsModal.backup.restoring
+            : i18n.t.settingsModal.backup.confirmButton}
+        </Button>
       </div>
     </div>
   </Modal>
@@ -3163,14 +3224,15 @@
         </div>
 
         <div class="mt-6 flex items-center justify-end gap-3 border-t border-white/[0.07] pt-4">
-          <button
-            type="button"
-            class="bg-field text-ink hover:bg-card inline-flex h-9 cursor-pointer items-center rounded-md border border-white/10 px-4 text-xs font-semibold transition"
+          <Button
+            variant="secondary"
+            size="md"
+            class="px-4"
             disabled={isCreatingToken}
             onclick={() => (showCreateTokenModal = false)}
           >
             {i18n.t.settingsModal.apiTokens.cancel}
-          </button>
+          </Button>
           <button
             type="submit"
             class="bg-accent-bright inline-flex h-9 cursor-pointer items-center gap-2 rounded-md px-4 text-xs font-semibold text-white transition hover:bg-[var(--color-accent-bright-hover)] disabled:cursor-not-allowed disabled:opacity-60"
@@ -3297,28 +3359,30 @@
       </div>
 
       <div class="mt-6 flex items-center justify-end gap-3 border-t border-white/[0.07] pt-4">
-        <button
-          type="button"
-          class="bg-field text-ink hover:bg-card inline-flex h-9 cursor-pointer items-center rounded-md border border-white/10 px-4 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60"
+        <Button
+          variant="secondary"
+          size="md"
+          class="px-4"
           disabled={isRevokingToken}
           onclick={() => (tokenToRevoke = null)}
         >
           {i18n.t.settingsModal.apiTokens.cancel}
-        </button>
-        <button
-          type="button"
-          class="inline-flex h-9 cursor-pointer items-center gap-2 rounded-md bg-rose-600/90 px-4 text-xs font-semibold text-white transition hover:bg-rose-500/90 disabled:cursor-not-allowed disabled:opacity-60"
+        </Button>
+        <Button
+          variant="danger"
+          size="md"
+          class="px-4"
+          loading={isRevokingToken}
           disabled={isRevokingToken}
           onclick={handleRevokeToken}
         >
-          {#if isRevokingToken}
-            <LoaderCircle size={14} class="animate-spin" />
-            {i18n.t.settingsModal.apiTokens.revoking}
-          {:else}
+          {#if !isRevokingToken}
             <Trash2 size={14} />
-            {i18n.t.settingsModal.apiTokens.revokeButton}
           {/if}
-        </button>
+          {isRevokingToken
+            ? i18n.t.settingsModal.apiTokens.revoking
+            : i18n.t.settingsModal.apiTokens.revokeButton}
+        </Button>
       </div>
     </div>
   </Modal>

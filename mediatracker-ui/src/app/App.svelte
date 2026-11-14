@@ -3,6 +3,7 @@
   import { jobsClient } from "$shared/api/jobsClient.svelte";
   import { apiFetch } from "$shared/api/api";
   import FirstRunStorageModal from "$features/settings/FirstRunStorageModal.svelte";
+  import ConfirmModal from "$shared/ui/ConfirmModal.svelte";
   import AppShell from "$widgets/layout/AppShell.svelte";
   import CloseAppModal from "$widgets/layout/CloseAppModal.svelte";
   import Header from "$widgets/layout/Header.svelte";
@@ -140,6 +141,12 @@
 
     window.addEventListener("popstate", syncFromHistory);
     return () => window.removeEventListener("popstate", syncFromHistory);
+  });
+
+  // Theme switching: uiSettings.theme persists the choice and this mirrors it onto
+  // <html data-theme="...">; tokens.css redefines its primitives per data-theme block.
+  $effect(() => {
+    document.documentElement.dataset.theme = uiSettings.theme;
   });
 
   function readRoute(): { view: AppView; mediaId: string | null } {
@@ -785,3 +792,7 @@
 {/if}
 
 <FirstRunStorageModal />
+
+<!-- Single app-wide replacement for the native window.confirm(): renders dead-center
+     with the modal animation and honors the per-action remember checkboxes. -->
+<ConfirmModal />

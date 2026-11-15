@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { deleteMedia } from "$shared/api/api";
+  import { onMount } from "svelte";
+  import { deleteMedia, getStorageSettings } from "$shared/api/api";
   import { jobsClient } from "$shared/api/jobsClient.svelte";
   import { apiFetch } from "$shared/api/api";
-  import FirstRunStorageModal from "$features/settings/FirstRunStorageModal.svelte";
   import ConfirmModal from "$shared/ui/ConfirmModal.svelte";
   import AppShell from "$widgets/layout/AppShell.svelte";
   import CloseAppModal from "$widgets/layout/CloseAppModal.svelte";
@@ -77,6 +77,16 @@
   let detailDepth = 0;
   let mainScrollContainer = $state<HTMLElement | null>(null);
   let isExitModalOpen = $state(false);
+  // The first-run storage wizard lives in a lazy chunk: it is needed exactly once per
+  // install, so nothing of it should sit on the synchronous startup path.
+  let firstRunSetupRequired = $state(false);
+  onMount(() => {
+    getStorageSettings()
+      .then((settings) => {
+        firstRunSetupRequired = Boolean(settings?.isFirstRunSetupRequired);
+      })
+      .catch(() => {});
+  });
   const savedScrollPositions = new Map<string, number>();
 
   function closeExitModal() {
@@ -790,7 +800,13 @@
   <CloseAppModal onClose={closeExitModal} />
 {/if}
 
-<FirstRunStorageModal />
+{#if firstRunSetupRequired}
+  {#await import("$features/settings/FirstRunStorageModal.svelte") then { default: FirstRunStorageModal }}
+    <FirstRunStorageModal />
+  {:catch error}
+    {@const _ = console.error("Failed to load first-run modal:", error)}
+  {/await}
+{/if}
 
 <!-- Single app-wide replacement for the native window.confirm(): renders dead-center
      with the modal animation and honors the per-action remember checkboxes. -->

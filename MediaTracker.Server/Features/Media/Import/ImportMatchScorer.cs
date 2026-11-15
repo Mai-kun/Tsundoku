@@ -753,16 +753,33 @@ public static class ImportMatchScorer
     private static List<string> GetAuthorTokens(string value)
     {
         var list = new List<string>();
-        foreach (var part in value.Split([' ', ',', '.', '-', '_'], StringSplitOptions.RemoveEmptyEntries))
+        // Span enumeration instead of string.Split: the input is normalized latin text flowing
+        // through the import matcher's hot path, so only surviving tokens are materialized as
+        // strings and the intermediate string[] never hits the heap.
+        var span = value.AsSpan();
+        var start = 0;
+        for (var i = 0; i <= span.Length; i++)
         {
-            var t = part.Trim().ToLowerInvariant();
-            if (t.Length > 1 && t is not "de" and not "van" and not "von" and not "der" and not "del" and not "la" and not "le" and not "де")
+            if (i < span.Length && !IsAuthorTokenSeparator(span[i]))
             {
-                list.Add(t);
+                continue;
             }
+
+            var part = span[start..i].Trim();
+            if (part.Length > 1 && !IsAuthorStopWord(part))
+            {
+                list.Add(part.ToString().ToLowerInvariant());
+            }
+
+            start = i + 1;
         }
         return list;
     }
+
+    private static bool IsAuthorTokenSeparator(char c) => c is ' ' or ',' or '.' or '-' or '_';
+
+    private static bool IsAuthorStopWord(ReadOnlySpan<char> token) =>
+        token is "de" or "van" or "von" or "der" or "del" or "la" or "le" or "де";
 
     public static string RemoveDiacritics(string text)
     {

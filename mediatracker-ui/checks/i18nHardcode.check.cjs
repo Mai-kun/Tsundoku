@@ -27,6 +27,9 @@ const LEGACY_ALLOWLIST = new Set([
   'src/shared/ui/MediaCoverPlaceholder.svelte',
   'src/shared/ui/Modal.svelte',
   'src/shared/utils/historyFormatters.ts',
+  // unknownCreator: the Cyrillic literal is placeholder DATA matched against stored creator
+  // values from Russian-source imports ("неизвестный автор"), never rendered as UI copy.
+  'src/shared/utils/unknownCreator.ts',
   'src/views/CalendarView.svelte',
   'src/views/CategoryView.svelte',
   'src/views/HistoryView.svelte',

@@ -47,7 +47,4 @@ export function emptyCategoryDraft(): CategoryDraft {
  */
 export type QuoteDraft = MediaQuote;
 
-/** Identifiers of the six editor blocks, used for connector wiring and hover tracking. */
-export type EditModuleId = "base" | "altTitles" | "category" | "notes" | "quotes" | "images";
-
 export const EDIT_MEDIA_TYPES: MediaType[] = ["game", "movie", "tvshow", "book", "manga"];

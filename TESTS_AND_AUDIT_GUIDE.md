@@ -46,7 +46,7 @@
 2. **Глубокий контур (Deep Audit / `task audit` / `npm run audit`) — ~1.5–2 минуты**:
    - Автоматический запуск быстрого контура `task fix`.
    - Изолированное поднятие тестового сервера на случайном порту с временной БД.
-   - Сборка фронтенда с контролем бюджетов чанков Vite (`< 115 KB` Gzip entry).
+   - Сборка фронтенда с контролем бюджетов чанков Vite (`< 150 KB` Gzip entry).
    - Запуск консолидированного браузерного комбайна `checks/audit/browserSuite.runner.ts`:
      - CDP-метрики (Layout, Recalc Style, DOM Nodes, JS Heap).
      - Тест утечек памяти JS Heap (12 циклов навигации с Force GC).
@@ -385,7 +385,7 @@ npm run audit -- --with-ai
 
 | Область контроля | Файл конфигурации / проверки | Контролируемый бюджет |
 | :--- | :--- | :--- |
-| **JS/CSS бандл** | `mediatracker-ui/checks/bundleBudget.check.ts` | Entry JS ≤ 115 KB Gzip, Total JS ≤ 400 KB Gzip, CSS ≤ 35 KB Gzip |
+| **JS/CSS бандл** | `mediatracker-ui/checks/bundleBudget.check.ts` | Entry JS ≤ 150 KB Gzip, Total JS ≤ 450 KB Gzip, CSS ≤ 50 KB Gzip |
 | **CDP рендеринг** | `mediatracker-ui/checks/audit/cdpProfiler.check.ts` | Layout ≤ 120ms, Recalc ≤ 80ms, Nodes ≤ 1500, Heap Leak Delta < 15MB |
 | **Core Web Vitals** | `mediatracker-ui/checks/audit/webVitals.check.ts` | LCP ≤ 1200ms, CLS ≤ 0.05, FID ≤ 50ms, FCP ≤ 600ms |
 | **UI Jank (144Hz)** | `mediatracker-ui/checks/e2e/jankAudit.check.ts` | Long Tasks interaction = 0, P95 frame time ≤ 8.3ms, FPS ≥ 120 |

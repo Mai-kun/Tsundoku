@@ -46,6 +46,6 @@
       <Pencil size={18} />
     </span>
     <span class="text-ink text-sm font-semibold">{title}</span>
-    <span class="text-muted/70 mt-2 text-sm leading-relaxed">{placeholder}</span>
+    <span class="text-muted/80 mt-2 text-sm leading-relaxed">{placeholder}</span>
   </button>
 {/if}

@@ -1,10 +1,6 @@
 <script lang="ts">
   import { FileText, Image as ImageIcon, Layers, Quote, RotateCcw, Tag, X } from "$shared/ui/Icons";
-  import {
-    createMedia,
-    errorMessage,
-    updateMedia,
-  } from "$shared/api/api";
+  import { createMedia, errorMessage, updateMedia } from "$shared/api/api";
   import { fullSizeCoverUrl, isValidCoverUrl } from "$entities/media/model/coverUrl";
   import MediaCoverPlaceholder from "$shared/ui/MediaCoverPlaceholder.svelte";
   import { i18n } from "$shared/i18n/index.svelte";
@@ -15,6 +11,7 @@
   import AltTitlesModule from "./modules/AltTitlesModule.svelte";
   import CategoryFieldsModule from "./modules/CategoryFieldsModule.svelte";
   import ImagesModule from "./modules/ImagesModule.svelte";
+  import { emptyCategoryDraft } from "./modules/moduleTypes";
   import WorkspaceWindow from "./WorkspaceWindow.svelte";
   import {
     COVER_SIZE,
@@ -74,24 +71,6 @@
   let submitError = $state<unknown>(null);
   let validationError = $state("");
   let editingInitialized = $state(false);
-
-  function emptyCategoryDraft() {
-    return {
-      platform: "",
-      hoursPlayed: "",
-      author: "",
-      bookFormat: "book",
-      totalPages: "",
-      totalChapters: "",
-      bookTotalVolumes: "",
-      currentVolume: "",
-      durationMinutes: "",
-      isAnime: false,
-      studio: "",
-      network: "",
-      seasons: [] as { seasonNumber: string; title: string; totalEpisodes: string }[],
-    };
-  }
 
   $effect(() => {
     if (!isOpen || !editingItem || editingInitialized) return;
@@ -229,7 +208,14 @@
   });
 
   let layout = $state<WorkspaceLayout>(defaultLayout(1600, 900));
-  let zMap = $state<Record<string, number>>({ cover: 1, main: 2, alt: 2, notes: 2, quotes: 2, images: 2 });
+  let zMap = $state<Record<string, number>>({
+    cover: 1,
+    main: 2,
+    alt: 2,
+    notes: 2,
+    quotes: 2,
+    images: 2,
+  });
   let topZ = $state(10);
   let hoveredId = $state<string | null>(null);
   let draggingId = $state<string | null>(null);
@@ -238,7 +224,8 @@
     if (zMap[id] === topZ) return;
     topZ += 1;
     zMap[id] = topZ;
-  }  function persist() {
+  }
+  function persist() {
     saveLayout($state.snapshot(layout) as WorkspaceLayout);
   }
 
@@ -262,7 +249,12 @@
     const onResize = () => {
       layout.cover = clampPoint(layout.cover, window.innerWidth, window.innerHeight);
       for (const id of WORKSPACE_WINDOW_IDS) {
-        layout.windows[id] = clampWindowRect(layout.windows[id], id, window.innerWidth, window.innerHeight);
+        layout.windows[id] = clampWindowRect(
+          layout.windows[id],
+          id,
+          window.innerWidth,
+          window.innerHeight,
+        );
       }
     };
     window.addEventListener("resize", onResize);
@@ -345,7 +337,13 @@
   // ---------------------------------------------------------------------------
   // Cover node dragging (same rAF coalescing, simpler shape: position only).
   // ---------------------------------------------------------------------------
-  let coverDrag: null | { pointerId: number; startX: number; startY: number; x: number; y: number } = null;
+  let coverDrag: null | {
+    pointerId: number;
+    startX: number;
+    startY: number;
+    x: number;
+    y: number;
+  } = null;
   let coverPending: { x: number; y: number } | null = null;
   let coverRaf = 0;
 
@@ -460,7 +458,8 @@
           hoursPlayed: numberOrNull(category.hoursPlayed),
         };
       case "book": {
-        const isNovel = category.bookFormat === "light_novel" || category.bookFormat === "web_novel";
+        const isNovel =
+          category.bookFormat === "light_novel" || category.bookFormat === "web_novel";
         return {
           ...common,
           type: "book",
@@ -536,7 +535,11 @@
             format: type === "book" ? category.bookFormat || "book" : undefined,
             author: type === "book" || type === "manga" ? category.author.trim() : undefined,
             totalPages:
-              type === "book" ? (isNovel ? undefined : numberOrNull(category.totalPages)) : undefined,
+              type === "book"
+                ? isNovel
+                  ? undefined
+                  : numberOrNull(category.totalPages)
+                : undefined,
             totalChapters:
               type === "book"
                 ? isNovel
@@ -603,16 +606,13 @@
 <dialog
   bind:this={dialogElement}
   aria-labelledby="edit-workspace-title"
-  class="m-0 h-dvh max-h-none w-screen max-w-none cursor-default overflow-visible border-0 bg-transparent p-0 text-ink backdrop:bg-[#0d0f14]/80 backdrop:backdrop-blur-md"
+  class="text-ink m-0 h-dvh max-h-none w-screen max-w-none cursor-default overflow-visible border-0 bg-transparent p-0 backdrop:bg-[#0d0f14]/80 backdrop:backdrop-blur-md"
   style="contain: layout style;"
   oncancel={handleCancel}
   oncontextmenu={handleContextMenu}
 >
   <!-- Thread layer: fixed to the viewport, always behind the windows. -->
-  <svg
-    class="pointer-events-none absolute inset-0 hidden size-full lg:block"
-    aria-hidden="true"
-  >
+  <svg class="pointer-events-none absolute inset-0 hidden size-full lg:block" aria-hidden="true">
     {#each THREADS as thread (thread.key)}
       <path
         bind:this={threadPaths[thread.key]}
@@ -628,7 +628,10 @@
     <div
       class="flex items-center gap-2 rounded-full border border-white/[0.08] bg-[#12151c]/95 px-4 py-2 shadow-xl shadow-black/40"
     >
-      <p id="edit-workspace-title" class="text-ink mr-1 text-xs font-bold tracking-[0.16em] uppercase">
+      <p
+        id="edit-workspace-title"
+        class="text-ink mr-1 text-xs font-bold tracking-[0.16em] uppercase"
+      >
         {editingItem ? i18n.t.createModal.editTitle : i18n.t.createModal.title}
       </p>
       {#if isDesktop}
@@ -670,7 +673,10 @@
     {#if validationError || submitError}
       <div class="mt-2 flex flex-col items-center gap-1">
         {#if validationError}
-          <p class="rounded-lg border border-rose-400/30 bg-rose-400/10 px-3 py-1.5 text-xs text-rose-200" role="alert">
+          <p
+            class="rounded-lg border border-rose-400/30 bg-rose-400/10 px-3 py-1.5 text-xs text-rose-200"
+            role="alert"
+          >
             {validationError}
           </p>
         {/if}
@@ -734,7 +740,8 @@
         z={zMap[winId] ?? 2}
         highlighted={hoveredId === winId || draggingId === winId}
         bind:collapsed={collapsedMap[winId]}
-        onFront={() => bringToFront(winId)}        onHoverChange={(hovered) => (hoveredId = hovered ? winId : null)}
+        onFront={() => bringToFront(winId)}
+        onHoverChange={(hovered) => (hoveredId = hovered ? winId : null)}
         onDragStateChange={(dragging) => (draggingId = dragging ? winId : null)}
         onSettled={persist}
       >
@@ -775,7 +782,9 @@
     <!-- Mobile: plain scrollable stack over the blurred backdrop. -->
     <div class="thin-scroll absolute inset-0 overflow-y-auto px-4 pt-16 pb-6">
       <div class="mx-auto flex w-32 flex-col items-center gap-3">
-        <figure class="aspect-[2/3] w-full overflow-hidden rounded-xl border border-white/[0.1] bg-[#12151c]">
+        <figure
+          class="aspect-[2/3] w-full overflow-hidden rounded-xl border border-white/[0.1] bg-[#12151c]"
+        >
           {#if coverUrl}
             <img
               src={fullSizeCoverUrl(coverUrl)}

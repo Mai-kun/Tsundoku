@@ -6,7 +6,6 @@
     getListsForMedia,
     removeMediaFromList,
   } from "$shared/api/api";
-  import CreateListModal from "$features/lists/CreateListModal.svelte";
   import { i18n } from "$shared/i18n/index.svelte";
   import { showToast } from "$shared/ui/toast.svelte";
   import { List, Plus } from "$shared/ui/Icons";
@@ -37,6 +36,12 @@
     onClose?.();
   }
 
+  // CreateListModal (and the SmartListBuilder it drags in) is heavy and only needed when the
+  // user clicks "new list", so it loads on demand instead of riding the entry chunk.
+  function openCreateModal() {
+    createOpen = true;
+  }
+
   async function showPicker() {
     open = true;
     loading = true;
@@ -62,7 +67,9 @@
       if (wasIncluded) await removeMediaFromList(list.id, mediaId);
       else await addMediaToList(list.id, mediaId);
       showToast({
-        title: wasIncluded ? i18n.t.views.listRemoved(list.name) : i18n.t.views.listAdded(list.name),
+        title: wasIncluded
+          ? i18n.t.views.listRemoved(list.name)
+          : i18n.t.views.listAdded(list.name),
         description: i18n.t.toast.descCreated,
       });
     } catch (error) {
@@ -110,7 +117,7 @@
       <button
         type="button"
         class="text-accent-soft inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors duration-150 hover:bg-white/5"
-        onclick={() => (createOpen = true)}><Plus size={14} />{i18n.t.views.listNew}</button
+        onclick={() => void openCreateModal()}><Plus size={14} />{i18n.t.views.listNew}</button
       >
     </div>
     {#if loading}<p class="text-muted py-8 text-center text-sm">{i18n.t.common.loading}</p>
@@ -141,8 +148,14 @@
   </div>
 </Modal>
 
-<CreateListModal
-  isOpen={createOpen}
-  onClose={() => (createOpen = false)}
-  onSaved={() => void refreshLists()}
-/>
+{#if createOpen}
+  {#await import("$features/lists/CreateListModal.svelte") then { default: CreateListModal }}
+    <CreateListModal
+      isOpen={createOpen}
+      onClose={() => (createOpen = false)}
+      onSaved={() => void refreshLists()}
+    />
+  {:catch error}
+    {@const _ = console.error("Failed to load create-list modal:", error)}
+  {/await}
+{/if}

@@ -309,13 +309,6 @@ body {
   min-height: 100vh;
 }
 
-button,
-input,
-select,
-textarea {
-  font: inherit;
-}
-
 button:not(:disabled) {
   cursor: pointer;
 }

@@ -636,7 +636,11 @@
       if (job.jobId === settledJobId) return;
       settledJobId = job.jobId;
       refreshError = job.errorMessage || "Metadata refresh failed";
-      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(refreshError), type: "error" });
+      showToast({
+        title: i18n.t.toast.actionFailed,
+        description: errorMessage(refreshError),
+        type: "error",
+      });
       void refreshMediaDetail(mediaId).then((loaded) => {
         if (loaded.id !== mediaId) return;
         media = loaded;
@@ -686,7 +690,10 @@
     relinkOpen = false;
     void loadRelated(payload, null);
     onUpdate();
-    showToast({ title: i18n.current === "ru" ? "Источник изменён." : "Source changed.", description: i18n.t.toast.descUpdated });
+    showToast({
+      title: i18n.current === "ru" ? "Источник изменён." : "Source changed.",
+      description: i18n.t.toast.descUpdated,
+    });
   }
 
   const progressDebounce = createProgressDebounce({
@@ -761,7 +768,11 @@
         }).catch(() => {});
       }
     } catch (err) {
-      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(err), type: "error" });
+      showToast({
+        title: i18n.t.toast.actionFailed,
+        description: errorMessage(err),
+        type: "error",
+      });
     } finally {
       translatingSynopsis = false;
     }
@@ -1021,7 +1032,11 @@
       await updateMedia(media.id, { unlockedAchievements: jsonStr });
     } catch (err) {
       media.unlockedAchievements = previousJson;
-      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(err), type: "error" });
+      showToast({
+        title: i18n.t.toast.actionFailed,
+        description: errorMessage(err),
+        type: "error",
+      });
     } finally {
       achievementsBusy = false;
     }
@@ -1062,7 +1077,11 @@
     } catch (err) {
       media.watchedOn = previous;
       watchedOnDirty = false;
-      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(err), type: "error" });
+      showToast({
+        title: i18n.t.toast.actionFailed,
+        description: errorMessage(err),
+        type: "error",
+      });
     }
   }
 
@@ -1780,7 +1799,10 @@
     // Rule 1: only the exact 0 → 1 step implies the title started; the flip is
     // optimistic here and the debounced PUT applies the same rule server-side.
     // The flip is announced by an interactive toast with persisted outcomes.
-    if (shouldPromoteToInProgress(progressValue, next) && target.status !== MEDIA_STATUS.inProgress) {
+    if (
+      shouldPromoteToInProgress(progressValue, next) &&
+      target.status !== MEDIA_STATUS.inProgress
+    ) {
       const previousStatus = target.status;
       target.status = MEDIA_STATUS.inProgress;
       statusValue = MEDIA_STATUS.inProgress;
@@ -1847,12 +1869,16 @@
     // The flip is announced by an interactive toast with persisted outcomes;
     // the season write is not debounced here, so undo chains after its promise.
     let seasonWrite: Promise<void> | null = null;
-    if (shouldPromoteToInProgress(previousTotal, previousTotal + delta) && target.status !== MEDIA_STATUS.inProgress) {
+    if (
+      shouldPromoteToInProgress(previousTotal, previousTotal + delta) &&
+      target.status !== MEDIA_STATUS.inProgress
+    ) {
       const previousStatus = target.status;
       target.status = MEDIA_STATUS.inProgress;
       statusValue = MEDIA_STATUS.inProgress;
       notifyAutoInProgress(target, previousStatus, {
-        undo: () => revertSeriesPromotion(target, previousStatus, season, previousEpisode, () => seasonWrite),
+        undo: () =>
+          revertSeriesPromotion(target, previousStatus, season, previousEpisode, () => seasonWrite),
         keepStatus: () => {
           target.status = previousStatus;
           statusValue = previousStatus;
@@ -1870,7 +1896,11 @@
       writeCardProgress(target, previousTotal);
       clearOptimisticProgress(target.id);
       progressError = error;
-      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(error), type: "error" });
+      showToast({
+        title: i18n.t.toast.actionFailed,
+        description: errorMessage(error),
+        type: "error",
+      });
     }
   }
 
@@ -1923,7 +1953,9 @@
     const target = media;
     if (!target) return;
     const pending = seasons
-      .filter((season) => season.totalEpisodes > 0 && (season.currentEpisode ?? 0) < season.totalEpisodes)
+      .filter(
+        (season) => season.totalEpisodes > 0 && (season.currentEpisode ?? 0) < season.totalEpisodes,
+      )
       .map((season) => ({ season, previous: season.currentEpisode ?? 0 }));
     if (pending.length === 0) return;
 
@@ -1938,7 +1970,11 @@
       for (const { season, previous } of pending) season.currentEpisode = previous;
       clearOptimisticProgress(target.id);
       progressError = error;
-      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(error), type: "error" });
+      showToast({
+        title: i18n.t.toast.actionFailed,
+        description: errorMessage(error),
+        type: "error",
+      });
     } finally {
       episodeBusy = "";
     }
@@ -1964,7 +2000,11 @@
       for (const { season, previous } of pending) season.currentEpisode = previous;
       clearOptimisticProgress(target.id);
       progressError = error;
-      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(error), type: "error" });
+      showToast({
+        title: i18n.t.toast.actionFailed,
+        description: errorMessage(error),
+        type: "error",
+      });
     } finally {
       episodeBusy = "";
     }
@@ -2028,7 +2068,11 @@
       }
       clearOptimisticProgress(target.id);
       progressError = error;
-      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(error), type: "error" });
+      showToast({
+        title: i18n.t.toast.actionFailed,
+        description: errorMessage(error),
+        type: "error",
+      });
     } finally {
       seriesCommitBusy = false;
       seriesPendingValue = null;
@@ -2060,8 +2104,7 @@
     if (value === statusValue) return;
 
     const previous = statusValue;
-    const leavesCompleted =
-      previous === MEDIA_STATUS.completed && value !== MEDIA_STATUS.completed;
+    const leavesCompleted = previous === MEDIA_STATUS.completed && value !== MEDIA_STATUS.completed;
     const progressBeforeReset = leavesCompleted ? readCardProgress(target) : null;
     statusValue = value;
     statusBusy = true;
@@ -2080,7 +2123,10 @@
         pendingSnapshot = null;
         for (const season of seasons) season.currentEpisode = 0;
       }
-      showToast({ title: i18n.t.status.label + ": " + statusLabel(value), description: i18n.t.toast.descUpdated });
+      showToast({
+        title: i18n.t.status.label + ": " + statusLabel(value),
+        description: i18n.t.toast.descUpdated,
+      });
       if (value === MEDIA_STATUS.dropped) {
         dropPromptState.open({
           id: target.id,
@@ -2108,7 +2154,11 @@
         updateCachedDetailProgress(target.id, progressBeforeReset);
       }
       statusError = error;
-      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(error), type: "error" });
+      showToast({
+        title: i18n.t.toast.actionFailed,
+        description: errorMessage(error),
+        type: "error",
+      });
     } finally {
       statusBusy = false;
     }
@@ -2129,12 +2179,19 @@
         score: next,
         clearScore: next === null,
       });
-      showToast({ title: next ? `${next} ★` : i18n.t.detail.clearRating, description: i18n.t.toast.descUpdated });
+      showToast({
+        title: next ? `${next} ★` : i18n.t.detail.clearRating,
+        description: i18n.t.toast.descUpdated,
+      });
       onUpdate();
     } catch (error) {
       scoreValue = previous;
       ratingError = error;
-      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(error), type: "error" });
+      showToast({
+        title: i18n.t.toast.actionFailed,
+        description: errorMessage(error),
+        type: "error",
+      });
     } finally {
       ratingBusy = false;
     }
@@ -2164,7 +2221,11 @@
       scoreValue = previousScore;
       target.detailedScoreJson = previousDetailed;
       ratingError = error;
-      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(error), type: "error" });
+      showToast({
+        title: i18n.t.toast.actionFailed,
+        description: errorMessage(error),
+        type: "error",
+      });
     } finally {
       ratingBusy = false;
     }
@@ -2205,7 +2266,11 @@
       scoreValue = previousScore;
       target.detailedScoreJson = previousDetailed;
       ratingError = error;
-      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(error), type: "error" });
+      showToast({
+        title: i18n.t.toast.actionFailed,
+        description: errorMessage(error),
+        type: "error",
+      });
     } finally {
       ratingBusy = false;
     }
@@ -2229,12 +2294,20 @@
     deleteError = null;
 
     try {
-      showToast({ title: i18n.t.detailModal.delete, description: i18n.t.toast.descDeleted, type: "warning" });
+      showToast({
+        title: i18n.t.detailModal.delete,
+        description: i18n.t.toast.descDeleted,
+        type: "warning",
+      });
       await onDelete(target.id);
       onBack();
     } catch (error) {
       deleteError = error;
-      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(error), type: "error" });
+      showToast({
+        title: i18n.t.toast.actionFailed,
+        description: errorMessage(error),
+        type: "error",
+      });
     } finally {
       deleteBusy = false;
     }
@@ -2261,7 +2334,10 @@
       // Rule 1: the exact 0 → 1 step of the series total flips the badge; the
       // season PUT applies the same rule server-side.
       const seriesTotalAfter = seriesTotalBefore + (nextVal - current);
-      if (shouldPromoteToInProgress(seriesTotalBefore, seriesTotalAfter) && owner.status !== MEDIA_STATUS.inProgress) {
+      if (
+        shouldPromoteToInProgress(seriesTotalBefore, seriesTotalAfter) &&
+        owner.status !== MEDIA_STATUS.inProgress
+      ) {
         owner.status = MEDIA_STATUS.inProgress;
         statusValue = MEDIA_STATUS.inProgress;
       }
@@ -2278,7 +2354,11 @@
       if (owner) clearOptimisticProgress(owner.id);
       onUpdate();
       progressError = error;
-      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(error), type: "error" });
+      showToast({
+        title: i18n.t.toast.actionFailed,
+        description: errorMessage(error),
+        type: "error",
+      });
     } finally {
       episodeBusy = "";
     }
@@ -2336,7 +2416,11 @@
       if (owner) clearOptimisticProgress(owner.id);
       onUpdate();
       progressError = error;
-      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(error), type: "error" });
+      showToast({
+        title: i18n.t.toast.actionFailed,
+        description: errorMessage(error),
+        type: "error",
+      });
     } finally {
       episodeBusy = "";
     }
@@ -2357,7 +2441,11 @@
       });
     } catch (error) {
       refreshError = error;
-      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(error), type: "error" });
+      showToast({
+        title: i18n.t.toast.actionFailed,
+        description: errorMessage(error),
+        type: "error",
+      });
     } finally {
       refreshInFlight = false;
     }
@@ -2391,7 +2479,11 @@
       fillMissingOpen = false;
       showToast({ title: i18n.t.detail.fillMissingDone, description: i18n.t.toast.descUpdated });
     } catch (error) {
-      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(error), type: "error" });
+      showToast({
+        title: i18n.t.toast.actionFailed,
+        description: errorMessage(error),
+        type: "error",
+      });
     } finally {
       fillMissingBusy = false;
     }
@@ -2407,7 +2499,7 @@
 <div class="isolate space-y-5 tracking-tight">
   <button
     type="button"
-    class="tap text-muted inline-flex items-center gap-1.5 text-xs font-semibold tracking-wider uppercase transition hover:text-white"
+    class="tap text-muted inline-flex min-h-6 items-center gap-1.5 text-xs font-semibold tracking-wider uppercase transition hover:text-white"
     onclick={onBack}
   >
     <ArrowLeft size={16} aria-hidden="true" />
@@ -2523,130 +2615,139 @@
         <!-- Panel stack: outgoing and incoming panels overlap in the same grid cell during
                the switch, so the flow never jumps; the incoming one carries an opaque canvas
                background, the outgoing one dies for clicks on the first frame of its exit. -->
-        <div class="grid grid-cols-1 grid-rows-1 overflow-x-hidden [&>*]:col-start-1 [&>*]:row-start-1">
+        <div
+          class="grid grid-cols-1 grid-rows-1 overflow-x-hidden [&>*]:col-start-1 [&>*]:row-start-1"
+        >
           {#key activeSubTab}
             <div class="bg-[#0d0f14]" in:panelIn={{ direction: tabDirection }} out:panelOut>
               <!-- One exclusive chain: a single {#if}/{:else if} guarantees at most one tab panel
                      exists in the DOM, so switching can never leave two screens stacked. -->
               {#if activeSubTab === "overview"}
-          <OverviewTab
-            {media}
-            support={overviewSupport}
-            progressValue={overviewValue}
-            progressPercent={overviewPercent}
-            {progressError}
-            onStep={stepOverview}
-            onCounterChange={(val) => {
-              if (!media) return;
-              // Shows route through the per-season endpoint; the generic PUT /progress
-              // endpoint rejects them with "unsupported media type".
-              if (isSeriesOverview) {
-                void commitSeriesCounter(val);
-                return;
-              }
-              const next = Math.max(val, 0);
-              if (pendingSnapshot === null) pendingSnapshot = committedProgress;
-              progressValue = next;
-              progressError = null;
-              applyOptimisticProgress(media.id, next);
-              writeCardProgress(media, next);
-              progressDebounce.schedule(media.id, next);
-            }}
-            achievements={gameAchievements}
-            achievementsTotal={gameAchievementsTotal}
-            achievementsLoading={gameAchievementsLoading}
-            {achievementsBusy}
-            {achievementsTruncated}
-            {unlockedAchievementNames}
-            onOpenMedia={onOpenRelated}
-            onEdit={startEdit}
-            onOpenRelink={() => (relinkOpen = true)}
-            onChanged={() => {
-              // A linked-sources mutation (bind / primary switch / unbind) invalidates the card
-              // cache: the re-pointed binding and the Syncing badge must show right away, and the
-              // job-completion watcher below brings the refreshed metadata once the job commits.
-              if (!media) return;
-              void refreshMediaDetail(mediaId)
-                .then((loaded) => {
-                  if (loaded.id !== mediaId) return;
-                  media = loaded;
-                  syncFrom(loaded);
-                  mediaDetailCache.invalidate(loaded.id);
-                  onUpdate();
-                })
-                .catch((error) =>
-                  console.error("[MediaDetailView] Refresh after source change failed", error),
-                );
-            }}
-            onSearch={(creatorName) => {
-              // The card's search button means "works of this creator": the
-              // type and source of the current record narrow the external search.
-              // Only tvshows/movies can be anime; manga keeps its own category.
-              const record = media;
-              if (!record) return onSearch(creatorName);
-              const type = "isAnime" in record && record.isAnime ? "anime" : record.type;
-              return onSearch({
-                query: creatorName,
-                type,
-                source: record.externalSource,
-                byCreator: true,
-              });
-            }}
-            onToggleAchievement={toggleAchievement}
-            onToggleAllAchievements={toggleAllAchievements}
-            onChangeStatus={changeStatus}
-          />
-        {:else if activeSubTab === "gallery"}
-          {#await import("$widgets/media-detail/tabs/GalleryTab.svelte") then { default: GalleryTab }}
-            <GalleryTab
-              mediaId={media.id}
-              gallery={media.gallery ?? []}
-              onChanged={() => {
-                // A screenshot landed (Ctrl+V or upload) or was removed: re-fetch the card so
-                // the tab badge and any other gallery consumer see the new list.
-                if (!media) return;
-                void refreshMediaDetail(mediaId)
-                  .then((loaded) => {
-                    if (loaded.id !== mediaId) return;
-                    media = loaded;
-                    syncFrom(loaded);
-                    mediaDetailCache.invalidate(loaded.id);
-                    onUpdate();
-                  })
-                  .catch((error) =>
-                    console.error("[MediaDetailView] Refresh after gallery change failed", error),
-                  );
-              }}
-            />
-          {/await}
-        {:else if activeSubTab === "related"}
-          {#await import("$widgets/media-detail/tabs/RelatedTab.svelte") then { default: RelatedTab }}
-            <RelatedTab
-              {media}
-              {related}
-              loading={relatedLoading}
-              error={relatedError}
-              viewMode={relatedViewMode}
-              groups={relatedGroups}
-              timeline={timelineEntries}
-              onRetry={() => {
-                if (media && lastRelatedSource) void loadRelated(media, lastRelatedSource, true);
-              }}
-              onSelectViewMode={(mode) => (relatedViewMode = mode)}
-              onOpen={handleRelatedClick}
-              onLoadFrom={(source, force) => {
-                lastRelatedSource = source;
-                if (media) void loadRelated(media, source, force ?? false);
-              }}
-            />
-          {/await}
-        {:else if activeSubTab === "recommendations"}
-          {#await import("$widgets/media-detail/tabs/RecommendationsTab.svelte") then { default: RecommendationsTab }}
-            <RecommendationsTab items={recommendations} />
-          {/await}
-        {/if}
+                <OverviewTab
+                  {media}
+                  support={overviewSupport}
+                  progressValue={overviewValue}
+                  progressPercent={overviewPercent}
+                  {progressError}
+                  onStep={stepOverview}
+                  onCounterChange={(val) => {
+                    if (!media) return;
+                    // Shows route through the per-season endpoint; the generic PUT /progress
+                    // endpoint rejects them with "unsupported media type".
+                    if (isSeriesOverview) {
+                      void commitSeriesCounter(val);
+                      return;
+                    }
+                    const next = Math.max(val, 0);
+                    if (pendingSnapshot === null) pendingSnapshot = committedProgress;
+                    progressValue = next;
+                    progressError = null;
+                    applyOptimisticProgress(media.id, next);
+                    writeCardProgress(media, next);
+                    progressDebounce.schedule(media.id, next);
+                  }}
+                  achievements={gameAchievements}
+                  achievementsTotal={gameAchievementsTotal}
+                  achievementsLoading={gameAchievementsLoading}
+                  {achievementsBusy}
+                  {achievementsTruncated}
+                  {unlockedAchievementNames}
+                  onOpenMedia={onOpenRelated}
+                  onEdit={startEdit}
+                  onOpenRelink={() => (relinkOpen = true)}
+                  onChanged={() => {
+                    // A linked-sources mutation (bind / primary switch / unbind) invalidates the card
+                    // cache: the re-pointed binding and the Syncing badge must show right away, and the
+                    // job-completion watcher below brings the refreshed metadata once the job commits.
+                    if (!media) return;
+                    void refreshMediaDetail(mediaId)
+                      .then((loaded) => {
+                        if (loaded.id !== mediaId) return;
+                        media = loaded;
+                        syncFrom(loaded);
+                        mediaDetailCache.invalidate(loaded.id);
+                        onUpdate();
+                      })
+                      .catch((error) =>
+                        console.error(
+                          "[MediaDetailView] Refresh after source change failed",
+                          error,
+                        ),
+                      );
+                  }}
+                  onSearch={(creatorName) => {
+                    // The card's search button means "works of this creator": the
+                    // type and source of the current record narrow the external search.
+                    // Only tvshows/movies can be anime; manga keeps its own category.
+                    const record = media;
+                    if (!record) return onSearch(creatorName);
+                    const type = "isAnime" in record && record.isAnime ? "anime" : record.type;
+                    return onSearch({
+                      query: creatorName,
+                      type,
+                      source: record.externalSource,
+                      byCreator: true,
+                    });
+                  }}
+                  onToggleAchievement={toggleAchievement}
+                  onToggleAllAchievements={toggleAllAchievements}
+                  onChangeStatus={changeStatus}
+                />
+              {:else if activeSubTab === "gallery"}
+                {#await import("$widgets/media-detail/tabs/GalleryTab.svelte") then { default: GalleryTab }}
+                  <GalleryTab
+                    mediaId={media.id}
+                    gallery={media.gallery ?? []}
+                    onChanged={() => {
+                      // A screenshot landed (Ctrl+V or upload) or was removed: re-fetch the card so
+                      // the tab badge and any other gallery consumer see the new list.
+                      if (!media) return;
+                      void refreshMediaDetail(mediaId)
+                        .then((loaded) => {
+                          if (loaded.id !== mediaId) return;
+                          media = loaded;
+                          syncFrom(loaded);
+                          mediaDetailCache.invalidate(loaded.id);
+                          onUpdate();
+                        })
+                        .catch((error) =>
+                          console.error(
+                            "[MediaDetailView] Refresh after gallery change failed",
+                            error,
+                          ),
+                        );
+                    }}
+                  />
+                {/await}
+              {:else if activeSubTab === "related"}
+                {#await import("$widgets/media-detail/tabs/RelatedTab.svelte") then { default: RelatedTab }}
+                  <RelatedTab
+                    {media}
+                    {related}
+                    loading={relatedLoading}
+                    error={relatedError}
+                    viewMode={relatedViewMode}
+                    groups={relatedGroups}
+                    timeline={timelineEntries}
+                    onRetry={() => {
+                      if (media && lastRelatedSource)
+                        void loadRelated(media, lastRelatedSource, true);
+                    }}
+                    onSelectViewMode={(mode) => (relatedViewMode = mode)}
+                    onOpen={handleRelatedClick}
+                    onLoadFrom={(source, force) => {
+                      lastRelatedSource = source;
+                      if (media) void loadRelated(media, source, force ?? false);
+                    }}
+                  />
+                {/await}
+              {:else if activeSubTab === "recommendations"}
+                {#await import("$widgets/media-detail/tabs/RecommendationsTab.svelte") then { default: RecommendationsTab }}
+                  <RecommendationsTab items={recommendations} />
+                {/await}
+              {/if}
 
-        <!-- The whole section is tab-gated: the season banner must not leak into Related/Recommendations. -->
+              <!-- The whole section is tab-gated: the season banner must not leak into Related/Recommendations. -->
               {#if media.type === "tvshow" && activeSubTab === "episodes"}
                 {#if isSyncing}
                   <SyncRowsSkeleton label={i18n.t.activity.loadingSeasons} />
@@ -2673,11 +2774,9 @@
                       {formatDate}
                       startedAt={media.startedAt}
                       finishedAt={media.finishedAt}
-                      episodeDuration={
-                        (media as TvShowMedia).episodeDurationMinutes ||
+                      episodeDuration={(media as TvShowMedia).episodeDurationMinutes ||
                         media.durationMinutes ||
-                        24
-                      }
+                        24}
                       episodesBySeason={seasonViews}
                     />
                   {/await}

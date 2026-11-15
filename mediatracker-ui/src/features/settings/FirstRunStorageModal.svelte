@@ -13,12 +13,13 @@
   let mode = $state<"default" | "portable" | "custom">("default");
   let customPath = $state("");
   let settings = $state<StorageSettings | null>(null);
-  let isOpen = $state(false);
+  // App.svelte mounts this component only when the backend reports a pending first-run setup,
+  // so the wizard opens unconditionally; the mount fetch just prefills the current mode.
+  let isOpen = $state(true);
 
   onMount(async () => {
     try {
       settings = await getStorageSettings();
-      isOpen = Boolean(settings?.isFirstRunSetupRequired);
       if (
         settings?.mode &&
         (settings.mode === "default" || settings.mode === "portable" || settings.mode === "custom")
@@ -27,7 +28,6 @@
       }
     } catch (e) {
       console.error("Failed to load storage settings:", e);
-      isOpen = false;
     } finally {
       loading = false;
     }

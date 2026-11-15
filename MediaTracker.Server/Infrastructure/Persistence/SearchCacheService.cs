@@ -21,9 +21,6 @@ public sealed record SearchCacheInfoDto(
     long ImageFileSizeBytes,
     string DatabasePath);
 
-/// <summary>A cached preview image: raw bytes plus the MIME type detected from its signature.</summary>
-public sealed record CachedSearchImage(byte[] Data, string ContentType);
-
 /// <summary>
 /// Persistent cache of external search results in a dedicated lightweight SQLite database
 /// (<c>data/search_cache.db</c>) plus a disk cache of the search preview images
@@ -71,10 +68,14 @@ public sealed class SearchCacheService : IDisposable
 
     public SearchCacheService(
         AppPaths? appPaths = null,
-        ILogger<SearchCacheService>? logger = null)
+        ILogger<SearchCacheService>? logger = null,
+        long? imageCacheBudgetBytes = null)
     {
         _appPaths = appPaths;
         _logger = logger;
+        var budget = Math.Max(imageCacheBudgetBytes ?? DefaultImageCacheBudgetBytes, 1024);
+        _imageCacheBudgetBytes = budget;
+        _imageCacheEvictionTargetBytes = budget * 4 / 5;
     }
 
     /// <summary>
@@ -103,14 +104,26 @@ public sealed class SearchCacheService : IDisposable
     /// MIME type sniffed from the file signature. Covers from the supported CDNs are
     /// webp/jpeg/png/gif; anything else reports an honest octet-stream.
     /// </summary>
-    public static string DetectImageContentType(byte[] data)
+    public static string DetectImageContentType(ReadOnlySpan<byte> data)
     {
-        if (data.AsSpan().StartsWith("RIFF"u8) && data.AsSpan(8).StartsWith("WEBP"u8)) return "image/webp";
-        if (data.AsSpan().StartsWith(JpegSignature)) return "image/jpeg";
-        if (data.AsSpan().StartsWith(PngSignature)) return "image/png";
-        if (data.AsSpan().StartsWith("GIF87a"u8) || data.AsSpan().StartsWith("GIF89a"u8)) return "image/gif";
+        if (data.StartsWith("RIFF"u8) && data.Length >= 12 && data[8..].StartsWith("WEBP"u8)) return "image/webp";
+        if (data.StartsWith(JpegSignature)) return "image/jpeg";
+        if (data.StartsWith(PngSignature)) return "image/png";
+        if (data.StartsWith("GIF87a"u8) || data.StartsWith("GIF89a"u8)) return "image/gif";
         return "application/octet-stream";
     }
+
+    /// <summary>Disk budget for the preview-image folder before eviction kicks in.</summary>
+    public static readonly long DefaultImageCacheBudgetBytes = 250L * 1024 * 1024;
+
+    private readonly long _imageCacheBudgetBytes;
+
+    /// <summary>
+    /// Eviction target: the sweep trims down to this watermark (80% of the budget) instead of to
+    /// the budget itself — hysteresis, so a single oversized file does not trigger a delete on
+    /// every write.
+    /// </summary>
+    private readonly long _imageCacheEvictionTargetBytes;
 
     private string DatabasePath =>
         _appPaths?.SearchCacheDbPath ?? Path.Combine(AppPaths.GetAppDirectory(), "data", "search_cache.db");
@@ -177,7 +190,10 @@ public sealed class SearchCacheService : IDisposable
         {
             await EnsureInitializedAsync(ct);
 
-            var payload = JsonSerializer.Serialize(results, AppJsonSerializerContext.Default.ListExternalMediaDto);
+            // Serialize against the IReadOnlyList metadata, not ListExternalMediaDto: providers
+            // hand back arbitrary implementations (the compiler's single-element collection
+            // optimization), and a List<T> TypeInfo would throw InvalidCastException on those.
+            var payload = JsonSerializer.Serialize(results, AppJsonSerializerContext.Default.IReadOnlyListExternalMediaDto);
             var now = DateTimeOffset.UtcNow;
             var expiresAt = now + (ttl ?? DefaultTtl);
 
@@ -208,82 +224,76 @@ public sealed class SearchCacheService : IDisposable
     }
 
     /// <summary>
-    /// Reads a cached preview image for <paramref name="url"/> whose file was written within the
-    /// TTL. Returns null on a miss, an expired file (which is deleted on sight) or any I/O
-    /// problem — the proxy then downloads from the CDN as before.
+    /// Returns the path of a cached preview image for <paramref name="url"/> whose file was
+    /// written within the TTL, so the proxy can stream it to the browser without ever loading
+    /// the bytes into memory. Null on a miss; an expired file is deleted on sight. The caller
+    /// opens its own <c>FileStream</c> and treats <see cref="FileNotFoundException"/> (a sweep
+    /// racing between this check and the open) as a miss and falls back to the network.
     /// </summary>
-    public async Task<CachedSearchImage?> TryGetImageAsync(string url, CancellationToken ct = default)
+    public string? TryGetFreshImagePath(string url)
     {
         try
         {
             var path = Path.Combine(SearchImageCacheDirectory, GetImageFileName(url));
             var file = new FileInfo(path);
-            if (!file.Exists || file.LastWriteTimeUtc <= DateTimeOffset.UtcNow - DefaultTtl)
-            {
-                if (file.Exists)
-                {
-                    file.Delete();
-                }
-
-                return null;
-            }
-
-            var data = await File.ReadAllBytesAsync(path, ct);
-            if (data.Length == 0)
+            if (!file.Exists)
             {
                 return null;
             }
 
-            return new CachedSearchImage(data, DetectImageContentType(data));
-        }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested)
-        {
-            throw;
+            if (file.LastWriteTimeUtc <= DateTimeOffset.UtcNow - DefaultTtl)
+            {
+                file.Delete();
+                return null;
+            }
+
+            return path;
         }
         catch (Exception ex)
         {
-            _logger?.LogDebug(ex, "[SearchCache] Image read failed for '{Url}': {Message}", url, ex.Message);
+            _logger?.LogDebug(ex, "[SearchCache] Image lookup failed for '{Url}': {Message}", url, ex.Message);
             return null;
         }
     }
 
     /// <summary>
-    /// Stores a successfully downloaded image. The write is atomic: bytes land in a uniquely
-    /// named temp file that is renamed over the target, so a parallel reader of the same URL
-    /// never sees a half-written image and two racing writers cannot corrupt each other — the
-    /// rename either wins as a whole or the other writer's identical-or-newer bytes do.
+    /// Opens the temp write stream for a fresh download: a uniquely named ".tmp" file created
+    /// with <see cref="FileMode.CreateNew"/> in the cache directory. The caller streams the
+    /// download into it (no full-body buffering in RAM) and finishes with
+    /// <see cref="CommitImage"/> — or <see cref="DiscardImageTemp"/> on failure.
     /// </summary>
-    public async Task SetImageAsync(string url, byte[] data, CancellationToken ct = default)
+    public FileStream OpenImageTempWriteStream(string url)
     {
+        var dir = SearchImageCacheDirectory;
+        Directory.CreateDirectory(dir);
+        var tempPath = Path.Combine(dir, $"{GetImageFileName(url)}.{Guid.NewGuid():N}.tmp");
+        return new FileStream(tempPath, FileMode.CreateNew, FileAccess.Write, FileShare.None, 64 * 1024, useAsync: true);
+    }
+
+    /// <summary>
+    /// Moves a fully written temp file over its final cache path — atomic, so a parallel reader
+    /// of the same URL never sees a half-written image and two racing writers cannot corrupt
+    /// each other. Returns the final path; a lost race (another writer renamed first) is not an
+    /// error, the other copy is identical-or-newer.
+    /// </summary>
+    public string CommitImage(string tempPath, string url)
+    {
+        var path = Path.Combine(SearchImageCacheDirectory, GetImageFileName(url));
         try
         {
-            if (data.Length == 0) return;
-
-            var dir = SearchImageCacheDirectory;
-            Directory.CreateDirectory(dir);
-
-            var path = Path.Combine(dir, GetImageFileName(url));
-            var tempPath = $"{path}.{Guid.NewGuid():N}.tmp";
-            await File.WriteAllBytesAsync(tempPath, data, ct);
-            try
-            {
-                File.Move(tempPath, path, overwrite: true);
-            }
-            catch (IOException)
-            {
-                // A parallel writer renamed its copy first; ours is redundant. Clean the temp up.
-                TryDelete(tempPath);
-            }
+            File.Move(tempPath, path, overwrite: true);
         }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        catch (IOException)
         {
-            throw;
+            // A parallel writer renamed its copy first; ours is redundant. Clean the temp up.
+            TryDelete(tempPath);
         }
-        catch (Exception ex)
-        {
-            _logger?.LogDebug(ex, "[SearchCache] Image write failed for '{Url}': {Message}", url, ex.Message);
-        }
+
+        return path;
     }
+
+    /// <summary>Best-effort removal of an abandoned temp file (failed or oversized download).</summary>
+    public void DiscardImageTemp(string tempPath) => TryDelete(tempPath);
 
     /// <summary>Deletes every cached answer, every cached image and compacts the file. Manual reset from Settings.</summary>
     public async Task ClearAsync(CancellationToken ct = default)
@@ -451,9 +461,11 @@ public sealed class SearchCacheService : IDisposable
     }
 
     /// <summary>
-    /// Deletes image files past the TTL, including orphaned ".tmp" leftovers from an interrupted
-    /// atomic write (their fresh timestamp keeps them alive only for the TTL window, so a write
-    /// in flight is never deleted under itself).
+    /// Two-step image sweep, both steps strictly inside the throttled pass that rides a real
+    /// search write (no timers): first delete files past the TTL — including orphaned ".tmp"
+    /// leftovers from an interrupted atomic write, whose fresh timestamp keeps them alive only
+    /// for the TTL window — then enforce the disk budget by evicting the oldest files until the
+    /// folder shrinks to the 80% eviction target.
     /// </summary>
     private void SweepImageCache()
     {
@@ -474,6 +486,51 @@ public sealed class SearchCacheService : IDisposable
             {
                 _logger?.LogDebug(ex, "[SearchCache] Failed to sweep image '{File}': {Message}", file, ex.Message);
             }
+        }
+
+        EvictOverBudget(dir);
+    }
+
+    /// <summary>
+    /// Size budget for the cache folder: once the total exceeds the budget, the oldest files go
+    /// first (LRU by LastWriteTimeUtc — LastAccessTime is not maintained on Linux mounts) until
+    /// the folder is down to the eviction target. A file currently being written is the newest
+    /// entry and is therefore evicted last.
+    /// </summary>
+    private void EvictOverBudget(string dir)
+    {
+        try
+        {
+            var infos = Directory.EnumerateFiles(dir)
+                .Select(file => new FileInfo(file))
+                .Where(info => info.Exists)
+                .ToList();
+
+            var total = infos.Sum(info => info.Length);
+            if (total <= _imageCacheBudgetBytes) return;
+
+            _logger?.LogInformation(
+                "[SearchCache] Image cache over budget ({Bytes} bytes), evicting oldest files down to {Target} bytes",
+                total, _imageCacheEvictionTargetBytes);
+
+            foreach (var info in infos.OrderBy(info => info.LastWriteTimeUtc))
+            {
+                if (total <= _imageCacheEvictionTargetBytes) break;
+
+                try
+                {
+                    total -= info.Length;
+                    info.Delete();
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogDebug(ex, "[SearchCache] Failed to evict '{File}': {Message}", info.FullName, ex.Message);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogDebug(ex, "[SearchCache] Image budget eviction failed: {Message}", ex.Message);
         }
     }
 

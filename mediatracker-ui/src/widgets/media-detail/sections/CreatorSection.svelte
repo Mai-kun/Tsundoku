@@ -11,6 +11,7 @@
   import { uiSettings } from "$shared/utils/uiSettings.svelte";
   import PeopleSizeToggle from "./PeopleSizeToggle.svelte";
   import { openLightbox } from "$shared/ui/lightbox.svelte";
+  import { proxiedExternalCoverUrl } from "$entities/media/model/coverUrl";
 
   interface Props {
     creatorName: string;
@@ -167,14 +168,14 @@
         {/if}
         {#if !isUnknownCreatorName(creatorName)}
           <button
-          type="button"
-          class="tap text-muted hover:border-accent/40 hover:bg-accent/10 hover:text-accent-soft grid size-8 cursor-pointer place-items-center rounded-lg border border-white/10 bg-white/[0.04] transition"
-          onclick={() => onSearch(creatorName)}
-          title={isRu ? "Искать другие работы в базе" : "Search other works"}
-          aria-label={isRu ? "Искать другие работы в базе" : "Search other works"}
-        >
-          <Search size={15} />
-        </button>
+            type="button"
+            class="tap text-muted hover:border-accent/40 hover:bg-accent/10 hover:text-accent-soft grid size-8 cursor-pointer place-items-center rounded-lg border border-white/10 bg-white/[0.04] transition"
+            onclick={() => onSearch(creatorName)}
+            title={isRu ? "Искать другие работы в базе" : "Search other works"}
+            aria-label={isRu ? "Искать другие работы в базе" : "Search other works"}
+          >
+            <Search size={15} />
+          </button>
         {/if}
       </div>
     </div>
@@ -291,7 +292,7 @@
             >
               {#if item.coverUrl}
                 <img
-                  src={item.coverUrl}
+                  src={proxiedExternalCoverUrl(item.coverUrl)}
                   alt=""
                   loading="lazy"
                   referrerpolicy="no-referrer"

@@ -45,7 +45,10 @@ export const translations = {
     ok: { ru: "Ок", en: "OK" },
     undo: { ru: "Откатить", en: "Undo" },
     keepStatus: { ru: "Не менять статус", en: "Keep status" },
-    statusAutoChangedTitle: { ru: "Статус изменён на «В процессе»", en: "Status changed to “In progress”" },
+    statusAutoChangedTitle: {
+      ru: "Статус изменён на «В процессе»",
+      en: "Status changed to “In progress”",
+    },
     statusAutoChangedDesc: {
       ru: (title: string) =>
         `Прогресс по тайтлу «${title}» увеличен с 0 до 1, поэтому статус автоматически переведён в «В процессе».`,
@@ -1514,6 +1517,10 @@ export const translations = {
     unsupportedLinkError: {
       ru: "Неподдерживаемый домен для прямого поиска по ссылке.",
       en: "Unsupported domain for direct link search.",
+    },
+    refreshResultsTooltip: {
+      ru: "Обновить результаты (мимо кэша)",
+      en: "Refresh results (bypassing cache)",
     },
     goToTitle: { ru: "Перейти к тайтлу", en: "Go to title" },
     unknownAuthor: { ru: "Неизвестный автор", en: "Unknown author" },

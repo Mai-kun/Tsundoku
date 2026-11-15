@@ -16,7 +16,8 @@ public sealed class MetadataAggregatorService(
     ILogger<MetadataAggregatorService> logger,
     OfflineDatabaseManager? offlineDbManager = null,
     IServiceScopeFactory? scopeFactory = null,
-    RateLimitTracker? rateLimiter = null)
+    RateLimitTracker? rateLimiter = null,
+    SearchCacheService? searchCache = null)
 {
     private static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(10);
 
@@ -95,13 +96,14 @@ public sealed class MetadataAggregatorService(
         string type,
         string query,
         CancellationToken ct,
-        bool byCreator = false)
+        bool byCreator = false,
+        bool bypassCache = false)
     {
         var normalizedType = MediaMerger.NormalizeMediaType(type);
         var normalizedQuery = query.Trim();
         var cacheKey = SearchCacheKey(normalizedType.Length == 0 ? "all" : normalizedType, normalizedQuery, byCreator);
 
-        if (cache.TryGetValue(cacheKey, out IReadOnlyList<ExternalMediaDto>? cached) && cached is not null)
+        if (!bypassCache && cache.TryGetValue(cacheKey, out IReadOnlyList<ExternalMediaDto>? cached) && cached is not null)
         {
             return cached;
         }
@@ -112,19 +114,19 @@ public sealed class MetadataAggregatorService(
         var shared = inFlightSearches.GetOrAdd(
             cacheKey,
             _ => new Lazy<Task<IReadOnlyList<ExternalMediaDto>>>(
-                () => RunCoalescedSearchAsync(cacheKey, normalizedType, normalizedQuery, byCreator),
+                () => RunCoalescedSearchAsync(cacheKey, normalizedType, normalizedQuery, byCreator, bypassCache),
                 LazyThreadSafetyMode.ExecutionAndPublication));
 
         return await shared.Value.WaitAsync(ct);
     }
 
     private async Task<IReadOnlyList<ExternalMediaDto>> RunCoalescedSearchAsync(
-        string cacheKey, string normalizedType, string normalizedQuery, bool byCreator)
+        string cacheKey, string normalizedType, string normalizedQuery, bool byCreator, bool bypassCache)
     {
         using var timeout = new CancellationTokenSource(CoalescedSearchTimeout);
         try
         {
-            var results = await SearchCoreAsync(normalizedType, normalizedQuery, timeout.Token, byCreator);
+            var results = await SearchCoreAsync(normalizedType, normalizedQuery, timeout.Token, byCreator, bypassCache);
             cache.Set(cacheKey, results, CacheDuration);
             return results;
         }
@@ -138,7 +140,7 @@ public sealed class MetadataAggregatorService(
     }
 
     private async ValueTask<IReadOnlyList<ExternalMediaDto>> SearchCoreAsync(
-        string normalizedType, string normalizedQuery, CancellationToken ct, bool byCreator)
+        string normalizedType, string normalizedQuery, CancellationToken ct, bool byCreator, bool bypassCache = false)
     {
         if (await IsOfflineModeAsync(ct))
         {
@@ -156,8 +158,8 @@ public sealed class MetadataAggregatorService(
         }
 
         IReadOnlyList<ExternalMediaDto> results = normalizedType is "all" or ""
-            ? await SearchAllAsync(normalizedQuery, ct, byCreator)
-            : await SearchProviderWithFallbackAsync(normalizedType, normalizedQuery, ct, byCreator);
+            ? await SearchAllAsync(normalizedQuery, ct, byCreator, bypassCache)
+            : await SearchProviderWithFallbackAsync(normalizedType, normalizedQuery, ct, byCreator, bypassCache);
 
         return results;
     }
@@ -172,13 +174,14 @@ public sealed class MetadataAggregatorService(
         string query,
         string source,
         CancellationToken ct,
-        bool byCreator = false)
+        bool byCreator = false,
+        bool bypassCache = false)
     {
         var normalizedType = MediaMerger.NormalizeMediaType(type, source);
         var normalizedQuery = query.Trim();
         var cacheKey = $"search:v{priorityService.Version}:{normalizedType}:{normalizedQuery.ToLowerInvariant()}:{MediaMerger.NormalizeSourceKey(source)}{(byCreator ? ":creator" : "")}";
 
-        if (cache.TryGetValue(cacheKey, out IReadOnlyList<ExternalMediaDto>? cached) && cached is not null)
+        if (!bypassCache && cache.TryGetValue(cacheKey, out IReadOnlyList<ExternalMediaDto>? cached) && cached is not null)
         {
             return cached;
         }
@@ -198,6 +201,20 @@ public sealed class MetadataAggregatorService(
         {
             cache.Set(cacheKey, (IReadOnlyList<ExternalMediaDto>)[], CacheDuration);
             return [];
+        }
+
+        // The persistent search cache is keyed per source, so an explicit-source search and the
+        // cascade share the same entries — switching between "All" and one provider in the modal
+        // costs zero network calls for either direction.
+        var persistentKey = SearchCacheService.BuildKey(source, normalizedType, normalizedQuery, byCreator);
+        if (!bypassCache && searchCache is not null)
+        {
+            var persisted = await searchCache.TryGetAsync(persistentKey, ct);
+            if (persisted is { Count: > 0 })
+            {
+                cache.Set(cacheKey, persisted, CacheDuration);
+                return persisted;
+            }
         }
 
         IReadOnlyList<ExternalMediaDto> results = [];
@@ -233,6 +250,11 @@ public sealed class MetadataAggregatorService(
         else
         {
             logger.LogWarning("[Aggregator] Source '{Source}' is not registered for type '{Type}'", source, normalizedType);
+        }
+
+        if (results.Count > 0 && searchCache is not null)
+        {
+            await searchCache.SetAsync(persistentKey, results, ct);
         }
 
         cache.Set(cacheKey, results, CacheDuration);
@@ -757,7 +779,7 @@ public sealed class MetadataAggregatorService(
         : "(no id, no title)";
 
     private async Task<IReadOnlyList<ExternalMediaDto>> SearchProviderWithFallbackAsync(
-        string type, string query, CancellationToken ct, bool byCreator = false)
+        string type, string query, CancellationToken ct, bool byCreator = false, bool bypassCache = false)
     {
         var prioritySources = await priorityService.GetPrioritiesAsync(type, ct);
         if (prioritySources.Count == 0)
@@ -775,6 +797,20 @@ public sealed class MetadataAggregatorService(
                 return (IReadOnlyList<ExternalMediaDto>)[];
             }
 
+            // Persistent per-source answers: one entry per {source}:{type}:{query}, so a cascade
+            // reuses whatever each provider already returned (a provider the user just enabled
+            // answers from the cache too) and a priority/toggle change takes effect immediately —
+            // the merge below simply iterates whatever sources the priority service reports now.
+            var persistentKey = SearchCacheService.BuildKey(source, type, query, byCreator);
+            if (!bypassCache && searchCache is not null)
+            {
+                var persisted = await searchCache.TryGetAsync(persistentKey, ct);
+                if (persisted is { Count: > 0 })
+                {
+                    return persisted;
+                }
+            }
+
             var sw = Stopwatch.StartNew();
             try
             {
@@ -785,6 +821,11 @@ public sealed class MetadataAggregatorService(
                     ? await provider.SearchByCreatorAsync(query, providerCts.Token)
                     : await provider.SearchAsync(query, providerCts.Token);
                 ExternalApiLog.Returned(logger, provider.Name, results.Count, sw.ElapsedMilliseconds);
+                if (results.Count > 0 && searchCache is not null)
+                {
+                    await searchCache.SetAsync(persistentKey, results, ct);
+                }
+
                 return results;
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
@@ -818,20 +859,20 @@ public sealed class MetadataAggregatorService(
         return allResults;
     }
 
-    private async Task<IReadOnlyList<ExternalMediaDto>> SearchAllAsync(string query, CancellationToken ct, bool byCreator = false)
+    private async Task<IReadOnlyList<ExternalMediaDto>> SearchAllAsync(string query, CancellationToken ct, bool byCreator = false, bool bypassCache = false)
     {
-        var tasks = AllTypes.Select(type => SearchProviderSafeAsync(type, query, ct, byCreator));
+        var tasks = AllTypes.Select(type => SearchProviderSafeAsync(type, query, ct, byCreator, bypassCache));
         var groups = await Task.WhenAll(tasks);
 
         return [.. groups.SelectMany(group => group)];
     }
 
     private async Task<IReadOnlyList<ExternalMediaDto>> SearchProviderSafeAsync(
-        string type, string query, CancellationToken ct, bool byCreator = false)
+        string type, string query, CancellationToken ct, bool byCreator, bool bypassCache)
     {
         try
         {
-            return await SearchProviderWithFallbackAsync(type, query, ct, byCreator);
+            return await SearchProviderWithFallbackAsync(type, query, ct, byCreator, bypassCache);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {

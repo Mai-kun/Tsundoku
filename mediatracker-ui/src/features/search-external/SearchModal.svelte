@@ -26,9 +26,10 @@
   import { proxiedExternalCoverUrl } from "$entities/media/model/coverUrl";
   import { i18n } from "$shared/i18n/index.svelte";
   import Modal from "$shared/ui/Modal.svelte";
+  import Button from "$shared/ui/Button.svelte";
   import PopoverMenu from "$shared/ui/PopoverMenu.svelte";
   import ExternalDetailModal from "$widgets/media-detail/ExternalDetailModal.svelte";
-  import { ChevronDown } from "$shared/ui/Icons";
+  import { ChevronDown, RefreshCw } from "$shared/ui/Icons";
   import {
     MEDIA_STATUS,
     type CreateMediaPayload,
@@ -211,14 +212,21 @@
 
   let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
+  // True only right after the user's explicit ↻ / Ctrl+Enter search: the result covers then go
+  // through the image proxy with forceRefresh=true so the disk cache entries refresh too. Any
+  // ordinary (typed/Enter) search resets it back to false.
+  let coverForceRefresh = $state(false);
+
   function handleKeydown(event: KeyboardEvent) {
     if (event.key === "Enter") {
       event.preventDefault();
-      triggerImmediateSearch();
+      // Plain Enter searches with the cache; Ctrl/Cmd+Enter is the explicit ↻ refresh that
+      // bypasses both cache layers and re-fetches the covers.
+      triggerImmediateSearch(event.ctrlKey || event.metaKey);
     }
   }
 
-  function triggerImmediateSearch() {
+  function triggerImmediateSearch(forceRefresh = false) {
     const pendingTerm = term;
     if (pendingTerm.length < minQueryLength) return;
 
@@ -226,6 +234,8 @@
       clearTimeout(debounceTimer);
       debounceTimer = null;
     }
+
+    coverForceRefresh = forceRefresh;
 
     const sequence = ++requestSequence;
     searchController?.abort();
@@ -257,6 +267,7 @@
       controller.signal,
       selectedSource || undefined,
       Boolean(creatorFilter),
+      forceRefresh,
     );
   }
 
@@ -293,6 +304,7 @@
     searchController?.abort();
     const controller = new AbortController();
     searchController = controller;
+    coverForceRefresh = false;
 
     const parsedUrl = parseMediaUrl(pendingTerm);
     if (parsedUrl) {
@@ -389,12 +401,20 @@
     signal: AbortSignal,
     source?: string,
     byCreator?: boolean,
+    forceRefresh?: boolean,
   ) {
     if (signal.aborted) return;
 
     if (type !== "all") {
       try {
-        const found = await searchExternal(type, pendingTerm, signal, source, byCreator);
+        const found = await searchExternal(
+          type,
+          pendingTerm,
+          signal,
+          source,
+          byCreator,
+          forceRefresh,
+        );
         if (sequence === requestSequence) {
           results = found;
           resultsByCategory = { [type]: found };
@@ -434,7 +454,7 @@
           if (source && !sourceSupports(source, cat)) {
             found = [];
           } else {
-            found = await searchExternal(cat, pendingTerm, signal, source, byCreator);
+            found = await searchExternal(cat, pendingTerm, signal, source, byCreator, forceRefresh);
           }
         } catch {
           found = [];
@@ -861,6 +881,18 @@
           {/if}
         </label>
 
+        <Button
+          size="lg"
+          iconOnly
+          variant="secondary"
+          class="h-10 w-10"
+          title={i18n.t.searchModal.refreshResultsTooltip}
+          aria-label={i18n.t.searchModal.refreshResultsTooltip}
+          onclick={() => triggerImmediateSearch(true)}
+        >
+          <RefreshCw size={16} class={searching ? "animate-spin" : ""} aria-hidden="true" />
+        </Button>
+
         <label class="sr-only" for="search-category">{i18n.t.searchModal.categoriesLabel}</label>
         <PopoverMenu
           id="search-category"
@@ -1046,7 +1078,7 @@
                       <div class="bg-canvas h-24 w-16 shrink-0 overflow-hidden rounded-md">
                         {#if result.coverUrl}
                           <img
-                            src={proxiedExternalCoverUrl(result.coverUrl)}
+                            src={proxiedExternalCoverUrl(result.coverUrl, coverForceRefresh)}
                             alt={result.title}
                             class="h-full w-full object-cover"
                             loading="lazy"
@@ -1207,7 +1239,7 @@
               <div class="bg-canvas h-28 w-20 shrink-0 overflow-hidden rounded-md">
                 {#if result.coverUrl}
                   <img
-                    src={proxiedExternalCoverUrl(result.coverUrl)}
+                    src={proxiedExternalCoverUrl(result.coverUrl, coverForceRefresh)}
                     alt={result.title}
                     class="h-full w-full object-cover"
                     loading="lazy"

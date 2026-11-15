@@ -32,6 +32,7 @@
     getSourcePriority,
   } from "$shared/api/api";
   import { parseMediaUrl } from "$shared/utils/urlMediaParser";
+  import { proxiedExternalCoverUrl } from "$entities/media/model/coverUrl";
   import { showToast } from "$shared/ui/toast.svelte";
   import { i18n } from "$shared/i18n/index.svelte";
   import type {
@@ -398,7 +399,11 @@
         search.results = sortCandidates(results.slice(0, 4), item);
       }
     } catch (error) {
-      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(error), type: "error" });
+      showToast({
+        title: i18n.t.toast.actionFailed,
+        description: errorMessage(error),
+        type: "error",
+      });
     } finally {
       search.loading = false;
     }
@@ -436,7 +441,10 @@
     resolvingCandidates[candKey] = true;
     advanceSelection(item.id);
 
-    showToast({ title: i18n.t.backgroundJobs.resolvedAsyncToast, description: i18n.t.toast.descResolved });
+    showToast({
+      title: i18n.t.backgroundJobs.resolvedAsyncToast,
+      description: i18n.t.toast.descResolved,
+    });
     void resolvePendingMatch(item.id, {
       externalId: String(candidate.externalId),
       source: candidate.externalSource ?? "",
@@ -444,7 +452,11 @@
       title: candidate.title,
     })
       .catch((error) =>
-        showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(error), type: "error" }),
+        showToast({
+          title: i18n.t.toast.actionFailed,
+          description: errorMessage(error),
+          type: "error",
+        }),
       )
       .finally(() => {
         delete resolvingCandidates[candKey];
@@ -462,14 +474,21 @@
       jobsClient.dropPendingMatch(item.id);
       onMediaChanged?.();
     } catch (error) {
-      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(error), type: "error" });
+      showToast({
+        title: i18n.t.toast.actionFailed,
+        description: errorMessage(error),
+        type: "error",
+      });
     }
   }
 
   /** Duplicate verdict "leave as separate": the phantom row goes back to a normal library card. */
   async function keepSeparate(item: PendingMatchItemDto) {
     await keep(item);
-    showToast({ title: i18n.t.backgroundJobs.duplicateKeepToast, description: i18n.t.toast.descResolved });
+    showToast({
+      title: i18n.t.backgroundJobs.duplicateKeepToast,
+      description: i18n.t.toast.descResolved,
+    });
   }
 
   /**
@@ -484,9 +503,16 @@
     try {
       await mergeDuplicateSources(duplicate.existingMediaId, item.id);
       jobsClient.dropPendingMatch(item.id);
-      showToast({ title: i18n.t.backgroundJobs.duplicateMergeToast, description: i18n.t.toast.descResolved });
+      showToast({
+        title: i18n.t.backgroundJobs.duplicateMergeToast,
+        description: i18n.t.toast.descResolved,
+      });
     } catch (error) {
-      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(error), type: "error" });
+      showToast({
+        title: i18n.t.toast.actionFailed,
+        description: errorMessage(error),
+        type: "error",
+      });
     } finally {
       delete mergingDuplicates[item.id];
       onMediaChanged?.();
@@ -501,10 +527,17 @@
       await dismissAllPendingMatches();
       jobsClient.pendingMatches = [];
       if (count > 0)
-        showToast({ title: i18n.t.backgroundJobs.keptToast(count), description: i18n.t.toast.descResolved });
+        showToast({
+          title: i18n.t.backgroundJobs.keptToast(count),
+          description: i18n.t.toast.descResolved,
+        });
       onMediaChanged?.();
     } catch (error) {
-      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(error), type: "error" });
+      showToast({
+        title: i18n.t.toast.actionFailed,
+        description: errorMessage(error),
+        type: "error",
+      });
     } finally {
       dismissingAll = false;
     }
@@ -516,7 +549,10 @@
     try {
       const result = await resolveAllPendingMatchesByPriority();
       showToast({
-        title: i18n.t.backgroundJobs.resolvedByPriorityToast(result.resolvedCount, result.skippedCount),
+        title: i18n.t.backgroundJobs.resolvedByPriorityToast(
+          result.resolvedCount,
+          result.skippedCount,
+        ),
         description: i18n.t.toast.descResolved,
       });
       // Weak rows stay in review on purpose: reread so they appear back in the list.
@@ -525,7 +561,11 @@
         jobsClient.modalTab = "jobs";
       }
     } catch (error) {
-      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(error), type: "error" });
+      showToast({
+        title: i18n.t.toast.actionFailed,
+        description: errorMessage(error),
+        type: "error",
+      });
     } finally {
       resolvingAll = false;
       onMediaChanged?.();
@@ -538,10 +578,17 @@
     jobsClient.dropPendingMatch(id);
     void deleteMedia(id)
       .then(() =>
-        showToast({ title: i18n.t.backgroundJobs.deletedToast, description: i18n.t.toast.descDeleted }),
+        showToast({
+          title: i18n.t.backgroundJobs.deletedToast,
+          description: i18n.t.toast.descDeleted,
+        }),
       )
       .catch((error) =>
-        showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(error), type: "error" }),
+        showToast({
+          title: i18n.t.toast.actionFailed,
+          description: errorMessage(error),
+          type: "error",
+        }),
       )
       .finally(() => onMediaChanged?.());
   }
@@ -1165,7 +1212,7 @@
                             >
                               {#if candidate.coverUrl && !candidateImgErrors[key]}
                                 <img
-                                  src={candidate.coverUrl}
+                                  src={proxiedExternalCoverUrl(candidate.coverUrl)}
                                   alt={candidate.title}
                                   referrerpolicy="no-referrer"
                                   class="bg-canvas h-full w-full object-cover transition-transform duration-300 group-hover/poster:scale-105"

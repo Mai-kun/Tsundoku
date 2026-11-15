@@ -4,7 +4,6 @@ using MediaTracker.Server.Features.Media.Import;
 using MediaTracker.Server.Infrastructure.ExternalApis;
 using MediaTracker.Server.Infrastructure.ExternalApis.Abstractions;
 using MediaTracker.Server.Infrastructure.ExternalApis.Common;
-using MediaTracker.Server.Infrastructure.Persistence;
 
 namespace MediaTracker.Server.Features.External.SearchExternal;
 
@@ -17,8 +16,8 @@ namespace MediaTracker.Server.Features.External.SearchExternal;
 /// results are filtered to works the creator actually made.
 /// </param>
 /// <param name="BypassCache">
-/// Skips the persistent search-cache lookup and answers straight from the providers, refreshing
-/// the cached entry afterwards — the user's explicit "refresh" click.
+/// Skips both cache layers and answers straight from the providers, refreshing the per-source
+/// cache entries afterwards — the user's explicit "refresh" click.
 /// </param>
 public sealed record SearchExternalQuery(
     string? Type,
@@ -34,14 +33,13 @@ public interface ISearchExternalHandler
 
 /// <summary>
 /// Fans the search out across the sources of one media type. The aggregator applies the per-source
-/// deadline and the cascade order, so this slice only owns the input contract. Successful
-/// non-empty answers are persisted in <see cref="SearchCacheService"/> (three days TTL) so a
-/// repeat search answers from <c>search_cache.db</c> instead of spending the providers' rate
-/// limits.
+/// deadline and the cascade order, so this slice only owns the input contract. Persistent caching
+/// lives one level down, inside <see cref="MetadataAggregatorService"/>: every provider's answer
+/// is stored under its own <c>{source}:{type}:{query}</c> key in <c>search_cache.db</c> (three
+/// days TTL), so a cascade merges whatever each active provider has cached and a priority/toggle
+/// change takes effect immediately instead of waiting for the entries to expire.
 /// </summary>
-public sealed class SearchExternalHandler(
-    MetadataAggregatorService aggregator,
-    SearchCacheService? searchCache = null) : ISearchExternalHandler
+public sealed class SearchExternalHandler(MetadataAggregatorService aggregator) : ISearchExternalHandler
 {
     public async Task<Result<IReadOnlyList<ExternalMediaDto>>> HandleAsync(
         SearchExternalQuery query,
@@ -79,37 +77,9 @@ public sealed class SearchExternalHandler(
             return Result<IReadOnlyList<ExternalMediaDto>>.Failure(Error.Validation(errors));
         }
 
-        var cacheKey = SearchCacheService.BuildKey(query.Source, normalizedType, normalizedQuery, query.ByCreator);
-
-        if (!query.BypassCache && searchCache is not null)
-        {
-            var cached = await searchCache.TryGetAsync(cacheKey, ct);
-            if (cached is { Count: > 0 })
-            {
-                return Result<IReadOnlyList<ExternalMediaDto>>.Success(cached);
-            }
-        }
-
-        var result = await SearchUncachedAsync(query, normalizedType, normalizedQuery, ct);
-
-        // Only successful non-empty answers are cached: a dry search or a provider failure keeps
-        // going upstream on the next request, and an explicit bypass refreshes the entry.
-        if (result.IsSuccess && result.Value is { Count: > 0 } && searchCache is not null)
-        {
-            await searchCache.SetAsync(cacheKey, result.Value, ct);
-        }
-
-        return result;
-    }
-
-    private async Task<Result<IReadOnlyList<ExternalMediaDto>>> SearchUncachedAsync(
-        SearchExternalQuery query,
-        string normalizedType,
-        string normalizedQuery,
-        CancellationToken ct)
-    {
         // ISBN search handler: if query is an ISBN and general mode ("All" / null) or Book category is selected,
-        // execute search in OpenLibrary AND LiveLib concurrently and merge results under Book.
+        // execute search in OpenLibrary AND LiveLib concurrently and merge results under Book. Both sources
+        // cache their answers per source, so the merge itself is a cheap local operation on repeats.
         if (IsIsbnQuery(normalizedQuery, out var cleanIsbn) &&
             (string.IsNullOrWhiteSpace(query.Source) || string.Equals(query.Source, "all", StringComparison.OrdinalIgnoreCase)) &&
             (normalizedType == SearchTypes.All || normalizedType == MediaType.Book))
@@ -139,8 +109,8 @@ public sealed class SearchExternalHandler(
         }
 
         var results = string.IsNullOrWhiteSpace(query.Source)
-            ? await aggregator.SearchAsync(normalizedType, normalizedQuery, ct, query.ByCreator)
-            : await aggregator.SearchSourceAsync(normalizedType, normalizedQuery, query.Source, ct, query.ByCreator);
+            ? await aggregator.SearchAsync(normalizedType, normalizedQuery, ct, query.ByCreator, query.BypassCache)
+            : await aggregator.SearchSourceAsync(normalizedType, normalizedQuery, query.Source, ct, query.ByCreator, query.BypassCache);
 
         // Ensure each item has a strictly valid Type so grouping in UI never falls back to defaults
         var mappedResults = results.Select(item =>

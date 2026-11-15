@@ -48,7 +48,7 @@
 
       <Button
         variant="secondary"
-        class="pointer-events-auto hidden w-[28rem] justify-start px-3 text-left font-normal hover:border-accent-line/40 focus:ring-1 focus:ring-accent-line/30 focus:outline-none sm:flex sm:w-[32rem]"
+        class="hover:border-accent-line/40 focus:ring-accent-line/30 pointer-events-auto hidden w-[28rem] justify-start px-3 text-left font-normal focus:ring-1 focus:outline-none sm:flex sm:w-[32rem]"
         title={i18n.t.header.searchTooltip}
         onclick={onSearch}
       >
@@ -63,7 +63,7 @@
       <Button
         variant="secondary"
         iconOnly
-        class="pointer-events-auto sm:hidden hover:border-accent-line/40 focus:ring-1 focus:ring-accent-line/30 focus:outline-none"
+        class="hover:border-accent-line/40 focus:ring-accent-line/30 pointer-events-auto focus:ring-1 focus:outline-none sm:hidden"
         aria-label={i18n.t.header.searchButton}
         onclick={onSearch}
       >
@@ -102,7 +102,7 @@
           popovertarget={popoverTargetId}
           popovertargetaction="toggle"
           style={isOpen ? `anchor-name: ${anchorName}` : undefined}
-          class="w-[88px] justify-between px-2.5 text-xs font-semibold hover:border-accent-line/40 hover:text-white focus:ring-1 focus:ring-accent-line/30 focus:outline-none"
+          class="hover:border-accent-line/40 focus:ring-accent-line/30 w-[88px] justify-between px-2.5 text-xs font-semibold hover:text-white focus:ring-1 focus:outline-none"
           title={i18n.t.header.language}
         >
           <Languages size={15} class="text-muted" aria-hidden="true" />
@@ -116,7 +116,7 @@
       <Button
         variant="secondary"
         iconOnly
-        class="hover:border-danger/40 focus:ring-1 focus:ring-danger/30 focus:outline-none"
+        class="hover:border-danger/40 focus:ring-danger/30 focus:ring-1 focus:outline-none"
         title={i18n.t.header.exit}
         aria-label={i18n.t.header.exit}
         onclick={onExitClick}

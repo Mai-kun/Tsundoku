@@ -186,7 +186,10 @@
     appSettingsSaving = true;
     try {
       appSettings = await saveAppSettings(next);
-      showToast({ title: i18n.t.settingsModal.closeBehavior.savedToast, description: i18n.t.toast.descSaved });
+      showToast({
+        title: i18n.t.settingsModal.closeBehavior.savedToast,
+        description: i18n.t.toast.descSaved,
+      });
     } catch (e) {
       showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(e), type: "error" });
     } finally {
@@ -242,7 +245,10 @@
     isApplyingUpdate = true;
     try {
       await applyAppUpdate();
-      showToast({ title: "Обновление применено, сервер перезапускается...", description: i18n.t.toast.descActionDone });
+      showToast({
+        title: "Обновление применено, сервер перезапускается...",
+        description: i18n.t.toast.descActionDone,
+      });
       // Ждём «лёг → поднялся» и перезагружаемся уже на новом сервере.
       await waitForBackendRestart(true);
       window.location.reload();
@@ -277,7 +283,10 @@
       showCreateTokenModal = false;
       newTokenName = "";
       newTokenExpiresInDays = undefined;
-      showToast({ title: i18n.t.settingsModal.apiTokens.createdToast, description: i18n.t.toast.descCreated });
+      showToast({
+        title: i18n.t.settingsModal.apiTokens.createdToast,
+        description: i18n.t.toast.descCreated,
+      });
       await loadTokens();
     } catch (e) {
       console.error(e);
@@ -291,7 +300,10 @@
     try {
       await navigator.clipboard.writeText(token);
       hasCopiedToken = true;
-      showToast({ title: i18n.t.settingsModal.apiTokens.copied, description: i18n.t.toast.descCopied });
+      showToast({
+        title: i18n.t.settingsModal.apiTokens.copied,
+        description: i18n.t.toast.descCopied,
+      });
       setTimeout(() => {
         hasCopiedToken = false;
       }, 3000);
@@ -307,7 +319,10 @@
     try {
       await revokeApiToken(tokenToRevoke.id);
       tokens = tokens.filter((t) => t.id !== tokenToRevoke!.id);
-      showToast({ title: i18n.t.settingsModal.apiTokens.revokedToast, description: i18n.t.toast.descDeleted });
+      showToast({
+        title: i18n.t.settingsModal.apiTokens.revokedToast,
+        description: i18n.t.toast.descDeleted,
+      });
       tokenToRevoke = null;
     } catch (e) {
       console.error(e);
@@ -387,7 +402,10 @@
         customPath: customPathInput.trim() || "",
         migrateExistingData,
       });
-      showToast({ title: i18n.t.settingsModal.storage.savedToast, description: i18n.t.toast.descSaved });
+      showToast({
+        title: i18n.t.settingsModal.storage.savedToast,
+        description: i18n.t.toast.descSaved,
+      });
       await waitForServerAndReload(restartScheduled);
     } catch (e) {
       showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(e), type: "error" });
@@ -412,18 +430,29 @@
     const mangaMin = Number(readingMangaChapterMinutes);
 
     if (isNaN(bookMin) || bookMin < 0.2 || bookMin > 10.0) {
-      showToast({ title: i18n.t.settingsModal.reading.bookSpeedValidation, description: i18n.t.toast.descValidation, type: "error" });
+      showToast({
+        title: i18n.t.settingsModal.reading.bookSpeedValidation,
+        description: i18n.t.toast.descValidation,
+        type: "error",
+      });
       return;
     }
     if (isNaN(mangaMin) || mangaMin < 0.5 || mangaMin > 30.0) {
-      showToast({ title: i18n.t.settingsModal.reading.mangaSpeedValidation, description: i18n.t.toast.descValidation, type: "error" });
+      showToast({
+        title: i18n.t.settingsModal.reading.mangaSpeedValidation,
+        description: i18n.t.toast.descValidation,
+        type: "error",
+      });
       return;
     }
 
     isSavingReading = true;
     try {
       await uiSettings.setReadingSpeed(bookMin, mangaMin);
-      showToast({ title: i18n.t.settingsModal.reading.savedToast, description: i18n.t.toast.descSaved });
+      showToast({
+        title: i18n.t.settingsModal.reading.savedToast,
+        description: i18n.t.toast.descSaved,
+      });
     } catch (e) {
       console.error(e);
       showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(e), type: "error" });
@@ -509,7 +538,11 @@
       await restoreBackup(selectedBackupFile);
       showRestoreConfirm = false;
       selectedBackupFile = null;
-      showToast({ title: i18n.t.settingsModal.backup.restoreSuccess, description: i18n.t.toast.descSaved, durationMs: 5000 });
+      showToast({
+        title: i18n.t.settingsModal.backup.restoreSuccess,
+        description: i18n.t.toast.descSaved,
+        durationMs: 5000,
+      });
       setTimeout(() => {
         window.location.reload();
       }, 1500);
@@ -543,7 +576,11 @@
     try {
       await resetAllData(keepApiKeys);
       showResetConfirm = false;
-      showToast({ title: i18n.t.settingsModal.backup.resetSuccess, description: i18n.t.toast.descSaved, durationMs: 5000 });
+      showToast({
+        title: i18n.t.settingsModal.backup.resetSuccess,
+        description: i18n.t.toast.descSaved,
+        durationMs: 5000,
+      });
       setTimeout(() => {
         window.location.href = "/";
       }, 1000);
@@ -642,7 +679,10 @@
     offlineReindexing = true;
     try {
       await reindexOfflineDatabases();
-      showToast({ title: i18n.t.settingsModal.sources.offline.reindexToast, description: i18n.t.toast.descSaved });
+      showToast({
+        title: i18n.t.settingsModal.sources.offline.reindexToast,
+        description: i18n.t.toast.descSaved,
+      });
       await loadOfflineDatabases();
     } catch (e) {
       showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(e), type: "error" });
@@ -658,7 +698,10 @@
     franchiseRescanning = true;
     try {
       await reindexFranchises();
-      showToast({ title: i18n.t.settingsModal.storage.franchiseDoneToast, description: i18n.t.toast.descSaved });
+      showToast({
+        title: i18n.t.settingsModal.storage.franchiseDoneToast,
+        description: i18n.t.toast.descSaved,
+      });
     } catch (e) {
       showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(e), type: "error" });
     } finally {
@@ -691,7 +734,10 @@
     searchCacheClearing = true;
     try {
       await clearSearchCache();
-      showToast({ title: i18n.t.settingsModal.storage.searchCacheClearedToast, description: i18n.t.toast.descSaved });
+      showToast({
+        title: i18n.t.settingsModal.storage.searchCacheClearedToast,
+        description: i18n.t.toast.descSaved,
+      });
       await loadSearchCacheInfo();
     } catch (e) {
       showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(e), type: "error" });
@@ -733,7 +779,10 @@
         { method: "DELETE" },
       );
       if (!response.ok) throw new Error(await response.text());
-      showToast({ title: i18n.t.settingsModal.sources.offline.deleteDumpDone, description: i18n.t.toast.descSaved });
+      showToast({
+        title: i18n.t.settingsModal.sources.offline.deleteDumpDone,
+        description: i18n.t.toast.descSaved,
+      });
       await loadOfflineDatabases();
     } catch (e) {
       showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(e), type: "error" });
@@ -909,7 +958,11 @@
       const res = await testSourceConnection(sourceId);
       testResults[sourceId] = res;
       if (!res.success) {
-        showToast({ title: res.message || i18n.t.settingsModal.sources.testFailed, description: i18n.t.toast.descRetry, type: "error" });
+        showToast({
+          title: res.message || i18n.t.settingsModal.sources.testFailed,
+          description: i18n.t.toast.descRetry,
+          type: "error",
+        });
       }
     } catch (e) {
       testResults[sourceId] = {
@@ -935,7 +988,10 @@
     try {
       const res = await detectSimklBrowserSession();
       if (res && res.success) {
-        showToast({ title: "Авторизация Simkl успешно подхвачена из браузера", description: i18n.t.toast.descAuth });
+        showToast({
+          title: "Авторизация Simkl успешно подхвачена из браузера",
+          description: i18n.t.toast.descAuth,
+        });
         await loadSources();
       } else {
         showToast({
@@ -946,7 +1002,11 @@
         });
       }
     } catch (err) {
-      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(err), type: "error" });
+      showToast({
+        title: i18n.t.toast.actionFailed,
+        description: errorMessage(err),
+        type: "error",
+      });
     } finally {
       detectingSimkl = false;
     }
@@ -957,7 +1017,10 @@
     try {
       const res = await detectMangalibBrowserSession();
       if (res && res.success) {
-        showToast({ title: "Авторизация SocialLib успешно подхвачена из браузера", description: i18n.t.toast.descAuth });
+        showToast({
+          title: "Авторизация SocialLib успешно подхвачена из браузера",
+          description: i18n.t.toast.descAuth,
+        });
         await loadSources();
       } else {
         showToast({
@@ -968,7 +1031,11 @@
         });
       }
     } catch (err) {
-      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(err), type: "error" });
+      showToast({
+        title: i18n.t.toast.actionFailed,
+        description: errorMessage(err),
+        type: "error",
+      });
     } finally {
       detectingSocialLib = false;
     }
@@ -1013,7 +1080,10 @@
     prioritySaving = true;
     try {
       await saveSourcePriority(sourcePriority);
-      showToast({ title: i18n.t.settingsModal.search.prioritySaved, description: i18n.t.toast.descSaved });
+      showToast({
+        title: i18n.t.settingsModal.search.prioritySaved,
+        description: i18n.t.toast.descSaved,
+      });
     } catch (e) {
       console.error(e);
       showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(e), type: "error" });
@@ -1084,7 +1154,11 @@
       showToast({ title: i18n.t.settingsModal.search.saved, description: i18n.t.toast.descSaved });
     } catch (err) {
       console.error(err);
-      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(err), type: "error" });
+      showToast({
+        title: i18n.t.toast.actionFailed,
+        description: errorMessage(err),
+        type: "error",
+      });
     }
   }
 
@@ -1125,10 +1199,17 @@
 
     try {
       await saveSourcePriority(sourcePriority);
-      showToast({ title: i18n.t.settingsModal.search.prioritySaved, description: i18n.t.toast.descSaved });
+      showToast({
+        title: i18n.t.settingsModal.search.prioritySaved,
+        description: i18n.t.toast.descSaved,
+      });
     } catch (err) {
       console.error(err);
-      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(err), type: "error" });
+      showToast({
+        title: i18n.t.toast.actionFailed,
+        description: errorMessage(err),
+        type: "error",
+      });
     }
   }
 
@@ -1177,7 +1258,7 @@
         size="md"
         class={`tap w-full justify-start gap-3 px-3.5 text-left text-xs ${
           activeTab === "sources"
-            ? "border-accent-bright/30! bg-accent-bright/15! border! text-accent-soft! font-semibold! shadow-sm"
+            ? "border-accent-bright/30! bg-accent-bright/15! text-accent-soft! border! font-semibold! shadow-sm"
             : ""
         }`}
         onclick={() => (activeTab = "sources")}
@@ -1191,7 +1272,7 @@
         size="md"
         class={`tap w-full justify-start gap-3 px-3.5 text-left text-xs ${
           activeTab === "search"
-            ? "border-accent-bright/30! bg-accent-bright/15! border! text-accent-soft! font-semibold! shadow-sm"
+            ? "border-accent-bright/30! bg-accent-bright/15! text-accent-soft! border! font-semibold! shadow-sm"
             : ""
         }`}
         onclick={() => (activeTab = "search")}
@@ -1205,7 +1286,7 @@
         size="md"
         class={`tap w-full justify-start gap-3 px-3.5 text-left text-xs ${
           activeTab === "backup"
-            ? "border-accent-bright/30! bg-accent-bright/15! border! text-accent-soft! font-semibold! shadow-sm"
+            ? "border-accent-bright/30! bg-accent-bright/15! text-accent-soft! border! font-semibold! shadow-sm"
             : ""
         }`}
         onclick={() => (activeTab = "backup")}
@@ -1219,7 +1300,7 @@
         size="md"
         class={`tap w-full justify-start gap-3 px-3.5 text-left text-xs ${
           activeTab === "import"
-            ? "border-accent-bright/30! bg-accent-bright/15! border! text-accent-soft! font-semibold! shadow-sm"
+            ? "border-accent-bright/30! bg-accent-bright/15! text-accent-soft! border! font-semibold! shadow-sm"
             : ""
         }`}
         onclick={() => (activeTab = "import")}
@@ -1233,7 +1314,7 @@
         size="md"
         class={`tap w-full justify-start gap-3 px-3.5 text-left text-xs ${
           activeTab === "reading"
-            ? "border-accent-bright/30! bg-accent-bright/15! border! text-accent-soft! font-semibold! shadow-sm"
+            ? "border-accent-bright/30! bg-accent-bright/15! text-accent-soft! border! font-semibold! shadow-sm"
             : ""
         }`}
         onclick={() => (activeTab = "reading")}
@@ -1247,7 +1328,7 @@
         size="md"
         class={`tap w-full justify-start gap-3 px-3.5 text-left text-xs ${
           activeTab === "update"
-            ? "border-accent-bright/30! bg-accent-bright/15! border! text-accent-soft! font-semibold! shadow-sm"
+            ? "border-accent-bright/30! bg-accent-bright/15! text-accent-soft! border! font-semibold! shadow-sm"
             : ""
         }`}
         onclick={() => (activeTab = "update")}
@@ -1261,7 +1342,7 @@
         size="md"
         class={`tap w-full justify-start gap-3 px-3.5 text-left text-xs ${
           activeTab === "storage"
-            ? "border-accent-bright/30! bg-accent-bright/15! border! text-accent-soft! font-semibold! shadow-sm"
+            ? "border-accent-bright/30! bg-accent-bright/15! text-accent-soft! border! font-semibold! shadow-sm"
             : ""
         }`}
         onclick={() => (activeTab = "storage")}
@@ -1275,7 +1356,7 @@
         size="md"
         class={`tap w-full justify-start gap-3 px-3.5 text-left text-xs ${
           activeTab === "appearance"
-            ? "border-accent-bright/30! bg-accent-bright/15! border! text-accent-soft! font-semibold! shadow-sm"
+            ? "border-accent-bright/30! bg-accent-bright/15! text-accent-soft! border! font-semibold! shadow-sm"
             : ""
         }`}
         onclick={() => (activeTab = "appearance")}
@@ -1289,7 +1370,7 @@
         size="md"
         class={`tap w-full justify-start gap-3 px-3.5 text-left text-xs ${
           activeTab === "desktop"
-            ? "border-accent-bright/30! bg-accent-bright/15! border! text-accent-soft! font-semibold! shadow-sm"
+            ? "border-accent-bright/30! bg-accent-bright/15! text-accent-soft! border! font-semibold! shadow-sm"
             : ""
         }`}
         onclick={() => (activeTab = "desktop")}
@@ -1538,9 +1619,7 @@
               variant="ghost"
               size="sm"
               class={`rounded-full px-3.5 font-semibold ${
-                sourceKindFilter === "api"
-                  ? "bg-accent-bright/20! text-accent-soft! shadow-sm"
-                  : ""
+                sourceKindFilter === "api" ? "bg-accent-bright/20! text-accent-soft! shadow-sm" : ""
               }`}
               onclick={() => (sourceKindFilter = "api")}
             >
@@ -2661,7 +2740,9 @@
                 {i18n.t.settingsModal.storage.searchCacheDescription}
               </p>
               {#if searchCacheInfo}
-                <p class="text-muted mt-3 inline-flex items-center gap-1.5 rounded-lg border border-white/5 bg-black/20 px-2.5 py-1.5 text-xs">
+                <p
+                  class="text-muted mt-3 inline-flex items-center gap-1.5 rounded-lg border border-white/5 bg-black/20 px-2.5 py-1.5 text-xs"
+                >
                   {i18n.t.settingsModal.storage.searchCacheStats(
                     searchCacheInfo.entryCount,
                     searchCacheInfo.imageFileCount,
@@ -3001,7 +3082,7 @@
             <Button
               variant="primary"
               size="md"
-              class="mt-4 shadow-accent/20 shadow-md"
+              class="shadow-accent/20 mt-4 shadow-md"
               onclick={() => {
                 newTokenName = "";
                 newTokenExpiresInDays = undefined;

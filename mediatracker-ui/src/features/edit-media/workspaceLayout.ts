@@ -54,19 +54,13 @@ export function clampWindowRect(
   const min = MIN_SIZES[id];
   // Size first: never wider/taller than the visible band between the hard margins.
   const w = Math.min(Math.max(rect.w, min.w), Math.max(viewportW - 2 * SIDE_MARGIN, min.w));
-  const h = Math.min(
-    Math.max(rect.h, min.h),
-    Math.max(viewportH - TOP_BAR - BOTTOM_MARGIN, min.h),
-  );
+  const h = Math.min(Math.max(rect.h, min.h), Math.max(viewportH - TOP_BAR - BOTTOM_MARGIN, min.h));
   // Then position: the whole rect must stay inside the band, even if that shrinks it below min.
   return {
     w,
     h,
     x: Math.min(Math.max(rect.x, SIDE_MARGIN), Math.max(viewportW - SIDE_MARGIN - w, SIDE_MARGIN)),
-    y: Math.min(
-      Math.max(rect.y, TOP_BAR),
-      Math.max(viewportH - BOTTOM_MARGIN - h, TOP_BAR),
-    ),
+    y: Math.min(Math.max(rect.y, TOP_BAR), Math.max(viewportH - BOTTOM_MARGIN - h, TOP_BAR)),
   };
 }
 
@@ -99,11 +93,7 @@ export function defaultLayout(viewportW: number, viewportH: number): WorkspaceLa
   const centerRight = cx + centerW / 2;
   const sideW = Math.min(
     520,
-    Math.max(
-      MIN_SIZES.main.w,
-      centerLeft - 40 - 24,
-      viewportW - SIDE_MARGIN - (centerRight + 40),
-    ),
+    Math.max(MIN_SIZES.main.w, centerLeft - 40 - 24, viewportW - SIDE_MARGIN - (centerRight + 40)),
   );
   const leftX = 24;
   const rightX = centerRight + 40;
@@ -120,7 +110,12 @@ export function defaultLayout(viewportW: number, viewportH: number): WorkspaceLa
   return {
     cover: clampPoint({ x: cx - COVER_SIZE.w / 2, y: bandTop + altH + 40 }, viewportW, viewportH),
     windows: {
-      main: clampWindowRect({ x: leftX, y: bandTop, w: sideW, h: mainH }, "main", viewportW, viewportH),
+      main: clampWindowRect(
+        { x: leftX, y: bandTop, w: sideW, h: mainH },
+        "main",
+        viewportW,
+        viewportH,
+      ),
       quotes: clampWindowRect(
         { x: leftX, y: bandTop + mainH + 16, w: sideW, h: quotesH },
         "quotes",
@@ -133,7 +128,12 @@ export function defaultLayout(viewportW: number, viewportH: number): WorkspaceLa
         viewportW,
         viewportH,
       ),
-      notes: clampWindowRect({ x: rightX, y: bandTop, w: sideW, h: notesH }, "notes", viewportW, viewportH),
+      notes: clampWindowRect(
+        { x: rightX, y: bandTop, w: sideW, h: notesH },
+        "notes",
+        viewportW,
+        viewportH,
+      ),
       images: clampWindowRect(
         { x: rightX, y: bandTop + notesH + 16, w: sideW, h: imagesH },
         "images",

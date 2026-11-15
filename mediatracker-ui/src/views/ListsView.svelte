@@ -126,7 +126,11 @@
       showToast({ title: i18n.t.views.listDeleted, description: i18n.t.toast.descDeleted });
       await loadLists();
     } catch (caught) {
-      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(caught), type: "error" });
+      showToast({
+        title: i18n.t.toast.actionFailed,
+        description: errorMessage(caught),
+        type: "error",
+      });
     }
   }
 
@@ -136,10 +140,17 @@
     selected = { ...active, items: active.items.filter((value) => value.id !== item.id) };
     try {
       await removeMediaFromList(active.id, item.id);
-      showToast({ title: i18n.t.views.listRemoved(active.name), description: i18n.t.toast.descDeleted });
+      showToast({
+        title: i18n.t.views.listRemoved(active.name),
+        description: i18n.t.toast.descDeleted,
+      });
       await loadLists();
     } catch (caught) {
-      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(caught), type: "error" });
+      showToast({
+        title: i18n.t.toast.actionFailed,
+        description: errorMessage(caught),
+        type: "error",
+      });
       selected = await getListDetail(active.id).catch(() => null);
     }
   }

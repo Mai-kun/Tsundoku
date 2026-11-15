@@ -76,12 +76,22 @@
   class="thin-scroll relative flex items-center gap-1 overflow-x-auto border-b border-white/[0.08] pb-px"
   aria-label="Sections"
 >
-  <button type="button" data-tab="overview" class={tabClass("overview")} onclick={() => onSelect("overview")}>
+  <button
+    type="button"
+    data-tab="overview"
+    class={tabClass("overview")}
+    onclick={() => onSelect("overview")}
+  >
     {i18n.t.detail.tabOverview}
   </button>
 
   {#if mediaType === "tvshow"}
-    <button type="button" data-tab="episodes" class={tabClass("episodes")} onclick={() => onSelect("episodes")}>
+    <button
+      type="button"
+      data-tab="episodes"
+      class={tabClass("episodes")}
+      onclick={() => onSelect("episodes")}
+    >
       {i18n.t.detail.tabEpisodes}
       {#if seasonProgress}
         <span class="rounded-full bg-white/10 px-2 py-0.5 text-xs text-[var(--color-accent-soft)]">
@@ -92,7 +102,12 @@
   {/if}
 
   <!-- The gallery tab is type-agnostic: every title can carry user screenshots. -->
-  <button type="button" data-tab="gallery" class={tabClass("gallery")} onclick={() => onSelect("gallery")}>
+  <button
+    type="button"
+    data-tab="gallery"
+    class={tabClass("gallery")}
+    onclick={() => onSelect("gallery")}
+  >
     {i18n.t.detail.tabGallery}
     {#if galleryCount > 0}
       <span class="text-muted rounded-full bg-white/10 px-2 py-0.5 text-xs">
@@ -101,7 +116,12 @@
     {/if}
   </button>
 
-  <button type="button" data-tab="related" class={tabClass("related")} onclick={() => onSelect("related")}>
+  <button
+    type="button"
+    data-tab="related"
+    class={tabClass("related")}
+    onclick={() => onSelect("related")}
+  >
     {i18n.t.detail.tabRelatedMedia}
     {#if relatedCount > 0}
       <span class="text-muted rounded-full bg-white/10 px-2 py-0.5 text-xs">

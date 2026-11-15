@@ -12,13 +12,7 @@
     children: Snippet;
   }
 
-  let {
-    tone = "neutral",
-    size = "sm",
-    class: className = "",
-    children,
-    ...rest
-  }: Props = $props();
+  let { tone = "neutral", size = "sm", class: className = "", children, ...rest }: Props = $props();
 
   // Brand/source palettes (--color-badge-*, --color-import-*) stay applied from
   // outside via style/class; the component owns geometry and token tones only.

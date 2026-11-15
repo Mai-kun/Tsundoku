@@ -92,7 +92,11 @@
       goals = goals.filter((g) => g.id !== goal.id);
       showToast({ title: i18n.t.goals.deleted, description: i18n.t.toast.descDeleted });
     } catch {
-      showToast({ title: i18n.t.errors.unexpected, description: i18n.t.toast.descRetry, type: "error" });
+      showToast({
+        title: i18n.t.errors.unexpected,
+        description: i18n.t.toast.descRetry,
+        type: "error",
+      });
     }
   }
 

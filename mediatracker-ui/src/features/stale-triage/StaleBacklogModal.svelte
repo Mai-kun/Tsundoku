@@ -38,7 +38,11 @@
           allInProgress = res;
         })
         .catch((e) => {
-          showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(e), type: "error" });
+          showToast({
+            title: i18n.t.toast.actionFailed,
+            description: errorMessage(e),
+            type: "error",
+          });
         })
         .finally(() => {
           loading = false;

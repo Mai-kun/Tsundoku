@@ -136,7 +136,11 @@
   // remainder flows into the horizontal rows below, so the grid never ends with an empty slot.
   const PORTRAIT_COLS = 3;
 
-  const voiceEntry = (voiceName: string, voicePhotoUrl: string | null, character: CharacterCard): CastEntry => ({
+  const voiceEntry = (
+    voiceName: string,
+    voicePhotoUrl: string | null,
+    character: CharacterCard,
+  ): CastEntry => ({
     key: `${voiceName}:${character.name}`,
     name: character.name,
     photoUrl: character.photoUrl,
@@ -320,7 +324,9 @@
             </div>
             <div class="min-w-0 space-y-1 p-2">
               <p
-                class="line-clamp-2 text-xs {large ? 'sm:text-[13px]' : ''} leading-snug font-bold text-white"
+                class="line-clamp-2 text-xs {large
+                  ? 'sm:text-[13px]'
+                  : ''} leading-snug font-bold text-white"
                 title={entry.name}
               >
                 {entry.name}
@@ -437,7 +443,7 @@
         {#if !supportingCollapsed}
           <div
             transition:slide={{ duration: 220 }}
-            class={`divide-y divide-white/[0.05] ${overflowEntries.length ? 'border-t border-white/[0.05]' : ''}`}
+            class={`divide-y divide-white/[0.05] ${overflowEntries.length ? "border-t border-white/[0.05]" : ""}`}
           >
             {#each supportingEntries as entry (entry.key)}
               {@render rowEntry(entry)}

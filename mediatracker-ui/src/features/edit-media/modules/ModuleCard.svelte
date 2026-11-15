@@ -41,7 +41,9 @@
     class="flex flex-col gap-3 rounded-xl border border-white/[0.06] bg-[#12151c] p-4 transition-[border-color] duration-200"
   >
     <header class="flex items-center gap-2">
-      <span class="text-accent-soft grid size-7 shrink-0 place-items-center rounded-lg bg-white/[0.04]">
+      <span
+        class="text-accent-soft grid size-7 shrink-0 place-items-center rounded-lg bg-white/[0.04]"
+      >
         {@render icon()}
       </span>
       <h3 class="text-ink text-xs font-bold tracking-[0.14em] uppercase">{title}</h3>

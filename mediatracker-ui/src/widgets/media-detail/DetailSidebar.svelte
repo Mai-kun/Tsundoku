@@ -210,14 +210,12 @@
   // Rare actions hide behind the compact "…" menu next to the section title; only the frequent
   // ones stay on the panel face.
   type MoreAction = "covers" | "lists" | "relink" | "activity";
-  const moreActionItems = $derived(
-    [
-      { value: "covers", label: i18n.t.coversModal.openCovers, icon: ImageIcon },
-      { value: "lists", label: i18n.t.views.listAddTo, icon: List },
-      { value: "relink", label: i18n.t.detail.changeSource, icon: Link2 },
-      { value: "activity", label: i18n.t.detail.activity, icon: CalendarDays },
-    ] satisfies Array<{ value: MoreAction; label: string; icon: typeof ImageIcon }>,
-  );
+  const moreActionItems = $derived([
+    { value: "covers", label: i18n.t.coversModal.openCovers, icon: ImageIcon },
+    { value: "lists", label: i18n.t.views.listAddTo, icon: List },
+    { value: "relink", label: i18n.t.detail.changeSource, icon: Link2 },
+    { value: "activity", label: i18n.t.detail.activity, icon: CalendarDays },
+  ] satisfies Array<{ value: MoreAction; label: string; icon: typeof ImageIcon }>);
 
   function runMoreAction(value: MoreAction) {
     switch (value) {
@@ -274,9 +272,7 @@
       seen.add(key);
       merged.push(value);
     }
-    return merged.sort(
-      (a, b) => Number(isFavorite(b)) - Number(isFavorite(a)),
-    );
+    return merged.sort((a, b) => Number(isFavorite(b)) - Number(isFavorite(a)));
   });
 
   const comboMenuItems = $derived(comboOptions.map((value) => ({ value, label: value })));
@@ -323,7 +319,11 @@
       onAutoRefreshed?.(updated);
       showToast({ title: i18n.t.detail.autoRefreshDone, description: i18n.t.toast.descUpdated });
     } catch (error) {
-      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(error), type: "error" });
+      showToast({
+        title: i18n.t.toast.actionFailed,
+        description: errorMessage(error),
+        type: "error",
+      });
     } finally {
       autoRefreshBusy = false;
     }
@@ -425,7 +425,7 @@
             popovertargetaction="toggle"
             style={isOpen ? `anchor-name: ${anchorName}` : undefined}
             disabled={statusBusy}
-            class="w-full justify-between px-3.5 has-[:popover-open]:ring-2 has-[:popover-open]:ring-accent-soft"
+            class="has-[:popover-open]:ring-accent-soft w-full justify-between px-3.5 has-[:popover-open]:ring-2"
             aria-haspopup="listbox"
           >
             <span class="truncate">{statusLabel(media.status)}</span>
@@ -1038,12 +1038,7 @@
         {fillMissingBusy ? i18n.t.detail.fillMissingRunning : i18n.t.detail.fillMissing}
       </Button>
 
-      <Button
-        variant="ghost"
-        size="sm"
-        class="w-full justify-start px-2.5"
-        onclick={onStartEdit}
-      >
+      <Button variant="ghost" size="sm" class="w-full justify-start px-2.5" onclick={onStartEdit}>
         <Pencil size={14} class="text-[var(--color-info-soft)]" aria-hidden="true" />
         {i18n.t.detailModal.edit}
       </Button>
@@ -1051,7 +1046,7 @@
       <Button
         variant="ghost"
         size="sm"
-        class="w-full justify-start px-2.5 text-danger-text! hover:text-danger-text!"
+        class="text-danger-text! hover:text-danger-text! w-full justify-start px-2.5"
         disabled={deleteBusy}
         holdProgress={deleteHold.progress}
         {...deleteHold.handlers}

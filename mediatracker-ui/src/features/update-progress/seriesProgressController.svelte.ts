@@ -3,7 +3,13 @@ import { createProgressDebounce } from "$shared/utils/progressDebounce";
 import { errorMessage, setSeasonProgress, updateStatus } from "$shared/api/api";
 import { showToast } from "$shared/ui/toast.svelte";
 import { i18n } from "$shared/i18n/index.svelte";
-import { MEDIA_STATUS, isTvShowDetail, type MediaStatus, type TvSeason, type TvShowMedia } from "$shared/types";
+import {
+  MEDIA_STATUS,
+  isTvShowDetail,
+  type MediaStatus,
+  type TvSeason,
+  type TvShowMedia,
+} from "$shared/types";
 import { shouldPromoteToInProgress, writeCardProgress } from "$entities/media/model/progressRules";
 import { notifyAutoInProgress } from "$features/update-progress/statusPromotionToast.svelte";
 import { nextSeriesEpisodeStep, type SeriesEpisodeStep } from "$entities/media/model/seriesStep";
@@ -174,7 +180,10 @@ export function stepSeriesEpisodes(
 
 /** Undo for a series: the pending season write is cancelled, then the first season is
  *  zeroed and the previous status restored — both persisted server-side. */
-async function revertSeriesPromotion(item: TvShowMedia, previousStatus: MediaStatus): Promise<void> {
+async function revertSeriesPromotion(
+  item: TvShowMedia,
+  previousStatus: MediaStatus,
+): Promise<void> {
   getDebouncer(item.id).cancel();
   clearOptimisticProgress(item.id);
   mediaDetailCache.invalidate(item.id);

@@ -96,7 +96,11 @@
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (error) {
-      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(error), type: "error" });
+      showToast({
+        title: i18n.t.toast.actionFailed,
+        description: errorMessage(error),
+        type: "error",
+      });
     } finally {
       isExportingIcs = false;
     }
@@ -380,7 +384,11 @@
         };
       }
     } catch (error) {
-      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(error), type: "error" });
+      showToast({
+        title: i18n.t.toast.actionFailed,
+        description: errorMessage(error),
+        type: "error",
+      });
     } finally {
       const next = { ...checkingIds };
       delete next[item.mediaId];

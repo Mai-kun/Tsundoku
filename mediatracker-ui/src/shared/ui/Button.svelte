@@ -70,7 +70,9 @@
 <button
   bind:this={ref}
   {type}
-  class="{baseClasses} {variantClasses[variant]} {iconOnly && size !== 'icon' ? iconSizeClasses[size] : sizeClasses[size]} {className}"
+  class="{baseClasses} {variantClasses[variant]} {iconOnly && size !== 'icon'
+    ? iconSizeClasses[size]
+    : sizeClasses[size]} {className}"
   disabled={disabled || loading}
   aria-busy={loading || undefined}
   {...rest}
@@ -78,7 +80,7 @@
   {#if holdProgress !== null}
     <span
       aria-hidden="true"
-      class="bg-danger/30 pointer-events-none absolute inset-0 origin-left -z-10"
+      class="bg-danger/30 pointer-events-none absolute inset-0 -z-10 origin-left"
       style:transform="scaleX({holdProgress})"
     ></span>
   {/if}

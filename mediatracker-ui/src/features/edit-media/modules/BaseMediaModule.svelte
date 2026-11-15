@@ -41,7 +41,7 @@
   }));
 </script>
 
-<ModuleCard flat={flat} title={i18n.t.createModal.modules.base}>
+<ModuleCard {flat} title={i18n.t.createModal.modules.base}>
   {#snippet icon()}
     <Layers size={15} aria-hidden="true" />
   {/snippet}

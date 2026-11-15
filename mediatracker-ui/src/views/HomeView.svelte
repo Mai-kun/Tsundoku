@@ -359,11 +359,18 @@
     const pool = [...displayInProgress, ...displayUpNext];
     const source = pool.length > 0 ? pool : displayRecentlyCompleted;
     if (source.length === 0) {
-      showToast({ title: i18n.t.home.randomEmpty, description: i18n.t.toast.descNoItems, type: "warning" });
+      showToast({
+        title: i18n.t.home.randomEmpty,
+        description: i18n.t.toast.descNoItems,
+        type: "warning",
+      });
       return;
     }
     const pick = source[Math.floor(Math.random() * source.length)];
-    showToast({ title: i18n.t.home.randomPickToast(pick.title), description: i18n.t.toast.descActionDone });
+    showToast({
+      title: i18n.t.home.randomPickToast(pick.title),
+      description: i18n.t.toast.descActionDone,
+    });
     onOpen(pick);
   }
 
@@ -607,7 +614,11 @@
       upNext = prevUpNext;
       recentlyCompleted = prevCompleted;
       homeCache.set(HOME_KEY, { inProgress, upNext, recentlyCompleted });
-      showToast({ title: i18n.t.errors.unexpected, description: i18n.t.toast.descRetry, type: "error" });
+      showToast({
+        title: i18n.t.errors.unexpected,
+        description: i18n.t.toast.descRetry,
+        type: "error",
+      });
     }
 
     setTimeout(() => {
@@ -931,8 +942,10 @@
             >
               <Search size={12} aria-hidden="true" />
               <span>"{debouncedSearch}"</span>
-              <button type="button" class="transition-colors duration-150 hover:text-rose-400" onclick={() => (searchQuery = "")}
-                >✕</button
+              <button
+                type="button"
+                class="transition-colors duration-150 hover:text-rose-400"
+                onclick={() => (searchQuery = "")}>✕</button
               >
             </span>
           {/if}
@@ -953,8 +966,10 @@
               class="inline-flex items-center gap-1 rounded-md border border-indigo-500/30 bg-indigo-500/15 px-2.5 py-1 text-indigo-300"
             >
               <span>⏱ {formatTimeBudgetChip(timeBudget, i18n.current)}</span>
-              <button type="button" class="transition-colors duration-150 hover:text-rose-400" onclick={() => (timeBudget = null)}
-                >✕</button
+              <button
+                type="button"
+                class="transition-colors duration-150 hover:text-rose-400"
+                onclick={() => (timeBudget = null)}>✕</button
               >
             </span>
           {/if}

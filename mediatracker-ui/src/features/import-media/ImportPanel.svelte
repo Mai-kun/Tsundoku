@@ -1581,7 +1581,7 @@
         {/if}
         <button
           type="button"
-          class="cursor-pointer rounded-lg border border-accent-bright/40 bg-accent-bright/15 px-4 py-2 text-sm font-semibold text-accent-soft transition hover:bg-accent-bright/25 hover:text-white"
+          class="border-accent-bright/40 bg-accent-bright/15 text-accent-soft hover:bg-accent-bright/25 cursor-pointer rounded-lg border px-4 py-2 text-sm font-semibold transition hover:text-white"
           onclick={() => jobsClient.openModal("jobs")}
         >
           {i18n.t.backgroundJobs.openProcesses}
@@ -1599,7 +1599,7 @@
           </a>
         {/if}
         {#if showCloseButton && onClose}
-          <Button variant="ghost" size="lg" class="border border-subtle" onclick={onClose}>
+          <Button variant="ghost" size="lg" class="border-subtle border" onclick={onClose}>
             {i18n.t.common.close}
           </Button>
         {/if}

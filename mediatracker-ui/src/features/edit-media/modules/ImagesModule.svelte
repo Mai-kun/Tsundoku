@@ -141,7 +141,12 @@
   }
 </script>
 
-<ModuleCard flat={flat} showLabel={showLabel} title={i18n.t.createModal.modules.images} count={mediaId ? covers.length : undefined}>
+<ModuleCard
+  {flat}
+  {showLabel}
+  title={i18n.t.createModal.modules.images}
+  count={mediaId ? covers.length : undefined}
+>
   {#snippet icon()}
     <ImageIcon size={15} aria-hidden="true" />
   {/snippet}

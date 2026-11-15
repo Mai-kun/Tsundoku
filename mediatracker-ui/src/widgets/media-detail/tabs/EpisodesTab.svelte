@@ -1,12 +1,6 @@
 <script lang="ts">
   import { slide } from "svelte/transition";
-  import {
-    ArrowUpDown,
-    Check,
-    CheckCircle2,
-    Clock,
-    Play,
-  } from "$shared/ui/Icons";
+  import { ArrowUpDown, Check, CheckCircle2, Clock, Play } from "$shared/ui/Icons";
   import { errorMessage } from "$shared/api/api";
   import { i18n } from "$shared/i18n/index.svelte";
   import type { TvSeason } from "$shared/types";
@@ -108,11 +102,15 @@
   }
 
   let pace = $state(2);
-  const daysAtPace = $derived(pace > 0 && remainingEpisodes > 0 ? Math.ceil(remainingEpisodes / pace) : null);
+  const daysAtPace = $derived(
+    pace > 0 && remainingEpisodes > 0 ? Math.ceil(remainingEpisodes / pace) : null,
+  );
   const finishEstimate = $derived.by(() => {
     if (daysAtPace === null) return null;
     const date = new Date(Date.now() + daysAtPace * 86_400_000);
-    const label = new Intl.DateTimeFormat(i18n.current, { day: "numeric", month: "long" }).format(date);
+    const label = new Intl.DateTimeFormat(i18n.current, { day: "numeric", month: "long" }).format(
+      date,
+    );
     return i18n.t.progress.finishAt(label, daysAtPace);
   });
 
@@ -209,7 +207,9 @@
   // The source often stamps every episode with the series premiere date: only show per-episode
   // dates when this season's list actually carries distinct ones.
   const activeDatesVary = $derived.by(() => {
-    const dates = activeRowsRaw.map((row) => row.airDate).filter((date): date is string => Boolean(date));
+    const dates = activeRowsRaw
+      .map((row) => row.airDate)
+      .filter((date): date is string => Boolean(date));
     return dates.length > 0 && new Set(dates).size > 1;
   });
 
@@ -245,7 +245,9 @@
   });
 
   const isNextUp = (episode: EpisodeRow) =>
-    nextUp !== null && nextUp.seasonId === activeSeason?.id && nextUp.episodeNumber === episode.number;
+    nextUp !== null &&
+    nextUp.seasonId === activeSeason?.id &&
+    nextUp.episodeNumber === episode.number;
 
   const filters: ReadonlyArray<{ key: EpisodeFilter; label: string; count: number }> = $derived([
     { key: "all", label: i18n.t.episodes.filterAll, count: activeAll },
@@ -302,7 +304,8 @@
           <p class="mt-0.5 text-[30px] leading-none font-extrabold text-white tabular-nums">
             {seriesEpisodes.current}
             <span class="text-muted text-lg font-semibold">
-              / {seriesEpisodes.total} {i18n.t.progress.unitShortEp}
+              / {seriesEpisodes.total}
+              {i18n.t.progress.unitShortEp}
             </span>
           </p>
         </div>
@@ -346,7 +349,10 @@
         <div class="my-4 flex w-full gap-2">
           {#each seasons as season (season.id)}
             {#if season.totalEpisodes > 0}
-              <div class="flex min-w-0 items-center gap-[3px]" style={`flex: ${season.totalEpisodes}`}>
+              <div
+                class="flex min-w-0 items-center gap-[3px]"
+                style={`flex: ${season.totalEpisodes}`}
+              >
                 {#each segments.filter((seg) => seg.seasonId === season.id) as seg (seg.cumulative)}
                   <button
                     type="button"
@@ -410,7 +416,8 @@
         {/if}
         {#if episodeDuration > 0}
           <span class="text-muted ml-auto tabular-nums">
-            {episodeDuration} {i18n.t.detail.minPerEp}
+            {episodeDuration}
+            {i18n.t.detail.minPerEp}
           </span>
         {/if}
       </div>
@@ -516,9 +523,7 @@
             disabled={Boolean(episodeBusy) || activeSeason.totalEpisodes <= 0}
             onclick={() => void onToggleSeasonCompleteOf(activeSeason.id)}
           >
-            {isFinished(activeSeason)
-              ? i18n.t.episodes.unmarkSeason
-              : i18n.t.episodes.markSeason}
+            {isFinished(activeSeason) ? i18n.t.episodes.unmarkSeason : i18n.t.episodes.markSeason}
           </button>
         {/if}
         {#if resetArmed}
@@ -557,7 +562,9 @@
     <!-- 4. Episode list of the active season. -->
     <section class="space-y-1.5">
       {#if activeRows.length === 0}
-        <p class="text-muted rounded-xl border border-white/[0.06] bg-[var(--color-panel-line)] px-4 py-6 text-center text-sm">
+        <p
+          class="text-muted rounded-xl border border-white/[0.06] bg-[var(--color-panel-line)] px-4 py-6 text-center text-sm"
+        >
           {activeAll === 0 ? i18n.t.episodes.noEpisodes : i18n.t.common.noData}
         </p>
       {:else}

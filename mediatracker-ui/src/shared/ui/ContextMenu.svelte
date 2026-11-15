@@ -256,7 +256,7 @@
           >
             <span
               aria-hidden="true"
-              class="pointer-events-none absolute inset-0 origin-left -z-10 bg-danger/30"
+              class="bg-danger/30 pointer-events-none absolute inset-0 -z-10 origin-left"
               style:transform="scaleX({heldItemId === item.id ? menuHold.progress : 0})"
             ></span>
             <div class="context-menu-item-content">

@@ -58,7 +58,9 @@
         class="zoom-in max-h-[85dvh] max-w-full scale-100 rounded-lg border border-white/20 object-contain shadow-2xl"
       />
       {#if caption}
-        <p class="zoom-in mt-3 max-w-full truncate px-2 text-center text-sm font-medium text-slate-200">
+        <p
+          class="zoom-in mt-3 max-w-full truncate px-2 text-center text-sm font-medium text-slate-200"
+        >
           {caption}
         </p>
       {/if}

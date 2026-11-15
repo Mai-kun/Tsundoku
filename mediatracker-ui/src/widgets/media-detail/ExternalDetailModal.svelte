@@ -279,7 +279,11 @@
         isSynopsisTranslated = true;
       }
     } catch (error) {
-      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(error), type: "error" });
+      showToast({
+        title: i18n.t.toast.actionFailed,
+        description: errorMessage(error),
+        type: "error",
+      });
     } finally {
       translatingSynopsis = false;
     }

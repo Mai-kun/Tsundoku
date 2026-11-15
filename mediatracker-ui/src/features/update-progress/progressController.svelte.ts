@@ -130,7 +130,10 @@ export function createCardProgress(options: CardProgressOptions): CardProgressSt
     // The flip is announced by an interactive toast: OK accepts, Undo fully
     // reverts (progress 0 + previous status), keep-status keeps the progress
     // and restores the previous status.
-    if (shouldPromoteToInProgress(currentProgress, next) && item.status !== MEDIA_STATUS.inProgress) {
+    if (
+      shouldPromoteToInProgress(currentProgress, next) &&
+      item.status !== MEDIA_STATUS.inProgress
+    ) {
       const previousStatus = item.status;
       transitionToInProgress(item, options.getOnStatusChange?.());
       notifyAutoInProgress(item, previousStatus, {

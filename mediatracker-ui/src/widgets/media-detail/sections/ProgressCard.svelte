@@ -59,7 +59,17 @@
   // shadows, no confetti — the deslop and muted-color checks guard this on purpose.
   const ACCENTS: Record<
     ProgressAccent,
-    { text: string; stroke: string; fill: string; fillSoft: string; buttonFill: string; outline: string; chipActive: string; chipIdle: string; quiet: string }
+    {
+      text: string;
+      stroke: string;
+      fill: string;
+      fillSoft: string;
+      buttonFill: string;
+      outline: string;
+      chipActive: string;
+      chipIdle: string;
+      quiet: string;
+    }
   > = {
     indigo: {
       text: "text-[#8b7cf6]",
@@ -119,15 +129,9 @@
   const segmented = $derived(total > 0 && total <= SEGMENT_LIMIT);
   const remainingUnits = $derived(Math.max(0, total - value));
 
-  const watchedMinutes = $derived(
-    minsPerUnit ? Math.round(value * minsPerUnit) : 0,
-  );
-  const totalMinutes = $derived(
-    minsPerUnit && total > 0 ? Math.round(total * minsPerUnit) : 0,
-  );
-  const remainingMinutes = $derived(
-    minsPerUnit ? Math.round(remainingUnits * minsPerUnit) : 0,
-  );
+  const watchedMinutes = $derived(minsPerUnit ? Math.round(value * minsPerUnit) : 0);
+  const totalMinutes = $derived(minsPerUnit && total > 0 ? Math.round(total * minsPerUnit) : 0);
+  const remainingMinutes = $derived(minsPerUnit ? Math.round(remainingUnits * minsPerUnit) : 0);
 
   // The default pace is read once: the chip selection is user state, not a live derivation.
   let pace = $state(untrack(() => paceDefault));
@@ -325,7 +329,8 @@
             class="text-muted text-[17px] font-semibold tabular-nums"
             title={totalTooltip ?? undefined}
           >
-            / {formatNumber(total)} {unitShort}
+            / {formatNumber(total)}
+            {unitShort}
           </span>
         {/if}
       </div>

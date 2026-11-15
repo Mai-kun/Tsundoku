@@ -151,7 +151,11 @@
       showToast({ title: successMessage, description: i18n.t.toast.descUpdated });
       onChanged?.();
     } catch (error) {
-      showToast({ title: i18n.t.toast.actionFailed, description: errorMessage(error), type: "error" });
+      showToast({
+        title: i18n.t.toast.actionFailed,
+        description: errorMessage(error),
+        type: "error",
+      });
     }
   }
 
@@ -420,7 +424,7 @@
                 </button>
               {:else}
                 <!-- Invisible spacer: keeps every icon column aligned across the list. -->
-                <span class="h-7 w-7 invisible pointer-events-none" aria-hidden="true"></span>
+                <span class="pointer-events-none invisible h-7 w-7" aria-hidden="true"></span>
               {/if}
             </div>
           </div>

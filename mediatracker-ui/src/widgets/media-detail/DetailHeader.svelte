@@ -61,7 +61,9 @@
     const style = getComputedStyle(p);
     const fontSize = Number.parseFloat(style.fontSize);
     const lineHeight = Number.parseFloat(style.lineHeight);
-    const line = Number.isNaN(lineHeight) ? 1.625 * (Number.isNaN(fontSize) ? 14 : fontSize) : lineHeight;
+    const line = Number.isNaN(lineHeight)
+      ? 1.625 * (Number.isNaN(fontSize) ? 14 : fontSize)
+      : lineHeight;
     return Math.round(line * COLLAPSED_LINES);
   }
 
@@ -203,10 +205,10 @@
       >
         <span
           >{translatingSynopsis
-          ? i18n.t.detail.translating
-          : synopsisTranslated
-            ? i18n.t.detail.showOriginal
-            : i18n.t.detail.translate}</span
+            ? i18n.t.detail.translating
+            : synopsisTranslated
+              ? i18n.t.detail.showOriginal
+              : i18n.t.detail.translate}</span
         >
       </Button>
     {/if}
@@ -238,7 +240,7 @@
       <Button
         variant="ghost"
         size="xs"
-        class="pt-1 text-accent-soft! hover:text-white!"
+        class="text-accent-soft! pt-1 hover:text-white!"
         onclick={onToggleExpand}
       >
         {synopsisExpanded ? i18n.t.detail.collapse : i18n.t.detail.readMore}

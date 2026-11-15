@@ -166,7 +166,7 @@
             popovertarget={popoverTargetId}
             popovertargetaction="toggle"
             style={isOpen ? `anchor-name: ${anchorName}` : undefined}
-            class="shrink-0 has-[:popover-open]:ring-2 has-[:popover-open]:ring-accent-line/40"
+            class="has-[:popover-open]:ring-accent-line/40 shrink-0 has-[:popover-open]:ring-2"
             title={i18n.t.grouping.label}
             aria-label={i18n.t.grouping.label}
           >
@@ -200,7 +200,7 @@
             popovertarget={popoverTargetId}
             popovertargetaction="toggle"
             style={isOpen ? `anchor-name: ${anchorName}` : undefined}
-            class="shrink-0 px-3 text-xs font-semibold has-[:popover-open]:ring-2 has-[:popover-open]:ring-accent-line/40"
+            class="has-[:popover-open]:ring-accent-line/40 shrink-0 px-3 text-xs font-semibold has-[:popover-open]:ring-2"
             title={i18n.t.status.label}
           >
             <span class="truncate">{labelForStatus(status)}</span>
@@ -256,7 +256,7 @@
             popovertarget={popoverTargetId}
             popovertargetaction="toggle"
             style={isOpen ? `anchor-name: ${anchorName}` : undefined}
-            class="shrink-0 has-[:popover-open]:ring-2 has-[:popover-open]:ring-accent-line/40"
+            class="has-[:popover-open]:ring-accent-line/40 shrink-0 has-[:popover-open]:ring-2"
             title={i18n.t.sort.label}
             aria-label={i18n.t.sort.label}
           >

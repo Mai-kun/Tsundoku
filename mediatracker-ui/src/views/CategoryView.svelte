@@ -338,7 +338,11 @@
     } catch {
       allItems = prevItems;
       categoryCache.set(category, prevItems);
-      showToast({ title: i18n.t.errors.unexpected, description: i18n.t.toast.descRetry, type: "error" });
+      showToast({
+        title: i18n.t.errors.unexpected,
+        description: i18n.t.toast.descRetry,
+        type: "error",
+      });
     }
 
     setTimeout(() => {

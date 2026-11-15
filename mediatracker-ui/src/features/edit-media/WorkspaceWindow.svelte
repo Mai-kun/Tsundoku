@@ -134,8 +134,14 @@
       pending = { x, y };
     } else {
       pending = {
-        w: Math.max(min.w, Math.min(drag.origin.w + (event.clientX - drag.startX), vw - rect.x - SIDE_MARGIN)),
-        h: Math.max(min.h, Math.min(drag.origin.h + (event.clientY - drag.startY), vh - rect.y - BOTTOM_MARGIN)),
+        w: Math.max(
+          min.w,
+          Math.min(drag.origin.w + (event.clientX - drag.startX), vw - rect.x - SIDE_MARGIN),
+        ),
+        h: Math.max(
+          min.h,
+          Math.min(drag.origin.h + (event.clientY - drag.startY), vh - rect.y - BOTTOM_MARGIN),
+        ),
       };
     }
     queueApply();
@@ -198,20 +204,24 @@
   >
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <header
-      class="flex h-10 shrink-0 touch-none cursor-grab items-center gap-2 border-b border-white/[0.06] bg-white/[0.03] px-3 select-none active:cursor-grabbing"
+      class="flex h-10 shrink-0 cursor-grab touch-none items-center gap-2 border-b border-white/[0.06] bg-white/[0.03] px-3 select-none active:cursor-grabbing"
       onpointerdown={startDrag}
       onpointermove={handleMove}
       onpointerup={endDrag}
       onpointercancel={endDrag}
     >
-      <span class="text-accent-soft grid size-6 shrink-0 place-items-center rounded-md bg-white/[0.05]">
+      <span
+        class="text-accent-soft grid size-6 shrink-0 place-items-center rounded-md bg-white/[0.05]"
+      >
         <Icon size={15} aria-hidden="true"></Icon>
       </span>
       <h3 class="text-ink min-w-0 flex-1 truncate text-xs font-bold tracking-[0.14em] uppercase">
         {title}
       </h3>
       {#if typeof count === "number" && count > 0}
-        <span class="rounded-full bg-white/[0.06] px-2 py-0.5 text-[11px] font-semibold text-slate-300">
+        <span
+          class="rounded-full bg-white/[0.06] px-2 py-0.5 text-[11px] font-semibold text-slate-300"
+        >
           {count}
         </span>
       {/if}

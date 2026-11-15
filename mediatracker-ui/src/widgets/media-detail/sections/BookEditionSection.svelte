@@ -18,7 +18,10 @@
     if (!media.isbn) return;
     navigator.clipboard.writeText(media.isbn).then(() => {
       copied = true;
-      showToast({ title: isRu ? "ISBN скопирован" : "ISBN copied to clipboard", description: i18n.t.toast.descCopied });
+      showToast({
+        title: isRu ? "ISBN скопирован" : "ISBN copied to clipboard",
+        description: i18n.t.toast.descCopied,
+      });
       if (copyTimeout) clearTimeout(copyTimeout);
       copyTimeout = setTimeout(() => {
         copied = false;

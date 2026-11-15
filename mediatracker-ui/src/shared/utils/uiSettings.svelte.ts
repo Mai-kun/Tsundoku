@@ -239,9 +239,8 @@ class UiSettingsService {
     const current = this.voiceOptionMemory[scope];
     const isFavorite = current.favorites.includes(value);
     const next = {
-      custom: isFavorite || current.custom.includes(value)
-        ? current.custom
-        : [...current.custom, value],
+      custom:
+        isFavorite || current.custom.includes(value) ? current.custom : [...current.custom, value],
       favorites: isFavorite
         ? current.favorites.filter((v) => v !== value)
         : [...current.favorites, value],

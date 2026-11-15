@@ -66,7 +66,12 @@
       showToast({ title: t.galleryScreenshotAdded, description: i18n.t.toast.descCreated });
       onChanged?.();
     } catch (error) {
-      showToast({ title: t.galleryUploadFailed, description: errorMessage(error), type: "error", durationMs: 5000 });
+      showToast({
+        title: t.galleryUploadFailed,
+        description: errorMessage(error),
+        type: "error",
+        durationMs: 5000,
+      });
     } finally {
       uploading = false;
     }
@@ -96,7 +101,12 @@
       showToast({ title: t.galleryDeleted, description: i18n.t.toast.descDeleted });
       onChanged?.();
     } catch (error) {
-      showToast({ title: t.galleryDeleteFailed, description: errorMessage(error), type: "error", durationMs: 5000 });
+      showToast({
+        title: t.galleryDeleteFailed,
+        description: errorMessage(error),
+        type: "error",
+        durationMs: 5000,
+      });
     } finally {
       deletingId = null;
     }
@@ -162,7 +172,12 @@
     try {
       await revealInExplorer(`media/${mediaId}/gallery/${entry.id}`);
     } catch (error) {
-      showToast({ title: t.galleryRevealFailed, description: errorMessage(error), type: "error", durationMs: 5000 });
+      showToast({
+        title: t.galleryRevealFailed,
+        description: errorMessage(error),
+        type: "error",
+        durationMs: 5000,
+      });
     }
   }
 
@@ -175,7 +190,12 @@
       await navigator.clipboard.write([new ClipboardItem({ "image/png": pngBlob })]);
       showToast({ title: t.galleryImageCopied, description: i18n.t.toast.descCopied });
     } catch (error) {
-      showToast({ title: t.galleryCopyFailed, description: errorMessage(error), type: "error", durationMs: 5000 });
+      showToast({
+        title: t.galleryCopyFailed,
+        description: errorMessage(error),
+        type: "error",
+        durationMs: 5000,
+      });
     }
   }
 
@@ -217,7 +237,12 @@
       await navigator.clipboard.writeText(entry.originalUrl);
       showToast({ title: t.galleryUrlCopied, description: i18n.t.toast.descCopied });
     } catch (error) {
-      showToast({ title: t.galleryCopyFailed, description: errorMessage(error), type: "error", durationMs: 5000 });
+      showToast({
+        title: t.galleryCopyFailed,
+        description: errorMessage(error),
+        type: "error",
+        durationMs: 5000,
+      });
     }
   }
 
@@ -241,7 +266,12 @@
       // The sidebar caches the poster by URL: a refetch brings the new cover cache-buster along.
       onChanged?.();
     } catch (error) {
-      showToast({ title: t.gallerySetCoverFailed, description: errorMessage(error), type: "error", durationMs: 5000 });
+      showToast({
+        title: t.gallerySetCoverFailed,
+        description: errorMessage(error),
+        type: "error",
+        durationMs: 5000,
+      });
     }
   }
 </script>

@@ -2,7 +2,11 @@
   import Modal from "$shared/ui/Modal.svelte";
   import Button from "$shared/ui/Button.svelte";
   import { AlertTriangle, Check, Trash2 } from "$shared/ui/Icons";
-  import { confirmDialog, type ConfirmRemember, type ConfirmRequest } from "$shared/ui/confirmDialog.svelte";
+  import {
+    confirmDialog,
+    type ConfirmRemember,
+    type ConfirmRequest,
+  } from "$shared/ui/confirmDialog.svelte";
   import { i18n } from "$shared/i18n/index.svelte";
 
   // The question must stay visible while the exit animation plays out, so the last
@@ -49,7 +53,7 @@
   {#if rendered}
     <div
       bind:this={dialogBody}
-      class="outline-none p-6"
+      class="p-6 outline-none"
       role="alertdialog"
       aria-modal="true"
       aria-labelledby="confirm-dialog-title"
@@ -94,7 +98,7 @@
           />
           <span
             aria-hidden="true"
-            class="grid size-4 shrink-0 place-items-center rounded border transition-colors duration-150 peer-checked:border-accent peer-checked:bg-accent peer-checked:text-white"
+            class="peer-checked:border-accent peer-checked:bg-accent grid size-4 shrink-0 place-items-center rounded border transition-colors duration-150 peer-checked:text-white"
           >
             <Check size={11} class={remember === "forever" ? "opacity-100" : "opacity-0"} />
           </span>
@@ -111,7 +115,7 @@
           />
           <span
             aria-hidden="true"
-            class="grid size-4 shrink-0 place-items-center rounded border transition-colors duration-150 peer-checked:border-accent peer-checked:bg-accent peer-checked:text-white"
+            class="peer-checked:border-accent peer-checked:bg-accent grid size-4 shrink-0 place-items-center rounded border transition-colors duration-150 peer-checked:text-white"
           >
             <Check size={11} class={remember === "hour" ? "opacity-100" : "opacity-0"} />
           </span>
@@ -119,7 +123,7 @@
         </label>
       </div>
 
-      <div class="mt-5 flex items-center justify-end gap-2 border-t border-subtle pt-4">
+      <div class="border-subtle mt-5 flex items-center justify-end gap-2 border-t pt-4">
         <Button
           variant="secondary"
           size="lg"

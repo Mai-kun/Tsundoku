@@ -76,7 +76,16 @@ export function nearestFaceAnchors(from: Rect, to: Rect): AnchorPair {
   const end = facePoint(to, toFace);
   const sn = FACE_NORMALS[fromFace];
   const en = FACE_NORMALS[toFace];
-  return { sx: start.x, sy: start.y, snx: sn.x, sny: sn.y, ex: end.x, ey: end.y, enx: en.x, eny: en.y };
+  return {
+    sx: start.x,
+    sy: start.y,
+    snx: sn.x,
+    sny: sn.y,
+    ex: end.x,
+    ey: end.y,
+    enx: en.x,
+    eny: en.y,
+  };
 }
 
 /**
@@ -94,7 +103,10 @@ export class ThreadSpring {
   private c2x: number;
   private c2y: number;
 
-  constructor(target: AnchorPair, private readonly wavePhase: number) {
+  constructor(
+    target: AnchorPair,
+    private readonly wavePhase: number,
+  ) {
     this.ax = target.sx;
     this.ay = target.sy;
     this.bx = target.ex;

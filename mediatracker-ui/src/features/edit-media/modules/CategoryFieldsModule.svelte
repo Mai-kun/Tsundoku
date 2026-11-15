@@ -24,12 +24,10 @@
     isEditing?: boolean;
   }
 
-  let { type, category = $bindable(), isEditing = false,
-    flat = false,
-  }: Props = $props();
+  let { type, category = $bindable(), isEditing = false, flat = false }: Props = $props();
 </script>
 
-<ModuleCard flat={flat} title={i18n.t.createModal.modules.category}>
+<ModuleCard {flat} title={i18n.t.createModal.modules.category}>
   {#snippet icon()}
     <Clapperboard size={15} aria-hidden="true" />
   {/snippet}
@@ -87,8 +85,9 @@
             <ul class="space-y-1">
               {#each category.seasons as season (season.seasonNumber)}
                 <li class="text-muted flex items-baseline justify-between gap-3 text-sm">
-                  <span class="text-slate-300 truncate">
-                    {i18n.t.createModal.fields.season} {season.seasonNumber}
+                  <span class="truncate text-slate-300">
+                    {i18n.t.createModal.fields.season}
+                    {season.seasonNumber}
                     {#if season.title}
                       — {season.title}
                     {/if}

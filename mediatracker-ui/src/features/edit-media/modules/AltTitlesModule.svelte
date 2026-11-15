@@ -15,10 +15,7 @@
     altTitles: string[];
   }
 
-  let { altTitles = $bindable([]),
-    flat = false,
-    showLabel = true,
-  }: Props = $props();
+  let { altTitles = $bindable([]), flat = false, showLabel = true }: Props = $props();
 
   let quickInput = $state("");
   let editingIndex = $state<number | null>(null);
@@ -65,7 +62,12 @@
   }
 </script>
 
-<ModuleCard flat={flat} showLabel={showLabel} title={i18n.t.createModal.modules.altTitles} count={altTitles.length}>
+<ModuleCard
+  {flat}
+  {showLabel}
+  title={i18n.t.createModal.modules.altTitles}
+  count={altTitles.length}
+>
   {#snippet icon()}
     <Tag size={15} aria-hidden="true" />
   {/snippet}
@@ -101,7 +103,9 @@
     {:else}
       <ul class="space-y-1.5">
         {#each altTitles as altTitle, index (index)}
-          <li class="group flex items-center gap-2 rounded-lg border border-white/[0.06] bg-white/[0.03] px-2.5 py-1.5">
+          <li
+            class="group flex items-center gap-2 rounded-lg border border-white/[0.06] bg-white/[0.03] px-2.5 py-1.5"
+          >
             {#if editingIndex === index}
               <input
                 class="bg-field text-ink h-7 min-w-0 flex-1 rounded-md border border-indigo-500/60 px-2 text-sm font-normal outline-none"
@@ -130,7 +134,7 @@
               <span class="text-ink min-w-0 flex-1 truncate text-sm">{altTitle}</span>
               <button
                 type="button"
-                class="text-muted hover:text-ink grid size-6 shrink-0 place-items-center rounded-md opacity-0 transition focus-visible:opacity-100 group-hover:opacity-100"
+                class="text-muted hover:text-ink grid size-6 shrink-0 place-items-center rounded-md opacity-0 transition group-hover:opacity-100 focus-visible:opacity-100"
                 aria-label={i18n.t.detailModal.edit}
                 title={i18n.t.detailModal.edit}
                 onclick={() => startEditing(index)}
@@ -139,7 +143,7 @@
               </button>
               <button
                 type="button"
-                class="text-muted hover:text-rose-300 grid size-6 shrink-0 place-items-center rounded-md opacity-0 transition focus-visible:opacity-100 group-hover:opacity-100"
+                class="text-muted grid size-6 shrink-0 place-items-center rounded-md opacity-0 transition group-hover:opacity-100 hover:text-rose-300 focus-visible:opacity-100"
                 aria-label={i18n.t.common.delete}
                 title={i18n.t.common.delete}
                 onclick={() => removeTitle(index)}

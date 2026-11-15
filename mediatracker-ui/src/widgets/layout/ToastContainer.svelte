@@ -308,7 +308,11 @@
         </p>
         {#if !isExpanded && buttons}
           <!-- Compact icon row: collapses into the expanded footer below. -->
-          <div class="flex items-center gap-1.5" in:fade={{ duration: 150 }} out:fade={{ duration: 100 }}>
+          <div
+            class="flex items-center gap-1.5"
+            in:fade={{ duration: 150 }}
+            out:fade={{ duration: 100 }}
+          >
             {#if toast.undo}
               <button
                 type="button"
@@ -332,7 +336,9 @@
                 {#if Icon}
                   <Icon size={14} aria-hidden="true" />
                 {:else}
-                  <span class="text-[11px] font-semibold" aria-hidden="true">{action.label.charAt(0)}</span>
+                  <span class="text-[11px] font-semibold" aria-hidden="true"
+                    >{action.label.charAt(0)}</span
+                  >
                 {/if}
               </button>
             {/each}

@@ -15,10 +15,7 @@
     quotes: QuoteDraft[];
   }
 
-  let { quotes = $bindable([]),
-    flat = false,
-    showLabel = true,
-  }: Props = $props();
+  let { quotes = $bindable([]), flat = false, showLabel = true }: Props = $props();
 
   let isAdding = $state(false);
   let newText = $state("");
@@ -74,7 +71,7 @@
   }
 </script>
 
-<ModuleCard flat={flat} showLabel={showLabel} title={i18n.t.createModal.modules.quotes} count={quotes.length}>
+<ModuleCard {flat} {showLabel} title={i18n.t.createModal.modules.quotes} count={quotes.length}>
   {#snippet icon()}
     <Quote size={15} aria-hidden="true" />
   {/snippet}
@@ -129,7 +126,9 @@
     {:else}
       <ul class="space-y-2">
         {#each quotes as quote (quote.id)}
-          <li class="group rounded-lg border border-amber-400/20 bg-amber-500/[0.02] p-3 transition hover:border-amber-400/40">
+          <li
+            class="group rounded-lg border border-amber-400/20 bg-amber-500/[0.02] p-3 transition hover:border-amber-400/40"
+          >
             {#if editingId === quote.id}
               <div class="space-y-2.5">
                 <textarea
@@ -164,20 +163,19 @@
             {:else}
               <div class="flex items-start justify-between gap-2">
                 <div class="min-w-0 flex-1 space-y-1">
-                  <p class="text-slate-200 font-serif text-sm leading-relaxed italic">
+                  <p class="font-serif text-sm leading-relaxed text-slate-200 italic">
                     <span class="text-amber-400/40">“</span>{quote.text}<span
-                      class="text-amber-400/40"
-                      >”</span
+                      class="text-amber-400/40">”</span
                     >
                   </p>
                   {#if quote.pageOrContext}
-                    <p class="text-amber-300 text-xs font-medium">— {quote.pageOrContext}</p>
+                    <p class="text-xs font-medium text-amber-300">— {quote.pageOrContext}</p>
                   {/if}
                 </div>
                 <div class="flex shrink-0 items-center gap-1">
                   <button
                     type="button"
-                    class="text-muted hover:text-ink grid size-7 place-items-center rounded-lg opacity-0 transition focus-visible:opacity-100 group-hover:opacity-100"
+                    class="text-muted hover:text-ink grid size-7 place-items-center rounded-lg opacity-0 transition group-hover:opacity-100 focus-visible:opacity-100"
                     aria-label={i18n.t.detailModal.edit}
                     onclick={() => startEditing(quote)}
                   >
@@ -185,7 +183,7 @@
                   </button>
                   <button
                     type="button"
-                    class="text-muted hover:text-rose-300 grid size-7 place-items-center rounded-lg opacity-0 transition focus-visible:opacity-100 group-hover:opacity-100"
+                    class="text-muted grid size-7 place-items-center rounded-lg opacity-0 transition group-hover:opacity-100 hover:text-rose-300 focus-visible:opacity-100"
                     aria-label={i18n.t.common.delete}
                     onclick={() => removeQuote(quote.id)}
                   >

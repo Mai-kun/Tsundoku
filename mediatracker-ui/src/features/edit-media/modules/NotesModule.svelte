@@ -13,13 +13,10 @@
     notes: string;
   }
 
-  let { notes = $bindable(""),
-    flat = false,
-    showLabel = true,
-  }: Props = $props();
+  let { notes = $bindable(""), flat = false, showLabel = true }: Props = $props();
 </script>
 
-<ModuleCard flat={flat} showLabel={showLabel} title={i18n.t.createModal.modules.notes}>
+<ModuleCard {flat} {showLabel} title={i18n.t.createModal.modules.notes}>
   {#snippet icon()}
     <FileText size={15} aria-hidden="true" />
   {/snippet}

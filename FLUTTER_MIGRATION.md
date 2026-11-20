@@ -117,20 +117,22 @@
 
 **Статус:** Этап 0 (инфраструктура) — ЗАВЕРШЁН и закоммичен. Портирование не начато.
 
-**Прогресс: 6 / 207 файлов**
+**Прогресс: 7 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
-| 0 — Фундамент (типы/API/модели/логика/тема) | 58 | 6 |
+| 0 — Фундамент (типы/API/модели/логика/тема) | 58 | 7 |
 | 1 — `shared/ui/` | 17 | 0 |
 | 2 — `entities/` + карточки/сетка | 19 | 0 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 0 |
 | 4 — Детальная страница + Spatial Node Editor | 59 | 0 |
 | 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 0 |
-| **Всего** | **207** | **6** |
+| **Всего** | **207** | **7** |
 
-**Следующий конкретный файл:** `mediatracker-ui/src/shared/api/api.ts`
-→ `lib/shared/api/api.dart` (dio-клиент с baseUrl-инъекцией, 1-в-1 эндпоинты).
+**Очерёдность Фазы 0 (уточнена по зависимостям, решение #7):** `shared/i18n/*`
+(index + translations 3698 строк) → `shared/api/api.ts` → остальные `shared/api/*` →
+`shared/utils/*` → `entities/media/model/*` → контроллеры `features/*` →
+`views/categoryModel.ts`.
 
 **Следующие после него (жёсткая очерёдность Фазы 0):** `shared/types/models.ts` →
 `dtos.ts` → `index.ts` → `app/tokens.css` + `app/app.css` (TsundokuTheme/ThemeData) →
@@ -218,7 +220,7 @@ update-progress) → `views/categoryModel.ts`. Файлы `⏭️ Заменен
 | 0 | `shared/api` | `api.ts` | `lib/shared/api/api.dart` | ⬜ Не начат | ⬜ | — |
 | 0 | `shared/api` | `jobsClient.svelte.ts` | `lib/shared/api/jobs_client.dart` | ⬜ Не начат | ⬜ | — |
 | 0 | `shared/api` | `navigationCategories.svelte.ts` | `lib/shared/api/navigation_categories.dart` | ⬜ Не начат | ⬜ | — |
-| 0 | `shared/api` | `networkActivity.svelte.ts` | `lib/shared/api/network_activity.dart` | ⬜ Не начат | ⬜ | — |
+| 0 | `shared/api` | `networkActivity.svelte.ts` | `lib/shared/api/network_activity.dart` | ✅ Готов | ✅ | $state/$derived → Notifier<int> + derived isLoading; safety-таймер 15s (fakeAsync-тесты полного цикла: begin/end/reset/перевооружение); порядок портирования изменён: i18n/networkActivity → раньше api (его зависимости), решение #7 |
 | 0 | `shared/api` | `offlineMode.svelte.ts` | `lib/shared/api/offline_mode.dart` | ⬜ Не начат | ⬜ | — |
 | 0 | `shared/api` | `serverRestart.svelte.ts` | `lib/shared/api/server_restart.dart` | ⬜ Не начат | ⬜ | — |
 | 0 | `shared/i18n` | `index.svelte.ts` | `lib/shared/i18n/index.dart` | ⬜ Не начат | ⬜ | — |
@@ -384,6 +386,7 @@ update-progress) → `views/categoryModel.ts`. Файлы `⏭️ Заменен
 | 4 | `shared/types/models.ts` | Иерархия MediaBase+5 вариантов и MediaItem/MediaDetail-union в Dart громоздка (переопределение nullable-полей запрещено) | Сервер шлёт плоский `MediaListDto` — порт в один плоский `MediaItem` (вариантные поля nullable, `type` различает) + `MediaDetail extends MediaItem` с detail-полями; сужения TS-типов теряются (nullable в потребителях) | Более строгая Dart-иерархия из 5 подклассов — двойной объём кода без выигрыша (YAGNI); ревью по желанию |
 | 5 | `shared/theme/tsundoku_tokens.dart` | SDK 3.50 требует `ThemeExtension.copyWith`; per-field copyWith для 64 полей — объём без юзкейса | `copyWith()` — no-op копия (тема мержится целиком через lerp; YAGNI) | Полный named-copyWith — механическое раздувание; ревью не требуется |
 | 6 | `shared/theme/tsundoku_theme.dart` | CSS-классы app.css (.panel/.tap/.media-card/scrollbar-thin/поповер-анимации) не выражаются в ThemeData | В ThemeData — только глобальное (диалоги/скроллбар 10px/поля/кнопки/кривые+длительности в TsundokuPalette); `.panel`/`.tap`/`thin-scroll` и анимации popover/dialog реализуются в соответствующих виджетах shared/ui (Фазы 1–3) | Глобальная имитация CSS-классов в ThemeData невозможна; ревью не требуется |
+| 7 | `shared/api/api.ts` | api.ts импортирует networkActivity и i18n (errorMessage), но заявленный порядок шёл api → i18n | Порядок изменён: networkActivity → i18n → api.ts (сверху по зависимостям); зафиксировано в Next Step | Оставить исходный порядок с заглушками строк — хуже; ревью не требуется |
 
 ---
 

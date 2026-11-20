@@ -117,22 +117,22 @@
 
 **Статус:** Этап 0 (инфраструктура) — ЗАВЕРШЁН и закоммичен. Портирование не начато.
 
-**Прогресс: 10 / 207 файлов**
+**Прогресс: 14 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
-| 0 — Фундамент (типы/API/модели/логика/тема) | 58 | 10 |
+| 0 — Фундамент (типы/API/модели/логика/тема) | 58 | 14 |
 | 1 — `shared/ui/` | 17 | 0 |
 | 2 — `entities/` + карточки/сетка | 19 | 0 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 0 |
 | 4 — Детальная страница + Spatial Node Editor | 59 | 0 |
 | 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 0 |
-| **Всего** | **207** | **10** |
+| **Всего** | **207** | **14** |
 
-**Следующие файлы:** `shared/api/jobsClient.svelte.ts` → `navigationCategories.svelte.ts`
-→ `offlineMode.svelte.ts` → `serverRestart.svelte.ts` (Riverpod-порты), затем
-`shared/utils/*` → `entities/media/model/*` → контроллеры `features/*` →
-`views/categoryModel.ts`.
+**Следующие файлы:** `shared/utils/*` (appExit, historyFormatters, perfMarks+тест,
+prefetchCache+тест, progressDebounce, sourceUrlHelper, swrCache, uiSettings,
+unknownCreator, urlMediaParser+тест, viewport, clientErrors+тест app/) →
+`entities/media/model/*` → контроллеры `features/*` → `views/categoryModel.ts`.
 
 **Следующие после него (жёсткая очерёдность Фазы 0):** `shared/types/models.ts` →
 `dtos.ts` → `index.ts` → `app/tokens.css` + `app/app.css` (TsundokuTheme/ThemeData) →
@@ -218,11 +218,11 @@ update-progress) → `views/categoryModel.ts`. Файлы `⏭️ Заменен
 | 0 | `features/update-progress` | `seriesProgressController.svelte.ts` | `lib/features/update-progress/series_progress_controller.dart` | ⬜ Не начат | ⬜ | — |
 | 0 | `features/update-progress` | `statusPromotionToast.svelte.ts` | `lib/features/update-progress/status_promotion_toast.dart` | ⬜ Не начат | ⬜ | — |
 | 0 | `shared/api` | `api.ts` | `lib/shared/api/api.dart` | ✅ Готов | ✅ | ~70 эндпоинтов → методы TsundokuApi (dio, baseUrl-инъекция, validateStatus:(_)=>true для 1-в-1 throwApiError); ApiError+ProblemDetails+errorMessage(locale); blob→Uint8List; updateStatus union → 2 метода (решение #9); sourcesCachePromise; networkActivity через колбеки; stub-адаптер Dio в тестах |
-| 0 | `shared/api` | `jobsClient.svelte.ts` | `lib/shared/api/jobs_client.dart` | ⬜ Не начат | ⬜ | — |
-| 0 | `shared/api` | `navigationCategories.svelte.ts` | `lib/shared/api/navigation_categories.dart` | ⬜ Не начат | ⬜ | — |
+| 0 | `shared/api` | `jobsClient.svelte.ts` | `lib/shared/api/jobs_client.dart` | ✅ Готов | ✅ | EventSource → dio streamed-ответ + SSE-парсер (кроссплатформенно); $state → JobsState+Notifier; derived → providers; eviction 4s / safety 70s / sync 10s / throttle 5s (fakeAsync-тесты); onJobSettled; history.pushState для модалки не нужен (решение #10); api-инъекция через attachApi |
+| 0 | `shared/api` | `navigationCategories.svelte.ts` | `lib/shared/api/navigation_categories.dart` | ✅ Готов | ✅ | PromotedSubcategory + матчер (1-в-1 SQL-контракт: format без trim, genre/tag с нормализацией); иконки → lucide_icons_flutter (Icons.ts ⏭️); load/save через apiClientProvider; invalidateSourcesCache после save; presets 1-в-1 |
 | 0 | `shared/api` | `networkActivity.svelte.ts` | `lib/shared/api/network_activity.dart` | ✅ Готов | ✅ | $state/$derived → Notifier<int> + derived isLoading; safety-таймер 15s (fakeAsync-тесты полного цикла: begin/end/reset/перевооружение); порядок портирования изменён: i18n/networkActivity → раньше api (его зависимости), решение #7 |
-| 0 | `shared/api` | `offlineMode.svelte.ts` | `lib/shared/api/offline_mode.dart` | ⬜ Не начат | ⬜ | — |
-| 0 | `shared/api` | `serverRestart.svelte.ts` | `lib/shared/api/server_restart.dart` | ⬜ Не начат | ⬜ | — |
+| 0 | `shared/api` | `offlineMode.svelte.ts` | `lib/shared/api/offline_mode.dart` | ✅ Готов | ✅ | $state → OfflineModeState+Notifier; init (фоновые ошибки молча), toggle — оптимистичный с откатом при ошибке (тест полного цикла), refresh() |
+| 0 | `shared/api` | `serverRestart.svelte.ts` | `lib/shared/api/server_restart.dart` | ✅ Готов | ✅ | Двухфазное ожидание рестарта бэкенда (down→up) с per-probe таймаутами; дедлайны — параметры с дефолтами 1-в-1 (тестируемость, решение #10); isRestarting через serverRestartProvider + колбек |
 | 0 | `shared/i18n` | `index.svelte.ts` | `lib/shared/i18n/index.dart` | ✅ Готов | ✅ | $state→Riverpod (i18nProvider); localStorage→shared_preferences (ключ tsundoku_lang, default ru); доступ t.a.b → t.tr('a.b') / t.tf('a.b', [args]) / t.tl / t.tfl (решение #8); syncDocumentLang — нет аналога (MaterialApp locale в Фазе 3) |
 | 0 | `shared/i18n` | `translations.ts` | `lib/shared/i18n/translations.dart` | ✅ Готов | ✅ | 1528 строковых + 16 массивных + 112 функциональных листьев — автогенерация скриптом (см. Заметки окружения #8); paired-дерево const-Map + реестр функций; страж-тест счётчиков против TS |
 | 0 | `shared/types` | `dtos.ts` | `lib/shared/types/dtos.dart` | ✅ Готов | ✅ | Payload-классы с toJson (Create*/Update*/Smart/Import), read-only DTO с fromJson; CustomListDetail — отдельный класс (Dart не умеет Omit); CreateMediaBase supertype с полиморфным toJson |
@@ -389,6 +389,7 @@ update-progress) → `views/categoryModel.ts`. Файлы `⏭️ Заменен
 | 7 | `shared/api/api.ts` | api.ts импортирует networkActivity и i18n (errorMessage), но заявленный порядок шёл api → i18n | Порядок изменён: networkActivity → i18n → api.ts (сверху по зависимостям); зафиксировано в Next Step | Оставить исходный порядок с заглушками строк — хуже; ревью не требуется |
 | 8 | `shared/i18n/index.svelte.ts` | TS-доступ `i18n.t.errors.x` (строгие вложенные объекты) не воспроизводится в Dart без генерации ~200 классов на 1528 листьев; функциональные листья — 112 замыканий | translations.dart — автогенерируемое paired-дерево (const Map) + плоский реестр функций; доступ через path-API `t.tr/tf/tl/tfl`; опечатка пути → ArgumentError с путём (в Svelte был undefined — Dart-вариант строже) | Генерация строгих Dart-классов — двойной объём без функциональной разницы (YAGNI); ревью по желанию |
 | 9 | `shared/api/api.ts` | updateStatus принимает union `число \| {status, dropReason?, dropNotes?}`; dio сам бросает DioException на не-2xx; errorMessage использует i18n вне Riverpod-контекста | Два метода: `updateStatus` ({status}) и `updateStatusWithDropInfo` (null-поля сериализуются явно, как TS-объект); `validateStatus: (_) => true` — статусы обрабатывает _isOk/_throwApiError 1-в-1; errorMessage(error, locale) — локаль передаётся вызовом из UI | Ошибка/успех и payload'ы покрыты stub-адаптером Dio; ревью не требуется |
+| 10 | `shared/api/*` (jobsClient/navigationCategories/offlineMode/serverRestart) | EventSource/window.history/AbortController — браузерные API; сетевые вызовы через голый fetch; DateTime.now в fakeAsync стартует с 0 | EventSource → dio streamed-ответ + SSE-парсер; history.pushState не нужен (Navigator); AbortController → per-request dio таймауты; сетевой клиент — TsundokuApi из провайдера (единый networkActivity/базовый URL); дедлайны serverRestart — параметры с дефолтами | Окноsse-фолбэки браузера (auto-reconnect) заменяются onError→syncJobs; ревью не требуется |
 
 ---
 

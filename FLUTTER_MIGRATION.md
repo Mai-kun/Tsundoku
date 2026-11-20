@@ -117,22 +117,23 @@
 
 **Статус:** Этап 0 (инфраструктура) — ЗАВЕРШЁН и закоммичен. Портирование не начато.
 
-**Прогресс: 7 / 207 файлов**
+**Прогресс: 9 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
-| 0 — Фундамент (типы/API/модели/логика/тема) | 58 | 7 |
+| 0 — Фундамент (типы/API/модели/логика/тема) | 58 | 9 |
 | 1 — `shared/ui/` | 17 | 0 |
 | 2 — `entities/` + карточки/сетка | 19 | 0 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 0 |
 | 4 — Детальная страница + Spatial Node Editor | 59 | 0 |
 | 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 0 |
-| **Всего** | **207** | **7** |
+| **Всего** | **207** | **9** |
 
-**Очерёдность Фазы 0 (уточнена по зависимостям, решение #7):** `shared/i18n/*`
-(index + translations 3698 строк) → `shared/api/api.ts` → остальные `shared/api/*` →
-`shared/utils/*` → `entities/media/model/*` → контроллеры `features/*` →
-`views/categoryModel.ts`.
+**Следующий конкретный файл:** `mediatracker-ui/src/shared/api/api.ts` →
+`lib/shared/api/api.dart` (dio-клиент, baseUrl-инъекция, ~70 эндпоинтов, ApiError +
+ProblemDetails + networkActivity.begin/end + timeout 15s). Далее: jobsClient →
+navigationCategories → offlineMode → serverRestart → `shared/utils/*` →
+`entities/media/model/*` → контроллеры `features/*` → `views/categoryModel.ts`.
 
 **Следующие после него (жёсткая очерёдность Фазы 0):** `shared/types/models.ts` →
 `dtos.ts` → `index.ts` → `app/tokens.css` + `app/app.css` (TsundokuTheme/ThemeData) →
@@ -223,8 +224,8 @@ update-progress) → `views/categoryModel.ts`. Файлы `⏭️ Заменен
 | 0 | `shared/api` | `networkActivity.svelte.ts` | `lib/shared/api/network_activity.dart` | ✅ Готов | ✅ | $state/$derived → Notifier<int> + derived isLoading; safety-таймер 15s (fakeAsync-тесты полного цикла: begin/end/reset/перевооружение); порядок портирования изменён: i18n/networkActivity → раньше api (его зависимости), решение #7 |
 | 0 | `shared/api` | `offlineMode.svelte.ts` | `lib/shared/api/offline_mode.dart` | ⬜ Не начат | ⬜ | — |
 | 0 | `shared/api` | `serverRestart.svelte.ts` | `lib/shared/api/server_restart.dart` | ⬜ Не начат | ⬜ | — |
-| 0 | `shared/i18n` | `index.svelte.ts` | `lib/shared/i18n/index.dart` | ⬜ Не начат | ⬜ | — |
-| 0 | `shared/i18n` | `translations.ts` | `lib/shared/i18n/translations.dart` | ⬜ Не начат | ⬜ | — |
+| 0 | `shared/i18n` | `index.svelte.ts` | `lib/shared/i18n/index.dart` | ✅ Готов | ✅ | $state→Riverpod (i18nProvider); localStorage→shared_preferences (ключ tsundoku_lang, default ru); доступ t.a.b → t.tr('a.b') / t.tf('a.b', [args]) / t.tl / t.tfl (решение #8); syncDocumentLang — нет аналога (MaterialApp locale в Фазе 3) |
+| 0 | `shared/i18n` | `translations.ts` | `lib/shared/i18n/translations.dart` | ✅ Готов | ✅ | 1528 строковых + 16 массивных + 112 функциональных листьев — автогенерация скриптом (см. Заметки окружения #8); paired-дерево const-Map + реестр функций; страж-тест счётчиков против TS |
 | 0 | `shared/types` | `dtos.ts` | `lib/shared/types/dtos.dart` | ✅ Готов | ✅ | Payload-классы с toJson (Create*/Update*/Smart/Import), read-only DTO с fromJson; CustomListDetail — отдельный класс (Dart не умеет Omit); CreateMediaBase supertype с полиморфным toJson |
 | 0 | `shared/types` | `enums.ts` | `lib/shared/types/enums.dart` | ✅ Готов | ✅ | 1-в-1: числовые const-объекты → enum c `value`; строковые union → enum c `wire` (fromWire/tryFromWire); открытые union → String-typedef (решение #2); JobProgress перенесён сюда же |
 | 0 | `shared/types` | `index.ts` | `lib/shared/types/index.dart` | ✅ Готов | ✅ | Barrel `export *` → Dart-экспорт-файл; тест гарантирует доступность всех типов через единый import |
@@ -387,6 +388,7 @@ update-progress) → `views/categoryModel.ts`. Файлы `⏭️ Заменен
 | 5 | `shared/theme/tsundoku_tokens.dart` | SDK 3.50 требует `ThemeExtension.copyWith`; per-field copyWith для 64 полей — объём без юзкейса | `copyWith()` — no-op копия (тема мержится целиком через lerp; YAGNI) | Полный named-copyWith — механическое раздувание; ревью не требуется |
 | 6 | `shared/theme/tsundoku_theme.dart` | CSS-классы app.css (.panel/.tap/.media-card/scrollbar-thin/поповер-анимации) не выражаются в ThemeData | В ThemeData — только глобальное (диалоги/скроллбар 10px/поля/кнопки/кривые+длительности в TsundokuPalette); `.panel`/`.tap`/`thin-scroll` и анимации popover/dialog реализуются в соответствующих виджетах shared/ui (Фазы 1–3) | Глобальная имитация CSS-классов в ThemeData невозможна; ревью не требуется |
 | 7 | `shared/api/api.ts` | api.ts импортирует networkActivity и i18n (errorMessage), но заявленный порядок шёл api → i18n | Порядок изменён: networkActivity → i18n → api.ts (сверху по зависимостям); зафиксировано в Next Step | Оставить исходный порядок с заглушками строк — хуже; ревью не требуется |
+| 8 | `shared/i18n/index.svelte.ts` | TS-доступ `i18n.t.errors.x` (строгие вложенные объекты) не воспроизводится в Dart без генерации ~200 классов на 1528 листьев; функциональные листья — 112 замыканий | translations.dart — автогенерируемое paired-дерево (const Map) + плоский реестр функций; доступ через path-API `t.tr/tf/tl/tfl`; опечатка пути → ArgumentError с путём (в Svelte был undefined — Dart-вариант строже) | Генерация строгих Dart-классов — двойной объём без функциональной разницы (YAGNI); ревью по желанию |
 
 ---
 

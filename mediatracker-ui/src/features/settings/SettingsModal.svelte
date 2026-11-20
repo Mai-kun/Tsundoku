@@ -80,6 +80,16 @@
   import { showToast } from "$shared/ui/toast.svelte";
   import { confirmAction, confirmDialog } from "$shared/ui/confirmDialog.svelte";
   import { waitForBackendRestart } from "$shared/api/serverRestart.svelte";
+  import {
+    loadNavigationCategories,
+    promotedCategories,
+    promotedCategoryById,
+    PROMOTED_PRESETS,
+    promotedIcon,
+    promotedParentType,
+    saveNavigationCategories,
+    type PromotedSubcategory,
+  } from "$shared/api/navigationCategories.svelte";
   import { i18n } from "$shared/i18n/index.svelte";
   import { offlineModeState } from "$shared/api/offlineMode.svelte";
   import type { OfflineDatabaseStatusDto } from "$shared/types";
@@ -782,6 +792,115 @@
   let deletingDump = $state("");
   let offlineModeToggling = $state(false);
 
+  // --- Вынесенные категории навигации (промоутед подкатегории) ---
+  let showPromotedForm = $state(false);
+  let promotedSaving = $state("");
+  let newPromotedLabel = $state("");
+  let newPromotedParent = $state("book");
+  let newPromotedKind = $state<"format" | "genre" | "tag">("format");
+  let newPromotedValue = $state("");
+  let newPromotedIcon = $state("bookmark");
+
+  const promotedIconOptions = [
+    { value: "bookmark", label: "Bookmark" },
+    { value: "sparkle", label: "Sparkles" },
+    { value: "book-open", label: "Book" },
+    { value: "library", label: "Library" },
+    { value: "clapperboard", label: "Clapperboard" },
+    { value: "gamepad", label: "Gamepad" },
+    { value: "tv", label: "TV" },
+  ];
+
+  const promotedParentOptions = [
+    { value: "book", label: i18n.t.navigation.book },
+    { value: "manga", label: i18n.t.navigation.manga },
+    { value: "game", label: i18n.t.navigation.game },
+    { value: "movie", label: i18n.t.navigation.movie },
+    { value: "tvshow", label: i18n.t.navigation.tvshow },
+  ];
+
+  const promotedKindOptions = [
+    { value: "format", label: i18n.t.settingsModal.search.navCategories.kindFormat },
+    { value: "genre", label: i18n.t.settingsModal.search.navCategories.kindGenre },
+    { value: "tag", label: i18n.t.settingsModal.search.navCategories.kindTag },
+  ];
+
+  function promotedPresetAdded(presetId: string): boolean {
+    return promotedCategories().some((c) => c.id === presetId);
+  }
+
+  /** Формат издания есть только у книг и манги — при другом родителе вид скатывается в жанр. */
+  function handlePromotedParentChange(next: string) {
+    newPromotedParent = next;
+    if (next !== "book" && next !== "manga" && newPromotedKind === "format") {
+      newPromotedKind = "genre";
+    }
+  }
+
+  async function savePromotedCategories(list: PromotedSubcategory[]) {
+    promotedSaving = "list";
+    try {
+      await saveNavigationCategories(list);
+      showToast({
+        title: i18n.t.settingsModal.search.navCategories.savedToast,
+        description: i18n.t.toast.descSaved,
+      });
+    } catch (e) {
+      showToast({
+        title: i18n.t.toast.actionFailed,
+        description: errorMessage(e),
+        type: "error",
+      });
+    } finally {
+      promotedSaving = "";
+    }
+  }
+
+  async function handleAddPromotedPreset(preset: PromotedSubcategory) {
+    if (promotedPresetAdded(preset.id)) return;
+    await savePromotedCategories([...promotedCategories(), preset]);
+  }
+
+  async function handleRemovePromoted(id: string) {
+    await savePromotedCategories(promotedCategories().filter((c) => c.id !== id));
+  }
+
+  async function handleAddCustomPromoted() {
+    const label = newPromotedLabel.trim();
+    if (!label || !newPromotedValue.trim()) return;
+    // Slug из названия, если пользователь не задал свой: "Супергерои" → "supergeroi"-
+    // транслитерация слишком умная — вместо неё транслит-алиас делаем из латиницы,
+    // а для кириллицы генерируем уникальный slug по счётчику.
+    const base = slugify(label);
+    let id = base;
+    for (let i = 2; promotedCategoryById(id) !== null; i += 1) {
+      id = `${base}-${i}`;
+    }
+    const icon = newPromotedIcon;
+    const parentCanonical = newPromotedParent === "book" ? "Book" : newPromotedParent === "manga" ? "Manga" : newPromotedParent === "game" ? "Game" : newPromotedParent === "movie" ? "Movie" : "TvShow";
+    const next = [
+      ...promotedCategories(),
+      { id, label, icon, parentType: parentCanonical, matchKind: newPromotedKind, matchValue: newPromotedValue.trim() },
+    ];
+    await savePromotedCategories(next);
+    showPromotedForm = false;
+    newPromotedLabel = "";
+    newPromotedValue = "";
+    newPromotedIcon = "bookmark";
+    newPromotedKind = "format";
+  }
+
+  function slugify(label: string): string {
+    const ascii = label
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+    if (ascii.length >= 2) return ascii;
+    // Кириллица/иероглифы: детерминированный slug по хешу названия.
+    let hash = 0;
+    for (const ch of label) hash = (hash * 31 + ch.codePointAt(0)! | 0) | 0;
+    return `cat-${(hash >>> 0).toString(36)}`;
+  }
 
   async function loadOfflineDatabases() {
     offlineLoading = true;
@@ -960,6 +1079,7 @@
       void loadOrder();
       void loadPriority();
       void loadOfflineDatabases();
+      void loadNavigationCategories();
     }
   });
 
@@ -2501,6 +2621,182 @@
                 {i18n.t.settingsModal.search.saved}
               </p>
             {/if}
+          {/if}
+        </div>
+
+        <!-- Вынесенные категории навигации: комиксы, ранобэ и любые свои -->
+        <div class="space-y-4 border-t border-white/[0.07] pt-6">
+          <div>
+            <h3 class="text-ink text-sm font-semibold">
+              {i18n.t.settingsModal.search.navCategories.title}
+            </h3>
+            <p class="text-muted mt-0.5 text-xs">
+              {i18n.t.settingsModal.search.navCategories.hint}
+            </p>
+          </div>
+
+          <!-- Быстрые пресеты -->
+          <div class="flex flex-wrap items-center gap-2">
+            {#each PROMOTED_PRESETS as preset (preset.id)}
+              {#if !promotedPresetAdded(preset.id)}
+                <button
+                  type="button"
+                  class="inline-flex items-center gap-1.5 rounded-lg border border-sky-500/30 bg-sky-500/10 px-3 py-1.5 text-xs font-semibold text-sky-300 transition-transform hover:border-sky-400/50 hover:bg-sky-500/20 active:scale-95"
+                  disabled={promotedSaving !== ""}
+                  onclick={() => void handleAddPromotedPreset(preset)}
+                >
+                  <Plus size={13} />
+                  {preset.label}
+                </button>
+              {/if}
+            {/each}
+            <button
+              type="button"
+              class="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs font-semibold text-muted transition hover:border-white/20 hover:text-ink active:scale-95"
+              onclick={() => (showPromotedForm = !showPromotedForm)}
+            >
+              {#if showPromotedForm}<X size={13} />{:else}<Plus size={13} />{/if}
+              {i18n.t.settingsModal.search.navCategories.customOpen}
+            </button>
+          </div>
+
+          <!-- Своя подкатегория -->
+          {#if showPromotedForm}
+            <div class="bg-field/60 space-y-3 rounded-lg border border-white/10 p-3.5">
+              <div class="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label class="text-muted mb-1 block text-[11px] font-semibold" for="promoted-label">
+                    {i18n.t.settingsModal.search.navCategories.titleLabel}
+                  </label>
+                  <input
+                    id="promoted-label"
+                    type="text"
+                    class="bg-field text-ink placeholder:text-muted h-8 w-full rounded-md border border-white/10 px-2.5 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500/40"
+                    bind:value={newPromotedLabel}
+                    maxlength="64"
+                    placeholder={i18n.t.settingsModal.search.navCategories.titleLabelPlaceholder}
+                  />
+                </div>
+                <div>
+                  <label class="text-muted mb-1 block text-[11px] font-semibold" for="promoted-icon">
+                    {i18n.t.settingsModal.search.navCategories.iconLabel}
+                  </label>
+                  <Select
+                    id="promoted-icon"
+                    value={newPromotedIcon}
+                    options={promotedIconOptions}
+                    onChange={(val) => (newPromotedIcon = val)}
+                    class="h-8 rounded-md px-2.5 text-xs"
+                  />
+                </div>
+                <div>
+                  <label class="text-muted mb-1 block text-[11px] font-semibold" for="promoted-parent">
+                    {i18n.t.settingsModal.search.navCategories.parentLabel}
+                  </label>
+                  <Select
+                    id="promoted-parent"
+                    value={newPromotedParent}
+                    options={promotedParentOptions}
+                    onChange={handlePromotedParentChange}
+                    class="h-8 rounded-md px-2.5 text-xs"
+                  />
+                </div>
+                <div>
+                  <label class="text-muted mb-1 block text-[11px] font-semibold" for="promoted-kind">
+                    {i18n.t.settingsModal.search.navCategories.kindLabel}
+                  </label>
+                  <Select
+                    id="promoted-kind"
+                    value={newPromotedKind}
+                    options={promotedKindOptions}
+                    onChange={(val) => (newPromotedKind = val as "format" | "genre" | "tag")}
+                    class="h-8 rounded-md px-2.5 text-xs"
+                  />
+                </div>
+                <div class="sm:col-span-2">
+                  <label class="text-muted mb-1 block text-[11px] font-semibold" for="promoted-value">
+                    {i18n.t.settingsModal.search.navCategories.valueLabel}
+                  </label>
+                  <input
+                    id="promoted-value"
+                    type="text"
+                    class="bg-field text-ink placeholder:text-muted h-8 w-full rounded-md border border-white/10 px-2.5 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500/40"
+                    bind:value={newPromotedValue}
+                    maxlength="120"
+                    placeholder={i18n.t.settingsModal.search.navCategories.valuePlaceholder}
+                  />
+                  <p class="text-muted mt-1 text-[10px]">
+                    {i18n.t.settingsModal.search.navCategories.valueHint}
+                  </p>
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <Button
+                  variant="primary"
+                  size="sm"
+                  disabled={promotedSaving !== "" || !newPromotedLabel.trim() || !newPromotedValue.trim()}
+                  onclick={() => void handleAddCustomPromoted()}
+                >
+                  <Plus size={13} />
+                  {i18n.t.settingsModal.search.navCategories.addBtn}
+                </Button>
+                <Button variant="ghost" size="sm" onclick={() => (showPromotedForm = false)}>
+                  {i18n.t.common.cancel}
+                </Button>
+              </div>
+            </div>
+          {/if}
+
+          <!-- Активные вынесенные категории -->
+          {#if promotedCategories().length === 0}
+            <p class="text-muted text-xs">
+              {i18n.t.settingsModal.search.navCategories.emptyText}
+            </p>
+          {:else}
+            <div class="space-y-2" role="list">
+              {#each promotedCategories() as sub (sub.id)}
+                {@const Icon = promotedIcon(sub.icon)}
+                <div
+                  role="listitem"
+                  animate:flip={{ duration: 180 }}
+                  class="flex items-center justify-between rounded-lg border border-white/10 bg-white/[0.02] p-3 transition-colors hover:border-white/20"
+                >
+                  <div class="flex min-w-0 items-center gap-3">
+                    <span
+                      class="grid size-7 shrink-0 place-items-center rounded-md border border-sky-500/30 bg-sky-500/15 text-sky-300"
+                    >
+                      <Icon size={14} aria-hidden="true" />
+                    </span>
+                    <div class="min-w-0">
+                      <div class="flex flex-wrap items-center gap-2">
+                        <span class="text-ink text-sm font-semibold">{sub.label}</span>
+                        <span class="bg-canvas text-muted rounded px-2 py-0.5 text-[10px] font-medium">
+                          {categoryLabel(promotedParentType(sub))}
+                        </span>
+                        <Badge tone="info" size="xs">
+                          {sub.matchKind === "format"
+                            ? i18n.t.settingsModal.search.navCategories.kindFormat
+                            : sub.matchKind === "genre"
+                              ? i18n.t.settingsModal.search.navCategories.kindGenre
+                              : i18n.t.settingsModal.search.navCategories.kindTag}
+                          : {sub.matchValue}
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    iconOnly
+                    size="sm"
+                    disabled={promotedSaving !== ""}
+                    title={i18n.t.settingsModal.search.navCategories.removeBtn}
+                    onclick={() => void handleRemovePromoted(sub.id)}
+                  >
+                    <Trash2 size={15} />
+                  </Button>
+                </div>
+              {/each}
+            </div>
           {/if}
         </div>
 

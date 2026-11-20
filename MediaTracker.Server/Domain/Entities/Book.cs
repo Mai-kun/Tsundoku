@@ -8,7 +8,7 @@ public class Book : MediaItem
 
     public string? Isbn { get; set; }
 
-    /// <summary>book / light_novel / web_novel</summary>
+    /// <summary>book / light_novel / web_novel / comics / ebook / audiobook — см. BookFormFields</summary>
     public string? Format { get; set; }
 
     public int CurrentPage { get; set; }

@@ -39,6 +39,8 @@ export type AppView =
   | "home"
   | MediaType
   | "anime"
+  /** Вынесенная категория навигации (slug из настроек: "comics", "light-novels"...). */
+  | (string & {})
   | "stats"
   | "lists"
   | "history"

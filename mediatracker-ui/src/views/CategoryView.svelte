@@ -28,6 +28,7 @@
   import SectionRow from "$widgets/media-grid/SectionRow.svelte";
   import { uiSettings } from "$shared/utils/uiSettings.svelte";
   import { reconcileListProgress } from "$features/update-progress/optimisticProgress.svelte";
+  import { promotedCategories } from "$shared/api/navigationCategories.svelte";
   import {
     buildStatusGroups,
     categoryFilters,
@@ -195,6 +196,9 @@
   $effect(() => {
     void search;
     void sort;
+    // Состав активных вынесенных категорий меняет выборку («Книги» без комиксов) —
+    // пересобираем список при любой замене снимка конфигурации.
+    void promotedCategories();
     const categoryChanged = lastLoadedCategory !== category;
     const revisionChanged = prevRefreshKey !== null && refreshKey !== prevRefreshKey;
     if (categoryChanged || revisionChanged) {
@@ -247,7 +251,7 @@
 
     try {
       const page = await getMediaWithCount({
-        ...categoryFilters(category, search, sort),
+        ...categoryFilters(category, search, sort, promotedCategories()),
         limit: 500,
       });
       const found = page.items;

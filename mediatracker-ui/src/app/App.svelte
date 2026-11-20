@@ -32,8 +32,20 @@
   import { showToast } from "$shared/ui/toast.svelte";
   import { offlineModeState } from "$shared/api/offlineMode.svelte";
 
-  const categories: readonly Category[] = ["tvshow", "movie", "anime", "manga", "game", "book"];
-  const views: readonly AppView[] = [
+  import { BASE_CATEGORIES } from "$views/categoryModel";
+  import {
+    loadNavigationCategories,
+    promotedCategories,
+    promotedCategoryById,
+  } from "$shared/api/navigationCategories.svelte";
+
+  // Базовые категории + динамические вынесенные подкатегории (комиксы, ранобэ...).
+  const baseCategories: readonly Category[] = BASE_CATEGORIES;
+  const categories = $derived<readonly Category[]>([
+    ...baseCategories,
+    ...promotedCategories().map((c) => c.id),
+  ]);
+  const views = $derived<readonly AppView[]>([
     "home",
     ...categories,
     "stats",
@@ -44,7 +56,19 @@
     "seasons",
     "settings",
     "detail",
-  ];
+  ]);
+
+  // Конфигурация вынесенных категорий нужна до первого рендера роутинга (сайдбар, title).
+  $effect(() => {
+    void loadNavigationCategories().then((list) => {
+      // Восстановление последней вынесенной категории: при инициализации роутинга список ещё
+      // не был загружен, и readRoute откатил saved view на home.
+      const saved = uiSettings.lastView as AppView | undefined;
+      if (saved && activeView === "home" && list.some((c) => c.id === saved)) {
+        switchView(saved);
+      }
+    });
+  });
 
   let route = readRoute();
   let activeView = $state<AppView>(route.view);
@@ -312,7 +336,11 @@
       case "settings":
         return i18n.t.navigation.settings;
       default:
-        return i18n.t.navigation[view];
+        // Вынесенная категория берёт Label из своей конфигурации; базовые — из i18n.
+        return (
+          promotedCategoryById(view)?.label ??
+          i18n.t.navigation[view as keyof typeof i18n.t.navigation]
+        );
     }
   }
 
@@ -321,7 +349,9 @@
   }
 
   function searchTypeForView(view: AppView): SearchScope {
-    return isCategory(view) ? view : "all";
+    // Вынесенная категория ищется в рамках родительского типа медиа.
+    if (!isCategory(view)) return "all";
+    return (promotedCategoryById(view)?.parentType.toLowerCase() as SearchScope) ?? view;
   }
 
   function rememberTrigger() {

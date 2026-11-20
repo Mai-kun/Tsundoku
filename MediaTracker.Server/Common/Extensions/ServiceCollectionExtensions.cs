@@ -37,6 +37,12 @@ public static class ServiceCollectionExtensions
         // handlers захватывают IProxySettingsService из контейнера.
         services.AddSingleton<IProxySettingsService, ProxySettingsService>();
 
+        // Живой снимок вынесенных категорий навигации: SQL-фильтры списков и статистики
+        // читают его на каждом запросе — сохранение применяется мгновенно.
+        services.AddSingleton<
+            MediaTracker.Server.Features.Settings.NavigationCategories.INavigationCategoriesService,
+            MediaTracker.Server.Features.Settings.NavigationCategories.NavigationCategoriesService>();
+
         // Reflection-based: every IMetadataProvider in the assembly registers itself.
         services.AddAllMetadataProviders();
 

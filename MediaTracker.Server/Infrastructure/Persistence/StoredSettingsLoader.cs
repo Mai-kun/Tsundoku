@@ -1,3 +1,5 @@
+using MediaTracker.Server.Features.Settings;
+using MediaTracker.Server.Features.Settings.NavigationCategories;
 using MediaTracker.Server.Features.Settings.ProxySettings;
 using MediaTracker.Server.Infrastructure.ExternalApis.Abstractions;
 using MediaTracker.Server.Infrastructure.ExternalApis.Common;
@@ -16,7 +18,8 @@ public sealed class StoredSettingsLoader(
     IEncryptionService encryption,
     IOptions<ExternalApiOptions> options,
     IEnumerable<IMetadataProvider> providers,
-    IProxySettingsService proxySettings)
+    IProxySettingsService proxySettings,
+    INavigationCategoriesService navigationCategories)
 {
     public async Task LoadAsync(CancellationToken ct = default)
     {
@@ -51,6 +54,19 @@ public sealed class StoredSettingsLoader(
         }
 
         await LoadProxySettingsAsync(ct);
+        await LoadNavigationCategoriesAsync(ct);
+    }
+
+    /// <summary>
+    /// Восстанавливает вынесенные категории навигации: SQL-фильтры списков, статистики и
+    /// сайдбар читают живой снимок — конфигурация работает сразу после запуска.
+    /// </summary>
+    private async Task LoadNavigationCategoriesAsync(CancellationToken ct)
+    {
+        var json = await AppSettingStore.ReadAsync(db, "App_NavigationCategories", ct);
+        var categories = JsonSettings.TryDeserialize<PromotedSubcategory[]>(json) ?? [];
+        var (normalized, _) = PromotedSubcategory.NormalizeList(categories);
+        navigationCategories.Update(normalized);
     }
 
     /// <summary>

@@ -19,6 +19,13 @@
   import { i18n } from "$shared/i18n/index.svelte";
   import type { AppView } from "$shared/types";
   import { crossfade } from "svelte/transition";
+  import {
+    loadNavigationCategories,
+    promotedCategories,
+    promotedIcon,
+    promotedParentType,
+    type PromotedSubcategory,
+  } from "$shared/api/navigationCategories.svelte";
 
   interface Props {
     activeView: AppView;
@@ -27,6 +34,27 @@
   }
 
   let { activeView, onNavigate, onCreate }: Props = $props();
+
+  // Конфигурация вынесенных категорий лениво тянется при монтировании сайдбара и обновляется
+  // из Настроек через тот же сторе ($state.raw — реактивно для этого шаблона).
+  $effect(() => {
+    void loadNavigationCategories();
+  });
+
+  /**
+   * Вынесенные категории рендерятся сразу после родительского пункта ("book" → комиксы,
+   * ранобэ под «Книгами»); остальной порядок базовых категорий не меняется.
+   */
+  const promotedAfterBase = $derived.by(() => {
+    const byParent = new Map<string, PromotedSubcategory[]>();
+    for (const sub of promotedCategories()) {
+      const parent = promotedParentType(sub);
+      const list = byParent.get(parent);
+      if (list) list.push(sub);
+      else byParent.set(parent, [sub]);
+    }
+    return byParent;
+  });
 
   let toolsOpen = $state(false);
 
@@ -99,6 +127,12 @@
   </button>
 {/snippet}
 
+<!-- Вынесенная категория: тот же пункт навигации и тот же ключ crossfade-индикатора,
+     поэтому подсветка скользит на неё как на любой базовый раздел. -->
+{#snippet promotedNavItem(sub: PromotedSubcategory)}
+  {@render mainNavItem(sub.id, sub.label, promotedIcon(sub.icon))}
+{/snippet}
+
 {#snippet toolsNavItem(
   view: AppView,
   label: string,
@@ -144,11 +178,26 @@
     >
       {@render mainNavItem("home", i18n.t.navigation.home, Home)}
       {@render mainNavItem("tvshow", i18n.t.navigation.tvshow, Tv)}
+      {#each promotedAfterBase.get("tvshow") ?? [] as sub (sub.id)}
+        {@render promotedNavItem(sub)}
+      {/each}
       {@render mainNavItem("movie", i18n.t.navigation.movie, Film)}
+      {#each promotedAfterBase.get("movie") ?? [] as sub (sub.id)}
+        {@render promotedNavItem(sub)}
+      {/each}
       {@render mainNavItem("anime", i18n.t.navigation.anime, Clapperboard)}
       {@render mainNavItem("manga", i18n.t.navigation.manga, Library)}
+      {#each promotedAfterBase.get("manga") ?? [] as sub (sub.id)}
+        {@render promotedNavItem(sub)}
+      {/each}
       {@render mainNavItem("game", i18n.t.navigation.game, Gamepad2)}
+      {#each promotedAfterBase.get("game") ?? [] as sub (sub.id)}
+        {@render promotedNavItem(sub)}
+      {/each}
       {@render mainNavItem("book", i18n.t.navigation.book, BookOpen)}
+      {#each promotedAfterBase.get("book") ?? [] as sub (sub.id)}
+        {@render promotedNavItem(sub)}
+      {/each}
     </nav>
   </div>
 

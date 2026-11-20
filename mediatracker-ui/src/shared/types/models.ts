@@ -474,6 +474,8 @@ export interface MediaFilters {
   type?: MediaType;
   status?: MediaStatus;
   isAnime?: boolean;
+  /** Вынесенная категория навигации: сервер применяет её match-условие и исключает из родителя. */
+  subId?: string;
   search?: string;
   sortBy?: SortBy;
   sortOrder?: SortOrder;

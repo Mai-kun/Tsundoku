@@ -20,28 +20,46 @@ public interface IGetMediaStatsHandler
     Task<Result<TasteProfileDto>> HandleTasteProfileAsync(string? scope = "completed", CancellationToken ct = default);
 }
 
-public sealed class GetMediaStatsHandler(AppDbContext db, IMemoryCache cache) : IGetMediaStatsHandler
+public sealed class GetMediaStatsHandler(
+    AppDbContext db,
+    IMemoryCache cache,
+    MediaTracker.Server.Features.Settings.NavigationCategories.INavigationCategoriesService? navigationCategories = null)
+    : IGetMediaStatsHandler
 {
     public async Task<Result<MediaStatsDto>> HandleAsync(CancellationToken ct)
     {
         var conn = db.Connection;
         if (conn.State != global::System.Data.ConnectionState.Open) await conn.OpenAsync(ct);
 
+        // Взаимное исключение: книги, попавшие в активные вынесенные подкатегории (комиксы,
+        // ранобэ), не считаются «прочитанными книгами» родительской категории — ровно как они
+        // исчезают из списка «Книг». Читательский объём (страницы) остаётся полным: страницы
+        // комиксов — тоже прочитанные страницы.
+        var bookSubcategories = navigationCategories?.ActiveForParent("Book")
+            ?? Array.Empty<MediaTracker.Server.Features.Settings.NavigationCategories.PromotedSubcategory>();
+        var bookExclusion = PromotedSubcategorySql.ExclusionClause(bookSubcategories, string.Empty);
+        var parameters = new DynamicParameters();
+        if (bookSubcategories.Count > 0)
+        {
+            PromotedSubcategorySql.BindParameters(parameters, bookSubcategories);
+        }
+
         var totals = await conn.QueryFirstOrDefaultAsync<MediaStatsRow>(
-            """
-            SELECT 
+            $"""
+            SELECT
                 COUNT(*) as Total,
                 SUM(CASE WHEN Status = 2 THEN 1 ELSE 0 END) as Completed,
                 SUM(CASE WHEN Status = 1 THEN 1 ELSE 0 END) as InProgress,
                 SUM(CASE WHEN Status = 0 THEN 1 ELSE 0 END) as Planned,
                 SUM(CASE WHEN Status = 2 AND MediaType = 'Game' THEN 1 ELSE 0 END) as CompletedGames,
-                SUM(CASE WHEN Status = 2 AND MediaType = 'Book' THEN 1 ELSE 0 END) as CompletedBooks,
+                SUM(CASE WHEN Status = 2 AND MediaType = 'Book'{bookExclusion} THEN 1 ELSE 0 END) as CompletedBooks,
                 SUM(CASE WHEN Status = 2 AND MediaType = 'Movie' THEN 1 ELSE 0 END) as CompletedMovies,
                 SUM(CASE WHEN MediaType = 'Game' THEN COALESCE(HoursPlayed, 0) ELSE 0 END) as TotalHoursPlayed,
                 SUM(CASE WHEN MediaType = 'Book' THEN COALESCE(CurrentPage, 0) ELSE 0 END) as TotalPagesRead,
                 SUM(CASE WHEN MediaType = 'Manga' THEN COALESCE(CurrentChapter, 0) ELSE 0 END) as TotalChaptersRead
             FROM MediaItems
-            """);
+            """,
+            parameters);
 
         var totalEpisodesWatched = await conn.ExecuteScalarAsync<int?>(
             "SELECT COALESCE(SUM(CurrentEpisode), 0) FROM TvSeasons");

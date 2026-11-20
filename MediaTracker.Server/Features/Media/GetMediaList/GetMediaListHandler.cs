@@ -2,6 +2,7 @@ using System.Threading;
 using MediaTracker.Server.Domain.Common;
 using MediaTracker.Server.Domain.Entities;
 using MediaTracker.Server.Features.Media.MediaContract;
+using MediaTracker.Server.Features.Settings.NavigationCategories;
 using MediaTracker.Server.Infrastructure.Persistence;
 using Microsoft.Extensions.Caching.Memory;
 
@@ -28,18 +29,29 @@ public static class MediaListCache
     public static int Version => Volatile.Read(ref _version);
     public static void Invalidate() => Interlocked.Increment(ref _version);
     public static string BuildKey(GetMediaListQuery q) =>
-        $"media:list:v{Version}:{q.Type}:{q.Status}:{q.IsAnime}:{q.Search}:{q.SortBy}:{q.SortOrder}:{q.Limit}:{q.Offset}";
+        $"media:list:v{Version}:{q.Type}:{q.Status}:{q.IsAnime}:{q.SubId}:{q.Search}:{q.SortBy}:{q.SortOrder}:{q.Limit}:{q.Offset}";
 }
 
 /// <summary>
 /// Caches the mapped DTO list in memory; retrieving the pre-mapped list takes 0.001ms.
 /// </summary>
-public sealed class GetMediaListHandler(AppDbContext db, IMemoryCache? cache = null) : IGetMediaListHandler
+public sealed class GetMediaListHandler(
+    AppDbContext db,
+    IMemoryCache? cache = null,
+    INavigationCategoriesService? navigationCategories = null) : IGetMediaListHandler
 {
+    // Тесты конструируют хендлер напрямую без сервиса категорий: тогда взаимного
+    // исключения просто нет — поведение совпадает с дот-фичной версией.
+    private IReadOnlyList<PromotedSubcategory> ActiveForParent(string parentType) =>
+        navigationCategories?.ActiveForParent(parentType) ?? [];
+
+    private PromotedSubcategory? FindSubcategory(string id) => navigationCategories?.Find(id);
+
     public async Task<Result<IReadOnlyList<MediaListDto>>> HandleAsync(
         GetMediaListQuery query,
         CancellationToken ct)
     {
+        var resolved = ResolveSubcategory(query);
         var key = MediaListCache.BuildKey(query);
         if (cache is not null && cache.TryGetValue(key, out IReadOnlyList<MediaListDto>? cached) && cached is not null)
         {
@@ -47,7 +59,7 @@ public sealed class GetMediaListHandler(AppDbContext db, IMemoryCache? cache = n
         }
 
         var items = await db.LoadMediaItemsAsync(
-            query.Type,
+            resolved.Type,
             query.Status,
             query.IsAnime,
             query.Search,
@@ -55,7 +67,9 @@ public sealed class GetMediaListHandler(AppDbContext db, IMemoryCache? cache = n
             query.SortOrder,
             ct,
             query.Limit,
-            query.Offset);
+            query.Offset,
+            resolved.Include,
+            resolved.Exclude);
 
         var dtos = items.Select(MediaResponseMapper.ToListDto).ToList();
         if (cache is not null)
@@ -69,6 +83,7 @@ public sealed class GetMediaListHandler(AppDbContext db, IMemoryCache? cache = n
         GetMediaListQuery query,
         CancellationToken ct)
     {
+        var resolved = ResolveSubcategory(query);
         var items = await HandleAsync(query, ct);
 
         var countKey = $"{MediaListCache.BuildKey(query)}:total";
@@ -80,15 +95,42 @@ public sealed class GetMediaListHandler(AppDbContext db, IMemoryCache? cache = n
         }
 
         var total = await db.GetMediaTotalCountAsync(
-            query.Type,
+            resolved.Type,
             query.Status,
             query.IsAnime,
             query.Search,
-            ct);
+            ct,
+            resolved.Include,
+            resolved.Exclude);
         if (cache is not null)
         {
             cache.Set(countKey, total, TimeSpan.FromMinutes(10));
         }
         return (items.Value ?? [], total);
+    }
+
+    /// <summary>
+    /// Разбирает запрошенную категорию в SQL-фильтры: запрошена вынесенная подкатегория —
+    /// запрос идёт по её родительскому типу с match-условием; запрошен родитель — из него
+    /// исключаются все активные подкатегории этого типа (взаимное исключение с «Аниме»
+    /// не пересекается: у Book/Manga флага аниме нет).
+    /// </summary>
+    private (string? Type, PromotedSubcategory? Include, IReadOnlyList<PromotedSubcategory>? Exclude)
+        ResolveSubcategory(GetMediaListQuery query)
+    {
+        if (string.IsNullOrWhiteSpace(query.SubId))
+        {
+            if (string.IsNullOrEmpty(query.Type))
+            {
+                return (query.Type, null, null);
+            }
+
+            var exclude = ActiveForParent(query.Type);
+            return (query.Type, null, exclude.Count > 0 ? exclude : null);
+        }
+
+        var sub = FindSubcategory(query.SubId)
+            ?? throw new InvalidOperationException($"Unknown navigation subcategory '{query.SubId}'.");
+        return (sub.ParentType, sub, null);
     }
 }

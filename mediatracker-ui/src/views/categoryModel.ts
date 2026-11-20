@@ -1,7 +1,14 @@
 import type { LibrarySort } from "$features/filter-and-sort/FilterBar.svelte";
+import type { PromotedSubcategory } from "$shared/api/navigationCategories.svelte";
 import type { MediaFilters, MediaItem, MediaStatus, StatusFilter } from "$shared/types";
 
-export type Category = "tvshow" | "movie" | "anime" | "manga" | "game" | "book";
+/** Базовые категории. Вынесенные (промоутед) подкатегории — динамические id из настроек. */
+export const BASE_CATEGORIES = ["tvshow", "movie", "anime", "manga", "game", "book"] as const;
+
+export type BaseCategory = (typeof BASE_CATEGORIES)[number];
+
+/** Категория может быть вынесенной подкатегорией (произвольный slug из конфигурации). */
+export type Category = BaseCategory | (string & {});
 
 export interface StatusSection {
   status: MediaStatus;
@@ -50,11 +57,23 @@ export function categoryFilters(
   category: Category,
   search: string,
   sort: LibrarySort,
+  promoted: readonly PromotedSubcategory[] = [],
 ): MediaFilters {
   const filters: MediaFilters = {
     search: search.trim() || undefined,
     ...sortFilters(sort),
   };
+
+  // Вынесенная подкатегория: запрос идёт по родительскому типу с subId — сервер сам
+  // применяет match-условие и исключает элементы из родительской категории.
+  const promotedCategory = promoted.find((c) => c.id === category);
+  if (promotedCategory) {
+    return {
+      ...filters,
+      type: promotedCategory.parentType.toLowerCase() as MediaFilters["type"],
+      subId: promotedCategory.id,
+    };
+  }
 
   switch (category) {
     case "anime":
@@ -64,7 +83,8 @@ export function categoryFilters(
     case "movie":
       return { ...filters, type: "movie", isAnime: false };
     default:
-      return { ...filters, type: category };
+      // Не вынесенная и не спец-категория: категория совпадает с типом медиа.
+      return { ...filters, type: category as MediaFilters["type"] };
   }
 }
 

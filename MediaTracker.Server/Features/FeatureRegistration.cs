@@ -122,6 +122,14 @@ public static partial class FeatureRegistration
         services.AddScoped<IGetCategoryOrderHandler, GetCategoryOrderHandler>();
         services.AddScoped<ISaveCategoryOrderHandler, SaveCategoryOrderHandler>();
 
+        // Вынесенные категории навигации (промоутед подкатегории вроде «Комиксов»).
+        services.AddScoped<
+            MediaTracker.Server.Features.Settings.NavigationCategories.IGetNavigationCategoriesHandler,
+            MediaTracker.Server.Features.Settings.NavigationCategories.GetNavigationCategoriesHandler>();
+        services.AddScoped<
+            MediaTracker.Server.Features.Settings.NavigationCategories.ISaveNavigationCategoriesHandler,
+            MediaTracker.Server.Features.Settings.NavigationCategories.SaveNavigationCategoriesHandler>();
+
         services.AddScoped<IGetSourcePriorityHandler, GetSourcePriorityHandler>();
         services.AddScoped<ISaveSourcePriorityHandler, SaveSourcePriorityHandler>();
         services.AddScoped<IGetReadingSettingsHandler, GetReadingSettingsHandler>();

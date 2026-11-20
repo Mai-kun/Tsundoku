@@ -11,4 +11,6 @@ public sealed record GetMediaListQuery(
     string? SortBy = "createdAt",
     string? SortOrder = "desc",
     int? Limit = null,
-    int? Offset = null);
+    int? Offset = null,
+    /// <summary>Id вынесенной подкатегории навигации ("comics"); тип берётся из её конфигурации.</summary>
+    string? SubId = null);

@@ -35,6 +35,9 @@ export function formatLabel(item: MediaItem): string {
   if (item.type === "book") {
     if (item.format === "light_novel") return i18n.current === "ru" ? "Ранобэ" : "Light Novel";
     if (item.format === "web_novel") return i18n.current === "ru" ? "Веб-новелла" : "Web Novel";
+    if (item.format === "comics") return i18n.current === "ru" ? "Комикс" : "Comics";
+    if (item.format === "ebook") return i18n.current === "ru" ? "Электронная книга" : "E-book";
+    if (item.format === "audiobook") return i18n.current === "ru" ? "Аудиокнига" : "Audiobook";
     return typeLabel(item);
   }
   if (!isMangaDetail(item)) return typeLabel(item);

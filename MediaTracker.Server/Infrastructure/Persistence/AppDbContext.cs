@@ -5,6 +5,7 @@ using System.Linq.Expressions;
 using Dapper;
 using MediaTracker.Server.Domain.Entities;
 using MediaTracker.Server.Domain.Enums;
+using MediaTracker.Server.Features.Settings.NavigationCategories;
 using Microsoft.Data.Sqlite;
 using System.Reflection;
 
@@ -674,7 +675,9 @@ public sealed class AppDbContext : IDisposable, IAsyncDisposable
         string? sortOrder,
         CancellationToken ct = default,
         int? limit = null,
-        int? offset = null)
+        int? offset = null,
+        PromotedSubcategory? includeSubcategory = null,
+        IReadOnlyList<PromotedSubcategory>? excludeSubcategories = null)
     {
         // Server-side safety default: cap payloads so a missing client limit can never
         // serialize a multi-hundred-megabyte JSON string that blows past V8's string limit.
@@ -725,6 +728,21 @@ public sealed class AppDbContext : IDisposable, IAsyncDisposable
                 " AND ((m.MediaType = 'TvShow' AND COALESCE(m.TvShow_IsAnime, 0) = @isAnime)"
                 + " OR (m.MediaType = 'Movie' AND COALESCE(m.Movie_IsAnime, 0) = @isAnime))");
             cmd.Parameters.Add(new SqliteParameter("@isAnime", anime ? 1 : 0));
+        }
+
+        // Вынесенная подкатегория: строка должна удовлетворять её условию (формат/жанр/тег).
+        if (includeSubcategory is { } include)
+        {
+            sb.Append(" AND ").Append(PromotedSubcategorySql.MatchCondition(include, "m."));
+            PromotedSubcategorySql.BindParameters(cmd, [include]);
+        }
+
+        // Родительская категория: элементы, попавшие в любую активную вынесенную подкатегорию
+        // этого типа, из выборки исключаются (взаимное исключение, как у «Аниме»).
+        if (excludeSubcategories is { Count: > 0 })
+        {
+            PromotedSubcategorySql.AppendExclusions(sb, excludeSubcategories, "m.");
+            PromotedSubcategorySql.BindParameters(cmd, excludeSubcategories);
         }
 
         if (!string.IsNullOrWhiteSpace(search))
@@ -837,7 +855,9 @@ public sealed class AppDbContext : IDisposable, IAsyncDisposable
         MediaStatus? status,
         bool? isAnime,
         string? search,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        PromotedSubcategory? includeSubcategory = null,
+        IReadOnlyList<PromotedSubcategory>? excludeSubcategories = null)
     {
         if (string.Equals(mediaType, "anime", StringComparison.OrdinalIgnoreCase))
         {
@@ -874,6 +894,20 @@ public sealed class AppDbContext : IDisposable, IAsyncDisposable
                 " AND ((m.MediaType = 'TvShow' AND COALESCE(m.TvShow_IsAnime, 0) = @isAnime)"
                 + " OR (m.MediaType = 'Movie' AND COALESCE(m.Movie_IsAnime, 0) = @isAnime))");
             cmd.Parameters.Add(new SqliteParameter("@isAnime", anime ? 1 : 0));
+        }
+
+        // Вынесенная подкатегория: тот же match-фрагмент, что и в списке, чтобы счётчик
+        // X-Total-Count никогда не расходился с выборкой.
+        if (includeSubcategory is { } include)
+        {
+            sb.Append(" AND ").Append(PromotedSubcategorySql.MatchCondition(include, "m."));
+            PromotedSubcategorySql.BindParameters(cmd, [include]);
+        }
+
+        if (excludeSubcategories is { Count: > 0 })
+        {
+            PromotedSubcategorySql.AppendExclusions(sb, excludeSubcategories, "m.");
+            PromotedSubcategorySql.BindParameters(cmd, excludeSubcategories);
         }
 
         if (!string.IsNullOrWhiteSpace(search))

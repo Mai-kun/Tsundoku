@@ -1,6 +1,7 @@
 using MediaTracker.Server.Common.Http;
 using MediaTracker.Server.Common.Json;
 using MediaTracker.Server.Domain.Entities;
+using MediaTracker.Server.Features.Settings.NavigationCategories;
 using MediaTracker.Server.Features.External.EnrichMetadata;
 using MediaTracker.Server.Features.External.RefreshMetadata;
 using MediaTracker.Server.Features.External.RelinkMedia;
@@ -140,6 +141,7 @@ public static class MediaEndpoints
 
         group.MapGet("/", async (
                 [FromServices] IGetMediaListHandler handler,
+                [FromServices] INavigationCategoriesService navigationCategories,
                 HttpContext httpContext,
                 string? type,
                 MediaStatus? status,
@@ -149,10 +151,17 @@ public static class MediaEndpoints
                 string? sortOrder,
                 int? limit,
                 int? offset,
+                string? sub,
                 CancellationToken ct) =>
             {
+                // Неизвестная вынесенная категория — честный 404, а не пустая выборка.
+                if (!string.IsNullOrWhiteSpace(sub) && navigationCategories.Find(sub) is null)
+                {
+                    return Results.NotFound(new ApiErrorDetail($"Navigation subcategory '{sub}' is not configured."));
+                }
+
                 var (items, totalCount) = await handler.HandleWithCountAsync(
-                    new GetMediaListQuery(type, status, isAnime, search, sortBy, sortOrder, limit, offset),
+                    new GetMediaListQuery(type, status, isAnime, search, sortBy, sortOrder, limit, offset, sub),
                     ct);
 
                 // True DB-side total behind the limit/offset window, so the UI can
@@ -163,7 +172,7 @@ public static class MediaEndpoints
             })
             .WithTags("Медиатека / Media")
             .WithSummary("Список тайтлов медиатеки")
-            .WithDescription("Возвращает плоский список медиа с поддержкой фильтрации по типу, статусу, аниме-признаку, текстовому поиску и сортировке.");
+            .WithDescription("Возвращает плоский список медиа с поддержкой фильтрации по типу, статусу, аниме-признаку, вынесенной подкатегории (sub), текстовому поиску и сортировке.");
 
         group.MapGet("/stats", ([FromServices] IGetMediaStatsHandler handler, CancellationToken ct) =>
             handler.HandleAsync(ct).ToOk())

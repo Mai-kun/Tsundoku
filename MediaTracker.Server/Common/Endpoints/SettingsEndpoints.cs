@@ -11,6 +11,7 @@ using MediaTracker.Server.Features.Settings.ApiTokens;
 using MediaTracker.Server.Features.Settings.GetCategoryOrder;
 using MediaTracker.Server.Features.Settings.GetSourceKeyStatus;
 using MediaTracker.Server.Features.Settings.GetSourcePriority;
+using MediaTracker.Server.Features.Settings.NavigationCategories;
 using MediaTracker.Server.Features.Settings.SaveCategoryOrder;
 using MediaTracker.Server.Features.Settings.SaveSourceKey;
 using MediaTracker.Server.Features.Settings.SaveSourcePriority;
@@ -223,6 +224,20 @@ public static class SettingsEndpoints
             handler.HandleAsync(new SaveCategoryOrderCommand(order), ct).ToOk())
             .WithTags("Настройки / Settings")
             .WithSummary("Сохранить порядок отображения категорий");
+
+        group.MapGet("/navigation-categories", ([FromServices] IGetNavigationCategoriesHandler handler,
+                CancellationToken ct) =>
+            handler.HandleAsync(ct).ToOk())
+            .WithTags("Настройки / Settings")
+            .WithSummary("Активные вынесенные категории навигации (подкатегории в сайдбаре)");
+
+        group.MapPut("/navigation-categories", (
+                SaveNavigationCategoriesCommand command,
+                [FromServices] ISaveNavigationCategoriesHandler handler,
+                CancellationToken ct) =>
+            handler.HandleAsync(command, ct).ToOk())
+            .WithTags("Настройки / Settings")
+            .WithSummary("Сохранить вынесенные категории навигации (применяется без рестарта)");
 
         group.MapGet("/source-priority", ([FromServices] IGetSourcePriorityHandler handler, CancellationToken ct) =>
             handler.HandleAsync(ct).ToOk())

@@ -23,8 +23,12 @@
     { value: "book", label: i18n.t.createModal.fields.bookFormats.book },
     { value: "light_novel", label: i18n.t.createModal.fields.bookFormats.light_novel },
     { value: "web_novel", label: i18n.t.createModal.fields.bookFormats.web_novel },
+    { value: "comics", label: i18n.t.createModal.fields.bookFormats.comics },
+    { value: "ebook", label: i18n.t.createModal.fields.bookFormats.ebook },
+    { value: "audiobook", label: i18n.t.createModal.fields.bookFormats.audiobook },
   ]);
 
+  // Романы и ранобэ измеряются главами/томами, остальное — страницами.
   const isNovel = $derived(format === "light_novel" || format === "web_novel");
 </script>
 

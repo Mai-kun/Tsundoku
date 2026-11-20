@@ -102,6 +102,10 @@ namespace MediaTracker.Server.Common.Json;
 [JsonSerializable(typeof(SystemEndpoints.RevealInExplorerRequest))]
 [JsonSerializable(typeof(ToggleSourceRequest))]
 [JsonSerializable(typeof(UpdateKeyRequest))]
+// --- Вынесенные категории навигации (Features/Settings/NavigationCategories) ---
+[JsonSerializable(typeof(Features.Settings.NavigationCategories.PromotedSubcategory))]
+[JsonSerializable(typeof(Features.Settings.NavigationCategories.PromotedSubcategory[]))]
+[JsonSerializable(typeof(Features.Settings.NavigationCategories.SaveNavigationCategoriesCommand))]
 // --- Proxy settings (Features/Settings/ProxySettings) ---
 [JsonSerializable(typeof(Features.Settings.ProxySettings.ProxySettingsBlob))]
 [JsonSerializable(typeof(Features.Settings.ProxySettings.ProxySettingsDto))]

@@ -29,6 +29,12 @@
     Type,
   } from "$shared/ui/Icons";
   import { deleteMedia, getMedia, setProgress } from "$shared/api/api";
+  import {
+    promotedCategories,
+    promotedCategoryById,
+    promotedCategoryOfItem,
+    promotedParentType,
+  } from "$shared/api/navigationCategories.svelte";
   import { jobsClient } from "$shared/api/jobsClient.svelte";
   import { showToast } from "$shared/ui/toast.svelte";
   import Select from "$shared/ui/Select.svelte";
@@ -62,7 +68,7 @@
 
   /** Home-local sort: `updated` leads with last activity; `created` by date added. */
   type HomeSort = "updated" | "created" | "oldest" | "rating" | "title";
-  type CategoryFilter = "all" | "game" | "anime" | "manga" | "movie" | "tvshow" | "book";
+  type CategoryFilter = "all" | "game" | "anime" | "manga" | "movie" | "tvshow" | "book" | (string & {});
   type GroupingMode = "status" | "type" | "none";
 
   const HOME_SORT_ICONS: Record<HomeSort, typeof Star> = {
@@ -89,12 +95,18 @@
 
   const categoryOptions = $derived<{ value: CategoryFilter; label: string }[]>([
     { value: "all", label: i18n.t.home.allCategories },
+    ...promotedCategories()
+      .filter((sub) => promotedParentType(sub) === "anime")
+      .map((sub) => ({ value: sub.id as CategoryFilter, label: sub.label })),
     { value: "anime", label: i18n.t.navigation.anime },
     { value: "manga", label: i18n.t.navigation.manga },
     { value: "game", label: i18n.t.navigation.game },
     { value: "movie", label: i18n.t.navigation.movie },
     { value: "tvshow", label: i18n.t.navigation.tvshow },
     { value: "book", label: i18n.t.navigation.book },
+    ...promotedCategories()
+      .filter((sub) => ["book", "manga", "game", "movie", "tvshow"].includes(promotedParentType(sub)))
+      .map((sub) => ({ value: sub.id as CategoryFilter, label: sub.label })),
   ]);
 
   const groupingOptions = $derived<{ value: GroupingMode; label: string }[]>([
@@ -153,6 +165,14 @@
     book: 6,
   };
 
+  // Вынесенная категория идёт сразу после родительской (book 6 → comics 6.5).
+  function typeOrder(key: string): number {
+    const base = TYPE_ORDER[key];
+    if (base !== undefined) return base;
+    const sub = promotedCategoryById(key);
+    return sub ? (TYPE_ORDER[sub.parentType.toLowerCase()] ?? 99) + 0.5 : 99;
+  }
+
   function compareItems(a: MediaItem, b: MediaItem, currentSort: HomeSort): number {
     if (currentSort === "rating") {
       return (b.score ?? 0) - (a.score ?? 0);
@@ -175,8 +195,8 @@
   function sortItems(list: MediaItem[], byType: boolean, currentSort: HomeSort): MediaItem[] {
     return [...list].sort((a, b) => {
       if (byType) {
-        const typeA = TYPE_ORDER[a.type] ?? 99;
-        const typeB = TYPE_ORDER[b.type] ?? 99;
+        const typeA = typeOrder(a.type);
+        const typeB = typeOrder(b.type);
         if (typeA !== typeB) return typeA - typeB;
       }
       return compareItems(a, b, currentSort);
@@ -230,6 +250,7 @@
   function matchesCategory(item: MediaItem): boolean {
     if (selectedCategory === "all") return true;
     // "anime" spans both animated kinds: TvShow and Movie rows carrying the flag.
+    // Вынесенные категории: элемент попадает в свою группу и выпадает из родительской.
     if (selectedCategory === "anime") return typeKey(item) === "anime";
     return item.type === selectedCategory;
   }
@@ -382,10 +403,14 @@
   });
 
   function typeKey(media: MediaItem): string {
-    return media.type === "tvshow" && media.isAnime ? "anime" : media.type;
+    // Вынесенная категория забирает элемент из родительской группы (книги-комиксы
+    // группируются как "comics" и пропадают из "book"), как это делает "anime".
+    return promotedCategoryOfItem(media)?.id ?? (media.type === "tvshow" && media.isAnime ? "anime" : media.type);
   }
 
   function typeLabel(key: string): string {
+    const promoted = promotedCategoryById(key);
+    if (promoted) return promoted.label;
     switch (key) {
       case "game":
         return i18n.t.navigation.game;
@@ -414,7 +439,7 @@
     }
     return [...buckets.entries()]
       .map(([key, items]) => ({ key, label: typeLabel(key), items }))
-      .sort((a, b) => (TYPE_ORDER[a.key] ?? 99) - (TYPE_ORDER[b.key] ?? 99));
+      .sort((a, b) => typeOrder(a.key) - typeOrder(b.key));
   }
 
   function handleStatusChange(item: MediaItem, newStatus: MediaStatus) {
@@ -440,6 +465,8 @@
   $effect(() => {
     void sort;
     void showAll;
+    // Конфигурация вынесенных категорий меняет состав секций Главной — перезагружаем.
+    void promotedCategories();
     if (prevRefreshKey !== null && refreshKey !== prevRefreshKey) {
       homeCache.invalidate(HOME_KEY);
     }

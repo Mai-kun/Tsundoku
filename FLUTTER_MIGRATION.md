@@ -44,17 +44,15 @@
 | Шрифт | **Inter** (rsms/inter v4.1), `assets/fonts/`, семейство `Inter`, веса 400/500/600/700/800/900 |
 | Темы | `ThemeExtension<TsundokuTheme>` — 1-в-1 из `mediatracker-ui/src/app/tokens.css` (тема `obsidian`, Steam Deck Dark), с поддержкой смены тем через `html[data-theme]`-аналог |
 
-### 1.5. Инструменты и MCP (визуальная проверка — точь-в-точь)
-| Инструмент | Статус на 2026-11-21 | Как использовать |
-|---|---|---|
-| Flutter SDK | ✅ 3.50.1 stable в `~/development/flutter` (добавить в PATH: `export PATH="$HOME/development/flutter/bin:$PATH"`; Dart 3.14) | `flutter analyze`, `flutter test`, `flutter run -d linux` |
-| **dart mcp-server** | ✅ работает (`dart mcp-server`, конфиг в `.mcp.json` worktree) | hot reload / widget inspector / анализ виджет-дерева из агента |
-| **Context7 MCP** | ⚠️ прописан в `.mcp.json` (`npx @upstash/context7-mcp`); проверить подключение в новой сессии | свежая документация Flutter/Riverpod (lib_versioned docs) |
-| **chrome-devtools / puppeteer MCP** | ✅ наследованы из корневого `.mcp.json` | живые скриншоты запущенного Svelte-эталона |
-| **Playwright harness (Svelte)** | ✅ `mediatracker-ui/checks/harness/testServerHarness.ts` + backstop-эталоны (mobile/tablet/desktop) в `mediatracker-ui/checks/harness/backstop_data/bitmaps_reference/` и `__snapshots__/` | эталонные скриншоты Svelte; снять новый: запустить harness (см. `mediatracker-ui/package.json`, сценарии backstop) |
-| Golden-тесты Flutter | ✅ настроены: `test/goldens/golden_test_helper.dart` (`tsundokuGoldenTest`, 1440×900 @ dpr 1.0 — как backstop "desktop"), шрифт грузит `test/flutter_test_config.dart` | обновление эталона: `flutter test --update-goldens test/goldens`; сравнение: `flutter test` |
-| Superpowers (`obra/superpowers`) | ✅ установлен v7.0.2 (маркетплейс `claude-plugins-official`, источник obra/superpowers, кэш `~/.zcode/cli/plugins/cache/`). В текущей сессии скиллы не подгружены — перезапустить сессию/приложение; если не появятся — проверить тумблер на вкладке Installed | скиллы: brainstorming, systematic-debugging, test-driven-development, using-git-worktrees и др. |
-| Ponytail (`DietrichGebert/ponytail`) | ❌ НЕ установлен (маркетплейс не добавлен). `/plugin install` — интерактивная команда клиента; у ZCode нет CLI-подкоманды plugin | в ZCode: Настройки → Plugin Management → вкладка Discover → кнопка «+» → добавить `DietrichGebert/ponytail` (GitHub-репозиторий) → карточка ponytail → Get (Install). Включается по умолчанию |
+### 1.5. Инструменты (агент-агностично: любой агент — ZCode, Claude, Codex, Cursor и др.)
+| Инструмент | Как использовать |
+|---|---|
+| Flutter SDK 3.50.1 (`~/development/flutter`) | `export PATH="$HOME/development/flutter/bin:$PATH"`; далее `flutter analyze`, `flutter test`, `flutter run -d linux`, `flutter build web --wasm` |
+| Golden-тесты Flutter | `test/goldens/golden_test_helper.dart` (`tsundokuGoldenTest`, 1440×900 @ dpr 1.0 — как backstop "desktop"), шрифт грузит `test/flutter_test_config.dart`; обновление эталона: `flutter test --update-goldens test/goldens`; проверка: `flutter test` |
+| dart mcp-server | `dart mcp-server`, конфиг в `.mcp.json` worktree (hot reload / widget inspector, если среда агента поддерживает MCP) |
+| Context7 MCP | `.mcp.json` (`npx @upstash/context7-mcp`) — свежая документация Flutter/Riverpod, если среда поддерживает MCP |
+| chrome-devtools / puppeteer MCP | живые скриншоты запущенного Svelte-эталона, если среда поддерживает MCP |
+| Playwright harness (Svelte) + PNG-эталоны | `mediatracker-ui/checks/harness/testServerHarness.ts` + backstop-эталоны (mobile/tablet/desktop) в `mediatracker-ui/checks/harness/backstop_data/bitmaps_reference/` и `__snapshots__/`. Если harness недоступен в среде (например, сломан системный node) — использовать существующие PNG-эталоны из репозитория + Golden-тесты, записать заметку в «Заметки окружения» и продолжать работу, не ожидая пользователя |
 
 **Протокол визуального паритета (для каждого UI-файла):**
 1. Открыть эталонный скриншот Svelte: `mediatracker-ui/checks/harness/__snapshots__/*.png`
@@ -95,6 +93,23 @@
    `feat(flutter): port <имя_файла> from svelte` (в worktree `/home/maikun/HDD/Projects/Tsundoku-flutter`, ветка `feat/flutter-ui`).
 7. **Работа только в worktree** `../Tsundoku-flutter`; основной checkout (`MediaTraсker`, ветка `dev`) не трогать.
 8. Смена фазы/файла Next Step — только через правку блока «📍 Текущий фокус».
+9. **TDD (Red-Green-Refactor):** для каждой переносимой единицы логики сначала пишется
+   тест, фиксирующий ожидаемое поведение (включая перенесённые vitest-кейсы и
+   сериализацию/десериализацию по контракту), затем реализация, затем рефакторинг при
+   зелёных тестах. Коммит — только при зелёных `flutter analyze` + `flutter test`
+   (0 ошибок И 0 варнингов).
+10. **Минимализм (YAGNI):** переносить только то, что реально есть в Svelte-эталоне;
+    никакого кода «на будущее», никаких лишних абстракций/слоёв. Перед написанием нового
+    модуля — проверить таблицу миграции на уже портированный аналог и переиспользовать
+    его. Дублирование лучше неверной абстракции; абстракция вводится только при ≥2
+    реальных использованиях в эталоне.
+11. **Полная автономия (NO QUESTIONS):** агент работает автономно и **никогда не
+    останавливается, чтобы задать вопрос пользователю**. При любой неоднозначности,
+    техническом ограничении или выборе подхода — самостоятельно принять наиболее
+    прагматичное решение (ближайшее 1-в-1 к Svelte-эталону + YAGNI) и **обязательно**
+    зафиксировать его в секции «⚖️ Спорные решения и развилки» (внизу файла). Если внешний
+    инструмент недоступен (например, сломан системный node) — не ждать пользователя:
+    использовать существующие эталонные PNG + Golden-тесты, записать заметку и продолжать.
 
 ---
 
@@ -106,10 +121,10 @@
 
 | Фаза | Файлов | Готово |
 |---|---|---|
-| 0 — Фундамент (типы/API/модели/логика/тема) | 56 | 0 |
+| 0 — Фундамент (типы/API/модели/логика/тема) | 58 | 0 |
 | 1 — `shared/ui/` | 17 | 0 |
 | 2 — `entities/` + карточки/сетка | 19 | 0 |
-| 3 — Каркас: App/Layout/Home/Category | 15 | 0 |
+| 3 — Каркас: App/Layout/Home/Category | 13 | 0 |
 | 4 — Детальная страница + Spatial Node Editor | 59 | 0 |
 | 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 0 |
 | **Всего** | **207** | **0** |
@@ -119,9 +134,13 @@
 все модели и DTO; портировать 1-в-1 + тест полного цикла сериализации/десериализации по
 `openapi.json`).
 
-**Следующие после него (очерёдность Фазы 0):** `shared/types/models.ts` → `dtos.ts` →
-`index.ts` → `shared/api/api.ts` (dio-клиент с baseUrl-инъекцией) → `app/tokens.css` +
-`app/app.css` (ThemeExtension) → `shared/i18n/*` → остальная логика Фазы 0 по таблице.
+**Следующие после него (жёсткая очерёдность Фазы 0):** `shared/types/models.ts` →
+`dtos.ts` → `index.ts` → `app/tokens.css` + `app/app.css` (TsundokuTheme/ThemeData) →
+`shared/api/*` (api.ts → jobsClient → navigationCategories → networkActivity → offlineMode
+→ serverRestart) → `shared/i18n/*` → `shared/utils/*` → `entities/media/model/*` →
+контроллеры `features/*` (change-status, drop-reason, mangalibAuth, prefetch-details,
+update-progress) → `views/categoryModel.ts`. Файлы `⏭️ Заменено нативно` считаются
+закрытыми; статус «Готово» фазы — когда все её строки ✅ или ⏭️.
 
 ---
 
@@ -134,10 +153,10 @@
 | Фаза | Папка | Исходный файл (Svelte/TS) | Целевой файл (Dart) | Статус | Тест | Пояснения / Отклонения |
 |---|---|---|---|---|---|---|
 | 3 | `app` | `App.svelte` | `lib/app/app.dart` | ⬜ Не начат | ⬜ | — |
-| 3 | `app` | `app.css` | `lib/shared/theme/tsundoku_theme.dart` | ⬜ Не начат | ⬜ | @theme-слой и базовые стили → ThemeData/TextTheme; --font-sans: Inter |
+| 0 | `app` | `app.css` | `lib/shared/theme/tsundoku_theme.dart` | ⬜ Не начат | ⬜ | @theme-слой и базовые стили → ThemeData/TextTheme; --font-sans: Inter |
 | 0 | `app` | `clientErrors.ts` | `lib/app/client_errors.dart` | ⬜ Не начат | ⬜ | — |
 | 3 | `app` | `main.ts` | `lib/app/main.dart` | ⬜ Не начат | ⬜ | — |
-| 3 | `app` | `tokens.css` | `lib/shared/theme/tsundoku_tokens.dart` | ⬜ Не начат | ⬜ | CSS-переменные → ThemeExtension<TsundokuTheme>; значения 1-в-1 из :root/[data-theme="obsidian"], заложить поддержку смены тем |
+| 0 | `app` | `tokens.css` | `lib/shared/theme/tsundoku_tokens.dart` | ⬜ Не начат | ⬜ | CSS-переменные → ThemeExtension<TsundokuTheme>; значения 1-в-1 из :root/[data-theme="obsidian"], заложить поддержку смены тем |
 | 0 | `entities/media/model/__tests__` | `chronicleTimeline.test.ts` | `test/entities/media/model/chronicle_timeline_test.dart` | ⬜ Не начат | ⬜ | — |
 | 0 | `entities/media/model/__tests__` | `coverUrl.test.ts` | `test/entities/media/model/cover_url_test.dart` | ⬜ Не начат | ⬜ | — |
 | 0 | `entities/media/model/__tests__` | `detailedScore.test.ts` | `test/entities/media/model/detailed_score_test.dart` | ⬜ Не начат | ⬜ | — |
@@ -351,6 +370,17 @@
 | # | Исходный файл | Описание бага | Исправлен во Flutter? | Пояснение (как исправлен / почему оставлен как есть) |
 |---|---|---|---|---|
 | — | — | Багов пока не найдено (Этап 0: портирование не началось) | — | Таблица заполняется по мере прохождения файлов Фаз 0–5 |
+
+---
+
+## ⚖️ Спорные решения и развилки
+
+> Заполняется по протоколу §1.6 п.11 (NO QUESTIONS): агент принял решение сам при
+> неоднозначности / ограничении / выборе подхода — записать сюда обязательно.
+
+| # | Файл | Спорный момент / вопрос | Принятое решение | Альтернатива / требует ли ревью |
+|---|---|---|---|---|
+| — | — | Пока нет | — | — |
 
 ---
 

@@ -1,6 +1,7 @@
 using MediaTracker.Server.Features;
 using MediaTracker.Server.Infrastructure.ExternalApis;
 using MediaTracker.Server.Infrastructure.ExternalApis.Common;
+using MediaTracker.Server.Infrastructure.ExternalApis.Common.Proxy;
 using MediaTracker.Server.Infrastructure.Jobs;
 using MediaTracker.Server.Infrastructure.Persistence;
 using MediaTracker.Server.Infrastructure.Persistence.Franchises;
@@ -32,6 +33,10 @@ public static class ServiceCollectionExtensions
         // from a scope in InitializeDatabaseAsync. As a singleton it failed DI validation in Development.
         services.AddScoped<StoredSettingsLoader>();
 
+        // Живой снимок настроек прокси: регистрируется ДО клиентов провайдеров — их primary
+        // handlers захватывают IProxySettingsService из контейнера.
+        services.AddSingleton<IProxySettingsService, ProxySettingsService>();
+
         // Reflection-based: every IMetadataProvider in the assembly registers itself.
         services.AddAllMetadataProviders();
 
@@ -50,6 +55,14 @@ public static class ServiceCollectionExtensions
             client.Timeout = TimeSpan.FromSeconds(5);
             client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 Tsundoku/1.0");
         })
+        .ConfigurePrimaryHttpMessageHandler(sp => new SocketsHttpHandler
+        {
+            // Скачивание обложек: непривязанный клиент — источник определяется по домену CDN
+            // (uploads.mangadex.org → mangadex, image.tmdb.org → tmdb, imglib.info → sociallib).
+            // Прокси применяется только если источник отмечен в ProxiedSources.
+            UseProxy = true,
+            Proxy = new DynamicSourceProxy(sp.GetRequiredService<IProxySettingsService>(), null),
+        })
         .AddHttpMessageHandler<ExternalHttpLoggingHandler>();
 
         // The image-proxy endpoint streams covers for the search previews; a slightly larger budget
@@ -57,6 +70,12 @@ public static class ServiceCollectionExtensions
         services.AddHttpClient("ExternalImageProxy", client =>
         {
             client.Timeout = TimeSpan.FromSeconds(10);
+        })
+        .ConfigurePrimaryHttpMessageHandler(sp => new SocketsHttpHandler
+        {
+            // Превью внешнего поиска: та же доменная маршрутизация, что и у скачивания обложек.
+            UseProxy = true,
+            Proxy = new DynamicSourceProxy(sp.GetRequiredService<IProxySettingsService>(), null),
         });
 
         services.AddScoped<IBackupService, BackupService>();

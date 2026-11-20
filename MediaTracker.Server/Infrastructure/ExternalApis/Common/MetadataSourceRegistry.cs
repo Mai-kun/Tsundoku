@@ -1,4 +1,5 @@
 using MediaTracker.Server.Infrastructure.ExternalApis.Abstractions;
+using MediaTracker.Server.Infrastructure.ExternalApis.Common.Proxy;
 
 namespace MediaTracker.Server.Infrastructure.ExternalApis.Common;
 
@@ -89,7 +90,17 @@ public static partial class MetadataSourceRegistry
                 client.BaseAddress = new Uri(descriptor.BaseAddress);
                 client.Timeout = descriptor.IsScraper ? TimeSpan.FromSeconds(15) : ClientTimeout;
                 client.DefaultRequestHeaders.UserAgent.ParseAdd(descriptor.UserAgent ?? DefaultUserAgent);
-            }).AddHttpMessageHandler<ExternalHttpLoggingHandler>();
+            })
+            .ConfigurePrimaryHttpMessageHandler(sp => new SocketsHttpHandler
+            {
+                // Каждый именованный клиент получает прокси, привязанный к своему sourceId:
+                // DynamicSourceProxy читает настройки на каждый запрос, поэтому переключение
+                // прокси для источника работает без рестарта сервера.
+                UseProxy = true,
+                Proxy = new DynamicSourceProxy(
+                    sp.GetRequiredService<IProxySettingsService>(), descriptor.Id),
+            })
+            .AddHttpMessageHandler<ExternalHttpLoggingHandler>();
         }
 
         // Not a provider: the translation service has its own timeout and no base address.
@@ -97,12 +108,25 @@ public static partial class MetadataSourceRegistry
         {
             client.Timeout = TimeSpan.FromSeconds(8);
             client.DefaultRequestHeaders.UserAgent.ParseAdd(DefaultUserAgent);
-        }).AddHttpMessageHandler<ExternalHttpLoggingHandler>();
+        })
+        .ConfigurePrimaryHttpMessageHandler(sp => new SocketsHttpHandler
+        {
+            // Непривязанный клиент: источник резолвится по корневому домену цели.
+            UseProxy = true,
+            Proxy = new DynamicSourceProxy(sp.GetRequiredService<IProxySettingsService>(), null),
+        })
+        .AddHttpMessageHandler<ExternalHttpLoggingHandler>();
 
         // Import endpoints (AniList profile / Steam URLs) carry absolute URLs without a base
         // address but go through the same external traffic and the same logging treatment.
         services.AddHttpClient("Import", client => client.Timeout = TimeSpan.FromSeconds(30))
-            .AddHttpMessageHandler<ExternalHttpLoggingHandler>();
+        .ConfigurePrimaryHttpMessageHandler(sp => new SocketsHttpHandler
+        {
+            // Непривязанный клиент: источник резолвится по корневому домену цели.
+            UseProxy = true,
+            Proxy = new DynamicSourceProxy(sp.GetRequiredService<IProxySettingsService>(), null),
+        })
+        .AddHttpMessageHandler<ExternalHttpLoggingHandler>();
 
         return services;
     }

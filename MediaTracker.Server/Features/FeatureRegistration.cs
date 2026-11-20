@@ -34,6 +34,7 @@ using MediaTracker.Server.Features.Settings.ApiTokens;
 using MediaTracker.Server.Features.Settings.GetCategoryOrder;
 using MediaTracker.Server.Features.Settings.GetSourceKeyStatus;
 using MediaTracker.Server.Features.Settings.GetSourcePriority;
+using MediaTracker.Server.Features.Settings.ProxySettings;
 using MediaTracker.Server.Features.Settings.SaveCategoryOrder;
 using MediaTracker.Server.Features.Settings.SaveSourceKey;
 using MediaTracker.Server.Features.Settings.SaveSourcePriority;
@@ -111,8 +112,16 @@ public static partial class FeatureRegistration
         services.AddScoped<IGetSourceKeyStatusHandler, GetSourceKeyStatusHandler>();
         services.AddScoped<IToggleSourceHandler, ToggleSourceHandler>();
         services.AddScoped<ITestSourceHandler, TestSourceHandler>();
+
+        // Proxy: конфигурация выборочного проксирования внешних источников.
+        services.AddScoped<IGetProxySettingsHandler, GetProxySettingsHandler>();
+        services.AddScoped<ISaveProxySettingsHandler, SaveProxySettingsHandler>();
+        services.AddScoped<ITestProxyHandler, TestProxyHandler>();
+        services.AddScoped<IToggleSourceProxyHandler, ToggleSourceProxyHandler>();
+
         services.AddScoped<IGetCategoryOrderHandler, GetCategoryOrderHandler>();
         services.AddScoped<ISaveCategoryOrderHandler, SaveCategoryOrderHandler>();
+
         services.AddScoped<IGetSourcePriorityHandler, GetSourcePriorityHandler>();
         services.AddScoped<ISaveSourcePriorityHandler, SaveSourcePriorityHandler>();
         services.AddScoped<IGetReadingSettingsHandler, GetReadingSettingsHandler>();

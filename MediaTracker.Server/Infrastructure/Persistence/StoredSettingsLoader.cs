@@ -1,5 +1,7 @@
+using MediaTracker.Server.Features.Settings.ProxySettings;
 using MediaTracker.Server.Infrastructure.ExternalApis.Abstractions;
 using MediaTracker.Server.Infrastructure.ExternalApis.Common;
+using MediaTracker.Server.Infrastructure.ExternalApis.Common.Proxy;
 using MediaTracker.Server.Infrastructure.Security;
 using Microsoft.Extensions.Options;
 
@@ -13,7 +15,8 @@ public sealed class StoredSettingsLoader(
     AppDbContext db,
     IEncryptionService encryption,
     IOptions<ExternalApiOptions> options,
-    IEnumerable<IMetadataProvider> providers)
+    IEnumerable<IMetadataProvider> providers,
+    IProxySettingsService proxySettings)
 {
     public async Task LoadAsync(CancellationToken ct = default)
     {
@@ -46,5 +49,25 @@ public sealed class StoredSettingsLoader(
                 options.Value.SetKey(sourceId, decrypted);
             }
         }
+
+        await LoadProxySettingsAsync(ct);
+    }
+
+    /// <summary>
+    /// Восстанавливает настройки прокси в живой снимок: клиенты провайдеров и обложек читают его
+    /// на каждом запросе, поэтому восстановленный при старте прокси работает без рестартов.
+    /// </summary>
+    private async Task LoadProxySettingsAsync(CancellationToken ct)
+    {
+        var blob = await ProxySettingsStorage.ReadAsync(db, ct);
+        var (snapshot, _) = ProxySettingsSnapshot.Build(
+            blob.Enabled,
+            blob.Url,
+            blob.Username,
+            string.IsNullOrWhiteSpace(blob.PasswordEncrypted)
+                ? null
+                : encryption.Decrypt(blob.PasswordEncrypted),
+            blob.Sources);
+        proxySettings.Update(snapshot);
     }
 }

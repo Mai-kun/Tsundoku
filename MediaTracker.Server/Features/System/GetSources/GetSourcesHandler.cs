@@ -2,6 +2,7 @@ using MediaTracker.Server.Domain.Common;
 using MediaTracker.Server.Infrastructure.ExternalApis;
 using MediaTracker.Server.Infrastructure.ExternalApis.Abstractions;
 using MediaTracker.Server.Infrastructure.ExternalApis.Common;
+using MediaTracker.Server.Infrastructure.ExternalApis.Common.Proxy;
 using MediaTracker.Server.Infrastructure.ExternalApis.Offline;
 using Microsoft.Extensions.Options;
 
@@ -11,6 +12,7 @@ public sealed class GetSourcesHandler(
     IEnumerable<IMetadataProvider> providers,
     IOptions<ExternalApiOptions> options,
     ISourcePriorityService priorityService,
+    IProxySettingsService proxySettings,
     OfflineDatabaseManager? dbManager = null) : IGetSourcesHandler
 {
     public async Task<Result<IReadOnlyList<SourceInfo>>> HandleAsync(CancellationToken ct)
@@ -20,6 +22,9 @@ public sealed class GetSourcesHandler(
         // own "[Офлайн] ..." source below; the generic "offline" provider would duplicate both the
         // source list and the rating badges.
         var hasIndexedDatabases = dbManager is not null && dbManager.HasAnyDatabase;
+        // Живой снимок настроек прокси: карточка источника показывает актуальный тумблер
+        // «Через прокси» без рестарта и без похода в БД.
+        var proxiedSources = proxySettings.Current.ProxiedSources;
 
         var sources = providers
             .DistinctBy(provider => provider.Id)
@@ -49,7 +54,8 @@ public sealed class GetSourcesHandler(
                     IsEnabled: (!disabled.Contains(provider.Id)
                         && !disabled.Contains(MediaMerger.NormalizeSourceKey(provider.Id)))
                         && isConfigured,
-                    IsScraper: provider.IsScraper);
+                    IsScraper: provider.IsScraper,
+                    IsProxied: proxiedSources.Contains(provider.Id));
             })
             .OrderByDescending(source => source.IsEnabled)
             .ToList();

@@ -322,6 +322,8 @@ export interface SourceInfo {
   isEnabled: boolean;
   /** True for site scrapers (no public API) — the settings list splits on this flag. */
   isScraper: boolean;
+  /** Источник отмечен в ProxiedSources — его запросы идут через настроенный прокси. */
+  isProxied?: boolean;
 }
 
 /**

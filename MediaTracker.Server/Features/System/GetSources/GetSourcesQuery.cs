@@ -14,7 +14,9 @@ public sealed record SourceInfo(
     string? MaskedKey,
     bool IsEnabled,
     /// <summary>True for site scrapers (no public API); the settings list splits on it.</summary>
-    bool IsScraper = false);
+    bool IsScraper = false,
+    /// <summary>Источник отмечен в ProxiedSources — его трафик идёт через настроенный прокси.</summary>
+    bool IsProxied = false);
 
 /// <summary>
 /// The settings screen's source list. It is produced by asking the container what providers exist,

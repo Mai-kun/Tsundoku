@@ -14,6 +14,7 @@ using MediaTracker.Server.Features.Settings.GetSourcePriority;
 using MediaTracker.Server.Features.Settings.SaveCategoryOrder;
 using MediaTracker.Server.Features.Settings.SaveSourceKey;
 using MediaTracker.Server.Features.Settings.SaveSourcePriority;
+using MediaTracker.Server.Features.Settings.ProxySettings;
 using MediaTracker.Server.Features.Settings.ReadingSettings;
 using MediaTracker.Server.Features.Settings.ResetData;
 using MediaTracker.Server.Features.Settings.TestSource;
@@ -109,6 +110,51 @@ public static class SettingsEndpoints
             handler.HandleAsync(new GetSourceKeyStatusQuery(id), ct).ToOk())
             .WithTags("Настройки / Settings")
             .WithSummary("Статус ключа источника (без раскрытия секрета)");
+
+        group.MapGet("/proxy", async ([FromServices] IGetProxySettingsHandler handler, CancellationToken ct) =>
+            {
+                var result = await handler.HandleAsync(ct);
+                return result.IsSuccess ? Results.Ok(result.Value) : Results.BadRequest(new ApiErrorDetail(result.Error!.Message));
+            })
+            .WithTags("Настройки / Settings")
+            .WithSummary("Настройки выборочного проксирования внешних источников");
+
+        group.MapPut("/proxy", async (
+                Features.Settings.ProxySettings.SaveProxySettingsCommand request,
+                [FromServices] ISaveProxySettingsHandler handler,
+                CancellationToken ct) =>
+            {
+                var result = await handler.HandleAsync(
+                    new Features.Settings.ProxySettings.SaveProxySettingsCommand(
+                        request.Enabled, request.ProxyUrl, request.Username, request.Password, request.ProxiedSources), ct);
+                return result.IsSuccess ? Results.Ok(result.Value) : Results.BadRequest(new ApiErrorDetail(result.Error!.Message));
+            })
+            .WithTags("Настройки / Settings")
+            .WithSummary("Сохранить настройки прокси (пароль шифруется, снимок обновляется сразу)");
+
+        group.MapPost("/proxy/test", async (
+                Features.Settings.ProxySettings.TestProxyCommand request,
+                [FromServices] ITestProxyHandler handler,
+                CancellationToken ct) =>
+            {
+                var result = await handler.HandleAsync(request, ct);
+                return result.IsSuccess ? Results.Ok(result.Value) : Results.BadRequest(new ApiErrorDetail(result.Error!.Message));
+            })
+            .WithTags("Настройки / Settings")
+            .WithSummary("Проверить прокси лёгким тестовым запросом (latency / статус)");
+
+        group.MapPost("/proxy/sources/{id}/toggle", async (
+                string id,
+                Features.Settings.ProxySettings.ToggleSourceProxyRequest request,
+                [FromServices] IToggleSourceProxyHandler handler,
+                CancellationToken ct) =>
+            {
+                var result = await handler.HandleAsync(
+                    new Features.Settings.ProxySettings.ToggleSourceProxyCommand(id, request.Proxied), ct);
+                return result.IsSuccess ? Results.Ok(result.Value) : Results.BadRequest(new ApiErrorDetail(result.Error!.Message));
+            })
+            .WithTags("Настройки / Settings")
+            .WithSummary("Пустить конкретный источник через прокси одним кликом");
 
         group.MapPut("/sources/{id}/toggle", (
                 string id,

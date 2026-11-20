@@ -1,6 +1,5 @@
 using System.Collections.Concurrent;
-using System.Net;
-using System.Net.Sockets;
+using MediaTracker.Server.Infrastructure.ExternalApis.Common.Proxy;
 using MediaTracker.Server.Infrastructure.Persistence;
 using MediaTracker.Server.Infrastructure.Storage;
 using Microsoft.AspNetCore.Mvc;
@@ -55,53 +54,10 @@ public static class ProxyExternalImageEndpoint
     /// Only public internet hosts are fetchable. The endpoint fetches whatever URL the search
     /// results reference, so the guard moved from a host whitelist to the SSRF minimum: no
     /// loopback, private, link-local or otherwise internal targets — the proxy must never be
-    /// turned into a port-scanner for the local network. DNS-name hosts are resolved by the
-    /// HttpClient itself; this is a single-user desktop app talking to image CDNs, so a textual
-    /// address check is the proportionate guard.
+    /// turned into a port-scanner for the local network. Единая логика с прокси-маршрутизатором:
+    /// <see cref="Proxy.ProxyAddressGuard.IsPublicHost"/> (те же внутренние суффиксы и диапазоны).
     /// </summary>
-    internal static bool IsAllowedRemoteHost(string host)
-    {
-        if (string.IsNullOrWhiteSpace(host)) return false;
-
-        var name = host.Trim().TrimEnd('.').ToLowerInvariant();
-        if (name.Length == 0) return false;
-        if (name is "localhost" or "localhost.localdomain") return false;
-        if (name.EndsWith(".localhost", StringComparison.Ordinal)
-            || name.EndsWith(".local", StringComparison.Ordinal)
-            || name.EndsWith(".lan", StringComparison.Ordinal)
-            || name.EndsWith(".internal", StringComparison.Ordinal)
-            || name.EndsWith(".home.arpa", StringComparison.Ordinal))
-        {
-            return false;
-        }
-
-        return !IPAddress.TryParse(name, out var ip) || IsPublicAddress(ip);
-    }
-
-    private static bool IsPublicAddress(IPAddress address)
-    {
-        if (address.IsIPv4MappedToIPv6) address = address.MapToIPv4();
-
-        if (address.AddressFamily == AddressFamily.InterNetwork)
-        {
-            var b = address.GetAddressBytes();
-            return !(b[0] is 0 or 10 or 127
-                || b[0] is 169 && b[1] is 254
-                || b[0] is 172 && b[1] is >= 16 and <= 31
-                || b[0] is 192 && b[1] is 168
-                || b[0] is 100 && b[1] is >= 64 and <= 127);
-        }
-
-        if (address.AddressFamily == AddressFamily.InterNetworkV6)
-        {
-            return !(address.IsIPv6LinkLocal
-                || address.IsIPv6SiteLocal
-                || address.IsIPv6UniqueLocal
-                || IPAddress.IPv6Loopback.Equals(address));
-        }
-
-        return false;
-    }
+    internal static bool IsAllowedRemoteHost(string host) => ProxyAddressGuard.IsPublicHost(host);
 
     /// <summary>
     /// Downloads an image into the cache streaming-only: the <see cref="SizeLimitedStream"/>

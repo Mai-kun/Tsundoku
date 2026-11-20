@@ -650,6 +650,61 @@ export function saveAppSettings(settings: AppSettings): Promise<AppSettings> {
   });
 }
 
+/** Настройки выборочного проксирования (пароль приходит только маскированным). */
+export interface ProxySettings {
+  enabled: boolean;
+  proxyUrl: string;
+  username: string | null;
+  hasPassword: boolean;
+  maskedPassword: string | null;
+  proxiedSources: string[];
+}
+
+/** Пароль: null — не менять сохранённый, пустая строка — сбросить, строка — новый пароль. */
+export interface SaveProxySettingsInput {
+  enabled: boolean;
+  proxyUrl: string;
+  username: string | null;
+  password: string | null;
+  proxiedSources: string[];
+}
+
+export function getProxySettings(): Promise<ProxySettings> {
+  return requestJson<ProxySettings>("/api/settings/proxy");
+}
+
+export function saveProxySettings(
+  input: SaveProxySettingsInput,
+): Promise<{
+  success: boolean;
+  enabled: boolean;
+  hasPassword: boolean;
+  maskedPassword: string | null;
+  proxiedSources: string[];
+}> {
+  invalidateSourcesCache();
+  return requestJson("/api/settings/proxy", jsonOptions("PUT", input));
+}
+
+export function testProxy(input: {
+  proxyUrl: string;
+  username: string | null;
+  /** null — использовать сохранённый пароль; строка — проверить новый. */
+  password: string | null;
+  useStoredPassword: boolean;
+}): Promise<{ success: boolean; latencyMs: number; message: string }> {
+  return requestJson("/api/settings/proxy/test", jsonOptions("POST", input));
+}
+
+/** Один клик на карточке источника: пустить конкретный источник через прокси. */
+export function toggleSourceProxy(
+  sourceId: string,
+  proxied: boolean,
+): Promise<{ success: boolean; isProxied: boolean; proxiedSources: string[] }> {
+  invalidateSourcesCache();
+  return requestJson(`/api/settings/proxy/sources/${sourceId}/toggle`, jsonOptions("POST", { proxied }));
+}
+
 export function getReadingSettings(): Promise<ReadingSettings> {
   return requestJson<ReadingSettings>("/api/settings/reading");
 }

@@ -46,6 +46,7 @@
     getApiTokens,
     getAppSettings,
     getCategoryOrder,
+    getProxySettings,
     getSources,
     getSourcePriority,
     restoreBackup,
@@ -53,10 +54,13 @@
     revokeApiToken,
     saveAppSettings,
     saveCategoryOrder,
+    saveProxySettings,
     saveSourceKey,
     saveSourcePriority,
+    testProxy,
     testSourceConnection,
     toggleSourceEnabled,
+    toggleSourceProxy,
     checkAppUpdate,
     applyAppUpdate,
     getStorageSettings,
@@ -71,6 +75,7 @@
     getSourceKeyStatus,
     apiFetch,
     type AppSettings,
+    type ProxySettings,
   } from "$shared/api/api";
   import { showToast } from "$shared/ui/toast.svelte";
   import { confirmAction, confirmDialog } from "$shared/ui/confirmDialog.svelte";
@@ -78,6 +83,7 @@
   import { i18n } from "$shared/i18n/index.svelte";
   import { offlineModeState } from "$shared/api/offlineMode.svelte";
   import type { OfflineDatabaseStatusDto } from "$shared/types";
+  import Badge from "$shared/ui/Badge.svelte";
   import Button from "$shared/ui/Button.svelte";
   import Modal from "$shared/ui/Modal.svelte";
   import Select from "$shared/ui/Select.svelte";
@@ -227,6 +233,9 @@
     }
     if (visible && activeTab === "desktop") {
       loadAppSettings();
+    }
+    if (visible && activeTab === "sources") {
+      loadProxySettings();
     }
   });
 
@@ -621,6 +630,129 @@
   let testingSource = $state<string>("");
   let testResults = $state<Record<string, ConnectionTestResult>>({});
 
+  // --- Сеть и прокси: мастер-конфигурация + per-source переключатели ---
+  let proxySettings = $state<ProxySettings | null>(null);
+  let proxyLoadError = $state<unknown>(null);
+  let proxyEnabled = $state(false);
+  let proxyUrl = $state("");
+  let proxyUsername = $state("");
+  // Поле пароля: пустое = не трогать сохранённый; ввод текста = заменить (dirty).
+  let proxyPasswordInput = $state("");
+  let proxyPasswordDirty = $state(false);
+  let savingProxy = $state(false);
+  let testingProxy = $state(false);
+  let proxyTestResult = $state<{ success: boolean; latencyMs: number; message: string } | null>(
+    null,
+  );
+  let togglingProxySource = $state("");
+
+  // Кнопки «Через прокси» на карточках активны, только когда адрес прокси задан.
+  const proxyReady = $derived(proxyUrl.trim().length > 0);
+
+  async function loadProxySettings() {
+    try {
+      proxyLoadError = null;
+      const settings = await getProxySettings();
+      proxySettings = settings;
+      proxyEnabled = settings.enabled;
+      proxyUrl = settings.proxyUrl;
+      proxyUsername = settings.username ?? "";
+      proxyPasswordInput = "";
+      proxyPasswordDirty = false;
+    } catch (e) {
+      proxyLoadError = e;
+    }
+  }
+
+  async function handleSaveProxy() {
+    savingProxy = true;
+    try {
+      const res = await saveProxySettings({
+        enabled: proxyEnabled,
+        proxyUrl: proxyUrl.trim(),
+        username: proxyUsername.trim() || null,
+        // Не трогали поле — отправляем null (сохранённый остаётся); очистка — пустая строка.
+        password: proxyPasswordDirty ? proxyPasswordInput : null,
+        proxiedSources: proxySettings?.proxiedSources ?? [],
+      });
+      proxySettings = {
+        enabled: res.enabled,
+        proxyUrl: proxyUrl.trim(),
+        username: proxyUsername.trim() || null,
+        hasPassword: res.hasPassword,
+        maskedPassword: res.maskedPassword,
+        proxiedSources: res.proxiedSources,
+      };
+      proxyPasswordInput = "";
+      proxyPasswordDirty = false;
+      await loadSources();
+      showToast({
+        title: i18n.t.settingsModal.sources.proxy.savedToast,
+        description: i18n.t.toast.descSaved,
+      });
+    } catch (e) {
+      showToast({
+        title: i18n.t.toast.actionFailed,
+        description: errorMessage(e),
+        type: "error",
+      });
+    } finally {
+      savingProxy = false;
+    }
+  }
+
+  async function handleTestProxy() {
+    testingProxy = true;
+    proxyTestResult = null;
+    try {
+      proxyTestResult = await testProxy({
+        proxyUrl: proxyUrl.trim(),
+        username: proxyUsername.trim() || null,
+        password: proxyPasswordDirty ? (proxyPasswordInput || null) : null,
+        useStoredPassword: !proxyPasswordDirty && proxySettings?.hasPassword === true,
+      });
+      showToast({
+        title: proxyTestResult.success
+          ? i18n.t.settingsModal.sources.proxy.testOk
+          : i18n.t.settingsModal.sources.proxy.testFailed,
+        description: `${proxyTestResult.message}${proxyTestResult.success ? ` (${proxyTestResult.latencyMs} мс)` : ""}`,
+        type: proxyTestResult.success ? "success" : "error",
+      });
+    } catch (e) {
+      showToast({
+        title: i18n.t.toast.actionFailed,
+        description: errorMessage(e),
+        type: "error",
+      });
+    } finally {
+      testingProxy = false;
+    }
+  }
+
+  async function handleToggleSourceProxy(source: SourceInfo) {
+    togglingProxySource = source.id;
+    try {
+      const res = await toggleSourceProxy(source.id, source.isProxied !== true);
+      sources = sources.map((s) => (s.id === source.id ? { ...s, isProxied: res.isProxied } : s));
+      if (proxySettings) {
+        proxySettings = { ...proxySettings, proxiedSources: res.proxiedSources };
+      }
+      showToast({
+        title: `${source.name}: ${i18n.t.settingsModal.sources.proxy.perSourceToggle} ${res.isProxied ? "ON" : "OFF"}`,
+        description: i18n.t.toast.descSaved,
+      });
+    } catch (e) {
+      // 400 с «настройте прокси» и прочие ошибки показываем как есть.
+      showToast({
+        title: errorMessage(e),
+        description: i18n.t.toast.actionFailed,
+        type: "error",
+      });
+    } finally {
+      togglingProxySource = "";
+    }
+  }
+
   let categoryOrder = $state<string[]>([]);
   let orderLoading = $state(false);
   let orderSaving = $state(false);
@@ -649,6 +781,7 @@
   let offlineDbToggling = $state("");
   let deletingDump = $state("");
   let offlineModeToggling = $state(false);
+
 
   async function loadOfflineDatabases() {
     offlineLoading = true;
@@ -1601,6 +1734,154 @@
           </div>
         </div>
 
+        <!-- Сеть и прокси: выборочное проксирование внешних источников -->
+        <div
+          class="rounded-2xl border border-sky-500/25 bg-gradient-to-br from-sky-950/40 via-[#151a26]/70 to-[#10141d]/90 p-5 shadow-xl backdrop-blur-sm"
+        >
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+              <div
+                class="grid size-10 shrink-0 place-items-center rounded-xl border border-sky-500/30 bg-sky-500/20 text-sky-300 shadow-inner"
+              >
+                <Globe size={20} />
+              </div>
+              <div>
+                <div class="flex flex-wrap items-center gap-2">
+                  <h3 class="text-ink text-sm font-bold tracking-tight">
+                    {i18n.t.settingsModal.sources.proxy.title}
+                  </h3>
+                  {#if proxySettings?.enabled && proxyReady}
+                    <Badge tone="success" size="sm">
+                      {i18n.t.settingsModal.sources.proxy.enabledLabel}
+                    </Badge>
+                  {/if}
+                </div>
+                <p class="text-muted mt-0.5 max-w-xl text-xs">
+                  {i18n.t.settingsModal.sources.proxy.description}
+                </p>
+              </div>
+            </div>
+
+            <!-- Мастер-рубильник: тот же switch, что и у источников -->
+            <button
+              type="button"
+              role="switch"
+              aria-checked={proxyEnabled}
+              aria-label={i18n.t.settingsModal.sources.proxy.enabledLabel}
+              class={`focus:ring-accent-soft relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border transition-colors duration-200 focus:ring-2 focus:ring-offset-2 focus:ring-offset-surface focus:outline-none ${
+                proxyEnabled ? "border-sky-400 bg-sky-600" : "border-white/10 bg-white/10"
+              }`}
+              onclick={() => (proxyEnabled = !proxyEnabled)}
+            >
+              <span
+                aria-hidden="true"
+                class={`pointer-events-none inline-block h-5 w-5 transform rounded-full shadow ring-0 transition duration-200 ease-in-out ${
+                  proxyEnabled ? "translate-x-5 bg-white" : "translate-x-0 bg-slate-400"
+                }`}
+              ></span>
+            </button>
+          </div>
+
+          {#if proxyLoadError}
+            <p class="mt-3 rounded-lg bg-rose-400/10 p-3 text-xs text-rose-300">
+              {errorMessage(proxyLoadError)}
+            </p>
+          {:else}
+            <div class="mt-4 grid gap-3 sm:grid-cols-2">
+              <div class="sm:col-span-2">
+                <label class="text-muted mb-1 block text-[11px] font-semibold" for="proxy-url-input">
+                  {i18n.t.settingsModal.sources.proxy.urlLabel}
+                </label>
+                <input
+                  id="proxy-url-input"
+                  type="text"
+                  class="bg-field text-ink placeholder:text-muted focus:border-accent-soft focus:ring-accent-soft h-8 w-full rounded-md border border-white/10 px-3 text-xs focus:ring-1 focus:outline-none"
+                  placeholder={i18n.t.settingsModal.sources.proxy.urlPlaceholder}
+                  value={proxyUrl}
+                  oninput={(e) => (proxyUrl = (e.currentTarget as HTMLInputElement).value)}
+                  autocomplete="off"
+                  spellcheck="false"
+                />
+              </div>
+              <div>
+                <label class="text-muted mb-1 block text-[11px] font-semibold" for="proxy-username-input">
+                  {i18n.t.settingsModal.sources.proxy.usernameLabel}
+                </label>
+                <input
+                  id="proxy-username-input"
+                  type="text"
+                  class="bg-field text-ink placeholder:text-muted focus:border-accent-soft focus:ring-accent-soft h-8 w-full rounded-md border border-white/10 px-3 text-xs focus:ring-1 focus:outline-none"
+                  value={proxyUsername}
+                  oninput={(e) => (proxyUsername = (e.currentTarget as HTMLInputElement).value)}
+                  autocomplete="off"
+                  spellcheck="false"
+                />
+              </div>
+              <div>
+                <label class="text-muted mb-1 block text-[11px] font-semibold" for="proxy-password-input">
+                  {i18n.t.settingsModal.sources.proxy.passwordLabel}
+                </label>
+                <input
+                  id="proxy-password-input"
+                  type="password"
+                  class="bg-field text-ink placeholder:text-muted focus:border-accent-soft focus:ring-accent-soft h-8 w-full rounded-md border border-white/10 px-3 text-xs focus:ring-1 focus:outline-none"
+                  placeholder={i18n.t.settingsModal.sources.proxy.passwordPlaceholder}
+                  value={proxyPasswordInput}
+                  oninput={(e) => {
+                    proxyPasswordInput = (e.currentTarget as HTMLInputElement).value;
+                    proxyPasswordDirty = true;
+                  }}
+                  autocomplete="new-password"
+                />
+                {#if proxySettings?.hasPassword && !proxyPasswordDirty}
+                  <p class="text-muted mt-1 text-[10px]">
+                    {i18n.t.settingsModal.sources.proxy.passwordStoredHint}
+                  </p>
+                {/if}
+              </div>
+            </div>
+
+            <div class="mt-4 flex flex-wrap items-center gap-2.5">
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={testingProxy || !proxyUrl.trim()}
+                onclick={() => void handleTestProxy()}
+              >
+                <RefreshCw
+                  size={13}
+                  class={testingProxy ? "text-accent-soft animate-spin" : "text-muted"}
+                />
+                <span>
+                  {testingProxy
+                    ? i18n.t.settingsModal.sources.proxy.testing
+                    : i18n.t.settingsModal.sources.proxy.testButton}
+                </span>
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                disabled={savingProxy}
+                onclick={() => void handleSaveProxy()}
+              >
+                <Check size={13} />
+                <span>
+                  {savingProxy
+                    ? i18n.t.settingsModal.sources.proxy.saving
+                    : i18n.t.settingsModal.sources.proxy.saveButton}
+                </span>
+              </Button>
+              {#if proxyTestResult}
+                <Badge tone={proxyTestResult.success ? "success" : "danger"} size="sm">
+                  {proxyTestResult.success
+                    ? `${proxyTestResult.message} · ${proxyTestResult.latencyMs} мс`
+                    : proxyTestResult.message}
+                </Badge>
+              {/if}
+            </div>
+          {/if}
+        </div>
+
         <div class="flex flex-wrap items-center justify-between gap-3 pt-2">
           <div>
             <h3 class="text-ink text-sm font-semibold">
@@ -1768,6 +2049,31 @@
                   </div>
 
                   <div class="flex shrink-0 items-center gap-2.5">
+                    <!-- Один клик: пустить конкретный источник через настроенный прокси -->
+                    <button
+                      type="button"
+                      aria-pressed={source.isProxied === true}
+                      disabled={!proxyReady || togglingProxySource === source.id}
+                      title={!proxyReady
+                        ? i18n.t.settingsModal.sources.proxy.needsUrlFirst
+                        : i18n.t.settingsModal.sources.proxy.perSourceHint}
+                      class={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold transition-transform active:scale-95 disabled:pointer-events-none ${
+                        source.isProxied === true
+                          ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-300"
+                          : "border-white/10 bg-white/[0.03] text-muted hover:border-white/20 hover:text-ink"
+                      } disabled:opacity-50`}
+                      onclick={() => void handleToggleSourceProxy(source)}
+                    >
+                      <Globe
+                        size={12}
+                        class={source.isProxied === true ? "text-emerald-300" : "text-slate-400"}
+                      />
+                      <span>{i18n.t.settingsModal.sources.proxy.perSourceToggle}</span>
+                      {#if togglingProxySource === source.id}
+                        <RefreshCw size={11} class="animate-spin" />
+                      {/if}
+                    </button>
+
                     <Button
                       variant="secondary"
                       size="xs"

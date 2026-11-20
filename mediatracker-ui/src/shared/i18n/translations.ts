@@ -2898,6 +2898,48 @@ export const translations = {
       disable: { ru: "Отключить", en: "Disable" },
       enabledBadge: { ru: "Включен", en: "Enabled" },
       disabledBadge: { ru: "Отключен", en: "Disabled" },
+      proxy: {
+        title: { ru: "Сеть и прокси", en: "Network & Proxy" },
+        description: {
+          ru: "Выборочное проксирование внешних источников: HTTP/HTTPS/SOCKS5. Локальные адреса никогда не проксируются.",
+          en: "Selective proxying of external sources: HTTP/HTTPS/SOCKS5. Local addresses are never proxied.",
+        },
+        enabledLabel: { ru: "Прокси включен", en: "Proxy enabled" },
+        urlLabel: { ru: "Адрес прокси", en: "Proxy URL" },
+        urlPlaceholder: {
+          ru: "http://127.0.0.1:2080 или socks5://127.0.0.1:1080",
+          en: "http://127.0.0.1:2080 or socks5://127.0.0.1:1080",
+        },
+        usernameLabel: { ru: "Логин (необязательно)", en: "Username (optional)" },
+        passwordLabel: { ru: "Пароль (необязательно)", en: "Password (optional)" },
+        passwordPlaceholder: {
+          ru: "Введите пароль прокси...",
+          en: "Enter proxy password...",
+        },
+        passwordStoredHint: {
+          ru: "Пароль сохранён (шифруется в SQLite). Введите новый, чтобы заменить.",
+          en: "Password is stored (encrypted in SQLite). Type a new one to replace it.",
+        },
+        testButton: { ru: "Проверить прокси", en: "Test proxy" },
+        testing: { ru: "Проверяю...", en: "Testing..." },
+        saveButton: { ru: "Сохранить", en: "Save" },
+        saving: { ru: "Сохраняю...", en: "Saving..." },
+        savedToast: {
+          ru: "Настройки прокси сохранены — применяются сразу, без рестарта",
+          en: "Proxy settings saved — applied immediately, no restart",
+        },
+        testOk: { ru: "Прокси работает", en: "Proxy works" },
+        testFailed: { ru: "Прокси не отвечает", en: "Proxy failed" },
+        perSourceToggle: { ru: "Через прокси", en: "Via proxy" },
+        perSourceHint: {
+          ru: "Запросы этого источника (API и обложки) пойдут через настроенный прокси",
+          en: "This source's requests (API and covers) will go through the configured proxy",
+        },
+        needsUrlFirst: {
+          ru: "Сначала задайте и сохраните адрес прокси",
+          en: "Set and save the proxy URL first",
+        },
+      },
       testConnection: { ru: "Проверить связь", en: "Test connection" },
       testing: { ru: "Проверка...", en: "Testing..." },
       testSuccess: {

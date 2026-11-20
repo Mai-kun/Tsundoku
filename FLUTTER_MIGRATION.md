@@ -53,8 +53,8 @@
 | **chrome-devtools / puppeteer MCP** | ✅ наследованы из корневого `.mcp.json` | живые скриншоты запущенного Svelte-эталона |
 | **Playwright harness (Svelte)** | ✅ `mediatracker-ui/checks/harness/testServerHarness.ts` + backstop-эталоны (mobile/tablet/desktop) в `mediatracker-ui/checks/harness/backstop_data/bitmaps_reference/` и `__snapshots__/` | эталонные скриншоты Svelte; снять новый: запустить harness (см. `mediatracker-ui/package.json`, сценарии backstop) |
 | Golden-тесты Flutter | ✅ настроены: `test/goldens/golden_test_helper.dart` (`tsundokuGoldenTest`, 1440×900 @ dpr 1.0 — как backstop "desktop"), шрифт грузит `test/flutter_test_config.dart` | обновление эталона: `flutter test --update-goldens test/goldens`; сравнение: `flutter test` |
-| Superpowers (`obra/superpowers`) | ❌ НЕ установлен | пользователь должен выполнить: `/plugin marketplace add obra/superpowers-marketplace` → `/plugin install superpowers@superpowers-marketplace` |
-| Ponytail (`DietrichGebert/ponytail`) | ❌ НЕ установлен | пользователь должен выполнить: `/plugin marketplace add DietrichGebert/ponytail` → `/plugin install ponytail@ponytail` |
+| Superpowers (`obra/superpowers`) | ✅ установлен v7.0.2 (маркетплейс `claude-plugins-official`, источник obra/superpowers, кэш `~/.zcode/cli/plugins/cache/`). В текущей сессии скиллы не подгружены — перезапустить сессию/приложение; если не появятся — проверить тумблер на вкладке Installed | скиллы: brainstorming, systematic-debugging, test-driven-development, using-git-worktrees и др. |
+| Ponytail (`DietrichGebert/ponytail`) | ❌ НЕ установлен (маркетплейс не добавлен). `/plugin install` — интерактивная команда клиента; у ZCode нет CLI-подкоманды plugin | в ZCode: Настройки → Plugin Management → вкладка Discover → кнопка «+» → добавить `DietrichGebert/ponytail` (GitHub-репозиторий) → карточка ponytail → Get (Install). Включается по умолчанию |
 
 **Протокол визуального паритета (для каждого UI-файла):**
 1. Открыть эталонный скриншот Svelte: `mediatracker-ui/checks/harness/__snapshots__/*.png`
@@ -376,5 +376,9 @@
    Шрифт Inter грузится в `test/flutter_test_config.dart`; тест `font_loader_weight_test.dart`
    гарантирует, что грузится настоящий Inter с весами 400/700/900 (попиксельная проверка
    различий), а не Ahem-плейсхолдер.
-7. **Плагины Superpowers и Ponytail НЕ установлены** — нужны слэш-команды пользователя
+7. **Плагины** (уточнено 2026-11-21): Superpowers **установлен** v7.0.2 (маркетплейс
+   `claude-plugins-official`; плагины ZCode живут в `~/.zcode/cli/plugins/`, а НЕ в
+   `~/.claude/plugins` — первоначальная проверка смотрела не туда). Его скиллы подгружаются
+   после перезапуска сессии. Ponytail **не установлен** — ставится только через UI клиента:
+   Settings → Plugin Management → Discover → «+» → `DietrichGebert/ponytail` → Get
    (см. §1.5). `dart mcp-server` работает, конфиг добавлен в `.mcp.json` worktree.

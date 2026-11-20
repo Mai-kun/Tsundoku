@@ -117,17 +117,17 @@
 
 **Статус:** Этап 0 (инфраструктура) — ЗАВЕРШЁН и закоммичен. Портирование не начато.
 
-**Прогресс: 20 / 207 файлов**
+**Прогресс: 21 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
-| 0 — Фундамент (типы/API/модели/логика/тема) | 58 | 20 |
+| 0 — Фундамент (типы/API/модели/логика/тема) | 58 | 21 |
 | 1 — `shared/ui/` | 17 | 0 |
 | 2 — `entities/` + карточки/сетка | 19 | 0 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 0 |
 | 4 — Детальная страница + Spatial Node Editor | 59 | 0 |
 | 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 0 |
-| **Всего** | **207** | **20** |
+| **Всего** | **207** | **21** |
 
 **Следующие файлы:** `shared/utils/*` (appExit, historyFormatters, perfMarks+тест,
 prefetchCache+тест, progressDebounce, sourceUrlHelper, swrCache, uiSettings,
@@ -260,7 +260,7 @@ update-progress) → `views/categoryModel.ts`. Файлы `⏭️ Заменен
 | 0 | `shared/utils` | `swrCache.ts` | `lib/shared/utils/swr_cache.dart` | ✅ Готов | ✅ | peek/set/invalidate; тест ключей и перезаписи |
 | 0 | `shared/utils` | `uiSettings.svelte.ts` | `lib/shared/utils/ui_settings.dart` | ⬜ Не начат | ⬜ | — |
 | 0 | `shared/utils` | `unknownCreator.ts` | `lib/shared/utils/unknown_creator.dart` | ✅ Готов | ✅ | Set плейсхолдеров 1-в-1 (trim+lowercase); тест: null/плейсхолдеры/реальные авторы |
-| 0 | `shared/utils` | `urlMediaParser.ts` | `lib/shared/utils/url_media_parser.dart` | ⬜ Не начат | ⬜ | — |
+| 0 | `shared/utils` | `urlMediaParser.ts` | `lib/shared/utils/url_media_parser.dart` | ✅ Готов | ✅ | 15 regex-правил 1-в-1 (Dart RegExp); запрещённые слаги; isIsbn/isUrl/detectQueryBadge; все кейсы vitest-теста перенесены (18 групп) |
 | 0 | `shared/utils` | `viewport.svelte.ts` | `lib/shared/utils/viewport.dart` | ⬜ Не начат | ⬜ | — |
 | 5 | `views` | `CalendarView.svelte` | `lib/views/calendar_view.dart` | ⬜ Не начат | ⬜ | — |
 | 3 | `views` | `CategoryView.svelte` | `lib/views/category_view.dart` | ⬜ Не начат | ⬜ | — |

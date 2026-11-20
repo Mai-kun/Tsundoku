@@ -117,20 +117,20 @@
 
 **Статус:** Этап 0 (инфраструктура) — ЗАВЕРШЁН и закоммичен. Портирование не начато.
 
-**Прогресс: 1 / 207 файлов**
+**Прогресс: 2 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
-| 0 — Фундамент (типы/API/модели/логика/тема) | 58 | 1 |
+| 0 — Фундамент (типы/API/модели/логика/тема) | 58 | 2 |
 | 1 — `shared/ui/` | 17 | 0 |
 | 2 — `entities/` + карточки/сетка | 19 | 0 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 0 |
 | 4 — Детальная страница + Spatial Node Editor | 59 | 0 |
 | 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 0 |
-| **Всего** | **207** | **1** |
+| **Всего** | **207** | **2** |
 
-**Следующий конкретный файл:** `mediatracker-ui/src/shared/types/models.ts`
-→ `lib/shared/types/models.dart` (Фаза 0; доменные модели поверх enums.dart).
+**Следующий конкретный файл:** `mediatracker-ui/src/shared/types/dtos.ts`
+→ `lib/shared/types/dtos.dart` (Фаза 0; request/response DTO поверх моделей).
 
 **Следующие после него (жёсткая очерёдность Фазы 0):** `shared/types/models.ts` →
 `dtos.ts` → `index.ts` → `app/tokens.css` + `app/app.css` (TsundokuTheme/ThemeData) →
@@ -226,7 +226,7 @@ update-progress) → `views/categoryModel.ts`. Файлы `⏭️ Заменен
 | 0 | `shared/types` | `dtos.ts` | `lib/shared/types/dtos.dart` | ⬜ Не начат | ⬜ | — |
 | 0 | `shared/types` | `enums.ts` | `lib/shared/types/enums.dart` | ✅ Готов | ✅ | 1-в-1: числовые const-объекты → enum c `value`; строковые union → enum c `wire` (fromWire/tryFromWire); открытые union → String-typedef (решение #2); JobProgress перенесён сюда же |
 | 0 | `shared/types` | `index.ts` | `lib/shared/types/index.dart` | ⬜ Не начат | ⬜ | — |
-| 0 | `shared/types` | `models.ts` | `lib/shared/types/models.dart` | ⬜ Не начат | ⬜ | — |
+| 0 | `shared/types` | `models.ts` | `lib/shared/types/models.dart` | ✅ Готов | ✅ | Плоский MediaItem (сервер шлёт плоский MediaListDto) + MediaDetail с detail-полями; Record→Map, string[]\|string→List (решения #3/#4); read-only модели без toJson (YAGNI) |
 | 1 | `shared/ui` | `Badge.svelte` | `lib/shared/ui/badge.dart` | ⬜ Не начат | ⬜ | — |
 | 1 | `shared/ui` | `Button.svelte` | `lib/shared/ui/button.dart` | ⬜ Не начат | ⬜ | — |
 | 1 | `shared/ui` | `ConfirmModal.svelte` | `lib/shared/ui/confirm_modal.dart` | ⬜ Не начат | ⬜ | — |
@@ -380,6 +380,8 @@ update-progress) → `views/categoryModel.ts`. Файлы `⏭️ Заменен
 |---|---|---|---|---|
 | 1 | `shared/types/enums.ts` | TS-union не выражаются чистым enum: неизвестные wire-значения сервера; тайм-поля | `tryX` → null / `X.fromWire` → ArgumentError (fail fast); тайм-поля остаются wire-String 1-в-1, парсинг DateTime — у потребителей (YAGNI) | unknown-fallback enum-значения — нет (маскирует расхождение контракта); ревью не требуется |
 | 2 | `shared/types/enums.ts` | Открытые union: `AppView` (…\|string-слаги), `SearchMediaType`/`SearchScope` («anime»/«all») | `AppView` → typedef String + `AppViews.builtin`; `SearchMediaType`/`SearchScope` → typedef String + known-наборы; `StatusFilter` → обёртка с nullable int | sealed-классы — избыточно для строковых union (YAGNI); ревью не требуется |
+| 3 | `shared/types/models.ts` | `Record<number,number>`/`Record<string,number>` и `string[]\|string` не выражаются типом Dart напрямую | `Record` → `Map<int,double>`/`Map<String,double>` (JSON-ключи к int); `string[]\|string` (genres/tags) → `List<String>` (строка → split(',') + trim) | Плюрализация данных нет: строка «a, b» → [a, b] сохраняет содержимое; ревью не требуется |
+| 4 | `shared/types/models.ts` | Иерархия MediaBase+5 вариантов и MediaItem/MediaDetail-union в Dart громоздка (переопределение nullable-полей запрещено) | Сервер шлёт плоский `MediaListDto` — порт в один плоский `MediaItem` (вариантные поля nullable, `type` различает) + `MediaDetail extends MediaItem` с detail-полями; сужения TS-типов теряются (nullable в потребителях) | Более строгая Dart-иерархия из 5 подклассов — двойной объём кода без выигрыша (YAGNI); ревью по желанию |
 
 ---
 

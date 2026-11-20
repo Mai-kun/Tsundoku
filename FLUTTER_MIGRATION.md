@@ -117,20 +117,22 @@
 
 **Статус:** Этап 0 (инфраструктура) — ЗАВЕРШЁН и закоммичен. Портирование не начато.
 
-**Прогресс: 3 / 207 файлов**
+**Прогресс: 4 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
-| 0 — Фундамент (типы/API/модели/логика/тема) | 58 | 3 |
+| 0 — Фундамент (типы/API/модели/логика/тема) | 58 | 4 |
 | 1 — `shared/ui/` | 17 | 0 |
 | 2 — `entities/` + карточки/сетка | 19 | 0 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 0 |
 | 4 — Детальная страница + Spatial Node Editor | 59 | 0 |
 | 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 0 |
-| **Всего** | **207** | **3** |
+| **Всего** | **207** | **4** |
 
-**Следующий конкретный файл:** `mediatracker-ui/src/shared/types/index.ts`
-→ `lib/shared/types/index.dart` (Фаза 0; barrel ре-экспорт types).
+**Следующие конкретные файлы (тема):** `mediatracker-ui/src/app/tokens.css` →
+`lib/shared/theme/tsundoku_tokens.dart` (ThemeExtension<TsundokuTheme>), затем
+`mediatracker-ui/src/app/app.css` → `lib/shared/theme/tsundoku_theme.dart`
+(ThemeData/TextTheme, --font-sans: Inter).
 
 **Следующие после него (жёсткая очерёдность Фазы 0):** `shared/types/models.ts` →
 `dtos.ts` → `index.ts` → `app/tokens.css` + `app/app.css` (TsundokuTheme/ThemeData) →
@@ -225,7 +227,7 @@ update-progress) → `views/categoryModel.ts`. Файлы `⏭️ Заменен
 | 0 | `shared/i18n` | `translations.ts` | `lib/shared/i18n/translations.dart` | ⬜ Не начат | ⬜ | — |
 | 0 | `shared/types` | `dtos.ts` | `lib/shared/types/dtos.dart` | ✅ Готов | ✅ | Payload-классы с toJson (Create*/Update*/Smart/Import), read-only DTO с fromJson; CustomListDetail — отдельный класс (Dart не умеет Omit); CreateMediaBase supertype с полиморфным toJson |
 | 0 | `shared/types` | `enums.ts` | `lib/shared/types/enums.dart` | ✅ Готов | ✅ | 1-в-1: числовые const-объекты → enum c `value`; строковые union → enum c `wire` (fromWire/tryFromWire); открытые union → String-typedef (решение #2); JobProgress перенесён сюда же |
-| 0 | `shared/types` | `index.ts` | `lib/shared/types/index.dart` | ⬜ Не начат | ⬜ | — |
+| 0 | `shared/types` | `index.ts` | `lib/shared/types/index.dart` | ✅ Готов | ✅ | Barrel `export *` → Dart-экспорт-файл; тест гарантирует доступность всех типов через единый import |
 | 0 | `shared/types` | `models.ts` | `lib/shared/types/models.dart` | ✅ Готов | ✅ | Плоский MediaItem (сервер шлёт плоский MediaListDto) + MediaDetail с detail-полями; Record→Map, string[]\|string→List (решения #3/#4); read-only модели без toJson (YAGNI) |
 | 1 | `shared/ui` | `Badge.svelte` | `lib/shared/ui/badge.dart` | ⬜ Не начат | ⬜ | — |
 | 1 | `shared/ui` | `Button.svelte` | `lib/shared/ui/button.dart` | ⬜ Не начат | ⬜ | — |

@@ -117,22 +117,21 @@
 
 **Статус:** Этап 0 (инфраструктура) — ЗАВЕРШЁН и закоммичен. Портирование не начато.
 
-**Прогресс: 4 / 207 файлов**
+**Прогресс: 5 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
-| 0 — Фундамент (типы/API/модели/логика/тема) | 58 | 4 |
+| 0 — Фундамент (типы/API/модели/логика/тема) | 58 | 5 |
 | 1 — `shared/ui/` | 17 | 0 |
 | 2 — `entities/` + карточки/сетка | 19 | 0 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 0 |
 | 4 — Детальная страница + Spatial Node Editor | 59 | 0 |
 | 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 0 |
-| **Всего** | **207** | **4** |
+| **Всего** | **207** | **5** |
 
-**Следующие конкретные файлы (тема):** `mediatracker-ui/src/app/tokens.css` →
-`lib/shared/theme/tsundoku_tokens.dart` (ThemeExtension<TsundokuTheme>), затем
-`mediatracker-ui/src/app/app.css` → `lib/shared/theme/tsundoku_theme.dart`
-(ThemeData/TextTheme, --font-sans: Inter).
+**Следующий конкретный файл:** `mediatracker-ui/src/app/app.css`
+→ `lib/shared/theme/tsundoku_theme.dart` (daisyUI-слой tsundoku + :root-правила →
+buildTsundokuTheme/ThemeData; --font-sans: Inter).
 
 **Следующие после него (жёсткая очерёдность Фазы 0):** `shared/types/models.ts` →
 `dtos.ts` → `index.ts` → `app/tokens.css` + `app/app.css` (TsundokuTheme/ThemeData) →
@@ -156,7 +155,7 @@ update-progress) → `views/categoryModel.ts`. Файлы `⏭️ Заменен
 | 0 | `app` | `app.css` | `lib/shared/theme/tsundoku_theme.dart` | ⬜ Не начат | ⬜ | @theme-слой и базовые стили → ThemeData/TextTheme; --font-sans: Inter |
 | 0 | `app` | `clientErrors.ts` | `lib/app/client_errors.dart` | ⬜ Не начат | ⬜ | — |
 | 3 | `app` | `main.ts` | `lib/app/main.dart` | ⬜ Не начат | ⬜ | — |
-| 0 | `app` | `tokens.css` | `lib/shared/theme/tsundoku_tokens.dart` | ⬜ Не начат | ⬜ | CSS-переменные → ThemeExtension<TsundokuTheme>; значения 1-в-1 из :root/[data-theme="obsidian"], заложить поддержку смены тем |
+| 0 | `app` | `tokens.css` | `lib/shared/theme/tsundoku_tokens.dart` | ✅ Готов | ✅ | Все ~120 переменных → ThemeExtension<TsundokuTheme> (surfaces/borders/text/accent/status/13 chart/18 import-источников/9 badge); static const obsidian + themes-карта для смены тем; lerp всех групп |
 | 0 | `entities/media/model/__tests__` | `chronicleTimeline.test.ts` | `test/entities/media/model/chronicle_timeline_test.dart` | ⬜ Не начат | ⬜ | — |
 | 0 | `entities/media/model/__tests__` | `coverUrl.test.ts` | `test/entities/media/model/cover_url_test.dart` | ⬜ Не начат | ⬜ | — |
 | 0 | `entities/media/model/__tests__` | `detailedScore.test.ts` | `test/entities/media/model/detailed_score_test.dart` | ⬜ Не начат | ⬜ | — |

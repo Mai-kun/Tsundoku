@@ -103,6 +103,23 @@ jobs:
       - name: "Publish Tsundoku (NativeAOT monolith: server + tray + launcher)"
         run: dotnet publish MediaTracker.Server/MediaTracker.Server.csproj -c Release -r ${{ matrix.rid }} -p:Version=${{ env.VERSION }} -o publish/${{ matrix.rid }}
 
+      # Актуальная OpenAPI-схема: генерация на регулярной (не-AOT) Release-сборке — хост строится
+      # в памяти с временной папкой данных и закрывается сразу после выгрузки файла (без Chromium,
+      # трея и воркеров). Схема одна на все платформы, поэтому шаг только на linux-x64; файл
+      # попадает и в zip-архив, и в релиз отдельным ассетом.
+      - name: Export OpenAPI schema
+        if: matrix.rid == 'linux-x64'
+        run: |
+          dotnet build MediaTracker.Server/MediaTracker.Server.csproj -c Release --nologo -v q
+          dotnet MediaTracker.Server/bin/Release/net10.0/Tsundoku.dll --export-openapi publish/${{ matrix.rid }}/openapi.json
+
+      - name: Upload OpenAPI schema (release asset)
+        if: matrix.rid == 'linux-x64'
+        uses: actions/upload-artifact@v4
+        with:
+          name: openapi-schema
+          path: publish/linux-x64/openapi.json
+
       # Post-build verification: boot the REAL artifact, probe the API, render the SPA
       # in headless Chromium and scan the session log. A broken binary fails the build
       # here instead of shipping a release with a white screen.
@@ -167,3 +184,4 @@ jobs:
           files: |
             tsundoku-linux-x64.zip
             tsundoku-win-x64.zip
+            openapi.json

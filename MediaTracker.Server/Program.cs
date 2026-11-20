@@ -58,7 +58,20 @@ if (options.RunSelfCheck)
     return await RefactorSelfCheck.Run() == 0 ? 0 : 1;
 }
 
-SingleInstanceService.EnsureSingleInstance(options);
+// Экспорт OpenAPI-схемы (--export-openapi): изолированный CLI-режим. Данные перенаправляются
+// во временную папку ещё до любых локов и создания каталогов, чтобы генерация схемы не
+// создавала и не открывала файлы реального профиля пользователя.
+var exportMode = options.ExportOpenApiPath is not null;
+if (exportMode)
+{
+    ConsoleOutput.Attach();
+    options.UseDataDirectory(Path.Combine(Path.GetTempPath(), "tsundoku-openapi-export"));
+}
+
+if (!exportMode)
+{
+    SingleInstanceService.EnsureSingleInstance(options);
+}
 
 var isContainer = CommandLineOptions.IsRunningInContainer;
 
@@ -113,7 +126,7 @@ var links = new DesktopLinks(
     LogsUrl: $"http://127.0.0.1:{options.EffectivePort}/logs.html");
 
 // Desktop shell: tray icon + automatic browser window, unless running as a service.
-var enableDesktopShell = !options.IsHeadless && !isContainer;
+var enableDesktopShell = !options.IsHeadless && !isContainer && !exportMode;
 if (enableDesktopShell)
 {
     builder.Services.AddSingleton(options);
@@ -137,7 +150,19 @@ foreach (var oldBinary in oldBinaries)
     catch { /* Ignore */ }
 }
 
-ConfigureLogging(appPaths.LogsDirectory);
+if (exportMode)
+{
+    // Изолированный CLI-режим: предупреждения только в консоль — без session-логов
+    // во временной папке данных и без мусора в выводе сборки.
+    Log.Logger = new LoggerConfiguration()
+        .MinimumLevel.Warning()
+        .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
+        .CreateLogger();
+}
+else
+{
+    ConfigureLogging(appPaths.LogsDirectory);
+}
 
 // Last-resort crash logging: a TypeInitializationException or any other fatal escape used to kill
 // the process silently (no window, no log line) and looked like "the backend just vanished".
@@ -171,10 +196,13 @@ try
 
     builder.Host.UseSerilog();
 
-    var listenUrl = options.Port is { } kestrelPort
-        ? $"http://0.0.0.0:{kestrelPort}"
-        : Environment.GetEnvironmentVariable("ASPNETCORE_URLS")
-            ?? $"http://0.0.0.0:{CommandLineOptions.DefaultPort}";
+    var listenUrl = exportMode
+        // Эфемерный loopback-порт: не пересекается с работающим приложением, живёт секунды.
+        ? "http://127.0.0.1:0"
+        : options.Port is { } kestrelPort
+            ? $"http://0.0.0.0:{kestrelPort}"
+            : Environment.GetEnvironmentVariable("ASPNETCORE_URLS")
+                ?? $"http://0.0.0.0:{CommandLineOptions.DefaultPort}";
 
     builder.WebHost.UseUrls(listenUrl);
 
@@ -227,9 +255,10 @@ try
         options.SerializerOptions.TypeInfoResolverChain.Insert(0, AppJsonSerializerContext.Default);
     });
 
-    // OpenAPI-схемы нужны только при разработке и диагностике API: в релизном десктопном
-    // запуске дерево схем генератора съедало ~3-5 МБ RAM впустую.
-    if (isDevelopment)
+    // OpenAPI-схемы нужны только при разработке, диагностике API и CLI-экспорте (--export-openapi):
+    // в релизном десктопном запуске дерево схем генератора съедало ~3-5 МБ RAM впустую, поэтому там
+    // сервисы OpenAPI не регистрируются и триммер выкидывает генератор из NativeAOT-бинарника.
+    if (isDevelopment || exportMode)
     {
         builder.Services.AddOpenApi(options =>
         {
@@ -294,7 +323,39 @@ try
 
     builder.Services.AddMemoryCache();
 
+    if (exportMode)
+    {
+        // Изолированный режим не должен стартовать фоновые сервисы (JobWorkerService,
+        // AutoRefreshWorker, IdleDetectionService, TrayBackgroundService): снимаем все
+        // IHostedService-регистрации до Build() — ExecuteAsync воркеров не запустится.
+        for (var i = builder.Services.Count - 1; i >= 0; i--)
+        {
+            if (builder.Services[i].ServiceType == typeof(IHostedService))
+            {
+                builder.Services.RemoveAt(i);
+            }
+        }
+    }
+
     var app = builder.Build();
+
+    if (exportMode)
+    {
+        // Схема собирается по живому конвейеру: DI-источник эндпоинтов наполняется только при
+        // построении пайплайна, поэтому нужен StartAsync. Миграции (InitializeDatabaseAsync),
+        // BrowserLauncher.InitializeAsync, статические файлы и UI-мидлвари остаются за пределами
+        // ветки; hosted-сервисов нет, порт — эфемерный loopback, закрывается сразу после экспорта.
+        MapAllEndpoints(app, links, appPaths);
+        await app.StartAsync();
+        try
+        {
+            return await OpenApiExporter.WriteAsync(app, options.ExportOpenApiPath!, appPaths.DataDirectory);
+        }
+        finally
+        {
+            await app.StopAsync();
+        }
+    }
 
     app.UseSerilogRequestLogging(options =>
     {
@@ -447,16 +508,7 @@ try
     // desktop backend awake forever.
     app.UseMiddleware<IdleDetectionMiddleware>();
 
-    app.MapMediaEndpoints();
-    app.MapListEndpoints();
-    app.MapSeasonEndpoints();
-    app.MapExternalMediaEndpoints();
-    app.MapLogEndpoints();
-    app.MapSettingsEndpoints();
-    app.MapJobEndpoints();
-    app.MapCalendarEndpoints();
-    app.MapGoalEndpoints();
-    app.MapSystemEndpoints(links, appPaths);
+    MapAllEndpoints(app, links, appPaths);
 
     app.MapFallback(async context =>
     {
@@ -611,6 +663,25 @@ static void ConfigureLogging(string logsDirectory)
 static AppPaths CreateAppPaths(CommandLineOptions options, bool isDevelopment)
 {
     return AppPaths.Create(options, isDevelopment);
+}
+
+/// <summary>
+/// Единая точка регистрации всех групп API-эндпоинтов: общий пайплайн и экспорт OpenAPI
+/// (--export-openapi) описывают одну и ту же поверхность API, поэтому расхождений между
+/// работающим сервером и спецификацией не возникает.
+/// </summary>
+static void MapAllEndpoints(WebApplication app, DesktopLinks links, AppPaths appPaths)
+{
+    app.MapMediaEndpoints();
+    app.MapListEndpoints();
+    app.MapSeasonEndpoints();
+    app.MapExternalMediaEndpoints();
+    app.MapLogEndpoints();
+    app.MapSettingsEndpoints();
+    app.MapJobEndpoints();
+    app.MapCalendarEndpoints();
+    app.MapGoalEndpoints();
+    app.MapSystemEndpoints(links, appPaths);
 }
 
 static async Task InitializeDatabaseAsync(WebApplication app)

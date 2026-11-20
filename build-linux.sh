@@ -8,7 +8,7 @@ echo "==> Очистка dist/..."
 rm -rf dist && mkdir -p dist
 
 # 1. Фронтенд: vite пишет результат прямо в MediaTracker.Server/wwwroot.
-echo "==> Шаг 1/3: Сборка фронтенда..."
+echo "==> Шаг 1/4: Сборка фронтенда..."
 npm --prefix mediatracker-ui run build
 
 if [ ! -f MediaTracker.Server/wwwroot/index.html ]; then
@@ -16,9 +16,17 @@ if [ ! -f MediaTracker.Server/wwwroot/index.html ]; then
   exit 1
 fi
 
-# 2. Монолитный NativeAOT-бинарник: Kestrel + трей + лаунчер в одном Tsundoku.
-#    Требует clang/llvm и zlib-dev (см. README). PublishAot включён в csproj.
-echo "==> Шаг 2/3: Публикация NativeAOT (dotnet)..."
+# 2. Актуальная OpenAPI-схема: генерация идёт на обычной (не-AOT) Release-сборке —
+#    процесс строит хост в памяти с временной папкой данных и закрывается сразу после
+#    выгрузки файла: Chromium/трей/воркеры не стартуют, миграции реальной БД не
+#    выполняются, порт — эфемерный loopback, конфликтов с запущенным приложением нет.
+echo "==> Шаг 2/4: Экспорт openapi.json..."
+dotnet build MediaTracker.Server/MediaTracker.Server.csproj -c Release --nologo -v q
+dotnet MediaTracker.Server/bin/Release/net10.0/Tsundoku.dll --export-openapi dist/Tsundoku-Portable/openapi.json
+
+# 3. Монолитный NativeAOT-бинарник: Kestrel + трей + лаунчер в одном Tsundoku.
+#    Требует clang/llvm и zlib-dev (см. README). PublishAot включен в csproj.
+echo "==> Шаг 3/4: Публикация NativeAOT (dotnet)..."
 dotnet publish MediaTracker.Server -c Release -r linux-x64 -o dist/Tsundoku-Portable
 chmod +x dist/Tsundoku-Portable/Tsundoku
 
@@ -33,7 +41,7 @@ cp install-linux.sh uninstall-linux.sh dist/Tsundoku-Portable/
 chmod +x dist/Tsundoku-Portable/install-linux.sh dist/Tsundoku-Portable/uninstall-linux.sh
 
 # 3. Ярлык портативной папки.
-echo "==> Шаг 3/3: Упаковка..."
+echo "==> Шаг 4/4: Упаковка..."
 cat > dist/Tsundoku-Portable/Tsundoku.desktop <<DESKTOP
 [Desktop Entry]
 Type=Application

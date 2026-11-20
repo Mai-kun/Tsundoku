@@ -34,6 +34,13 @@ public sealed class CommandLineOptions
     public bool ImportOfflineDb { get; private set; }
     public string? OfflineDbDumpPath { get; private set; }
 
+    /// <summary>
+    /// Путь выгрузки OpenAPI-схемы (--export-openapi): приложение строится в памяти с временной
+    /// папкой данных, документ пишется в файл и процесс завершается — сервер, браузер, трей,
+    /// воркеры и миграции реальной БД не запускаются.
+    /// </summary>
+    public string? ExportOpenApiPath { get; private set; }
+
     public string? Error { get; private set; }
 
     public static bool IsRunningInContainer =>
@@ -123,6 +130,17 @@ public sealed class CommandLineOptions
                 case "--migrate-only":
                     options.MigrateOnly = true;
                     break;
+
+                case "--export-openapi":
+                    {
+                        if (!TryTakeValue(args, ref i, out var exportPath))
+                        {
+                            return options.WithError($"Missing value for '{arg}'.");
+                        }
+
+                        options.ExportOpenApiPath = exportPath;
+                        break;
+                    }
 
                 case "--dev":
                     options.IsDevMode = true;
@@ -218,6 +236,13 @@ public sealed class CommandLineOptions
         ?? TryParseAspnetcoreUrlsPort()
         ?? DefaultPort;
 
+    /// <summary>
+    /// Internal: перенаправляет данные во временную папку для изолированных CLI-режимов
+    /// (--export-openapi), чтобы генерация схемы не создавала и не открывала файлы
+    /// реального профиля пользователя.
+    /// </summary>
+    internal void UseDataDirectory(string path) => DataDirectory = path;
+
     private static int? TryParseAspnetcoreUrlsPort()
     {
         var urls = Environment.GetEnvironmentVariable("ASPNETCORE_URLS");
@@ -258,6 +283,9 @@ public sealed class CommandLineOptions
                                          Default: %LOCALAPPDATA%\Tsundoku (current directory in Docker)
               --dev                        Force development mode (local ./data folder, tracker.dev.db).
               --migrate-only               Apply database migrations and exit with code 0.
+              --export-openapi <path>     Build the host in memory, write the OpenAPI schema
+                                         (openapi.json) to <path> and exit. The server, tray,
+                                         browser and DB migrations are not started.
               --help, -h                   Show this help and exit.
 
             Examples:
@@ -266,6 +294,7 @@ public sealed class CommandLineOptions
               Tsundoku --port 5050 --data-dir D:\TsundokuData   Custom storage location
               Tsundoku --headless                               Pure service (no tray, no UI)
               Tsundoku --migrate-only                           CI/CD migration step
+              Tsundoku --export-openapi docs/openapi.json       API schema without starting the server
 
             Environment variables:
               ASPNETCORE_URLS                                      used when --port is not given

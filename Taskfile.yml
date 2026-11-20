@@ -108,6 +108,16 @@ tasks:
       - node scripts/parse-backend-coverage.mjs
       - npm --prefix mediatracker-ui run test:coverage
 
+  openapi:
+    desc: 'Generate up-to-date openapi.json (docs/openapi.json) without starting the server or browser'
+    generates:
+      - 'docs/openapi.json'
+    cmds:
+      # Регулярная (не-AOT) Release-сборка: экспортер строит хост в памяти с временной папкой
+      # данных и закрывается сразу после выгрузки файла (без Chromium, трея и воркеров).
+      - dotnet build MediaTracker.Server/MediaTracker.Server.csproj -c Release --nologo -v q
+      - dotnet MediaTracker.Server/bin/Release/net10.0/Tsundoku.dll --export-openapi docs/openapi.json
+
   report:
     desc: 'Generate unified audit report (AUDIT_REPORT.md and reports/audit-report.html)'
     cmds:
@@ -119,6 +129,7 @@ tasks:
       - task: fix
       - task: security
       - task: test
+      - task: openapi
       - task: build-ui
       - task: browser-suite
       - task: check:jank

@@ -117,23 +117,22 @@
 
 **Статус:** Этап 0 (инфраструктура) — ЗАВЕРШЁН и закоммичен. Портирование не начато.
 
-**Прогресс: 9 / 207 файлов**
+**Прогресс: 10 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
-| 0 — Фундамент (типы/API/модели/логика/тема) | 58 | 9 |
+| 0 — Фундамент (типы/API/модели/логика/тема) | 58 | 10 |
 | 1 — `shared/ui/` | 17 | 0 |
 | 2 — `entities/` + карточки/сетка | 19 | 0 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 0 |
 | 4 — Детальная страница + Spatial Node Editor | 59 | 0 |
 | 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 0 |
-| **Всего** | **207** | **9** |
+| **Всего** | **207** | **10** |
 
-**Следующий конкретный файл:** `mediatracker-ui/src/shared/api/api.ts` →
-`lib/shared/api/api.dart` (dio-клиент, baseUrl-инъекция, ~70 эндпоинтов, ApiError +
-ProblemDetails + networkActivity.begin/end + timeout 15s). Далее: jobsClient →
-navigationCategories → offlineMode → serverRestart → `shared/utils/*` →
-`entities/media/model/*` → контроллеры `features/*` → `views/categoryModel.ts`.
+**Следующие файлы:** `shared/api/jobsClient.svelte.ts` → `navigationCategories.svelte.ts`
+→ `offlineMode.svelte.ts` → `serverRestart.svelte.ts` (Riverpod-порты), затем
+`shared/utils/*` → `entities/media/model/*` → контроллеры `features/*` →
+`views/categoryModel.ts`.
 
 **Следующие после него (жёсткая очерёдность Фазы 0):** `shared/types/models.ts` →
 `dtos.ts` → `index.ts` → `app/tokens.css` + `app/app.css` (TsundokuTheme/ThemeData) →
@@ -218,7 +217,7 @@ update-progress) → `views/categoryModel.ts`. Файлы `⏭️ Заменен
 | 0 | `features/update-progress` | `progressController.svelte.ts` | `lib/features/update-progress/progress_controller.dart` | ⬜ Не начат | ⬜ | — |
 | 0 | `features/update-progress` | `seriesProgressController.svelte.ts` | `lib/features/update-progress/series_progress_controller.dart` | ⬜ Не начат | ⬜ | — |
 | 0 | `features/update-progress` | `statusPromotionToast.svelte.ts` | `lib/features/update-progress/status_promotion_toast.dart` | ⬜ Не начат | ⬜ | — |
-| 0 | `shared/api` | `api.ts` | `lib/shared/api/api.dart` | ⬜ Не начат | ⬜ | — |
+| 0 | `shared/api` | `api.ts` | `lib/shared/api/api.dart` | ✅ Готов | ✅ | ~70 эндпоинтов → методы TsundokuApi (dio, baseUrl-инъекция, validateStatus:(_)=>true для 1-в-1 throwApiError); ApiError+ProblemDetails+errorMessage(locale); blob→Uint8List; updateStatus union → 2 метода (решение #9); sourcesCachePromise; networkActivity через колбеки; stub-адаптер Dio в тестах |
 | 0 | `shared/api` | `jobsClient.svelte.ts` | `lib/shared/api/jobs_client.dart` | ⬜ Не начат | ⬜ | — |
 | 0 | `shared/api` | `navigationCategories.svelte.ts` | `lib/shared/api/navigation_categories.dart` | ⬜ Не начат | ⬜ | — |
 | 0 | `shared/api` | `networkActivity.svelte.ts` | `lib/shared/api/network_activity.dart` | ✅ Готов | ✅ | $state/$derived → Notifier<int> + derived isLoading; safety-таймер 15s (fakeAsync-тесты полного цикла: begin/end/reset/перевооружение); порядок портирования изменён: i18n/networkActivity → раньше api (его зависимости), решение #7 |
@@ -389,6 +388,7 @@ update-progress) → `views/categoryModel.ts`. Файлы `⏭️ Заменен
 | 6 | `shared/theme/tsundoku_theme.dart` | CSS-классы app.css (.panel/.tap/.media-card/scrollbar-thin/поповер-анимации) не выражаются в ThemeData | В ThemeData — только глобальное (диалоги/скроллбар 10px/поля/кнопки/кривые+длительности в TsundokuPalette); `.panel`/`.tap`/`thin-scroll` и анимации popover/dialog реализуются в соответствующих виджетах shared/ui (Фазы 1–3) | Глобальная имитация CSS-классов в ThemeData невозможна; ревью не требуется |
 | 7 | `shared/api/api.ts` | api.ts импортирует networkActivity и i18n (errorMessage), но заявленный порядок шёл api → i18n | Порядок изменён: networkActivity → i18n → api.ts (сверху по зависимостям); зафиксировано в Next Step | Оставить исходный порядок с заглушками строк — хуже; ревью не требуется |
 | 8 | `shared/i18n/index.svelte.ts` | TS-доступ `i18n.t.errors.x` (строгие вложенные объекты) не воспроизводится в Dart без генерации ~200 классов на 1528 листьев; функциональные листья — 112 замыканий | translations.dart — автогенерируемое paired-дерево (const Map) + плоский реестр функций; доступ через path-API `t.tr/tf/tl/tfl`; опечатка пути → ArgumentError с путём (в Svelte был undefined — Dart-вариант строже) | Генерация строгих Dart-классов — двойной объём без функциональной разницы (YAGNI); ревью по желанию |
+| 9 | `shared/api/api.ts` | updateStatus принимает union `число \| {status, dropReason?, dropNotes?}`; dio сам бросает DioException на не-2xx; errorMessage использует i18n вне Riverpod-контекста | Два метода: `updateStatus` ({status}) и `updateStatusWithDropInfo` (null-поля сериализуются явно, как TS-объект); `validateStatus: (_) => true` — статусы обрабатывает _isOk/_throwApiError 1-в-1; errorMessage(error, locale) — локаль передаётся вызовом из UI | Ошибка/успех и payload'ы покрыты stub-адаптером Dio; ревью не требуется |
 
 ---
 

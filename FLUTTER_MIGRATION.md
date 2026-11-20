@@ -117,21 +117,20 @@
 
 **Статус:** Этап 0 (инфраструктура) — ЗАВЕРШЁН и закоммичен. Портирование не начато.
 
-**Прогресс: 5 / 207 файлов**
+**Прогресс: 6 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
-| 0 — Фундамент (типы/API/модели/логика/тема) | 58 | 5 |
+| 0 — Фундамент (типы/API/модели/логика/тема) | 58 | 6 |
 | 1 — `shared/ui/` | 17 | 0 |
 | 2 — `entities/` + карточки/сетка | 19 | 0 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 0 |
 | 4 — Детальная страница + Spatial Node Editor | 59 | 0 |
 | 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 0 |
-| **Всего** | **207** | **5** |
+| **Всего** | **207** | **6** |
 
-**Следующий конкретный файл:** `mediatracker-ui/src/app/app.css`
-→ `lib/shared/theme/tsundoku_theme.dart` (daisyUI-слой tsundoku + :root-правила →
-buildTsundokuTheme/ThemeData; --font-sans: Inter).
+**Следующий конкретный файл:** `mediatracker-ui/src/shared/api/api.ts`
+→ `lib/shared/api/api.dart` (dio-клиент с baseUrl-инъекцией, 1-в-1 эндпоинты).
 
 **Следующие после него (жёсткая очерёдность Фазы 0):** `shared/types/models.ts` →
 `dtos.ts` → `index.ts` → `app/tokens.css` + `app/app.css` (TsundokuTheme/ThemeData) →
@@ -152,7 +151,7 @@ update-progress) → `views/categoryModel.ts`. Файлы `⏭️ Заменен
 | Фаза | Папка | Исходный файл (Svelte/TS) | Целевой файл (Dart) | Статус | Тест | Пояснения / Отклонения |
 |---|---|---|---|---|---|---|
 | 3 | `app` | `App.svelte` | `lib/app/app.dart` | ⬜ Не начат | ⬜ | — |
-| 0 | `app` | `app.css` | `lib/shared/theme/tsundoku_theme.dart` | ⬜ Не начат | ⬜ | @theme-слой и базовые стили → ThemeData/TextTheme; --font-sans: Inter |
+| 0 | `app` | `app.css` | `lib/shared/theme/tsundoku_theme.dart` | ✅ Готов | ✅ | daisyUI-слой tsundoku + @theme static → TsundokuPalette (литералы) + buildTsundokuTheme (ThemeData: кнопки/диалоги/скроллбар/поля); --font-sans: Inter; кривые/длительности (easeTap 0.2,0,0,1; viewFade/popover/dialog 140–150ms) |
 | 0 | `app` | `clientErrors.ts` | `lib/app/client_errors.dart` | ⬜ Не начат | ⬜ | — |
 | 3 | `app` | `main.ts` | `lib/app/main.dart` | ⬜ Не начат | ⬜ | — |
 | 0 | `app` | `tokens.css` | `lib/shared/theme/tsundoku_tokens.dart` | ✅ Готов | ✅ | Все ~120 переменных → ThemeExtension<TsundokuTheme> (surfaces/borders/text/accent/status/13 chart/18 import-источников/9 badge); static const obsidian + themes-карта для смены тем; lerp всех групп |
@@ -383,6 +382,8 @@ update-progress) → `views/categoryModel.ts`. Файлы `⏭️ Заменен
 | 2 | `shared/types/enums.ts` | Открытые union: `AppView` (…\|string-слаги), `SearchMediaType`/`SearchScope` («anime»/«all») | `AppView` → typedef String + `AppViews.builtin`; `SearchMediaType`/`SearchScope` → typedef String + known-наборы; `StatusFilter` → обёртка с nullable int | sealed-классы — избыточно для строковых union (YAGNI); ревью не требуется |
 | 3 | `shared/types/models.ts` | `Record<number,number>`/`Record<string,number>` и `string[]\|string` не выражаются типом Dart напрямую | `Record` → `Map<int,double>`/`Map<String,double>` (JSON-ключи к int); `string[]\|string` (genres/tags) → `List<String>` (строка → split(',') + trim) | Плюрализация данных нет: строка «a, b» → [a, b] сохраняет содержимое; ревью не требуется |
 | 4 | `shared/types/models.ts` | Иерархия MediaBase+5 вариантов и MediaItem/MediaDetail-union в Dart громоздка (переопределение nullable-полей запрещено) | Сервер шлёт плоский `MediaListDto` — порт в один плоский `MediaItem` (вариантные поля nullable, `type` различает) + `MediaDetail extends MediaItem` с detail-полями; сужения TS-типов теряются (nullable в потребителях) | Более строгая Dart-иерархия из 5 подклассов — двойной объём кода без выигрыша (YAGNI); ревью по желанию |
+| 5 | `shared/theme/tsundoku_tokens.dart` | SDK 3.50 требует `ThemeExtension.copyWith`; per-field copyWith для 64 полей — объём без юзкейса | `copyWith()` — no-op копия (тема мержится целиком через lerp; YAGNI) | Полный named-copyWith — механическое раздувание; ревью не требуется |
+| 6 | `shared/theme/tsundoku_theme.dart` | CSS-классы app.css (.panel/.tap/.media-card/scrollbar-thin/поповер-анимации) не выражаются в ThemeData | В ThemeData — только глобальное (диалоги/скроллбар 10px/поля/кнопки/кривые+длительности в TsundokuPalette); `.panel`/`.tap`/`thin-scroll` и анимации popover/dialog реализуются в соответствующих виджетах shared/ui (Фазы 1–3) | Глобальная имитация CSS-классов в ThemeData невозможна; ревью не требуется |
 
 ---
 

@@ -1,6 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
+import 'shared/theme/tsundoku_theme.dart';
+import 'shared/theme/tsundoku_tokens.dart';
+
 /// Tsundoku (MediaTracker) — Flutter UI entry point.
 ///
 /// Этап 0: пустой каркас. План миграции и правила — см. `FLUTTER_MIGRATION.md`
@@ -23,14 +26,10 @@ class TsundokuApp extends StatelessWidget {
     return MaterialApp(
       title: 'Tsundoku',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        // Inter — 1:1 с mediatracker-ui (--font-sans: Inter, ... в app.css).
-        // Полная тема (ThemeExtension<TsundokuTheme> из tokens.css, тема
-        // "obsidian") появится при портировании Фазы 0:
-        // lib/shared/theme/tsundoku_theme.dart.
-        fontFamily: 'Inter',
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF473BB8)),
+      theme: buildTsundokuTheme(
+        // Пока тема одна (obsidian); смена тем — через провайдер uiSettings
+        // при портировании Фаз 1+.
+        tokens: TsundokuTheme.obsidian,
       ),
       home: const ScaffoldPlaceholder(),
     );

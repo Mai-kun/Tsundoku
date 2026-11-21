@@ -141,17 +141,17 @@
 9. `views/CategoryView.svelte` (+ `views/__tests__/CategoryView.test.ts` — TDD);
 10. `views/HomeView.svelte`.
 
-**Прогресс: 95 / 207 файлов**
+**Прогресс: 96 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
 | 0 — Фундамент (типы/API/модели/логика/тема) | 58 | 58 |
 | 1 — `shared/ui/` | 17 | 16 (открыт ConfirmModal) |
 | 2 — `entities/` + карточки/сетка | 19 | 19 |
-| 3 — Каркас: App/Layout/Home/Category | 13 | 2 |
+| 3 — Каркас: App/Layout/Home/Category | 13 | 3 |
 | 4 — Детальная страница + Spatial Node Editor | 59 | 0 |
 | 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 0 |
-| **Всего** | **207** | **95** |
+| **Всего** | **207** | **96** |
 
 Долги Фаз 0–2 (не блокируют): ConfirmModal (Фаза 1, единственный ⬜);
 seriesProgressControllerProvider no-op-toast → инъекция в Фазе 3 (решение #35);
@@ -313,7 +313,7 @@ PlatformService за условным экспортом). Фаза 2 ЗАКРЫ
 | 0 | `views/__tests__` | `categoryModel.test.ts` | `test/views/category_model_test.dart` | ✅ Готов | ✅ | Все кейсы + search trim + promoted + baseCategories |
 | 0 | `views` | `categoryModel.ts` | `lib/views/category_model.dart` | ✅ Готов | ✅ | buildStatusGroups/filterByStatus (0-safe buckets, численное сравнение статусов), categoryFilters (promoted → parent+subId, anime/tvshow/movie), sortFilters; MediaFilters.copyWithFields добавлен; кейсы vitest-теста |
 | 5 | `widgets/goals` | `GoalCard.svelte` | `lib/widgets/goals/goal_card.dart` | ⬜ Не начат | ⬜ | — |
-| 3 | `widgets/layout` | `ActivityDropdown.svelte` | `lib/widgets/layout/activity_dropdown.dart` | ⬜ Не начат | ⬜ | — |
+| 3 | `widgets/layout` | `ActivityDropdown.svelte` | `lib/widgets/layout/activity_dropdown.dart` | ✅ Готов | ✅ | OverlayPortal-поповер (anchor bottom+8/right → RenderBox); connect на монтировании (сокет глобальный), лимиты: countdown 1s + poll 10s live при открытом поповере; очередь с прогресс-барами/отменой; pending-review; спин 3s/1s AnimationController; тест-хук setPendingMatchesForTest; 6 тестов |
 | 3 | `widgets/layout` | `AppShell.svelte` | `lib/widgets/layout/app_shell.dart` | ⬜ Не начат | ⬜ | — |
 | 3 | `widgets/layout` | `BackgroundJobsModal.svelte` | `lib/widgets/layout/background_jobs_modal.dart` | ⬜ Не начат | ⬜ | — |
 | 3 | `widgets/layout` | `CloseAppModal.svelte` | `lib/widgets/layout/close_app_modal.dart` | ⬜ Не начат | ⬜ | — |

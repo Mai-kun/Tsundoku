@@ -306,6 +306,13 @@ class JobsClientController extends Notifier<JobsState> {
   // #apply (SSE-событие).
   // ------------------------------------------------------------------
 
+  /// Публично для тестов: подставить pending-matches без сетевого refetch
+  /// (реальный путь — refreshPendingMatches из connect/openModal).
+  @visibleForTesting
+  void setPendingMatchesForTest(List<PendingMatchItemDto> items) {
+    state = state.copyWith(pendingMatches: items);
+  }
+
   /// Публично для тестов и stream-обработчика: применить raw SSE-payload.
   @visibleForTesting
   void applyJson(String raw) {

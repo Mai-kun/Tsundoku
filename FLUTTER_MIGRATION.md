@@ -142,14 +142,15 @@
 9. `views/HomeView.svelte`;
 10. `widgets/layout/BackgroundJobsModal.svelte` — ✅ ЗАКРЫТ (13/13 Фазы 3).
     Следующий шаг — **Phase Gate Фазы 3** (analyze/test/build linux/build
-    web --wasm). **Фаза 4 в работе**: чистые модули — detailTypes/
-    detailFormatters (pull-forward) + relationSources + externalMapping +
-    ratingBadges. Далее: relatedMatching (+ vitest-тесты) → виджеты (ProgressStepper →
-    SeasonRow → DetailTabs → sections → tabs → panels → модалки →
-    DetailSidebar) → ShowSeasonsView → MediaDetailView → edit-media
-    workspace (ниточки).
+    web --wasm). **Фаза 4 в работе**: чистые модули ЗАКРЫТЫ (detailTypes/
+    detailFormatters pull-forward + relationSources/externalMapping/
+    ratingBadges/relatedMatching). Далее — виджеты по зависимостям:
+    ProgressStepper → SeasonRow → SyncRowsSkeleton → DetailTabs →
+    sections/* → tabs/* → panels/* → модалки (CoverManager/FillMissing/
+    MediaActivity/OverwriteConfirm/RelinkSource) → DetailSidebar →
+    ShowSeasonsView → MediaDetailView → edit-media workspace (ниточки).
 
-**Прогресс: 113 / 207 файлов**
+**Прогресс: 114 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
@@ -157,9 +158,9 @@
 | 1 — `shared/ui/` | 17 | 17 |
 | 2 — `entities/` + карточки/сетка | 19 | 19 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 13 (ЗАКРЫТА, см. Phase Gate) |
-| 4 — Детальная страница + Spatial Node Editor | 59 | 5 (+ ratingBadges) |
+| 4 — Детальная страница + Spatial Node Editor | 59 | 6 (+ relatedMatching) |
 | 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 0 |
-| **Всего** | **207** | **113** |
+| **Всего** | **207** | **114** |
 
 Долги Фаз 0–2 (не блокируют): —
 seriesProgressControllerProvider no-op-toast → инъекция в Фазе 3 (решение #35);
@@ -364,14 +365,14 @@ Spatial Node Editor; detailTypes/detailFormatters уже готовы pull-forwa
 | 4 | `widgets/media-detail` | `SyncRowsSkeleton.svelte` | `lib/widgets/media-detail/sync_rows_skeleton.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `widgets/media-detail/__tests__` | `externalMapping.test.ts` | `test/widgets/media-detail/external_mapping_test.dart` | ✅ Готов | ✅ | Все 6 vitest-кейсов 1-в-1: raw relationType, ratings/score, даты/счётчики, missing year, format, title-fallback |
 | 4 | `widgets/media-detail/__tests__` | `ratingBadges.test.ts` | `test/widgets/media-detail/rating_badges_test.dart` | ✅ Готов | ✅ | Оба vitest-кейса (linkedSources фильтр + пустой список) + TDD-сверхнабор: score 0 → queried-плейсхолдер, sociallib-зонт, выключенные источники, дедуп lowercase, fallback, includeMissing/fallbackSources |
-| 4 | `widgets/media-detail/__tests__` | `relatedMatching.test.ts` | `test/widgets/media-detail/related_matching_test.dart` | ⬜ Не начат | ⬜ | — |
+| 4 | `widgets/media-detail/__tests__` | `relatedMatching.test.ts` | `test/widgets/media-detail/related_matching_test.dart` | ✅ Готов | ✅ | Все vitest-кейсы: normalize (латиница/кириллица/канзи), stripMovieMarker, каскад без кросс-матча TV vs Movie (Violet Evergarden fixture), findMatchingLocal + TDD: external-ID приоритет, game/book без romaji, пустая библиотека |
 | 4 | `widgets/media-detail` | `detailFormatters.ts` | `lib/widgets/media-detail/detail_formatters.dart` | ✅ Готов | ✅ | Вытащен вперёд (решение #30, зависимость BaseCard → providerLink). Все 25 функций 1-в-1: providerLink (16 источников, slugify — см. #31), releaseStatusLabel (game/tv ветки, UTC-полночь date-only — 1-в-1 с new Date), readProgress, buildEpisodes (limit = min(total, max(watched, 200)) 1-в-1), relatedStatusColors (CSS-строки → типизированные цвета), specRows + lineage. statusLabel ре-экспорт. Типовые null-фиксы: currentChapter/totalEpisodesWatched null → 0 (TS-тип врал). 48 тестов |
 | 4 | `widgets/media-detail` | `detailTypes.ts` | `lib/widgets/media-detail/detail_types.dart` | ✅ Готов | ✅ | Вытащен вперёд (зависимость BaseCard → providerLink): ProgressInfo/SpecRow/EpisodeRow/NextUp/RecommendationItem/RelatedEntry/RatingBadge/RelationGroup/TimelineEntry; SubTab/RelatedViewMode → enum c wire (конвенция enums.dart); read-only без toJson (YAGNI); smoke-тесты |
 | 4 | `widgets/media-detail` | `externalMapping.ts` | `lib/widgets/media-detail/external_mapping.dart` | ✅ Готов | ✅ | toRelatedEntry: серверная relation → RelatedEntry (без i18n — caller даёт локализованный label); ratings → [RatingBadge(source, score)] при score>0 + externalSource; title-fallback «Title» |
 | 4 | `widgets/media-detail/panels` | `RelatedPanel.svelte` | `lib/widgets/media-detail/panels/related_panel.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `widgets/media-detail/panels` | `RelatedPreviewModal.svelte` | `lib/widgets/media-detail/panels/related_preview_modal.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `widgets/media-detail` | `ratingBadges.ts` | `lib/widgets/media-detail/rating_badges.dart` | ✅ Готов | ✅ | buildRatingBadges: дедуп → fallback → linkedSources (containment-матч + resolve имён) → includeMissing-плейсхолдеры; score 0 = «спрошено, нет рейтинга» (queried); sociallib-зонт выбрасывается на всех ветках; RawRating/FallbackRating/RatingBadgeInput — типизированные входы |
-| 4 | `widgets/media-detail` | `relatedMatching.ts` | `lib/widgets/media-detail/related_matching.dart` | ⬜ Не начат | ⬜ | — |
+| 4 | `widgets/media-detail` | `relatedMatching.ts` | `lib/widgets/media-detail/related_matching.dart` | ✅ Готов | ✅ | Каскад 5 шагов 1-в-1: externalId → originalTitle → romaji → кросс-матч нормализованных → movie-marker матч (оба — фильмы); normalizeTitle сохраняет канзи/хирагану/катакану; item.originalTitle — только у MediaDetail (`is MediaDetail` = TS runtime-cast эквивалент, решение #47); findMatchingLocal глотает исключения per-item |
 | 4 | `widgets/media-detail` | `relationSources.ts` | `lib/widgets/media-detail/relation_sources.dart` | ✅ Готов | ✅ | Whitelist relations-источников (kRelationSources) × включённые пользователем; бакет anime через isAnime/detailFormatters; getSources через sourcesCachePromise (дедуп запросов); ошибка → [] (не роняет caller); 5 тестов полного цикла (stub dio) |
 | 4 | `widgets/media-detail/sections` | `BookEditionSection.svelte` | `lib/widgets/media-detail/sections/book_edition_section.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `widgets/media-detail/sections` | `BookProgressSection.svelte` | `lib/widgets/media-detail/sections/book_progress_section.dart` | ⬜ Не начат | ⬜ | — |
@@ -473,6 +474,7 @@ Spatial Node Editor; detailTypes/detailFormatters уже готовы pull-forwa
 | 32 | `widgets/media-card/BaseCard.svelte` | navigator.clipboard / document-download-anchor / window.open — браузерные API; §1.3 требует платформенный фасад | `lib/shared/platform/`: PlatformService (copyText/copyImagePng/saveFile/openExternalUrl) + условный экспорт io (super_clipboard + file_picker.saveFile + url_launcher) / web (package:web) / stub; wasm-билд зелёный — dart:io не протёк | Проверено `flutter build web --wasm`; ревью не требуется |
 | 44 | `widgets/media-detail/DetailHeader.svelte` | Раскрытие синопсиса — измеренный px (collapsedSynopsisHeight/scrollHeight + transition-[height] + transitionend→auto); inline-SVG AniList и Star с fill="currentColor" | Анимация → AnimatedSize 200ms (аналог grid-rows 0fr→1fr по поведению); clamp — maxLines 4 + ellipsis; AniList-путь перенесён 1-в-1 в CustomPaint (24→14 масштаб); Star — lucide-шрифт-иконка без fill (#26); sourceBadgeClasses — внутренний вызов mediaLabels вместо пропа | Ревью не требуется |
 | 46 | `widgets/layout/BackgroundJobsModal.svelte` | Svelte мутирует jobsClient напрямую (`modalTab = …`, `pendingMatches = []`); hotkeys — svelte:window c isTextEntry(target) | jobsClient: аддитивные setModalTab/clearPendingMatches; hotkeys → Focus(autofocus, onKeyEvent) на модалке — Flutter сам не доставляет consumed-клавиши из TextField'ов (InsertContent), гвард _isTextEntryFocused (EditableText-предок) — двойная защита 1-в-1 с Svelte; сетка кандидатов grid-cols-2 → LayoutBuilder+Wrap (grid stretch не переносится — Spacer убран); баннер/статусы — точные i18n-ключи | Ревью не требуется |
+| 47 | `widgets/media-detail/relatedMatching.ts` | `(item as {originalTitle?}).originalTitle` — runtime-cast: поле есть только в detail-интерфейсе TS, у MediaItem его нет (undefined в рантайме для list-объектов) | Dart: `item is MediaDetail ? item.originalTitle : null` — точный эквивалент рантайм-семантики TS (MediaDetail extends MediaItem); MediaItem.originalTitle намеренно НЕ добавлялся (YAGNI, контракт MediaListDto) | Ревью не требуется |
 | 45 | `widgets/media-detail/ExternalDetailModal.svelte` | Svelte-компонент пересоздаётся на каждый открытый hit ($effect по `${type}:${source}:${id}` перезагружает детали); Flutter переиспользует State при том же типе виджета в той же позиции | didUpdateWidget сравнивает hit-key (type/source/externalId): смена → полный сброс стейта (synopsis/imgError/translated) + перезагрузка; тот же hit → кэш prefetch (TTL 10min) остаётся; поздний ответ не перезапишет чужой hit | Ревью не требуется |
 
 ---

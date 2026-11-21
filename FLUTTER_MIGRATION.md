@@ -39,6 +39,8 @@
 | Иконки (1-в-1 со Svelte lucide) | `lucide_icons_flutter` (4.0.x) |
 | Графики (`StatsView`) | `fl_chart` (1.3.x); Heatmap/кольца/ниточки редактора — нативный `CustomPainter` |
 | Локальные настройки UI | `shared_preferences` |
+| Slug-нормализация (NFKD-аналог) | `diacritic` (0.1.x, решение #31: в Dart нет String.normalize) |
+| firstOrNull/итеры | `collection` |
 | Десктоп-интеграция (за фасадом) | `window_manager`, `file_picker` (7.x, см. §6), `desktop_drop`, `super_clipboard` |
 | UI-библиотека | `material_ui` (официальная вынесенная Material-библиотека Flutter 3.50; заменяет `package:flutter/material.dart` — тот deprecated с v3.47) |
 | Шрифт | **Inter** (rsms/inter v4.1), `assets/fonts/`, семейство `Inter`, веса 400/500/600/700/800/900 |
@@ -323,7 +325,7 @@ build linux --debug ✓, build web --wasm ✓. Фаза 1 ЗАКРЫТА. Дал
 | 4 | `widgets/media-detail/__tests__` | `externalMapping.test.ts` | `test/widgets/media-detail/external_mapping_test.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `widgets/media-detail/__tests__` | `ratingBadges.test.ts` | `test/widgets/media-detail/rating_badges_test.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `widgets/media-detail/__tests__` | `relatedMatching.test.ts` | `test/widgets/media-detail/related_matching_test.dart` | ⬜ Не начат | ⬜ | — |
-| 4 | `widgets/media-detail` | `detailFormatters.ts` | `lib/widgets/media-detail/detail_formatters.dart` | ⬜ Не начат | ⬜ | — |
+| 4 | `widgets/media-detail` | `detailFormatters.ts` | `lib/widgets/media-detail/detail_formatters.dart` | ✅ Готов | ✅ | Вытащен вперёд (решение #30, зависимость BaseCard → providerLink). Все 25 функций 1-в-1: providerLink (16 источников, slugify — см. #31), releaseStatusLabel (game/tv ветки, UTC-полночь date-only — 1-в-1 с new Date), readProgress, buildEpisodes (limit = min(total, max(watched, 200)) 1-в-1), relatedStatusColors (CSS-строки → типизированные цвета), specRows + lineage. statusLabel ре-экспорт. Типовые null-фиксы: currentChapter/totalEpisodesWatched null → 0 (TS-тип врал). 48 тестов |
 | 4 | `widgets/media-detail` | `detailTypes.ts` | `lib/widgets/media-detail/detail_types.dart` | ✅ Готов | ✅ | Вытащен вперёд (зависимость BaseCard → providerLink): ProgressInfo/SpecRow/EpisodeRow/NextUp/RecommendationItem/RelatedEntry/RatingBadge/RelationGroup/TimelineEntry; SubTab/RelatedViewMode → enum c wire (конвенция enums.dart); read-only без toJson (YAGNI); smoke-тесты |
 | 4 | `widgets/media-detail` | `externalMapping.ts` | `lib/widgets/media-detail/external_mapping.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `widgets/media-detail/panels` | `RelatedPanel.svelte` | `lib/widgets/media-detail/panels/related_panel.dart` | ⬜ Не начат | ⬜ | — |
@@ -422,6 +424,8 @@ build linux --debug ✓, build web --wasm ✓. Фаза 1 ЗАКРЫТА. Дал
 | 26 | `entities/media/ui/MediaStatusBadge.svelte` | Lucide-иконки в Svelte поддерживают stroke-width/fill (Play filled, Check 3, X 4); lucide_icons_flutter — шрифт-иконка без вариаций | Единый вес иконок (размеры 20/21px сохранены 1-в-1); визуальная разница в толщине штриха принята | Нативные SVG-иконки — отдельная работа, YAGNI; ревью по желанию |
 | 27 | `entities/media/ui/MediaScoreBadge.svelte` | -ml-2 (отрицательный margin) не выражается в Flutter напрямую | Transform.translate(Offset(-8, 0)) — визуальный оверхлап 1-в-1; layout-ширина кластера +8px (не видна: кластер прижат влево) | Ревью не требуется |
 | 28 | `entities/media/ui/MediaPoster.svelte` | Проп children объявлен в Props, но шаблоном не рендерится ({@render children} отсутствует) — мёртвый API | Не переносился (YAGNI, 1-в-1 с фактическим поведением); слоты badges/actions перенесены | Если апстрим оживит children — добавить; ревью не требуется |
+| 30 | `widgets/media-card/BaseCard.svelte` | BaseCard импортирует providerLink из Фазы 4 (detailFormatters) — фазовый порядок ломается | detailTypes.ts + detailFormatters.ts вытащены вперёд и портированы целиком (строки Фазы 4 закрыты досрочно); 1-в-1 file-mapping сохранён | Портировать BaseCard с инлайном providerLink — дублирование; ревью не требуется |
+| 31 | `widgets/media-detail/detailFormatters.ts` | slugify использует NFKD-нормализацию + зачистку combining marks; в Dart String.normalize нет | Пакет diacritic (removeDiacritics) — эквивалент для латиницы; стек дополнен (§1.4) | Полный ICU-NFKD недоступен без тяжёлых зависимостей; для RAWG/IGDB-слагов диакритики покрывают кейс; ревью по желанию |
 
 ---
 

@@ -150,7 +150,7 @@
     MediaActivity/OverwriteConfirm/RelinkSource) → DetailSidebar →
     ShowSeasonsView → MediaDetailView → edit-media workspace (ниточки).
 
-**Прогресс: 134 / 207 файлов**
+**Прогресс: 135 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
@@ -158,9 +158,9 @@
 | 1 — `shared/ui/` | 17 | 17 |
 | 2 — `entities/` + карточки/сетка | 19 | 19 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 13 (ЗАКРЫТА, см. Phase Gate) |
-| 4 — Детальная страница + Spatial Node Editor | 59 | 26 (+ LinkedSourcesSection) |
+| 4 — Детальная страница + Spatial Node Editor | 59 | 27 (+ OverviewTab) |
 | 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 0 |
-| **Всего** | **207** | **134** |
+| **Всего** | **207** | **135** |
 
 Долги Фаз 0–2 (не блокируют): —
 seriesProgressControllerProvider no-op-toast → инъекция в Фазе 3 (решение #35);
@@ -392,7 +392,7 @@ Spatial Node Editor; detailTypes/detailFormatters уже готовы pull-forwa
 | 4 | `widgets/media-detail/sections` | `TvShowProgressSection.svelte` | `lib/widgets/media-detail/sections/tv_show_progress_section.dart` | ✅ Готов | ✅ | Минуты/серия: episodeDurationMinutes → durationMinutes → 24; tooltip total «Сезон N: M · …» для multi-season (seasons на MediaDetail); effectiveTotal: totalEpisodes/progress.total; indigo-акцент, pace [1,2,3,5] дефолт 2; тесты в book_tv_progress_sections_test |
 | 4 | `widgets/media-detail/tabs` | `EpisodesTab.svelte` | `lib/widgets/media-detail/tabs/episodes_tab.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `widgets/media-detail/tabs` | `GalleryTab.svelte` | `lib/widgets/media-detail/tabs/gallery_tab.dart` | ⬜ Не начат | ⬜ | — |
-| 4 | `widgets/media-detail/tabs` | `OverviewTab.svelte` | `lib/widgets/media-detail/tabs/overview_tab.dart` | ⬜ Не начат | ⬜ | — |
+| 4 | `widgets/media-detail/tabs` | `OverviewTab.svelte` | `lib/widgets/media-detail/tabs/overview_tab.dart` | ✅ Готов | ✅ | Лестница блоков: две независимые колонки lg (Row/Expanded) / один поток order-1..9 (display: contents); диспетчер прогресса по типу (game/book/manga/tvshow/movie/stepper/статус-плашка); creator-дерево (movie/tvshow/book/manga/game); QuotesSection при showQuotes; MediaFiles/LinkedSources с type-переключателем anime; 5 тестов |
 | 4 | `widgets/media-detail/tabs` | `RecommendationsTab.svelte` | `lib/widgets/media-detail/tabs/recommendations_tab.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `widgets/media-detail/tabs` | `RelatedTab.svelte` | `lib/widgets/media-detail/tabs/related_tab.dart` | ⬜ Не начат | ⬜ | — |
 | 2 | `widgets/media-grid` | `MediaGrid.svelte` | `lib/widgets/media-grid/media_grid.dart` | ✅ Готов | ✅ | Sliver-версия (решение #37): SliverGrid с окном монтирования (поведение virtualGrid ⏭️), columnsForWidth 1-в-1 (колонки от ширины ОКНА — window.innerWidth), childAspectRatio 2/3 (титул на постере), timeHint через evaluateTimeFit/uiSettings, Remove-from-list X-кнопка, loading/error/empty-боксы 1-в-1; FLAT_LIMIT — константа-документация (SliverGrid виртуален всегда); 10 тестов |

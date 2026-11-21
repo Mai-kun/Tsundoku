@@ -167,9 +167,9 @@
     workspaceLayout.ts ✅ (10 тестов; localStorage → SharedPreferences-фасад
     стора uiSettings); workspaceThreads.ts ✅ (6 тестов — чистая
     математика без фреймворка; rAF-цикл рисования придёт в WorkspaceWindow);
-    WorkspaceWindow.svelte ✅ (6 тестов).
+    WorkspaceWindow.svelte ✅ (6 тестов) → ModuleCard ✅ (4 теста).
 
-**Прогресс: 155 / 207 файлов**
+**Прогресс: 156 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
@@ -177,9 +177,9 @@
 | 1 — `shared/ui/` | 17 | 17 |
 | 2 — `entities/` + карточки/сетка | 19 | 19 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 13 (ЗАКРЫТА, см. Phase Gate) |
-| 4 — Детальная страница + Spatial Node Editor | 59 | 51 |
+| 4 — Детальная страница + Spatial Node Editor | 59 | 52 |
 | 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 0 |
-| **Всего** | **207** | **155** |
+| **Всего** | **207** | **156** |
 
 Долги Фаз 0–2 (не блокируют): —
 seriesProgressControllerProvider no-op-toast → инъекция в Фазе 3 (решение #35);

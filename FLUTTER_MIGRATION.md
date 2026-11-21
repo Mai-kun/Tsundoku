@@ -150,7 +150,7 @@
     MediaActivity/OverwriteConfirm/RelinkSource) → DetailSidebar →
     ShowSeasonsView → MediaDetailView → edit-media workspace (ниточки).
 
-**Прогресс: 116 / 207 файлов**
+**Прогресс: 117 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
@@ -158,9 +158,9 @@
 | 1 — `shared/ui/` | 17 | 17 |
 | 2 — `entities/` + карточки/сетка | 19 | 19 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 13 (ЗАКРЫТА, см. Phase Gate) |
-| 4 — Детальная страница + Spatial Node Editor | 59 | 8 (+ ProgressStepper) |
+| 4 — Детальная страница + Spatial Node Editor | 59 | 9 (+ SeasonRow) |
 | 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 0 |
-| **Всего** | **207** | **116** |
+| **Всего** | **207** | **117** |
 
 Долги Фаз 0–2 (не блокируют): —
 seriesProgressControllerProvider no-op-toast → инъекция в Фазе 3 (решение #35);
@@ -361,7 +361,7 @@ Spatial Node Editor; detailTypes/detailFormatters уже готовы pull-forwa
 | 4 | `widgets/media-detail` | `ProgressStepper.svelte` | `lib/widgets/media-detail/progress_stepper.dart` | ✅ Готов | ✅ | Тонкая обёртка ProgressCard: theme-акцент, unitShort='', minsPerUnit=null (без времени), paceOptions=[], startHint=progress.startGeneric; 4 теста (Start/кольцо/counterChange/без времени) |
 | 4 | `widgets/media-detail` | `RelationLoadButton.svelte` | `lib/widgets/media-detail/relation_load_button.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `widgets/media-detail` | `RelinkSourceModal.svelte` | `lib/widgets/media-detail/relink_source_modal.dart` | ⬜ Не начат | ⬜ | — |
-| 4 | `widgets/media-detail` | `SeasonRow.svelte` | `lib/widgets/media-detail/season_row.dart` | ⬜ Не начат | ⬜ | — |
+| 4 | `widgets/media-detail` | `SeasonRow.svelte` | `lib/widgets/media-detail/season_row.dart` | ✅ Готов | ✅ | Optimistic + ProgressDebouncer (3s, burst → один send, flush(keepalive) на dispose, pendingSnapshot → откат при ошибке); кламп по totalEpisodes (clampProgress); смена сезона → сброс (didUpdateWidget по ссылке); постер через baseUrl-склейку (#25); FractionallySizedBox-бар 200ms; 6 тестов полного цикла |
 | 4 | `widgets/media-detail` | `SyncRowsSkeleton.svelte` | `lib/widgets/media-detail/sync_rows_skeleton.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `widgets/media-detail/__tests__` | `externalMapping.test.ts` | `test/widgets/media-detail/external_mapping_test.dart` | ✅ Готов | ✅ | Все 6 vitest-кейсов 1-в-1: raw relationType, ratings/score, даты/счётчики, missing year, format, title-fallback |
 | 4 | `widgets/media-detail/__tests__` | `ratingBadges.test.ts` | `test/widgets/media-detail/rating_badges_test.dart` | ✅ Готов | ✅ | Оба vitest-кейса (linkedSources фильтр + пустой список) + TDD-сверхнабор: score 0 → queried-плейсхолдер, sociallib-зонт, выключенные источники, дедуп lowercase, fallback, includeMissing/fallbackSources |

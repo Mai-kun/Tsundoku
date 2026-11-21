@@ -141,19 +141,19 @@
 9. `views/CategoryView.svelte` (+ `views/__tests__/CategoryView.test.ts` — TDD);
 10. `views/HomeView.svelte`.
 
-**Прогресс: 97 / 207 файлов**
+**Прогресс: 98 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
 | 0 — Фундамент (типы/API/модели/логика/тема) | 58 | 58 |
-| 1 — `shared/ui/` | 17 | 16 (открыт ConfirmModal) |
+| 1 — `shared/ui/` | 17 | 17 |
 | 2 — `entities/` + карточки/сетка | 19 | 19 |
-| 3 — Каркас: App/Layout/Home/Category | 13 | 4 |
+| 3 — Каркас: App/Layout/Home/Category | 13 | 5 |
 | 4 — Детальная страница + Spatial Node Editor | 59 | 0 |
 | 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 0 |
-| **Всего** | **207** | **97** |
+| **Всего** | **207** | **98** |
 
-Долги Фаз 0–2 (не блокируют): ConfirmModal (Фаза 1, единственный ⬜);
+Долги Фаз 0–2 (не блокируют): —
 seriesProgressControllerProvider no-op-toast → инъекция в Фазе 3 (решение #35);
 golden media_grid_books — regression-backstop, попиксельное сравнение со
 Svelte-эталоном — после починки node/harness (см. Заметки окружения #2).
@@ -171,6 +171,10 @@ build linux --debug ✓, build web --wasm ✓ (dart:io не протёк). Фа�
 build linux --debug ✓, build web --wasm ✓. Фаза 1 ЗАКРЫТА. Далее — **Фаза 2**
 (`entities/media/ui` 4 файла → `widgets/media-card` 10 → `widgets/media-grid` 5,
 включая virtualGrid ⏭️).
+
+**Фаза 1 закрыта ПОЛНОСТЬЮ (2026-11-21):** ConfirmModal — последний ⬜ Фазы 1 — портирован
+(попутно исправлен баг modal.dart, 🐛 #5). Гейт Фазы 1 не перепрогонялся (файл мелкий,
+suite зелёный).
 
 **Phase Gate Фазы 2 — ЗЕЛЁНЫЙ (2026-11-21):** analyze 0 issues, 489/489 тестов
 (+golden media_grid_books — regression-backstop окна монтирования virtualGrid
@@ -267,7 +271,7 @@ PlatformService за условным экспортом). Фаза 2 ЗАКРЫ
 | 0 | `shared/types` | `models.ts` | `lib/shared/types/models.dart` | ✅ Готов | ✅ | Плоский MediaItem (сервер шлёт плоский MediaListDto) + MediaDetail с detail-полями; Record→Map, string[]\|string→List (решения #3/#4); read-only модели без toJson (YAGNI) |
 | 1 | `shared/ui` | `Badge.svelte` | `lib/shared/ui/badge.dart` | ✅ Готов | ✅ | 6 тонов → цвета 1-в-1 из TsundokuTheme (alpha-версии accent/border), 2 размера (px/py/шрифт), rounded-md; widget-ready |
 | 1 | `shared/ui` | `Button.svelte` | `lib/shared/ui/button.dart` | ✅ Готов | ✅ | 5 вариантов/5 размеров (геометрия 1-в-1), hover через Ink, holdProgress-fill (bg-danger/30 origin-left), loading-спиннер; widget+golden тесты (primary/md, danger+hold) |
-| 1 | `shared/ui` | `ConfirmModal.svelte` | `lib/shared/ui/confirm_modal.dart` | ⬜ Не начат | ⬜ | — |
+| 1 | `shared/ui` | `ConfirmModal.svelte` | `lib/shared/ui/confirm_modal.dart` | ✅ Готов | ✅ | TsundokuModal md + KeyboardListener (Enter → confirm, узел фокуса на теле); иконка danger Trash2 / warning AlertTriangle (warning-line/surface — литералы, вне ThemeExtension); взаимоисключающие чекбоксы памяти; снапшот rendered на время выходной анимации; 4 теста полного цикла. ПОПРАВЛЕН баг modal.dart: Material(shape+borderRadius) — запрещено фреймворком (🐛 #5) |
 | 1 | `shared/ui` | `ContextMenu.svelte` | `lib/shared/ui/context_menu.dart` | ✅ Готов | ✅ | _MenuPanel: позиционирование с флипом/clamp 8px, подменю inline-раскрытие (решение #24), hold-to-delete (HoldToDeleteController, deleting/hint через tProvider), Esc/outside-close; widget-тесты (flyout/сепаратор/danger/disabled) |
 | 1 | `shared/ui` | `Icons.ts` | `—` | ⏭️ Заменено нативно | ⬜ | Мост иконок lucide→Svelte заменяется прямым использованием пакета lucide_icons_flutter (те же имена иконок LucideIcons.*) |
 | 1 | `shared/ui` | `ImageLightbox.svelte` | `lib/shared/ui/image_lightbox.dart` | ✅ Готов | ✅ | show света по ImageLightboxState (lightbox provider) |
@@ -409,6 +413,7 @@ PlatformService за условным экспортом). Фаза 2 ЗАКРЫ
 | 2 | `shared/utils/sourceUrlHelper.ts` | animelib-ветка получает УЖЕ encodeURIComponent-нутый id; зачистка префикса «ru/anime/» не срабатывает → двойное кодирование («ru%252Fanime…»), хотя комментарий обещает канонический URL | Исправлено: в buildAnimelibUrl передаётся сырой id (strip работает, одинарное кодирование) — тест фиксирует канонический URL | В TS поведение с двойным кодированием — вероятно реальный runtime-баг карточек animelib; сообщить апстриму при случае |
 | 3 | `shared/types/models.dart` (порт, не Svelte) | `_strOrList` нормализовал строку genres/tags через split(',') без распаковки JSON-массива: payload вида `["Фэнтези","Драма"]` ломался на элементы `['["Фэнтези"', '"Драма"]']`. В TS строка оставалась сырой до parseGenresList, который JSON распаковывает | Да: в _strOrList добавлена попытка jsonDecode для `[...]`-строк (фолбэк — split(',')); тест в models_test.dart + кейсы в detail_formatters_test | Порт-баг (не Svelte): модель нормализует раньше, чем consumer — теперь обе стратегии дают одинаковый результат |
 | 4 | `shared/ui/toast.svelte.ts` → порт (toast.dart) | Dart-стор добавил собственные TTL-таймеры auto-dismiss, которых НЕТ в Svelte: в Svelte dismiss живёт в ToastContainer (rAF-клок с паузой на hover и 1s-грейсом). Двойной dismiss ломал паузу (стор удалял тост под курсором) | Да: TTL-таймеры удалены из стора (dismiss — чистое состояние); авто-dismiss целиком в ToastContainer; тесты стора и контейнера обновлены | Порт-баг Фазы 1, вскрыт портированием контейнера (Фаза 3) |
+| 5 | `shared/ui/modal.dart` (порт, не Svelte) | Material получал и borderRadius, и shape — фреймворк запрещает (assert). Всплывало при первом рендере модалки из ConfirmModal | Да: borderRadius убран — скругление и border-white/[0.08] несёт только RoundedRectangleBorder | Порт-баг Фазы 1 (Golden Фазы 1 модалку не рендерил) |
 ---
 
 ## ⚖️ Спорные решения и развилки

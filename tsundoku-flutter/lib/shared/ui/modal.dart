@@ -106,13 +106,12 @@ class TsundokuModal extends StatelessWidget {
             padding: const EdgeInsets.all(16), // p-4
             child: Material(
               color: const Color(0xFF151A26), // bg-[#151a26] modal-panel
-              borderRadius:
-                  BorderRadius.circular(TsundokuPalette.radiusBox), // rounded-xl
+              // rounded-xl + border-white/[0.08] — только через shape:
+              // Material запрещает borderRadius вместе с shape.
               shape: RoundedRectangleBorder(
                 borderRadius:
                     BorderRadius.circular(TsundokuPalette.radiusBox),
-                side: BorderSide(
-                    color: const Color(0x14FFFFFF).withValues(alpha: 0.08 * 4)),
+                side: BorderSide(color: Colors.white.withAlpha(20)),
               ),
               child: ConstrainedBox(
                 constraints: BoxConstraints(

@@ -150,7 +150,7 @@
     MediaActivity/OverwriteConfirm/RelinkSource) → DetailSidebar →
     ShowSeasonsView → MediaDetailView → edit-media workspace (ниточки).
 
-**Прогресс: 119 / 207 файлов**
+**Прогресс: 120 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
@@ -158,9 +158,9 @@
 | 1 — `shared/ui/` | 17 | 17 |
 | 2 — `entities/` + карточки/сетка | 19 | 19 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 13 (ЗАКРЫТА, см. Phase Gate) |
-| 4 — Детальная страница + Spatial Node Editor | 59 | 11 (+ DetailTabs) |
+| 4 — Детальная страница + Spatial Node Editor | 59 | 12 (+ PeopleSizeToggle) |
 | 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 0 |
-| **Всего** | **207** | **119** |
+| **Всего** | **207** | **120** |
 
 Долги Фаз 0–2 (не блокируют): —
 seriesProgressControllerProvider no-op-toast → инъекция в Фазе 3 (решение #35);
@@ -384,7 +384,7 @@ Spatial Node Editor; detailTypes/detailFormatters уже готовы pull-forwa
 | 4 | `widgets/media-detail/sections` | `MediaFilesSection.svelte` | `lib/widgets/media-detail/sections/media_files_section.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `widgets/media-detail/sections` | `MovieStatusSection.svelte` | `lib/widgets/media-detail/sections/movie_status_section.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `widgets/media-detail/sections` | `NotesSection.svelte` | `lib/widgets/media-detail/sections/notes_section.dart` | ⬜ Не начат | ⬜ | — |
-| 4 | `widgets/media-detail/sections` | `PeopleSizeToggle.svelte` | `lib/widgets/media-detail/sections/people_size_toggle.dart` | ⬜ Не начат | ⬜ | — |
+| 4 | `widgets/media-detail/sections` | `PeopleSizeToggle.svelte` | `lib/widgets/media-detail/sections/people_size_toggle.dart` | ✅ Готов | ✅ | Иконочный toggle compact/large; cast/staff размеры раздельно (castSizeByCategory/staffSizeByCategory из стейт-карт — watch-реактивно); aria-pressed/aria-label через Semantics; 3 теста (дефолт, переключение, раздельное хранение) |
 | 4 | `widgets/media-detail/sections` | `ProgressCard.svelte` | `lib/widgets/media-detail/sections/progress_card.dart` | ✅ Готов | ✅ | Кольцо SVG → CustomPainter (drawArc −90°, dash-переход 300ms), counter-pop 180ms ({#key value} → ValueKey), ручной ввод (autofocus, blur-коммит, Esc-отмена, кламп 0..total), иерархия кнопок Start/−/+1/+5, drag-установка по бару (Listener+LayoutBuilder = pointer capture), сегменты ≤36 vs непрерывный бар (150ms), milestones 25/50/75/100, блок времени + pace-чипы (finishEstimate через intl 'd MMMM'), completed-итог; 4 акцента (indigo/amber/teal/theme); 10 тестов полного цикла |
 | 4 | `widgets/media-detail/sections` | `QuickFactsSection.svelte` | `lib/widgets/media-detail/sections/quick_facts_section.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `widgets/media-detail/sections` | `QuotesSection.svelte` | `lib/widgets/media-detail/sections/quotes_section.dart` | ⬜ Не начат | ⬜ | — |

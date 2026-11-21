@@ -360,13 +360,21 @@ class RelatedPreviewModal extends ConsumerWidget {
                                           Row(
                                             mainAxisSize: MainAxisSize.min,
                                             children: [
-                                              Text(
-                                                '${t.tr('detail.previewModal.initialStatus')}:',
-                                                style: TextStyle(
-                                                  fontSize: 12, // text-xs
-                                                  fontWeight:
-                                                      FontWeight.w500, // font-medium
-                                                  color: th.textMuted, // text-muted
+                                              // CSS flex-shrink: подпись
+                                              // сжимается, select держит 200.
+                                              Flexible(
+                                                child: Text(
+                                                  '${t.tr('detail.previewModal.initialStatus')}:',
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  style: TextStyle(
+                                                    fontSize: 12, // text-xs
+                                                    fontWeight: FontWeight
+                                                        .w500, // font-medium
+                                                    color: th
+                                                        .textMuted, // text-muted
+                                                  ),
                                                 ),
                                               ),
                                               const SizedBox(width: 8), // gap-2

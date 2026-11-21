@@ -144,13 +144,15 @@
     Следующий шаг — **Phase Gate Фазы 3** (analyze/test/build linux/build
     web --wasm). **Фаза 4 в работе**: чистые модули ЗАКРЫТЫ (detailTypes/
     detailFormatters pull-forward + relationSources/externalMapping/
-    ratingBadges/relatedMatching). Далее — виджеты по зависимостям:
-    ProgressStepper → SeasonRow → SyncRowsSkeleton → DetailTabs →
-    sections/* → tabs/* → panels/* → модалки (CoverManager/FillMissing/
-    MediaActivity/OverwriteConfirm/RelinkSource) → DetailSidebar →
-    ShowSeasonsView → MediaDetailView → edit-media workspace (ниточки).
+    ratingBadges/relatedMatching); виджеты по зависимостям:
+    ProgressStepper ✅ → SeasonRow ✅ → SyncRowsSkeleton ✅ → DetailTabs ✅ →
+    DetailHeader/ExternalDetailModal (pull-forward) ✅ → sections/* ✅ →
+    tabs/* ✅ → panels/* ✅ → модалки: MediaActivity ✅ / OverwriteConfirm ✅ /
+    CoverManager ✅. Следующий файл — **FillMissingModal**, далее
+    RelinkSourceModal → DetailSidebar → ShowSeasonsView → MediaDetailView
+    → edit-media workspace (ниточки).
 
-**Прогресс: 144 / 207 файлов**
+**Прогресс: 145 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
@@ -158,9 +160,9 @@
 | 1 — `shared/ui/` | 17 | 17 |
 | 2 — `entities/` + карточки/сетка | 19 | 19 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 13 (ЗАКРЫТА, см. Phase Gate) |
-| 4 — Детальная страница + Spatial Node Editor | 59 | 36 (+ OverwriteConfirmModal) |
+| 4 — Детальная страница + Spatial Node Editor | 59 | 37 |
 | 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 0 |
-| **Всего** | **207** | **144** |
+| **Всего** | **207** | **145** |
 
 Долги Фаз 0–2 (не блокируют): —
 seriesProgressControllerProvider no-op-toast → инъекция в Фазе 3 (решение #35);
@@ -350,7 +352,7 @@ Spatial Node Editor; detailTypes/detailFormatters уже готовы pull-forwa
 | 2 | `widgets/media-card` | `MovieCard.svelte` | `lib/widgets/media-card/movie_card.dart` | ✅ Готов | ✅ | 0/1 toggle через createCardStatus (0/1→1/1=completed, обратно planned); при watched минус активен, плюс disabled; subtitle режиссёр→types.movie |
 | 2 | `widgets/media-card` | `TvShowCard.svelte` | `lib/widgets/media-card/tv_show_card.dart` | ✅ Готов | ✅ | Локальный optimistic-счётчик + reconcileProgress на новом item ($effect-аналог по смене id); stepSeriesEpisodes из seriesProgressControllerProvider; onEpisodeStep получает АБСОЛЮТ; без onEpisodeStep — hover с MediaStatusBadge; atLastEpisode гейтит «+» |
 | 2 | `widgets/media-card` | `cardTypes.ts` | `lib/widgets/media-card/card_types.dart` | ✅ Готов | ✅ | CardTimeHint + MediaCardProps (бандл колбеков вместо 10 named-параметров × 8 виджетов, решение #33); onEpisodeStep void\|Promise → FutureOr; withItem = TS-спред {...rest, item}; smoke-тесты |
-| 4 | `widgets/media-detail` | `CoverManagerModal.svelte` | `lib/widgets/media-detail/cover_manager_modal.dart` | ⬜ Не начат | ⬜ | — |
+| 4 | `widgets/media-detail` | `CoverManagerModal.svelte` | `lib/widgets/media-detail/cover_manager_modal.dart` | ✅ Готов | ✅ | ModalSize.lg + внутренний ConstrainedBox 85vh + Column stretch; режимы URL/файл (segmented), fetch-volumes только у manga, setAsActive-чекбокс (Material Checkbox, литералы indigo); удаление — inline-подтверждение на плитке (Row→Wrap: на узких плитках Svelte-flex тоже переполнялся бы); плитки: aspect 2/3, active — emerald-500/80 border + ring-spread, hover scale 105/reveal-кнопки/градиентный source-лейбл; isActiveCover (query-strip + id); thumbUrl — baseUrl-склейка (#25) для «/», абсолютные как есть; выбор файла — platformService.pickFile (решение #53); 8 тестов полного цикла (payload/тост-стор/onUpdate) + golden-бэкстоп (Svelte-скриншота нет — node сломан, Заметки #2)
 | 4 | `widgets/media-detail` | `DetailHeader.svelte` | `lib/widgets/media-detail/detail_header.dart` | ✅ Готов | ✅ | ⬆️ Вытащен вперёд (зависимость ExternalDetailModal/BackgroundJobsModal): заголовок/оригинал/теги-пилюли (TsundokuBadge + padding/borderRadius override — аддитивно к Фазе 1); рейтинги: front face (источник+score) / hover face (голоса) — AnimatedSlide+AnimatedOpacity 200ms, shadow-sm; inline-SVG AniList → точный path в CustomPaint (масштаб 14/24), Star-фолбэк — lucide-шрифт (#26); Panel синопсиса: clamp 4 строки + градиент-хвост (panel-line → bgSurface) + AnimatedSize (grid-rows 0fr→1fr аналог, решение #44); space-y-2 геометрия 1-в-1; sourceBadgeClasses — внутренний вызов mediaLabels (проп не нужен); 7 тестов |
 | 4 | `widgets/media-detail` | `DetailSidebar.svelte` | `lib/widgets/media-detail/detail_sidebar.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `widgets/media-detail` | `DetailTabs.svelte` | `lib/widgets/media-detail/detail_tabs.dart` | ✅ Готов | ✅ | TabBar (isScrollable — thin-scroll) с label-индикатором = скользящее подчёркивание (h-0.5 accent, 200ms); эпизоды только у tvshow с бейджем current/total; gallery/related бейджи при count>0; Sparkles 14 на рекомендациях; aria-label Sections → Semantics; 5 тестов |
@@ -432,6 +434,7 @@ Spatial Node Editor; detailTypes/detailFormatters уже готовы pull-forwa
 | 5 | `shared/ui/modal.dart` (порт, не Svelte) | Material получал и borderRadius, и shape — фреймворк запрещает (assert). Всплывало при первом рендере модалки из ConfirmModal | Да: borderRadius убран — скругление и border-white/[0.08] несёт только RoundedRectangleBorder | Порт-баг Фазы 1 (Golden Фазы 1 модалку не рендерил) |
 | 6 | `widgets/media-detail/ExternalDetailModal.svelte` → порт | Aside (`lg:w-64`) в desktop-Row получал unbounded width — Flutter Row даёт non-flex детям бесконечную ширину, spec-таблица (Row с Expanded) падала в layout-ассерт; в Svelte w-64 ограничивает | Да: aside обёрнут в SizedBox(width: 256) на desktop-ветке (постер — w-full внутрь); mobile-ветка — Column + постер w-40 mx-auto | Порт-баг, вскрыт widget-тестом превью в BackgroundJobsModal |
 | 6 | `shared/ui/PopoverMenu.svelte` → порт (popover_menu.dart) | Триггер-кнопки поповеров/селекторов с ненулевым onPressed выигрывали арену жестов у внешнего GestureDetector поповера → тап не открывал меню (Svelte: popovertarget-атрибут, конфликта нет). Латентный баг Фазы 1 — TsundokuSelect не открывался вовсе | Да: триггеры оборачиваются в IgnorePointer (кнопка — визуал, тап уходит в поповер); FilterBar-триггеры сразу с фиксом; select-тесты дополнены | Порт-баг Фазы 1, вскрыт FilterBar (Фаза 3) |
+| 7 | `shared/ui/modal.dart` (порт, не Svelte) | ModalGeometry: `maxWidth` вообще не использовался (constraints строились только из `geometry.width ?? ∞`) — md (max-w-2xl 672) и lg (max-w-5xl 1024) панели растягивались на всю ширину окна, xl терял clamp max-w-7xl; все md/lg-модалки Фаз 1–4 были шире Svelte-эталона | Да: ширина панели строится как min(width, maxWidth); md/lg ограничены; вскрылся скрытый overflow 4.3px в RelatedPreviewModal — подпись статуса обёрнута в Flexible (CSS flex-shrink-аналог); тесты/goldens зелёные | Порт-баг Фазы 1; md/lg-модалки до фикса визуально шире эталона — золоте Фазы 1 самосогласовано (эталон писался Flutter-ом), точечная сверка md/lg с Svelte — по мере портования следующих модалок |
 ---
 
 ## ⚖️ Спорные решения и развилки
@@ -534,3 +537,5 @@ Spatial Node Editor; detailTypes/detailFormatters уже готовы pull-forwa
 | 41 | `views/HomeView.svelte` | window.addEventListener('tsundoku:random-pick') — desktop context-menu событие | HomeView.randomPick() публичный: App вызовет напрямую из контекст-меню (без window-шины) | Ревью не требуется |
 | 42 | `app/App.svelte` | Роутер тянет вью/модалки Фаз 4–5 (detail/stats/lists/...; Search/Create/BackgroundJobs/StaleBacklog/FirstRun модалки) | Портирован каркас: портированные вью живые, остальные — заглушки _PlaceholderView с заголовком вью (виден в сайдбаре/header'е); модалки Фаз 4/5 — no-op-хуки с сохранёнными флагами стейта; при закрытии Фаз 4/5 заглушки заменяются | Явное отклонение 1-в-1 до закрытия Фаз 4/5; ревью обязательно при замене заглушек |
 | 43 | `app/main.ts` | window.onerror → /api/logs/client | FlutterError.onError → api.sendClientLog (эндпоинт добавлен в TsundokuApi); dio прикрепляется в постфрейме (AppClientLogHook) | Ревью не требуется |
+| 53 | `widgets/media-detail/CoverManagerModal.svelte` | input[type=file] с accept="image/*" и двухшаговым выбором (choose → Add); platformService.pickFile не имеет параметра accept; нативный checkbox со стилями daisyUI | pickFile() без accept-фильтра (фасад §1.3) — двухшаговость сохранена (выбор в поле → кнопка «Добавить»); чекбокс — Material Checkbox с литералами indigo-600/white-10/white-20 (Tailwind-литералы вне ThemeExtension, как в детальных секциях) | accept-фильтр — кандидат в расширение фасада при необходимости; ревью не требуется |
+| 54 | `widgets/media-detail/CoverManagerModal.svelte` | grid-cols-2/sm:3/md:4 — CSS-брейкпоинты вьюпорта, а не ширины панели; inline delete-confirm на плитке (flex может переполняться на узких плитках) | Колонки от ширины ОКНА (MediaQuery.sizeOf, конвенция MediaGrid #37-стиль); confirm-кнопки — Wrap с center-выравниванием (перенос на узких плитках вместо переполнения) | Ревью не требуется |

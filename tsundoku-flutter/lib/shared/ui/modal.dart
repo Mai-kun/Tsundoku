@@ -115,7 +115,15 @@ class TsundokuModal extends StatelessWidget {
               ),
               child: ConstrainedBox(
                 constraints: BoxConstraints(
-                  maxWidth: geometry.width ?? double.infinity,
+                  // CSS: width + max-width → ширина = min(width, maxWidth).
+                  // max-w-2xl/5xl (md/lg) задаётся только maxWidth.
+                  maxWidth: (geometry.width != null
+                          ? (geometry.maxWidth != null &&
+                                  geometry.width! > geometry.maxWidth!
+                              ? geometry.maxWidth
+                              : geometry.width)
+                          : geometry.maxWidth) ??
+                      double.infinity,
                   maxHeight: geometry.maxHeight ?? double.infinity,
                 ),
                 child: Padding(

@@ -157,7 +157,11 @@
     сигнатуры optimistic_progress → ProviderContainer (⚖️ #56), view-level
     модалки → OverlayPortal top-layer (⚖️ #57), onOpenLists-проброс
     (⚖️ #58), show/hide портала в пост-кадре (🐛 #9), модалки вне
-    скролл-контейнера (🐛 #10).
+    скролл-контейнера (🐛 #10). **Интеграция в app.dart**: заглушки 'detail'/
+    'seasons' заменены живыми вью (keyed по mediaId; onBack=_closeDetail с
+    восстановлением скролла previousView, onDelete=_deleteFromDetail →
+    deleteMedia+mediaChanged, onEdit→openCreate-хук Фазы 5, onOpenRelated=
+    openDetail, onSearch=openSearch, onOpenLists→navigate(lists)).
 
 **Прогресс: 151 / 207 файлов**
 

@@ -37,6 +37,8 @@ import '../shared/utils/ui_settings.dart';
 import '../views/category_model.dart';
 import '../views/category_view.dart';
 import '../views/home_view.dart';
+import '../views/media_detail_view.dart';
+import '../views/show_seasons_view.dart';
 import '../widgets/layout/app_shell.dart';
 import '../widgets/layout/background_jobs_modal.dart';
 import '../widgets/layout/close_app_modal.dart';
@@ -218,6 +220,24 @@ class _AppRouterState extends ConsumerState<_AppRouter> {
 
   void mediaChanged() {
     setState(() => _mediaRevision += 1);
+  }
+
+  /// closeDetail (App.svelte): назад к previousView + восстановление скролла.
+  void _closeDetail() {
+    final target = _previousView;
+    navigate(target);
+    final saved = _savedScrollPositions[target];
+    if (saved != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _setScroll(saved);
+      });
+    }
+  }
+
+  /// deleteFromDetail (App.svelte): удалить тайтл и рефрешнуть грид.
+  Future<void> _deleteFromDetail(String id) async {
+    await ref.read(apiClientProvider).deleteMedia(id);
+    mediaChanged();
   }
 
   void _setScroll(double value) {
@@ -409,6 +429,31 @@ class _AppRouterState extends ConsumerState<_AppRouter> {
         onOpen: openDetail,
         onMediaChanged: mediaChanged,
         onEdit: (_) => openCreate(),
+      );
+    } else if (rendered == AppViews.detail && _selectedMediaId != null) {
+      body = SliverToBoxAdapter(
+        child: MediaDetailView(
+          key: ValueKey('detail-$_selectedMediaId'),
+          mediaId: _selectedMediaId!,
+          refreshKey: _mediaRevision,
+          onBack: _closeDetail,
+          onUpdate: mediaChanged,
+          onDelete: _deleteFromDetail,
+          onEdit: (item) => openCreate(),
+          onOpenRelated: openDetail,
+          onSearch: openSearch,
+          onOpenLists: () => navigate(AppViews.lists),
+        ),
+      );
+    } else if (rendered == AppViews.seasons && _selectedMediaId != null) {
+      body = SliverToBoxAdapter(
+        child: ShowSeasonsView(
+          key: ValueKey('seasons-$_selectedMediaId'),
+          mediaId: _selectedMediaId!,
+          refreshKey: _mediaRevision,
+          onBack: _closeDetail,
+          onMediaChanged: mediaChanged,
+        ),
       );
     } else {
       // Фазы 4/5: заглушка с заголовком вью (решение #42).

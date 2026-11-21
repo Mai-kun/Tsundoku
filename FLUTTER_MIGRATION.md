@@ -123,19 +123,29 @@
 
 ## 📍 Текущий фокус / Next Step
 
-**Статус:** Этап 0 (инфраструктура) — ЗАВЕРШЁН и закоммичен. Портирование не начато.
+**Статус:** Фазы 0 и 1 закрыты (Phase Gate зелёные). Фаза 2 в работе:
+`entities/media/ui` — ЗАВЕРШЕНА (4/4). Далее — `widgets/media-card`
+(cardTypes.ts → BaseCard → CardTitleBlock → CardProgressControls →
+Book/Game/Manga/Movie/TvShowCard → MediaCard), затем `widgets/media-grid`
+(gridLayout → SectionRow → MediaGrid; virtualGrid ⏭️ — native GridView).
 
-**Прогресс: 68 / 207 файлов**
+**Прогресс: 78 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
-| 0 — Фундамент (типы/API/модели/логика/тема) | 58 | 53 |
-| 1 — `shared/ui/` | 17 | 15 |
-| 2 — `entities/` + карточки/сетка | 19 | 0 |
+| 0 — Фундамент (типы/API/модели/логика/тема) | 58 | 58 |
+| 1 — `shared/ui/` | 17 | 16 (открыт ConfirmModal) |
+| 2 — `entities/` + карточки/сетка | 19 | 4 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 0 |
 | 4 — Детальная страница + Spatial Node Editor | 59 | 0 |
 | 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 0 |
-| **Всего** | **207** | **68** |
+| **Всего** | **207** | **78** |
+
+> Сверка 2026-11-21: пересчёт по таблице скриптом. Прежние числа (68/53/15)
+> не сходились с фактическими статусами — 10 строк `entities/media/model`
+> были закрыты по факту (гейт Фазы 0 зелёный), но не перевёрнуты; строка
+> `MediaCoverPlaceholder` отсутствовала (206 вместо 207). Порядок чисел
+> восстановлен; фазовые объёмы (58/17/19/13/59/41) не менялись.
 
 **Phase Gate Фазы 0 — ЗЕЛЁНЫЙ (2026-11-21):** analyze 0 issues, 316/316 тестов,
 build linux --debug ✓, build web --wasm ✓ (dart:io не протёк). Фаза 0 ЗАКРЫТА.
@@ -144,19 +154,6 @@ build linux --debug ✓, build web --wasm ✓ (dart:io не протёк). Фа�
 build linux --debug ✓, build web --wasm ✓. Фаза 1 ЗАКРЫТА. Далее — **Фаза 2**
 (`entities/media/ui` 4 файла → `widgets/media-card` 10 → `widgets/media-grid` 5,
 включая virtualGrid ⏭️).
-
-**Стек-фикс (решение #20):** file_picker поднят до 11.0.3 (package:web, dart:html
-сломал wasm), desktop_drop понижен до 0.8.4 (cross_file 0.3.5+5 — desktop_drop 0.9.2
-требует 0.4, несовместимого с file_picker 9+ XFile API); super_clipboard 0.9.1 остался.
-detail: wasm-Gate Фазы 0 пройден именно с этим набором.
-
-**Следующие после него (жёсткая очерёдность Фазы 0):** `shared/types/models.ts` →
-`dtos.ts` → `index.ts` → `app/tokens.css` + `app/app.css` (TsundokuTheme/ThemeData) →
-`shared/api/*` (api.ts → jobsClient → navigationCategories → networkActivity → offlineMode
-→ serverRestart) → `shared/i18n/*` → `shared/utils/*` → `entities/media/model/*` →
-контроллеры `features/*` (change-status, drop-reason, mangalibAuth, prefetch-details,
-update-progress) → `views/categoryModel.ts`. Файлы `⏭️ Заменено нативно` считаются
-закрытыми; статус «Готово» фазы — когда все её строки ✅ или ⏭️.
 
 ---
 
@@ -179,16 +176,16 @@ update-progress) → `views/categoryModel.ts`. Файлы `⏭️ Заменен
 | 0 | `entities/media/model/__tests__` | `seriesStep.test.ts` | `test/entities/media/model/series_step_test.dart` | ✅ Готов | ✅ | + delta=0/пустой список |
 | 0 | `entities/media/model/__tests__` | `staleTriage.test.ts` | `test/entities/media/model/stale_triage_test.dart` | ✅ Готов | ✅ | + пороги 90/365 |
 | 0 | `entities/media/model/__tests__` | `timeBudget.test.ts` | `test/entities/media/model/time_budget_test.dart` | ✅ Готов | ✅ | Все кейсы ru/en + chips-матрица + пустые бюджеты |
-| 0 | `entities/media/model` | `chronicleTimeline.ts` | `lib/entities/media/model/chronicle_timeline.dart` | ⬜ Не начат | ⬜ | — |
-| 0 | `entities/media/model` | `coverUrl.ts` | `lib/entities/media/model/cover_url.dart` | ⬜ Не начат | ⬜ | — |
-| 0 | `entities/media/model` | `detailedScore.ts` | `lib/entities/media/model/detailed_score.dart` | ⬜ Не начат | ⬜ | — |
-| 0 | `entities/media/model` | `dropReasons.ts` | `lib/entities/media/model/drop_reasons.dart` | ⬜ Не начат | ⬜ | — |
-| 0 | `entities/media/model` | `genreLabel.ts` | `lib/entities/media/model/genre_label.dart` | ⬜ Не начат | ⬜ | — |
-| 0 | `entities/media/model` | `mediaLabels.ts` | `lib/entities/media/model/media_labels.dart` | ⬜ Не начат | ⬜ | — |
-| 0 | `entities/media/model` | `progressRules.ts` | `lib/entities/media/model/progress_rules.dart` | ⬜ Не начат | ⬜ | — |
-| 0 | `entities/media/model` | `seriesStep.ts` | `lib/entities/media/model/series_step.dart` | ⬜ Не начат | ⬜ | — |
-| 0 | `entities/media/model` | `staleTriage.ts` | `lib/entities/media/model/stale_triage.dart` | ⬜ Не начат | ⬜ | — |
-| 0 | `entities/media/model` | `timeBudget.ts` | `lib/entities/media/model/time_budget.dart` | ⬜ Не начат | ⬜ | — |
+| 0 | `entities/media/model` | `chronicleTimeline.ts` | `lib/entities/media/model/chronicle_timeline.dart` | ✅ Готов | ✅ | Группировка по месяцам, avgScore/topRated, фильтры категорий, undated, includeInProgress; прямой аналог vitest (test/entities/media/model/chronicle_timeline_test.dart). Строка не была перевёрнута прошлой сессией при факте закрытия Фазы 0 (гейт зелёный) — сверено с файловой системой
+| 0 | `entities/media/model` | `coverUrl.ts` | `lib/entities/media/model/cover_url.dart` | ✅ Готов | ✅ | fullSizeCoverUrl (thumb→original), isValidCoverUrl, proxiedExternalCoverUrl; vitest-аналог + proxied-кейсы
+| 0 | `entities/media/model` | `detailedScore.ts` | `lib/entities/media/model/detailed_score.dart` | ✅ Готов | ✅ | Оси и кламп 1..10; vitest-аналог
+| 0 | `entities/media/model` | `dropReasons.ts` | `lib/entities/media/model/drop_reasons.dart` | ✅ Готов | ✅ | DropReasonOption (key/labelRu/labelEn/icon/mediaTypes), label(lang); vitest-аналога в исходнике нет, покрыт транзитивно тестами statusController
+| 0 | `entities/media/model` | `genreLabel.ts` | `lib/entities/media/model/genre_label.dart` | ✅ Готов | ✅ | Алиасы → i18n stats.genres → RU-фолбэк сервера; vitest-аналога в исходнике нет
+| 0 | `entities/media/model` | `mediaLabels.ts` | `lib/entities/media/model/media_labels.dart` | ✅ Готов | ✅ | statusLabel/statusBadgeClasses (типизированные MediaStatusBadgeColors)/cardTypeLabel/formatNumber (intl decimalPattern)/titleTooltip/sourceBadgeClasses (18 источников); покрыт тестами MediaStatusBadge/MediaScoreBadge (Фаза 2)
+| 0 | `entities/media/model` | `progressRules.ts` | `lib/entities/media/model/progress_rules.dart` | ✅ Готов | ✅ | Правила прогресса; тест test/entities/media/model/progress_rules_test.dart (написан по TDD сверх vitest-набора исходника)
+| 0 | `entities/media/model` | `seriesStep.ts` | `lib/entities/media/model/series_step.dart` | ✅ Готов | ✅ | absoluteSeriesTarget/delta; vitest-аналог + delta=0/пустой список
+| 0 | `entities/media/model` | `staleTriage.ts` | `lib/entities/media/model/stale_triage.dart` | ✅ Готов | ✅ | Пороги 90/365; vitest-аналог
+| 0 | `entities/media/model` | `timeBudget.ts` | `lib/entities/media/model/time_budget.dart` | ✅ Готов | ✅ | Все кейсы ru/en + chips-матрица + пустые бюджеты; vitest-аналог
 | 2 | `entities/media/ui` | `MediaPoster.svelte` | `lib/entities/media/ui/media_poster.dart` | ✅ Готов | ✅ | Image.network(baseUrl+src) — браузерный резолв от origin заменён явной склейкой 1-в-1 с TsundokuApi.absoluteUrl (решение #25); onerror → _imgError → Placeholder404 (без retry-loop, reset на новом src); syncing-оверлей (CircularProgressIndicator 22px — конвенция Button); needsReview → jobsClient.openModal(review), hover bg-amber-400; Svelte-проп children объявлен, но шаблоном не рендерится — мёртвый API, не переносился (решение #28) |
 | 2 | `entities/media/ui` | `MediaScoreBadge.svelte` | `lib/entities/media/ui/media_score_badge.dart` | ✅ Готов | ✅ | bg-score-bg #4a63c9, 2.33rem, font-black 17px tabular-nums, shadow-lg (2 тени 1-в-1 Tailwind), Tooltip = title (raw score, как JS-интерполяция 8.5→«8.5»); score double? (MediaItem.score); -ml-2 → Transform.translate(-8,0) (решение #27) |
 | 2 | `entities/media/ui` | `MediaStatusBadge.svelte` | `lib/entities/media/ui/media_status_badge.dart` | ✅ Готов | ✅ | TsundokuPopoverMenu + statusBadgeClasses (цвета из media_labels); hover brightness(1.25) → #191D27, ring-2 indigo-400/70 при open (BoxShadow spread 2); 5 опций в порядке statusOptions; иконки lucide 20/21px 1-в-1, stroke-width/fill шрифт-иконка не выражает (решение #26); instanceId не нужен (GlobalKey-позиционирование) |
@@ -251,6 +248,7 @@ update-progress) → `views/categoryModel.ts`. Файлы `⏭️ Заменен
 | 1 | `shared/ui` | `ContextMenu.svelte` | `lib/shared/ui/context_menu.dart` | ✅ Готов | ✅ | _MenuPanel: позиционирование с флипом/clamp 8px, подменю inline-раскрытие (решение #24), hold-to-delete (HoldToDeleteController, deleting/hint через tProvider), Esc/outside-close; widget-тесты (flyout/сепаратор/danger/disabled) |
 | 1 | `shared/ui` | `Icons.ts` | `—` | ⏭️ Заменено нативно | ⬜ | Мост иконок lucide→Svelte заменяется прямым использованием пакета lucide_icons_flutter (те же имена иконок LucideIcons.*) |
 | 1 | `shared/ui` | `ImageLightbox.svelte` | `lib/shared/ui/image_lightbox.dart` | ✅ Готов | ✅ | show света по ImageLightboxState (lightbox provider) |
+| 1 | `shared/ui` | `MediaCoverPlaceholder.svelte` | `lib/shared/ui/media_cover_placeholder.dart` | ✅ Готов | ✅ | Строка была пропущена в таблице (206 вместо 207) — добавлена при сверке. Портирована коммитом d9bc35c (batch 1): градиент #12151c→#1a1e28 + нижний бейдж label (дефолт coverMissing); отдельного теста нет — покрыт тестами Placeholder404 (Фаза 2) |
 
 | 1 | `shared/ui` | `Modal.svelte` | `lib/shared/ui/modal.dart` | ✅ Готов | ✅ | TsundokuModal: 5 размеров (геометрия 1-в-1), backdrop #090b10/80 + ModalBarrier, panel bg-[#151a26] rounded-xl, drag-guard колбек; анимации 160/180/150ms (решение #21); тест golden |
 | 1 | `shared/ui` | `Panel.svelte` | `lib/shared/ui/panel.dart` | ✅ Готов | ✅ | rounded-xl + border-subtle + bg-panel-line + shadow-md (сдвиг/blur 1-в-1 Tailwind) |
@@ -406,6 +404,24 @@ update-progress) → `views/categoryModel.ts`. Файлы `⏭️ Заменен
 | 8 | `shared/i18n/index.svelte.ts` | TS-доступ `i18n.t.errors.x` (строгие вложенные объекты) не воспроизводится в Dart без генерации ~200 классов на 1528 листьев; функциональные листья — 112 замыканий | translations.dart — автогенерируемое paired-дерево (const Map) + плоский реестр функций; доступ через path-API `t.tr/tf/tl/tfl`; опечатка пути → ArgumentError с путём (в Svelte был undefined — Dart-вариант строже) | Генерация строгих Dart-классов — двойной объём без функциональной разницы (YAGNI); ревью по желанию |
 | 9 | `shared/api/api.ts` | updateStatus принимает union `число \| {status, dropReason?, dropNotes?}`; dio сам бросает DioException на не-2xx; errorMessage использует i18n вне Riverpod-контекста | Два метода: `updateStatus` ({status}) и `updateStatusWithDropInfo` (null-поля сериализуются явно, как TS-объект); `validateStatus: (_) => true` — статусы обрабатывает _isOk/_throwApiError 1-в-1; errorMessage(error, locale) — локаль передаётся вызовом из UI | Ошибка/успех и payload'ы покрыты stub-адаптером Dio; ревью не требуется |
 | 10 | `shared/api/*` (jobsClient/navigationCategories/offlineMode/serverRestart) | EventSource/window.history/AbortController — браузерные API; сетевые вызовы через голый fetch; DateTime.now в fakeAsync стартует с 0 | EventSource → dio streamed-ответ + SSE-парсер; history.pushState не нужен (Navigator); AbortController → per-request dio таймауты; сетевой клиент — TsundokuApi из провайдера (единый networkActivity/базовый URL); дедлайны serverRestart — параметры с дефолтами | Окноsse-фолбэки браузера (auto-reconnect) заменяются onError→syncJobs; ревью не требуется |
+| 11 | `shared/utils/perfMarks.ts` | Performance API (performance.mark/measure) недоступна кроссплатформенно | Stopwatch-реестр tsundokuPerf (переносимый эквивалент); тесты | Нативные Chrome DevTools API — web-only; ревью не требуется |
+| 12 | — | Утерянная строка прошлых сессий (ссылка на номер встречается без описания) | Не восстановим — номер не встречается ни в одном Пояснении | — |
+| 13 | `shared/utils/progressDebounce.ts` + `viewport.svelte.ts` | visibilitychange/beforeunload и resize — браузерные события | progressDebounce: flush через AppLifecycle (Фаза 3); viewport: update() из MediaQuery в AppShell (Фаза 3, решение #13) | Временные заглушки до Фазы 3; ревью не требуется |
+| 14 | `features/change-status` | Nullable dropReason/dropNotes не очищаются обычным copyWith (null ≠ «не менять») | copyWithFields + явный clearDropReasons() для очистки nullable | Альтернатива — sentinel-объект; ревью не требуется |
+| 15 | `features/update-progress/*` | Контроллеры в Svelte дергают toast/i18n напрямую (глобальный синглтон) | showToast/i18n инъекция колбеками (toast-провайдер Фазы 1), тестируемость | Ревью не требуется |
+| 16 | `features/prefetch-details/mediaDetailPrefetch.ts` | $state-кэш и планировщик в одном модуле не переносятся в Riverpod напрямую | core-кэш (detailCache) отделён от Ref/планировщика (HoverPrefetchScheduler), связка через провайдер | Ревью не требуется |
+| 17 | — | Утерянная строка прошлых сессий (номер встречается без описания) | Не восстановим | — |
+| 18 | — | Утерянная строка прошлых сессий (номер встречается без описания) | Не восстановим | — |
+| 19 | — | Утерянная строка прошлых сессий (номер встречается без описания) | Не восстановим | — |
+| 20 | `pubspec.yaml` (desktop_drop/file_picker) | wasm-Gate Фазы 0 красный: dart:html в file_picker 9–10, desktop_drop 0.9.2 требует cross_file 0.4 (несовместим с file_picker 9+) | file_picker → 11.0.3 (package:web), desktop_drop → 0.8.4 (cross_file 0.3.5+5); super_clipboard 0.9.1 остался; замечание #3 Заметок окружения (file_picker 7.0.2) устарело | Поднять desktop_drop обратно при выходе совместимой версии; ревью не требуется |
+| 21 | `shared/ui/Modal.svelte` | Браузерные transition (popover/dialog-анимации) не выражаются в Flutter напрямую | Анимации 160/180/150ms (viewFade/popover/dialog) реализованы в TsundokuModal явно | Ревью не требуется |
+| 22 | — | Утерянная строка прошлых сессий (номер встречается без описания) | Не восстановим | — |
+| 23 | `shared/ui/Select.svelte` | TextButton.disabled в Flutter поглощает жесты иначе, чем браузерный disabled-кнопка — disabled-кейс widget-теста не воспроизводим | disabled-тест снят; disabled-ветка покрыта кодом (onPressed null) | Ревью не требуется |
+| 24 | `shared/ui/ContextMenu.svelte` | Вложенные подменю в Flutter-оверлеях (anchor-positioning браузера) не воспроизводимы | Подменю — inline-раскрытие внутри панели (визуально 1-в-1, поведение идентично) | Ревью не требуется |
+| 25 | `entities/media/ui/MediaPoster.svelte` | `<img src="/…">` в браузере резолвится от origin сервера; во Flutter нет неявного резолва | Image.network(baseUrl+src) — явная склейка 1-в-1 с TsundokuApi.absoluteUrl; baseUrl из apiBaseUrlProvider | Ревью не требуется |
+| 26 | `entities/media/ui/MediaStatusBadge.svelte` | Lucide-иконки в Svelte поддерживают stroke-width/fill (Play filled, Check 3, X 4); lucide_icons_flutter — шрифт-иконка без вариаций | Единый вес иконок (размеры 20/21px сохранены 1-в-1); визуальная разница в толщине штриха принята | Нативные SVG-иконки — отдельная работа, YAGNI; ревью по желанию |
+| 27 | `entities/media/ui/MediaScoreBadge.svelte` | -ml-2 (отрицательный margin) не выражается в Flutter напрямую | Transform.translate(Offset(-8, 0)) — визуальный оверхлап 1-в-1; layout-ширина кластера +8px (не видна: кластер прижат влево) | Ревью не требуется |
+| 28 | `entities/media/ui/MediaPoster.svelte` | Проп children объявлен в Props, но шаблоном не рендерится ({@render children} отсутствует) — мёртвый API | Не переносился (YAGNI, 1-в-1 с фактическим поведением); слоты badges/actions перенесены | Если апстрим оживит children — добавить; ревью не требуется |
 
 ---
 
@@ -427,6 +443,15 @@ update-progress) → `views/categoryModel.ts`. Файлы `⏭️ Заменен
    `package:material_ui/material_ui.dart` (официальная вынесенная Material-библиотека).
 5. **Имя пакета** `tsundoku_flutter` (дефис в Dart-именах запрещён), папка `tsundoku-flutter/`,
    org `dev.tsundoku`, платформы: linux, windows, android, web.
+9. **Flutter SDK переустановлен (2026-11-21, сессия продолжения)**: обнаружено, что
+   `~/development/flutter` отсутствует в системе (см. заметку #1). Восстановлен официальный
+   stable 3.50.1 (tar.xz с storage.googleapis.com) в `/home/maikun/development/flutter`.
+   **Важно для агентов ZCode**: в этой среде `$HOME` = `/home/maikun/Profiles/ZCode3`, а не
+   `/home/maikun` — `export PATH="$HOME/development/flutter/bin:$PATH"` НЕ работает;
+   использовать абсолютный путь `export PATH="/home/maikun/development/flutter/bin:$PATH"`.
+10. **Учёт миграции**: строки решений #11–#24 в «Спорных решениях» никогда не были записаны
+   прошлыми сессиями (номера упоминались только в Пояснениях) — восстановлены по этим
+   упоминаниям (#12/#17–#19/#22 не восстановимы, оставлены заглушками).
 6. **Golden-инфраструктура**: эталоны 1440×900 @ dpr 1.0 (= backstop desktop вьюпорт Svelte).
    Шрифт Inter грузится в `test/flutter_test_config.dart`; тест `font_loader_weight_test.dart`
    гарантирует, что грузится настоящий Inter с весами 400/700/900 (попиксельная проверка

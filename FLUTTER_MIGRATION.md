@@ -150,7 +150,7 @@
     MediaActivity/OverwriteConfirm/RelinkSource) → DetailSidebar →
     ShowSeasonsView → MediaDetailView → edit-media workspace (ниточки).
 
-**Прогресс: 141 / 207 файлов**
+**Прогресс: 142 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
@@ -158,9 +158,9 @@
 | 1 — `shared/ui/` | 17 | 17 |
 | 2 — `entities/` + карточки/сетка | 19 | 19 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 13 (ЗАКРЫТА, см. Phase Gate) |
-| 4 — Детальная страница + Spatial Node Editor | 59 | 33 (+ RelatedPreviewModal) |
+| 4 — Детальная страница + Spatial Node Editor | 59 | 34 (+ EpisodesTab) |
 | 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 0 |
-| **Всего** | **207** | **141** |
+| **Всего** | **207** | **142** |
 
 Долги Фаз 0–2 (не блокируют): —
 seriesProgressControllerProvider no-op-toast → инъекция в Фазе 3 (решение #35);
@@ -390,7 +390,7 @@ Spatial Node Editor; detailTypes/detailFormatters уже готовы pull-forwa
 | 4 | `widgets/media-detail/sections` | `QuotesSection.svelte` | `lib/widgets/media-detail/sections/quotes_section.dart` | ✅ Готов | ✅ | Optimistic add/delete (локальный список + rollback + error-тост); Svelte мутирует media.quotesJson → колбек onQuotesJsonChanged (решение #49); crypto.randomUUID → timestamp-id; serif-кавычки/italic; UpdateMediaPayload: все поля optional (Partial 1-в-1, dtos.dart); 4 теста полного цикла |
 | 4 | `widgets/media-detail/sections` | `TrailerSection.svelte` | `lib/widgets/media-detail/sections/trailer_section.dart` | ✅ Готов | ✅ | YouTube-thumbnail + Play (hover scale 1.03, red-600/90); iframe недоступен без webview — Play открывает embed-URL через PlatformService.openExternalUrl (решение #48, фасад §1.3); без трейлера — заглушка Film/panel-line/40; 3 теста |
 | 4 | `widgets/media-detail/sections` | `TvShowProgressSection.svelte` | `lib/widgets/media-detail/sections/tv_show_progress_section.dart` | ✅ Готов | ✅ | Минуты/серия: episodeDurationMinutes → durationMinutes → 24; tooltip total «Сезон N: M · …» для multi-season (seasons на MediaDetail); effectiveTotal: totalEpisodes/progress.total; indigo-акцент, pace [1,2,3,5] дефолт 2; тесты в book_tv_progress_sections_test |
-| 4 | `widgets/media-detail/tabs` | `EpisodesTab.svelte` | `lib/widgets/media-detail/tabs/episodes_tab.dart` | ⬜ Не начат | ⬜ | — |
+| 4 | `widgets/media-detail/tabs` | `EpisodesTab.svelte` | `lib/widgets/media-detail/tabs/episodes_tab.dart` | ✅ Готов | ✅ | Самый крупный таб (654 строки): сводка (кольцо 80px/next-up/mark-all/completed-бейдж), сегмент-бар ≤60 серий (клик — unwatch последнего / mark-through), пропорциональные бары при >60 (клик по позиции → абсолютное значение сезона), риббон сезонов w-28 с 4px-rail, фильтры all/unwatched/watched, сортировка asc/desc, mark/unmark сезон, two-tap reset guard (4s-таймер), pace-чипы [1,2,3,5] + finishEstimate, список серий (E-бейдж/next-badge/line-through/mark-up-to/toggle, datesVary-даты, titlePrefixPattern-очистка заголовков); animate-pulse сегмента ⏭️; 6 тестов |
 | 4 | `widgets/media-detail/tabs` | `GalleryTab.svelte` | `lib/widgets/media-detail/tabs/gallery_tab.dart` | ✅ Готов | ✅ | Загрузка через pickFile-фасад; lightbox по тапу; context-menu (view/reveal/copy-image→copyImagePng/copy-url/download→saveFile/set-cover/delete) — 1-в-1 пункты; delete через confirmDialog; сетка 2/3/4, thumb через baseUrl-склейку (#25) + errorBuilder; Ctrl+V-paste ⏭️ (window-событие браузера, решение #52); 2 теста |
 | 4 | `widgets/media-detail/tabs` | `OverviewTab.svelte` | `lib/widgets/media-detail/tabs/overview_tab.dart` | ✅ Готов | ✅ | Лестница блоков: две независимые колонки lg (Row/Expanded) / один поток order-1..9 (display: contents); диспетчер прогресса по типу (game/book/manga/tvshow/movie/stepper/статус-плашка); creator-дерево (movie/tvshow/book/manga/game); QuotesSection при showQuotes; MediaFiles/LinkedSources с type-переключателем anime; 5 тестов |
 | 4 | `widgets/media-detail/tabs` | `RecommendationsTab.svelte` | `lib/widgets/media-detail/tabs/recommendations_tab.dart` | ✅ Готов | ✅ | Сетка 2/3/4/5 колонок, proxiedExternalCoverUrl, ★ toFixed(1), плейсхолдер ImageIcon; 2 теста |

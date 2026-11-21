@@ -166,9 +166,10 @@
     сюда из create-media — TvShowFormFields ещё не существует);
     workspaceLayout.ts ✅ (10 тестов; localStorage → SharedPreferences-фасад
     стора uiSettings); workspaceThreads.ts ✅ (6 тестов — чистая
-    математика без фреймворка; rAF-цикл рисования придёт в WorkspaceWindow).
+    математика без фреймворка; rAF-цикл рисования придёт в WorkspaceWindow);
+    WorkspaceWindow.svelte ✅ (6 тестов).
 
-**Прогресс: 154 / 207 файлов**
+**Прогресс: 155 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
@@ -176,9 +177,9 @@
 | 1 — `shared/ui/` | 17 | 17 |
 | 2 — `entities/` + карточки/сетка | 19 | 19 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 13 (ЗАКРЫТА, см. Phase Gate) |
-| 4 — Детальная страница + Spatial Node Editor | 59 | 50 |
+| 4 — Детальная страница + Spatial Node Editor | 59 | 51 |
 | 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 0 |
-| **Всего** | **207** | **154** |
+| **Всего** | **207** | **155** |
 
 Долги Фаз 0–2 (не блокируют): —
 seriesProgressControllerProvider no-op-toast → инъекция в Фазе 3 (решение #35);
@@ -262,7 +263,7 @@ Spatial Node Editor; detailTypes/detailFormatters уже готовы pull-forwa
 | 5 | `features/drop-reason` | `DropReasonModal.svelte` | `lib/features/drop-reason/drop_reason_modal.dart` | ⬜ Не начат | ⬜ | — |
 | 0 | `features/drop-reason` | `dropReasonPrompt.svelte.ts` | `lib/features/drop-reason/drop_reason_prompt.dart` | ✅ Готов | ✅ | DropPromptTarget + Riverpod Notifier (target state); history.pushState не нужен (решение #10); тест |
 | 4 | `features/edit-media` | `EditMediaWorkspace.svelte` | `lib/features/edit-media/edit_media_workspace.dart` | ⬜ Не начат | ⬜ | — |
-| 4 | `features/edit-media` | `WorkspaceWindow.svelte` | `lib/features/edit-media/workspace_window.dart` | ⬜ Не начат | ⬜ | — |
+| 4 | `features/edit-media` | `WorkspaceWindow.svelte` | `lib/features/edit-media/workspace_window.dart` | ✅ Готов | ✅ | Плавающее окно: Positioned по rect, драг шапки / ресайз grip'ом (GestureDetector pan — арена жестов вместо Svelte window-level listeners; live clamp в вьюпорт: SIDE_MARGIN/TOP_BAR/BOTTOM_MARGIN), AnimatedContainer высоты (collapsed → HEADER_H-2 из-за border-box, live resize — Duration.zero), MouseRegion hover, count-бейдж, collapse-кнопка (Semantics + GestureDetector 24×24 — IconButton'у не хватает 2px в h-10), grip — CustomPaint 3 диагонали (1-в-1 с svg), тело всегда смонтировано (AnimatedOpacity + IgnorePointer inert); 6 тестов |
 | 4 | `features/edit-media/modules` | `AltTitlesModule.svelte` | `lib/features/edit-media/modules/alt_titles_module.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `features/edit-media/modules` | `BaseMediaModule.svelte` | `lib/features/edit-media/modules/base_media_module.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `features/edit-media/modules` | `CategoryFieldsModule.svelte` | `lib/features/edit-media/modules/category_fields_module.dart` | ⬜ Не начат | ⬜ | — |

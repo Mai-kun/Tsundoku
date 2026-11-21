@@ -358,7 +358,7 @@ build linux --debug ✓, build web --wasm ✓. Фаза 1 ЗАКРЫТА. Дал
 | 2 | `widgets/media-grid` | `MediaGrid.svelte` | `lib/widgets/media-grid/media_grid.dart` | ⬜ Не начат | ⬜ | — |
 | 2 | `widgets/media-grid` | `SectionRow.svelte` | `lib/widgets/media-grid/section_row.dart` | ⬜ Не начат | ⬜ | — |
 | 2 | `widgets/media-grid/__tests__` | `virtualGrid.test.ts` | `—` | ⏭️ Заменено нативно | ⬜ | Тест JS-виртуализации не портируется; требования окна удаления покрываются widget/golden-тестами MediaGrid (Фаза 2) |
-| 2 | `widgets/media-grid` | `gridLayout.svelte.ts` | `lib/widgets/media-grid/grid_layout.dart` | ⬜ Не начат | ⬜ | — |
+| 2 | `widgets/media-grid` | `gridLayout.svelte.ts` | `lib/widgets/media-grid/grid_layout.dart` | ✅ Готов | ✅ | Модульный счётчик версий инвалидации layout'а → Riverpod Notifier<int> (bumpGridLayout/read + watch — аналог эффект-трекинга); 3 теста |
 | 2 | `widgets/media-grid` | `virtualGrid.ts` | `—` | ⏭️ Заменено нативно | ⬜ | Кастомный JS-виртуализатор сетки заменяется нативным GridView/custom_sliver_grid (сегменты секций — SectionRow); поведение окна удаления проверить на golden-ах |
 | 5 | `widgets/stats` | `ActivityHeatmap.svelte` | `lib/widgets/stats/activity_heatmap.dart` | ⬜ Не начат | ⬜ | — |
 | 5 | `widgets/stats` | `BacklogHealth.svelte` | `lib/widgets/stats/backlog_health.dart` | ⬜ Не начат | ⬜ | — |

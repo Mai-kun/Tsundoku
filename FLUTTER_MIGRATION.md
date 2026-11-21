@@ -167,9 +167,9 @@
     workspaceLayout.ts ✅ (10 тестов; localStorage → SharedPreferences-фасад
     стора uiSettings); workspaceThreads.ts ✅ (6 тестов — чистая
     математика без фреймворка; rAF-цикл рисования придёт в WorkspaceWindow);
-    WorkspaceWindow.svelte ✅ (6 тестов) → ModuleCard ✅ (4 теста) → NotesModule ✅ (3 теста).
+    WorkspaceWindow.svelte ✅ (6 тестов) → ModuleCard ✅ (4 теста) → NotesModule ✅ (3 теста) → BaseMediaModule ✅ (5 тестов).
 
-**Прогресс: 157 / 207 файлов**
+**Прогресс: 158 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
@@ -177,9 +177,9 @@
 | 1 — `shared/ui/` | 17 | 17 |
 | 2 — `entities/` + карточки/сетка | 19 | 19 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 13 (ЗАКРЫТА, см. Phase Gate) |
-| 4 — Детальная страница + Spatial Node Editor | 59 | 53 |
+| 4 — Детальная страница + Spatial Node Editor | 59 | 54 |
 | 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 0 |
-| **Всего** | **207** | **157** |
+| **Всего** | **207** | **158** |
 
 Долги Фаз 0–2 (не блокируют): —
 seriesProgressControllerProvider no-op-toast → инъекция в Фазе 3 (решение #35);
@@ -563,4 +563,5 @@ Spatial Node Editor; detailTypes/detailFormatters уже готовы pull-forwa
 | 55 | `widgets/media-detail/DetailSidebar.svelte` | rating-pop — `absolute top-full right-0 z-30` внутри контейнера-триггера: браузер поднимает absolute+z-index над последующими секциями колонки (и по рисованию, и по hit-test); локальный Stack-Positioned в Flutter рисуется ПОД нижележащими панелями Column → тапы в поповер перехватывает текст дат истории (verified hitTestOnBinding) | Top-layer аналог как у нативного PopoverMenu: OverlayPortal + CompositedTransformFollower (LayerLink на триггере; targetAnchor bottomRight/followerAnchor topRight + mt-2); hover-контейнер Svelte (onpointerenter/leave на общем div) → MouseRegion и на кнопке, и на поповере (закрытие родителя отложено на 180ms — «переход» курсора между кнопкой и поповером не закрывает его) | Ревью не требуется |
 | 56 | `views/MediaDetailView.svelte` | `applyOptimisticProgress/resolveOptimisticProgress/clearOptimisticProgress` принимали `Ref` (Riverpod-функции вызывались из вью) — в порт-архитектуре вью не имеет `Ref` вне build, а хелперы вызываются из стейт-класса с `ProviderContainer` на руках (единый паттерн с loadMediaDetailRef/updateCachedDetailProgressRef/reconcileProgress) | Все три сигнатуры переведены на `ProviderContainer`; вызывающие (media_detail_view, карточки) обновлены; тесты зелёные | Ревью не требуется |
 | 57 | `views/MediaDetailView.svelte` | Четыре view-level модалки (Relink/OverwriteConfirm/FillMissing/RelatedPreview) в Svelte — component-root сиблинги контента: native popover top-layer, а контент живёт в скролл-контейнере `<main>` | `_OverlayModal` (local widget): mount модалки через OverlayPortal в корневой Overlay (топ-слой над скроллом/панелями, bounded-контекст), show/hide — пост-кадр | Ревью не требуется |
+| 59 | `features/edit-media/BaseMediaModule.svelte` | `input type="datetime-local"` — нативный HTML-пикер (desktop: системный календарь) | Текстовое поле ISO-строки (wire-значение без потери данных); нативный пикер потребует платформенного фасада (facade §1.3) — отдельное решение после закрытия edit-workspace | Ревью не требуется |
 | 58 | `views/MediaDetailView.svelte` | `EpisodesTab` в Svelte открывает списки через store/глобальный механизм; у порт-вью нет такой шины | В MediaDetailView добавлен проп `onOpenLists` (проброс в EpisodesTab), App подключит к открытию ListsView; в тестах `() {}` | Ревью не требуется |

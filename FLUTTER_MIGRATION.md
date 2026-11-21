@@ -125,21 +125,29 @@
 
 **Статус:** Этап 0 (инфраструктура) — ЗАВЕРШЁН и закоммичен. Портирование не начато.
 
-**Прогресс: 51 / 207 файлов**
+**Прогресс: 53 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
-| 0 — Фундамент (типы/API/модели/логика/тема) | 58 | 51 |
+| 0 — Фундамент (типы/API/модели/логика/тема) | 58 | 53 |
 | 1 — `shared/ui/` | 17 | 0 |
 | 2 — `entities/` + карточки/сетка | 19 | 0 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 0 |
 | 4 — Детальная страница + Spatial Node Editor | 59 | 0 |
 | 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 0 |
-| **Всего** | **207** | **51** |
+| **Всего** | **207** | **53** |
 
-**Следующие файлы (Фаза 0, хвост):** `views/categoryModel.ts` +
-`views/__tests__/categoryModel.test.ts` → **Phase Gate Фазы 0** (analyze/test/build
-linux/build web-wasm) → **Фаза 1** (`shared/ui/*` 17 файлов).
+**Phase Gate Фазы 0 — ЗЕЛЁНЫЙ (2026-11-21):** analyze 0 issues, 316/316 тестов,
+build linux --debug ✓, build web --wasm ✓ (dart:io не протёк). Публичный «Фаза 0
+ЗАКРЫТА». Далее — **Фаза 1** (`shared/ui/*` 17 файлов): Badge → Button → ConfirmModal/
+confirmDialog → ContextMenu/contextMenu → holdToDelete → Icons (⏭️ lucide) →
+ImageLightbox/lightbox → MediaCoverPlaceholder → Modal → Panel → PopoverMenu → Select →
+toast → TotalBadge → placeholder404 (entities) — по порядку зависимостей.
+
+**Стек-фикс (решение #20):** file_picker поднят до 11.0.3 (package:web, dart:html
+сломал wasm), desktop_drop понижен до 0.8.4 (cross_file 0.3.5+5 — desktop_drop 0.9.2
+требует 0.4, несовместимого с file_picker 9+ XFile API); super_clipboard 0.9.1 остался.
+detail: wasm-Gate Фазы 0 пройден именно с этим набором.
 
 **Следующие после него (жёсткая очерёдность Фазы 0):** `shared/types/models.ts` →
 `dtos.ts` → `index.ts` → `app/tokens.css` + `app/app.css` (TsundokuTheme/ThemeData) →
@@ -280,8 +288,8 @@ update-progress) → `views/categoryModel.ts`. Файлы `⏭️ Заменен
 | 4 | `views` | `ShowSeasonsView.svelte` | `lib/views/show_seasons_view.dart` | ⬜ Не начат | ⬜ | — |
 | 5 | `views` | `StatsView.svelte` | `lib/views/stats_view.dart` | ⬜ Не начат | ⬜ | — |
 | 3 | `views/__tests__` | `CategoryView.test.ts` | `test/views/category_view_test.dart` | ⬜ Не начат | ⬜ | — |
-| 0 | `views/__tests__` | `categoryModel.test.ts` | `test/views/category_model_test.dart` | ⬜ Не начат | ⬜ | — |
-| 0 | `views` | `categoryModel.ts` | `lib/views/category_model.dart` | ⬜ Не начат | ⬜ | — |
+| 0 | `views/__tests__` | `categoryModel.test.ts` | `test/views/category_model_test.dart` | ✅ Готов | ✅ | Все кейсы + search trim + promoted + baseCategories |
+| 0 | `views` | `categoryModel.ts` | `lib/views/category_model.dart` | ✅ Готов | ✅ | buildStatusGroups/filterByStatus (0-safe buckets, численное сравнение статусов), categoryFilters (promoted → parent+subId, anime/tvshow/movie), sortFilters; MediaFilters.copyWithFields добавлен; кейсы vitest-теста |
 | 5 | `widgets/goals` | `GoalCard.svelte` | `lib/widgets/goals/goal_card.dart` | ⬜ Не начат | ⬜ | — |
 | 3 | `widgets/layout` | `ActivityDropdown.svelte` | `lib/widgets/layout/activity_dropdown.dart` | ⬜ Не начат | ⬜ | — |
 | 3 | `widgets/layout` | `AppShell.svelte` | `lib/widgets/layout/app_shell.dart` | ⬜ Не начат | ⬜ | — |

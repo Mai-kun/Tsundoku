@@ -165,9 +165,10 @@
     workspace (ниточки)**: moduleTypes.ts ✅ (4 теста; SeasonDraft портирован
     сюда из create-media — TvShowFormFields ещё не существует);
     workspaceLayout.ts ✅ (10 тестов; localStorage → SharedPreferences-фасад
-    стора uiSettings).
+    стора uiSettings); workspaceThreads.ts ✅ (6 тестов — чистая
+    математика без фреймворка; rAF-цикл рисования придёт в WorkspaceWindow).
 
-**Прогресс: 153 / 207 файлов**
+**Прогресс: 154 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
@@ -175,9 +176,9 @@
 | 1 — `shared/ui/` | 17 | 17 |
 | 2 — `entities/` + карточки/сетка | 19 | 19 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 13 (ЗАКРЫТА, см. Phase Gate) |
-| 4 — Детальная страница + Spatial Node Editor | 59 | 49 |
+| 4 — Детальная страница + Spatial Node Editor | 59 | 50 |
 | 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 0 |
-| **Всего** | **207** | **153** |
+| **Всего** | **207** | **154** |
 
 Долги Фаз 0–2 (не блокируют): —
 seriesProgressControllerProvider no-op-toast → инъекция в Фазе 3 (решение #35);
@@ -271,7 +272,7 @@ Spatial Node Editor; detailTypes/detailFormatters уже готовы pull-forwa
 | 4 | `features/edit-media/modules` | `QuotesModule.svelte` | `lib/features/edit-media/modules/quotes_module.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `features/edit-media/modules` | `moduleTypes.ts` | `lib/features/edit-media/modules/module_types.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `features/edit-media` | `workspaceLayout.ts` | `lib/features/edit-media/workspace_layout.dart` | ✅ Готов | ✅ | WorkspaceRect/WorkspaceLayout (мутабельные поля — merge сохранённого, как в TS bindable), clampWindowRect/clampPoint (min(max()) 1-в-1, а не clamp-исключения), defaultLayout (три колонки, floor-высоты, altH может быть < 0 — clampWindowRect поднимет до min), loadLayout/saveLayout → SharedPreferences (аналог localStorage, async), битый JSON → дефолт; 10 тестов |
-| 4 | `features/edit-media` | `workspaceThreads.ts` | `lib/features/edit-media/workspace_threads.dart` | ⬜ Не начат | ⬜ | — |
+| 4 | `features/edit-media` | `workspaceThreads.ts` | `lib/features/edit-media/workspace_threads.dart` | ✅ Готов | ✅ | ThreadRect/AnchorPair (нормали граней), nearestFaceAnchors (доминантная ось, dy=dx → горизонталь), ThreadSpring: пружинные концы + controlTargets (protrusion min(max(d*0.32,28),110), sag min(d*0.08,26), синус-дыхание фаза*0.0018, sway2 сдвиг 1.7), step возвращает строку SVG-пути `M ... C ...` (1-в-1 с TS — рисование CustomPainter парсит/рисует в WorkspaceWindow); 6 тестов |
 | 3 | `features/filter-and-sort` | `FilterBar.svelte` | `lib/features/filter-and-sort/filter_bar.dart` | ✅ Готов | ✅ | GroupBy — строковый union typedef (конвенция решения #2), LibrarySort — typedef String из category_model (контракт Фазы 0!); SORT_ICONS/GROUP_ICONS → функции; PopoverOption.leading (renderOption-аналог, аддитивно к Фазе 1); поиск с дебаунсом 300ms; статус-триггер с бейджем-счётчиком; TotalBadge в центре; bg-field = bgSurface; 6 тестов |
 | 5 | `features/goals` | `CreateGoalModal.svelte` | `lib/features/goals/create_goal_modal.dart` | ⬜ Не начат | ⬜ | — |
 | 5 | `features/import-media` | `ImportModal.svelte` | `lib/features/import-media/import_modal.dart` | ⬜ Не начат | ⬜ | — |

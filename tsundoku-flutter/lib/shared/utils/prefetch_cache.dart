@@ -14,6 +14,9 @@ abstract class PrefetchCache<T> {
   /// cached.
   Future<T> load(String id, Future<T> Function() fetcher);
 
+  /// Overwrites the cached value for `key` (optimistic patch).
+  void set(String key, T value);
+
   void invalidate(String id);
 }
 
@@ -58,6 +61,17 @@ class _PrefetchCacheImpl<T> implements PrefetchCache<T> {
 
     _inFlight[id] = request;
     return request;
+  }
+
+  @override
+  void set(String key, T value) {
+    // Мутация in-place в TS не трогает TTL существующей записи.
+    final existing = _entries[key];
+    _entries[key] = (
+      value: value,
+      expiresAt: existing?.expiresAt ??
+          DateTime.now().add(Duration(milliseconds: ttlMs)),
+    );
   }
 
   @override

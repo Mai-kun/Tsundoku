@@ -125,22 +125,21 @@
 
 **Статус:** Этап 0 (инфраструктура) — ЗАВЕРШЁН и закоммичен. Портирование не начато.
 
-**Прогресс: 42 / 207 файлов**
+**Прогресс: 51 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
-| 0 — Фундамент (типы/API/модели/логика/тема) | 58 | 42 |
+| 0 — Фундамент (типы/API/модели/логика/тема) | 58 | 51 |
 | 1 — `shared/ui/` | 17 | 0 |
 | 2 — `entities/` + карточки/сетка | 19 | 0 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 0 |
 | 4 — Детальная страница + Spatial Node Editor | 59 | 0 |
 | 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 0 |
-| **Всего** | **207** | **42** |
+| **Всего** | **207** | **51** |
 
-**Следующие файлы (Фаза 0, контроллеры):** `features/change-status/statusController.svelte.ts`
-→ `features/drop-reason/dropReasonPrompt.svelte.ts` → `features/prefetch-details/*` (2)
-→ `features/update-progress/*` (4) → `features/import-media/mangalibAuth.svelte.ts` →
-`views/categoryModel.ts` + `views/__tests__/categoryModel.test.ts`. Затем Фаза 0 ЗАКРЫТА.
+**Следующие файлы (Фаза 0, хвост):** `views/categoryModel.ts` +
+`views/__tests__/categoryModel.test.ts` → **Phase Gate Фазы 0** (analyze/test/build
+linux/build web-wasm) → **Фаза 1** (`shared/ui/*` 17 файлов).
 
 **Следующие после него (жёсткая очерёдность Фазы 0):** `shared/types/models.ts` →
 `dtos.ts` → `index.ts` → `app/tokens.css` + `app/app.css` (TsundokuTheme/ThemeData) →
@@ -185,7 +184,7 @@ update-progress) → `views/categoryModel.ts`. Файлы `⏭️ Заменен
 | 2 | `entities/media/ui` | `MediaScoreBadge.svelte` | `lib/entities/media/ui/media_score_badge.dart` | ⬜ Не начат | ⬜ | — |
 | 2 | `entities/media/ui` | `MediaStatusBadge.svelte` | `lib/entities/media/ui/media_status_badge.dart` | ⬜ Не начат | ⬜ | — |
 | 2 | `entities/media/ui` | `Placeholder404.svelte` | `lib/entities/media/ui/placeholder404.dart` | ⬜ Не начат | ⬜ | — |
-| 0 | `features/change-status` | `statusController.svelte.ts` | `lib/features/change-status/status_controller.dart` | ⬜ Не начат | ⬜ | — |
+| 0 | `features/change-status` | `statusController.svelte.ts` | `lib/features/change-status/status_controller.dart` | ✅ Готов | ✅ | createCardStatus: optimistic switch (copyWithFields), rule 2 reset при уходе из Completed, rollback при ошибке, drop-prompt открытие; clearDropReasons() для очистки nullable (решение #14); тесты полного цикла |
 | 5 | `features/create-media` | `BookFormFields.svelte` | `lib/features/create-media/book_form_fields.dart` | ⬜ Не начат | ⬜ | — |
 | 5 | `features/create-media` | `CreateModal.svelte` | `lib/features/create-media/create_modal.dart` | ⬜ Не начат | ⬜ | — |
 | 5 | `features/create-media` | `FormField.svelte` | `lib/features/create-media/form_field.dart` | ⬜ Не начат | ⬜ | — |
@@ -194,7 +193,7 @@ update-progress) → `views/categoryModel.ts`. Файлы `⏭️ Заменен
 | 5 | `features/create-media` | `MovieFormFields.svelte` | `lib/features/create-media/movie_form_fields.dart` | ⬜ Не начат | ⬜ | — |
 | 5 | `features/create-media` | `TvShowFormFields.svelte` | `lib/features/create-media/tv_show_form_fields.dart` | ⬜ Не начат | ⬜ | — |
 | 5 | `features/drop-reason` | `DropReasonModal.svelte` | `lib/features/drop-reason/drop_reason_modal.dart` | ⬜ Не начат | ⬜ | — |
-| 0 | `features/drop-reason` | `dropReasonPrompt.svelte.ts` | `lib/features/drop-reason/drop_reason_prompt.dart` | ⬜ Не начат | ⬜ | — |
+| 0 | `features/drop-reason` | `dropReasonPrompt.svelte.ts` | `lib/features/drop-reason/drop_reason_prompt.dart` | ✅ Готов | ✅ | DropPromptTarget + Riverpod Notifier (target state); history.pushState не нужен (решение #10); тест |
 | 4 | `features/edit-media` | `EditMediaWorkspace.svelte` | `lib/features/edit-media/edit_media_workspace.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `features/edit-media` | `WorkspaceWindow.svelte` | `lib/features/edit-media/workspace_window.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `features/edit-media/modules` | `AltTitlesModule.svelte` | `lib/features/edit-media/modules/alt_titles_module.dart` | ⬜ Не начат | ⬜ | — |
@@ -211,20 +210,20 @@ update-progress) → `views/categoryModel.ts`. Файлы `⏭️ Заменен
 | 5 | `features/goals` | `CreateGoalModal.svelte` | `lib/features/goals/create_goal_modal.dart` | ⬜ Не начат | ⬜ | — |
 | 5 | `features/import-media` | `ImportModal.svelte` | `lib/features/import-media/import_modal.dart` | ⬜ Не начат | ⬜ | — |
 | 5 | `features/import-media` | `ImportPanel.svelte` | `lib/features/import-media/import_panel.dart` | ⬜ Не начат | ⬜ | — |
-| 0 | `features/import-media` | `mangalibAuth.svelte.ts` | `lib/features/import-media/mangalib_auth.dart` | ⬜ Не начат | ⬜ | — |
+| 0 | `features/import-media` | `mangalibAuth.svelte.ts` | `lib/features/import-media/mangalib_auth.dart` | ✅ Готов | ✅ | $state → Riverpod; localStorage → shared_preferences (mangalib_user_id); save/adopt/disconnect + toast-инъекция |
 | 5 | `features/lists` | `CreateListModal.svelte` | `lib/features/lists/create_list_modal.dart` | ⬜ Не начат | ⬜ | — |
 | 5 | `features/lists` | `ListPicker.svelte` | `lib/features/lists/list_picker.dart` | ⬜ Не начат | ⬜ | — |
 | 5 | `features/lists` | `SmartListBuilder.svelte` | `lib/features/lists/smart_list_builder.dart` | ⬜ Не начат | ⬜ | — |
-| 0 | `features/prefetch-details` | `externalDetailPrefetch.ts` | `lib/features/prefetch-details/external_detail_prefetch.dart` | ⬜ Не начат | ⬜ | — |
-| 0 | `features/prefetch-details` | `mediaDetailPrefetch.ts` | `lib/features/prefetch-details/media_detail_prefetch.dart` | ⬜ Не начат | ⬜ | — |
+| 0 | `features/prefetch-details` | `externalDetailPrefetch.ts` | `lib/features/prefetch-details/external_detail_prefetch.dart` | ✅ Готов | ✅ | detailsCache 10min TTL, ключ type:source:id, null→rejection; тесты |
+| 0 | `features/prefetch-details` | `mediaDetailPrefetch.ts` | `lib/features/prefetch-details/media_detail_prefetch.dart` | ✅ Готов | ✅ | mediaDetailCache (5min TTL) + updateCachedDetailProgress + prefetchMediaDetail; HoverPrefetchScheduler (150ms intent + scroll-guard — MediaGrid Фаза 2); core/Ref-разделение (решение #16); fakeAsync-тесты |
 | 5 | `features/search-external` | `SearchModal.svelte` | `lib/features/search-external/search_modal.dart` | ⬜ Не начат | ⬜ | — |
 | 5 | `features/settings` | `FirstRunStorageModal.svelte` | `lib/features/settings/first_run_storage_modal.dart` | ⬜ Не начат | ⬜ | — |
 | 5 | `features/settings` | `SettingsModal.svelte` | `lib/features/settings/settings_modal.dart` | ⬜ Не начат | ⬜ | — |
 | 5 | `features/stale-triage` | `StaleBacklogModal.svelte` | `lib/features/stale-triage/stale_backlog_modal.dart` | ⬜ Не начат | ⬜ | — |
-| 0 | `features/update-progress` | `optimisticProgress.svelte.ts` | `lib/features/update-progress/optimistic_progress.dart` | ⬜ Не начат | ⬜ | — |
-| 0 | `features/update-progress` | `progressController.svelte.ts` | `lib/features/update-progress/progress_controller.dart` | ⬜ Не начат | ⬜ | — |
-| 0 | `features/update-progress` | `seriesProgressController.svelte.ts` | `lib/features/update-progress/series_progress_controller.dart` | ⬜ Не начат | ⬜ | — |
-| 0 | `features/update-progress` | `statusPromotionToast.svelte.ts` | `lib/features/update-progress/status_promotion_toast.dart` | ⬜ Не начат | ⬜ | — |
+| 0 | `features/update-progress` | `optimisticProgress.svelte.ts` | `lib/features/update-progress/optimistic_progress.dart` | ✅ Готов | ✅ | SvelteMap → Notifier Map-стейт; apply/resolve/clear/peek (TTL 15s + applyAt test-hook)/reconcile/reconcileListProgress; тесты |
+| 0 | `features/update-progress` | `progressController.svelte.ts` | `lib/features/update-progress/progress_controller.dart` | ✅ Готов | ✅ | CardProgressState: step/debounce(delayOverride 50ms)/promotion rule 1 + toast-инъекция (#15)/undo/keepStatus/onItemReplaced reconcile; ошибка → откат; тесты реального loop |
+| 0 | `features/update-progress` | `seriesProgressController.svelte.ts` | `lib/features/update-progress/series_progress_controller.dart` | ✅ Готов | ✅ | SeriesProgressController: per-media debounce, absoluteSeriesTarget, patchCachedSeasonStep (copyWithFields(seasons)), undo/keepStatus; showToast/i18n инъекция |
+| 0 | `features/update-progress` | `statusPromotionToast.svelte.ts` | `lib/features/update-progress/status_promotion_toast.dart` | ✅ Готов | ✅ | StatusPromotionToastSpec + shower-инъекция (toast Фаза 1, решение #15); тест через спецификацию |
 | 0 | `shared/api` | `api.ts` | `lib/shared/api/api.dart` | ✅ Готов | ✅ | ~70 эндпоинтов → методы TsundokuApi (dio, baseUrl-инъекция, validateStatus:(_)=>true для 1-в-1 throwApiError); ApiError+ProblemDetails+errorMessage(locale); blob→Uint8List; updateStatus union → 2 метода (решение #9); sourcesCachePromise; networkActivity через колбеки; stub-адаптер Dio в тестах |
 | 0 | `shared/api` | `jobsClient.svelte.ts` | `lib/shared/api/jobs_client.dart` | ✅ Готов | ✅ | EventSource → dio streamed-ответ + SSE-парсер (кроссплатформенно); $state → JobsState+Notifier; derived → providers; eviction 4s / safety 70s / sync 10s / throttle 5s (fakeAsync-тесты); onJobSettled; history.pushState для модалки не нужен (решение #10); api-инъекция через attachApi |
 | 0 | `shared/api` | `navigationCategories.svelte.ts` | `lib/shared/api/navigation_categories.dart` | ✅ Готов | ✅ | PromotedSubcategory + матчер (1-в-1 SQL-контракт: format без trim, genre/tag с нормализацией); иконки → lucide_icons_flutter (Icons.ts ⏭️); load/save через apiClientProvider; invalidateSourcesCache после save; presets 1-в-1 |

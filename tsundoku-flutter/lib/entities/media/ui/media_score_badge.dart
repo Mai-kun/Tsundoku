@@ -12,8 +12,9 @@ import '../../../shared/i18n/index.dart';
 import '../model/media_labels.dart';
 
 class MediaScoreBadge extends ConsumerWidget {
-  /// Svelte: `number | null`; MediaItem.score — double? (сервер шлёт число).
-  final double? score;
+  /// Svelte: `number | null` → num? (MediaItem.score — int?, поисковые модели
+  /// шлют дробные — num покрывает оба контракта).
+  final num? score;
 
   const MediaScoreBadge({super.key, required this.score});
 
@@ -76,5 +77,5 @@ class MediaScoreBadge extends ConsumerWidget {
 
 /// title-атрибут Svelte интерполирует сырой score (`${score}`), не
 /// Intl-формат — фиксируем 1-в-1 (8.5 → «8.5», не «8,5»).
-String _titleNumber(double s) =>
+String _titleNumber(num s) =>
     s == s.roundToDouble() ? s.round().toString() : s.toString();

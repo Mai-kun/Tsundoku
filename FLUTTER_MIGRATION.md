@@ -40,6 +40,7 @@
 | Графики (`StatsView`) | `fl_chart` (1.3.x); Heatmap/кольца/ниточки редактора — нативный `CustomPainter` |
 | Локальные настройки UI | `shared_preferences` |
 | Slug-нормализация (NFKD-аналог) | `diacritic` (0.1.x, решение #31: в Dart нет String.normalize) |
+| Внешние ссылки (за фасадом) | `url_launcher` (6.3.x, решение #32: window.open в Svelte) |
 | firstOrNull/итеры | `collection` |
 | Десктоп-интеграция (за фасадом) | `window_manager`, `file_picker` (7.x, см. §6), `desktop_drop`, `super_clipboard` |
 | UI-библиотека | `material_ui` (официальная вынесенная Material-библиотека Flutter 3.50; заменяет `package:flutter/material.dart` — тот deprecated с v3.47) |
@@ -426,6 +427,7 @@ build linux --debug ✓, build web --wasm ✓. Фаза 1 ЗАКРЫТА. Дал
 | 28 | `entities/media/ui/MediaPoster.svelte` | Проп children объявлен в Props, но шаблоном не рендерится ({@render children} отсутствует) — мёртвый API | Не переносился (YAGNI, 1-в-1 с фактическим поведением); слоты badges/actions перенесены | Если апстрим оживит children — добавить; ревью не требуется |
 | 30 | `widgets/media-card/BaseCard.svelte` | BaseCard импортирует providerLink из Фазы 4 (detailFormatters) — фазовый порядок ломается | detailTypes.ts + detailFormatters.ts вытащены вперёд и портированы целиком (строки Фазы 4 закрыты досрочно); 1-в-1 file-mapping сохранён | Портировать BaseCard с инлайном providerLink — дублирование; ревью не требуется |
 | 31 | `widgets/media-detail/detailFormatters.ts` | slugify использует NFKD-нормализацию + зачистку combining marks; в Dart String.normalize нет | Пакет diacritic (removeDiacritics) — эквивалент для латиницы; стек дополнен (§1.4) | Полный ICU-NFKD недоступен без тяжёлых зависимостей; для RAWG/IGDB-слагов диакритики покрывают кейс; ревью по желанию |
+| 32 | `widgets/media-card/BaseCard.svelte` | navigator.clipboard / document-download-anchor / window.open — браузерные API; §1.3 требует платформенный фасад | `lib/shared/platform/`: PlatformService (copyText/copyImagePng/saveFile/openExternalUrl) + условный экспорт io (super_clipboard + file_picker.saveFile + url_launcher) / web (package:web) / stub; wasm-билд зелёный — dart:io не протёк | Проверено `flutter build web --wasm`; ревью не требуется |
 
 ---
 
@@ -453,6 +455,9 @@ build linux --debug ✓, build web --wasm ✓. Фаза 1 ЗАКРЫТА. Дал
    **Важно для агентов ZCode**: в этой среде `$HOME` = `/home/maikun/Profiles/ZCode3`, а не
    `/home/maikun` — `export PATH="$HOME/development/flutter/bin:$PATH"` НЕ работает;
    использовать абсолютный путь `export PATH="/home/maikun/development/flutter/bin:$PATH"`.
+11. **Платформенный фасад (2026-11-21)**: создан `lib/shared/platform/` — interface
+   PlatformService + условный экспорт (`platform.dart` → io/web/stub). Изолирует
+   super_clipboard, file_picker, url_launcher от виджетов (§1.3); проверен wasm-билдом.
 10. **Учёт миграции**: строки решений #11–#24 в «Спорных решениях» никогда не были записаны
    прошлыми сессиями (номера упоминались только в Пояснениях) — восстановлены по этим
    упоминаниям (#12/#17–#19/#22 не восстановимы, оставлены заглушками).

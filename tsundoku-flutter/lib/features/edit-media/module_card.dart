@@ -40,11 +40,13 @@ class ModuleCard extends StatelessWidget {
     final th = TsundokuTheme.of(context);
 
     if (flat) {
+      // Svelte: `flex h-full flex-col` — flat-карточка растягивается по
+      // высоте хоста, тело через flex-1 (требует bounded-высоту, как окно
+      // workspace).
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
         children: [
-          if (showLabel) ...[
+          if (showLabel)
             Row(
               children: [
                 IconTheme.merge(
@@ -79,9 +81,8 @@ class ModuleCard extends StatelessWidget {
                 ],
               ],
             ),
-            const SizedBox(height: 10), // gap-2.5
-          ],
-          child,
+          if (showLabel) const SizedBox(height: 10), // gap-2.5
+          Expanded(child: child),
         ],
       );
     }

@@ -167,9 +167,9 @@
     workspaceLayout.ts ✅ (10 тестов; localStorage → SharedPreferences-фасад
     стора uiSettings); workspaceThreads.ts ✅ (6 тестов — чистая
     математика без фреймворка; rAF-цикл рисования придёт в WorkspaceWindow);
-    WorkspaceWindow.svelte ✅ (6 тестов) → ModuleCard ✅ (4 теста) → NotesModule ✅ (3 теста) → BaseMediaModule ✅ (5 тестов) → FormField ✅ (pull-forward из Фазы 5, 1 тест) → GameFormFields ✅ (+CreateTextField в form_field.dart) → BookFormFields ✅ (3 теста, isNovel-ветвление) → MangaFormFields ✅ (1 тест) → MovieFormFields ✅ (1 тест, чекбокс аниме) → TvShowFormFields ✅ (1 тест, редактор сезонов) → CategoryFieldsModule ✅ (6 тестов — композит всех FormFields).
+    WorkspaceWindow.svelte ✅ (6 тестов) → ModuleCard ✅ (4 теста) → NotesModule ✅ (3 теста) → BaseMediaModule ✅ (5 тестов) → FormField ✅ (pull-forward из Фазы 5, 1 тест) → GameFormFields ✅ (+CreateTextField в form_field.dart) → BookFormFields ✅ (3 теста, isNovel-ветвление) → MangaFormFields ✅ (1 тест) → MovieFormFields ✅ (1 тест, чекбокс аниме) → TvShowFormFields ✅ (1 тест, редактор сезонов) → CategoryFieldsModule ✅ (6 тестов — композит всех FormFields) → AltTitlesModule ✅ (4 теста).
 
-**Прогресс: 165 / 207 файлов**
+**Прогресс: 166 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
@@ -177,9 +177,9 @@
 | 1 — `shared/ui/` | 17 | 17 |
 | 2 — `entities/` + карточки/сетка | 19 | 19 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 13 (ЗАКРЫТА, см. Phase Gate) |
-| 4 — Детальная страница + Spatial Node Editor | 59 | 55 |
+| 4 — Детальная страница + Spatial Node Editor | 59 | 56 |
 | 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 6 |
-| **Всего** | **207** | **165** |
+| **Всего** | **207** | **166** |
 
 Долги Фаз 0–2 (не блокируют): —
 seriesProgressControllerProvider no-op-toast → инъекция в Фазе 3 (решение #35);

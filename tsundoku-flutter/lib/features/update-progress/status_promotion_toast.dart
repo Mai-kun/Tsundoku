@@ -10,9 +10,13 @@
 /// Фаза 1 подключит реальный toast, тесты — мок-колбек.
 library;
 
+import 'package:flutter_riverpod/flutter_riverpod.dart'
+    show WidgetRef;
+
 import '../../shared/i18n/index.dart';
 import '../../shared/types/enums.dart';
 import '../../shared/types/models.dart';
+import '../../shared/ui/toast.dart';
 
 class StatusPromotionHandlers {
   /// Undo: progress back to 0 AND status back to the previous one — both
@@ -87,4 +91,25 @@ void notifyAutoInProgress(
       ),
     ],
   ));
+}
+
+/// Фаза 2: реальный показ спецификации в toast-стор — 1-в-1 с Svelte, где
+/// statusPromotionToast.svelte.ts сам пишет в toastStore. Вызывается из
+/// карточек (инъекция shower'а в CardProgressOptions, решение #15).
+void showStatusPromotionToast(WidgetRef ref, StatusPromotionToastSpec spec) {
+  showToast(
+    ref,
+    ToastOptions(
+      title: spec.title,
+      description: spec.description,
+      type: ToastType.tryFromWire(spec.type),
+      durationMs: spec.durationMs,
+      showOk: spec.showOk,
+      undo: spec.undo,
+      actions: [
+        for (final action in spec.actions)
+          ToastAction(id: action.id, label: action.label, onClick: action.onClick),
+      ],
+    ),
+  );
 }

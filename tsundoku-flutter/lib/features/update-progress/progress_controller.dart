@@ -29,6 +29,10 @@ class CardProgressOptions {
   final ProviderContainer ref;
   /// Тест-инъекция: сокращённый дебаунс.
   final Duration? delayOverride;
+  /// UI-хук перерисовки: Svelte-карточка реактивна на $state-поля
+  /// (value/error); Dart-контроллер не-реактивный — карточка подписывается
+  /// через этот колбек (решение #36).
+  final void Function()? onChange;
 
   const CardProgressOptions({
     required this.getItem,
@@ -38,6 +42,7 @@ class CardProgressOptions {
     required this.ref,
     this.getOnStatusChange,
     this.delayOverride,
+    this.onChange,
   });
 }
 
@@ -51,7 +56,19 @@ class CardProgressState {
   bool _hasOptimisticProgress = false;
   MediaItem? _trackedItem;
   late final ProgressDebouncer _debounce;
+  final List<void Function()> _changeListeners = <void Function()>[];
   final CardProgressOptions options;
+
+  /// Подписка карточки (setState) на UI-релевантные мутации value/error.
+  void addChangeListener(void Function() listener) =>
+      _changeListeners.add(listener);
+  void removeChangeListener(void Function() listener) =>
+      _changeListeners.remove(listener);
+  void _notifyChanged() {
+    for (final listener in List.of(_changeListeners)) {
+      listener();
+    }
+  }
 
   CardProgressState(this.options) : _currentProgress = 0, _committedProgress = 0 {
     _currentProgress = readCardProgress(options.getItem());
@@ -73,7 +90,10 @@ class CardProgressState {
         options.ref
             .read(optimisticProgressProvider.notifier)
             .resolve(_trackedItem?.id ?? '', value);
-        if (_currentProgress == value) options.getOnProgressCommitted()();
+        if (_currentProgress == value) {
+          options.getOnProgressCommitted()();
+        }
+        _notifyChanged();
       },
       onError: (failure) {
         _currentProgress = _pendingSnapshot ?? _committedProgress;
@@ -84,6 +104,7 @@ class CardProgressState {
             .read(optimisticProgressProvider.notifier)
             .clear(_trackedItem?.id ?? '');
         _error = failure;
+        _notifyChanged();
       },
     ));
   }
@@ -101,6 +122,7 @@ class CardProgressState {
         _committedProgress = readCardProgress(item);
       }
       _pendingSnapshot = null;
+      _notifyChanged();
     }
   }
 
@@ -129,6 +151,7 @@ class CardProgressState {
     api.setProgress(target.id, 0).then((_) {
       return api.updateStatus(target.id, previousStatus);
     }).catchError((Object failure) {});
+    _notifyChanged();
   }
 
   /// Keep-status: the progress stays at its new value (persisted explicitly,
@@ -148,6 +171,7 @@ class CardProgressState {
           .resolve(target.id, value);
     }).catchError((Object failure) {});
     api.updateStatus(target.id, previousStatus).catchError((Object failure) {});
+    _notifyChanged();
   }
 
   void step(int delta) {
@@ -199,6 +223,7 @@ class CardProgressState {
     // detail screen with the pre-step number and snap only after refetch.
     updateCachedDetailProgressRef(options.ref, item.id, next);
     _debounce.schedule(item.id, next);
+    _notifyChanged();
   }
 }
 

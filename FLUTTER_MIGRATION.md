@@ -150,7 +150,7 @@
     MediaActivity/OverwriteConfirm/RelinkSource) → DetailSidebar →
     ShowSeasonsView → MediaDetailView → edit-media workspace (ниточки).
 
-**Прогресс: 129 / 207 файлов**
+**Прогресс: 130 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
@@ -158,9 +158,9 @@
 | 1 — `shared/ui/` | 17 | 17 |
 | 2 — `entities/` + карточки/сетка | 19 | 19 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 13 (ЗАКРЫТА, см. Phase Gate) |
-| 4 — Детальная страница + Spatial Node Editor | 59 | 21 (+ BookEditionSection) |
+| 4 — Детальная страница + Spatial Node Editor | 59 | 22 (+ GameDetailSection) |
 | 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 0 |
-| **Всего** | **207** | **129** |
+| **Всего** | **207** | **130** |
 
 Долги Фаз 0–2 (не блокируют): —
 seriesProgressControllerProvider no-op-toast → инъекция в Фазе 3 (решение #35);
@@ -378,7 +378,7 @@ Spatial Node Editor; detailTypes/detailFormatters уже готовы pull-forwa
 | 4 | `widgets/media-detail/sections` | `BookProgressSection.svelte` | `lib/widgets/media-detail/sections/book_progress_section.dart` | ✅ Готов | ✅ | Новелла → главы (6 мин/глава, pace [1,2,3,5]) vs страницы (bookPageMinutes из uiSettings, pace [10,20,30,50], дефолт 20); effectiveTotal: totalChapters/totalPages/progress.total; amber-акцент; тесты в book_tv_progress_sections_test |
 | 4 | `widgets/media-detail/sections` | `CastSection.svelte` | `lib/widgets/media-detail/sections/cast_section.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `widgets/media-detail/sections` | `CreatorSection.svelte` | `lib/widgets/media-detail/sections/creator_section.dart` | ⬜ Не начат | ⬜ | — |
-| 4 | `widgets/media-detail/sections` | `GameDetailSection.svelte` | `lib/widgets/media-detail/sections/game_detail_section.dart` | ⬜ Не начат | ⬜ | — |
+| 4 | `widgets/media-detail/sections` | `GameDetailSection.svelte` | `lib/widgets/media-detail/sections/game_detail_section.dart` | ✅ Готов | ✅ | Часы (teal, total 0 — без кольца/времени) через ProgressCard; достижения: поиск по названию/описанию, toggle all (amber-чип), unlock-карточки (success-deep литерал — вне ThemeExtension, как #5/warning-ветки), пагинация 60/стр с «...»-врезками, «*» truncated; 5 тестов |
 | 4 | `widgets/media-detail/sections` | `LinkedSourcesSection.svelte` | `lib/widgets/media-detail/sections/linked_sources_section.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `widgets/media-detail/sections` | `MangaProgressSection.svelte` | `lib/widgets/media-detail/sections/manga_progress_section.dart` | ✅ Готов | ✅ | Главы: minsPerChapter из uiSettings (дефолт 6), effectiveTotal: totalChapters/progress.total, amber, pace [1,2,3,5] дефолт 5; тест в movie_manga_notes_sections_test |
 | 4 | `widgets/media-detail/sections` | `MediaFilesSection.svelte` | `lib/widgets/media-detail/sections/media_files_section.dart` | ⬜ Не начат | ⬜ | — |

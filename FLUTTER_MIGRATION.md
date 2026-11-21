@@ -144,7 +144,7 @@
     Фазу 4: тянет ExternalDetailModal → DetailHeader (Фаза 4), каскад
     раньше времени ломает порядок; портится сразу после этих двух.
 
-**Прогресс: 104 / 207 файлов**
+**Прогресс: 105 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
@@ -154,7 +154,7 @@
 | 3 — Каркас: App/Layout/Home/Category | 13 | 10 |
 | 4 — Детальная страница + Spatial Node Editor | 59 | 0 |
 | 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 0 |
-| **Всего** | **207** | **104** |
+| **Всего** | **207** | **105** |
 
 Долги Фаз 0–2 (не блокируют): —
 seriesProgressControllerProvider no-op-toast → инъекция в Фазе 3 (решение #35);
@@ -310,7 +310,7 @@ PlatformService за условным экспортом). Фаза 2 ЗАКРЫ
 | 3 | `views` | `CategoryView.svelte` | `lib/views/category_view.dart` | ✅ Готов | ✅ | Sliver-вью (решение #37): FilterBar + статус-секции/франшизные группы/одна сетка (SECTION_ROW_LIMIT 40); SWR-модульный кэш + savedCategoryState; fetch-эффект гвардится ключом зависимостей ($effect-аналог — sequence не растёт на rebuild'ах); sequence-загрузка (500ms при поиске); stuck-reload; optimistic прогресс/удаление/статус; vitest-кейс перенесён (keyed-ремоунт при смене категории); 2 теста |
 | 5 | `views` | `GoalsView.svelte` | `lib/views/goals_view.dart` | ⬜ Не начат | ⬜ | — |
 | 5 | `views` | `HistoryView.svelte` | `lib/views/history_view.dart` | ⬜ Не начат | ⬜ | — |
-| 3 | `views` | `HomeView.svelte` | `lib/views/home_view.dart` | ⬜ Не начат | ⬜ | — |
+| 3 | `views` | `HomeView.svelte` | `lib/views/home_view.dart` | ✅ Готов | ✅ | ⬆️ Вытащен вперёд (App зависит от вью): Sliver-вью (#37); три секции getMedia(status 1/0/2, limit 60/500) + локальные сортировки; HomeSort/GroupBy — строковые union; time-budget фильтр + кастомный ввод, 🎲-рандомайзер (randomPick() публичный — App контекст-меню, решение #41), чипы фильтров, лимит секций (columns×rows), stale-бейдж → onOpenStaleBacklog (Фаза 5, решение #40); панель — публичные апдейтеры стейта; 5 тестов |
 | 5 | `views` | `ListsView.svelte` | `lib/views/lists_view.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `views` | `MediaDetailView.svelte` | `lib/views/media_detail_view.dart` | ⬜ Не начат | ⬜ | — |
 | 5 | `views` | `SettingsView.svelte` | `lib/views/settings_view.dart` | ⬜ Не начат | ⬜ | — |
@@ -508,3 +508,5 @@ PlatformService за условным экспортом). Фаза 2 ЗАКРЫ
 | 37 | `widgets/media-grid/MediaGrid.svelte` | TanStack-виртуализатор с scrollMargin/gridLayoutVersion-инвалидацией; FLAT_LIMIT 15; forceFlat | Нативные слайверы: MediaGrid возвращает SliverMainAxisGroup (SliverGrid сам держит окно монтирования; скроллер — общий CustomScrollView Phase 3 = #main-scroll); scrollMargin/bump в нативной схеме не нужны; FLAT_LIMIT/forceFlat — сохранены контрактно, поведения не меняют; MediaGridView — shrinkWrap-обёртка для standalone/тестов | Поведение окна удаления проверить golden-ами (см. строку virtualGrid ⏭️); ревью не требуется |
 | 38 | `features/lists/ListPicker.svelte` | CreateListModal лениво грузится динамическим import'ом | Колбек onCreateList (App подключит при портировании CreateListModal, Фаза 5); refreshLists публичный для onSaved | Ревью не требуется |
 | 39 | `views/CategoryView.svelte` | $effect-механика: fetch-эффект трекает deps (category/refreshKey/search/sort/promoted), $effect.pre сбрасывает состояние до отрисовки | Dart: fetch-эффект гвардится ключом зависимостей (перестройка sequence на каждом rebuild отбрасывала ответы); сброс состояния — initState/didUpdateWidget; вью монтируется с ValueKey(category) ({#key activeCategory}) — настоящий ремоунт | Ревью не требуется |
+| 40 | `views/HomeView.svelte` | StaleBacklogModal лениво динамическим import'ом | Колбек onOpenStaleBacklog (App подключит при портировании StaleBacklogModal, Фаза 5) — как ListPicker onCreateList (#38) | Ревью не требуется |
+| 41 | `views/HomeView.svelte` | window.addEventListener('tsundoku:random-pick') — desktop context-menu событие | HomeView.randomPick() публичный: App вызовет напрямую из контекст-меню (без window-шины) | Ревью не требуется |

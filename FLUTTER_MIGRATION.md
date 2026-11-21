@@ -143,13 +143,13 @@
 10. `widgets/layout/BackgroundJobsModal.svelte` — ✅ ЗАКРЫТ (13/13 Фазы 3).
     Следующий шаг — **Phase Gate Фазы 3** (analyze/test/build linux/build
     web --wasm). **Фаза 4 в работе**: чистые модули — detailTypes/
-    detailFormatters (pull-forward) + relationSources. Далее: externalMapping/
-    ratingBadges/relatedMatching (+ vitest-тесты) → виджеты (ProgressStepper →
+    detailFormatters (pull-forward) + relationSources + externalMapping.
+    Далее: ratingBadges/relatedMatching (+ vitest-тесты) → виджеты (ProgressStepper →
     SeasonRow → DetailTabs → sections → tabs → panels → модалки →
     DetailSidebar) → ShowSeasonsView → MediaDetailView → edit-media
     workspace (ниточки).
 
-**Прогресс: 111 / 207 файлов**
+**Прогресс: 112 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
@@ -157,9 +157,9 @@
 | 1 — `shared/ui/` | 17 | 17 |
 | 2 — `entities/` + карточки/сетка | 19 | 19 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 13 (ЗАКРЫТА, см. Phase Gate) |
-| 4 — Детальная страница + Spatial Node Editor | 59 | 3 (DetailHeader, ExternalDetailModal, relationSources) |
+| 4 — Детальная страница + Spatial Node Editor | 59 | 4 (+ externalMapping) |
 | 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 0 |
-| **Всего** | **207** | **111** |
+| **Всего** | **207** | **112** |
 
 Долги Фаз 0–2 (не блокируют): —
 seriesProgressControllerProvider no-op-toast → инъекция в Фазе 3 (решение #35);
@@ -362,12 +362,12 @@ Spatial Node Editor; detailTypes/detailFormatters уже готовы pull-forwa
 | 4 | `widgets/media-detail` | `RelinkSourceModal.svelte` | `lib/widgets/media-detail/relink_source_modal.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `widgets/media-detail` | `SeasonRow.svelte` | `lib/widgets/media-detail/season_row.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `widgets/media-detail` | `SyncRowsSkeleton.svelte` | `lib/widgets/media-detail/sync_rows_skeleton.dart` | ⬜ Не начат | ⬜ | — |
-| 4 | `widgets/media-detail/__tests__` | `externalMapping.test.ts` | `test/widgets/media-detail/external_mapping_test.dart` | ⬜ Не начат | ⬜ | — |
+| 4 | `widgets/media-detail/__tests__` | `externalMapping.test.ts` | `test/widgets/media-detail/external_mapping_test.dart` | ✅ Готов | ✅ | Все 6 vitest-кейсов 1-в-1: raw relationType, ratings/score, даты/счётчики, missing year, format, title-fallback |
 | 4 | `widgets/media-detail/__tests__` | `ratingBadges.test.ts` | `test/widgets/media-detail/rating_badges_test.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `widgets/media-detail/__tests__` | `relatedMatching.test.ts` | `test/widgets/media-detail/related_matching_test.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `widgets/media-detail` | `detailFormatters.ts` | `lib/widgets/media-detail/detail_formatters.dart` | ✅ Готов | ✅ | Вытащен вперёд (решение #30, зависимость BaseCard → providerLink). Все 25 функций 1-в-1: providerLink (16 источников, slugify — см. #31), releaseStatusLabel (game/tv ветки, UTC-полночь date-only — 1-в-1 с new Date), readProgress, buildEpisodes (limit = min(total, max(watched, 200)) 1-в-1), relatedStatusColors (CSS-строки → типизированные цвета), specRows + lineage. statusLabel ре-экспорт. Типовые null-фиксы: currentChapter/totalEpisodesWatched null → 0 (TS-тип врал). 48 тестов |
 | 4 | `widgets/media-detail` | `detailTypes.ts` | `lib/widgets/media-detail/detail_types.dart` | ✅ Готов | ✅ | Вытащен вперёд (зависимость BaseCard → providerLink): ProgressInfo/SpecRow/EpisodeRow/NextUp/RecommendationItem/RelatedEntry/RatingBadge/RelationGroup/TimelineEntry; SubTab/RelatedViewMode → enum c wire (конвенция enums.dart); read-only без toJson (YAGNI); smoke-тесты |
-| 4 | `widgets/media-detail` | `externalMapping.ts` | `lib/widgets/media-detail/external_mapping.dart` | ⬜ Не начат | ⬜ | — |
+| 4 | `widgets/media-detail` | `externalMapping.ts` | `lib/widgets/media-detail/external_mapping.dart` | ✅ Готов | ✅ | toRelatedEntry: серверная relation → RelatedEntry (без i18n — caller даёт локализованный label); ratings → [RatingBadge(source, score)] при score>0 + externalSource; title-fallback «Title» |
 | 4 | `widgets/media-detail/panels` | `RelatedPanel.svelte` | `lib/widgets/media-detail/panels/related_panel.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `widgets/media-detail/panels` | `RelatedPreviewModal.svelte` | `lib/widgets/media-detail/panels/related_preview_modal.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `widgets/media-detail` | `ratingBadges.ts` | `lib/widgets/media-detail/rating_badges.dart` | ⬜ Не начат | ⬜ | — |

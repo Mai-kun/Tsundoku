@@ -150,7 +150,7 @@
     MediaActivity/OverwriteConfirm/RelinkSource) → DetailSidebar →
     ShowSeasonsView → MediaDetailView → edit-media workspace (ниточки).
 
-**Прогресс: 122 / 207 файлов**
+**Прогресс: 123 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
@@ -158,9 +158,9 @@
 | 1 — `shared/ui/` | 17 | 17 |
 | 2 — `entities/` + карточки/сетка | 19 | 19 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 13 (ЗАКРЫТА, см. Phase Gate) |
-| 4 — Детальная страница + Spatial Node Editor | 59 | 14 (+ BookProgressSection) |
+| 4 — Детальная страница + Spatial Node Editor | 59 | 15 (+ TvShowProgressSection) |
 | 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 0 |
-| **Всего** | **207** | **122** |
+| **Всего** | **207** | **123** |
 
 Долги Фаз 0–2 (не блокируют): —
 seriesProgressControllerProvider no-op-toast → инъекция в Фазе 3 (решение #35);
@@ -389,7 +389,7 @@ Spatial Node Editor; detailTypes/detailFormatters уже готовы pull-forwa
 | 4 | `widgets/media-detail/sections` | `QuickFactsSection.svelte` | `lib/widgets/media-detail/sections/quick_facts_section.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `widgets/media-detail/sections` | `QuotesSection.svelte` | `lib/widgets/media-detail/sections/quotes_section.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `widgets/media-detail/sections` | `TrailerSection.svelte` | `lib/widgets/media-detail/sections/trailer_section.dart` | ✅ Готов | ✅ | YouTube-thumbnail + Play (hover scale 1.03, red-600/90); iframe недоступен без webview — Play открывает embed-URL через PlatformService.openExternalUrl (решение #48, фасад §1.3); без трейлера — заглушка Film/panel-line/40; 3 теста |
-| 4 | `widgets/media-detail/sections` | `TvShowProgressSection.svelte` | `lib/widgets/media-detail/sections/tv_show_progress_section.dart` | ⬜ Не начат | ⬜ | — |
+| 4 | `widgets/media-detail/sections` | `TvShowProgressSection.svelte` | `lib/widgets/media-detail/sections/tv_show_progress_section.dart` | ✅ Готов | ✅ | Минуты/серия: episodeDurationMinutes → durationMinutes → 24; tooltip total «Сезон N: M · …» для multi-season (seasons на MediaDetail); effectiveTotal: totalEpisodes/progress.total; indigo-акцент, pace [1,2,3,5] дефолт 2; тесты в book_tv_progress_sections_test |
 | 4 | `widgets/media-detail/tabs` | `EpisodesTab.svelte` | `lib/widgets/media-detail/tabs/episodes_tab.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `widgets/media-detail/tabs` | `GalleryTab.svelte` | `lib/widgets/media-detail/tabs/gallery_tab.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `widgets/media-detail/tabs` | `OverviewTab.svelte` | `lib/widgets/media-detail/tabs/overview_tab.dart` | ⬜ Не начат | ⬜ | — |

@@ -10,7 +10,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tsundoku_flutter/features/lists/list_picker.dart';
 import 'package:tsundoku_flutter/shared/api/api.dart';
 import 'package:tsundoku_flutter/shared/ui/toast.dart';
-import 'package:tsundoku_flutter/shared/ui/toast.dart';
 
 class StubAdapter implements HttpClientAdapter {
   final ResponseBody Function(RequestOptions options) handler;

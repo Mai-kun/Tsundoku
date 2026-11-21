@@ -150,7 +150,7 @@
     MediaActivity/OverwriteConfirm/RelinkSource) → DetailSidebar →
     ShowSeasonsView → MediaDetailView → edit-media workspace (ниточки).
 
-**Прогресс: 131 / 207 файлов**
+**Прогресс: 132 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
@@ -158,9 +158,9 @@
 | 1 — `shared/ui/` | 17 | 17 |
 | 2 — `entities/` + карточки/сетка | 19 | 19 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 13 (ЗАКРЫТА, см. Phase Gate) |
-| 4 — Детальная страница + Spatial Node Editor | 59 | 23 (+ CastSection) |
+| 4 — Детальная страница + Spatial Node Editor | 59 | 24 (+ CreatorSection) |
 | 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 0 |
-| **Всего** | **207** | **131** |
+| **Всего** | **207** | **132** |
 
 Долги Фаз 0–2 (не блокируют): —
 seriesProgressControllerProvider no-op-toast → инъекция в Фазе 3 (решение #35);
@@ -377,7 +377,7 @@ Spatial Node Editor; detailTypes/detailFormatters уже готовы pull-forwa
 | 4 | `widgets/media-detail/sections` | `BookEditionSection.svelte` | `lib/widgets/media-detail/sections/book_edition_section.dart` | ✅ Готов | ✅ | Строки издания (grid-cols-2 → Wrap+colWidth), ISBN col-span-2 с копированием (clipboard → PlatformService.copyText #32, «Скопировано» 2s + тост descCopied), userPlatform → provider format → e-book дефолт; 4 теста |
 | 4 | `widgets/media-detail/sections` | `BookProgressSection.svelte` | `lib/widgets/media-detail/sections/book_progress_section.dart` | ✅ Готов | ✅ | Новелла → главы (6 мин/глава, pace [1,2,3,5]) vs страницы (bookPageMinutes из uiSettings, pace [10,20,30,50], дефолт 20); effectiveTotal: totalChapters/totalPages/progress.total; amber-акцент; тесты в book_tv_progress_sections_test |
 | 4 | `widgets/media-detail/sections` | `CastSection.svelte` | `lib/widgets/media-detail/sections/cast_section.dart` | ✅ Готов | ✅ | Три режима: сэйю-группировка (аниме, new payload), персонажи (манга), плоский легаси; portrait-сетка главных (anti-orphan: только целые ряды, remainder → rows); reveal сэйю-фото (clip-circle → AnimatedOpacity), lightbox (lightboxProvider) по фото/аватару; secondary-сворачивание (chevron rotate-180); PeopleSizeToggle cast; 5 тестов |
-| 4 | `widgets/media-detail/sections` | `CreatorSection.svelte` | `lib/widgets/media-detail/sections/creator_section.dart` | ⬜ Не начат | ⬜ | — |
+| 4 | `widgets/media-detail/sections` | `CreatorSection.svelte` | `lib/widgets/media-detail/sections/creator_section.dart` | ✅ Готов | ✅ | «Визитка»: фото/иконка по роли (Gamepad/BookOpen/Clapperboard, developer-re), ★средняя (amber), поиск-кнопка; сводка (count/complete + градиент-бар accent→#818cf8); staff-карточки (large/compact, буква-плейсхолдер, lightbox); другие работы (постер 2/3 + статус/★); unknown-создатель — без сводки/поиска; $effect → didUpdateWidget по (name, role, id); 5 тестов полного цикла |
 | 4 | `widgets/media-detail/sections` | `GameDetailSection.svelte` | `lib/widgets/media-detail/sections/game_detail_section.dart` | ✅ Готов | ✅ | Часы (teal, total 0 — без кольца/времени) через ProgressCard; достижения: поиск по названию/описанию, toggle all (amber-чип), unlock-карточки (success-deep литерал — вне ThemeExtension, как #5/warning-ветки), пагинация 60/стр с «...»-врезками, «*» truncated; 5 тестов |
 | 4 | `widgets/media-detail/sections` | `LinkedSourcesSection.svelte` | `lib/widgets/media-detail/sections/linked_sources_section.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `widgets/media-detail/sections` | `MangaProgressSection.svelte` | `lib/widgets/media-detail/sections/manga_progress_section.dart` | ✅ Готов | ✅ | Главы: minsPerChapter из uiSettings (дефолт 6), effectiveTotal: totalChapters/progress.total, amber, pace [1,2,3,5] дефолт 5; тест в movie_manga_notes_sections_test |

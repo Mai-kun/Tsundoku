@@ -125,24 +125,25 @@
 
 **Статус:** Этап 0 (инфраструктура) — ЗАВЕРШЁН и закоммичен. Портирование не начато.
 
-**Прогресс: 60 / 207 файлов**
+**Прогресс: 62 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
 | 0 — Фундамент (типы/API/модели/логика/тема) | 58 | 53 |
-| 1 — `shared/ui/` | 17 | 7 |
+| 1 — `shared/ui/` | 17 | 9 |
 | 2 — `entities/` + карточки/сетка | 19 | 0 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 0 |
 | 4 — Детальная страница + Spatial Node Editor | 59 | 0 |
 | 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 0 |
-| **Всего** | **207** | **60** |
+| **Всего** | **207** | **62** |
 
 **Phase Gate Фазы 0 — ЗЕЛЁНЫЙ (2026-11-21):** analyze 0 issues, 316/316 тестов,
 build linux --debug ✓, build web --wasm ✓ (dart:io не протёк). Фаза 0 ЗАКРЫТА.
 
-**Фаза 1 — идёт (7/17):** toast/Badge/Panel/TotalBadge/MediaCoverPlaceholder/lightbox/
-ImageLightbox готовы. Далее: Button → confirmDialog+ConfirmModal → contextMenu+
-ContextMenu → holdToDelete → Select → PopoverMenu → Icons (⏭️).
+**Фаза 1 — идёт (9/17):** toast/Badge/Panel/TotalBadge/MediaCoverPlaceholder/lightbox/
+ImageLightbox/Button/holdToDelete готовы. Далее: confirmDialog+ConfirmModal →
+contextMenu+ContextMenu → Select → PopoverMenu → Icons (⏭️) → **Phase Gate Фазы 1** →
+**Фаза 2**.
 
 **Стек-фикс (решение #20):** file_picker поднят до 11.0.3 (package:web, dart:html
 сломал wasm), desktop_drop понижен до 0.8.4 (cross_file 0.3.5+5 — desktop_drop 0.9.2
@@ -245,7 +246,7 @@ update-progress) → `views/categoryModel.ts`. Файлы `⏭️ Заменен
 | 0 | `shared/types` | `index.ts` | `lib/shared/types/index.dart` | ✅ Готов | ✅ | Barrel `export *` → Dart-экспорт-файл; тест гарантирует доступность всех типов через единый import |
 | 0 | `shared/types` | `models.ts` | `lib/shared/types/models.dart` | ✅ Готов | ✅ | Плоский MediaItem (сервер шлёт плоский MediaListDto) + MediaDetail с detail-полями; Record→Map, string[]\|string→List (решения #3/#4); read-only модели без toJson (YAGNI) |
 | 1 | `shared/ui` | `Badge.svelte` | `lib/shared/ui/badge.dart` | ✅ Готов | ✅ | 6 тонов → цвета 1-в-1 из TsundokuTheme (alpha-версии accent/border), 2 размера (px/py/шрифт), rounded-md; widget-ready |
-| 1 | `shared/ui` | `Button.svelte` | `lib/shared/ui/button.dart` | ⬜ Не начат | ⬜ | — |
+| 1 | `shared/ui` | `Button.svelte` | `lib/shared/ui/button.dart` | ✅ Готов | ✅ | 5 вариантов/5 размеров (геометрия 1-в-1), hover через Ink, holdProgress-fill (bg-danger/30 origin-left), loading-спиннер; widget+golden тесты (primary/md, danger+hold) |
 | 1 | `shared/ui` | `ConfirmModal.svelte` | `lib/shared/ui/confirm_modal.dart` | ⬜ Не начат | ⬜ | — |
 | 1 | `shared/ui` | `ContextMenu.svelte` | `lib/shared/ui/context_menu.dart` | ⬜ Не начат | ⬜ | — |
 | 1 | `shared/ui` | `Icons.ts` | `—` | ⏭️ Заменено нативно | ⬜ | Мост иконок lucide→Svelte заменяется прямым использованием пакета lucide_icons_flutter (те же имена иконок LucideIcons.*) |
@@ -258,7 +259,7 @@ update-progress) → `views/categoryModel.ts`. Файлы `⏭️ Заменен
 | 1 | `shared/ui` | `TotalBadge.svelte` | `lib/shared/ui/total_badge.dart` | ✅ Готов | ✅ | tabular-nums + text-white/50; resultCount/resultCountWithShown через tProvider (tf) |
 | 1 | `shared/ui` | `confirmDialog.svelte.ts` | `lib/shared/ui/confirm_dialog.dart` | ⬜ Не начат | ⬜ | — |
 | 1 | `shared/ui` | `contextMenu.svelte.ts` | `lib/shared/ui/context_menu_controller.dart` | ⬜ Не начат | ⬜ | Контроллер стейта контекстного меню (Riverpod); выделен в отдельный файл, чтобы не сливаться с одноимённым виджетом context_menu.dart |
-| 1 | `shared/ui` | `holdToDelete.svelte.ts` | `lib/shared/ui/hold_to_delete.dart` | ⬜ Не начат | ⬜ | — |
+| 1 | `shared/ui` | `holdToDelete.svelte.ts` | `lib/shared/ui/hold_to_delete.dart` | ✅ Готов | ✅ | rAF → Timer.periodic 16ms; progress 0..1, rollback 220ms, hint 1.5s, isEnabled-гейт, completeNow; clock.now() (fakeAsync-тестируемость); тесты полного цикла |
 | 1 | `shared/ui` | `lightbox.svelte.ts` | `lib/shared/ui/lightbox.dart` | ✅ Готов | ✅ | $state → Notifier<ImageLightboxState> (url list + index); close/open; тест |
 | 1 | `shared/ui` | `toast.svelte.ts` | `lib/shared/ui/toast.dart` | ✅ Готов | ✅ | $state → Notifier; MAX_TOASTS 5, TTL-таймеры (fakeAsync), error-gate через serverRestartProvider (setForTest test-hook); тесты |
 | 0 | `shared/utils/__tests__` | `clientErrors.test.ts` | `test/app/client_errors_test.dart` | ✅ Готов | ✅ | Целевой путь таблицы изменён на test/app (рядом с портируемым lib/app/client_errors.dart) |

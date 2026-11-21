@@ -3,6 +3,7 @@
 /// window.open. dart:io недоступен — ничего из него не импортируется.
 library;
 
+import 'dart:async';
 import 'dart:js_interop';
 import 'dart:js_interop_unsafe';
 import 'dart:typed_data';
@@ -48,6 +49,33 @@ class WebPlatformService implements PlatformService {
     anchor.click();
     anchor.remove();
     web.URL.revokeObjectURL(url);
+  }
+
+  @override
+  Future<({String name, Uint8List bytes})?> pickFile() {
+    // `fileInput.click()` + change → file.arrayBuffer(): 1-в-1 с Svelte onPick.
+    final completer = Completer<({String name, Uint8List bytes})?>();
+    final input = web.document.createElement('input') as web.HTMLInputElement;
+    input.type = 'file';
+    input.style.display = 'none';
+    input.onChange.listen((_) async {
+      final file = input.files?.item(0);
+      if (file == null) {
+        completer.complete(null);
+        input.remove();
+        return;
+      }
+      try {
+        final buffer = await file.arrayBuffer().toDart;
+        completer.complete((name: file.name, bytes: buffer.toDart.asUint8List()));
+      } catch (_) {
+        completer.complete(null);
+      }
+      input.remove();
+    });
+    web.document.body!.appendChild(input);
+    input.click();
+    return completer.future;
   }
 
   @override

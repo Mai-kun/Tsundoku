@@ -45,6 +45,17 @@ class IoPlatformService implements PlatformService {
   }
 
   @override
+  Future<({String name, Uint8List bytes})?> pickFile() async {
+    final result = await FilePicker.pickFiles(
+      withData: true,
+      type: FileType.any,
+    );
+    final file = result?.files.singleOrNull;
+    if (file == null || file.bytes == null) return null;
+    return (name: file.name, bytes: file.bytes!);
+  }
+
+  @override
   Future<void> openExternalUrl(String url) async {
     final uri = Uri.tryParse(url);
     if (uri == null) return;

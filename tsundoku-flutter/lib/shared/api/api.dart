@@ -763,6 +763,14 @@ class TsundokuApi {
         method: 'POST');
   }
 
+  /// Скачивание вложения байтами: Content-Disposition задаётся сервером,
+  /// имя файла приходит в [MediaAttachment.fileName] (браузерный anchor
+  /// download в Svelte → saveFile-фасад, решение #32).
+  Future<Uint8List> downloadMediaFile(String id, String fileId) {
+    final encoded = Uri.encodeComponent(fileId);
+    return _exportBytes('$mediaEndpoint/$id/files/$encoded/download');
+  }
+
   /// Reveals a server-side path (relative to the data dir) in the platform
   /// file manager.
   /// Клиентский лог ошибок (window.onerror из main.ts → FlutterError.onError).

@@ -24,6 +24,10 @@ abstract interface class PlatformService {
     required Uint8List bytes,
   });
 
+  /// `fileInput.click()` / file_picker: выбор файла пользователем.
+  /// null — отмена/неподдерживаемая платформа.
+  Future<({String name, Uint8List bytes})?> pickFile();
+
   /// `window.open(url, '_blank', 'noopener')` — открытие внешней страницы
   /// источника.
   Future<void> openExternalUrl(String url);

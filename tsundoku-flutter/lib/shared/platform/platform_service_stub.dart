@@ -23,6 +23,9 @@ class _UnsupportedPlatformService implements PlatformService {
   }) async => _unsupported();
 
   @override
+  Future<({String name, Uint8List bytes})?> pickFile() async => _unsupported();
+
+  @override
   Future<void> openExternalUrl(String url) async => _unsupported();
 
   @override

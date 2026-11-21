@@ -75,6 +75,11 @@ class TsundokuPopoverMenu<T> extends StatefulWidget {
   final String optionClass;
   final Widget Function(BuildContext, PopoverFooterContext)? footer;
 
+  /// Полностью кастомная строка опции — аналог renderOption-сниппета Svelte
+  /// (звёзды-избранное в DetailSidebar, иконки в меню «…»). Additive к Фазе 1
+  /// (как PopoverOption.leading). null → стандартный рендер.
+  final Widget Function(BuildContext, PopoverOptionContext<T>)? optionBuilder;
+
   const TsundokuPopoverMenu({
     super.key,
     required this.id,
@@ -89,6 +94,7 @@ class TsundokuPopoverMenu<T> extends StatefulWidget {
     required this.label,
     this.optionClass = '',
     this.footer,
+    this.optionBuilder,
   });
 
   @override
@@ -235,6 +241,7 @@ class _TsundokuPopoverMenuState<T> extends State<TsundokuPopoverMenu<T>> {
                       selected: option.value == widget.selected,
                       onSelect: _select,
                       optionClass: widget.optionClass,
+                      optionBuilder: widget.optionBuilder,
                     ),
                   if (widget.footer != null)
                     Container(
@@ -291,17 +298,36 @@ class _MenuOptionButton<T> extends StatelessWidget {
   final bool selected;
   final void Function(T value) onSelect;
   final String optionClass;
+  final Widget Function(BuildContext, PopoverOptionContext<T>)? optionBuilder;
 
   const _MenuOptionButton({
     required this.option,
     required this.selected,
     required this.onSelect,
     required this.optionClass,
+    this.optionBuilder,
   });
 
   @override
   Widget build(BuildContext context) {
     final th = TsundokuTheme.of(context);
+    if (optionBuilder != null) {
+      return Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => onSelect(option.value),
+          hoverColor: const Color(0x0DFFFFFF), // hover:bg-white/5
+          child: Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: optionBuilder!(
+              context,
+              PopoverOptionContext<T>(option: option, selected: selected),
+            ),
+          ),
+        ),
+      );
+    }
     return Material(
       color: Colors.transparent,
       child: InkWell(

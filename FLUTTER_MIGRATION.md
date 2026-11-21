@@ -148,11 +148,12 @@
     ProgressStepper ✅ → SeasonRow ✅ → SyncRowsSkeleton ✅ → DetailTabs ✅ →
     DetailHeader/ExternalDetailModal (pull-forward) ✅ → sections/* ✅ →
     tabs/* ✅ → panels/* ✅ → модалки: MediaActivity ✅ / OverwriteConfirm ✅ /
-    CoverManager ✅ / FillMissing ✅ / RelinkSource ✅. Следующий файл —
-    **DetailSidebar** (1256 строк), далее ShowSeasonsView → MediaDetailView
-    → edit-media workspace (ниточки).
+    CoverManager ✅ / FillMissing ✅ / RelinkSource ✅ / DetailSidebar ✅
+    (10 widget-тестов + golden; попутный фикс dlRow-переполнения и
+    rating-поповера → top-layer, ⚖️ #55). Следующий файл —
+    **ShowSeasonsView**, далее MediaDetailView → edit-media workspace (ниточки).
 
-**Прогресс: 147 / 207 файлов**
+**Прогресс: 148 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
@@ -160,9 +161,9 @@
 | 1 — `shared/ui/` | 17 | 17 |
 | 2 — `entities/` + карточки/сетка | 19 | 19 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 13 (ЗАКРЫТА, см. Phase Gate) |
-| 4 — Детальная страница + Spatial Node Editor | 59 | 39 |
+| 4 — Детальная страница + Spatial Node Editor | 59 | 40 |
 | 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 0 |
-| **Всего** | **207** | **147** |
+| **Всего** | **207** | **148** |
 
 Долги Фаз 0–2 (не блокируют): —
 seriesProgressControllerProvider no-op-toast → инъекция в Фазе 3 (решение #35);
@@ -540,3 +541,4 @@ Spatial Node Editor; detailTypes/detailFormatters уже готовы pull-forwa
 | 43 | `app/main.ts` | window.onerror → /api/logs/client | FlutterError.onError → api.sendClientLog (эндпоинт добавлен в TsundokuApi); dio прикрепляется в постфрейме (AppClientLogHook) | Ревью не требуется |
 | 53 | `widgets/media-detail/CoverManagerModal.svelte` | input[type=file] с accept="image/*" и двухшаговым выбором (choose → Add); platformService.pickFile не имеет параметра accept; нативный checkbox со стилями daisyUI | pickFile() без accept-фильтра (фасад §1.3) — двухшаговость сохранена (выбор в поле → кнопка «Добавить»); чекбокс — Material Checkbox с литералами indigo-600/white-10/white-20 (Tailwind-литералы вне ThemeExtension, как в детальных секциях) | accept-фильтр — кандидат в расширение фасада при необходимости; ревью не требуется |
 | 54 | `widgets/media-detail/CoverManagerModal.svelte` | grid-cols-2/sm:3/md:4 — CSS-брейкпоинты вьюпорта, а не ширины панели; inline delete-confirm на плитке (flex может переполняться на узких плитках) | Колонки от ширины ОКНА (MediaQuery.sizeOf, конвенция MediaGrid #37-стиль); confirm-кнопки — Wrap с center-выравниванием (перенос на узких плитках вместо переполнения) | Ревью не требуется |
+| 55 | `widgets/media-detail/DetailSidebar.svelte` | rating-pop — `absolute top-full right-0 z-30` внутри контейнера-триггера: браузер поднимает absolute+z-index над последующими секциями колонки (и по рисованию, и по hit-test); локальный Stack-Positioned в Flutter рисуется ПОД нижележащими панелями Column → тапы в поповер перехватывает текст дат истории (verified hitTestOnBinding) | Top-layer аналог как у нативного PopoverMenu: OverlayPortal + CompositedTransformFollower (LayerLink на триггере; targetAnchor bottomRight/followerAnchor topRight + mt-2); hover-контейнер Svelte (onpointerenter/leave на общем div) → MouseRegion и на кнопке, и на поповере (закрытие родителя отложено на 180ms — «переход» курсора между кнопкой и поповером не закрывает его) | Ревью не требуется |

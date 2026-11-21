@@ -117,17 +117,17 @@
 
 **Статус:** Этап 0 (инфраструктура) — ЗАВЕРШЁН и закоммичен. Портирование не начато.
 
-**Прогресс: 21 / 207 файлов**
+**Прогресс: 26 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
-| 0 — Фундамент (типы/API/модели/логика/тема) | 58 | 21 |
+| 0 — Фундамент (типы/API/модели/логика/тема) | 58 | 26 |
 | 1 — `shared/ui/` | 17 | 0 |
 | 2 — `entities/` + карточки/сетка | 19 | 0 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 0 |
 | 4 — Детальная страница + Spatial Node Editor | 59 | 0 |
 | 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 0 |
-| **Всего** | **207** | **21** |
+| **Всего** | **207** | **26** |
 
 **Следующие файлы:** `shared/utils/*` (appExit, historyFormatters, perfMarks+тест,
 prefetchCache+тест, progressDebounce, sourceUrlHelper, swrCache, uiSettings,
@@ -250,18 +250,18 @@ update-progress) → `views/categoryModel.ts`. Файлы `⏭️ Заменен
 | 0 | `shared/utils/__tests__` | `perfMarks.test.ts` | `test/shared/utils/perf_marks_test.dart` | ✅ Готов | ✅ | + независимые имена |
 | 0 | `shared/utils/__tests__` | `prefetchCache.test.ts` | `test/shared/utils/prefetch_cache_test.dart` | ✅ Готов | ✅ | + TTL-граница и дедупликация |
 | 0 | `shared/utils/__tests__` | `urlMediaParser.test.ts` | `test/shared/utils/url_media_parser_test.dart` | ⬜ Не начат | ⬜ | — |
-| 0 | `shared/utils` | `appExit.ts` | `lib/shared/utils/app_exit.dart` | ⬜ Не начат | ⬜ | — |
-| 0 | `shared/utils` | `historyFormatters.ts` | `lib/shared/utils/history_formatters.dart` | ⬜ Не начат | ⬜ | — |
+| 0 | `shared/utils` | `appExit.ts` | `lib/shared/utils/app_exit.dart` | ✅ Готов | ✅ | window.close/document.body → колбек-инъекция (closeWindow/showStopped/showToast, isWindowClosed = window.closed); тайминги 400ms 1-в-1; тесты (ok/fail/stopped/tray) |
+| 0 | `shared/utils` | `historyFormatters.ts` | `lib/shared/utils/history_formatters.dart` | ✅ Готов | ✅ | formatStatusName/ScoreName/EventLabel 1-в-1 (t-инъекция); HISTORY_EVENT_ICONS → lucide IconData; Intl.DateTimeFormat → intl DateFormat (ru/en, initializeDateFormatting); тесты |
 | 0 | `shared/utils` | `perfMarks.ts` | `lib/shared/utils/perf_marks.dart` | ✅ Готов | ✅ | Performance API → Stopwatch-реестр tsundokuPerf (переносимо, решение #11); тесты |
 | 0 | `shared/utils` | `prefetchCache.ts` | `lib/shared/utils/prefetch_cache.dart` | ✅ Готов | ✅ | TTL-протухание, in-flight дедупликация, ошибки не кэшируются; тесты полного цикла |
-| 0 | `shared/utils` | `progressDebounce.ts` | `lib/shared/utils/progress_debounce.dart` | ⬜ Не начат | ⬜ | — |
+| 0 | `shared/utils` | `progressDebounce.ts` | `lib/shared/utils/progress_debounce.dart` | ✅ Готов | ✅ | ProgressDebouncer: burst→один send 3s, flush/cancel, keepalive-инъекция, sending-флаг; global visibilitychange/beforeunload → AppLifecycle (Фаза 3, решение #13); fakeAsync-тесты |
 | 0 | `shared/utils` | `reactivityDebug.svelte.ts` | `—` | ⏭️ Заменено нативно | ⬜ | Отладчик реактивности Svelte 5 не нужен: Flutter DevTools/Riverpod Observer покрывают диагностику стейта |
 | 0 | `shared/utils` | `sourceUrlHelper.ts` | `lib/shared/utils/source_url_helper.dart` | ✅ Готов | ✅ | Все источники 1-в-1; OpenLibrary — сырой id; 🐛 баг исходника #2 (animelib двойной encode) исправлен; тесты всех веток |
 | 0 | `shared/utils` | `swrCache.ts` | `lib/shared/utils/swr_cache.dart` | ✅ Готов | ✅ | peek/set/invalidate; тест ключей и перезаписи |
-| 0 | `shared/utils` | `uiSettings.svelte.ts` | `lib/shared/utils/ui_settings.dart` | ⬜ Не начат | ⬜ | — |
+| 0 | `shared/utils` | `uiSettings.svelte.ts` | `lib/shared/utils/ui_settings.dart` | ✅ Готов | ✅ | Все $state-поля → UiSettingsState+Notifier; localStorage→shared_preferences (ключи tsundoku_*); load() через getReadingSettings; setReadingSpeed → saveReadingSettings; voice-memory JSON; DOM-сайд-эффекты (favicon/data-theme) — не применимы (AppShell/Фаза 3); тесты полного цикла persist+server |
 | 0 | `shared/utils` | `unknownCreator.ts` | `lib/shared/utils/unknown_creator.dart` | ✅ Готов | ✅ | Set плейсхолдеров 1-в-1 (trim+lowercase); тест: null/плейсхолдеры/реальные авторы |
 | 0 | `shared/utils` | `urlMediaParser.ts` | `lib/shared/utils/url_media_parser.dart` | ✅ Готов | ✅ | 15 regex-правил 1-в-1 (Dart RegExp); запрещённые слаги; isIsbn/isUrl/detectQueryBadge; все кейсы vitest-теста перенесены (18 групп) |
-| 0 | `shared/utils` | `viewport.svelte.ts` | `lib/shared/utils/viewport.dart` | ⬜ Не начат | ⬜ | — |
+| 0 | `shared/utils` | `viewport.svelte.ts` | `lib/shared/utils/viewport.dart` | ✅ Готов | ✅ | $state width → ViewportController+provider (дефолт 1280); AppShell (Фаза 3) зовёт update() из MediaQuery (решение #13); тест rebuild-семантики |
 | 5 | `views` | `CalendarView.svelte` | `lib/views/calendar_view.dart` | ⬜ Не начат | ⬜ | — |
 | 3 | `views` | `CategoryView.svelte` | `lib/views/category_view.dart` | ⬜ Не начат | ⬜ | — |
 | 5 | `views` | `GoalsView.svelte` | `lib/views/goals_view.dart` | ⬜ Не начат | ⬜ | — |

@@ -309,7 +309,7 @@ build linux --debug ✓, build web --wasm ✓. Фаза 1 ЗАКРЫТА. Дал
 | 2 | `widgets/media-card` | `MediaCard.svelte` | `lib/widgets/media-card/media_card.dart` | ⬜ Не начат | ⬜ | — |
 | 2 | `widgets/media-card` | `MovieCard.svelte` | `lib/widgets/media-card/movie_card.dart` | ⬜ Не начат | ⬜ | — |
 | 2 | `widgets/media-card` | `TvShowCard.svelte` | `lib/widgets/media-card/tv_show_card.dart` | ⬜ Не начат | ⬜ | — |
-| 2 | `widgets/media-card` | `cardTypes.ts` | `lib/widgets/media-card/card_types.dart` | ⬜ Не начат | ⬜ | — |
+| 2 | `widgets/media-card` | `cardTypes.ts` | `lib/widgets/media-card/card_types.dart` | ✅ Готов | ✅ | CardTimeHint + MediaCardProps (бандл колбеков вместо 10 named-параметров × 8 виджетов, решение #33); onEpisodeStep void\|Promise → FutureOr; withItem = TS-спред {...rest, item}; smoke-тесты |
 | 4 | `widgets/media-detail` | `CoverManagerModal.svelte` | `lib/widgets/media-detail/cover_manager_modal.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `widgets/media-detail` | `DetailHeader.svelte` | `lib/widgets/media-detail/detail_header.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `widgets/media-detail` | `DetailSidebar.svelte` | `lib/widgets/media-detail/detail_sidebar.dart` | ⬜ Не начат | ⬜ | — |
@@ -471,3 +471,4 @@ build linux --debug ✓, build web --wasm ✓. Фаза 1 ЗАКРЫТА. Дал
    после перезапуска сессии. Ponytail **не установлен** — ставится только через UI клиента:
    Settings → Plugin Management → Discover → «+» → `DietrichGebert/ponytail` → Get
    (см. §1.5). `dart mcp-server` работает, конфиг добавлен в `.mcp.json` worktree.
+| 33 | `widgets/media-card/cardTypes.ts` | TS-интерфейс MediaCardProps деконструируется в Svelte-пропы; в Dart named-параметры × 8 виджетов — дублирование | Card-виджеты получают единый MediaCardProps-бандл (состав полей 1-в-1); children/hover-слоты — отдельные параметры | Ревью не требуется |

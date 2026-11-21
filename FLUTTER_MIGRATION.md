@@ -188,6 +188,13 @@ suite зелёный).
 PlatformService за условным экспортом). Фаза 2 ЗАКРЫТА. Далее — **Фаза 3**
 (см. порядок выше).
 
+**Phase Gate Фазы 3 — ЗЕЛЁНЫЙ (2026-11-21):** analyze 0 issues, 571/571 тестов,
+build linux --debug ✓, build web --wasm ✓ (0 упоминаний dart:io в
+build/web). Фаза 3 ЗАКРЫТА (13/13: ToastContainer, Sidebar, Header,
+ActivityDropdown, ListPicker ⬆️, AppShell, App/main, FilterBar, CategoryView,
+HomeView, BackgroundJobsModal ⬇️). Далее — **Фаза 4** (детальная страница +
+Spatial Node Editor; detailTypes/detailFormatters уже готовы pull-forward'ом).
+
 ---
 
 ## Полная таблица всех файлов (207 строк = 207 исходных файлов `mediatracker-ui/src/`)

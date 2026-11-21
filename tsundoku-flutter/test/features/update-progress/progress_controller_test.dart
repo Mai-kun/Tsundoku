@@ -89,7 +89,7 @@ void main() {
           getOnProgress: () => (id, value) => api.setProgress(id, value),
           getOnProgressCommitted: () => () {},
           showPromotionToast: (_) {},
-          ref: ref,
+          ref: container,
           delayOverride: debounceDelay,
         ));
       }));
@@ -116,7 +116,7 @@ void main() {
           getOnProgress: () => (id, value) => api.setProgress(id, value),
           getOnProgressCommitted: () => () {},
           showPromotionToast: (_) {},
-          ref: ref,
+          ref: container,
           delayOverride: debounceDelay,
         ));
       }));
@@ -145,7 +145,7 @@ void main() {
           getOnProgress: () => (id, value) => api.setProgress(id, value),
           getOnProgressCommitted: () => () {},
           showPromotionToast: toasts.add,
-          ref: ref,
+          ref: container,
           delayOverride: debounceDelay,
         ));
       }));
@@ -172,7 +172,7 @@ void main() {
           getOnProgress: () => (id, value) => api.setProgress(id, value),
           getOnProgressCommitted: () => () {},
           showPromotionToast: toasts.add,
-          ref: ref,
+          ref: container,
           delayOverride: debounceDelay,
         ));
       }));
@@ -203,7 +203,7 @@ void main() {
           getOnProgress: () => (id, value) => api.setProgress(id, value),
           getOnProgressCommitted: () => () {},
           showPromotionToast: toasts.add,
-          ref: ref,
+          ref: container,
           delayOverride: debounceDelay,
         ));
       }));
@@ -247,7 +247,7 @@ void main() {
               errorApi.setProgress(id, value),
           getOnProgressCommitted: () => () {},
           showPromotionToast: (_) {},
-          ref: ref,
+          ref: container,
           delayOverride: debounceDelay,
         ));
       }));
@@ -273,7 +273,7 @@ void main() {
           getItem: () => item,
           getOnStatusChange: () => (updated, newStatus) => lastSeen = updated,
           getOnProgressCommitted: () => () {},
-          ref: ref,
+          ref: container,
         ));
       }));
 
@@ -293,7 +293,7 @@ void main() {
           getItem: () => item,
           getOnStatusChange: () => (updated, newStatus) => lastSeen = updated,
           getOnProgressCommitted: () => () {},
-          ref: ref,
+          ref: container,
         ));
       }));
 
@@ -330,7 +330,7 @@ void main() {
             item = updated;
           },
           getOnProgressCommitted: () => () {},
-          ref: ref,
+          ref: container,
         ));
       }));
 

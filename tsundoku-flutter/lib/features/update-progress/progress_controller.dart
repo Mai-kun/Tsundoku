@@ -26,7 +26,7 @@ class CardProgressOptions {
   final OnStatusChanged? Function()? getOnStatusChange;
   /// Инъекция shower для интерактивного тоста promotion (решение #15).
   final StatusPromotionToastShower showPromotionToast;
-  final Ref ref;
+  final ProviderContainer ref;
   /// Тест-инъекция: сокращённый дебаунс.
   final Duration? delayOverride;
 

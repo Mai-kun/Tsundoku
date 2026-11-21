@@ -58,7 +58,8 @@ SeriesEpisodeStep? absoluteSeriesTarget(List<TvSeason> seasons, int value) {
       seasonId: last.id, currentEpisode: last.totalEpisodes);
 }
 
-Future<SeriesEpisodeStep?> resolveSeriesStep(Ref ref, String id, int value) async {
+Future<SeriesEpisodeStep?> resolveSeriesStep(
+    ProviderContainer ref, String id, int value) async {
   try {
     final detail = await loadMediaDetailRef(ref, id);
     if (!isTvShowDetail(detail) || (detail.seasons?.isEmpty ?? true)) return null;
@@ -77,7 +78,7 @@ typedef ShowToastFn = void Function({
 /// Реестр контекстов/дебаунсеров (аналог модульных SvelteMap) + API всех
 /// step-операций. Провайдер приложения создаёт один инстанс.
 class SeriesProgressController {
-  final Ref ref;
+  final ProviderContainer ref;
   final ShowToastFn showToast;
   final Map<String, SeriesStepContext> _contexts = <String, SeriesStepContext>{};
   final Map<String, ProgressDebouncer> _debouncers = <String, ProgressDebouncer>{};
@@ -256,7 +257,7 @@ class SeriesProgressController {
 }
 
 final seriesProgressControllerProvider = Provider<SeriesProgressController>((ref) {
-  return SeriesProgressController(ref: ref, showToast: ({required title, required description, type = 'info'}) {
+  return SeriesProgressController(ref: ref.container, showToast: ({required title, required description, type = 'info'}) {
     // Реальный toast подключается в Фазе 1 (shared/ui/toast) — Фаза 1
     // перепишет этот колбек на toastStore.show (решение #15).
   });

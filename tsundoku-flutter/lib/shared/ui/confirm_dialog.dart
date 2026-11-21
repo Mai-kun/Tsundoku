@@ -226,6 +226,8 @@ final confirmDialogProvider =
         ConfirmDialogController.new);
 
 /// Fire-and-await confirmation: `if (!(await confirmAction({...}))) return;`
-Future<bool> confirmAction(Ref ref, ConfirmRequest options) {
+///
+/// WidgetRef: функция вызывается из виджетов (1-в-1 с Svelte-компонентами).
+Future<bool> confirmAction(WidgetRef ref, ConfirmRequest options) {
   return ref.read(confirmDialogProvider.notifier).request(options);
 }

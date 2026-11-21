@@ -73,12 +73,15 @@ final contextMenuStoreProvider =
         ContextMenuController.new);
 
 /// Open context menu at (x, y) coordinates.
-void openContextMenu(Ref ref, double x, double y, List<MenuItem> items) {
+///
+/// WidgetRef: хелперы вызываются из виджетов (1-в-1 с Svelte-компонентами),
+/// внутри — только ref.read.
+void openContextMenu(WidgetRef ref, double x, double y, List<MenuItem> items) {
   ref.read(contextMenuStoreProvider.notifier).open(x, y, items);
 }
 
 /// Close context menu.
-void closeContextMenu(Ref ref) {
+void closeContextMenu(WidgetRef ref) {
   ref.read(contextMenuStoreProvider.notifier).close();
 }
 
@@ -94,10 +97,10 @@ final activeListPickerMediaIdProvider =
     NotifierProvider<ActiveListPickerMediaIdController, String?>(
         ActiveListPickerMediaIdController.new);
 
-void openListPicker(Ref ref, String mediaId) {
+void openListPicker(WidgetRef ref, String mediaId) {
   ref.read(activeListPickerMediaIdProvider.notifier).set(mediaId);
 }
 
-void closeListPicker(Ref ref) {
+void closeListPicker(WidgetRef ref) {
   ref.read(activeListPickerMediaIdProvider.notifier).set(null);
 }

@@ -27,7 +27,7 @@ class CardStatusOptions {
   final OnStatusChanged? Function()? getOnStatusChange;
   final void Function() Function() getOnProgressCommitted;
   /// Инъекция ref для prefetch-кэша и drop-prompt провайдера (Riverpod).
-  final Ref ref;
+  final ProviderContainer ref;
 
   const CardStatusOptions({
     required this.getItem,

@@ -34,7 +34,7 @@ Future<MediaDetail> loadMediaDetail(
 }
 
 /// Ref-обёртка для контроллеров.
-Future<MediaDetail> loadMediaDetailRef(Ref ref, String id) {
+Future<MediaDetail> loadMediaDetailRef(ProviderContainer ref, String id) {
   return loadMediaDetail(
     ref.read(mediaDetailCacheProvider),
     ref.read(apiClientProvider),
@@ -54,7 +54,7 @@ void updateCachedDetailProgress(
   }
 }
 
-void updateCachedDetailProgressRef(Ref ref, String id, int value) {
+void updateCachedDetailProgressRef(ProviderContainer ref, String id, int value) {
   updateCachedDetailProgress(ref.read(mediaDetailCacheProvider), id, value);
 }
 

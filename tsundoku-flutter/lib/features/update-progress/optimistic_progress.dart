@@ -137,11 +137,11 @@ void resolveOptimisticProgress(Ref ref, String id, int confirmed) =>
 void clearOptimisticProgress(Ref ref, String id) =>
     ref.read(optimisticProgressProvider.notifier).clear(id);
 
-int? peekOptimisticProgress(Ref ref, String id) =>
+int? peekOptimisticProgress(ProviderContainer ref, String id) =>
     ref.read(optimisticProgressProvider.notifier).peek(id);
 
-int reconcileProgress(Ref ref, String id, int incoming) =>
+int reconcileProgress(ProviderContainer ref, String id, int incoming) =>
     ref.read(optimisticProgressProvider.notifier).reconcile(id, incoming);
 
-List<MediaItem> reconcileListProgress(Ref ref, List<MediaItem> items) =>
+List<MediaItem> reconcileListProgress(ProviderContainer ref, List<MediaItem> items) =>
     ref.read(optimisticProgressProvider.notifier).reconcileListProgress(items);

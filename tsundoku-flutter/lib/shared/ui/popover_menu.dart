@@ -373,7 +373,9 @@ class TsundokuSelect<T> extends StatelessWidget {
         options.where((o) => o.value == value).map((o) => o.label).firstOrNull ??
             placeholder;
 
-    return TsundokuPopoverMenu<T>(
+    return AbsorbPointer(
+      absorbing: disabled, // disabled: тапы поглощаются, меню не открывается
+      child: TsundokuPopoverMenu<T>(
       id: id,
       options: options,
       selected: value,
@@ -385,9 +387,11 @@ class TsundokuSelect<T> extends StatelessWidget {
       // IgnorePointer исключает кнопку из арены (🐛 #6 — до фикса селектор
       // не открывался: TextButton выигрывал арену у GestureDetector).
       trigger: (context, ctx) => IgnorePointer(
-        ignoring: disabled,
+        // Кнопка всегда чисто визуальная (🐛 #6): ignoring: false пропускал
+        // хиты в TextButton с ненулевым onPressed — он выигрывал арену жестов
+        // и селектор не открывался. Disabled гейтится AbsorbPointer'ом.
         child: TextButton(
-        onPressed: disabled ? null : () {},
+        onPressed: null,
         style: TextButton.styleFrom(
           foregroundColor: Colors.transparent,
           backgroundColor: const Color(0xFF1C202B), // bg-[#1c202b]
@@ -414,6 +418,7 @@ class TsundokuSelect<T> extends StatelessWidget {
                 size: 14, color: Color(0xFF9CA3AF)), // ChevronDown text-muted
           ],
         ),
+      ),
       ),
       ),
     );

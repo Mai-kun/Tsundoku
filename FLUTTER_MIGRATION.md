@@ -148,11 +148,11 @@
     ProgressStepper ✅ → SeasonRow ✅ → SyncRowsSkeleton ✅ → DetailTabs ✅ →
     DetailHeader/ExternalDetailModal (pull-forward) ✅ → sections/* ✅ →
     tabs/* ✅ → panels/* ✅ → модалки: MediaActivity ✅ / OverwriteConfirm ✅ /
-    CoverManager ✅ / FillMissing ✅. Следующий файл — **RelinkSourceModal**,
-    далее DetailSidebar → ShowSeasonsView → MediaDetailView
+    CoverManager ✅ / FillMissing ✅ / RelinkSource ✅. Следующий файл —
+    **DetailSidebar** (1256 строк), далее ShowSeasonsView → MediaDetailView
     → edit-media workspace (ниточки).
 
-**Прогресс: 146 / 207 файлов**
+**Прогресс: 147 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
@@ -160,9 +160,9 @@
 | 1 — `shared/ui/` | 17 | 17 |
 | 2 — `entities/` + карточки/сетка | 19 | 19 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 13 (ЗАКРЫТА, см. Phase Gate) |
-| 4 — Детальная страница + Spatial Node Editor | 59 | 38 |
+| 4 — Детальная страница + Spatial Node Editor | 59 | 39 |
 | 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 0 |
-| **Всего** | **207** | **146** |
+| **Всего** | **207** | **147** |
 
 Долги Фаз 0–2 (не блокируют): —
 seriesProgressControllerProvider no-op-toast → инъекция в Фазе 3 (решение #35);
@@ -362,7 +362,7 @@ Spatial Node Editor; detailTypes/detailFormatters уже готовы pull-forwa
 | 4 | `widgets/media-detail` | `OverwriteConfirmModal.svelte` | `lib/widgets/media-detail/overwrite_confirm_modal.dart` | ✅ Готов | ✅ | Диалог перезаписи: safe (accent, hover accent-hover) / full (muted, hover rose) / отмена; busy-disabled все три; 3 теста |
 | 4 | `widgets/media-detail` | `ProgressStepper.svelte` | `lib/widgets/media-detail/progress_stepper.dart` | ✅ Готов | ✅ | Тонкая обёртка ProgressCard: theme-акцент, unitShort='', minsPerUnit=null (без времени), paceOptions=[], startHint=progress.startGeneric; 4 теста (Start/кольцо/counterChange/без времени) |
 | 4 | `widgets/media-detail` | `RelationLoadButton.svelte` | `lib/widgets/media-detail/relation_load_button.dart` | ✅ Готов | ✅ | TsundokuPopoverMenu (bottom-end) с триггером «Источник: X» + спиннер; выбор опции — сразу selected + onLoad(force) (лейбл щёлкает на клик); резолв источников раз на элемент (didUpdateWidget по type:isAnime); кнопка загрузки accent/10; тесты в tabs/panels suite |
-| 4 | `widgets/media-detail` | `RelinkSourceModal.svelte` | `lib/widgets/media-detail/relink_source_modal.dart` | ⬜ Не начат | ⬜ | — |
+| 4 | `widgets/media-detail` | `RelinkSourceModal.svelte` | `lib/widgets/media-detail/relink_source_modal.dart` | ✅ Готов | ✅ | ModalSize.lg + 70vh Column stretch; supportsType по mediaTypes (лечит дрейф hand-kept-списка из комментария исходника), пустой матч → fallback на все включённые; provider-каскад «id+name contains currentSource» → первый, сброс при закрытии; prefill оригинальным заголовком + rAF-focus; debounce 500ms + sequence-гвард (AbortController → CancelToken; DOMException-аналог — DioException.cancel); строки: постер 40×56 proxiedExternalCoverUrl (#25), sourceBadgeClasses-бейдж, «Привязать» → relinkMedia payload → onRelinked, linkError rose-строка; slide-переходы ⏭️ (мгновенное появление); 5 тестов полного цикла + golden-бэкстоп
 | 4 | `widgets/media-detail` | `SeasonRow.svelte` | `lib/widgets/media-detail/season_row.dart` | ✅ Готов | ✅ | Optimistic + ProgressDebouncer (3s, burst → один send, flush(keepalive) на dispose, pendingSnapshot → откат при ошибке); кламп по totalEpisodes (clampProgress); смена сезона → сброс (didUpdateWidget по ссылке); постер через baseUrl-склейку (#25); FractionallySizedBox-бар 200ms; 6 тестов полного цикла |
 | 4 | `widgets/media-detail` | `SyncRowsSkeleton.svelte` | `lib/widgets/media-detail/sync_rows_skeleton.dart` | ✅ Готов | ✅ | 3 строки скелетона (bg-card, pulse через FadeTransition 1.5s, row 1 opacity-80), ширины 88/72/56% + w-2/5; ExcludeSemantics на визуале + Semantics liveRegion (role=status); 1 тест |
 | 4 | `widgets/media-detail/__tests__` | `externalMapping.test.ts` | `test/widgets/media-detail/external_mapping_test.dart` | ✅ Готов | ✅ | Все 6 vitest-кейсов 1-в-1: raw relationType, ratings/score, даты/счётчики, missing year, format, title-fallback |
@@ -435,6 +435,7 @@ Spatial Node Editor; detailTypes/detailFormatters уже готовы pull-forwa
 | 6 | `widgets/media-detail/ExternalDetailModal.svelte` → порт | Aside (`lg:w-64`) в desktop-Row получал unbounded width — Flutter Row даёт non-flex детям бесконечную ширину, spec-таблица (Row с Expanded) падала в layout-ассерт; в Svelte w-64 ограничивает | Да: aside обёрнут в SizedBox(width: 256) на desktop-ветке (постер — w-full внутрь); mobile-ветка — Column + постер w-40 mx-auto | Порт-баг, вскрыт widget-тестом превью в BackgroundJobsModal |
 | 6 | `shared/ui/PopoverMenu.svelte` → порт (popover_menu.dart) | Триггер-кнопки поповеров/селекторов с ненулевым onPressed выигрывали арену жестов у внешнего GestureDetector поповера → тап не открывал меню (Svelte: popovertarget-атрибут, конфликта нет). Латентный баг Фазы 1 — TsundokuSelect не открывался вовсе | Да: триггеры оборачиваются в IgnorePointer (кнопка — визуал, тап уходит в поповер); FilterBar-триггеры сразу с фиксом; select-тесты дополнены | Порт-баг Фазы 1, вскрыт FilterBar (Фаза 3) |
 | 7 | `shared/ui/modal.dart` (порт, не Svelte) | ModalGeometry: `maxWidth` вообще не использовался (constraints строились только из `geometry.width ?? ∞`) — md (max-w-2xl 672) и lg (max-w-5xl 1024) панели растягивались на всю ширину окна, xl терял clamp max-w-7xl; все md/lg-модалки Фаз 1–4 были шире Svelte-эталона | Да: ширина панели строится как min(width, maxWidth); md/lg ограничены; вскрылся скрытый overflow 4.3px в RelatedPreviewModal — подпись статуса обёрнута в Flexible (CSS flex-shrink-аналог); тесты/goldens зелёные | Порт-баг Фазы 1; md/lg-модалки до фикса визуально шире эталона — золоте Фазы 1 самосогласовано (эталон писался Flutter-ом), точечная сверка md/lg с Svelte — по мере портования следующих модалок |
+| 8 | `shared/ui/PopoverMenu.svelte` → порт (popover_menu.dart, TsundokuSelect) | `IgnorePointer(ignoring: disabled)` на триггере селекта: при disabled=false хиты проходили в TextButton с ненулевым onPressed `() {}` — он выигрывал арену жестов у GestureDetector поповера; TsundokuSelect не открывался вовсе (тот же класс бага, что 🐛 #6 — «случайно» недопочиненный: фикс покрыл кастомные триггеры, но не встроенный селект; select-тесты тап-открытие не проверяли) | Да: IgnorePointer ignoring=true всегда (кнопка чисто визуал), disabled гейтится AbsorbPointer вокруг селекта (тапы поглощаются, меню не открывается); ре-тесты: RelinkSourceModal открывает поповер и выбирает опцию | Порт-баг Фазы 1; до фикса все TsundokuSelect были кликабельно-мёртвы (визуально рендерились, тап не открывал) — попутно закрыт disabled-кейс из решения #23 |
 ---
 
 ## ⚖️ Спорные решения и развилки

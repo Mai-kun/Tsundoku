@@ -470,8 +470,14 @@ class _ExternalDetailModalState extends ConsumerState<ExternalDetailModal> {
                                 ? Row(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      _buildAside(media, t, locale, th,
-                                          width: 256), // lg:w-64
+                                      // lg:w-64: Row даёт non-flex детям
+                                      // unbounded width — aside должен быть
+                                      // ограничен снаружи.
+                                      SizedBox(
+                                        width: 256,
+                                        child: _buildAside(media, t, locale, th,
+                                            posterFullWidth: true),
+                                      ),
                                       const SizedBox(width: 24), // lg:gap-6
                                       Expanded(
                                         child: _buildRightColumn(
@@ -486,7 +492,8 @@ class _ExternalDetailModalState extends ConsumerState<ExternalDetailModal> {
                                 : Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      _buildAside(media, t, locale, th),
+                                      _buildAside(media, t, locale, th,
+                                          posterFullWidth: false),
                                       const SizedBox(height: 24), // gap-6
                                       _buildRightColumn(media, t, locale, th,
                                           originalTitle: originalTitle,
@@ -536,9 +543,10 @@ class _ExternalDetailModalState extends ConsumerState<ExternalDetailModal> {
   }
 
   /// aside: постер (мобайл w-40 по центру, десктоп w-full) + характеристики.
+  /// Ширина самого aside задаётся снаружи (SizedBox на desktop-ветке).
   Widget _buildAside(ExternalMedia media, I18nDictionary t, Locale locale,
       TsundokuTheme th,
-      {double? width}) {
+      {required bool posterFullWidth}) {
     final poster = AspectRatio(
       aspectRatio: 2 / 3, // aspect-[2/3]
       child: Container(
@@ -586,9 +594,10 @@ class _ExternalDetailModalState extends ConsumerState<ExternalDetailModal> {
       children: [
         Container(
           margin: const EdgeInsets.only(bottom: 16), // space-y-4
-          child: width != null
-              ? SizedBox(width: width, child: poster) // lg:w-64 → w-full
-              : Center(child: SizedBox(width: 160, child: poster)), // w-40 mx-auto
+          child: posterFullWidth
+              ? poster // lg:w-full — заполняет aside
+              : Center(
+                  child: SizedBox(width: 160, child: poster)), // w-40 mx-auto
         ),
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,

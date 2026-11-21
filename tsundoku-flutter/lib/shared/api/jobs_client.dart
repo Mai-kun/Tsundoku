@@ -253,6 +253,12 @@ class JobsClientController extends Notifier<JobsState> {
     state = state.copyWith(isModalOpen: false);
   }
 
+  /// `jobsClient.modalTab = tab` — прямое присваивание таба из Svelte
+  /// (banner goto-review, авто-уход с пустого review, resolveAll).
+  void setModalTab(JobsModalTab tab) {
+    if (state.modalTab != tab) state = state.copyWith(modalTab: tab);
+  }
+
   // ------------------------------------------------------------------
   // Pending matches.
   // ------------------------------------------------------------------
@@ -265,6 +271,15 @@ class JobsClientController extends Notifier<JobsState> {
           .where((item) => item.id != id)
           .toList(growable: false),
     );
+  }
+
+  /// `jobsClient.pendingMatches = []` после dismiss-all — список очищается
+  /// без повторного запроса.
+  void clearPendingMatches() {
+    if (state.pendingMatches.isNotEmpty) {
+      state =
+          state.copyWith(pendingMatches: const <PendingMatchItemDto>[]);
+    }
   }
 
   Future<void> refreshPendingMatches() async {

@@ -38,6 +38,7 @@ import '../views/category_model.dart';
 import '../views/category_view.dart';
 import '../views/home_view.dart';
 import '../widgets/layout/app_shell.dart';
+import '../widgets/layout/background_jobs_modal.dart';
 import '../widgets/layout/close_app_modal.dart';
 import '../widgets/layout/header.dart';
 import '../widgets/layout/sidebar.dart';
@@ -387,6 +388,8 @@ class _AppRouterState extends ConsumerState<_AppRouter> {
     final th = TsundokuTheme.of(context);
     final rendered = _renderedView;
     final title = _titleForView(_activeView);
+    final jobsModalOpen =
+        ref.watch(jobsClientProvider.select((s) => s.isModalOpen));
 
     Widget? body;
     final isSliverView = rendered == AppViews.home || _isCategory(rendered);
@@ -444,6 +447,8 @@ class _AppRouterState extends ConsumerState<_AppRouter> {
           ),
           // Глобальные оверлеи (1-в-1 с хвостом App.svelte):
           const ConfirmModal(),
+          if (jobsModalOpen)
+            BackgroundJobsModal(onMediaChanged: mediaChanged),
           if (_isExitModalOpen)
             CloseAppModal(
               onClose: () => setState(() => _isExitModalOpen = false),

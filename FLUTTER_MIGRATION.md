@@ -140,24 +140,24 @@
 7. `features/filter-and-sort/FilterBar.svelte`;
 8. `views/CategoryView.svelte` (+ `views/__tests__/CategoryView.test.ts` — TDD);
 9. `views/HomeView.svelte`;
-10. `widgets/layout/BackgroundJobsModal.svelte` — ⬇️ сдвинут на вход в
-    Фазу 4: тянет ExternalDetailModal → DetailHeader (Фаза 4). **Обе
-    зависимости готовы** (см. Фазу 4) — BackgroundJobsModal портится
-    следующим (последний ⬜ Фазы 3), затем Phase Gate Фазы 3 и далее Фаза 4
-    по порядку зависимостей (detailTypes/detailFormatters уже готовы;
-    MediaDetailView → ShowSeasonsView → edit-media workspace).
+10. `widgets/layout/BackgroundJobsModal.svelte` — ✅ ЗАКРЫТ (13/13 Фазы 3).
+    Следующий шаг — **Phase Gate Фазы 3** (analyze/test/build linux/build
+    web --wasm), затем **Фаза 4** по порядку зависимостей: detailTypes +
+    detailFormatters уже готовы (Фаза 2 pull-forward); далее relationSources →
+    externalMapping/ratingBadges/relatedMatching (+ их vitest-тесты) →
+    ShowSeasonsView → MediaDetailView → edit-media workspace (ниточки).
 
-**Прогресс: 109 / 207 файлов**
+**Прогресс: 110 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
 | 0 — Фундамент (типы/API/модели/логика/тема) | 58 | 58 |
 | 1 — `shared/ui/` | 17 | 17 |
 | 2 — `entities/` + карточки/сетка | 19 | 19 |
-| 3 — Каркас: App/Layout/Home/Category | 13 | 12 (открыт BackgroundJobsModal — вход в Фазу 4) |
+| 3 — Каркас: App/Layout/Home/Category | 13 | 13 (ЗАКРЫТА, см. Phase Gate) |
 | 4 — Детальная страница + Spatial Node Editor | 59 | 2 (DetailHeader, ExternalDetailModal) |
 | 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 0 |
-| **Всего** | **207** | **109** |
+| **Всего** | **207** | **110** |
 
 Долги Фаз 0–2 (не блокируют): —
 seriesProgressControllerProvider no-op-toast → инъекция в Фазе 3 (решение #35);
@@ -325,7 +325,7 @@ PlatformService за условным экспортом). Фаза 2 ЗАКРЫ
 | 5 | `widgets/goals` | `GoalCard.svelte` | `lib/widgets/goals/goal_card.dart` | ⬜ Не начат | ⬜ | — |
 | 3 | `widgets/layout` | `ActivityDropdown.svelte` | `lib/widgets/layout/activity_dropdown.dart` | ✅ Готов | ✅ | OverlayPortal-поповер (anchor bottom+8/right → RenderBox); connect на монтировании (сокет глобальный), лимиты: countdown 1s + poll 10s live при открытом поповере; очередь с прогресс-барами/отменой; pending-review; спин 3s/1s AnimationController; тест-хук setPendingMatchesForTest; 6 тестов |
 | 3 | `widgets/layout` | `AppShell.svelte` | `lib/widgets/layout/app_shell.dart` | ✅ Готов | ✅ | Десктоп: aside 240px (border-r px-3 py-5) + main (header h-14 border-b + p-6, noPadding → фулл-высота); мобайл: рельса снизу (border-t px-2 py-2); оверлеи Stack: ContextMenu/ImageLightbox/ListPicker (activeListPickerMediaId)/ToastContainer; mainRef → mainScrollController; data-widget → внутренние Keys appshell-*; Column stretch (RenderFlex-фикс); 4 теста |
-| 3 | `widgets/layout` | `BackgroundJobsModal.svelte` | `lib/widgets/layout/background_jobs_modal.dart` | ⬜ Не начат | ⬜ | — |
+| 3 | `widgets/layout` | `BackgroundJobsModal.svelte` | `lib/widgets/layout/background_jobs_modal.dart` | ✅ Готов | ✅ | Самый крупный компонент (~1370 строк): таб «Очередь» (прогресс scaleX-анимация 500ms, cancel, batch-import ETA 2.5s/тайтл) + «Review» master-detail: авто-поиск пустых строк (direct-URL через parseMediaUrl → 100%, топ-3 приоритетных источников с RU/EN подменой), скоринг/сортировка (scoreCandidate/sortCandidates — публичные функции для тестов), resolve/keep/keepSeparate/mergeDuplicate/keepAll/resolveAllByPriority/deleteMedia, дедуп по source:id, hotkeys 1–4/S/Space/Delete (Focus.onKeyEvent + EditableText-гвард), превью кандидата в ExternalDetailModal с emerald actions-слотом; jobsClient: аддитивные setModalTab/clearPendingMatches (аналог прямых присваиваний Svelte); App подключает модалку при isModalOpen (замена no-op-хука, решение #42 частично); 13 тестов (unit + полный цикл со stub dio) |
 | 3 | `widgets/layout` | `CloseAppModal.svelte` | `lib/widgets/layout/close_app_modal.dart` | ✅ Готов | ✅ | Оверлей выбора: tray (indigo)/exit (rose) radio-карточки (ring через BoxShadow), Apply → exitApp/closeToTray (биндинги App: AppExit + closeWindow/showToast — колбек-паттерн appExit), Cancel/Esc → onClose; 4 теста |
 | 3 | `widgets/layout` | `Header.svelte` | `lib/widgets/layout/header.dart` | ✅ Готов | ✅ | Заголовок w-56 truncate; строго центрированный поиск через Stack (sm-шторка 28/32rem + kbd Ctrl K; <640 — icon-only); офлайн-бейдж; ActivityDropdown right-of-search; правый кластер: спиннер (networkActivityLoading || activeJobs), язык PopoverMenu bottom-end (RU/EN → setLocale), Power; 7 тестов |
 | 3 | `widgets/layout` | `Sidebar.svelte` | `lib/widgets/layout/sidebar.dart` | ✅ Готов | ✅ | Desktop ≥1024 (lg-граница по ширине окна): бренд + nav (вынесенные категории после родителя, promotedParentType lowercase) + tools; мобайл — рельса + Menu-поповер через OverlayPortal (absolute bottom-full — тапы вне родителя возможны только в оверлее); подсветка #a5b4fc/accent-bright/15, hover bg-card/60, AnimatedContainer 220ms cubic(0.2,0,0,1); onCreate — действие, не view; 5 тестов |
@@ -420,6 +420,7 @@ PlatformService за условным экспортом). Фаза 2 ЗАКРЫ
 | 3 | `shared/types/models.dart` (порт, не Svelte) | `_strOrList` нормализовал строку genres/tags через split(',') без распаковки JSON-массива: payload вида `["Фэнтези","Драма"]` ломался на элементы `['["Фэнтези"', '"Драма"]']`. В TS строка оставалась сырой до parseGenresList, который JSON распаковывает | Да: в _strOrList добавлена попытка jsonDecode для `[...]`-строк (фолбэк — split(',')); тест в models_test.dart + кейсы в detail_formatters_test | Порт-баг (не Svelte): модель нормализует раньше, чем consumer — теперь обе стратегии дают одинаковый результат |
 | 4 | `shared/ui/toast.svelte.ts` → порт (toast.dart) | Dart-стор добавил собственные TTL-таймеры auto-dismiss, которых НЕТ в Svelte: в Svelte dismiss живёт в ToastContainer (rAF-клок с паузой на hover и 1s-грейсом). Двойной dismiss ломал паузу (стор удалял тост под курсором) | Да: TTL-таймеры удалены из стора (dismiss — чистое состояние); авто-dismiss целиком в ToastContainer; тесты стора и контейнера обновлены | Порт-баг Фазы 1, вскрыт портированием контейнера (Фаза 3) |
 | 5 | `shared/ui/modal.dart` (порт, не Svelte) | Material получал и borderRadius, и shape — фреймворк запрещает (assert). Всплывало при первом рендере модалки из ConfirmModal | Да: borderRadius убран — скругление и border-white/[0.08] несёт только RoundedRectangleBorder | Порт-баг Фазы 1 (Golden Фазы 1 модалку не рендерил) |
+| 6 | `widgets/media-detail/ExternalDetailModal.svelte` → порт | Aside (`lg:w-64`) в desktop-Row получал unbounded width — Flutter Row даёт non-flex детям бесконечную ширину, spec-таблица (Row с Expanded) падала в layout-ассерт; в Svelte w-64 ограничивает | Да: aside обёрнут в SizedBox(width: 256) на desktop-ветке (постер — w-full внутрь); mobile-ветка — Column + постер w-40 mx-auto | Порт-баг, вскрыт widget-тестом превью в BackgroundJobsModal |
 | 6 | `shared/ui/PopoverMenu.svelte` → порт (popover_menu.dart) | Триггер-кнопки поповеров/селекторов с ненулевым onPressed выигрывали арену жестов у внешнего GestureDetector поповера → тап не открывал меню (Svelte: popovertarget-атрибут, конфликта нет). Латентный баг Фазы 1 — TsundokuSelect не открывался вовсе | Да: триггеры оборачиваются в IgnorePointer (кнопка — визуал, тап уходит в поповер); FilterBar-триггеры сразу с фиксом; select-тесты дополнены | Порт-баг Фазы 1, вскрыт FilterBar (Фаза 3) |
 ---
 
@@ -462,6 +463,7 @@ PlatformService за условным экспортом). Фаза 2 ЗАКРЫ
 | 31 | `widgets/media-detail/detailFormatters.ts` | slugify использует NFKD-нормализацию + зачистку combining marks; в Dart String.normalize нет | Пакет diacritic (removeDiacritics) — эквивалент для латиницы; стек дополнен (§1.4) | Полный ICU-NFKD недоступен без тяжёлых зависимостей; для RAWG/IGDB-слагов диакритики покрывают кейс; ревью по желанию |
 | 32 | `widgets/media-card/BaseCard.svelte` | navigator.clipboard / document-download-anchor / window.open — браузерные API; §1.3 требует платформенный фасад | `lib/shared/platform/`: PlatformService (copyText/copyImagePng/saveFile/openExternalUrl) + условный экспорт io (super_clipboard + file_picker.saveFile + url_launcher) / web (package:web) / stub; wasm-билд зелёный — dart:io не протёк | Проверено `flutter build web --wasm`; ревью не требуется |
 | 44 | `widgets/media-detail/DetailHeader.svelte` | Раскрытие синопсиса — измеренный px (collapsedSynopsisHeight/scrollHeight + transition-[height] + transitionend→auto); inline-SVG AniList и Star с fill="currentColor" | Анимация → AnimatedSize 200ms (аналог grid-rows 0fr→1fr по поведению); clamp — maxLines 4 + ellipsis; AniList-путь перенесён 1-в-1 в CustomPaint (24→14 масштаб); Star — lucide-шрифт-иконка без fill (#26); sourceBadgeClasses — внутренний вызов mediaLabels вместо пропа | Ревью не требуется |
+| 46 | `widgets/layout/BackgroundJobsModal.svelte` | Svelte мутирует jobsClient напрямую (`modalTab = …`, `pendingMatches = []`); hotkeys — svelte:window c isTextEntry(target) | jobsClient: аддитивные setModalTab/clearPendingMatches; hotkeys → Focus(autofocus, onKeyEvent) на модалке — Flutter сам не доставляет consumed-клавиши из TextField'ов (InsertContent), гвард _isTextEntryFocused (EditableText-предок) — двойная защита 1-в-1 с Svelte; сетка кандидатов grid-cols-2 → LayoutBuilder+Wrap (grid stretch не переносится — Spacer убран); баннер/статусы — точные i18n-ключи | Ревью не требуется |
 | 45 | `widgets/media-detail/ExternalDetailModal.svelte` | Svelte-компонент пересоздаётся на каждый открытый hit ($effect по `${type}:${source}:${id}` перезагружает детали); Flutter переиспользует State при том же типе виджета в той же позиции | didUpdateWidget сравнивает hit-key (type/source/externalId): смена → полный сброс стейта (synopsis/imgError/translated) + перезагрузка; тот же hit → кэш prefetch (TTL 10min) остаётся; поздний ответ не перезапишет чужой hit | Ревью не требуется |
 
 ---

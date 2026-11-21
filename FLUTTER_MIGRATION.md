@@ -127,10 +127,10 @@
 ## 📍 Текущий фокус / Next Step
 
 **Статус:** Фазы 0 и 1 закрыты (Phase Gate зелёные). Фаза 2 в работе:
-`entities/media/ui` — ЗАВЕРШЕНА (4/4). Далее — `widgets/media-card`
-(cardTypes.ts → BaseCard → CardTitleBlock → CardProgressControls →
-Book/Game/Manga/Movie/TvShowCard → MediaCard), затем `widgets/media-grid`
-(gridLayout → SectionRow → MediaGrid; virtualGrid ⏭️ — native GridView).
+`entities/media/ui` — ЗАВЕРШЕНА (4/4); `widgets/media-card` — ЗАВЕРШЕНА
+(10/10). Далее — `widgets/media-grid` (gridLayout.svelte.ts → SectionRow →
+MediaGrid; virtualGrid ⏭️ — native GridView, поведение окна удаления
+проверяется golden-ами).
 
 **Прогресс: 78 / 207 файлов**
 
@@ -138,11 +138,11 @@ Book/Game/Manga/Movie/TvShowCard → MediaCard), затем `widgets/media-grid`
 |---|---|---|
 | 0 — Фундамент (типы/API/модели/логика/тема) | 58 | 58 |
 | 1 — `shared/ui/` | 17 | 16 (открыт ConfirmModal) |
-| 2 — `entities/` + карточки/сетка | 19 | 4 |
+| 2 — `entities/` + карточки/сетка | 19 | 14 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 0 |
 | 4 — Детальная страница + Spatial Node Editor | 59 | 0 |
 | 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 0 |
-| **Всего** | **207** | **78** |
+| **Всего** | **207** | **88** |
 
 > Сверка 2026-11-21: пересчёт по таблице скриптом. Прежние числа (68/53/15)
 > не сходились с фактическими статусами — 10 строк `entities/media/model`
@@ -306,7 +306,7 @@ build linux --debug ✓, build web --wasm ✓. Фаза 1 ЗАКРЫТА. Дал
 | 2 | `widgets/media-card` | `CardTitleBlock.svelte` | `lib/widgets/media-card/card_title_block.dart` | ✅ Готов | ✅ | clamp-2 заголовок (text-sm/leading-tight/w600 + drop-shadow-sm) с Tooltip=titleTooltip, clamp-1 подзаголовок text-white/60; TS-проп onOpen мёртвый (не деструктурируется) — не переносился (аналог #28) |
 | 2 | `widgets/media-card` | `GameCard.svelte` | `lib/widgets/media-card/game_card.dart` | ✅ Готов | ✅ | Паттерн BookCard (#36 onChange); subtitle userPlatform→platform→types.game (trim 1-в-1); hover: card.hours |
 | 2 | `widgets/media-card` | `MangaCard.svelte` | `lib/widgets/media-card/manga_card.dart` | ✅ Готов | ✅ | Паттерн BookCard (#36); subtitle автор→mangaFormat→types.manga; канонический totalChapters (>0, иначе «—»); замена item — keyed-виджеты в сетке (как Svelte keyed each) |
-| 2 | `widgets/media-card` | `MediaCard.svelte` | `lib/widgets/media-card/media_card.dart` | ⬜ Не начат | ⬜ | — |
+| 2 | `widgets/media-card` | `MediaCard.svelte` | `lib/widgets/media-card/media_card.dart` | ✅ Готов | ✅ | Диспетчер по type → 5 специализированных карточек с единым MediaCardProps (#33); 5 тестов dispatch |
 | 2 | `widgets/media-card` | `MovieCard.svelte` | `lib/widgets/media-card/movie_card.dart` | ✅ Готов | ✅ | 0/1 toggle через createCardStatus (0/1→1/1=completed, обратно planned); при watched минус активен, плюс disabled; subtitle режиссёр→types.movie |
 | 2 | `widgets/media-card` | `TvShowCard.svelte` | `lib/widgets/media-card/tv_show_card.dart` | ✅ Готов | ✅ | Локальный optimistic-счётчик + reconcileProgress на новом item ($effect-аналог по смене id); stepSeriesEpisodes из seriesProgressControllerProvider; onEpisodeStep получает АБСОЛЮТ; без onEpisodeStep — hover с MediaStatusBadge; atLastEpisode гейтит «+» |
 | 2 | `widgets/media-card` | `cardTypes.ts` | `lib/widgets/media-card/card_types.dart` | ✅ Готов | ✅ | CardTimeHint + MediaCardProps (бандл колбеков вместо 10 named-параметров × 8 виджетов, решение #33); onEpisodeStep void\|Promise → FutureOr; withItem = TS-спред {...rest, item}; smoke-тесты |

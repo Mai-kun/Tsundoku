@@ -150,7 +150,7 @@
     MediaActivity/OverwriteConfirm/RelinkSource) → DetailSidebar →
     ShowSeasonsView → MediaDetailView → edit-media workspace (ниточки).
 
-**Прогресс: 140 / 207 файлов**
+**Прогресс: 141 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
@@ -158,9 +158,9 @@
 | 1 — `shared/ui/` | 17 | 17 |
 | 2 — `entities/` + карточки/сетка | 19 | 19 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 13 (ЗАКРЫТА, см. Phase Gate) |
-| 4 — Детальная страница + Spatial Node Editor | 59 | 32 (+ GalleryTab) |
+| 4 — Детальная страница + Spatial Node Editor | 59 | 33 (+ RelatedPreviewModal) |
 | 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 0 |
-| **Всего** | **207** | **140** |
+| **Всего** | **207** | **141** |
 
 Долги Фаз 0–2 (не блокируют): —
 seriesProgressControllerProvider no-op-toast → инъекция в Фазе 3 (решение #35);
@@ -370,7 +370,7 @@ Spatial Node Editor; detailTypes/detailFormatters уже готовы pull-forwa
 | 4 | `widgets/media-detail` | `detailTypes.ts` | `lib/widgets/media-detail/detail_types.dart` | ✅ Готов | ✅ | Вытащен вперёд (зависимость BaseCard → providerLink): ProgressInfo/SpecRow/EpisodeRow/NextUp/RecommendationItem/RelatedEntry/RatingBadge/RelationGroup/TimelineEntry; SubTab/RelatedViewMode → enum c wire (конвенция enums.dart); read-only без toJson (YAGNI); smoke-тесты |
 | 4 | `widgets/media-detail` | `externalMapping.ts` | `lib/widgets/media-detail/external_mapping.dart` | ✅ Готов | ✅ | toRelatedEntry: серверная relation → RelatedEntry (без i18n — caller даёт локализованный label); ratings → [RatingBadge(source, score)] при score>0 + externalSource; title-fallback «Title» |
 | 4 | `widgets/media-detail/panels` | `RelatedPanel.svelte` | `lib/widgets/media-detail/panels/related_panel.dart` | ✅ Готов | ✅ | Три режима (grouped/timeline/grid — переключатель track-alt), авто-загрузка дефолтного источника ($effect → initState/didUpdateWidget + гварды), RelationLoadButton, скелетон 5 карточек, error-блок (#1c202b Steam Deck greys), timeline-маркеры (before-линия ⏭️), relatedCard (overlay-strong, статус-бейдж + score-круг -ml-2 → Transform.translate #27); relatedSource через `is MediaDetail` (#47); литералы track-alt/overlay-strong — вне ThemeExtension |
-| 4 | `widgets/media-detail/panels` | `RelatedPreviewModal.svelte` | `lib/widgets/media-detail/panels/related_preview_modal.dart` | ⬜ Не начат | ⬜ | — |
+| 4 | `widgets/media-detail/panels` | `RelatedPreviewModal.svelte` | `lib/widgets/media-detail/panels/related_preview_modal.dart` | ✅ Готов | ✅ | Превью related: постер w-40 h-240, бейджи (тип/ADAPTATION/AniList), рейтинги-чипы (спиннер при loading), факт-строки (год/автор|студия/счётчик с юнитами countUnits), TsundokuSelect статуса (SizedBox 200 — infinite-width фикс), «Добавить в библиотеку» (спиннер adding), описание italic-плейсхолдер; X-кнопка hover; 5 тестов |
 | 4 | `widgets/media-detail` | `ratingBadges.ts` | `lib/widgets/media-detail/rating_badges.dart` | ✅ Готов | ✅ | buildRatingBadges: дедуп → fallback → linkedSources (containment-матч + resolve имён) → includeMissing-плейсхолдеры; score 0 = «спрошено, нет рейтинга» (queried); sociallib-зонт выбрасывается на всех ветках; RawRating/FallbackRating/RatingBadgeInput — типизированные входы |
 | 4 | `widgets/media-detail` | `relatedMatching.ts` | `lib/widgets/media-detail/related_matching.dart` | ✅ Готов | ✅ | Каскад 5 шагов 1-в-1: externalId → originalTitle → romaji → кросс-матч нормализованных → movie-marker матч (оба — фильмы); normalizeTitle сохраняет канзи/хирагану/катакану; item.originalTitle — только у MediaDetail (`is MediaDetail` = TS runtime-cast эквивалент, решение #47); findMatchingLocal глотает исключения per-item |
 | 4 | `widgets/media-detail` | `relationSources.ts` | `lib/widgets/media-detail/relation_sources.dart` | ✅ Готов | ✅ | Whitelist relations-источников (kRelationSources) × включённые пользователем; бакет anime через isAnime/detailFormatters; getSources через sourcesCachePromise (дедуп запросов); ошибка → [] (не роняет caller); 5 тестов полного цикла (stub dio) |

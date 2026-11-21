@@ -125,25 +125,25 @@
 
 **Статус:** Этап 0 (инфраструктура) — ЗАВЕРШЁН и закоммичен. Портирование не начато.
 
-**Прогресс: 64 / 207 файлов**
+**Прогресс: 65 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
 | 0 — Фундамент (типы/API/модели/логика/тема) | 58 | 53 |
-| 1 — `shared/ui/` | 17 | 11 |
+| 1 — `shared/ui/` | 17 | 12 |
 | 2 — `entities/` + карточки/сетка | 19 | 0 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 0 |
 | 4 — Детальная страница + Spatial Node Editor | 59 | 0 |
 | 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 0 |
-| **Всего** | **207** | **64** |
+| **Всего** | **207** | **65** |
 
 **Phase Gate Фазы 0 — ЗЕЛЁНЫЙ (2026-11-21):** analyze 0 issues, 316/316 тестов,
 build linux --debug ✓, build web --wasm ✓ (dart:io не протёк). Фаза 0 ЗАКРЫТА.
 
-**Фаза 1 — идёт (11/17):** toast/Badge/Panel/TotalBadge/MediaCoverPlaceholder/lightbox/
-ImageLightbox/Button/holdToDelete/confirmDialog/contextMenu-контроллер готовы. Далее:
-Modal → ContextMenu (виджет) → Select → PopoverMenu → Icons (⏭️) → **Phase Gate
-Фазы 1** → **Фаза 2**.
+**Фаза 1 — идёт (12/17):** toast/Badge/Panel/TotalBadge/MediaCoverPlaceholder/lightbox/
+ImageLightbox/Button/holdToDelete/confirmDialog/contextMenu-контроллер/Modal готовы.
+Далее: ContextMenu (виджет 477 строк) → Select → PopoverMenu → Icons (⏭️) →
+**Phase Gate Фазы 1** → **Фаза 2**.
 
 **Стек-фикс (решение #20):** file_picker поднят до 11.0.3 (package:web, dart:html
 сломал wasm), desktop_drop понижен до 0.8.4 (cross_file 0.3.5+5 — desktop_drop 0.9.2
@@ -252,7 +252,7 @@ update-progress) → `views/categoryModel.ts`. Файлы `⏭️ Заменен
 | 1 | `shared/ui` | `Icons.ts` | `—` | ⏭️ Заменено нативно | ⬜ | Мост иконок lucide→Svelte заменяется прямым использованием пакета lucide_icons_flutter (те же имена иконок LucideIcons.*) |
 | 1 | `shared/ui` | `ImageLightbox.svelte` | `lib/shared/ui/image_lightbox.dart` | ✅ Готов | ✅ | show света по ImageLightboxState (lightbox provider) |
 
-| 1 | `shared/ui` | `Modal.svelte` | `lib/shared/ui/modal.dart` | ⬜ Не начат | ⬜ | — |
+| 1 | `shared/ui` | `Modal.svelte` | `lib/shared/ui/modal.dart` | ✅ Готов | ✅ | TsundokuModal: 5 размеров (геометрия 1-в-1), backdrop #090b10/80 + ModalBarrier, panel bg-[#151a26] rounded-xl, drag-guard колбек; анимации 160/180/150ms (решение #21); тест golden |
 | 1 | `shared/ui` | `Panel.svelte` | `lib/shared/ui/panel.dart` | ✅ Готов | ✅ | rounded-xl + border-subtle + bg-panel-line + shadow-md (сдвиг/blur 1-в-1 Tailwind) |
 | 1 | `shared/ui` | `PopoverMenu.svelte` | `lib/shared/ui/popover_menu.dart` | ⬜ Не начат | ⬜ | — |
 | 1 | `shared/ui` | `Select.svelte` | `lib/shared/ui/select.dart` | ⬜ Не начат | ⬜ | — |

@@ -150,10 +150,11 @@
     tabs/* ✅ → panels/* ✅ → модалки: MediaActivity ✅ / OverwriteConfirm ✅ /
     CoverManager ✅ / FillMissing ✅ / RelinkSource ✅ / DetailSidebar ✅
     (10 widget-тестов + golden; попутный фикс dlRow-переполнения и
-    rating-поповера → top-layer, ⚖️ #55). Следующий файл —
-    **ShowSeasonsView**, далее MediaDetailView → edit-media workspace (ниточки).
+    rating-поповера → top-layer, ⚖️ #55) → ShowSeasonsView ✅ (6
+    widget-тестов + golden). Следующий файл — **MediaDetailView**, далее
+    edit-media workspace (ниточки).
 
-**Прогресс: 148 / 207 файлов**
+**Прогресс: 149 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
@@ -161,9 +162,9 @@
 | 1 — `shared/ui/` | 17 | 17 |
 | 2 — `entities/` + карточки/сетка | 19 | 19 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 13 (ЗАКРЫТА, см. Phase Gate) |
-| 4 — Детальная страница + Spatial Node Editor | 59 | 40 |
+| 4 — Детальная страница + Spatial Node Editor | 59 | 41 |
 | 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 0 |
-| **Всего** | **207** | **148** |
+| **Всего** | **207** | **149** |
 
 Долги Фаз 0–2 (не блокируют): —
 seriesProgressControllerProvider no-op-toast → инъекция в Фазе 3 (решение #35);
@@ -330,7 +331,7 @@ Spatial Node Editor; detailTypes/detailFormatters уже готовы pull-forwa
 | 5 | `views` | `ListsView.svelte` | `lib/views/lists_view.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `views` | `MediaDetailView.svelte` | `lib/views/media_detail_view.dart` | ⬜ Не начат | ⬜ | — |
 | 5 | `views` | `SettingsView.svelte` | `lib/views/settings_view.dart` | ⬜ Не начат | ⬜ | — |
-| 4 | `views` | `ShowSeasonsView.svelte` | `lib/views/show_seasons_view.dart` | ⬜ Не начат | ⬜ | — |
+| 4 | `views` | `ShowSeasonsView.svelte` | `lib/views/show_seasons_view.dart` | ✅ Готов | ✅ | sequence-гвард (+retry), guard isTvShowDetail → StateError; скелетон (title-планка + 3×h-32); header-карточка (постер 80×112 через baseUrl-склейку #25, accent-сабтайтл uppercase, счётчик ep/seasons); empty-стейт; SeasonRow-список (onProgress = api.setSeasonProgress, onProgressCommitted); TvShowDetail-обёртка; 6 тестов + golden |
 | 5 | `views` | `StatsView.svelte` | `lib/views/stats_view.dart` | ⬜ Не начат | ⬜ | — |
 | 3 | `views/__tests__` | `CategoryView.test.ts` | `test/views/category_view_test.dart` | ✅ Готов | ✅ | Смена категории game→manga: type-фильтр в запросе + рендер новой категории; keyed-ремоунт ({#key activeCategory} → ValueKey) |
 | 0 | `views/__tests__` | `categoryModel.test.ts` | `test/views/category_model_test.dart` | ✅ Готов | ✅ | Все кейсы + search trim + promoted + baseCategories |

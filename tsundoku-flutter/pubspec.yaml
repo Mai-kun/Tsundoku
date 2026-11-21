@@ -45,6 +45,7 @@ dependencies:
   desktop_drop: ^0.8.4
   super_clipboard: ^0.9.1
   intl: ^0.20.3
+  meta: ^1.19.0
 
 dev_dependencies:
   flutter_test:

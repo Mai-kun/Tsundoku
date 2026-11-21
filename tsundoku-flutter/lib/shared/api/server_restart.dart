@@ -7,6 +7,9 @@
 library;
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
+
+export 'package:meta/meta.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'api.dart';
@@ -18,6 +21,10 @@ import 'api.dart';
 class ServerRestartController extends Notifier<bool> {
   @override
   bool build() => false;
+
+  /// Тест-хук (аналог мутации $state из Svelte).
+  @visibleForTesting
+  void setForTest(bool value) => state = value;
 }
 
 final serverRestartProvider =

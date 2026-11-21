@@ -190,7 +190,7 @@ update-progress) → `views/categoryModel.ts`. Файлы `⏭️ Заменен
 | 0 | `entities/media/model` | `staleTriage.ts` | `lib/entities/media/model/stale_triage.dart` | ⬜ Не начат | ⬜ | — |
 | 0 | `entities/media/model` | `timeBudget.ts` | `lib/entities/media/model/time_budget.dart` | ⬜ Не начат | ⬜ | — |
 | 2 | `entities/media/ui` | `MediaPoster.svelte` | `lib/entities/media/ui/media_poster.dart` | ⬜ Не начат | ⬜ | — |
-| 2 | `entities/media/ui` | `MediaScoreBadge.svelte` | `lib/entities/media/ui/media_score_badge.dart` | ⬜ Не начат | ⬜ | — |
+| 2 | `entities/media/ui` | `MediaScoreBadge.svelte` | `lib/entities/media/ui/media_score_badge.dart` | ✅ Готов | ✅ | bg-score-bg #4a63c9, 2.33rem, font-black 17px tabular-nums, shadow-lg (2 тени 1-в-1 Tailwind), Tooltip = title (raw score, как JS-интерполяция 8.5→«8.5»); score double? (MediaItem.score); -ml-2 → Transform.translate(-8,0) (решение #27) |
 | 2 | `entities/media/ui` | `MediaStatusBadge.svelte` | `lib/entities/media/ui/media_status_badge.dart` | ⬜ Не начат | ⬜ | — |
 | 2 | `entities/media/ui` | `Placeholder404.svelte` | `lib/entities/media/ui/placeholder404.dart` | ✅ Готов | ✅ | Тонкая обёртка над MediaCoverPlaceholder: label passthrough, undefined → coverMissing; StatelessWidget (ref не нужен — i18n читается внутри плейсхолдера); widget-тесты label |
 | 0 | `features/change-status` | `statusController.svelte.ts` | `lib/features/change-status/status_controller.dart` | ✅ Готов | ✅ | createCardStatus: optimistic switch (copyWithFields), rule 2 reset при уходе из Completed, rollback при ошибке, drop-prompt открытие; clearDropReasons() для очистки nullable (решение #14); тесты полного цикла |

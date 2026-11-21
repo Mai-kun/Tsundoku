@@ -125,23 +125,25 @@
 
 **Статус:** Этап 0 (инфраструктура) — ЗАВЕРШЁН и закоммичен. Портирование не начато.
 
-**Прогресс: 66 / 207 файлов**
+**Прогресс: 68 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
 | 0 — Фундамент (типы/API/модели/логика/тема) | 58 | 53 |
-| 1 — `shared/ui/` | 17 | 13 |
+| 1 — `shared/ui/` | 17 | 15 |
 | 2 — `entities/` + карточки/сетка | 19 | 0 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 0 |
 | 4 — Детальная страница + Spatial Node Editor | 59 | 0 |
 | 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 0 |
-| **Всего** | **207** | **66** |
+| **Всего** | **207** | **68** |
 
 **Phase Gate Фазы 0 — ЗЕЛЁНЫЙ (2026-11-21):** analyze 0 issues, 316/316 тестов,
 build linux --debug ✓, build web --wasm ✓ (dart:io не протёк). Фаза 0 ЗАКРЫТА.
 
-**Фаза 1 — идёт (13/17):** + PopoverMenu/TsundokuSelect. Осталось: ContextMenu
-(виджет 477 строк) + Icons (⏭️) → **Phase Gate Фазы 1** → **Фаза 2**.
+**Phase Gate Фазы 1 — ЗЕЛЁНЫЙ (2026-11-21):** analyze 0 issues, 352/352 тестов,
+build linux --debug ✓, build web --wasm ✓. Фаза 1 ЗАКРЫТА. Далее — **Фаза 2**
+(`entities/media/ui` 4 файла → `widgets/media-card` 10 → `widgets/media-grid` 5,
+включая virtualGrid ⏭️).
 
 **Стек-фикс (решение #20):** file_picker поднят до 11.0.3 (package:web, dart:html
 сломал wasm), desktop_drop понижен до 0.8.4 (cross_file 0.3.5+5 — desktop_drop 0.9.2
@@ -246,7 +248,7 @@ update-progress) → `views/categoryModel.ts`. Файлы `⏭️ Заменен
 | 1 | `shared/ui` | `Badge.svelte` | `lib/shared/ui/badge.dart` | ✅ Готов | ✅ | 6 тонов → цвета 1-в-1 из TsundokuTheme (alpha-версии accent/border), 2 размера (px/py/шрифт), rounded-md; widget-ready |
 | 1 | `shared/ui` | `Button.svelte` | `lib/shared/ui/button.dart` | ✅ Готов | ✅ | 5 вариантов/5 размеров (геометрия 1-в-1), hover через Ink, holdProgress-fill (bg-danger/30 origin-left), loading-спиннер; widget+golden тесты (primary/md, danger+hold) |
 | 1 | `shared/ui` | `ConfirmModal.svelte` | `lib/shared/ui/confirm_modal.dart` | ⬜ Не начат | ⬜ | — |
-| 1 | `shared/ui` | `ContextMenu.svelte` | `lib/shared/ui/context_menu.dart` | ⬜ Не начат | ⬜ | — |
+| 1 | `shared/ui` | `ContextMenu.svelte` | `lib/shared/ui/context_menu.dart` | ✅ Готов | ✅ | _MenuPanel: позиционирование с флипом/clamp 8px, подменю inline-раскрытие (решение #24), hold-to-delete (HoldToDeleteController, deleting/hint через tProvider), Esc/outside-close; widget-тесты (flyout/сепаратор/danger/disabled) |
 | 1 | `shared/ui` | `Icons.ts` | `—` | ⏭️ Заменено нативно | ⬜ | Мост иконок lucide→Svelte заменяется прямым использованием пакета lucide_icons_flutter (те же имена иконок LucideIcons.*) |
 | 1 | `shared/ui` | `ImageLightbox.svelte` | `lib/shared/ui/image_lightbox.dart` | ✅ Готов | ✅ | show света по ImageLightboxState (lightbox provider) |
 

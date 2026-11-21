@@ -150,7 +150,7 @@
     MediaActivity/OverwriteConfirm/RelinkSource) → DetailSidebar →
     ShowSeasonsView → MediaDetailView → edit-media workspace (ниточки).
 
-**Прогресс: 135 / 207 файлов**
+**Прогресс: 139 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
@@ -158,9 +158,9 @@
 | 1 — `shared/ui/` | 17 | 17 |
 | 2 — `entities/` + карточки/сетка | 19 | 19 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 13 (ЗАКРЫТА, см. Phase Gate) |
-| 4 — Детальная страница + Spatial Node Editor | 59 | 27 (+ OverviewTab) |
+| 4 — Детальная страница + Spatial Node Editor | 59 | 31 (+ RelatedPanel/RelationLoadButton/RelatedTab/RecommendationsTab) |
 | 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 0 |
-| **Всего** | **207** | **135** |
+| **Всего** | **207** | **139** |
 
 Долги Фаз 0–2 (не блокируют): —
 seriesProgressControllerProvider no-op-toast → инъекция в Фазе 3 (решение #35);
@@ -359,7 +359,7 @@ Spatial Node Editor; detailTypes/detailFormatters уже готовы pull-forwa
 | 4 | `widgets/media-detail` | `MediaActivityModal.svelte` | `lib/widgets/media-detail/media_activity_modal.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `widgets/media-detail` | `OverwriteConfirmModal.svelte` | `lib/widgets/media-detail/overwrite_confirm_modal.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `widgets/media-detail` | `ProgressStepper.svelte` | `lib/widgets/media-detail/progress_stepper.dart` | ✅ Готов | ✅ | Тонкая обёртка ProgressCard: theme-акцент, unitShort='', minsPerUnit=null (без времени), paceOptions=[], startHint=progress.startGeneric; 4 теста (Start/кольцо/counterChange/без времени) |
-| 4 | `widgets/media-detail` | `RelationLoadButton.svelte` | `lib/widgets/media-detail/relation_load_button.dart` | ⬜ Не начат | ⬜ | — |
+| 4 | `widgets/media-detail` | `RelationLoadButton.svelte` | `lib/widgets/media-detail/relation_load_button.dart` | ✅ Готов | ✅ | TsundokuPopoverMenu (bottom-end) с триггером «Источник: X» + спиннер; выбор опции — сразу selected + onLoad(force) (лейбл щёлкает на клик); резолв источников раз на элемент (didUpdateWidget по type:isAnime); кнопка загрузки accent/10; тесты в tabs/panels suite |
 | 4 | `widgets/media-detail` | `RelinkSourceModal.svelte` | `lib/widgets/media-detail/relink_source_modal.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `widgets/media-detail` | `SeasonRow.svelte` | `lib/widgets/media-detail/season_row.dart` | ✅ Готов | ✅ | Optimistic + ProgressDebouncer (3s, burst → один send, flush(keepalive) на dispose, pendingSnapshot → откат при ошибке); кламп по totalEpisodes (clampProgress); смена сезона → сброс (didUpdateWidget по ссылке); постер через baseUrl-склейку (#25); FractionallySizedBox-бар 200ms; 6 тестов полного цикла |
 | 4 | `widgets/media-detail` | `SyncRowsSkeleton.svelte` | `lib/widgets/media-detail/sync_rows_skeleton.dart` | ✅ Готов | ✅ | 3 строки скелетона (bg-card, pulse через FadeTransition 1.5s, row 1 opacity-80), ширины 88/72/56% + w-2/5; ExcludeSemantics на визуале + Semantics liveRegion (role=status); 1 тест |
@@ -369,7 +369,7 @@ Spatial Node Editor; detailTypes/detailFormatters уже готовы pull-forwa
 | 4 | `widgets/media-detail` | `detailFormatters.ts` | `lib/widgets/media-detail/detail_formatters.dart` | ✅ Готов | ✅ | Вытащен вперёд (решение #30, зависимость BaseCard → providerLink). Все 25 функций 1-в-1: providerLink (16 источников, slugify — см. #31), releaseStatusLabel (game/tv ветки, UTC-полночь date-only — 1-в-1 с new Date), readProgress, buildEpisodes (limit = min(total, max(watched, 200)) 1-в-1), relatedStatusColors (CSS-строки → типизированные цвета), specRows + lineage. statusLabel ре-экспорт. Типовые null-фиксы: currentChapter/totalEpisodesWatched null → 0 (TS-тип врал). 48 тестов |
 | 4 | `widgets/media-detail` | `detailTypes.ts` | `lib/widgets/media-detail/detail_types.dart` | ✅ Готов | ✅ | Вытащен вперёд (зависимость BaseCard → providerLink): ProgressInfo/SpecRow/EpisodeRow/NextUp/RecommendationItem/RelatedEntry/RatingBadge/RelationGroup/TimelineEntry; SubTab/RelatedViewMode → enum c wire (конвенция enums.dart); read-only без toJson (YAGNI); smoke-тесты |
 | 4 | `widgets/media-detail` | `externalMapping.ts` | `lib/widgets/media-detail/external_mapping.dart` | ✅ Готов | ✅ | toRelatedEntry: серверная relation → RelatedEntry (без i18n — caller даёт локализованный label); ratings → [RatingBadge(source, score)] при score>0 + externalSource; title-fallback «Title» |
-| 4 | `widgets/media-detail/panels` | `RelatedPanel.svelte` | `lib/widgets/media-detail/panels/related_panel.dart` | ⬜ Не начат | ⬜ | — |
+| 4 | `widgets/media-detail/panels` | `RelatedPanel.svelte` | `lib/widgets/media-detail/panels/related_panel.dart` | ✅ Готов | ✅ | Три режима (grouped/timeline/grid — переключатель track-alt), авто-загрузка дефолтного источника ($effect → initState/didUpdateWidget + гварды), RelationLoadButton, скелетон 5 карточек, error-блок (#1c202b Steam Deck greys), timeline-маркеры (before-линия ⏭️), relatedCard (overlay-strong, статус-бейдж + score-круг -ml-2 → Transform.translate #27); relatedSource через `is MediaDetail` (#47); литералы track-alt/overlay-strong — вне ThemeExtension |
 | 4 | `widgets/media-detail/panels` | `RelatedPreviewModal.svelte` | `lib/widgets/media-detail/panels/related_preview_modal.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `widgets/media-detail` | `ratingBadges.ts` | `lib/widgets/media-detail/rating_badges.dart` | ✅ Готов | ✅ | buildRatingBadges: дедуп → fallback → linkedSources (containment-матч + resolve имён) → includeMissing-плейсхолдеры; score 0 = «спрошено, нет рейтинга» (queried); sociallib-зонт выбрасывается на всех ветках; RawRating/FallbackRating/RatingBadgeInput — типизированные входы |
 | 4 | `widgets/media-detail` | `relatedMatching.ts` | `lib/widgets/media-detail/related_matching.dart` | ✅ Готов | ✅ | Каскад 5 шагов 1-в-1: externalId → originalTitle → romaji → кросс-матч нормализованных → movie-marker матч (оба — фильмы); normalizeTitle сохраняет канзи/хирагану/катакану; item.originalTitle — только у MediaDetail (`is MediaDetail` = TS runtime-cast эквивалент, решение #47); findMatchingLocal глотает исключения per-item |
@@ -393,8 +393,8 @@ Spatial Node Editor; detailTypes/detailFormatters уже готовы pull-forwa
 | 4 | `widgets/media-detail/tabs` | `EpisodesTab.svelte` | `lib/widgets/media-detail/tabs/episodes_tab.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `widgets/media-detail/tabs` | `GalleryTab.svelte` | `lib/widgets/media-detail/tabs/gallery_tab.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `widgets/media-detail/tabs` | `OverviewTab.svelte` | `lib/widgets/media-detail/tabs/overview_tab.dart` | ✅ Готов | ✅ | Лестница блоков: две независимые колонки lg (Row/Expanded) / один поток order-1..9 (display: contents); диспетчер прогресса по типу (game/book/manga/tvshow/movie/stepper/статус-плашка); creator-дерево (movie/tvshow/book/manga/game); QuotesSection при showQuotes; MediaFiles/LinkedSources с type-переключателем anime; 5 тестов |
-| 4 | `widgets/media-detail/tabs` | `RecommendationsTab.svelte` | `lib/widgets/media-detail/tabs/recommendations_tab.dart` | ⬜ Не начат | ⬜ | — |
-| 4 | `widgets/media-detail/tabs` | `RelatedTab.svelte` | `lib/widgets/media-detail/tabs/related_tab.dart` | ⬜ Не начат | ⬜ | — |
+| 4 | `widgets/media-detail/tabs` | `RecommendationsTab.svelte` | `lib/widgets/media-detail/tabs/recommendations_tab.dart` | ✅ Готов | ✅ | Сетка 2/3/4/5 колонок, proxiedExternalCoverUrl, ★ toFixed(1), плейсхолдер ImageIcon; 2 теста |
+| 4 | `widgets/media-detail/tabs` | `RelatedTab.svelte` | `lib/widgets/media-detail/tabs/related_tab.dart` | ✅ Готов | ✅ | Тонкая обёртка над RelatedPanel (пропс-проброс); тест в recommendations_related_tabs_test |
 | 2 | `widgets/media-grid` | `MediaGrid.svelte` | `lib/widgets/media-grid/media_grid.dart` | ✅ Готов | ✅ | Sliver-версия (решение #37): SliverGrid с окном монтирования (поведение virtualGrid ⏭️), columnsForWidth 1-в-1 (колонки от ширины ОКНА — window.innerWidth), childAspectRatio 2/3 (титул на постере), timeHint через evaluateTimeFit/uiSettings, Remove-from-list X-кнопка, loading/error/empty-боксы 1-в-1; FLAT_LIMIT — константа-документация (SliverGrid виртуален всегда); 10 тестов |
 | 2 | `widgets/media-grid` | `SectionRow.svelte` | `lib/widgets/media-grid/section_row.dart` | ✅ Готов | ✅ | Заголовок 25px w700 tracking-wide + счётчик bg-surface/text-muted rounded-full; space-y-3 = 12px между заголовком и сеткой; проброс всех колбеков в MediaGrid; слайвер-версия (решение #37); 3 теста |
 | 2 | `widgets/media-grid/__tests__` | `virtualGrid.test.ts` | `—` | ⏭️ Заменено нативно | ⬜ | Тест JS-виртуализации не портируется; требования окна удаления покрываются widget/golden-тестами MediaGrid (Фаза 2) |

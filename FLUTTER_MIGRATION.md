@@ -132,26 +132,29 @@
 1. `widgets/layout/ToastContainer.svelte` (toast-провайдер готов);
 2. `widgets/layout/Sidebar.svelte` (navigationCategories/viewport/uiSettings);
 3. `widgets/layout/Header.svelte` → `widgets/layout/ActivityDropdown.svelte`;
-4. `widgets/layout/BackgroundJobsModal.svelte` (jobsClient готов);
-5. `widgets/layout/CloseAppModal.svelte` (appExit);
-6. `widgets/layout/AppShell.svelte` (композит: sidebar+header+тосты,
-   window_manager за платформенным фасадом §1.3);
-7. `app/main.dart` + `app/app.dart` (ProviderScope/MaterialApp/темы/навигация);
-8. `features/filter-and-sort/FilterBar.svelte`;
-9. `views/CategoryView.svelte` (+ `views/__tests__/CategoryView.test.ts` — TDD);
-10. `views/HomeView.svelte`.
+4. `features/lists/ListPicker.svelte` (⬆️ вытащен из Фазы 5 — зависимость
+   AppShell, 161 строка, самодостаточен);
+5. `widgets/layout/AppShell.svelte` (композит: sidebar+header+тосты+
+   lightbox+context-menu+ListPicker; window_manager за фасадом §1.3);
+6. `app/main.dart` + `app/app.dart` (ProviderScope/MaterialApp/темы/навигация);
+7. `features/filter-and-sort/FilterBar.svelte`;
+8. `views/CategoryView.svelte` (+ `views/__tests__/CategoryView.test.ts` — TDD);
+9. `views/HomeView.svelte`;
+10. `widgets/layout/BackgroundJobsModal.svelte` — ⬇️ сдвинут на вход в
+    Фазу 4: тянет ExternalDetailModal → DetailHeader (Фаза 4), каскад
+    раньше времени ломает порядок; портится сразу после этих двух.
 
-**Прогресс: 98 / 207 файлов**
+**Прогресс: 99 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
 | 0 — Фундамент (типы/API/модели/логика/тема) | 58 | 58 |
 | 1 — `shared/ui/` | 17 | 17 |
 | 2 — `entities/` + карточки/сетка | 19 | 19 |
-| 3 — Каркас: App/Layout/Home/Category | 13 | 5 |
+| 3 — Каркас: App/Layout/Home/Category | 13 | 6 |
 | 4 — Детальная страница + Spatial Node Editor | 59 | 0 |
 | 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 0 |
-| **Всего** | **207** | **98** |
+| **Всего** | **207** | **99** |
 
 Долги Фаз 0–2 (не блокируют): —
 seriesProgressControllerProvider no-op-toast → инъекция в Фазе 3 (решение #35);
@@ -320,7 +323,7 @@ PlatformService за условным экспортом). Фаза 2 ЗАКРЫ
 | 3 | `widgets/layout` | `ActivityDropdown.svelte` | `lib/widgets/layout/activity_dropdown.dart` | ✅ Готов | ✅ | OverlayPortal-поповер (anchor bottom+8/right → RenderBox); connect на монтировании (сокет глобальный), лимиты: countdown 1s + poll 10s live при открытом поповере; очередь с прогресс-барами/отменой; pending-review; спин 3s/1s AnimationController; тест-хук setPendingMatchesForTest; 6 тестов |
 | 3 | `widgets/layout` | `AppShell.svelte` | `lib/widgets/layout/app_shell.dart` | ⬜ Не начат | ⬜ | — |
 | 3 | `widgets/layout` | `BackgroundJobsModal.svelte` | `lib/widgets/layout/background_jobs_modal.dart` | ⬜ Не начат | ⬜ | — |
-| 3 | `widgets/layout` | `CloseAppModal.svelte` | `lib/widgets/layout/close_app_modal.dart` | ⬜ Не начат | ⬜ | — |
+| 3 | `widgets/layout` | `CloseAppModal.svelte` | `lib/widgets/layout/close_app_modal.dart` | ✅ Готов | ✅ | Оверлей выбора: tray (indigo)/exit (rose) radio-карточки (ring через BoxShadow), Apply → exitApp/closeToTray (биндинги App: AppExit + closeWindow/showToast — колбек-паттерн appExit), Cancel/Esc → onClose; 4 теста |
 | 3 | `widgets/layout` | `Header.svelte` | `lib/widgets/layout/header.dart` | ✅ Готов | ✅ | Заголовок w-56 truncate; строго центрированный поиск через Stack (sm-шторка 28/32rem + kbd Ctrl K; <640 — icon-only); офлайн-бейдж; ActivityDropdown right-of-search; правый кластер: спиннер (networkActivityLoading || activeJobs), язык PopoverMenu bottom-end (RU/EN → setLocale), Power; 7 тестов |
 | 3 | `widgets/layout` | `Sidebar.svelte` | `lib/widgets/layout/sidebar.dart` | ✅ Готов | ✅ | Desktop ≥1024 (lg-граница по ширине окна): бренд + nav (вынесенные категории после родителя, promotedParentType lowercase) + tools; мобайл — рельса + Menu-поповер через OverlayPortal (absolute bottom-full — тапы вне родителя возможны только в оверлее); подсветка #a5b4fc/accent-bright/15, hover bg-card/60, AnimatedContainer 220ms cubic(0.2,0,0,1); onCreate — действие, не view; 5 тестов |
 | 3 | `widgets/layout` | `ToastContainer.svelte` | `lib/widgets/layout/toast_container.dart` | ✅ Готов | ✅ | Стек 420px bottom-right; тип-бейдж ↔ шеврон (кроссфейд 200ms), компактные undo/actions/OK ↔ развёрнутый футер (AnimatedSize 250ms cubic(0.16,1,0.3,1)); countdown Timer.periodic 16ms + clock (пауза на hover, грейс 1s — 1-в-1 с rAF-логикой); X/OK/onClose семантика; inline-SVG героев → lucide (circleAlert/circleCheck/triangleAlert/info); 10 widget-тестов |

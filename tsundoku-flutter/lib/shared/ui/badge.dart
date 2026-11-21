@@ -85,10 +85,19 @@ class TsundokuBadge extends StatelessWidget {
   final BadgeSize size;
   final Widget child;
 
+  /// Переопределение геометрии из вызывающего (аналог Tailwind class-override
+  /// `px-3 py-1` на Badge.svelte — DetailHeader).
+  final EdgeInsetsGeometry? padding;
+
+  /// Переопределение радиуса (аналог `rounded-full` на Badge.svelte).
+  final double? borderRadius;
+
   const TsundokuBadge({
     super.key,
     this.tone = BadgeTone.neutral,
     this.size = BadgeSize.sm,
+    this.padding,
+    this.borderRadius,
     required this.child,
   });
 
@@ -97,10 +106,11 @@ class TsundokuBadge extends StatelessWidget {
     final th = TsundokuTheme.of(context);
     final colors = _toneColors(tone, th);
     return Container(
-      padding: _sizePadding(size),
+      padding: padding ?? _sizePadding(size),
       decoration: BoxDecoration(
         border: Border.all(color: colors.border),
-        borderRadius: BorderRadius.circular(TsundokuPalette.radiusSelector),
+        borderRadius:
+            BorderRadius.circular(borderRadius ?? TsundokuPalette.radiusSelector),
         color: colors.background,
       ),
       constraints: const BoxConstraints(minWidth: 0),

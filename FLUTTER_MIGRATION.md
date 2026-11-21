@@ -141,10 +141,11 @@
 8. `views/CategoryView.svelte` (+ `views/__tests__/CategoryView.test.ts` — TDD);
 9. `views/HomeView.svelte`;
 10. `widgets/layout/BackgroundJobsModal.svelte` — ⬇️ сдвинут на вход в
-    Фазу 4: тянет ExternalDetailModal → DetailHeader (Фаза 4), каскад
-    раньше времени ломает порядок; портится сразу после этих двух.
+    Фазу 4: тянет ExternalDetailModal → DetailHeader (Фаза 4).
+    **DetailHeader готов** (см. Фазу 4), ExternalDetailModal 🟡 в работе —
+    BackgroundJobsModal портится сразу после него, затем Phase Gate Фазы 3.
 
-**Прогресс: 107 / 207 файлов**
+**Прогресс: 108 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
@@ -152,9 +153,9 @@
 | 1 — `shared/ui/` | 17 | 17 |
 | 2 — `entities/` + карточки/сетка | 19 | 19 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 12 (открыт BackgroundJobsModal — вход в Фазу 4) |
-| 4 — Детальная страница + Spatial Node Editor | 59 | 0 |
+| 4 — Детальная страница + Spatial Node Editor | 59 | 1 (DetailHeader; ExternalDetailModal 🟡 в работе) |
 | 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 0 |
-| **Всего** | **207** | **107** |
+| **Всего** | **207** | **108** |
 
 Долги Фаз 0–2 (не блокируют): —
 seriesProgressControllerProvider no-op-toast → инъекция в Фазе 3 (решение #35);
@@ -338,10 +339,10 @@ PlatformService за условным экспортом). Фаза 2 ЗАКРЫ
 | 2 | `widgets/media-card` | `TvShowCard.svelte` | `lib/widgets/media-card/tv_show_card.dart` | ✅ Готов | ✅ | Локальный optimistic-счётчик + reconcileProgress на новом item ($effect-аналог по смене id); stepSeriesEpisodes из seriesProgressControllerProvider; onEpisodeStep получает АБСОЛЮТ; без onEpisodeStep — hover с MediaStatusBadge; atLastEpisode гейтит «+» |
 | 2 | `widgets/media-card` | `cardTypes.ts` | `lib/widgets/media-card/card_types.dart` | ✅ Готов | ✅ | CardTimeHint + MediaCardProps (бандл колбеков вместо 10 named-параметров × 8 виджетов, решение #33); onEpisodeStep void\|Promise → FutureOr; withItem = TS-спред {...rest, item}; smoke-тесты |
 | 4 | `widgets/media-detail` | `CoverManagerModal.svelte` | `lib/widgets/media-detail/cover_manager_modal.dart` | ⬜ Не начат | ⬜ | — |
-| 4 | `widgets/media-detail` | `DetailHeader.svelte` | `lib/widgets/media-detail/detail_header.dart` | ⬜ Не начат | ⬜ | — |
+| 4 | `widgets/media-detail` | `DetailHeader.svelte` | `lib/widgets/media-detail/detail_header.dart` | ✅ Готов | ✅ | ⬆️ Вытащен вперёд (зависимость ExternalDetailModal/BackgroundJobsModal): заголовок/оригинал/теги-пилюли (TsundokuBadge + padding/borderRadius override — аддитивно к Фазе 1); рейтинги: front face (источник+score) / hover face (голоса) — AnimatedSlide+AnimatedOpacity 200ms, shadow-sm; inline-SVG AniList → точный path в CustomPaint (масштаб 14/24), Star-фолбэк — lucide-шрифт (#26); Panel синопсиса: clamp 4 строки + градиент-хвост (panel-line → bgSurface) + AnimatedSize (grid-rows 0fr→1fr аналог, решение #44); space-y-2 геометрия 1-в-1; sourceBadgeClasses — внутренний вызов mediaLabels (проп не нужен); 7 тестов |
 | 4 | `widgets/media-detail` | `DetailSidebar.svelte` | `lib/widgets/media-detail/detail_sidebar.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `widgets/media-detail` | `DetailTabs.svelte` | `lib/widgets/media-detail/detail_tabs.dart` | ⬜ Не начат | ⬜ | — |
-| 4 | `widgets/media-detail` | `ExternalDetailModal.svelte` | `lib/widgets/media-detail/external_detail_modal.dart` | ⬜ Не начат | ⬜ | — |
+| 4 | `widgets/media-detail` | `ExternalDetailModal.svelte` | `lib/widgets/media-detail/external_detail_modal.dart` | 🟡 В работе | ⬜ | — |
 | 4 | `widgets/media-detail` | `FillMissingModal.svelte` | `lib/widgets/media-detail/fill_missing_modal.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `widgets/media-detail` | `MediaActivityModal.svelte` | `lib/widgets/media-detail/media_activity_modal.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `widgets/media-detail` | `OverwriteConfirmModal.svelte` | `lib/widgets/media-detail/overwrite_confirm_modal.dart` | ⬜ Не начат | ⬜ | — |
@@ -458,6 +459,7 @@ PlatformService за условным экспортом). Фаза 2 ЗАКРЫ
 | 30 | `widgets/media-card/BaseCard.svelte` | BaseCard импортирует providerLink из Фазы 4 (detailFormatters) — фазовый порядок ломается | detailTypes.ts + detailFormatters.ts вытащены вперёд и портированы целиком (строки Фазы 4 закрыты досрочно); 1-в-1 file-mapping сохранён | Портировать BaseCard с инлайном providerLink — дублирование; ревью не требуется |
 | 31 | `widgets/media-detail/detailFormatters.ts` | slugify использует NFKD-нормализацию + зачистку combining marks; в Dart String.normalize нет | Пакет diacritic (removeDiacritics) — эквивалент для латиницы; стек дополнен (§1.4) | Полный ICU-NFKD недоступен без тяжёлых зависимостей; для RAWG/IGDB-слагов диакритики покрывают кейс; ревью по желанию |
 | 32 | `widgets/media-card/BaseCard.svelte` | navigator.clipboard / document-download-anchor / window.open — браузерные API; §1.3 требует платформенный фасад | `lib/shared/platform/`: PlatformService (copyText/copyImagePng/saveFile/openExternalUrl) + условный экспорт io (super_clipboard + file_picker.saveFile + url_launcher) / web (package:web) / stub; wasm-билд зелёный — dart:io не протёк | Проверено `flutter build web --wasm`; ревью не требуется |
+| 44 | `widgets/media-detail/DetailHeader.svelte` | Раскрытие синопсиса — измеренный px (collapsedSynopsisHeight/scrollHeight + transition-[height] + transitionend→auto); inline-SVG AniList и Star с fill="currentColor" | Анимация → AnimatedSize 200ms (аналог grid-rows 0fr→1fr по поведению); clamp — maxLines 4 + ellipsis; AniList-путь перенесён 1-в-1 в CustomPaint (24→14 масштаб); Star — lucide-шрифт-иконка без fill (#26); sourceBadgeClasses — внутренний вызов mediaLabels вместо пропа | Ревью не требуется |
 
 ---
 

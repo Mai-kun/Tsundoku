@@ -150,7 +150,7 @@
     MediaActivity/OverwriteConfirm/RelinkSource) → DetailSidebar →
     ShowSeasonsView → MediaDetailView → edit-media workspace (ниточки).
 
-**Прогресс: 117 / 207 файлов**
+**Прогресс: 118 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
@@ -158,9 +158,9 @@
 | 1 — `shared/ui/` | 17 | 17 |
 | 2 — `entities/` + карточки/сетка | 19 | 19 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 13 (ЗАКРЫТА, см. Phase Gate) |
-| 4 — Детальная страница + Spatial Node Editor | 59 | 9 (+ SeasonRow) |
+| 4 — Детальная страница + Spatial Node Editor | 59 | 10 (+ SyncRowsSkeleton) |
 | 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 0 |
-| **Всего** | **207** | **117** |
+| **Всего** | **207** | **118** |
 
 Долги Фаз 0–2 (не блокируют): —
 seriesProgressControllerProvider no-op-toast → инъекция в Фазе 3 (решение #35);
@@ -362,7 +362,7 @@ Spatial Node Editor; detailTypes/detailFormatters уже готовы pull-forwa
 | 4 | `widgets/media-detail` | `RelationLoadButton.svelte` | `lib/widgets/media-detail/relation_load_button.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `widgets/media-detail` | `RelinkSourceModal.svelte` | `lib/widgets/media-detail/relink_source_modal.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `widgets/media-detail` | `SeasonRow.svelte` | `lib/widgets/media-detail/season_row.dart` | ✅ Готов | ✅ | Optimistic + ProgressDebouncer (3s, burst → один send, flush(keepalive) на dispose, pendingSnapshot → откат при ошибке); кламп по totalEpisodes (clampProgress); смена сезона → сброс (didUpdateWidget по ссылке); постер через baseUrl-склейку (#25); FractionallySizedBox-бар 200ms; 6 тестов полного цикла |
-| 4 | `widgets/media-detail` | `SyncRowsSkeleton.svelte` | `lib/widgets/media-detail/sync_rows_skeleton.dart` | ⬜ Не начат | ⬜ | — |
+| 4 | `widgets/media-detail` | `SyncRowsSkeleton.svelte` | `lib/widgets/media-detail/sync_rows_skeleton.dart` | ✅ Готов | ✅ | 3 строки скелетона (bg-card, pulse через FadeTransition 1.5s, row 1 opacity-80), ширины 88/72/56% + w-2/5; ExcludeSemantics на визуале + Semantics liveRegion (role=status); 1 тест |
 | 4 | `widgets/media-detail/__tests__` | `externalMapping.test.ts` | `test/widgets/media-detail/external_mapping_test.dart` | ✅ Готов | ✅ | Все 6 vitest-кейсов 1-в-1: raw relationType, ratings/score, даты/счётчики, missing year, format, title-fallback |
 | 4 | `widgets/media-detail/__tests__` | `ratingBadges.test.ts` | `test/widgets/media-detail/rating_badges_test.dart` | ✅ Готов | ✅ | Оба vitest-кейса (linkedSources фильтр + пустой список) + TDD-сверхнабор: score 0 → queried-плейсхолдер, sociallib-зонт, выключенные источники, дедуп lowercase, fallback, includeMissing/fallbackSources |
 | 4 | `widgets/media-detail/__tests__` | `relatedMatching.test.ts` | `test/widgets/media-detail/related_matching_test.dart` | ✅ Готов | ✅ | Все vitest-кейсы: normalize (латиница/кириллица/канзи), stripMovieMarker, каскад без кросс-матча TV vs Movie (Violet Evergarden fixture), findMatchingLocal + TDD: external-ID приоритет, game/book без romaji, пустая библиотека |

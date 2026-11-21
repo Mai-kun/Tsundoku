@@ -324,7 +324,7 @@ build linux --debug ✓, build web --wasm ✓. Фаза 1 ЗАКРЫТА. Дал
 | 4 | `widgets/media-detail/__tests__` | `ratingBadges.test.ts` | `test/widgets/media-detail/rating_badges_test.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `widgets/media-detail/__tests__` | `relatedMatching.test.ts` | `test/widgets/media-detail/related_matching_test.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `widgets/media-detail` | `detailFormatters.ts` | `lib/widgets/media-detail/detail_formatters.dart` | ⬜ Не начат | ⬜ | — |
-| 4 | `widgets/media-detail` | `detailTypes.ts` | `lib/widgets/media-detail/detail_types.dart` | ⬜ Не начат | ⬜ | — |
+| 4 | `widgets/media-detail` | `detailTypes.ts` | `lib/widgets/media-detail/detail_types.dart` | ✅ Готов | ✅ | Вытащен вперёд (зависимость BaseCard → providerLink): ProgressInfo/SpecRow/EpisodeRow/NextUp/RecommendationItem/RelatedEntry/RatingBadge/RelationGroup/TimelineEntry; SubTab/RelatedViewMode → enum c wire (конвенция enums.dart); read-only без toJson (YAGNI); smoke-тесты |
 | 4 | `widgets/media-detail` | `externalMapping.ts` | `lib/widgets/media-detail/external_mapping.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `widgets/media-detail/panels` | `RelatedPanel.svelte` | `lib/widgets/media-detail/panels/related_panel.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `widgets/media-detail/panels` | `RelatedPreviewModal.svelte` | `lib/widgets/media-detail/panels/related_preview_modal.dart` | ⬜ Не начат | ⬜ | — |

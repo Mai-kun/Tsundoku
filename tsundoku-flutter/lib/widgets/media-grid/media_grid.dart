@@ -268,30 +268,27 @@ class MediaGrid extends ConsumerWidget {
     final viewportWidth = MediaQuery.sizeOf(context).width;
     final columnsCount = columnsForWidth(viewportWidth);
 
-    slivers.add(SliverPadding(
-      padding: const EdgeInsets.only(top: rowGap),
-      sliver: SliverGrid(
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: columnsCount,
-          crossAxisSpacing: rowGap,
-          mainAxisSpacing: rowGap,
-          childAspectRatio: 2 / 3, // aspect-[2/3]: титул живёт на постере
-        ),
-        delegate: SliverChildBuilderDelegate(
-          (context, index) {
-            final item = items[index];
-            return _card(ref, item, ref.watch(tProvider));
-          },
-          childCount: items.length,
-          // Ключи карточек 1-в-1 с {#each items (item.id)} — keyed each.
-          findChildIndexCallback: (key) {
-            final valueKey = key as ValueKey<String>?;
-            if (valueKey == null) return null;
-            final id = valueKey.value;
-            final index = items.indexWhere((i) => i.id == id);
-            return index < 0 ? null : index;
-          },
-        ),
+    slivers.add(SliverGrid(
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: columnsCount,
+        crossAxisSpacing: rowGap,
+        mainAxisSpacing: rowGap,
+        childAspectRatio: 2 / 3, // aspect-[2/3]: титул живёт на постере
+      ),
+      delegate: SliverChildBuilderDelegate(
+        (context, index) {
+          final item = items[index];
+          return _card(ref, item, ref.watch(tProvider));
+        },
+        childCount: items.length,
+        // Ключи карточек 1-в-1 с {#each items (item.id)} — keyed each.
+        findChildIndexCallback: (key) {
+          final valueKey = key as ValueKey<String>?;
+          if (valueKey == null) return null;
+          final id = valueKey.value;
+          final index = items.indexWhere((i) => i.id == id);
+          return index < 0 ? null : index;
+        },
       ),
     ));
 

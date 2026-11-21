@@ -117,22 +117,22 @@
 
 **Статус:** Этап 0 (инфраструктура) — ЗАВЕРШЁН и закоммичен. Портирование не начато.
 
-**Прогресс: 26 / 207 файлов**
+**Прогресс: 42 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
-| 0 — Фундамент (типы/API/модели/логика/тема) | 58 | 26 |
+| 0 — Фундамент (типы/API/модели/логика/тема) | 58 | 42 |
 | 1 — `shared/ui/` | 17 | 0 |
 | 2 — `entities/` + карточки/сетка | 19 | 0 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 0 |
 | 4 — Детальная страница + Spatial Node Editor | 59 | 0 |
 | 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 0 |
-| **Всего** | **207** | **26** |
+| **Всего** | **207** | **42** |
 
-**Следующие файлы:** `shared/utils/*` (appExit, historyFormatters, perfMarks+тест,
-prefetchCache+тест, progressDebounce, sourceUrlHelper, swrCache, uiSettings,
-unknownCreator, urlMediaParser+тест, viewport, clientErrors+тест app/) →
-`entities/media/model/*` → контроллеры `features/*` → `views/categoryModel.ts`.
+**Следующие файлы (Фаза 0, контроллеры):** `features/change-status/statusController.svelte.ts`
+→ `features/drop-reason/dropReasonPrompt.svelte.ts` → `features/prefetch-details/*` (2)
+→ `features/update-progress/*` (4) → `features/import-media/mangalibAuth.svelte.ts` →
+`views/categoryModel.ts` + `views/__tests__/categoryModel.test.ts`. Затем Фаза 0 ЗАКРЫТА.
 
 **Следующие после него (жёсткая очерёдность Фазы 0):** `shared/types/models.ts` →
 `dtos.ts` → `index.ts` → `app/tokens.css` + `app/app.css` (TsundokuTheme/ThemeData) →
@@ -157,12 +157,12 @@ update-progress) → `views/categoryModel.ts`. Файлы `⏭️ Заменен
 | 0 | `app` | `clientErrors.ts` | `lib/app/client_errors.dart` | ✅ Готов | ✅ | Web-only «ResizeObserver loop»; тест |
 | 3 | `app` | `main.ts` | `lib/app/main.dart` | ⬜ Не начат | ⬜ | — |
 | 0 | `app` | `tokens.css` | `lib/shared/theme/tsundoku_tokens.dart` | ✅ Готов | ✅ | Все ~120 переменных → ThemeExtension<TsundokuTheme> (surfaces/borders/text/accent/status/13 chart/18 import-источников/9 badge); static const obsidian + themes-карта для смены тем; lerp всех групп |
-| 0 | `entities/media/model/__tests__` | `chronicleTimeline.test.ts` | `test/entities/media/model/chronicle_timeline_test.dart` | ⬜ Не начат | ⬜ | — |
-| 0 | `entities/media/model/__tests__` | `coverUrl.test.ts` | `test/entities/media/model/cover_url_test.dart` | ⬜ Не начат | ⬜ | — |
-| 0 | `entities/media/model/__tests__` | `detailedScore.test.ts` | `test/entities/media/model/detailed_score_test.dart` | ⬜ Не начат | ⬜ | — |
-| 0 | `entities/media/model/__tests__` | `seriesStep.test.ts` | `test/entities/media/model/series_step_test.dart` | ⬜ Не начат | ⬜ | — |
-| 0 | `entities/media/model/__tests__` | `staleTriage.test.ts` | `test/entities/media/model/stale_triage_test.dart` | ⬜ Не начат | ⬜ | — |
-| 0 | `entities/media/model/__tests__` | `timeBudget.test.ts` | `test/entities/media/model/time_budget_test.dart` | ⬜ Не начат | ⬜ | — |
+| 0 | `entities/media/model/__tests__` | `chronicleTimeline.test.ts` | `test/entities/media/model/chronicle_timeline_test.dart` | ✅ Готов | ✅ | Все кейсы: группировка, avgScore/topRated, фильтры категорий, undated, includeInProgress |
+| 0 | `entities/media/model/__tests__` | `coverUrl.test.ts` | `test/entities/media/model/cover_url_test.dart` | ✅ Готов | ✅ | + proxiedExternalCoverUrl кейсы |
+| 0 | `entities/media/model/__tests__` | `detailedScore.test.ts` | `test/entities/media/model/detailed_score_test.dart` | ✅ Готов | ✅ | + axes-кейсы и кламп 1..10 |
+| 0 | `entities/media/model/__tests__` | `seriesStep.test.ts` | `test/entities/media/model/series_step_test.dart` | ✅ Готов | ✅ | + delta=0/пустой список |
+| 0 | `entities/media/model/__tests__` | `staleTriage.test.ts` | `test/entities/media/model/stale_triage_test.dart` | ✅ Готов | ✅ | + пороги 90/365 |
+| 0 | `entities/media/model/__tests__` | `timeBudget.test.ts` | `test/entities/media/model/time_budget_test.dart` | ✅ Готов | ✅ | Все кейсы ru/en + chips-матрица + пустые бюджеты |
 | 0 | `entities/media/model` | `chronicleTimeline.ts` | `lib/entities/media/model/chronicle_timeline.dart` | ⬜ Не начат | ⬜ | — |
 | 0 | `entities/media/model` | `coverUrl.ts` | `lib/entities/media/model/cover_url.dart` | ⬜ Не начат | ⬜ | — |
 | 0 | `entities/media/model` | `detailedScore.ts` | `lib/entities/media/model/detailed_score.dart` | ⬜ Не начат | ⬜ | — |
@@ -249,7 +249,7 @@ update-progress) → `views/categoryModel.ts`. Файлы `⏭️ Заменен
 | 0 | `shared/utils/__tests__` | `clientErrors.test.ts` | `test/app/client_errors_test.dart` | ✅ Готов | ✅ | Целевой путь таблицы изменён на test/app (рядом с портируемым lib/app/client_errors.dart) |
 | 0 | `shared/utils/__tests__` | `perfMarks.test.ts` | `test/shared/utils/perf_marks_test.dart` | ✅ Готов | ✅ | + независимые имена |
 | 0 | `shared/utils/__tests__` | `prefetchCache.test.ts` | `test/shared/utils/prefetch_cache_test.dart` | ✅ Готов | ✅ | + TTL-граница и дедупликация |
-| 0 | `shared/utils/__tests__` | `urlMediaParser.test.ts` | `test/shared/utils/url_media_parser_test.dart` | ⬜ Не начат | ⬜ | — |
+| 0 | `shared/utils/__tests__` | `urlMediaParser.test.ts` | `test/shared/utils/url_media_parser_test.dart` | ✅ Готов | ✅ | Все vitest-кейсы 1-в-1 |
 | 0 | `shared/utils` | `appExit.ts` | `lib/shared/utils/app_exit.dart` | ✅ Готов | ✅ | window.close/document.body → колбек-инъекция (closeWindow/showStopped/showToast, isWindowClosed = window.closed); тайминги 400ms 1-в-1; тесты (ok/fail/stopped/tray) |
 | 0 | `shared/utils` | `historyFormatters.ts` | `lib/shared/utils/history_formatters.dart` | ✅ Готов | ✅ | formatStatusName/ScoreName/EventLabel 1-в-1 (t-инъекция); HISTORY_EVENT_ICONS → lucide IconData; Intl.DateTimeFormat → intl DateFormat (ru/en, initializeDateFormatting); тесты |
 | 0 | `shared/utils` | `perfMarks.ts` | `lib/shared/utils/perf_marks.dart` | ✅ Готов | ✅ | Performance API → Stopwatch-реестр tsundokuPerf (переносимо, решение #11); тесты |

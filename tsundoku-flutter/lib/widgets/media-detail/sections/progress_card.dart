@@ -141,7 +141,8 @@ class ProgressCard extends ConsumerStatefulWidget {
   final String remainLabel;
 
   /// Minutes per unit; null disables the whole time block (games).
-  final int? minsPerUnit;
+  /// double — bookPageMinutes = 1.5 страницы/мин в Svelte.
+  final double? minsPerUnit;
 
   /// Singular noun for the pacing caption: episode / chapter / page.
   final String? unitNoun;

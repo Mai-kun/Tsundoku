@@ -19,7 +19,7 @@ void main() {
     double percent = 50,
     String label = 'Эпизоды',
     String unitShort = 'эп.',
-    int? minsPerUnit,
+    double? minsPerUnit,
     List<int> paceOptions = const [],
     String? finishedAt,
     Object? error,

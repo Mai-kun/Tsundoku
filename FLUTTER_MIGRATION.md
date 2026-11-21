@@ -307,8 +307,8 @@ build linux --debug ✓, build web --wasm ✓. Фаза 1 ЗАКРЫТА. Дал
 | 2 | `widgets/media-card` | `GameCard.svelte` | `lib/widgets/media-card/game_card.dart` | ✅ Готов | ✅ | Паттерн BookCard (#36 onChange); subtitle userPlatform→platform→types.game (trim 1-в-1); hover: card.hours |
 | 2 | `widgets/media-card` | `MangaCard.svelte` | `lib/widgets/media-card/manga_card.dart` | ✅ Готов | ✅ | Паттерн BookCard (#36); subtitle автор→mangaFormat→types.manga; канонический totalChapters (>0, иначе «—»); замена item — keyed-виджеты в сетке (как Svelte keyed each) |
 | 2 | `widgets/media-card` | `MediaCard.svelte` | `lib/widgets/media-card/media_card.dart` | ⬜ Не начат | ⬜ | — |
-| 2 | `widgets/media-card` | `MovieCard.svelte` | `lib/widgets/media-card/movie_card.dart` | ⬜ Не начат | ⬜ | — |
-| 2 | `widgets/media-card` | `TvShowCard.svelte` | `lib/widgets/media-card/tv_show_card.dart` | ⬜ Не начат | ⬜ | — |
+| 2 | `widgets/media-card` | `MovieCard.svelte` | `lib/widgets/media-card/movie_card.dart` | ✅ Готов | ✅ | 0/1 toggle через createCardStatus (0/1→1/1=completed, обратно planned); при watched минус активен, плюс disabled; subtitle режиссёр→types.movie |
+| 2 | `widgets/media-card` | `TvShowCard.svelte` | `lib/widgets/media-card/tv_show_card.dart` | ✅ Готов | ✅ | Локальный optimistic-счётчик + reconcileProgress на новом item ($effect-аналог по смене id); stepSeriesEpisodes из seriesProgressControllerProvider; onEpisodeStep получает АБСОЛЮТ; без onEpisodeStep — hover с MediaStatusBadge; atLastEpisode гейтит «+» |
 | 2 | `widgets/media-card` | `cardTypes.ts` | `lib/widgets/media-card/card_types.dart` | ✅ Готов | ✅ | CardTimeHint + MediaCardProps (бандл колбеков вместо 10 named-параметров × 8 виджетов, решение #33); onEpisodeStep void\|Promise → FutureOr; withItem = TS-спред {...rest, item}; smoke-тесты |
 | 4 | `widgets/media-detail` | `CoverManagerModal.svelte` | `lib/widgets/media-detail/cover_manager_modal.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `widgets/media-detail` | `DetailHeader.svelte` | `lib/widgets/media-detail/detail_header.dart` | ⬜ Не начат | ⬜ | — |

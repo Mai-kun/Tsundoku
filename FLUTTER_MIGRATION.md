@@ -144,17 +144,17 @@
     Фазу 4: тянет ExternalDetailModal → DetailHeader (Фаза 4), каскад
     раньше времени ломает порядок; портится сразу после этих двух.
 
-**Прогресс: 102 / 207 файлов**
+**Прогресс: 104 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
 | 0 — Фундамент (типы/API/модели/логика/тема) | 58 | 58 |
 | 1 — `shared/ui/` | 17 | 17 |
 | 2 — `entities/` + карточки/сетка | 19 | 19 |
-| 3 — Каркас: App/Layout/Home/Category | 13 | 8 |
+| 3 — Каркас: App/Layout/Home/Category | 13 | 10 |
 | 4 — Детальная страница + Spatial Node Editor | 59 | 0 |
 | 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 0 |
-| **Всего** | **207** | **102** |
+| **Всего** | **207** | **104** |
 
 Долги Фаз 0–2 (не блокируют): —
 seriesProgressControllerProvider no-op-toast → инъекция в Фазе 3 (решение #35);
@@ -307,7 +307,7 @@ PlatformService за условным экспортом). Фаза 2 ЗАКРЫ
 | 0 | `shared/utils` | `urlMediaParser.ts` | `lib/shared/utils/url_media_parser.dart` | ✅ Готов | ✅ | 15 regex-правил 1-в-1 (Dart RegExp); запрещённые слаги; isIsbn/isUrl/detectQueryBadge; все кейсы vitest-теста перенесены (18 групп) |
 | 0 | `shared/utils` | `viewport.svelte.ts` | `lib/shared/utils/viewport.dart` | ✅ Готов | ✅ | $state width → ViewportController+provider (дефолт 1280); AppShell (Фаза 3) зовёт update() из MediaQuery (решение #13); тест rebuild-семантики |
 | 5 | `views` | `CalendarView.svelte` | `lib/views/calendar_view.dart` | ⬜ Не начат | ⬜ | — |
-| 3 | `views` | `CategoryView.svelte` | `lib/views/category_view.dart` | ⬜ Не начат | ⬜ | — |
+| 3 | `views` | `CategoryView.svelte` | `lib/views/category_view.dart` | ✅ Готов | ✅ | Sliver-вью (решение #37): FilterBar + статус-секции/франшизные группы/одна сетка (SECTION_ROW_LIMIT 40); SWR-модульный кэш + savedCategoryState; fetch-эффект гвардится ключом зависимостей ($effect-аналог — sequence не растёт на rebuild'ах); sequence-загрузка (500ms при поиске); stuck-reload; optimistic прогресс/удаление/статус; vitest-кейс перенесён (keyed-ремоунт при смене категории); 2 теста |
 | 5 | `views` | `GoalsView.svelte` | `lib/views/goals_view.dart` | ⬜ Не начат | ⬜ | — |
 | 5 | `views` | `HistoryView.svelte` | `lib/views/history_view.dart` | ⬜ Не начат | ⬜ | — |
 | 3 | `views` | `HomeView.svelte` | `lib/views/home_view.dart` | ⬜ Не начат | ⬜ | — |
@@ -316,7 +316,7 @@ PlatformService за условным экспортом). Фаза 2 ЗАКРЫ
 | 5 | `views` | `SettingsView.svelte` | `lib/views/settings_view.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `views` | `ShowSeasonsView.svelte` | `lib/views/show_seasons_view.dart` | ⬜ Не начат | ⬜ | — |
 | 5 | `views` | `StatsView.svelte` | `lib/views/stats_view.dart` | ⬜ Не начат | ⬜ | — |
-| 3 | `views/__tests__` | `CategoryView.test.ts` | `test/views/category_view_test.dart` | ⬜ Не начат | ⬜ | — |
+| 3 | `views/__tests__` | `CategoryView.test.ts` | `test/views/category_view_test.dart` | ✅ Готов | ✅ | Смена категории game→manga: type-фильтр в запросе + рендер новой категории; keyed-ремоунт ({#key activeCategory} → ValueKey) |
 | 0 | `views/__tests__` | `categoryModel.test.ts` | `test/views/category_model_test.dart` | ✅ Готов | ✅ | Все кейсы + search trim + promoted + baseCategories |
 | 0 | `views` | `categoryModel.ts` | `lib/views/category_model.dart` | ✅ Готов | ✅ | buildStatusGroups/filterByStatus (0-safe buckets, численное сравнение статусов), categoryFilters (promoted → parent+subId, anime/tvshow/movie), sortFilters; MediaFilters.copyWithFields добавлен; кейсы vitest-теста |
 | 5 | `widgets/goals` | `GoalCard.svelte` | `lib/widgets/goals/goal_card.dart` | ⬜ Не начат | ⬜ | — |
@@ -506,3 +506,5 @@ PlatformService за условным экспортом). Фаза 2 ЗАКРЫ
 | 35 | `widgets/media-card/BaseCard.svelte` | seriesProgressControllerProvider содержит no-op showToast (комментарий «Фаза 1 перепишет» не выполнен) — ошибки stepSeriesEpisodes не показываются | Зафиксировано как долг: реальный toast-инъекция подключается в Фазе 3 (AppShell), как и остальные глобальные shower'ы | Не блокирует Фазу 2; ревью не требуется |
 | 36 | `features/update-progress/progressController.svelte.ts` | Svelte-контроллер реактивен ($state value/error → derived карточки); CardProgressState — plain-объект без нотификаций | Минимальный change-listener: addChangeListener/removeChangeListener + _notifyChanged в точках мутаций value/error + onChange в Options; карточка делает setState | ChangeNotifier — тяжеловеснее (dispose-конфликт с flush); ревью не требуется |
 | 37 | `widgets/media-grid/MediaGrid.svelte` | TanStack-виртуализатор с scrollMargin/gridLayoutVersion-инвалидацией; FLAT_LIMIT 15; forceFlat | Нативные слайверы: MediaGrid возвращает SliverMainAxisGroup (SliverGrid сам держит окно монтирования; скроллер — общий CustomScrollView Phase 3 = #main-scroll); scrollMargin/bump в нативной схеме не нужны; FLAT_LIMIT/forceFlat — сохранены контрактно, поведения не меняют; MediaGridView — shrinkWrap-обёртка для standalone/тестов | Поведение окна удаления проверить golden-ами (см. строку virtualGrid ⏭️); ревью не требуется |
+| 38 | `features/lists/ListPicker.svelte` | CreateListModal лениво грузится динамическим import'ом | Колбек onCreateList (App подключит при портировании CreateListModal, Фаза 5); refreshLists публичный для onSaved | Ревью не требуется |
+| 39 | `views/CategoryView.svelte` | $effect-механика: fetch-эффект трекает deps (category/refreshKey/search/sort/promoted), $effect.pre сбрасывает состояние до отрисовки | Dart: fetch-эффект гвардится ключом зависимостей (перестройка sequence на каждом rebuild отбрасывала ответы); сброс состояния — initState/didUpdateWidget; вью монтируется с ValueKey(category) ({#key activeCategory}) — настоящий ремоунт | Ревью не требуется |

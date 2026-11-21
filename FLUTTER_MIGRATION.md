@@ -167,9 +167,9 @@
     workspaceLayout.ts ✅ (10 тестов; localStorage → SharedPreferences-фасад
     стора uiSettings); workspaceThreads.ts ✅ (6 тестов — чистая
     математика без фреймворка; rAF-цикл рисования придёт в WorkspaceWindow);
-    WorkspaceWindow.svelte ✅ (6 тестов) → ModuleCard ✅ (4 теста) → NotesModule ✅ (3 теста) → BaseMediaModule ✅ (5 тестов) → FormField ✅ (pull-forward из Фазы 5, 1 тест) → GameFormFields ✅ (+CreateTextField в form_field.dart).
+    WorkspaceWindow.svelte ✅ (6 тестов) → ModuleCard ✅ (4 теста) → NotesModule ✅ (3 теста) → BaseMediaModule ✅ (5 тестов) → FormField ✅ (pull-forward из Фазы 5, 1 тест) → GameFormFields ✅ (+CreateTextField в form_field.dart) → BookFormFields ✅ (3 теста, isNovel-ветвление).
 
-**Прогресс: 160 / 207 файлов**
+**Прогресс: 161 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
@@ -178,8 +178,8 @@
 | 2 — `entities/` + карточки/сетка | 19 | 19 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 13 (ЗАКРЫТА, см. Phase Gate) |
 | 4 — Детальная страница + Spatial Node Editor | 59 | 54 |
-| 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 2 |
-| **Всего** | **207** | **160** |
+| 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 3 |
+| **Всего** | **207** | **161** |
 
 Долги Фаз 0–2 (не блокируют): —
 seriesProgressControllerProvider no-op-toast → инъекция в Фазе 3 (решение #35);
@@ -253,7 +253,7 @@ Spatial Node Editor; detailTypes/detailFormatters уже готовы pull-forwa
 | 2 | `entities/media/ui` | `MediaStatusBadge.svelte` | `lib/entities/media/ui/media_status_badge.dart` | ✅ Готов | ✅ | TsundokuPopoverMenu + statusBadgeClasses (цвета из media_labels); hover brightness(1.25) → #191D27, ring-2 indigo-400/70 при open (BoxShadow spread 2); 5 опций в порядке statusOptions; иконки lucide 20/21px 1-в-1, stroke-width/fill шрифт-иконка не выражает (решение #26); instanceId не нужен (GlobalKey-позиционирование) |
 | 2 | `entities/media/ui` | `Placeholder404.svelte` | `lib/entities/media/ui/placeholder404.dart` | ✅ Готов | ✅ | Тонкая обёртка над MediaCoverPlaceholder: label passthrough, undefined → coverMissing; StatelessWidget (ref не нужен — i18n читается внутри плейсхолдера); widget-тесты label |
 | 0 | `features/change-status` | `statusController.svelte.ts` | `lib/features/change-status/status_controller.dart` | ✅ Готов | ✅ | createCardStatus: optimistic switch (copyWithFields), rule 2 reset при уходе из Completed, rollback при ошибке, drop-prompt открытие; clearDropReasons() для очистки nullable (решение #14); тесты полного цикла |
-| 5 | `features/create-media` | `BookFormFields.svelte` | `lib/features/create-media/book_form_fields.dart` | ⬜ Не начат | ⬜ | — |
+| 5 | `features/create-media` | `BookFormFields.svelte` | `lib/features/create-media/book_form_fields.dart` | ✅ Готов | ✅ | ⬆️ Вытащен из Фазы 5 (зависимость CategoryFieldsModule, Фаза 4): author (hint) + format-селект (6 форматов bookFormats), isNovel (light_novel/web_novel) → главы+тома, иначе страницы; 3 теста |
 | 5 | `features/create-media` | `CreateModal.svelte` | `lib/features/create-media/create_modal.dart` | ⬜ Не начат | ⬜ | — |
 | 5 | `features/create-media` | `FormField.svelte` | `lib/features/create-media/form_field.dart` | ✅ Готов | ✅ | ⬆️ Вытащен из Фазы 5 (зависимость CategoryFieldsModule, Фаза 4): TsundokuFormField (конфликт имени с Flutter FormField) — лейбл text-sm font-medium + контрол; хелперы createFieldBorder/createFieldDecoration/createFieldTextStyle/createNumberFormatter для полей форм; 1 тест |
 | 5 | `features/create-media` | `GameFormFields.svelte` | `lib/features/create-media/game_form_fields.dart` | ✅ Готов | ✅ | ⬆️ Вытащен из Фазы 5 (зависимость CategoryFieldsModule, Фаза 4): platform (hint placeholder) + hoursPlayed (number); 1 тест |

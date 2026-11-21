@@ -2231,6 +2231,31 @@ class MediaFilters {
     this.offset,
   });
 
+  /// Копия для построения запросов (категория + sort + search поверх базовых
+  /// фильтров — categoryModel).
+  MediaFilters copyWithFields({
+    MediaType? type,
+    MediaStatus? status,
+    bool? isAnime,
+    String? subId,
+    String? search,
+    SortBy? sortBy,
+    SortOrder? sortOrder,
+    int? limit,
+    int? offset,
+  }) =>
+      MediaFilters(
+        type: type ?? this.type,
+        status: status ?? this.status,
+        isAnime: isAnime ?? this.isAnime,
+        subId: subId ?? this.subId,
+        search: search ?? this.search,
+        sortBy: sortBy ?? this.sortBy,
+        sortOrder: sortOrder ?? this.sortOrder,
+        limit: limit ?? this.limit,
+        offset: offset ?? this.offset,
+      );
+
   Map<String, dynamic> toQueryParameters() => <String, dynamic>{
         if (type != null) 'type': type!.wire,
         if (status != null) 'status': status!.value,

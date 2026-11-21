@@ -8,6 +8,7 @@ import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:super_clipboard/super_clipboard.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:nativeapi/nativeapi.dart' as nativeapi;
 
 import 'platform_service.dart';
 
@@ -48,5 +49,15 @@ class IoPlatformService implements PlatformService {
     final uri = Uri.tryParse(url);
     if (uri == null) return;
     await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  @override
+  Future<void> closeWindow() async {
+    // Закрытие desktop-окна: текущее окно nativeapi (window_manager 0.7
+    // re-export). window_manager за фасадом §1.3.
+    final window = nativeapi.WindowManager.instance.getCurrent();
+    if (window != null) {
+      window.close(); // bool — fire-and-forget (не Future).
+    }
   }
 }

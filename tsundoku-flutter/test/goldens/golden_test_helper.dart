@@ -15,6 +15,9 @@ void tsundokuGoldenTest(
   String name,
   Widget widget, {
   Size size = const Size(1440, 900),
+  /// Дополнительные кадры после монтирования (прогрев dio/таймеров вью,
+  /// чтобы pending-таймеры не ломали invariant-проверку после теста).
+  int postPumpFrames = 0,
 }) {
   testWidgets('golden: $name', (tester) async {
     tester.view.devicePixelRatio = 1.0;
@@ -23,6 +26,9 @@ void tsundokuGoldenTest(
     addTearDown(tester.view.resetPhysicalSize);
 
     await tester.pumpWidget(widget);
+    for (var i = 0; i < postPumpFrames; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
 
     await expectLater(
       find.byType(MaterialApp),

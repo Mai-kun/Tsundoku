@@ -1,22 +1,68 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
+import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tsundoku_flutter/main.dart';
+import 'package:tsundoku_flutter/shared/api/api.dart';
+import 'package:tsundoku_flutter/shared/api/jobs_client.dart';
 import 'package:tsundoku_flutter/shared/theme/tsundoku_theme.dart';
 import 'package:tsundoku_flutter/shared/theme/tsundoku_tokens.dart';
 
 /// Тест сборки [buildTsundokuTheme] — 1-в-1 daisyUI-слой + `:root`-правила
 /// `app.css`. Значения самих токенов — в `tsundoku_tokens_test.dart`.
+class _StubAdapter implements HttpClientAdapter {
+  @override
+  Future<ResponseBody> fetch(
+      RequestOptions options,
+      Stream<Uint8List>? requestStream,
+      Future<void>? cancelFuture) async {
+    return ResponseBody.fromString(jsonEncode(<dynamic>[]), 200,
+        headers: {Headers.contentTypeHeader: ['application/json']});
+  }
+
+  @override
+  void close({bool force = false}) {}
+}
+
+class _NoopJobs extends JobsClientController {
+  @override
+  void connect() {}
+}
+
+Dio _themeStubDio() {
+  final dio = Dio()..options.baseUrl = 'http://127.0.0.1:5150';
+  dio.httpClientAdapter = _StubAdapter();
+  return dio;
+}
+
 void main() {
   Color rgb(int r, int g, int b, [double a = 1.0]) =>
       Color.fromRGBO(r, g, b, a);
+
+  setUpAll(() {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+  });
 
   group('buildTsundokuTheme — сборка ThemeData', () {
     final data = buildTsundokuTheme();
 
     testWidgets('fontFamily Inter + фон canvas + расширение в дереве',
         (tester) async {
-      await tester.pumpWidget(const TsundokuApp());
-      final ctx = tester.element(find.byType(Scaffold));
+      await tester.pumpWidget(TsundokuApp(providerOverrides: <dynamic>[
+        apiClientProvider.overrideWithValue(
+            TsundokuApi(_themeStubDio())),
+        jobsClientProvider.overrideWith(_NoopJobs.new),
+      ]));
+      // 20s > 15s safety-таймера networkActivity (dio-запросы HomeView).
+      for (var i = 0; i < 400; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      // Каркас Фазы 3: AppShell вместо Scaffold-заглушки — берём контекст
+      // под MaterialApp (Material внутри AppShell).
+      final ctx = tester.element(find.byType(SizedBox).first);
       final theme = Theme.of(ctx);
 
       expect(theme.textTheme.bodyMedium?.fontFamily, 'Inter');

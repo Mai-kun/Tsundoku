@@ -25,6 +25,9 @@ class _UnsupportedPlatformService implements PlatformService {
   @override
   Future<void> openExternalUrl(String url) async => _unsupported();
 
+  @override
+  Future<void> closeWindow() async => _unsupported();
+
   Never _unsupported() => throw UnsupportedError(
       'PlatformService недоступен на этой платформе (нет io и js_interop)');
 }

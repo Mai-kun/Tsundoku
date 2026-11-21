@@ -27,4 +27,7 @@ abstract interface class PlatformService {
   /// `window.open(url, '_blank', 'noopener')` — открытие внешней страницы
   /// источника.
   Future<void> openExternalUrl(String url);
+
+  /// `window.close()` — закрытие окна приложения (appExit: tray/exit).
+  Future<void> closeWindow();
 }

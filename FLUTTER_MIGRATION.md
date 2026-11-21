@@ -144,17 +144,17 @@
     Фазу 4: тянет ExternalDetailModal → DetailHeader (Фаза 4), каскад
     раньше времени ломает порядок; портится сразу после этих двух.
 
-**Прогресс: 105 / 207 файлов**
+**Прогресс: 107 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
 | 0 — Фундамент (типы/API/модели/логика/тема) | 58 | 58 |
 | 1 — `shared/ui/` | 17 | 17 |
 | 2 — `entities/` + карточки/сетка | 19 | 19 |
-| 3 — Каркас: App/Layout/Home/Category | 13 | 10 |
+| 3 — Каркас: App/Layout/Home/Category | 13 | 12 (открыт BackgroundJobsModal — вход в Фазу 4) |
 | 4 — Детальная страница + Spatial Node Editor | 59 | 0 |
 | 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 0 |
-| **Всего** | **207** | **105** |
+| **Всего** | **207** | **107** |
 
 Долги Фаз 0–2 (не блокируют): —
 seriesProgressControllerProvider no-op-toast → инъекция в Фазе 3 (решение #35);
@@ -195,10 +195,10 @@ PlatformService за условным экспортом). Фаза 2 ЗАКРЫ
 
 | Фаза | Папка | Исходный файл (Svelte/TS) | Целевой файл (Dart) | Статус | Тест | Пояснения / Отклонения |
 |---|---|---|---|---|---|---|
-| 3 | `app` | `App.svelte` | `lib/app/app.dart` | ⬜ Не начат | ⬜ | — |
+| 3 | `app` | `App.svelte` | `lib/app/app.dart` | ✅ Готов | ✅ | Роутер AppView (стейт вместо window.history, решение #10): home/категории — живые вью, stats/lists/history/calendar/goals/settings/detail/seasons — заглушки _PlaceholderView (Фазы 4/5, решение #42); глобальные модалки ConfirmModal/CloseAppModal рендерятся, CreateModal/SearchModal/BackgroundJobsModal/StaleBacklogModal/FirstRunStorageModal — no-op-хуки openCreate/openSearch/onOpenStaleBacklog (подключит App при портировании); mediaRevision через jobsClient.onJobSettled; хоткеи Ctrl+K/Esc; desktop context-menu (random-pick → сигнал-шина, решение #41); exit flow ask/exit/tray; тест-хук providerOverrides |
 | 0 | `app` | `app.css` | `lib/shared/theme/tsundoku_theme.dart` | ✅ Готов | ✅ | daisyUI-слой tsundoku + @theme static → TsundokuPalette (литералы) + buildTsundokuTheme (ThemeData: кнопки/диалоги/скроллбар/поля); --font-sans: Inter; кривые/длительности (easeTap 0.2,0,0,1; viewFade/popover/dialog 140–150ms) |
 | 0 | `app` | `clientErrors.ts` | `lib/app/client_errors.dart` | ✅ Готов | ✅ | Web-only «ResizeObserver loop»; тест |
-| 3 | `app` | `main.ts` | `lib/app/main.dart` | ⬜ Не начат | ⬜ | — |
+| 3 | `app` | `main.ts` | `lib/app/main.dart` | ✅ Готов | ✅ | FlutterError.onError → sendClientLog (/api/logs/client — добавлен эндпоинт в API); runApp(ProviderScope(TsundokuRoot)) → apiBaseUrlProvider set (postFrame) → TsundokuApp; SW/serviceWorker — web-сборка, не переносится |
 | 0 | `app` | `tokens.css` | `lib/shared/theme/tsundoku_tokens.dart` | ✅ Готов | ✅ | Все ~120 переменных → ThemeExtension<TsundokuTheme> (surfaces/borders/text/accent/status/13 chart/18 import-источников/9 badge); static const obsidian + themes-карта для смены тем; lerp всех групп |
 | 0 | `entities/media/model/__tests__` | `chronicleTimeline.test.ts` | `test/entities/media/model/chronicle_timeline_test.dart` | ✅ Готов | ✅ | Все кейсы: группировка, avgScore/topRated, фильтры категорий, undated, includeInProgress |
 | 0 | `entities/media/model/__tests__` | `coverUrl.test.ts` | `test/entities/media/model/cover_url_test.dart` | ✅ Готов | ✅ | + proxiedExternalCoverUrl кейсы |
@@ -510,3 +510,5 @@ PlatformService за условным экспортом). Фаза 2 ЗАКРЫ
 | 39 | `views/CategoryView.svelte` | $effect-механика: fetch-эффект трекает deps (category/refreshKey/search/sort/promoted), $effect.pre сбрасывает состояние до отрисовки | Dart: fetch-эффект гвардится ключом зависимостей (перестройка sequence на каждом rebuild отбрасывала ответы); сброс состояния — initState/didUpdateWidget; вью монтируется с ValueKey(category) ({#key activeCategory}) — настоящий ремоунт | Ревью не требуется |
 | 40 | `views/HomeView.svelte` | StaleBacklogModal лениво динамическим import'ом | Колбек onOpenStaleBacklog (App подключит при портировании StaleBacklogModal, Фаза 5) — как ListPicker onCreateList (#38) | Ревью не требуется |
 | 41 | `views/HomeView.svelte` | window.addEventListener('tsundoku:random-pick') — desktop context-menu событие | HomeView.randomPick() публичный: App вызовет напрямую из контекст-меню (без window-шины) | Ревью не требуется |
+| 42 | `app/App.svelte` | Роутер тянет вью/модалки Фаз 4–5 (detail/stats/lists/...; Search/Create/BackgroundJobs/StaleBacklog/FirstRun модалки) | Портирован каркас: портированные вью живые, остальные — заглушки _PlaceholderView с заголовком вью (виден в сайдбаре/header'е); модалки Фаз 4/5 — no-op-хуки с сохранёнными флагами стейта; при закрытии Фаз 4/5 заглушки заменяются | Явное отклонение 1-в-1 до закрытия Фаз 4/5; ревью обязательно при замене заглушек |
+| 43 | `app/main.ts` | window.onerror → /api/logs/client | FlutterError.onError → api.sendClientLog (эндпоинт добавлен в TsundokuApi); dio прикрепляется в постфрейме (AppClientLogHook) | Ревью не требуется |

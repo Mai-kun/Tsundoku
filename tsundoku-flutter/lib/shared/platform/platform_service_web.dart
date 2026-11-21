@@ -54,4 +54,9 @@ class WebPlatformService implements PlatformService {
   Future<void> openExternalUrl(String url) async {
     web.window.open(url, '_blank', 'noopener');
   }
+
+  @override
+  Future<void> closeWindow() async {
+    web.window.close();
+  }
 }

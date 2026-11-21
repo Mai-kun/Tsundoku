@@ -765,6 +765,15 @@ class TsundokuApi {
 
   /// Reveals a server-side path (relative to the data dir) in the platform
   /// file manager.
+  /// Клиентский лог ошибок (window.onerror из main.ts → FlutterError.onError).
+  Future<void> sendClientLog(String message, [String? stack]) =>
+      requestVoid('/api/logs/client',
+          method: 'POST',
+          body: <String, dynamic>{
+            'message': message,
+            'stack': stack,
+          });
+
   Future<void> revealInExplorer(String relativePath) => requestVoid(
         '/api/system/reveal-in-explorer',
         method: 'POST',

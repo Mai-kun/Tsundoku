@@ -51,6 +51,11 @@ class HomePayload {
 const String homeKey = 'home';
 final SwrCache<HomePayload> homeCache = SwrCache<HomePayload>();
 
+/// window-событие tsundoku:random-pick → сигнал-шина: App (контекст-меню
+/// desktop) инкрементит, смонтированный HomeView слушает и отвечает пулом
+/// экрана (решение #41).
+final ValueNotifier<int> homeRandomPickSignal = ValueNotifier<int>(0);
+
 /// Home-local sort: `updated` leads with last activity.
 typedef HomeSort = String;
 
@@ -132,9 +137,12 @@ class _HomeViewState extends ConsumerState<HomeView> {
   int _stuckReloadKey = 0;
   String? _lastFetchEffectKey;
 
+  void _randomPickListener() => _pickRandomTitle();
+
   @override
   void initState() {
     super.initState();
+    homeRandomPickSignal.addListener(_randomPickListener);
     final cached = homeCache.peek(homeKey);
     if (cached != null) {
       _inProgress = cached.inProgress;
@@ -152,6 +160,7 @@ class _HomeViewState extends ConsumerState<HomeView> {
 
   @override
   void dispose() {
+    homeRandomPickSignal.removeListener(_randomPickListener);
     _searchDebounce?.cancel();
     _skeletonTimer?.cancel();
     super.dispose();

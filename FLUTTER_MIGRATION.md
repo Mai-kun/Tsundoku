@@ -303,7 +303,7 @@ build linux --debug ✓, build web --wasm ✓. Фаза 1 ЗАКРЫТА. Дал
 | 2 | `widgets/media-card` | `BaseCard.svelte` | `lib/widgets/media-card/base_card.dart` | ⬜ Не начат | ⬜ | — |
 | 2 | `widgets/media-card` | `BookCard.svelte` | `lib/widgets/media-card/book_card.dart` | ⬜ Не начат | ⬜ | — |
 | 2 | `widgets/media-card` | `CardProgressControls.svelte` | `lib/widgets/media-card/card_progress_controls.dart` | ⬜ Не начат | ⬜ | — |
-| 2 | `widgets/media-card` | `CardTitleBlock.svelte` | `lib/widgets/media-card/card_title_block.dart` | ⬜ Не начат | ⬜ | — |
+| 2 | `widgets/media-card` | `CardTitleBlock.svelte` | `lib/widgets/media-card/card_title_block.dart` | ✅ Готов | ✅ | clamp-2 заголовок (text-sm/leading-tight/w600 + drop-shadow-sm) с Tooltip=titleTooltip, clamp-1 подзаголовок text-white/60; TS-проп onOpen мёртвый (не деструктурируется) — не переносился (аналог #28) |
 | 2 | `widgets/media-card` | `GameCard.svelte` | `lib/widgets/media-card/game_card.dart` | ⬜ Не начат | ⬜ | — |
 | 2 | `widgets/media-card` | `MangaCard.svelte` | `lib/widgets/media-card/manga_card.dart` | ⬜ Не начат | ⬜ | — |
 | 2 | `widgets/media-card` | `MediaCard.svelte` | `lib/widgets/media-card/media_card.dart` | ⬜ Не начат | ⬜ | — |

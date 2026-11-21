@@ -26,7 +26,13 @@ const double kTsundokuLgBreakpoint = 1024;
 class AppShell extends ConsumerWidget {
   final Widget sidebar;
   final Widget header;
-  final Widget child;
+
+  /// Бокс-контент main-области (вью без слайверов, напр. settings).
+  final Widget? child;
+
+  /// Слайвер-контент main-области (CategoryView/HomeView — решение #37):
+  /// рендерится в CustomScrollView = #main-scroll.
+  final List<Widget>? slivers;
 
   /// mainRef: контроллер скролла main-области (внешнее управление прокруткой).
   final ScrollController? mainScrollController;
@@ -36,7 +42,8 @@ class AppShell extends ConsumerWidget {
     super.key,
     required this.sidebar,
     required this.header,
-    required this.child,
+    this.child,
+    this.slivers,
     this.mainScrollController,
     this.noPadding = false,
   });
@@ -68,26 +75,36 @@ class AppShell extends ConsumerWidget {
           // main#main-scroll: min-h-0 flex-1 overflow.
           Expanded(
             key: const Key('appshell-main'), // #main-scroll
-            child: SingleChildScrollView(
-              controller: mainScrollController,
-              // overflow-x-hidden + noPadding → h-full overflow-hidden p-0.
-              physics: noPadding ? const NeverScrollableScrollPhysics() : null,
-              padding: EdgeInsets.zero,
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minHeight: noPadding ? double.infinity : 0,
-                ),
-                child: noPadding
-                    ? SizedBox(
-                        height: MediaQuery.sizeOf(context).height - 56,
-                        child: child,
-                      )
-                    : Padding(
-                        padding: const EdgeInsets.all(24), // p-6
-                        child: child,
+            child: slivers != null
+                ? CustomScrollView(
+                    controller: mainScrollController,
+                    slivers: [
+                      if (!noPadding)
+                        const SliverPadding(padding: EdgeInsets.all(24)),
+                      ...?slivers,
+                    ],
+                  )
+                : SingleChildScrollView(
+                    controller: mainScrollController,
+                    // overflow-x-hidden + noPadding → h-full overflow-hidden p-0.
+                    physics:
+                        noPadding ? const NeverScrollableScrollPhysics() : null,
+                    padding: EdgeInsets.zero,
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minHeight: noPadding ? double.infinity : 0,
                       ),
-              ),
-            ),
+                      child: noPadding
+                          ? SizedBox(
+                              height: MediaQuery.sizeOf(context).height - 56,
+                              child: child,
+                            )
+                          : Padding(
+                              padding: const EdgeInsets.all(24), // p-6
+                              child: child,
+                            ),
+                    ),
+                  ),
           ),
         ],
       ),
@@ -136,8 +153,9 @@ class AppShell extends ConsumerWidget {
       );
     }
 
-    // Оверлеи — top-level поверх каркаса.
-    return Container(
+    // Оверлеи — top-level поверх каркаса. Material-предок даёт TextField'ам
+    // вью (Svelte-эквивалент — HTML-инфраструктура).
+    return Material(
       color: th.bgCanvas,
       child: Stack(
         children: [

@@ -167,9 +167,9 @@
     workspaceLayout.ts ✅ (10 тестов; localStorage → SharedPreferences-фасад
     стора uiSettings); workspaceThreads.ts ✅ (6 тестов — чистая
     математика без фреймворка; rAF-цикл рисования придёт в WorkspaceWindow);
-    WorkspaceWindow.svelte ✅ (6 тестов) → ModuleCard ✅ (4 теста) → NotesModule ✅ (3 теста) → BaseMediaModule ✅ (5 тестов) → FormField ✅ (pull-forward из Фазы 5, 1 тест) → GameFormFields ✅ (+CreateTextField в form_field.dart) → BookFormFields ✅ (3 теста, isNovel-ветвление).
+    WorkspaceWindow.svelte ✅ (6 тестов) → ModuleCard ✅ (4 теста) → NotesModule ✅ (3 теста) → BaseMediaModule ✅ (5 тестов) → FormField ✅ (pull-forward из Фазы 5, 1 тест) → GameFormFields ✅ (+CreateTextField в form_field.dart) → BookFormFields ✅ (3 теста, isNovel-ветвление) → MangaFormFields ✅ (1 тест).
 
-**Прогресс: 161 / 207 файлов**
+**Прогресс: 162 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
@@ -178,8 +178,8 @@
 | 2 — `entities/` + карточки/сетка | 19 | 19 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 13 (ЗАКРЫТА, см. Phase Gate) |
 | 4 — Детальная страница + Spatial Node Editor | 59 | 54 |
-| 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 3 |
-| **Всего** | **207** | **161** |
+| 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 4 |
+| **Всего** | **207** | **162** |
 
 Долги Фаз 0–2 (не блокируют): —
 seriesProgressControllerProvider no-op-toast → инъекция в Фазе 3 (решение #35);
@@ -257,7 +257,7 @@ Spatial Node Editor; detailTypes/detailFormatters уже готовы pull-forwa
 | 5 | `features/create-media` | `CreateModal.svelte` | `lib/features/create-media/create_modal.dart` | ⬜ Не начат | ⬜ | — |
 | 5 | `features/create-media` | `FormField.svelte` | `lib/features/create-media/form_field.dart` | ✅ Готов | ✅ | ⬆️ Вытащен из Фазы 5 (зависимость CategoryFieldsModule, Фаза 4): TsundokuFormField (конфликт имени с Flutter FormField) — лейбл text-sm font-medium + контрол; хелперы createFieldBorder/createFieldDecoration/createFieldTextStyle/createNumberFormatter для полей форм; 1 тест |
 | 5 | `features/create-media` | `GameFormFields.svelte` | `lib/features/create-media/game_form_fields.dart` | ✅ Готов | ✅ | ⬆️ Вытащен из Фазы 5 (зависимость CategoryFieldsModule, Фаза 4): platform (hint placeholder) + hoursPlayed (number); 1 тест |
-| 5 | `features/create-media` | `MangaFormFields.svelte` | `lib/features/create-media/manga_form_fields.dart` | ⬜ Не начат | ⬜ | — |
+| 5 | `features/create-media` | `MangaFormFields.svelte` | `lib/features/create-media/manga_form_fields.dart` | ✅ Готов | ✅ | ⬆️ Вытащен из Фазы 5 (зависимость CategoryFieldsModule, Фаза 4): author + totalChapters; currentVolume + totalVolumes (двойная роль, лейбл detail.tabVolumes, hint '1'); 1 тест |
 | 5 | `features/create-media` | `MovieFormFields.svelte` | `lib/features/create-media/movie_form_fields.dart` | ⬜ Не начат | ⬜ | — |
 | 5 | `features/create-media` | `TvShowFormFields.svelte` | `lib/features/create-media/tv_show_form_fields.dart` | ⬜ Не начат | ⬜ | — |
 | 5 | `features/drop-reason` | `DropReasonModal.svelte` | `lib/features/drop-reason/drop_reason_modal.dart` | ⬜ Не начат | ⬜ | — |

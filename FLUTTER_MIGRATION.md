@@ -161,9 +161,11 @@
     'seasons' заменены живыми вью (keyed по mediaId; onBack=_closeDetail с
     восстановлением скролла previousView, onDelete=_deleteFromDetail →
     deleteMedia+mediaChanged, onEdit→openCreate-хук Фазы 5, onOpenRelated=
-    openDetail, onSearch=openSearch, onOpenLists→navigate(lists)).
+    openDetail, onSearch=openSearch, onOpenLists→navigate(lists)). Начат **edit-media
+    workspace (ниточки)**: moduleTypes.ts ✅ (4 теста; SeasonDraft портирован
+    сюда из create-media — TvShowFormFields ещё не существует).
 
-**Прогресс: 151 / 207 файлов**
+**Прогресс: 152 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
@@ -171,9 +173,9 @@
 | 1 — `shared/ui/` | 17 | 17 |
 | 2 — `entities/` + карточки/сетка | 19 | 19 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 13 (ЗАКРЫТА, см. Phase Gate) |
-| 4 — Детальная страница + Spatial Node Editor | 59 | 47 |
+| 4 — Детальная страница + Spatial Node Editor | 59 | 48 |
 | 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 0 |
-| **Всего** | **207** | **151** |
+| **Всего** | **207** | **152** |
 
 Долги Фаз 0–2 (не блокируют): —
 seriesProgressControllerProvider no-op-toast → инъекция в Фазе 3 (решение #35);

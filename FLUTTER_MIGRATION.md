@@ -150,7 +150,7 @@
     MediaActivity/OverwriteConfirm/RelinkSource) → DetailSidebar →
     ShowSeasonsView → MediaDetailView → edit-media workspace (ниточки).
 
-**Прогресс: 133 / 207 файлов**
+**Прогресс: 134 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
@@ -158,9 +158,9 @@
 | 1 — `shared/ui/` | 17 | 17 |
 | 2 — `entities/` + карточки/сетка | 19 | 19 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 13 (ЗАКРЫТА, см. Phase Gate) |
-| 4 — Детальная страница + Spatial Node Editor | 59 | 25 (+ MediaFilesSection) |
+| 4 — Детальная страница + Spatial Node Editor | 59 | 26 (+ LinkedSourcesSection) |
 | 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 0 |
-| **Всего** | **207** | **133** |
+| **Всего** | **207** | **134** |
 
 Долги Фаз 0–2 (не блокируют): —
 seriesProgressControllerProvider no-op-toast → инъекция в Фазе 3 (решение #35);
@@ -379,7 +379,7 @@ Spatial Node Editor; detailTypes/detailFormatters уже готовы pull-forwa
 | 4 | `widgets/media-detail/sections` | `CastSection.svelte` | `lib/widgets/media-detail/sections/cast_section.dart` | ✅ Готов | ✅ | Три режима: сэйю-группировка (аниме, new payload), персонажи (манга), плоский легаси; portrait-сетка главных (anti-orphan: только целые ряды, remainder → rows); reveal сэйю-фото (clip-circle → AnimatedOpacity), lightbox (lightboxProvider) по фото/аватару; secondary-сворачивание (chevron rotate-180); PeopleSizeToggle cast; 5 тестов |
 | 4 | `widgets/media-detail/sections` | `CreatorSection.svelte` | `lib/widgets/media-detail/sections/creator_section.dart` | ✅ Готов | ✅ | «Визитка»: фото/иконка по роли (Gamepad/BookOpen/Clapperboard, developer-re), ★средняя (amber), поиск-кнопка; сводка (count/complete + градиент-бар accent→#818cf8); staff-карточки (large/compact, буква-плейсхолдер, lightbox); другие работы (постер 2/3 + статус/★); unknown-создатель — без сводки/поиска; $effect → didUpdateWidget по (name, role, id); 5 тестов полного цикла |
 | 4 | `widgets/media-detail/sections` | `GameDetailSection.svelte` | `lib/widgets/media-detail/sections/game_detail_section.dart` | ✅ Готов | ✅ | Часы (teal, total 0 — без кольца/времени) через ProgressCard; достижения: поиск по названию/описанию, toggle all (amber-чип), unlock-карточки (success-deep литерал — вне ThemeExtension, как #5/warning-ветки), пагинация 60/стр с «...»-врезками, «*» truncated; 5 тестов |
-| 4 | `widgets/media-detail/sections` | `LinkedSourcesSection.svelte` | `lib/widgets/media-detail/sections/linked_sources_section.dart` | ⬜ Не начат | ⬜ | — |
+| 4 | `widgets/media-detail/sections` | `LinkedSourcesSection.svelte` | `lib/widgets/media-detail/sections/linked_sources_section.dart` | ✅ Готов | ✅ | Источники: load/add/primary/remove — 4 аддитивных типизированных метода в api.dart (Svelte — сырой apiFetch); вставленная ссылка → источник по сайту + голый id (parseMediaUrl); SocialLib-зонт → per-site опции; fallback-наборы при ошибке getSources; чипы «взятых данных» ( разворот 180ms); crown/pencil/trash + ExternalLink за фасадом; select — TsundokuSelect; 3 теста полного цикла |
 | 4 | `widgets/media-detail/sections` | `MangaProgressSection.svelte` | `lib/widgets/media-detail/sections/manga_progress_section.dart` | ✅ Готов | ✅ | Главы: minsPerChapter из uiSettings (дефолт 6), effectiveTotal: totalChapters/progress.total, amber, pace [1,2,3,5] дефолт 5; тест в movie_manga_notes_sections_test |
 | 4 | `widgets/media-detail/sections` | `MediaFilesSection.svelte` | `lib/widgets/media-detail/sections/media_files_section.dart` | ✅ Готов | ✅ | Вложения: pickFile (НОВОЕ в фасаде: io file_picker / web input+Blob.arrayBuffer / stub), attachMediaFile multipart, openMediaFile (сервер), скачивание → downloadMediaFile-байты + saveFile (#32); delete через confirmDialog (danger); иконки по расширению (epub/архив/документ); Drag&drop-зона ⏭️ (фасад дропа — долг, решение #51); 3 теста |
 | 4 | `widgets/media-detail/sections` | `MovieStatusSection.svelte` | `lib/widgets/media-detail/sections/movie_status_section.dart` | ✅ Готов | ✅ | Хронометраж (короткая + «~X ч. Y мин.»), быстрая смена planned/completed (selected: fill+ring 1-в-1, hover idle), amber-пилюля для промежуточных статусов, watchedOn-строка; ru/en-строки заголовка как в Svelte; 3 теста |

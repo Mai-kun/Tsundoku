@@ -771,6 +771,50 @@ class TsundokuApi {
     return _exportBytes('$mediaEndpoint/$id/files/$encoded/download');
   }
 
+  /// Привязанные внешние источники (LinkedSourcesSection использует сырой
+  /// apiFetch — здесь типизированные методы).
+  Future<List<Map<String, dynamic>>> getLinkedSources(String id) {
+    return requestJson<List<Map<String, dynamic>>>(
+      '$mediaEndpoint/$id/linked-sources',
+      parse: (json) =>
+          (json as List<dynamic>).cast<Map<String, dynamic>>(),
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> addLinkedSource(
+      String id, String source, String externalId) {
+    return requestJson<List<Map<String, dynamic>>>(
+      '$mediaEndpoint/$id/linked-sources',
+      method: 'POST',
+      body: {'source': source, 'externalId': externalId},
+      contentType: 'application/json',
+      parse: (json) =>
+          (json as List<dynamic>).cast<Map<String, dynamic>>(),
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> makeLinkedSourcePrimary(
+      String id, String source) {
+    final encoded = Uri.encodeComponent(source);
+    return requestJson<List<Map<String, dynamic>>>(
+      '$mediaEndpoint/$id/linked-sources/$encoded/primary',
+      method: 'PUT',
+      parse: (json) =>
+          (json as List<dynamic>).cast<Map<String, dynamic>>(),
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> removeLinkedSource(
+      String id, String source) {
+    final encoded = Uri.encodeComponent(source);
+    return requestJson<List<Map<String, dynamic>>>(
+      '$mediaEndpoint/$id/linked-sources/$encoded',
+      method: 'DELETE',
+      parse: (json) =>
+          (json as List<dynamic>).cast<Map<String, dynamic>>(),
+    );
+  }
+
   /// Reveals a server-side path (relative to the data dir) in the platform
   /// file manager.
   /// Клиентский лог ошибок (window.onerror из main.ts → FlutterError.onError).

@@ -23,7 +23,11 @@ class PopoverOption<T> {
   final T value;
   final String label;
 
-  const PopoverOption({required this.value, required this.label});
+  /// Опциональная иконка слева — аналог renderOption-сниппета Svelte
+  /// (FilterBar/FilterMenu рендерят иконки опций). Additive к Фазе 1.
+  final IconData? leading;
+
+  const PopoverOption({required this.value, required this.label, this.leading});
 }
 
 /// `"bottom" | "bottom-start" | "bottom-end" | "top"`.
@@ -308,6 +312,14 @@ class _MenuOptionButton<T> extends StatelessWidget {
           // tap-анимация (active:scale) — через InkWell-подсветку.
           child: Row(
             children: [
+              if (option.leading != null) ...[
+                Icon(
+                  option.leading,
+                  size: 16, // renderOption-иконки size={16}
+                  color: selected ? th.accentSoft : th.textMuted,
+                ),
+                const SizedBox(width: 8), // gap-2
+              ],
               Expanded(
                 child: Text(
                   option.label,
@@ -369,7 +381,12 @@ class TsundokuSelect<T> extends StatelessWidget {
       label: label ?? selectedLabel,
       placement: PopoverPlacement.bottomStart,
       matchTriggerWidth: matchTriggerWidth,
-      trigger: (context, ctx) => TextButton(
+      // Кнопка — визуал: тап уходит в GestureDetector поповера.
+      // IgnorePointer исключает кнопку из арены (🐛 #6 — до фикса селектор
+      // не открывался: TextButton выигрывал арену у GestureDetector).
+      trigger: (context, ctx) => IgnorePointer(
+        ignoring: disabled,
+        child: TextButton(
         onPressed: disabled ? null : () {},
         style: TextButton.styleFrom(
           foregroundColor: Colors.transparent,
@@ -397,6 +414,7 @@ class TsundokuSelect<T> extends StatelessWidget {
                 size: 14, color: Color(0xFF9CA3AF)), // ChevronDown text-muted
           ],
         ),
+      ),
       ),
     );
   }

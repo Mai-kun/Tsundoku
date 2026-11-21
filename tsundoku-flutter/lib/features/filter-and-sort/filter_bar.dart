@@ -1,0 +1,446 @@
+/// 1:1 port of `mediatracker-ui/src/features/filter-and-sort/FilterBar.svelte`.
+///
+/// Тулбар фильтров библиотеки: группировка (status/franchise/all — иконки),
+/// статус-селектор с бейджем-счётчиком, центрированный TotalBadge, поиск с
+/// дебаунсом 300ms, селектор сортировки (newest/oldest/rating/title — иконки).
+/// Иконки опций — PopoverOption.leading (renderOption-аналог).
+library;
+
+import 'dart:async';
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:material_ui/material_ui.dart';
+
+import '../../shared/i18n/index.dart';
+import '../../shared/theme/tsundoku_tokens.dart';
+import '../../shared/types/enums.dart';
+import '../../shared/ui/badge.dart';
+import '../../shared/ui/button.dart';
+import '../../shared/ui/popover_menu.dart';
+import '../../entities/media/model/media_labels.dart';
+import '../../shared/ui/total_badge.dart';
+
+/// TS-union `LibrarySort` — закрытый набор строк.
+enum LibrarySort {
+  newest('newest'),
+  oldest('oldest'),
+  rating('rating'),
+  title('title');
+
+  final String wire;
+  const LibrarySort(this.wire);
+}
+
+/// TS-union `GroupBy` — закрытый набор строк.
+enum GroupBy {
+  status('status'),
+  franchise('franchise'),
+  all('all');
+
+  final String wire;
+  const GroupBy(this.wire);
+}
+
+/// SORT_ICONS/GROUP_ICONS (script module) — 1-в-1.
+IconData sortIcon(LibrarySort sort) {
+  switch (sort) {
+    case LibrarySort.newest:
+      return LucideIcons.arrowDown;
+    case LibrarySort.oldest:
+      return LucideIcons.arrowUp;
+    case LibrarySort.rating:
+      return LucideIcons.star;
+    case LibrarySort.title:
+      return LucideIcons.type;
+  }
+}
+
+IconData groupIcon(GroupBy group) {
+  switch (group) {
+    case GroupBy.status:
+      return LucideIcons.listChecks;
+    case GroupBy.franchise:
+      return LucideIcons.tag;
+    case GroupBy.all:
+      return LucideIcons.layoutGrid;
+  }
+}
+
+class FilterBar extends ConsumerStatefulWidget {
+  final StatusFilter status;
+  final LibrarySort sort;
+  final GroupBy groupBy;
+  final String search;
+  final Map<StatusFilter, int> counts;
+
+  /// Полный total из БД; когда показан — центрирует TotalBadge вместо
+  /// плавающего счётчика.
+  final int? totalCount;
+
+  /// Сколько из total показывают текущие фильтры.
+  final int? shownCount;
+
+  final void Function(StatusFilter status) onStatusChange;
+  final void Function(LibrarySort sort) onSortChange;
+  final void Function(GroupBy groupBy)? onGroupByChange;
+  final void Function(String query) onSearchChange;
+
+  const FilterBar({
+    super.key,
+    required this.status,
+    required this.sort,
+    this.groupBy = GroupBy.status,
+    required this.search,
+    this.counts = const {},
+    this.totalCount,
+    this.shownCount,
+    required this.onStatusChange,
+    required this.onSortChange,
+    this.onGroupByChange,
+    required this.onSearchChange,
+  });
+
+  @override
+  ConsumerState<FilterBar> createState() => _FilterBarState();
+}
+
+class _FilterBarState extends ConsumerState<FilterBar> {
+  /// Список статусов 1-в-1 с Svelte (all + 5 медиа-статусов).
+  static const List<StatusFilter> _statuses = <StatusFilter>[
+    StatusFilter.all(),
+    StatusFilter.status(0), // planned
+    StatusFilter.status(1), // inProgress
+    StatusFilter.status(2), // completed
+    StatusFilter.status(3), // onHold
+    StatusFilter.status(4), // dropped
+  ];
+
+  Timer? _searchDebounce;
+
+  @override
+  void dispose() {
+    // $effect(() => () => clearTimeout).
+    _searchDebounce?.cancel();
+    super.dispose();
+  }
+
+  String _labelForStatus(StatusFilter value, I18nDictionary t) {
+    if (value.isAll) return t.tr('status.all');
+    return statusLabel(MediaStatus.tryValue(value.status!)!, t);
+  }
+
+  void _debouncedSearch(String value) {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 300), () {
+      widget.onSearchChange(value);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = ref.watch(tProvider);
+    final th = TsundokuTheme.of(context);
+
+    final groupOptions = <PopoverOption<GroupBy>>[
+      for (final g in GroupBy.values)
+        PopoverOption(value: g, label: _groupLabel(g, t), leading: groupIcon(g)),
+    ];
+
+    final statusOptions = <PopoverOption<StatusFilter>>[
+      for (final s in _statuses)
+        PopoverOption(
+            value: s, label: _labelForStatus(s, t)),
+    ];
+
+    final sortOptions = <PopoverOption<LibrarySort>>[
+      PopoverOption(value: LibrarySort.newest, label: t.tr('sort.newest'), leading: LucideIcons.arrowDown),
+      PopoverOption(value: LibrarySort.oldest, label: t.tr('sort.oldest'), leading: LucideIcons.arrowUp),
+      PopoverOption(value: LibrarySort.rating, label: t.tr('sort.rating'), leading: LucideIcons.star),
+      PopoverOption(value: LibrarySort.title, label: t.tr('sort.title'), leading: LucideIcons.type),
+    ];
+
+    final count = widget.counts[widget.status];
+
+    return Container(
+      padding: const EdgeInsets.all(16), // p-3 sm:p-4
+      decoration: BoxDecoration(
+        color: th.bgSurface, // bg-surface
+        borderRadius: BorderRadius.circular(8), // rounded-lg
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Icon(
+                LucideIcons.slidersHorizontal, // SlidersHorizontal size={16}
+                size: 16,
+                color: th.textMuted, // text-muted
+              ),
+              const SizedBox(width: 8), // gap-2
+              // Группировка: icon-only, openOnHover, closeDelay 220.
+              TsundokuPopoverMenu<GroupBy>(
+                id: 'library-group',
+                options: groupOptions,
+                selected: widget.groupBy,
+                onSelect: (value) => widget.onGroupByChange?.call(value),
+                label: t.tr('grouping.label'),
+                placement: PopoverPlacement.bottomStart,
+                openOnHover: true,
+                closeDelay: 220,
+                trigger: (context, ctx) => _IconButtonTrigger(
+                  tooltip: t.tr('grouping.label'),
+                  icon: groupIcon(widget.groupBy),
+                  th: th,
+                ),
+              ),
+              const SizedBox(width: 8), // gap-2
+              // Статус: лейбл + счётчик-бейдж + ChevronDown.
+              TsundokuPopoverMenu<StatusFilter>(
+                id: 'library-status',
+                options: statusOptions,
+                selected: widget.status,
+                onSelect: (value) => widget.onStatusChange(value),
+                label: t.tr('status.label'),
+                placement: PopoverPlacement.bottomStart,
+                openOnHover: true,
+                closeDelay: 220,
+                trigger: (context, ctx) => _StatusTrigger(
+                  label: _labelForStatus(widget.status, t),
+                  count: count,
+                  th: th,
+                ),
+              ),
+              const Spacer(),
+              // Центрированный счётчик (order-last lg:order-none).
+              if (widget.totalCount != null)
+                TsundokuTotalBadge(
+                  total: widget.totalCount!,
+                  shown: widget.shownCount,
+                ),
+              const Spacer(),
+              // Поиск + сортировка справа.
+              Expanded(
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _SearchField(
+                        initial: widget.search,
+                        hint: t.tr('header.searchButton'),
+                        th: th,
+                        onChanged: _debouncedSearch,
+                      ),
+                    ),
+                    const SizedBox(width: 8), // gap-2
+                    TsundokuPopoverMenu<LibrarySort>(
+                      id: 'library-sort',
+                      options: sortOptions,
+                      selected: widget.sort,
+                      onSelect: (value) => widget.onSortChange(value),
+                      label: t.tr('sort.label'),
+                      placement: PopoverPlacement.bottomEnd,
+                      openOnHover: true,
+                      closeDelay: 220,
+                      trigger: (context, ctx) => _IconButtonTrigger(
+                        tooltip: t.tr('sort.label'),
+                        icon: sortIcon(widget.sort),
+                        th: th,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _groupLabel(GroupBy g, I18nDictionary t) {
+    switch (g) {
+      case GroupBy.status:
+        return t.tr('grouping.byStatus');
+      case GroupBy.franchise:
+        return t.tr('grouping.byFranchise');
+      case GroupBy.all:
+        return t.tr('grouping.all');
+    }
+  }
+}
+
+/// icon-only lg-кнопка (secondary, 40px).
+class _IconButtonTrigger extends StatelessWidget {
+  final String tooltip;
+  final IconData icon;
+  final TsundokuTheme th;
+
+  const _IconButtonTrigger({
+    required this.tooltip,
+    required this.icon,
+    required this.th,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // Кнопка-визуал: тап должен уходить в GestureDetector поповера —
+    // IgnorePointer исключает кнопку из арены жестов (🐛 #6).
+    return Tooltip(
+      message: tooltip,
+      child: IgnorePointer(
+        child: SizedBox(
+          width: 40, // lg size: h-10
+          height: 40,
+          child: TsundokuButton(
+            variant: ButtonVariant.secondary,
+            size: ButtonSize.md,
+            onPressed: () {},
+            child: Icon(icon, size: 18, color: th.textMuted),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Статус-триггер: label truncate + Badge-счётчик + ChevronDown.
+class _StatusTrigger extends StatelessWidget {
+  final String label;
+  final int? count;
+  final TsundokuTheme th;
+
+  const _StatusTrigger({
+    required this.label,
+    required this.count,
+    required this.th,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: label,
+      child: IgnorePointer(
+        child: SizedBox(
+        height: 40,
+        child: TsundokuButton(
+          variant: ButtonVariant.secondary,
+          size: ButtonSize.md,
+          onPressed: () {},
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 12, // text-xs
+                  fontWeight: FontWeight.w600, // font-semibold
+                ),
+              ),
+              if (count != null) ...[
+                const SizedBox(width: 6),
+                TsundokuBadge(
+                  tone: BadgeTone.neutral,
+                  size: BadgeSize.xs,
+                  child: Text('$count'),
+                ),
+              ],
+              const SizedBox(width: 6),
+              Icon(
+                LucideIcons.chevronDown, // ChevronDown size={14}
+                size: 14,
+                color: th.textMuted, // text-muted
+              ),
+            ],
+          ),
+        ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Поле поиска: bg-field border-white/10 rounded-lg h-10 pl-9, Search 18px
+/// слева, debounce 300ms снаружи.
+class _SearchField extends StatefulWidget {
+  final String initial;
+  final String hint;
+  final TsundokuTheme th;
+  final void Function(String value) onChanged;
+
+  const _SearchField({
+    required this.initial,
+    required this.hint,
+    required this.th,
+    required this.onChanged,
+  });
+
+  @override
+  State<_SearchField> createState() => _SearchFieldState();
+}
+
+class _SearchFieldState extends State<_SearchField> {
+  late final TextEditingController _controller =
+      TextEditingController(text: widget.initial);
+  bool _focused = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final th = widget.th;
+    return Stack(
+      alignment: Alignment.centerLeft,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 36), // pl-9 (иконка слева)
+          child: Focus(
+            onFocusChange: (focused) => setState(() => _focused = focused),
+            child: TextField(
+              controller: _controller,
+              onChanged: widget.onChanged,
+              style: TextStyle(
+                fontSize: 14, // text-sm
+                color: th.textPrimary, // text-ink
+              ),
+              decoration: InputDecoration(
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
+                hintText: widget.hint, // placeholder
+                hintStyle: TextStyle(color: th.textMuted),
+                filled: true,
+                fillColor: th.bgSurface, // bg-field = var(--bg-surface)
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8), // rounded-lg
+                  borderSide:
+                      BorderSide(color: Colors.white.withAlpha(26)), // white/10
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(
+                    color: _focused
+                        ? const Color(0x996366F1) // focus:border-indigo-500/60
+                        : Colors.white.withAlpha(26),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+        Positioned(
+          left: 12, // left-3
+          child: Icon(
+            LucideIcons.search, // Search size={18}
+            size: 18,
+            color: th.textMuted, // text-muted
+          ),
+        ),
+      ],
+    );
+  }
+}

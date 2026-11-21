@@ -144,17 +144,17 @@
     Фазу 4: тянет ExternalDetailModal → DetailHeader (Фаза 4), каскад
     раньше времени ломает порядок; портится сразу после этих двух.
 
-**Прогресс: 101 / 207 файлов**
+**Прогресс: 102 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
 | 0 — Фундамент (типы/API/модели/логика/тема) | 58 | 58 |
 | 1 — `shared/ui/` | 17 | 17 |
 | 2 — `entities/` + карточки/сетка | 19 | 19 |
-| 3 — Каркас: App/Layout/Home/Category | 13 | 7 |
+| 3 — Каркас: App/Layout/Home/Category | 13 | 8 |
 | 4 — Детальная страница + Spatial Node Editor | 59 | 0 |
 | 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 0 |
-| **Всего** | **207** | **101** |
+| **Всего** | **207** | **102** |
 
 Долги Фаз 0–2 (не блокируют): —
 seriesProgressControllerProvider no-op-toast → инъекция в Фазе 3 (решение #35);
@@ -242,7 +242,7 @@ PlatformService за условным экспортом). Фаза 2 ЗАКРЫ
 | 4 | `features/edit-media/modules` | `moduleTypes.ts` | `lib/features/edit-media/modules/module_types.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `features/edit-media` | `workspaceLayout.ts` | `lib/features/edit-media/workspace_layout.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `features/edit-media` | `workspaceThreads.ts` | `lib/features/edit-media/workspace_threads.dart` | ⬜ Не начат | ⬜ | — |
-| 3 | `features/filter-and-sort` | `FilterBar.svelte` | `lib/features/filter-and-sort/filter_bar.dart` | ⬜ Не начат | ⬜ | — |
+| 3 | `features/filter-and-sort` | `FilterBar.svelte` | `lib/features/filter-and-sort/filter_bar.dart` | ✅ Готов | ✅ | GroupBy/LibrarySort → enum c wire; SORT_ICONS/GROUP_ICONS → функции; PopoverOption.leading (renderOption-аналог, аддитивно к Фазе 1); поиск с дебаунсом 300ms; статус-триггер с бейджем-счётчиком; TotalBadge в геометрическом центре; bg-field = bgSurface; 6 тестов |
 | 5 | `features/goals` | `CreateGoalModal.svelte` | `lib/features/goals/create_goal_modal.dart` | ⬜ Не начат | ⬜ | — |
 | 5 | `features/import-media` | `ImportModal.svelte` | `lib/features/import-media/import_modal.dart` | ⬜ Не начат | ⬜ | — |
 | 5 | `features/import-media` | `ImportPanel.svelte` | `lib/features/import-media/import_panel.dart` | ⬜ Не начат | ⬜ | — |
@@ -417,6 +417,7 @@ PlatformService за условным экспортом). Фаза 2 ЗАКРЫ
 | 3 | `shared/types/models.dart` (порт, не Svelte) | `_strOrList` нормализовал строку genres/tags через split(',') без распаковки JSON-массива: payload вида `["Фэнтези","Драма"]` ломался на элементы `['["Фэнтези"', '"Драма"]']`. В TS строка оставалась сырой до parseGenresList, который JSON распаковывает | Да: в _strOrList добавлена попытка jsonDecode для `[...]`-строк (фолбэк — split(',')); тест в models_test.dart + кейсы в detail_formatters_test | Порт-баг (не Svelte): модель нормализует раньше, чем consumer — теперь обе стратегии дают одинаковый результат |
 | 4 | `shared/ui/toast.svelte.ts` → порт (toast.dart) | Dart-стор добавил собственные TTL-таймеры auto-dismiss, которых НЕТ в Svelte: в Svelte dismiss живёт в ToastContainer (rAF-клок с паузой на hover и 1s-грейсом). Двойной dismiss ломал паузу (стор удалял тост под курсором) | Да: TTL-таймеры удалены из стора (dismiss — чистое состояние); авто-dismiss целиком в ToastContainer; тесты стора и контейнера обновлены | Порт-баг Фазы 1, вскрыт портированием контейнера (Фаза 3) |
 | 5 | `shared/ui/modal.dart` (порт, не Svelte) | Material получал и borderRadius, и shape — фреймворк запрещает (assert). Всплывало при первом рендере модалки из ConfirmModal | Да: borderRadius убран — скругление и border-white/[0.08] несёт только RoundedRectangleBorder | Порт-баг Фазы 1 (Golden Фазы 1 модалку не рендерил) |
+| 6 | `shared/ui/PopoverMenu.svelte` → порт (popover_menu.dart) | Триггер-кнопки поповеров/селекторов с ненулевым onPressed выигрывали арену жестов у внешнего GestureDetector поповера → тап не открывал меню (Svelte: popovertarget-атрибут, конфликта нет). Латентный баг Фазы 1 — TsundokuSelect не открывался вовсе | Да: триггеры оборачиваются в IgnorePointer (кнопка — визуал, тап уходит в поповер); FilterBar-триггеры сразу с фиксом; select-тесты дополнены | Порт-баг Фазы 1, вскрыт FilterBar (Фаза 3) |
 ---
 
 ## ⚖️ Спорные решения и развилки

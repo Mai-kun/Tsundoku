@@ -150,7 +150,7 @@
     MediaActivity/OverwriteConfirm/RelinkSource) → DetailSidebar →
     ShowSeasonsView → MediaDetailView → edit-media workspace (ниточки).
 
-**Прогресс: 120 / 207 файлов**
+**Прогресс: 121 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
@@ -158,9 +158,9 @@
 | 1 — `shared/ui/` | 17 | 17 |
 | 2 — `entities/` + карточки/сетка | 19 | 19 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 13 (ЗАКРЫТА, см. Phase Gate) |
-| 4 — Детальная страница + Spatial Node Editor | 59 | 12 (+ PeopleSizeToggle) |
+| 4 — Детальная страница + Spatial Node Editor | 59 | 13 (+ TrailerSection) |
 | 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 0 |
-| **Всего** | **207** | **120** |
+| **Всего** | **207** | **121** |
 
 Долги Фаз 0–2 (не блокируют): —
 seriesProgressControllerProvider no-op-toast → инъекция в Фазе 3 (решение #35);
@@ -388,7 +388,7 @@ Spatial Node Editor; detailTypes/detailFormatters уже готовы pull-forwa
 | 4 | `widgets/media-detail/sections` | `ProgressCard.svelte` | `lib/widgets/media-detail/sections/progress_card.dart` | ✅ Готов | ✅ | Кольцо SVG → CustomPainter (drawArc −90°, dash-переход 300ms), counter-pop 180ms ({#key value} → ValueKey), ручной ввод (autofocus, blur-коммит, Esc-отмена, кламп 0..total), иерархия кнопок Start/−/+1/+5, drag-установка по бару (Listener+LayoutBuilder = pointer capture), сегменты ≤36 vs непрерывный бар (150ms), milestones 25/50/75/100, блок времени + pace-чипы (finishEstimate через intl 'd MMMM'), completed-итог; 4 акцента (indigo/amber/teal/theme); 10 тестов полного цикла |
 | 4 | `widgets/media-detail/sections` | `QuickFactsSection.svelte` | `lib/widgets/media-detail/sections/quick_facts_section.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `widgets/media-detail/sections` | `QuotesSection.svelte` | `lib/widgets/media-detail/sections/quotes_section.dart` | ⬜ Не начат | ⬜ | — |
-| 4 | `widgets/media-detail/sections` | `TrailerSection.svelte` | `lib/widgets/media-detail/sections/trailer_section.dart` | ⬜ Не начат | ⬜ | — |
+| 4 | `widgets/media-detail/sections` | `TrailerSection.svelte` | `lib/widgets/media-detail/sections/trailer_section.dart` | ✅ Готов | ✅ | YouTube-thumbnail + Play (hover scale 1.03, red-600/90); iframe недоступен без webview — Play открывает embed-URL через PlatformService.openExternalUrl (решение #48, фасад §1.3); без трейлера — заглушка Film/panel-line/40; 3 теста |
 | 4 | `widgets/media-detail/sections` | `TvShowProgressSection.svelte` | `lib/widgets/media-detail/sections/tv_show_progress_section.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `widgets/media-detail/tabs` | `EpisodesTab.svelte` | `lib/widgets/media-detail/tabs/episodes_tab.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `widgets/media-detail/tabs` | `GalleryTab.svelte` | `lib/widgets/media-detail/tabs/gallery_tab.dart` | ⬜ Не начат | ⬜ | — |

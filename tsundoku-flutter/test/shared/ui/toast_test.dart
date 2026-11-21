@@ -1,4 +1,3 @@
-import 'package:fake_async/fake_async.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tsundoku_flutter/shared/api/server_restart.dart';
@@ -66,32 +65,25 @@ void main() {
     expect(container2.read(toastStoreProvider), hasLength(1));
   });
 
-  test('auto-dismiss: durationMs таймер удаляет тост (fakeAsync)', () {
-    fakeAsync((async) {
-      final container = ProviderContainer();
-      addTearDown(container.dispose);
-      final ctrl = container.read(toastStoreProvider.notifier);
-      ctrl.show(const ToastOptions(
-          title: 'A', description: 'D', durationMs: 1000));
-      expect(container.read(toastStoreProvider), hasLength(1));
-      async.elapse(const Duration(milliseconds: 900));
-      expect(container.read(toastStoreProvider), hasLength(1));
-      async.elapse(const Duration(milliseconds: 200));
-      expect(container.read(toastStoreProvider), isEmpty,
-          reason: 'auto-dismiss по TTL');
-    });
+  test('стор без TTL-таймера: авто-dismiss живёт в ToastContainer (пауза на '
+      'hover) — 🐛 #4', () {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    final ctrl = container.read(toastStoreProvider.notifier);
+    ctrl.show(const ToastOptions(
+        title: 'A', description: 'D', durationMs: 300));
+    expect(container.read(toastStoreProvider), hasLength(1));
+    // Время идёт, стор ничего не удаляет (dismiss за контейнером).
+    expect(container.read(toastStoreProvider), hasLength(1),
+        reason: 'стор — чистое состояние, без таймеров');
   });
 
-  test('durationMs 0: таймер отключён, тост не исчезает (fakeAsync)', () {
-    fakeAsync((async) {
-      final container = ProviderContainer();
-      addTearDown(container.dispose);
-      final ctrl = container.read(toastStoreProvider.notifier);
-      ctrl.show(const ToastOptions(title: 'A', description: 'D', durationMs: 0));
-      async.elapse(const Duration(seconds: 60));
-      expect(container.read(toastStoreProvider), hasLength(1),
-          reason: '0 отключает таймер и countdown bar');
-    });
+  test('durationMs 0/длинный: стор не удаляет сам — договорённость Фазы 3', () {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    final ctrl = container.read(toastStoreProvider.notifier);
+    ctrl.show(const ToastOptions(title: 'A', description: 'D', durationMs: 0));
+    expect(container.read(toastStoreProvider), hasLength(1));
   });
 
   test('ToastType wire 1-в-1', () {

@@ -5,7 +5,6 @@
 /// 1-в-1 с ToastContainer.svelte из widgets/layout — Фаза 3 его смонтирует).
 library;
 
-import 'dart:async';
 
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -117,11 +116,8 @@ const int defaultDurationMs = 4000;
 const int maxToasts = 5;
 
 class ToastStoreController extends Notifier<List<ToastItem>> {
-  final Map<String, Timer> _timers = <String, Timer>{};
-
   @override
   List<ToastItem> build() {
-    ref.onDispose(_disposeTimers);
     return const <ToastItem>[];
   }
 
@@ -154,24 +150,14 @@ class ToastStoreController extends Notifier<List<ToastItem>> {
     list.add(item);
     state = list;
 
-    if (item.durationMs > 0) {
-      _timers[id] = Timer(Duration(milliseconds: item.durationMs), () {
-        dismiss(id);
-      });
-    }
+    // Svelte-стор НЕ ставит TTL-таймер: авто-dismiss принадлежит
+    // ToastContainer'у (пауза на hover + 1s-грейс), иначе двойное удаление.
+    // durationMs читает контейнер (bar + авто-dismiss). См. 🐛 #4.
     return id;
   }
 
   void dismiss(String id) {
-    _timers.remove(id)?.cancel();
     state = state.where((t) => t.id != id).toList();
-  }
-
-  void _disposeTimers() {
-    for (final timer in _timers.values) {
-      timer.cancel();
-    }
-    _timers.clear();
   }
 }
 

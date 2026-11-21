@@ -9,15 +9,15 @@ import 'package:tsundoku_flutter/shared/types/enums.dart';
 /// поповеры, дебаунс поиска 300ms, TotalBadge, счётчик статуса.
 void main() {
   final statuses = <StatusFilter>[];
-  final sorts = <LibrarySort>[];
-  final groups = <GroupBy>[];
+  final sorts = <String>[];
+  final groups = <String>[];
   final searches = <String>[];
 
   Future<void> pumpBar(
     WidgetTester tester, {
     StatusFilter status = const StatusFilter.all(),
-    LibrarySort sort = LibrarySort.newest,
-    GroupBy groupBy = GroupBy.status,
+    String sort = 'newest',
+    String groupBy = groupByStatus,
     Map<StatusFilter, int> counts = const {},
     int? totalCount,
     int? shownCount,
@@ -86,7 +86,7 @@ void main() {
     expect(statuses, [const StatusFilter.status(2)]);
   });
 
-  testWidgets('сортировка: выбор «По названию» → onSortChange(title)',
+  testWidgets('сортировка: выбор «По алфавиту» → onSortChange(title)',
       (tester) async {
     await pumpBar(tester);
     await tester.tap(find.byIcon(LucideIcons.arrowDown));
@@ -94,7 +94,7 @@ void main() {
 
     await tester.tap(find.text('По алфавиту'), warnIfMissed: false);
     await tester.pumpAndSettle();
-    expect(sorts, [LibrarySort.title]);
+    expect(sorts, ['title']);
   });
 
   testWidgets('группировка: выбор «По франшизе» → onGroupByChange',
@@ -105,7 +105,7 @@ void main() {
 
     await tester.tap(find.text('По франшизе'), warnIfMissed: false);
     await tester.pumpAndSettle();
-    expect(groups, [GroupBy.franchise]);
+    expect(groups, [groupByFranchise]);
   });
 
   testWidgets('поиск: дебаунс 300ms — один вызов на серию ввода',

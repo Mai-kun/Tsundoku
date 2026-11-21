@@ -242,7 +242,7 @@ PlatformService за условным экспортом). Фаза 2 ЗАКРЫ
 | 4 | `features/edit-media/modules` | `moduleTypes.ts` | `lib/features/edit-media/modules/module_types.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `features/edit-media` | `workspaceLayout.ts` | `lib/features/edit-media/workspace_layout.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `features/edit-media` | `workspaceThreads.ts` | `lib/features/edit-media/workspace_threads.dart` | ⬜ Не начат | ⬜ | — |
-| 3 | `features/filter-and-sort` | `FilterBar.svelte` | `lib/features/filter-and-sort/filter_bar.dart` | ✅ Готов | ✅ | GroupBy/LibrarySort → enum c wire; SORT_ICONS/GROUP_ICONS → функции; PopoverOption.leading (renderOption-аналог, аддитивно к Фазе 1); поиск с дебаунсом 300ms; статус-триггер с бейджем-счётчиком; TotalBadge в геометрическом центре; bg-field = bgSurface; 6 тестов |
+| 3 | `features/filter-and-sort` | `FilterBar.svelte` | `lib/features/filter-and-sort/filter_bar.dart` | ✅ Готов | ✅ | GroupBy — строковый union typedef (конвенция решения #2), LibrarySort — typedef String из category_model (контракт Фазы 0!); SORT_ICONS/GROUP_ICONS → функции; PopoverOption.leading (renderOption-аналог, аддитивно к Фазе 1); поиск с дебаунсом 300ms; статус-триггер с бейджем-счётчиком; TotalBadge в центре; bg-field = bgSurface; 6 тестов |
 | 5 | `features/goals` | `CreateGoalModal.svelte` | `lib/features/goals/create_goal_modal.dart` | ⬜ Не начат | ⬜ | — |
 | 5 | `features/import-media` | `ImportModal.svelte` | `lib/features/import-media/import_modal.dart` | ⬜ Не начат | ⬜ | — |
 | 5 | `features/import-media` | `ImportPanel.svelte` | `lib/features/import-media/import_panel.dart` | ⬜ Не начат | ⬜ | — |

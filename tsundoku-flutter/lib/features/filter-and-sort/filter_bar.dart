@@ -4,6 +4,9 @@
 /// статус-селектор с бейджем-счётчиком, центрированный TotalBadge, поиск с
 /// дебаунсом 300ms, селектор сортировки (newest/oldest/rating/title — иконки).
 /// Иконки опций — PopoverOption.leading (renderOption-аналог).
+///
+/// `LibrarySort` — typedef String из category_model.dart (1-в-1 с TS-union,
+/// решение #2); `GroupBy` — такой же строковый union отсюда.
 library;
 
 import 'dart:async';
@@ -12,58 +15,50 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../entities/media/model/media_labels.dart';
 import '../../shared/i18n/index.dart';
 import '../../shared/theme/tsundoku_tokens.dart';
 import '../../shared/types/enums.dart';
 import '../../shared/ui/badge.dart';
 import '../../shared/ui/button.dart';
 import '../../shared/ui/popover_menu.dart';
-import '../../entities/media/model/media_labels.dart';
 import '../../shared/ui/total_badge.dart';
+import '../../views/category_model.dart' show LibrarySort;
 
-/// TS-union `LibrarySort` — закрытый набор строк.
-enum LibrarySort {
-  newest('newest'),
-  oldest('oldest'),
-  rating('rating'),
-  title('title');
+/// TS-union `GroupBy = "status" | "franchise" | "all"` — открытый строковый
+/// union (конвенция решения #2).
+typedef GroupBy = String;
 
-  final String wire;
-  const LibrarySort(this.wire);
-}
-
-/// TS-union `GroupBy` — закрытый набор строк.
-enum GroupBy {
-  status('status'),
-  franchise('franchise'),
-  all('all');
-
-  final String wire;
-  const GroupBy(this.wire);
-}
+const String groupByStatus = 'status';
+const String groupByFranchise = 'franchise';
+const String groupByAll = 'all';
 
 /// SORT_ICONS/GROUP_ICONS (script module) — 1-в-1.
-IconData sortIcon(LibrarySort sort) {
+IconData sortIcon(String sort) {
   switch (sort) {
-    case LibrarySort.newest:
+    case 'newest':
       return LucideIcons.arrowDown;
-    case LibrarySort.oldest:
+    case 'oldest':
       return LucideIcons.arrowUp;
-    case LibrarySort.rating:
+    case 'rating':
       return LucideIcons.star;
-    case LibrarySort.title:
+    case 'title':
       return LucideIcons.type;
+    default:
+      return LucideIcons.arrowDown;
   }
 }
 
-IconData groupIcon(GroupBy group) {
+IconData groupIcon(String group) {
   switch (group) {
-    case GroupBy.status:
+    case groupByStatus:
       return LucideIcons.listChecks;
-    case GroupBy.franchise:
+    case groupByFranchise:
       return LucideIcons.tag;
-    case GroupBy.all:
+    case groupByAll:
       return LucideIcons.layoutGrid;
+    default:
+      return LucideIcons.listChecks;
   }
 }
 
@@ -90,7 +85,7 @@ class FilterBar extends ConsumerStatefulWidget {
     super.key,
     required this.status,
     required this.sort,
-    this.groupBy = GroupBy.status,
+    this.groupBy = groupByStatus,
     required this.search,
     this.counts = const {},
     this.totalCount,
@@ -142,22 +137,30 @@ class _FilterBarState extends ConsumerState<FilterBar> {
     final t = ref.watch(tProvider);
     final th = TsundokuTheme.of(context);
 
-    final groupOptions = <PopoverOption<GroupBy>>[
-      for (final g in GroupBy.values)
-        PopoverOption(value: g, label: _groupLabel(g, t), leading: groupIcon(g)),
+    final groupOptions = <PopoverOption<String>>[
+      PopoverOption(
+          value: groupByStatus,
+          label: t.tr('grouping.byStatus'),
+          leading: groupIcon(groupByStatus)),
+      PopoverOption(
+          value: groupByFranchise,
+          label: t.tr('grouping.byFranchise'),
+          leading: groupIcon(groupByFranchise)),
+      PopoverOption(
+          value: groupByAll,
+          label: t.tr('grouping.all'),
+          leading: groupIcon(groupByAll)),
     ];
 
     final statusOptions = <PopoverOption<StatusFilter>>[
-      for (final s in _statuses)
-        PopoverOption(
-            value: s, label: _labelForStatus(s, t)),
+      for (final s in _statuses) PopoverOption(value: s, label: _labelForStatus(s, t)),
     ];
 
     final sortOptions = <PopoverOption<LibrarySort>>[
-      PopoverOption(value: LibrarySort.newest, label: t.tr('sort.newest'), leading: LucideIcons.arrowDown),
-      PopoverOption(value: LibrarySort.oldest, label: t.tr('sort.oldest'), leading: LucideIcons.arrowUp),
-      PopoverOption(value: LibrarySort.rating, label: t.tr('sort.rating'), leading: LucideIcons.star),
-      PopoverOption(value: LibrarySort.title, label: t.tr('sort.title'), leading: LucideIcons.type),
+      PopoverOption(value: 'newest', label: t.tr('sort.newest'), leading: sortIcon('newest')),
+      PopoverOption(value: 'oldest', label: t.tr('sort.oldest'), leading: sortIcon('oldest')),
+      PopoverOption(value: 'rating', label: t.tr('sort.rating'), leading: sortIcon('rating')),
+      PopoverOption(value: 'title', label: t.tr('sort.title'), leading: sortIcon('title')),
     ];
 
     final count = widget.counts[widget.status];
@@ -179,7 +182,7 @@ class _FilterBarState extends ConsumerState<FilterBar> {
               ),
               const SizedBox(width: 8), // gap-2
               // Группировка: icon-only, openOnHover, closeDelay 220.
-              TsundokuPopoverMenu<GroupBy>(
+              TsundokuPopoverMenu<String>(
                 id: 'library-group',
                 options: groupOptions,
                 selected: widget.groupBy,
@@ -256,17 +259,6 @@ class _FilterBarState extends ConsumerState<FilterBar> {
       ),
     );
   }
-
-  String _groupLabel(GroupBy g, I18nDictionary t) {
-    switch (g) {
-      case GroupBy.status:
-        return t.tr('grouping.byStatus');
-      case GroupBy.franchise:
-        return t.tr('grouping.byFranchise');
-      case GroupBy.all:
-        return t.tr('grouping.all');
-    }
-  }
 }
 
 /// icon-only lg-кнопка (secondary, 40px).
@@ -283,7 +275,7 @@ class _IconButtonTrigger extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Кнопка-визуал: тап должен уходить в GestureDetector поповера —
+    // Кнопка — визуал: тап должен уходить в GestureDetector поповера —
     // IgnorePointer исключает кнопку из арены жестов (🐛 #6).
     return Tooltip(
       message: tooltip,
@@ -321,40 +313,40 @@ class _StatusTrigger extends StatelessWidget {
       message: label,
       child: IgnorePointer(
         child: SizedBox(
-        height: 40,
-        child: TsundokuButton(
-          variant: ButtonVariant.secondary,
-          size: ButtonSize.md,
-          onPressed: () {},
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 12, // text-xs
-                  fontWeight: FontWeight.w600, // font-semibold
+          height: 40,
+          child: TsundokuButton(
+            variant: ButtonVariant.secondary,
+            size: ButtonSize.md,
+            onPressed: () {},
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 12, // text-xs
+                    fontWeight: FontWeight.w600, // font-semibold
+                  ),
                 ),
-              ),
-              if (count != null) ...[
+                if (count != null) ...[
+                  const SizedBox(width: 6),
+                  TsundokuBadge(
+                    tone: BadgeTone.neutral,
+                    size: BadgeSize.xs,
+                    child: Text('$count'),
+                  ),
+                ],
                 const SizedBox(width: 6),
-                TsundokuBadge(
-                  tone: BadgeTone.neutral,
-                  size: BadgeSize.xs,
-                  child: Text('$count'),
+                Icon(
+                  LucideIcons.chevronDown, // ChevronDown size={14}
+                  size: 14,
+                  color: th.textMuted, // text-muted
                 ),
               ],
-              const SizedBox(width: 6),
-              Icon(
-                LucideIcons.chevronDown, // ChevronDown size={14}
-                size: 14,
-                color: th.textMuted, // text-muted
-              ),
-            ],
+            ),
           ),
-        ),
         ),
       ),
     );
@@ -410,7 +402,8 @@ class _SearchFieldState extends State<_SearchField> {
               ),
               decoration: InputDecoration(
                 isDense: true,
-                contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
+                contentPadding:
+                    const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
                 hintText: widget.hint, // placeholder
                 hintStyle: TextStyle(color: th.textMuted),
                 filled: true,

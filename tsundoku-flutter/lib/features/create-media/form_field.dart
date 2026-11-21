@@ -89,3 +89,65 @@ TextStyle createFieldTextStyle(TsundokuTheme th) => TextStyle(
 /// Числовой форматтер полей форм (type=number min=0: только цифры).
 TextInputFormatter createNumberFormatter() =>
     FilteringTextInputFormatter.allow(RegExp(r'^\d{0,9}$'));
+
+/// Bindable-текстовое поле форм create/edit (аналог `<input bind:value>`).
+class CreateTextField extends StatefulWidget {
+  final String value;
+  final ValueChanged<String> onChange;
+  final String? hint;
+  final bool number;
+  final TextInputType? keyboardType;
+
+  const CreateTextField({
+    super.key,
+    required this.value,
+    required this.onChange,
+    this.hint,
+    this.number = false,
+    this.keyboardType,
+  });
+
+  @override
+  State<CreateTextField> createState() => _CreateTextFieldState();
+}
+
+class _CreateTextFieldState extends State<CreateTextField> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.value);
+  }
+
+  @override
+  void didUpdateWidget(covariant CreateTextField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.value != oldWidget.value && widget.value != _controller.text) {
+      _controller.value = TextEditingValue(
+        text: widget.value,
+        selection: TextSelection.collapsed(offset: widget.value.length),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final th = TsundokuTheme.of(context);
+    return TextField(
+      controller: _controller,
+      onChanged: widget.onChange,
+      keyboardType:
+          widget.keyboardType ?? (widget.number ? TextInputType.number : null),
+      inputFormatters: widget.number ? [createNumberFormatter()] : null,
+      style: createFieldTextStyle(th),
+      decoration: createFieldDecoration(th, hint: widget.hint),
+    );
+  }
+}

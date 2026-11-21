@@ -142,12 +142,14 @@
 9. `views/HomeView.svelte`;
 10. `widgets/layout/BackgroundJobsModal.svelte` — ✅ ЗАКРЫТ (13/13 Фазы 3).
     Следующий шаг — **Phase Gate Фазы 3** (analyze/test/build linux/build
-    web --wasm), затем **Фаза 4** по порядку зависимостей: detailTypes +
-    detailFormatters уже готовы (Фаза 2 pull-forward); далее relationSources →
-    externalMapping/ratingBadges/relatedMatching (+ их vitest-тесты) →
-    ShowSeasonsView → MediaDetailView → edit-media workspace (ниточки).
+    web --wasm). **Фаза 4 в работе**: чистые модули — detailTypes/
+    detailFormatters (pull-forward) + relationSources. Далее: externalMapping/
+    ratingBadges/relatedMatching (+ vitest-тесты) → виджеты (ProgressStepper →
+    SeasonRow → DetailTabs → sections → tabs → panels → модалки →
+    DetailSidebar) → ShowSeasonsView → MediaDetailView → edit-media
+    workspace (ниточки).
 
-**Прогресс: 110 / 207 файлов**
+**Прогресс: 111 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
@@ -155,9 +157,9 @@
 | 1 — `shared/ui/` | 17 | 17 |
 | 2 — `entities/` + карточки/сетка | 19 | 19 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 13 (ЗАКРЫТА, см. Phase Gate) |
-| 4 — Детальная страница + Spatial Node Editor | 59 | 2 (DetailHeader, ExternalDetailModal) |
+| 4 — Детальная страница + Spatial Node Editor | 59 | 3 (DetailHeader, ExternalDetailModal, relationSources) |
 | 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 0 |
-| **Всего** | **207** | **110** |
+| **Всего** | **207** | **111** |
 
 Долги Фаз 0–2 (не блокируют): —
 seriesProgressControllerProvider no-op-toast → инъекция в Фазе 3 (решение #35);
@@ -370,7 +372,7 @@ Spatial Node Editor; detailTypes/detailFormatters уже готовы pull-forwa
 | 4 | `widgets/media-detail/panels` | `RelatedPreviewModal.svelte` | `lib/widgets/media-detail/panels/related_preview_modal.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `widgets/media-detail` | `ratingBadges.ts` | `lib/widgets/media-detail/rating_badges.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `widgets/media-detail` | `relatedMatching.ts` | `lib/widgets/media-detail/related_matching.dart` | ⬜ Не начат | ⬜ | — |
-| 4 | `widgets/media-detail` | `relationSources.ts` | `lib/widgets/media-detail/relation_sources.dart` | ⬜ Не начат | ⬜ | — |
+| 4 | `widgets/media-detail` | `relationSources.ts` | `lib/widgets/media-detail/relation_sources.dart` | ✅ Готов | ✅ | Whitelist relations-источников (kRelationSources) × включённые пользователем; бакет anime через isAnime/detailFormatters; getSources через sourcesCachePromise (дедуп запросов); ошибка → [] (не роняет caller); 5 тестов полного цикла (stub dio) |
 | 4 | `widgets/media-detail/sections` | `BookEditionSection.svelte` | `lib/widgets/media-detail/sections/book_edition_section.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `widgets/media-detail/sections` | `BookProgressSection.svelte` | `lib/widgets/media-detail/sections/book_progress_section.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `widgets/media-detail/sections` | `CastSection.svelte` | `lib/widgets/media-detail/sections/cast_section.dart` | ⬜ Не начат | ⬜ | — |

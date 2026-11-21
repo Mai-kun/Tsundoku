@@ -200,13 +200,17 @@ class _DetailSidebarState extends ConsumerState<DetailSidebar> {
       _lastMediaJson = widget.media.detailedScoreJson;
       _detailedDraft = parseDetailedScore(widget.media.detailedScoreJson);
     }
-    // ratingOpen → show/hide top-layer портала.
+    // ratingOpen → show/hide top-layer портала. show/hide во время build
+    // запрещены — пост-кадр.
     if (widget.ratingOpen != oldWidget.ratingOpen) {
-      if (widget.ratingOpen && !_ratingPortal.isShowing) {
-        _ratingPortal.show();
-      } else if (!widget.ratingOpen && _ratingPortal.isShowing) {
-        _ratingPortal.hide();
-      }
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        if (widget.ratingOpen && !_ratingPortal.isShowing) {
+          _ratingPortal.show();
+        } else if (!widget.ratingOpen && _ratingPortal.isShowing) {
+          _ratingPortal.hide();
+        }
+      });
     }
   }
 
@@ -1007,20 +1011,27 @@ class _DetailSidebarState extends ConsumerState<DetailSidebar> {
     if (comboScope != null) {
       addRow(Padding(
         padding: const EdgeInsets.symmetric(vertical: 10),
+        // Svelte: dd flex-1 min-w-0 — комбо сжимается на узкой строке.
         child: Row(
           children: [
-            Text(
-              t.tr(comboScope == VoiceOptionScope.read
-                  ? 'detail.readingFormatLabel'
-                  : 'detail.voiceStudioLabel'),
-              style: TextStyle(fontSize: 12, color: th.textMuted),
+            Flexible(
+              child: Text(
+                t.tr(comboScope == VoiceOptionScope.read
+                    ? 'detail.readingFormatLabel'
+                    : 'detail.voiceStudioLabel'),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 12, color: th.textMuted),
+              ),
             ),
-            const Spacer(),
-            _VoiceCombo(
-              state: this,
-              t: t,
-              th: th,
-              isRu: isRu,
+            const SizedBox(width: 12), // gap-3
+            Flexible(
+              child: _VoiceCombo(
+                state: this,
+                t: t,
+                th: th,
+                isRu: isRu,
+              ),
             ),
           ],
         ),

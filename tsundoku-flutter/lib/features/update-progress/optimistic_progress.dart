@@ -128,14 +128,15 @@ final optimisticProgressProvider = NotifierProvider<OptimisticProgressController
     OptimisticProgressState>(OptimisticProgressController.new);
 
 /// Процедурные аналоги экспортируемых функций Svelte-модуля.
-void applyOptimisticProgress(Ref ref, String id, int value) =>
-    ref.read(optimisticProgressProvider.notifier).apply(id, value);
+void applyOptimisticProgress(ProviderContainer container, String id, int value) =>
+    container.read(optimisticProgressProvider.notifier).apply(id, value);
 
-void resolveOptimisticProgress(Ref ref, String id, int confirmed) =>
-    ref.read(optimisticProgressProvider.notifier).resolve(id, confirmed);
+void resolveOptimisticProgress(
+        ProviderContainer container, String id, int confirmed) =>
+    container.read(optimisticProgressProvider.notifier).resolve(id, confirmed);
 
-void clearOptimisticProgress(Ref ref, String id) =>
-    ref.read(optimisticProgressProvider.notifier).clear(id);
+void clearOptimisticProgress(ProviderContainer container, String id) =>
+    container.read(optimisticProgressProvider.notifier).clear(id);
 
 int? peekOptimisticProgress(ProviderContainer ref, String id) =>
     ref.read(optimisticProgressProvider.notifier).peek(id);

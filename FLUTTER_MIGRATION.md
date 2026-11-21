@@ -126,23 +126,37 @@
 
 ## 📍 Текущий фокус / Next Step
 
-**Статус:** Фазы 0 и 1 закрыты (Phase Gate зелёные). Фаза 2 в работе:
-`entities/media/ui` — ЗАВЕРШЕНА (4/4); `widgets/media-card` — ЗАВЕРШЕНА
-(10/10). Далее — `widgets/media-grid` (gridLayout.svelte.ts → SectionRow →
-MediaGrid; virtualGrid ⏭️ — native GridView, поведение окна удаления
-проверяется golden-ами).
+**Статус:** Фазы 0, 1 и 2 ЗАКРЫТЫ (Phase Gate зелёные). Следующая — **Фаза 3**
+(каркас: App/Layout/Home/Category, 13 файлов). Порядок Фазы 3 (сверху по
+зависимостям):
+1. `widgets/layout/ToastContainer.svelte` (toast-провайдер готов);
+2. `widgets/layout/Sidebar.svelte` (navigationCategories/viewport/uiSettings);
+3. `widgets/layout/Header.svelte` → `widgets/layout/ActivityDropdown.svelte`;
+4. `widgets/layout/BackgroundJobsModal.svelte` (jobsClient готов);
+5. `widgets/layout/CloseAppModal.svelte` (appExit);
+6. `widgets/layout/AppShell.svelte` (композит: sidebar+header+тосты,
+   window_manager за платформенным фасадом §1.3);
+7. `app/main.dart` + `app/app.dart` (ProviderScope/MaterialApp/темы/навигация);
+8. `features/filter-and-sort/FilterBar.svelte`;
+9. `views/CategoryView.svelte` (+ `views/__tests__/CategoryView.test.ts` — TDD);
+10. `views/HomeView.svelte`.
 
-**Прогресс: 78 / 207 файлов**
+**Прогресс: 93 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
 | 0 — Фундамент (типы/API/модели/логика/тема) | 58 | 58 |
 | 1 — `shared/ui/` | 17 | 16 (открыт ConfirmModal) |
-| 2 — `entities/` + карточки/сетка | 19 | 14 |
+| 2 — `entities/` + карточки/сетка | 19 | 19 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 0 |
 | 4 — Детальная страница + Spatial Node Editor | 59 | 0 |
 | 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 0 |
-| **Всего** | **207** | **88** |
+| **Всего** | **207** | **93** |
+
+Долги Фаз 0–2 (не блокируют): ConfirmModal (Фаза 1, единственный ⬜);
+seriesProgressControllerProvider no-op-toast → инъекция в Фазе 3 (решение #35);
+golden media_grid_books — regression-backstop, попиксельное сравнение со
+Svelte-эталоном — после починки node/harness (см. Заметки окружения #2).
 
 > Сверка 2026-11-21: пересчёт по таблице скриптом. Прежние числа (68/53/15)
 > не сходились с фактическими статусами — 10 строк `entities/media/model`
@@ -157,6 +171,12 @@ build linux --debug ✓, build web --wasm ✓ (dart:io не протёк). Фа�
 build linux --debug ✓, build web --wasm ✓. Фаза 1 ЗАКРЫТА. Далее — **Фаза 2**
 (`entities/media/ui` 4 файла → `widgets/media-card` 10 → `widgets/media-grid` 5,
 включая virtualGrid ⏭️).
+
+**Phase Gate Фазы 2 — ЗЕЛЁНЫЙ (2026-11-21):** analyze 0 issues, 489/489 тестов
+(+golden media_grid_books — regression-backstop окна монтирования virtualGrid
+⏭️), build linux --debug ✓, build web --wasm ✓ (dart:io не протёк —
+PlatformService за условным экспортом). Фаза 2 ЗАКРЫТА. Далее — **Фаза 3**
+(см. порядок выше).
 
 ---
 

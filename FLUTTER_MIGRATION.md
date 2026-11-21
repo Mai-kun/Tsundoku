@@ -144,17 +144,17 @@
     Фазу 4: тянет ExternalDetailModal → DetailHeader (Фаза 4), каскад
     раньше времени ломает порядок; портится сразу после этих двух.
 
-**Прогресс: 100 / 207 файлов**
+**Прогресс: 101 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
 | 0 — Фундамент (типы/API/модели/логика/тема) | 58 | 58 |
 | 1 — `shared/ui/` | 17 | 17 |
 | 2 — `entities/` + карточки/сетка | 19 | 19 |
-| 3 — Каркас: App/Layout/Home/Category | 13 | 6 |
+| 3 — Каркас: App/Layout/Home/Category | 13 | 7 |
 | 4 — Детальная страница + Spatial Node Editor | 59 | 0 |
 | 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 0 |
-| **Всего** | **207** | **100** |
+| **Всего** | **207** | **101** |
 
 Долги Фаз 0–2 (не блокируют): —
 seriesProgressControllerProvider no-op-toast → инъекция в Фазе 3 (решение #35);
@@ -321,7 +321,7 @@ PlatformService за условным экспортом). Фаза 2 ЗАКРЫ
 | 0 | `views` | `categoryModel.ts` | `lib/views/category_model.dart` | ✅ Готов | ✅ | buildStatusGroups/filterByStatus (0-safe buckets, численное сравнение статусов), categoryFilters (promoted → parent+subId, anime/tvshow/movie), sortFilters; MediaFilters.copyWithFields добавлен; кейсы vitest-теста |
 | 5 | `widgets/goals` | `GoalCard.svelte` | `lib/widgets/goals/goal_card.dart` | ⬜ Не начат | ⬜ | — |
 | 3 | `widgets/layout` | `ActivityDropdown.svelte` | `lib/widgets/layout/activity_dropdown.dart` | ✅ Готов | ✅ | OverlayPortal-поповер (anchor bottom+8/right → RenderBox); connect на монтировании (сокет глобальный), лимиты: countdown 1s + poll 10s live при открытом поповере; очередь с прогресс-барами/отменой; pending-review; спин 3s/1s AnimationController; тест-хук setPendingMatchesForTest; 6 тестов |
-| 3 | `widgets/layout` | `AppShell.svelte` | `lib/widgets/layout/app_shell.dart` | ⬜ Не начат | ⬜ | — |
+| 3 | `widgets/layout` | `AppShell.svelte` | `lib/widgets/layout/app_shell.dart` | ✅ Готов | ✅ | Десктоп: aside 240px (border-r px-3 py-5) + main (header h-14 border-b + p-6, noPadding → фулл-высота); мобайл: рельса снизу (border-t px-2 py-2); оверлеи Stack: ContextMenu/ImageLightbox/ListPicker (activeListPickerMediaId)/ToastContainer; mainRef → mainScrollController; data-widget → внутренние Keys appshell-*; Column stretch (RenderFlex-фикс); 4 теста |
 | 3 | `widgets/layout` | `BackgroundJobsModal.svelte` | `lib/widgets/layout/background_jobs_modal.dart` | ⬜ Не начат | ⬜ | — |
 | 3 | `widgets/layout` | `CloseAppModal.svelte` | `lib/widgets/layout/close_app_modal.dart` | ✅ Готов | ✅ | Оверлей выбора: tray (indigo)/exit (rose) radio-карточки (ring через BoxShadow), Apply → exitApp/closeToTray (биндинги App: AppExit + closeWindow/showToast — колбек-паттерн appExit), Cancel/Esc → onClose; 4 теста |
 | 3 | `widgets/layout` | `Header.svelte` | `lib/widgets/layout/header.dart` | ✅ Готов | ✅ | Заголовок w-56 truncate; строго центрированный поиск через Stack (sm-шторка 28/32rem + kbd Ctrl K; <640 — icon-only); офлайн-бейдж; ActivityDropdown right-of-search; правый кластер: спиннер (networkActivityLoading || activeJobs), язык PopoverMenu bottom-end (RU/EN → setLocale), Power; 7 тестов |

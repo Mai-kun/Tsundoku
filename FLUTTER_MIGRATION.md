@@ -150,7 +150,7 @@
     MediaActivity/OverwriteConfirm/RelinkSource) → DetailSidebar →
     ShowSeasonsView → MediaDetailView → edit-media workspace (ниточки).
 
-**Прогресс: 139 / 207 файлов**
+**Прогресс: 140 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
@@ -158,9 +158,9 @@
 | 1 — `shared/ui/` | 17 | 17 |
 | 2 — `entities/` + карточки/сетка | 19 | 19 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 13 (ЗАКРЫТА, см. Phase Gate) |
-| 4 — Детальная страница + Spatial Node Editor | 59 | 31 (+ RelatedPanel/RelationLoadButton/RelatedTab/RecommendationsTab) |
+| 4 — Детальная страница + Spatial Node Editor | 59 | 32 (+ GalleryTab) |
 | 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 0 |
-| **Всего** | **207** | **139** |
+| **Всего** | **207** | **140** |
 
 Долги Фаз 0–2 (не блокируют): —
 seriesProgressControllerProvider no-op-toast → инъекция в Фазе 3 (решение #35);
@@ -391,7 +391,7 @@ Spatial Node Editor; detailTypes/detailFormatters уже готовы pull-forwa
 | 4 | `widgets/media-detail/sections` | `TrailerSection.svelte` | `lib/widgets/media-detail/sections/trailer_section.dart` | ✅ Готов | ✅ | YouTube-thumbnail + Play (hover scale 1.03, red-600/90); iframe недоступен без webview — Play открывает embed-URL через PlatformService.openExternalUrl (решение #48, фасад §1.3); без трейлера — заглушка Film/panel-line/40; 3 теста |
 | 4 | `widgets/media-detail/sections` | `TvShowProgressSection.svelte` | `lib/widgets/media-detail/sections/tv_show_progress_section.dart` | ✅ Готов | ✅ | Минуты/серия: episodeDurationMinutes → durationMinutes → 24; tooltip total «Сезон N: M · …» для multi-season (seasons на MediaDetail); effectiveTotal: totalEpisodes/progress.total; indigo-акцент, pace [1,2,3,5] дефолт 2; тесты в book_tv_progress_sections_test |
 | 4 | `widgets/media-detail/tabs` | `EpisodesTab.svelte` | `lib/widgets/media-detail/tabs/episodes_tab.dart` | ⬜ Не начат | ⬜ | — |
-| 4 | `widgets/media-detail/tabs` | `GalleryTab.svelte` | `lib/widgets/media-detail/tabs/gallery_tab.dart` | ⬜ Не начат | ⬜ | — |
+| 4 | `widgets/media-detail/tabs` | `GalleryTab.svelte` | `lib/widgets/media-detail/tabs/gallery_tab.dart` | ✅ Готов | ✅ | Загрузка через pickFile-фасад; lightbox по тапу; context-menu (view/reveal/copy-image→copyImagePng/copy-url/download→saveFile/set-cover/delete) — 1-в-1 пункты; delete через confirmDialog; сетка 2/3/4, thumb через baseUrl-склейку (#25) + errorBuilder; Ctrl+V-paste ⏭️ (window-событие браузера, решение #52); 2 теста |
 | 4 | `widgets/media-detail/tabs` | `OverviewTab.svelte` | `lib/widgets/media-detail/tabs/overview_tab.dart` | ✅ Готов | ✅ | Лестница блоков: две независимые колонки lg (Row/Expanded) / один поток order-1..9 (display: contents); диспетчер прогресса по типу (game/book/manga/tvshow/movie/stepper/статус-плашка); creator-дерево (movie/tvshow/book/manga/game); QuotesSection при showQuotes; MediaFiles/LinkedSources с type-переключателем anime; 5 тестов |
 | 4 | `widgets/media-detail/tabs` | `RecommendationsTab.svelte` | `lib/widgets/media-detail/tabs/recommendations_tab.dart` | ✅ Готов | ✅ | Сетка 2/3/4/5 колонок, proxiedExternalCoverUrl, ★ toFixed(1), плейсхолдер ImageIcon; 2 теста |
 | 4 | `widgets/media-detail/tabs` | `RelatedTab.svelte` | `lib/widgets/media-detail/tabs/related_tab.dart` | ✅ Готов | ✅ | Тонкая обёртка над RelatedPanel (пропс-проброс); тест в recommendations_related_tabs_test |
@@ -474,6 +474,7 @@ Spatial Node Editor; detailTypes/detailFormatters уже готовы pull-forwa
 | 32 | `widgets/media-card/BaseCard.svelte` | navigator.clipboard / document-download-anchor / window.open — браузерные API; §1.3 требует платформенный фасад | `lib/shared/platform/`: PlatformService (copyText/copyImagePng/saveFile/openExternalUrl) + условный экспорт io (super_clipboard + file_picker.saveFile + url_launcher) / web (package:web) / stub; wasm-билд зелёный — dart:io не протёк | Проверено `flutter build web --wasm`; ревью не требуется |
 | 44 | `widgets/media-detail/DetailHeader.svelte` | Раскрытие синопсиса — измеренный px (collapsedSynopsisHeight/scrollHeight + transition-[height] + transitionend→auto); inline-SVG AniList и Star с fill="currentColor" | Анимация → AnimatedSize 200ms (аналог grid-rows 0fr→1fr по поведению); clamp — maxLines 4 + ellipsis; AniList-путь перенесён 1-в-1 в CustomPaint (24→14 масштаб); Star — lucide-шрифт-иконка без fill (#26); sourceBadgeClasses — внутренний вызов mediaLabels вместо пропа | Ревью не требуется |
 | 46 | `widgets/layout/BackgroundJobsModal.svelte` | Svelte мутирует jobsClient напрямую (`modalTab = …`, `pendingMatches = []`); hotkeys — svelte:window c isTextEntry(target) | jobsClient: аддитивные setModalTab/clearPendingMatches; hotkeys → Focus(autofocus, onKeyEvent) на модалке — Flutter сам не доставляет consumed-клавиши из TextField'ов (InsertContent), гвард _isTextEntryFocused (EditableText-предок) — двойная защита 1-в-1 с Svelte; сетка кандидатов grid-cols-2 → LayoutBuilder+Wrap (grid stretch не переносится — Spacer убран); баннер/статусы — точные i18n-ключи | Ревью не требуется |
+| 52 | `widgets/media-detail/tabs/GalleryTab.svelte` | window paste-listener (Ctrl+V из ClipboardItem-blob) — браузерное событие | ⏭️ Долг: для вставки скриншота из буфера нужен метод фасада pasteImage() (super_clipboard читает image/png на io; web — ClipboardItem через package:web); +кнопка (pickFile) покрывает функциональность загрузки | Ревью не требуется |
 | 51 | `widgets/media-detail/sections/MediaFilesSection.svelte` | Drag&drop-зона (ondragover/ondrop) требует desktop_drop за фасадом §1.3 | ⏭️ Долг: дроп-зона требует PlatformDropZone-виджет в фасаде (условный импорт desktop_drop/package:web); +кнопка (pickFile) функционально покрывает прикрепление; визуал секции 1-в-1 | Дроп-зона — при первом задействовании desktop_drop; ревью не требуется |
 | 50 | `widgets/media-detail/sections/QuickFactsSection.svelte` | `Intl.DisplayNames` (языки/регионы) недоступен в Dart | Статичные карты литералов из Svelte (10 языков) + карта регионов; фолбэк на сырой код; флаги — regional-indicator codePoints (тот же алгоритм, что в Svelte) | Полный ICU-набор — тяжёлая зависимость; ревью по желанию |
 | 49 | `widgets/media-detail/sections/QuotesSection.svelte` | Svelte мутирует media.quotesJson на месте ($state-объект общий) — Dart MediaDetail read-only | Локальный optimistic-список + колбек onQuotesJsonChanged(nextJson) для родителя; откат при ошибке обновляет и локал, и колбек; попутно UpdateMediaPayload-конструктор получил optional-поля (Partial 1-в-1) | Ревью не требуется |

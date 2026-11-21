@@ -771,6 +771,10 @@ class TsundokuApi {
     return _exportBytes('$mediaEndpoint/$id/files/$encoded/download');
   }
 
+  /// Байты произвольного серверного пути (галерея: entry.originalUrl →
+  /// fetch→blob→clipboard/saveFile в Svelte).
+  Future<Uint8List> downloadMediaFileBytes(String path) => _exportBytes(path);
+
   /// Привязанные внешние источники (LinkedSourcesSection использует сырой
   /// apiFetch — здесь типизированные методы).
   Future<List<Map<String, dynamic>>> getLinkedSources(String id) {

@@ -14,6 +14,8 @@
 ///   (YAGNI) — сериализация только для payload'ов запросов.
 library;
 
+import 'dart:convert';
+
 import 'enums.dart';
 
 // ---------------------------------------------------------------------------
@@ -32,8 +34,25 @@ bool? _bool(Object? v) => v as bool?;
 List<String>? _strOrList(Object? v) {
   if (v == null) return null;
   if (v is String) {
-    if (v.isEmpty) return const <String>[];
-    return v.split(',').map((g) => g.trim()).toList();
+    final trimmed = v.trim();
+    if (trimmed.isEmpty) return const <String>[];
+    // Часть источников шлёт JSON-массив строкой — распаковываем до
+    // split(','), иначе элементы ломаются ('["Фэнтези","Драма"]'). 1-в-1 с
+    // parseGenresList из detailFormatters.ts.
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+      try {
+        final decoded = jsonDecode(trimmed);
+        if (decoded is List) {
+          return decoded
+              .map((g) => g.toString().trim())
+              .where((g) => g.isNotEmpty)
+              .toList();
+        }
+      } catch (_) {
+        // Не JSON — split ниже.
+      }
+    }
+    return trimmed.split(',').map((g) => g.trim()).toList();
   }
   return (v as List<Object?>).cast<String>().toList();
 }

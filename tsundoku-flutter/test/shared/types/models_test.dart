@@ -81,6 +81,25 @@ void main() {
       expect(m.genres, ['Metroidvania', 'Indie']);
     });
 
+    test('genres строкой: JSON-массив распаковывается, запятые нормализуются',
+        () {
+      // Источники шлют JSON-массив строкой — split(',') ломал бы элементы
+      // (1-в-1 с parseGenresList из detailFormatters.ts).
+      final jsonArr = MediaItem.fromJson(<String, dynamic>{
+        ...gameJson,
+        'genres': '["Фэнтези","Драма"]',
+        'tags': 'платформер, souls-like',
+      });
+      expect(jsonArr.genres, ['Фэнтези', 'Драма']);
+      expect(jsonArr.tags, ['платформер', 'souls-like']);
+      // Не-JSON строка → прежний split(',')-путь.
+      final plain = MediaItem.fromJson(<String, dynamic>{
+        ...gameJson,
+        'genres': 'Action, RPG',
+      });
+      expect(plain.genres, ['Action', 'RPG']);
+    });
+
     test('toJson(fromJson(json)) == json в канонической форме (нормализация)', () {
       final m = MediaItem.fromJson(gameJson);
       // string[]|string нормализуется в список (решение #3), поэтому сравнение

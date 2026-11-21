@@ -148,11 +148,11 @@
     ProgressStepper ✅ → SeasonRow ✅ → SyncRowsSkeleton ✅ → DetailTabs ✅ →
     DetailHeader/ExternalDetailModal (pull-forward) ✅ → sections/* ✅ →
     tabs/* ✅ → panels/* ✅ → модалки: MediaActivity ✅ / OverwriteConfirm ✅ /
-    CoverManager ✅. Следующий файл — **FillMissingModal**, далее
-    RelinkSourceModal → DetailSidebar → ShowSeasonsView → MediaDetailView
+    CoverManager ✅ / FillMissing ✅. Следующий файл — **RelinkSourceModal**,
+    далее DetailSidebar → ShowSeasonsView → MediaDetailView
     → edit-media workspace (ниточки).
 
-**Прогресс: 145 / 207 файлов**
+**Прогресс: 146 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
@@ -160,9 +160,9 @@
 | 1 — `shared/ui/` | 17 | 17 |
 | 2 — `entities/` + карточки/сетка | 19 | 19 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 13 (ЗАКРЫТА, см. Phase Gate) |
-| 4 — Детальная страница + Spatial Node Editor | 59 | 37 |
+| 4 — Детальная страница + Spatial Node Editor | 59 | 38 |
 | 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 0 |
-| **Всего** | **207** | **145** |
+| **Всего** | **207** | **146** |
 
 Долги Фаз 0–2 (не блокируют): —
 seriesProgressControllerProvider no-op-toast → инъекция в Фазе 3 (решение #35);
@@ -357,7 +357,7 @@ Spatial Node Editor; detailTypes/detailFormatters уже готовы pull-forwa
 | 4 | `widgets/media-detail` | `DetailSidebar.svelte` | `lib/widgets/media-detail/detail_sidebar.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `widgets/media-detail` | `DetailTabs.svelte` | `lib/widgets/media-detail/detail_tabs.dart` | ✅ Готов | ✅ | TabBar (isScrollable — thin-scroll) с label-индикатором = скользящее подчёркивание (h-0.5 accent, 200ms); эпизоды только у tvshow с бейджем current/total; gallery/related бейджи при count>0; Sparkles 14 на рекомендациях; aria-label Sections → Semantics; 5 тестов |
 | 4 | `widgets/media-detail` | `ExternalDetailModal.svelte` | `lib/widgets/media-detail/external_detail_modal.dart` | ✅ Готов | ✅ | ⬆️ Вытащен вперёд (зависимость BackgroundJobsModal): merge деталей поверх hit (stripEmpty 1-в-1, непустые поля побеждают); loading — спиннер+текст сверху, actions скрыты до ответа ({#if !(loading && !details)}); max-h-[88vh] → ConstrainedBox(0.88×высота окна) + Column(min) shrink-wrap; lg-брейкпоинт ≥1024: Row/aside w-64 + постер w-full, мобайл — Column + постер w-40 mx-auto; spec-строки: divide-y white/5 + first:pt-0 last:pb-0; `.panel` raw CSS (border white/0.06 + shadow 0 4px 12px/0.35, p-4) — не TsundokuPanel; рейтинги: дедуп lowercase + fallback одиночного score; эпизоды: uppercase-заголовок, max-h-56 pr-1, фолбэк episodeTitle; X-кнопка hover bg-elevated/text-ink + Semantics common.close; didUpdateWidget по hit-key (поздний ответ не перезапишет чужой hit, решение #45) + сброс imgError на смене coverUrl; translateText — Dart-API возвращает строку напрямую; 6 тестов полного цикла (loading/merge/ошибка/translate/expandable/dedup) |
-| 4 | `widgets/media-detail` | `FillMissingModal.svelte` | `lib/widgets/media-detail/fill_missing_modal.dart` | ⬜ Не начат | ⬜ | — |
+| 4 | `widgets/media-detail` | `FillMissingModal.svelte` | `lib/widgets/media-detail/fill_missing_modal.dart` | ✅ Готов | ✅ | SOURCES_BY_TYPE по wire-типу, enabled-фильтр getSources; selected-каскад source → currentSource (value/label, ci) → первый; предпросмотр candidateFields по типу (cover/synopsis/genres/studio|author|director/release/endDate/duration|pages|chapters/trailer/cast-заглушка), ✓ + «будет заполнено» / «нет данных»; skелетон min(len‖3,4); AbortController → CancelToken ($effect-аналог с ключом isOpen|id|type|source — перезапуск и при загрузке sources, и при смене в поповере); PopoverMenu bottom-end max-w-220 hover track-faint; 9 тестов полного цикла + golden-бэкстоп (happy-path)
 | 4 | `widgets/media-detail` | `MediaActivityModal.svelte` | `lib/widgets/media-detail/media_activity_modal.dart` | ✅ Готов | ✅ | История активности: showDatePicker вместо input[type=date], лента событий (иконки historyEventIcons, formatHistoryTime/Date), optimistic delete через confirmDialog + rollback prevEvents (1-в-1 с Svelte), requestSequence-гвард stale-ответов, скелетон/error/empty-ветки; 4 теста |
 | 4 | `widgets/media-detail` | `OverwriteConfirmModal.svelte` | `lib/widgets/media-detail/overwrite_confirm_modal.dart` | ✅ Готов | ✅ | Диалог перезаписи: safe (accent, hover accent-hover) / full (muted, hover rose) / отмена; busy-disabled все три; 3 теста |
 | 4 | `widgets/media-detail` | `ProgressStepper.svelte` | `lib/widgets/media-detail/progress_stepper.dart` | ✅ Готов | ✅ | Тонкая обёртка ProgressCard: theme-акцент, unitShort='', minsPerUnit=null (без времени), paceOptions=[], startHint=progress.startGeneric; 4 теста (Start/кольцо/counterChange/без времени) |

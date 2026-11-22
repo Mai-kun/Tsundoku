@@ -1,7 +1,26 @@
+/// 1:1 port of `mediatracker-ui/src/features/settings/SettingsModal.svelte`.
+///
+/// Основной вид настроек:
+/// - Левая боковая панель с навигацией по 10 вкладкам (источники, поиск, бэкап,
+///   импорт, темп чтения, обновление, хранилище, внешний вид, десктоп, API-токены).
+/// - Мобильный адаптивный режим с горизонтальной панелью вкладок (< 700px).
+/// - Полная интеграция всех 10 вкладок без заглушек.
+library;
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../features/settings/tabs/appearance_tab.dart';
+import '../features/settings/tabs/api_tokens_tab.dart';
+import '../features/settings/tabs/backup_tab.dart';
+import '../features/settings/tabs/desktop_tab.dart';
+import '../features/settings/tabs/import_tab.dart';
+import '../features/settings/tabs/reading_tab.dart';
+import '../features/settings/tabs/search_tab.dart';
+import '../features/settings/tabs/sources_tab.dart';
+import '../features/settings/tabs/storage_tab.dart';
+import '../features/settings/tabs/update_tab.dart';
 import '../shared/i18n/index.dart';
 import '../shared/theme/tsundoku_tokens.dart';
 
@@ -127,6 +146,34 @@ class SettingsViewState extends ConsumerState<SettingsView> {
     }
   }
 
+  Widget _buildTabContent(SettingsTab tab) {
+    switch (tab) {
+      case SettingsTab.sources:
+        return SourcesTab(onTestSearch: widget.onTestSearch);
+      case SettingsTab.search:
+        return const SearchTab();
+      case SettingsTab.backup:
+        return const BackupTab();
+      case SettingsTab.importTab:
+        return ImportTab(
+          onImportCompleted: widget.onImportCompleted,
+          onNavigateToList: widget.onNavigateToList,
+        );
+      case SettingsTab.reading:
+        return const ReadingTab();
+      case SettingsTab.update:
+        return const UpdateTab();
+      case SettingsTab.storage:
+        return const StorageTab();
+      case SettingsTab.appearance:
+        return const AppearanceTab();
+      case SettingsTab.desktop:
+        return const DesktopTab();
+      case SettingsTab.apiTokens:
+        return const ApiTokensTab();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = ref.watch(tProvider);
@@ -161,69 +208,53 @@ class SettingsViewState extends ConsumerState<SettingsView> {
                   itemBuilder: (context, index) {
                     final tab = SettingsTab.values[index];
                     final isActive = tab == _activeTab;
-                    return InkWell(
-                      onTap: () => setTab(tab),
-                      borderRadius: BorderRadius.circular(8),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: isActive
-                              ? tokens.accent.withAlpha(38)
-                              : tokens.bgCard,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: isActive
-                                ? tokens.accent.withAlpha(76)
-                                : Colors.white.withAlpha(15),
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              _tabIcon(tab),
-                              size: 15,
-                              color: isActive
-                                  ? tokens.accentSoft
-                                  : tokens.textMuted,
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              _tabLabel(tab, t),
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: isActive
-                                    ? FontWeight.bold
-                                    : FontWeight.normal,
-                                color: isActive
-                                    ? tokens.accentSoft
-                                    : tokens.textMuted,
-                              ),
-                            ),
-                          ],
+
+                    return ChoiceChip(
+                      selected: isActive,
+                      avatar: Icon(
+                        _tabIcon(tab),
+                        size: 14,
+                        color: isActive ? Colors.white : tokens.textMuted,
+                      ),
+                      label: Text(
+                        _tabLabel(tab, t),
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+                          color: isActive ? Colors.white : tokens.textMuted,
                         ),
                       ),
+                      selectedColor: tokens.accent,
+                      backgroundColor: tokens.bgSurface,
+                      side: BorderSide(
+                        color: isActive ? tokens.accent : Colors.white.withAlpha(20),
+                      ),
+                      onSelected: (selected) {
+                        if (selected) setTab(tab);
+                      },
                     );
                   },
                 ),
               ),
-              const SizedBox(height: 16),
+
+              const Divider(color: Color(0x14FFFFFF), height: 1),
+
+              // Content area
               Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(16),
-                  child: _buildSectionContent(_activeTab, t, tokens),
+                child: Container(
+                  color: tokens.bgCanvas,
+                  child: _buildTabContent(_activeTab),
                 ),
               ),
             ],
           );
         }
 
-        // Desktop 2-column layout matching Svelte embedded mode
+        // Desktop two-column layout (sidebar + content)
         return Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Left sidebar navigation (w-64)
+            // Left sidebar tab navigation
             Container(
               width: 240,
               decoration: BoxDecoration(
@@ -244,17 +275,12 @@ class SettingsViewState extends ConsumerState<SettingsView> {
                     onTap: () => setTab(tab),
                     borderRadius: BorderRadius.circular(8),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                       decoration: BoxDecoration(
-                        color: isActive
-                            ? tokens.accent.withAlpha(38)
-                            : Colors.transparent,
+                        color: isActive ? tokens.accent.withAlpha(38) : Colors.transparent,
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                          color: isActive
-                              ? tokens.accent.withAlpha(76)
-                              : Colors.transparent,
+                          color: isActive ? tokens.accent.withAlpha(76) : Colors.transparent,
                         ),
                       ),
                       child: Row(
@@ -262,9 +288,7 @@ class SettingsViewState extends ConsumerState<SettingsView> {
                           Icon(
                             _tabIcon(tab),
                             size: 16,
-                            color: isActive
-                                ? tokens.accentSoft
-                                : tokens.textMuted,
+                            color: isActive ? tokens.accentSoft : tokens.textMuted,
                           ),
                           const SizedBox(width: 12),
                           Expanded(
@@ -272,12 +296,8 @@ class SettingsViewState extends ConsumerState<SettingsView> {
                               _tabLabel(tab, t),
                               style: TextStyle(
                                 fontSize: 13,
-                                fontWeight: isActive
-                                    ? FontWeight.w600
-                                    : FontWeight.normal,
-                                color: isActive
-                                    ? tokens.accentSoft
-                                    : tokens.textMuted,
+                                fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+                                color: isActive ? tokens.accentSoft : tokens.textMuted,
                               ),
                             ),
                           ),
@@ -293,73 +313,12 @@ class SettingsViewState extends ConsumerState<SettingsView> {
             Expanded(
               child: Container(
                 color: tokens.bgCanvas,
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(32),
-                  child: _buildSectionContent(_activeTab, t, tokens),
-                ),
+                child: _buildTabContent(_activeTab),
               ),
             ),
           ],
         );
       },
-    );
-  }
-
-  Widget _buildSectionContent(
-    SettingsTab tab,
-    I18nDictionary t,
-    TsundokuTheme tokens,
-  ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: tokens.accent.withAlpha(38),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: tokens.accent.withAlpha(76)),
-              ),
-              child: Icon(_tabIcon(tab), size: 20, color: tokens.accentSoft),
-            ),
-            const SizedBox(width: 14),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _tabLabel(tab, t),
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: tokens.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  t.tr('settingsModal.title'),
-                  style: TextStyle(fontSize: 12, color: tokens.textMuted),
-                ),
-              ],
-            ),
-          ],
-        ),
-        const SizedBox(height: 24),
-        Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: tokens.bgCard,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.white.withAlpha(15)),
-          ),
-          child: Text(
-            '${_tabLabel(tab, t)}: секция настроек',
-            style: TextStyle(fontSize: 14, color: tokens.textMuted),
-          ),
-        ),
-      ],
     );
   }
 }

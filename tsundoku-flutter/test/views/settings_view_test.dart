@@ -1,9 +1,70 @@
+import 'dart:convert';
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tsundoku_flutter/features/settings/tabs/appearance_tab.dart';
+import 'package:tsundoku_flutter/features/settings/tabs/backup_tab.dart';
+import 'package:tsundoku_flutter/features/settings/tabs/search_tab.dart';
+import 'package:tsundoku_flutter/features/settings/tabs/sources_tab.dart';
+import 'package:tsundoku_flutter/shared/api/api.dart';
 import 'package:tsundoku_flutter/shared/i18n/index.dart';
 import 'package:tsundoku_flutter/shared/theme/tsundoku_theme.dart';
 import 'package:tsundoku_flutter/views/settings_view.dart';
+
+class _CapturingAdapter implements HttpClientAdapter {
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<List<int>>? requestStream,
+    Future<void>? cancelFuture,
+  ) async {
+    final path = options.path;
+
+    if (path.contains('/api/settings/sources')) {
+      return ResponseBody.fromString('[]', 200, headers: {Headers.contentTypeHeader: ['application/json']});
+    }
+    if (path.contains('/api/settings/offline-databases')) {
+      return ResponseBody.fromString(
+        jsonEncode({
+          'isEnabled': false,
+          'databases': [],
+          'lastScannedAt': null,
+          'isIndexing': false,
+        }),
+        200,
+        headers: {Headers.contentTypeHeader: ['application/json']},
+      );
+    }
+    if (path.contains('/api/settings/proxy')) {
+      return ResponseBody.fromString(
+        jsonEncode({
+          'enabled': false,
+          'proxyUrl': '',
+          'hasPassword': false,
+          'username': null,
+        }),
+        200,
+        headers: {Headers.contentTypeHeader: ['application/json']},
+      );
+    }
+    if (path.contains('/api/settings/category-order')) {
+      return ResponseBody.fromString('[]', 200, headers: {Headers.contentTypeHeader: ['application/json']});
+    }
+    if (path.contains('/api/settings/navigation-categories')) {
+      return ResponseBody.fromString('[]', 200, headers: {Headers.contentTypeHeader: ['application/json']});
+    }
+    if (path.contains('/api/settings/source-priority')) {
+      return ResponseBody.fromString('{}', 200, headers: {Headers.contentTypeHeader: ['application/json']});
+    }
+
+    return ResponseBody.fromString('{}', 200, headers: {Headers.contentTypeHeader: ['application/json']});
+  }
+
+  @override
+  void close({bool force = false}) {}
+}
 
 Widget _buildTestSubject({
   SettingsTab initialTab = SettingsTab.sources,
@@ -18,9 +79,12 @@ Widget _buildTestSubject({
     void Function(String sourceId, String? type)? onTestSearch,
   )? panelBuilder,
 }) {
+  final dio = Dio()..httpClientAdapter = _CapturingAdapter();
+
   return ProviderScope(
     overrides: [
       tProvider.overrideWithValue(const I18nDictionary(Locale.ru)),
+      apiClientProvider.overrideWithValue(TsundokuApi(dio)),
     ],
     child: MaterialApp(
       theme: buildTsundokuTheme(),
@@ -38,6 +102,10 @@ Widget _buildTestSubject({
 }
 
 void main() {
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+  });
+
   testWidgets('renders default initial tab (sources) in desktop mode',
       (tester) async {
     tester.view.physicalSize = const Size(1200, 900);
@@ -48,14 +116,14 @@ void main() {
     await tester.pumpAndSettle();
 
     // Sidebar navigation contains tabs
-    expect(find.text('Источники'), findsWidgets); // tab + header
+    expect(find.text('Источники'), findsWidgets);
     expect(find.text('Поиск'), findsOneWidget);
     expect(find.text('Резервная копия'), findsOneWidget);
     expect(find.text('Внешний вид'), findsOneWidget);
     expect(find.text('Хранилище'), findsOneWidget);
 
-    // Section content
-    expect(find.text('Источники: секция настроек'), findsOneWidget);
+    // Section content is real SourcesTab
+    expect(find.byType(SourcesTab), findsOneWidget);
   });
 
   testWidgets('respects custom initialTab (e.g. appearance)', (tester) async {
@@ -68,7 +136,7 @@ void main() {
     ));
     await tester.pumpAndSettle();
 
-    expect(find.text('Внешний вид: секция настроек'), findsOneWidget);
+    expect(find.byType(AppearanceTab), findsOneWidget);
   });
 
   testWidgets('switching tabs updates active tab and content', (tester) async {
@@ -79,19 +147,19 @@ void main() {
     await tester.pumpWidget(_buildTestSubject());
     await tester.pumpAndSettle();
 
-    expect(find.text('Источники: секция настроек'), findsOneWidget);
+    expect(find.byType(SourcesTab), findsOneWidget);
 
     // Click "Поиск" in tab rail
     await tester.tap(find.text('Поиск'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Поиск: секция настроек'), findsOneWidget);
+    expect(find.byType(SearchTab), findsOneWidget);
 
     // Click "Резервная копия"
     await tester.tap(find.text('Резервная копия'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Резервная копия: секция настроек'), findsOneWidget);
+    expect(find.byType(BackupTab), findsOneWidget);
   });
 
   testWidgets('delegates to custom panelBuilder when provided', (tester) async {
@@ -124,7 +192,7 @@ void main() {
     await tester.pumpWidget(_buildTestSubject());
     await tester.pumpAndSettle();
 
-    expect(find.text('Источники: секция настроек'), findsOneWidget);
+    expect(find.byType(SourcesTab), findsOneWidget);
     expect(find.byType(ListView), findsWidgets);
   });
 }

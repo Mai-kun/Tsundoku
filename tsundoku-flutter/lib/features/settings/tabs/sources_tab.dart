@@ -688,14 +688,11 @@ class _SourcesTabState extends ConsumerState<SourcesTab> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // Header Row
-          Wrap(
-            alignment: WrapAlignment.spaceBetween,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: 12,
-            runSpacing: 12,
-            children: [
-              Row(
-                mainAxisSize: MainAxisSize.min,
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isNarrow = constraints.maxWidth < 550;
+              final headerInfo = Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
                     width: 40,
@@ -709,43 +706,46 @@ class _SourcesTabState extends ConsumerState<SourcesTab> {
                     child: const Icon(LucideIcons.server, size: 20, color: Color(0xFF818CF8)),
                   ),
                   const SizedBox(width: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            t.tr('settingsModal.sources.offline.title'),
-                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
-                          ),
-                          if (totalTitles > 0) ...[
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: const Color(0x266366F1),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: const Color(0x4D6366F1)),
-                              ),
-                              child: Text(
-                                '$totalTitles тайтлов',
-                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFFA5B4FC)),
-                              ),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Wrap(
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          spacing: 8,
+                          runSpacing: 4,
+                          children: [
+                            Text(
+                              t.tr('settingsModal.sources.offline.title'),
+                              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
                             ),
+                            if (totalTitles > 0)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: const Color(0x266366F1),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: const Color(0x4D6366F1)),
+                                ),
+                                child: Text(
+                                  '$totalTitles тайтлов',
+                                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFFA5B4FC)),
+                                ),
+                              ),
                           ],
-                        ],
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        t.tr('settingsModal.sources.offline.subtitle'),
-                        style: TextStyle(fontSize: 12, color: theme.textMuted),
-                      ),
-                    ],
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          t.tr('settingsModal.sources.offline.subtitle'),
+                          style: TextStyle(fontSize: 12, color: theme.textMuted),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
-              ),
-              OutlinedButton.icon(
+              );
+
+              final reindexButton = OutlinedButton.icon(
                 onPressed: _offlineReindexing ? null : () => _handleReindexOffline(t),
                 style: OutlinedButton.styleFrom(
                   backgroundColor: const Color(0x266366F1),
@@ -764,8 +764,27 @@ class _SourcesTabState extends ConsumerState<SourcesTab> {
                   t.tr('settingsModal.sources.offline.reindexBtn'),
                   style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFFC7D2FE)),
                 ),
-              ),
-            ],
+              );
+
+              if (isNarrow) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    headerInfo,
+                    const SizedBox(height: 12),
+                    reindexButton,
+                  ],
+                );
+              }
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: headerInfo),
+                  const SizedBox(width: 12),
+                  reindexButton,
+                ],
+              );
+            },
           ),
 
           // Offline Autonomy Mode Toggle (if databases exist)
@@ -1044,46 +1063,46 @@ class _SourcesTabState extends ConsumerState<SourcesTab> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: const Color(0x330284C7),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0x4D0284C7)),
-                    ),
-                    alignment: Alignment.center,
-                    child: const Icon(LucideIcons.globe, size: 20, color: Color(0xFF38BDF8)),
-                  ),
-                  const SizedBox(width: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Text(
-                            t.tr('settingsModal.sources.proxy.title'),
-                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
-                          ),
-                          if (_proxySettings?.enabled == true && proxyReady) ...[
-                            const SizedBox(width: 8),
-                            const TsundokuBadge(tone: BadgeTone.success, size: BadgeSize.sm, child: Text('Прокси включен')),
-                          ],
-                        ],
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        t.tr('settingsModal.sources.proxy.description'),
-                        style: TextStyle(fontSize: 12, color: theme.textMuted),
-                      ),
-                    ],
-                  ),
-                ],
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: const Color(0x330284C7),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0x4D0284C7)),
+                ),
+                alignment: Alignment.center,
+                child: const Icon(LucideIcons.globe, size: 20, color: Color(0xFF38BDF8)),
               ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 8,
+                      runSpacing: 4,
+                      children: [
+                        Text(
+                          t.tr('settingsModal.sources.proxy.title'),
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+                        ),
+                        if (_proxySettings?.enabled == true && proxyReady)
+                          const TsundokuBadge(tone: BadgeTone.success, size: BadgeSize.sm, child: Text('Прокси включен')),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      t.tr('settingsModal.sources.proxy.description'),
+                      style: TextStyle(fontSize: 12, color: theme.textMuted),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
               _buildSwitch(
                 value: _proxyEnabled,
                 activeColor: const Color(0xFF0284C7),
@@ -1234,8 +1253,10 @@ class _SourcesTabState extends ConsumerState<SourcesTab> {
             ),
           ],
         ),
-        Row(
-          mainAxisSize: MainAxisSize.min,
+        Wrap(
+          spacing: 12,
+          runSpacing: 10,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             // Pill Switcher: API vs Scrapers
             Container(
@@ -1246,6 +1267,7 @@ class _SourcesTabState extends ConsumerState<SourcesTab> {
                 border: Border.all(color: const Color(0x1AFFFFFF)),
               ),
               child: Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   _buildPillButton(
                     label: t.tr('settingsModal.sources.kindApi'),
@@ -1262,7 +1284,6 @@ class _SourcesTabState extends ConsumerState<SourcesTab> {
                 ],
               ),
             ),
-            const SizedBox(width: 12),
             // Media Type Filter
             Row(
               mainAxisSize: MainAxisSize.min,

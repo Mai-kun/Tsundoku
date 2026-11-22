@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -5,7 +6,22 @@ import 'package:material_ui/material_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:tsundoku_flutter/features/settings/settings_modal.dart';
+import 'package:tsundoku_flutter/shared/api/api.dart';
 import 'package:tsundoku_flutter/views/settings_view.dart';
+
+class _CapturingAdapter implements HttpClientAdapter {
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<List<int>>? requestStream,
+    Future<void>? cancelFuture,
+  ) async {
+    return ResponseBody.fromString('{}', 200, headers: {Headers.contentTypeHeader: ['application/json']});
+  }
+
+  @override
+  void close({bool force = false}) {}
+}
 
 Widget _buildSubject({
   bool isOpen = true,
@@ -14,7 +30,12 @@ Widget _buildSubject({
   VoidCallback? onClose,
   VoidCallback? onImportCompleted,
 }) {
+  final dio = Dio()..httpClientAdapter = _CapturingAdapter();
+
   return ProviderScope(
+    overrides: [
+      apiClientProvider.overrideWithValue(TsundokuApi(dio)),
+    ],
     child: MaterialApp(
       home: Scaffold(
         body: SettingsModal(
@@ -65,6 +86,10 @@ void main() {
   });
 
   testWidgets('passes initialTab to SettingsView', (tester) async {
+    tester.view.physicalSize = const Size(1200, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
     await tester.pumpWidget(_buildSubject(
       isOpen: true,
       initialTab: SettingsTab.storage,

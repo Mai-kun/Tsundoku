@@ -8,6 +8,7 @@
 /// `errorMessage` принимает [Locale] явно.
 library;
 
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
@@ -47,9 +48,35 @@ String errorMessage(Object error, Locale locale) {
     final validationMessage = error.validationErrors.values
         .expand((messages) => messages)
         .firstOrNull;
-    if (validationMessage != null) return validationMessage;
-    if (error.detail.isNotEmpty) return error.detail;
+    if (validationMessage != null && validationMessage.trim().isNotEmpty) {
+      return validationMessage.trim();
+    }
+    if (error.detail.trim().isNotEmpty) return error.detail.trim();
     return I18nDictionary(locale).tr('errors.requestFailed');
+  }
+  if (error is DioException) {
+    final problem = readProblemDetails(error.response?.data);
+    final validationMessage = problem.errors.values
+        .expand((messages) => messages)
+        .firstOrNull;
+    if (validationMessage != null && validationMessage.trim().isNotEmpty) {
+      return validationMessage.trim();
+    }
+    if (problem.detail != null && problem.detail!.trim().isNotEmpty) {
+      return problem.detail!.trim();
+    }
+    if (problem.title != null && problem.title!.trim().isNotEmpty) {
+      return problem.title!.trim();
+    }
+    if (error.message != null && error.message!.trim().isNotEmpty) {
+      return error.message!.trim();
+    }
+  }
+  if (error is Exception) {
+    final str = error.toString();
+    if (str.startsWith('Exception: ')) {
+      return str.substring(11).trim();
+    }
   }
   return I18nDictionary(locale).tr('errors.unexpected');
 }
@@ -62,13 +89,23 @@ class ProblemDetails {
 }
 
 ProblemDetails readProblemDetails(Object? value) {
-  if (value is! Map<String, dynamic>) return const ProblemDetails();
+  if (value is String) {
+    try {
+      final decoded = jsonDecode(value);
+      if (decoded is Map) {
+        return readProblemDetails(decoded);
+      }
+    } catch (_) {}
+  }
+  if (value is! Map) return const ProblemDetails();
   final errorsRaw = value['errors'];
   final errors = <String, List<String>>{};
   if (errorsRaw is Map) {
     errorsRaw.forEach((key, messages) {
-      if (messages is List && messages.every((m) => m is String)) {
-        errors[key as String] = messages.cast<String>().toList();
+      if (messages is List) {
+        errors[key.toString()] = messages.map((m) => m.toString()).toList();
+      } else if (messages is String) {
+        errors[key.toString()] = [messages];
       }
     });
   }

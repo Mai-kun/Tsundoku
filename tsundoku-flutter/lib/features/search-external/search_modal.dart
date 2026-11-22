@@ -15,6 +15,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../entities/media/model/cover_url.dart';
+import '../prefetch-details/external_detail_prefetch.dart';
 import '../../shared/api/api.dart';
 import '../../shared/api/jobs_client.dart';
 import '../../shared/i18n/index.dart';
@@ -196,6 +197,9 @@ class _SearchModalState extends ConsumerState<SearchModal> {
   int _requestSequence = 0;
   CancelToken? _cancelToken;
   Timer? _debounceTimer;
+  Timer? _hoverTimer;
+  String? _hoverPrefetchKey;
+  CancelToken? _hoverCancelToken;
   bool _coverForceRefresh = false;
 
   @override
@@ -228,6 +232,8 @@ class _SearchModalState extends ConsumerState<SearchModal> {
   void dispose() {
     _debounceTimer?.cancel();
     _cancelToken?.cancel();
+    _hoverTimer?.cancel();
+    _hoverCancelToken?.cancel();
     _queryController.dispose();
     super.dispose();
   }
@@ -355,12 +361,8 @@ class _SearchModalState extends ConsumerState<SearchModal> {
   }
 
   CreateMediaBase _buildPayload(ExternalMedia result, I18nDictionary t) {
-    final releaseDate = (result.releaseDate != null && result.releaseDate!.trim().isNotEmpty)
-        ? result.releaseDate!.trim()
-        : (result.releaseYear != null ? '${result.releaseYear}-01-01' : null);
-    final endDate = (result.endDate != null && result.endDate!.trim().isNotEmpty)
-        ? result.endDate!.trim()
-        : null;
+    final releaseDate = normalizeIsoDate(result.releaseDate, result.releaseYear);
+    final endDate = normalizeIsoDate(result.endDate);
     final ratingsJson = result.ratings != null && result.ratings!.isNotEmpty
         ? jsonEncode(result.ratings!.map((r) => r.toJson()).toList())
         : null;
@@ -388,7 +390,7 @@ class _SearchModalState extends ConsumerState<SearchModal> {
               airDate: releaseDate,
               episodesData: episodesData,
               coverUrl: null,
-              status: null,
+              status: MediaStatus.planned,
               score: null,
               notes: null,
             ),
@@ -439,7 +441,7 @@ class _SearchModalState extends ConsumerState<SearchModal> {
                     airDate: releaseDate,
                     episodesData: episodesData,
                     coverUrl: null,
-                    status: null,
+                    status: MediaStatus.planned,
                     score: null,
                     notes: null,
                   ),
@@ -477,6 +479,7 @@ class _SearchModalState extends ConsumerState<SearchModal> {
           totalChapters: result.chapters ?? result.totalCount,
           totalVolumes: result.volumes ?? 1,
           currentVolume: 1,
+          format: result.mangaFormat ?? result.format,
           volumes: null,
           title: result.title,
           status: MediaStatus.planned,
@@ -496,7 +499,7 @@ class _SearchModalState extends ConsumerState<SearchModal> {
           externalRatingVotes: result.ratingVotes,
           externalRatingsJson: ratingsJson,
           releaseDate: releaseDate,
-          endDate: result.endDate,
+          endDate: endDate,
           releaseStatus: result.releaseStatus,
           genres: null,
           tags: null,
@@ -508,7 +511,9 @@ class _SearchModalState extends ConsumerState<SearchModal> {
             result.mangaFormat == 'web_novel' ||
             result.format == 'NOVEL';
         return CreateBookPayload(
-          author: result.author ?? t.tr('searchModal.unknownAuthor'),
+          author: (result.author != null && result.author!.trim().isNotEmpty)
+              ? result.author!.trim()
+              : t.tr('searchModal.unknownAuthor'),
           studio: result.studio,
           isbn: result.isbn,
           format: isNovel ? 'light_novel' : (result.format ?? 'book'),
@@ -536,7 +541,7 @@ class _SearchModalState extends ConsumerState<SearchModal> {
           externalRatingVotes: result.ratingVotes,
           externalRatingsJson: ratingsJson,
           releaseDate: releaseDate,
-          endDate: result.endDate,
+          endDate: endDate,
           releaseStatus: result.releaseStatus,
           genres: null,
           tags: null,
@@ -545,8 +550,8 @@ class _SearchModalState extends ConsumerState<SearchModal> {
         );
       case 'game':
         return CreateGamePayload(
-          platform: (result.platform != null && result.platform!.isNotEmpty)
-              ? result.platform!
+          platform: (result.platform != null && result.platform!.trim().isNotEmpty)
+              ? result.platform!.trim()
               : kFallbackPlatform,
           hoursPlayed: null,
           title: result.title,
@@ -567,7 +572,7 @@ class _SearchModalState extends ConsumerState<SearchModal> {
           externalRatingVotes: result.ratingVotes,
           externalRatingsJson: ratingsJson,
           releaseDate: releaseDate,
-          endDate: result.endDate,
+          endDate: endDate,
           releaseStatus: result.releaseStatus,
           genres: null,
           tags: null,
@@ -600,7 +605,7 @@ class _SearchModalState extends ConsumerState<SearchModal> {
           externalRatingVotes: result.ratingVotes,
           externalRatingsJson: ratingsJson,
           releaseDate: releaseDate,
-          endDate: result.endDate,
+          endDate: endDate,
           releaseStatus: result.releaseStatus,
           genres: null,
           tags: null,
@@ -777,7 +782,6 @@ class _SearchModalState extends ConsumerState<SearchModal> {
             _loadingByCategory = {type: false};
             _searching = false;
           });
-          _hydrateMissingData(found, sequence, token);
         }
       } catch (e) {
         if (token.isCancelled || sequence != _requestSequence || !mounted) return;
@@ -848,64 +852,63 @@ class _SearchModalState extends ConsumerState<SearchModal> {
         }
       });
 
-      if (found.isNotEmpty) {
-        _hydrateMissingData(found, sequence, token);
-      }
     }));
   }
 
-  Future<void> _hydrateMissingData(
-    List<ExternalMedia> items,
-    int sequence,
-    CancelToken token,
-  ) async {
-    final candidates = items.where((r) =>
-        _effectiveType(r) == 'manga' &&
-        (r.chapters == null || r.volumes == null || r.author == null));
-    final toHydrate = candidates.take(6).toList();
-    if (toHydrate.isEmpty) return;
+  void _scheduleHoverPrefetch(ExternalMedia result) {
+    final type = _effectiveType(result);
+    final key = detailsKey(type, result);
 
-    final api = ref.read(apiClientProvider);
-    await Future.wait(toHydrate.map((item) async {
-      if (sequence != _requestSequence || token.isCancelled || !mounted) return;
+    final cache = ref.read(externalDetailsCacheProvider);
+    if (cache.has(key)) return;
+    if (_hoverPrefetchKey == key && (_hoverTimer?.isActive == true || _hoverCancelToken != null)) {
+      return;
+    }
+
+    _cancelHoverPrefetch();
+    _hoverPrefetchKey = key;
+
+    _hoverTimer = Timer(const Duration(milliseconds: 250), () async {
+      if (!mounted) return;
+      final cancelToken = CancelToken();
+      _hoverCancelToken = cancelToken;
       try {
-        final enriched = await api.getExternalDetails(
-          _effectiveType(item),
-          item.externalId,
-          item.title,
-          source: item.externalSource,
-          cancelToken: token,
-        );
-        if (sequence == _requestSequence && enriched != null && mounted) {
-          final updated = item.copyWith(
-            chapters: enriched.chapters ?? item.chapters,
-            volumes: enriched.volumes ?? item.volumes,
-            totalCount: enriched.totalCount ?? item.totalCount,
-            author: enriched.author ?? item.author,
-            ratings: (enriched.ratings != null && enriched.ratings!.isNotEmpty)
-                ? enriched.ratings
-                : item.ratings,
-            rating: item.rating ?? enriched.rating,
+        await cache.load(key, () async {
+          final res = await ref.read(apiClientProvider).getExternalDetails(
+            type,
+            result.externalId,
+            result.title,
+            source: result.externalSource,
+            cancelToken: cancelToken,
           );
-          setState(() {
-            final cat = _effectiveType(updated);
-            if (_resultsByCategory.containsKey(cat)) {
-              final list = _resultsByCategory[cat]!;
-              final idx = list.indexWhere(
-                  (r) => r.externalId == updated.externalId && r.externalSource == updated.externalSource);
-              if (idx != -1) {
-                list[idx] = updated;
-              }
-            }
-            final rIdx = _results.indexWhere(
-                (r) => r.externalId == updated.externalId && r.externalSource == updated.externalSource);
-            if (rIdx != -1) {
-              _results[rIdx] = updated;
-            }
-          });
+          if (res == null) throw StateError('External details unavailable');
+          return res;
+        });
+      } catch (_) {
+        // Speculative prefetch errors are ignored
+      } finally {
+        if (_hoverCancelToken == cancelToken) {
+          _hoverCancelToken = null;
         }
-      } catch (_) {}
-    }));
+      }
+    });
+  }
+
+  void _cancelHoverPrefetch([ExternalMedia? result]) {
+    _hoverTimer?.cancel();
+    _hoverTimer = null;
+    if (result != null) {
+      final key = detailsKey(_effectiveType(result), result);
+      if (_hoverPrefetchKey == key) {
+        _hoverCancelToken?.cancel();
+        _hoverCancelToken = null;
+        _hoverPrefetchKey = null;
+      }
+    } else {
+      _hoverCancelToken?.cancel();
+      _hoverCancelToken = null;
+      _hoverPrefetchKey = null;
+    }
   }
 
   Future<void> _addResult(ExternalMedia result) async {
@@ -1819,10 +1822,13 @@ class _SearchModalState extends ConsumerState<SearchModal> {
     final meta = _metaLine(result);
     final count = _countLabel(result, t);
 
-    return InkWell(
-      onTap: () => _openPreview(result),
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
+    return MouseRegion(
+      onEnter: (_) => _scheduleHoverPrefetch(result),
+      onExit: (_) => _cancelHoverPrefetch(result),
+      child: InkWell(
+        onTap: () => _openPreview(result),
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: const Color(0x0AFFFFFF),
@@ -2143,6 +2149,7 @@ class _SearchModalState extends ConsumerState<SearchModal> {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

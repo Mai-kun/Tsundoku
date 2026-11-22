@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import 'dart:ui';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -236,5 +237,116 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Ссылка'), findsOneWidget);
+  });
+
+  testWidgets('typing search query triggers ZERO GET /api/external/details calls without hover',
+      (tester) async {
+    final adapter = _FakeSearchAdapter(
+      searchResults: [
+        {
+          'id': 'hit-manga-1',
+          'externalId': '3829',
+          'title': 'Noragami: Stray God',
+          'type': 'manga',
+          'externalSource': 'anilist',
+          'chapters': null,
+          'volumes': null,
+          'author': null,
+        },
+        {
+          'id': 'hit-manga-2',
+          'externalId': '1111',
+          'title': 'Noragami: Stray Stories',
+          'type': 'manga',
+          'externalSource': 'anilist',
+          'chapters': null,
+          'volumes': null,
+          'author': null,
+        },
+      ],
+    );
+
+    await tester.pumpWidget(_buildSubject(
+      adapter: adapter,
+      initialQuery: 'Noragami',
+      initialType: 'manga',
+      debounceMs: 10,
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Noragami: Stray God'), findsOneWidget);
+    expect(find.text('Noragami: Stray Stories'), findsOneWidget);
+
+    final detailRequests = adapter.requests
+        .where((r) => r.path.contains('/api/external/details'))
+        .toList();
+    expect(detailRequests, isEmpty,
+        reason: 'Typing search query must never storm /api/external/details');
+  });
+
+  testWidgets('hovering over result card triggers prefetch after 250ms delay, cancelling on exit',
+      (tester) async {
+    final adapter = _FakeSearchAdapter(
+      searchResults: [
+        {
+          'id': 'hit-manga-1',
+          'externalId': '3829',
+          'title': 'Noragami Stray God',
+          'type': 'manga',
+          'externalSource': 'anilist',
+        },
+      ],
+    );
+
+    await tester.pumpWidget(_buildSubject(
+      adapter: adapter,
+      initialQuery: 'Noragami',
+      initialType: 'manga',
+      debounceMs: 10,
+    ));
+    await tester.pumpAndSettle();
+
+    final cardFinder = find.text('Noragami Stray God');
+    expect(cardFinder, findsOneWidget);
+
+    // Initial state: 0 details requests
+    expect(
+        adapter.requests
+            .where((r) => r.path.contains('/api/external/details')),
+        isEmpty);
+
+    // Hover over the card
+    final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await gesture.addPointer(location: Offset.zero);
+    addTearDown(gesture.removePointer);
+
+    await gesture.moveTo(tester.getCenter(cardFinder));
+    await tester.pump();
+
+    // After 100ms (less than 250ms hover intent), still 0 requests
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(
+        adapter.requests
+            .where((r) => r.path.contains('/api/external/details')),
+        isEmpty);
+
+    // Move away before 250ms completes -> cancelled
+    await gesture.moveTo(const Offset(0, 0));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(
+        adapter.requests
+            .where((r) => r.path.contains('/api/external/details')),
+        isEmpty);
+
+    // Now hover and wait full 250ms -> triggers prefetch
+    await gesture.moveTo(tester.getCenter(cardFinder));
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pumpAndSettle();
+
+    final detailRequests = adapter.requests
+        .where((r) => r.path.contains('/api/external/details'))
+        .toList();
+    expect(detailRequests, hasLength(1));
+    expect(detailRequests.first.queryParameters['id'], '3829');
   });
 }

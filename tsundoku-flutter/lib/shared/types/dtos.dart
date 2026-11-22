@@ -135,6 +135,51 @@ class PendingMatchItemDto {
 
 int? _int(Object? v) => v == null ? null : (v as num).toInt();
 
+/// Normalizes dates to full ISO8601 YYYY-MM-DD for backend DateTime? deserialization.
+String? normalizeIsoDate(String? raw, [int? fallbackYear]) {
+  if (raw == null) {
+    return (fallbackYear != null && fallbackYear > 0) ? '$fallbackYear-01-01' : null;
+  }
+  final s = raw.trim();
+  if (s.isEmpty) {
+    return (fallbackYear != null && fallbackYear > 0) ? '$fallbackYear-01-01' : null;
+  }
+  final fullMatch = RegExp(r'^(\d{4})-(\d{2})-(\d{2})').firstMatch(s);
+  if (fullMatch != null) {
+    return '${fullMatch.group(1)}-${fullMatch.group(2)}-${fullMatch.group(3)}';
+  }
+  final ymMatch = RegExp(r'^(\d{4})-(\d{2})$').firstMatch(s);
+  if (ymMatch != null) {
+    return '${ymMatch.group(1)}-${ymMatch.group(2)}-01';
+  }
+  final yMatch = RegExp(r'^(\d{4})$').firstMatch(s);
+  if (yMatch != null) {
+    return '${yMatch.group(1)}-01-01';
+  }
+  final slashMatch = RegExp(r'^(\d{4})/(\d{1,2})/(\d{1,2})$').firstMatch(s);
+  if (slashMatch != null) {
+    final y = slashMatch.group(1)!;
+    final m = slashMatch.group(2)!.padLeft(2, '0');
+    final d = slashMatch.group(3)!.padLeft(2, '0');
+    return '$y-$m-$d';
+  }
+  final parsed = DateTime.tryParse(s);
+  if (parsed != null) {
+    final y = parsed.year.toString().padLeft(4, '0');
+    final m = parsed.month.toString().padLeft(2, '0');
+    final d = parsed.day.toString().padLeft(2, '0');
+    return '$y-$m-$d';
+  }
+  final anyYear = RegExp(r'\b(18\d\d|19\d\d|20\d\d|21\d\d)\b').firstMatch(s);
+  if (anyYear != null) {
+    return '${anyYear.group(1)}-01-01';
+  }
+  if (fallbackYear != null && fallbackYear > 0) {
+    return '$fallbackYear-01-01';
+  }
+  return null;
+}
+
 // ---------------------------------------------------------------------------
 // Custom lists.
 // ---------------------------------------------------------------------------
@@ -650,20 +695,38 @@ class CreateMediaBase {
   /// добавляя вариантные поля.
   Map<String, dynamic> toJson() => baseToJson();
 
+  static final _uuidRegex = RegExp(
+    r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+  );
+
   static String? _cleanStr(String? v) =>
       (v != null && v.trim().isNotEmpty) ? v.trim() : null;
+
+  static String? _cleanGuid(String? v) {
+    if (v == null) return null;
+    final trimmed = v.trim();
+    return _uuidRegex.hasMatch(trimmed) ? trimmed : null;
+  }
+
+  static int? _cleanScore(int? score) {
+    if (score == null) return null;
+    if (score >= 1 && score <= 10) return score;
+    return null;
+  }
+
+  static int? _cleanNonNegative(int? v) => (v != null && v >= 0) ? v : null;
 
   Map<String, dynamic> baseToJson() => <String, dynamic>{
         'type': type,
         'title': title,
         'status': status.value,
         'altTitles': altTitles,
-        'score': score,
+        'score': _cleanScore(score),
         'coverUrl': _cleanStr(coverUrl),
         'notes': _cleanStr(notes),
         'description': _cleanStr(description),
         'trailerVideoId': _cleanStr(trailerVideoId),
-        'franchiseId': _cleanStr(franchiseId),
+        'franchiseId': _cleanGuid(franchiseId),
         'franchiseName': _cleanStr(franchiseName),
         'franchiseOrder': franchiseOrder,
         'externalId': _cleanStr(externalId),
@@ -672,11 +735,11 @@ class CreateMediaBase {
         'externalRating': externalRating,
         'externalRatingVotes': externalRatingVotes,
         'externalRatingsJson': _cleanStr(externalRatingsJson),
-        'releaseDate': _cleanStr(releaseDate),
-        'endDate': _cleanStr(endDate),
+        'releaseDate': normalizeIsoDate(releaseDate),
+        'endDate': normalizeIsoDate(endDate),
         'releaseStatus': _cleanStr(releaseStatus),
-        'genres': genres,
-        'tags': tags,
+        'genres': (genres != null && genres!.isNotEmpty) ? genres!.join(', ') : null,
+        'tags': (tags != null && tags!.isNotEmpty) ? tags!.join(', ') : null,
         'unlockedAchievements': _cleanStr(unlockedAchievements),
         'userPlatform': _cleanStr(userPlatform),
       };
@@ -718,8 +781,8 @@ class CreateGamePayload extends CreateMediaBase {
   @override
   Map<String, dynamic> toJson() => <String, dynamic>{
         ...baseToJson(),
-        'platform': platform,
-        'hoursPlayed': hoursPlayed,
+        'platform': platform.trim().isNotEmpty ? platform.trim() : 'PC',
+        'hoursPlayed': CreateMediaBase._cleanNonNegative(hoursPlayed),
       };
 
   @override
@@ -780,15 +843,15 @@ class CreateBookPayload extends CreateMediaBase {
   @override
   Map<String, dynamic> toJson() => <String, dynamic>{
         ...baseToJson(),
-        'author': author,
-        'studio': studio,
-        'isbn': isbn,
-        'totalPages': totalPages,
-        'format': format,
-        'currentChapter': currentChapter,
-        'totalChapters': totalChapters,
-        'currentVolume': currentVolume,
-        'totalVolumes': totalVolumes,
+        'author': author.trim().isNotEmpty ? author.trim() : 'Unknown Author',
+        'studio': CreateMediaBase._cleanStr(studio),
+        'isbn': CreateMediaBase._cleanStr(isbn),
+        'totalPages': CreateMediaBase._cleanNonNegative(totalPages),
+        'format': CreateMediaBase._cleanStr(format),
+        'currentChapter': CreateMediaBase._cleanNonNegative(currentChapter),
+        'totalChapters': CreateMediaBase._cleanNonNegative(totalChapters),
+        'currentVolume': CreateMediaBase._cleanNonNegative(currentVolume),
+        'totalVolumes': CreateMediaBase._cleanNonNegative(totalVolumes),
       };
 
   @override
@@ -828,17 +891,17 @@ class CreateVolumePayload {
   });
 
   Map<String, dynamic> toJson() => <String, dynamic>{
-        'volumeNumber': volumeNumber,
-        'title': title,
-        'coverUrl': coverUrl,
-        'totalPages': totalPages,
-        'currentPage': currentPage,
-        'totalChapters': totalChapters,
-        'currentChapter': currentChapter,
-        'status': status?.value,
-        'score': score,
-        'notes': notes,
-        'releaseDate': releaseDate,
+        'volumeNumber': volumeNumber >= 1 ? volumeNumber : 1,
+        'title': (title.trim().isNotEmpty) ? title.trim() : 'Volume 1',
+        'coverUrl': CreateMediaBase._cleanStr(coverUrl),
+        'totalPages': CreateMediaBase._cleanNonNegative(totalPages),
+        'currentPage': CreateMediaBase._cleanNonNegative(currentPage),
+        'totalChapters': CreateMediaBase._cleanNonNegative(totalChapters),
+        'currentChapter': CreateMediaBase._cleanNonNegative(currentChapter),
+        'status': status?.value ?? MediaStatus.planned.value,
+        'score': CreateMediaBase._cleanScore(score),
+        'notes': CreateMediaBase._cleanStr(notes),
+        'releaseDate': normalizeIsoDate(releaseDate),
       };
 
   @override
@@ -874,15 +937,15 @@ class UpdateVolumePayload {
   });
 
   Map<String, dynamic> toJson() => <String, dynamic>{
-        'title': title,
-        'coverUrl': coverUrl,
-        'totalPages': totalPages,
-        'currentPage': currentPage,
-        'totalChapters': totalChapters,
-        'currentChapter': currentChapter,
+        'title': CreateMediaBase._cleanStr(title),
+        'coverUrl': CreateMediaBase._cleanStr(coverUrl),
+        'totalPages': CreateMediaBase._cleanNonNegative(totalPages),
+        'currentPage': CreateMediaBase._cleanNonNegative(currentPage),
+        'totalChapters': CreateMediaBase._cleanNonNegative(totalChapters),
+        'currentChapter': CreateMediaBase._cleanNonNegative(currentChapter),
         'status': status?.value,
-        'score': score,
-        'notes': notes,
+        'score': CreateMediaBase._cleanScore(score),
+        'notes': CreateMediaBase._cleanStr(notes),
       };
 
   @override
@@ -899,6 +962,7 @@ class CreateMangaPayload extends CreateMediaBase {
   final int? totalVolumes;
   final int? totalChapters;
   final int? currentVolume;
+  final String? format;
   final List<CreateVolumePayload>? volumes;
 
   const CreateMangaPayload({
@@ -907,6 +971,7 @@ class CreateMangaPayload extends CreateMediaBase {
     required this.totalVolumes,
     required this.totalChapters,
     required this.currentVolume,
+    this.format,
     required this.volumes,
     required super.title,
     required super.status,
@@ -937,11 +1002,12 @@ class CreateMangaPayload extends CreateMediaBase {
   @override
   Map<String, dynamic> toJson() => <String, dynamic>{
         ...baseToJson(),
-        'author': author,
-        'romajiTitle': romajiTitle,
-        'totalVolumes': totalVolumes,
-        'totalChapters': totalChapters,
-        'currentVolume': currentVolume,
+        'author': CreateMediaBase._cleanStr(author),
+        'romajiTitle': CreateMediaBase._cleanStr(romajiTitle),
+        'format': CreateMediaBase._cleanStr(format),
+        'totalVolumes': CreateMediaBase._cleanNonNegative(totalVolumes),
+        'totalChapters': CreateMediaBase._cleanNonNegative(totalChapters),
+        'currentVolume': CreateMediaBase._cleanNonNegative(currentVolume),
         'volumes': volumes?.map((v) => v.toJson()).toList(),
       };
 
@@ -995,11 +1061,11 @@ class CreateMoviePayload extends CreateMediaBase {
   @override
   Map<String, dynamic> toJson() => <String, dynamic>{
         ...baseToJson(),
-        'durationMinutes': durationMinutes,
-        'director': director,
+        'durationMinutes': CreateMediaBase._cleanNonNegative(durationMinutes),
+        'director': CreateMediaBase._cleanStr(director),
         'isAnime': isAnime,
-        'studio': studio,
-        'romajiTitle': romajiTitle,
+        'studio': CreateMediaBase._cleanStr(studio),
+        'romajiTitle': CreateMediaBase._cleanStr(romajiTitle),
       };
 
   @override
@@ -1035,15 +1101,15 @@ class CreateSeasonPayload {
   });
 
   Map<String, dynamic> toJson() => <String, dynamic>{
-        'seasonNumber': seasonNumber,
-        'title': title,
-        'coverUrl': (coverUrl != null && coverUrl!.trim().isNotEmpty) ? coverUrl!.trim() : null,
-        'totalEpisodes': totalEpisodes,
-        'status': status?.value,
-        'score': score,
-        'notes': (notes != null && notes!.trim().isNotEmpty) ? notes!.trim() : null,
-        'airDate': (airDate != null && airDate!.trim().isNotEmpty) ? airDate!.trim() : null,
-        'episodesData': (episodesData != null && episodesData!.trim().isNotEmpty) ? episodesData!.trim() : null,
+        'seasonNumber': seasonNumber >= 1 ? seasonNumber : 1,
+        'title': (title.trim().isNotEmpty) ? title.trim() : 'Season 1',
+        'coverUrl': CreateMediaBase._cleanStr(coverUrl),
+        'totalEpisodes': CreateMediaBase._cleanNonNegative(totalEpisodes) ?? 0,
+        'status': status?.value ?? MediaStatus.planned.value,
+        'score': CreateMediaBase._cleanScore(score),
+        'notes': CreateMediaBase._cleanStr(notes),
+        'airDate': normalizeIsoDate(airDate),
+        'episodesData': CreateMediaBase._cleanStr(episodesData),
       };
 
   @override
@@ -1101,11 +1167,11 @@ class CreateTvShowPayload extends CreateMediaBase {
   Map<String, dynamic> toJson() => <String, dynamic>{
         ...baseToJson(),
         'isAnime': isAnime,
-        'studio': studio,
-        'romajiTitle': romajiTitle,
-        'network': network,
-        'durationMinutes': durationMinutes,
-        'episodeDurationMinutes': episodeDurationMinutes,
+        'studio': CreateMediaBase._cleanStr(studio),
+        'romajiTitle': CreateMediaBase._cleanStr(romajiTitle),
+        'network': CreateMediaBase._cleanStr(network),
+        'durationMinutes': CreateMediaBase._cleanNonNegative(durationMinutes),
+        'episodeDurationMinutes': CreateMediaBase._cleanNonNegative(episodeDurationMinutes),
         'seasons': seasons?.map((s) => s.toJson()).toList(),
       };
 

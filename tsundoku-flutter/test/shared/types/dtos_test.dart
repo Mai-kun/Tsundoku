@@ -55,7 +55,7 @@ void main() {
         'releaseDate': null,
         'endDate': null,
         'releaseStatus': null,
-        'genres': ['Roguelike'],
+        'genres': 'Roguelike',
         'tags': null,
         'unlockedAchievements': null,
         'userPlatform': null,

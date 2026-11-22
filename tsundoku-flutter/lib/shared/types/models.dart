@@ -84,7 +84,7 @@ class ExternalRating {
   Map<String, dynamic> toJson() => <String, dynamic>{
         'source': source,
         'rating': rating,
-        if (score != null) 'score': score,
+        'score': score ?? rating,
         if (votes != null) 'votes': votes,
       };
 

@@ -57,13 +57,13 @@ class GenreRadarChart extends ConsumerWidget {
                 style: const TextStyle(
                   fontSize: 16, // text-base
                   fontWeight: FontWeight.w600, // font-semibold
-                  letterSpacing: -0.2, // tracking-tight
+                  letterSpacing: -0.4, // tracking-tight
                   color: Colors.white,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8), // mb-2
+          const SizedBox(height: 12), // mb-3
           Text(
             t.tr('stats.taste.radarHint'),
             style: const TextStyle(
@@ -71,7 +71,7 @@ class GenreRadarChart extends ConsumerWidget {
               color: Color(0xFF94A3B8), // text-slate-400
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8), // mb-2
 
           // Радар или пустой стейт
           if (axes.isEmpty)

@@ -591,20 +591,21 @@ class _SourcesTabState extends ConsumerState<SourcesTab> {
   }
 
   static ({Color accent, Color border}) _sourceTheme(String sourceId, TsundokuTheme theme) {
-    return switch (sourceId) {
-      'tmdb' => (accent: const Color(0xFF01D277), border: const Color(0x3301D277)),
-      'imdb' => (accent: const Color(0xFFF5C518), border: const Color(0x33F5C518)),
-      'rawg' => (accent: const Color(0xFFFFFFFF), border: const Color(0x26FFFFFF)),
-      'simkl' => (accent: const Color(0xFF00E676), border: const Color(0x3300E676)),
-      'kinopoisk' => (accent: const Color(0xFFFF6600), border: const Color(0x33FF6600)),
-      'anilist' => (accent: const Color(0xFF02A9FF), border: const Color(0x3302A9FF)),
-      'mal' => (accent: const Color(0xFF2E51A2), border: const Color(0x332E51A2)),
-      'shikimori' => (accent: const Color(0xFFD32F2F), border: const Color(0x33D32F2F)),
-      'googlebooks' => (accent: const Color(0xFF4285F4), border: const Color(0x334285F4)),
-      'openlibrary' => (accent: const Color(0xFFE1D9D1), border: const Color(0x26E1D9D1)),
-      'sociallib' => (accent: const Color(0xFFE50914), border: const Color(0x33E50914)),
-      _ => (accent: theme.accent, border: theme.borderSubtle),
+    final accent = switch (sourceId) {
+      'tmdb' => const Color(0xFF01D277),
+      'imdb' => const Color(0xFFF5C518),
+      'rawg' => const Color(0xFFFFFFFF),
+      'simkl' => const Color(0xFF00E676),
+      'kinopoisk' => const Color(0xFFFF6600),
+      'anilist' => const Color(0xFF02A9FF),
+      'mal' => const Color(0xFF2E51A2),
+      'shikimori' => const Color(0xFFD32F2F),
+      'googlebooks' => const Color(0xFF4285F4),
+      'openlibrary' => const Color(0xFFE1D9D1),
+      'sociallib' => const Color(0xFFE50914),
+      _ => theme.accent,
     };
+    return (accent: accent, border: theme.borderSubtle);
   }
 
   static String _categoryLabel(String key, I18nDictionary t) {

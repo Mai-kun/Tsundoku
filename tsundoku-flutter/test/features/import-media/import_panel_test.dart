@@ -107,10 +107,31 @@ Widget _buildSubject({
   );
 }
 
+Future<void> _pumpSubject(
+  WidgetTester tester, {
+  VoidCallback? onImportCompleted,
+  ValueChanged<String>? onNavigateToList,
+  VoidCallback? onClose,
+  bool showCloseButton = false,
+  _CapturingAdapter? adapter,
+}) async {
+  tester.view.physicalSize = const Size(1440, 900);
+  tester.view.devicePixelRatio = 1.0;
+  addTearDown(tester.view.resetPhysicalSize);
+  addTearDown(tester.view.resetDevicePixelRatio);
+  await tester.pumpWidget(_buildSubject(
+    onImportCompleted: onImportCompleted,
+    onNavigateToList: onNavigateToList,
+    onClose: onClose,
+    showCloseButton: showCloseButton,
+    adapter: adapter,
+  ));
+  await tester.pumpAndSettle();
+}
+
 void main() {
   testWidgets('renders all 9 providers in selector', (tester) async {
-    await tester.pumpWidget(_buildSubject());
-    await tester.pumpAndSettle();
+    await _pumpSubject(tester);
 
     expect(find.text('AniList'), findsOneWidget);
     expect(find.text('MangaLib'), findsOneWidget);
@@ -125,8 +146,7 @@ void main() {
 
   testWidgets('switches to Steam provider and shows Steam inputs',
       (tester) async {
-    await tester.pumpWidget(_buildSubject());
-    await tester.pumpAndSettle();
+    await _pumpSubject(tester);
 
     await tester.tap(find.text('Steam'));
     await tester.pumpAndSettle();
@@ -142,13 +162,14 @@ void main() {
     final adapter = _CapturingAdapter();
     var importCompleted = false;
 
-    await tester.pumpWidget(_buildSubject(
+    await _pumpSubject(
+      tester,
       onImportCompleted: () => importCompleted = true,
       adapter: adapter,
-    ));
-    await tester.pumpAndSettle();
+    );
 
     // Click import with empty username
+    await tester.ensureVisible(find.text('Начать импорт'));
     await tester.tap(find.text('Начать импорт'));
     await tester.pumpAndSettle();
 
@@ -160,6 +181,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Click import again
+    await tester.ensureVisible(find.text('Начать импорт'));
     await tester.tap(find.text('Начать импорт'));
     await tester.pumpAndSettle();
 
@@ -183,8 +205,7 @@ void main() {
   testWidgets('Steam profile import sends correct payload', (tester) async {
     final adapter = _CapturingAdapter();
 
-    await tester.pumpWidget(_buildSubject(adapter: adapter));
-    await tester.pumpAndSettle();
+    await _pumpSubject(tester, adapter: adapter);
 
     await tester.tap(find.text('Steam'));
     await tester.pumpAndSettle();
@@ -213,8 +234,7 @@ void main() {
 
   testWidgets('toggles addToList and shows new list text field',
       (tester) async {
-    await tester.pumpWidget(_buildSubject());
-    await tester.pumpAndSettle();
+    await _pumpSubject(tester);
 
     expect(find.text('Название нового списка'), findsNothing);
 

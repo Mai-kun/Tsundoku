@@ -15,21 +15,22 @@ import 'package:tsundoku_flutter/shared/platform/platform.dart';
 import 'package:tsundoku_flutter/shared/types/dtos.dart';
 
 enum ImportProvider {
-  anilist('anilist', 'AniList', LucideIcons.tv),
-  mangalib('mangalib', 'MangaLib', LucideIcons.bookOpen),
-  mal('mal', 'MyAnimeList', LucideIcons.film),
-  shikimori('shikimori', 'Shikimori', LucideIcons.sparkles),
-  letterboxd('letterboxd', 'Letterboxd', LucideIcons.clapperboard),
-  goodreads('goodreads', 'Goodreads', LucideIcons.book),
-  steam('steam', 'Steam', LucideIcons.gamepad2),
-  anixart('anixart', 'Anixart', LucideIcons.play),
-  custom('custom', 'CSV / JSON', LucideIcons.fileSpreadsheet);
+  anilist('anilist', 'AniList', 'AL', 'JSON или профиль пользователя'),
+  mangalib('mangalib', 'MangaLib', 'ML', 'MangaLib / AnimeLib / RanobeLib'),
+  mal('mal', 'MyAnimeList', 'MAL', 'XML / JSON'),
+  shikimori('shikimori', 'Shikimori', 'SH', 'XML / JSON'),
+  letterboxd('letterboxd', 'Letterboxd', 'L', 'Movie CSV'),
+  goodreads('goodreads', 'Goodreads', 'G', 'Book CSV'),
+  steam('steam', 'Steam', 'S', 'Games / Profile'),
+  anixart('anixart', 'Anixart', 'AX', 'Экспорт аниме в CSV'),
+  custom('custom', 'CSV / JSON', '{ }', 'Универсальный JSON / CSV');
 
   final String id;
   final String label;
-  final IconData icon;
+  final String iconText;
+  final String subtitle;
 
-  const ImportProvider(this.id, this.label, this.icon);
+  const ImportProvider(this.id, this.label, this.iconText, this.subtitle);
 }
 
 class ImportPanel extends ConsumerStatefulWidget {
@@ -83,6 +84,15 @@ class ImportPanelState extends ConsumerState<ImportPanel> {
   String _listMode = 'new'; // 'new' | 'existing'
   String? _targetListId;
   final TextEditingController _newListNameController = TextEditingController();
+  final Set<int> _selectedStatuses = <int>{1, 2, 4, 6, 5};
+  static const _folderOptions = [
+    (id: 1, label: 'Читаю / Смотрю'),
+    (id: 2, label: 'В планах'),
+    (id: 4, label: 'Прочитано'),
+    (id: 6, label: 'Отложено / Жду'),
+    (id: 3, label: 'Брошено / Удалено'),
+    (id: 5, label: 'Любимые'),
+  ];
 
   // State
   List<CustomListSummary> _lists = const <CustomListSummary>[];
@@ -356,12 +366,12 @@ class ImportPanelState extends ConsumerState<ImportPanel> {
       mainAxisSize: MainAxisSize.min,
       children: [
         // Header
-        if (widget.showCloseButton) ...[
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                if (widget.showCloseButton) ...[
                   Container(
                     width: 40,
                     height: 40,
@@ -379,44 +389,44 @@ class ImportPanelState extends ConsumerState<ImportPanel> {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        t.tr('importModal.title'),
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      const Text(
-                        'Перенесите данные из внешних сервисов или локальных файлов',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Color(0xFF94A3B8), // slate-400
-                        ),
-                      ),
-                    ],
-                  ),
                 ],
-              ),
-              if (widget.onClose != null)
-                IconButton(
-                  padding: const EdgeInsets.all(8),
-                  constraints: const BoxConstraints(),
-                  icon: const Icon(
-                    LucideIcons.x,
-                    size: 18,
-                    color: Color(0xFF94A3B8),
-                  ),
-                  onPressed: widget.onClose,
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      t.tr('importModal.title'),
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      t.tr('importModal.description'),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF94A3B8),
+                      ),
+                    ),
+                  ],
                 ),
-            ],
-          ),
-          const SizedBox(height: 20),
-        ],
+              ],
+            ),
+            if (widget.showCloseButton && widget.onClose != null)
+              IconButton(
+                padding: const EdgeInsets.all(8),
+                constraints: const BoxConstraints(),
+                icon: const Icon(
+                  LucideIcons.x,
+                  size: 18,
+                  color: Color(0xFF94A3B8),
+                ),
+                onPressed: widget.onClose,
+              ),
+          ],
+        ),
+        const SizedBox(height: 20),
 
         // Success result banner
         if (_result != null) ...[
@@ -634,61 +644,126 @@ class ImportPanelState extends ConsumerState<ImportPanel> {
   }
 
   Widget _buildProviderSelector() {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: ImportProvider.values.map((p) {
-          final active = _provider == p;
-          return Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(10),
-              onTap: () {
-                setState(() {
-                  _provider = p;
-                  _file = null;
-                  _error = null;
-                });
-              },
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: active
-                      ? const Color(0x336366F1) // indigo-500/20
-                      : const Color(0x0AFFFFFF), // white/[0.04]
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: active
-                        ? const Color(0x666366F1) // indigo-500/40
-                        : const Color(0x14FFFFFF), // white/[0.08]
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      p.icon,
-                      size: 16,
-                      color: active
-                          ? const Color(0xFF818CF8)
-                          : const Color(0xFF94A3B8),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      p.label,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: active ? FontWeight.w600 : FontWeight.normal,
-                        color: active ? Colors.white : const Color(0xFFCBD5E1),
-                      ),
-                    ),
-                  ],
-                ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Row(
+          children: [
+            Text(
+              '• 1. ВЫБЕРИТЕ ИСТОЧНИК',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1.2,
+                color: Color(0xFFE2E8F0),
               ),
             ),
-          );
-        }).toList(),
-      ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final cols = constraints.maxWidth >= 900
+                ? 4
+                : constraints.maxWidth >= 500
+                    ? 2
+                    : 1;
+
+            return GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: ImportProvider.values.length,
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: cols,
+                crossAxisSpacing: 10,
+                mainAxisSpacing: 10,
+                childAspectRatio: 3.2,
+              ),
+              itemBuilder: (context, index) {
+                final p = ImportProvider.values[index];
+                final isSelected = _provider == p;
+
+                return InkWell(
+                  onTap: () {
+                    setState(() {
+                      _provider = p;
+                      _file = null;
+                      _error = null;
+                    });
+                  },
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: isSelected ? const Color(0x1F6366F1) : const Color(0xCC181E2C),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: isSelected ? const Color(0xFF6366F1) : Colors.white.withAlpha(25),
+                        width: isSelected ? 1.5 : 1.0,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: isSelected ? const Color(0x336366F1) : Colors.white.withAlpha(12),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: isSelected ? const Color(0x666366F1) : Colors.white.withAlpha(20),
+                            ),
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            p.iconText,
+                            style: TextStyle(
+                              fontSize: p.iconText.length > 2 ? 11 : 13,
+                              fontWeight: FontWeight.w800,
+                              color: isSelected ? const Color(0xFF818CF8) : const Color(0xFFCBD5E1),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                p.label,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                p.subtitle,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: Color(0xFF94A3B8),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (isSelected)
+                          const Icon(LucideIcons.check, size: 16, color: Color(0xFF6366F1)),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            );
+          },
+        ),
+      ],
     );
   }
 
@@ -714,22 +789,36 @@ class ImportPanelState extends ConsumerState<ImportPanel> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        const Text(
+          '• 2. ФАЙЛ ИЛИ ПРОФИЛЬ',
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 1.2,
+            color: Color(0xFFE2E8F0),
+          ),
+        ),
+        const SizedBox(height: 10),
         Row(
           children: [
-            _buildTabPill(
-              label: t.tr('importModal.anilistProfileTab'),
-              active: _anilistMode == 'profile',
-              onTap: () => setState(() => _anilistMode = 'profile'),
+            Expanded(
+              child: _buildTabPill(
+                label: 'По никнейму профиля',
+                active: _anilistMode == 'profile',
+                onTap: () => setState(() => _anilistMode = 'profile'),
+              ),
             ),
             const SizedBox(width: 8),
-            _buildTabPill(
-              label: t.tr('importModal.anilistFileTab'),
-              active: _anilistMode == 'file',
-              onTap: () => setState(() => _anilistMode = 'file'),
+            Expanded(
+              child: _buildTabPill(
+                label: 'Загрузить JSON-файл',
+                active: _anilistMode == 'file',
+                onTap: () => setState(() => _anilistMode = 'file'),
+              ),
             ),
           ],
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 14),
         if (_anilistMode == 'profile') ...[
           TextField(
             controller: _anilistUsernameController,
@@ -739,6 +828,7 @@ class ImportPanelState extends ConsumerState<ImportPanel> {
               labelStyle: const TextStyle(color: Color(0xFF94A3B8)),
               hintText: 'Например, Mai-kun',
               hintStyle: const TextStyle(color: Color(0xFF64748B)),
+              prefixIcon: const Icon(LucideIcons.user, size: 16),
               filled: true,
               fillColor: const Color(0x0AFFFFFF),
               border: OutlineInputBorder(
@@ -754,6 +844,11 @@ class ImportPanelState extends ConsumerState<ImportPanel> {
                 borderSide: const BorderSide(color: Color(0x80818CF8)),
               ),
             ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'AniList: Settings → Account → Export Data. Либо введите никнейм профиля — список загрузится через публичный API.',
+            style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8), height: 1.4),
           ),
         ] else ...[
           _buildFileDropArea(hint: 'AniList JSON экспорт (.json)'),
@@ -1153,38 +1248,139 @@ class ImportPanelState extends ConsumerState<ImportPanel> {
             ),
           ),
         ],
+
+        // Folder selection chips
+        if (_provider != ImportProvider.mangalib &&
+            _provider != ImportProvider.anixart &&
+            _provider != ImportProvider.steam) ...[
+          const SizedBox(height: 14),
+          const Divider(color: Color(0x14FFFFFF), height: 1),
+          const SizedBox(height: 14),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Row(
+                children: [
+                  Text(
+                    '• КАКИЕ СПИСКИ ИМПОРТИРОВАТЬ:',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.2,
+                      color: Color(0xFFE2E8F0),
+                    ),
+                  ),
+                ],
+              ),
+              Text(
+                'Выбрано: ${_selectedStatuses.length} из ${_folderOptions.length}',
+                style: const TextStyle(fontSize: 11, color: Color(0xFF818CF8)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final cols = constraints.maxWidth >= 600 ? 3 : 2;
+              return GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: _folderOptions.length,
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: cols,
+                  crossAxisSpacing: 8,
+                  mainAxisSpacing: 8,
+                  childAspectRatio: 4.0,
+                ),
+                itemBuilder: (context, index) {
+                  final opt = _folderOptions[index];
+                  final isChecked = _selectedStatuses.contains(opt.id);
+                  return InkWell(
+                    onTap: () {
+                      setState(() {
+                        if (isChecked) {
+                          if (_selectedStatuses.length > 1) {
+                            _selectedStatuses.remove(opt.id);
+                          }
+                        } else {
+                          _selectedStatuses.add(opt.id);
+                        }
+                      });
+                    },
+                    borderRadius: BorderRadius.circular(10),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: isChecked ? const Color(0x146366F1) : const Color(0x05FFFFFF),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: isChecked ? const Color(0x666366F1) : const Color(0x14FFFFFF),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            isChecked ? LucideIcons.checkSquare : LucideIcons.square,
+                            size: 15,
+                            color: isChecked ? const Color(0xFF818CF8) : const Color(0xFF64748B),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              opt.label,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: isChecked ? FontWeight.w600 : FontWeight.normal,
+                                color: isChecked ? Colors.white : const Color(0xFF94A3B8),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ],
       ],
     );
   }
 
   Widget _buildSubmitButton(I18nDictionary t) {
-    return ElevatedButton(
-      onPressed: _busy ? null : _runImport,
-      style: ElevatedButton.styleFrom(
-        backgroundColor: const Color(0xFF4F46E5), // indigo-600
-        foregroundColor: Colors.white,
-        disabledBackgroundColor: const Color(0x4D4F46E5),
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
+    return Align(
+      alignment: Alignment.centerRight,
+      child: ElevatedButton(
+        onPressed: _busy ? null : _runImport,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF4F46E5), // indigo-600
+          foregroundColor: Colors.white,
+          disabledBackgroundColor: const Color(0x4D4F46E5),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
         ),
+        child: _busy
+            ? const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              )
+            : const Text(
+                'Начать импорт',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
       ),
-      child: _busy
-          ? const SizedBox(
-              width: 18,
-              height: 18,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: Colors.white,
-              ),
-            )
-          : const Text(
-              'Начать импорт',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
     );
   }
 

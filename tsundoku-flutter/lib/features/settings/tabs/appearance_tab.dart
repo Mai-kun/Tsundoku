@@ -2,7 +2,6 @@
 ///
 /// Вкладка «Внешний вид»:
 /// - Выбор иконки приложения (Основная Tsundoku / Альтернативная)
-/// - Переключение языка интерфейса (Русский / English) через `i18nProvider`
 /// - Превью акцентных тем (Coming Soon)
 library;
 
@@ -102,7 +101,7 @@ class AppearanceTab extends ConsumerWidget {
             ),
             const SizedBox(height: 20),
 
-            // 2. App Icon Picker
+            // App Icon Picker
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
@@ -129,40 +128,38 @@ class AppearanceTab extends ConsumerWidget {
                   const SizedBox(height: 16),
                   LayoutBuilder(
                     builder: (context, constraints) {
-                      final isNarrow = constraints.maxWidth < 500;
-                      final cards = [
-                        _buildIconCard(
-                          iconId: 'default',
-                          title: t.tr('settingsModal.appearance.iconDefaultTitle'),
-                          description: t.tr('settingsModal.appearance.iconDefaultDescription'),
-                          isSelected: uiSettings.appIcon == 'default',
-                          onTap: () => ref.read(uiSettingsProvider.notifier).setAppIcon('default'),
-                          theme: theme,
-                        ),
-                        _buildIconCard(
-                          iconId: 'alt',
-                          title: t.tr('settingsModal.appearance.iconAltTitle'),
-                          description: t.tr('settingsModal.appearance.iconAltDescription'),
-                          isSelected: uiSettings.appIcon == 'alt',
-                          onTap: () => ref.read(uiSettingsProvider.notifier).setAppIcon('alt'),
-                          theme: theme,
-                        ),
-                      ];
+                      final isWide = constraints.maxWidth > 500;
+                      final defaultCard = _buildIconCard(
+                        iconId: 'default',
+                        title: t.tr('settingsModal.appearance.iconDefaultTitle'),
+                        description: t.tr('settingsModal.appearance.iconDefaultDescription'),
+                        isSelected: uiSettings.appIcon == 'default',
+                        onTap: () => ref.read(uiSettingsProvider.notifier).setAppIcon('default'),
+                        theme: theme,
+                      );
+                      final altCard = _buildIconCard(
+                        iconId: 'alt',
+                        title: t.tr('settingsModal.appearance.iconAltTitle'),
+                        description: t.tr('settingsModal.appearance.iconAltDescription'),
+                        isSelected: uiSettings.appIcon == 'alt',
+                        onTap: () => ref.read(uiSettingsProvider.notifier).setAppIcon('alt'),
+                        theme: theme,
+                      );
 
-                      if (isNarrow) {
-                        return Column(
+                      if (isWide) {
+                        return Row(
                           children: [
-                            cards[0],
-                            const SizedBox(height: 12),
-                            cards[1],
+                            Expanded(child: defaultCard),
+                            const SizedBox(width: 16),
+                            Expanded(child: altCard),
                           ],
                         );
                       }
-                      return Row(
+                      return Column(
                         children: [
-                          Expanded(child: cards[0]),
-                          const SizedBox(width: 14),
-                          Expanded(child: cards[1]),
+                          defaultCard,
+                          const SizedBox(height: 12),
+                          altCard,
                         ],
                       );
                     },
@@ -172,7 +169,7 @@ class AppearanceTab extends ConsumerWidget {
             ),
             const SizedBox(height: 20),
 
-            // 3. Accent Color (Coming Soon)
+            // Accent Color (Coming Soon)
             Opacity(
               opacity: 0.6,
               child: Container(
@@ -251,22 +248,24 @@ class AppearanceTab extends ConsumerWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(10),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
-          color: isSelected ? theme.accent.withAlpha(35) : Colors.white.withAlpha(5),
+          color: isSelected ? const Color(0x1A6366F1) : Colors.white.withAlpha(5),
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: isSelected ? theme.accent : Colors.white.withAlpha(25),
+            color: isSelected ? const Color(0x996366F1) : Colors.white.withAlpha(20),
             width: isSelected ? 1.5 : 1.0,
           ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (isSelected) ...[
-              Icon(LucideIcons.check, size: 14, color: theme.accent),
-              const SizedBox(width: 8),
-            ],
+            Icon(
+              isSelected ? LucideIcons.checkCircle2 : LucideIcons.globe,
+              size: 16,
+              color: isSelected ? const Color(0xFF818CF8) : theme.textMuted,
+            ),
+            const SizedBox(width: 8),
             Text(
               label,
               style: TextStyle(
@@ -297,31 +296,40 @@ class AppearanceTab extends ConsumerWidget {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: isSelected ? theme.accent.withAlpha(25) : Colors.white.withAlpha(5),
+              color: isSelected ? const Color(0x1A6366F1) : Colors.white.withAlpha(5),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: isSelected ? theme.accent.withAlpha(150) : Colors.white.withAlpha(25),
+                color: isSelected ? const Color(0x996366F1) : Colors.white.withAlpha(25),
                 width: isSelected ? 1.5 : 1.0,
               ),
             ),
             child: Row(
               children: [
-                Container(
-                  width: 52,
-                  height: 52,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withAlpha(10),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.white.withAlpha(20)),
-                  ),
-                  alignment: Alignment.center,
-                  child: Icon(
-                    iconId == 'default' ? LucideIcons.box : LucideIcons.sparkles,
-                    size: 24,
-                    color: isSelected ? theme.accent : theme.textMuted,
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: Image.asset(
+                    iconId == 'default' ? 'assets/images/default.png' : 'assets/images/alt.png',
+                    width: 64,
+                    height: 64,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) => Image.network(
+                      iconId == 'default' ? '/icons/default.png' : '/icons/alt.png',
+                      width: 64,
+                      height: 64,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) => Container(
+                        width: 64,
+                        height: 64,
+                        color: Colors.white.withAlpha(10),
+                        child: Icon(
+                          iconId == 'default' ? LucideIcons.box : LucideIcons.sparkles,
+                          color: const Color(0xFF6366F1),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
-                const SizedBox(width: 14),
+                const SizedBox(width: 16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -329,7 +337,7 @@ class AppearanceTab extends ConsumerWidget {
                       Text(
                         title,
                         style: TextStyle(
-                          fontSize: 13,
+                          fontSize: 14,
                           fontWeight: FontWeight.w600,
                           color: theme.textPrimary,
                         ),
@@ -337,7 +345,7 @@ class AppearanceTab extends ConsumerWidget {
                       const SizedBox(height: 3),
                       Text(
                         description,
-                        style: TextStyle(fontSize: 11, height: 1.3, color: theme.textMuted),
+                        style: TextStyle(fontSize: 12, height: 1.3, color: theme.textMuted),
                       ),
                     ],
                   ),
@@ -347,17 +355,17 @@ class AppearanceTab extends ConsumerWidget {
           ),
           if (isSelected)
             Positioned(
-              top: 10,
-              right: 10,
+              top: 12,
+              right: 12,
               child: Container(
-                width: 20,
-                height: 20,
-                decoration: BoxDecoration(
-                  color: theme.accent,
+                width: 24,
+                height: 24,
+                decoration: const BoxDecoration(
+                  color: Color(0xFF6366F1),
                   shape: BoxShape.circle,
                 ),
                 alignment: Alignment.center,
-                child: const Icon(LucideIcons.check, size: 12, color: Colors.white),
+                child: const Icon(LucideIcons.check, size: 14, color: Colors.white),
               ),
             ),
         ],

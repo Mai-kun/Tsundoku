@@ -189,6 +189,10 @@ class SettingsViewState extends ConsumerState<SettingsView> {
       );
     }
 
+    final visibleTabs = SettingsTab.values
+        .where((t) => t != SettingsTab.apiTokens || _activeTab == SettingsTab.apiTokens)
+        .toList();
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final isMobile = constraints.maxWidth < 700;
@@ -203,10 +207,10 @@ class SettingsViewState extends ConsumerState<SettingsView> {
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: SettingsTab.values.length,
+                  itemCount: visibleTabs.length,
                   separatorBuilder: (context, index) => const SizedBox(width: 8),
                   itemBuilder: (context, index) {
-                    final tab = SettingsTab.values[index];
+                    final tab = visibleTabs[index];
                     final isActive = tab == _activeTab;
 
                     return ChoiceChip(
@@ -265,10 +269,10 @@ class SettingsViewState extends ConsumerState<SettingsView> {
               ),
               padding: const EdgeInsets.all(12),
               child: ListView.separated(
-                itemCount: SettingsTab.values.length,
+                itemCount: visibleTabs.length,
                 separatorBuilder: (context, index) => const SizedBox(height: 4),
                 itemBuilder: (context, index) {
-                  final tab = SettingsTab.values[index];
+                  final tab = visibleTabs[index];
                   final isActive = tab == _activeTab;
 
                   return InkWell(

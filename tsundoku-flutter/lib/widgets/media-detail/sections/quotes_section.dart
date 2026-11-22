@@ -203,7 +203,7 @@ class _QuotesSectionState extends ConsumerState<QuotesSection> {
                   ),
                 ),
                 Text(
-                  t.tr('detail.quotesTitle'),
+                  t.tr('detail.quotesTitle').toUpperCase(),
                   style: const TextStyle(
                     fontSize: 12, // text-xs
                     fontWeight: FontWeight.w700, // font-bold
@@ -250,7 +250,7 @@ class _QuotesSectionState extends ConsumerState<QuotesSection> {
                   children: [
                     Flexible(
                       child: Text(
-                        t.tr('detail.quotesTitle'),
+                        t.tr('detail.quotesTitle').toUpperCase(),
                         style: const TextStyle(
                           fontSize: 12, // text-xs
                           fontWeight: FontWeight.w700, // font-bold

@@ -100,53 +100,57 @@ class _TopGenresBarState extends ConsumerState<TopGenresBar> {
                     style: const TextStyle(
                       fontSize: 16, // text-base
                       fontWeight: FontWeight.w600, // font-semibold
-                      letterSpacing: -0.2, // tracking-tight
+                      letterSpacing: -0.4, // tracking-tight
                       color: Colors.white,
                     ),
                   ),
                 ],
               );
 
-              final selectorWidget = Container(
-                decoration: BoxDecoration(
-                  color: Colors.white.withAlpha(8), // bg-white/[0.03]
-                  borderRadius: BorderRadius.circular(8), // rounded-lg
-                ),
-                padding: const EdgeInsets.all(4), // p-1
-                child: Row(
-                  children: [
-                    for (final cat in _categories)
-                      Expanded(
-                        child: InkWell(
-                          onTap: () => setState(() => _selectedType = cat),
-                          borderRadius: BorderRadius.circular(6),
-                          child: Container(
-                            height: 32, // h-8
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              color: _selectedType == cat
-                                  ? theme.accent.withAlpha(77) // bg-accent-bright/30
-                                  : Colors.transparent,
-                              borderRadius: BorderRadius.circular(6), // rounded-md
-                            ),
-                            child: Text(
-                              t.tr('stats.genreCategories.$cat'),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 12, // text-xs
-                                fontWeight: FontWeight.w500, // font-medium
-                                color: _selectedType == cat
-                                    ? Colors.white
-                                    : const Color(0xFF94A3B8), // text-slate-400
-                              ),
-                            ),
-                          ),
-                        ),
+              Widget buildSelector(bool isWide) {
+                if (isWide) {
+                  return Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white.withAlpha(8), // bg-white/[0.03]
+                      borderRadius: BorderRadius.circular(8), // rounded-lg
+                    ),
+                    padding: const EdgeInsets.all(4), // p-1
+                    child: Row(
+                      children: [
+                        for (final cat in _categories)
+                          Expanded(child: _buildCategoryBtn(cat, theme, t)),
+                      ],
+                    ),
+                  );
+                }
+                // На узком экране grid-cols-4: 4 в первом ряду, 3 во втором.
+                return Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white.withAlpha(8), // bg-white/[0.03]
+                    borderRadius: BorderRadius.circular(8), // rounded-lg
+                  ),
+                  padding: const EdgeInsets.all(4), // p-1
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        children: [
+                          for (var i = 0; i < 4; i++)
+                            Expanded(child: _buildCategoryBtn(_categories[i], theme, t)),
+                        ],
                       ),
-                  ],
-                ),
-              );
+                      const SizedBox(height: 4), // gap-1
+                      Row(
+                        children: [
+                          for (var i = 4; i < 7; i++)
+                            Expanded(child: _buildCategoryBtn(_categories[i], theme, t)),
+                          const Expanded(child: SizedBox.shrink()),
+                        ],
+                      ),
+                    ],
+                  ),
+                );
+              }
 
               if (isWide) {
                 return Column(
@@ -160,7 +164,7 @@ class _TopGenresBarState extends ConsumerState<TopGenresBar> {
                         Flexible(
                           child: ConstrainedBox(
                             constraints: const BoxConstraints(maxWidth: 480),
-                            child: selectorWidget,
+                            child: buildSelector(true),
                           ),
                         ),
                       ],
@@ -173,7 +177,7 @@ class _TopGenresBarState extends ConsumerState<TopGenresBar> {
                   children: [
                     titleWidget,
                     const SizedBox(height: 12),
-                    selectorWidget,
+                    buildSelector(false),
                   ],
                 );
               }
@@ -338,6 +342,43 @@ class _TopGenresBarState extends ConsumerState<TopGenresBar> {
               },
             ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildCategoryBtn(String cat, TsundokuTheme theme, I18nDictionary t) {
+    final isSelected = _selectedType == cat;
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _selectedType = cat;
+        });
+      },
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: Container(
+          height: 32, // h-8
+          alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(horizontal: 4), // px-1
+          decoration: BoxDecoration(
+            color: isSelected
+                ? theme.accentBright.withAlpha(77) // bg-accent-bright/30
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(6), // rounded-md
+          ),
+          child: Text(
+            t.tr('stats.genreCategories.$cat'),
+            maxLines: 1,
+            overflow: TextOverflow.clip,
+            style: TextStyle(
+              fontSize: 12, // text-xs
+              fontWeight: FontWeight.w500, // font-medium
+              color: isSelected
+                  ? Colors.white
+                  : const Color(0xFF94A3B8), // text-slate-400
+            ),
+          ),
+        ),
       ),
     );
   }

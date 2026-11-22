@@ -2,8 +2,8 @@
 
 ## 📍 Текущий фокус / Next Step
 * **Фаза:** S5 (widgets/media-detail/**, widgets/stats/**, widgets/goals/*)
-* **Текущий файл:** `mediatracker-ui/src/widgets/stats/TopGenresBar.svelte` -> `tsundoku-flutter/lib/widgets/stats/top_genres_bar.dart`
-* **Цель:** Сверка TopGenresBar: сегментированный бар h-3, переключатель категорий grid-cols-4/7, сетка жанров.
+* **Текущий файл:** `mediatracker-ui/src/widgets/stats/TrackerBadges.svelte` -> `tsundoku-flutter/lib/widgets/stats/tracker_badges.dart`
+* **Цель:** Сверка TrackerBadges: сетка бейджей достижений, прогресс, тултипы/поповеры, анимации и статусы.
 
 ---
 
@@ -262,7 +262,7 @@
 | S5 | `mediatracker-ui/src/widgets/stats/MonthlyActivityChart.svelte` | `tsundoku-flutter/lib/widgets/stats/monthly_activity_chart.dart` | ✅ Сверен 1:1 | Заголовок text-base font-semibold tracking-tight, область графика h-44 (176px) с pt-6 pb-2 и gap-2 (8px), градиент снизу вверх от accent-bright к #818cf8, плашки 4px для нулей 1-в-1 | Да |
 | S5 | `mediatracker-ui/src/widgets/stats/RatingPsychology.svelte` | `tsundoku-flutter/lib/widgets/stats/rating_psychology.dart` | ✅ Сверен 1:1 | Заголовок text-base font-semibold tracking-tight, 10 рядов с gap-2.5 (10px) и space-y-1.5 (6px), трек h-3 (12px), градиент from-amber-500/70 to-amber-400, чипы категорий px-2.5 py-1 text-xs 1-в-1 | Да |
 | S5 | `mediatracker-ui/src/widgets/stats/TimeDistributionDonut.svelte` | `tsundoku-flutter/lib/widgets/stats/time_distribution_donut.dart` | ✅ Сверен 1:1 | Layout sm:flex-row (>=640px) с gap-6 (24px), кольцо h-48 w-48 (192px), сетка карточек sm:grid-cols-2 gap-2.5 (10px) 1-в-1 | Да |
-| S5 | `mediatracker-ui/src/widgets/stats/TopGenresBar.svelte` | `tsundoku-flutter/lib/widgets/stats/top_genres_bar.dart` | В очереди |  |  |
+| S5 | `mediatracker-ui/src/widgets/stats/TopGenresBar.svelte` | `tsundoku-flutter/lib/widgets/stats/top_genres_bar.dart` | ✅ Сверен 1:1 | Заголовок tracking-tight (-0.4), селектор категорий адаптивный grid-cols-4 на мобильных и sm:grid-cols-7 (>=640px) с кнопками h-8 rounded-md и bg-accent-bright/30 1-в-1 | Да |
 | S5 | `mediatracker-ui/src/widgets/stats/TrackerBadges.svelte` | `tsundoku-flutter/lib/widgets/stats/tracker_badges.dart` | В очереди |  |  |
 | S5 | `mediatracker-ui/src/widgets/stats/BacklogHealth.svelte` | `tsundoku-flutter/lib/widgets/stats/backlog_health.dart` | В очереди |  |  |
 | S5 | `mediatracker-ui/src/widgets/stats/taste-profile/GenreRadarChart.svelte` | `tsundoku-flutter/lib/widgets/stats/taste-profile/genre_radar_chart.dart` | В очереди |  |  |

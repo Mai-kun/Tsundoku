@@ -363,7 +363,7 @@ class _LinkedSourcesSectionState extends ConsumerState<LinkedSourcesSection> {
                   children: [
                     Flexible(
                       child: Text(
-                        t.tr('detail.linkedSourcesTitle'),
+                        t.tr('detail.linkedSourcesTitle').toUpperCase(),
                         style: const TextStyle(
                           fontSize: 12, // text-xs
                           fontWeight: FontWeight.w700, // font-bold

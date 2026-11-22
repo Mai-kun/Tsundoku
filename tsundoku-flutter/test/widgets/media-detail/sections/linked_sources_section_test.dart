@@ -80,7 +80,7 @@ void main() {
   testWidgets('пусто: приглашение «Привяжите MangaLib…»', (tester) async {
     await pumpSources(tester, handlers: {});
     expect(find.textContaining('Привяжите MangaLib'), findsOneWidget);
-    expect(find.text('Внешние источники'), findsOneWidget);
+    expect(find.textContaining(RegExp('Внешние источники', caseSensitive: false)), findsOneWidget);
   });
 
   testWidgets('загрузка: строки источников, crown у primary, чипы полей',

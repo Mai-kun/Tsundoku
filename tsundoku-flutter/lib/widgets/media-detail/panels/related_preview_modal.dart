@@ -77,7 +77,12 @@ class RelatedPreviewModal extends ConsumerWidget {
       isOpen: true,
       onClose: onClose,
       size: ModalSize.md,
-      child: Stack(
+      contentPadding: EdgeInsets.zero,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(context).height * 0.85, // max-h-[85vh]
+        ),
+        child: Stack(
         children: [
           Container(
             padding: const EdgeInsets.all(24), // p-6
@@ -134,7 +139,8 @@ class RelatedPreviewModal extends ConsumerWidget {
                                           ),
                                           child: Text(
                                             formatMediaDisplayType(
-                                                entry.type, entry.format, t),
+                                                    entry.type, entry.format, t)
+                                                .toUpperCase(),
                                             style: TextStyle(
                                               fontSize: 11, // text-[11px]
                                               fontWeight:
@@ -250,23 +256,23 @@ class RelatedPreviewModal extends ConsumerWidget {
                                                       r.score! > 0)
                                                     Row(
                                                       children: [
-                                                        Icon(
+                                                        const Icon(
                                                           LucideIcons.star,
                                                           size: 11,
-                                                          color: th
-                                                              .accentSoft, // text-star
+                                                          color: Color(
+                                                              0xFFF59E0B), // text-star
                                                         ),
                                                         const SizedBox(
                                                             width: 2), // gap-0.5
                                                         Text(
                                                           r.score!
                                                               .toStringAsFixed(1),
-                                                          style: TextStyle(
+                                                          style: const TextStyle(
                                                             fontSize: 12,
                                                             fontWeight:
                                                                 FontWeight.w700, // font-bold
-                                                            color:
-                                                                th.accentSoft, // text-star
+                                                            color: Color(
+                                                                0xFFF59E0B), // text-star
                                                           ),
                                                         ),
                                                       ],
@@ -423,13 +429,14 @@ class RelatedPreviewModal extends ConsumerWidget {
                             decoration: const BoxDecoration(
                               border: Border(
                                   top: BorderSide(
-                                      color: Colors.white)), // border-border
+                                      color: Color(0x14FFFFFF))), // border-border /[0.08]
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  t.tr('detail.previewModal.description'),
+                                  t.tr('detail.previewModal.description')
+                                      .toUpperCase(),
                                   style: TextStyle(
                                     fontSize: 12, // text-xs
                                     fontWeight:
@@ -477,7 +484,8 @@ class RelatedPreviewModal extends ConsumerWidget {
           ),
         ],
       ),
-    );
+    ),
+  );
   }
 
   Widget _factRow(

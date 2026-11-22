@@ -2,8 +2,8 @@
 
 ## 📍 Текущий фокус / Next Step
 * **Фаза:** S5 (widgets/media-detail/**, widgets/stats/**, widgets/goals/*)
-* **Текущий файл:** `mediatracker-ui/src/widgets/media-detail/panels/RelatedPreviewModal.svelte` -> `tsundoku-flutter/lib/widgets/media-detail/panels/related_preview_modal.dart`
-* **Цель:** Сверка RelatedPreviewModal: модалка предпросмотра связанного тайтла.
+* **Текущий файл:** `mediatracker-ui/src/widgets/media-detail/sections/ProgressCard.svelte` -> `tsundoku-flutter/lib/widgets/media-detail/sections/progress_card.dart`
+* **Цель:** Сверка ProgressCard: базовая карточка прогресса (книги, манга, сериалы, игры).
 
 ---
 
@@ -234,7 +234,7 @@
 | S5 | `mediatracker-ui/src/widgets/media-detail/OverwriteConfirmModal.svelte` | `tsundoku-flutter/lib/widgets/media-detail/overwrite_confirm_modal.dart` | ✅ Сверен 1:1 | ModalSize.md, contentPadding: zero для full-bleed разделителя border-t border-white/[0.08] между секциями p-5 (20px), безопасная кнопка px-4 py-2.5 rounded-lg bg-accent text-sm font-medium hover:bg-accent-hover, полная перезапись border-white/10 text-muted hover:border-rose-400/40 hover:text-rose-200, кнопка отмены mt-1 (4px) px-4 py-2 text-sm text-muted hover:text-white 1-в-1 | Да |
 | S5 | `mediatracker-ui/src/widgets/media-detail/RelinkSourceModal.svelte` | `tsundoku-flutter/lib/widgets/media-detail/relink_source_modal.dart` | ✅ Сверен 1:1 | ModalSize.lg, contentPadding: zero для full-bleed разделителей border-b border-white/[0.08], ConstrainedBox maxHeight: 0.7vh (max-h-[70vh]), шапка px-5 py-4 с Link2 18px accent-soft, секция поиска p-4 с полем h-10 px-3 bg-[#1c202b] rounded-lg и селектом провайдера с uppercase tracking-wider лейблом text-[11px], список min-h-40 p-4 space-y-2, постер 40x56 (h-14 w-10 aspect-[2/3]) rounded-md, бейдж источника px-1.5 py-0.5 text-[10px], кнопка привязки px-3 py-1.5 rounded-md text-xs border-accent/40 bg-accent/10 1-в-1 | Да |
 | S5 | `mediatracker-ui/src/widgets/media-detail/panels/RelatedPanel.svelte` | `tsundoku-flutter/lib/widgets/media-detail/panels/related_panel.dart` | ✅ Сверен 1:1 | заголовок uppercase tracking-wider text-sm font-bold text-slate-300, переключатель режимов h-8 w-8 rounded-md bg-[var(--color-track-alt)] border-white/[0.08] p-1 с иконками 17px, сетка карточек 2..5 колонок с gap-3 (12px), карточка aspect-[2/3] rounded-xl border-white/[0.06] bg-[var(--color-overlay-strong)], бейдж статуса top-2.5 left-2.5 со score 28x28 (-ml-2), градиент p-3 pt-12, таймлайн с маркерами 24x24 border-2 и строками gap-3.5 rounded-xl border p-2.5 1-в-1 | Да |
-| S5 | `mediatracker-ui/src/widgets/media-detail/panels/RelatedPreviewModal.svelte` | `tsundoku-flutter/lib/widgets/media-detail/panels/related_preview_modal.dart` | В очереди |  |  |
+| S5 | `mediatracker-ui/src/widgets/media-detail/panels/RelatedPreviewModal.svelte` | `tsundoku-flutter/lib/widgets/media-detail/panels/related_preview_modal.dart` | ✅ Сверен 1:1 | ModalSize.md, contentPadding: zero для исключения удвоения внешних отступов, ConstrainedBox maxHeight: 0.85vh (max-h-[85vh]), кнопка закрытия 32x32 rounded-lg top-4 right-4, постер 160x240 (w-40 aspect-[2/3]) rounded-lg bg-canvas, бейдж типа uppercase tracking-wider text-[11px] rounded-full, чипы рейтингов с точным цветом звезд amber-500 #f59e0b, разделитель описания mt-5 pt-4 border-t border-white/[0.08] с uppercase tracking-wider заголовком text-xs 1-в-1 | Да |
 | S5 | `mediatracker-ui/src/widgets/media-detail/sections/ProgressCard.svelte` | `tsundoku-flutter/lib/widgets/media-detail/sections/progress_card.dart` | В очереди |  |  |
 | S5 | `mediatracker-ui/src/widgets/media-detail/sections/PeopleSizeToggle.svelte` | `tsundoku-flutter/lib/widgets/media-detail/sections/people_size_toggle.dart` | В очереди |  |  |
 | S5 | `mediatracker-ui/src/widgets/media-detail/sections/BookProgressSection.svelte` | `tsundoku-flutter/lib/widgets/media-detail/sections/book_progress_section.dart` | В очереди |  |  |

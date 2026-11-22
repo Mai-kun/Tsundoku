@@ -250,3 +250,24 @@
 9. Реализована вкладка **Приложение / Desktop** (`desktop_tab.dart`): сворачивание в трей при закрытии, автозапуск, шорткаты.
 10. Реализована вкладка **API-токены** (`api_tokens_tab.dart`): генерация токенов, диалог с копированием ключа, отзыв токенов.
 Все 10 вкладок подключены в `SettingsView` и `SettingsModal`. Заглушка `'секция настроек'` ликвидирована (коммиты `9634f21`..`deb219e`).
+
+### Этап 4: Интеграция Native Flutter Desktop UI & Web Canvas в Server и CI/CD Сборку — ✅ ВЫПОЛНЕНО В ПОЛНОМ ОБЪЕМЕ
+1. **Архитектура разделения UI и Сервера (`MediaTracker.Server`):**
+   - Поддержаны CLI-флаги `--no-ui` (синоним `--no-browser`) и `--web` (принудительное открытие в системном браузере).
+   - В `BrowserLauncher.cs` реализован метод `FindFlutterUiBinary`, находящий бинарник Flutter (`tsundoku_flutter`) в `./ui/`, `../ui/`, `DOTNET_CONTENTROOT/ui` или системных путях.
+   - При наличии папки `ui/` запускается нативный Flutter Desktop клиент (`tsundoku_flutter --url {url}`) с полным контролем жизненного цикла процесса (чистое завершение в 0 МБ RAM при закрытии окна, тримминг памяти через `MemoryOptimizer`, гарантированное закрытие при остановке сервера).
+   - При отсутствии папки `ui/` (удалена пользователем) сервер **НЕ падает**, а спокойно работает в headless-режиме (`API + Web`), выводя понятное информационное сообщение в лог.
+2. **Kestrel WebAssembly / Web Canvas (`wwwroot/`):**
+   - Добавлены явные MIME-типы `.wasm` (`application/wasm`), `.mjs` (`text/javascript`), `.js` (`text/javascript`).
+   - Добавлены заголовки `Cross-Origin-Opener-Policy: same-origin` и `Cross-Origin-Embedder-Policy: credentialless` для поддержки `SharedArrayBuffer` в Wasm-сборке Flutter Web без блокировки внешних картинок.
+3. **Обновление `build-linux.sh` под Flutter:**
+   - Шаг 1: `flutter build web --wasm` -> копирование в `MediaTracker.Server/wwwroot/`.
+   - Шаг 2: `flutter build linux --release` -> копирование бандла в `dist/Tsundoku-Portable/ui/` (`tsundoku_flutter`).
+   - Шаг 3: генерация актуальной OpenAPI схемы (`openapi.json`).
+   - Шаг 4: публикация NativeAOT бинарника `Tsundoku` с перемещением `.so` в `lib/`.
+   - Шаг 5: упаковка `ui/` внутрь монолитного `Tsundoku.AppImage` и настройка `StartupWMClass=tsundoku_flutter` в `.desktop`.
+4. **Тесты и верификация:**
+   - Все 456 тестов бэкенда (`dotnet test`) зелёные (включая новые тесты `FlutterDesktopLauncherTests`).
+   - Все 1026 тестов Flutter (`flutter test`) зелёные.
+   - `flutter analyze` — 0 issues.
+   - Живые smoke-тесты портативной сборки подтвердили запуск нативного Flutter UI (`tsundoku_flutter`), корректный fallback в headless при отсутствии `ui/`, и раздачу Flutter Web Canvas через `GET http://127.0.0.1:5098/` (`200 OK`).

@@ -32,6 +32,9 @@ public static class BrowserLauncher
     /// <summary>`minimize_to_tray` or `exit_all`, applied when the user closes the app window.</summary>
     public static string CloseAction { get; private set; } = DefaultCloseAction;
 
+    /// <summary>When true, bypasses native Flutter desktop binary and opens a web browser.</summary>
+    public static bool PreferWebBrowser { get; set; }
+
     /// <summary>
     /// Isolated Chromium profile, kept strictly inside the storage root (./data in portable
     /// mode), so portable installs never write into the system app-data folder. Set once at
@@ -45,6 +48,12 @@ public static class BrowserLauncher
     {
         _services = services;
         _hostLifetime = lifetime;
+        var options = services.GetService<MediaTracker.Server.Common.Cli.CommandLineOptions>();
+        if (options != null)
+        {
+            PreferWebBrowser = options.PreferWebBrowser;
+        }
+
         var appPaths = services.GetRequiredService<AppPaths>();
         ProfileDirectory = Path.Combine(appPaths.DataDirectory, "chromium-profile");
         using var scope = services.CreateScope();
@@ -134,6 +143,121 @@ public static class BrowserLauncher
             StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
+    /// Searches for the native Flutter UI binary adjacent to the server or in known layout locations.
+    /// Returns the full path to the executable if found, otherwise null.
+    /// </summary>
+    public static string? FindFlutterUiBinary(string? baseDir = null, string? contentRoot = null)
+    {
+        var binaryName = OperatingSystem.IsWindows() ? "tsundoku_flutter.exe" : "tsundoku_flutter";
+        baseDir ??= AppContext.BaseDirectory;
+        contentRoot ??= Environment.GetEnvironmentVariable("DOTNET_CONTENTROOT")
+                     ?? Environment.GetEnvironmentVariable("ASPNETCORE_CONTENTROOT");
+
+        var candidates = new List<string>();
+
+        // 1. In ui/ subfolder next to server binary (Portable: dist/Tsundoku-Portable/ui/tsundoku_flutter)
+        if (!string.IsNullOrEmpty(baseDir))
+        {
+            candidates.Add(Path.Combine(baseDir, "ui", binaryName));
+            // 2. Parent directory if binary is in bin/ (AppImage: $HERE/bin/Tsundoku -> $HERE/ui/tsundoku_flutter)
+            candidates.Add(Path.Combine(baseDir, "..", "ui", binaryName));
+        }
+
+        // 3. DOTNET_CONTENTROOT / ASPNETCORE_CONTENTROOT ($HERE/ui/tsundoku_flutter)
+        if (!string.IsNullOrEmpty(contentRoot))
+        {
+            candidates.Add(Path.Combine(contentRoot, "ui", binaryName));
+        }
+
+        // 4. Linux system install locations
+        if (OperatingSystem.IsLinux())
+        {
+            candidates.Add(Path.Combine("/opt/tsundoku/ui", binaryName));
+            candidates.Add(Path.Combine("/usr/lib/tsundoku/ui", binaryName));
+        }
+
+        // 5. Development mode (dotnet run / IDE): look in tsundoku-flutter build folders
+        var isDev = !string.IsNullOrEmpty(baseDir) && (
+            baseDir.Contains(Path.Combine("bin", "Debug")) ||
+            baseDir.Contains(Path.Combine("bin", "Release")) ||
+            string.Equals(Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT"), "Development", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"), "Development", StringComparison.OrdinalIgnoreCase));
+
+        if (isDev)
+        {
+            var devRoots = new List<string>();
+            if (!string.IsNullOrEmpty(baseDir))
+            {
+                devRoots.Add(Path.Combine(baseDir, "..", "..", "..", "..", "tsundoku-flutter"));
+            }
+            devRoots.Add(Path.Combine(Directory.GetCurrentDirectory(), "tsundoku-flutter"));
+
+            foreach (var devRoot in devRoots)
+            {
+                candidates.Add(Path.Combine(devRoot, "build", "linux", "x64", "release", "bundle", binaryName));
+                candidates.Add(Path.Combine(devRoot, "build", "linux", "x64", "debug", "bundle", binaryName));
+                candidates.Add(Path.Combine(devRoot, "build", "windows", "x64", "runner", "Release", binaryName));
+                candidates.Add(Path.Combine(devRoot, "build", "windows", "x64", "runner", "Debug", binaryName));
+            }
+        }
+
+        foreach (var candidate in candidates)
+        {
+            try
+            {
+                var fullPath = Path.GetFullPath(candidate);
+                if (File.Exists(fullPath))
+                {
+                    return fullPath;
+                }
+            }
+            catch
+            {
+                // Ignore invalid paths
+            }
+        }
+
+        return null;
+    }
+
+    private static bool TryLaunchFlutterUi(string flutterBinary, string url)
+    {
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = flutterBinary,
+            UseShellExecute = false,
+            CreateNoWindow = false,
+            WorkingDirectory = Path.GetDirectoryName(flutterBinary) ?? string.Empty,
+        };
+        startInfo.ArgumentList.Add("--url");
+        startInfo.ArgumentList.Add(url);
+
+        try
+        {
+            var child = Process.Start(startInfo);
+            if (child is null)
+            {
+                return false;
+            }
+
+            ActiveBrowserProcess = child;
+            child.EnableRaisingEvents = true;
+            child.Exited += (_, _) =>
+            {
+                OnBrowserWindowClosed();
+            };
+
+            Serilog.Log.Information("[Desktop] Opened native Flutter UI: {Binary} --url {Url} (PID {Pid})", flutterBinary, url, child.Id);
+            return true;
+        }
+        catch (Exception error)
+        {
+            Serilog.Log.Warning(error, "[Desktop] Failed to launch native Flutter UI from {Binary}", flutterBinary);
+            return false;
+        }
+    }
+
+    /// <summary>
     /// Spawns the window on a worker thread and returns at once, so Chromium can spend its ~1 s
     /// process/graphics warm-up while the host is still wiring routes and binding Kestrel. The
     /// started process is registered by <see cref="OpenUrl"/> exactly like a synchronous launch,
@@ -143,11 +267,36 @@ public static class BrowserLauncher
 
     public static void OpenUrl(string url, bool preferAppWindow = true)
     {
-        // The persisted setting wins over the caller's preference (e.g. the log console).
-        var useAppWindow = preferAppWindow
-            && !string.Equals(LaunchMode, "browser_tab", StringComparison.OrdinalIgnoreCase);
         try
         {
+            // If opening the main UI (not logs or specific URLs), and not in forced web mode
+            var isUiUrl = !url.EndsWith("/logs.html", StringComparison.OrdinalIgnoreCase);
+
+            if (isUiUrl && preferAppWindow && !PreferWebBrowser)
+            {
+                var flutterBinary = FindFlutterUiBinary();
+                if (flutterBinary != null)
+                {
+                    if (TryLaunchFlutterUi(flutterBinary, url))
+                    {
+                        return;
+                    }
+                }
+                else
+                {
+                    // Flutter binary not found and --web was not specified:
+                    // Server must NOT crash, but remain running in headless mode!
+                    Serilog.Log.Information(
+                        "[Desktop] Native Flutter UI binary not found (ui/ folder missing). Tsundoku continues running in headless mode at {Url}",
+                        url);
+                    return;
+                }
+            }
+
+            // The persisted setting wins over the caller's preference (e.g. the log console).
+            var useAppWindow = preferAppWindow
+                && !string.Equals(LaunchMode, "browser_tab", StringComparison.OrdinalIgnoreCase);
+
             if (OperatingSystem.IsLinux())
             {
                 OpenOnLinux(url, useAppWindow);
@@ -289,9 +438,9 @@ public static class BrowserLauncher
         // Window identity: WM_CLASS on X11, the Wayland app id and the shell's window name all
         // must match StartupWMClass=Tsundoku in tsundoku.desktop, or the taskbar/dock pairs the
         // --app window with the running Chromium instead of the Tsundoku icon.
-        startInfo.ArgumentList.Add("--class=Tsundoku");
-        startInfo.ArgumentList.Add("--name=Tsundoku");
-        startInfo.ArgumentList.Add("--app-id=tsundoku");
+        startInfo.ArgumentList.Add("--class=tsundoku_flutter");
+        startInfo.ArgumentList.Add("--name=tsundoku_flutter");
+        startInfo.ArgumentList.Add("--app-id=tsundoku_flutter");
         startInfo.ArgumentList.Add($"--window-size={windowSize}");
         // Let Ozone pick the platform (native Wayland on Wayland sessions, X11 on X11): forcing
         // XWayland broke mouse clicks in modal dialogs and flickered the whole screen on drag.

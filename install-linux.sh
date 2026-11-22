@@ -92,9 +92,11 @@ if ((COPIED)); then
         cp -r "$item" "$INSTALL_DIR/"
     done)
     chmod +x "$INSTALL_DIR/Tsundoku"
+    [[ -f "$INSTALL_DIR/ui/tsundoku_flutter" ]] && chmod +x "$INSTALL_DIR/ui/tsundoku_flutter" || true
 else
     # In-place: файлы никуда не копируются, гарантируем только права на запуск.
     chmod +x "$INSTALL_DIR/Tsundoku"
+    [[ -f "$INSTALL_DIR/ui/tsundoku_flutter" ]] && chmod +x "$INSTALL_DIR/ui/tsundoku_flutter" || true
 fi
 # В обоих режимах: права на запуск скриптов, если они лежат в целевой папке.
 for s in install-linux.sh uninstall-linux.sh; do
@@ -156,10 +158,8 @@ Exec="$INSTALL_DIR/Tsundoku"
 Icon="$ICON_SRC"
 Type=Application
 Categories=Utility;Office;
-# Must match the Chromium --app window's WM_CLASS on X11/XWayland sessions
-# (--class=Tsundoku), or the taskbar/dock pairs the app window with the running
-# browser instead of this entry.
-StartupWMClass=Tsundoku
+# Must match the Flutter desktop window / Chromium --app window's WM_CLASS
+StartupWMClass=tsundoku_flutter
 DESKTOP
 
 # На нативном Wayland Chromium игнорирует --class и сам вычисляет app id как

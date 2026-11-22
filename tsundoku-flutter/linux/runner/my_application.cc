@@ -33,7 +33,7 @@ static void my_application_activate(GApplication* application) {
   // gtk_header_bar_set_show_close_button(header_bar, TRUE);
   // gtk_window_set_titlebar(window, GTK_WIDGET(header_bar));
 
-  gtk_window_set_title(window, "tsundoku_flutter");
+  gtk_window_set_title(window, "Tsundoku");
 
   g_autoptr(FlDartProject) project = fl_dart_project_new();
   fl_dart_project_set_dart_entrypoint_arguments(
@@ -121,7 +121,7 @@ MyApplication* my_application_new() {
   // like GTK and desktop environments map this running application to its
   // corresponding .desktop file. This ensures better integration by allowing
   // the application to be recognized beyond its binary name.
-  g_set_prgname(APPLICATION_ID);
+  g_set_prgname("tsundoku_flutter");
 
   return MY_APPLICATION(g_object_new(my_application_get_type(),
                                      "application-id", APPLICATION_ID, "flags",

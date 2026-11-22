@@ -35,6 +35,7 @@ using Microsoft.OpenApi;
 MemoryOptimizer.ConfigureGlibcAllocators();
 
 var options = CommandLineOptions.Parse(args);
+BrowserLauncher.PreferWebBrowser = options.PreferWebBrowser;
 
 if (options.ShowHelp)
 {
@@ -451,6 +452,9 @@ try
 
     var contentTypeProvider = new FileExtensionContentTypeProvider();
     contentTypeProvider.Mappings[".webmanifest"] = "application/manifest+json";
+    contentTypeProvider.Mappings[".wasm"] = "application/wasm";
+    contentTypeProvider.Mappings[".mjs"] = "text/javascript";
+    contentTypeProvider.Mappings[".js"] = "text/javascript";
 
     app.UseDefaultFiles(new DefaultFilesOptions { FileProvider = staticFileProvider });
 
@@ -461,8 +465,12 @@ try
             ContentTypeProvider = contentTypeProvider,
             OnPrepareResponse = context =>
             {
-                // Vite emits content-hashed filenames under /assets, so those are immutable exactly like
-                // the covers. index.html and diag.html must stay revalidated or a deploy never lands.
+                // Flutter Web Wasm (CanvasKit/Skwasm) SharedArrayBuffer support
+                context.Context.Response.Headers["Cross-Origin-Opener-Policy"] = "same-origin";
+                context.Context.Response.Headers["Cross-Origin-Embedder-Policy"] = "credentialless";
+
+                // Vite/Flutter emit content-hashed filenames, so those are immutable.
+                // index.html and manifest must stay revalidated or a deploy never lands.
                 if (context.File.Name.EndsWith(".html", StringComparison.OrdinalIgnoreCase)
                     || context.File.Name.EndsWith(".webmanifest", StringComparison.OrdinalIgnoreCase)
                     || string.Equals(context.File.Name, "sw.js", StringComparison.OrdinalIgnoreCase))
@@ -529,6 +537,8 @@ try
         context.Response.StatusCode = StatusCodes.Status200OK;
         context.Response.ContentType = "text/html; charset=utf-8";
         context.Response.Headers.CacheControl = "no-cache";
+        context.Response.Headers["Cross-Origin-Opener-Policy"] = "same-origin";
+        context.Response.Headers["Cross-Origin-Embedder-Policy"] = "credentialless";
         await using var stream = indexFile.CreateReadStream();
         await stream.CopyToAsync(context.Response.Body);
     });

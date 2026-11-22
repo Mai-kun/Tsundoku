@@ -25,6 +25,9 @@ public sealed class CommandLineOptions
     /// <summary>Keep the process in the tray without surfacing the UI (autostart, shortcuts).</summary>
     public bool StartMinimized { get; private set; }
 
+    /// <summary>Explicitly open a web browser instead of the native desktop UI.</summary>
+    public bool PreferWebBrowser { get; private set; }
+
     /// <summary>
     /// Internal: PID окна Chromium, пережившего перезапуск (--adopt-browser-pid). Новый процесс
     /// усыновляет его, чтобы закрытие окна и финальный выход работали как в исходном процессе.
@@ -89,9 +92,14 @@ public sealed class CommandLineOptions
 
                 // Start in the tray without opening the UI (autostart, shortcuts, internal restart).
                 case "--no-browser":
+                case "--no-ui":
                 case "--tray":
                 case "--minimized":
                     options.StartMinimized = true;
+                    break;
+
+                case "--web":
+                    options.PreferWebBrowser = true;
                     break;
 
                 // Internal: adopt the Chromium window surviving from the previous instance
@@ -273,7 +281,8 @@ public sealed class CommandLineOptions
               --headless, --server-only    Run without the tray icon and without opening a
                                          browser window (systemd, Docker, scripts).
               --tray, --minimized          Start in the tray; the UI is not opened automatically.
-              --no-browser                 Do not launch browser window on startup.
+              --no-browser, --no-ui        Do not launch UI window on startup.
+              --web                        Open web browser instead of native desktop UI.
               --import-offline-db          Import anime-offline-database into anime_offline.db.
               --offline-dump <path>        Custom path to anime-offline-database.json(l).
               --gui, --client-only         Legacy no-op.

@@ -17,7 +17,7 @@ import 'package:window_manager/legacy.dart';
 
 import 'platform_service.dart';
 
-final PlatformService platformService = const IoPlatformService();
+PlatformService platformService = const IoPlatformService();
 
 class IoPlatformService implements PlatformService {
   const IoPlatformService();

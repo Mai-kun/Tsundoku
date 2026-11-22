@@ -7,7 +7,7 @@ import 'dart:typed_data';
 
 import 'platform_service.dart';
 
-final PlatformService platformService = _UnsupportedPlatformService();
+PlatformService platformService = _UnsupportedPlatformService();
 
 class _UnsupportedPlatformService implements PlatformService {
   @override

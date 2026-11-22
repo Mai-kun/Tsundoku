@@ -12,7 +12,7 @@ import 'package:web/web.dart' as web;
 
 import 'platform_service.dart';
 
-final PlatformService platformService = const WebPlatformService();
+PlatformService platformService = const WebPlatformService();
 
 class WebPlatformService implements PlatformService {
   const WebPlatformService();

@@ -136,11 +136,11 @@ class _QuotesModuleState extends ConsumerState<QuotesModule> {
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
           borderSide:
-              const BorderSide(color: Colors.white24), // border-white/10
+              BorderSide(color: Colors.white.withAlpha(26)), // border-white/10
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: Colors.white24),
+          borderSide: BorderSide(color: Colors.white.withAlpha(26)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
@@ -268,10 +268,7 @@ class _QuotesModuleState extends ConsumerState<QuotesModule> {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
-                    color: Colors.white24,
-                    // border-dashed → DashedBorder не используется: сплошная
-                    // border-white/10 (пунктир в Flutter-канвасе — отклонение,
-                    // см. 🐛 журнал? нет: примечание в строке таблицы).
+                    color: Colors.white.withAlpha(26), // border-white/10
                   ),
                 ),
                 child: Row(
@@ -434,27 +431,20 @@ class _QuotesModuleState extends ConsumerState<QuotesModule> {
                                   ),
                                 ),
                                 const SizedBox(width: 8), // gap-2
-                                Column(
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    GestureDetector(
+                                    _QuoteActionBtn(
+                                      icon: LucideIcons.pencil,
+                                      semanticLabel: t.tr('detailModal.edit'),
                                       onTap: () => _startEditing(quote),
-                                      child: Container(
-                                        width: 28,
-                                        height: 28,
-                                        alignment: Alignment.center,
-                                        child: Icon(LucideIcons.pencil,
-                                            size: 13, color: th.textMuted),
-                                      ),
                                     ),
-                                    GestureDetector(
+                                    const SizedBox(width: 4), // gap-1
+                                    _QuoteActionBtn(
+                                      icon: LucideIcons.trash2,
+                                      semanticLabel: t.tr('common.delete'),
+                                      danger: true,
                                       onTap: () => _removeQuote(quote.id),
-                                      child: Container(
-                                        width: 28,
-                                        height: 28,
-                                        alignment: Alignment.center,
-                                        child: Icon(LucideIcons.trash2,
-                                            size: 13, color: th.textMuted),
-                                      ),
                                     ),
                                   ],
                                 ),
@@ -465,6 +455,56 @@ class _QuotesModuleState extends ConsumerState<QuotesModule> {
               ],
             ),
         ],
+      ),
+    );
+  }
+}
+
+class _QuoteActionBtn extends StatefulWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+  final String semanticLabel;
+  final bool danger;
+
+  const _QuoteActionBtn({
+    required this.icon,
+    required this.onTap,
+    required this.semanticLabel,
+    this.danger = false,
+  });
+
+  @override
+  State<_QuoteActionBtn> createState() => _QuoteActionBtnState();
+}
+
+class _QuoteActionBtnState extends State<_QuoteActionBtn> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final th = TsundokuTheme.of(context);
+    final color = widget.danger
+        ? (_hovered ? const Color(0xFFFDA4AF) : th.textMuted) // hover:text-rose-300
+        : (_hovered ? th.textPrimary : th.textMuted); // hover:text-ink
+
+    return Semantics(
+      label: widget.semanticLabel,
+      button: true,
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _hovered = true),
+        onExit: (_) => setState(() => _hovered = false),
+        child: GestureDetector(
+          onTap: widget.onTap,
+          child: Container(
+            width: 28, // size-7
+            height: 28,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8), // rounded-lg
+            ),
+            alignment: Alignment.center,
+            child: Icon(widget.icon, size: 13, color: color),
+          ),
+        ),
       ),
     );
   }

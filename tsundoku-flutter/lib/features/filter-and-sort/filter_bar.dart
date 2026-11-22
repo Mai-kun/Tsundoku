@@ -165,12 +165,13 @@ class _FilterBarState extends ConsumerState<FilterBar> {
 
     final count = widget.counts[widget.status];
 
+    final pad = MediaQuery.sizeOf(context).width >= 640 ? 16.0 : 12.0; // p-3 sm:p-4
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10), // px-4 py-2.5
+      padding: EdgeInsets.all(pad), // p-3 sm:p-4
       decoration: BoxDecoration(
         color: th.bgSurface, // bg-surface
-        borderRadius: BorderRadius.circular(12), // rounded-xl
-        border: Border.all(color: Colors.white.withAlpha(20)), // border-white/[0.08]
+        borderRadius: BorderRadius.circular(8), // rounded-lg = 8px
       ),
       child: Row(
         children: [
@@ -292,11 +293,12 @@ class _IconButtonTrigger extends StatelessWidget {
     // IgnorePointer исключает кнопку из арены жестов (🐛 #6).
     final body = IgnorePointer(
       child: SizedBox(
-        width: 36, // h-9 w-9
-        height: 36,
+        width: 40, // size-10 (h-10) = 40px
+        height: 40,
         child: TsundokuButton(
           variant: ButtonVariant.secondary,
-          size: ButtonSize.md,
+          size: ButtonSize.lg,
+          iconOnly: true,
           onPressed: () {},
           child: Icon(icon, size: 18, color: th.textMuted),
         ),
@@ -330,10 +332,10 @@ class _StatusTrigger extends StatelessWidget {
   Widget build(BuildContext context) {
     final body = IgnorePointer(
       child: SizedBox(
-        height: 36,
+        height: 40, // h-10 = 40px (size="lg")
         child: TsundokuButton(
           variant: ButtonVariant.secondary,
-          size: ButtonSize.md,
+          size: ButtonSize.lg,
           onPressed: () {},
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -352,6 +354,7 @@ class _StatusTrigger extends StatelessWidget {
                 TsundokuBadge(
                   tone: BadgeTone.neutral,
                   size: BadgeSize.xs,
+                  borderRadius: 9999, // rounded-full
                   child: Text('$count'),
                 ),
               ],
@@ -376,7 +379,7 @@ class _StatusTrigger extends StatelessWidget {
   }
 }
 
-/// Поле поиска: bg-field border-white/10 rounded-lg h-9 pl-9, Search 16px
+/// Поле поиска: bg-field border-white/10 rounded-lg h-10 pl-9, Search 18px
 /// внутри рамки слева, debounce 300ms снаружи.
 class _SearchField extends StatefulWidget {
   final String initial;
@@ -418,12 +421,12 @@ class _SearchFieldState extends State<_SearchField> {
   Widget build(BuildContext context) {
     final th = widget.th;
     return SizedBox(
-      height: 36,
+      height: 40, // h-10 = 40px
       child: TextField(
         controller: _controller,
         onChanged: widget.onChanged,
         style: TextStyle(
-          fontSize: 13, // text-sm
+          fontSize: 14, // text-sm = 14px
           color: th.textPrimary, // text-ink
         ),
         decoration: InputDecoration(
@@ -434,15 +437,15 @@ class _SearchFieldState extends State<_SearchField> {
             padding: const EdgeInsets.only(left: 10, right: 8),
             child: Icon(
               LucideIcons.search,
-              size: 16,
+              size: 18, // Search size={18}
               color: th.textMuted,
             ),
           ),
           prefixIconConstraints:
-              const BoxConstraints(minWidth: 34, minHeight: 36),
+              const BoxConstraints(minWidth: 36, minHeight: 40),
           hintText: widget.hint,
           hintStyle: TextStyle(
-            fontSize: 13,
+            fontSize: 14, // text-sm = 14px
             color: th.textMuted,
           ),
           filled: true,

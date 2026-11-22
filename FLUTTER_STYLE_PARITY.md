@@ -2,8 +2,8 @@
 
 ## 📍 Текущий фокус / Next Step
 * **Фаза:** S2 (AppShell, Header, Sidebar, FilterBar)
-* **Текущий файл:** `mediatracker-ui/src/features/filter-and-sort/FilterBar.svelte` -> `tsundoku-flutter/lib/features/filter-and-sort/filter_bar.dart`
-* **Цель:** Сверка FilterBar: h-12, filters row, sort dropdown, view mode toggle, spacing, border 1-в-1.
+* **Текущий файл:** `mediatracker-ui/src/widgets/layout/ActivityDropdown.svelte` -> `tsundoku-flutter/lib/widgets/layout/activity_dropdown.dart`
+* **Цель:** Сверка ActivityDropdown: trigger button, popover positioning, activity item layout, badge 1-в-1.
 
 ---
 
@@ -174,7 +174,7 @@
 | S2 | `mediatracker-ui/src/widgets/layout/AppShell.svelte` | `tsundoku-flutter/lib/widgets/layout/app_shell.dart` | ✅ Сверен 1:1 | lg=1024px, sidebar w-60 (240px) px-3 py-5, header h-14 (56px), main p-6 (24px) / noPadding p-0, borders white/0.07 1-в-1 | 0 отличий |
 | S2 | `mediatracker-ui/src/widgets/layout/Header.svelte` | `tsundoku-flutter/lib/widgets/layout/header.dart` | ✅ Сверен 1:1 | Паддинг выровнен под px-4 sm:px-6 lg:px-8 (16/24/32px); заголовок w-56, поиск 448/512px, Ctrl K, язык w-88px 1-в-1 | Да |
 | S2 | `mediatracker-ui/src/widgets/layout/Sidebar.svelte` | `tsundoku-flutter/lib/widgets/layout/sidebar.dart` | ✅ Сверен 1:1 | Brand px-3 pb-7 (28px), h-10 (40px), active #a5b4fc, gap 12px, tools border-t pt-4, mobile flyout выверены 1-в-1 | 0 отличий |
-| S2 | `mediatracker-ui/src/features/filter-and-sort/FilterBar.svelte` | `tsundoku-flutter/lib/features/filter-and-sort/filter_bar.dart` | В очереди |  |  |
+| S2 | `mediatracker-ui/src/features/filter-and-sort/FilterBar.svelte` | `tsundoku-flutter/lib/features/filter-and-sort/filter_bar.dart` | ✅ Сверен 1:1 | Высота кнопок и инпута h-10 (40px, size=lg), rounded-lg (8px), search 18px text-sm (14px), padding 12/16px, rounded-full бейдж | Да |
 | S2 | `mediatracker-ui/src/widgets/layout/ActivityDropdown.svelte` | `tsundoku-flutter/lib/widgets/layout/activity_dropdown.dart` | В очереди |  |  |
 | S2 | `mediatracker-ui/src/widgets/layout/BackgroundJobsModal.svelte` | `tsundoku-flutter/lib/widgets/layout/background_jobs_modal.dart` | В очереди |  |  |
 | S2 | `mediatracker-ui/src/widgets/layout/CloseAppModal.svelte` | `tsundoku-flutter/lib/widgets/layout/close_app_modal.dart` | В очереди |  |  |

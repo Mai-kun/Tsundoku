@@ -2,8 +2,8 @@
 
 ## 📍 Текущий фокус / Next Step
 * **Фаза:** S5 (widgets/media-detail/**, widgets/stats/**, widgets/goals/*)
-* **Текущий файл:** `mediatracker-ui/src/widgets/media-detail/DetailHeader.svelte` -> `tsundoku-flutter/lib/widgets/media-detail/detail_header.dart`
-* **Цель:** Сверка DetailHeader: постер, баннер, названия, оценки, жанры, теги, статус-дропдаун, кнопки действий, отступы.
+* **Текущий файл:** `mediatracker-ui/src/widgets/media-detail/DetailSidebar.svelte` -> `tsundoku-flutter/lib/widgets/media-detail/detail_sidebar.dart`
+* **Цель:** Сверка DetailSidebar: постер, статус-селектор, персональный рейтинг 1..10, жанры, авто-обновление, история дат, быстрые ссылки.
 
 ---
 
@@ -220,7 +220,7 @@
 | S4 | `mediatracker-ui/src/features/lists/ListPicker.svelte` | `tsundoku-flutter/lib/features/lists/list_picker.dart` | ✅ Сверен 1:1 | триггер bg-surface/50 px-3 py-2.5 text-xs text-muted icon accent-soft, ModalSize.md с contentPadding: zero для p-6 (24px) без удвоения, заголовок 18px font-bold, кнопка новый список px-2.5 py-1.5 text-xs font-semibold, строки списка px-3 py-3 gap-3, чекбокс 16x16, цветная иконка 32x32 rounded-lg 1-в-1 | Да |
 | S4 | `mediatracker-ui/src/features/lists/SmartListBuilder.svelte` | `tsundoku-flutter/lib/features/lists/smart_list_builder.dart` | ✅ Сверен 1:1 | секции p-4 (16px) rounded-xl border-white/5, заголовки mb-3 (12px) text-xs font-semibold tracking-widest, чипсы px-3 py-2 (12x8px) gap-1.5 rounded-lg border-white/5 bg-card, фильтры px-3 py-1 rounded-full text-xs font-medium с точными violet-300 / amber-300 цветами, инпуты py-1.5 px-2.5 text-sm (14px) rounded-lg border-white/10 с внешними лейблами text-xs font-medium 1-в-1 | Да |
 | S4 | `mediatracker-ui/src/features/stale-triage/StaleBacklogModal.svelte` | `tsundoku-flutter/lib/features/stale-triage/stale_backlog_modal.dart` | ✅ Сверен 1:1 | ModalSize.lg, contentPadding: zero для full-bleed шапки px-6 py-4 и панели порогов px-6 py-3 border-b border-white/5, кнопки порогов px-3 py-1 rounded-lg text-xs font-medium, список p-6 (24px) space-y-3, карточки p-3.5 (14px) rounded-xl border-white/5, постер w-14 (56x84px) aspect-[2/3], бейдж типа px-2 py-0.5 rounded-md text-[11px], неактивность text-xs font-medium amber-400, кнопки действий px-2.5 py-1.5 rounded-lg text-xs font-semibold gap-1.5 иконки 15px 1-в-1 | Да |
-| S5 | `mediatracker-ui/src/widgets/media-detail/DetailHeader.svelte` | `tsundoku-flutter/lib/widgets/media-detail/detail_header.dart` | В очереди |  |  |
+| S5 | `mediatracker-ui/src/widgets/media-detail/DetailHeader.svelte` | `tsundoku-flutter/lib/widgets/media-detail/detail_header.dart` | ✅ Сверен 1:1 | 0 отличий (h1 text-3xl font-extrabold tracking-tight mt-1, originalTitle text-sm font-medium text-muted mt-1.5, теги Badge accent sm rounded-full px-3 py-1 gap-2, рейтинги h-9 px-3 rounded-lg shadow-sm gap-2.5 с AniList inline-svg и hover-слайдом голосов, Panel space-y-2 с заголовком synopsis text-xs font-bold tracking-wider, переводом ghost xs и clamp 4 строки с градиентным хвостом h-12 1-в-1) | 0 отличий |
 | S5 | `mediatracker-ui/src/widgets/media-detail/DetailSidebar.svelte` | `tsundoku-flutter/lib/widgets/media-detail/detail_sidebar.dart` | В очереди |  |  |
 | S5 | `mediatracker-ui/src/widgets/media-detail/DetailTabs.svelte` | `tsundoku-flutter/lib/widgets/media-detail/detail_tabs.dart` | В очереди |  |  |
 | S5 | `mediatracker-ui/src/widgets/media-detail/ProgressStepper.svelte` | `tsundoku-flutter/lib/widgets/media-detail/progress_stepper.dart` | В очереди |  |  |

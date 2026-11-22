@@ -5,7 +5,7 @@
 /// main#main-scroll overflow-y-auto p-6); мобайл — сайдбар-рельса снизу
 /// (border-t, px-2 py-2). Оверлеи: ContextMenu, ImageLightbox (top-level —
 /// вне view-fade трансформов), ListPicker по activeListPickerMediaId,
-/// ToastContainer.
+/// ToastContainer, CreateListModal.
 ///
 /// mainRef (Svelte DOM-хэндл для внешнего скролла) → [mainScrollController].
 library;
@@ -13,6 +13,7 @@ library;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../features/lists/create_list_modal.dart';
 import '../../features/lists/list_picker.dart';
 import '../../shared/theme/tsundoku_tokens.dart';
 import '../../shared/ui/context_menu.dart';
@@ -23,7 +24,7 @@ import 'toast_container.dart';
 /// `lg:`-граница (та же, что у Sidebar).
 const double kTsundokuLgBreakpoint = 1024;
 
-class AppShell extends ConsumerWidget {
+class AppShell extends ConsumerStatefulWidget {
   final Widget sidebar;
   final Widget header;
 
@@ -49,7 +50,15 @@ class AppShell extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AppShell> createState() => _AppShellState();
+}
+
+class _AppShellState extends ConsumerState<AppShell> {
+  bool _isCreateListOpen = false;
+  final GlobalKey<ListPickerState> _listPickerKey = GlobalKey<ListPickerState>();
+
+  @override
+  Widget build(BuildContext context) {
     final th = TsundokuTheme.of(context);
     final isDesktop = MediaQuery.sizeOf(context).width >= kTsundokuLgBreakpoint;
     final listPickerMediaId = ref.watch(activeListPickerMediaIdProvider);
@@ -70,38 +79,38 @@ class AppShell extends ConsumerWidget {
                     color: Colors.white.withAlpha(18)), // white/[0.07]
               ),
             ),
-            child: header,
+            child: widget.header,
           ),
           // main#main-scroll: min-h-0 flex-1 overflow.
           Expanded(
             key: const Key('appshell-main'), // #main-scroll
-            child: slivers != null
+            child: widget.slivers != null
                 ? CustomScrollView(
-                    controller: mainScrollController,
+                    controller: widget.mainScrollController,
                     slivers: [
-                      if (!noPadding)
+                      if (!widget.noPadding)
                         const SliverPadding(padding: EdgeInsets.all(24)),
-                      ...?slivers,
+                      ...?widget.slivers,
                     ],
                   )
                 : SingleChildScrollView(
-                    controller: mainScrollController,
+                    controller: widget.mainScrollController,
                     // overflow-x-hidden + noPadding → h-full overflow-hidden p-0.
                     physics:
-                        noPadding ? const NeverScrollableScrollPhysics() : null,
+                        widget.noPadding ? const NeverScrollableScrollPhysics() : null,
                     padding: EdgeInsets.zero,
                     child: ConstrainedBox(
                       constraints: BoxConstraints(
-                        minHeight: noPadding ? (MediaQuery.sizeOf(context).height - 56) : 0,
+                        minHeight: widget.noPadding ? (MediaQuery.sizeOf(context).height - 56) : 0,
                       ),
-                      child: noPadding
+                      child: widget.noPadding
                           ? SizedBox(
                               height: MediaQuery.sizeOf(context).height - 56,
-                              child: child,
+                              child: widget.child,
                             )
                           : Padding(
                               padding: const EdgeInsets.all(24), // p-6
-                              child: child,
+                              child: widget.child,
                             ),
                     ),
                   ),
@@ -127,7 +136,7 @@ class AppShell extends ConsumerWidget {
                     color: Colors.white.withAlpha(18)), // border-r white/[0.07]
               ),
             ),
-            child: sidebar,
+            child: widget.sidebar,
           ),
           Expanded(child: mainArea),
         ],
@@ -147,7 +156,7 @@ class AppShell extends ConsumerWidget {
                 top: BorderSide(color: Colors.white.withAlpha(18)),
               ),
             ),
-            child: sidebar,
+            child: widget.sidebar,
           ),
         ],
       );
@@ -164,12 +173,23 @@ class AppShell extends ConsumerWidget {
           const ImageLightbox(),
           if (listPickerMediaId != null)
             ListPicker(
-              key: ValueKey('list-picker-$listPickerMediaId'),
+              key: _listPickerKey,
               mediaId: listPickerMediaId,
               isOpen: true,
               showTrigger: false,
               onClose: () => closeListPicker(ref),
-              onCreateList: null, // CreateListModal подключается в Фазе 5
+              onCreateList: () => setState(() => _isCreateListOpen = true),
+            ),
+          if (_isCreateListOpen)
+            Positioned.fill(
+              child: CreateListModal(
+                isOpen: true,
+                onClose: () => setState(() => _isCreateListOpen = false),
+                onSaved: () {
+                  setState(() => _isCreateListOpen = false);
+                  _listPickerKey.currentState?.refreshLists();
+                },
+              ),
             ),
           const ToastContainer(),
         ],

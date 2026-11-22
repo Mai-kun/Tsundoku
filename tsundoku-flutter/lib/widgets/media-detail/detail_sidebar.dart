@@ -19,6 +19,7 @@ import '../../entities/media/model/drop_reasons.dart';
 import '../../entities/media/model/genre_label.dart';
 import '../../entities/media/model/media_labels.dart';
 import '../../features/drop-reason/drop_reason_prompt.dart';
+import '../../features/lists/create_list_modal.dart';
 import '../../features/lists/list_picker.dart';
 import '../../shared/api/api.dart';
 import '../../shared/i18n/index.dart';
@@ -149,6 +150,8 @@ class _DetailSidebarState extends ConsumerState<DetailSidebar> {
   bool _isCoverManagerOpen = false;
   bool _isActivityOpen = false;
   bool _isListPickerOpen = false;
+  bool _isCreateListOpen = false;
+  final GlobalKey<ListPickerState> _listPickerKey = GlobalKey<ListPickerState>();
   bool _detailedExpanded = false;
   DetailedScoreMap _detailedDraft = <String, int>{};
   String? _lastMediaJson;
@@ -463,10 +466,23 @@ class _DetailSidebarState extends ConsumerState<DetailSidebar> {
             ),
           ),
         ListPicker(
+          key: _listPickerKey,
           mediaId: widget.media.id,
           isOpen: _isListPickerOpen,
           onClose: () => setState(() => _isListPickerOpen = false),
+          onCreateList: () => setState(() => _isCreateListOpen = true),
         ),
+        if (_isCreateListOpen)
+          Positioned.fill(
+            child: CreateListModal(
+              isOpen: true,
+              onClose: () => setState(() => _isCreateListOpen = false),
+              onSaved: () {
+                setState(() => _isCreateListOpen = false);
+                _listPickerKey.currentState?.refreshLists();
+              },
+            ),
+          ),
         if (_isCoverManagerOpen)
           Positioned.fill(
             child: CoverManagerModal(

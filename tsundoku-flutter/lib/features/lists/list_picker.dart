@@ -42,10 +42,10 @@ class ListPicker extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<ListPicker> createState() => _ListPickerState();
+  ConsumerState<ListPicker> createState() => ListPickerState();
 }
 
-class _ListPickerState extends ConsumerState<ListPicker> {
+class ListPickerState extends ConsumerState<ListPicker> {
   bool _open = false;
   bool _loading = false;
   List<CustomListSummary> _lists = const <CustomListSummary>[];

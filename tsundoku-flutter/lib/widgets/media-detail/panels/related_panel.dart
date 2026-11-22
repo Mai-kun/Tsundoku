@@ -161,7 +161,7 @@ class _RelatedPanelState extends ConsumerState<RelatedPanel> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    t.tr('detail.relatedTitle'),
+                    t.tr('detail.relatedTitle').toUpperCase(),
                     style: const TextStyle(
                       fontSize: 14, // text-sm
                       fontWeight: FontWeight.w700, // font-bold

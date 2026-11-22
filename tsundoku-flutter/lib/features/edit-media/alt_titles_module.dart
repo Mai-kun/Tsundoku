@@ -134,23 +134,26 @@ class _AltTitlesModuleState extends ConsumerState<AltTitlesModule> {
                 ),
               ),
               const SizedBox(width: 8), // gap-2
-              GestureDetector(
-                onTap: _quickController.text.trim().isEmpty
-                    ? null
-                    : _commitQuickInput,
-                child: Container(
-                  width: 36, // size-9
-                  height: 36,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(8), // rounded-lg
-                    color: _quickController.text.trim().isEmpty
-                        ? th.accent.withAlpha(128) // disabled:opacity-50
-                        : th.accent, // bg-accent
+              Tooltip(
+                message: t.tr('createModal.altTitlesModule.add'),
+                child: GestureDetector(
+                  onTap: _quickController.text.trim().isEmpty
+                      ? null
+                      : _commitQuickInput,
+                  child: Container(
+                    width: 36, // size-9
+                    height: 36,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8), // rounded-lg
+                      color: _quickController.text.trim().isEmpty
+                          ? th.accent.withAlpha(128) // disabled:opacity-50
+                          : th.accent, // bg-accent
+                    ),
+                    alignment: Alignment.center,
+                    child: const Icon(LucideIcons.plus,
+                        size: 16,
+                        color: Colors.white), // text-white
                   ),
-                  alignment: Alignment.center,
-                  child: Icon(LucideIcons.plus,
-                      size: 16,
-                      color: Colors.white), // text-white
                 ),
               ),
             ],
@@ -187,11 +190,8 @@ class _AltTitlesModuleState extends ConsumerState<AltTitlesModule> {
                         children: [
                           if (_editingIndex == index) ...[
                             Expanded(
-                              child: _AltInput(
+                              child: _AltEditInput(
                                 controller: _editingController,
-                                autofocus: true,
-                                focused: true,
-                                // Enter → commit, Escape → cancel.
                                 onSubmitted: (_) => _commitEditing(),
                                 onEscape: _cancelEditing,
                                 ariaLabel:
@@ -221,12 +221,14 @@ class _AltTitlesModuleState extends ConsumerState<AltTitlesModule> {
                               icon: LucideIcons.pencil,
                               size: 13,
                               semanticLabel: t.tr('detailModal.edit'),
+                              tooltip: t.tr('detailModal.edit'),
                               onTap: () => _startEditing(index),
                             ),
                             _SmallIconButton(
                               icon: LucideIcons.trash2,
                               size: 13,
                               semanticLabel: t.tr('common.delete'),
+                              tooltip: t.tr('common.delete'),
                               danger: true,
                               onTap: () => _removeTitle(index),
                             ),
@@ -244,32 +246,74 @@ class _AltTitlesModuleState extends ConsumerState<AltTitlesModule> {
 }
 
 /// h-9 rounded-lg border-white/10 bg-field px-3 text-sm (Svelte input).
-class _AltInput extends StatefulWidget {
+class _AltInput extends StatelessWidget {
   final TextEditingController controller;
   final String? hint;
-  final bool autofocus;
-  final bool focused;
   final ValueChanged<String> onSubmitted;
   final ValueChanged<String>? onChanged;
-  final VoidCallback? onEscape;
-  final String? ariaLabel;
 
   const _AltInput({
     required this.controller,
     required this.onSubmitted,
     this.hint,
-    this.autofocus = false,
-    this.focused = false,
     this.onChanged,
-    this.onEscape,
-    this.ariaLabel,
   });
 
   @override
-  State<_AltInput> createState() => _AltInputState();
+  Widget build(BuildContext context) {
+    final th = TsundokuTheme.of(context);
+    return TextField(
+      controller: controller,
+      onSubmitted: onSubmitted,
+      onChanged: onChanged,
+      style: TextStyle(
+        fontSize: 14, // text-sm
+        fontWeight: FontWeight.w400,
+        color: th.textPrimary,
+      ),
+      decoration: InputDecoration(
+        isDense: true,
+        filled: true,
+        fillColor: th.bgSurface, // bg-field
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 8), // h-9
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(
+            color: Colors.white.withAlpha(26),
+          ),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(
+            color: Colors.white.withAlpha(26),
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: th.accent.withAlpha(153)),
+        ),
+        hintText: hint,
+        hintStyle: TextStyle(color: th.textMuted),
+      ),
+    );
+  }
 }
 
-class _AltInputState extends State<_AltInput> {
+/// h-7 rounded-md border border-indigo-500/60 px-2 text-sm (Svelte inline edit input).
+class _AltEditInput extends StatelessWidget {
+  final TextEditingController controller;
+  final ValueChanged<String> onSubmitted;
+  final VoidCallback onEscape;
+  final String? ariaLabel;
+
+  const _AltEditInput({
+    required this.controller,
+    required this.onSubmitted,
+    required this.onEscape,
+    this.ariaLabel,
+  });
+
   @override
   Widget build(BuildContext context) {
     final th = TsundokuTheme.of(context);
@@ -277,49 +321,43 @@ class _AltInputState extends State<_AltInput> {
       onKeyEvent: (node, event) {
         if (event is KeyDownEvent &&
             event.logicalKey == LogicalKeyboardKey.escape) {
-          widget.onEscape?.call();
+          onEscape();
           return KeyEventResult.handled;
         }
         return KeyEventResult.ignored;
       },
-      child: TextField(
-        controller: widget.controller,
-        autofocus: widget.autofocus,
-        onSubmitted: widget.onSubmitted,
-        onChanged: widget.onChanged,
-        style: TextStyle(
-          fontSize: 14, // text-sm
-          fontWeight: FontWeight.w400,
-          color: th.textPrimary,
-        ),
-        decoration: InputDecoration(
-          isDense: true,
-          filled: true,
-          fillColor: widget.focused ? th.bgSurface : th.bgSurface, // bg-field
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 12, vertical: 8), // h-9
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide(
-              color: widget.focused
-                  ? th.accent.withAlpha(153)
-                  : Colors.white.withAlpha(26),
+      child: SizedBox(
+        height: 28, // h-7
+        child: TextField(
+          controller: controller,
+          autofocus: true,
+          onSubmitted: onSubmitted,
+          style: TextStyle(
+            fontSize: 14, // text-sm
+            fontWeight: FontWeight.w400,
+            color: th.textPrimary,
+          ),
+          decoration: InputDecoration(
+            isDense: true,
+            filled: true,
+            fillColor: th.bgSurface,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 8, vertical: 4), // px-2
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(6), // rounded-md
+              borderSide: BorderSide(
+                  color: th.accent.withAlpha(153)), // border-indigo-500/60
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(6),
+              borderSide: BorderSide(color: th.accent.withAlpha(153)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(6),
+              borderSide:
+                  BorderSide(color: th.accent.withAlpha(153), width: 1.5),
             ),
           ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide(
-              color: widget.focused
-                  ? th.accent.withAlpha(153) // border-indigo-500/60
-                  : Colors.white.withAlpha(26),
-            ),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide(color: th.accent.withAlpha(153)),
-          ),
-          hintText: widget.hint,
-          hintStyle: TextStyle(color: th.textMuted),
         ),
       ),
     );
@@ -327,10 +365,11 @@ class _AltInputState extends State<_AltInput> {
 }
 
 /// size-6 rounded-md icon-кнопки строк (edit/delete/cancel).
-class _SmallIconButton extends StatelessWidget {
+class _SmallIconButton extends StatefulWidget {
   final IconData icon;
   final double size;
   final String semanticLabel;
+  final String? tooltip;
   final VoidCallback onTap;
   final bool danger;
 
@@ -338,34 +377,52 @@ class _SmallIconButton extends StatelessWidget {
     required this.icon,
     required this.size,
     required this.semanticLabel,
+    this.tooltip,
     required this.onTap,
     this.danger = false,
   });
 
   @override
+  State<_SmallIconButton> createState() => _SmallIconButtonState();
+}
+
+class _SmallIconButtonState extends State<_SmallIconButton> {
+  bool _hovered = false;
+
+  @override
   Widget build(BuildContext context) {
     final th = TsundokuTheme.of(context);
-    return Semantics(
-      label: semanticLabel,
+    final iconColor = widget.danger
+        ? (_hovered ? const Color(0xFFFDA4AF) : th.textMuted) // hover:text-rose-300
+        : (_hovered ? th.textPrimary : th.textMuted); // hover:text-ink
+
+    Widget btn = Semantics(
+      label: widget.semanticLabel,
       button: true,
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          width: 24, // size-6
-          height: 24,
-          decoration:
-              BoxDecoration(borderRadius: BorderRadius.circular(6)), // rounded-md
-          alignment: Alignment.center,
-          child: Icon(
-            icon,
-            size: size,
-            // hover: delete → rose-300, edit/cancel → text-ink (hover — stateful
-            // opacity в Svelte через group-hover; в Flutter кнопки всегда
-            // видимы, rose-оттенок сохранён).
-            color: danger ? th.textMuted : th.textMuted,
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _hovered = true),
+        onExit: (_) => setState(() => _hovered = false),
+        child: GestureDetector(
+          onTap: widget.onTap,
+          child: Container(
+            width: 24, // size-6
+            height: 24,
+            decoration:
+                BoxDecoration(borderRadius: BorderRadius.circular(6)), // rounded-md
+            alignment: Alignment.center,
+            child: Icon(
+              widget.icon,
+              size: widget.size,
+              color: iconColor,
+            ),
           ),
         ),
       ),
     );
+
+    if (widget.tooltip != null) {
+      btn = Tooltip(message: widget.tooltip!, child: btn);
+    }
+    return btn;
   }
 }

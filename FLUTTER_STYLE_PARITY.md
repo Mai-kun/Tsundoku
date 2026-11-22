@@ -2,8 +2,8 @@
 
 ## 📍 Текущий фокус / Next Step
 * **Фаза:** S4 (features/**)
-* **Текущий файл:** `mediatracker-ui/src/features/edit-media/modules/AltTitlesModule.svelte` -> `tsundoku-flutter/lib/features/edit-media/alt_titles_module.dart`
-* **Цель:** Сверка AltTitlesModule: список альт-тайтлов, добавление/удаление, поле ввода, hover состояния, отступы.
+* **Текущий файл:** `mediatracker-ui/src/features/edit-media/modules/ImagesModule.svelte` -> `tsundoku-flutter/lib/features/edit-media/images_module.dart`
+* **Цель:** Сверка ImagesModule: превью постера, баннера, дропзона, aspect ratio 2/3, кнопки установки primary и удаления.
 
 ---
 
@@ -203,7 +203,7 @@
 | S4 | `mediatracker-ui/src/features/edit-media/modules/ModuleCard.svelte` | `tsundoku-flutter/lib/features/edit-media/module_card.dart` | ✅ Сверен 1:1 | 0 отличий (flat/non-flat режим, padding p-4 16px, rounded-xl 12px, header size-7 28x28 icon, 10px uppercase tracking 1.4, count badge 1-в-1) | 0 отличий |
 | S4 | `mediatracker-ui/src/features/edit-media/modules/BaseMediaModule.svelte` | `tsundoku-flutter/lib/features/edit-media/base_media_module.dart` | ✅ Сверен 1:1 | 3 строки grid gap-3 sm:grid-cols-2 (12px), h-10 (40px) инпуты, rounded-lg (8px), space-y-1.5 (6px) лейблы, выровнена высота и отступы DatePickerField (h-10 40px, px-3 12px, font 14px), убран не-Svelte tooltip 1-в-1 | Да |
 | S4 | `mediatracker-ui/src/features/edit-media/modules/CategoryFieldsModule.svelte` | `tsundoku-flutter/lib/features/edit-media/category_fields_module.dart` | ✅ Сверен 1:1 | 0 отличий (icon clapperboard size 15, делегация по категориям game/book/manga/movie, tvshow isEditing read-only сезоны p-3 rounded-xl border-white/10 bg-field/50 1-в-1) | 0 отличий |
-| S4 | `mediatracker-ui/src/features/edit-media/modules/AltTitlesModule.svelte` | `tsundoku-flutter/lib/features/edit-media/alt_titles_module.dart` | В очереди |  |  |
+| S4 | `mediatracker-ui/src/features/edit-media/modules/AltTitlesModule.svelte` | `tsundoku-flutter/lib/features/edit-media/alt_titles_module.dart` | ✅ Сверен 1:1 | h-9 input (rounded-lg border-white/10 px-3) + size-9 plus-кнопка (bg-accent text-white), список space-y-1.5, строки px-2.5 py-1.5 border-white/[0.06] bg-white/[0.03], h-7 инлайн edit input (rounded-md border-indigo-500/60 px-2), size-6 кнопки с hover-эффектами (rose-300 для trash2, ink для edit/cancel) и тултипами 1-в-1 | Да |
 | S4 | `mediatracker-ui/src/features/edit-media/modules/ImagesModule.svelte` | `tsundoku-flutter/lib/features/edit-media/images_module.dart` | В очереди |  |  |
 | S4 | `mediatracker-ui/src/features/edit-media/modules/NotesModule.svelte` | `tsundoku-flutter/lib/features/edit-media/notes_module.dart` | В очереди |  |  |
 | S4 | `mediatracker-ui/src/features/edit-media/modules/QuotesModule.svelte` | `tsundoku-flutter/lib/features/edit-media/quotes_module.dart` | В очереди |  |  |

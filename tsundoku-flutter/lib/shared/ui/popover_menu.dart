@@ -53,7 +53,6 @@ class PopoverFooterContext {
 }
 
 const double _edge = 8;
-const double _defaultPopoverWidth = 144;
 const double _defaultPopoverHeight = 220;
 const double _gapBelowTrigger = 8;
 
@@ -104,6 +103,7 @@ class TsundokuPopoverMenu<T> extends StatefulWidget {
 class _TsundokuPopoverMenuState<T> extends State<TsundokuPopoverMenu<T>> {
   final OverlayPortalController _portalController = OverlayPortalController();
   final GlobalKey _triggerKey = GlobalKey();
+  Rect? _lastKnownTriggerRect;
   Timer? _closeTimer;
   bool _isOpen = false;
 
@@ -133,29 +133,40 @@ class _TsundokuPopoverMenuState<T> extends State<TsundokuPopoverMenu<T>> {
     _hide();
   }
 
-
   Rect? _triggerRect(BuildContext context) {
     final box = _triggerKey.currentContext?.findRenderObject() as RenderBox?;
-    if (box == null || !box.hasSize) return null;
-    return box.localToGlobal(Offset.zero) & box.size;
+    if (box != null && box.hasSize && box.attached) {
+      final rect = box.localToGlobal(Offset.zero) & box.size;
+      _lastKnownTriggerRect = rect;
+      return rect;
+    }
+    return _lastKnownTriggerRect;
   }
 
   /// Позиция поповера 1-в-1 с placePopover() из исходника (viewport-координаты,
-  /// EDGE=8 clamp, флип вверх при нехватке места снизу).
-  Offset? _place(Size size, Rect triggerRect, BuildContext menuContext) {
-    final rect = triggerRect;
-    if (rect.width == 0 && rect.height == 0) return null;
-
-    final width = widget.matchTriggerWidth ? rect.width : size.width;
-    final height = size.height > 0 ? size.height : _defaultPopoverHeight;
+  /// EDGE=8 clamp, флип вверх при нехватке места снизу). Никогда не фолбэчится в (0, 0).
+  Offset _place(Size size, Rect? triggerRect, BuildContext menuContext) {
     final viewport = MediaQuery.sizeOf(menuContext);
+    final width = widget.matchTriggerWidth
+        ? (triggerRect?.width ?? size.width)
+        : size.width;
+    final height = size.height > 0 ? size.height : _defaultPopoverHeight;
 
+    if (triggerRect == null || (triggerRect.width == 0 && triggerRect.height == 0)) {
+      final fallbackLeft =
+          ((viewport.width - width) / 2).clamp(_edge, (viewport.width - width - _edge).clamp(_edge, double.infinity));
+      final fallbackTop =
+          (56.0 + _gapBelowTrigger).clamp(_edge, (viewport.height - height - _edge).clamp(_edge, double.infinity));
+      return Offset(fallbackLeft, fallbackTop);
+    }
+
+    final rect = triggerRect;
     var left = switch (widget.placement) {
       PopoverPlacement.bottomEnd => rect.right - width,
       PopoverPlacement.bottom => rect.left + rect.width / 2 - width / 2,
       _ => rect.left,
     };
-    left = left.clamp(_edge, viewport.width - width - _edge);
+    left = left.clamp(_edge, (viewport.width - width - _edge).clamp(_edge, double.infinity));
 
     var top = rect.bottom + _gapBelowTrigger;
     if (widget.placement == PopoverPlacement.top ||
@@ -165,7 +176,7 @@ class _TsundokuPopoverMenuState<T> extends State<TsundokuPopoverMenu<T>> {
     } else if (top + height > viewport.height - _edge) {
       top = viewport.height - height - _edge;
     }
-    top = top < _edge ? _edge : top;
+    top = top.clamp(_edge, (viewport.height - height - _edge).clamp(_edge, double.infinity));
 
     return Offset(left, top);
   }
@@ -193,42 +204,59 @@ class _TsundokuPopoverMenuState<T> extends State<TsundokuPopoverMenu<T>> {
   Widget build(BuildContext context) {
     final triggerContext = PopoverTriggerContext(isOpen: _isOpen);
 
-    Widget trigger = GestureDetector(
-      onTap: _toggle,
-      child: MouseRegion(
-        onEnter: (_) {
-          if (!widget.openOnHover) return;
-          _cancelPendingClose();
-          if (!_isOpen) _show();
-        },
-        onExit: (_) => _scheduleClose(),
-        child: widget.trigger(context, triggerContext),
-      ),
-    );
+    Widget trigger;
+    if (widget.openOnHover) {
+      trigger = KeyedSubtree(
+        key: _triggerKey,
+        child: MouseRegion(
+          onEnter: (_) {
+            _cancelPendingClose();
+            if (!_isOpen) _show();
+          },
+          onExit: (_) => _scheduleClose(),
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: _toggle,
+            child: widget.trigger(context, triggerContext),
+          ),
+        ),
+      );
+    } else {
+      trigger = KeyedSubtree(
+        key: _triggerKey,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: _toggle,
+          child: widget.trigger(context, triggerContext),
+        ),
+      );
+    }
 
     return OverlayPortal(
       controller: _portalController,
       overlayChildBuilder: (menuContext) {
-        final size = Size(_defaultPopoverWidth, _defaultPopoverHeight);
         final triggerRect = _triggerRect(menuContext);
-        final position = triggerRect == null
-            ? Offset.zero
-            : _place(size, triggerRect, menuContext) ?? Offset.zero;
+        final defaultW = widget.matchTriggerWidth ? (triggerRect?.width ?? 160.0) : 180.0;
+        final size = Size(defaultW, _defaultPopoverHeight);
+        final position = _place(size, triggerRect, menuContext);
         final width = widget.matchTriggerWidth
-            ? triggerRect?.width ?? _defaultPopoverWidth
+            ? triggerRect?.width ?? defaultW
             : null;
 
         final menu = Material(
           color: const Color(0xFF1C202B), // bg-[#1c202b]
+          elevation: 12,
+          shadowColor: const Color(0x80000000),
           borderOnForeground: true,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(TsundokuPalette.radiusSelector),
-            side: BorderSide(color: const Color(0x14FFFFFF)), // border-white/10
+            side: const BorderSide(color: Color(0x14FFFFFF)), // border-white/10
           ),
-          child: ConstrainedBox(
+          child: Container(
+            padding: const EdgeInsets.all(4), // p-1
             constraints: BoxConstraints(
               minWidth: 144, // min-w-36
-              maxWidth: width ?? double.infinity,
+              maxWidth: width ?? 240, // compact 160-240px instead of bloated width
             ),
             child: SingleChildScrollView(
               child: Column(
@@ -264,10 +292,10 @@ class _TsundokuPopoverMenuState<T> extends State<TsundokuPopoverMenu<T>> {
 
         return Stack(
           children: [
-            // Клик мимо — закрыть:
+            // Клик мимо — закрыть (translucent, чтобы не ломать hover):
             Positioned.fill(
               child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
+                behavior: HitTestBehavior.translucent,
                 onTap: _hide,
                 child: const SizedBox.expand(),
               ),
@@ -276,13 +304,13 @@ class _TsundokuPopoverMenuState<T> extends State<TsundokuPopoverMenu<T>> {
               left: position.dx,
               top: position.dy,
               child: MouseRegion(
-                onEnter: (_) => _cancelPendingClose(),
-                onExit: (_) => _scheduleClose(),
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                      maxWidth: width ?? _defaultPopoverWidth * 3),
-                  child: menu,
-                ),
+                onEnter: (_) {
+                  if (widget.openOnHover) _cancelPendingClose();
+                },
+                onExit: (_) {
+                  if (widget.openOnHover) _scheduleClose();
+                },
+                child: menu,
               ),
             ),
           ],
@@ -316,10 +344,11 @@ class _MenuOptionButton<T> extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           onTap: () => onSelect(option.value),
+          borderRadius: BorderRadius.circular(4),
           hoverColor: const Color(0x0DFFFFFF), // hover:bg-white/5
           child: Container(
             padding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 6), // px-3 py-1.5
             child: optionBuilder!(
               context,
               PopoverOptionContext<T>(option: option, selected: selected),
@@ -332,16 +361,16 @@ class _MenuOptionButton<T> extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: () => onSelect(option.value),
+        borderRadius: BorderRadius.circular(4),
         hoverColor: const Color(0x0DFFFFFF), // hover:bg-white/5
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          // tap-анимация (active:scale) — через InkWell-подсветку.
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6), // px-3 py-1.5
           child: Row(
             children: [
               if (option.leading != null) ...[
                 Icon(
                   option.leading,
-                  size: 16, // renderOption-иконки size={16}
+                  size: 14,
                   color: selected ? th.accentSoft : th.textMuted,
                 ),
                 const SizedBox(width: 8), // gap-2
@@ -352,7 +381,8 @@ class _MenuOptionButton<T> extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: 13, // text-sm (13px)
+                    fontWeight: selected ? FontWeight.w500 : FontWeight.w400,
                     color: selected ? th.accentSoft : th.textMuted,
                   ),
                 ),

@@ -81,7 +81,7 @@ class _SyncRowsSkeletonState extends ConsumerState<SyncRowsSkeleton>
                                     height: 12, // h-3
                                     decoration: BoxDecoration(
                                       borderRadius:
-                                          BorderRadius.circular(6), // rounded
+                                          BorderRadius.circular(4), // rounded
                                       color:
                                           Colors.white.withAlpha(20), // /[0.08]
                                     ),
@@ -94,7 +94,7 @@ class _SyncRowsSkeletonState extends ConsumerState<SyncRowsSkeleton>
                                   child: Container(
                                     height: 10, // h-2.5
                                     decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(6),
+                                      borderRadius: BorderRadius.circular(4),
                                       color:
                                           Colors.white.withAlpha(13), // /[0.05]
                                     ),

@@ -650,32 +650,35 @@ class CreateMediaBase {
   /// добавляя вариантные поля.
   Map<String, dynamic> toJson() => baseToJson();
 
+  static String? _cleanStr(String? v) =>
+      (v != null && v.trim().isNotEmpty) ? v.trim() : null;
+
   Map<String, dynamic> baseToJson() => <String, dynamic>{
         'type': type,
         'title': title,
         'status': status.value,
         'altTitles': altTitles,
         'score': score,
-        'coverUrl': coverUrl,
-        'notes': notes,
-        'description': description,
-        'trailerVideoId': trailerVideoId,
-        'franchiseId': franchiseId,
-        'franchiseName': franchiseName,
+        'coverUrl': _cleanStr(coverUrl),
+        'notes': _cleanStr(notes),
+        'description': _cleanStr(description),
+        'trailerVideoId': _cleanStr(trailerVideoId),
+        'franchiseId': _cleanStr(franchiseId),
+        'franchiseName': _cleanStr(franchiseName),
         'franchiseOrder': franchiseOrder,
-        'externalId': externalId,
-        'externalSource': externalSource,
-        'importSource': importSource,
+        'externalId': _cleanStr(externalId),
+        'externalSource': _cleanStr(externalSource),
+        'importSource': _cleanStr(importSource),
         'externalRating': externalRating,
         'externalRatingVotes': externalRatingVotes,
-        'externalRatingsJson': externalRatingsJson,
-        'releaseDate': releaseDate,
-        'endDate': endDate,
-        'releaseStatus': releaseStatus,
+        'externalRatingsJson': _cleanStr(externalRatingsJson),
+        'releaseDate': _cleanStr(releaseDate),
+        'endDate': _cleanStr(endDate),
+        'releaseStatus': _cleanStr(releaseStatus),
         'genres': genres,
         'tags': tags,
-        'unlockedAchievements': unlockedAchievements,
-        'userPlatform': userPlatform,
+        'unlockedAchievements': _cleanStr(unlockedAchievements),
+        'userPlatform': _cleanStr(userPlatform),
       };
 }
 
@@ -1034,13 +1037,13 @@ class CreateSeasonPayload {
   Map<String, dynamic> toJson() => <String, dynamic>{
         'seasonNumber': seasonNumber,
         'title': title,
-        'coverUrl': coverUrl,
+        'coverUrl': (coverUrl != null && coverUrl!.trim().isNotEmpty) ? coverUrl!.trim() : null,
         'totalEpisodes': totalEpisodes,
         'status': status?.value,
         'score': score,
-        'notes': notes,
-        'airDate': airDate,
-        'episodesData': episodesData,
+        'notes': (notes != null && notes!.trim().isNotEmpty) ? notes!.trim() : null,
+        'airDate': (airDate != null && airDate!.trim().isNotEmpty) ? airDate!.trim() : null,
+        'episodesData': (episodesData != null && episodesData!.trim().isNotEmpty) ? episodesData!.trim() : null,
       };
 
   @override

@@ -81,6 +81,13 @@ class ExternalRating {
         votes: _int(json['votes']),
       );
 
+  Map<String, dynamic> toJson() => <String, dynamic>{
+        'source': source,
+        'rating': rating,
+        if (score != null) 'score': score,
+        if (votes != null) 'votes': votes,
+      };
+
   @override
   bool operator ==(Object other) =>
       other is ExternalRating &&
@@ -110,6 +117,12 @@ class ExternalEpisode {
         title: json['title'] as String,
         airDate: json['airDate'] as String?,
       );
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+        'number': number,
+        'title': title,
+        if (airDate != null && airDate!.trim().isNotEmpty) 'airDate': airDate!.trim(),
+      };
 
   @override
   bool operator ==(Object other) =>
@@ -1427,6 +1440,18 @@ class CastMember {
         voiceActorImageUrl: _str(json['voiceActorImageUrl']),
       );
 
+  Map<String, dynamic> toJson() => <String, dynamic>{
+        'name': name,
+        if (character != null && character!.isNotEmpty) 'character': character,
+        if (photoUrl != null && photoUrl!.isNotEmpty) 'photoUrl': photoUrl,
+        if (characterRole != null && characterRole!.isNotEmpty) 'characterRole': characterRole,
+        if (characterImageUrl != null && characterImageUrl!.isNotEmpty)
+          'characterImageUrl': characterImageUrl,
+        if (voiceActorName != null && voiceActorName!.isNotEmpty) 'voiceActorName': voiceActorName,
+        if (voiceActorImageUrl != null && voiceActorImageUrl!.isNotEmpty)
+          'voiceActorImageUrl': voiceActorImageUrl,
+      };
+
   @override
   bool operator ==(Object other) =>
       other is CastMember &&
@@ -1459,6 +1484,12 @@ class StaffMember {
         role: _str(json['role']),
         imageUrl: _str(json['imageUrl']),
       );
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+        'name': name,
+        if (role != null && role!.isNotEmpty) 'role': role,
+        if (imageUrl != null && imageUrl!.isNotEmpty) 'imageUrl': imageUrl,
+      };
 
   @override
   bool operator ==(Object other) =>

@@ -20,6 +20,7 @@ import '../../shared/api/jobs_client.dart';
 import '../../shared/i18n/index.dart';
 import '../../shared/types/index.dart';
 import '../../shared/ui/modal.dart';
+import '../../shared/ui/toast.dart';
 import '../../shared/utils/url_media_parser.dart';
 import '../../widgets/media-detail/external_detail_modal.dart';
 
@@ -354,16 +355,24 @@ class _SearchModalState extends ConsumerState<SearchModal> {
   }
 
   CreateMediaBase _buildPayload(ExternalMedia result, I18nDictionary t) {
-    final releaseDate = result.releaseDate ??
-        (result.releaseYear != null ? '${result.releaseYear}-01-01' : null);
-    final ratingsJson =
-        result.ratings != null ? jsonEncode(result.ratings) : null;
+    final releaseDate = (result.releaseDate != null && result.releaseDate!.trim().isNotEmpty)
+        ? result.releaseDate!.trim()
+        : (result.releaseYear != null ? '${result.releaseYear}-01-01' : null);
+    final endDate = (result.endDate != null && result.endDate!.trim().isNotEmpty)
+        ? result.endDate!.trim()
+        : null;
+    final ratingsJson = result.ratings != null && result.ratings!.isNotEmpty
+        ? jsonEncode(result.ratings!.map((r) => r.toJson()).toList())
+        : null;
     final effective = _effectiveType(result);
 
     switch (effective) {
       case 'anime':
         final totalEpisodes =
             result.totalCount ?? result.episodes?.length ?? 0;
+        final episodesData = result.episodes != null && result.episodes!.isNotEmpty
+            ? jsonEncode(result.episodes!.map((e) => e.toJson()).toList())
+            : null;
         return CreateTvShowPayload(
           isAnime: true,
           studio: result.studio,
@@ -377,9 +386,7 @@ class _SearchModalState extends ConsumerState<SearchModal> {
               title: 'Season 1',
               totalEpisodes: totalEpisodes,
               airDate: releaseDate,
-              episodesData: result.episodes != null
-                  ? jsonEncode(result.episodes)
-                  : null,
+              episodesData: episodesData,
               coverUrl: null,
               status: null,
               score: null,
@@ -404,7 +411,7 @@ class _SearchModalState extends ConsumerState<SearchModal> {
           externalRatingVotes: result.ratingVotes,
           externalRatingsJson: ratingsJson,
           releaseDate: releaseDate,
-          endDate: result.endDate,
+          endDate: endDate,
           releaseStatus: result.releaseStatus,
           genres: null,
           tags: null,
@@ -412,6 +419,9 @@ class _SearchModalState extends ConsumerState<SearchModal> {
           userPlatform: null,
         );
       case 'tvshow':
+        final episodesData = result.episodes != null && result.episodes!.isNotEmpty
+            ? jsonEncode(result.episodes!.map((e) => e.toJson()).toList())
+            : null;
         return CreateTvShowPayload(
           isAnime: false,
           studio: result.studio,
@@ -427,7 +437,7 @@ class _SearchModalState extends ConsumerState<SearchModal> {
                     totalEpisodes:
                         result.totalCount ?? result.episodes!.length,
                     airDate: releaseDate,
-                    episodesData: jsonEncode(result.episodes),
+                    episodesData: episodesData,
                     coverUrl: null,
                     status: null,
                     score: null,
@@ -453,7 +463,7 @@ class _SearchModalState extends ConsumerState<SearchModal> {
           externalRatingVotes: result.ratingVotes,
           externalRatingsJson: ratingsJson,
           releaseDate: releaseDate,
-          endDate: result.endDate,
+          endDate: endDate,
           releaseStatus: result.releaseStatus,
           genres: null,
           tags: null,
@@ -972,6 +982,15 @@ class _SearchModalState extends ConsumerState<SearchModal> {
     } catch (e) {
       if (mounted) {
         setState(() => _addError = e);
+        final locale = ref.read(i18nProvider);
+        showToast(
+          ref,
+          ToastOptions(
+            title: t.tr('toast.actionFailed'),
+            description: _formatErrorMessage(e, locale),
+            type: ToastType.error,
+          ),
+        );
       }
     } finally {
       if (mounted) {

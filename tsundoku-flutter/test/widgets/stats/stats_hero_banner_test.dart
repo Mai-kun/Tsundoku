@@ -23,9 +23,6 @@ AdvancedStats _stats() => AdvancedStats.fromJson(<String, dynamic>{
       'animeHours': 0.0,
       'bookHours': 0.0,
       'mangaHours': 0.0,
-      'totalPagesRead': 0,
-      'totalChaptersRead': 0,
-      'totalEpisodesWatched': 0,
       'scoreDistribution': <String, dynamic>{},
       'averageScoreByType': <String, dynamic>{},
     });

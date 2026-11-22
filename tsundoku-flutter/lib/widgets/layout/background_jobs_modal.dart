@@ -493,6 +493,7 @@ class _BackgroundJobsModalState extends ConsumerState<BackgroundJobsModal> {
             isOpen: true,
             onClose: () => ref.read(jobsClientProvider.notifier).closeModal(),
             size: ModalSize.jobs,
+            contentPadding: EdgeInsets.zero,
             child: Column(
               children: [
                 _buildHeader(t, th, jobs, pendingCount, activeCount),

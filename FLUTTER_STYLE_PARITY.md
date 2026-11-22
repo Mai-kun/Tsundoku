@@ -2,8 +2,8 @@
 
 ## 📍 Текущий фокус / Next Step
 * **Фаза:** S5 (widgets/media-detail/**, widgets/stats/**, widgets/goals/*)
-* **Текущий файл:** `mediatracker-ui/src/widgets/media-detail/CoverManagerModal.svelte` -> `tsundoku-flutter/lib/widgets/media-detail/cover_manager_modal.dart`
-* **Цель:** Сверка CoverManagerModal: модалка смены и управления постерами, dropzone, сетка обложек aspect-[2/3], активный бейдж, удаление.
+* **Текущий файл:** `mediatracker-ui/src/widgets/media-detail/ExternalDetailModal.svelte` -> `tsundoku-flutter/lib/widgets/media-detail/external_detail_modal.dart`
+* **Цель:** Сверка ExternalDetailModal: модалка предпросмотра метаданных из внешнего источника.
 
 ---
 
@@ -227,7 +227,7 @@
 | S5 | `mediatracker-ui/src/widgets/media-detail/SeasonRow.svelte` | `tsundoku-flutter/lib/widgets/media-detail/season_row.dart` | ✅ Сверен 1:1 | 0 отличий (bg-card rounded-lg p-3 gap-4 sm:grid-cols-[5rem_1fr_auto], постер aspect-[3/4] w-20 sm:w-full rounded-md bg-canvas, заголовок сезона text-[10px] font-bold tracking-[0.16em] uppercase text-accent-soft, прогресс-бар h-1.5 rounded-full, степпер h-9 rounded-md bg-canvas с кнопками w-9 Minus/Plus 15px и min-w-10 tabular-nums 1-в-1) | 0 отличий |
 | S5 | `mediatracker-ui/src/widgets/media-detail/RelationLoadButton.svelte` | `tsundoku-flutter/lib/widgets/media-detail/relation_load_button.dart` | ✅ Сверен 1:1 | 0 отличий (триггер поповера h-8 px-2.5 rounded-md border-white/[0.08] bg-[#1c202b] text-xs font-semibold gap-2, Link2 13px accent-soft, кнопка загрузки h-8 px-3 rounded-md border-accent/40 bg-accent/10 text-xs font-semibold text-accent-soft gap-2, спиннер 13px 1-в-1) | 0 отличий |
 | S5 | `mediatracker-ui/src/widgets/media-detail/SyncRowsSkeleton.svelte` | `tsundoku-flutter/lib/widgets/media-detail/sync_rows_skeleton.dart` | ✅ Сверен 1:1 | 0 отличий (space-y-3 p-3 rounded-lg border-white/[0.06] bg-card с анимацией animate-pulse ~1.5s, превью 36x48 rounded-md, полосы h-3 и h-2.5 rounded-4 с ширинами 88/72/56% и 40%, sr-only status 1-в-1) | 0 отличий |
-| S5 | `mediatracker-ui/src/widgets/media-detail/CoverManagerModal.svelte` | `tsundoku-flutter/lib/widgets/media-detail/cover_manager_modal.dart` | В очереди |  |  |
+| S5 | `mediatracker-ui/src/widgets/media-detail/CoverManagerModal.svelte` | `tsundoku-flutter/lib/widgets/media-detail/cover_manager_modal.dart` | ✅ Сверен 1:1 | ModalSize.lg, contentPadding: zero для full-bleed шапки px-5 py-4 border-b border-white/[0.08] и секции добавления p-4 bg-black/20, сетка обложек p-4 gap-4 aspect-[2/3] rounded-xl, активный бейдж bg-emerald-600/95 px-2 py-0.5 text-[11px] font-bold, кнопки select/delete hover rounded-lg size-8 bg-black/70 1-в-1 | Да |
 | S5 | `mediatracker-ui/src/widgets/media-detail/ExternalDetailModal.svelte` | `tsundoku-flutter/lib/widgets/media-detail/external_detail_modal.dart` | В очереди |  |  |
 | S5 | `mediatracker-ui/src/widgets/media-detail/FillMissingModal.svelte` | `tsundoku-flutter/lib/widgets/media-detail/fill_missing_modal.dart` | В очереди |  |  |
 | S5 | `mediatracker-ui/src/widgets/media-detail/MediaActivityModal.svelte` | `tsundoku-flutter/lib/widgets/media-detail/media_activity_modal.dart` | В очереди |  |  |

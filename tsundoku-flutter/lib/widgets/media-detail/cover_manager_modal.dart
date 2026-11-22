@@ -266,6 +266,7 @@ class _CoverManagerModalState extends ConsumerState<CoverManagerModal> {
       isOpen: widget.isOpen,
       onClose: widget.onClose,
       size: ModalSize.lg,
+      contentPadding: EdgeInsets.zero,
       child: ConstrainedBox(
         // max-h-[85vh]: панель сжимается под контент, но не выше 85vh.
         constraints: BoxConstraints(

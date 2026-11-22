@@ -303,7 +303,8 @@ class _HistoryViewState extends ConsumerState<HistoryView> {
       includeInProgress: _includeInProgress,
     );
 
-    return Center(
+    return Align(
+      alignment: Alignment.topCenter,
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 1024), // max-w-5xl
         child: Column(

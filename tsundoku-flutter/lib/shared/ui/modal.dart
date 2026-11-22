@@ -73,6 +73,7 @@ class TsundokuModal extends StatelessWidget {
   final ModalSize size;
   final bool closable;
   final Widget child;
+  final EdgeInsetsGeometry? contentPadding;
 
   /// Drag-guard: mousedown стартовал на фоне.
   final void Function(bool pressedOnBackdrop)? onBackdropPressChanged;
@@ -83,6 +84,7 @@ class TsundokuModal extends StatelessWidget {
     required this.onClose,
     this.size = ModalSize.md,
     this.closable = true,
+    this.contentPadding,
     required this.child,
     this.onBackdropPressChanged,
   });
@@ -106,6 +108,8 @@ class TsundokuModal extends StatelessWidget {
             padding: const EdgeInsets.all(16), // p-4
             child: Material(
               color: const Color(0xFF151A26), // bg-[#151a26] modal-panel
+              elevation: 24,
+              shadowColor: Colors.black.withAlpha(153), // shadow-2xl shadow-black/60
               // rounded-xl + border-white/[0.08] — только через shape:
               // Material запрещает borderRadius вместе с shape.
               shape: RoundedRectangleBorder(
@@ -127,7 +131,7 @@ class TsundokuModal extends StatelessWidget {
                   maxHeight: geometry.maxHeight ?? double.infinity,
                 ),
                 child: Padding(
-                  padding: const EdgeInsets.all(16),
+                  padding: contentPadding ?? const EdgeInsets.all(16),
                   child: geometry.stretchColumn
                       ? Column(
                           mainAxisSize: MainAxisSize.min,

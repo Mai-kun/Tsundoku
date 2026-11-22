@@ -376,6 +376,7 @@ class _FillMissingModalState extends ConsumerState<FillMissingModal> {
       isOpen: widget.isOpen,
       onClose: widget.onClose,
       size: ModalSize.md,
+      contentPadding: EdgeInsets.zero,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -644,11 +645,13 @@ class _FillMissingModalState extends ConsumerState<FillMissingModal> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                isRu ? 'Предпросмотр данных' : 'Preview missing fields',
+                (isRu ? 'Предпросмотр данных' : 'Preview missing fields')
+                    .toUpperCase(),
                 style: const TextStyle(
                   fontSize: 12, // text-xs
                   fontWeight: FontWeight.w700, // font-bold
-                  color: _kSlate300, // text-slate-300 uppercase tracking-wider
+                  letterSpacing: 0.6, // tracking-wider
+                  color: _kSlate300, // text-slate-300
                 ),
               ),
               if (_previewLoading)
@@ -764,51 +767,84 @@ class _PreviewRow extends StatelessWidget {
             : Colors.white.withAlpha(5), // bg-white/[0.02]
       ),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          if (hasValue) ...[
-            const Text(
-              '✓',
-              style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: _kEmerald400), // text-emerald-400
+          Expanded(
+            child: Row(
+              children: [
+                if (hasValue) ...[
+                  const Text(
+                    '✓',
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: _kEmerald400), // text-emerald-400
+                  ),
+                  const SizedBox(width: 8), // gap-2
+                  Flexible(
+                    child: Text.rich(
+                      TextSpan(
+                        children: [
+                          TextSpan(
+                            text: field.label,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600, // font-semibold
+                              color: Colors.white,
+                            ),
+                          ),
+                          TextSpan(
+                            text: ' — $value',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: _kEmerald300.withAlpha(204), // text-emerald-300/80
+                            ),
+                          ),
+                        ],
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ] else ...[
+                  Text('—',
+                      style: TextStyle(
+                          fontSize: 12,
+                          color: TsundokuTheme.of(context).textMuted)),
+                  const SizedBox(width: 8), // gap-2
+                  Flexible(
+                    child: Text.rich(
+                      TextSpan(
+                        children: [
+                          TextSpan(
+                            text: field.label,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: _kSlate300, // text-slate-300
+                            ),
+                          ),
+                          TextSpan(
+                            text: ' — ${isRu ? "нет данных в источнике" : "no data in source"}',
+                            style: TextStyle(
+                              fontSize: 11, // text-[11px]
+                              color: TsundokuTheme.of(context).textMuted, // text-muted
+                            ),
+                          ),
+                        ],
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ],
             ),
-            const SizedBox(width: 8), // gap-2
-            Flexible(
-              child: Text(
-                '${field.label} — $value',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis, // truncate
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600, // font-semibold
-                  color: Colors.white,
-                ),
-              ),
-            ),
-          ] else ...[
-            Text('—',
-                style: TextStyle(
-                    fontSize: 12,
-                    color: TsundokuTheme.of(context).textMuted)),
-            const SizedBox(width: 8), // gap-2
-            Flexible(
-              child: Text(
-                '${field.label} — ${isRu ? "нет данных в источнике" : "no data in source"}',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis, // truncate
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: _kSlate300, // text-slate-300
-                ),
-              ),
-            ),
-          ],
+          ),
           if (hasValue) ...[
             const SizedBox(width: 8), // gap-2
             Container(
               padding:
-                  const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  const EdgeInsets.symmetric(horizontal: 6, vertical: 2), // px-1.5 py-0.5
               decoration: BoxDecoration(
                 border: Border.all(
                     color: _kEmerald400

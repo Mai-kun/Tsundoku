@@ -188,7 +188,7 @@ void main() {
     // Пустые поля manga: синопсис/жанры/автор/главы/трейлер (+обложка есть,
     // дата выхода — releaseYear нет).
     await tester.pump(const Duration(milliseconds: 200));
-    expect(find.text('Предпросмотр данных'), findsOneWidget);
+    expect(find.text('ПРЕДПРОСМОТР ДАННЫХ'), findsOneWidget);
     expect(find.textContaining('будет заполнено'), findsWidgets);
     // Значение из деталей: жанры → formatGenresList (первые 3).
     expect(find.textContaining('Фэнтези'), findsWidgets);

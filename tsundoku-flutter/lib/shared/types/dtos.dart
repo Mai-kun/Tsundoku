@@ -1325,6 +1325,35 @@ class SourceInfo {
         isProxied: json['isProxied'] as bool?,
       );
 
+  SourceInfo copyWith({
+    String? id,
+    String? name,
+    String? description,
+    List<String>? mediaTypes,
+    bool? requiresApiKey,
+    bool? optionalApiKey,
+    bool? isConfigured,
+    bool? hasKey,
+    String? maskedKey,
+    bool? isEnabled,
+    bool? isScraper,
+    bool? isProxied,
+  }) =>
+      SourceInfo(
+        id: id ?? this.id,
+        name: name ?? this.name,
+        description: description ?? this.description,
+        mediaTypes: mediaTypes ?? this.mediaTypes,
+        requiresApiKey: requiresApiKey ?? this.requiresApiKey,
+        optionalApiKey: optionalApiKey ?? this.optionalApiKey,
+        isConfigured: isConfigured ?? this.isConfigured,
+        hasKey: hasKey ?? this.hasKey,
+        maskedKey: maskedKey ?? this.maskedKey,
+        isEnabled: isEnabled ?? this.isEnabled,
+        isScraper: isScraper ?? this.isScraper,
+        isProxied: isProxied ?? this.isProxied,
+      );
+
   @override
   bool operator ==(Object other) =>
       other is SourceInfo &&

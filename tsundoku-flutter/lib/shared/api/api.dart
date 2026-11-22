@@ -237,6 +237,23 @@ class ProxySettings {
             (json['proxiedSources'] as List<Object?>? ?? const []).cast<String>().toList(),
       );
 
+  ProxySettings copyWith({
+    bool? enabled,
+    String? proxyUrl,
+    String? username,
+    bool? hasPassword,
+    String? maskedPassword,
+    List<String>? proxiedSources,
+  }) =>
+      ProxySettings(
+        enabled: enabled ?? this.enabled,
+        proxyUrl: proxyUrl ?? this.proxyUrl,
+        username: username ?? this.username,
+        hasPassword: hasPassword ?? this.hasPassword,
+        maskedPassword: maskedPassword ?? this.maskedPassword,
+        proxiedSources: proxiedSources ?? this.proxiedSources,
+      );
+
   @override
   bool operator ==(Object other) =>
       other is ProxySettings &&
@@ -1491,6 +1508,10 @@ class TsundokuApi {
   Future<void> reindexOfflineDatabases() => requestVoid(
       '/api/settings/offline-databases/reindex',
       method: 'POST');
+
+  Future<void> deleteOfflineDatabaseDump(String dumpFileName) => requestVoid(
+      '/api/settings/offline-databases/dumps/${Uri.encodeComponent(dumpFileName)}',
+      method: 'DELETE');
 
   Future<SearchCacheInfoDto> getSearchCacheInfo() =>
       requestJson<SearchCacheInfoDto>('/api/settings/search-cache',

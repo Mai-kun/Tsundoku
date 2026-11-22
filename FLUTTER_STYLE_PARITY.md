@@ -2,8 +2,8 @@
 
 ## 📍 Текущий фокус / Next Step
 * **Фаза:** S3 (entities/media/ui/*, widgets/media-card/*, widgets/media-grid/*)
-* **Текущий файл:** `mediatracker-ui/src/widgets/media-card/TvShowCard.svelte` -> `tsundoku-flutter/lib/widgets/media-card/tv_show_card.dart`
-* **Цель:** Сверка TvShowCard: BaseCard, subtitle logic (type + seasons), episode stepper.
+* **Текущий файл:** `mediatracker-ui/src/widgets/media-grid/MediaGrid.svelte` -> `tsundoku-flutter/lib/widgets/media-grid/media_grid.dart`
+* **Цель:** Сверка MediaGrid: grid layout, responsive breakpoints, gap, empty state, infinite scroll.
 
 ---
 
@@ -190,7 +190,7 @@
 | S3 | `mediatracker-ui/src/widgets/media-card/GameCard.svelte` | `tsundoku-flutter/lib/widgets/media-card/game_card.dart` | ✅ Сверен 1:1 | BaseCard, подзаголовок (userPlatform/platform/game), hover-степпер часов CardProgressControls 1-в-1 | 0 отличий |
 | S3 | `mediatracker-ui/src/widgets/media-card/MangaCard.svelte` | `tsundoku-flutter/lib/widgets/media-card/manga_card.dart` | ✅ Сверен 1:1 | BaseCard, подзаголовок (автор/mangaFormat/manga), hover-степпер глав CardProgressControls 1-в-1 | 0 отличий |
 | S3 | `mediatracker-ui/src/widgets/media-card/MovieCard.svelte` | `tsundoku-flutter/lib/widgets/media-card/movie_card.dart` | ✅ Сверен 1:1 | BaseCard, подзаголовок (режиссёр/фильм), hover-степпер 0/1 переключения completed CardProgressControls 1-в-1 | 0 отличий |
-| S3 | `mediatracker-ui/src/widgets/media-card/TvShowCard.svelte` | `tsundoku-flutter/lib/widgets/media-card/tv_show_card.dart` | В очереди |  |  |
+| S3 | `mediatracker-ui/src/widgets/media-card/TvShowCard.svelte` | `tsundoku-flutter/lib/widgets/media-card/tv_show_card.dart` | ✅ Сверен 1:1 | BaseCard, подзаголовок (тип • сезоны), hover: CardProgressControls или MediaStatusBadge 1-в-1 | 0 отличий |
 | S3 | `mediatracker-ui/src/widgets/media-grid/MediaGrid.svelte` | `tsundoku-flutter/lib/widgets/media-grid/media_grid.dart` | В очереди |  |  |
 | S3 | `mediatracker-ui/src/widgets/media-grid/SectionRow.svelte` | `tsundoku-flutter/lib/widgets/media-grid/section_row.dart` | В очереди |  |  |
 | S4 | `mediatracker-ui/src/features/settings/SettingsModal.svelte` | `tsundoku-flutter/lib/features/settings/settings_modal.dart` | В очереди |  |  |

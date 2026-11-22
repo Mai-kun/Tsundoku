@@ -128,6 +128,7 @@ class _ConfirmModalState extends ConsumerState<ConfirmModal> {
         isOpen: pending != null,
         onClose: () => ref.read(confirmDialogProvider.notifier).cancel(),
         size: ModalSize.md,
+        contentPadding: EdgeInsets.zero,
         child: rendered == null
             ? const SizedBox.shrink()
             : _ConfirmBody(

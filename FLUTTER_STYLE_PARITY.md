@@ -2,8 +2,8 @@
 
 ## 📍 Текущий фокус / Next Step
 * **Фаза:** S1 (shared/ui/*.svelte)
-* **Текущий файл:** `mediatracker-ui/src/shared/ui/ConfirmModal.svelte` -> `tsundoku-flutter/lib/shared/ui/confirm_modal.dart`
-* **Цель:** Сверка ConfirmModal: layout, typography, padding (p-6), buttons, checkboxes 1-в-1.
+* **Текущий файл:** `mediatracker-ui/src/shared/ui/PopoverMenu.svelte` -> `tsundoku-flutter/lib/shared/ui/popover_menu.dart`
+* **Цель:** Сверка PopoverMenu: placement, border-radius, background, shadow, padding, typography 1-в-1.
 
 ---
 
@@ -163,7 +163,7 @@
 | S1 | `mediatracker-ui/src/shared/ui/Badge.svelte` | `tsundoku-flutter/lib/shared/ui/badge.dart` | ✅ Сверен 1:1 | Все размеры, padding (px-1.5/px-2, py-0.5), rounded-md (6px), шрифты 10/12px и тоны совпадают 1-в-1 | 0 отличий |
 | S1 | `mediatracker-ui/src/shared/ui/Panel.svelte` | `tsundoku-flutter/lib/shared/ui/panel.dart` | ✅ Сверен 1:1 | rounded-xl (12px), border-subtle, bg-surface, p-4 (16px), shadow-md совпадают 1-в-1 | 0 отличий |
 | S1 | `mediatracker-ui/src/shared/ui/Modal.svelte` | `tsundoku-flutter/lib/shared/ui/modal.dart` | ✅ Сверен 1:1 | Добавлена тень shadow-2xl shadow-black/60 (elevation+shadowColor), добавлен contentPadding; размеры md/lg/xl/search/jobs и backdrop #090b10/80 выверены 1-в-1 | Да |
-| S1 | `mediatracker-ui/src/shared/ui/ConfirmModal.svelte` | `tsundoku-flutter/lib/shared/ui/confirm_modal.dart` | В очереди |  |  |
+| S1 | `mediatracker-ui/src/shared/ui/ConfirmModal.svelte` | `tsundoku-flutter/lib/shared/ui/confirm_modal.dart` | ✅ Сверен 1:1 | Устранён двойной отступ через contentPadding: EdgeInsets.zero; p-6 (24px), цвета и размеры кнопок/чекбоксов 1-в-1 | Да |
 | S1 | `mediatracker-ui/src/shared/ui/PopoverMenu.svelte` | `tsundoku-flutter/lib/shared/ui/popover_menu.dart` | В очереди |  |  |
 | S1 | `mediatracker-ui/src/shared/ui/Select.svelte` | `tsundoku-flutter/lib/shared/ui/popover_menu.dart` | В очереди |  |  |
 | S1 | `mediatracker-ui/src/shared/ui/ContextMenu.svelte` | `tsundoku-flutter/lib/shared/ui/context_menu.dart` | В очереди |  |  |

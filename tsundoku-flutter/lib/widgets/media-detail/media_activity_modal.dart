@@ -157,61 +157,67 @@ class _MediaActivityModalState extends ConsumerState<MediaActivityModal> {
       isOpen: widget.isOpen,
       onClose: widget.onClose,
       size: ModalSize.md,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Header.
-          Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 20, vertical: 16), // px-5 py-4
-            decoration: const BoxDecoration(
-              border: Border(
-                  bottom: BorderSide(color: Color(0x14FFFFFF))), // /[0.08]
-            ),
-            child: Row(
-              children: [
-                Icon(LucideIcons.history,
-                    size: 18, color: th.accentSoft), // accent-soft
-                const SizedBox(width: 12), // gap-3
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        t.tr('views.historyTitle'),
-                        style: const TextStyle(
-                          fontSize: 14, // text-sm
-                          fontWeight: FontWeight.w700, // font-bold
-                          color: Colors.white,
+      contentPadding: EdgeInsets.zero,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(context).height * 0.75, // max-h-[75vh]
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Header.
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 20, vertical: 16), // px-5 py-4
+              decoration: const BoxDecoration(
+                border: Border(
+                    bottom: BorderSide(color: Color(0x14FFFFFF))), // /[0.08]
+              ),
+              child: Row(
+                children: [
+                  Icon(LucideIcons.history,
+                      size: 18, color: th.accentSoft), // accent-soft
+                  const SizedBox(width: 12), // gap-3
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          t.tr('views.historyTitle'),
+                          style: const TextStyle(
+                            fontSize: 14, // text-sm
+                            fontWeight: FontWeight.w700, // font-bold
+                            color: Colors.white,
+                          ),
                         ),
-                      ),
-                      Text(
-                        widget.title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 12, // text-xs
-                          color: th.textMuted, // text-muted
+                        Text(
+                          widget.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 12, // text-xs
+                            color: th.textMuted, // text-muted
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-                _ActivityCloseButton(
-                  label: t.tr('common.close'),
-                  th: th,
-                  onClose: widget.onClose,
-                ),
-              ],
+                  _ActivityCloseButton(
+                    label: t.tr('common.close'),
+                    th: th,
+                    onClose: widget.onClose,
+                  ),
+                ],
+              ),
             ),
-          ),
-          // Дата-фильтр.
-          Container(
-            padding: const EdgeInsets.symmetric(
-                horizontal: 20, vertical: 12), // px-5 py-3
-            decoration: const BoxDecoration(
-              border: Border(bottom: BorderSide(color: Color(0x14FFFFFF))),
-            ),
+            // Дата-фильтр.
+            Container(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 20, vertical: 12), // px-5 py-3
+              decoration: BoxDecoration(
+                color: th.bgSurface.withAlpha(77), // bg-surface/30
+                border: const Border(bottom: BorderSide(color: Color(0x14FFFFFF))),
+              ),
             child: Row(
               children: [
                 Text(
@@ -394,7 +400,8 @@ class _MediaActivityModalState extends ConsumerState<MediaActivityModal> {
           ),
         ],
       ),
-    );
+    ),
+  );
   }
 }
 

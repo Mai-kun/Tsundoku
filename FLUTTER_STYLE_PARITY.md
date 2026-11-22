@@ -1,9 +1,9 @@
 # 🎯 Аудит и выравнивание стилей Flutter UI 1-в-1 со Svelte (Tailwind CSS / tokens.css)
 
 ## 📍 Текущий фокус / Next Step
-* **Фаза:** S4 (features/**)
-* **Текущий файл:** `mediatracker-ui/src/features/stale-triage/StaleBacklogModal.svelte` -> `tsundoku-flutter/lib/features/stale-triage/stale_backlog_modal.dart`
-* **Цель:** Сверка StaleBacklogModal: модальное окно разбора залежавшегося бэклога, карточки, бейджи, кнопки действий, отступы.
+* **Фаза:** S5 (widgets/media-detail/**, widgets/stats/**, widgets/goals/*)
+* **Текущий файл:** `mediatracker-ui/src/widgets/media-detail/DetailHeader.svelte` -> `tsundoku-flutter/lib/widgets/media-detail/detail_header.dart`
+* **Цель:** Сверка DetailHeader: постер, баннер, названия, оценки, жанры, теги, статус-дропдаун, кнопки действий, отступы.
 
 ---
 
@@ -219,7 +219,7 @@
 | S4 | `mediatracker-ui/src/features/lists/CreateListModal.svelte` | `tsundoku-flutter/lib/features/lists/create_list_modal.dart` | ✅ Сверен 1:1 | ModalSize.lg, contentPadding: zero для full-bleed шапки bg-[#151a26] px-6 py-4 и подвала bg-[#12151c]/90 px-6 py-4, thin-scroll body p-6 (24px), переключатель типов, 6 цветов hex и 6 иконок (h-10 w-10), preview-бейдж и превью-обложки 1-в-1 | Да |
 | S4 | `mediatracker-ui/src/features/lists/ListPicker.svelte` | `tsundoku-flutter/lib/features/lists/list_picker.dart` | ✅ Сверен 1:1 | триггер bg-surface/50 px-3 py-2.5 text-xs text-muted icon accent-soft, ModalSize.md с contentPadding: zero для p-6 (24px) без удвоения, заголовок 18px font-bold, кнопка новый список px-2.5 py-1.5 text-xs font-semibold, строки списка px-3 py-3 gap-3, чекбокс 16x16, цветная иконка 32x32 rounded-lg 1-в-1 | Да |
 | S4 | `mediatracker-ui/src/features/lists/SmartListBuilder.svelte` | `tsundoku-flutter/lib/features/lists/smart_list_builder.dart` | ✅ Сверен 1:1 | секции p-4 (16px) rounded-xl border-white/5, заголовки mb-3 (12px) text-xs font-semibold tracking-widest, чипсы px-3 py-2 (12x8px) gap-1.5 rounded-lg border-white/5 bg-card, фильтры px-3 py-1 rounded-full text-xs font-medium с точными violet-300 / amber-300 цветами, инпуты py-1.5 px-2.5 text-sm (14px) rounded-lg border-white/10 с внешними лейблами text-xs font-medium 1-в-1 | Да |
-| S4 | `mediatracker-ui/src/features/stale-triage/StaleBacklogModal.svelte` | `tsundoku-flutter/lib/features/stale-triage/stale_backlog_modal.dart` | В очереди |  |  |
+| S4 | `mediatracker-ui/src/features/stale-triage/StaleBacklogModal.svelte` | `tsundoku-flutter/lib/features/stale-triage/stale_backlog_modal.dart` | ✅ Сверен 1:1 | ModalSize.lg, contentPadding: zero для full-bleed шапки px-6 py-4 и панели порогов px-6 py-3 border-b border-white/5, кнопки порогов px-3 py-1 rounded-lg text-xs font-medium, список p-6 (24px) space-y-3, карточки p-3.5 (14px) rounded-xl border-white/5, постер w-14 (56x84px) aspect-[2/3], бейдж типа px-2 py-0.5 rounded-md text-[11px], неактивность text-xs font-medium amber-400, кнопки действий px-2.5 py-1.5 rounded-lg text-xs font-semibold gap-1.5 иконки 15px 1-в-1 | Да |
 | S5 | `mediatracker-ui/src/widgets/media-detail/DetailHeader.svelte` | `tsundoku-flutter/lib/widgets/media-detail/detail_header.dart` | В очереди |  |  |
 | S5 | `mediatracker-ui/src/widgets/media-detail/DetailSidebar.svelte` | `tsundoku-flutter/lib/widgets/media-detail/detail_sidebar.dart` | В очереди |  |  |
 | S5 | `mediatracker-ui/src/widgets/media-detail/DetailTabs.svelte` | `tsundoku-flutter/lib/widgets/media-detail/detail_tabs.dart` | В очереди |  |  |

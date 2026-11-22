@@ -336,6 +336,7 @@ class _StaleBacklogModalState extends ConsumerState<StaleBacklogModal> {
       isOpen: widget.isOpen,
       onClose: widget.onClose,
       size: ModalSize.lg,
+      contentPadding: EdgeInsets.zero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -344,7 +345,7 @@ class _StaleBacklogModalState extends ConsumerState<StaleBacklogModal> {
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
             decoration: const BoxDecoration(
               border: Border(
-                bottom: BorderSide(color: Color(0x14FFFFFF)),
+                bottom: BorderSide(color: Color(0x0DFFFFFF)),
               ),
             ),
             child: Row(
@@ -389,12 +390,19 @@ class _StaleBacklogModalState extends ConsumerState<StaleBacklogModal> {
                     ],
                   ),
                 ),
-                IconButton(
-                  icon: const Icon(LucideIcons.x, size: 18),
-                  color: const Color(0xFF94A3B8),
-                  hoverColor: const Color(0x1AFFFFFF),
-                  tooltip: t.tr('common.close'),
-                  onPressed: widget.onClose,
+                InkWell(
+                  onTap: widget.onClose,
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    width: 32,
+                    height: 32,
+                    alignment: Alignment.center,
+                    child: const Icon(
+                      LucideIcons.x,
+                      size: 18,
+                      color: Color(0xFF94A3B8),
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -406,7 +414,7 @@ class _StaleBacklogModalState extends ConsumerState<StaleBacklogModal> {
             decoration: const BoxDecoration(
               color: Color(0x05FFFFFF),
               border: Border(
-                bottom: BorderSide(color: Color(0x14FFFFFF)),
+                bottom: BorderSide(color: Color(0x0DFFFFFF)),
               ),
             ),
             child: Row(
@@ -426,12 +434,12 @@ class _StaleBacklogModalState extends ConsumerState<StaleBacklogModal> {
                             child: Container(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 12,
-                                vertical: 6,
+                                vertical: 4,
                               ),
                               decoration: BoxDecoration(
                                 color: isSelected
-                                    ? const Color(0xFF6366F1)
-                                    : const Color(0x0FFFFFFF),
+                                    ? const Color(0xFF8B5CF6)
+                                    : const Color(0x0DFFFFFF),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(
@@ -552,7 +560,7 @@ class _StaleBacklogModalState extends ConsumerState<StaleBacklogModal> {
           decoration: BoxDecoration(
             color: const Color(0x05FFFFFF),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0x14FFFFFF)),
+            border: Border.all(color: const Color(0x0DFFFFFF)),
           ),
           child: Row(
             children: [
@@ -560,9 +568,9 @@ class _StaleBacklogModalState extends ConsumerState<StaleBacklogModal> {
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
                 child: Container(
-                  width: 52,
-                  height: 76,
-                  color: const Color(0x0AFFFFFF),
+                  width: 56,
+                  height: 84,
+                  color: const Color(0x0DFFFFFF),
                   child: item.coverUrl != null && item.coverUrl!.isNotEmpty
                       ? Image.network(
                           item.coverUrl!,
@@ -608,11 +616,11 @@ class _StaleBacklogModalState extends ConsumerState<StaleBacklogModal> {
                         ),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
+                            horizontal: 8,
                             vertical: 2,
                           ),
                           decoration: BoxDecoration(
-                            color: const Color(0x0FFFFFFF),
+                            color: const Color(0x0DFFFFFF),
                             borderRadius: BorderRadius.circular(6),
                             border: Border.all(color: const Color(0x1AFFFFFF)),
                           ),
@@ -643,7 +651,7 @@ class _StaleBacklogModalState extends ConsumerState<StaleBacklogModal> {
                       t.tf('staleTriage.daysInactive',
                           [days, _formatDate(rawDate, locale)]),
                       style: const TextStyle(
-                        fontSize: 11,
+                        fontSize: 12,
                         fontWeight: FontWeight.w500,
                         color: Color(0xFFFBBF24),
                       ),
@@ -667,7 +675,7 @@ class _StaleBacklogModalState extends ConsumerState<StaleBacklogModal> {
                       borderColor: const Color(0x33FB923C),
                       onTap: () => _handleFocus(item),
                     ),
-                    const SizedBox(width: 6),
+                    const SizedBox(width: 8),
                     _buildActionButton(
                       icon: LucideIcons.pause,
                       label: t.tr('staleTriage.actionOnHold'),
@@ -676,7 +684,7 @@ class _StaleBacklogModalState extends ConsumerState<StaleBacklogModal> {
                       borderColor: const Color(0x33FBBF24),
                       onTap: () => _handlePause(item),
                     ),
-                    const SizedBox(width: 6),
+                    const SizedBox(width: 8),
                     _buildActionButton(
                       icon: LucideIcons.ban,
                       label: t.tr('staleTriage.actionDrop'),
@@ -685,7 +693,7 @@ class _StaleBacklogModalState extends ConsumerState<StaleBacklogModal> {
                       borderColor: const Color(0x33FB7185),
                       onTap: () => _handleDrop(item),
                     ),
-                    const SizedBox(width: 6),
+                    const SizedBox(width: 8),
                     _buildActionButton(
                       icon: LucideIcons.bookmark,
                       label: t.tr('staleTriage.actionToPlanned'),
@@ -725,12 +733,12 @@ class _StaleBacklogModalState extends ConsumerState<StaleBacklogModal> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 14, color: color),
-            const SizedBox(width: 4),
+            Icon(icon, size: 15, color: color),
+            const SizedBox(width: 6),
             Text(
               label,
               style: TextStyle(
-                fontSize: 11,
+                fontSize: 12,
                 fontWeight: FontWeight.w600,
                 color: color,
               ),

@@ -2,8 +2,8 @@
 
 ## 📍 Текущий фокус / Next Step
 * **Фаза:** S4 (features/**)
-* **Текущий файл:** `mediatracker-ui/src/features/settings/ui/SettingsModal.svelte` -> `tsundoku-flutter/lib/features/settings/ui/settings_modal.dart`
-* **Цель:** Сверка SettingsModal: full-bleed модалка (max-w-4xl=896px), sidebar-табы w-48 (192px), p-6 контент.
+* **Текущий файл:** `mediatracker-ui/src/features/settings/FirstRunStorageModal.svelte` -> `tsundoku-flutter/lib/features/settings/first_run_storage_modal.dart`
+* **Цель:** Сверка FirstRunStorageModal: modal layout, radio options, action button.
 
 ---
 
@@ -193,7 +193,7 @@
 | S3 | `mediatracker-ui/src/widgets/media-card/TvShowCard.svelte` | `tsundoku-flutter/lib/widgets/media-card/tv_show_card.dart` | ✅ Сверен 1:1 | BaseCard, подзаголовок (тип • сезоны), hover: CardProgressControls или MediaStatusBadge 1-в-1 | 0 отличий |
 | S3 | `mediatracker-ui/src/widgets/media-grid/MediaGrid.svelte` | `tsundoku-flutter/lib/widgets/media-grid/media_grid.dart` | ✅ Сверен 1:1 | Брейкпоинты колонок 2..6 (640/1024/1280/1536), rowGap 16px (gap-4), loading 240px, error/empty min-h-72 (288px), remove button 32px 1-в-1 | 0 отличий |
 | S3 | `mediatracker-ui/src/widgets/media-grid/SectionRow.svelte` | `tsundoku-flutter/lib/widgets/media-grid/section_row.dart` | ✅ Сверен 1:1 | Заголовок 25px bold tracking-wide, счётчик px-2.5 py-0.5 rounded-full, space-y-3 (12px) 1-в-1 | 0 отличий |
-| S4 | `mediatracker-ui/src/features/settings/SettingsModal.svelte` | `tsundoku-flutter/lib/features/settings/settings_modal.dart` | В очереди |  |  |
+| S4 | `mediatracker-ui/src/features/settings/SettingsModal.svelte` | `tsundoku-flutter/lib/features/settings/settings_modal.dart` | ✅ Сверен 1:1 | Full-bleed модалка (ModalSize.xl, contentPadding: zero), header px-6 py-4, TsundokuButton.ghost close button, 10 табов 1-в-1 | Да |
 | S4 | `mediatracker-ui/src/features/settings/FirstRunStorageModal.svelte` | `tsundoku-flutter/lib/features/settings/first_run_storage_modal.dart` | В очереди |  |  |
 | S4 | `mediatracker-ui/src/features/import-media/ImportModal.svelte` | `tsundoku-flutter/lib/features/import-media/import_modal.dart` | В очереди |  |  |
 | S4 | `mediatracker-ui/src/features/import-media/ImportPanel.svelte` | `tsundoku-flutter/lib/features/import-media/import_panel.dart` | В очереди |  |  |

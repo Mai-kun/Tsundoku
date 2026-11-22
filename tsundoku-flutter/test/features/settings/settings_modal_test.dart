@@ -55,10 +55,31 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
+  Future<void> pumpSubject(
+    WidgetTester tester, {
+    bool isOpen = true,
+    bool embedded = false,
+    SettingsTab initialTab = SettingsTab.sources,
+    VoidCallback? onClose,
+    VoidCallback? onImportCompleted,
+  }) async {
+    tester.view.physicalSize = const Size(1200, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(_buildSubject(
+      isOpen: isOpen,
+      embedded: embedded,
+      initialTab: initialTab,
+      onClose: onClose,
+      onImportCompleted: onImportCompleted,
+    ));
+    await tester.pumpAndSettle();
+  }
+
   testWidgets('hides when isOpen is false and embedded is false',
       (tester) async {
-    await tester.pumpWidget(_buildSubject(isOpen: false, embedded: false));
-    await tester.pumpAndSettle();
+    await pumpSubject(tester, isOpen: false, embedded: false);
 
     expect(find.byType(SettingsModal), findsOneWidget);
     expect(find.byType(SettingsView), findsNothing);
@@ -66,8 +87,7 @@ void main() {
 
   testWidgets('renders modal header and SettingsView when isOpen is true',
       (tester) async {
-    await tester.pumpWidget(_buildSubject(isOpen: true, embedded: false));
-    await tester.pumpAndSettle();
+    await pumpSubject(tester, isOpen: true, embedded: false);
 
     expect(find.text('Настройки'), findsWidgets);
     expect(find.byIcon(LucideIcons.settings), findsOneWidget);
@@ -77,8 +97,7 @@ void main() {
 
   testWidgets('renders directly without modal chrome when embedded is true',
       (tester) async {
-    await tester.pumpWidget(_buildSubject(isOpen: false, embedded: true));
-    await tester.pumpAndSettle();
+    await pumpSubject(tester, isOpen: false, embedded: true);
 
     // In embedded mode, close button is not present
     expect(find.byIcon(LucideIcons.x), findsNothing);
@@ -86,15 +105,7 @@ void main() {
   });
 
   testWidgets('passes initialTab to SettingsView', (tester) async {
-    tester.view.physicalSize = const Size(1200, 900);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.reset);
-
-    await tester.pumpWidget(_buildSubject(
-      isOpen: true,
-      initialTab: SettingsTab.storage,
-    ));
-    await tester.pumpAndSettle();
+    await pumpSubject(tester, isOpen: true, initialTab: SettingsTab.storage);
 
     expect(find.text('Хранилище'), findsWidgets);
   });
@@ -103,11 +114,7 @@ void main() {
       (tester) async {
     bool closed = false;
 
-    await tester.pumpWidget(_buildSubject(
-      isOpen: true,
-      onClose: () => closed = true,
-    ));
-    await tester.pumpAndSettle();
+    await pumpSubject(tester, isOpen: true, onClose: () => closed = true);
 
     final closeBtn = find.byIcon(LucideIcons.x);
     expect(closeBtn, findsOneWidget);

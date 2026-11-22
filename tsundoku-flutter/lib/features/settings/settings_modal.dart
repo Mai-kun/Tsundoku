@@ -12,6 +12,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../shared/i18n/index.dart';
+import '../../shared/ui/button.dart';
 import '../../shared/ui/modal.dart';
 import '../../views/settings_view.dart';
 
@@ -56,6 +57,7 @@ class SettingsModal extends ConsumerWidget {
       isOpen: isOpen,
       onClose: onClose,
       size: ModalSize.xl,
+      contentPadding: EdgeInsets.zero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -97,12 +99,12 @@ class SettingsModal extends ConsumerWidget {
                     ),
                   ],
                 ),
-                IconButton(
-                  icon: const Icon(LucideIcons.x, size: 18),
-                  color: const Color(0xFF94A3B8),
-                  hoverColor: const Color(0x1AFFFFFF),
-                  tooltip: t.tr('common.close'),
+                TsundokuButton(
+                  variant: ButtonVariant.ghost,
+                  size: ButtonSize.sm,
+                  iconOnly: true,
                   onPressed: onClose,
+                  child: const Icon(LucideIcons.x, size: 18),
                 ),
               ],
             ),

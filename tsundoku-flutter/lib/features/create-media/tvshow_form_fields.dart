@@ -183,7 +183,7 @@ class _TvShowFormFieldsState extends ConsumerState<TvShowFormFields> {
                     children: [
                       // sm:grid-cols-[5rem_1fr_7rem_auto]
                       SizedBox(
-                        width: 56,
+                        width: 80, // 5rem
                         child: _SeasonField(
                           value: widget.seasons[index].seasonNumber,
                           number: true,
@@ -207,7 +207,7 @@ class _TvShowFormFieldsState extends ConsumerState<TvShowFormFields> {
                       ),
                       const SizedBox(width: 8),
                       SizedBox(
-                        width: 96, // 7rem
+                        width: 112, // 7rem
                         child: _SeasonField(
                           value: widget.seasons[index].totalEpisodes,
                           number: true,
@@ -220,18 +220,9 @@ class _TvShowFormFieldsState extends ConsumerState<TvShowFormFields> {
                       ),
                       const SizedBox(width: 8),
                       // Кнопка удаления сезона (hover rose).
-                      GestureDetector(
+                      _SeasonDeleteButton(
+                        semanticLabel: t.tr('common.delete'),
                         onTap: () => _removeSeason(index),
-                        child: Container(
-                          width: 36, // h-9 w-9
-                          height: 36,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          alignment: Alignment.center,
-                          child: Icon(LucideIcons.minus,
-                              size: 16, color: th.textMuted),
-                        ),
                       ),
                     ],
                   ),
@@ -313,6 +304,53 @@ class _SeasonFieldState extends State<_SeasonField> {
         focusedBorder: createFieldBorder(th, focused: true),
         hintText: widget.hint,
         hintStyle: TextStyle(color: th.textMuted),
+      ),
+    );
+  }
+}
+
+class _SeasonDeleteButton extends StatefulWidget {
+  final String semanticLabel;
+  final VoidCallback onTap;
+
+  const _SeasonDeleteButton({
+    required this.semanticLabel,
+    required this.onTap,
+  });
+
+  @override
+  State<_SeasonDeleteButton> createState() => _SeasonDeleteButtonState();
+}
+
+class _SeasonDeleteButtonState extends State<_SeasonDeleteButton> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final th = TsundokuTheme.of(context);
+    return Semantics(
+      label: widget.semanticLabel,
+      button: true,
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _hovered = true),
+        onExit: (_) => setState(() => _hovered = false),
+        child: GestureDetector(
+          onTap: widget.onTap,
+          child: Container(
+            width: 36, // h-9 w-9
+            height: 36,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8), // rounded-lg
+              color: _hovered ? const Color(0x1AFB7185) : Colors.transparent, // hover:bg-rose-400/10
+            ),
+            alignment: Alignment.center,
+            child: Icon(
+              LucideIcons.minus,
+              size: 16,
+              color: _hovered ? const Color(0xFFFDA4AF) : th.textMuted, // hover:text-rose-300
+            ),
+          ),
+        ),
       ),
     );
   }

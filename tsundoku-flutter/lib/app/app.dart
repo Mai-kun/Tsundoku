@@ -14,6 +14,7 @@ library;
 
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' hide Category;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -53,6 +54,7 @@ import '../views/media_detail_view.dart';
 import '../views/settings_view.dart';
 import '../views/show_seasons_view.dart';
 import '../views/stats_view.dart';
+import '../widgets/media-detail/detail_types.dart';
 import '../widgets/layout/app_shell.dart';
 import '../widgets/layout/background_jobs_modal.dart';
 import '../widgets/layout/close_app_modal.dart';
@@ -116,6 +118,8 @@ class _AppRouterState extends ConsumerState<_AppRouter> {
   bool _initialSearchByCreator = false;
   bool _isStaleBacklogOpen = false; // StaleBacklogModal ✓
   String _settingsTabRequest = 'sources'; // SettingsView ✓
+  String _detailTabRequest = 'overview';
+  bool _initiallyOpenTimeBudget = false;
 
   List<String> get _categories => <String>[
         ...baseCategories,
@@ -125,6 +129,44 @@ class _AppRouterState extends ConsumerState<_AppRouter> {
   @override
   void initState() {
     super.initState();
+    if (kIsWeb) {
+      try {
+        final params = Uri.base.queryParameters;
+        if (params.containsKey('view')) {
+          final v = params['view']!;
+          _activeView = v;
+          _renderedView = v;
+          if (_isCategory(v)) _activeCategory = v;
+        }
+        if (params.containsKey('mediaId')) {
+          _selectedMediaId = params['mediaId'];
+        }
+        if (params.containsKey('tab')) {
+          final t = params['tab']!;
+          _settingsTabRequest = t;
+          _detailTabRequest = t;
+        }
+        if (params.containsKey('search') && (params['search'] == 'true' || params['search'] == '1')) {
+          _isSearchOpen = true;
+          _initialSearchQuery = params['query'] ?? 'Frieren';
+        }
+        if (params.containsKey('edit') && (params['edit'] == 'true' || params['edit'] == '1')) {
+          _isCreateOpen = true;
+          if (_selectedMediaId != null) {
+            _editingItem = MediaItem.fromJson(<String, dynamic>{
+              'id': _selectedMediaId!,
+              'type': 'tvshow',
+              'title': 'Провожающая в последний путь Фрирен',
+              'status': 1,
+              'createdAt': '',
+            });
+          }
+        }
+        if (params.containsKey('popover') && params['popover'] == 'time') {
+          _initiallyOpenTimeBudget = true;
+        }
+      } catch (_) {}
+    }
     // Провайдер-модификации (offline init) — после монтирования.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -460,6 +502,7 @@ class _AppRouterState extends ConsumerState<_AppRouter> {
         onOpen: openDetail,
         onMediaChanged: mediaChanged,
         onOpenStaleBacklog: () => setState(() => _isStaleBacklogOpen = true),
+        initiallyOpenTimeBudget: _initiallyOpenTimeBudget,
       );
     } else if (_isCategory(rendered)) {
       body = CategoryView(
@@ -483,6 +526,15 @@ class _AppRouterState extends ConsumerState<_AppRouter> {
         onOpenRelated: openDetail,
         onSearch: openSearch,
         onOpenLists: () => navigate(AppViews.lists),
+        initialSubTab: _detailTabRequest == 'episodes'
+            ? SubTab.episodes
+            : _detailTabRequest == 'gallery'
+                ? SubTab.gallery
+                : _detailTabRequest == 'related'
+                    ? SubTab.related
+                    : _detailTabRequest == 'recommendations'
+                        ? SubTab.recommendations
+                        : SubTab.overview,
       );
     } else if (rendered == AppViews.seasons && _selectedMediaId != null) {
       body = ShowSeasonsView(

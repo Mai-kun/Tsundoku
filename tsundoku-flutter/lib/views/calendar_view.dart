@@ -333,7 +333,7 @@ class _CalendarViewState extends ConsumerState<CalendarView> {
       final dt = DateTime.parse(dateStr);
       final raw = DateFormat('EEEE, d MMMM', locale.wire).format(dt);
       if (raw.isEmpty) return raw;
-      return raw[0].toUpperCase() + raw.substring(1);
+      return raw.split(' ').map((w) => w.isNotEmpty ? (w[0].toUpperCase() + w.substring(1)) : '').join(' ');
     } catch (_) {
       return dateStr;
     }
@@ -976,8 +976,7 @@ class _CalendarViewState extends ConsumerState<CalendarView> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: tokens.bgCard,
                   foregroundColor: tokens.textPrimary,
-                  fixedSize: const Size.fromHeight(36),
-                  minimumSize: const Size.fromHeight(36),
+                  minimumSize: const Size(0, 36),
                   padding:
                       const EdgeInsets.symmetric(horizontal: 12),
                   shape: RoundedRectangleBorder(
@@ -1141,13 +1140,17 @@ class _CalendarViewState extends ConsumerState<CalendarView> {
               LayoutBuilder(
                 builder: (context, constraints) {
                   final width = constraints.maxWidth;
-                  final crossAxisCount = width >= 1200
-                      ? 6
-                      : width >= 900
-                          ? 4
-                          : width >= 600
-                              ? 3
-                              : 2;
+                  final crossAxisCount = width >= 1500
+                      ? 7
+                      : width >= 1200
+                          ? 6
+                          : width >= 900
+                              ? 5
+                              : width >= 700
+                                  ? 4
+                                  : width >= 500
+                                      ? 3
+                                      : 2;
 
                   return GridView.builder(
                     shrinkWrap: true,
@@ -1155,9 +1158,9 @@ class _CalendarViewState extends ConsumerState<CalendarView> {
                     itemCount: items.length,
                     gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: crossAxisCount,
-                      crossAxisSpacing: 14,
-                      mainAxisSpacing: 14,
-                      childAspectRatio: 0.65,
+                      crossAxisSpacing: 16,
+                      mainAxisSpacing: 16,
+                      childAspectRatio: 0.62,
                     ),
                     itemBuilder: (context, index) {
                       final item = items[index];

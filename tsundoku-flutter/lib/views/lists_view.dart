@@ -1,7 +1,6 @@
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -140,10 +139,23 @@ class ListsViewState extends ConsumerState<ListsView> {
     return Color(0xFF000000 | value);
   }
 
+  static const _ruMonths = [
+    'янв.', 'февр.', 'мар.', 'апр.', 'мая', 'июн.',
+    'июл.', 'авг.', 'сент.', 'окт.', 'нояб.', 'дек.'
+  ];
+  static const _enMonths = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+  ];
+
   String _formatUpdatedDate(String value, Locale locale) {
     try {
       final dt = DateTime.parse(value);
-      return DateFormat('d MMM y', locale.wire).format(dt);
+      if (locale == Locale.ru) {
+        return '${dt.day} ${_ruMonths[dt.month - 1]} ${dt.year} г.';
+      } else {
+        return '${_enMonths[dt.month - 1]} ${dt.day}, ${dt.year}';
+      }
     } catch (_) {
       return value;
     }
@@ -985,237 +997,252 @@ class ListsViewState extends ConsumerState<ListsView> {
     final listColor = _parseColor(list.color) ?? tokens.accent;
     final icon = _listIcon(list.icon);
     final smartQuery = _SmartQueryData.tryParse(list.smartQueryJson);
+    bool isHovered = false;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: tokens.bgCard,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withAlpha(18)),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Clickable top area (Covers + details)
-          Expanded(
-            child: InkWell(
-              onTap: () => openList(list),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Cover area (height 176)
-                  SizedBox(
-                    height: 176,
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        _buildCardCovers(list, listColor, icon, tokens),
-                        // Gradient shadow at bottom of cover
-                        Positioned(
-                          left: 0,
-                          right: 0,
-                          bottom: 0,
-                          height: 64,
-                          child: Container(
-                            decoration: const BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                                colors: [Colors.transparent, Color(0xB3000000)],
-                              ),
-                            ),
-                          ),
-                        ),
-                        // Smart badge
-                        if (list.isSmart)
-                          Positioned(
-                            top: 8,
-                            right: 8,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 10, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: const Color(0xCC1E1B4B),
-                                borderRadius: BorderRadius.circular(999),
-                                border: Border.all(
-                                  color: const Color(0xFFA78BFA).withAlpha(76),
-                                ),
-                              ),
-                              child: Text(
-                                '⚡ ${t.tr('views.smartBadge')}',
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFFDDD6FE),
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-
-                  // Info area (Name, description, chips)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+    return StatefulBuilder(
+      builder: (context, setCardState) {
+        return MouseRegion(
+          onEnter: (_) => setCardState(() => isHovered = true),
+          onExit: (_) => setCardState(() => isHovered = false),
+          child: Container(
+            decoration: BoxDecoration(
+              color: tokens.bgCard,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isHovered ? Colors.white.withAlpha(38) : Colors.white.withAlpha(18),
+              ),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Clickable top area (Covers + details)
+                Expanded(
+                  child: InkWell(
+                    onTap: () => openList(list),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Text(
-                          list.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: tokens.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          list.description != null &&
-                                  list.description!.isNotEmpty
-                              ? list.description!
-                              : '',
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 13,
-                            height: 1.4,
-                            color: tokens.textMuted,
-                          ),
-                        ),
-                        if (list.isSmart && smartQuery != null) ...[
-                          const SizedBox(height: 8),
-                          Wrap(
-                            spacing: 4,
-                            runSpacing: 4,
+                        // Cover area (height 176)
+                        SizedBox(
+                          height: 176,
+                          child: Stack(
+                            fit: StackFit.expand,
                             children: [
-                              if (smartQuery.categories.isNotEmpty)
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color:
-                                        const Color(0xFFA78BFA).withAlpha(26),
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: Text(
-                                    smartQuery.categories.join(', '),
-                                    style: const TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w500,
-                                      color: Color(0xFFC4B5FD),
+                              _buildCardCovers(list, listColor, icon, tokens),
+                              // Gradient shadow at bottom of cover
+                              Positioned(
+                                left: 0,
+                                right: 0,
+                                bottom: 0,
+                                height: 64,
+                                child: Container(
+                                  decoration: const BoxDecoration(
+                                    gradient: LinearGradient(
+                                      begin: Alignment.topCenter,
+                                      end: Alignment.bottomCenter,
+                                      colors: [Colors.transparent, Color(0xB3000000)],
                                     ),
                                   ),
                                 ),
-                              if (smartQuery.minScore != null)
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color:
-                                        const Color(0xFFFBBF24).withAlpha(26),
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: Text(
-                                    '★${smartQuery.minScore}+',
-                                    style: const TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w500,
-                                      color: Color(0xFFFCD34D),
+                              ),
+                              // Smart badge
+                              if (list.isSmart)
+                                Positioned(
+                                  top: 8,
+                                  right: 8,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 10, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xCC1E1B4B),
+                                      borderRadius: BorderRadius.circular(999),
+                                      border: Border.all(
+                                        color: const Color(0xFFA78BFA).withAlpha(76),
+                                      ),
                                     ),
-                                  ),
-                                ),
-                              if (smartQuery.maxEpisodes != null)
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withAlpha(26),
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: Text(
-                                    '≤${smartQuery.maxEpisodes} эп.',
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w500,
-                                      color: tokens.textMuted,
-                                    ),
-                                  ),
-                                ),
-                              if (smartQuery.maxDurationMinutes != null)
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withAlpha(26),
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: Text(
-                                    '≤${smartQuery.maxDurationMinutes}м',
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w500,
-                                      color: tokens.textMuted,
+                                    child: Text(
+                                      '⚡ ${t.tr('views.smartBadge')}',
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                        color: Color(0xFFDDD6FE),
+                                      ),
                                     ),
                                   ),
                                 ),
                             ],
                           ),
-                        ],
+                        ),
+
+                        // Info area (Name, description, chips)
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                list.name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: tokens.textPrimary,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                list.description != null &&
+                                        list.description!.isNotEmpty
+                                    ? list.description!
+                                    : '',
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  height: 1.4,
+                                  color: tokens.textMuted,
+                                ),
+                              ),
+                              if (list.isSmart && smartQuery != null) ...[
+                                const SizedBox(height: 8),
+                                Wrap(
+                                  spacing: 4,
+                                  runSpacing: 4,
+                                  children: [
+                                    if (smartQuery.categories.isNotEmpty)
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color:
+                                              const Color(0xFFA78BFA).withAlpha(26),
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                        child: Text(
+                                          smartQuery.categories.join(', '),
+                                          style: const TextStyle(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w500,
+                                            color: Color(0xFFC4B5FD),
+                                          ),
+                                        ),
+                                      ),
+                                    if (smartQuery.minScore != null)
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color:
+                                              const Color(0xFFFBBF24).withAlpha(26),
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                        child: Text(
+                                          '★${smartQuery.minScore}+',
+                                          style: const TextStyle(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w500,
+                                            color: Color(0xFFFCD34D),
+                                          ),
+                                        ),
+                                      ),
+                                    if (smartQuery.maxEpisodes != null)
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withAlpha(26),
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                        child: Text(
+                                          '≤${smartQuery.maxEpisodes} эп.',
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w500,
+                                            color: tokens.textMuted,
+                                          ),
+                                        ),
+                                      ),
+                                    if (smartQuery.maxDurationMinutes != null)
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withAlpha(26),
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                        child: Text(
+                                          '≤${smartQuery.maxDurationMinutes}м',
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w500,
+                                            color: tokens.textMuted,
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
                       ],
                     ),
                   ),
-                ],
-              ),
-            ),
-          ),
-
-          // Bottom card footer with metadata and actions
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Text(
-                    '${t.tf('views.listTitles', [list.itemsCount])} · ${t.tr('views.listUpdated')} ${_formatUpdatedDate(list.updatedAt, locale)}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: tokens.textMuted,
-                    ),
-                  ),
                 ),
-                const SizedBox(width: 8),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      icon: const Icon(LucideIcons.pencil, size: 15),
-                      tooltip: t.tr('views.listEdit'),
-                      onPressed: () => openCreate(list),
-                      padding: EdgeInsets.zero,
-                      constraints:
-                          const BoxConstraints(minWidth: 28, minHeight: 28),
-                    ),
-                    IconButton(
-                      icon: const Icon(LucideIcons.trash2, size: 15),
-                      tooltip: t.tr('views.listDelete'),
-                      onPressed: () => removeList(list),
-                      padding: EdgeInsets.zero,
-                      constraints:
-                          const BoxConstraints(minWidth: 28, minHeight: 28),
-                    ),
-                  ],
+
+                // Bottom card footer with metadata and actions
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          '${t.tf('views.listTitles', [list.itemsCount])} · ${t.tr('views.listUpdated')} ${_formatUpdatedDate(list.updatedAt, locale)}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: tokens.textMuted,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      AnimatedOpacity(
+                        duration: const Duration(milliseconds: 150),
+                        opacity: isHovered ? 1.0 : 0.0,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(LucideIcons.pencil, size: 15),
+                              tooltip: t.tr('views.listEdit'),
+                              onPressed: () => openCreate(list),
+                              padding: EdgeInsets.zero,
+                              constraints:
+                                  const BoxConstraints(minWidth: 28, minHeight: 28),
+                            ),
+                            IconButton(
+                              icon: const Icon(LucideIcons.trash2, size: 15),
+                              tooltip: t.tr('views.listDelete'),
+                              onPressed: () => removeList(list),
+                              padding: EdgeInsets.zero,
+                              constraints:
+                                  const BoxConstraints(minWidth: 28, minHeight: 28),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 

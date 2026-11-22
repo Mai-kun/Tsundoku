@@ -102,6 +102,7 @@ class HomeView extends ConsumerStatefulWidget {
 
   /// StaleBacklogModal (Фаза 5) — App подключит (решение #40).
   final VoidCallback? onOpenStaleBacklog;
+  final bool initiallyOpenTimeBudget;
 
   const HomeView({
     super.key,
@@ -110,6 +111,7 @@ class HomeView extends ConsumerStatefulWidget {
     required this.onMediaChanged,
     this.onEdit,
     this.onOpenStaleBacklog,
+    this.initiallyOpenTimeBudget = false,
   });
 
   @override
@@ -1312,6 +1314,7 @@ class _ControlPanel extends ConsumerWidget {
                 placement: PopoverPlacement.bottomStart,
                 openOnHover: true,
                 closeDelay: 220,
+                initiallyOpen: state.widget.initiallyOpenTimeBudget,
                 trigger: (context, ctx) => state._timeBudget != null
                     ? _PanelTextButton(
                         label: formatTimeBudgetChip(state._timeBudget!,

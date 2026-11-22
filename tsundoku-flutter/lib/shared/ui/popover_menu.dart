@@ -78,6 +78,7 @@ class TsundokuPopoverMenu<T> extends StatefulWidget {
   /// (звёзды-избранное в DetailSidebar, иконки в меню «…»). Additive к Фазе 1
   /// (как PopoverOption.leading). null → стандартный рендер.
   final Widget Function(BuildContext, PopoverOptionContext<T>)? optionBuilder;
+  final bool initiallyOpen;
 
   const TsundokuPopoverMenu({
     super.key,
@@ -94,6 +95,7 @@ class TsundokuPopoverMenu<T> extends StatefulWidget {
     this.optionClass = '',
     this.footer,
     this.optionBuilder,
+    this.initiallyOpen = false,
   });
 
   @override
@@ -106,6 +108,16 @@ class _TsundokuPopoverMenuState<T> extends State<TsundokuPopoverMenu<T>> {
   Rect? _lastKnownTriggerRect;
   Timer? _closeTimer;
   bool _isOpen = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initiallyOpen) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _show();
+      });
+    }
+  }
 
   void _toggle() {
     if (_isOpen) {

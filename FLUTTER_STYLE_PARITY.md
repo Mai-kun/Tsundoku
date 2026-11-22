@@ -2,8 +2,8 @@
 
 ## 📍 Текущий фокус / Next Step
 * **Фаза:** S5 (widgets/media-detail/**, widgets/stats/**, widgets/goals/*)
-* **Текущий файл:** `mediatracker-ui/src/widgets/media-detail/ProgressStepper.svelte` -> `tsundoku-flutter/lib/widgets/media-detail/progress_stepper.dart`
-* **Цель:** Сверка ProgressStepper: карточка прогресса (делегирование в ProgressCard), степпер +/- кнопки, счетчик.
+* **Текущий файл:** `mediatracker-ui/src/widgets/media-detail/SeasonRow.svelte` -> `tsundoku-flutter/lib/widgets/media-detail/season_row.dart`
+* **Цель:** Сверка SeasonRow: строка сезона сериала, прогресс-бар, чекбокс завершения, бейджи, кнопки инкремента.
 
 ---
 
@@ -223,7 +223,7 @@
 | S5 | `mediatracker-ui/src/widgets/media-detail/DetailHeader.svelte` | `tsundoku-flutter/lib/widgets/media-detail/detail_header.dart` | ✅ Сверен 1:1 | 0 отличий (h1 text-3xl font-extrabold tracking-tight mt-1, originalTitle text-sm font-medium text-muted mt-1.5, теги Badge accent sm rounded-full px-3 py-1 gap-2, рейтинги h-9 px-3 rounded-lg shadow-sm gap-2.5 с AniList inline-svg и hover-слайдом голосов, Panel space-y-2 с заголовком synopsis text-xs font-bold tracking-wider, переводом ghost xs и clamp 4 строки с градиентным хвостом h-12 1-в-1) | 0 отличий |
 | S5 | `mediatracker-ui/src/widgets/media-detail/DetailSidebar.svelte` | `tsundoku-flutter/lib/widgets/media-detail/detail_sidebar.dart` | ✅ Сверен 1:1 | 0 отличий (w-full lg:w-80 space-y-6, постер aspect-[2/3] rounded-xl border-white/[0.06] shadow-lg с hover-кнопкой менеджера обложек, статус popover h-10 px-3.5 + рейтинг 40x40 с top-layer поповером 1..10 и слайдерами критериев, плашка drop-причины rounded-lg border-rose-500/25 bg-rose-500/10 px-3 py-2, панели история/действия/характеристики с заголовками mb-2 text-xs font-bold tracking-wider text-slate-200 uppercase, комбобокс озвучки/формата, hold-to-delete кнопка, alt-тайтлы и жанры со спойлерами 1-в-1) | 0 отличий |
 | S5 | `mediatracker-ui/src/widgets/media-detail/DetailTabs.svelte` | `tsundoku-flutter/lib/widgets/media-detail/detail_tabs.dart` | ✅ Сверен 1:1 | 0 отличий (isScrollable thin-scroll с dividerColor border-white/[0.08], indicatorColor accent h-0.5 TabBarIndicatorSize.label, табы text-sm font-semibold sm:px-4 py-2.5, бейджи rounded-full bg-white/10 px-2 py-0.5 text-xs для эпизодов/галереи/related, иконка Sparkles 14px text-accent-soft gap-2 1-в-1) | 0 отличий |
-| S5 | `mediatracker-ui/src/widgets/media-detail/ProgressStepper.svelte` | `tsundoku-flutter/lib/widgets/media-detail/progress_stepper.dart` | В очереди |  |  |
+| S5 | `mediatracker-ui/src/widgets/media-detail/ProgressStepper.svelte` | `tsundoku-flutter/lib/widgets/media-detail/progress_stepper.dart` | ✅ Сверен 1:1 | 0 отличий (тонкая обертка над ProgressCard 1-в-1, ProgressAccent.theme, minsPerUnit: null, paceOptions: empty, startHint: startGeneric) | 0 отличий |
 | S5 | `mediatracker-ui/src/widgets/media-detail/SeasonRow.svelte` | `tsundoku-flutter/lib/widgets/media-detail/season_row.dart` | В очереди |  |  |
 | S5 | `mediatracker-ui/src/widgets/media-detail/RelationLoadButton.svelte` | `tsundoku-flutter/lib/widgets/media-detail/relation_load_button.dart` | В очереди |  |  |
 | S5 | `mediatracker-ui/src/widgets/media-detail/SyncRowsSkeleton.svelte` | `tsundoku-flutter/lib/widgets/media-detail/sync_rows_skeleton.dart` | В очереди |  |  |

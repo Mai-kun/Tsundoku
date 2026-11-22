@@ -295,11 +295,11 @@ class OverviewTab extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              t.tr('status.label'),
+              t.tr('status.label').toUpperCase(),
               style: TextStyle(
                 fontSize: 12, // text-xs
                 fontWeight: FontWeight.w700, // font-bold
-                letterSpacing: 0.6, // tracking-wider
+                letterSpacing: 0.6, // tracking-wider uppercase
                 color: th.textMuted, // text-muted
               ),
             ),
@@ -426,11 +426,10 @@ class OverviewTab extends ConsumerWidget {
       );
     }
 
-    // Мобайл: один поток в порядке order-1..9 (display: contents).
+    // Мобайл: один поток в порядке order-1..9 (display: contents в grid-cols-1 gap-4).
     // 1 Progress → 2 Cast → 3 Quotes → 4 Creator → 5 Trailer → 6 BookEdition
     // → 7 Notes → 8 Files → 9 LinkedSources.
-    final mobileFlow = <Widget>[
-      QuickFactsSection(media: media),
+    final mobileBlocks = <Widget>[
       progressBlock(),
       if (_hasCast) CastSection(media: media),
       if (showQuotes) QuotesSection(media: media, onQuotesJsonChanged: null),
@@ -457,9 +456,11 @@ class OverviewTab extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        for (var i = 0; i < mobileFlow.length; i++) ...[
-          if (i > 0) const SizedBox(height: 20), // space-y-5
-          mobileFlow[i],
+        QuickFactsSection(media: media),
+        const SizedBox(height: 20), // space-y-5
+        for (var i = 0; i < mobileBlocks.length; i++) ...[
+          if (i > 0) const SizedBox(height: 16), // gap-4
+          mobileBlocks[i],
         ],
       ],
     );

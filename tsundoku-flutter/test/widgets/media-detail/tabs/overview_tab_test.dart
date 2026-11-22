@@ -93,7 +93,9 @@ void main() {
       progressPercent: 12.5,
     );
 
-    expect(find.textContaining('Быстрые факты'), findsOneWidget);
+    expect(
+        find.textContaining(RegExp('Быстрые факты', caseSensitive: false)),
+        findsOneWidget);
     expect(find.text('СТРАНИЦЫ'), findsOneWidget);
     expect(find.text('ОБ ИЗДАНИИ'), findsOneWidget);
     expect(find.text('Ваши заметки и мысли'), findsOneWidget);

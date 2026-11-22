@@ -2,8 +2,8 @@
 
 ## 📍 Текущий фокус / Next Step
 * **Фаза:** S5 (widgets/media-detail/**, widgets/stats/**, widgets/goals/*)
-* **Текущий файл:** `mediatracker-ui/src/widgets/stats/BacklogHealth.svelte` -> `tsundoku-flutter/lib/widgets/stats/backlog_health.dart`
-* **Цель:** Сверка BacklogHealth: health score, метрики, карточки, отступы и цвета.
+* **Текущий файл:** `mediatracker-ui/src/widgets/stats/taste-profile/GenreRadarChart.svelte` -> `tsundoku-flutter/lib/widgets/stats/taste-profile/genre_radar_chart.dart`
+* **Цель:** Сверка GenreRadarChart: радарная диаграмма вкусового профиля, полигон, сетка, подписи осей.
 
 ---
 
@@ -264,7 +264,7 @@
 | S5 | `mediatracker-ui/src/widgets/stats/TimeDistributionDonut.svelte` | `tsundoku-flutter/lib/widgets/stats/time_distribution_donut.dart` | ✅ Сверен 1:1 | Layout sm:flex-row (>=640px) с gap-6 (24px), кольцо h-48 w-48 (192px), сетка карточек sm:grid-cols-2 gap-2.5 (10px) 1-в-1 | Да |
 | S5 | `mediatracker-ui/src/widgets/stats/TopGenresBar.svelte` | `tsundoku-flutter/lib/widgets/stats/top_genres_bar.dart` | ✅ Сверен 1:1 | Заголовок tracking-tight (-0.4), селектор категорий адаптивный grid-cols-4 на мобильных и sm:grid-cols-7 (>=640px) с кнопками h-8 rounded-md и bg-accent-bright/30 1-в-1 | Да |
 | S5 | `mediatracker-ui/src/widgets/stats/TrackerBadges.svelte` | `tsundoku-flutter/lib/widgets/stats/tracker_badges.dart` | ✅ Сверен 1:1 | Заголовок text-base sm:text-lg tracking-tight (-0.4), сетка 1..3 колонок с брейкпоинтами md:768 и lg:1024, карточки с постоянным border-white/5 (удалена самовольная янтарная рамка карточки), IntrinsicHeight растягивание и mt-4 pt-1 (20px) 1-в-1 | Да |
-| S5 | `mediatracker-ui/src/widgets/stats/BacklogHealth.svelte` | `tsundoku-flutter/lib/widgets/stats/backlog_health.dart` | В очереди |  |  |
+| S5 | `mediatracker-ui/src/widgets/stats/BacklogHealth.svelte` | `tsundoku-flutter/lib/widgets/stats/backlog_health.dart` | ✅ Сверен 1:1 | Заголовок tracking-tight (-0.4), легенда адаптивная gap-4 sm:gap-6 (16px / 24px) через LayoutBuilder, сегментированный бар h-3 и вердикт rounded-lg p-3.5 1-в-1 | Да |
 | S5 | `mediatracker-ui/src/widgets/stats/taste-profile/GenreRadarChart.svelte` | `tsundoku-flutter/lib/widgets/stats/taste-profile/genre_radar_chart.dart` | В очереди |  |  |
 | S5 | `mediatracker-ui/src/widgets/stats/taste-profile/EraAffinityCard.svelte` | `tsundoku-flutter/lib/widgets/stats/taste-profile/era_affinity_card.dart` | В очереди |  |  |
 | S5 | `mediatracker-ui/src/widgets/stats/taste-profile/GenreParadoxCard.svelte` | `tsundoku-flutter/lib/widgets/stats/taste-profile/genre_paradox_card.dart` | В очереди |  |  |

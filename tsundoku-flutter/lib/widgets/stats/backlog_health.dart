@@ -96,7 +96,7 @@ class _BacklogHealthState extends ConsumerState<BacklogHealth> {
                   style: const TextStyle(
                     fontSize: 16, // text-base
                     fontWeight: FontWeight.w600, // font-semibold
-                    letterSpacing: -0.2, // tracking-tight
+                    letterSpacing: -0.4, // tracking-tight
                     color: Colors.white,
                   ),
                 ),
@@ -177,26 +177,31 @@ class _BacklogHealthState extends ConsumerState<BacklogHealth> {
           const SizedBox(height: 14), // mt-3.5
 
           // Легенда со счётчиками
-          Wrap(
-            spacing: 16, // gap-4 sm:gap-6
-            runSpacing: 8,
-            children: [
-              _LegendItem(
-                color: theme.chartEmerald,
-                label: t.tr('stats.completed'),
-                count: completedTitles,
-              ),
-              _LegendItem(
-                color: theme.chartViolet,
-                label: t.tr('stats.inProgress'),
-                count: inProgressCount,
-              ),
-              _LegendItem(
-                color: theme.chartBlue,
-                label: t.tr('stats.planned'),
-                count: plannedCount,
-              ),
-            ],
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isSm = constraints.maxWidth >= 640;
+              return Wrap(
+                spacing: isSm ? 24 : 16, // gap-4 sm:gap-6
+                runSpacing: 8,
+                children: [
+                  _LegendItem(
+                    color: theme.chartEmerald,
+                    label: t.tr('stats.completed'),
+                    count: completedTitles,
+                  ),
+                  _LegendItem(
+                    color: theme.chartViolet,
+                    label: t.tr('stats.inProgress'),
+                    count: inProgressCount,
+                  ),
+                  _LegendItem(
+                    color: theme.chartBlue,
+                    label: t.tr('stats.planned'),
+                    count: plannedCount,
+                  ),
+                ],
+              );
+            },
           ),
 
           // Вердикт

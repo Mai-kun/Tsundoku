@@ -496,16 +496,29 @@ class _CoverManagerModalState extends ConsumerState<CoverManagerModal> {
           ] else ...[
             Row(
               children: [
-                Expanded(child: _FileChooseField(
-                  label:
-                      _selectedFile?.name ?? t.tr('coversModal.chooseFile'),
-                  busy: _busy,
-                  onPick: () async {
-                    final picked = await platformService.pickFile();
-                    if (picked == null || !mounted) return;
-                    setState(() => _selectedFile = picked);
-                  },
-                )),
+                Expanded(
+                  child: PlatformDropZone(
+                    enabled: !_busy,
+                    onFilesDropped: (files) {
+                      if (files.isNotEmpty && mounted) {
+                        setState(() {
+                          _selectedFile = (name: files.first.name, bytes: files.first.bytes);
+                        });
+                        unawaited(_addByFile());
+                      }
+                    },
+                    child: _FileChooseField(
+                      label:
+                          _selectedFile?.name ?? t.tr('coversModal.chooseFile'),
+                      busy: _busy,
+                      onPick: () async {
+                        final picked = await platformService.pickFile();
+                        if (picked == null || !mounted) return;
+                        setState(() => _selectedFile = picked);
+                      },
+                    ),
+                  ),
+                ),
                 const SizedBox(width: 8),
                 _AddSubmitButton(
                   label: t.tr('common.add'),

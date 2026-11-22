@@ -20,6 +20,7 @@ import '../../shared/i18n/index.dart';
 import '../../shared/types/enums.dart';
 import '../../shared/types/models.dart';
 import '../../shared/utils/progress_debounce.dart';
+import '../../shared/ui/toast.dart';
 import '../prefetch-details/media_detail_prefetch.dart';
 import 'optimistic_progress.dart';
 import 'status_promotion_toast.dart';
@@ -257,8 +258,14 @@ class SeriesProgressController {
 }
 
 final seriesProgressControllerProvider = Provider<SeriesProgressController>((ref) {
-  return SeriesProgressController(ref: ref.container, showToast: ({required title, required description, type = 'info'}) {
-    // Реальный toast подключается в Фазе 1 (shared/ui/toast) — Фаза 1
-    // перепишет этот колбек на toastStore.show (решение #15).
-  });
+  return SeriesProgressController(
+    ref: ref.container,
+    showToast: ({required title, required description, type = 'info'}) {
+      ref.read(toastStoreProvider.notifier).show(ToastOptions(
+        title: title,
+        description: description,
+        type: ToastType.tryFromWire(type) ?? ToastType.info,
+      ));
+    },
+  );
 });

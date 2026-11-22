@@ -5,8 +5,7 @@
 /// (view/reveal/copy-image/copy-url/download/set-cover/delete), сетка 2/3/4.
 library;
 
-import 'dart:typed_data';
-
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
@@ -85,6 +84,15 @@ class _GalleryTabState extends ConsumerState<GalleryTab> {
     final picked = await platformService.pickFile();
     if (picked == null) return;
     await _upload(title: picked.name, bytes: picked.bytes);
+  }
+
+  Future<void> _pasteFromClipboard() async {
+    final pasted = await platformService.pasteImage();
+    if (pasted == null || !mounted) return;
+    final now = DateTime.now();
+    final ext = pasted.mimeType == 'image/jpeg' ? 'jpg' : 'png';
+    final name = 'screenshot_${now.millisecondsSinceEpoch}.$ext';
+    await _upload(title: name, bytes: pasted.bytes);
   }
 
   Future<void> _remove(MediaGalleryItem entry) async {
@@ -314,9 +322,25 @@ class _GalleryTabState extends ConsumerState<GalleryTab> {
         .clamp(120.0, 500.0);
     final cardHeight = cardWidth * 9 / 16; // aspect-video
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
+    return CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.keyV, control: true):
+            _pasteFromClipboard,
+        const SingleActivator(LogicalKeyboardKey.keyV, meta: true):
+            _pasteFromClipboard,
+      },
+      child: Focus(
+        autofocus: true,
+        child: PlatformDropZone(
+          enabled: !_uploading,
+          onFilesDropped: (files) async {
+            for (final file in files) {
+              await _upload(title: file.name, bytes: file.bytes);
+            }
+          },
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
         Row(
           children: [
             Expanded(
@@ -418,7 +442,10 @@ class _GalleryTabState extends ConsumerState<GalleryTab> {
             ],
           ),
       ],
-    );
+    ),
+  ),
+),
+);
   }
 }
 

@@ -107,11 +107,9 @@ class _ImagesModuleState extends ConsumerState<ImagesModule> {
     }
   }
 
-  Future<void> _uploadFiles() async {
+  Future<void> _uploadFile(dynamic bytes, String name) async {
     final mediaId = widget.mediaId;
     if (mediaId == null || _busy) return;
-    final picked = await platformService.pickFile();
-    if (picked == null) return;
     setState(() {
       _busy = true;
       _error = null;
@@ -120,8 +118,8 @@ class _ImagesModuleState extends ConsumerState<ImagesModule> {
       MediaDetail? updated;
       updated = await ref.read(apiClientProvider).addCoverByFile(
             mediaId,
-            picked.bytes,
-            fileName: picked.name,
+            bytes,
+            fileName: name,
             source: null,
             setAsActive: _setAsActive,
           );
@@ -132,6 +130,12 @@ class _ImagesModuleState extends ConsumerState<ImagesModule> {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  Future<void> _uploadFiles() async {
+    final picked = await platformService.pickFile();
+    if (picked == null) return;
+    await _uploadFile(picked.bytes, picked.name);
   }
 
   Future<void> _handleSelect(MediaCoverItem cover) async {
@@ -338,31 +342,39 @@ class _ImagesModuleState extends ConsumerState<ImagesModule> {
               ],
             ),
             const SizedBox(height: 12),
-            // Дроп-зона загрузки (клик → pickFile).
-            GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: _busy ? null : _uploadFiles,
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 12, vertical: 16), // px-3 py-4
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.white24), // border-white/10
-                ),
-                child: Column(
-                  children: [
-                    Icon(LucideIcons.upload, size: 16, color: th.textMuted),
-                    const SizedBox(height: 6), // gap-1.5
-                    Text(
-                      t.tr('createModal.imagesModule.dropHere'),
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 12, // text-xs
-                        color: th.textMuted,
+            // Дроп-зона загрузки (drop / клик → pickFile).
+            PlatformDropZone(
+              enabled: !_busy,
+              onFilesDropped: (files) async {
+                for (final file in files) {
+                  await _uploadFile(file.bytes, file.name);
+                }
+              },
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: _busy ? null : _uploadFiles,
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 16), // px-3 py-4
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.white24), // border-white/10
+                  ),
+                  child: Column(
+                    children: [
+                      Icon(LucideIcons.upload, size: 16, color: th.textMuted),
+                      const SizedBox(height: 6), // gap-1.5
+                      Text(
+                        t.tr('createModal.imagesModule.dropHere'),
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 12, // text-xs
+                          color: th.textMuted,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),

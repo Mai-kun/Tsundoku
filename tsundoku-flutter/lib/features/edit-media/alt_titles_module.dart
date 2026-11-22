@@ -273,13 +273,14 @@ class _AltInputState extends State<_AltInput> {
   @override
   Widget build(BuildContext context) {
     final th = TsundokuTheme.of(context);
-    return KeyboardListener(
-      focusNode: FocusNode(skipTraversal: true),
-      onKeyEvent: (event) {
+    return Focus(
+      onKeyEvent: (node, event) {
         if (event is KeyDownEvent &&
             event.logicalKey == LogicalKeyboardKey.escape) {
           widget.onEscape?.call();
+          return KeyEventResult.handled;
         }
+        return KeyEventResult.ignored;
       },
       child: TextField(
         controller: widget.controller,

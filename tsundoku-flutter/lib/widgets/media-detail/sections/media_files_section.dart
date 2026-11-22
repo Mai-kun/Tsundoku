@@ -42,6 +42,7 @@ class MediaFilesSection extends ConsumerStatefulWidget {
 class _MediaFilesSectionState extends ConsumerState<MediaFilesSection> {
   bool _uploading = false;
   String? _busyId;
+  bool _isDragging = false;
 
   // BOOK_FILE_RE / ARCHIVE_RE / DOCUMENT_RE — 1-в-1 с <script module>.
   static final RegExp _bookFileRe =
@@ -189,17 +190,29 @@ class _MediaFilesSectionState extends ConsumerState<MediaFilesSection> {
     final t = ref.watch(tProvider);
     final th = TsundokuTheme.of(context);
 
-    return Container(
-      padding: const EdgeInsets.all(20), // p-5
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12), // rounded-xl
-        border: Border.all(color: Colors.white.withAlpha(15)), // /[0.06]
-        color: th.bgSurface, // panel-line
-        boxShadow: const [
-          BoxShadow(color: Color(0x0D000000), offset: Offset(0, 1), blurRadius: 2),
-        ],
-      ),
-      child: Column(
+    return PlatformDropZone(
+      enabled: !_uploading,
+      onHoverChanged: (hovering) => setState(() => _isDragging = hovering),
+      onFilesDropped: (files) async {
+        for (final file in files) {
+          await _upload(name: file.name, bytes: file.bytes);
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.all(20), // p-5
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12), // rounded-xl
+          border: Border.all(
+            color: _isDragging
+                ? th.accentSoft
+                : Colors.white.withAlpha(15), // /[0.06]
+          ),
+          color: _isDragging ? th.bgCard : th.bgSurface, // panel-line
+          boxShadow: const [
+            BoxShadow(color: Color(0x0D000000), offset: Offset(0, 1), blurRadius: 2),
+          ],
+        ),
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
@@ -274,7 +287,8 @@ class _MediaFilesSectionState extends ConsumerState<MediaFilesSection> {
             ),
         ],
       ),
-    );
+    ),
+  );
   }
 }
 

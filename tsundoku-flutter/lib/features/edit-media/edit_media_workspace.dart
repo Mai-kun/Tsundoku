@@ -10,6 +10,7 @@ import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/scheduler.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
@@ -756,20 +757,31 @@ class _EditMediaWorkspaceState extends ConsumerState<EditMediaWorkspace>
     final size = MediaQuery.sizeOf(context);
     final desktop = size.width >= 1024;
 
-    return Stack(
-      children: [
-        // Backdrop (blur имитируется полупрозрачным #0d0f14/80).
-        Positioned.fill(
-          child: GestureDetector(
-            onSecondaryTap: () {}, // контекст-меню страницы не достаётся
-            child: Container(color: const Color(0xCC0D0F14)),
+    return Focus(
+      autofocus: true,
+      onKeyEvent: (node, event) {
+        if (event is KeyDownEvent &&
+            event.logicalKey == LogicalKeyboardKey.escape) {
+          widget.onClose();
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
+      },
+      child: Stack(
+        children: [
+          // Backdrop (blur имитируется полупрозрачным #0d0f14/80).
+          Positioned.fill(
+            child: GestureDetector(
+              onSecondaryTap: () {}, // контекст-меню страницы не достаётся
+              child: Container(color: const Color(0xCC0D0F14)),
+            ),
           ),
-        ),
-        if (desktop) ..._buildDesktop(t, th, size),
-        if (!desktop) ..._buildMobile(t, th),
-        // Floating control bar.
-        _buildControlBar(t, th),
-      ],
+          if (desktop) ..._buildDesktop(t, th, size),
+          if (!desktop) ..._buildMobile(t, th),
+          // Floating control bar.
+          _buildControlBar(t, th),
+        ],
+      ),
     );
   }
 

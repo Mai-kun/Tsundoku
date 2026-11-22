@@ -334,10 +334,18 @@ class _AppRouterState extends ConsumerState<_AppRouter> {
       openSearch();
       return KeyEventResult.handled;
     }
-    if (event.logicalKey == LogicalKeyboardKey.escape &&
-        _activeView == 'detail') {
-      navigate(_previousView);
-      return KeyEventResult.handled;
+    if (event.logicalKey == LogicalKeyboardKey.escape) {
+      if (_isCreateOpen) {
+        setState(() {
+          _isCreateOpen = false;
+          _editingItem = null;
+        });
+        return KeyEventResult.handled;
+      }
+      if (_activeView == 'detail') {
+        navigate(_previousView);
+        return KeyEventResult.handled;
+      }
     }
     return KeyEventResult.ignored;
   }

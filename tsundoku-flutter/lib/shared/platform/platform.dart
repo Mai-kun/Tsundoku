@@ -6,6 +6,7 @@
 library;
 
 export 'platform_service.dart';
+export 'drop_zone.dart';
 export 'platform_service_stub.dart'
     if (dart.library.js_interop) 'platform_service_web.dart'
     if (dart.library.io) 'platform_service_io.dart';

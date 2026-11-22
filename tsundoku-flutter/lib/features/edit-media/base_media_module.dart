@@ -269,8 +269,8 @@ class _BaseMediaModuleState extends ConsumerState<BaseMediaModule> {
             ],
           ),
           const SizedBox(height: 12),
-          // Row 3: startedAt + finishedAt (datetime-local → текстовые поля
-          // ISO-строк; нативный пикер — отдельный фасад, не Фаза 4).
+          // Row 3: startedAt + finishedAt (нативный showDatePicker с читаемым
+          // форматом, кнопкой очистки и сохранением ISO-8601 YYYY-MM-DD для API).
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -279,7 +279,8 @@ class _BaseMediaModuleState extends ConsumerState<BaseMediaModule> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _FieldLabel(t.tr('createModal.fields.startedAt')),
-                    _TextBinding(
+                    _DatePickerField(
+                      label: t.tr('createModal.fields.startedAt'),
                       value: widget.startedAt,
                       onChange: (v) => widget.onStartedAtChange?.call(v),
                     ),
@@ -292,7 +293,8 @@ class _BaseMediaModuleState extends ConsumerState<BaseMediaModule> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _FieldLabel(t.tr('createModal.fields.finishedAt')),
-                    _TextBinding(
+                    _DatePickerField(
+                      label: t.tr('createModal.fields.finishedAt'),
                       value: widget.finishedAt,
                       onChange: (v) => widget.onFinishedAtChange?.call(v),
                     ),
@@ -302,6 +304,108 @@ class _BaseMediaModuleState extends ConsumerState<BaseMediaModule> {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Нативный выбор даты (showDatePicker) с читаемым форматированием,
+/// сохранением ISO-8601 для API и кнопкой быстрой очистки.
+class _DatePickerField extends StatelessWidget {
+  final String value;
+  final ValueChanged<String> onChange;
+  final String label;
+
+  const _DatePickerField({
+    required this.value,
+    required this.onChange,
+    required this.label,
+  });
+
+  DateTime? get _parsedDate {
+    if (value.trim().isEmpty) return null;
+    return DateTime.tryParse(value);
+  }
+
+  String _formatDisplay(DateTime date) {
+    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+  }
+
+  Future<void> _pickDate(BuildContext context) async {
+    final now = DateTime.now();
+    final initial = _parsedDate ?? now;
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime(1900),
+      lastDate: DateTime(2100),
+      builder: (context, child) {
+        return Theme(
+          data: ThemeData.dark().copyWith(
+            colorScheme: const ColorScheme.dark(
+              primary: Color(0xFF6366F1), // accent indigo
+              surface: Color(0xFF1E232E),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null) {
+      final iso =
+          '${picked.year.toString().padLeft(4, '0')}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
+      onChange(iso);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final date = _parsedDate;
+    final th = TsundokuTheme.of(context);
+    final displayText = date != null ? _formatDisplay(date) : '—';
+
+    return InkWell(
+      onTap: () => _pickDate(context),
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        height: 38,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        decoration: BoxDecoration(
+          color: const Color(0x0AFFFFFF),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0x1AFFFFFF)),
+        ),
+        child: Row(
+          children: [
+            const Icon(
+              LucideIcons.calendar,
+              size: 14,
+              color: Color(0xFF94A3B8),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                displayText,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: date != null ? th.textPrimary : th.textMuted,
+                ),
+              ),
+            ),
+            if (value.isNotEmpty)
+              IconButton(
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
+                icon: const Icon(
+                  LucideIcons.x,
+                  size: 13,
+                  color: Color(0xFF94A3B8),
+                ),
+                onPressed: () => onChange(''),
+                tooltip: 'Очистить',
+              ),
+          ],
+        ),
       ),
     );
   }

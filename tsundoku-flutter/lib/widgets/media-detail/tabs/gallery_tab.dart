@@ -310,142 +310,203 @@ class _GalleryTabState extends ConsumerState<GalleryTab> {
   Widget build(BuildContext context) {
     final t = ref.watch(tProvider);
     final th = TsundokuTheme.of(context);
+    final apiBaseUrl = ref.watch(apiBaseUrlProvider);
 
-    final width = MediaQuery.sizeOf(context).width;
-    final columns = width >= 1024
-        ? 4
-        : width >= 640
-            ? 3
-            : 2;
-    final gap = 12.0; // gap-3
-    final cardWidth = ((width - 48 - gap * (columns - 1)) / columns)
-        .clamp(120.0, 500.0);
-    final cardHeight = cardWidth * 9 / 16; // aspect-video
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final availableWidth = constraints.maxWidth;
+        final columns = availableWidth >= 1024
+            ? 4
+            : availableWidth >= 640
+                ? 3
+                : 2;
+        const gap = 12.0; // gap-3
+        final cardWidth = (availableWidth - gap * (columns - 1)) / columns;
+        final cardHeight = cardWidth * 9 / 16; // aspect-video
 
-    return CallbackShortcuts(
-      bindings: {
-        const SingleActivator(LogicalKeyboardKey.keyV, control: true):
-            _pasteFromClipboard,
-        const SingleActivator(LogicalKeyboardKey.keyV, meta: true):
-            _pasteFromClipboard,
-      },
-      child: Focus(
-        autofocus: true,
-        child: PlatformDropZone(
-          enabled: !_uploading,
-          onFilesDropped: (files) async {
-            for (final file in files) {
-              await _upload(title: file.name, bytes: file.bytes);
-            }
+        return CallbackShortcuts(
+          bindings: {
+            const SingleActivator(LogicalKeyboardKey.keyV, control: true):
+                _pasteFromClipboard,
+            const SingleActivator(LogicalKeyboardKey.keyV, meta: true):
+                _pasteFromClipboard,
           },
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                t.tr('detail.galleryPasteHint'),
-                style: TextStyle(
-                  fontSize: 12, // text-xs
-                  color: th.textMuted, // text-muted
-                ),
-              ),
-            ),
-            const SizedBox(width: 8), // gap-2
-            _UploadButton(
-              uploading: _uploading,
-              uploadLabel: t.tr('detail.galleryUpload'),
-              uploadingLabel: t.tr('detail.galleryUploading'),
-              th: th,
-              onTap: _pickAndUpload,
-            ),
-          ],
-        ),
-        const SizedBox(height: 16), // space-y-4
-        if (widget.gallery.isEmpty)
-          Container(
-            padding: const EdgeInsets.all(40), // p-10
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12), // rounded-xl
-              border: Border.all(
-                  color: Colors.white
-                      .withAlpha(26)), // border-dashed white/10 ⏭️
-              color: th.bgSurface, // panel-line
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(LucideIcons.image, size: 28, color: th.textMuted),
-                const SizedBox(height: 8), // gap-2
-                Text(
-                  t.tr('detail.galleryEmpty'),
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 14, // text-sm
-                    color: th.textMuted, // text-muted
-                  ),
-                ),
-              ],
-            ),
-          )
-        else
-          Wrap(
-            spacing: gap,
-            runSpacing: gap,
-            children: [
-              for (final entry in widget.gallery)
-                GestureDetector(
-                  onTap: () => ref
-                      .read(lightboxProvider.notifier)
-                      .openLightbox(entry.originalUrl),
-                  onSecondaryTapUp: (details) =>
-                      _handleContextMenu(details.globalPosition, entry),
-                  child: Container(
-                    width: cardWidth,
-                    height: cardHeight,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12), // rounded-xl
-                      border: Border.all(
-                          color: Colors.white.withAlpha(15)), // /[0.06]
-                      color: Colors.black.withAlpha(51), // bg-black/20
-                    ),
-                    clipBehavior: Clip.antiAlias,
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        // Браузерный резолв /api/... от origin — явная
-                        // склейка с baseUrl (решение #25).
-                        Image.network(
-                          '${ref.watch(apiBaseUrlProvider)}${entry.thumbUrl}',
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, _, _) => Container(
-                            color: Colors.black.withAlpha(51),
+          child: Focus(
+            autofocus: true,
+            child: PlatformDropZone(
+              enabled: !_uploading,
+              onFilesDropped: (files) async {
+                for (final file in files) {
+                  await _upload(title: file.name, bytes: file.bytes);
+                }
+              },
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          t.tr('detail.galleryPasteHint'),
+                          style: TextStyle(
+                            fontSize: 12, // text-xs
+                            color: th.textMuted, // text-muted
                           ),
                         ),
-                        Positioned(
-                          top: 8, // top-2
-                          right: 8,
-                          child: _DeleteOverlayButton(
-                            entryId: entry.id,
+                      ),
+                      const SizedBox(width: 8), // gap-2
+                      _UploadButton(
+                        uploading: _uploading,
+                        uploadLabel: t.tr('detail.galleryUpload'),
+                        uploadingLabel: t.tr('detail.galleryUploading'),
+                        th: th,
+                        onTap: _pickAndUpload,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16), // space-y-4
+                  if (widget.gallery.isEmpty)
+                    Container(
+                      padding: const EdgeInsets.all(40), // p-10
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12), // rounded-xl
+                        border: Border.all(
+                            color: Colors.white
+                                .withAlpha(26)), // border-dashed white/10
+                        color: th.bgSurface, // panel-line
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(LucideIcons.image, size: 28, color: th.textMuted),
+                          const SizedBox(height: 8), // gap-2
+                          Text(
+                            t.tr('detail.galleryEmpty'),
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 14, // text-sm
+                              color: th.textMuted, // text-muted
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    Wrap(
+                      spacing: gap,
+                      runSpacing: gap,
+                      children: [
+                        for (final entry in widget.gallery)
+                          _GalleryCard(
+                            entry: entry,
+                            width: cardWidth,
+                            height: cardHeight,
                             deletingId: _deletingId,
                             deleteConfirmLabel:
                                 t.tr('detail.galleryDeleteConfirm'),
                             th: th,
-                            onTap: () => _remove(entry),
+                            apiBaseUrl: apiBaseUrl,
+                            onTap: () => ref
+                                .read(lightboxProvider.notifier)
+                                .openLightbox(entry.originalUrl),
+                            onSecondaryTap: (pos) =>
+                                _handleContextMenu(pos, entry),
+                            onDelete: () => _remove(entry),
                           ),
-                        ),
                       ],
                     ),
-                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Карточка галереи: hover-состояние карточки открывает delete-кнопку (group-hover).
+class _GalleryCard extends StatefulWidget {
+  final MediaGalleryItem entry;
+  final double width;
+  final double height;
+  final String? deletingId;
+  final String deleteConfirmLabel;
+  final TsundokuTheme th;
+  final String apiBaseUrl;
+  final VoidCallback onTap;
+  final void Function(Offset position) onSecondaryTap;
+  final VoidCallback onDelete;
+
+  const _GalleryCard({
+    required this.entry,
+    required this.width,
+    required this.height,
+    required this.deletingId,
+    required this.deleteConfirmLabel,
+    required this.th,
+    required this.apiBaseUrl,
+    required this.onTap,
+    required this.onSecondaryTap,
+    required this.onDelete,
+  });
+
+  @override
+  State<_GalleryCard> createState() => _GalleryCardState();
+}
+
+class _GalleryCardState extends State<_GalleryCard> {
+  bool _cardHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final entry = widget.entry;
+    return MouseRegion(
+      onEnter: (_) => setState(() => _cardHovered = true),
+      onExit: (_) => setState(() => _cardHovered = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        onSecondaryTapUp: (details) =>
+            widget.onSecondaryTap(details.globalPosition),
+        child: Container(
+          width: widget.width,
+          height: widget.height,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12), // rounded-xl
+            border: Border.all(
+                color: Colors.white.withAlpha(15)), // border-white/[0.06]
+            color: Colors.black.withAlpha(51), // bg-black/20
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Image.network(
+                entry.thumbUrl.startsWith('http')
+                    ? entry.thumbUrl
+                    : '${widget.apiBaseUrl}${entry.thumbUrl}',
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => Container(
+                  color: Colors.black.withAlpha(51),
                 ),
+              ),
+              Positioned(
+                top: 8, // top-2
+                right: 8, // right-2
+                child: _DeleteOverlayButton(
+                  entryId: entry.id,
+                  deletingId: widget.deletingId,
+                  deleteConfirmLabel: widget.deleteConfirmLabel,
+                  cardHovered: _cardHovered,
+                  th: widget.th,
+                  onTap: widget.onDelete,
+                ),
+              ),
             ],
           ),
-      ],
-    ),
-  ),
-),
-);
+        ),
+      ),
+    );
   }
 }
 
@@ -530,6 +591,7 @@ class _DeleteOverlayButton extends StatefulWidget {
   final String entryId;
   final String? deletingId;
   final String deleteConfirmLabel;
+  final bool cardHovered;
   final TsundokuTheme th;
   final VoidCallback onTap;
 
@@ -537,6 +599,7 @@ class _DeleteOverlayButton extends StatefulWidget {
     required this.entryId,
     required this.deletingId,
     required this.deleteConfirmLabel,
+    required this.cardHovered,
     required this.th,
     required this.onTap,
   });
@@ -547,25 +610,18 @@ class _DeleteOverlayButton extends StatefulWidget {
 
 class _DeleteOverlayButtonState extends State<_DeleteOverlayButton> {
   bool _hovered = false;
-  bool _parentHovered = false;
 
   @override
   Widget build(BuildContext context) {
     final busy = widget.deletingId == widget.entryId;
     return MouseRegion(
-      onEnter: (_) => setState(() {
-        _hovered = true;
-        _parentHovered = true;
-      }),
-      onExit: (_) => setState(() {
-        _hovered = false;
-        _parentHovered = false;
-      }),
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
       child: GestureDetector(
         onTap: widget.onTap,
         child: AnimatedOpacity(
           duration: const Duration(milliseconds: 200),
-          opacity: (_hovered || _parentHovered) ? 1.0 : 0.0, // group-hover
+          opacity: (widget.cardHovered || _hovered || busy) ? 1.0 : 0.0, // group-hover
           child: Container(
             padding: const EdgeInsets.all(6), // p-1.5
             decoration: BoxDecoration(

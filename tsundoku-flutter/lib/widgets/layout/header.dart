@@ -51,8 +51,11 @@ class Header extends ConsumerWidget {
         PopoverOption(value: l, label: l.wire.toUpperCase()),
     ];
 
+    final vpWidth = MediaQuery.sizeOf(context).width;
+    final padH = vpWidth >= 1024 ? 32.0 : (vpWidth >= 640 ? 24.0 : 16.0); // px-4 sm:px-6 lg:px-8
+
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
+      padding: EdgeInsets.symmetric(horizontal: padH),
       child: SizedBox(
         height: double.infinity,
         child: Stack(

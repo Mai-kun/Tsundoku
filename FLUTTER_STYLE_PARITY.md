@@ -2,8 +2,8 @@
 
 ## 📍 Текущий фокус / Next Step
 * **Фаза:** S2 (AppShell, Header, Sidebar, FilterBar)
-* **Текущий файл:** `mediatracker-ui/src/widgets/layout/Header.svelte` -> `tsundoku-flutter/lib/widgets/layout/header.dart`
-* **Цель:** Сверка Header: h-14, px-4, search input, stats badges, activity button, offline indicator 1-в-1.
+* **Текущий файл:** `mediatracker-ui/src/widgets/layout/Sidebar.svelte` -> `tsundoku-flutter/lib/widgets/layout/sidebar.dart`
+* **Цель:** Сверка Sidebar: w-60 (240px), px-3 py-5, brand logo, navigation items, create button, settings button 1-в-1.
 
 ---
 
@@ -172,7 +172,7 @@
 | S1 | `mediatracker-ui/src/shared/ui/TotalBadge.svelte` | `tsundoku-flutter/lib/shared/ui/total_badge.dart` | ✅ Сверен 1:1 | Plain counter, text-xs (12px), text-white/50, tabular-nums совпадают 1-в-1 | 0 отличий |
 | S1 | `mediatracker-ui/src/shared/ui/MediaCoverPlaceholder.svelte` | `tsundoku-flutter/lib/shared/ui/media_cover_placeholder.dart` | ✅ Сверен 1:1 | Градиент #12151c->#1a1e28, opacity 0.9, оверлей black/85->40, p-2 (8px), font 10px w600 совпадают 1-в-1 | 0 отличий |
 | S2 | `mediatracker-ui/src/widgets/layout/AppShell.svelte` | `tsundoku-flutter/lib/widgets/layout/app_shell.dart` | ✅ Сверен 1:1 | lg=1024px, sidebar w-60 (240px) px-3 py-5, header h-14 (56px), main p-6 (24px) / noPadding p-0, borders white/0.07 1-в-1 | 0 отличий |
-| S2 | `mediatracker-ui/src/widgets/layout/Header.svelte` | `tsundoku-flutter/lib/widgets/layout/header.dart` | В очереди |  |  |
+| S2 | `mediatracker-ui/src/widgets/layout/Header.svelte` | `tsundoku-flutter/lib/widgets/layout/header.dart` | ✅ Сверен 1:1 | Паддинг выровнен под px-4 sm:px-6 lg:px-8 (16/24/32px); заголовок w-56, поиск 448/512px, Ctrl K, язык w-88px 1-в-1 | Да |
 | S2 | `mediatracker-ui/src/widgets/layout/Sidebar.svelte` | `tsundoku-flutter/lib/widgets/layout/sidebar.dart` | В очереди |  |  |
 | S2 | `mediatracker-ui/src/features/filter-and-sort/FilterBar.svelte` | `tsundoku-flutter/lib/features/filter-and-sort/filter_bar.dart` | В очереди |  |  |
 | S2 | `mediatracker-ui/src/widgets/layout/ActivityDropdown.svelte` | `tsundoku-flutter/lib/widgets/layout/activity_dropdown.dart` | В очереди |  |  |

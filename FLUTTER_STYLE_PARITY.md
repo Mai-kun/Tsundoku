@@ -1,9 +1,9 @@
 # 🎯 Аудит и выравнивание стилей Flutter UI 1-в-1 со Svelte (Tailwind CSS / tokens.css)
 
 ## 📍 Текущий фокус / Next Step
-* **Фаза:** S1 (shared/ui/*.svelte)
-* **Текущий файл:** `mediatracker-ui/src/shared/ui/MediaCoverPlaceholder.svelte` -> `tsundoku-flutter/lib/shared/ui/media_cover_placeholder.dart`
-* **Цель:** Сверка MediaCoverPlaceholder: aspect ratio, background, placeholder icon/text 1-в-1.
+* **Фаза:** S2 (AppShell, Header, Sidebar, FilterBar)
+* **Текущий файл:** `mediatracker-ui/src/widgets/layout/AppShell.svelte` -> `tsundoku-flutter/lib/widgets/layout/app_shell.dart`
+* **Цель:** Сверка AppShell: каркас, <main> padding (px-4 py-4 md:px-8 md:py-6), sticky header, sidebar layout 1-в-1.
 
 ---
 
@@ -170,7 +170,7 @@
 | S1 | `mediatracker-ui/src/widgets/layout/ToastContainer.svelte` | `tsundoku-flutter/lib/widgets/layout/toast_container.dart` | ✅ Сверен 1:1 | Позиция bottom-right, gap 10px, карточки p-3 (12px), rounded-xl (12px), цвета бейджей/полос, кнопки size-7 (28px) выверены 1-в-1 | 0 отличий |
 | S1 | `mediatracker-ui/src/shared/ui/ImageLightbox.svelte` | `tsundoku-flutter/lib/shared/ui/image_lightbox.dart` | ✅ Сверен 1:1 | Добавлены rounded-lg (8px), border-white/20, shadow-2xl на изображение, динамический max-h-[85dvh], rounded-lg на кнопку закрытия 1-в-1 | Да |
 | S1 | `mediatracker-ui/src/shared/ui/TotalBadge.svelte` | `tsundoku-flutter/lib/shared/ui/total_badge.dart` | ✅ Сверен 1:1 | Plain counter, text-xs (12px), text-white/50, tabular-nums совпадают 1-в-1 | 0 отличий |
-| S1 | `mediatracker-ui/src/shared/ui/MediaCoverPlaceholder.svelte` | `tsundoku-flutter/lib/shared/ui/media_cover_placeholder.dart` | В очереди |  |  |
+| S1 | `mediatracker-ui/src/shared/ui/MediaCoverPlaceholder.svelte` | `tsundoku-flutter/lib/shared/ui/media_cover_placeholder.dart` | ✅ Сверен 1:1 | Градиент #12151c->#1a1e28, opacity 0.9, оверлей black/85->40, p-2 (8px), font 10px w600 совпадают 1-в-1 | 0 отличий |
 | S2 | `mediatracker-ui/src/widgets/layout/AppShell.svelte` | `tsundoku-flutter/lib/widgets/layout/app_shell.dart` | В очереди |  |  |
 | S2 | `mediatracker-ui/src/widgets/layout/Header.svelte` | `tsundoku-flutter/lib/widgets/layout/header.dart` | В очереди |  |  |
 | S2 | `mediatracker-ui/src/widgets/layout/Sidebar.svelte` | `tsundoku-flutter/lib/widgets/layout/sidebar.dart` | В очереди |  |  |

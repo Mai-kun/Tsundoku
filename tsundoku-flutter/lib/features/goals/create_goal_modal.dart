@@ -178,13 +178,9 @@ class _CreateGoalModalState extends ConsumerState<CreateGoalModal> {
       isOpen: widget.isOpen,
       onClose: widget.onClose,
       size: ModalSize.md,
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: tokens.bgSurface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.white.withAlpha(20)),
-        ),
+      contentPadding: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(24.0), // p-6
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -193,12 +189,13 @@ class _CreateGoalModalState extends ConsumerState<CreateGoalModal> {
             Row(
               children: [
                 Container(
-                  width: 36,
+                  width: 36, // size-9
                   height: 36,
                   decoration: BoxDecoration(
                     color: tokens.bgElevated,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.white.withAlpha(20)),
+                    borderRadius: BorderRadius.circular(8), // rounded-lg
+                    border: Border.all(
+                        color: Colors.white.withAlpha(20)), // border-white/[0.08]
                   ),
                   child: const Icon(
                     LucideIcons.trophy,
@@ -206,11 +203,11 @@ class _CreateGoalModalState extends ConsumerState<CreateGoalModal> {
                     color: Color(0xFF818CF8),
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 10), // gap-2.5
                 Text(
                   t.tr('goals.modal.createTitle'),
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: 16, // text-base
                     fontWeight: FontWeight.w600,
                     color: tokens.textPrimary,
                   ),

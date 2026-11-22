@@ -62,6 +62,7 @@ class ImportModal extends ConsumerWidget {
       isOpen: true,
       onClose: onClose,
       size: ModalSize.xl,
+      contentPadding: EdgeInsets.zero,
       child: Container(
         constraints: BoxConstraints(
           maxHeight: MediaQuery.sizeOf(context).height * 0.86,

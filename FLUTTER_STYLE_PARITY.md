@@ -2,8 +2,8 @@
 
 ## 📍 Текущий фокус / Next Step
 * **Фаза:** S4 (features/**)
-* **Текущий файл:** `mediatracker-ui/src/features/import-media/ImportModal.svelte` -> `tsundoku-flutter/lib/features/import-media/import_modal.dart`
-* **Цель:** Сверка ImportModal: modal container, header, import panel integration.
+* **Текущий файл:** `mediatracker-ui/src/features/import-media/ImportPanel.svelte` -> `tsundoku-flutter/lib/features/import-media/import_panel.dart`
+* **Цель:** Сверка ImportPanel: 2-column grid карточек (grid-cols-1 md:grid-cols-2), брендовые цвета источников, брендовые CTA кнопки, auth секции.
 
 ---
 
@@ -195,7 +195,7 @@
 | S3 | `mediatracker-ui/src/widgets/media-grid/SectionRow.svelte` | `tsundoku-flutter/lib/widgets/media-grid/section_row.dart` | ✅ Сверен 1:1 | Заголовок 25px bold tracking-wide, счётчик px-2.5 py-0.5 rounded-full, space-y-3 (12px) 1-в-1 | 0 отличий |
 | S4 | `mediatracker-ui/src/features/settings/SettingsModal.svelte` | `tsundoku-flutter/lib/features/settings/settings_modal.dart` | ✅ Сверен 1:1 | Full-bleed модалка (ModalSize.xl, contentPadding: zero), header px-6 py-4, TsundokuButton.ghost close button, 10 табов 1-в-1 | Да |
 | S4 | `mediatracker-ui/src/features/settings/FirstRunStorageModal.svelte` | `tsundoku-flutter/lib/features/settings/first_run_storage_modal.dart` | ✅ Сверен 1:1 | ModalSize.md, убран двойной padding через contentPadding: zero (p-6 24px), опции p-3.5, h-9 bg-indigo-600 px-5 button 1-в-1 | Да |
-| S4 | `mediatracker-ui/src/features/import-media/ImportModal.svelte` | `tsundoku-flutter/lib/features/import-media/import_modal.dart` | В очереди |  |  |
+| S4 | `mediatracker-ui/src/features/import-media/ImportModal.svelte` | `tsundoku-flutter/lib/features/import-media/import_modal.dart` | ✅ Сверен 1:1 | ModalSize.xl, убран двойной padding через contentPadding: zero (p-6 24px), in-only fade, ImportPanel integration 1-в-1 | Да |
 | S4 | `mediatracker-ui/src/features/import-media/ImportPanel.svelte` | `tsundoku-flutter/lib/features/import-media/import_panel.dart` | В очереди |  |  |
 | S4 | `mediatracker-ui/src/features/search-external/SearchModal.svelte` | `tsundoku-flutter/lib/features/search-external/search_modal.dart` | В очереди |  |  |
 | S4 | `mediatracker-ui/src/features/edit-media/EditMediaWorkspace.svelte` | `tsundoku-flutter/lib/features/edit-media/edit_media_workspace.dart` | В очереди |  |  |

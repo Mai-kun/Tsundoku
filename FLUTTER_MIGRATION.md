@@ -167,9 +167,11 @@
     workspaceLayout.ts ✅ (10 тестов; localStorage → SharedPreferences-фасад
     стора uiSettings); workspaceThreads.ts ✅ (6 тестов — чистая
     математика без фреймворка; rAF-цикл рисования придёт в WorkspaceWindow);
-    WorkspaceWindow.svelte ✅ (6 тестов) → ModuleCard ✅ (4 теста) → NotesModule ✅ (3 теста) → BaseMediaModule ✅ (5 тестов) → FormField ✅ (pull-forward из Фазы 5, 1 тест) → GameFormFields ✅ (+CreateTextField в form_field.dart) → BookFormFields ✅ (3 теста, isNovel-ветвление) → MangaFormFields ✅ (1 тест) → MovieFormFields ✅ (1 тест, чекбокс аниме) → TvShowFormFields ✅ (1 тест, редактор сезонов) → CategoryFieldsModule ✅ (6 тестов — композит всех FormFields) → AltTitlesModule ✅ (4 теста) → QuotesModule ✅ (5 тестов) → ImagesModule ✅ (5 тестов; все 7 модулей готовы).
+    WorkspaceWindow.svelte ✅ (6 тестов) → ModuleCard ✅ (4 теста) → NotesModule ✅ (3 теста) → BaseMediaModule ✅ (5 тестов) → FormField ✅ (pull-forward из Фазы 5, 1 тест) → GameFormFields ✅ (+CreateTextField в form_field.dart) → BookFormFields ✅ (3 теста, isNovel-ветвление) → MangaFormFields ✅ (1 тест) → MovieFormFields ✅ (1 тест, чекбокс аниме) → TvShowFormFields ✅ (1 тест, редактор сезонов) → CategoryFieldsModule ✅ (6 тестов — композит всех FormFields) → AltTitlesModule ✅ (4 теста) → QuotesModule ✅ (5 тестов) → ImagesModule ✅ (5 тестов; все 7 модулей готовы) → **EditMediaWorkspace ✅
+    (5 тестов; все 59 файлов Фазы 4 ЗАКРЫТЫ — Phase Gate: analyze 0, 826
+    тестов, build linux ✓).**
 
-**Прогресс: 168 / 207 файлов**
+**Прогресс: 169 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
@@ -177,9 +179,9 @@
 | 1 — `shared/ui/` | 17 | 17 |
 | 2 — `entities/` + карточки/сетка | 19 | 19 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 13 (ЗАКРЫТА, см. Phase Gate) |
-| 4 — Детальная страница + Spatial Node Editor | 59 | 58 |
+| 4 — Детальная страница + Spatial Node Editor | 59 | 59 |
 | 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 6 |
-| **Всего** | **207** | **168** |
+| **Всего** | **207** | **169** |
 
 Долги Фаз 0–2 (не блокируют): —
 seriesProgressControllerProvider no-op-toast → инъекция в Фазе 3 (решение #35);
@@ -262,7 +264,7 @@ Spatial Node Editor; detailTypes/detailFormatters уже готовы pull-forwa
 | 5 | `features/create-media` | `TvShowFormFields.svelte` | `lib/features/create-media/tv_show_form_fields.dart` | ⬜ Не начат | ⬜ | — |
 | 5 | `features/drop-reason` | `DropReasonModal.svelte` | `lib/features/drop-reason/drop_reason_modal.dart` | ⬜ Не начат | ⬜ | — |
 | 0 | `features/drop-reason` | `dropReasonPrompt.svelte.ts` | `lib/features/drop-reason/drop_reason_prompt.dart` | ✅ Готов | ✅ | DropPromptTarget + Riverpod Notifier (target state); history.pushState не нужен (решение #10); тест |
-| 4 | `features/edit-media` | `EditMediaWorkspace.svelte` | `lib/features/edit-media/edit_media_workspace.dart` | ⬜ Не начат | ⬜ | — |
+| 4 | `features/edit-media` | `EditMediaWorkspace.svelte` | `lib/features/edit-media/edit_media_workspace.dart` | ✅ Готов | ✅ | Пространственный канвас: draft-стейт (все поля + CategoryDraft), applyEditableFields ($effect → initState+didUpdateWidget; loadMediaDetail async-догрузка), desktop ≥1024: Stack 5 WorkspaceWindow (keyed — z-стек порядком детей по zMap, bringToFront), cover-узел (pan+clamp), нити — Ticker+rAF-аналог (ThreadSpring.step → ThreadsNotifier → CustomPaint repaint, парсер `M x y C ...`), персистентная раскладка loadLayout/saveLayout/resetLayout; контрольная панель (uppercase title/Отмена/Добавить-Сохранить-Сохранение…, reset desktop), validation (titleRequired/coverUrlInvalid) + submitError-чип (errorMessage, clear по тапу); submit 1-в-1: buildPayload по 5 типам (Create*Payload), buildSeasons (title фолбэк, planned), UpdateMediaPayload (altTitles явный список, notes '' = очистка, quotesJson, ISO-даты через DateTime.tryParse→toUtc); mobile: скролл-стек секций; 5 тестов |
 | 4 | `features/edit-media` | `WorkspaceWindow.svelte` | `lib/features/edit-media/workspace_window.dart` | ✅ Готов | ✅ | Плавающее окно: Positioned по rect, драг шапки / ресайз grip'ом (GestureDetector pan — арена жестов вместо Svelte window-level listeners; live clamp в вьюпорт: SIDE_MARGIN/TOP_BAR/BOTTOM_MARGIN), AnimatedContainer высоты (collapsed → HEADER_H-2 из-за border-box, live resize — Duration.zero), MouseRegion hover, count-бейдж, collapse-кнопка (Semantics + GestureDetector 24×24 — IconButton'у не хватает 2px в h-10), grip — CustomPaint 3 диагонали (1-в-1 с svg), тело всегда смонтировано (AnimatedOpacity + IgnorePointer inert); 6 тестов |
 | 4 | `features/edit-media/modules` | `AltTitlesModule.svelte` | `lib/features/edit-media/modules/alt_titles_module.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `features/edit-media/modules` | `BaseMediaModule.svelte` | `lib/features/edit-media/modules/base_media_module.dart` | ⬜ Не начат | ⬜ | — |

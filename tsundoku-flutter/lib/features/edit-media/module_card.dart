@@ -41,11 +41,14 @@ class ModuleCard extends StatelessWidget {
 
     if (flat) {
       // Svelte: `flex h-full flex-col` — flat-карточка растягивается по
-      // высоте хоста, тело через flex-1 (требует bounded-высоту, как окно
-      // workspace).
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+      // высоте хоста, тело через flex-1. Expanded возможен только при
+      // bounded-высоте хоста (окно workspace); в unbounded (скролл) —
+      // тело живёт своей высотой.
+      return LayoutBuilder(builder: (context, c) {
+        final bounded = c.maxHeight.isFinite;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
           if (showLabel)
             Row(
               children: [
@@ -81,10 +84,11 @@ class ModuleCard extends StatelessWidget {
                 ],
               ],
             ),
-          if (showLabel) const SizedBox(height: 10), // gap-2.5
-          Expanded(child: child),
-        ],
-      );
+            if (showLabel) const SizedBox(height: 10), // gap-2.5
+            if (bounded) Expanded(child: child) else child,
+          ],
+        );
+      });
     }
 
     return Container(

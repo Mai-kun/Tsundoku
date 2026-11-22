@@ -202,10 +202,11 @@
     DropReasonModal ✅ (6 тестов; выбор и переключение чипов причин с фильтрацией по типу медиа и аниме, заметка до 200 символов, сохранение через updateStatusWithDropInfo со статусом dropped, удаление причины, пропуск/закрытие, интеграция с dropPromptStateProvider) →
     ImportModal ✅ (3 теста; адаптивная модалка размера xl со скролл-контейнером и анимацией появления, поддержка panelBuilder для инъекции ImportPanel, проброс колбеков) →
     ImportPanel ✅ (5 тестов; универсальная панель импорта с 9 провайдерами: AniList, MangaLib, MAL, Shikimori, Letterboxd, Goodreads, Steam, Anixart, Custom; режимы профиля и файла; MangaLib браузерная детекция; Steam API ключ; интеграция списков назначения; баннер результатов со статистикой) →
-    CreateListModal ✅ (4 теста; модалка создания/редактирования списков: выбор палитры из 6 цветов, 6 иконок, переключатель обычный/умный список, интеграция со SmartListBuilder, живой предпросмотр подходящих тайтлов).
-    Следующий: SmartListBuilder.svelte.
+    CreateListModal ✅ (4 теста; модалка создания/редактирования списков: выбор палитры из 6 цветов, 6 иконок, переключатель обычный/умный список, интеграция со SmartListBuilder, живой предпросмотр подходящих тайтлов) →
+    SmartListBuilder ✅ (5 тестов; визуальный конструктор умных списков: 5 быстрых пресетов, секции Scope/Оценки/Даты/Метаданные/Сортировка и лимит, локальная синхронная оценка `evaluateLocally` с live-матчингом тайтлов).
+    Следующий: SearchModal.svelte.
 
-**Прогресс: 198 / 207 файлов**
+**Прогресс: 199 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
@@ -214,8 +215,8 @@
 | 2 — `entities/` + карточки/сетка | 19 | 19 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 13 (ЗАКРЫТА, см. Phase Gate) |
 | 4 — Детальная страница + Spatial Node Editor | 59 | 59 |
-| 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 36 |
-| **Всего** | **207** | **198** |
+| 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 37 |
+| **Всего** | **207** | **199** |
 
 Долги Фаз 0–2 (не блокируют): —
 seriesProgressControllerProvider no-op-toast → инъекция в Фазе 3 (решение #35);
@@ -317,7 +318,7 @@ Spatial Node Editor; detailTypes/detailFormatters уже готовы pull-forwa
 | 0 | `features/import-media` | `mangalibAuth.svelte.ts` | `lib/features/import-media/mangalib_auth.dart` | ✅ Готов | ✅ | $state → Riverpod; localStorage → shared_preferences (mangalib_user_id); save/adopt/disconnect + toast-инъекция |
 | 5 | `features/lists` | `CreateListModal.svelte` | `lib/features/lists/create_list_modal.dart` | ✅ Готов | ✅ | Модалка создания/редактирования списков (палитра 6 цветов, 6 иконок, переключатель manual/smart, интеграция SmartListBuilder с live preview); 4 теста |
 | 5 | `features/lists` | `ListPicker.svelte` | `lib/features/lists/list_picker.dart` | ✅ Готов | ✅ | ⬆️ Вытащен из Фазы 5 (зависимость AppShell): чек-лист CustomListSummary (цвет-парсер hex), optimistic toggle с откатом, тосты listAdded/listRemoved/descCreated, loading/empty; CreateListModal → колбек onCreateList + публичный refreshLists (подключит App, Фаза 5, решение #38); standalone-триггер при отсутствии onClose; 4 теста полного цикла |
-| 5 | `features/lists` | `SmartListBuilder.svelte` | `lib/features/lists/smart_list_builder.dart` | ⬜ Не начат | ⬜ | — |
+| 5 | `features/lists` | `SmartListBuilder.svelte` | `lib/features/lists/smart_list_builder.dart` | ✅ Готов | ✅ | Визуальный конструктор умных списков (пресеты, секции фильтрации, `evaluateLocally` с матчингом, сортировка и лимит); 5 тестов |
 | 0 | `features/prefetch-details` | `externalDetailPrefetch.ts` | `lib/features/prefetch-details/external_detail_prefetch.dart` | ✅ Готов | ✅ | detailsCache 10min TTL, ключ type:source:id, null→rejection; тесты |
 | 0 | `features/prefetch-details` | `mediaDetailPrefetch.ts` | `lib/features/prefetch-details/media_detail_prefetch.dart` | ✅ Готов | ✅ | mediaDetailCache (5min TTL) + updateCachedDetailProgress + prefetchMediaDetail; HoverPrefetchScheduler (150ms intent + scroll-guard — MediaGrid Фаза 2); core/Ref-разделение (решение #16); fakeAsync-тесты |
 | 5 | `features/search-external` | `SearchModal.svelte` | `lib/features/search-external/search_modal.dart` | ⬜ Не начат | ⬜ | — |

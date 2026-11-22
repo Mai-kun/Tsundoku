@@ -8,6 +8,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'package:tsundoku_flutter/entities/media/model/cover_url.dart';
+import 'package:tsundoku_flutter/features/lists/smart_list_builder.dart';
 import 'package:tsundoku_flutter/shared/api/api.dart';
 import 'package:tsundoku_flutter/shared/i18n/index.dart';
 import 'package:tsundoku_flutter/shared/theme/tsundoku_tokens.dart';
@@ -492,36 +493,13 @@ class _CreateListModalState extends ConsumerState<CreateListModal> {
                                     setState(() => _matchedItems = m),
                                 allMedia: _allMedia,
                               )
-                            : Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      const Icon(
-                                        LucideIcons.sparkles,
-                                        size: 16,
-                                        color: Color(0xFFA78BFA),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        t.tr('views.listTypeSmart'),
-                                        style: const TextStyle(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w600,
-                                          color: Color(0xFFDDD6FE),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 8),
-                                  const Text(
-                                    'Автоматическое наполнение списка по правилам и фильтрам.',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Color(0xFF94A3B8),
-                                    ),
-                                  ),
-                                ],
+                            : SmartListBuilder(
+                                query: _smartQuery,
+                                onQueryChange: (q) =>
+                                    setState(() => _smartQuery = q),
+                                onMatchesChange: (m) =>
+                                    setState(() => _matchedItems = m),
+                                allMedia: _allMedia,
                               ),
                       ),
                       const SizedBox(height: 16),

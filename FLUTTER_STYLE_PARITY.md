@@ -2,8 +2,8 @@
 
 ## 📍 Текущий фокус / Next Step
 * **Фаза:** S4 (features/**)
-* **Текущий файл:** `mediatracker-ui/src/features/create-media/FormField.svelte` -> `tsundoku-flutter/lib/features/create-media/form_field.dart`
-* **Цель:** Сверка FormField: обёртка полей формы, лейбл text-ink space-y-1.5 text-sm font-medium, инпуты, рамки, отступы.
+* **Текущий файл:** `mediatracker-ui/src/features/create-media/BookFormFields.svelte` -> `tsundoku-flutter/lib/features/create-media/book_form_fields.dart`
+* **Цель:** Сверка BookFormFields: поля автора, страниц, формата, глав, томов, сетка sm:grid-cols-2 gap-3.
 
 ---
 
@@ -208,7 +208,7 @@
 | S4 | `mediatracker-ui/src/features/edit-media/modules/NotesModule.svelte` | `tsundoku-flutter/lib/features/edit-media/notes_module.dart` | ✅ Сверен 1:1 | 0 отличий (icon fileText size 15, flat flex-1 stretch, non-flat min-h-[120px] rows 5, p-3 rounded-lg border-white/10 bg-field 1-в-1) | 0 отличий |
 | S4 | `mediatracker-ui/src/features/edit-media/modules/QuotesModule.svelte` | `tsundoku-flutter/lib/features/edit-media/quotes_module.dart` | ✅ Сверен 1:1 | icon quote size 15, форма добавления p-3 rounded-lg border-amber-400/20 bg-black/25, min-h-[80px] textarea, h-8 context input, кнопки в строке цитаты выровнены в Row gap-1 (Pencil + Trash2 size-7 rounded-lg с hover:text-rose-300 / hover:text-ink), border-white/10 (26 alpha) 1-в-1 | Да |
 | S4 | `mediatracker-ui/src/features/create-media/CreateModal.svelte` | `tsundoku-flutter/lib/features/create-media/create_modal.dart` | ✅ Сверен 1:1 | 0 отличий (тонкий legacy-адаптер 1-в-1 делегирует в EditMediaWorkspace) | 0 отличий |
-| S4 | `mediatracker-ui/src/features/create-media/FormField.svelte` | `tsundoku-flutter/lib/features/create-media/form_field.dart` | В очереди |  |  |
+| S4 | `mediatracker-ui/src/features/create-media/FormField.svelte` | `tsundoku-flutter/lib/features/create-media/form_field.dart` | ✅ Сверен 1:1 | 0 отличий (TsundokuFormField text-ink space-y-1.5 text-sm font-medium, createFieldDecoration h-10 px-3 bg-field, createFieldBorder rounded-lg border-white/10 1-в-1) | 0 отличий |
 | S4 | `mediatracker-ui/src/features/create-media/BookFormFields.svelte` | `tsundoku-flutter/lib/features/create-media/book_form_fields.dart` | В очереди |  |  |
 | S4 | `mediatracker-ui/src/features/create-media/GameFormFields.svelte` | `tsundoku-flutter/lib/features/create-media/game_form_fields.dart` | В очереди |  |  |
 | S4 | `mediatracker-ui/src/features/create-media/MangaFormFields.svelte` | `tsundoku-flutter/lib/features/create-media/manga_form_fields.dart` | В очереди |  |  |

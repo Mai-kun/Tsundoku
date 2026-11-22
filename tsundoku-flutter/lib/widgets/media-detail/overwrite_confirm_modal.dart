@@ -42,6 +42,7 @@ class OverwriteConfirmModal extends ConsumerWidget {
       isOpen: isOpen,
       onClose: onClose,
       size: ModalSize.md,
+      contentPadding: EdgeInsets.zero,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -100,26 +101,11 @@ class OverwriteConfirmModal extends ConsumerWidget {
                 // Отмена.
                 Padding(
                   padding: const EdgeInsets.only(top: 4), // mt-1
-                  child: GestureDetector(
-                    onTap: busy ? null : onClose,
-                    child: SizedBox(
-                      width: double.infinity,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 8), // px-4 py-2
-                        child: Center(
-                          child: Text(
-                            t.tr('common.cancel'),
-                            style: TextStyle(
-                              fontSize: 14, // text-sm
-                              color: busy
-                                  ? th.textMuted.withAlpha(153) // disabled:opacity-60
-                                  : th.textMuted, // text-muted
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
+                  child: _OverwriteCancelButton(
+                    label: t.tr('common.cancel'),
+                    busy: busy,
+                    th: th,
+                    onTap: onClose,
                   ),
                 ),
               ],
@@ -242,6 +228,57 @@ class _OverwriteFullButtonState extends State<_OverwriteFullButton> {
           ),
         ),
       ),
+      ),
+    );
+  }
+}
+
+/// Кнопка отмены: text-muted, hover:text-white, disabled:opacity-60.
+class _OverwriteCancelButton extends StatefulWidget {
+  final String label;
+  final bool busy;
+  final TsundokuTheme th;
+  final VoidCallback onTap;
+
+  const _OverwriteCancelButton({
+    required this.label,
+    required this.busy,
+    required this.th,
+    required this.onTap,
+  });
+
+  @override
+  State<_OverwriteCancelButton> createState() => _OverwriteCancelButtonState();
+}
+
+class _OverwriteCancelButtonState extends State<_OverwriteCancelButton> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        onTap: widget.busy ? null : widget.onTap,
+        child: Container(
+          width: double.infinity,
+          padding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 8), // px-4 py-2
+          child: Center(
+            child: Text(
+              widget.label,
+              style: TextStyle(
+                fontSize: 14, // text-sm
+                color: widget.busy
+                    ? widget.th.textMuted.withAlpha(153) // disabled:opacity-60
+                    : _hovered
+                        ? Colors.white // hover:text-white
+                        : widget.th.textMuted, // text-muted
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

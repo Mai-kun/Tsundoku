@@ -1040,6 +1040,7 @@ class _SearchModalState extends ConsumerState<SearchModal> {
           isOpen: widget.isOpen,
           onClose: widget.onClose,
           size: ModalSize.search,
+          contentPadding: EdgeInsets.zero,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -1771,6 +1772,7 @@ class _SearchModalState extends ConsumerState<SearchModal> {
                             items[i],
                             disabledSources,
                             index: i,
+                            isGrouped: true,
                           ),
                           if (i < items.take(5).length - 1)
                             const SizedBox(height: 10),
@@ -1810,6 +1812,7 @@ class _SearchModalState extends ConsumerState<SearchModal> {
     ExternalMedia result,
     Set<String> disabledSources, {
     int? index,
+    bool isGrouped = false,
   }) {
     final key = _resultKey(result);
     final isAdded = _addedKeys.containsKey(key);
@@ -1821,6 +1824,8 @@ class _SearchModalState extends ConsumerState<SearchModal> {
 
     final meta = _metaLine(result);
     final count = _countLabel(result, t);
+    final posterWidth = isGrouped ? 64.0 : 80.0;
+    final posterHeight = isGrouped ? 96.0 : 112.0;
 
     return MouseRegion(
       onEnter: (_) => _scheduleHoverPrefetch(result),
@@ -1842,8 +1847,8 @@ class _SearchModalState extends ConsumerState<SearchModal> {
             ClipRRect(
               borderRadius: BorderRadius.circular(6),
               child: Container(
-                width: 72,
-                height: 104,
+                width: posterWidth,
+                height: posterHeight,
                 color: const Color(0xFF151821),
                 child: result.coverUrl != null && result.coverUrl!.isNotEmpty
                     ? Image.network(
@@ -1869,7 +1874,7 @@ class _SearchModalState extends ConsumerState<SearchModal> {
                       ),
               ),
             ),
-            const SizedBox(width: 14),
+            const SizedBox(width: 16),
 
             // Details
             Expanded(

@@ -221,7 +221,9 @@ class _SmartListBuilderState extends ConsumerState<SmartListBuilder> {
                   return _buildFilterPill(
                     label: item.$2,
                     active: active,
-                    activeColor: const Color(0xFFA78BFA), // violet-400
+                    activeColor: const Color(0xFFC4B5FD), // violet-300
+                    activeBorderColor: const Color(0x668B5CF6), // border-violet-500/40
+                    activeBgColor: const Color(0x268B5CF6), // bg-violet-500/15
                     onTap: () => _toggleCategory(item.$1),
                   );
                 }).toList(),
@@ -244,7 +246,9 @@ class _SmartListBuilderState extends ConsumerState<SmartListBuilder> {
                   return _buildFilterPill(
                     label: item.$2,
                     active: active,
-                    activeColor: const Color(0xFFFBBF24), // amber-400
+                    activeColor: const Color(0xFFFCD34D), // amber-300
+                    activeBorderColor: const Color(0x66F59E0B), // border-amber-500/40
+                    activeBgColor: const Color(0x26F59E0B), // bg-amber-500/15
                     onTap: () => _toggleStatus(item.$1),
                   );
                 }).toList(),
@@ -252,8 +256,8 @@ class _SmartListBuilderState extends ConsumerState<SmartListBuilder> {
               const SizedBox(height: 12),
 
               // Release Status
-              SizedBox(
-                width: 240,
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 256),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -270,13 +274,13 @@ class _SmartListBuilderState extends ConsumerState<SmartListBuilder> {
                       isExpanded: true,
                       initialValue: widget.query.releaseStatus ?? '',
                       dropdownColor: const Color(0xFF1E2230),
-                      style: const TextStyle(fontSize: 12, color: Colors.white),
+                      style: const TextStyle(fontSize: 14, color: Colors.white),
                       decoration: InputDecoration(
                         filled: true,
                         fillColor: const Color(0x0AFFFFFF),
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 10,
-                          vertical: 8,
+                          vertical: 6,
                         ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
@@ -321,7 +325,7 @@ class _SmartListBuilderState extends ConsumerState<SmartListBuilder> {
             children: [
               // Min Score
               SizedBox(
-                width: 120,
+                width: 140,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -337,7 +341,7 @@ class _SmartListBuilderState extends ConsumerState<SmartListBuilder> {
                     TextField(
                       controller: _minScoreController,
                       keyboardType: TextInputType.number,
-                      style: const TextStyle(fontSize: 12, color: Colors.white),
+                      style: const TextStyle(fontSize: 14, color: Colors.white),
                       decoration: InputDecoration(
                         hintText: '1–10',
                         prefixIcon: const Icon(
@@ -346,13 +350,14 @@ class _SmartListBuilderState extends ConsumerState<SmartListBuilder> {
                           color: Color(0xFF94A3B8),
                         ),
                         prefixIconConstraints: const BoxConstraints(
-                          minWidth: 32,
+                          minWidth: 28,
+                          maxHeight: 32,
                         ),
                         filled: true,
                         fillColor: const Color(0x0AFFFFFF),
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 10,
-                          vertical: 8,
+                          vertical: 6,
                         ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
@@ -377,7 +382,7 @@ class _SmartListBuilderState extends ConsumerState<SmartListBuilder> {
 
               // Min External Rating
               SizedBox(
-                width: 130,
+                width: 140,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -393,7 +398,7 @@ class _SmartListBuilderState extends ConsumerState<SmartListBuilder> {
                     TextField(
                       controller: _minRatingController,
                       keyboardType: TextInputType.number,
-                      style: const TextStyle(fontSize: 12, color: Colors.white),
+                      style: const TextStyle(fontSize: 14, color: Colors.white),
                       decoration: InputDecoration(
                         hintText: '0–10',
                         prefixIcon: const Icon(
@@ -402,13 +407,14 @@ class _SmartListBuilderState extends ConsumerState<SmartListBuilder> {
                           color: Color(0xFF94A3B8),
                         ),
                         prefixIconConstraints: const BoxConstraints(
-                          minWidth: 32,
+                          minWidth: 28,
+                          maxHeight: 32,
                         ),
                         filled: true,
                         fillColor: const Color(0x0AFFFFFF),
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 10,
-                          vertical: 8,
+                          vertical: 6,
                         ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
@@ -550,111 +556,151 @@ class _SmartListBuilderState extends ConsumerState<SmartListBuilder> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   SizedBox(
-                    width: 110,
-                    child: TextField(
-                      controller: _yearFromController,
-                      keyboardType: TextInputType.number,
-                      style: const TextStyle(fontSize: 12, color: Colors.white),
-                      decoration: InputDecoration(
-                        labelText: t.tr('views.smartYearFrom'),
-                        labelStyle: const TextStyle(color: Color(0xFF94A3B8)),
-                        hintText: '2000',
-                        filled: true,
-                        fillColor: const Color(0x0AFFFFFF),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 8,
+                    width: 112,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          t.tr('views.smartYearFrom'),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.white,
+                          ),
                         ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: const BorderSide(color: Color(0x1AFFFFFF)),
+                        const SizedBox(height: 4),
+                        TextField(
+                          controller: _yearFromController,
+                          keyboardType: TextInputType.number,
+                          style: const TextStyle(fontSize: 14, color: Colors.white),
+                          decoration: InputDecoration(
+                            hintText: '2000',
+                            filled: true,
+                            fillColor: const Color(0x0AFFFFFF),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 6,
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: const BorderSide(color: Color(0x1AFFFFFF)),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: const BorderSide(color: Color(0x1AFFFFFF)),
+                            ),
+                          ),
+                          onChanged: (val) {
+                            widget.onQueryChange(widget.query.copyWith(
+                              releaseYearFrom: int.tryParse(val.trim()),
+                            ));
+                          },
                         ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: const BorderSide(color: Color(0x1AFFFFFF)),
-                        ),
-                      ),
-                      onChanged: (val) {
-                        widget.onQueryChange(widget.query.copyWith(
-                          releaseYearFrom: int.tryParse(val.trim()),
-                        ));
-                      },
+                      ],
                     ),
                   ),
                   const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 8.0),
+                    padding: EdgeInsets.fromLTRB(8, 0, 8, 8),
                     child: Text('—', style: TextStyle(color: Color(0xFF94A3B8))),
                   ),
                   SizedBox(
-                    width: 110,
-                    child: TextField(
-                      controller: _yearToController,
-                      keyboardType: TextInputType.number,
-                      style: const TextStyle(fontSize: 12, color: Colors.white),
-                      decoration: InputDecoration(
-                        labelText: t.tr('views.smartYearTo'),
-                        labelStyle: const TextStyle(color: Color(0xFF94A3B8)),
-                        hintText: '2024',
-                        filled: true,
-                        fillColor: const Color(0x0AFFFFFF),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 8,
+                    width: 112,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          t.tr('views.smartYearTo'),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.white,
+                          ),
                         ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: const BorderSide(color: Color(0x1AFFFFFF)),
+                        const SizedBox(height: 4),
+                        TextField(
+                          controller: _yearToController,
+                          keyboardType: TextInputType.number,
+                          style: const TextStyle(fontSize: 14, color: Colors.white),
+                          decoration: InputDecoration(
+                            hintText: '2024',
+                            filled: true,
+                            fillColor: const Color(0x0AFFFFFF),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 6,
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: const BorderSide(color: Color(0x1AFFFFFF)),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: const BorderSide(color: Color(0x1AFFFFFF)),
+                            ),
+                          ),
+                          onChanged: (val) {
+                            widget.onQueryChange(widget.query.copyWith(
+                              releaseYearTo: int.tryParse(val.trim()),
+                            ));
+                          },
                         ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: const BorderSide(color: Color(0x1AFFFFFF)),
-                        ),
-                      ),
-                      onChanged: (val) {
-                        widget.onQueryChange(widget.query.copyWith(
-                          releaseYearTo: int.tryParse(val.trim()),
-                        ));
-                      },
+                      ],
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 12),
-              TextField(
-                controller: _creatorController,
-                style: const TextStyle(fontSize: 12, color: Colors.white),
-                decoration: InputDecoration(
-                  labelText: t.tr('views.smartCreator'),
-                  labelStyle: const TextStyle(color: Color(0xFF94A3B8)),
-                  hintText: t.tr('views.smartCreatorPlaceholder'),
-                  prefixIcon: const Icon(
-                    LucideIcons.search,
-                    size: 14,
-                    color: Color(0xFF94A3B8),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    t.tr('views.smartCreator'),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.white,
+                    ),
                   ),
-                  prefixIconConstraints: const BoxConstraints(minWidth: 32),
-                  filled: true,
-                  fillColor: const Color(0x0AFFFFFF),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 8,
+                  const SizedBox(height: 4),
+                  TextField(
+                    controller: _creatorController,
+                    style: const TextStyle(fontSize: 14, color: Colors.white),
+                    decoration: InputDecoration(
+                      hintText: t.tr('views.smartCreatorPlaceholder'),
+                      prefixIcon: const Icon(
+                        LucideIcons.search,
+                        size: 14,
+                        color: Color(0xFF94A3B8),
+                      ),
+                      prefixIconConstraints: const BoxConstraints(
+                        minWidth: 32,
+                        maxHeight: 32,
+                      ),
+                      filled: true,
+                      fillColor: const Color(0x0AFFFFFF),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: const BorderSide(color: Color(0x1AFFFFFF)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: const BorderSide(color: Color(0x1AFFFFFF)),
+                      ),
+                    ),
+                    onChanged: (val) {
+                      widget.onQueryChange(widget.query.copyWith(
+                        creatorContains: val.trim().isNotEmpty ? val.trim() : null,
+                      ));
+                    },
                   ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: Color(0x1AFFFFFF)),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: Color(0x1AFFFFFF)),
-                  ),
-                ),
-                onChanged: (val) {
-                  widget.onQueryChange(widget.query.copyWith(
-                    creatorContains: val.trim().isNotEmpty ? val.trim() : null,
-                  ));
-                },
+                ],
               ),
             ],
           ),
@@ -665,122 +711,159 @@ class _SmartListBuilderState extends ConsumerState<SmartListBuilder> {
         _buildSection(
           title: t.tr('views.smartSectionSort'),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Expanded(
-                child: DropdownButtonFormField<String>(
-                  isExpanded: true,
-                  initialValue: widget.query.sortBy ?? 'createdAt',
-                  dropdownColor: const Color(0xFF1E2230),
-                  style: const TextStyle(fontSize: 12, color: Colors.white),
-                  decoration: InputDecoration(
-                    labelText: t.tr('views.smartSortBy'),
-                    labelStyle: const TextStyle(color: Color(0xFF94A3B8)),
-                    filled: true,
-                    fillColor: const Color(0x0AFFFFFF),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 8,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      t.tr('views.smartSortBy'),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.white,
+                      ),
                     ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: Color(0x1AFFFFFF)),
+                    const SizedBox(height: 4),
+                    DropdownButtonFormField<String>(
+                      isExpanded: true,
+                      initialValue: widget.query.sortBy ?? 'createdAt',
+                      dropdownColor: const Color(0xFF1E2230),
+                      style: const TextStyle(fontSize: 14, color: Colors.white),
+                      decoration: InputDecoration(
+                        filled: true,
+                        fillColor: const Color(0x0AFFFFFF),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: Color(0x1AFFFFFF)),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: Color(0x1AFFFFFF)),
+                        ),
+                      ),
+                      items: [
+                        ('createdAt', t.tr('views.smartSortCreatedAt')),
+                        ('score', t.tr('views.smartSortScore')),
+                        ('externalRating', t.tr('views.smartSortExternalRating')),
+                        ('releaseYear', t.tr('views.smartSortReleaseYear')),
+                        ('title', t.tr('views.smartSortTitle')),
+                      ].map((opt) {
+                        return DropdownMenuItem<String>(
+                          value: opt.$1,
+                          child: Text(opt.$2),
+                        );
+                      }).toList(),
+                      onChanged: (val) {
+                        widget.onQueryChange(widget.query.copyWith(
+                          sortBy: val ?? 'createdAt',
+                        ));
+                      },
                     ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: Color(0x1AFFFFFF)),
-                    ),
-                  ),
-                  items: [
-                    ('createdAt', t.tr('views.smartSortCreatedAt')),
-                    ('score', t.tr('views.smartSortScore')),
-                    ('externalRating', t.tr('views.smartSortExternalRating')),
-                    ('releaseYear', t.tr('views.smartSortReleaseYear')),
-                    ('title', t.tr('views.smartSortTitle')),
-                  ].map((opt) {
-                    return DropdownMenuItem<String>(
-                      value: opt.$1,
-                      child: Text(opt.$2),
-                    );
-                  }).toList(),
-                  onChanged: (val) {
-                    widget.onQueryChange(widget.query.copyWith(
-                      sortBy: val ?? 'createdAt',
-                    ));
-                  },
+                  ],
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: DropdownButtonFormField<String>(
-                  isExpanded: true,
-                  initialValue: widget.query.sortOrder ?? 'desc',
-                  dropdownColor: const Color(0xFF1E2230),
-                  style: const TextStyle(fontSize: 12, color: Colors.white),
-                  decoration: InputDecoration(
-                    labelText: t.tr('views.smartSortOrder'),
-                    labelStyle: const TextStyle(color: Color(0xFF94A3B8)),
-                    filled: true,
-                    fillColor: const Color(0x0AFFFFFF),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 8,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      t.tr('views.smartSortOrder'),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.white,
+                      ),
                     ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: Color(0x1AFFFFFF)),
+                    const SizedBox(height: 4),
+                    DropdownButtonFormField<String>(
+                      isExpanded: true,
+                      initialValue: widget.query.sortOrder ?? 'desc',
+                      dropdownColor: const Color(0xFF1E2230),
+                      style: const TextStyle(fontSize: 14, color: Colors.white),
+                      decoration: InputDecoration(
+                        filled: true,
+                        fillColor: const Color(0x0AFFFFFF),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: Color(0x1AFFFFFF)),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: Color(0x1AFFFFFF)),
+                        ),
+                      ),
+                      items: [
+                        ('desc', t.tr('views.smartSortDesc')),
+                        ('asc', t.tr('views.smartSortAsc')),
+                      ].map((opt) {
+                        return DropdownMenuItem<String>(
+                          value: opt.$1,
+                          child: Text(opt.$2),
+                        );
+                      }).toList(),
+                      onChanged: (val) {
+                        widget.onQueryChange(widget.query.copyWith(
+                          sortOrder: val ?? 'desc',
+                        ));
+                      },
                     ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: Color(0x1AFFFFFF)),
-                    ),
-                  ),
-                  items: [
-                    ('desc', t.tr('views.smartSortDesc')),
-                    ('asc', t.tr('views.smartSortAsc')),
-                  ].map((opt) {
-                    return DropdownMenuItem<String>(
-                      value: opt.$1,
-                      child: Text(opt.$2),
-                    );
-                  }).toList(),
-                  onChanged: (val) {
-                    widget.onQueryChange(widget.query.copyWith(
-                      sortOrder: val ?? 'desc',
-                    ));
-                  },
+                  ],
                 ),
               ),
               const SizedBox(width: 8),
               SizedBox(
                 width: 90,
-                child: TextField(
-                  controller: _limitController,
-                  keyboardType: TextInputType.number,
-                  style: const TextStyle(fontSize: 12, color: Colors.white),
-                  decoration: InputDecoration(
-                    labelText: t.tr('views.smartLimit'),
-                    labelStyle: const TextStyle(color: Color(0xFF94A3B8)),
-                    hintText: '50',
-                    filled: true,
-                    fillColor: const Color(0x0AFFFFFF),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 8,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      t.tr('views.smartLimit'),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.white,
+                      ),
                     ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: Color(0x1AFFFFFF)),
+                    const SizedBox(height: 4),
+                    TextField(
+                      controller: _limitController,
+                      keyboardType: TextInputType.number,
+                      style: const TextStyle(fontSize: 14, color: Colors.white),
+                      decoration: InputDecoration(
+                        hintText: '50',
+                        filled: true,
+                        fillColor: const Color(0x0AFFFFFF),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: Color(0x1AFFFFFF)),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: Color(0x1AFFFFFF)),
+                        ),
+                      ),
+                      onChanged: (val) {
+                        widget.onQueryChange(widget.query.copyWith(
+                          limit: int.tryParse(val.trim()),
+                        ));
+                      },
                     ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: Color(0x1AFFFFFF)),
-                    ),
-                  ),
-                  onChanged: (val) {
-                    widget.onQueryChange(widget.query.copyWith(
-                      limit: int.tryParse(val.trim()),
-                    ));
-                  },
+                  ],
                 ),
               ),
             ],
@@ -792,11 +875,11 @@ class _SmartListBuilderState extends ConsumerState<SmartListBuilder> {
 
   Widget _buildSection({required String title, required Widget child}) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: const Color(0x08FFFFFF),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0x14FFFFFF)),
+        border: Border.all(color: const Color(0x0DFFFFFF)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -804,13 +887,13 @@ class _SmartListBuilderState extends ConsumerState<SmartListBuilder> {
           Text(
             title.toUpperCase(),
             style: const TextStyle(
-              fontSize: 11,
+              fontSize: 12,
               fontWeight: FontWeight.w600,
-              letterSpacing: 1.1,
+              letterSpacing: 1.2,
               color: Color(0xFF94A3B8),
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           child,
         ],
       ),
@@ -826,11 +909,11 @@ class _SmartListBuilderState extends ConsumerState<SmartListBuilder> {
       borderRadius: BorderRadius.circular(8),
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: const Color(0x0DFFFFFF),
+          color: const Color(0xFF1E2230),
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: const Color(0x14FFFFFF)),
+          border: Border.all(color: const Color(0x0DFFFFFF)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -855,25 +938,27 @@ class _SmartListBuilderState extends ConsumerState<SmartListBuilder> {
     required String label,
     required bool active,
     required Color activeColor,
+    required Color activeBorderColor,
+    required Color activeBgColor,
     required VoidCallback onTap,
   }) {
     return InkWell(
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(9999),
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
         decoration: BoxDecoration(
-          color: active ? activeColor.withValues(alpha: 0.15) : Colors.transparent,
-          borderRadius: BorderRadius.circular(16),
+          color: active ? activeBgColor : Colors.transparent,
+          borderRadius: BorderRadius.circular(9999),
           border: Border.all(
-            color: active ? activeColor.withValues(alpha: 0.4) : const Color(0x1AFFFFFF),
+            color: active ? activeBorderColor : const Color(0x1AFFFFFF),
           ),
         ),
         child: Text(
           label,
           style: TextStyle(
             fontSize: 12,
-            fontWeight: active ? FontWeight.w600 : FontWeight.normal,
+            fontWeight: FontWeight.w500,
             color: active ? activeColor : const Color(0xFF94A3B8),
           ),
         ),
@@ -894,7 +979,7 @@ class _SmartListBuilderState extends ConsumerState<SmartListBuilder> {
         Text(
           label,
           style: const TextStyle(
-            fontSize: 11,
+            fontSize: 12,
             fontWeight: FontWeight.w500,
             color: Colors.white,
           ),
@@ -903,7 +988,7 @@ class _SmartListBuilderState extends ConsumerState<SmartListBuilder> {
         TextField(
           controller: controller,
           keyboardType: TextInputType.number,
-          style: const TextStyle(fontSize: 12, color: Colors.white),
+          style: const TextStyle(fontSize: 14, color: Colors.white),
           decoration: InputDecoration(
             hintText: hint,
             suffixText: unit,
@@ -912,7 +997,7 @@ class _SmartListBuilderState extends ConsumerState<SmartListBuilder> {
             fillColor: const Color(0x0AFFFFFF),
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 10,
-              vertical: 8,
+              vertical: 6,
             ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),

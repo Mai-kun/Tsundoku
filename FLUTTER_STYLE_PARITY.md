@@ -2,8 +2,8 @@
 
 ## 📍 Текущий фокус / Next Step
 * **Фаза:** S4 (features/**)
-* **Текущий файл:** `mediatracker-ui/src/features/edit-media/modules/BaseMediaModule.svelte` -> `tsundoku-flutter/lib/features/edit-media/base_media_module.dart`
-* **Цель:** Сверка BaseMediaModule: поля Type, Title, Score, Status, Started/Finished dates, верстка строк и инпутов.
+* **Текущий файл:** `mediatracker-ui/src/features/edit-media/modules/CategoryFieldsModule.svelte` -> `tsundoku-flutter/lib/features/edit-media/category_fields_module.dart`
+* **Цель:** Сверка CategoryFieldsModule: специфичные поля для типов медиа (книги, игры, манга, фильмы, сериалы), свитчи, числовые инпуты, отступы.
 
 ---
 
@@ -201,7 +201,7 @@
 | S4 | `mediatracker-ui/src/features/edit-media/EditMediaWorkspace.svelte` | `tsundoku-flutter/lib/features/edit-media/edit_media_workspace.dart` | ✅ Сверен 1:1 | Мобильный layout SingleChildScrollView padding (px-4 pt-16 pb-6 16/64/16/24), рамка мобильной обложки border-white/[0.1], мобильная кнопка закрытия size-7 rounded-full в floating bar, desktop canvas 5 окон и нити 1-в-1 | Да |
 | S4 | `mediatracker-ui/src/features/edit-media/WorkspaceWindow.svelte` | `tsundoku-flutter/lib/features/edit-media/workspace_window.dart` | ✅ Сверен 1:1 | Исправлена прозрачность фона окна с 0x95 (58%) на 0xF2 (95% bg-[#12151c]/95), тень shadow-black/50 (Color(0x80000000)), grip 20x20 SVG path, header 40px, padding p-3 12px 1-в-1 | Да |
 | S4 | `mediatracker-ui/src/features/edit-media/modules/ModuleCard.svelte` | `tsundoku-flutter/lib/features/edit-media/module_card.dart` | ✅ Сверен 1:1 | 0 отличий (flat/non-flat режим, padding p-4 16px, rounded-xl 12px, header size-7 28x28 icon, 10px uppercase tracking 1.4, count badge 1-в-1) | 0 отличий |
-| S4 | `mediatracker-ui/src/features/edit-media/modules/BaseMediaModule.svelte` | `tsundoku-flutter/lib/features/edit-media/base_media_module.dart` | В очереди |  |  |
+| S4 | `mediatracker-ui/src/features/edit-media/modules/BaseMediaModule.svelte` | `tsundoku-flutter/lib/features/edit-media/base_media_module.dart` | ✅ Сверен 1:1 | 3 строки grid gap-3 sm:grid-cols-2 (12px), h-10 (40px) инпуты, rounded-lg (8px), space-y-1.5 (6px) лейблы, выровнена высота и отступы DatePickerField (h-10 40px, px-3 12px, font 14px), убран не-Svelte tooltip 1-в-1 | Да |
 | S4 | `mediatracker-ui/src/features/edit-media/modules/CategoryFieldsModule.svelte` | `tsundoku-flutter/lib/features/edit-media/category_fields_module.dart` | В очереди |  |  |
 | S4 | `mediatracker-ui/src/features/edit-media/modules/AltTitlesModule.svelte` | `tsundoku-flutter/lib/features/edit-media/alt_titles_module.dart` | В очереди |  |  |
 | S4 | `mediatracker-ui/src/features/edit-media/modules/ImagesModule.svelte` | `tsundoku-flutter/lib/features/edit-media/images_module.dart` | В очереди |  |  |

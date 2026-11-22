@@ -368,12 +368,12 @@ class _DatePickerField extends StatelessWidget {
       onTap: () => _pickDate(context),
       borderRadius: BorderRadius.circular(8),
       child: Container(
-        height: 38,
-        padding: const EdgeInsets.symmetric(horizontal: 10),
+        height: 40,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(
-          color: const Color(0x0AFFFFFF),
+          color: th.bgSurface,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: const Color(0x1AFFFFFF)),
+          border: Border.all(color: Colors.white.withAlpha(26)),
         ),
         child: Row(
           children: [
@@ -387,7 +387,7 @@ class _DatePickerField extends StatelessWidget {
               child: Text(
                 displayText,
                 style: TextStyle(
-                  fontSize: 13,
+                  fontSize: 14,
                   color: date != null ? th.textPrimary : th.textMuted,
                 ),
               ),
@@ -402,7 +402,6 @@ class _DatePickerField extends StatelessWidget {
                   color: Color(0xFF94A3B8),
                 ),
                 onPressed: () => onChange(''),
-                tooltip: 'Очистить',
               ),
           ],
         ),

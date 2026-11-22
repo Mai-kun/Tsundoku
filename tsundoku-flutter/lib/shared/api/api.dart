@@ -194,6 +194,16 @@ class AppSettings {
         closeAction: AppCloseAction.fromWire(json['closeAction'] as String),
       );
 
+  AppSettings copyWith({
+    AppLaunchMode? launchMode,
+    AppCloseAction? closeAction,
+  }) {
+    return AppSettings(
+      launchMode: launchMode ?? this.launchMode,
+      closeAction: closeAction ?? this.closeAction,
+    );
+  }
+
   Map<String, dynamic> toJson() => <String, dynamic>{
         'launchMode': launchMode.wire,
         'closeAction': closeAction.wire,

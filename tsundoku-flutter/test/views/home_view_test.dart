@@ -10,7 +10,6 @@ import 'package:material_ui/material_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tsundoku_flutter/shared/api/api.dart';
 import 'package:tsundoku_flutter/views/home_view.dart';
-import 'package:tsundoku_flutter/widgets/media-card/media_card.dart';
 
 class StubAdapter implements HttpClientAdapter {
   final ResponseBody Function(RequestOptions options) handler;

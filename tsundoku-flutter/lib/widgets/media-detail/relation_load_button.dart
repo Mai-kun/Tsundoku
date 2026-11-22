@@ -166,13 +166,16 @@ class _RelationLoadButtonState extends ConsumerState<RelationLoadButton> {
                       ),
                     ),
                   ),
-                  if (widget.loading)
+                  if (widget.loading) ...[
+                    const SizedBox(width: 8),
                     const SizedBox(
                       width: 13,
                       height: 13,
                       child: CircularProgressIndicator(
                           strokeWidth: 2, color: Color(0xFF10B981)),
                     ),
+                  ],
+                  const SizedBox(width: 8),
                   Icon(LucideIcons.chevronDown,
                       size: 13, color: const Color(0xFF94A3B8)), // slate-400
                 ],
@@ -195,13 +198,15 @@ class _RelationLoadButtonState extends ConsumerState<RelationLoadButton> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (widget.loading)
+                if (widget.loading) ...[
                   const SizedBox(
                     width: 13,
                     height: 13,
                     child: CircularProgressIndicator(
                         strokeWidth: 2, color: Color(0xFFA5B4FC)),
                   ),
+                  const SizedBox(width: 8), // gap-2
+                ],
                 Flexible(
                   child: Text(
                     widget.loading

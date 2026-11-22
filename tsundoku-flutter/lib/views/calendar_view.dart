@@ -690,9 +690,9 @@ class _CalendarViewState extends ConsumerState<CalendarView> {
           const SizedBox(height: 12),
           LayoutBuilder(
             builder: (context, constraints) {
-              final crossAxisCount = constraints.maxWidth >= 1100
+              final crossAxisCount = constraints.maxWidth >= 1536 // 2xl:grid-cols-3
                   ? 3
-                  : constraints.maxWidth >= 700
+                  : constraints.maxWidth >= 1024 // lg:grid-cols-2
                       ? 2
                       : 1;
 

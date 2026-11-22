@@ -56,8 +56,21 @@ class GameDetailSection extends ConsumerStatefulWidget {
 class _GameDetailSectionState extends ConsumerState<GameDetailSection> {
   static const int _pageSize = 60;
 
+  late final TextEditingController _searchController;
   String _searchQuery = '';
   int _currentPage = 1;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   bool _isUnlocked(GameAchievementItem ach) =>
       widget.unlockedNames.contains(ach.name.toLowerCase().trim());
@@ -183,6 +196,7 @@ class _GameDetailSectionState extends ConsumerState<GameDetailSection> {
                   constraints: const BoxConstraints(
                       maxWidth: 256), // w-56 sm:w-64
                   child: TextField(
+                    controller: _searchController,
                     onChanged: (value) => setState(() {
                       _searchQuery = value;
                       _currentPage = 1; // $effect-аналог: сброс страницы
@@ -200,6 +214,19 @@ class _GameDetailSectionState extends ConsumerState<GameDetailSection> {
                       fillColor: const Color(0xFF161A24), // bg-[#161a24]
                       contentPadding: const EdgeInsets.symmetric(
                           horizontal: 12, vertical: 6), // px-3 py-1.5
+                      suffixIcon: _searchQuery.isNotEmpty
+                          ? GestureDetector(
+                              onTap: () {
+                                _searchController.clear();
+                                setState(() {
+                                  _searchQuery = '';
+                                  _currentPage = 1;
+                                });
+                              },
+                              child: const Icon(LucideIcons.x,
+                                  size: 14, color: Color(0xFFA1A1AA)),
+                            )
+                          : null,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(6), // rounded-md
                         borderSide:
@@ -274,20 +301,31 @@ class _GameDetailSectionState extends ConsumerState<GameDetailSection> {
                     constraints: const BoxConstraints(
                         maxHeight: 520), // max-h-[520px]
                     child: SingleChildScrollView(
-                      child: Wrap(
-                        spacing: 10, // gap-2.5
-                        runSpacing: 10,
-                        children: [
-                          for (final ach in paged)
-                            _AchievementCard(
-                              ach: ach,
-                              isUnlocked: _isUnlocked(ach),
-                              isRu: isRu,
-                              th: th,
-                              onToggle: () =>
-                                  widget.onToggleAchievement(ach.name),
-                            ),
-                        ],
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          // grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3
+                          final w = constraints.maxWidth;
+                          final int cols = w >= 900 ? 3 : (w >= 540 ? 2 : 1);
+                          final cardWidth = (w - (cols - 1) * 10) / cols;
+                          return Wrap(
+                            spacing: 10, // gap-2.5
+                            runSpacing: 10,
+                            children: [
+                              for (final ach in paged)
+                                SizedBox(
+                                  width: cardWidth,
+                                  child: _AchievementCard(
+                                    ach: ach,
+                                    isUnlocked: _isUnlocked(ach),
+                                    isRu: isRu,
+                                    th: th,
+                                    onToggle: () =>
+                                        widget.onToggleAchievement(ach.name),
+                                  ),
+                                ),
+                            ],
+                          );
+                        },
                       ),
                     ),
                   ),
@@ -479,7 +517,6 @@ class _AchievementCard extends StatelessWidget {
       child: GestureDetector(
         onTap: onToggle,
         child: Container(
-          width: 300, // lg:grid-cols-3 ≈ треть панели
           padding: const EdgeInsets.all(10), // p-2.5
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(8), // rounded-lg
@@ -724,7 +761,8 @@ class _PageNavButtonState extends State<_PageNavButton> {
         onTap: widget.disabled ? null : widget.onTap,
         child: Container(
           height: 36, // h-9
-          padding: const EdgeInsets.symmetric(horizontal: 8),
+          constraints: const BoxConstraints(minWidth: 80),
+          padding: const EdgeInsets.symmetric(horizontal: 10),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(6), // rounded-md
             border: Border.all(color: Colors.white.withAlpha(26)), // /10
@@ -733,6 +771,7 @@ class _PageNavButtonState extends State<_PageNavButton> {
                 : Colors.transparent,
           ),
           child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
             mainAxisSize: MainAxisSize.min,
             children: [
               if (widget.iconFirst)

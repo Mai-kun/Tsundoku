@@ -292,7 +292,7 @@ class _GoalsViewState extends ConsumerState<GoalsView> {
                 backgroundColor: const Color(0xFF5446CF),
                 foregroundColor: Colors.white,
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                   side:
@@ -373,9 +373,9 @@ class _GoalsViewState extends ConsumerState<GoalsView> {
         LayoutBuilder(
           builder: (context, constraints) {
             final width = constraints.maxWidth;
-            final crossAxisCount = width >= 1100
+            final crossAxisCount = width >= 1280 // xl:grid-cols-3
                 ? 3
-                : width >= 700
+                : width >= 768 // md:grid-cols-2
                     ? 2
                     : 1;
 

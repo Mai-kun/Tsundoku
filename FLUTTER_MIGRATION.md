@@ -157,9 +157,12 @@
     в build/web). **Фаза 5 в работе:** порядок — виджеты stats/ → taste-profile
     → вью → модалки. Уже готово: StatsHeroBanner ✅ (4 теста; formatStatsNumber —
     Intl-аналог группировки разрядов; AdvancedStats.fromJson в тестах требует
-    ВСЕ num-поля — casting-литералы полные, scoreDistribution Map<String,dynamic>).
+    ВСЕ num-поля — casting-литералы полные, scoreDistribution Map<String,dynamic>) →
+    ActivityHeatmap ✅ (5 тестов; cells — Builder-гвард `w*7+d >= cells.length`
+    (RangeError при offset+365<371); Tooltip конфликтует с material_ui —
+    используется её Tooltip(message:)).
 
-**Прогресс: 170 / 207 файлов**
+**Прогресс: 171 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
@@ -168,8 +171,8 @@
 | 2 — `entities/` + карточки/сетка | 19 | 19 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 13 (ЗАКРЫТА, см. Phase Gate) |
 | 4 — Детальная страница + Spatial Node Editor | 59 | 59 |
-| 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 8 |
-| **Всего** | **207** | **170** |
+| 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 9 |
+| **Всего** | **207** | **171** |
 
 Долги Фаз 0–2 (не блокируют): —
 seriesProgressControllerProvider no-op-toast → инъекция в Фазе 3 (решение #35);
@@ -409,7 +412,7 @@ Spatial Node Editor; detailTypes/detailFormatters уже готовы pull-forwa
 | 2 | `widgets/media-grid/__tests__` | `virtualGrid.test.ts` | `—` | ⏭️ Заменено нативно | ⬜ | Тест JS-виртуализации не портируется; требования окна удаления покрываются widget/golden-тестами MediaGrid (Фаза 2) |
 | 2 | `widgets/media-grid` | `gridLayout.svelte.ts` | `lib/widgets/media-grid/grid_layout.dart` | ✅ Готов | ✅ | Модульный счётчик версий инвалидации layout'а → Riverpod Notifier<int> (bumpGridLayout/read + watch — аналог эффект-трекинга); 3 теста |
 | 2 | `widgets/media-grid` | `virtualGrid.ts` | `—` | ⏭️ Заменено нативно | ⬜ | Кастомный JS-виртуализатор сетки заменяется нативным GridView/custom_sliver_grid (сегменты секций — SectionRow); поведение окна удаления проверить на golden-ах |
-| 5 | `widgets/stats` | `ActivityHeatmap.svelte` | `lib/widgets/stats/activity_heatmap.dart` | ⬜ Не начат | ⬜ | — |
+| 5 | `widgets/stats` | `ActivityHeatmap.svelte` | `lib/widgets/stats/activity_heatmap.dart` | ✅ Готов | ✅ | Годовая сетка 53×7 (Monday-offset через weekday, leading-paddings; хвостовые empty при offset+365 < 371), 5 уровней интенсивности (intensity → alpha-цвета, #818cf8 max), Tooltip с DateFormat d MMM y (initializeDateFormatting по wire-локали), total в шапке (#a5b4fc) + футере, легенда 5 свотчей + Меньше/Больше; `today` — инъекция для детерминированных тестов (Svelte new Date()); LayoutBuilder ≥760px иначе horizontal scroll; 5 тестов |
 | 5 | `widgets/stats` | `BacklogHealth.svelte` | `lib/widgets/stats/backlog_health.dart` | ⬜ Не начат | ⬜ | — |
 | 5 | `widgets/stats` | `MonthlyActivityChart.svelte` | `lib/widgets/stats/monthly_activity_chart.dart` | ⬜ Не начат | ⬜ | — |
 | 5 | `widgets/stats` | `RatingPsychology.svelte` | `lib/widgets/stats/rating_psychology.dart` | ⬜ Не начат | ⬜ | — |

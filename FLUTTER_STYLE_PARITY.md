@@ -2,8 +2,8 @@
 
 ## 📍 Текущий фокус / Next Step
 * **Фаза:** S5 (widgets/media-detail/**, widgets/stats/**, widgets/goals/*)
-* **Текущий файл:** `mediatracker-ui/src/widgets/goals/GoalCard.svelte` -> `tsundoku-flutter/lib/widgets/goals/goal_card.dart`
-* **Цель:** Сверка GoalCard: карточка цели, прогресс-бар, удаление, превью завершенных тайтлов.
+* **Текущий файл:** `mediatracker-ui/src/widgets/stats/StatsHeroBanner.svelte` -> `tsundoku-flutter/lib/widgets/stats/stats_hero_banner.dart`
+* **Цель:** Сверка StatsHeroBanner: заголовок h1 text-2xl sm:text-3xl, 3 карточки метрик sm:grid-cols-3 gap-3.5 bg-[#151a26].
 
 ---
 
@@ -256,7 +256,7 @@
 | S5 | `mediatracker-ui/src/widgets/media-detail/tabs/GalleryTab.svelte` | `tsundoku-flutter/lib/widgets/media-detail/tabs/gallery_tab.dart` | ✅ Сверен 1:1 | Сетка 2..4 колонок через LayoutBuilder от доступной ширины, cardHovered открывает оверлей удаления карточки (group-hover:opacity-100), пустой стейт p-10 (40px) 1-в-1 | Да |
 | S5 | `mediatracker-ui/src/widgets/media-detail/tabs/RecommendationsTab.svelte` | `tsundoku-flutter/lib/widgets/media-detail/tabs/recommendations_tab.dart` | ✅ Сверен 1:1 | Сетка 2..5 колонок через LayoutBuilder, карточки aspect-[2/3] с ring-[var(--color-accent)] и scale-105 на hover, рейтинг amber-400 font-bold 1-в-1 | Да |
 | S5 | `mediatracker-ui/src/widgets/media-detail/tabs/RelatedTab.svelte` | `tsundoku-flutter/lib/widgets/media-detail/tabs/related_tab.dart` | ✅ Сверен 1:1 | 0 отличий (тонкая обёртка над RelatedPanel, прямая передача пропсов 1-в-1) | 0 отличий |
-| S5 | `mediatracker-ui/src/widgets/goals/GoalCard.svelte` | `tsundoku-flutter/lib/widgets/goals/goal_card.dart` | В очереди |  |  |
+| S5 | `mediatracker-ui/src/widgets/goals/GoalCard.svelte` | `tsundoku-flutter/lib/widgets/goals/goal_card.dart` | ✅ Сверен 1:1 | 0 отличий (bg-card border-white/[0.08] hover:border-white/20, size-11 иконка, прогресс-бар h-2.5 с градиентом/изумрудом, бейдж completed, 48x48 обложки 1-в-1) | 0 отличий |
 | S5 | `mediatracker-ui/src/widgets/stats/StatsHeroBanner.svelte` | `tsundoku-flutter/lib/widgets/stats/stats_hero_banner.dart` | В очереди |  |  |
 | S5 | `mediatracker-ui/src/widgets/stats/ActivityHeatmap.svelte` | `tsundoku-flutter/lib/widgets/stats/activity_heatmap.dart` | В очереди |  |  |
 | S5 | `mediatracker-ui/src/widgets/stats/MonthlyActivityChart.svelte` | `tsundoku-flutter/lib/widgets/stats/monthly_activity_chart.dart` | В очереди |  |  |

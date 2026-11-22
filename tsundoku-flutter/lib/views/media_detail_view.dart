@@ -3343,83 +3343,99 @@ class _MediaDetailViewState extends ConsumerState<MediaDetailView> {
                 onRetry: _retry,
               )
             else ...[
-              Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Left Column: Poster, Status + Rating, History, Actions.
-                    DetailSidebar(
-                      media: media,
-                      statusOptions: const [
-                        MediaStatus.planned,
-                        MediaStatus.inProgress,
-                        MediaStatus.completed,
-                        MediaStatus.onHold,
-                        MediaStatus.dropped,
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final isDesktop = constraints.maxWidth >= 1024; // lg:flex-row
+                  final sidebar = DetailSidebar(
+                    media: media,
+                    statusOptions: const [
+                      MediaStatus.planned,
+                      MediaStatus.inProgress,
+                      MediaStatus.completed,
+                      MediaStatus.onHold,
+                      MediaStatus.dropped,
+                    ],
+                    statusBusy: _statusBusy,
+                    onChangeStatus: _changeStatus,
+                    statusError: _statusError,
+                    scoreValue: _scoreValue,
+                    ratingOpen: _userRatingPopoverOpen,
+                    onRatingOpen: _openRatingPopover,
+                    onRatingClose: _closeRatingPopover,
+                    onRatingHide: _hideRatingPopover,
+                    onSetScore: _setScore,
+                    onClearScore: _clearScore,
+                    onSaveDetailedScore: _saveDetailedScore,
+                    formatDate: (value) => formatDate(value, t),
+                    watchedOnInput: _watchedOnInput,
+                    onWatchedOnInput: (value) {
+                      setState(() {
+                        _watchedOnInput = value;
+                        _watchedOnDirty = true;
+                      });
+                    },
+                    onWatchedOnDirty: () => _watchedOnDirty = true,
+                    onSaveWatchedOn: _saveWatchedOn,
+                    platformOptions: _gamePlatformOptions,
+                    onSelectPlatform: _updateUserPlatform,
+                    refreshBusy: _refreshBusy,
+                    syncStep: _syncStep,
+                    refreshError: _refreshError,
+                    onRefreshMetadata: _requestRefresh,
+                    fillMissingBusy: _fillMissingBusy,
+                    onFillMissing: () =>
+                        setState(() => _fillMissingOpen = true),
+                    onRelink: () => setState(() => _relinkOpen = true),
+                    onStartEdit: _startEdit,
+                    deleteBusy: _deleteBusy,
+                    deleteError: _deleteError,
+                    onDelete: _removeMedia,
+                    onAutoRefreshed: (updated) {
+                      setState(() {
+                        _media = updated;
+                        _syncFrom(updated);
+                      });
+                      widget.onUpdate();
+                    },
+                    onMediaUpdated: (updated) {
+                      setState(() {
+                        _media = updated;
+                        _syncFrom(updated);
+                      });
+                      widget.onUpdate();
+                    },
+                    specRows: specRows(media, t),
+                    syncing: _isSyncing,
+                  );
+
+                  final rightCol = _RightColumn(
+                    state: this,
+                    t: t,
+                    th: th,
+                    media: media,
+                  );
+
+                  if (isDesktop) {
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        sidebar,
+                        const SizedBox(width: 24), // gap-6
+                        Expanded(child: rightCol),
                       ],
-                      statusBusy: _statusBusy,
-                      onChangeStatus: _changeStatus,
-                      statusError: _statusError,
-                      scoreValue: _scoreValue,
-                      ratingOpen: _userRatingPopoverOpen,
-                      onRatingOpen: _openRatingPopover,
-                      onRatingClose: _closeRatingPopover,
-                      onRatingHide: _hideRatingPopover,
-                      onSetScore: _setScore,
-                      onClearScore: _clearScore,
-                      onSaveDetailedScore: _saveDetailedScore,
-                      formatDate: (value) => formatDate(value, t),
-                      watchedOnInput: _watchedOnInput,
-                      onWatchedOnInput: (value) {
-                        setState(() {
-                          _watchedOnInput = value;
-                          _watchedOnDirty = true;
-                        });
-                      },
-                      onWatchedOnDirty: () => _watchedOnDirty = true,
-                      onSaveWatchedOn: _saveWatchedOn,
-                      platformOptions: _gamePlatformOptions,
-                      onSelectPlatform: _updateUserPlatform,
-                      refreshBusy: _refreshBusy,
-                      syncStep: _syncStep,
-                      refreshError: _refreshError,
-                      onRefreshMetadata: _requestRefresh,
-                      fillMissingBusy: _fillMissingBusy,
-                      onFillMissing: () =>
-                          setState(() => _fillMissingOpen = true),
-                      onRelink: () => setState(() => _relinkOpen = true),
-                      onStartEdit: _startEdit,
-                      deleteBusy: _deleteBusy,
-                      deleteError: _deleteError,
-                      onDelete: _removeMedia,
-                      onAutoRefreshed: (updated) {
-                        setState(() {
-                          _media = updated;
-                          _syncFrom(updated);
-                        });
-                        widget.onUpdate();
-                      },
-                      onMediaUpdated: (updated) {
-                        setState(() {
-                          _media = updated;
-                          _syncFrom(updated);
-                        });
-                        widget.onUpdate();
-                      },
-                      specRows: specRows(media, t),
-                      syncing: _isSyncing,
-                    ),
-                    const SizedBox(width: 24), // gap-6
-                    // Right Column: Header, Badges, Tabs, Tab Content.
-                    Expanded(
-                      child: _RightColumn(
-                        state: this,
-                        t: t,
-                        th: th,
-                        media: media,
-                      ),
-                    ),
-                  ],
-                ),
+                    );
+                  } else {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        sidebar,
+                        const SizedBox(height: 24), // gap-6
+                        rightCol,
+                      ],
+                    );
+                  }
+                },
+              ),
             ],
             // Модалки: нативный popover — top-layer браузера; Flutter-аналог
             // OverlayPortal (Stack-модалка внутри скролл-контейнера получает
@@ -3601,11 +3617,11 @@ class _DetailSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: 320, // lg:grid-cols-[20rem_...]
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isDesktop = constraints.maxWidth >= 1024;
+        final leftBox = SizedBox(
+          width: isDesktop ? 320 : double.infinity, // lg:grid-cols-[20rem_...]
           child: AspectRatio(
             aspectRatio: 2 / 3,
             child: Container(
@@ -3616,40 +3632,58 @@ class _DetailSkeleton extends StatelessWidget {
               ),
             ),
           ),
-        ),
-        const SizedBox(width: 24), // gap-6
-        Expanded(
-          child: Column(
+        );
+
+        final rightBox = Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              height: 36, // h-9
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(4),
+                color: th.bgCard,
+              ),
+            ),
+            const SizedBox(height: 16), // space-y-4
+            Container(
+              height: 16, // h-4
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(4),
+                color: th.bgCard,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              height: 160, // h-40
+              decoration: BoxDecoration(
+                borderRadius:
+                    BorderRadius.circular(TsundokuPalette.radiusBox),
+                color: th.bgCard,
+              ),
+            ),
+          ],
+        );
+
+        if (isDesktop) {
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              leftBox,
+              const SizedBox(width: 24), // gap-6
+              Expanded(child: rightBox),
+            ],
+          );
+        } else {
+          return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Container(
-                height: 36, // h-9
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(4),
-                  color: th.bgCard,
-                ),
-              ),
-              const SizedBox(height: 16), // space-y-4
-              Container(
-                height: 16, // h-4
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(4),
-                  color: th.bgCard,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Container(
-                height: 160, // h-40
-                decoration: BoxDecoration(
-                  borderRadius:
-                      BorderRadius.circular(TsundokuPalette.radiusBox),
-                  color: th.bgCard,
-                ),
-              ),
+              leftBox,
+              const SizedBox(height: 24), // gap-6
+              rightBox,
             ],
-          ),
-        ),
-      ],
+          );
+        }
+      },
     );
   }
 }

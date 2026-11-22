@@ -3,12 +3,17 @@
 /// ссылки — url_launcher (xdg-open и аналоги).
 library;
 
+// ignore_for_file: deprecated_member_use
+
+import 'dart:async';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/painting.dart' show Color, Size;
 import 'package:super_clipboard/super_clipboard.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:nativeapi/nativeapi.dart' as nativeapi;
+import 'package:window_manager/legacy.dart';
 
 import 'platform_service.dart';
 
@@ -16,6 +21,25 @@ final PlatformService platformService = const IoPlatformService();
 
 class IoPlatformService implements PlatformService {
   const IoPlatformService();
+
+  @override
+  Future<void> initWindow() async {
+    if (Platform.isLinux || Platform.isWindows || Platform.isMacOS) {
+      await windowManager.ensureInitialized();
+      const windowOptions = WindowOptions(
+        size: Size(1440, 900),
+        minimumSize: Size(960, 640),
+        center: true,
+        backgroundColor: Color(0xFF0D0F14),
+        skipTaskbar: false,
+        title: 'Tsundoku',
+      );
+      await windowManager.waitUntilReadyToShow(windowOptions, () async {
+        await windowManager.show();
+        await windowManager.focus();
+      });
+    }
+  }
 
   @override
   Future<void> copyText(String text) async {
@@ -32,6 +56,44 @@ class IoPlatformService implements PlatformService {
     final item = DataWriterItem(suggestedName: 'cover.png')
       ..add(Formats.png(pngBytes));
     await clipboard.write([item]);
+  }
+
+  @override
+  Future<({Uint8List bytes, String mimeType})?> pasteImage() async {
+    final clipboard = SystemClipboard.instance;
+    if (clipboard == null) return null;
+    final reader = await clipboard.read();
+    if (reader.canProvide(Formats.png)) {
+      final completer = Completer<Uint8List?>();
+      reader.getFile(Formats.png, (file) async {
+        try {
+          final bytes = await file.readAll();
+          completer.complete(bytes);
+        } catch (_) {
+          completer.complete(null);
+        }
+      }, onError: (_) => completer.complete(null));
+      final bytes = await completer.future;
+      if (bytes != null && bytes.isNotEmpty) {
+        return (bytes: bytes, mimeType: 'image/png');
+      }
+    }
+    if (reader.canProvide(Formats.jpeg)) {
+      final completer = Completer<Uint8List?>();
+      reader.getFile(Formats.jpeg, (file) async {
+        try {
+          final bytes = await file.readAll();
+          completer.complete(bytes);
+        } catch (_) {
+          completer.complete(null);
+        }
+      }, onError: (_) => completer.complete(null));
+      final bytes = await completer.future;
+      if (bytes != null && bytes.isNotEmpty) {
+        return (bytes: bytes, mimeType: 'image/jpeg');
+      }
+    }
+    return null;
   }
 
   @override
@@ -64,11 +126,8 @@ class IoPlatformService implements PlatformService {
 
   @override
   Future<void> closeWindow() async {
-    // Закрытие desktop-окна: текущее окно nativeapi (window_manager 0.7
-    // re-export). window_manager за фасадом §1.3.
-    final window = nativeapi.WindowManager.instance.getCurrent();
-    if (window != null) {
-      window.close(); // bool — fire-and-forget (не Future).
+    if (Platform.isLinux || Platform.isWindows || Platform.isMacOS) {
+      await windowManager.close();
     }
   }
 }

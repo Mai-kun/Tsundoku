@@ -9,12 +9,21 @@ library;
 import 'dart:typed_data';
 
 abstract interface class PlatformService {
+  /// Инициализация параметров окна десктопного приложения (стартовый размер
+  /// 1440×900, min 960×640, title "Tsundoku", тёмный фон #0d0f14).
+  /// На Web — no-op.
+  Future<void> initWindow();
+
   /// `navigator.clipboard.writeText` (копирование названия/URL обложки).
   Future<void> copyText(String text);
 
   /// `navigator.clipboard.write(image/png)` — копирование обложки в буфер.
   /// Байты уже перекодированы в PNG вызывающим кодом (dart:ui).
   Future<void> copyImagePng(Uint8List pngBytes);
+
+  /// Чтение изображения из буфера обмена (Ctrl+V в галерее тайтла).
+  /// Возвращает (bytes, mimeType) или null, если в буфере нет картинки.
+  Future<({Uint8List bytes, String mimeType})?> pasteImage();
 
   /// Сохранение файла на диск: браузерная download-ссылка (web) или
   /// native save-dialog (desktop). [bytes] уже скачаны вызывающим кодом

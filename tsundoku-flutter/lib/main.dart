@@ -22,10 +22,45 @@ import 'package:material_ui/material_ui.dart';
 
 import 'app/app.dart';
 import 'shared/api/api.dart';
+import 'shared/platform/platform.dart';
+
 export 'app/app.dart' show TsundokuApp;
 
+/// Извлекает базовый URL API из CLI-аргументов или окружения.
+///
+/// - `--url <value>` или `--url=<value>`: приоритетное значение;
+/// - Web (`kIsWeb`): `Uri.base.origin`;
+/// - Desktop fallback: `http://127.0.0.1:5000` (стандартный порт бэкенда).
+String parseBaseUrl(List<String> args) {
+  for (int i = 0; i < args.length; i++) {
+    final arg = args[i];
+    if (arg.startsWith('--url=')) {
+      final val = arg.substring('--url='.length).trim();
+      if (val.isNotEmpty) return val;
+    } else if (arg == '--url' && i + 1 < args.length) {
+      final val = args[i + 1].trim();
+      if (val.isNotEmpty) return val;
+    }
+  }
 
-void main() {
+  if (kIsWeb) {
+    try {
+      final origin = Uri.base.origin;
+      if (origin.isNotEmpty && origin != 'null') {
+        return origin;
+      }
+    } catch (_) {}
+  }
+
+  return 'http://127.0.0.1:5000';
+}
+
+Future<void> main(List<String> args) async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await platformService.initWindow();
+
+  final initialUrl = parseBaseUrl(args);
+
   // window.onerror → sendClientLog (1-в-1 с main.ts).
   FlutterError.onError = (details) {
     if (kDebugMode) FlutterError.presentError(details);
@@ -34,7 +69,10 @@ void main() {
       details.stack?.toString(),
     );
   };
-  runApp(const ProviderScope(child: TsundokuRoot()));
+
+  runApp(ProviderScope(
+    child: TsundokuRoot(initialBaseUrl: initialUrl),
+  ));
 }
 
 void _sendClientLog(String message, String? stack) {
@@ -54,19 +92,21 @@ class AppClientLogHook {
 }
 
 class TsundokuRoot extends StatelessWidget {
-  const TsundokuRoot({super.key});
+  final String initialBaseUrl;
+
+  const TsundokuRoot({super.key, this.initialBaseUrl = 'http://127.0.0.1:5000'});
 
   @override
   Widget build(BuildContext context) {
-    return const _ApiBootstrap();
+    return _ApiBootstrap(initialBaseUrl: initialBaseUrl);
   }
 }
 
-/// Прикрепляет apiBaseUrlProvider к App (пока без аргумента `--url`: старт
-/// с локальным сервером по умолчанию; значение переопределяется при старте
-/// UI-бинаря) и рендерит App.
+/// Прикрепляет apiBaseUrlProvider к App и рендерит App.
 class _ApiBootstrap extends ConsumerStatefulWidget {
-  const _ApiBootstrap();
+  final String initialBaseUrl;
+
+  const _ApiBootstrap({required this.initialBaseUrl});
 
   @override
   ConsumerState<_ApiBootstrap> createState() => _ApiBootstrapState();
@@ -78,9 +118,7 @@ class _ApiBootstrapState extends ConsumerState<_ApiBootstrap> {
     super.initState();
     // Провайдер-модификации — после монтирования дерева (Riverpod запрет).
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // baseUrl нигде не хардкодится: дефолт локального сервера задаётся при
-      // старте UI-бинаря (--url); здесь — значение по умолчанию для отладки.
-      ref.read(apiBaseUrlProvider.notifier).set('http://127.0.0.1:5150');
+      ref.read(apiBaseUrlProvider.notifier).set(widget.initialBaseUrl);
       final api = ref.read(apiClientProvider);
       AppClientLogHook.api = api;
     });

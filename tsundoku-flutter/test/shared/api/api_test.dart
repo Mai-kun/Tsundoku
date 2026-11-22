@@ -361,6 +361,16 @@ void main() {
     });
   });
 
+  group('Desktop HTTP Transport (baseUrl propagation)', () {
+    test('_opts propagates baseUrl to RequestOptions so uri has full host', () async {
+      api = makeApi((options) => jsonBody([]));
+      await api.getMedia();
+      final seenOptions = adapter.seen.single;
+      expect(seenOptions.baseUrl, 'http://127.0.0.1:5150');
+      expect(seenOptions.uri.toString(), startsWith('http://127.0.0.1:5150/api/media'));
+    });
+  });
+
   group('Таймаут 15s (аналог AbortSignal.timeout(15000))', () {
     test('requestTimeout = 15000ms и выставлен на каждый запрос', () async {
       api = makeApi((options) => jsonBody(null));

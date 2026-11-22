@@ -11,10 +11,16 @@ final PlatformService platformService = _UnsupportedPlatformService();
 
 class _UnsupportedPlatformService implements PlatformService {
   @override
+  Future<void> initWindow() async {}
+
+  @override
   Future<void> copyText(String text) async => _unsupported();
 
   @override
   Future<void> copyImagePng(Uint8List pngBytes) async => _unsupported();
+
+  @override
+  Future<({Uint8List bytes, String mimeType})?> pasteImage() async => null;
 
   @override
   Future<void> saveFile({

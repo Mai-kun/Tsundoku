@@ -18,6 +18,11 @@ class WebPlatformService implements PlatformService {
   const WebPlatformService();
 
   @override
+  Future<void> initWindow() async {
+    // В Web размер окна и заголовок контролируются браузером.
+  }
+
+  @override
   Future<void> copyText(String text) async {
     await web.window.navigator.clipboard.writeText(text).toDart;
   }
@@ -31,6 +36,12 @@ class WebPlatformService implements PlatformService {
     await web.window.navigator.clipboard
         .write([web.ClipboardItem(items)].toJS)
         .toDart;
+  }
+
+  @override
+  Future<({Uint8List bytes, String mimeType})?> pasteImage() async {
+    // В Web буфер обмена для изображений требует Clipboard API или обработчика события onPaste.
+    return null;
   }
 
   @override

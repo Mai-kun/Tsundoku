@@ -402,6 +402,7 @@ class TsundokuApi {
     String? contentType,
   }) =>
       RequestOptions(
+        baseUrl: dio.options.baseUrl,
         path: path,
         method: method,
         data: body,

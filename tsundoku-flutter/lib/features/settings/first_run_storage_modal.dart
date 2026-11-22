@@ -126,6 +126,7 @@ class _FirstRunStorageModalState extends ConsumerState<FirstRunStorageModal> {
       onClose: () {},
       closable: false,
       size: ModalSize.md,
+      contentPadding: EdgeInsets.zero,
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(

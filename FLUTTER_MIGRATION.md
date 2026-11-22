@@ -166,10 +166,12 @@
     иконка Scale, сегментированный бар с тултипами segmentTooltip, легенда со счётчиками,
     4 вердикта, ссылка на ревизию бэклога; plannedTitles в AdvancedStats) →
     RatingPsychology ✅ (5 тестов; заголовок + средняя оценка, 10 рядов распределения
-    с amber-градиентными барами, средние по категориям).
-    Следующий: TimeDistributionDonut.svelte.
+    с amber-градиентными барами, средние по категориям) → TimeDistributionDonut ✅ (4 теста;
+    CustomPainter кольцевой диаграммы радиус 70 толщина 20, общее время в центре,
+    адаптивная сетка карточек 6 категорий).
+    Следующий: TopGenresBar.svelte.
 
-**Прогресс: 174 / 207 файлов**
+**Прогресс: 175 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
@@ -178,8 +180,8 @@
 | 2 — `entities/` + карточки/сетка | 19 | 19 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 13 (ЗАКРЫТА, см. Phase Gate) |
 | 4 — Детальная страница + Spatial Node Editor | 59 | 59 |
-| 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 12 |
-| **Всего** | **207** | **174** |
+| 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 13 |
+| **Всего** | **207** | **175** |
 
 Долги Фаз 0–2 (не блокируют): —
 seriesProgressControllerProvider no-op-toast → инъекция в Фазе 3 (решение #35);
@@ -424,7 +426,7 @@ Spatial Node Editor; detailTypes/detailFormatters уже готовы pull-forwa
 | 5 | `widgets/stats` | `MonthlyActivityChart.svelte` | `lib/widgets/stats/monthly_activity_chart.dart` | ✅ Готов | ✅ | Столбчатый график завершений за 12 месяцев (1-в-1 с Svelte): иконка-заголовок calendarDays, бейдж-итог (stats.completedInYear), колонки с FractionallySizedBox и hover-тултипы, нулевой месяц — плоская плашка без числа, подписи месяцев снизу (DateFormat MMM wire-локаль), min-w-[340px] с горизонтальным скроллом на узких экранах; 6 тестов |
 | 5 | `widgets/stats` | `RatingPsychology.svelte` | `lib/widgets/stats/rating_psychology.dart` | ✅ Готов | ✅ | Психология оценок (1-в-1 с Svelte): заголовок и средний балл (stats.averagePrefix), 10 строк оценок 1..10 (amber-400 звёзды, градиентные FractionallySizedBox-бары, счётчики), средний балл по категориям (игры, фильмы, сериалы, аниме, книги, манга); 5 тестов |
 | 5 | `widgets/stats` | `StatsHeroBanner.svelte` | `lib/widgets/stats/stats_hero_banner.dart` | ✅ Готов | ✅ | Hero: тайтл/подзаголовок (t.tf с formatStatsNumber — Intl-группировка: ru-пробелы, en-запятые), три метрики (стрик flame/amber, средний балл star/yellow, завершения checkCircle/emerald) — LayoutBuilder ≥640px → 3 колонки (Wrap), иначе 1; карточки bg-[#151a26] border-white/5; 4 теста |
-| 5 | `widgets/stats` | `TimeDistributionDonut.svelte` | `lib/widgets/stats/time_distribution_donut.dart` | ⬜ Не начат | ⬜ | — |
+| 5 | `widgets/stats` | `TimeDistributionDonut.svelte` | `lib/widgets/stats/time_distribution_donut.dart` | ✅ Готов | ✅ | Кольцевая диаграмма распределения времени (1-в-1 с Svelte): CustomPainter (радиус 70, stroke-width 20, старт -90°), центр кольца с stats.totalHours и stats.totalTime, адаптивная сетка 6 категорий (игры, сериалы, фильмы, аниме, книги, манга) со счётчиками часов, процентов и доп. единицами (эп., стр., гл.); 4 теста |
 | 5 | `widgets/stats` | `TopGenresBar.svelte` | `lib/widgets/stats/top_genres_bar.dart` | ⬜ Не начат | ⬜ | — |
 | 5 | `widgets/stats` | `TrackerBadges.svelte` | `lib/widgets/stats/tracker_badges.dart` | ⬜ Не начат | ⬜ | — |
 | 5 | `widgets/stats/taste-profile` | `CriticalDivergenceCard.svelte` | `lib/widgets/stats/taste-profile/critical_divergence_card.dart` | ⬜ Не начат | ⬜ | — |

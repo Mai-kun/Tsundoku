@@ -180,10 +180,12 @@
     CriticalDivergenceCard ✅ (5 тестов; карточка «Я против всего мира», шедевр 💎 и разочарование 💔,
     userScore vs worldRating, бейджи дельты +X/-Y, колбек onOpenMedia, адаптивная сетка 1/2 колонки) →
     DropAnalyticsCard ✅ (5 тестов; анатомия дропа, бейдж всего брошено, точка невозврата со средним %,
-    3-цветный прогресс-бар ранний/средний/поздний с тултипами, топ причин с барами, цитата-инсайт).
-    Следующий: EraAffinityCard.svelte.
+    3-цветный прогресс-бар ранний/средний/поздний с тултипами, топ причин с барами, цитата-инсайт) →
+    EraAffinityCard ✅ (4 теста; золотая эпоха, иконка Crown, горизонтальные прогресс-бары с чередующимися
+    цветами accent/#818cf8, лейблы десятилетий, счетчики и процентные доли, empty state).
+    Следующий: GenreParadoxCard.svelte.
 
-**Прогресс: 181 / 207 файлов**
+**Прогресс: 182 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
@@ -192,8 +194,8 @@
 | 2 — `entities/` + карточки/сетка | 19 | 19 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 13 (ЗАКРЫТА, см. Phase Gate) |
 | 4 — Детальная страница + Spatial Node Editor | 59 | 59 |
-| 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 19 |
-| **Всего** | **207** | **181** |
+| 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 20 |
+| **Всего** | **207** | **182** |
 
 Долги Фаз 0–2 (не блокируют): —
 seriesProgressControllerProvider no-op-toast → инъекция в Фазе 3 (решение #35);
@@ -443,7 +445,7 @@ Spatial Node Editor; detailTypes/detailFormatters уже готовы pull-forwa
 | 5 | `widgets/stats` | `TrackerBadges.svelte` | `lib/widgets/stats/tracker_badges.dart` | ✅ Готов | ✅ | Достижения медиатеки (1-в-1 с Svelte): иконка Trophy + счётчик разблокированных, 6 бейджей (Клуб сотен, Библиофил, Мастер стриков, Хранитель времени, Перфекционист, Омнивор), плашки «РАЗБЛОКИРОВАНО ✓» или прогресс-бары с процентами; 4 теста |
 | 5 | `widgets/stats/taste-profile` | `CriticalDivergenceCard.svelte` | `lib/widgets/stats/taste-profile/critical_divergence_card.dart` | ✅ Готов | ✅ | Карточка «Я против всего мира» (1-в-1 с Svelte): тайный шедевр 💎 и разочарование 💔, постер/плейсхолдер Image, сравнение userScore vs worldRating, бейдж разрыва с дельтой, пустой стейт, колбек onOpenMedia; 5 тестов |
 | 5 | `widgets/stats/taste-profile` | `DropAnalyticsCard.svelte` | `lib/widgets/stats/taste-profile/drop_analytics_card.dart` | ✅ Готов | ✅ | Анатомия дропа (1-в-1 с Svelte): иконка Ban, бейдж всего брошено, точка невозврата со средним процентом прогресса, 3-цветный прогресс-бар (ранний <20%, в середине 20-70%, в шаге от финала >70%) с тултипами, легенда со счётчиками, топ причин дропа с барами, цитата-инсайт; 5 тестов |
-| 5 | `widgets/stats/taste-profile` | `EraAffinityCard.svelte` | `lib/widgets/stats/taste-profile/era_affinity_card.dart` | ⬜ Не начат | ⬜ | — |
+| 5 | `widgets/stats/taste-profile` | `EraAffinityCard.svelte` | `lib/widgets/stats/taste-profile/era_affinity_card.dart` | ✅ Готов | ✅ | Золотая эпоха (1-в-1 с Svelte): иконка Crown, горизонтальные прогресс-бары с чередующимися цветами accent/#818cf8, лейблы десятилетий (1980-е..2020-е, До 1980-х), счетчики тайтлов и проценты, empty state; 4 теста |
 | 5 | `widgets/stats/taste-profile` | `GenreParadoxCard.svelte` | `lib/widgets/stats/taste-profile/genre_paradox_card.dart` | ⬜ Не начат | ⬜ | — |
 | 5 | `widgets/stats/taste-profile` | `GenreRadarChart.svelte` | `lib/widgets/stats/taste-profile/genre_radar_chart.dart` | ✅ Готов | ✅ | CustomPainter радар вкуса (до 6 осей, min-w 448 AspectRatio 430/340, фоновая паутина 25/50/75/100%, indigo-полигон объёма, звёздочки и средний балл, бейджи жанров через genreLabel, empty state 1-в-1); 4 теста |
 | 5 | `widgets/stats/taste-profile` | `SunkCostCard.svelte` | `lib/widgets/stats/taste-profile/sunk_cost_card.dart` | ⬜ Не начат | ⬜ | — |

@@ -205,10 +205,11 @@
     CreateListModal ✅ (4 теста; модалка создания/редактирования списков: выбор палитры из 6 цветов, 6 иконок, переключатель обычный/умный список, интеграция со SmartListBuilder, живой предпросмотр подходящих тайтлов) →
     SmartListBuilder ✅ (5 тестов; визуальный конструктор умных списков: 5 быстрых пресетов, секции Scope/Оценки/Даты/Метаданные/Сортировка и лимит, локальная синхронная оценка `evaluateLocally` с live-матчингом тайтлов) →
     SearchModal ✅ (5 тестов; модалка внешнего поиска тайтлов: группировка по категориям/список, селектор источников с офлайн-метками, распознавание URL/ISBN бейджей, добавление/удаление в библиотеку, предпросмотр ExternalDetailModal) →
-    FirstRunStorageModal ✅ (4 теста; визард первого запуска: 3 варианта хранилища — default, portable, custom с валидацией пути, вызов saveStorageSettings и ожидание перезапуска бэкенда через waitForBackendRestart).
-    Следующий: SettingsModal.svelte.
+    FirstRunStorageModal ✅ (4 теста; визард первого запуска: 3 варианта хранилища — default, portable, custom с валидацией пути, вызов saveStorageSettings и ожидание перезапуска бэкенда через waitForBackendRestart) →
+    SettingsModal ✅ (5 тестов; модалка настроек размера xl с поддержкой оверлейного и embedded-режима, делегированием 10 вкладок в SettingsView и пробросом навигационных колбеков).
+    Следующий: StaleBacklogModal.svelte (ФИНАЛЬНЫЙ ФАЙЛ МИГРАЦИИ).
 
-**Прогресс: 201 / 207 файлов**
+**Прогресс: 202 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
@@ -217,8 +218,8 @@
 | 2 — `entities/` + карточки/сетка | 19 | 19 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 13 (ЗАКРЫТА, см. Phase Gate) |
 | 4 — Детальная страница + Spatial Node Editor | 59 | 59 |
-| 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 39 |
-| **Всего** | **207** | **201** |
+| 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 40 |
+| **Всего** | **207** | **202** |
 
 Долги Фаз 0–2 (не блокируют): —
 seriesProgressControllerProvider no-op-toast → инъекция в Фазе 3 (решение #35);
@@ -325,7 +326,7 @@ Spatial Node Editor; detailTypes/detailFormatters уже готовы pull-forwa
 | 0 | `features/prefetch-details` | `mediaDetailPrefetch.ts` | `lib/features/prefetch-details/media_detail_prefetch.dart` | ✅ Готов | ✅ | mediaDetailCache (5min TTL) + updateCachedDetailProgress + prefetchMediaDetail; HoverPrefetchScheduler (150ms intent + scroll-guard — MediaGrid Фаза 2); core/Ref-разделение (решение #16); fakeAsync-тесты |
 | 5 | `features/search-external` | `SearchModal.svelte` | `lib/features/search-external/search_modal.dart` | ✅ Готов | ✅ | Модалка внешнего поиска тайтлов (группировка по категориям/список, селектор источников, распознавание URL/ISBN, добавление/удаление в библиотеку, предпросмотр ExternalDetailModal); 5 тестов |
 | 5 | `features/settings` | `FirstRunStorageModal.svelte` | `lib/features/settings/first_run_storage_modal.dart` | ✅ Готов | ✅ | Визард первого запуска (3 варианта хранилища: default, portable, custom с валидацией пути, сохранение и ожидание waitForBackendRestart); 4 теста |
-| 5 | `features/settings` | `SettingsModal.svelte` | `lib/features/settings/settings_modal.dart` | ⬜ Не начат | ⬜ | — |
+| 5 | `features/settings` | `SettingsModal.svelte` | `lib/features/settings/settings_modal.dart` | ✅ Готов | ✅ | Модалка настроек (размер xl, поддержка embedded: true/false, делегирование 10 вкладок в SettingsView); 5 тестов |
 | 5 | `features/stale-triage` | `StaleBacklogModal.svelte` | `lib/features/stale-triage/stale_backlog_modal.dart` | ⬜ Не начат | ⬜ | — |
 | 0 | `features/update-progress` | `optimisticProgress.svelte.ts` | `lib/features/update-progress/optimistic_progress.dart` | ✅ Готов | ✅ | SvelteMap → Notifier Map-стейт; apply/resolve/clear/peek (TTL 15s + applyAt test-hook)/reconcile/reconcileListProgress; тесты |
 | 0 | `features/update-progress` | `progressController.svelte.ts` | `lib/features/update-progress/progress_controller.dart` | ✅ Готов | ✅ | CardProgressState: step/debounce(delayOverride 50ms)/promotion rule 1 + toast-инъекция (#15)/undo/keepStatus/onItemReplaced reconcile; ошибка → откат; тесты реального loop |

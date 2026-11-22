@@ -2,8 +2,8 @@
 
 ## 📍 Текущий фокус / Next Step
 * **Фаза:** S5 (widgets/media-detail/**, widgets/stats/**, widgets/goals/*)
-* **Текущий файл:** `mediatracker-ui/src/widgets/media-detail/sections/PeopleSizeToggle.svelte` -> `tsundoku-flutter/lib/widgets/media-detail/sections/people_size_toggle.dart`
-* **Цель:** Сверка PeopleSizeToggle: переключатель размера аватаров актёров/создателей (sm/md/lg).
+* **Текущий файл:** `mediatracker-ui/src/widgets/media-detail/sections/BookProgressSection.svelte` -> `tsundoku-flutter/lib/widgets/media-detail/sections/book_progress_section.dart`
+* **Цель:** Сверка BookProgressSection: секция прогресса чтения книги.
 
 ---
 
@@ -236,7 +236,7 @@
 | S5 | `mediatracker-ui/src/widgets/media-detail/panels/RelatedPanel.svelte` | `tsundoku-flutter/lib/widgets/media-detail/panels/related_panel.dart` | ✅ Сверен 1:1 | заголовок uppercase tracking-wider text-sm font-bold text-slate-300, переключатель режимов h-8 w-8 rounded-md bg-[var(--color-track-alt)] border-white/[0.08] p-1 с иконками 17px, сетка карточек 2..5 колонок с gap-3 (12px), карточка aspect-[2/3] rounded-xl border-white/[0.06] bg-[var(--color-overlay-strong)], бейдж статуса top-2.5 left-2.5 со score 28x28 (-ml-2), градиент p-3 pt-12, таймлайн с маркерами 24x24 border-2 и строками gap-3.5 rounded-xl border p-2.5 1-в-1 | Да |
 | S5 | `mediatracker-ui/src/widgets/media-detail/panels/RelatedPreviewModal.svelte` | `tsundoku-flutter/lib/widgets/media-detail/panels/related_preview_modal.dart` | ✅ Сверен 1:1 | ModalSize.md, contentPadding: zero для исключения удвоения внешних отступов, ConstrainedBox maxHeight: 0.85vh (max-h-[85vh]), кнопка закрытия 32x32 rounded-lg top-4 right-4, постер 160x240 (w-40 aspect-[2/3]) rounded-lg bg-canvas, бейдж типа uppercase tracking-wider text-[11px] rounded-full, чипы рейтингов с точным цветом звезд amber-500 #f59e0b, разделитель описания mt-5 pt-4 border-t border-white/[0.08] с uppercase tracking-wider заголовком text-xs 1-в-1 | Да |
 | S5 | `mediatracker-ui/src/widgets/media-detail/sections/ProgressCard.svelte` | `tsundoku-flutter/lib/widgets/media-detail/sections/progress_card.dart` | ✅ Сверен 1:1 | 0 отличий (SVG-кольцо size-[104px] r=48 stroke-8 text-lg font-bold tabular-nums, label uppercase tracking-wider text-xs font-bold, счётчик 38px font-extrabold с counter-pop 180ms и тапом на ручной ввод 28px w-24, кнопки − (32x32 rounded-lg), +1 (h-8 px-3 text-xs font-bold), +5 (h-8 px-2.5 text-xs font-bold), Start (h-9 px-4 text-sm font-bold), прогресс-трек h-2.5 сегменты/бар с drag и точками 25/50/75/100%, плашки completed px-3.5 py-3 rounded-xl border-emerald-400/20 и времени bg-black/15, pace-чипы h-6 min-w-7 rounded-md px-1.5 1-в-1) | 0 отличий |
-| S5 | `mediatracker-ui/src/widgets/media-detail/sections/PeopleSizeToggle.svelte` | `tsundoku-flutter/lib/widgets/media-detail/sections/people_size_toggle.dart` | В очереди |  |  |
+| S5 | `mediatracker-ui/src/widgets/media-detail/sections/PeopleSizeToggle.svelte` | `tsundoku-flutter/lib/widgets/media-detail/sections/people_size_toggle.dart` | ✅ Сверен 1:1 | 0 отличий (inline-flex rounded-lg border-white/[0.08] bg-white/[0.03] p-0.5 gap-0.5, кнопки size-6 rounded-md с List/LayoutGrid 14px, активная bg-accent text-white, неактивная text-muted hover:text-white с тултипами 1-в-1) | 0 отличий |
 | S5 | `mediatracker-ui/src/widgets/media-detail/sections/BookProgressSection.svelte` | `tsundoku-flutter/lib/widgets/media-detail/sections/book_progress_section.dart` | В очереди |  |  |
 | S5 | `mediatracker-ui/src/widgets/media-detail/sections/BookEditionSection.svelte` | `tsundoku-flutter/lib/widgets/media-detail/sections/book_edition_section.dart` | В очереди |  |  |
 | S5 | `mediatracker-ui/src/widgets/media-detail/sections/CastSection.svelte` | `tsundoku-flutter/lib/widgets/media-detail/sections/cast_section.dart` | В очереди |  |  |

@@ -2,8 +2,8 @@
 
 ## 📍 Текущий фокус / Next Step
 * **Фаза:** S4 (features/**)
-* **Текущий файл:** `mediatracker-ui/src/features/create-media/GameFormFields.svelte` -> `tsundoku-flutter/lib/features/create-media/game_form_fields.dart`
-* **Цель:** Сверка GameFormFields: платформа (input), сыгранные часы (input number), сетка sm:grid-cols-2 gap-4.
+* **Текущий файл:** `mediatracker-ui/src/features/create-media/MangaFormFields.svelte` -> `tsundoku-flutter/lib/features/create-media/manga_form_fields.dart`
+* **Цель:** Сверка MangaFormFields: автор, главы, текущий том, всего томов, grid sm:grid-cols-2 gap-4.
 
 ---
 
@@ -210,7 +210,7 @@
 | S4 | `mediatracker-ui/src/features/create-media/CreateModal.svelte` | `tsundoku-flutter/lib/features/create-media/create_modal.dart` | ✅ Сверен 1:1 | 0 отличий (тонкий legacy-адаптер 1-в-1 делегирует в EditMediaWorkspace) | 0 отличий |
 | S4 | `mediatracker-ui/src/features/create-media/FormField.svelte` | `tsundoku-flutter/lib/features/create-media/form_field.dart` | ✅ Сверен 1:1 | 0 отличий (TsundokuFormField text-ink space-y-1.5 text-sm font-medium, createFieldDecoration h-10 px-3 bg-field, createFieldBorder rounded-lg border-white/10 1-в-1) | 0 отличий |
 | S4 | `mediatracker-ui/src/features/create-media/BookFormFields.svelte` | `tsundoku-flutter/lib/features/create-media/book_form_fields.dart` | ✅ Сверен 1:1 | 0 отличий (space-y-4 16px, grid sm:grid-cols-2 gap-4 16px, автор h-10, селект формата 6 опций, динамическое переключение ранобэ/книга на главы+тома или страницы 1-в-1) | 0 отличий |
-| S4 | `mediatracker-ui/src/features/create-media/GameFormFields.svelte` | `tsundoku-flutter/lib/features/create-media/game_form_fields.dart` | В очереди |  |  |
+| S4 | `mediatracker-ui/src/features/create-media/GameFormFields.svelte` | `tsundoku-flutter/lib/features/create-media/game_form_fields.dart` | ✅ Сверен 1:1 | 0 отличий (grid gap-4 sm:grid-cols-2 16px, platform h-10 px-3, hoursPlayed h-10 number min-0 1-в-1) | 0 отличий |
 | S4 | `mediatracker-ui/src/features/create-media/MangaFormFields.svelte` | `tsundoku-flutter/lib/features/create-media/manga_form_fields.dart` | В очереди |  |  |
 | S4 | `mediatracker-ui/src/features/create-media/MovieFormFields.svelte` | `tsundoku-flutter/lib/features/create-media/movie_form_fields.dart` | В очереди |  |  |
 | S4 | `mediatracker-ui/src/features/create-media/TvShowFormFields.svelte` | `tsundoku-flutter/lib/features/create-media/tvshow_form_fields.dart` | В очереди |  |  |

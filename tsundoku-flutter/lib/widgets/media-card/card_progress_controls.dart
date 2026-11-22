@@ -49,6 +49,7 @@ class CardProgressControls extends ConsumerWidget {
               onPressed: () => onStep(-1),
               icon: LucideIcons.minus, // Minus size={14}
             ),
+            const SizedBox(width: 6), // gap-1.5 (6px)
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 8), // px-2
@@ -69,6 +70,7 @@ class CardProgressControls extends ConsumerWidget {
                 ),
               ),
             ),
+            const SizedBox(width: 6), // gap-1.5 (6px)
             _StepButton(
               semanticLabel: t.tr('card.increment'),
               disabled: incrementDisabled,

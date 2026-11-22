@@ -1500,8 +1500,8 @@ class _PanelIconButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final body = IgnorePointer(
       child: Container(
-        width: 36, // h-9 w-9
-        height: 36,
+        width: 40, // h-10 w-10
+        height: 40,
         decoration: BoxDecoration(
           color: th.bgSurface, // bg-field = var(--bg-surface)
           borderRadius: BorderRadius.circular(8), // rounded-lg
@@ -1667,7 +1667,7 @@ class _HomeSearchFieldState extends State<_HomeSearchField> {
     final hint =
         widget.state.ref.read(tProvider).tr('home.searchPlaceholder');
     return SizedBox(
-      height: 36,
+      height: 40, // h-10
       child: TextField(
         controller: _controller,
         onChanged: widget.state.updateSearchQuery,

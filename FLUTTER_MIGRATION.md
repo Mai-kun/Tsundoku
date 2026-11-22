@@ -160,9 +160,11 @@
     ВСЕ num-поля — casting-литералы полные, scoreDistribution Map<String,dynamic>) →
     ActivityHeatmap ✅ (5 тестов; cells — Builder-гвард `w*7+d >= cells.length`
     (RangeError при offset+365<371); Tooltip конфликтует с material_ui —
-    используется её Tooltip(message:)).
+    используется её Tooltip(message:)) → MonthlyActivityChart ✅ (6 тестов;
+    столбчатый график за 12 месяцев, FractionallySizedBox высоты, нулевые месяцы
+    без чисел, тултипы DateFormat MMM y, scroll min-w 340). Следующий: BacklogHealth.svelte.
 
-**Прогресс: 171 / 207 файлов**
+**Прогресс: 172 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
@@ -171,8 +173,8 @@
 | 2 — `entities/` + карточки/сетка | 19 | 19 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 13 (ЗАКРЫТА, см. Phase Gate) |
 | 4 — Детальная страница + Spatial Node Editor | 59 | 59 |
-| 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 9 |
-| **Всего** | **207** | **171** |
+| 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 10 |
+| **Всего** | **207** | **172** |
 
 Долги Фаз 0–2 (не блокируют): —
 seriesProgressControllerProvider no-op-toast → инъекция в Фазе 3 (решение #35);
@@ -414,7 +416,7 @@ Spatial Node Editor; detailTypes/detailFormatters уже готовы pull-forwa
 | 2 | `widgets/media-grid` | `virtualGrid.ts` | `—` | ⏭️ Заменено нативно | ⬜ | Кастомный JS-виртуализатор сетки заменяется нативным GridView/custom_sliver_grid (сегменты секций — SectionRow); поведение окна удаления проверить на golden-ах |
 | 5 | `widgets/stats` | `ActivityHeatmap.svelte` | `lib/widgets/stats/activity_heatmap.dart` | ✅ Готов | ✅ | Годовая сетка 53×7 (Monday-offset через weekday, leading-paddings; хвостовые empty при offset+365 < 371), 5 уровней интенсивности (intensity → alpha-цвета, #818cf8 max), Tooltip с DateFormat d MMM y (initializeDateFormatting по wire-локали), total в шапке (#a5b4fc) + футере, легенда 5 свотчей + Меньше/Больше; `today` — инъекция для детерминированных тестов (Svelte new Date()); LayoutBuilder ≥760px иначе horizontal scroll; 5 тестов |
 | 5 | `widgets/stats` | `BacklogHealth.svelte` | `lib/widgets/stats/backlog_health.dart` | ⬜ Не начат | ⬜ | — |
-| 5 | `widgets/stats` | `MonthlyActivityChart.svelte` | `lib/widgets/stats/monthly_activity_chart.dart` | ⬜ Не начат | ⬜ | — |
+| 5 | `widgets/stats` | `MonthlyActivityChart.svelte` | `lib/widgets/stats/monthly_activity_chart.dart` | ✅ Готов | ✅ | Столбчатый график завершений за 12 месяцев (1-в-1 с Svelte): иконка-заголовок calendarDays, бейдж-итог (stats.completedInYear), колонки с FractionallySizedBox и hover-тултипы, нулевой месяц — плоская плашка без числа, подписи месяцев снизу (DateFormat MMM wire-локаль), min-w-[340px] с горизонтальным скроллом на узких экранах; 6 тестов |
 | 5 | `widgets/stats` | `RatingPsychology.svelte` | `lib/widgets/stats/rating_psychology.dart` | ⬜ Не начат | ⬜ | — |
 | 5 | `widgets/stats` | `StatsHeroBanner.svelte` | `lib/widgets/stats/stats_hero_banner.dart` | ✅ Готов | ✅ | Hero: тайтл/подзаголовок (t.tf с formatStatsNumber — Intl-группировка: ru-пробелы, en-запятые), три метрики (стрик flame/amber, средний балл star/yellow, завершения checkCircle/emerald) — LayoutBuilder ≥640px → 3 колонки (Wrap), иначе 1; карточки bg-[#151a26] border-white/5; 4 теста |
 | 5 | `widgets/stats` | `TimeDistributionDonut.svelte` | `lib/widgets/stats/time_distribution_donut.dart` | ⬜ Не начат | ⬜ | — |
@@ -506,11 +508,9 @@ Spatial Node Editor; detailTypes/detailFormatters уже готовы pull-forwa
    (official stable 3.50.1, Dart 3.14). Для будущих сессий:
    `export PATH="$HOME/development/flutter/bin:$PATH"` (рекомендуется добавить в `~/.zshrc`).
    Linux-тулчейн полный: clang 23.1.5, cmake 4.5.0, ninja 1.13.2, gtk3 3.24.52.
-2. **Node сломан в системе**: `nodejs 26.13.1-2` требует `libsimdjson.so.36`, а пакет
-   `libsimdjson` в pacman не установлен → любой `node` падает. Починка пользователя:
-   `sudo pacman -S libsimdjson` (или `sudo pacman -Syu`). До починки Playwright-harness
-   Svelte недоступен для новых скриншотов; существующие PNG-эталоны (backstop + snapshots)
-   использовать из репозитория.
+2. **Node и Playwright в системе (проверено 2026-11-22)**: Node полностью работоспособен
+   (системный node v26.13.1 и локальный v24.21.0), `playwright` 1.63.0 и запуск Chromium работают без ошибок.
+   Harness и существующие PNG-эталоны (backstop `bitmaps_reference/` + snapshots) готовы к использованию.
 3. **file_picker** зафиксирован на 7.0.2: major 13.x конфликтует с соседними плагинами
    (window_manager 0.7 / super_clipboard 0.9 / desktop_drop 0.9 через plugin_platform_interface).
    Поднимать вместе, одним коммитом, когда появится причина.
@@ -540,6 +540,12 @@ Spatial Node Editor; detailTypes/detailFormatters уже готовы pull-forwa
    после перезапуска сессии. Ponytail **не установлен** — ставится только через UI клиента:
    Settings → Plugin Management → Discover → «+» → `DietrichGebert/ponytail` → Get
    (см. §1.5). `dart mcp-server` работает, конфиг добавлен в `.mcp.json` worktree.
+12. **Верификация инструментов окружения (2026-11-22)**:
+    - Flutter SDK 3.50.1 / Dart 3.14.0: `flutter analyze` — 0 issues; `flutter test` — 841/841 passed (все 10 golden-тестов `test/goldens` зелёные); `flutter build web --wasm` и `flutter build linux` собираются без ошибок.
+    - `dart mcp-server` (v1.2.2) протестирован и готов к работе.
+    - `context7-mcp` (@upstash/context7-mcp) через npx запускается штатно.
+    - `chrome-devtools-mcp` через npx и Playwright (v1.63.0, запуск Chromium подтверждён) полностью работоспособны.
+    - В `MonthlyActivityChart` исправлен перелив шапки на узких вьюпортах (добавлены `Flexible` и `TextOverflow.ellipsis`), а в тесте скорректировано ожидание локали марта ('март' в соответствии со стандартом Intl/CLDR).
 | 33 | `widgets/media-card/cardTypes.ts` | TS-интерфейс MediaCardProps деконструируется в Svelte-пропы; в Dart named-параметры × 8 виджетов — дублирование | Card-виджеты получают единый MediaCardProps-бандл (состав полей 1-в-1); children/hover-слоты — отдельные параметры | Ревью не требуется |
 | 34 | `features/*-controller` (status/progress/series) | Контроллеры держали `Ref`; из виджетов (BaseCard) Ref недоступен — только WidgetRef/ProviderContainer | Поле `ref` контроллеров и Ref-обёртки (reconcileProgress/loadMediaDetailRef/updateCachedDetailProgressRef/resolveSeriesStep) → `ProviderContainer` (только .read — семантика та же); виджеты передают `ProviderScope.containerOf(context)`, тесты — container; хелперы openContextMenu/openListPicker/confirmAction → WidgetRef (они UI-слой, 1-в-1 с Svelte-компонентами) | riverpod: Ref.container существует, но долгоживущий container чище; тесты обновлены; ревью по желанию |
 | 35 | `widgets/media-card/BaseCard.svelte` | seriesProgressControllerProvider содержит no-op showToast (комментарий «Фаза 1 перепишет» не выполнен) — ошибки stepSeriesEpisodes не показываются | Зафиксировано как долг: реальный toast-инъекция подключается в Фазе 3 (AppShell), как и остальные глобальные shower'ы | Не блокирует Фазу 2; ревью не требуется |

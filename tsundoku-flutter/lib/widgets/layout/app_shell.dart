@@ -92,7 +92,7 @@ class AppShell extends ConsumerWidget {
                     padding: EdgeInsets.zero,
                     child: ConstrainedBox(
                       constraints: BoxConstraints(
-                        minHeight: noPadding ? double.infinity : 0,
+                        minHeight: noPadding ? (MediaQuery.sizeOf(context).height - 56) : 0,
                       ),
                       child: noPadding
                           ? SizedBox(

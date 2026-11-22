@@ -19,6 +19,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../features/create-media/create_modal.dart';
+import '../features/drop-reason/drop_reason_modal.dart';
+import '../features/drop-reason/drop_reason_prompt.dart';
+import '../features/import-media/import_modal.dart';
+import '../features/lists/create_list_modal.dart';
+import '../features/search-external/search_modal.dart';
+import '../features/settings/first_run_storage_modal.dart';
+import '../features/stale-triage/stale_backlog_modal.dart';
 import '../shared/api/api.dart';
 import '../shared/api/jobs_client.dart';
 import '../shared/api/navigation_categories.dart';
@@ -27,29 +35,32 @@ import '../shared/api/offline_mode.dart';
 import '../shared/platform/platform.dart';
 import '../shared/theme/tsundoku_theme.dart' show buildTsundokuTheme;
 import '../shared/theme/tsundoku_tokens.dart';
-import '../shared/types/enums.dart';
+import '../shared/types/enums.dart' hide SettingsTab;
 import '../shared/types/models.dart';
 import '../shared/ui/confirm_modal.dart';
 import '../shared/ui/context_menu_controller.dart';
 import '../shared/ui/toast.dart';
 import '../shared/utils/app_exit.dart';
 import '../shared/utils/ui_settings.dart';
+import '../views/calendar_view.dart';
 import '../views/category_model.dart';
 import '../views/category_view.dart';
+import '../views/goals_view.dart';
+import '../views/history_view.dart';
 import '../views/home_view.dart';
+import '../views/lists_view.dart';
 import '../views/media_detail_view.dart';
+import '../views/settings_view.dart';
 import '../views/show_seasons_view.dart';
+import '../views/stats_view.dart';
 import '../widgets/layout/app_shell.dart';
 import '../widgets/layout/background_jobs_modal.dart';
 import '../widgets/layout/close_app_modal.dart';
 import '../widgets/layout/header.dart';
 import '../widgets/layout/sidebar.dart';
 
-/// Вью, которые уже портированы (остальные — заглушки, решение #42).
-bool isPortedView(AppView view) =>
-    view == AppViews.home || _categoryViews.contains(view);
-
-const Set<String> _categoryViews = <String>{'tvshow', 'movie', 'anime', 'manga', 'game', 'book'};
+/// Вью, которые уже портированы (все вью приложения).
+bool isPortedView(AppView view) => true;
 
 /// Приложение: MaterialApp + роутер + каркас + глобальные оверлеи.
 /// ProviderScope создаётся внутри (main.dart оборачивает внешним — вложенные
@@ -87,25 +98,24 @@ class _AppRouterState extends ConsumerState<_AppRouter> {
   AppView _renderedView = AppViews.home;
   // ignore: unused_field
   Category? _activeCategory; // switchView пишет; читается в категорийной ветке роутинга
-  // ignore: unused_field
   String? _selectedMediaId; // MediaDetailView — Фаза 4
   AppView _previousView = AppViews.home;
   int _mediaRevision = 0;
-  bool _isExitModalOpen = false; // CloseAppModal ✓ (рендер выше)
-  // ignore: unused_field
-  bool _firstRunSetupRequired = false; // FirstRunStorageModal — Фаза 5
+  bool _isExitModalOpen = false; // CloseAppModal ✓
+  bool _firstRunSetupRequired = false; // FirstRunStorageModal ✓
   final ScrollController _mainScroll = ScrollController();
   final Map<String, double> _savedScrollPositions = <String, double>{};
   late final AppExit _appExit;
 
-  // Модалки Фаз 4/5: флаги держатся (1-в-1 со Svelte-стейтом), рендер — при
-  // портировании модалок.
-  // ignore: unused_field, prefer_final_fields
-  bool _isCreateOpen = false; // CreateModal — Фаза 5
-  // ignore: unused_field, prefer_final_fields
-  bool _isSearchOpen = false; // SearchModal — Фаза 5
-  // ignore: unused_field
-  String _settingsTabRequest = 'sources'; // SettingsView — Фаза 5
+  bool _isCreateOpen = false; // CreateModal ✓
+  MediaItem? _editingItem;
+  bool _isSearchOpen = false; // SearchModal ✓
+  String _initialSearchType = 'all';
+  String _initialSearchQuery = '';
+  String _initialSearchSource = '';
+  bool _initialSearchByCreator = false;
+  bool _isStaleBacklogOpen = false; // StaleBacklogModal ✓
+  String _settingsTabRequest = 'sources'; // SettingsView ✓
 
   List<String> get _categories => <String>[
         ...baseCategories,
@@ -250,12 +260,33 @@ class _AppRouterState extends ConsumerState<_AppRouter> {
   // Модалки Фаз 4/5 (см. решение #42).
   // ------------------------------------------------------------------
 
-  void openCreate() {
-    // CreateModal — Фаза 5: no-op-хук.
+  void openCreate([MediaItem? item]) {
+    setState(() {
+      _editingItem = item;
+      _isCreateOpen = true;
+    });
   }
 
   void openSearch([Object? context]) {
-    // SearchModal — Фаза 5: no-op-хук.
+    setState(() {
+      if (context is String) {
+        _initialSearchType = 'all';
+        _initialSearchQuery = context;
+        _initialSearchSource = '';
+        _initialSearchByCreator = false;
+      } else if (context is Map<String, dynamic>) {
+        _initialSearchType = context['type']?.toString() ?? 'all';
+        _initialSearchQuery = context['query']?.toString() ?? '';
+        _initialSearchSource = context['source']?.toString() ?? '';
+        _initialSearchByCreator = context['byCreator'] == true;
+      } else {
+        _initialSearchType = 'all';
+        _initialSearchQuery = '';
+        _initialSearchSource = '';
+        _initialSearchByCreator = false;
+      }
+      _isSearchOpen = true;
+    });
   }
 
   void openSettings([String tab = 'sources']) {
@@ -410,6 +441,7 @@ class _AppRouterState extends ConsumerState<_AppRouter> {
     final title = _titleForView(_activeView);
     final jobsModalOpen =
         ref.watch(jobsClientProvider.select((s) => s.isModalOpen));
+    final dropPrompt = ref.watch(dropPromptStateProvider);
 
     Widget? body;
     final isSliverView = rendered == AppViews.home || _isCategory(rendered);
@@ -419,6 +451,7 @@ class _AppRouterState extends ConsumerState<_AppRouter> {
         refreshKey: _mediaRevision,
         onOpen: openDetail,
         onMediaChanged: mediaChanged,
+        onOpenStaleBacklog: () => setState(() => _isStaleBacklogOpen = true),
       );
     } else if (_isCategory(rendered)) {
       body = CategoryView(
@@ -428,85 +461,185 @@ class _AppRouterState extends ConsumerState<_AppRouter> {
         refreshKey: _mediaRevision,
         onOpen: openDetail,
         onMediaChanged: mediaChanged,
-        onEdit: (_) => openCreate(),
+        onEdit: (item) => openCreate(item),
       );
     } else if (rendered == AppViews.detail && _selectedMediaId != null) {
-      body = SliverToBoxAdapter(
-        child: MediaDetailView(
-          key: ValueKey('detail-$_selectedMediaId'),
-          mediaId: _selectedMediaId!,
-          refreshKey: _mediaRevision,
-          onBack: _closeDetail,
-          onUpdate: mediaChanged,
-          onDelete: _deleteFromDetail,
-          onEdit: (item) => openCreate(),
-          onOpenRelated: openDetail,
-          onSearch: openSearch,
-          onOpenLists: () => navigate(AppViews.lists),
-        ),
+      body = MediaDetailView(
+        key: ValueKey('detail-$_selectedMediaId'),
+        mediaId: _selectedMediaId!,
+        refreshKey: _mediaRevision,
+        onBack: _closeDetail,
+        onUpdate: mediaChanged,
+        onDelete: _deleteFromDetail,
+        onEdit: (item) => openCreate(item),
+        onOpenRelated: openDetail,
+        onSearch: openSearch,
+        onOpenLists: () => navigate(AppViews.lists),
       );
     } else if (rendered == AppViews.seasons && _selectedMediaId != null) {
-      body = SliverToBoxAdapter(
-        child: ShowSeasonsView(
-          key: ValueKey('seasons-$_selectedMediaId'),
-          mediaId: _selectedMediaId!,
-          refreshKey: _mediaRevision,
-          onBack: _closeDetail,
-          onMediaChanged: mediaChanged,
+      body = ShowSeasonsView(
+        key: ValueKey('seasons-$_selectedMediaId'),
+        mediaId: _selectedMediaId!,
+        refreshKey: _mediaRevision,
+        onBack: _closeDetail,
+        onMediaChanged: mediaChanged,
+      );
+    } else if (rendered == AppViews.stats) {
+      body = StatsView(
+        key: const ValueKey('stats'),
+        refreshKey: _mediaRevision,
+        onOpenMedia: (mediaId) => openDetailById(mediaId),
+        onOpenStaleBacklog: () => setState(() => _isStaleBacklogOpen = true),
+      );
+    } else if (rendered == AppViews.lists) {
+      body = ListsView(
+        key: const ValueKey('lists'),
+        onOpen: openDetail,
+        onImportCompleted: mediaChanged,
+        createListModalBuilder: (context, editing, onClose, onSaved) =>
+            CreateListModal(
+          isOpen: true,
+          list: editing,
+          onClose: onClose,
+          onSaved: onSaved,
+        ),
+        importModalBuilder: (context, onClose, onImportCompleted, onNavigateToList) =>
+            ImportModal(
+          isOpen: true,
+          onClose: onClose,
+          onImportCompleted: onImportCompleted,
+          onNavigateToList: onNavigateToList,
         ),
       );
-    } else {
-      // Фазы 4/5: заглушка с заголовком вью (решение #42).
-      body = SliverToBoxAdapter(
-        child: _PlaceholderView(title: title, th: th),
+    } else if (rendered == AppViews.history) {
+      body = HistoryView(
+        key: const ValueKey('history'),
+        refreshKey: _mediaRevision,
+        onOpenMedia: (mediaId) => openDetailById(mediaId),
       );
+    } else if (rendered == AppViews.calendar) {
+      body = CalendarView(
+        key: const ValueKey('calendar'),
+        onOpenMedia: (mediaId) => openDetailById(mediaId),
+      );
+    } else if (rendered == AppViews.goals) {
+      body = GoalsView(
+        key: const ValueKey('goals'),
+        refreshKey: _mediaRevision,
+        onOpenMedia: (mediaId) => openDetailById(mediaId),
+        onMediaChanged: mediaChanged,
+      );
+    } else if (rendered == AppViews.settings) {
+      body = SettingsView(
+        key: const ValueKey('settings'),
+        initialTab: SettingsTab.fromWire(_settingsTabRequest),
+        onImportCompleted: mediaChanged,
+        onNavigateToList: (listId) => navigate(AppViews.lists),
+        onTestSearch: (source, type) => openSearch(<String, dynamic>{
+          'query': '',
+          'source': source,
+          'type': type == 'movie' || type == 'anime' || type == 'game' ? type : 'all',
+        }),
+      );
+    } else {
+      // Запасная заглушка для неизвестного типа вью (решение #42).
+      body = _PlaceholderView(title: title, th: th);
     }
 
-    return Focus(
-      autofocus: true,
-      onKeyEvent: _handleKeydown,
-      child: Stack(
-        children: [
-          Positioned.fill(
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onSecondaryTapUp: (details) =>
-                  _showAppContextMenu(details.globalPosition),
-              child: AppShell(
-                mainScrollController: _mainScroll,
-                noPadding: rendered == 'settings',
-                sidebar: Sidebar(
-                  activeView: _activeView,
-                  onNavigate: navigate,
-                  onCreate: openCreate,
+    return Material(
+      color: Colors.transparent,
+      child: Focus(
+        autofocus: true,
+        onKeyEvent: _handleKeydown,
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onSecondaryTapUp: (details) =>
+                    _showAppContextMenu(details.globalPosition),
+                child: AppShell(
+                  mainScrollController: _mainScroll,
+                  noPadding: rendered == 'settings',
+                  sidebar: Sidebar(
+                    activeView: _activeView,
+                    onNavigate: navigate,
+                    onCreate: openCreate,
+                  ),
+                  header: Header(
+                    title: title,
+                    onSearch: () => openSearch(),
+                    onExitClick: () => unawaited(handleExitClick()),
+                  ),
+                  // CategoryView/HomeView — слайвер-вью (решение #37).
+                  slivers: isSliverView ? [body] : null,
+                  child: !isSliverView ? body : null,
                 ),
-                header: Header(
-                  title: title,
-                  onSearch: () => openSearch(),
-                  onExitClick: () => unawaited(handleExitClick()),
-                ),
-                // CategoryView/HomeView — слайвер-вью (решение #37).
-                slivers: isSliverView ? [body] : null,
               ),
             ),
-          ),
-          // Глобальные оверлеи (1-в-1 с хвостом App.svelte):
-          const ConfirmModal(),
-          if (jobsModalOpen)
-            BackgroundJobsModal(onMediaChanged: mediaChanged),
-          if (_isExitModalOpen)
-            CloseAppModal(
-              onClose: () => setState(() => _isExitModalOpen = false),
-              closeWindow: () => platformService.closeWindow(),
-              showToast: ({required title, required description}) {
-                showToast(
-                  ref,
-                  ToastOptions(title: title, description: description),
-                );
-              },
-              appExit: _appExit,
-            ),
-        ],
+            // Глобальные оверлеи (1-в-1 с хвостом App.svelte):
+            const ConfirmModal(),
+            if (jobsModalOpen)
+              BackgroundJobsModal(onMediaChanged: mediaChanged),
+            if (_isExitModalOpen)
+              CloseAppModal(
+                onClose: () => setState(() => _isExitModalOpen = false),
+                closeWindow: () => platformService.closeWindow(),
+                showToast: ({required title, required description}) {
+                  showToast(
+                    ref,
+                    ToastOptions(title: title, description: description),
+                  );
+                },
+                appExit: _appExit,
+              ),
+            if (_isCreateOpen)
+              CreateModal(
+                isOpen: _isCreateOpen,
+                editingItem: _editingItem,
+                onClose: () => setState(() {
+                  _isCreateOpen = false;
+                  _editingItem = null;
+                }),
+                onCreated: (item) {
+                  setState(() {
+                    _isCreateOpen = false;
+                    _editingItem = null;
+                  });
+                  mediaChanged();
+                },
+              ),
+            if (_isSearchOpen)
+              SearchModal(
+                isOpen: _isSearchOpen,
+                initialType: _initialSearchType,
+                initialQuery: _initialSearchQuery,
+                initialSource: _initialSearchSource,
+                byCreator: _initialSearchByCreator,
+                onClose: () => setState(() => _isSearchOpen = false),
+                onMediaAdded: (media) {
+                  mediaChanged();
+                },
+                onNavigateToMedia: (id) {
+                  setState(() => _isSearchOpen = false);
+                  openDetailById(id);
+                },
+              ),
+            if (dropPrompt != null)
+              const DropReasonModal(),
+            if (_isStaleBacklogOpen)
+              StaleBacklogModal(
+                isOpen: _isStaleBacklogOpen,
+                onClose: () => setState(() => _isStaleBacklogOpen = false),
+                onMediaChanged: mediaChanged,
+              ),
+            if (_firstRunSetupRequired)
+              FirstRunStorageModal(
+                isOpen: _firstRunSetupRequired,
+                onSaved: () => setState(() => _firstRunSetupRequired = false),
+              ),
+          ],
+        ),
       ),
     );
   }

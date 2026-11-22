@@ -157,10 +157,10 @@ class _WorkspaceWindowState extends ConsumerState<WorkspaceWindow> {
                   ? th.accent.withAlpha(153) // border-accent/60
                   : Colors.white.withAlpha(20), // border-white/[0.08]
             ),
-            color: const Color(0x9512151C), // bg-[#12151c]/95
+            color: const Color(0xF212151C), // bg-[#12151c]/95
             boxShadow: const [
               BoxShadow(
-                color: Color(0xB3000000), // shadow-2xl shadow-black/50
+                color: Color(0x80000000), // shadow-2xl shadow-black/50
                 blurRadius: 25,
                 offset: Offset(0, 10),
               ),

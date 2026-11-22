@@ -2,8 +2,8 @@
 
 ## 📍 Текущий фокус / Next Step
 * **Фаза:** S4 (features/**)
-* **Текущий файл:** `mediatracker-ui/src/features/drop-reason/DropReasonModal.svelte` -> `tsundoku-flutter/lib/features/drop-reason/drop_reason_modal.dart`
-* **Цель:** Сверка DropReasonModal: модалка причины бросания, radio-опции, textarea, кнопки сохранения/отмены, отступы.
+* **Текущий файл:** `mediatracker-ui/src/features/goals/CreateGoalModal.svelte` -> `tsundoku-flutter/lib/features/goals/create_goal_modal.dart`
+* **Цель:** Сверка CreateGoalModal: модалка создания цели, поля года, типа, целевого значения, отступы.
 
 ---
 
@@ -214,7 +214,7 @@
 | S4 | `mediatracker-ui/src/features/create-media/MangaFormFields.svelte` | `tsundoku-flutter/lib/features/create-media/manga_form_fields.dart` | ✅ Сверен 1:1 | 0 отличий (две сетки sm:grid-cols-2 gap-4 16px, автор h-10, главы h-10 number, текущий том h-10 number, всего томов h-10 number с hint '1' 1-в-1) | 0 отличий |
 | S4 | `mediatracker-ui/src/features/create-media/MovieFormFields.svelte` | `tsundoku-flutter/lib/features/create-media/movie_form_fields.dart` | ✅ Сверен 1:1 | 0 отличий (grid gap-4 sm:grid-cols-2 16px, durationMinutes h-10 number, studio h-10, аниме-чекбокс h-4 w-4 gap-2 text-sm 1-в-1) | 0 отличий |
 | S4 | `mediatracker-ui/src/features/create-media/TvShowFormFields.svelte` | `tsundoku-flutter/lib/features/create-media/tvshow_form_fields.dart` | ✅ Сверен 1:1 | grid gap-4 sm:grid-cols-2 16px, аниме-чекбокс h-4 w-4 gap-2 text-sm, сезоны bg-field/50 p-3 rounded-xl, sm:grid-cols-[5rem_1fr_7rem_auto] ширина полей 80px (5rem) и 112px (7rem), кнопка минус h-9 w-9 rounded-lg hover:bg-rose-400/10 hover:text-rose-300 1-в-1 | Да |
-| S4 | `mediatracker-ui/src/features/drop-reason/DropReasonModal.svelte` | `tsundoku-flutter/lib/features/drop-reason/drop_reason_modal.dart` | В очереди |  |  |
+| S4 | `mediatracker-ui/src/features/drop-reason/DropReasonModal.svelte` | `tsundoku-flutter/lib/features/drop-reason/drop_reason_modal.dart` | ✅ Сверен 1:1 | ModalSize.md, убран двойной padding через contentPadding: zero (p-6 24px), vertical rhythm space-y-5 (20px), ban icon 40x40 rounded-xl rose-500/10, чипсы max-h-56 px-3 py-1.5, note input px-3.5 py-2 text-xs, footer border-white/5 pt-1 1-в-1 | Да |
 | S4 | `mediatracker-ui/src/features/goals/CreateGoalModal.svelte` | `tsundoku-flutter/lib/features/goals/create_goal_modal.dart` | В очереди |  |  |
 | S4 | `mediatracker-ui/src/features/lists/CreateListModal.svelte` | `tsundoku-flutter/lib/features/lists/create_list_modal.dart` | В очереди |  |  |
 | S4 | `mediatracker-ui/src/features/lists/ListPicker.svelte` | `tsundoku-flutter/lib/features/lists/list_picker.dart` | В очереди |  |  |

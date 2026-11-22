@@ -176,8 +176,9 @@ class _DropReasonModalState extends ConsumerState<DropReasonModal> {
       isOpen: true,
       onClose: _handleSkip,
       size: ModalSize.md,
+      contentPadding: EdgeInsets.zero,
       child: Padding(
-        padding: const EdgeInsets.all(24.0),
+        padding: const EdgeInsets.all(24.0), // p-6
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -244,12 +245,11 @@ class _DropReasonModalState extends ConsumerState<DropReasonModal> {
                     size: 18,
                     color: Color(0xFF94A3B8), // slate-400
                   ),
-                  tooltip: t.tr('dropReason.skip'),
                   onPressed: _handleSkip,
                 ),
               ],
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 20), // space-y-5
 
             // Chips container
             ConstrainedBox(
@@ -304,7 +304,7 @@ class _DropReasonModalState extends ConsumerState<DropReasonModal> {
                 ),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20), // space-y-5
 
             // Note input
             TextField(
@@ -347,11 +347,11 @@ class _DropReasonModalState extends ConsumerState<DropReasonModal> {
                 ),
               ),
             ],
-            const SizedBox(height: 16),
+            const SizedBox(height: 20), // space-y-5
 
             // Footer actions
             Container(
-              padding: const EdgeInsets.only(top: 8),
+              padding: const EdgeInsets.only(top: 4), // pt-1
               decoration: const BoxDecoration(
                 border: Border(
                   top: BorderSide(color: Color(0x0DFFFFFF)), // white/5

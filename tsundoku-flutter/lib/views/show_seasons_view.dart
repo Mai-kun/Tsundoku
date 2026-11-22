@@ -98,7 +98,8 @@ class _ShowSeasonsViewState extends ConsumerState<ShowSeasonsView> {
     final t = ref.watch(tProvider);
     final th = TsundokuTheme.of(context);
 
-    return Center(
+    return Align(
+      alignment: Alignment.topCenter,
       // mx-auto max-w-4xl.
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 896),
@@ -249,7 +250,7 @@ class _ErrorBoxState extends ConsumerState<_ErrorBox> {
       decoration: BoxDecoration(
         borderRadius:
             BorderRadius.circular(TsundokuPalette.radiusBox), // rounded-lg
-        color: Colors.white.withAlpha(13), // bg-white/5
+        color: const Color(0x0DFB7185), // bg-rose-400/5
       ),
       padding: const EdgeInsets.all(24), // p-6
       child: Column(
@@ -333,9 +334,10 @@ class _ShowHeaderCard extends ConsumerWidget {
               clipBehavior: Clip.antiAlias,
               child: show.coverUrl != null
                   ? Image.network(
-                      // Браузерный резолв /api/... от origin заменён явной
-                      // склейкой с baseUrl (решение #25).
-                      '${ref.watch(apiBaseUrlProvider)}${show.coverUrl!}',
+                      show.coverUrl!.startsWith('http://') ||
+                              show.coverUrl!.startsWith('https://')
+                          ? show.coverUrl!
+                          : '${ref.watch(apiBaseUrlProvider)}${show.coverUrl!}',
                       fit: BoxFit.cover,
                       semanticLabel: show.title, // alt
                       errorBuilder: (_, _, _) => const SizedBox.expand(),

@@ -1,9 +1,9 @@
 # 🎯 Аудит и выравнивание стилей Flutter UI 1-в-1 со Svelte (Tailwind CSS / tokens.css)
 
 ## 📍 Текущий фокус / Next Step
-* **Фаза:** S3 (entities/media/ui/*, widgets/media-card/*, widgets/media-grid/*)
-* **Текущий файл:** `mediatracker-ui/src/widgets/media-grid/SectionRow.svelte` -> `tsundoku-flutter/lib/widgets/media-grid/section_row.dart`
-* **Цель:** Сверка SectionRow: flex items-center justify-between, title styling, total badge, view all button.
+* **Фаза:** S4 (features/**)
+* **Текущий файл:** `mediatracker-ui/src/features/settings/ui/SettingsModal.svelte` -> `tsundoku-flutter/lib/features/settings/ui/settings_modal.dart`
+* **Цель:** Сверка SettingsModal: full-bleed модалка (max-w-4xl=896px), sidebar-табы w-48 (192px), p-6 контент.
 
 ---
 
@@ -192,7 +192,7 @@
 | S3 | `mediatracker-ui/src/widgets/media-card/MovieCard.svelte` | `tsundoku-flutter/lib/widgets/media-card/movie_card.dart` | ✅ Сверен 1:1 | BaseCard, подзаголовок (режиссёр/фильм), hover-степпер 0/1 переключения completed CardProgressControls 1-в-1 | 0 отличий |
 | S3 | `mediatracker-ui/src/widgets/media-card/TvShowCard.svelte` | `tsundoku-flutter/lib/widgets/media-card/tv_show_card.dart` | ✅ Сверен 1:1 | BaseCard, подзаголовок (тип • сезоны), hover: CardProgressControls или MediaStatusBadge 1-в-1 | 0 отличий |
 | S3 | `mediatracker-ui/src/widgets/media-grid/MediaGrid.svelte` | `tsundoku-flutter/lib/widgets/media-grid/media_grid.dart` | ✅ Сверен 1:1 | Брейкпоинты колонок 2..6 (640/1024/1280/1536), rowGap 16px (gap-4), loading 240px, error/empty min-h-72 (288px), remove button 32px 1-в-1 | 0 отличий |
-| S3 | `mediatracker-ui/src/widgets/media-grid/SectionRow.svelte` | `tsundoku-flutter/lib/widgets/media-grid/section_row.dart` | В очереди |  |  |
+| S3 | `mediatracker-ui/src/widgets/media-grid/SectionRow.svelte` | `tsundoku-flutter/lib/widgets/media-grid/section_row.dart` | ✅ Сверен 1:1 | Заголовок 25px bold tracking-wide, счётчик px-2.5 py-0.5 rounded-full, space-y-3 (12px) 1-в-1 | 0 отличий |
 | S4 | `mediatracker-ui/src/features/settings/SettingsModal.svelte` | `tsundoku-flutter/lib/features/settings/settings_modal.dart` | В очереди |  |  |
 | S4 | `mediatracker-ui/src/features/settings/FirstRunStorageModal.svelte` | `tsundoku-flutter/lib/features/settings/first_run_storage_modal.dart` | В очереди |  |  |
 | S4 | `mediatracker-ui/src/features/import-media/ImportModal.svelte` | `tsundoku-flutter/lib/features/import-media/import_modal.dart` | В очереди |  |  |

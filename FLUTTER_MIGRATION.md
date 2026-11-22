@@ -195,10 +195,11 @@
     HistoryView ✅ (8 тестов; вкладки Хроника и Активность, переключатель месяцев/годов, мозаика мини-карточек, фильтры категорий, якоря годов, блок без точной даты, лента активности с фильтром по дате и подтверждением удаления/очистки через ConfirmModal) →
     CreateGoalModal ✅ (4 теста; вкладки шаблонов и своей цели, TsundokuSelect категории, валидация, createGoal POST, показ ошибок) →
     GoalsView ✅ (7 тестов; кольцевой прогресс-бар _GoalSummaryRing, переключатель годов, сетка карточек GoalCard, удаление с ConfirmModal, интеграция с CreateGoalModal) →
-    CalendarView ✅ (7 тестов; секция дедлайнов бэклога с 30-дневным горизонтом и темпом, панель навигации по месяцам, фильтры категорий/событий, экспорт ICS, лента карточек с автопроверкой онгоингов, сетка 7-колонок с панелью выбранного дня).
-    Следующий: ListsView.svelte.
+    CalendarView ✅ (7 тестов; секция дедлайнов бэклога с 30-дневным горизонтом и темпом, панель навигации по месяцам, фильтры категорий/событий, экспорт ICS, лента карточек с автопроверкой онгоингов, сетка 7-колонок с панелью выбранного дня) →
+    ListsView ✅ (8 тестов; галерея списков с 1-4 колонками, карточки с 0/1/2+ обложками, умные бейджи/чипы, детальный вид с MediaGrid, оптимистичное удаление тайтлов, ConfirmModal для удаления списка, модальные колбеки).
+    Следующий: SettingsView.svelte.
 
-**Прогресс: 191 / 207 файлов**
+**Прогресс: 192 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
@@ -207,8 +208,8 @@
 | 2 — `entities/` + карточки/сетка | 19 | 19 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 13 (ЗАКРЫТА, см. Phase Gate) |
 | 4 — Детальная страница + Spatial Node Editor | 59 | 59 |
-| 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 29 |
-| **Всего** | **207** | **187** |
+| 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 30 |
+| **Всего** | **207** | **188** |
 
 Долги Фаз 0–2 (не блокируют): —
 seriesProgressControllerProvider no-op-toast → инъекция в Фазе 3 (решение #35);
@@ -372,7 +373,7 @@ Spatial Node Editor; detailTypes/detailFormatters уже готовы pull-forwa
 | 5 | `views` | `GoalsView.svelte` | `lib/views/goals_view.dart` | ✅ Готов | ✅ | Кольцевой индикатор общего прогресса (_GoalSummaryRing), переключатель годов, кнопка создания цели, адаптивная сетка карточек GoalCard (1-3 колонки), пустой стейт, хинт завершения, удаление через ConfirmModal, интеграция с CreateGoalModal; 7 тестов |
 | 5 | `views` | `HistoryView.svelte` | `lib/views/history_view.dart` | ✅ Готов | ✅ | Вкладки Хроника и Активность, переключатель месяцев/годов, мозаика мини-карточек, фильтры категорий, интерактивные якоря годов, раскрываемый блок без даты, лента активности с фильтром даты, ConfirmModal для единичного удаления и полной очистки; 8 тестов |
 | 3 | `views` | `HomeView.svelte` | `lib/views/home_view.dart` | ✅ Готов | ✅ | ⬆️ Вытащен вперёд (App зависит от вью): Sliver-вью (#37); три секции getMedia(status 1/0/2, limit 60/500) + локальные сортировки; HomeSort/GroupBy — строковые union; time-budget фильтр + кастомный ввод, 🎲-рандомайзер (randomPick() публичный — App контекст-меню, решение #41), чипы фильтров, лимит секций (columns×rows), stale-бейдж → onOpenStaleBacklog (Фаза 5, решение #40); панель — публичные апдейтеры стейта; 5 тестов |
-| 5 | `views` | `ListsView.svelte` | `lib/views/lists_view.dart` | ⬜ Не начат | ⬜ | — |
+| 5 | `views` | `ListsView.svelte` | `lib/views/lists_view.dart` | ✅ Готов | ✅ | Галерея списков (1-4 колонки): карточки с 0/1/2+ обложками, градиентом, иконками, смарт-бейджами и чипами правил, счетчики тайтлов и дата; детальный вид списка (← Назад, иконка, заголовок, описание, баннер правил умного списка с редактированием, MediaGrid с оптимистичным удалением тайтла); ConfirmModal при удалении списка; 8 тестов |
 | 4 | `views` | `MediaDetailView.svelte` | `lib/views/media_detail_view.dart` | ✅ Готов | ✅ | Крупнейший файл (2854→~3900 строк): module-level регэкспы offline/lib-family, `_refreshMediaDetail`, stored-related persist/restore; стейт-класс: `_load` (postFrame), `_syncFrom` (reconcileProgress anti-rollback), game achievements (PrefetchCache 5min), background enrichment, `_loadRelated` (франшиза + RAWG/anime/TMDb + stored-restore), `_handleRelatedClick` (preview getExternalDetails), `_addRelatedToLibrary` (Movie/Manga/TvShow+Season payload-ветвление), серия шагов прогресса/сезонов (`_stepProgress/_commitSeriesCounter/_absoluteSeasonTarget`...), `_changeStatus` (leavesCompleted-сброс; dropped → dropPromptState), оценки/`_saveDetailedScore`/watchedOn/relink/fillMissing/overwrite/achievements, `_maybeAutoLoadRelated` каскад, derived-геттеры (`_externalRatings` offline-фильтр + lib-family-коллапс, `_relatedGroups`, `_timelineEntries`); build: `ref.listen(jobsClientProvider)` settled→refetch, KeyboardListener Escape, Stack + RelatedPreviewModal, `_RightColumn` (DetailHeader `as detail_header` из-за ambiguous RatingBadge, DetailTabs, AnimatedSwitcher panelIn/panelOut, 5 табов); 8 тестов + golden |
 | 5 | `views` | `SettingsView.svelte` | `lib/views/settings_view.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `views` | `ShowSeasonsView.svelte` | `lib/views/show_seasons_view.dart` | ✅ Готов | ✅ | sequence-гвард (+retry), guard isTvShowDetail → StateError; скелетон (title-планка + 3×h-32); header-карточка (постер 80×112 через baseUrl-склейку #25, accent-сабтайтл uppercase, счётчик ep/seasons); empty-стейт; SeasonRow-список (onProgress = api.setSeasonProgress, onProgressCommitted); TvShowDetail-обёртка; 6 тестов + golden |
@@ -603,3 +604,4 @@ Spatial Node Editor; detailTypes/detailFormatters уже готовы pull-forwa
 | 62 | `widgets/stats/monthly_activity_chart.dart` | `MonthlyActivityChart` ожидал тип `MonthlyCompletionItem`, тогда как `AdvancedStats.monthlyCompletions` возвращает `List<MonthCompletion>` | Добавлен `typedef MonthlyCompletionItem = MonthCompletion;` для полной взаимозаменяемости типов без дублирования DTO | Ревью не требуется |
 | 63 | `views/GoalsView.svelte` | В Svelte `<CreateGoalModal>` рендерится как dialog; в Flutter модалка с `ModalBarrier` внутри `SingleChildScrollView` приводила к assert `BoxConstraints unbounded height` | `GoalsView` возвращает `Stack(children: [SingleChildScrollView(...), if (_isCreateOpen) CreateGoalModal(...)])` — модалка перекрывает весь вьюпорт поверх контента | Ревью не требуется |
 | 64 | `views/CalendarView.svelte` | В Svelte дни недели uppercase задаются CSS-классом uppercase, в Dart DateFormat.E('ru') добавляет точку ('пн.') | В _weekdays точка зачищается ('Пн'), в Row отображается day.toUpperCase() ('ПН'), совпадая с визуальным эталоном Svelte | Ревью не требуется |
+| 65 | `views/ListsView.svelte` | CreateListModal и ImportModal портируются позже в Фазе 5; ListsView требует открытия этих модалок | ListsView принимает колбеки onOpenCreateList/onOpenImport и опциональные билдеры createListModalBuilder/importModalBuilder, сохраняя автономность и позволяя App/тестам инжектировать модалки (по аналогии с #38 и #40) | Ревью не требуется |

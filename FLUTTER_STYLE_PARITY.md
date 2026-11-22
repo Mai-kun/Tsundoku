@@ -2,8 +2,8 @@
 
 ## 📍 Текущий фокус / Next Step
 * **Фаза:** S1 (shared/ui/*.svelte)
-* **Текущий файл:** `mediatracker-ui/src/shared/ui/Panel.svelte` -> `tsundoku-flutter/lib/shared/ui/panel.dart`
-* **Цель:** Сверка Panel: border, background, border-radius, padding 1-в-1.
+* **Текущий файл:** `mediatracker-ui/src/shared/ui/Modal.svelte` -> `tsundoku-flutter/lib/shared/ui/modal.dart`
+* **Цель:** Сверка Modal: backdrop, border-radius, max-width, close button, padding 1-в-1.
 
 ---
 
@@ -161,7 +161,7 @@
 | S0 | `mediatracker-ui/src/app/app.css` | `tsundoku-flutter/lib/shared/theme/tsundoku_theme.dart` | ✅ Сверен 1:1 | Все статические переменные @theme static, радиусы, скроллбар, анимации и ThemeData соответствуют app.css 1-в-1 | 0 отличий |
 | S1 | `mediatracker-ui/src/shared/ui/Button.svelte` | `tsundoku-flutter/lib/shared/ui/button.dart` | ✅ Сверен 1:1 | Добавлены рамки border-subtle для secondary и border-strong для outline; исправлен паддинг iconOnly на p-0 с квадратным размером | Да |
 | S1 | `mediatracker-ui/src/shared/ui/Badge.svelte` | `tsundoku-flutter/lib/shared/ui/badge.dart` | ✅ Сверен 1:1 | Все размеры, padding (px-1.5/px-2, py-0.5), rounded-md (6px), шрифты 10/12px и тоны совпадают 1-в-1 | 0 отличий |
-| S1 | `mediatracker-ui/src/shared/ui/Panel.svelte` | `tsundoku-flutter/lib/shared/ui/panel.dart` | В очереди |  |  |
+| S1 | `mediatracker-ui/src/shared/ui/Panel.svelte` | `tsundoku-flutter/lib/shared/ui/panel.dart` | ✅ Сверен 1:1 | rounded-xl (12px), border-subtle, bg-surface, p-4 (16px), shadow-md совпадают 1-в-1 | 0 отличий |
 | S1 | `mediatracker-ui/src/shared/ui/Modal.svelte` | `tsundoku-flutter/lib/shared/ui/modal.dart` | В очереди |  |  |
 | S1 | `mediatracker-ui/src/shared/ui/ConfirmModal.svelte` | `tsundoku-flutter/lib/shared/ui/confirm_modal.dart` | В очереди |  |  |
 | S1 | `mediatracker-ui/src/shared/ui/PopoverMenu.svelte` | `tsundoku-flutter/lib/shared/ui/popover_menu.dart` | В очереди |  |  |

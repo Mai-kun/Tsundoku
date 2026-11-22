@@ -195,4 +195,18 @@ void main() {
     expect(find.byType(SourcesTab), findsOneWidget);
     expect(find.byType(ListView), findsWidgets);
   });
+
+  testWidgets('renders all 10 tabs at 1440x900 without any layout overflow',
+      (tester) async {
+    tester.view.physicalSize = const Size(1440, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    for (final tab in SettingsTab.values) {
+      await tester.pumpWidget(_buildTestSubject(initialTab: tab));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull,
+          reason: 'Tab ${tab.wire} threw an exception');
+    }
+  });
 }

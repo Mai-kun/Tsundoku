@@ -162,9 +162,12 @@
     (RangeError при offset+365<371); Tooltip конфликтует с material_ui —
     используется её Tooltip(message:)) → MonthlyActivityChart ✅ (6 тестов;
     столбчатый график за 12 месяцев, FractionallySizedBox высоты, нулевые месяцы
-    без чисел, тултипы DateFormat MMM y, scroll min-w 340). Следующий: BacklogHealth.svelte.
+    без чисел, тултипы DateFormat MMM y, scroll min-w 340) → BacklogHealth ✅ (5 тестов;
+    иконка Scale, сегментированный бар с тултипами segmentTooltip, легенда со счётчиками,
+    4 вердикта, ссылка на ревизию бэклога; plannedTitles в AdvancedStats).
+    Следующий: RatingPsychology.svelte.
 
-**Прогресс: 172 / 207 файлов**
+**Прогресс: 173 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
@@ -173,8 +176,8 @@
 | 2 — `entities/` + карточки/сетка | 19 | 19 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 13 (ЗАКРЫТА, см. Phase Gate) |
 | 4 — Детальная страница + Spatial Node Editor | 59 | 59 |
-| 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 10 |
-| **Всего** | **207** | **172** |
+| 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 11 |
+| **Всего** | **207** | **173** |
 
 Долги Фаз 0–2 (не блокируют): —
 seriesProgressControllerProvider no-op-toast → инъекция в Фазе 3 (решение #35);
@@ -415,7 +418,7 @@ Spatial Node Editor; detailTypes/detailFormatters уже готовы pull-forwa
 | 2 | `widgets/media-grid` | `gridLayout.svelte.ts` | `lib/widgets/media-grid/grid_layout.dart` | ✅ Готов | ✅ | Модульный счётчик версий инвалидации layout'а → Riverpod Notifier<int> (bumpGridLayout/read + watch — аналог эффект-трекинга); 3 теста |
 | 2 | `widgets/media-grid` | `virtualGrid.ts` | `—` | ⏭️ Заменено нативно | ⬜ | Кастомный JS-виртуализатор сетки заменяется нативным GridView/custom_sliver_grid (сегменты секций — SectionRow); поведение окна удаления проверить на golden-ах |
 | 5 | `widgets/stats` | `ActivityHeatmap.svelte` | `lib/widgets/stats/activity_heatmap.dart` | ✅ Готов | ✅ | Годовая сетка 53×7 (Monday-offset через weekday, leading-paddings; хвостовые empty при offset+365 < 371), 5 уровней интенсивности (intensity → alpha-цвета, #818cf8 max), Tooltip с DateFormat d MMM y (initializeDateFormatting по wire-локали), total в шапке (#a5b4fc) + футере, легенда 5 свотчей + Меньше/Больше; `today` — инъекция для детерминированных тестов (Svelte new Date()); LayoutBuilder ≥760px иначе horizontal scroll; 5 тестов |
-| 5 | `widgets/stats` | `BacklogHealth.svelte` | `lib/widgets/stats/backlog_health.dart` | ⬜ Не начат | ⬜ | — |
+| 5 | `widgets/stats` | `BacklogHealth.svelte` | `lib/widgets/stats/backlog_health.dart` | ✅ Готов | ✅ | Виджет баланса медиатеки (Индекс Цундоку, 1-в-1 с Svelte): иконка Scale (emerald-400), сегментированный бар (completed/inProgress/planned) с Tooltip'ами stats.segmentTooltip, легенда со счётчиками, 4 типа вердиктов (empty/productive/balanced/tsundoku), ссылка на ревизию бэклога (staleTriage.triageActionLink); в AdvancedStats добавлено nullable plannedTitles; 5 тестов |
 | 5 | `widgets/stats` | `MonthlyActivityChart.svelte` | `lib/widgets/stats/monthly_activity_chart.dart` | ✅ Готов | ✅ | Столбчатый график завершений за 12 месяцев (1-в-1 с Svelte): иконка-заголовок calendarDays, бейдж-итог (stats.completedInYear), колонки с FractionallySizedBox и hover-тултипы, нулевой месяц — плоская плашка без числа, подписи месяцев снизу (DateFormat MMM wire-локаль), min-w-[340px] с горизонтальным скроллом на узких экранах; 6 тестов |
 | 5 | `widgets/stats` | `RatingPsychology.svelte` | `lib/widgets/stats/rating_psychology.dart` | ⬜ Не начат | ⬜ | — |
 | 5 | `widgets/stats` | `StatsHeroBanner.svelte` | `lib/widgets/stats/stats_hero_banner.dart` | ✅ Готов | ✅ | Hero: тайтл/подзаголовок (t.tf с formatStatsNumber — Intl-группировка: ru-пробелы, en-запятые), три метрики (стрик flame/amber, средний балл star/yellow, завершения checkCircle/emerald) — LayoutBuilder ≥640px → 3 колонки (Wrap), иначе 1; карточки bg-[#151a26] border-white/5; 4 теста |
@@ -564,3 +567,4 @@ Spatial Node Editor; detailTypes/detailFormatters уже готовы pull-forwa
 | 57 | `views/MediaDetailView.svelte` | Четыре view-level модалки (Relink/OverwriteConfirm/FillMissing/RelatedPreview) в Svelte — component-root сиблинги контента: native popover top-layer, а контент живёт в скролл-контейнере `<main>` | `_OverlayModal` (local widget): mount модалки через OverlayPortal в корневой Overlay (топ-слой над скроллом/панелями, bounded-контекст), show/hide — пост-кадр | Ревью не требуется |
 | 59 | `features/edit-media/BaseMediaModule.svelte` | `input type="datetime-local"` — нативный HTML-пикер (desktop: системный календарь) | Текстовое поле ISO-строки (wire-значение без потери данных); нативный пикер потребует платформенного фасада (facade §1.3) — отдельное решение после закрытия edit-workspace | Ревью не требуется |
 | 58 | `views/MediaDetailView.svelte` | `EpisodesTab` в Svelte открывает списки через store/глобальный механизм; у порт-вью нет такой шины | В MediaDetailView добавлен проп `onOpenLists` (проброс в EpisodesTab), App подключит к открытию ListsView; в тестах `() {}` | Ревью не требуется |
+| 60 | `widgets/stats/BacklogHealth.svelte` | В Svelte `(stats as { plannedTitles?: number }).plannedTitles` — нетипизированный TS-каст; StaleBacklogModal подключается внутри | В `AdvancedStats` добавлено опциональное nullable-поле `plannedTitles` (десериализация `_int(json['plannedTitles'])`); для вызова модалки добавлен колбек `onOpenStaleBacklog` (по аналогии с HomeView, решение #40) | Ревью не требуется |

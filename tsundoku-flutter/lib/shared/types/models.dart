@@ -1607,6 +1607,7 @@ class AdvancedStats {
   final int totalEpisodesWatched;
   final int? seriesEpisodesWatched;
   final int? animeEpisodesWatched;
+  final int? plannedTitles;
   final double averageScore;
   /// `Record<number, number>` — JSON-ключи приводятся к int (решение #3).
   final Map<int, double> scoreDistribution;
@@ -1634,6 +1635,7 @@ class AdvancedStats {
     required this.totalEpisodesWatched,
     required this.seriesEpisodesWatched,
     required this.animeEpisodesWatched,
+    this.plannedTitles,
     required this.averageScore,
     required this.scoreDistribution,
     required this.averageScoreByType,
@@ -1661,6 +1663,7 @@ class AdvancedStats {
         totalEpisodesWatched: (json['totalEpisodesWatched'] as num).toInt(),
         seriesEpisodesWatched: _int(json['seriesEpisodesWatched']),
         animeEpisodesWatched: _int(json['animeEpisodesWatched']),
+        plannedTitles: _int(json['plannedTitles']),
         averageScore: (json['averageScore'] as num).toDouble(),
         scoreDistribution: (json['scoreDistribution'] as Map<String, dynamic>? ?? {})
             .map((k, v) => MapEntry(int.parse(k), (v as num).toDouble())),

@@ -818,11 +818,11 @@ class ListsViewState extends ConsumerState<ListsView> {
   Widget _buildLoadingGrid(TsundokuTheme tokens) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final crossAxisCount = constraints.maxWidth >= 1200
+        final crossAxisCount = constraints.maxWidth >= 1280
             ? 4
-            : constraints.maxWidth >= 900
+            : constraints.maxWidth >= 1024
                 ? 3
-                : constraints.maxWidth >= 600
+                : constraints.maxWidth >= 640
                     ? 2
                     : 1;
 
@@ -958,11 +958,11 @@ class ListsViewState extends ConsumerState<ListsView> {
   ) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final crossAxisCount = constraints.maxWidth >= 1200
+        final crossAxisCount = constraints.maxWidth >= 1280
             ? 4
-            : constraints.maxWidth >= 900
+            : constraints.maxWidth >= 1024
                 ? 3
-                : constraints.maxWidth >= 600
+                : constraints.maxWidth >= 640
                     ? 2
                     : 1;
 

@@ -2,8 +2,8 @@
 
 ## 📍 Текущий фокус / Next Step
 * **Фаза:** S5 (widgets/media-detail/**, widgets/stats/**, widgets/goals/*)
-* **Текущий файл:** `mediatracker-ui/src/widgets/media-detail/sections/MovieStatusSection.svelte` -> `tsundoku-flutter/lib/widgets/media-detail/sections/movie_status_section.dart`
-* **Цель:** Сверка MovieStatusSection: статус фильма, хронометраж, даты релиза/просмотра.
+* **Текущий файл:** `mediatracker-ui/src/widgets/media-detail/sections/NotesSection.svelte` -> `tsundoku-flutter/lib/widgets/media-detail/sections/notes_section.dart`
+* **Цель:** Сверка NotesSection: пользовательские заметки, поле ввода/просмотр, сохранение.
 
 ---
 
@@ -245,7 +245,7 @@
 | S5 | `mediatracker-ui/src/widgets/media-detail/sections/LinkedSourcesSection.svelte` | `tsundoku-flutter/lib/widgets/media-detail/sections/linked_sources_section.dart` | ✅ Сверен 1:1 | Заголовок uppercase tracking-wider text-xs font-bold, бейдж количества rounded-full bg-white/10 px-2 py-0.5 text-[10px], кнопки действий h-7 w-7 (28x28), разворот чипов pt-2 gap-1 rounded border-white/5 1-в-1 | Да |
 | S5 | `mediatracker-ui/src/widgets/media-detail/sections/MangaProgressSection.svelte` | `tsundoku-flutter/lib/widgets/media-detail/sections/manga_progress_section.dart` | ✅ Сверен 1:1 | 0 отличий (делегирует в ProgressCard с amber-акцентом: chapters, paceOptions [1, 2, 3, 5], paceDefault: 5, effectiveTotal, minsPerChapter: 6.0 1-в-1) | 0 отличий |
 | S5 | `mediatracker-ui/src/widgets/media-detail/sections/MediaFilesSection.svelte` | `tsundoku-flutter/lib/widgets/media-detail/sections/media_files_section.dart` | ✅ Сверен 1:1 | Заголовок uppercase tracking-wider text-xs font-bold, счётчик rounded-full bg-white/10 px-2 py-0.5, карточки rounded-xl border-white/5 bg-[#151a26] p-3, кнопки size-8 rounded-lg 1-в-1 | Да |
-| S5 | `mediatracker-ui/src/widgets/media-detail/sections/MovieStatusSection.svelte` | `tsundoku-flutter/lib/widgets/media-detail/sections/movie_status_section.dart` | В очереди |  |  |
+| S5 | `mediatracker-ui/src/widgets/media-detail/sections/MovieStatusSection.svelte` | `tsundoku-flutter/lib/widgets/media-detail/sections/movie_status_section.dart` | ✅ Сверен 1:1 | 0 отличий (заголовок uppercase tracking-wider text-xs font-bold, кнопки planned/completed px-3 py-1.5 rounded-lg с Check 13px, блок watchedOn rounded-lg border-white/[0.06] bg-black/15 px-3 py-2 1-в-1) | 0 отличий |
 | S5 | `mediatracker-ui/src/widgets/media-detail/sections/NotesSection.svelte` | `tsundoku-flutter/lib/widgets/media-detail/sections/notes_section.dart` | В очереди |  |  |
 | S5 | `mediatracker-ui/src/widgets/media-detail/sections/QuickFactsSection.svelte` | `tsundoku-flutter/lib/widgets/media-detail/sections/quick_facts_section.dart` | В очереди |  |  |
 | S5 | `mediatracker-ui/src/widgets/media-detail/sections/QuotesSection.svelte` | `tsundoku-flutter/lib/widgets/media-detail/sections/quotes_section.dart` | В очереди |  |  |

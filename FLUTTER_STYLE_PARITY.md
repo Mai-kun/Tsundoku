@@ -1,9 +1,9 @@
 # 🎯 Аудит и выравнивание стилей Flutter UI 1-в-1 со Svelte (Tailwind CSS / tokens.css)
 
 ## 📍 Текущий фокус / Next Step
-* **Фаза:** S5 (widgets/media-detail/**, widgets/stats/**, widgets/goals/*)
-* **Текущий файл:** `mediatracker-ui/src/widgets/stats/taste-profile/TastePersonaCard.svelte` -> `tsundoku-flutter/lib/widgets/stats/taste-profile/taste_persona_card.dart`
-* **Цель:** Сверка TastePersonaCard: вкусовая персона, черты характера, архетипы и бейджи.
+* **Фаза:** S6 (app/App.svelte, views/*.svelte: HomeView, CategoryView, MediaDetailView, ShowSeasonsView, StatsView, ListsView, HistoryView, CalendarView, GoalsView, SettingsView)
+* **Текущий файл:** `mediatracker-ui/src/app/App.svelte` -> `tsundoku-flutter/lib/app/app.dart`
+* **Цель:** Сверка каркаса приложения App: layout shell, scroll-контейнер, отступы px-4 py-4 md:px-8 md:py-6, модальные окна и фоновые процессы.
 
 ---
 
@@ -271,7 +271,7 @@
 | S5 | `mediatracker-ui/src/widgets/stats/taste-profile/CriticalDivergenceCard.svelte` | `tsundoku-flutter/lib/widgets/stats/taste-profile/critical_divergence_card.dart` | ✅ Сверен 1:1 | Заголовок tracking-tight (-0.4), адаптивная сетка sm:grid-cols-2 (>=640px) с IntrinsicHeight растяжкой карточек, постеры 56x80 rounded-md, бейдж дельты rounded-full px-2.5 py-0.5 1-в-1 | Да |
 | S5 | `mediatracker-ui/src/widgets/stats/taste-profile/DropAnalyticsCard.svelte` | `tsundoku-flutter/lib/widgets/stats/taste-profile/drop_analytics_card.dart` | ✅ Сверен 1:1 | Заголовок tracking-tight (-0.4), адаптивный перенос шапки Wrap (gap-2), бейдж rounded-full px-2.5 py-0.5, 3-цветный бар h-3, leading-relaxed (1.625) для текста и инсайта 1-в-1 | Да |
 | S5 | `mediatracker-ui/src/widgets/stats/taste-profile/SunkCostCard.svelte` | `tsundoku-flutter/lib/widgets/stats/taste-profile/sunk_cost_card.dart` | ✅ Сверен 1:1 | Заголовок tracking-tight (-0.4), адаптивная шапка Wrap (gap-2), бейдж rounded-full px-2.5 py-0.5, плашка rounded px-2 py-0.5, сегментированный бар h-3 и leading-relaxed (1.625) 1-в-1 | Да |
-| S5 | `mediatracker-ui/src/widgets/stats/taste-profile/TastePersonaCard.svelte` | `tsundoku-flutter/lib/widgets/stats/taste-profile/taste_persona_card.dart` | В очереди |  |  |
+| S5 | `mediatracker-ui/src/widgets/stats/taste-profile/TastePersonaCard.svelte` | `tsundoku-flutter/lib/widgets/stats/taste-profile/taste_persona_card.dart` | ✅ Сверен 1:1 | Брейкпоинт sm (>=640px) для переключения колонки/ряда, tracking-tight (-0.6) для text-2xl заголовка, leading-relaxed (1.625) для max-w-2xl описания, чипы rounded-full px-3 py-1 1-в-1 | Да |
 | S6 | `mediatracker-ui/src/app/App.svelte` | `tsundoku-flutter/lib/app/app.dart` | В очереди |  |  |
 | S6 | `mediatracker-ui/src/views/HomeView.svelte` | `tsundoku-flutter/lib/views/home_view.dart` | В очереди |  |  |
 | S6 | `mediatracker-ui/src/views/CategoryView.svelte` | `tsundoku-flutter/lib/views/category_view.dart` | В очереди |  |  |

@@ -172,7 +172,7 @@ class TastePersonaCard extends ConsumerWidget {
             padding: const EdgeInsets.all(24), // p-6
             child: LayoutBuilder(
               builder: (context, constraints) {
-                final isSm = constraints.maxWidth >= 600;
+                final isSm = constraints.maxWidth >= 640;
 
                 final iconBox = Container(
                   width: 80, // size-20
@@ -219,7 +219,7 @@ class TastePersonaCard extends ConsumerWidget {
                       style: const TextStyle(
                         fontSize: 24, // text-2xl
                         fontWeight: FontWeight.bold, // font-bold
-                        letterSpacing: -0.5, // tracking-tight
+                        letterSpacing: -0.6, // tracking-tight
                         color: Colors.white,
                       ),
                     ),
@@ -231,7 +231,7 @@ class TastePersonaCard extends ConsumerWidget {
                         textAlign: isSm ? TextAlign.left : TextAlign.center,
                         style: const TextStyle(
                           fontSize: 14, // text-sm
-                          height: 1.5, // leading-relaxed
+                          height: 1.625, // leading-relaxed
                           color: Color(0xFFCBD5E1), // text-slate-300
                         ),
                       ),

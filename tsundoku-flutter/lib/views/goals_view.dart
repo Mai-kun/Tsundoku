@@ -160,29 +160,21 @@ class _GoalsViewState extends ConsumerState<GoalsView> {
 
     return Stack(
       children: [
-        SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 1200),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // ── Top Bar: Ring summary + Year switcher + Create button ──
-                  _buildTopBar(t, tokens),
-                  const SizedBox(height: 24),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // ── Top Bar: Ring summary + Year switcher + Create button ──
+            _buildTopBar(t, tokens),
+            const SizedBox(height: 24),
 
-                  // ── Content: Error / Empty / Grid ──────────────────────────
-                  if (_loadError != null)
-                    _buildErrorBox(t)
-                  else if (_goals.isEmpty && !_loading)
-                    _buildEmptyBox(t, tokens)
-                  else
-                    _buildGoalsGrid(t),
-                ],
-              ),
-            ),
-          ),
+            // ── Content: Error / Empty / Grid ──────────────────────────
+            if (_loadError != null)
+              _buildErrorBox(t)
+            else if (_goals.isEmpty && !_loading)
+              _buildEmptyBox(t, tokens)
+            else
+              _buildGoalsGrid(t),
+          ],
         ),
 
         // ── Modal ──────────────────────────────────────────────────

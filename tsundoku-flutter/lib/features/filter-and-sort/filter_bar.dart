@@ -166,97 +166,105 @@ class _FilterBarState extends ConsumerState<FilterBar> {
     final count = widget.counts[widget.status];
 
     return Container(
-      padding: const EdgeInsets.all(16), // p-3 sm:p-4
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10), // px-4 py-2.5
       decoration: BoxDecoration(
         color: th.bgSurface, // bg-surface
-        borderRadius: BorderRadius.circular(8), // rounded-lg
+        borderRadius: BorderRadius.circular(12), // rounded-xl
+        border: Border.all(color: Colors.white.withAlpha(20)), // border-white/[0.08]
       ),
-      child: Column(
+      child: Row(
         children: [
-          Row(
-            children: [
-              Icon(
-                LucideIcons.slidersHorizontal, // SlidersHorizontal size={16}
-                size: 16,
-                color: th.textMuted, // text-muted
-              ),
-              const SizedBox(width: 8), // gap-2
-              // Группировка: icon-only, openOnHover, closeDelay 220.
-              TsundokuPopoverMenu<String>(
-                id: 'library-group',
-                options: groupOptions,
-                selected: widget.groupBy,
-                onSelect: (value) => widget.onGroupByChange?.call(value),
-                label: t.tr('grouping.label'),
-                placement: PopoverPlacement.bottomStart,
-                openOnHover: true,
-                closeDelay: 220,
-                trigger: (context, ctx) => _IconButtonTrigger(
-                  tooltip: t.tr('grouping.label'),
-                  icon: groupIcon(widget.groupBy),
-                  th: th,
-                  showTooltip: !ctx.isOpen,
+          // Левый кластер: [иконка настроек] -> [группировка] -> [статус]
+          Expanded(
+            child: Row(
+              children: [
+                Icon(
+                  LucideIcons.slidersHorizontal, // SlidersHorizontal size={16}
+                  size: 16,
+                  color: th.textMuted, // text-muted
                 ),
-              ),
-              const SizedBox(width: 8), // gap-2
-              // Статус: лейбл + счётчик-бейдж + ChevronDown.
-              TsundokuPopoverMenu<StatusFilter>(
-                id: 'library-status',
-                options: statusOptions,
-                selected: widget.status,
-                onSelect: (value) => widget.onStatusChange(value),
-                label: t.tr('status.label'),
-                placement: PopoverPlacement.bottomStart,
-                openOnHover: true,
-                closeDelay: 220,
-                trigger: (context, ctx) => _StatusTrigger(
-                  label: _labelForStatus(widget.status, t),
-                  count: count,
-                  th: th,
-                  showTooltip: !ctx.isOpen,
+                const SizedBox(width: 8), // gap-2
+                // Группировка: icon-only, openOnHover, closeDelay 220.
+                TsundokuPopoverMenu<String>(
+                  id: 'library-group',
+                  options: groupOptions,
+                  selected: widget.groupBy,
+                  onSelect: (value) => widget.onGroupByChange?.call(value),
+                  label: t.tr('grouping.label'),
+                  placement: PopoverPlacement.bottomStart,
+                  openOnHover: true,
+                  closeDelay: 220,
+                  trigger: (context, ctx) => _IconButtonTrigger(
+                    tooltip: t.tr('grouping.label'),
+                    icon: groupIcon(widget.groupBy),
+                    th: th,
+                    showTooltip: !ctx.isOpen,
+                  ),
                 ),
-              ),
-              const Spacer(),
-              // Центрированный счётчик (order-last lg:order-none).
-              if (widget.totalCount != null)
-                TsundokuTotalBadge(
-                  total: widget.totalCount!,
-                  shown: widget.shownCount,
+                const SizedBox(width: 8), // gap-2
+                // Статус: лейбл + счётчик-бейдж + ChevronDown.
+                TsundokuPopoverMenu<StatusFilter>(
+                  id: 'library-status',
+                  options: statusOptions,
+                  selected: widget.status,
+                  onSelect: (value) => widget.onStatusChange(value),
+                  label: t.tr('status.label'),
+                  placement: PopoverPlacement.bottomStart,
+                  openOnHover: true,
+                  closeDelay: 220,
+                  trigger: (context, ctx) => _StatusTrigger(
+                    label: _labelForStatus(widget.status, t),
+                    count: count,
+                    th: th,
+                    showTooltip: !ctx.isOpen,
+                  ),
                 ),
-              const Spacer(),
-              // Поиск + сортировка справа.
-              Expanded(
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: _SearchField(
-                        initial: widget.search,
-                        hint: t.tr('header.searchButton'),
-                        th: th,
-                        onChanged: _debouncedSearch,
-                      ),
+              ],
+            ),
+          ),
+          // Центрированный счётчик (TotalBadge строго по геометрическому центру тулбара).
+          if (widget.totalCount != null)
+            TsundokuTotalBadge(
+              total: widget.totalCount!,
+              shown: widget.shownCount,
+            )
+          else
+            const SizedBox.shrink(),
+          // Правый кластер: [Поиск тайтлов 240px] + [сортировка].
+          Expanded(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Flexible(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 220),
+                    child: _SearchField(
+                      initial: widget.search,
+                      hint: t.tr('header.searchButton'),
+                      th: th,
+                      onChanged: _debouncedSearch,
                     ),
-                    const SizedBox(width: 8), // gap-2
-                    TsundokuPopoverMenu<LibrarySort>(
-                      id: 'library-sort',
-                      options: sortOptions,
-                      selected: widget.sort,
-                      onSelect: (value) => widget.onSortChange(value),
-                      label: t.tr('sort.label'),
-                      placement: PopoverPlacement.bottomEnd,
-                      openOnHover: true,
-                      closeDelay: 220,
-                      trigger: (context, ctx) => _IconButtonTrigger(
-                        tooltip: t.tr('sort.label'),
-                        icon: sortIcon(widget.sort),
-                        th: th,
-                        showTooltip: !ctx.isOpen,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(width: 8), // gap-2
+                TsundokuPopoverMenu<LibrarySort>(
+                  id: 'library-sort',
+                  options: sortOptions,
+                  selected: widget.sort,
+                  onSelect: (value) => widget.onSortChange(value),
+                  label: t.tr('sort.label'),
+                  placement: PopoverPlacement.bottomEnd,
+                  openOnHover: true,
+                  closeDelay: 220,
+                  trigger: (context, ctx) => _IconButtonTrigger(
+                    tooltip: t.tr('sort.label'),
+                    icon: sortIcon(widget.sort),
+                    th: th,
+                    showTooltip: !ctx.isOpen,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),

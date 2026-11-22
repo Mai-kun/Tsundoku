@@ -375,10 +375,7 @@ class ListsViewState extends ConsumerState<ListsView> {
 
     return Stack(
       children: [
-        SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: content,
-        ),
+        content,
         if (_modalOpen && widget.createListModalBuilder != null)
           widget.createListModalBuilder!(
             context,
@@ -977,7 +974,7 @@ class ListsViewState extends ConsumerState<ListsView> {
             crossAxisCount: crossAxisCount,
             crossAxisSpacing: 16,
             mainAxisSpacing: 16,
-            childAspectRatio: 0.85,
+            childAspectRatio: 0.78,
           ),
           itemBuilder: (context, index) {
             final list = _lists[index];

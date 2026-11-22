@@ -605,39 +605,31 @@ class _CalendarViewState extends ConsumerState<CalendarView> {
     final locale = ref.watch(i18nProvider);
     final tokens = Theme.of(context).extension<TsundokuTheme>()!;
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 1400),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // ── Backlog Deadlines (if any) ──────────────────────────────
-              if (_backlogItems.isNotEmpty) ...[
-                _buildBacklogSection(t, locale, tokens),
-                const SizedBox(height: 24),
-              ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // ── Backlog Deadlines (if any) ──────────────────────────────
+        if (_backlogItems.isNotEmpty) ...[
+          _buildBacklogSection(t, locale, tokens),
+          const SizedBox(height: 24),
+        ],
 
-              // ── Control Panel ───────────────────────────────────────────
-              _buildControlPanel(t, locale, tokens),
-              const SizedBox(height: 24),
+        // ── Control Panel ───────────────────────────────────────────
+        _buildControlPanel(t, locale, tokens),
+        const SizedBox(height: 24),
 
-              // ── Content ─────────────────────────────────────────────────
-              if (_isLoading)
-                _buildLoadingSkeleton(tokens)
-              else if (_loadError != null)
-                _buildErrorBox(t, locale, tokens)
-              else if (_mode == 'feed' && _visibleDays.isEmpty)
-                _buildEmptyBox(t, tokens)
-              else if (_mode == 'grid')
-                _buildGridMode(t, locale, tokens)
-              else
-                _buildFeedMode(t, locale, tokens),
-            ],
-          ),
-        ),
-      ),
+        // ── Content ─────────────────────────────────────────────────
+        if (_isLoading)
+          _buildLoadingSkeleton(tokens)
+        else if (_loadError != null)
+          _buildErrorBox(t, locale, tokens)
+        else if (_mode == 'feed' && _visibleDays.isEmpty)
+          _buildEmptyBox(t, tokens)
+        else if (_mode == 'grid')
+          _buildGridMode(t, locale, tokens)
+        else
+          _buildFeedMode(t, locale, tokens),
+      ],
     );
   }
 

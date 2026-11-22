@@ -590,22 +590,9 @@ class _SourcesTabState extends ConsumerState<SourcesTab> {
     return '🗄️';
   }
 
-  static ({Color accent, Color border}) _sourceTheme(String sourceId, TsundokuTheme theme) {
-    final accent = switch (sourceId) {
-      'tmdb' => const Color(0xFF01D277),
-      'imdb' => const Color(0xFFF5C518),
-      'rawg' => const Color(0xFFFFFFFF),
-      'simkl' => const Color(0xFF00E676),
-      'kinopoisk' => const Color(0xFFFF6600),
-      'anilist' => const Color(0xFF02A9FF),
-      'mal' => const Color(0xFF2E51A2),
-      'shikimori' => const Color(0xFFD32F2F),
-      'googlebooks' => const Color(0xFF4285F4),
-      'openlibrary' => const Color(0xFFE1D9D1),
-      'sociallib' => const Color(0xFFE50914),
-      _ => theme.accent,
-    };
-    return (accent: accent, border: theme.borderSubtle);
+  static ({Color accent, Color border, Color surface, Color text}) _sourceTheme(String sourceId, TsundokuTheme theme) {
+    final st = theme.sourceTheme(sourceId);
+    return (accent: st.accent, border: st.border, surface: st.surface, text: st.text);
   }
 
   static String _categoryLabel(String key, I18nDictionary t) {
@@ -637,6 +624,7 @@ class _SourcesTabState extends ConsumerState<SourcesTab> {
     }).toList();
 
     return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

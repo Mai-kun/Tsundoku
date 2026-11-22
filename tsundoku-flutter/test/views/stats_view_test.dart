@@ -127,12 +127,13 @@ Future<void> pumpStatsView(
       child: MaterialApp(
         theme: buildTsundokuTheme(),
         home: Material(
-          child: SizedBox(
-            width: width,
-            height: 900,
-            child: StatsView(
-              refreshKey: refreshKey,
-              onOpenMedia: onOpenMedia,
+          child: SingleChildScrollView(
+            child: SizedBox(
+              width: width,
+              child: StatsView(
+                refreshKey: refreshKey,
+                onOpenMedia: onOpenMedia,
+              ),
             ),
           ),
         ),

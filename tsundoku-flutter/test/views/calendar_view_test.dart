@@ -182,8 +182,10 @@ Future<void> _pumpCalendarView(
         home: Material(
           child: Stack(
             children: [
-              CalendarView(
-                onOpenMedia: onOpenMedia,
+              SingleChildScrollView(
+                child: CalendarView(
+                  onOpenMedia: onOpenMedia,
+                ),
               ),
               const ToastContainer(),
             ],

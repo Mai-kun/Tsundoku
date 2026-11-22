@@ -381,6 +381,7 @@ class _SearchTabState extends ConsumerState<SearchTab> {
     final promoted = ref.watch(navigationCategoriesProvider);
 
     return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -883,6 +884,15 @@ class _SearchTabState extends ConsumerState<SearchTab> {
                                   child: Text(
                                     '${pIdx + 1}',
                                     style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Container(
+                                  width: 8,
+                                  height: 8,
+                                  decoration: BoxDecoration(
+                                    color: theme.sourceTheme(provId).accent,
+                                    shape: BoxShape.circle,
                                   ),
                                 ),
                                 const SizedBox(width: 8),

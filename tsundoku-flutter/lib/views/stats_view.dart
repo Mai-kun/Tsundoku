@@ -144,14 +144,12 @@ class _StatsViewState extends ConsumerState<StatsView> {
         Theme.of(context).extension<TsundokuTheme>() ?? TsundokuTheme.obsidian;
     final currentScope = ref.watch(uiSettingsProvider).statsScope;
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 1152), // max-w-6xl
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 1152), // max-w-6xl
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
               // Шапка с переключателями вкладок и области учета
               LayoutBuilder(
                 builder: (context, constraints) {
@@ -408,8 +406,7 @@ class _StatsViewState extends ConsumerState<StatsView> {
             ],
           ),
         ),
-      ),
-    );
+      );
   }
 }
 

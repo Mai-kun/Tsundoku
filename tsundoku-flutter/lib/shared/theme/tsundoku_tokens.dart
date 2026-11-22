@@ -572,6 +572,61 @@ class TsundokuTheme extends ThemeExtension<TsundokuTheme> {
   static TsundokuTheme of(BuildContext context) =>
       Theme.of(context).extension<TsundokuTheme>() ?? obsidian;
 
+  /// Фирменная тема источника/провайдера (импорт + карточки в источниках) 1-в-1 со Svelte tokens.css.
+  ImportSourceTheme sourceTheme(String sourceId) {
+    switch (sourceId.toLowerCase().trim()) {
+      case 'anilist':
+        return importAnilist;
+      case 'mangalib':
+        return importMangalib;
+      case 'sociallib':
+        return importSociallib;
+      case 'mal':
+      case 'myanimelist':
+        return importShikimori;
+      case 'shikimori':
+        return importShikimori;
+      case 'letterboxd':
+        return importLetterboxd;
+      case 'goodreads':
+      case 'livelib':
+        return importGoodreads;
+      case 'steam':
+        return importSteam;
+      case 'anixart':
+        return importAnixart;
+      case 'custom':
+        return importCustom;
+      case 'tmdb':
+        return importTmdb;
+      case 'imdb':
+        return importImdb;
+      case 'rawg':
+        return importRawg;
+      case 'simkl':
+        return importSimkl;
+      case 'kinopoisk':
+        return importKinopoisk;
+      case 'kitsu':
+        return importKitsu;
+      case 'mangadex':
+        return importMangadex;
+      case 'mangaupdates':
+        return importMangaupdates;
+      case 'openlibrary':
+      case 'googlebooks':
+        return importOpenlibrary;
+      default:
+        return ImportSourceTheme(
+          accent: accent,
+          accentDim: null,
+          border: borderSubtle,
+          surface: bgCard,
+          text: textPrimary,
+        );
+    }
+  }
+
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;

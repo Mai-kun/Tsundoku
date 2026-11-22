@@ -12,7 +12,9 @@ import 'package:tsundoku_flutter/features/import-media/mangalib_auth.dart';
 import 'package:tsundoku_flutter/shared/api/api.dart';
 import 'package:tsundoku_flutter/shared/i18n/index.dart';
 import 'package:tsundoku_flutter/shared/platform/platform.dart';
+import 'package:tsundoku_flutter/shared/theme/tsundoku_tokens.dart';
 import 'package:tsundoku_flutter/shared/types/dtos.dart';
+import 'package:tsundoku_flutter/shared/ui/button.dart';
 
 enum ImportProvider {
   anilist('anilist', 'AniList', 'AL', 'JSON или профиль пользователя'),
@@ -360,6 +362,7 @@ class ImportPanelState extends ConsumerState<ImportPanel> {
   @override
   Widget build(BuildContext context) {
     final t = ref.watch(tProvider);
+    final theme = TsundokuTheme.of(context);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -367,84 +370,89 @@ class ImportPanelState extends ConsumerState<ImportPanel> {
       children: [
         // Header
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                if (widget.showCloseButton) ...[
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: const Color(0x1A6366F1), // indigo-500/10
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0x336366F1)), // indigo-500/20
-                    ),
-                    child: const Center(
-                      child: Icon(
+            Expanded(
+              child: Row(
+                children: [
+                  if (widget.showCloseButton) ...[
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: const Color(0x1A6366F1), // indigo-500/10
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0x336366F1)),
+                      ),
+                      alignment: Alignment.center,
+                      child: const Icon(
                         LucideIcons.folderInput,
                         size: 20,
-                        color: Color(0xFF818CF8), // indigo-400
+                        color: Color(0xFF818CF8),
                       ),
+                    ),
+                    const SizedBox(width: 14),
+                  ],
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          t.tr('importModal.title'),
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          t.tr('importModal.description'),
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: theme.textMuted,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(width: 12),
                 ],
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      t.tr('importModal.title'),
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      t.tr('importModal.description'),
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF94A3B8),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+              ),
             ),
-            if (widget.showCloseButton && widget.onClose != null)
+            if (widget.showCloseButton && widget.onClose != null) ...[
+              const SizedBox(width: 8),
               IconButton(
                 padding: const EdgeInsets.all(8),
                 constraints: const BoxConstraints(),
-                icon: const Icon(
+                icon: Icon(
                   LucideIcons.x,
                   size: 18,
-                  color: Color(0xFF94A3B8),
+                  color: theme.textMuted,
                 ),
                 onPressed: widget.onClose,
               ),
+            ],
           ],
         ),
         const SizedBox(height: 20),
 
         // Success result banner
         if (_result != null) ...[
-          _buildResultBanner(t),
+          _buildResultBanner(t, theme),
           const SizedBox(height: 20),
         ],
 
         if (_result == null) ...[
           // Provider Selection Rail
-          _buildProviderSelector(),
+          _buildProviderSelector(theme, t),
           const SizedBox(height: 20),
 
           // Provider Specific Settings
-          _buildProviderBody(t),
+          _buildProviderBody(t, theme),
           const SizedBox(height: 20),
 
           // Common Options (Duplicates + Destination List)
-          _buildCommonOptions(t),
+          _buildCommonOptions(t, theme),
           const SizedBox(height: 20),
 
           // Error alert
@@ -480,185 +488,260 @@ class ImportPanelState extends ConsumerState<ImportPanel> {
           ],
 
           // Footer action button
-          _buildSubmitButton(t),
+          _buildSubmitButton(t, theme),
         ],
       ],
     );
   }
 
-  Widget _buildResultBanner(I18nDictionary t) {
+  Widget _buildResultBanner(I18nDictionary t, TsundokuTheme theme) {
     final res = _result!;
+
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: const Color(0x1A10B981), // emerald-500/10
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0x3310B981)), // emerald-500/20
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0x4034D399)), // emerald-400/25
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x33000000),
+            blurRadius: 16,
+            offset: Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(
-                LucideIcons.checkCircle2,
-                size: 20,
-                color: Color(0xFF34D399), // emerald-400
-              ),
-              const SizedBox(width: 10),
-              Text(
-                t.tr('importModal.success'),
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFFA7F3D0), // emerald-200
+              Container(
+                width: 40,
+                height: 40,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Color(0x3334D399),
+                ),
+                alignment: Alignment.center,
+                child: const Icon(
+                  LucideIcons.checkCircle2,
+                  size: 24,
+                  color: Color(0xFF34D399),
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Wrap(
-            spacing: 12,
-            runSpacing: 8,
-            children: [
-              _buildMetricChip(
-                label: 'Всего найдено',
-                value: '${res.totalFound}',
-                color: const Color(0xFF94A3B8),
-              ),
-              _buildMetricChip(
-                label: 'Импортировано',
-                value: '${res.importedCount}',
-                color: const Color(0xFF34D399),
-              ),
-              _buildMetricChip(
-                label: 'Пропущено дубликатов',
-                value: '${res.skippedDuplicates}',
-                color: const Color(0xFFFBBF24),
-              ),
-            ],
-          ),
-          if (res.targetListId != null) ...[
-            const SizedBox(height: 14),
-            InkWell(
-              onTap: () => widget.onNavigateToList?.call(res.targetListId!),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(
-                    LucideIcons.externalLink,
-                    size: 14,
-                    color: Color(0xFF818CF8),
-                  ),
-                  const SizedBox(width: 6),
                   Text(
-                    'Перейти к списку ${res.targetListName ?? ''}',
+                    t.tr('importModal.success'),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFFA7F3D0),
+                    ),
+                  ),
+                  Text(
+                    _provider.label,
                     style: const TextStyle(
                       fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: Color(0xFF818CF8),
+                      color: Color(0xCC6EE7B7),
                     ),
                   ),
                 ],
               ),
-            ),
-          ],
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _buildMetricCard(
+                  label: t.tr('importModal.total'),
+                  value: '${res.totalFound}',
+                  valueColor: Colors.white,
+                  bgColor: const Color(0x99181E2C),
+                  borderColor: Colors.white.withAlpha(25),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _buildMetricCard(
+                  label: t.tr('importModal.imported'),
+                  value: '${res.importedCount}',
+                  valueColor: const Color(0xFFA7F3D0),
+                  bgColor: const Color(0x1410B981),
+                  borderColor: const Color(0x3334D399),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _buildMetricCard(
+                  label: t.tr('importModal.skipped'),
+                  value: '${res.skippedDuplicates}',
+                  valueColor: Colors.white,
+                  bgColor: const Color(0x99181E2C),
+                  borderColor: Colors.white.withAlpha(25),
+                ),
+              ),
+            ],
+          ),
           if (res.skippedTitles != null && res.skippedTitles!.isNotEmpty) ...[
             const SizedBox(height: 12),
-            InkWell(
-              onTap: () => setState(() => _showSkippedTitles = !_showSkippedTitles),
-              child: Row(
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0x66181E2C),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.white.withAlpha(20)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(
-                    _showSkippedTitles
-                        ? LucideIcons.chevronUp
-                        : LucideIcons.chevronDown,
-                    size: 14,
-                    color: const Color(0xFF94A3B8),
+                  InkWell(
+                    onTap: () => setState(() => _showSkippedTitles = !_showSkippedTitles),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          t.tf('importModal.skippedDuplicatesWithCount', [res.skippedTitles!.length]),
+                          style: TextStyle(fontSize: 12, color: theme.textMuted),
+                        ),
+                        Icon(
+                          _showSkippedTitles ? LucideIcons.chevronUp : LucideIcons.chevronDown,
+                          size: 14,
+                          color: theme.textMuted,
+                        ),
+                      ],
+                    ),
                   ),
-                  const SizedBox(width: 4),
-                  Text(
-                    'Показать пропущенные тайтлы (${res.skippedTitles!.length})',
-                    style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
-                  ),
+                  if (_showSkippedTitles) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      res.skippedTitles!.join(', '),
+                      style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8), height: 1.4),
+                    ),
+                  ],
                 ],
               ),
             ),
-            if (_showSkippedTitles)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(
-                  res.skippedTitles!.join(', '),
-                  style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
-                ),
-              ),
           ],
           const SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: _resetResult,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0x3310B981),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              if (res.targetListId != null)
+                TsundokuButton(
+                  variant: ButtonVariant.primary,
+                  size: ButtonSize.md,
+                  onPressed: () => widget.onNavigateToList?.call(res.targetListId!),
+                  child: Text(t.tr('importModal.openList')),
+                ),
+              TsundokuButton(
+                variant: ButtonVariant.secondary,
+                size: ButtonSize.md,
+                onPressed: _resetResult,
+                child: Text(t.tr('importModal.importAnother')),
               ),
-            ),
-            child: const Text('Импортировать ещё', style: TextStyle(fontSize: 12)),
+              if (widget.showCloseButton && widget.onClose != null)
+                TsundokuButton(
+                  variant: ButtonVariant.ghost,
+                  size: ButtonSize.md,
+                  onPressed: widget.onClose,
+                  child: Text(t.tr('common.close')),
+                ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _buildMetricChip({
+  Widget _buildMetricCard({
     required String label,
     required String value,
-    required Color color,
+    required Color valueColor,
+    required Color bgColor,
+    required Color borderColor,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: const Color(0x0AFFFFFF),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0x14FFFFFF)),
+        color: bgColor,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: borderColor),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '$label: ',
-            style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+            label,
+            style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
           ),
+          const SizedBox(height: 4),
           Text(
             value,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: color,
-            ),
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: valueColor),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildProviderSelector() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildSectionHeader({
+    required String title,
+    String? subtitle,
+    required Color dotColor,
+  }) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        const Row(
+        Row(
           children: [
+            Container(
+              width: 6,
+              height: 6,
+              decoration: BoxDecoration(
+                color: dotColor,
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 8),
             Text(
-              '• 1. ВЫБЕРИТЕ ИСТОЧНИК',
-              style: TextStyle(
+              title.toUpperCase(),
+              style: const TextStyle(
                 fontSize: 11,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 1.2,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.0,
                 color: Color(0xFFE2E8F0),
               ),
             ),
           ],
+        ),
+        if (subtitle != null)
+          Text(
+            subtitle,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: dotColor,
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildProviderSelector(TsundokuTheme theme, I18nDictionary t) {
+    final curTheme = theme.sourceTheme(_provider.id);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionHeader(
+          title: t.tr('importModal.source'),
+          dotColor: curTheme.accent,
         ),
         const SizedBox(height: 10),
         LayoutBuilder(
@@ -682,6 +765,7 @@ class ImportPanelState extends ConsumerState<ImportPanel> {
               itemBuilder: (context, index) {
                 final p = ImportProvider.values[index];
                 final isSelected = _provider == p;
+                final pTheme = theme.sourceTheme(p.id);
 
                 return InkWell(
                   onTap: () {
@@ -695,12 +779,20 @@ class ImportPanelState extends ConsumerState<ImportPanel> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                     decoration: BoxDecoration(
-                      color: isSelected ? const Color(0x1F6366F1) : const Color(0xCC181E2C),
+                      color: isSelected ? pTheme.surface : const Color(0xCC181E2C),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: isSelected ? const Color(0xFF6366F1) : Colors.white.withAlpha(25),
+                        color: isSelected ? pTheme.accent : Colors.white.withAlpha(25),
                         width: isSelected ? 1.5 : 1.0,
                       ),
+                      boxShadow: isSelected
+                          ? [
+                              BoxShadow(
+                                color: pTheme.border,
+                                blurRadius: 4,
+                              )
+                            ]
+                          : null,
                     ),
                     child: Row(
                       children: [
@@ -708,10 +800,10 @@ class ImportPanelState extends ConsumerState<ImportPanel> {
                           width: 40,
                           height: 40,
                           decoration: BoxDecoration(
-                            color: isSelected ? const Color(0x336366F1) : Colors.white.withAlpha(12),
+                            color: pTheme.surface,
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(
-                              color: isSelected ? const Color(0x666366F1) : Colors.white.withAlpha(20),
+                              color: pTheme.border,
                             ),
                           ),
                           alignment: Alignment.center,
@@ -720,7 +812,7 @@ class ImportPanelState extends ConsumerState<ImportPanel> {
                             style: TextStyle(
                               fontSize: p.iconText.length > 2 ? 11 : 13,
                               fontWeight: FontWeight.w800,
-                              color: isSelected ? const Color(0xFF818CF8) : const Color(0xFFCBD5E1),
+                              color: pTheme.text,
                             ),
                           ),
                         ),
@@ -754,7 +846,7 @@ class ImportPanelState extends ConsumerState<ImportPanel> {
                           ),
                         ),
                         if (isSelected)
-                          const Icon(LucideIcons.check, size: 16, color: Color(0xFF6366F1)),
+                          Icon(LucideIcons.check, size: 16, color: pTheme.accent),
                       ],
                     ),
                   ),
@@ -767,36 +859,33 @@ class ImportPanelState extends ConsumerState<ImportPanel> {
     );
   }
 
-  Widget _buildProviderBody(I18nDictionary t) {
+  Widget _buildProviderBody(I18nDictionary t, TsundokuTheme theme) {
     switch (_provider) {
       case ImportProvider.anilist:
-        return _buildAniListBody(t);
+        return _buildAniListBody(t, theme);
       case ImportProvider.mangalib:
-        return _buildMangaLibBody(t);
+        return _buildMangaLibBody(t, theme);
       case ImportProvider.steam:
-        return _buildSteamBody(t);
+        return _buildSteamBody(t, theme);
       case ImportProvider.mal:
       case ImportProvider.shikimori:
       case ImportProvider.letterboxd:
       case ImportProvider.goodreads:
       case ImportProvider.anixart:
       case ImportProvider.custom:
-        return _buildFilePickerBody(t);
+        return _buildFilePickerBody(t, theme);
     }
   }
 
-  Widget _buildAniListBody(I18nDictionary t) {
+  Widget _buildAniListBody(I18nDictionary t, TsundokuTheme theme) {
+    final st = theme.sourceTheme('anilist');
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          '• 2. ФАЙЛ ИЛИ ПРОФИЛЬ',
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 1.2,
-            color: Color(0xFFE2E8F0),
-          ),
+        _buildSectionHeader(
+          title: t.tr('importModal.fileLabel'),
+          dotColor: st.accent,
         ),
         const SizedBox(height: 10),
         Row(
@@ -806,6 +895,7 @@ class ImportPanelState extends ConsumerState<ImportPanel> {
                 label: 'По никнейму профиля',
                 active: _anilistMode == 'profile',
                 onTap: () => setState(() => _anilistMode = 'profile'),
+                st: st,
               ),
             ),
             const SizedBox(width: 8),
@@ -814,6 +904,7 @@ class ImportPanelState extends ConsumerState<ImportPanel> {
                 label: 'Загрузить JSON-файл',
                 active: _anilistMode == 'file',
                 onTap: () => setState(() => _anilistMode = 'file'),
+                st: st,
               ),
             ),
           ],
@@ -841,7 +932,7 @@ class ImportPanelState extends ConsumerState<ImportPanel> {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: Color(0x80818CF8)),
+                borderSide: BorderSide(color: st.accent),
               ),
             ),
           ),
@@ -851,32 +942,45 @@ class ImportPanelState extends ConsumerState<ImportPanel> {
             style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8), height: 1.4),
           ),
         ] else ...[
-          _buildFileDropArea(hint: 'AniList JSON экспорт (.json)'),
+          _buildFileDropArea(hint: 'AniList JSON экспорт (.json)', st: st),
         ],
       ],
     );
   }
 
-  Widget _buildSteamBody(I18nDictionary t) {
+  Widget _buildSteamBody(I18nDictionary t, TsundokuTheme theme) {
+    final st = theme.sourceTheme('steam');
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        _buildSectionHeader(
+          title: t.tr('importModal.fileLabel'),
+          dotColor: st.accent,
+        ),
+        const SizedBox(height: 10),
         Row(
           children: [
-            _buildTabPill(
-              label: 'Steam профиль',
-              active: _steamMode == 'profile',
-              onTap: () => setState(() => _steamMode = 'profile'),
+            Expanded(
+              child: _buildTabPill(
+                label: 'Steam профиль',
+                active: _steamMode == 'profile',
+                onTap: () => setState(() => _steamMode = 'profile'),
+                st: st,
+              ),
             ),
             const SizedBox(width: 8),
-            _buildTabPill(
-              label: 'Файл',
-              active: _steamMode == 'file',
-              onTap: () => setState(() => _steamMode = 'file'),
+            Expanded(
+              child: _buildTabPill(
+                label: 'Файл',
+                active: _steamMode == 'file',
+                onTap: () => setState(() => _steamMode = 'file'),
+                st: st,
+              ),
             ),
           ],
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
         if (_steamMode == 'profile') ...[
           TextField(
             controller: _steamProfileController,
@@ -898,11 +1002,11 @@ class ImportPanelState extends ConsumerState<ImportPanel> {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: Color(0x80818CF8)),
+                borderSide: BorderSide(color: st.accent),
               ),
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           TextField(
             controller: _steamApiKeyController,
             style: const TextStyle(fontSize: 13, color: Colors.white),
@@ -925,11 +1029,11 @@ class ImportPanelState extends ConsumerState<ImportPanel> {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: Color(0x80818CF8)),
+                borderSide: BorderSide(color: st.accent),
               ),
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           _buildCheckboxRow(
             label: 'Пропускать игры с временем < 2 часов',
             value: _steamSkipShortSessions,
@@ -947,30 +1051,42 @@ class ImportPanelState extends ConsumerState<ImportPanel> {
               onChanged: (v) => setState(() => _saveSteamKey = v ?? false),
             ),
         ] else ...[
-          _buildFileDropArea(hint: 'Steam JSON/CSV экспорт'),
+          _buildFileDropArea(hint: 'Steam JSON/CSV экспорт', st: st),
         ],
       ],
     );
   }
 
-  Widget _buildMangaLibBody(I18nDictionary t) {
+  Widget _buildMangaLibBody(I18nDictionary t, TsundokuTheme theme) {
     final mangalibAuth = ref.watch(mangalibAuthProvider);
+    final st = theme.sourceTheme('mangalib');
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        _buildSectionHeader(
+          title: t.tr('importModal.fileLabel'),
+          dotColor: st.accent,
+        ),
+        const SizedBox(height: 10),
         Row(
           children: [
-            _buildTabPill(
-              label: 'Быстрый импорт',
-              active: _mangalibMode == 'collector',
-              onTap: () => setState(() => _mangalibMode = 'collector'),
+            Expanded(
+              child: _buildTabPill(
+                label: 'Быстрый импорт',
+                active: _mangalibMode == 'collector',
+                onTap: () => setState(() => _mangalibMode = 'collector'),
+                st: st,
+              ),
             ),
             const SizedBox(width: 8),
-            _buildTabPill(
-              label: 'Файл Tsundoku SocialLib',
-              active: _mangalibMode == 'file',
-              onTap: () => setState(() => _mangalibMode = 'file'),
+            Expanded(
+              child: _buildTabPill(
+                label: 'Файл Tsundoku SocialLib',
+                active: _mangalibMode == 'file',
+                onTap: () => setState(() => _mangalibMode = 'file'),
+                st: st,
+              ),
             ),
           ],
         ),
@@ -1019,7 +1135,7 @@ class ImportPanelState extends ConsumerState<ImportPanel> {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: Color(0x80818CF8)),
+                borderSide: BorderSide(color: st.accent),
               ),
             ),
           ),
@@ -1039,13 +1155,14 @@ class ImportPanelState extends ConsumerState<ImportPanel> {
             ),
           ),
         ] else ...[
-          _buildFileDropArea(hint: 'tsundoku-sociallib.json'),
+          _buildFileDropArea(hint: 'tsundoku-sociallib.json', st: st),
         ],
       ],
     );
   }
 
-  Widget _buildFilePickerBody(I18nDictionary t) {
+  Widget _buildFilePickerBody(I18nDictionary t, TsundokuTheme theme) {
+    final st = theme.sourceTheme(_provider.id);
     String formatHint;
     switch (_provider) {
       case ImportProvider.mal:
@@ -1070,7 +1187,12 @@ class ImportPanelState extends ConsumerState<ImportPanel> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildFileDropArea(hint: formatHint),
+        _buildSectionHeader(
+          title: t.tr('importModal.fileLabel'),
+          dotColor: st.accent,
+        ),
+        const SizedBox(height: 10),
+        _buildFileDropArea(hint: formatHint, st: st),
         if (_provider == ImportProvider.custom) ...[
           const SizedBox(height: 12),
           Row(
@@ -1094,7 +1216,7 @@ class ImportPanelState extends ConsumerState<ImportPanel> {
     );
   }
 
-  Widget _buildFileDropArea({required String hint}) {
+  Widget _buildFileDropArea({required String hint, required ImportSourceTheme st}) {
     final hasFile = _file != null;
 
     return PlatformDropZone(
@@ -1113,28 +1235,41 @@ class ImportPanelState extends ConsumerState<ImportPanel> {
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
           decoration: BoxDecoration(
-            color: const Color(0x05FFFFFF),
+            color: hasFile
+                ? const Color(0x0D10B981)
+                : st.surface,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: hasFile
-                  ? const Color(0x666366F1)
-                  : const Color(0x1AFFFFFF),
-              width: hasFile ? 1.5 : 1,
+                  ? const Color(0x6610B981)
+                  : st.accent.withAlpha(90),
+              width: 1.5,
             ),
           ),
           child: Column(
             children: [
-              Icon(
-                hasFile ? LucideIcons.fileCheck : LucideIcons.upload,
-                size: 28,
-                color: hasFile ? const Color(0xFF818CF8) : const Color(0xFF94A3B8),
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: hasFile
+                      ? const Color(0x3310B981)
+                      : const Color(0x14FFFFFF),
+                ),
+                alignment: Alignment.center,
+                child: Icon(
+                  hasFile ? LucideIcons.fileText : LucideIcons.upload,
+                  size: 22,
+                  color: hasFile ? const Color(0xFF34D399) : const Color(0xFF94A3B8),
+                ),
               ),
               const SizedBox(height: 10),
               Text(
                 hasFile ? _file!.name : 'Нажмите или перетащите файл сюда',
                 style: TextStyle(
                   fontSize: 13,
-                  fontWeight: hasFile ? FontWeight.w600 : FontWeight.normal,
+                  fontWeight: hasFile ? FontWeight.w600 : FontWeight.w500,
                   color: hasFile ? Colors.white : const Color(0xFFCBD5E1),
                 ),
               ),
@@ -1143,6 +1278,17 @@ class ImportPanelState extends ConsumerState<ImportPanel> {
                 hint,
                 style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
               ),
+              if (hasFile) ...[
+                const SizedBox(height: 10),
+                TextButton(
+                  onPressed: () {
+                    setState(() {
+                      _file = null;
+                    });
+                  },
+                  child: const Text('Изменить файл', style: TextStyle(fontSize: 12)),
+                ),
+              ],
             ],
           ),
         ),
@@ -1150,236 +1296,255 @@ class ImportPanelState extends ConsumerState<ImportPanel> {
     );
   }
 
-  Widget _buildCommonOptions(I18nDictionary t) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'ПАРАМЕТРЫ ИМПОРТА',
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 1.2,
-            color: Color(0xFF64748B),
+  Widget _buildCommonOptions(I18nDictionary t, TsundokuTheme theme) {
+    final st = theme.sourceTheme(_provider.id);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0x99181E2C), // bg-card/60
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withAlpha(20)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSectionHeader(
+            title: t.tr('importModal.optionsTitle'),
+            dotColor: st.accent,
           ),
-        ),
-        const SizedBox(height: 8),
-        _buildCheckboxRow(
-          label: 'Пропускать дубликаты (по названию и автору)',
-          value: _skipDuplicates,
-          onChanged: (v) => setState(() => _skipDuplicates = v ?? true),
-        ),
-        _buildCheckboxRow(
-          label: t.tr('importModal.addToList'),
-          value: _addToList,
-          onChanged: (v) => setState(() => _addToList = v ?? false),
-        ),
-        if (_addToList) ...[
-          const SizedBox(height: 8),
-          Padding(
-            padding: const EdgeInsets.only(left: 28.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          const SizedBox(height: 12),
+          _buildCheckboxRow(
+            label: 'Пропускать дубликаты (по названию и автору)',
+            value: _skipDuplicates,
+            accentColor: st.accent,
+            onChanged: (v) => setState(() => _skipDuplicates = v ?? true),
+          ),
+          _buildCheckboxRow(
+            label: t.tr('importModal.addToList'),
+            value: _addToList,
+            accentColor: st.accent,
+            onChanged: (v) => setState(() => _addToList = v ?? false),
+          ),
+          if (_addToList) ...[
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.only(left: 28.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      _buildTabPill(
+                        label: 'Новый список',
+                        active: _listMode == 'new',
+                        onTap: () => setState(() => _listMode = 'new'),
+                        st: st,
+                      ),
+                      const SizedBox(width: 8),
+                      _buildTabPill(
+                        label: 'Существующий список',
+                        active: _listMode == 'existing',
+                        onTap: () => setState(() => _listMode = 'existing'),
+                        st: st,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  if (_listMode == 'new')
+                    TextField(
+                      controller: _newListNameController,
+                      style: const TextStyle(fontSize: 12, color: Colors.white),
+                      decoration: InputDecoration(
+                        labelText: 'Название нового списка',
+                        labelStyle: const TextStyle(color: Color(0xFF94A3B8)),
+                        hintText: 'Например, Импорт ${_provider.label}',
+                        filled: true,
+                        fillColor: const Color(0x0AFFFFFF),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: Color(0x14FFFFFF)),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: Color(0x14FFFFFF)),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: st.accent),
+                        ),
+                      ),
+                    )
+                  else
+                    DropdownButtonFormField<String>(
+                      initialValue: _targetListId,
+                      dropdownColor: const Color(0xFF1E2230),
+                      style: const TextStyle(fontSize: 12, color: Colors.white),
+                      decoration: InputDecoration(
+                        labelText: 'Выберите список',
+                        labelStyle: const TextStyle(color: Color(0xFF94A3B8)),
+                        filled: true,
+                        fillColor: const Color(0x0AFFFFFF),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: Color(0x14FFFFFF)),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: Color(0x14FFFFFF)),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: st.accent),
+                        ),
+                      ),
+                      items: _lists.map((l) {
+                        return DropdownMenuItem<String>(
+                          value: l.id,
+                          child: Text(l.name),
+                        );
+                      }).toList(),
+                      onChanged: (val) => setState(() => _targetListId = val),
+                    ),
+                ],
+              ),
+            ),
+          ],
+
+          // Folder selection chips
+          if (_provider != ImportProvider.mangalib &&
+              _provider != ImportProvider.anixart &&
+              _provider != ImportProvider.steam) ...[
+            const SizedBox(height: 14),
+            Divider(color: Colors.white.withAlpha(15), height: 1),
+            const SizedBox(height: 14),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Row(
                   children: [
-                    _buildTabPill(
-                      label: 'Новый список',
-                      active: _listMode == 'new',
-                      onTap: () => setState(() => _listMode = 'new'),
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        color: st.accent,
+                        shape: BoxShape.circle,
+                      ),
                     ),
                     const SizedBox(width: 8),
-                    _buildTabPill(
-                      label: 'Существующий список',
-                      active: _listMode == 'existing',
-                      onTap: () => setState(() => _listMode = 'existing'),
+                    Text(
+                      t.tr('importModal.listsToImport').toUpperCase(),
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.0,
+                        color: Color(0xFFE2E8F0),
+                      ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
-                if (_listMode == 'new')
-                  TextField(
-                    controller: _newListNameController,
-                    style: const TextStyle(fontSize: 12, color: Colors.white),
-                    decoration: InputDecoration(
-                      labelText: 'Название нового списка',
-                      labelStyle: const TextStyle(color: Color(0xFF94A3B8)),
-                      hintText: 'Например, Импорт ${_provider.label}',
-                      filled: true,
-                      fillColor: const Color(0x0AFFFFFF),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: const BorderSide(color: Color(0x14FFFFFF)),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: const BorderSide(color: Color(0x14FFFFFF)),
-                      ),
-                    ),
-                  )
-                else
-                  DropdownButtonFormField<String>(
-                    initialValue: _targetListId,
-                    dropdownColor: const Color(0xFF1E2230),
-                    style: const TextStyle(fontSize: 12, color: Colors.white),
-                    decoration: InputDecoration(
-                      labelText: 'Выберите список',
-                      labelStyle: const TextStyle(color: Color(0xFF94A3B8)),
-                      filled: true,
-                      fillColor: const Color(0x0AFFFFFF),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: const BorderSide(color: Color(0x14FFFFFF)),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: const BorderSide(color: Color(0x14FFFFFF)),
-                      ),
-                    ),
-                    items: _lists.map((l) {
-                      return DropdownMenuItem<String>(
-                        value: l.id,
-                        child: Text(l.name),
-                      );
-                    }).toList(),
-                    onChanged: (val) => setState(() => _targetListId = val),
+                Text(
+                  'Выбрано: ${_selectedStatuses.length} из ${_folderOptions.length}',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    color: st.text,
                   ),
+                ),
               ],
             ),
-          ),
-        ],
-
-        // Folder selection chips
-        if (_provider != ImportProvider.mangalib &&
-            _provider != ImportProvider.anixart &&
-            _provider != ImportProvider.steam) ...[
-          const SizedBox(height: 14),
-          const Divider(color: Color(0x14FFFFFF), height: 1),
-          const SizedBox(height: 14),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Row(
-                children: [
-                  Text(
-                    '• КАКИЕ СПИСКИ ИМПОРТИРОВАТЬ:',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 1.2,
-                      color: Color(0xFFE2E8F0),
-                    ),
+            const SizedBox(height: 10),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final cols = constraints.maxWidth >= 600 ? 3 : 2;
+                return GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: _folderOptions.length,
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: cols,
+                    crossAxisSpacing: 8,
+                    mainAxisSpacing: 8,
+                    childAspectRatio: 3.6,
                   ),
-                ],
-              ),
-              Text(
-                'Выбрано: ${_selectedStatuses.length} из ${_folderOptions.length}',
-                style: const TextStyle(fontSize: 11, color: Color(0xFF818CF8)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final cols = constraints.maxWidth >= 600 ? 3 : 2;
-              return GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: _folderOptions.length,
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: cols,
-                  crossAxisSpacing: 8,
-                  mainAxisSpacing: 8,
-                  childAspectRatio: 4.0,
-                ),
-                itemBuilder: (context, index) {
-                  final opt = _folderOptions[index];
-                  final isChecked = _selectedStatuses.contains(opt.id);
-                  return InkWell(
-                    onTap: () {
-                      setState(() {
-                        if (isChecked) {
-                          if (_selectedStatuses.length > 1) {
-                            _selectedStatuses.remove(opt.id);
+                  itemBuilder: (context, index) {
+                    final opt = _folderOptions[index];
+                    final isChecked = _selectedStatuses.contains(opt.id);
+                    return InkWell(
+                      onTap: () {
+                        setState(() {
+                          if (isChecked) {
+                            if (_selectedStatuses.length > 1) {
+                              _selectedStatuses.remove(opt.id);
+                            }
+                          } else {
+                            _selectedStatuses.add(opt.id);
                           }
-                        } else {
-                          _selectedStatuses.add(opt.id);
-                        }
-                      });
-                    },
-                    borderRadius: BorderRadius.circular(10),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: isChecked ? const Color(0x146366F1) : const Color(0x05FFFFFF),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: isChecked ? const Color(0x666366F1) : const Color(0x14FFFFFF),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            isChecked ? LucideIcons.checkSquare : LucideIcons.square,
-                            size: 15,
-                            color: isChecked ? const Color(0xFF818CF8) : const Color(0xFF64748B),
+                        });
+                      },
+                      borderRadius: BorderRadius.circular(10),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: isChecked ? st.surface : const Color(0x05FFFFFF),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: isChecked ? st.accent : const Color(0x14FFFFFF),
                           ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              opt.label,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: isChecked ? FontWeight.w600 : FontWeight.normal,
-                                color: isChecked ? Colors.white : const Color(0xFF94A3B8),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 16,
+                              height: 16,
+                              decoration: BoxDecoration(
+                                color: isChecked ? st.accent : Colors.black26,
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(
+                                  color: isChecked ? st.accent : Colors.white24,
+                                ),
+                              ),
+                              alignment: Alignment.center,
+                              child: isChecked
+                                  ? const Icon(LucideIcons.check, size: 12, color: Colors.white)
+                                  : null,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                opt.label,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: isChecked ? FontWeight.w600 : FontWeight.normal,
+                                  color: isChecked ? st.text : const Color(0xFF94A3B8),
+                                ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                  );
-                },
-              );
-            },
-          ),
+                    );
+                  },
+                );
+              },
+            ),
+          ],
         ],
-      ],
+      ),
     );
   }
 
-  Widget _buildSubmitButton(I18nDictionary t) {
+  Widget _buildSubmitButton(I18nDictionary t, TsundokuTheme theme) {
     return Align(
       alignment: Alignment.centerRight,
-      child: ElevatedButton(
+      child: TsundokuButton(
+        variant: ButtonVariant.primary,
+        size: ButtonSize.lg,
+        loading: _busy,
         onPressed: _busy ? null : _runImport,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF4F46E5), // indigo-600
-          foregroundColor: Colors.white,
-          disabledBackgroundColor: const Color(0x4D4F46E5),
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-        ),
-        child: _busy
-            ? const SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: Colors.white,
-                ),
-              )
-            : const Text(
-                'Начать импорт',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+        child: Text(_busy ? t.tr('importModal.importing') : t.tr('importModal.start')),
       ),
     );
   }
@@ -1388,29 +1553,31 @@ class ImportPanelState extends ConsumerState<ImportPanel> {
     required String label,
     required bool active,
     required VoidCallback onTap,
+    ImportSourceTheme? st,
   }) {
+    final activeBg = st?.surface ?? const Color(0x266366F1);
+    final activeBorder = st?.border ?? const Color(0x666366F1);
+    final activeText = st?.text ?? Colors.white;
+
     return InkWell(
-      borderRadius: BorderRadius.circular(6),
+      borderRadius: BorderRadius.circular(8),
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: active
-              ? const Color(0x266366F1) // indigo-500/15
-              : const Color(0x08FFFFFF),
-          borderRadius: BorderRadius.circular(6),
+          color: active ? activeBg : const Color(0x08FFFFFF),
+          borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: active
-                ? const Color(0x666366F1)
-                : const Color(0x14FFFFFF),
+            color: active ? activeBorder : const Color(0x14FFFFFF),
           ),
         ),
         child: Text(
           label,
           style: TextStyle(
-            fontSize: 11,
+            fontSize: 12,
             fontWeight: active ? FontWeight.w600 : FontWeight.normal,
-            color: active ? Colors.white : const Color(0xFF94A3B8),
+            color: active ? activeText : const Color(0xFF94A3B8),
           ),
         ),
       ),
@@ -1421,6 +1588,7 @@ class ImportPanelState extends ConsumerState<ImportPanel> {
     required String label,
     required bool value,
     required ValueChanged<bool?> onChanged,
+    Color? accentColor,
   }) {
     return InkWell(
       borderRadius: BorderRadius.circular(6),
@@ -1434,7 +1602,8 @@ class ImportPanelState extends ConsumerState<ImportPanel> {
               width: 24,
               child: Checkbox(
                 value: value,
-                activeColor: const Color(0xFF6366F1),
+                activeColor: accentColor ?? const Color(0xFF6366F1),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
                 onChanged: onChanged,
               ),
             ),
@@ -1442,7 +1611,7 @@ class ImportPanelState extends ConsumerState<ImportPanel> {
             Expanded(
               child: Text(
                 label,
-                style: const TextStyle(fontSize: 12, color: Color(0xFFCBD5E1)),
+                style: const TextStyle(fontSize: 13, color: Color(0xFFCBD5E1)),
               ),
             ),
           ],

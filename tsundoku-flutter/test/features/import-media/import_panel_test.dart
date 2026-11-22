@@ -170,6 +170,7 @@ void main() {
 
     // Click import with empty username
     await tester.ensureVisible(find.text('Начать импорт'));
+    await tester.ensureVisible(find.text('Начать импорт'));
     await tester.tap(find.text('Начать импорт'));
     await tester.pumpAndSettle();
 
@@ -181,6 +182,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Click import again
+    await tester.ensureVisible(find.text('Начать импорт'));
     await tester.ensureVisible(find.text('Начать импорт'));
     await tester.tap(find.text('Начать импорт'));
     await tester.pumpAndSettle();
@@ -215,6 +217,7 @@ void main() {
         '76561198000000001');
     await tester.pumpAndSettle();
 
+    await tester.ensureVisible(find.text('Начать импорт'));
     await tester.tap(find.text('Начать импорт'));
     await tester.pumpAndSettle();
 

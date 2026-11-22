@@ -157,9 +157,11 @@ Future<void> pumpHistoryView(
         home: Material(
           child: Stack(
             children: [
-              HistoryView(
-                refreshKey: refreshKey,
-                onOpenMedia: onOpenMedia,
+              SingleChildScrollView(
+                child: HistoryView(
+                  refreshKey: refreshKey,
+                  onOpenMedia: onOpenMedia,
+                ),
               ),
               const ConfirmModal(),
             ],

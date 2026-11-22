@@ -303,14 +303,12 @@ class _HistoryViewState extends ConsumerState<HistoryView> {
       includeInProgress: _includeInProgress,
     );
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 1024), // max-w-5xl
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 1024), // max-w-5xl
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
               // ── Header + Activity Controls ──────────────────────────────
               _buildHeader(context, t, tokens),
               const SizedBox(height: 24),
@@ -327,8 +325,7 @@ class _HistoryViewState extends ConsumerState<HistoryView> {
             ],
           ),
         ),
-      ),
-    );
+      );
   }
 
   // ── Header ───────────────────────────────────────────────────────────────

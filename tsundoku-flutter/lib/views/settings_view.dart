@@ -246,7 +246,7 @@ class SettingsViewState extends ConsumerState<SettingsView> {
               // Content area
               Expanded(
                 child: Container(
-                  color: tokens.bgCanvas,
+                  color: const Color(0x66151A26), // bg-[#151a26]/40
                   child: _buildTabContent(_activeTab),
                 ),
               ),
@@ -316,7 +316,7 @@ class SettingsViewState extends ConsumerState<SettingsView> {
             // Right content area
             Expanded(
               child: Container(
-                color: tokens.bgCanvas,
+                color: const Color(0x66151A26), // bg-[#151a26]/40
                 child: _buildTabContent(_activeTab),
               ),
             ),

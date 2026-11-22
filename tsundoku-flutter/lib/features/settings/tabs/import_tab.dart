@@ -25,13 +25,18 @@ class ImportTab extends StatelessWidget {
   Widget build(BuildContext context) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
-      child: ImportPanel(
-        onImportCompleted: onImportCompleted,
-        onNavigateToList: (listId) {
-          onClose?.call();
-          onNavigateToList?.call(listId);
-        },
-        showCloseButton: false,
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 896), // max-w-4xl (Svelte standard)
+          child: ImportPanel(
+            onImportCompleted: onImportCompleted,
+            onNavigateToList: (listId) {
+              onClose?.call();
+              onNavigateToList?.call(listId);
+            },
+            showCloseButton: false,
+          ),
+        ),
       ),
     );
   }

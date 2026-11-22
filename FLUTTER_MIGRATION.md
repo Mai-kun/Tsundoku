@@ -203,10 +203,11 @@
     ImportModal ✅ (3 теста; адаптивная модалка размера xl со скролл-контейнером и анимацией появления, поддержка panelBuilder для инъекции ImportPanel, проброс колбеков) →
     ImportPanel ✅ (5 тестов; универсальная панель импорта с 9 провайдерами: AniList, MangaLib, MAL, Shikimori, Letterboxd, Goodreads, Steam, Anixart, Custom; режимы профиля и файла; MangaLib браузерная детекция; Steam API ключ; интеграция списков назначения; баннер результатов со статистикой) →
     CreateListModal ✅ (4 теста; модалка создания/редактирования списков: выбор палитры из 6 цветов, 6 иконок, переключатель обычный/умный список, интеграция со SmartListBuilder, живой предпросмотр подходящих тайтлов) →
-    SmartListBuilder ✅ (5 тестов; визуальный конструктор умных списков: 5 быстрых пресетов, секции Scope/Оценки/Даты/Метаданные/Сортировка и лимит, локальная синхронная оценка `evaluateLocally` с live-матчингом тайтлов).
-    Следующий: SearchModal.svelte.
+    SmartListBuilder ✅ (5 тестов; визуальный конструктор умных списков: 5 быстрых пресетов, секции Scope/Оценки/Даты/Метаданные/Сортировка и лимит, локальная синхронная оценка `evaluateLocally` с live-матчингом тайтлов) →
+    SearchModal ✅ (5 тестов; модалка внешнего поиска тайтлов: группировка по категориям/список, селектор источников с офлайн-метками, распознавание URL/ISBN бейджей, добавление/удаление в библиотеку, предпросмотр ExternalDetailModal).
+    Следующий: FirstRunStorageModal.svelte.
 
-**Прогресс: 199 / 207 файлов**
+**Прогресс: 200 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
@@ -215,8 +216,8 @@
 | 2 — `entities/` + карточки/сетка | 19 | 19 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 13 (ЗАКРЫТА, см. Phase Gate) |
 | 4 — Детальная страница + Spatial Node Editor | 59 | 59 |
-| 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 37 |
-| **Всего** | **207** | **199** |
+| 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 38 |
+| **Всего** | **207** | **200** |
 
 Долги Фаз 0–2 (не блокируют): —
 seriesProgressControllerProvider no-op-toast → инъекция в Фазе 3 (решение #35);
@@ -321,7 +322,7 @@ Spatial Node Editor; detailTypes/detailFormatters уже готовы pull-forwa
 | 5 | `features/lists` | `SmartListBuilder.svelte` | `lib/features/lists/smart_list_builder.dart` | ✅ Готов | ✅ | Визуальный конструктор умных списков (пресеты, секции фильтрации, `evaluateLocally` с матчингом, сортировка и лимит); 5 тестов |
 | 0 | `features/prefetch-details` | `externalDetailPrefetch.ts` | `lib/features/prefetch-details/external_detail_prefetch.dart` | ✅ Готов | ✅ | detailsCache 10min TTL, ключ type:source:id, null→rejection; тесты |
 | 0 | `features/prefetch-details` | `mediaDetailPrefetch.ts` | `lib/features/prefetch-details/media_detail_prefetch.dart` | ✅ Готов | ✅ | mediaDetailCache (5min TTL) + updateCachedDetailProgress + prefetchMediaDetail; HoverPrefetchScheduler (150ms intent + scroll-guard — MediaGrid Фаза 2); core/Ref-разделение (решение #16); fakeAsync-тесты |
-| 5 | `features/search-external` | `SearchModal.svelte` | `lib/features/search-external/search_modal.dart` | ⬜ Не начат | ⬜ | — |
+| 5 | `features/search-external` | `SearchModal.svelte` | `lib/features/search-external/search_modal.dart` | ✅ Готов | ✅ | Модалка внешнего поиска тайтлов (группировка по категориям/список, селектор источников, распознавание URL/ISBN, добавление/удаление в библиотеку, предпросмотр ExternalDetailModal); 5 тестов |
 | 5 | `features/settings` | `FirstRunStorageModal.svelte` | `lib/features/settings/first_run_storage_modal.dart` | ⬜ Не начат | ⬜ | — |
 | 5 | `features/settings` | `SettingsModal.svelte` | `lib/features/settings/settings_modal.dart` | ⬜ Не начат | ⬜ | — |
 | 5 | `features/stale-triage` | `StaleBacklogModal.svelte` | `lib/features/stale-triage/stale_backlog_modal.dart` | ⬜ Не начат | ⬜ | — |

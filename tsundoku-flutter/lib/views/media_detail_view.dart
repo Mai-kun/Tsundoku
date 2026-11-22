@@ -349,6 +349,7 @@ class MediaDetailView extends ConsumerStatefulWidget {
   final void Function(MediaItem item) onOpenRelated;
   final void Function(Object? context) onSearch;
   final VoidCallback onOpenLists;
+  final SubTab initialSubTab;
 
   const MediaDetailView({
     super.key,
@@ -361,6 +362,7 @@ class MediaDetailView extends ConsumerStatefulWidget {
     required this.onOpenRelated,
     required this.onSearch,
     required this.onOpenLists,
+    this.initialSubTab = SubTab.overview,
   });
 
   @override
@@ -382,7 +384,7 @@ class _MediaDetailViewState extends ConsumerState<MediaDetailView> {
   int _requestSequence = 0;
   String? _trackedMediaId;
 
-  SubTab _activeSubTab = SubTab.overview;
+  late SubTab _activeSubTab = widget.initialSubTab;
 
   /// Directional tab panels: forward tabs enter from the right, backward from
   /// the left.
@@ -594,7 +596,7 @@ class _MediaDetailViewState extends ConsumerState<MediaDetailView> {
         _isSynopsisTranslated = false;
         _translatedSynopsis = null;
         _translatingSynopsis = false;
-        _activeSubTab = SubTab.overview;
+        _activeSubTab = widget.initialSubTab;
         _related = const <RelatedEntry>[];
         _relatedError = null;
         _previewRelatedItem = null;

@@ -428,32 +428,34 @@ class _RatingBadgeWidgetState extends State<_RatingBadgeWidget> {
               ),
               // Hover face: голоса (заезжает снизу при hover).
               if (hasVotes)
-                AnimatedOpacity(
-                  duration: const Duration(milliseconds: 200),
-                  opacity: _hovered ? 1 : 0,
-                  child: AnimatedSlide(
+                Positioned.fill(
+                  child: AnimatedOpacity(
                     duration: const Duration(milliseconds: 200),
-                    offset: _hovered ? Offset.zero : const Offset(0, 1),
-                    child: Container(
-                      height: 36,
-                      color: Colors.black.withAlpha(115), // bg-black/45
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        mainAxisSize: MainAxisSize.max,
-                        children: [
-                          Icon(LucideIcons.users,
-                              size: 11, color: Colors.white),
-                          const SizedBox(width: 4), // gap-1
-                          Text(
-                            formatVotes(rating.votes ?? 0),
-                            style: const TextStyle(
-                              fontSize: 11, // text-[11px]
-                              fontWeight: FontWeight.w600, // font-semibold
-                              color: Colors.white,
-                              fontFeatures: [FontFeature.tabularFigures()],
+                    opacity: _hovered ? 1 : 0,
+                    child: AnimatedSlide(
+                      duration: const Duration(milliseconds: 200),
+                      offset: _hovered ? Offset.zero : const Offset(0, 1),
+                      child: Container(
+                        height: 36,
+                        color: Colors.black.withAlpha(115), // bg-black/45
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.max,
+                          children: [
+                            Icon(LucideIcons.users,
+                                size: 11, color: Colors.white),
+                            const SizedBox(width: 4), // gap-1
+                            Text(
+                              formatVotes(rating.votes ?? 0),
+                              style: const TextStyle(
+                                fontSize: 11, // text-[11px]
+                                fontWeight: FontWeight.w600, // font-semibold
+                                color: Colors.white,
+                                fontFeatures: [FontFeature.tabularFigures()],
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),

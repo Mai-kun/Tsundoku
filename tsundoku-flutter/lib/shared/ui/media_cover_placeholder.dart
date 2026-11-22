@@ -40,7 +40,11 @@ class MediaCoverPlaceholder extends ConsumerWidget {
             child: Image.asset(
               'assets/images/placeholder-404.jpg',
               fit: BoxFit.cover,
-              errorBuilder: (_, _, _) => const SizedBox.shrink(),
+              errorBuilder: (_, _, _) => Image.network(
+                '/placeholder-404.jpg',
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => const SizedBox.shrink(),
+              ),
             ),
           ),
           // Нижний бейдж: absolute inset-x-0 bottom-0, gradient black/85→0.

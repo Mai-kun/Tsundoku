@@ -2,8 +2,8 @@
 
 ## 📍 Текущий фокус / Next Step
 * **Фаза:** S4 (features/**)
-* **Текущий файл:** `mediatracker-ui/src/features/create-media/CreateModal.svelte` -> `tsundoku-flutter/lib/features/create-media/create_modal.dart`
-* **Цель:** Сверка CreateModal: модалка создания медиа, шапка, поля, футер, отступы.
+* **Текущий файл:** `mediatracker-ui/src/features/create-media/FormField.svelte` -> `tsundoku-flutter/lib/features/create-media/form_field.dart`
+* **Цель:** Сверка FormField: обёртка полей формы, лейбл text-ink space-y-1.5 text-sm font-medium, инпуты, рамки, отступы.
 
 ---
 
@@ -207,7 +207,7 @@
 | S4 | `mediatracker-ui/src/features/edit-media/modules/ImagesModule.svelte` | `tsundoku-flutter/lib/features/edit-media/images_module.dart` | ✅ Сверен 1:1 | h-10 create-режим input, textarea min-h-[64px] p-2.5 rounded-lg, чекбокс h-3.5 w-3.5, кнопка px-3 py-1.5, dropzone px-3 py-4 border-white/10 (26 alpha), сетка 3/4 колонки gap-2 aspect-[2/3], активный бейдж bg-emerald-600/95 text-[10px], select/delete кнопки с тултипами и hover text-rose-300 1-в-1 | Да |
 | S4 | `mediatracker-ui/src/features/edit-media/modules/NotesModule.svelte` | `tsundoku-flutter/lib/features/edit-media/notes_module.dart` | ✅ Сверен 1:1 | 0 отличий (icon fileText size 15, flat flex-1 stretch, non-flat min-h-[120px] rows 5, p-3 rounded-lg border-white/10 bg-field 1-в-1) | 0 отличий |
 | S4 | `mediatracker-ui/src/features/edit-media/modules/QuotesModule.svelte` | `tsundoku-flutter/lib/features/edit-media/quotes_module.dart` | ✅ Сверен 1:1 | icon quote size 15, форма добавления p-3 rounded-lg border-amber-400/20 bg-black/25, min-h-[80px] textarea, h-8 context input, кнопки в строке цитаты выровнены в Row gap-1 (Pencil + Trash2 size-7 rounded-lg с hover:text-rose-300 / hover:text-ink), border-white/10 (26 alpha) 1-в-1 | Да |
-| S4 | `mediatracker-ui/src/features/create-media/CreateModal.svelte` | `tsundoku-flutter/lib/features/create-media/create_modal.dart` | В очереди |  |  |
+| S4 | `mediatracker-ui/src/features/create-media/CreateModal.svelte` | `tsundoku-flutter/lib/features/create-media/create_modal.dart` | ✅ Сверен 1:1 | 0 отличий (тонкий legacy-адаптер 1-в-1 делегирует в EditMediaWorkspace) | 0 отличий |
 | S4 | `mediatracker-ui/src/features/create-media/FormField.svelte` | `tsundoku-flutter/lib/features/create-media/form_field.dart` | В очереди |  |  |
 | S4 | `mediatracker-ui/src/features/create-media/BookFormFields.svelte` | `tsundoku-flutter/lib/features/create-media/book_form_fields.dart` | В очереди |  |  |
 | S4 | `mediatracker-ui/src/features/create-media/GameFormFields.svelte` | `tsundoku-flutter/lib/features/create-media/game_form_fields.dart` | В очереди |  |  |

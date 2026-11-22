@@ -202,7 +202,7 @@ class QuickFactsSection extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          t.tr('detail.quickFacts'),
+          t.tr('detail.quickFacts').toUpperCase(),
           style: TextStyle(
             fontSize: 12, // text-xs
             fontWeight: FontWeight.w600, // font-semibold

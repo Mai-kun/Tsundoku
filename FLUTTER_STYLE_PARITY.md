@@ -2,8 +2,8 @@
 
 ## 📍 Текущий фокус / Next Step
 * **Фаза:** S5 (widgets/media-detail/**, widgets/stats/**, widgets/goals/*)
-* **Текущий файл:** `mediatracker-ui/src/widgets/media-detail/sections/QuickFactsSection.svelte` -> `tsundoku-flutter/lib/widgets/media-detail/sections/quick_facts_section.dart`
-* **Цель:** Сверка QuickFactsSection: краткие факты, статус, страна, языки, даты, студии.
+* **Текущий файл:** `mediatracker-ui/src/widgets/media-detail/sections/QuotesSection.svelte` -> `tsundoku-flutter/lib/widgets/media-detail/sections/quotes_section.dart`
+* **Цель:** Сверка QuotesSection: цитаты тайтла, добавление, редактирование, удаление.
 
 ---
 
@@ -247,7 +247,7 @@
 | S5 | `mediatracker-ui/src/widgets/media-detail/sections/MediaFilesSection.svelte` | `tsundoku-flutter/lib/widgets/media-detail/sections/media_files_section.dart` | ✅ Сверен 1:1 | Заголовок uppercase tracking-wider text-xs font-bold, счётчик rounded-full bg-white/10 px-2 py-0.5, карточки rounded-xl border-white/5 bg-[#151a26] p-3, кнопки size-8 rounded-lg 1-в-1 | Да |
 | S5 | `mediatracker-ui/src/widgets/media-detail/sections/MovieStatusSection.svelte` | `tsundoku-flutter/lib/widgets/media-detail/sections/movie_status_section.dart` | ✅ Сверен 1:1 | 0 отличий (заголовок uppercase tracking-wider text-xs font-bold, кнопки planned/completed px-3 py-1.5 rounded-lg с Check 13px, блок watchedOn rounded-lg border-white/[0.06] bg-black/15 px-3 py-2 1-в-1) | 0 отличий |
 | S5 | `mediatracker-ui/src/widgets/media-detail/sections/NotesSection.svelte` | `tsundoku-flutter/lib/widgets/media-detail/sections/notes_section.dart` | ✅ Сверен 1:1 | 0 отличий (шапка BookOpen 16 text-muted + text-sm font-semibold text-ink, кнопка Edit px-2.5 py-1.5, пустая карточка dashed min-h-[140px] p-5 с иконкой size-10 rounded-xl bg-white/[0.05] 1-в-1) | 0 отличий |
-| S5 | `mediatracker-ui/src/widgets/media-detail/sections/QuickFactsSection.svelte` | `tsundoku-flutter/lib/widgets/media-detail/sections/quick_facts_section.dart` | В очереди |  |  |
+| S5 | `mediatracker-ui/src/widgets/media-detail/sections/QuickFactsSection.svelte` | `tsundoku-flutter/lib/widgets/media-detail/sections/quick_facts_section.dart` | ✅ Сверен 1:1 | Заголовок uppercase tracking-[0.14em] text-xs font-semibold, чипы bg-surface/60 text-muted rounded-lg border-white/5 px-3 py-1.5 text-xs 1-в-1 | Да |
 | S5 | `mediatracker-ui/src/widgets/media-detail/sections/QuotesSection.svelte` | `tsundoku-flutter/lib/widgets/media-detail/sections/quotes_section.dart` | В очереди |  |  |
 | S5 | `mediatracker-ui/src/widgets/media-detail/sections/TrailerSection.svelte` | `tsundoku-flutter/lib/widgets/media-detail/sections/trailer_section.dart` | В очереди |  |  |
 | S5 | `mediatracker-ui/src/widgets/media-detail/sections/TvShowProgressSection.svelte` | `tsundoku-flutter/lib/widgets/media-detail/sections/tv_show_progress_section.dart` | В очереди |  |  |

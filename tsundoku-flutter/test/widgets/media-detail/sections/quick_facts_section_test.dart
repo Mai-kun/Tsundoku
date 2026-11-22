@@ -53,7 +53,7 @@ void main() {
       }),
     );
 
-    expect(find.textContaining('Быстрые факты'), findsOneWidget);
+    expect(find.textContaining(RegExp('Быстрые факты', caseSensitive: false)), findsOneWidget);
     expect(find.text('Аниме'), findsOneWidget);
     expect(find.textContaining('Japanese'), findsOneWidget);
     // Серий: ru-плюрализация 13 → «серий».

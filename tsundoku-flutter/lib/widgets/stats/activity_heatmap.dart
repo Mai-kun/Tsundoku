@@ -92,9 +92,10 @@ class ActivityHeatmap extends ConsumerWidget {
             children: [
               Text(
                 t.tr('stats.heatmapTitle'),
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 16, // text-base
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w600, // font-semibold
+                  letterSpacing: -0.4, // tracking-tight
                   color: Colors.white,
                 ),
               ),
@@ -188,32 +189,34 @@ class ActivityHeatmap extends ConsumerWidget {
                 children: [
                   Text(
                     t.tr('stats.less'),
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 12,
-                      color: const Color(0xFF94A3B8), // text-slate-400
+                      color: Color(0xFF94A3B8), // text-slate-400
                     ),
                   ),
+                  const SizedBox(width: 6), // gap-1.5
                   for (final color in [
-                    Colors.white.withAlpha(10),
-                    th.accentBright.withAlpha((255 * 0.35).round()),
-                    th.accentBright.withAlpha((255 * 0.65).round()),
-                    th.accentBright,
-                    const Color(0xFF818CF8),
-                  ])
+                    Colors.white.withAlpha(10), // bg-white/[0.04]
+                    th.accentBright.withAlpha((255 * 0.35).round()), // bg-accent-bright/35
+                    th.accentBright.withAlpha((255 * 0.65).round()), // bg-accent-bright/65
+                    th.accentBright, // bg-accent-bright
+                    const Color(0xFF818CF8), // bg-[#818cf8]
+                  ]) ...[
                     Container(
                       width: 12, // size-3
                       height: 12,
-                      margin: const EdgeInsets.symmetric(horizontal: 2),
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(2),
+                        borderRadius: BorderRadius.circular(2), // rounded-[2px]
                         color: color,
                       ),
                     ),
+                    const SizedBox(width: 6), // gap-1.5
+                  ],
                   Text(
                     t.tr('stats.more'),
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 12,
-                      color: const Color(0xFF94A3B8),
+                      color: Color(0xFF94A3B8), // text-slate-400
                     ),
                   ),
                 ],

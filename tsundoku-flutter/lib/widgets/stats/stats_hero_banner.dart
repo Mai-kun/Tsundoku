@@ -97,71 +97,79 @@ class StatsHeroBanner extends ConsumerWidget {
           ),
         );
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          t.tf('stats.heroTitle', [hours, titles]),
-          style: TextStyle(
-            fontSize: 24, // text-2xl (sm:3xl — вьюпорта-зависимо опустим)
-            fontWeight: FontWeight.w800, // font-extrabold
-            color: th.textPrimary,
-          ),
-        ),
-        const SizedBox(height: 4), // mt-1
-        Text(
-          t.tf('stats.heroSubtitle', [days]),
-          style: TextStyle(
-            fontSize: 14, // text-sm
-            color: th.textMuted,
-          ),
-        ),
-        const SizedBox(height: 14), // space-y-4 (грид ниже)
-        LayoutBuilder(builder: (context, constraints) {
-          final columns = constraints.maxWidth >= 640 ? 3 : 1; // sm:grid-cols-3
-          final gap = 14.0; // gap-3.5
-          final cardWidth =
-              (constraints.maxWidth - gap * (columns - 1)) / columns;
-          return Wrap(
-            spacing: gap,
-            runSpacing: gap,
-            children: [
-              SizedBox(
-                width: cardWidth,
-                child: metricCard(
-                  icon: LucideIcons.flame,
-                  iconBg: const Color(0x1AF59E0B), // bg-amber-500/10
-                  iconColor: const Color(0xFFF59E0B), // text-amber-500
-                  label: t.tr('stats.activityStreak'),
-                  value: t.tf('stats.streakDays', [stats.currentStreakDays]),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isSm = constraints.maxWidth >= 640;
+        final columns = isSm ? 3 : 1; // sm:grid-cols-3
+        final gap = 14.0; // gap-3.5
+        final cardWidth =
+            (constraints.maxWidth - gap * (columns - 1)) / columns;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              t.tf('stats.heroTitle', [hours, titles]),
+              style: TextStyle(
+                fontSize: isSm ? 30 : 24, // text-2xl sm:text-3xl
+                fontWeight: FontWeight.w800, // font-extrabold
+                letterSpacing: isSm ? -0.75 : -0.6, // tracking-tight
+                color: th.textPrimary, // text-ink
+              ),
+            ),
+            const SizedBox(height: 4), // mt-1
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 672), // max-w-2xl
+              child: Text(
+                t.tf('stats.heroSubtitle', [days]),
+                style: TextStyle(
+                  fontSize: isSm ? 16 : 14, // text-sm sm:text-base
+                  color: th.textMuted, // text-muted
                 ),
               ),
-              SizedBox(
-                width: cardWidth,
-                child: metricCard(
-                  icon: LucideIcons.star,
-                  iconBg: const Color(0x1AEAB308), // bg-yellow-500/10
-                  iconColor: const Color(0xFFFACC15), // text-yellow-400
-                  label: t.tr('stats.averageScore'),
-                  value:
-                      '${stats.averageScore > 0 ? stats.averageScore : '—'} / 10',
+            ),
+            const SizedBox(height: 16), // space-y-4
+            Wrap(
+              spacing: gap,
+              runSpacing: gap,
+              children: [
+                SizedBox(
+                  width: cardWidth,
+                  child: metricCard(
+                    icon: LucideIcons.flame,
+                    iconBg: const Color(0x1AF59E0B), // bg-amber-500/10
+                    iconColor: const Color(0xFFF59E0B), // text-amber-500
+                    label: t.tr('stats.activityStreak'),
+                    value: t.tf('stats.streakDays', [stats.currentStreakDays]),
+                  ),
                 ),
-              ),
-              SizedBox(
-                width: cardWidth,
-                child: metricCard(
-                  icon: LucideIcons.checkCircle,
-                  iconBg: const Color(0x1A10B981), // bg-emerald-500/10
-                  iconColor: const Color(0xFF34D399), // text-emerald-400
-                  label: t.tr('stats.completed'),
-                  value:
-                      '${stats.completedTitles} / ${stats.totalTitles} (${stats.completionRatePercent}%)',
+                SizedBox(
+                  width: cardWidth,
+                  child: metricCard(
+                    icon: LucideIcons.star,
+                    iconBg: const Color(0x1AEAB308), // bg-yellow-500/10
+                    iconColor: const Color(0xFFFACC15), // text-yellow-400
+                    label: t.tr('stats.averageScore'),
+                    value:
+                        '${stats.averageScore > 0 ? stats.averageScore : '—'} / 10',
+                  ),
                 ),
-              ),
-            ],
-          );
-        }),
-      ],
+                SizedBox(
+                  width: cardWidth,
+                  child: metricCard(
+                    icon: LucideIcons.checkCircle,
+                    iconBg: const Color(0x1A10B981), // bg-emerald-500/10
+                    iconColor: const Color(0xFF34D399), // text-emerald-400
+                    label: t.tr('stats.completed'),
+                    value:
+                        '${stats.completedTitles} / ${stats.totalTitles} (${stats.completionRatePercent}%)',
+                  ),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
     );
   }
 }

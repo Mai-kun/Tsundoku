@@ -192,10 +192,11 @@
     GoalCard ✅ (4 теста; карточка цели, эмодзи-иконка, тайтл, описание, счетчик current/target и процент,
     градиентный/изумрудный прогресс-бар, бейдж «Выполнено», превью обложек завершенных тайтлов, кнопка удаления на hover) →
     StatsView ✅ (4 теста; табы сводка/taste-profile, селектор scope completed/all_progress, баннер и метрики, donut распределения, monthly activity, heatmap, psychology, backlog health, 7 taste profile карт, retry/error/skeleton) →
-    HistoryView ✅ (8 тестов; вкладки Хроника и Активность, переключатель месяцев/годов, мозаика мини-карточек, фильтры категорий, якоря годов, блок без точной даты, лента активности с фильтром по дате и подтверждением удаления/очистки через ConfirmModal).
+    HistoryView ✅ (8 тестов; вкладки Хроника и Активность, переключатель месяцев/годов, мозаика мини-карточек, фильтры категорий, якоря годов, блок без точной даты, лента активности с фильтром по дате и подтверждением удаления/очистки через ConfirmModal) →
+    CreateGoalModal ✅ (4 теста; вкладки шаблонов и своей цели, TsundokuSelect категории, валидация, createGoal POST, показ ошибок).
     Следующий: GoalsView.svelte.
 
-**Прогресс: 188 / 207 файлов**
+**Прогресс: 189 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
@@ -204,7 +205,7 @@
 | 2 — `entities/` + карточки/сетка | 19 | 19 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 13 (ЗАКРЫТА, см. Phase Gate) |
 | 4 — Детальная страница + Spatial Node Editor | 59 | 59 |
-| 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 26 |
+| 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 27 |
 | **Всего** | **207** | **186** |
 
 Долги Фаз 0–2 (не блокируют): —
@@ -301,7 +302,7 @@ Spatial Node Editor; detailTypes/detailFormatters уже готовы pull-forwa
 | 4 | `features/edit-media` | `workspaceLayout.ts` | `lib/features/edit-media/workspace_layout.dart` | ✅ Готов | ✅ | WorkspaceRect/WorkspaceLayout (мутабельные поля — merge сохранённого, как в TS bindable), clampWindowRect/clampPoint (min(max()) 1-в-1, а не clamp-исключения), defaultLayout (три колонки, floor-высоты, altH может быть < 0 — clampWindowRect поднимет до min), loadLayout/saveLayout → SharedPreferences (аналог localStorage, async), битый JSON → дефолт; 10 тестов |
 | 4 | `features/edit-media` | `workspaceThreads.ts` | `lib/features/edit-media/workspace_threads.dart` | ✅ Готов | ✅ | ThreadRect/AnchorPair (нормали граней), nearestFaceAnchors (доминантная ось, dy=dx → горизонталь), ThreadSpring: пружинные концы + controlTargets (protrusion min(max(d*0.32,28),110), sag min(d*0.08,26), синус-дыхание фаза*0.0018, sway2 сдвиг 1.7), step возвращает строку SVG-пути `M ... C ...` (1-в-1 с TS — рисование CustomPainter парсит/рисует в WorkspaceWindow); 6 тестов |
 | 3 | `features/filter-and-sort` | `FilterBar.svelte` | `lib/features/filter-and-sort/filter_bar.dart` | ✅ Готов | ✅ | GroupBy — строковый union typedef (конвенция решения #2), LibrarySort — typedef String из category_model (контракт Фазы 0!); SORT_ICONS/GROUP_ICONS → функции; PopoverOption.leading (renderOption-аналог, аддитивно к Фазе 1); поиск с дебаунсом 300ms; статус-триггер с бейджем-счётчиком; TotalBadge в центре; bg-field = bgSurface; 6 тестов |
-| 5 | `features/goals` | `CreateGoalModal.svelte` | `lib/features/goals/create_goal_modal.dart` | ⬜ Не начат | ⬜ | — |
+| 5 | `features/goals` | `CreateGoalModal.svelte` | `lib/features/goals/create_goal_modal.dart` | ✅ Готов | ✅ | Модалка создания цели: вкладки «Быстрые шаблоны» (книги/игры/аниме/ретро) и «Своя цель» (название, год, число, TsundokuSelect категории, эмодзи, описание), валидация, createGoal POST, показ ошибок; 4 теста |
 | 5 | `features/import-media` | `ImportModal.svelte` | `lib/features/import-media/import_modal.dart` | ⬜ Не начат | ⬜ | — |
 | 5 | `features/import-media` | `ImportPanel.svelte` | `lib/features/import-media/import_panel.dart` | ⬜ Не начат | ⬜ | — |
 | 0 | `features/import-media` | `mangalibAuth.svelte.ts` | `lib/features/import-media/mangalib_auth.dart` | ✅ Готов | ✅ | $state → Riverpod; localStorage → shared_preferences (mangalib_user_id); save/adopt/disconnect + toast-инъекция |

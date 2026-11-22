@@ -194,10 +194,11 @@
     StatsView ✅ (4 теста; табы сводка/taste-profile, селектор scope completed/all_progress, баннер и метрики, donut распределения, monthly activity, heatmap, psychology, backlog health, 7 taste profile карт, retry/error/skeleton) →
     HistoryView ✅ (8 тестов; вкладки Хроника и Активность, переключатель месяцев/годов, мозаика мини-карточек, фильтры категорий, якоря годов, блок без точной даты, лента активности с фильтром по дате и подтверждением удаления/очистки через ConfirmModal) →
     CreateGoalModal ✅ (4 теста; вкладки шаблонов и своей цели, TsundokuSelect категории, валидация, createGoal POST, показ ошибок) →
-    GoalsView ✅ (7 тестов; кольцевой прогресс-бар _GoalSummaryRing, переключатель годов, сетка карточек GoalCard, удаление с ConfirmModal, интеграция с CreateGoalModal).
-    Следующий: CalendarView.svelte.
+    GoalsView ✅ (7 тестов; кольцевой прогресс-бар _GoalSummaryRing, переключатель годов, сетка карточек GoalCard, удаление с ConfirmModal, интеграция с CreateGoalModal) →
+    CalendarView ✅ (7 тестов; секция дедлайнов бэклога с 30-дневным горизонтом и темпом, панель навигации по месяцам, фильтры категорий/событий, экспорт ICS, лента карточек с автопроверкой онгоингов, сетка 7-колонок с панелью выбранного дня).
+    Следующий: ListsView.svelte.
 
-**Прогресс: 190 / 207 файлов**
+**Прогресс: 191 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
@@ -206,8 +207,8 @@
 | 2 — `entities/` + карточки/сетка | 19 | 19 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 13 (ЗАКРЫТА, см. Phase Gate) |
 | 4 — Детальная страница + Spatial Node Editor | 59 | 59 |
-| 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 28 |
-| **Всего** | **207** | **186** |
+| 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 29 |
+| **Всего** | **207** | **187** |
 
 Долги Фаз 0–2 (не блокируют): —
 seriesProgressControllerProvider no-op-toast → инъекция в Фазе 3 (решение #35);
@@ -366,7 +367,7 @@ Spatial Node Editor; detailTypes/detailFormatters уже готовы pull-forwa
 | 0 | `shared/utils` | `unknownCreator.ts` | `lib/shared/utils/unknown_creator.dart` | ✅ Готов | ✅ | Set плейсхолдеров 1-в-1 (trim+lowercase); тест: null/плейсхолдеры/реальные авторы |
 | 0 | `shared/utils` | `urlMediaParser.ts` | `lib/shared/utils/url_media_parser.dart` | ✅ Готов | ✅ | 15 regex-правил 1-в-1 (Dart RegExp); запрещённые слаги; isIsbn/isUrl/detectQueryBadge; все кейсы vitest-теста перенесены (18 групп) |
 | 0 | `shared/utils` | `viewport.svelte.ts` | `lib/shared/utils/viewport.dart` | ✅ Готов | ✅ | $state width → ViewportController+provider (дефолт 1280); AppShell (Фаза 3) зовёт update() из MediaQuery (решение #13); тест rebuild-семантики |
-| 5 | `views` | `CalendarView.svelte` | `lib/views/calendar_view.dart` | ⬜ Не начат | ⬜ | — |
+| 5 | `views` | `CalendarView.svelte` | `lib/views/calendar_view.dart` | ✅ Готов | ✅ | Секция дедлайнов бэклога (30-дневный горизонт, бейдж дней, инфо об отставании/темпе, переход по тапу), панель управления (навигатор месяцев, кнопка перехода к сегодня, TsundokuSelect категорий и типов событий, сброс фильтров, экспорт ICS, переключатель обложки/иконки, переключатель сетка/лента), лента событий по дням (карточки с постером, статусом, бейджами и кнопкой автопроверки онгоингов), сетка месяца (Пн-Вс, стаки мини-обложек или иконки, счетчики +N) с панелью выбранного дня; 7 тестов |
 | 3 | `views` | `CategoryView.svelte` | `lib/views/category_view.dart` | ✅ Готов | ✅ | Sliver-вью (решение #37): FilterBar + статус-секции/франшизные группы/одна сетка (SECTION_ROW_LIMIT 40); SWR-модульный кэш + savedCategoryState; fetch-эффект гвардится ключом зависимостей ($effect-аналог — sequence не растёт на rebuild'ах); sequence-загрузка (500ms при поиске); stuck-reload; optimistic прогресс/удаление/статус; vitest-кейс перенесён (keyed-ремоунт при смене категории); 2 теста |
 | 5 | `views` | `GoalsView.svelte` | `lib/views/goals_view.dart` | ✅ Готов | ✅ | Кольцевой индикатор общего прогресса (_GoalSummaryRing), переключатель годов, кнопка создания цели, адаптивная сетка карточек GoalCard (1-3 колонки), пустой стейт, хинт завершения, удаление через ConfirmModal, интеграция с CreateGoalModal; 7 тестов |
 | 5 | `views` | `HistoryView.svelte` | `lib/views/history_view.dart` | ✅ Готов | ✅ | Вкладки Хроника и Активность, переключатель месяцев/годов, мозаика мини-карточек, фильтры категорий, интерактивные якоря годов, раскрываемый блок без даты, лента активности с фильтром даты, ConfirmModal для единичного удаления и полной очистки; 8 тестов |
@@ -601,3 +602,4 @@ Spatial Node Editor; detailTypes/detailFormatters уже готовы pull-forwa
 | 61 | `widgets/stats/activity_heatmap.dart` | `LayoutBuilder` был обёрнут в `Expanded` внутри `Column(mainAxisSize: MainAxisSize.min)`; при монтировании внутри скролл-контейнера (`StatsView`) происходил assertion error `RenderFlex unbounded height` | Убран лишний `Expanded` вокруг `LayoutBuilder`, так как `LayoutBuilder` возвращает `SizedBox` фиксированной высоты (`7 * cellSize`), а ширина горизонтального скроллера задаётся `SingleChildScrollView(scrollDirection: Axis.horizontal)` | Ревью не требуется |
 | 62 | `widgets/stats/monthly_activity_chart.dart` | `MonthlyActivityChart` ожидал тип `MonthlyCompletionItem`, тогда как `AdvancedStats.monthlyCompletions` возвращает `List<MonthCompletion>` | Добавлен `typedef MonthlyCompletionItem = MonthCompletion;` для полной взаимозаменяемости типов без дублирования DTO | Ревью не требуется |
 | 63 | `views/GoalsView.svelte` | В Svelte `<CreateGoalModal>` рендерится как dialog; в Flutter модалка с `ModalBarrier` внутри `SingleChildScrollView` приводила к assert `BoxConstraints unbounded height` | `GoalsView` возвращает `Stack(children: [SingleChildScrollView(...), if (_isCreateOpen) CreateGoalModal(...)])` — модалка перекрывает весь вьюпорт поверх контента | Ревью не требуется |
+| 64 | `views/CalendarView.svelte` | В Svelte дни недели uppercase задаются CSS-классом uppercase, в Dart DateFormat.E('ru') добавляет точку ('пн.') | В _weekdays точка зачищается ('Пн'), в Row отображается day.toUpperCase() ('ПН'), совпадая с визуальным эталоном Svelte | Ревью не требуется |

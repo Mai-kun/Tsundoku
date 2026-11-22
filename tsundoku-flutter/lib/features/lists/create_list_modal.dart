@@ -198,6 +198,7 @@ class _CreateListModalState extends ConsumerState<CreateListModal> {
       isOpen: true,
       onClose: widget.onClose,
       size: ModalSize.lg,
+      contentPadding: EdgeInsets.zero,
       child: Container(
         constraints: BoxConstraints(
           maxHeight: MediaQuery.sizeOf(context).height * 0.85,

@@ -201,9 +201,10 @@ class _BookEditionSectionState extends ConsumerState<BookEditionSection> {
                                 Text(
                                   media.isbn!,
                                   style: const TextStyle(
+                                    fontFamily: 'monospace',
                                     fontSize: 12,
                                     fontWeight: FontWeight.w600,
-                                    letterSpacing: 1.2, // tracking-wide
+                                    letterSpacing: 0.6, // tracking-wide
                                     color: Colors.white,
                                   ),
                                 ),

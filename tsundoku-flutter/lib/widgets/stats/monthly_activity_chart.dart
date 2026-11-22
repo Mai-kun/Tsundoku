@@ -63,9 +63,10 @@ class MonthlyActivityChart extends ConsumerWidget {
                       child: Text(
                         t.tr('stats.monthlyActivity'),
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 16, // text-base
-                          fontWeight: FontWeight.w600,
+                          fontWeight: FontWeight.w600, // font-semibold
+                          letterSpacing: -0.4, // tracking-tight
                           color: Colors.white,
                         ),
                       ),
@@ -103,13 +104,19 @@ class MonthlyActivityChart extends ConsumerWidget {
             Widget chart = Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                SizedBox(
+                Container(
                   height: 176, // h-44
+                  padding: const EdgeInsets.only(top: 24, bottom: 8), // pt-6 pb-2
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       for (final c in completions)
-                        Expanded(child: _MonthColumn(item: c, maxCount: maxEffective)),
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 4), // gap-2
+                            child: _MonthColumn(item: c, maxCount: maxEffective),
+                          ),
+                        ),
                     ],
                   ),
                 ),
@@ -117,20 +124,23 @@ class MonthlyActivityChart extends ConsumerWidget {
                   decoration: BoxDecoration(
                     border: Border(
                         top: BorderSide(
-                            color: Colors.white.withAlpha(13))), // border-t
+                            color: Colors.white.withAlpha(13))), // border-t border-white/5
                   ),
                   padding: const EdgeInsets.only(top: 8), // pt-2
                   child: Row(
                     children: [
                       for (final c in completions)
                         Expanded(
-                          child: Text(
-                            _formatMonth(c.monthYear, locale),
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 12, // text-xs
-                              fontWeight: FontWeight.w500,
-                              color: const Color(0xFF94A3B8), // text-slate-400
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 4), // gap-2
+                            child: Text(
+                              _formatMonth(c.monthYear, locale),
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontSize: 12, // text-xs
+                                fontWeight: FontWeight.w500, // font-medium
+                                color: Color(0xFF94A3B8), // text-slate-400
+                              ),
                             ),
                           ),
                         ),
@@ -195,8 +205,8 @@ class _MonthColumn extends ConsumerWidget {
                         begin: Alignment.bottomCenter,
                         end: Alignment.topCenter,
                         colors: [
-                          const Color(0xFF818CF8), // to-[#818cf8]
                           TsundokuTheme.of(context).accentBright, // from-accent-bright
+                          const Color(0xFF818CF8), // to-[#818cf8]
                         ],
                       ),
                     ),

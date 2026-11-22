@@ -2,8 +2,8 @@
 
 ## 📍 Текущий фокус / Next Step
 * **Фаза:** S5 (widgets/media-detail/**, widgets/stats/**, widgets/goals/*)
-* **Текущий файл:** `mediatracker-ui/src/widgets/stats/MonthlyActivityChart.svelte` -> `tsundoku-flutter/lib/widgets/stats/monthly_activity_chart.dart`
-* **Цель:** Сверка MonthlyActivityChart: столбчатый график h-44, градиентные столбцы, тултипы, min-w-[340px].
+* **Текущий файл:** `mediatracker-ui/src/widgets/stats/RatingPsychology.svelte` -> `tsundoku-flutter/lib/widgets/stats/rating_psychology.dart`
+* **Цель:** Сверка RatingPsychology: гистограмма 10..1 ★, amber-градиент, разбивка по категориям.
 
 ---
 
@@ -259,7 +259,7 @@
 | S5 | `mediatracker-ui/src/widgets/goals/GoalCard.svelte` | `tsundoku-flutter/lib/widgets/goals/goal_card.dart` | ✅ Сверен 1:1 | 0 отличий (bg-card border-white/[0.08] hover:border-white/20, size-11 иконка, прогресс-бар h-2.5 с градиентом/изумрудом, бейдж completed, 48x48 обложки 1-в-1) | 0 отличий |
 | S5 | `mediatracker-ui/src/widgets/stats/StatsHeroBanner.svelte` | `tsundoku-flutter/lib/widgets/stats/stats_hero_banner.dart` | ✅ Сверен 1:1 | Заголовок text-2xl sm:text-3xl tracking-tight, подзаголовок text-sm sm:text-base max-w-2xl (672px), space-y-4 (16px), 3 карточки sm:grid-cols-3 gap-3.5 bg-[#151a26] p-4 1-в-1 | Да |
 | S5 | `mediatracker-ui/src/widgets/stats/ActivityHeatmap.svelte` | `tsundoku-flutter/lib/widgets/stats/activity_heatmap.dart` | ✅ Сверен 1:1 | Заголовок text-base font-semibold tracking-tight, 53x7 сетка с min-w-[760px] и скроллом, 5 уровней интенсивности, легенда gap-1.5 (6px) 1-в-1 | Да |
-| S5 | `mediatracker-ui/src/widgets/stats/MonthlyActivityChart.svelte` | `tsundoku-flutter/lib/widgets/stats/monthly_activity_chart.dart` | В очереди |  |  |
+| S5 | `mediatracker-ui/src/widgets/stats/MonthlyActivityChart.svelte` | `tsundoku-flutter/lib/widgets/stats/monthly_activity_chart.dart` | ✅ Сверен 1:1 | Заголовок text-base font-semibold tracking-tight, область графика h-44 (176px) с pt-6 pb-2 и gap-2 (8px), градиент снизу вверх от accent-bright к #818cf8, плашки 4px для нулей 1-в-1 | Да |
 | S5 | `mediatracker-ui/src/widgets/stats/RatingPsychology.svelte` | `tsundoku-flutter/lib/widgets/stats/rating_psychology.dart` | В очереди |  |  |
 | S5 | `mediatracker-ui/src/widgets/stats/TimeDistributionDonut.svelte` | `tsundoku-flutter/lib/widgets/stats/time_distribution_donut.dart` | В очереди |  |  |
 | S5 | `mediatracker-ui/src/widgets/stats/TopGenresBar.svelte` | `tsundoku-flutter/lib/widgets/stats/top_genres_bar.dart` | В очереди |  |  |

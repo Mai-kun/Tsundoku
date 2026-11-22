@@ -197,10 +197,11 @@
     GoalsView ✅ (7 тестов; кольцевой прогресс-бар _GoalSummaryRing, переключатель годов, сетка карточек GoalCard, удаление с ConfirmModal, интеграция с CreateGoalModal) →
     CalendarView ✅ (7 тестов; секция дедлайнов бэклога с 30-дневным горизонтом и темпом, панель навигации по месяцам, фильтры категорий/событий, экспорт ICS, лента карточек с автопроверкой онгоингов, сетка 7-колонок с панелью выбранного дня) →
     ListsView ✅ (8 тестов; галерея списков с 1-4 колонками, карточки с 0/1/2+ обложками, умные бейджи/чипы, детальный вид с MediaGrid, оптимистичное удаление тайтлов, ConfirmModal для удаления списка, модальные колбеки) →
-    SettingsView ✅ (5 тестов; embedded-контейнер настроек с 10 секциями, глубокий диплинк через initialTab, мобильный горизонтальный rail табов, десктопный двухколоночный лейаут с w-64 сайдбаром, делегирование через panelBuilder).
-    Следующий: CreateModal.svelte.
+    SettingsView ✅ (5 тестов; embedded-контейнер настроек с 10 секциями, глубокий диплинк через initialTab, мобильный горизонтальный rail табов, десктопный двухколоночный лейаут с w-64 сайдбаром, делегирование через panelBuilder) →
+    CreateModal ✅ (3 теста; legacy-обёртка над пространственным холстом EditMediaWorkspace с сохранением проп-контракта, сокрытие при isOpen=false, проброс editingItem).
+    Следующий: DropReasonModal.svelte.
 
-**Прогресс: 193 / 207 файлов**
+**Прогресс: 194 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
@@ -209,8 +210,8 @@
 | 2 — `entities/` + карточки/сетка | 19 | 19 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 13 (ЗАКРЫТА, см. Phase Gate) |
 | 4 — Детальная страница + Spatial Node Editor | 59 | 59 |
-| 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 31 |
-| **Всего** | **207** | **189** |
+| 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 32 |
+| **Всего** | **207** | **194** |
 
 Долги Фаз 0–2 (не блокируют): —
 seriesProgressControllerProvider no-op-toast → инъекция в Фазе 3 (решение #35);
@@ -285,7 +286,7 @@ Spatial Node Editor; detailTypes/detailFormatters уже готовы pull-forwa
 | 2 | `entities/media/ui` | `Placeholder404.svelte` | `lib/entities/media/ui/placeholder404.dart` | ✅ Готов | ✅ | Тонкая обёртка над MediaCoverPlaceholder: label passthrough, undefined → coverMissing; StatelessWidget (ref не нужен — i18n читается внутри плейсхолдера); widget-тесты label |
 | 0 | `features/change-status` | `statusController.svelte.ts` | `lib/features/change-status/status_controller.dart` | ✅ Готов | ✅ | createCardStatus: optimistic switch (copyWithFields), rule 2 reset при уходе из Completed, rollback при ошибке, drop-prompt открытие; clearDropReasons() для очистки nullable (решение #14); тесты полного цикла |
 | 5 | `features/create-media` | `BookFormFields.svelte` | `lib/features/create-media/book_form_fields.dart` | ✅ Готов | ✅ | ⬆️ Вытащен из Фазы 5 (зависимость CategoryFieldsModule, Фаза 4): author (hint) + format-селект (6 форматов bookFormats), isNovel (light_novel/web_novel) → главы+тома, иначе страницы; 3 теста |
-| 5 | `features/create-media` | `CreateModal.svelte` | `lib/features/create-media/create_modal.dart` | ⬜ Не начат | ⬜ | — |
+| 5 | `features/create-media` | `CreateModal.svelte` | `lib/features/create-media/create_modal.dart` | ✅ Готов | ✅ | Legacy-обёртка над пространственным холстом EditMediaWorkspace с сохранением исторического проп-контракта; сокрытие при isOpen=false; 3 теста |
 | 5 | `features/create-media` | `FormField.svelte` | `lib/features/create-media/form_field.dart` | ✅ Готов | ✅ | ⬆️ Вытащен из Фазы 5 (зависимость CategoryFieldsModule, Фаза 4): TsundokuFormField (конфликт имени с Flutter FormField) — лейбл text-sm font-medium + контрол; хелперы createFieldBorder/createFieldDecoration/createFieldTextStyle/createNumberFormatter для полей форм; 1 тест |
 | 5 | `features/create-media` | `GameFormFields.svelte` | `lib/features/create-media/game_form_fields.dart` | ✅ Готов | ✅ | ⬆️ Вытащен из Фазы 5 (зависимость CategoryFieldsModule, Фаза 4): platform (hint placeholder) + hoursPlayed (number); 1 тест |
 | 5 | `features/create-media` | `MangaFormFields.svelte` | `lib/features/create-media/manga_form_fields.dart` | ✅ Готов | ✅ | ⬆️ Вытащен из Фазы 5 (зависимость CategoryFieldsModule, Фаза 4): author + totalChapters; currentVolume + totalVolumes (двойная роль, лейбл detail.tabVolumes, hint '1'); 1 тест |

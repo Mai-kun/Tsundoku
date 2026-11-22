@@ -749,6 +749,8 @@ class _EditMediaWorkspaceState extends ConsumerState<EditMediaWorkspace>
 
   @override
   Widget build(BuildContext context) {
+    if (!widget.isOpen) return const SizedBox.shrink();
+
     final t = ref.watch(tProvider);
     final th = TsundokuTheme.of(context);
     final size = MediaQuery.sizeOf(context);

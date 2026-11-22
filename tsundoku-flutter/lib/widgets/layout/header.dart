@@ -51,11 +51,13 @@ class Header extends ConsumerWidget {
         PopoverOption(value: l, label: l.wire.toUpperCase()),
     ];
 
-    return SizedBox(
-      height: double.infinity,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: SizedBox(
+        height: double.infinity,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
           Row(
             children: [
               // Заголовок: w-56 min-w-0 shrink-0 truncate.
@@ -171,8 +173,9 @@ class Header extends ConsumerWidget {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 }
 
 /// Центральный поиск: офлайн-бейдж + Button secondary 28rem/32rem + kbd

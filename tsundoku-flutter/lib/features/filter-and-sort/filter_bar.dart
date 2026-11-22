@@ -195,6 +195,7 @@ class _FilterBarState extends ConsumerState<FilterBar> {
                   tooltip: t.tr('grouping.label'),
                   icon: groupIcon(widget.groupBy),
                   th: th,
+                  showTooltip: !ctx.isOpen,
                 ),
               ),
               const SizedBox(width: 8), // gap-2
@@ -212,6 +213,7 @@ class _FilterBarState extends ConsumerState<FilterBar> {
                   label: _labelForStatus(widget.status, t),
                   count: count,
                   th: th,
+                  showTooltip: !ctx.isOpen,
                 ),
               ),
               const Spacer(),
@@ -248,6 +250,7 @@ class _FilterBarState extends ConsumerState<FilterBar> {
                         tooltip: t.tr('sort.label'),
                         icon: sortIcon(widget.sort),
                         th: th,
+                        showTooltip: !ctx.isOpen,
                       ),
                     ),
                   ],
@@ -266,32 +269,38 @@ class _IconButtonTrigger extends StatelessWidget {
   final String tooltip;
   final IconData icon;
   final TsundokuTheme th;
+  final bool showTooltip;
 
   const _IconButtonTrigger({
     required this.tooltip,
     required this.icon,
     required this.th,
+    this.showTooltip = true,
   });
 
   @override
   Widget build(BuildContext context) {
     // Кнопка — визуал: тап должен уходить в GestureDetector поповера —
     // IgnorePointer исключает кнопку из арены жестов (🐛 #6).
-    return Tooltip(
-      message: tooltip,
-      child: IgnorePointer(
-        child: SizedBox(
-          width: 40, // lg size: h-10
-          height: 40,
-          child: TsundokuButton(
-            variant: ButtonVariant.secondary,
-            size: ButtonSize.md,
-            onPressed: () {},
-            child: Icon(icon, size: 18, color: th.textMuted),
-          ),
+    final body = IgnorePointer(
+      child: SizedBox(
+        width: 36, // h-9 w-9
+        height: 36,
+        child: TsundokuButton(
+          variant: ButtonVariant.secondary,
+          size: ButtonSize.md,
+          onPressed: () {},
+          child: Icon(icon, size: 18, color: th.textMuted),
         ),
       ),
     );
+    if (showTooltip && tooltip.isNotEmpty) {
+      return Tooltip(
+        message: tooltip,
+        child: body,
+      );
+    }
+    return body;
   }
 }
 
@@ -300,61 +309,67 @@ class _StatusTrigger extends StatelessWidget {
   final String label;
   final int? count;
   final TsundokuTheme th;
+  final bool showTooltip;
 
   const _StatusTrigger({
     required this.label,
     required this.count,
     required this.th,
+    this.showTooltip = true,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Tooltip(
-      message: label,
-      child: IgnorePointer(
-        child: SizedBox(
-          height: 40,
-          child: TsundokuButton(
-            variant: ButtonVariant.secondary,
-            size: ButtonSize.md,
-            onPressed: () {},
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 12, // text-xs
-                    fontWeight: FontWeight.w600, // font-semibold
-                  ),
+    final body = IgnorePointer(
+      child: SizedBox(
+        height: 36,
+        child: TsundokuButton(
+          variant: ButtonVariant.secondary,
+          size: ButtonSize.md,
+          onPressed: () {},
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 12, // text-xs
+                  fontWeight: FontWeight.w600, // font-semibold
                 ),
-                if (count != null) ...[
-                  const SizedBox(width: 6),
-                  TsundokuBadge(
-                    tone: BadgeTone.neutral,
-                    size: BadgeSize.xs,
-                    child: Text('$count'),
-                  ),
-                ],
+              ),
+              if (count != null) ...[
                 const SizedBox(width: 6),
-                Icon(
-                  LucideIcons.chevronDown, // ChevronDown size={14}
-                  size: 14,
-                  color: th.textMuted, // text-muted
+                TsundokuBadge(
+                  tone: BadgeTone.neutral,
+                  size: BadgeSize.xs,
+                  child: Text('$count'),
                 ),
               ],
-            ),
+              const SizedBox(width: 6),
+              Icon(
+                LucideIcons.chevronDown, // ChevronDown size={14}
+                size: 14,
+                color: th.textMuted, // text-muted
+              ),
+            ],
           ),
         ),
       ),
     );
+    if (showTooltip && label.isNotEmpty) {
+      return Tooltip(
+        message: label,
+        child: body,
+      );
+    }
+    return body;
   }
 }
 
-/// Поле поиска: bg-field border-white/10 rounded-lg h-10 pl-9, Search 18px
-/// слева, debounce 300ms снаружи.
+/// Поле поиска: bg-field border-white/10 rounded-lg h-9 pl-9, Search 16px
+/// внутри рамки слева, debounce 300ms снаружи.
 class _SearchField extends StatefulWidget {
   final String initial;
   final String hint;
@@ -375,7 +390,15 @@ class _SearchField extends StatefulWidget {
 class _SearchFieldState extends State<_SearchField> {
   late final TextEditingController _controller =
       TextEditingController(text: widget.initial);
-  bool _focused = false;
+
+  @override
+  void didUpdateWidget(_SearchField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initial != oldWidget.initial &&
+        widget.initial != _controller.text) {
+      _controller.text = widget.initial;
+    }
+  }
 
   @override
   void dispose() {
@@ -386,54 +409,49 @@ class _SearchFieldState extends State<_SearchField> {
   @override
   Widget build(BuildContext context) {
     final th = widget.th;
-    return Stack(
-      alignment: Alignment.centerLeft,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 36), // pl-9 (иконка слева)
-          child: Focus(
-            onFocusChange: (focused) => setState(() => _focused = focused),
-            child: TextField(
-              controller: _controller,
-              onChanged: widget.onChanged,
-              style: TextStyle(
-                fontSize: 14, // text-sm
-                color: th.textPrimary, // text-ink
-              ),
-              decoration: InputDecoration(
-                isDense: true,
-                contentPadding:
-                    const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
-                hintText: widget.hint, // placeholder
-                hintStyle: TextStyle(color: th.textMuted),
-                filled: true,
-                fillColor: th.bgSurface, // bg-field = var(--bg-surface)
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8), // rounded-lg
-                  borderSide:
-                      BorderSide(color: Colors.white.withAlpha(26)), // white/10
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(
-                    color: _focused
-                        ? const Color(0x996366F1) // focus:border-indigo-500/60
-                        : Colors.white.withAlpha(26),
-                  ),
-                ),
-              ),
+    return SizedBox(
+      height: 36,
+      child: TextField(
+        controller: _controller,
+        onChanged: widget.onChanged,
+        style: TextStyle(
+          fontSize: 13, // text-sm
+          color: th.textPrimary, // text-ink
+        ),
+        decoration: InputDecoration(
+          isDense: true,
+          contentPadding:
+              const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+          prefixIcon: Padding(
+            padding: const EdgeInsets.only(left: 10, right: 8),
+            child: Icon(
+              LucideIcons.search,
+              size: 16,
+              color: th.textMuted,
+            ),
+          ),
+          prefixIconConstraints:
+              const BoxConstraints(minWidth: 34, minHeight: 36),
+          hintText: widget.hint,
+          hintStyle: TextStyle(
+            fontSize: 13,
+            color: th.textMuted,
+          ),
+          filled: true,
+          fillColor: th.bgSurface, // bg-field
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8), // rounded-lg
+            borderSide:
+                BorderSide(color: Colors.white.withAlpha(26)), // white/10
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(
+              color: Color(0x996366F1), // focus:border-indigo-500/60
             ),
           ),
         ),
-        Positioned(
-          left: 12, // left-3
-          child: Icon(
-            LucideIcons.search, // Search size={18}
-            size: 18,
-            color: th.textMuted, // text-muted
-          ),
-        ),
-      ],
+      ),
     );
   }
 }

@@ -184,6 +184,7 @@ class _SidebarState extends ConsumerState<Sidebar> {
 
     if (isDesktop) {
       return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
             padding:
@@ -230,10 +231,7 @@ class _SidebarState extends ConsumerState<Sidebar> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 toolsLabel,
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: toolsColumn,
-                ),
+                toolsColumn,
               ],
             ),
           ),
@@ -420,7 +418,9 @@ class _NavItemState extends State<_NavItem> {
             : Colors.transparent;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4),
+      padding: widget.desktop
+          ? EdgeInsets.zero
+          : const EdgeInsets.symmetric(horizontal: 4),
       child: MouseRegion(
         onEnter: (_) => setState(() => _hovered = true),
         onExit: (_) => setState(() => _hovered = false),

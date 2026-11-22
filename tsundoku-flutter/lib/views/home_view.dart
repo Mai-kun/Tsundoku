@@ -408,7 +408,7 @@ class _HomeViewState extends ConsumerState<HomeView> {
           _hasLoaded ||
           _inProgress.isNotEmpty ||
           _upNext.isNotEmpty ||
-          _recentlyCompleted.isNotEmpty)
+          _recentlyCompleted.isNotEmpty) ...[
         SliverToBoxAdapter(
           child: _ControlPanel(
             state: this,
@@ -419,12 +419,14 @@ class _HomeViewState extends ConsumerState<HomeView> {
             staleCount: staleCount,
           ),
         ),
+        const SliverToBoxAdapter(child: SizedBox(height: 16)),
+      ],
 
       // Сводка при активном фильтре времени.
       if (!_loading &&
           _loadError == null &&
           _timeBudget != null &&
-          totalFitting > 0)
+          totalFitting > 0) ...[
         SliverToBoxAdapter(
           child: _TimeBudgetSummary(
             t: t,
@@ -434,6 +436,8 @@ class _HomeViewState extends ConsumerState<HomeView> {
             onReset: () => setState(() => _timeBudget = null),
           ),
         ),
+        const SliverToBoxAdapter(child: SizedBox(height: 16)),
+      ],
 
       // Состояния + секции.
       if (_loading &&
@@ -459,9 +463,9 @@ class _HomeViewState extends ConsumerState<HomeView> {
           ),
         )
       else if (_groupByMode == homeGroupType)
-        for (final group in typeGroups) ...[
-          const SliverToBoxAdapter(child: SizedBox(height: 16)),
-          _homeSectionSliver(group.items, group.label,
+        for (var i = 0; i < typeGroups.length; i++) ...[
+          if (i > 0) const SliverToBoxAdapter(child: SizedBox(height: 16)),
+          _homeSectionSliver(typeGroups[i].items, typeGroups[i].label,
               t: t, staleCount: staleCount),
         ]
       else if (_groupByMode == homeGroupNone)
@@ -478,17 +482,18 @@ class _HomeViewState extends ConsumerState<HomeView> {
         )
       else ...[
         if (displayInProgress.isNotEmpty)
-          const SliverToBoxAdapter(child: SizedBox(height: 16)),
-        if (displayInProgress.isNotEmpty)
           _homeSectionSliver(
               displayInProgress, statusLabel(MediaStatus.inProgress, t),
               isProgressSection: true, t: t, staleCount: staleCount),
-        if (displayUpNext.isNotEmpty)
+        if (displayInProgress.isNotEmpty &&
+            (displayUpNext.isNotEmpty ||
+                (_timeBudget == null && displayRecentlyCompleted.isNotEmpty)))
           const SliverToBoxAdapter(child: SizedBox(height: 16)),
         if (displayUpNext.isNotEmpty)
           _homeSectionSliver(displayUpNext, statusLabel(MediaStatus.planned, t),
               t: t, staleCount: staleCount),
-        if (_timeBudget == null && displayRecentlyCompleted.isNotEmpty)
+        if (displayUpNext.isNotEmpty &&
+            (_timeBudget == null && displayRecentlyCompleted.isNotEmpty))
           const SliverToBoxAdapter(child: SizedBox(height: 16)),
         if (_timeBudget == null && displayRecentlyCompleted.isNotEmpty)
           _homeSectionSliver(displayRecentlyCompleted,
@@ -1277,6 +1282,7 @@ class _ControlPanel extends ConsumerWidget {
                   tooltip: t.tr('home.grouping'),
                   icon: groupModeIcon(state._groupByMode),
                   th: th,
+                  showTooltip: !ctx.isOpen,
                 ),
               ),
               const SizedBox(width: 8),
@@ -1317,6 +1323,7 @@ class _ControlPanel extends ConsumerWidget {
                         tooltip: t.tr('timeBudget.filterTitle'),
                         icon: LucideIcons.clock3,
                         th: th,
+                        showTooltip: !ctx.isOpen,
                       ),
               ),
               const SizedBox(width: 8),
@@ -1407,6 +1414,7 @@ class _ControlPanel extends ConsumerWidget {
                         tooltip: t.tr('sort.label'),
                         icon: homeSortIcon(state._sort),
                         th: th,
+                        showTooltip: !ctx.isOpen,
                       ),
                     ),
                   ],
@@ -1470,36 +1478,42 @@ class _ControlPanel extends ConsumerWidget {
   }
 }
 
-/// Панельные кнопки: bg-field border-white/10 rounded-lg h-10 (icon 18 /
+/// Панельные кнопки: bg-field border-white/10 rounded-lg h-9 (icon 18 /
 /// text-xs font-semibold + ChevronDown).
 class _PanelIconButton extends StatelessWidget {
   final String tooltip;
   final IconData icon;
   final TsundokuTheme th;
+  final bool showTooltip;
 
   const _PanelIconButton({
     required this.tooltip,
     required this.icon,
     required this.th,
+    this.showTooltip = true,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Tooltip(
-      message: tooltip,
-      child: IgnorePointer(
-        child: Container(
-          width: 40, // h-10 w-10
-          height: 40,
-          decoration: BoxDecoration(
-            color: th.bgSurface, // bg-field = var(--bg-surface)
-            borderRadius: BorderRadius.circular(8), // rounded-lg
-            border: Border.all(color: Colors.white.withAlpha(26)), // white/10
-          ),
-          child: Icon(icon, size: 18, color: th.textMuted),
+    final body = IgnorePointer(
+      child: Container(
+        width: 36, // h-9 w-9
+        height: 36,
+        decoration: BoxDecoration(
+          color: th.bgSurface, // bg-field = var(--bg-surface)
+          borderRadius: BorderRadius.circular(8), // rounded-lg
+          border: Border.all(color: Colors.white.withAlpha(26)), // white/10
         ),
+        child: Icon(icon, size: 18, color: th.textMuted),
       ),
     );
+    if (showTooltip && tooltip.isNotEmpty) {
+      return Tooltip(
+        message: tooltip,
+        child: body,
+      );
+    }
+    return body;
   }
 }
 
@@ -1629,6 +1643,15 @@ class _HomeSearchFieldState extends State<_HomeSearchField> {
   Timer? _debounce;
 
   @override
+  void didUpdateWidget(_HomeSearchField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.state._searchQuery != oldWidget.state._searchQuery &&
+        widget.state._searchQuery != _controller.text) {
+      _controller.text = widget.state._searchQuery;
+    }
+  }
+
+  @override
   void dispose() {
     _debounce?.cancel();
     _controller.dispose();
@@ -1638,45 +1661,51 @@ class _HomeSearchFieldState extends State<_HomeSearchField> {
   @override
   Widget build(BuildContext context) {
     final th = widget.th;
-    return Stack(
-      alignment: Alignment.centerLeft,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 36), // pl-9
-          child: TextField(
-            controller: _controller,
-            onChanged: widget.state.updateSearchQuery,
-            style: TextStyle(fontSize: 14, color: th.textPrimary),
-            decoration: InputDecoration(
-              isDense: true,
-              contentPadding:
-                  const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
-              hintText: widget.state.ref.read(tProvider).tr('home.searchPlaceholder'),
-              hintStyle: TextStyle(color: th.textMuted),
-              filled: true,
-              fillColor: th.bgSurface, // bg-field
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide:
-                    BorderSide(color: Colors.white.withAlpha(26)), // white/10
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(
-                    color: Color(0x996366F1)), // focus indigo-500/60
-              ),
+    final hint =
+        widget.state.ref.read(tProvider).tr('home.searchPlaceholder');
+    return SizedBox(
+      height: 36,
+      child: TextField(
+        controller: _controller,
+        onChanged: widget.state.updateSearchQuery,
+        style: TextStyle(
+          fontSize: 13, // text-sm
+          color: th.textPrimary, // text-ink
+        ),
+        decoration: InputDecoration(
+          isDense: true,
+          contentPadding:
+              const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+          prefixIcon: Padding(
+            padding: const EdgeInsets.only(left: 10, right: 8),
+            child: Icon(
+              LucideIcons.search,
+              size: 16,
+              color: th.textMuted,
+            ),
+          ),
+          prefixIconConstraints:
+              const BoxConstraints(minWidth: 34, minHeight: 36),
+          hintText: hint,
+          hintStyle: TextStyle(
+            fontSize: 13,
+            color: th.textMuted,
+          ),
+          filled: true,
+          fillColor: th.bgSurface, // bg-field
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide:
+                BorderSide(color: Colors.white.withAlpha(26)), // white/10
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(
+              color: Color(0x996366F1), // focus indigo-500/60
             ),
           ),
         ),
-        Positioned(
-          left: 12,
-          child: Icon(
-            LucideIcons.search, // Search size={18}
-            size: 18,
-            color: th.textMuted,
-          ),
-        ),
-      ],
+      ),
     );
   }
 }

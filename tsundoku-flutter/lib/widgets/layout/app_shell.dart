@@ -88,9 +88,15 @@ class _AppShellState extends ConsumerState<AppShell> {
                 ? CustomScrollView(
                     controller: widget.mainScrollController,
                     slivers: [
-                      if (!widget.noPadding)
-                        const SliverPadding(padding: EdgeInsets.all(24)),
-                      ...?widget.slivers,
+                      if (widget.noPadding)
+                        ...?widget.slivers
+                      else
+                        SliverPadding(
+                          padding: const EdgeInsets.all(24),
+                          sliver: SliverMainAxisGroup(
+                            slivers: widget.slivers!,
+                          ),
+                        ),
                     ],
                   )
                 : SingleChildScrollView(

@@ -65,7 +65,7 @@ class RatingPsychology extends ConsumerWidget {
               style: TextStyle(
                 fontSize: 16, // text-base
                 fontWeight: FontWeight.w600, // font-semibold
-                letterSpacing: -0.2, // tracking-tight
+                letterSpacing: -0.4, // tracking-tight
                 color: theme.textPrimary, // text-ink
               ),
             ),

@@ -1,9 +1,31 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:tsundoku_flutter/features/import-media/import_modal.dart';
+import 'package:tsundoku_flutter/shared/api/api.dart';
 import 'package:tsundoku_flutter/shared/theme/tsundoku_theme.dart';
+
+class _StubAdapter implements HttpClientAdapter {
+  @override
+  Future<ResponseBody> fetch(
+      RequestOptions options,
+      Stream<Uint8List>? requestStream,
+      Future<void>? cancelFuture) async {
+    return ResponseBody.fromString(
+      jsonEncode(<String, dynamic>{}),
+      200,
+      headers: {Headers.contentTypeHeader: ['application/json']},
+    );
+  }
+
+  @override
+  void close({bool force = false}) {}
+}
 
 Widget _buildSubject({
   required bool isOpen,
@@ -12,7 +34,11 @@ Widget _buildSubject({
   ValueChanged<String>? onNavigateToList,
   ImportPanelBuilder? panelBuilder,
 }) {
+  final dio = Dio()..httpClientAdapter = _StubAdapter();
   return ProviderScope(
+    overrides: [
+      apiClientProvider.overrideWithValue(TsundokuApi(dio)),
+    ],
     child: MaterialApp(
       theme: buildTsundokuTheme(),
       home: Scaffold(

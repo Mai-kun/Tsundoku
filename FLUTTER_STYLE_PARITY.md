@@ -2,8 +2,8 @@
 
 ## 📍 Текущий фокус / Next Step
 * **Фаза:** S5 (widgets/media-detail/**, widgets/stats/**, widgets/goals/*)
-* **Текущий файл:** `mediatracker-ui/src/widgets/media-detail/sections/TvShowProgressSection.svelte` -> `tsundoku-flutter/lib/widgets/media-detail/sections/tv_show_progress_section.dart`
-* **Цель:** Сверка TvShowProgressSection: прогресс сериалов, сезоны, серии, ProgressCard.
+* **Текущий файл:** `mediatracker-ui/src/widgets/media-detail/tabs/OverviewTab.svelte` -> `tsundoku-flutter/lib/widgets/media-detail/tabs/overview_tab.dart`
+* **Цель:** Сверка OverviewTab: общая вкладка деталей медиа, секции контента, адаптивный лэйаут.
 
 ---
 
@@ -250,7 +250,7 @@
 | S5 | `mediatracker-ui/src/widgets/media-detail/sections/QuickFactsSection.svelte` | `tsundoku-flutter/lib/widgets/media-detail/sections/quick_facts_section.dart` | ✅ Сверен 1:1 | Заголовок uppercase tracking-[0.14em] text-xs font-semibold, чипы bg-surface/60 text-muted rounded-lg border-white/5 px-3 py-1.5 text-xs 1-в-1 | Да |
 | S5 | `mediatracker-ui/src/widgets/media-detail/sections/QuotesSection.svelte` | `tsundoku-flutter/lib/widgets/media-detail/sections/quotes_section.dart` | ✅ Сверен 1:1 | Заголовок uppercase tracking-wider text-xs font-bold, счётчик rounded-full bg-amber-400/10 px-2 py-0.5, форма p-3.5 border-amber-400/20 bg-black/25, цитата font-serif italic text-sm в кавычках “ ” 1-в-1 | Да |
 | S5 | `mediatracker-ui/src/widgets/media-detail/sections/TrailerSection.svelte` | `tsundoku-flutter/lib/widgets/media-detail/sections/trailer_section.dart` | ✅ Сверен 1:1 | 0 отличий (aspect-video w-full rounded-xl border-white/10, кнопка play size-14 rounded-2xl bg-red-600/90 с hover:scale-[1.03], пустая секция min-h-[190px] border-white/5 1-в-1) | 0 отличий |
-| S5 | `mediatracker-ui/src/widgets/media-detail/sections/TvShowProgressSection.svelte` | `tsundoku-flutter/lib/widgets/media-detail/sections/tv_show_progress_section.dart` | В очереди |  |  |
+| S5 | `mediatracker-ui/src/widgets/media-detail/sections/TvShowProgressSection.svelte` | `tsundoku-flutter/lib/widgets/media-detail/sections/tv_show_progress_section.dart` | ✅ Сверен 1:1 | 0 отличий (делегирует в ProgressCard с indigo-акцентом: episodes, paceOptions [1, 2, 3, 5], paceDefault: 2, totalTooltip по сезонам, duration per ep 1-в-1) | 0 отличий |
 | S5 | `mediatracker-ui/src/widgets/media-detail/tabs/OverviewTab.svelte` | `tsundoku-flutter/lib/widgets/media-detail/tabs/overview_tab.dart` | В очереди |  |  |
 | S5 | `mediatracker-ui/src/widgets/media-detail/tabs/EpisodesTab.svelte` | `tsundoku-flutter/lib/widgets/media-detail/tabs/episodes_tab.dart` | В очереди |  |  |
 | S5 | `mediatracker-ui/src/widgets/media-detail/tabs/GalleryTab.svelte` | `tsundoku-flutter/lib/widgets/media-detail/tabs/gallery_tab.dart` | В очереди |  |  |

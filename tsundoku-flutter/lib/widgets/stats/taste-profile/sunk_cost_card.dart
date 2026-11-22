@@ -80,10 +80,14 @@ class SunkCostCard extends ConsumerWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           // Шапка: песочные часы + заголовок слева, процентный бейдж справа
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8, // gap-2
+            runSpacing: 8,
             children: [
               Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   const Icon(
                     LucideIcons.hourglass,
@@ -96,7 +100,7 @@ class SunkCostCard extends ConsumerWidget {
                     style: const TextStyle(
                       fontSize: 16, // text-base
                       fontWeight: FontWeight.w600, // font-semibold
-                      letterSpacing: -0.2, // tracking-tight
+                      letterSpacing: -0.4, // tracking-tight
                       color: Colors.white,
                     ),
                   ),
@@ -133,7 +137,7 @@ class SunkCostCard extends ConsumerWidget {
             t.tf('stats.taste.sunkCostMessage', [hoursStr, percentStr]),
             style: const TextStyle(
               fontSize: 14, // text-sm
-              height: 1.5, // leading-relaxed
+              height: 1.625, // leading-relaxed
               color: Color(0xFFCBD5E1), // text-slate-300
             ),
           ),
@@ -243,7 +247,7 @@ class SunkCostCard extends ConsumerWidget {
               t.tr('stats.taste.sunkCostAdvice'),
               style: const TextStyle(
                 fontSize: 14, // text-sm
-                height: 1.5, // leading-relaxed
+                height: 1.625, // leading-relaxed
                 color: Color(0xE66EE7B7), // text-emerald-300/90
               ),
             ),

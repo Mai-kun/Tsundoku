@@ -2,8 +2,8 @@
 
 ## 📍 Текущий фокус / Next Step
 * **Фаза:** S5 (widgets/media-detail/**, widgets/stats/**, widgets/goals/*)
-* **Текущий файл:** `mediatracker-ui/src/widgets/stats/taste-profile/SunkCostCard.svelte` -> `tsundoku-flutter/lib/widgets/stats/taste-profile/sunk_cost_card.dart`
-* **Цель:** Сверка SunkCostCard: синдром невозвратных затрат, время на брошенные тайтлы, карточки.
+* **Текущий файл:** `mediatracker-ui/src/widgets/stats/taste-profile/TastePersonaCard.svelte` -> `tsundoku-flutter/lib/widgets/stats/taste-profile/taste_persona_card.dart`
+* **Цель:** Сверка TastePersonaCard: вкусовая персона, черты характера, архетипы и бейджи.
 
 ---
 
@@ -270,7 +270,7 @@
 | S5 | `mediatracker-ui/src/widgets/stats/taste-profile/GenreParadoxCard.svelte` | `tsundoku-flutter/lib/widgets/stats/taste-profile/genre_paradox_card.dart` | ✅ Сверен 1:1 | Заголовок tracking-tight (-0.4), адаптивный перенос шапки Wrap (gap-2), двойные полосы h-2.5 (10px) с space-y-1 (4px), колонка процентов w-24 leading-tight 1-в-1 | Да |
 | S5 | `mediatracker-ui/src/widgets/stats/taste-profile/CriticalDivergenceCard.svelte` | `tsundoku-flutter/lib/widgets/stats/taste-profile/critical_divergence_card.dart` | ✅ Сверен 1:1 | Заголовок tracking-tight (-0.4), адаптивная сетка sm:grid-cols-2 (>=640px) с IntrinsicHeight растяжкой карточек, постеры 56x80 rounded-md, бейдж дельты rounded-full px-2.5 py-0.5 1-в-1 | Да |
 | S5 | `mediatracker-ui/src/widgets/stats/taste-profile/DropAnalyticsCard.svelte` | `tsundoku-flutter/lib/widgets/stats/taste-profile/drop_analytics_card.dart` | ✅ Сверен 1:1 | Заголовок tracking-tight (-0.4), адаптивный перенос шапки Wrap (gap-2), бейдж rounded-full px-2.5 py-0.5, 3-цветный бар h-3, leading-relaxed (1.625) для текста и инсайта 1-в-1 | Да |
-| S5 | `mediatracker-ui/src/widgets/stats/taste-profile/SunkCostCard.svelte` | `tsundoku-flutter/lib/widgets/stats/taste-profile/sunk_cost_card.dart` | В очереди |  |  |
+| S5 | `mediatracker-ui/src/widgets/stats/taste-profile/SunkCostCard.svelte` | `tsundoku-flutter/lib/widgets/stats/taste-profile/sunk_cost_card.dart` | ✅ Сверен 1:1 | Заголовок tracking-tight (-0.4), адаптивная шапка Wrap (gap-2), бейдж rounded-full px-2.5 py-0.5, плашка rounded px-2 py-0.5, сегментированный бар h-3 и leading-relaxed (1.625) 1-в-1 | Да |
 | S5 | `mediatracker-ui/src/widgets/stats/taste-profile/TastePersonaCard.svelte` | `tsundoku-flutter/lib/widgets/stats/taste-profile/taste_persona_card.dart` | В очереди |  |  |
 | S6 | `mediatracker-ui/src/app/App.svelte` | `tsundoku-flutter/lib/app/app.dart` | В очереди |  |  |
 | S6 | `mediatracker-ui/src/views/HomeView.svelte` | `tsundoku-flutter/lib/views/home_view.dart` | В очереди |  |  |

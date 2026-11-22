@@ -305,7 +305,7 @@ class _CastSectionState extends ConsumerState<CastSection> {
             children: [
               Expanded(
                 child: Text(
-                  display.title,
+                  display.title.toUpperCase(),
                   style: const TextStyle(
                     fontSize: 12, // text-xs
                     fontWeight: FontWeight.w700, // font-bold
@@ -329,75 +329,107 @@ class _CastSectionState extends ConsumerState<CastSection> {
           const SizedBox(height: 12), // space-y-3
           if (portraitEntries.isNotEmpty)
             // Portrait-сетка главных: только целые ряды (anti-orphan rule).
-            Wrap(
-              spacing: 12, // gap-3
-              runSpacing: 12,
-              children: [
-                for (final entry in portraitEntries)
-                  _PortraitCard(
-                    entry: entry,
-                    large: large,
-                    th: th,
-                    revealed: _revealedVoice == entry.key,
-                    onReveal: (revealed) =>
-                        setState(() => _revealedVoice = revealed ? entry.key : null),
-                  ),
-              ],
+            LayoutBuilder(
+              builder: (context, constraints) {
+                // grid grid-cols-3 gap-3
+                final cardWidth = (constraints.maxWidth - 24) / 3;
+                return Wrap(
+                  spacing: 12, // gap-3
+                  runSpacing: 12,
+                  children: [
+                    for (final entry in portraitEntries)
+                      SizedBox(
+                        width: cardWidth,
+                        child: _PortraitCard(
+                          entry: entry,
+                          large: large,
+                          th: th,
+                          revealed: _revealedVoice == entry.key,
+                          onReveal: (revealed) => setState(
+                              () => _revealedVoice = revealed ? entry.key : null),
+                        ),
+                      ),
+                  ],
+                );
+              },
             ),
           if (overflowEntries.isNotEmpty || supporting.isNotEmpty) ...[
             const SizedBox(height: 12), // space-y-3
             if (hasVoiceActors)
               Column(
                 children: [
-                  for (final entry in overflowEntries)
+                  for (int i = 0; i < overflowEntries.length; i++) ...[
+                    if (i > 0)
+                      Divider(
+                        height: 1,
+                        thickness: 1,
+                        color: Colors.white.withAlpha(13), // divide-white/[0.05]
+                      ),
                     _RowEntry(
-                      entry: entry,
+                      entry: overflowEntries[i],
                       large: large,
                       th: th,
                       isRu: ref.read(i18nProvider).wire == 'ru',
                     ),
-                  if (!_supportingCollapsed)
-                    Column(
-                      children: [
-                        for (final entry in supporting)
-                          _RowEntry(
+                  ],
+                  if (!_supportingCollapsed) ...[
+                    if (overflowEntries.isNotEmpty)
+                      Divider(
+                        height: 1,
+                        thickness: 1,
+                        color: Colors.white.withAlpha(13), // border-t border-white/[0.05]
+                      ),
+                    for (int i = 0; i < supporting.length; i++) ...[
+                      if (i > 0)
+                        Divider(
+                          height: 1,
+                          thickness: 1,
+                          color: Colors.white.withAlpha(13),
+                        ),
+                      _RowEntry(
+                        entry: supporting[i],
+                        large: large,
+                        th: th,
+                        isRu: ref.read(i18nProvider).wire == 'ru',
+                      ),
+                    ],
+                  ],
+                ],
+              )
+            else
+              // Flat payloads (манга, книги): две компактные колонки (grid-cols-1 md:grid-cols-2).
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final isMd = constraints.maxWidth >= 600;
+                  final itemWidth = isMd ? (constraints.maxWidth - 24) / 2 : constraints.maxWidth;
+                  return Wrap(
+                    spacing: 24, // gap-x-6
+                    runSpacing: 8, // gap-y-2
+                    children: [
+                      for (final entry in overflowEntries)
+                        SizedBox(
+                          width: itemWidth,
+                          child: _RowEntry(
                             entry: entry,
                             large: large,
                             th: th,
                             isRu: ref.read(i18nProvider).wire == 'ru',
                           ),
-                      ],
-                    ),
-                ],
-              )
-            else
-              // Flat payloads (манга, книги): две компактные колонки.
-              Wrap(
-                spacing: 24, // gap-x-6
-                runSpacing: 8, // gap-y-2
-                children: [
-                  for (final entry in overflowEntries)
-                    SizedBox(
-                      width: MediaQuery.sizeOf(context).width / 2 - 60,
-                      child: _RowEntry(
-                        entry: entry,
-                        large: large,
-                        th: th,
-                        isRu: ref.read(i18nProvider).wire == 'ru',
-                      ),
-                    ),
-                  if (!_supportingCollapsed)
-                    for (final entry in supporting)
-                      SizedBox(
-                        width: MediaQuery.sizeOf(context).width / 2 - 60,
-                        child: _RowEntry(
-                          entry: entry,
-                          large: large,
-                          th: th,
-                          isRu: ref.read(i18nProvider).wire == 'ru',
                         ),
-                      ),
-                ],
+                      if (!_supportingCollapsed)
+                        for (final entry in supporting)
+                          SizedBox(
+                            width: itemWidth,
+                            child: _RowEntry(
+                              entry: entry,
+                              large: large,
+                              th: th,
+                              isRu: ref.read(i18nProvider).wire == 'ru',
+                            ),
+                          ),
+                    ],
+                  );
+                },
               ),
           ],
         ],
@@ -485,7 +517,6 @@ class _PortraitCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final ref = ProviderScope.containerOf(context);
     return Container(
-      width: 260, // grid-cols-3 ≈ треть панели
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12), // rounded-xl
         border: Border.all(
@@ -794,7 +825,9 @@ class _RoleBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accentSoft = TsundokuTheme.of(context).accentSoft;
+    final th = TsundokuTheme.of(context);
+    final accentSoft = th.accentSoft;
+    final accent = th.accent;
     return Container(
       padding: const EdgeInsets.symmetric(
           horizontal: 6, vertical: 2), // px-1.5 py-0.5
@@ -802,11 +835,11 @@ class _RoleBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(6), // rounded-md
         border: Border.all(
           color: isMain
-              ? Colors.white.withAlpha(77) // border-accent/30 — через accent
+              ? accent.withAlpha(77) // border-accent/30
               : Colors.white.withAlpha(26), // border-white/10
         ),
         color: isMain
-            ? Colors.white.withAlpha(38) // bg-accent/15 — через accent
+            ? accent.withAlpha(38) // bg-accent/15
             : Colors.white.withAlpha(10), // bg-white/[0.04]
       ),
       child: Text(

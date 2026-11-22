@@ -78,7 +78,7 @@ void main() {
       ]),
     );
 
-    expect(find.textContaining('Персонажи'), findsOneWidget);
+    expect(find.textContaining(RegExp('Персонажи', caseSensitive: false)), findsOneWidget);
     expect(find.text('Guts'), findsOneWidget);
     expect(find.text('Griffith'), findsOneWidget);
     expect(find.text('Главный'), findsOneWidget);
@@ -94,7 +94,7 @@ void main() {
       ]),
     );
 
-    expect(find.textContaining('В главных ролях'), findsOneWidget);
+    expect(find.textContaining(RegExp('В главных ролях', caseSensitive: false)), findsOneWidget);
     expect(find.text('Jane Doe'), findsOneWidget);
     expect(find.text('Detective'), findsOneWidget);
   });

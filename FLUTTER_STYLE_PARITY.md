@@ -1,9 +1,8 @@
 # 🎯 Аудит и выравнивание стилей Flutter UI 1-в-1 со Svelte (Tailwind CSS / tokens.css)
 
 ## 📍 Текущий фокус / Next Step
-* **Фаза:** S6 (views/*.svelte: CategoryView, MediaDetailView, ShowSeasonsView, StatsView, ListsView, HistoryView, CalendarView, GoalsView, SettingsView)
-* **Текущий файл:** `mediatracker-ui/src/views/SettingsView.svelte` -> `tsundoku-flutter/lib/views/settings_view.dart`
-* **Цель:** Сверка SettingsView: split layout, боковое меню настроек, панели вкладок, noPadding каркас, отступы.
+* **Фаза:** Все фазы S0..S6 завершены! 🎉
+* **Текущий фокус:** Финальный Gate: полный прогон analyze, тестов, сборки web/linux и скриншоты 1920x1080.
 
 ---
 
@@ -282,4 +281,4 @@
 | S6 | `mediatracker-ui/src/views/HistoryView.svelte` | `tsundoku-flutter/lib/views/history_view.dart` | ✅ Сверен 1:1 | Контейнер max-w-5xl (1024px) topCenter, space-y-6 (24px), плашки переключения табов p-1 с px-4 py-2 кнопками, таймлайн и лента активности 1-в-1 | Да |
 | S6 | `mediatracker-ui/src/views/CalendarView.svelte` | `tsundoku-flutter/lib/views/calendar_view.dart` | ✅ Сверен 1:1 | Брейкпоинты дедлайнов бэклога lg:1024px и 2xl:1536px (было 700/1100), панели управления h-9 (36px), лента и сетка со space-y-6 (24px), одиночный внешний отступ AppShell 1-в-1 | Да |
 | S6 | `mediatracker-ui/src/views/GoalsView.svelte` | `tsundoku-flutter/lib/views/goals_view.dart` | ✅ Сверен 1:1 | Брейкпоинты сетки целей md:768px и xl:1280px (было 700/1100), кнопка «Новая цель» px-4 py-2 (16x8px), кольцо прогресса r=34 stroke-width 7, одиночный внешний отступ AppShell 1-в-1 | Да |
-| S6 | `mediatracker-ui/src/views/SettingsView.svelte` | `tsundoku-flutter/lib/views/settings_view.dart` | В очереди |  |  |
+| S6 | `mediatracker-ui/src/views/SettingsView.svelte` | `tsundoku-flutter/lib/views/settings_view.dart` | ✅ Сверен 1:1 | Split layout 1-в-1 с embedded SettingsModal: боковая панель w-64 (256px), цвет bg-[#12151c]/40, правый бордер border-white/5, кнопки px-3.5 text-xs со space-y-1.5 (6px), noPadding каркас 1-в-1 | Да |

@@ -258,19 +258,19 @@ class SettingsViewState extends ConsumerState<SettingsView> {
         return Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Left sidebar tab navigation
+            // Left sidebar tab navigation (w-64 border-r border-white/5 bg-[#12151c]/40 p-3)
             Container(
-              width: 240,
-              decoration: BoxDecoration(
-                color: tokens.bgSurface,
+              width: 256, // w-64
+              decoration: const BoxDecoration(
+                color: Color(0x6612151C), // bg-[#12151c]/40
                 border: Border(
-                  right: BorderSide(color: Colors.white.withAlpha(15)),
+                  right: BorderSide(color: Color(0x0DFFFFFF)), // border-white/5
                 ),
               ),
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(12), // p-3
               child: ListView.separated(
                 itemCount: visibleTabs.length,
-                separatorBuilder: (context, index) => const SizedBox(height: 4),
+                separatorBuilder: (context, index) => const SizedBox(height: 6), // space-y-1.5
                 itemBuilder: (context, index) {
                   final tab = visibleTabs[index];
                   final isActive = tab == _activeTab;
@@ -279,12 +279,12 @@ class SettingsViewState extends ConsumerState<SettingsView> {
                     onTap: () => setTab(tab),
                     borderRadius: BorderRadius.circular(8),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8), // px-3.5
                       decoration: BoxDecoration(
-                        color: isActive ? tokens.accent.withAlpha(38) : Colors.transparent,
+                        color: isActive ? tokens.accentBright.withAlpha(38) : Colors.transparent, // bg-accent-bright/15
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                          color: isActive ? tokens.accent.withAlpha(76) : Colors.transparent,
+                          color: isActive ? tokens.accentBright.withAlpha(77) : Colors.transparent, // border-accent-bright/30
                         ),
                       ),
                       child: Row(
@@ -299,7 +299,7 @@ class SettingsViewState extends ConsumerState<SettingsView> {
                             child: Text(
                               _tabLabel(tab, t),
                               style: TextStyle(
-                                fontSize: 13,
+                                fontSize: 12, // text-xs
                                 fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
                                 color: isActive ? tokens.accentSoft : tokens.textMuted,
                               ),

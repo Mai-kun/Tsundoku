@@ -22,6 +22,9 @@ class ServerRestartController extends Notifier<bool> {
   @override
   bool build() => false;
 
+  /// Устанавливает статус перезапуска сервера.
+  void setRestarting(bool value) => state = value;
+
   /// Тест-хук (аналог мутации $state из Svelte).
   @visibleForTesting
   void setForTest(bool value) => state = value;

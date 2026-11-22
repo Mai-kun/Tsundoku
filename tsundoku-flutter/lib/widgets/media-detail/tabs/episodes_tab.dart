@@ -286,408 +286,390 @@ class _EpisodesTabState extends ConsumerState<EpisodesTab> {
       return cleaned.isNotEmpty ? cleaned : title;
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (widget.progressError != null)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 16), // space-y-4
-            child: Semantics(
-              liveRegion: true,
-              child: Text(
-                errorMessage(widget.progressError!, locale),
-                style: const TextStyle(
-                  fontSize: 12, // text-xs
-                  color: Color(0xFFFDA4AF), // text-rose-300
-                ),
-              ),
-            ),
-          ),
-        // 1. Сводная карточка.
-        Container(
-          padding: const EdgeInsets.all(20), // p-5
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12), // rounded-xl
-            border: Border.all(color: Colors.white.withAlpha(15)),
-            color: th.bgSurface, // panel-line
-            boxShadow: const [
-              BoxShadow(
-                  color: Color(0x0D000000), offset: Offset(0, 1), blurRadius: 2),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  // Кольцо 80px.
-                  SizedBox(
-                    width: 80, // size-20
-                    height: 80,
-                    child: Stack(
-                      children: [
-                        CustomPaint(
-                          size: const Size.square(80),
-                          painter: _EpisodesRingPainter(percent: _pct),
-                        ),
-                        Center(
-                          child: Text(
-                            '${_pct.round()}%',
-                            style: const TextStyle(
-                              fontSize: 14, // text-sm
-                              fontWeight: FontWeight.w700, // font-bold
-                              color: Colors.white,
-                              fontFeatures: [FontFeature.tabularFigures()],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 16), // gap-4
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          heading.toUpperCase(),
-                          style: const TextStyle(
-                            fontSize: 12, // text-xs
-                            fontWeight: FontWeight.w700, // font-bold
-                            letterSpacing: 0.6, // tracking-wider
-                            color: Color(0xFFCBD5E1), // text-slate-300
-                          ),
-                        ),
-                        Text.rich(
-                          TextSpan(
-                            children: [
-                              TextSpan(
-                                text: '${widget.seriesEpisodes.current}',
-                                style: const TextStyle(
-                                  fontSize: 30, // text-[30px]
-                                  height: 1.0, // leading-none
-                                  fontWeight: FontWeight.w800, // font-extrabold
-                                  color: Colors.white,
-                                ),
-                              ),
-                              TextSpan(
-                                text:
-                                    '  / ${widget.seriesEpisodes.total} ${t.tr('progress.unitShortEp')}',
-                                style: TextStyle(
-                                  fontSize: 18, // text-lg
-                                  fontWeight: FontWeight.w600, // font-semibold
-                                  color: th.textMuted, // text-muted
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  // Next-up / completed / mark all.
-                  Wrap(
-                    spacing: 6, // gap-1.5
-                    crossAxisAlignment: WrapCrossAlignment.center,
+    final sections = <Widget>[
+      // 1. Сводная карточка.
+      Container(
+        padding: const EdgeInsets.all(20), // p-5
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12), // rounded-xl
+          border: Border.all(color: Colors.white.withAlpha(15)),
+          color: th.bgSurface, // panel-line
+          boxShadow: const [
+            BoxShadow(
+                color: Color(0x0D000000), offset: Offset(0, 1), blurRadius: 2),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                // Кольцо 80px.
+                SizedBox(
+                  width: 80, // size-20
+                  height: 80,
+                  child: Stack(
                     children: [
-                      if (widget.nextUp != null)
-                        _NextUpButton(
-                          label:
-                              '${t.tr('detail.bannerNextEpisode')} S${widget.nextUp!.seasonNumber}E${widget.nextUp!.episodeNumber}',
-                          tooltip: t.tr('detail.bannerNextEpisode'),
-                          disabled: busy,
-                          onTap: () =>
-                              widget.onWatchNextUp(widget.nextUp!),
-                        )
-                      else if (_seriesFinished)
-                        Container(
-                          height: 36, // h-9
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12), // px-3
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                                color:
-                                    const Color(0x4D34D399)), // emerald-400/30
-                            color:
-                                const Color(0x1A34D399), // emerald-400/10
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(LucideIcons.circleCheck,
-                                  size: 14, color: Color(0xFF6EE7B7)),
-                              const SizedBox(width: 6), // gap-1.5
-                              Text(
-                                t.tr('detail.bannerCompleted'),
-                                style: const TextStyle(
-                                  fontSize: 12, // text-xs
-                                  fontWeight: FontWeight.w700, // font-bold
-                                  color: Color(0xFF6EE7B7), // emerald-300
-                                ),
-                              ),
-                            ],
+                      CustomPaint(
+                        size: const Size.square(80),
+                        painter: _EpisodesRingPainter(percent: _pct),
+                      ),
+                      Center(
+                        child: Text(
+                          '${_pct.round()}%',
+                          style: const TextStyle(
+                            fontSize: 14, // text-sm
+                            fontWeight: FontWeight.w700, // font-bold
+                            color: Colors.white,
+                            fontFeatures: [FontFeature.tabularFigures()],
                           ),
                         ),
-                      _MarkAllButton(
-                        label: t.tr('episodes.markAll'),
-                        disabled: _seriesFinished || busy,
-                        onTap: widget.onMarkAll,
                       ),
                     ],
                   ),
-                ],
-              ),
-              const SizedBox(height: 16), // space-y-4
-              // Сегменты/бары сезонов.
-              if (segments.isNotEmpty)
-                Padding(
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 16), // my-4
-                  child: Row(
+                ),
+                const SizedBox(width: 16), // gap-4
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      for (final season in widget.seasons)
-                        if (season.totalEpisodes > 0)
-                          Expanded(
-                            flex: season.totalEpisodes,
-                            child: Row(
-                              children: [
-                                for (final seg in segments
-                                    .where((s) => s.seasonId == season.id))
-                                  Expanded(
-                                    child: GestureDetector(
-                                      onTap: () => _clickSegment(seg),
-                                      child: Tooltip(
-                                        message:
-                                            'S${seg.seasonNumber}E${seg.episode}',
-                                        child: Container(
-                                          height: 10, // h-2.5
-                                          margin: const EdgeInsets.only(
-                                              right: 3), // gap-[3px]
-                                          decoration: BoxDecoration(
-                                            borderRadius:
-                                                BorderRadius.circular(3),
-                                            color: seg.cumulative <=
-                                                    widget.seriesEpisodes.current
-                                                ? _kPurpleDeep
-                                                : seg.cumulative ==
-                                                        widget.seriesEpisodes
-                                                            .current +
-                                                            1
-                                                    ? _kPurple
-                                                        .withAlpha(128) // /50
-                                                    : _kSegmentIdle,
-                                            border: seg.cumulative ==
-                                                    widget.seriesEpisodes
-                                                        .current +
-                                                        1
-                                                ? Border.all(
-                                                    color: _kPurple, width: 1.5)
-                                                : null,
-                                          ),
+                      Text(
+                        heading.toUpperCase(),
+                        style: const TextStyle(
+                          fontSize: 12, // text-xs
+                          fontWeight: FontWeight.w700, // font-bold
+                          letterSpacing: 0.6, // tracking-wider
+                          color: Color(0xFFCBD5E1), // text-slate-300
+                        ),
+                      ),
+                      Text.rich(
+                        TextSpan(
+                          children: [
+                            TextSpan(
+                              text: '${widget.seriesEpisodes.current}',
+                              style: const TextStyle(
+                                fontSize: 30, // text-[30px]
+                                height: 1.0, // leading-none
+                                fontWeight: FontWeight.w800, // font-extrabold
+                                color: Colors.white,
+                              ),
+                            ),
+                            TextSpan(
+                              text:
+                                  '  / ${widget.seriesEpisodes.total} ${t.tr('progress.unitShortEp')}',
+                              style: TextStyle(
+                                fontSize: 18, // text-lg
+                                fontWeight: FontWeight.w600, // font-semibold
+                                color: th.textMuted, // text-muted
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // Next-up / completed / mark all.
+                Wrap(
+                  spacing: 6, // gap-1.5
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    if (widget.nextUp != null)
+                      _NextUpButton(
+                        label:
+                            '${t.tr('detail.bannerNextEpisode')} S${widget.nextUp!.seasonNumber}E${widget.nextUp!.episodeNumber}',
+                        tooltip: t.tr('detail.bannerNextEpisode'),
+                        disabled: busy,
+                        onTap: () =>
+                            widget.onWatchNextUp(widget.nextUp!),
+                      )
+                    else if (_seriesFinished)
+                      Container(
+                        height: 36, // h-9
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12), // px-3
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                              color:
+                                  const Color(0x4D34D399)), // emerald-400/30
+                          color:
+                              const Color(0x1A34D399), // emerald-400/10
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(LucideIcons.circleCheck,
+                                size: 14, color: Color(0xFF6EE7B7)),
+                            const SizedBox(width: 6), // gap-1.5
+                            Text(
+                              t.tr('detail.bannerCompleted'),
+                              style: const TextStyle(
+                                fontSize: 12, // text-xs
+                                fontWeight: FontWeight.w700, // font-bold
+                                color: Color(0xFF6EE7B7), // emerald-300
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    _MarkAllButton(
+                      label: t.tr('episodes.markAll'),
+                      disabled: _seriesFinished || busy,
+                      onTap: widget.onMarkAll,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 16), // space-y-4
+            // Сегменты/бары сезонов.
+            if (segments.isNotEmpty)
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(vertical: 16), // my-4
+                child: Row(
+                  children: [
+                    for (final season in widget.seasons)
+                      if (season.totalEpisodes > 0)
+                        Expanded(
+                          flex: season.totalEpisodes,
+                          child: Row(
+                            children: [
+                              for (final seg in segments
+                                  .where((s) => s.seasonId == season.id))
+                                Expanded(
+                                  child: GestureDetector(
+                                    onTap: () => _clickSegment(seg),
+                                    child: Tooltip(
+                                      message:
+                                          'S${seg.seasonNumber}E${seg.episode}',
+                                      child: Container(
+                                        height: 10, // h-2.5
+                                        margin: const EdgeInsets.only(
+                                            right: 3), // gap-[3px]
+                                        decoration: BoxDecoration(
+                                          borderRadius:
+                                              BorderRadius.circular(3),
+                                          color: seg.cumulative <=
+                                                  widget.seriesEpisodes.current
+                                              ? _kPurpleDeep
+                                              : seg.cumulative ==
+                                                      widget.seriesEpisodes
+                                                          .current +
+                                                          1
+                                                  ? _kPurple
+                                                      .withAlpha(128) // /50
+                                                  : _kSegmentIdle,
+                                          border: seg.cumulative ==
+                                                  widget.seriesEpisodes
+                                                      .current +
+                                                      1
+                                              ? Border.all(
+                                                  color: _kPurple, width: 1.5)
+                                              : null,
                                         ),
                                       ),
                                     ),
                                   ),
-                              ],
-                            ),
-                          ),
-                    ],
-                  ),
-                )
-              else if (seasonBars.isNotEmpty)
-                Padding(
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 16), // my-4
-                  child: Row(
-                    children: [
-                      for (final season in seasonBars)
-                        Expanded(
-                          flex: season.totalEpisodes,
-                          child: _SeasonBar(
-                            season: season,
-                            finished: _isFinished(season),
-                            t: t,
-                            onTap: (value) {
-                              if (value == season.currentEpisode) return;
-                              widget.onSetSeasonProgressOf(
-                                  season.id, value);
-                            },
+                                ),
+                            ],
                           ),
                         ),
+                  ],
+                ),
+              )
+            else if (seasonBars.isNotEmpty)
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(vertical: 16), // my-4
+                child: Row(
+                  children: [
+                    for (final season in seasonBars)
+                      Expanded(
+                        flex: season.totalEpisodes,
+                        child: _SeasonBar(
+                          season: season,
+                          finished: _isFinished(season),
+                          t: t,
+                          onTap: (value) {
+                            if (value == season.currentEpisode) return;
+                            widget.onSetSeasonProgressOf(
+                                season.id, value);
+                          },
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            // Статистика.
+            Wrap(
+              spacing: 20, // gap-x-5
+              runSpacing: 4, // gap-y-1
+              children: [
+                Text.rich(
+                  TextSpan(
+                    text: '${t.tr('progress.watchedVerb')} ',
+                    style: TextStyle(
+                      fontSize: 12, // text-xs
+                      color: th.textMuted, // text-muted
+                    ),
+                    children: [
+                      TextSpan(
+                        text: _formatDuration(_watchedMinutes, t),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600, // font-semibold
+                          color: Color(0xFFE2E8F0), // text-slate-200
+                        ),
+                      ),
                     ],
                   ),
                 ),
-              // Статистика.
-              Wrap(
-                spacing: 20, // gap-x-5
-                runSpacing: 4, // gap-y-1
-                children: [
+                Text.rich(
+                  TextSpan(
+                    text: '${t.tr('progress.remainingTimeLabel')} ',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: th.textMuted,
+                    ),
+                    children: [
+                      TextSpan(
+                        text: _formatDuration(_remainingMinutes, t),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFFE2E8F0),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Text.rich(
+                  TextSpan(
+                    text: '${t.tr('detail.startedLabel')}: ',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: th.textMuted,
+                    ),
+                    children: [
+                      TextSpan(
+                        text: widget.formatDate(widget.startedAt) ?? '—',
+                        style: const TextStyle(
+                          color: Color(0xFFE2E8F0),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (widget.finishedAt != null)
                   Text.rich(
                     TextSpan(
-                      text: '${t.tr('progress.watchedVerb')} ',
+                      text: '${t.tr('detail.endedLabel')}: ',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: th.textMuted,
+                      ),
+                      children: [
+                        TextSpan(
+                          text: widget.formatDate(widget.finishedAt) ?? '—',
+                          style: const TextStyle(
+                            color: Color(0xFFE2E8F0),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                if (widget.episodeDuration > 0)
+                  Text(
+                    '${widget.episodeDuration} ${t.tr('detail.minPerEp')}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: th.textMuted,
+                      fontFeatures: [FontFeature.tabularFigures()],
+                    ),
+                  ),
+              ],
+            ),
+            if (_remainingEpisodes > 0)
+              // Pace-прогноз — отдельная строка (tool, not a fact).
+              Container(
+                margin: const EdgeInsets.only(top: 12), // mt-3
+                padding: const EdgeInsets.only(top: 12), // pt-3
+                decoration: const BoxDecoration(
+                  border: Border(
+                      top: BorderSide(color: Color(0x0DFFFFFF))), // white/5
+                ),
+                child: Wrap(
+                  spacing: 6, // gap-1.5
+                  runSpacing: 6,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    const Icon(LucideIcons.clock,
+                        size: 13, color: _kPurple), // #8b7cf6
+                    Text(
+                      '${t.tr('progress.paceLabel')}:',
                       style: TextStyle(
                         fontSize: 12, // text-xs
                         color: th.textMuted, // text-muted
                       ),
-                      children: [
-                        TextSpan(
-                          text: _formatDuration(_watchedMinutes, t),
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w600, // font-semibold
-                            color: Color(0xFFE2E8F0), // text-slate-200
-                          ),
-                        ),
-                      ],
                     ),
-                  ),
-                  Text.rich(
-                    TextSpan(
-                      text: '${t.tr('progress.remainingTimeLabel')} ',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: th.textMuted,
+                    for (final p in _kPaceOptions)
+                      _PaceChip(
+                        value: p,
+                        selected: _pace == p,
+                        onTap: () => setState(() => _pace = p),
                       ),
-                      children: [
-                        TextSpan(
-                          text: _formatDuration(_remainingMinutes, t),
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFFE2E8F0),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Text.rich(
-                    TextSpan(
-                      text: '${t.tr('detail.startedLabel')}: ',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: th.textMuted,
-                      ),
-                      children: [
-                        TextSpan(
-                          text: widget.formatDate(widget.startedAt) ?? '—',
-                          style: const TextStyle(
-                            color: Color(0xFFE2E8F0),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (widget.finishedAt != null)
-                    Text.rich(
-                      TextSpan(
-                        text: '${t.tr('detail.endedLabel')}: ',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: th.textMuted,
-                        ),
-                        children: [
-                          TextSpan(
-                            text: widget.formatDate(widget.finishedAt) ?? '—',
-                            style: const TextStyle(
-                              color: Color(0xFFE2E8F0),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  if (widget.episodeDuration > 0)
                     Text(
-                      '${widget.episodeDuration} ${t.tr('detail.minPerEp')}',
+                      t.tr('episodes.perDay'),
                       style: TextStyle(
                         fontSize: 12,
                         color: th.textMuted,
-                        fontFeatures: [FontFeature.tabularFigures()],
                       ),
                     ),
-                ],
-              ),
-              if (_remainingEpisodes > 0)
-                // Pace-прогноз — отдельная строка (tool, not a fact).
-                Container(
-                  margin: const EdgeInsets.only(top: 12), // mt-3
-                  padding: const EdgeInsets.only(top: 12), // pt-3
-                  decoration: const BoxDecoration(
-                    border: Border(
-                        top: BorderSide(color: Color(0x0DFFFFFF))), // white/5
-                  ),
-                  child: Wrap(
-                    spacing: 6, // gap-1.5
-                    runSpacing: 6,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      const Icon(LucideIcons.clock,
-                          size: 13, color: _kPurple), // #8b7cf6
+                    if (finishEstimate != null)
                       Text(
-                        '${t.tr('progress.paceLabel')}:',
-                        style: TextStyle(
+                        '→ $finishEstimate',
+                        style: const TextStyle(
                           fontSize: 12, // text-xs
-                          color: th.textMuted, // text-muted
+                          color: Color(0xFFCBD5E1), // text-slate-300
                         ),
                       ),
-                      for (final p in _kPaceOptions)
-                        _PaceChip(
-                          value: p,
-                          selected: _pace == p,
-                          onTap: () => setState(() => _pace = p),
-                        ),
-                      Text(
-                        t.tr('episodes.perDay'),
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: th.textMuted,
-                        ),
-                      ),
-                      if (finishEstimate != null)
-                        Text(
-                          '→ $finishEstimate',
-                          style: const TextStyle(
-                            fontSize: 12, // text-xs
-                            color: Color(0xFFCBD5E1), // text-slate-300
-                          ),
-                        ),
-                    ],
-                  ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
+      // 2. Риббон сезонов (только при >1).
+      if (widget.seasons.length > 1)
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal, // overflow-x-auto
+          child: Wrap(
+            spacing: 8, // gap-2
+            children: [
+              for (final season in widget.seasons)
+                _SeasonRibbonCard(
+                  season: season,
+                  active: season.id == _activeSeasonId,
+                  finished: _isFinished(season),
+                  t: t,
+                  th: th,
+                  onTap: () => setState(() => _activeSeasonId = season.id),
                 ),
             ],
           ),
         ),
-        // 2. Риббон сезонов (только при >1).
-        if (widget.seasons.length > 1)
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal, // overflow-x-auto
-            child: Wrap(
-              spacing: 8, // gap-2
-              children: [
-                for (final season in widget.seasons)
-                  _SeasonRibbonCard(
-                    season: season,
-                    active: season.id == _activeSeasonId,
-                    finished: _isFinished(season),
-                    t: t,
-                    th: th,
-                    onTap: () => setState(() => _activeSeasonId = season.id),
-                  ),
-              ],
-            ),
-          ),
-        // 3. Фильтры + массовые действия.
-        Container(
-          padding: const EdgeInsets.symmetric(
-              horizontal: 14, vertical: 10), // px-3.5 py-2.5
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12), // rounded-xl
-            border: Border.all(color: Colors.white.withAlpha(15)),
-            color: th.bgSurface, // panel-line
-          ),
-          child: Wrap(
-            spacing: 8, // gap-2
-            runSpacing: 8,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
+      // 3. Фильтры + массовые действия.
+      Container(
+        padding: const EdgeInsets.symmetric(
+            horizontal: 14, vertical: 10), // px-3.5 py-2.5
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12), // rounded-xl
+          border: Border.all(color: Colors.white.withAlpha(15)),
+          color: th.bgSurface, // panel-line
+        ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final filterChips = <Widget>[
               for (final f in [
                 (_EpisodeFilter.all, t.tr('episodes.filterAll'), activeAll),
                 (
@@ -706,118 +688,178 @@ class _EpisodesTabState extends ConsumerState<EpisodesTab> {
                   selected: _filter == f.$1,
                   onTap: () => setState(() => _filter = f.$1),
                 ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _SortButton(
-                    label: widget.sortOrder == 'asc'
-                        ? t.tr('episodes.sortOldFirst')
-                        : t.tr('episodes.sortNewFirst'),
-                    onToggle: widget.onToggleSort,
-                    th: th,
-                  ),
-                  if (_activeSeason != null && widget.seasons.length > 1)
-                    _SeasonToggleTextButton(
-                      finished: _isFinished(_activeSeason!),
-                      disabled: busy || _activeSeason!.totalEpisodes <= 0,
-                      markLabel: t.tr('episodes.markSeason'),
-                      unmarkLabel: t.tr('episodes.unmarkSeason'),
-                      onTap: () => widget
-                          .onToggleSeasonCompleteOf(_activeSeason!.id),
-                    ),
-                  if (_resetArmed)
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        _ConfirmResetButton(
-                          disabled: widget.seriesEpisodes.current == 0 || busy,
-                          label: t.tr('episodes.confirmReset'),
-                          onTap: () => _requestReset(t),
-                        ),
-                        GestureDetector(
-                          onTap: () => setState(() => _resetArmed = false),
-                          child: Padding(
-                            padding:
-                                const EdgeInsets.symmetric(horizontal: 8), // px
-                            child: Text(
-                              t.tr('common.cancel'),
-                              style: TextStyle(
-                                fontSize: 12, // text-xs
-                                color: th.textMuted, // text-muted
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    )
-                  else
-                    _ResetAllButton(
+            ];
+
+            final actionButtons = <Widget>[
+              _SortButton(
+                label: widget.sortOrder == 'asc'
+                    ? t.tr('episodes.sortOldFirst')
+                    : t.tr('episodes.sortNewFirst'),
+                tooltip: t.tr('episodes.sortTitle'),
+                onToggle: widget.onToggleSort,
+                th: th,
+              ),
+              if (_activeSeason != null && widget.seasons.length > 1)
+                _SeasonToggleTextButton(
+                  finished: _isFinished(_activeSeason!),
+                  disabled: busy || _activeSeason!.totalEpisodes <= 0,
+                  markLabel: t.tr('episodes.markSeason'),
+                  unmarkLabel: t.tr('episodes.unmarkSeason'),
+                  onTap: () => widget
+                      .onToggleSeasonCompleteOf(_activeSeason!.id),
+                ),
+              if (_resetArmed)
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _ConfirmResetButton(
                       disabled: widget.seriesEpisodes.current == 0 || busy,
-                      label: t.tr('episodes.resetAll'),
+                      label: t.tr('episodes.confirmReset'),
                       onTap: () => _requestReset(t),
                     ),
-                ],
-              ),
-            ],
-          ),
-        ),
-        // 4. Список серий активного сезона.
-        Column(
-          children: [
-            if (activeRows.isEmpty)
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 24), // px-4 py-6
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12), // rounded-xl
-                  border: Border.all(color: Colors.white.withAlpha(15)),
-                  color: th.bgSurface, // panel-line
-                ),
-                child: Text(
-                  activeAll == 0
-                      ? t.tr('episodes.noEpisodes')
-                      : t.tr('common.noData'),
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 14, // text-sm
-                    color: th.textMuted, // text-muted
-                  ),
-                ),
-              )
-            else
-              ConstrainedBox(
-                constraints:
-                    const BoxConstraints(maxHeight: 560), // max-h-[560px]
-                child: SingleChildScrollView(
-                  child: Column(
-                    children: [
-                      for (final episode in activeRows)
-                        _EpisodeRowWidget(
-                          episode: episode,
-                          watched: episode.watched,
-                          next: _isNextUp(episode),
-                          datesVary: _activeDatesVary,
-                          busy: busy,
-                          formatDate: widget.formatDate,
-                          cleanTitle: cleanEpisodeTitle,
-                          seasonId: _activeSeason?.id ?? '',
-                          markUpToLabel: t.tr('episodes.markUpTo'),
-                          nextBadgeLabel: t.tr('episodes.nextBadge'),
-                          unwatchLabel: t.tr('detail.unwatchAction'),
-                          markWatchedLabel: t.tr('detail.markWatched'),
-                          th: th,
-                          onMarkUpTo: () => widget.onSetSeasonProgressOf(
-                              _activeSeason?.id ?? '', episode.number),
-                          onToggle: () => widget.onToggleEpisodeOf(
-                              _activeSeason?.id ?? '', episode.number),
+                    const SizedBox(width: 6), // gap-1.5
+                    GestureDetector(
+                      onTap: () => setState(() => _resetArmed = false),
+                      child: Text(
+                        t.tr('common.cancel'),
+                        style: TextStyle(
+                          fontSize: 12, // text-xs
+                          color: th.textMuted, // text-muted
                         ),
+                      ),
+                    ),
+                  ],
+                )
+              else
+                _ResetAllButton(
+                  disabled: widget.seriesEpisodes.current == 0 || busy,
+                  label: t.tr('episodes.resetAll'),
+                  onTap: () => _requestReset(t),
+                ),
+            ];
+
+            if (constraints.maxWidth >= 640) {
+              return Row(
+                children: [
+                  Wrap(
+                    spacing: 8, // gap-2
+                    runSpacing: 8,
+                    children: filterChips,
+                  ),
+                  const Spacer(),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      for (var i = 0; i < actionButtons.length; i++) ...[
+                        if (i > 0) const SizedBox(width: 8), // gap-2
+                        actionButtons[i],
+                      ],
                     ],
                   ),
+                ],
+              );
+            }
+
+            return Wrap(
+              spacing: 8, // gap-2
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                ...filterChips,
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    for (var i = 0; i < actionButtons.length; i++) ...[
+                      if (i > 0) const SizedBox(width: 8), // gap-2
+                      actionButtons[i],
+                    ],
+                  ],
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+      // 4. Список серий активного сезона.
+      Column(
+        children: [
+          if (activeRows.isEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 16, vertical: 24), // px-4 py-6
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12), // rounded-xl
+                border: Border.all(color: Colors.white.withAlpha(15)),
+                color: th.bgSurface, // panel-line
+              ),
+              child: Text(
+                activeAll == 0
+                    ? t.tr('episodes.noEpisodes')
+                    : t.tr('common.noData'),
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14, // text-sm
+                  color: th.textMuted, // text-muted
                 ),
               ),
-          ],
-        ),
+            )
+          else
+            ConstrainedBox(
+              constraints:
+                  const BoxConstraints(maxHeight: 560), // max-h-[560px]
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    for (final episode in activeRows)
+                      _EpisodeRowWidget(
+                        episode: episode,
+                        watched: episode.watched,
+                        next: _isNextUp(episode),
+                        datesVary: _activeDatesVary,
+                        busy: busy,
+                        formatDate: widget.formatDate,
+                        cleanTitle: cleanEpisodeTitle,
+                        seasonId: _activeSeason?.id ?? '',
+                        markUpToLabel: t.tr('episodes.markUpTo'),
+                        nextBadgeLabel: t.tr('episodes.nextBadge'),
+                        unwatchLabel: t.tr('detail.unwatchAction'),
+                        markWatchedLabel: t.tr('detail.markWatched'),
+                        th: th,
+                        onMarkUpTo: () => widget.onSetSeasonProgressOf(
+                            _activeSeason?.id ?? '', episode.number),
+                        onToggle: () => widget.onToggleEpisodeOf(
+                            _activeSeason?.id ?? '', episode.number),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (widget.progressError != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 16), // space-y-4
+            child: Semantics(
+              liveRegion: true,
+              child: Text(
+                errorMessage(widget.progressError!, locale),
+                style: const TextStyle(
+                  fontSize: 12, // text-xs
+                  color: Color(0xFFFDA4AF), // text-rose-300
+                ),
+              ),
+            ),
+          ),
+        for (var i = 0; i < sections.length; i++) ...[
+          if (i > 0) const SizedBox(height: 16), // space-y-4
+          sections[i],
+        ],
       ],
     );
   }
@@ -1192,11 +1234,13 @@ class _FilterChip extends StatelessWidget {
 /// Кнопка сортировки: bg-surface/50, ArrowUpDown.
 class _SortButton extends StatelessWidget {
   final String label;
+  final String tooltip;
   final VoidCallback onToggle;
   final TsundokuTheme th;
 
   const _SortButton({
     required this.label,
+    required this.tooltip,
     required this.onToggle,
     required this.th,
   });
@@ -1204,7 +1248,7 @@ class _SortButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Tooltip(
-      message: th.hashCode.toString() == '' ? '' : 'sort',
+      message: tooltip,
       child: GestureDetector(
         onTap: onToggle,
         child: Container(
@@ -1257,17 +1301,14 @@ class _SeasonToggleTextButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: disabled ? null : onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8), // gap-2
-        child: Text(
-          finished ? unmarkLabel : markLabel,
-          style: TextStyle(
-            fontSize: 12, // text-xs
-            fontWeight: FontWeight.w600, // font-semibold
-            color: finished
-                ? const Color(0xFF94A3B8) // text-slate-400
-                : const Color(0xFF6EE7B7), // text-emerald-300
-          ),
+      child: Text(
+        finished ? unmarkLabel : markLabel,
+        style: TextStyle(
+          fontSize: 12, // text-xs
+          fontWeight: FontWeight.w600, // font-semibold
+          color: finished
+              ? const Color(0xFF94A3B8) // text-slate-400
+              : const Color(0xFF6EE7B7), // text-emerald-300
         ),
       ),
     );
@@ -1330,16 +1371,13 @@ class _ResetAllButton extends StatelessWidget {
       message: label,
       child: GestureDetector(
         onTap: disabled ? null : onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8), // gap-2
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 12, // text-xs
-              color: disabled
-                  ? const Color(0xFF94A3B8).withAlpha(153)
-                  : const Color(0xFF94A3B8), // text-muted
-            ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12, // text-xs
+            color: disabled
+                ? const Color(0xFF94A3B8).withAlpha(153)
+                : const Color(0xFF94A3B8), // text-muted
           ),
         ),
       ),

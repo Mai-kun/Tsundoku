@@ -2,8 +2,8 @@
 
 ## 📍 Текущий фокус / Next Step
 * **Фаза:** S3 (entities/media/ui/*, widgets/media-card/*, widgets/media-grid/*)
-* **Текущий файл:** `mediatracker-ui/src/widgets/media-card/BaseCard.svelte` -> `tsundoku-flutter/lib/widgets/media-card/base_card.dart`
-* **Цель:** Сверка BaseCard: карточка, скругления, бордер, тень, ховер, постер, оверлей.
+* **Текущий файл:** `mediatracker-ui/src/widgets/media-card/CardTitleBlock.svelte` -> `tsundoku-flutter/lib/widgets/media-card/card_title_block.dart`
+* **Цель:** Сверка CardTitleBlock: 2-line title clamp, 1-line subtitle, text-sm font-semibold, tooltip.
 
 ---
 
@@ -182,7 +182,7 @@
 | S3 | `mediatracker-ui/src/entities/media/ui/MediaScoreBadge.svelte` | `tsundoku-flutter/lib/entities/media/ui/media_score_badge.dart` | ✅ Сверен 1:1 | Круг 37.28px (2.33rem), -ml-2 (-8px), bg #4a63c9, font-black 17px, tabular-nums, shadow-lg 1-в-1 | 0 отличий |
 | S3 | `mediatracker-ui/src/entities/media/ui/MediaStatusBadge.svelte` | `tsundoku-flutter/lib/entities/media/ui/media_status_badge.dart` | ✅ Сверен 1:1 | Круг 37.28px (2.33rem), statusBadgeClasses цвета, Lucide иконки, ring-indigo-400/70 при открытии, hover:brightness-125 1-в-1 | 0 отличий |
 | S3 | `mediatracker-ui/src/entities/media/ui/Placeholder404.svelte` | `tsundoku-flutter/lib/entities/media/ui/placeholder404.dart` | ✅ Сверен 1:1 | 1:1 проброс в MediaCoverPlaceholder с опциональным label | 0 отличий |
-| S3 | `mediatracker-ui/src/widgets/media-card/BaseCard.svelte` | `tsundoku-flutter/lib/widgets/media-card/base_card.dart` | В очереди |  |  |
+| S3 | `mediatracker-ui/src/widgets/media-card/BaseCard.svelte` | `tsundoku-flutter/lib/widgets/media-card/base_card.dart` | ✅ Сверен 1:1 | aspect-[2/3], rounded-xl, border-white/5, hover:border-white/10, shadow-lg, focus-within:ring-2 indigo-500/30, градиент inset-x-0 bottom-0 px-3 pt-16 pb-3, убран лишний padding с hover 1-в-1 | Да |
 | S3 | `mediatracker-ui/src/widgets/media-card/CardTitleBlock.svelte` | `tsundoku-flutter/lib/widgets/media-card/card_title_block.dart` | В очереди |  |  |
 | S3 | `mediatracker-ui/src/widgets/media-card/CardProgressControls.svelte` | `tsundoku-flutter/lib/widgets/media-card/card_progress_controls.dart` | В очереди |  |  |
 | S3 | `mediatracker-ui/src/widgets/media-card/MediaCard.svelte` | `tsundoku-flutter/lib/widgets/media-card/media_card.dart` | В очереди |  |  |

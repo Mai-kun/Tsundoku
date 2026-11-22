@@ -441,16 +441,21 @@ class _BaseCardState extends ConsumerState<BaseCard> {
                       ? Colors.white.withAlpha(26)
                       : Colors.white.withAlpha(13),
                 ),
-                boxShadow: const [
+                boxShadow: [
+                  if (_focused)
+                    const BoxShadow(
+                      color: Color(0x4D6366F1), // focus-within:ring-2 ring-indigo-500/30
+                      spreadRadius: 2,
+                    ),
                   // shadow-lg: 0 10px 15px -3px rgb(0 0 0/0.1),
                   //            0 4px 6px -4px rgb(0 0 0/0.1)
-                  BoxShadow(
+                  const BoxShadow(
                     color: Color(0x1A000000),
                     offset: Offset(0, 10),
                     blurRadius: 15,
                     spreadRadius: -3,
                   ),
-                  BoxShadow(
+                  const BoxShadow(
                     color: Color(0x1A000000),
                     offset: Offset(0, 4),
                     blurRadius: 6,
@@ -540,11 +545,7 @@ class _BaseCardState extends ConsumerState<BaseCard> {
                                 child: AnimatedOpacity(
                                   opacity: _hoverActive ? 1 : 0,
                                   duration: const Duration(milliseconds: 200),
-                                  child: Padding(
-                                    padding: const EdgeInsets.fromLTRB(
-                                        12, 0, 12, 12), // px-3 pb-3
-                                    child: widget.hover,
-                                  ),
+                                  child: widget.hover,
                                 ),
                               ),
                             ),

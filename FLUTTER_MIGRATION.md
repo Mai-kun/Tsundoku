@@ -188,10 +188,12 @@
     SunkCostCard ✅ (3 теста; синдром потерянного времени, иконка Hourglass, процентный бейдж,
     сообщение о часах и процентах, количество тайтлов в убыточной зоне, сегментированный бар категорий, совет) →
     TastePersonaCard ✅ (4 теста; архетип вкуса, градиентный фон с атмосферными свечениями, большая иконка архетипа,
-    локализованные название, описание и чипы черт, адаптивный flex). Виджеты taste-profile/ ЗАКРЫТЫ (7/7).
-    Следующий: GoalCard.svelte.
+    локализованные название, описание и чипы черт, адаптивный flex). Виджеты taste-profile/ ЗАКРЫТЫ (7/7) →
+    GoalCard ✅ (4 теста; карточка цели, эмодзи-иконка, тайтл, описание, счетчик current/target и процент,
+    градиентный/изумрудный прогресс-бар, бейдж «Выполнено», превью обложек завершенных тайтлов, кнопка удаления на hover).
+    Следующий: StatsView.svelte.
 
-**Прогресс: 185 / 207 файлов**
+**Прогресс: 186 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
@@ -200,8 +202,8 @@
 | 2 — `entities/` + карточки/сетка | 19 | 19 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 13 (ЗАКРЫТА, см. Phase Gate) |
 | 4 — Детальная страница + Spatial Node Editor | 59 | 59 |
-| 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 23 |
-| **Всего** | **207** | **185** |
+| 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 24 |
+| **Всего** | **207** | **186** |
 
 Долги Фаз 0–2 (не блокируют): —
 seriesProgressControllerProvider no-op-toast → инъекция в Фазе 3 (решение #35);
@@ -373,7 +375,7 @@ Spatial Node Editor; detailTypes/detailFormatters уже готовы pull-forwa
 | 3 | `views/__tests__` | `CategoryView.test.ts` | `test/views/category_view_test.dart` | ✅ Готов | ✅ | Смена категории game→manga: type-фильтр в запросе + рендер новой категории; keyed-ремоунт ({#key activeCategory} → ValueKey) |
 | 0 | `views/__tests__` | `categoryModel.test.ts` | `test/views/category_model_test.dart` | ✅ Готов | ✅ | Все кейсы + search trim + promoted + baseCategories |
 | 0 | `views` | `categoryModel.ts` | `lib/views/category_model.dart` | ✅ Готов | ✅ | buildStatusGroups/filterByStatus (0-safe buckets, численное сравнение статусов), categoryFilters (promoted → parent+subId, anime/tvshow/movie), sortFilters; MediaFilters.copyWithFields добавлен; кейсы vitest-теста |
-| 5 | `widgets/goals` | `GoalCard.svelte` | `lib/widgets/goals/goal_card.dart` | ⬜ Не начат | ⬜ | — |
+| 5 | `widgets/goals` | `GoalCard.svelte` | `lib/widgets/goals/goal_card.dart` | ✅ Готов | ✅ | Карточка цели (1-в-1 с Svelte): эмодзи-иконка в elevated-плашке, тайтл, описание, счетчик currentCount/targetCount и процент, градиентный/изумрудный прогресс-бар, бейдж завершения, горизонтальная лента обложек выполненных тайтлов (с тултипами и кликом перехода к деталям), кнопка удаления на hover; 4 теста |
 | 3 | `widgets/layout` | `ActivityDropdown.svelte` | `lib/widgets/layout/activity_dropdown.dart` | ✅ Готов | ✅ | OverlayPortal-поповер (anchor bottom+8/right → RenderBox); connect на монтировании (сокет глобальный), лимиты: countdown 1s + poll 10s live при открытом поповере; очередь с прогресс-барами/отменой; pending-review; спин 3s/1s AnimationController; тест-хук setPendingMatchesForTest; 6 тестов |
 | 3 | `widgets/layout` | `AppShell.svelte` | `lib/widgets/layout/app_shell.dart` | ✅ Готов | ✅ | Десктоп: aside 240px (border-r px-3 py-5) + main (header h-14 border-b + p-6, noPadding → фулл-высота); мобайл: рельса снизу (border-t px-2 py-2); оверлеи Stack: ContextMenu/ImageLightbox/ListPicker (activeListPickerMediaId)/ToastContainer; mainRef → mainScrollController; data-widget → внутренние Keys appshell-*; Column stretch (RenderFlex-фикс); 4 теста |
 | 3 | `widgets/layout` | `BackgroundJobsModal.svelte` | `lib/widgets/layout/background_jobs_modal.dart` | ✅ Готов | ✅ | Самый крупный компонент (~1370 строк): таб «Очередь» (прогресс scaleX-анимация 500ms, cancel, batch-import ETA 2.5s/тайтл) + «Review» master-detail: авто-поиск пустых строк (direct-URL через parseMediaUrl → 100%, топ-3 приоритетных источников с RU/EN подменой), скоринг/сортировка (scoreCandidate/sortCandidates — публичные функции для тестов), resolve/keep/keepSeparate/mergeDuplicate/keepAll/resolveAllByPriority/deleteMedia, дедуп по source:id, hotkeys 1–4/S/Space/Delete (Focus.onKeyEvent + EditableText-гвард), превью кандидата в ExternalDetailModal с emerald actions-слотом; jobsClient: аддитивные setModalTab/clearPendingMatches (аналог прямых присваиваний Svelte); App подключает модалку при isModalOpen (замена no-op-хука, решение #42 частично); 13 тестов (unit + полный цикл со stub dio) |

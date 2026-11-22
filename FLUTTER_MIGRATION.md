@@ -190,10 +190,11 @@
     TastePersonaCard ✅ (4 теста; архетип вкуса, градиентный фон с атмосферными свечениями, большая иконка архетипа,
     локализованные название, описание и чипы черт, адаптивный flex). Виджеты taste-profile/ ЗАКРЫТЫ (7/7) →
     GoalCard ✅ (4 теста; карточка цели, эмодзи-иконка, тайтл, описание, счетчик current/target и процент,
-    градиентный/изумрудный прогресс-бар, бейдж «Выполнено», превью обложек завершенных тайтлов, кнопка удаления на hover).
-    Следующий: StatsView.svelte.
+    градиентный/изумрудный прогресс-бар, бейдж «Выполнено», превью обложек завершенных тайтлов, кнопка удаления на hover) →
+    StatsView ✅ (4 теста; табы сводка/taste-profile, селектор scope completed/all_progress, баннер и метрики, donut распределения, monthly activity, heatmap, psychology, backlog health, 7 taste profile карт, retry/error/skeleton).
+    Следующий: HistoryView.svelte.
 
-**Прогресс: 186 / 207 файлов**
+**Прогресс: 187 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
@@ -202,7 +203,7 @@
 | 2 — `entities/` + карточки/сетка | 19 | 19 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 13 (ЗАКРЫТА, см. Phase Gate) |
 | 4 — Детальная страница + Spatial Node Editor | 59 | 59 |
-| 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 24 |
+| 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 25 |
 | **Всего** | **207** | **186** |
 
 Долги Фаз 0–2 (не блокируют): —
@@ -371,7 +372,7 @@ Spatial Node Editor; detailTypes/detailFormatters уже готовы pull-forwa
 | 4 | `views` | `MediaDetailView.svelte` | `lib/views/media_detail_view.dart` | ✅ Готов | ✅ | Крупнейший файл (2854→~3900 строк): module-level регэкспы offline/lib-family, `_refreshMediaDetail`, stored-related persist/restore; стейт-класс: `_load` (postFrame), `_syncFrom` (reconcileProgress anti-rollback), game achievements (PrefetchCache 5min), background enrichment, `_loadRelated` (франшиза + RAWG/anime/TMDb + stored-restore), `_handleRelatedClick` (preview getExternalDetails), `_addRelatedToLibrary` (Movie/Manga/TvShow+Season payload-ветвление), серия шагов прогресса/сезонов (`_stepProgress/_commitSeriesCounter/_absoluteSeasonTarget`...), `_changeStatus` (leavesCompleted-сброс; dropped → dropPromptState), оценки/`_saveDetailedScore`/watchedOn/relink/fillMissing/overwrite/achievements, `_maybeAutoLoadRelated` каскад, derived-геттеры (`_externalRatings` offline-фильтр + lib-family-коллапс, `_relatedGroups`, `_timelineEntries`); build: `ref.listen(jobsClientProvider)` settled→refetch, KeyboardListener Escape, Stack + RelatedPreviewModal, `_RightColumn` (DetailHeader `as detail_header` из-за ambiguous RatingBadge, DetailTabs, AnimatedSwitcher panelIn/panelOut, 5 табов); 8 тестов + golden |
 | 5 | `views` | `SettingsView.svelte` | `lib/views/settings_view.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `views` | `ShowSeasonsView.svelte` | `lib/views/show_seasons_view.dart` | ✅ Готов | ✅ | sequence-гвард (+retry), guard isTvShowDetail → StateError; скелетон (title-планка + 3×h-32); header-карточка (постер 80×112 через baseUrl-склейку #25, accent-сабтайтл uppercase, счётчик ep/seasons); empty-стейт; SeasonRow-список (onProgress = api.setSeasonProgress, onProgressCommitted); TvShowDetail-обёртка; 6 тестов + golden |
-| 5 | `views` | `StatsView.svelte` | `lib/views/stats_view.dart` | ⬜ Не начат | ⬜ | — |
+| 5 | `views` | `StatsView.svelte` | `lib/views/stats_view.dart` | ✅ Готов | ✅ | Табы сводка/taste-profile, селектор scope (completed/all_progress), баннер и метрики, donut распределения времени, monthly activity, heatmap (убран unconstrained Expanded), rating psychology, backlog health, 7 taste profile карт, retry/error/skeleton; 4 теста |
 | 3 | `views/__tests__` | `CategoryView.test.ts` | `test/views/category_view_test.dart` | ✅ Готов | ✅ | Смена категории game→manga: type-фильтр в запросе + рендер новой категории; keyed-ремоунт ({#key activeCategory} → ValueKey) |
 | 0 | `views/__tests__` | `categoryModel.test.ts` | `test/views/category_model_test.dart` | ✅ Готов | ✅ | Все кейсы + search trim + promoted + baseCategories |
 | 0 | `views` | `categoryModel.ts` | `lib/views/category_model.dart` | ✅ Готов | ✅ | buildStatusGroups/filterByStatus (0-safe buckets, численное сравнение статусов), categoryFilters (promoted → parent+subId, anime/tvshow/movie), sortFilters; MediaFilters.copyWithFields добавлен; кейсы vitest-теста |
@@ -594,3 +595,5 @@ Spatial Node Editor; detailTypes/detailFormatters уже готовы pull-forwa
 | 59 | `features/edit-media/BaseMediaModule.svelte` | `input type="datetime-local"` — нативный HTML-пикер (desktop: системный календарь) | Текстовое поле ISO-строки (wire-значение без потери данных); нативный пикер потребует платформенного фасада (facade §1.3) — отдельное решение после закрытия edit-workspace | Ревью не требуется |
 | 58 | `views/MediaDetailView.svelte` | `EpisodesTab` в Svelte открывает списки через store/глобальный механизм; у порт-вью нет такой шины | В MediaDetailView добавлен проп `onOpenLists` (проброс в EpisodesTab), App подключит к открытию ListsView; в тестах `() {}` | Ревью не требуется |
 | 60 | `widgets/stats/BacklogHealth.svelte` | В Svelte `(stats as { plannedTitles?: number }).plannedTitles` — нетипизированный TS-каст; StaleBacklogModal подключается внутри | В `AdvancedStats` добавлено опциональное nullable-поле `plannedTitles` (десериализация `_int(json['plannedTitles'])`); для вызова модалки добавлен колбек `onOpenStaleBacklog` (по аналогии с HomeView, решение #40) | Ревью не требуется |
+| 61 | `widgets/stats/activity_heatmap.dart` | `LayoutBuilder` был обёрнут в `Expanded` внутри `Column(mainAxisSize: MainAxisSize.min)`; при монтировании внутри скролл-контейнера (`StatsView`) происходил assertion error `RenderFlex unbounded height` | Убран лишний `Expanded` вокруг `LayoutBuilder`, так как `LayoutBuilder` возвращает `SizedBox` фиксированной высоты (`7 * cellSize`), а ширина горизонтального скроллера задаётся `SingleChildScrollView(scrollDirection: Axis.horizontal)` | Ревью не требуется |
+| 62 | `widgets/stats/monthly_activity_chart.dart` | `MonthlyActivityChart` ожидал тип `MonthlyCompletionItem`, тогда как `AdvancedStats.monthlyCompletions` возвращает `List<MonthCompletion>` | Добавлен `typedef MonthlyCompletionItem = MonthCompletion;` для полной взаимозаменяемости типов без дублирования DTO | Ревью не требуется |

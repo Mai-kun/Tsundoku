@@ -109,72 +109,70 @@ class ActivityHeatmap extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 16), // mb-4
-          Expanded(
-            child: LayoutBuilder(builder: (context, constraints) {
-              final available = constraints.maxWidth.isFinite
-                  ? constraints.maxWidth
-                  : _minGridWidth;
-              final gridWidth = available < _minGridWidth
-                  ? _minGridWidth
-                  : available;
-              final cellSize = (gridWidth - 52 * _gap) / 53;
-              final grid = Row(
-                children: [
-                  for (var w = 0; w < 53; w++)
-                    Padding(
-                      padding: EdgeInsets.only(left: w == 0 ? 0 : _gap),
-                      child: Column(
-                        children: [
-                          for (var d = 0; d < 7; d++)
-                            Builder(builder: (context) {
-                              if (w * 7 + d >= cells.length) {
-                                return SizedBox(
-                                  width: cellSize,
-                                  height: cellSize,
-                                );
-                              }
-                              final cell = cells[w * 7 + d];
-                              if (cell.date == null) {
-                                return SizedBox(
-                                  width: cellSize,
-                                  height: cellSize,
-                                );
-                              }
-                              return Tooltip(
-                                message: t.tf('stats.heatmapTooltip', [
-                                  _formatDate(cell.date!, locale),
-                                  cell.count,
-                                ]),
-                                child: Container(
-                                  margin:
-                                      const EdgeInsets.all(2), // m-0.5
-                                  width: cellSize - 4,
-                                  height: cellSize - 4,
-                                  decoration: BoxDecoration(
-                                    borderRadius:
-                                        BorderRadius.circular(2),
-                                    color: _intensity(
-                                        cell.count, th.accentBright),
-                                  ),
-                                ),
+          LayoutBuilder(builder: (context, constraints) {
+            final available = constraints.maxWidth.isFinite
+                ? constraints.maxWidth
+                : _minGridWidth;
+            final gridWidth = available < _minGridWidth
+                ? _minGridWidth
+                : available;
+            final cellSize = (gridWidth - 52 * _gap) / 53;
+            final grid = Row(
+              children: [
+                for (var w = 0; w < 53; w++)
+                  Padding(
+                    padding: EdgeInsets.only(left: w == 0 ? 0 : _gap),
+                    child: Column(
+                      children: [
+                        for (var d = 0; d < 7; d++)
+                          Builder(builder: (context) {
+                            if (w * 7 + d >= cells.length) {
+                              return SizedBox(
+                                width: cellSize,
+                                height: cellSize,
                               );
-                            }),
-                        ],
-                      ),
+                            }
+                            final cell = cells[w * 7 + d];
+                            if (cell.date == null) {
+                              return SizedBox(
+                                width: cellSize,
+                                height: cellSize,
+                              );
+                            }
+                            return Tooltip(
+                              message: t.tf('stats.heatmapTooltip', [
+                                _formatDate(cell.date!, locale),
+                                cell.count,
+                              ]),
+                              child: Container(
+                                margin:
+                                    const EdgeInsets.all(2), // m-0.5
+                                width: cellSize - 4,
+                                height: cellSize - 4,
+                                decoration: BoxDecoration(
+                                  borderRadius:
+                                      BorderRadius.circular(2),
+                                  color: _intensity(
+                                      cell.count, th.accentBright),
+                                ),
+                              ),
+                            );
+                          }),
+                      ],
                     ),
-                ],
+                  ),
+              ],
+            );
+            if (available < _minGridWidth) {
+              // overflow-x-auto.
+              return SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: SizedBox(
+                    width: _minGridWidth, height: 7 * cellSize, child: grid),
               );
-              if (available < _minGridWidth) {
-                // overflow-x-auto.
-                return SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: SizedBox(
-                      width: _minGridWidth, height: 7 * cellSize, child: grid),
-                );
-              }
-              return SizedBox(height: 7 * cellSize, child: grid);
-            }),
-          ),
+            }
+            return SizedBox(height: 7 * cellSize, child: grid);
+          }),
           const SizedBox(height: 8), // mt-2
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,

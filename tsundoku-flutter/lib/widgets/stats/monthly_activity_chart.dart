@@ -13,20 +13,10 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:tsundoku_flutter/shared/i18n/index.dart';
 import 'package:tsundoku_flutter/shared/theme/tsundoku_tokens.dart';
+import 'package:tsundoku_flutter/shared/types/models.dart';
 
 /// `{ monthYear: '2026-01', count: 5 }`.
-class MonthlyCompletionItem {
-  final String monthYear;
-  final int count;
-
-  const MonthlyCompletionItem({required this.monthYear, required this.count});
-
-  factory MonthlyCompletionItem.fromJson(Map<String, dynamic> json) =>
-      MonthlyCompletionItem(
-        monthYear: json['monthYear'] as String,
-        count: (json['count'] as num).toInt(),
-      );
-}
+typedef MonthlyCompletionItem = MonthCompletion;
 
 class MonthlyActivityChart extends ConsumerWidget {
   final List<MonthlyCompletionItem> completions;

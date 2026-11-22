@@ -180,8 +180,7 @@ class _CategoryViewState extends ConsumerState<CategoryView> {
         _allItems, _status.isAll ? 'all' : '${_status.status}');
 
     return SliverMainAxisGroup(slivers: [
-      // FilterBar (только активная категория).
-      if (widget.active)
+      if (widget.active) ...[
         SliverToBoxAdapter(
           child: FilterBar(
             status: _status,
@@ -197,7 +196,8 @@ class _CategoryViewState extends ConsumerState<CategoryView> {
             onSearchChange: _updateSearch,
           ),
         ),
-      const SliverToBoxAdapter(child: SizedBox(height: 16)), // space-y-4
+        const SliverToBoxAdapter(child: SizedBox(height: 16)), // space-y-4
+      ],
       ..._contentSlivers(filteredItems),
     ]);
   }
@@ -239,11 +239,12 @@ class _CategoryViewState extends ConsumerState<CategoryView> {
         return [mediaGridSliver(const <MediaItem>[])];
       }
       return [
-        for (final group in statusGroups)
+        for (var i = 0; i < statusGroups.length; i++) ...[
+          if (i > 0) const SliverToBoxAdapter(child: SizedBox(height: 32)), // space-y-8
           SectionRow(
-            key: ValueKey(group.status.value),
-            title: group.title,
-            items: group.items,
+            key: ValueKey(statusGroups[i].status.value),
+            title: statusGroups[i].title,
+            items: statusGroups[i].items,
             onRetry: _refresh,
             onOpen: widget.onOpen,
             onProgress: _updateProgress,
@@ -253,6 +254,7 @@ class _CategoryViewState extends ConsumerState<CategoryView> {
             onDelete: _removeItem,
             onEdit: widget.onEdit,
           ),
+        ],
       ];
     }
     if (_groupBy == groupByFranchise) {
@@ -261,11 +263,12 @@ class _CategoryViewState extends ConsumerState<CategoryView> {
         return [mediaGridSliver(const <MediaItem>[])];
       }
       return [
-        for (final group in franchiseGroups)
+        for (var i = 0; i < franchiseGroups.length; i++) ...[
+          if (i > 0) const SliverToBoxAdapter(child: SizedBox(height: 32)), // space-y-8
           SectionRow(
-            key: ValueKey(group.name),
-            title: group.name,
-            items: group.items,
+            key: ValueKey(franchiseGroups[i].name),
+            title: franchiseGroups[i].name,
+            items: franchiseGroups[i].items,
             onRetry: _refresh,
             onOpen: widget.onOpen,
             onProgress: _updateProgress,
@@ -275,6 +278,7 @@ class _CategoryViewState extends ConsumerState<CategoryView> {
             onDelete: _removeItem,
             onEdit: widget.onEdit,
           ),
+        ],
       ];
     }
     return [mediaGridSliver(filteredItems)];

@@ -2,8 +2,8 @@
 
 ## 📍 Текущий фокус / Next Step
 * **Фаза:** S6 (views/*.svelte: CategoryView, MediaDetailView, ShowSeasonsView, StatsView, ListsView, HistoryView, CalendarView, GoalsView, SettingsView)
-* **Текущий файл:** `mediatracker-ui/src/views/CategoryView.svelte` -> `tsundoku-flutter/lib/views/category_view.dart`
-* **Цель:** Сверка CategoryView: FilterBar тулбар, сетка категории, отсутствие дублирующих отступов.
+* **Текущий файл:** `mediatracker-ui/src/views/MediaDetailView.svelte` -> `tsundoku-flutter/lib/views/media_detail_view.dart`
+* **Цель:** Сверка MediaDetailView: hero, табы, отступы и секции.
 
 ---
 
@@ -274,7 +274,7 @@
 | S5 | `mediatracker-ui/src/widgets/stats/taste-profile/TastePersonaCard.svelte` | `tsundoku-flutter/lib/widgets/stats/taste-profile/taste_persona_card.dart` | ✅ Сверен 1:1 | Брейкпоинт sm (>=640px) для переключения колонки/ряда, tracking-tight (-0.6) для text-2xl заголовка, leading-relaxed (1.625) для max-w-2xl описания, чипы rounded-full px-3 py-1 1-в-1 | Да |
 | S6 | `mediatracker-ui/src/app/App.svelte` | `tsundoku-flutter/lib/app/app.dart` | ✅ Сверен 1:1 | 0 отличий (каркас AppShell, router-диспатч, noPadding для settings, модальные слои ConfirmModal, Jobs, Exit, Create, Search, DropReason, StaleBacklog, FirstRun 1-в-1) | 0 отличий |
 | S6 | `mediatracker-ui/src/views/HomeView.svelte` | `tsundoku-flutter/lib/views/home_view.dart` | ✅ Сверен 1:1 | Панель управления: выровнены размеры всех кнопок и инпутов h-10 w-10 (40px) 1-в-1 со Svelte (было 36px в _PanelIconButton и _HomeSearchField), отступы space-y-4 (16px), одиночный отступ AppShell 1-в-1 | Да |
-| S6 | `mediatracker-ui/src/views/CategoryView.svelte` | `tsundoku-flutter/lib/views/category_view.dart` | В очереди |  |  |
+| S6 | `mediatracker-ui/src/views/CategoryView.svelte` | `tsundoku-flutter/lib/views/category_view.dart` | ✅ Сверен 1:1 | FilterBar с отступом space-y-4 (16px), добавлен разделитель space-y-8 (32px) между SectionRow (статус-группы и франшизы), одиночный внешний отступ AppShell 1-в-1 | Да |
 | S6 | `mediatracker-ui/src/views/MediaDetailView.svelte` | `tsundoku-flutter/lib/views/media_detail_view.dart` | В очереди |  |  |
 | S6 | `mediatracker-ui/src/views/ShowSeasonsView.svelte` | `tsundoku-flutter/lib/views/show_seasons_view.dart` | В очереди |  |  |
 | S6 | `mediatracker-ui/src/views/StatsView.svelte` | `tsundoku-flutter/lib/views/stats_view.dart` | В очереди |  |  |

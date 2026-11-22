@@ -14,7 +14,9 @@ import 'package:tsundoku_flutter/views/calendar_view.dart';
 import 'package:tsundoku_flutter/views/category_view.dart';
 import 'package:tsundoku_flutter/views/goals_view.dart';
 import 'package:tsundoku_flutter/views/history_view.dart';
+import 'package:tsundoku_flutter/views/home_view.dart';
 import 'package:tsundoku_flutter/views/lists_view.dart';
+import 'package:tsundoku_flutter/views/media_detail_view.dart';
 import 'package:tsundoku_flutter/views/settings_view.dart';
 import 'package:tsundoku_flutter/views/stats_view.dart';
 import 'package:tsundoku_flutter/widgets/layout/app_shell.dart';
@@ -269,6 +271,90 @@ class _CapturingStubAdapter implements HttpClientAdapter {
           'smartQueryJson': '{"categories":["anime"],"minScore":8}',
         },
       ];
+    } else if (p.contains('/api/media/m1/linked-sources')) {
+      data = <dynamic>[];
+    } else if (p.contains('/api/media/m1')) {
+      data = <String, Object?>{
+        'id': 'm1',
+        'type': 'anime',
+        'title': 'Sousou no Frieren',
+        'status': 1,
+        'createdAt': '2024-01-01T00:00:00Z',
+        'startedAt': '2024-01-05T00:00:00Z',
+        'description': 'История эльфийки Фрирен после победы над Королём Демонов.',
+        'totalEpisodes': 28,
+        'currentEpisode': 18,
+        'score': 9,
+        'detailedScoreJson':
+            jsonEncode(<String, int>{'story': 9, 'visuals': 10, 'music': 9}),
+        'externalSource': 'anilist',
+        'externalRating': 9.1,
+        'externalRatingsJson': jsonEncode(<Object?>[
+          {'source': 'AniList', 'rating': 9.1},
+          {'source': 'MyAnimeList', 'rating': 9.3},
+        ]),
+        'releaseDate': '2023-09-29',
+      };
+    } else if (p.contains('/api/media') && options.queryParameters['status'] != null) {
+      final status = options.queryParameters['status'].toString();
+      if (status == '1') {
+        data = <dynamic>[
+          {
+            'id': 'm1',
+            'type': 'anime',
+            'title': 'Sousou no Frieren',
+            'status': 1,
+            'currentEpisode': 18,
+            'totalEpisodes': 28,
+            'score': 9,
+            'externalRating': 9.1,
+            'externalSource': 'anilist',
+            'releaseDate': '2023-09-29',
+            'createdAt': '2024-01-01T00:00:00Z',
+            'updatedAt': '2024-01-05T00:00:00Z',
+          },
+          {
+            'id': 'm2',
+            'type': 'game',
+            'title': 'Elden Ring',
+            'status': 1,
+            'score': 10,
+            'externalRating': 9.5,
+            'externalSource': 'steam',
+            'createdAt': '2024-01-01T00:00:00Z',
+            'updatedAt': '2024-01-04T00:00:00Z',
+          },
+        ];
+      } else if (status == '2') {
+        data = <dynamic>[
+          {
+            'id': 'm3',
+            'type': 'book',
+            'title': 'Dune',
+            'status': 2,
+            'currentPage': 320,
+            'totalPages': 600,
+            'score': 8,
+            'externalRating': 8.7,
+            'createdAt': '2024-01-01T00:00:00Z',
+            'updatedAt': '2024-01-02T00:00:00Z',
+          },
+        ];
+      } else {
+        data = <dynamic>[
+          {
+            'id': 'm4',
+            'type': 'movie',
+            'title': 'Interstellar',
+            'status': 3,
+            'score': 10,
+            'externalRating': 8.7,
+            'externalSource': 'tmdb',
+            'createdAt': '2024-01-01T00:00:00Z',
+            'updatedAt': '2024-01-03T00:00:00Z',
+          },
+        ];
+      }
     }
     return ResponseBody.fromString(
       jsonEncode(data),
@@ -350,6 +436,19 @@ void main() {
     );
   }
 
+  testWidgets('golden 00_home_view', (tester) async {
+    await goldenScreenshot(
+      tester,
+      isSliver: true,
+      child: HomeView(
+        refreshKey: 0,
+        onOpen: (_) {},
+        onMediaChanged: () {},
+      ),
+      name: '00_home_view',
+    );
+  });
+
   testWidgets('golden 01_category_view', (tester) async {
     await goldenScreenshot(
       tester,
@@ -428,6 +527,24 @@ void main() {
       noPadding: true,
       child: const SettingsView(initialTab: SettingsTab.importTab),
       name: '09_settings_import',
+    );
+  });
+
+  testWidgets('golden 10_media_detail_view', (tester) async {
+    await goldenScreenshot(
+      tester,
+      child: MediaDetailView(
+        mediaId: 'm1',
+        refreshKey: 0,
+        onBack: () {},
+        onUpdate: () {},
+        onDelete: (_) async {},
+        onEdit: (_) {},
+        onOpenRelated: (_) {},
+        onSearch: (_) {},
+        onOpenLists: () {},
+      ),
+      name: '10_media_detail_view',
     );
   });
 }

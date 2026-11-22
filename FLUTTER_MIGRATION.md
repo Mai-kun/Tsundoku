@@ -145,31 +145,18 @@
     web --wasm). **Фаза 4 в работе**: чистые модули ЗАКРЫТЫ (detailTypes/
     detailFormatters pull-forward + relationSources/externalMapping/
     ratingBadges/relatedMatching); виджеты по зависимостям:
-    ProgressStepper ✅ → SeasonRow ✅ → SyncRowsSkeleton ✅ → DetailTabs ✅ →
-    DetailHeader/ExternalDetailModal (pull-forward) ✅ → sections/* ✅ →
-    tabs/* ✅ → panels/* ✅ → модалки: MediaActivity ✅ / OverwriteConfirm ✅ /
-    CoverManager ✅ / FillMissing ✅ / RelinkSource ✅ / DetailSidebar ✅
-    (10 widget-тестов + golden; попутный фикс dlRow-переполнения и
-    rating-поповера → top-layer, ⚖️ #55) → ShowSeasonsView ✅ (6
-    widget-тестов + golden) → **MediaDetailView ✅** (самый большой файл
-    миграции, 2854 строки → ~3900 строк Dart: стейт-класс со всей логикой
-    прогресса/статусов/оценок/related, 8 widget-тестов + golden). Попутно:
-    сигнатуры optimistic_progress → ProviderContainer (⚖️ #56), view-level
-    модалки → OverlayPortal top-layer (⚖️ #57), onOpenLists-проброс
-    (⚖️ #58), show/hide портала в пост-кадре (🐛 #9), модалки вне
-    скролл-контейнера (🐛 #10). **Интеграция в app.dart**: заглушки 'detail'/
-    'seasons' заменены живыми вью (keyed по mediaId; onBack=_closeDetail с
-    восстановлением скролла previousView, onDelete=_deleteFromDetail →
-    deleteMedia+mediaChanged, onEdit→openCreate-хук Фазы 5, onOpenRelated=
-    openDetail, onSearch=openSearch, onOpenLists→navigate(lists)). Начат **edit-media
-    workspace (ниточки)**: moduleTypes.ts ✅ (4 теста; SeasonDraft портирован
-    сюда из create-media — TvShowFormFields ещё не существует);
-    workspaceLayout.ts ✅ (10 тестов; localStorage → SharedPreferences-фасад
-    стора uiSettings); workspaceThreads.ts ✅ (6 тестов — чистая
-    математика без фреймворка; rAF-цикл рисования придёт в WorkspaceWindow);
-    WorkspaceWindow.svelte ✅ (6 тестов) → ModuleCard ✅ (4 теста) → NotesModule ✅ (3 теста) → BaseMediaModule ✅ (5 тестов) → FormField ✅ (pull-forward из Фазы 5, 1 тест) → GameFormFields ✅ (+CreateTextField в form_field.dart) → BookFormFields ✅ (3 теста, isNovel-ветвление) → MangaFormFields ✅ (1 тест) → MovieFormFields ✅ (1 тест, чекбокс аниме) → TvShowFormFields ✅ (1 тест, редактор сезонов) → CategoryFieldsModule ✅ (6 тестов — композит всех FormFields) → AltTitlesModule ✅ (4 теста) → QuotesModule ✅ (5 тестов) → ImagesModule ✅ (5 тестов; все 7 модулей готовы) → **EditMediaWorkspace ✅
-    (5 тестов; все 59 файлов Фазы 4 ЗАКРЫТЫ — Phase Gate: analyze 0, 826
-    тестов, build linux ✓).**
+    **Фаза 4 ЗАКРЫТА (59/59)** — см. Phase Gate ниже. Попутно за фазу:
+    MediaDetailView (2854→~3900 строк, ⚖️ #56-58, 🐛 #9-10), интеграция
+    detail/seasons в app.dart, edit-media workspace (ниточки): чистые
+    модули + WorkspaceWindow + 7 модулей-карточек + EditMediaWorkspace;
+    create-media FormFields pull-forward'ом (FormField/Game/Book/Manga/
+    Movie/TvShow — 6 файлов Фазы 5).
+
+    **Phase Gate Фазы 4 — ЗЕЛЁНЫЙ (2026-11-22):** analyze 0 issues, 826/826
+    тестов, build linux --debug ✓, build web --wasm ✓ (0 упоминаний dart:io
+    в build/web). **Следующий шаг — Фаза 5** (вью Settings/Stats/Lists/
+    History/Goals/Calendar + модалки, 41 файл, 6 готовы pull-forward'ом;
+    порядок по зависимостям — сверху).
 
 **Прогресс: 169 / 207 файлов**
 

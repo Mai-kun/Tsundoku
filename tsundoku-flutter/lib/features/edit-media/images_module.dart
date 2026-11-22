@@ -359,7 +359,7 @@ class _ImagesModuleState extends ConsumerState<ImagesModule> {
                       horizontal: 12, vertical: 16), // px-3 py-4
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.white24), // border-white/10
+                    border: Border.all(color: Colors.white.withAlpha(26)), // border-white/10
                   ),
                   child: Column(
                     children: [
@@ -507,50 +507,90 @@ class _CoverTile extends StatelessWidget {
                 )
               else
                 // Выбор активной обложки.
-                GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: busy ? null : onSelect,
-                  child: Container(
-                    color: busy && actionId == cover.id
-                        ? Colors.black.withAlpha(102) // group-hover:bg-black/40
-                        : Colors.transparent,
-                    alignment: Alignment.center,
-                    child: busy && actionId == cover.id
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : null,
+                Tooltip(
+                  message: t.tr('coversModal.select'),
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: busy ? null : onSelect,
+                    child: Container(
+                      color: busy && actionId == cover.id
+                          ? Colors.black.withAlpha(102) // group-hover:bg-black/40
+                          : Colors.transparent,
+                      alignment: Alignment.center,
+                      child: busy && actionId == cover.id
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : null,
+                    ),
                   ),
                 ),
               // Кнопка удаления (top-1 right-1, size-6).
               Positioned(
                 right: 4,
                 top: 4,
-                child: GestureDetector(
-                  onTap: busy ? null : onDelete,
-                  child: Container(
-                    width: 24, // size-6
-                    height: 24,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(6), // rounded-md
-                      border: Border.all(color: Colors.white54), // white/20
-                      color: Colors.black.withAlpha(179), // bg-black/70
-                    ),
-                    alignment: Alignment.center,
-                    child: Icon(
-                      LucideIcons.trash2,
-                      size: 12,
-                      color: const Color(0xFFCBD5E1), // text-slate-300
-                    ),
-                  ),
+                child: _CoverDeleteButton(
+                  busy: busy,
+                  tooltip: t.tr('coversModal.delete'),
+                  onDelete: onDelete,
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CoverDeleteButton extends StatefulWidget {
+  final bool busy;
+  final String tooltip;
+  final VoidCallback onDelete;
+
+  const _CoverDeleteButton({
+    required this.busy,
+    required this.tooltip,
+    required this.onDelete,
+  });
+
+  @override
+  State<_CoverDeleteButton> createState() => _CoverDeleteButtonState();
+}
+
+class _CoverDeleteButtonState extends State<_CoverDeleteButton> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: widget.tooltip,
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _hovered = true),
+        onExit: (_) => setState(() => _hovered = false),
+        child: GestureDetector(
+          onTap: widget.busy ? null : widget.onDelete,
+          child: Container(
+            width: 24, // size-6
+            height: 24,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(6), // rounded-md
+              border: Border.all(color: Colors.white.withAlpha(51)), // border-white/20
+              color: Colors.black.withAlpha(179), // bg-black/70
+            ),
+            alignment: Alignment.center,
+            child: Icon(
+              LucideIcons.trash2,
+              size: 12,
+              color: _hovered
+                  ? const Color(0xFFFDA4AF) // hover:text-rose-300
+                  : const Color(0xFFCBD5E1), // text-slate-300
+            ),
           ),
         ),
       ),

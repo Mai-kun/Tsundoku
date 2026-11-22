@@ -170,10 +170,12 @@
     CustomPainter кольцевой диаграммы радиус 70 толщина 20, общее время в центре,
     адаптивная сетка карточек 6 категорий) → TopGenresBar ✅ (5 тестов;
     иконка Sparkles, 7 кнопок категорий, 8-цветовой сегментированный бар с тултипами,
-    сетка до 8 жанров со счётчиками и процентами, empty state).
-    Следующий: TrackerBadges.svelte.
+    сетка до 8 жанров со счётчиками и процентами, empty state) → TrackerBadges ✅ (4 теста;
+    иконка Trophy, 6 бейджей достижений с проверкой таргетов, янтарные плашки разблокированных,
+    фиолетовые бары прогресса). Виджеты stats/ ЗАКРЫТЫ (8/8).
+    Следующий: widgets/stats/taste-profile/genreLabel.ts.
 
-**Прогресс: 176 / 207 файлов**
+**Прогресс: 177 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
@@ -182,8 +184,8 @@
 | 2 — `entities/` + карточки/сетка | 19 | 19 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 13 (ЗАКРЫТА, см. Phase Gate) |
 | 4 — Детальная страница + Spatial Node Editor | 59 | 59 |
-| 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 14 |
-| **Всего** | **207** | **176** |
+| 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 15 |
+| **Всего** | **207** | **177** |
 
 Долги Фаз 0–2 (не блокируют): —
 seriesProgressControllerProvider no-op-toast → инъекция в Фазе 3 (решение #35);
@@ -430,7 +432,7 @@ Spatial Node Editor; detailTypes/detailFormatters уже готовы pull-forwa
 | 5 | `widgets/stats` | `StatsHeroBanner.svelte` | `lib/widgets/stats/stats_hero_banner.dart` | ✅ Готов | ✅ | Hero: тайтл/подзаголовок (t.tf с formatStatsNumber — Intl-группировка: ru-пробелы, en-запятые), три метрики (стрик flame/amber, средний балл star/yellow, завершения checkCircle/emerald) — LayoutBuilder ≥640px → 3 колонки (Wrap), иначе 1; карточки bg-[#151a26] border-white/5; 4 теста |
 | 5 | `widgets/stats` | `TimeDistributionDonut.svelte` | `lib/widgets/stats/time_distribution_donut.dart` | ✅ Готов | ✅ | Кольцевая диаграмма распределения времени (1-в-1 с Svelte): CustomPainter (радиус 70, stroke-width 20, старт -90°), центр кольца с stats.totalHours и stats.totalTime, адаптивная сетка 6 категорий (игры, сериалы, фильмы, аниме, книги, манга) со счётчиками часов, процентов и доп. единицами (эп., стр., гл.); 4 теста |
 | 5 | `widgets/stats` | `TopGenresBar.svelte` | `lib/widgets/stats/top_genres_bar.dart` | ✅ Готов | ✅ | Виджет топ-жанров (1-в-1 с Svelte): иконка Sparkles, 7 кнопок категорий (все/игры/фильмы/сериалы/аниме/манга/книги), 8-цветовой сегментированный бар (PALETTE) с Tooltip'ами, сетка до 8 жанров со счётчиками и процентными бейджами, empty state; 5 тестов |
-| 5 | `widgets/stats` | `TrackerBadges.svelte` | `lib/widgets/stats/tracker_badges.dart` | ⬜ Не начат | ⬜ | — |
+| 5 | `widgets/stats` | `TrackerBadges.svelte` | `lib/widgets/stats/tracker_badges.dart` | ✅ Готов | ✅ | Достижения медиатеки (1-в-1 с Svelte): иконка Trophy + счётчик разблокированных, 6 бейджей (Клуб сотен, Библиофил, Мастер стриков, Хранитель времени, Перфекционист, Омнивор), плашки «РАЗБЛОКИРОВАНО ✓» или прогресс-бары с процентами; 4 теста |
 | 5 | `widgets/stats/taste-profile` | `CriticalDivergenceCard.svelte` | `lib/widgets/stats/taste-profile/critical_divergence_card.dart` | ⬜ Не начат | ⬜ | — |
 | 5 | `widgets/stats/taste-profile` | `DropAnalyticsCard.svelte` | `lib/widgets/stats/taste-profile/drop_analytics_card.dart` | ⬜ Не начат | ⬜ | — |
 | 5 | `widgets/stats/taste-profile` | `EraAffinityCard.svelte` | `lib/widgets/stats/taste-profile/era_affinity_card.dart` | ⬜ Не начат | ⬜ | — |

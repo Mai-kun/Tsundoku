@@ -186,10 +186,12 @@
     GenreParadoxCard ✅ (4 теста; парадокс жанров, иконка Scale, двойные прогресс-бары завершения/дропа,
     локализация жанров через genreLabel, процентные показатели, empty state) →
     SunkCostCard ✅ (3 теста; синдром потерянного времени, иконка Hourglass, процентный бейдж,
-    сообщение о часах и процентах, количество тайтлов в убыточной зоне, сегментированный бар категорий, совет).
-    Следующий: TastePersonaCard.svelte.
+    сообщение о часах и процентах, количество тайтлов в убыточной зоне, сегментированный бар категорий, совет) →
+    TastePersonaCard ✅ (4 теста; архетип вкуса, градиентный фон с атмосферными свечениями, большая иконка архетипа,
+    локализованные название, описание и чипы черт, адаптивный flex). Виджеты taste-profile/ ЗАКРЫТЫ (7/7).
+    Следующий: GoalCard.svelte.
 
-**Прогресс: 184 / 207 файлов**
+**Прогресс: 185 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
@@ -198,8 +200,8 @@
 | 2 — `entities/` + карточки/сетка | 19 | 19 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 13 (ЗАКРЫТА, см. Phase Gate) |
 | 4 — Детальная страница + Spatial Node Editor | 59 | 59 |
-| 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 22 |
-| **Всего** | **207** | **184** |
+| 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 23 |
+| **Всего** | **207** | **185** |
 
 Долги Фаз 0–2 (не блокируют): —
 seriesProgressControllerProvider no-op-toast → инъекция в Фазе 3 (решение #35);
@@ -453,7 +455,7 @@ Spatial Node Editor; detailTypes/detailFormatters уже готовы pull-forwa
 | 5 | `widgets/stats/taste-profile` | `GenreParadoxCard.svelte` | `lib/widgets/stats/taste-profile/genre_paradox_card.dart` | ✅ Готов | ✅ | Парадокс жанров (1-в-1 с Svelte): иконка Scale, двойные прогресс-бары завершения (зеленый) и дропа (розовый), локализация жанров через genreLabel, процентные показатели, легенда, empty state; 4 теста |
 | 5 | `widgets/stats/taste-profile` | `GenreRadarChart.svelte` | `lib/widgets/stats/taste-profile/genre_radar_chart.dart` | ✅ Готов | ✅ | CustomPainter радар вкуса (до 6 осей, min-w 448 AspectRatio 430/340, фоновая паутина 25/50/75/100%, indigo-полигон объёма, звёздочки и средний балл, бейджи жанров через genreLabel, empty state 1-в-1); 4 теста |
 | 5 | `widgets/stats/taste-profile` | `SunkCostCard.svelte` | `lib/widgets/stats/taste-profile/sunk_cost_card.dart` | ✅ Готов | ✅ | Синдром потерянного времени (1-в-1 с Svelte): иконка Hourglass, процентный бейдж, расчет часов и процентов, плашка количества тайтлов в убыточной зоне, сегментированный бар распределения часов по категориям, легенда, совет; 3 теста |
-| 5 | `widgets/stats/taste-profile` | `TastePersonaCard.svelte` | `lib/widgets/stats/taste-profile/taste_persona_card.dart` | ⬜ Не начат | ⬜ | — |
+| 5 | `widgets/stats/taste-profile` | `TastePersonaCard.svelte` | `lib/widgets/stats/taste-profile/taste_persona_card.dart` | ✅ Готов | ✅ | Архетип вкуса (1-в-1 с Svelte): градиентный фон с атмосферными свечениями, большая иконка архетипа, локализованные заголовок, описание и чипы ключевых черт характера (stats.taste.personas/traits), фолбэк на свойства модели, адаптивный layout (Row/Column); 4 теста |
 | 5 | `widgets/stats/taste-profile` | `genreLabel.ts` | `lib/widgets/stats/taste-profile/genre_label.dart` | ✅ Готов | ✅ | Реэкспорт genreLabel из entities/media/model для паритета 1-в-1 со Svelte; 1 тест |
 
 ---

@@ -191,6 +191,7 @@ class ListPickerState extends ConsumerState<ListPicker> {
       isOpen: _open,
       onClose: _handleClose,
       size: ModalSize.md,
+      contentPadding: EdgeInsets.zero,
       child: Padding(
         padding: const EdgeInsets.all(24), // p-5 sm:p-6 — md-модалка узкая, p-5
         child: Column(

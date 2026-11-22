@@ -176,10 +176,12 @@
     genreLabel.ts ✅ (1 тест; реэкспорт genreLabel из entities/media/model) →
     GenreRadarChart ✅ (4 теста; CustomPainter радар вкуса до 6 осей, сетка-паутина 4 уровней,
     indigo-полигон объёма библиотеки, золотые звёздочки со средним баллом,
-    подписи жанров через genreLabel, empty state).
-    Следующий: CriticalDivergenceCard.svelte.
+    подписи жанров через genreLabel, empty state) →
+    CriticalDivergenceCard ✅ (5 тестов; карточка «Я против всего мира», шедевр 💎 и разочарование 💔,
+    userScore vs worldRating, бейджи дельты +X/-Y, колбек onOpenMedia, адаптивная сетка 1/2 колонки).
+    Следующий: DropAnalyticsCard.svelte.
 
-**Прогресс: 179 / 207 файлов**
+**Прогресс: 180 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
@@ -188,8 +190,8 @@
 | 2 — `entities/` + карточки/сетка | 19 | 19 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 13 (ЗАКРЫТА, см. Phase Gate) |
 | 4 — Детальная страница + Spatial Node Editor | 59 | 59 |
-| 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 17 |
-| **Всего** | **207** | **179** |
+| 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 18 |
+| **Всего** | **207** | **180** |
 
 Долги Фаз 0–2 (не блокируют): —
 seriesProgressControllerProvider no-op-toast → инъекция в Фазе 3 (решение #35);
@@ -437,7 +439,7 @@ Spatial Node Editor; detailTypes/detailFormatters уже готовы pull-forwa
 | 5 | `widgets/stats` | `TimeDistributionDonut.svelte` | `lib/widgets/stats/time_distribution_donut.dart` | ✅ Готов | ✅ | Кольцевая диаграмма распределения времени (1-в-1 с Svelte): CustomPainter (радиус 70, stroke-width 20, старт -90°), центр кольца с stats.totalHours и stats.totalTime, адаптивная сетка 6 категорий (игры, сериалы, фильмы, аниме, книги, манга) со счётчиками часов, процентов и доп. единицами (эп., стр., гл.); 4 теста |
 | 5 | `widgets/stats` | `TopGenresBar.svelte` | `lib/widgets/stats/top_genres_bar.dart` | ✅ Готов | ✅ | Виджет топ-жанров (1-в-1 с Svelte): иконка Sparkles, 7 кнопок категорий (все/игры/фильмы/сериалы/аниме/манга/книги), 8-цветовой сегментированный бар (PALETTE) с Tooltip'ами, сетка до 8 жанров со счётчиками и процентными бейджами, empty state; 5 тестов |
 | 5 | `widgets/stats` | `TrackerBadges.svelte` | `lib/widgets/stats/tracker_badges.dart` | ✅ Готов | ✅ | Достижения медиатеки (1-в-1 с Svelte): иконка Trophy + счётчик разблокированных, 6 бейджей (Клуб сотен, Библиофил, Мастер стриков, Хранитель времени, Перфекционист, Омнивор), плашки «РАЗБЛОКИРОВАНО ✓» или прогресс-бары с процентами; 4 теста |
-| 5 | `widgets/stats/taste-profile` | `CriticalDivergenceCard.svelte` | `lib/widgets/stats/taste-profile/critical_divergence_card.dart` | ⬜ Не начат | ⬜ | — |
+| 5 | `widgets/stats/taste-profile` | `CriticalDivergenceCard.svelte` | `lib/widgets/stats/taste-profile/critical_divergence_card.dart` | ✅ Готов | ✅ | Карточка «Я против всего мира» (1-в-1 с Svelte): тайный шедевр 💎 и разочарование 💔, постер/плейсхолдер Image, сравнение userScore vs worldRating, бейдж разрыва с дельтой, пустой стейт, колбек onOpenMedia; 5 тестов |
 | 5 | `widgets/stats/taste-profile` | `DropAnalyticsCard.svelte` | `lib/widgets/stats/taste-profile/drop_analytics_card.dart` | ⬜ Не начат | ⬜ | — |
 | 5 | `widgets/stats/taste-profile` | `EraAffinityCard.svelte` | `lib/widgets/stats/taste-profile/era_affinity_card.dart` | ⬜ Не начат | ⬜ | — |
 | 5 | `widgets/stats/taste-profile` | `GenreParadoxCard.svelte` | `lib/widgets/stats/taste-profile/genre_paradox_card.dart` | ⬜ Не начат | ⬜ | — |

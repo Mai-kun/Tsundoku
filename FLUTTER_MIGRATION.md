@@ -191,10 +191,11 @@
     локализованные название, описание и чипы черт, адаптивный flex). Виджеты taste-profile/ ЗАКРЫТЫ (7/7) →
     GoalCard ✅ (4 теста; карточка цели, эмодзи-иконка, тайтл, описание, счетчик current/target и процент,
     градиентный/изумрудный прогресс-бар, бейдж «Выполнено», превью обложек завершенных тайтлов, кнопка удаления на hover) →
-    StatsView ✅ (4 теста; табы сводка/taste-profile, селектор scope completed/all_progress, баннер и метрики, donut распределения, monthly activity, heatmap, psychology, backlog health, 7 taste profile карт, retry/error/skeleton).
-    Следующий: HistoryView.svelte.
+    StatsView ✅ (4 теста; табы сводка/taste-profile, селектор scope completed/all_progress, баннер и метрики, donut распределения, monthly activity, heatmap, psychology, backlog health, 7 taste profile карт, retry/error/skeleton) →
+    HistoryView ✅ (8 тестов; вкладки Хроника и Активность, переключатель месяцев/годов, мозаика мини-карточек, фильтры категорий, якоря годов, блок без точной даты, лента активности с фильтром по дате и подтверждением удаления/очистки через ConfirmModal).
+    Следующий: GoalsView.svelte.
 
-**Прогресс: 187 / 207 файлов**
+**Прогресс: 188 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
@@ -203,7 +204,7 @@
 | 2 — `entities/` + карточки/сетка | 19 | 19 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 13 (ЗАКРЫТА, см. Phase Gate) |
 | 4 — Детальная страница + Spatial Node Editor | 59 | 59 |
-| 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 25 |
+| 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 26 |
 | **Всего** | **207** | **186** |
 
 Долги Фаз 0–2 (не блокируют): —
@@ -366,7 +367,7 @@ Spatial Node Editor; detailTypes/detailFormatters уже готовы pull-forwa
 | 5 | `views` | `CalendarView.svelte` | `lib/views/calendar_view.dart` | ⬜ Не начат | ⬜ | — |
 | 3 | `views` | `CategoryView.svelte` | `lib/views/category_view.dart` | ✅ Готов | ✅ | Sliver-вью (решение #37): FilterBar + статус-секции/франшизные группы/одна сетка (SECTION_ROW_LIMIT 40); SWR-модульный кэш + savedCategoryState; fetch-эффект гвардится ключом зависимостей ($effect-аналог — sequence не растёт на rebuild'ах); sequence-загрузка (500ms при поиске); stuck-reload; optimistic прогресс/удаление/статус; vitest-кейс перенесён (keyed-ремоунт при смене категории); 2 теста |
 | 5 | `views` | `GoalsView.svelte` | `lib/views/goals_view.dart` | ⬜ Не начат | ⬜ | — |
-| 5 | `views` | `HistoryView.svelte` | `lib/views/history_view.dart` | ⬜ Не начат | ⬜ | — |
+| 5 | `views` | `HistoryView.svelte` | `lib/views/history_view.dart` | ✅ Готов | ✅ | Вкладки Хроника и Активность, переключатель месяцев/годов, мозаика мини-карточек, фильтры категорий, интерактивные якоря годов, раскрываемый блок без даты, лента активности с фильтром даты, ConfirmModal для единичного удаления и полной очистки; 8 тестов |
 | 3 | `views` | `HomeView.svelte` | `lib/views/home_view.dart` | ✅ Готов | ✅ | ⬆️ Вытащен вперёд (App зависит от вью): Sliver-вью (#37); три секции getMedia(status 1/0/2, limit 60/500) + локальные сортировки; HomeSort/GroupBy — строковые union; time-budget фильтр + кастомный ввод, 🎲-рандомайзер (randomPick() публичный — App контекст-меню, решение #41), чипы фильтров, лимит секций (columns×rows), stale-бейдж → onOpenStaleBacklog (Фаза 5, решение #40); панель — публичные апдейтеры стейта; 5 тестов |
 | 5 | `views` | `ListsView.svelte` | `lib/views/lists_view.dart` | ⬜ Не начат | ⬜ | — |
 | 4 | `views` | `MediaDetailView.svelte` | `lib/views/media_detail_view.dart` | ✅ Готов | ✅ | Крупнейший файл (2854→~3900 строк): module-level регэкспы offline/lib-family, `_refreshMediaDetail`, stored-related persist/restore; стейт-класс: `_load` (postFrame), `_syncFrom` (reconcileProgress anti-rollback), game achievements (PrefetchCache 5min), background enrichment, `_loadRelated` (франшиза + RAWG/anime/TMDb + stored-restore), `_handleRelatedClick` (preview getExternalDetails), `_addRelatedToLibrary` (Movie/Manga/TvShow+Season payload-ветвление), серия шагов прогресса/сезонов (`_stepProgress/_commitSeriesCounter/_absoluteSeasonTarget`...), `_changeStatus` (leavesCompleted-сброс; dropped → dropPromptState), оценки/`_saveDetailedScore`/watchedOn/relink/fillMissing/overwrite/achievements, `_maybeAutoLoadRelated` каскад, derived-геттеры (`_externalRatings` offline-фильтр + lib-family-коллапс, `_relatedGroups`, `_timelineEntries`); build: `ref.listen(jobsClientProvider)` settled→refetch, KeyboardListener Escape, Stack + RelatedPreviewModal, `_RightColumn` (DetailHeader `as detail_header` из-за ambiguous RatingBadge, DetailTabs, AnimatedSwitcher panelIn/panelOut, 5 табов); 8 тестов + golden |

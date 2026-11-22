@@ -91,56 +91,66 @@ class TrackerBadges extends ConsumerWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         // Шапка: Трофей, заголовок, бейдж общего прогресса
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              mainAxisSize: MainAxisSize.min,
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final isSm = constraints.maxWidth >= 640;
+            return Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Icon(
-                  LucideIcons.trophy,
-                  size: 20,
-                  color: Color(0xFFFBBF24), // text-amber-400
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      LucideIcons.trophy,
+                      size: 20,
+                      color: Color(0xFFFBBF24), // text-amber-400
+                    ),
+                    const SizedBox(width: 10), // gap-2.5
+                    Text(
+                      t.tr('stats.achievements'),
+                      style: TextStyle(
+                        fontSize: isSm ? 18 : 16, // text-base sm:text-lg
+                        fontWeight: FontWeight.w600, // font-semibold
+                        letterSpacing: -0.4, // tracking-tight
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 10), // gap-2.5
-                Text(
-                  t.tr('stats.achievements'),
-                  style: const TextStyle(
-                    fontSize: 16, // text-base sm:text-lg
-                    fontWeight: FontWeight.w600, // font-semibold
-                    letterSpacing: -0.2, // tracking-tight
-                    color: Colors.white,
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 4,
+                  ), // px-3 py-1
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8), // rounded-lg
+                    border: Border.all(
+                      color: const Color(0x33F59E0B), // border-amber-500/20
+                    ),
+                    color: const Color(0x1AF59E0B), // bg-amber-500/10
+                  ),
+                  child: Text(
+                    t.tf('stats.unlockedCount', [unlockedCount, overallPercent]),
+                    style: const TextStyle(
+                      fontSize: 12, // text-xs
+                      fontWeight: FontWeight.w600, // font-semibold
+                      color: Color(0xFFFBBF24), // text-amber-400
+                    ),
                   ),
                 ),
               ],
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4), // px-3 py-1
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(8), // rounded-lg
-                border: Border.all(color: const Color(0x33F59E0B)), // border-amber-500/20
-                color: const Color(0x1AF59E0B), // bg-amber-500/10
-              ),
-              child: Text(
-                t.tf('stats.unlockedCount', [unlockedCount, overallPercent]),
-                style: const TextStyle(
-                  fontSize: 12, // text-xs
-                  fontWeight: FontWeight.w600, // font-semibold
-                  color: Color(0xFFFBBF24), // text-amber-400
-                ),
-              ),
-            ),
-          ],
+            );
+          },
         ),
         const SizedBox(height: 16), // mt-4
 
-        // Сетка достижений
+        // Сетка достижений: mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3
         LayoutBuilder(
           builder: (context, constraints) {
             final width = constraints.maxWidth;
             final cols = width >= 1024
                 ? 3
-                : width >= 640
+                : width >= 768
                     ? 2
                     : 1;
 
@@ -163,9 +173,7 @@ class TrackerBadges extends ConsumerWidget {
                 decoration: BoxDecoration(
                   color: const Color(0xFF151A26), // bg-[#151a26]
                   border: Border.all(
-                    color: isUnlocked
-                        ? const Color(0x4DF59E0B) // border-amber-500/30
-                        : Colors.white.withAlpha(13), // border-white/5
+                    color: Colors.white.withAlpha(13), // border-white/5
                   ),
                   borderRadius: BorderRadius.circular(12), // rounded-xl
                 ),
@@ -228,7 +236,7 @@ class TrackerBadges extends ConsumerWidget {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 16), // mt-4 pt-1
+                    const SizedBox(height: 20), // mt-4 pt-1
                     if (isUnlocked)
                       Container(
                         padding: const EdgeInsets.symmetric(
@@ -309,17 +317,19 @@ class TrackerBadges extends ConsumerWidget {
               children: [
                 for (var i = 0; i < badges.length; i += cols) ...[
                   if (i > 0) const SizedBox(height: 16), // gap-4
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      for (var c = 0; c < cols; c++) ...[
-                        if (c > 0) const SizedBox(width: 16), // gap-4
-                        if (i + c < badges.length)
-                          Expanded(child: buildBadgeCard(badges[i + c]))
-                        else
-                          const Expanded(child: SizedBox.shrink()),
+                  IntrinsicHeight(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        for (var c = 0; c < cols; c++) ...[
+                          if (c > 0) const SizedBox(width: 16), // gap-4
+                          if (i + c < badges.length)
+                            Expanded(child: buildBadgeCard(badges[i + c]))
+                          else
+                            const Expanded(child: SizedBox.shrink()),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
                 ],
               ],

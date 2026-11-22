@@ -75,7 +75,7 @@ class EraAffinityCard extends ConsumerWidget {
                 style: const TextStyle(
                   fontSize: 16, // text-base
                   fontWeight: FontWeight.w600, // font-semibold
-                  letterSpacing: -0.2, // tracking-tight
+                  letterSpacing: -0.4, // tracking-tight
                   color: Colors.white,
                 ),
               ),

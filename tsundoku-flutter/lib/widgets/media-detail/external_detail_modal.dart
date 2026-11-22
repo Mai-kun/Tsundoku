@@ -423,6 +423,7 @@ class _ExternalDetailModalState extends ConsumerState<ExternalDetailModal> {
       isOpen: true,
       onClose: widget.onClose,
       size: ModalSize.lg,
+      contentPadding: EdgeInsets.zero,
       child: ConstrainedBox(
         // max-h-[88vh]: панель сжимается под контент, но не выше 88vh.
         constraints: BoxConstraints(

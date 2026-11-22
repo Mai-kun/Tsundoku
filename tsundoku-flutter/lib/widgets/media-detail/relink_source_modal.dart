@@ -298,6 +298,7 @@ class _RelinkSourceModalState extends ConsumerState<RelinkSourceModal> {
       isOpen: widget.isOpen,
       onClose: widget.onClose,
       size: ModalSize.lg,
+      contentPadding: EdgeInsets.zero,
       child: ConstrainedBox(
         constraints: BoxConstraints(
           maxHeight: MediaQuery.sizeOf(context).height * 0.7, // max-h-[70vh]
@@ -457,10 +458,12 @@ class _RelinkSourceModalState extends ConsumerState<RelinkSourceModal> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    isRu ? 'Искать в сервисе' : 'Search in provider',
+                    (isRu ? 'Искать в сервисе' : 'Search in provider')
+                        .toUpperCase(),
                     style: TextStyle(
                       fontSize: 11, // text-[11px]
                       fontWeight: FontWeight.w600, // font-semibold
+                      letterSpacing: 0.6, // tracking-wider
                       color: th.textMuted, // text-muted uppercase tracking
                     ),
                   ),

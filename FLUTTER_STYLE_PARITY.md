@@ -2,8 +2,8 @@
 
 ## 📍 Текущий фокус / Next Step
 * **Фаза:** S5 (widgets/media-detail/**, widgets/stats/**, widgets/goals/*)
-* **Текущий файл:** `mediatracker-ui/src/widgets/media-detail/RelinkSourceModal.svelte` -> `tsundoku-flutter/lib/widgets/media-detail/relink_source_modal.dart`
-* **Цель:** Сверка RelinkSourceModal: модалка перепривязки источника медиа.
+* **Текущий файл:** `mediatracker-ui/src/widgets/media-detail/panels/RelatedPanel.svelte` -> `tsundoku-flutter/lib/widgets/media-detail/panels/related_panel.dart`
+* **Цель:** Сверка RelatedPanel: панель связанных медиа (приквелы, сиквелы, адаптации).
 
 ---
 
@@ -232,7 +232,7 @@
 | S5 | `mediatracker-ui/src/widgets/media-detail/FillMissingModal.svelte` | `tsundoku-flutter/lib/widgets/media-detail/fill_missing_modal.dart` | ✅ Сверен 1:1 | ModalSize.md, contentPadding: zero для full-bleed разделителей border-t border-white/[0.08] между секциями p-5, заголовок Sparkles 16px accent-soft, триггер источника px-2.5 py-1.5 text-xs max-w-[220px], предпросмотр uppercase tracking-wider text-xs font-bold text-slate-300, строки превью _PreviewRow с TextSpan (белый semibold лейбл + emerald-300/80 значение или slate-300 + muted text-[11px] нет данных), бейдж px-1.5 py-0.5 text-[10px] 1-в-1 | Да |
 | S5 | `mediatracker-ui/src/widgets/media-detail/MediaActivityModal.svelte` | `tsundoku-flutter/lib/widgets/media-detail/media_activity_modal.dart` | ✅ Сверен 1:1 | ModalSize.md, contentPadding: zero для исключения удвоения отступов, ConstrainedBox maxHeight: 0.75vh (max-h-[75vh]), шапка px-5 py-4 border-b border-white/[0.08] с History 18px accent-soft и X 16px hover:bg-white/5, панель фильтра даты px-5 py-3 bg-surface/30 border-b border-white/[0.08], контейнер списка min-h-[220px] p-5, карточки событий p-3 gap-3.5 rounded-lg border-white/5 bg-card/60, иконка события 36x36 rounded-md bg-accent/15 text-accent-soft 1-в-1 | Да |
 | S5 | `mediatracker-ui/src/widgets/media-detail/OverwriteConfirmModal.svelte` | `tsundoku-flutter/lib/widgets/media-detail/overwrite_confirm_modal.dart` | ✅ Сверен 1:1 | ModalSize.md, contentPadding: zero для full-bleed разделителя border-t border-white/[0.08] между секциями p-5 (20px), безопасная кнопка px-4 py-2.5 rounded-lg bg-accent text-sm font-medium hover:bg-accent-hover, полная перезапись border-white/10 text-muted hover:border-rose-400/40 hover:text-rose-200, кнопка отмены mt-1 (4px) px-4 py-2 text-sm text-muted hover:text-white 1-в-1 | Да |
-| S5 | `mediatracker-ui/src/widgets/media-detail/RelinkSourceModal.svelte` | `tsundoku-flutter/lib/widgets/media-detail/relink_source_modal.dart` | В очереди |  |  |
+| S5 | `mediatracker-ui/src/widgets/media-detail/RelinkSourceModal.svelte` | `tsundoku-flutter/lib/widgets/media-detail/relink_source_modal.dart` | ✅ Сверен 1:1 | ModalSize.lg, contentPadding: zero для full-bleed разделителей border-b border-white/[0.08], ConstrainedBox maxHeight: 0.7vh (max-h-[70vh]), шапка px-5 py-4 с Link2 18px accent-soft, секция поиска p-4 с полем h-10 px-3 bg-[#1c202b] rounded-lg и селектом провайдера с uppercase tracking-wider лейблом text-[11px], список min-h-40 p-4 space-y-2, постер 40x56 (h-14 w-10 aspect-[2/3]) rounded-md, бейдж источника px-1.5 py-0.5 text-[10px], кнопка привязки px-3 py-1.5 rounded-md text-xs border-accent/40 bg-accent/10 1-в-1 | Да |
 | S5 | `mediatracker-ui/src/widgets/media-detail/panels/RelatedPanel.svelte` | `tsundoku-flutter/lib/widgets/media-detail/panels/related_panel.dart` | В очереди |  |  |
 | S5 | `mediatracker-ui/src/widgets/media-detail/panels/RelatedPreviewModal.svelte` | `tsundoku-flutter/lib/widgets/media-detail/panels/related_preview_modal.dart` | В очереди |  |  |
 | S5 | `mediatracker-ui/src/widgets/media-detail/sections/ProgressCard.svelte` | `tsundoku-flutter/lib/widgets/media-detail/sections/progress_card.dart` | В очереди |  |  |

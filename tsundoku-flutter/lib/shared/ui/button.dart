@@ -140,9 +140,18 @@ class TsundokuButton extends StatelessWidget {
       );
     }
 
+    final borderSide = switch (variant) {
+      ButtonVariant.secondary => BorderSide(color: th.borderSubtle),
+      ButtonVariant.outline => BorderSide(color: th.borderStrong),
+      _ => BorderSide.none,
+    };
+
     final button = Material(
       color: background,
-      borderRadius: BorderRadius.circular(geometry.radius),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(geometry.radius),
+        side: borderSide,
+      ),
       child: InkWell(
         onTap: enabled ? onPressed : null,
         borderRadius: BorderRadius.circular(geometry.radius),
@@ -151,13 +160,15 @@ class TsundokuButton extends StatelessWidget {
             : th.bgHover, // hover:bg-hover
         child: Container(
           height: geometry.height,
-          // iconOnly: квадрат w = h; иначе — паддинги sizeClasses.
-          padding: (iconOnly && size != ButtonSize.icon)
-              ? EdgeInsets.symmetric(
-                  horizontal: geometry.height) // iconSizeClasses p-0 + size-*
+          // iconOnly: квадрат w = h, p-0; иначе — паддинги sizeClasses.
+          padding: (iconOnly || size == ButtonSize.icon)
+              ? EdgeInsets.zero
               : geometry.padding,
           constraints: BoxConstraints(
             minWidth: (iconOnly || size == ButtonSize.icon)
+                ? geometry.height
+                : 0,
+            minHeight: (iconOnly || size == ButtonSize.icon)
                 ? geometry.height
                 : 0,
           ),

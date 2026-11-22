@@ -2,8 +2,8 @@
 
 ## 📍 Текущий фокус / Next Step
 * **Фаза:** S1 (shared/ui/*.svelte)
-* **Текущий файл:** `mediatracker-ui/src/shared/ui/Button.svelte` -> `tsundoku-flutter/lib/shared/ui/button.dart`
-* **Цель:** Сверка Button: variant, size, states, padding, border-radius, font-size, line-height 1-в-1.
+* **Текущий файл:** `mediatracker-ui/src/shared/ui/Badge.svelte` -> `tsundoku-flutter/lib/shared/ui/badge.dart`
+* **Цель:** Сверка Badge: variant, size, padding, border-radius, font-weight 1-в-1.
 
 ---
 
@@ -159,7 +159,7 @@
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | S0 | `mediatracker-ui/src/app/tokens.css` | `tsundoku-flutter/lib/shared/theme/tsundoku_tokens.dart` | ✅ Сверен 1:1 | Все семантические токены, бренды источников (--color-import-*), бейджи (--color-badge-*), чарты и поверхности идентичны 1-в-1 | 0 отличий |
 | S0 | `mediatracker-ui/src/app/app.css` | `tsundoku-flutter/lib/shared/theme/tsundoku_theme.dart` | ✅ Сверен 1:1 | Все статические переменные @theme static, радиусы, скроллбар, анимации и ThemeData соответствуют app.css 1-в-1 | 0 отличий |
-| S1 | `mediatracker-ui/src/shared/ui/Button.svelte` | `tsundoku-flutter/lib/shared/ui/button.dart` | В очереди |  |  |
+| S1 | `mediatracker-ui/src/shared/ui/Button.svelte` | `tsundoku-flutter/lib/shared/ui/button.dart` | ✅ Сверен 1:1 | Добавлены рамки border-subtle для secondary и border-strong для outline; исправлен паддинг iconOnly на p-0 с квадратным размером | Да |
 | S1 | `mediatracker-ui/src/shared/ui/Badge.svelte` | `tsundoku-flutter/lib/shared/ui/badge.dart` | В очереди |  |  |
 | S1 | `mediatracker-ui/src/shared/ui/Panel.svelte` | `tsundoku-flutter/lib/shared/ui/panel.dart` | В очереди |  |  |
 | S1 | `mediatracker-ui/src/shared/ui/Modal.svelte` | `tsundoku-flutter/lib/shared/ui/modal.dart` | В очереди |  |  |

@@ -94,7 +94,9 @@ class TimeDistributionDonut extends ConsumerWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final isSm = constraints.maxWidth >= 600;
+        final isRow = constraints.maxWidth >= 480;
+        final isTwoCols = constraints.maxWidth >= 320 ||
+            MediaQuery.sizeOf(context).width >= 640;
 
         Widget buildCategoryCard(
           ({
@@ -192,7 +194,7 @@ class TimeDistributionDonut extends ConsumerWidget {
         }
 
         Widget buildCardsGrid() {
-          if (isSm) {
+          if (isTwoCols) {
             return Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -262,7 +264,7 @@ class TimeDistributionDonut extends ConsumerWidget {
           ),
         );
 
-        if (isSm) {
+        if (isRow) {
           return Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [

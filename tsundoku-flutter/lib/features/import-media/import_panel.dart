@@ -1002,44 +1002,54 @@ class ImportPanelState extends ConsumerState<ImportPanel> {
   Widget _buildFileDropArea({required String hint}) {
     final hasFile = _file != null;
 
-    return InkWell(
-      borderRadius: BorderRadius.circular(12),
-      onTap: _pickFile,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-        decoration: BoxDecoration(
-          color: const Color(0x05FFFFFF),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: hasFile
-                ? const Color(0x666366F1)
-                : const Color(0x1AFFFFFF),
-            width: hasFile ? 1.5 : 1,
+    return PlatformDropZone(
+      onFilesDropped: (files) {
+        if (files.isNotEmpty && mounted) {
+          setState(() {
+            _file = (name: files.first.name, bytes: files.first.bytes);
+            _error = null;
+          });
+        }
+      },
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: _pickFile,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+          decoration: BoxDecoration(
+            color: const Color(0x05FFFFFF),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: hasFile
+                  ? const Color(0x666366F1)
+                  : const Color(0x1AFFFFFF),
+              width: hasFile ? 1.5 : 1,
+            ),
           ),
-        ),
-        child: Column(
-          children: [
-            Icon(
-              hasFile ? LucideIcons.fileCheck : LucideIcons.upload,
-              size: 28,
-              color: hasFile ? const Color(0xFF818CF8) : const Color(0xFF94A3B8),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              hasFile ? _file!.name : 'Нажмите, чтобы выбрать файл',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: hasFile ? FontWeight.w600 : FontWeight.normal,
-                color: hasFile ? Colors.white : const Color(0xFFCBD5E1),
+          child: Column(
+            children: [
+              Icon(
+                hasFile ? LucideIcons.fileCheck : LucideIcons.upload,
+                size: 28,
+                color: hasFile ? const Color(0xFF818CF8) : const Color(0xFF94A3B8),
               ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              hint,
-              style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
-            ),
-          ],
+              const SizedBox(height: 10),
+              Text(
+                hasFile ? _file!.name : 'Нажмите или перетащите файл сюда',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: hasFile ? FontWeight.w600 : FontWeight.normal,
+                  color: hasFile ? Colors.white : const Color(0xFFCBD5E1),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                hint,
+                style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+              ),
+            ],
+          ),
         ),
       ),
     );

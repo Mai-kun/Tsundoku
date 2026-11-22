@@ -380,6 +380,8 @@ class TsundokuSelect<T> extends StatelessWidget {
   /// aria-label для триггера; по умолчанию — label выбранного.
   final String? label;
   final bool matchTriggerWidth;
+  final double? width;
+  final double? height;
 
   const TsundokuSelect({
     super.key,
@@ -391,6 +393,8 @@ class TsundokuSelect<T> extends StatelessWidget {
     this.disabled = false,
     this.label,
     this.matchTriggerWidth = true,
+    this.width,
+    this.height,
   });
 
   @override
@@ -427,8 +431,12 @@ class TsundokuSelect<T> extends StatelessWidget {
                 color: const Color(0x1AFFFFFF)), // border-white/10
           ),
           padding: const EdgeInsets.symmetric(horizontal: 12),
-          fixedSize: const Size.fromHeight(40), // h-10 w-full
-          minimumSize: const Size.fromHeight(40),
+          fixedSize: width != null
+              ? Size(width!, height ?? 40)
+              : Size.fromHeight(height ?? 40),
+          minimumSize: width != null
+              ? Size(width!, height ?? 40)
+              : Size.fromHeight(height ?? 40),
         ),
         child: Row(
           children: [

@@ -841,117 +841,156 @@ class _CalendarViewState extends ConsumerState<CalendarView> {
           value: 'release', label: t.tr('views.calendarFilterOnlyRelease')),
     ];
 
-    return Wrap(
-      alignment: WrapAlignment.spaceBetween,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      spacing: 12,
-      runSpacing: 12,
-      children: [
-        // Left: Month Navigation + Category + Event Filter + Reset
-        Wrap(
-          crossAxisAlignment: WrapCrossAlignment.center,
-          spacing: 10,
-          runSpacing: 10,
-          children: [
-            // Month navigation
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  onPressed: () => _shiftMonth(-1),
-                  icon: const Icon(LucideIcons.chevronLeft, size: 17),
-                  tooltip: t.tr('views.calendarPrevMonth'),
-                ),
-                TextButton(
-                  onPressed: _goToday,
-                  child: Text(
-                    _monthLabel(locale),
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
+    return SizedBox(
+      width: double.infinity,
+      child: Wrap(
+        alignment: WrapAlignment.spaceBetween,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: 12,
+        runSpacing: 12,
+        children: [
+          // Left: Month Navigation + Category + Event Filter + Reset
+          Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              // Month navigation
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: tokens.bgCard,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.white.withAlpha(20)),
+                    ),
+                    child: IconButton(
+                      onPressed: () => _shiftMonth(-1),
+                      icon: const Icon(LucideIcons.chevronLeft, size: 17),
+                      tooltip: t.tr('views.calendarPrevMonth'),
+                      padding: EdgeInsets.zero,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  SizedBox(
+                    height: 36,
+                    child: TextButton(
+                      onPressed: _goToday,
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: Text(
+                        _monthLabel(locale),
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: tokens.bgCard,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.white.withAlpha(20)),
+                    ),
+                    child: IconButton(
+                      onPressed: () => _shiftMonth(1),
+                      icon: const Icon(LucideIcons.chevronRight, size: 17),
+                      tooltip: t.tr('views.calendarNextMonth'),
+                      padding: EdgeInsets.zero,
+                    ),
+                  ),
+                ],
+              ),
+
+              // Category select
+              TsundokuSelect<String>(
+                id: 'calendar-category',
+                options: categoryOptions,
+                value: _typeFilter,
+                onChange: (v) => setState(() => _typeFilter = v),
+                width: 160,
+                height: 36,
+              ),
+
+              // Event kind select
+              TsundokuSelect<String>(
+                id: 'calendar-kind',
+                options: eventKindOptions,
+                value: _kindFilter,
+                onChange: (v) => setState(() => _kindFilter = v),
+                width: 175,
+                height: 36,
+              ),
+
+              // Reset filters
+              if (_hasActiveFilters)
+                InkWell(
+                  onTap: _resetFilters,
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    height: 36,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: tokens.bgSurface,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.white.withAlpha(26)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(LucideIcons.rotateCcw, size: 13),
+                        const SizedBox(width: 6),
+                        Text(
+                          t.tr('views.calendarReset'),
+                          style: TextStyle(
+                              fontSize: 12, color: tokens.textMuted),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-                IconButton(
-                  onPressed: () => _shiftMonth(1),
-                  icon: const Icon(LucideIcons.chevronRight, size: 17),
-                  tooltip: t.tr('views.calendarNextMonth'),
-                ),
-              ],
-            ),
+            ],
+          ),
 
-            // Category select
-            TsundokuSelect<String>(
-              id: 'calendar-category',
-              options: categoryOptions,
-              value: _typeFilter,
-              onChange: (v) => setState(() => _typeFilter = v),
-            ),
-
-            // Event kind select
-            TsundokuSelect<String>(
-              id: 'calendar-kind',
-              options: eventKindOptions,
-              value: _kindFilter,
-              onChange: (v) => setState(() => _kindFilter = v),
-            ),
-
-            // Reset filters
-            if (_hasActiveFilters)
-              InkWell(
-                onTap: _resetFilters,
-                borderRadius: BorderRadius.circular(8),
-                child: Container(
-                  height: 36,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  decoration: BoxDecoration(
-                    color: tokens.bgSurface,
+          // Right: ICS Export + Cell Mode (if grid) + View Mode
+          Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              // Export ICS
+              ElevatedButton.icon(
+                onPressed: _isExportingIcs ? null : _handleExportIcs,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: tokens.bgCard,
+                  foregroundColor: tokens.textPrimary,
+                  fixedSize: const Size.fromHeight(36),
+                  minimumSize: const Size.fromHeight(36),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12),
+                  shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.white.withAlpha(26)),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(LucideIcons.rotateCcw, size: 13),
-                      const SizedBox(width: 6),
-                      Text(
-                        t.tr('views.calendarReset'),
-                        style: TextStyle(
-                            fontSize: 12, color: tokens.textMuted),
-                      ),
-                    ],
+                    side: BorderSide(color: Colors.white.withAlpha(20)),
                   ),
                 ),
-              ),
-          ],
-        ),
-
-        // Right: ICS Export + Cell Mode (if grid) + View Mode
-        Wrap(
-          crossAxisAlignment: WrapCrossAlignment.center,
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            // Export ICS
-            ElevatedButton.icon(
-              onPressed: _isExportingIcs ? null : _handleExportIcs,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: tokens.bgCard,
-                foregroundColor: tokens.textPrimary,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  side: BorderSide(color: Colors.white.withAlpha(20)),
+                icon: const Icon(LucideIcons.download, size: 15),
+                label: Text(
+                  t.tr('views.calendarExportIcs'),
+                  style: const TextStyle(fontSize: 12),
                 ),
               ),
-              icon: const Icon(LucideIcons.download, size: 15),
-              label: Text(
-                t.tr('views.calendarExportIcs'),
-                style: const TextStyle(fontSize: 12),
-              ),
-            ),
 
             // Cell Mode toggle (Posters / Icons)
             if (_mode == 'grid')
@@ -1014,8 +1053,9 @@ class _CalendarViewState extends ConsumerState<CalendarView> {
           ],
         ),
       ],
-    );
-  }
+    ),
+  );
+}
 
   // ── Feed Mode ─────────────────────────────────────────────────────────────
   Widget _buildFeedMode(

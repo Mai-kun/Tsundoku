@@ -84,10 +84,7 @@ class _GoalCardState extends ConsumerState<GoalCard> {
                           borderRadius: BorderRadius.circular(8), // rounded-lg
                         ),
                         alignment: Alignment.center,
-                        child: Text(
-                          widget.goal.icon,
-                          style: const TextStyle(fontSize: 20), // text-xl
-                        ),
+                        child: _buildGoalIcon(widget.goal.icon, theme),
                       ),
                       const SizedBox(width: 12), // gap-3
                       Expanded(
@@ -287,6 +284,45 @@ class _GoalCardState extends ConsumerState<GoalCard> {
         ),
       ),
     );
+  }
+
+  Widget _buildGoalIcon(String iconStr, TsundokuTheme theme) {
+    final mapped = _mapLucideIcon(iconStr);
+    if (mapped != null) {
+      return Icon(
+        mapped,
+        size: 22,
+        color: const Color(0xFF818CF8), // text-accent-soft / indigo-400
+      );
+    }
+    return Text(
+      iconStr,
+      style: const TextStyle(fontSize: 20), // text-xl
+    );
+  }
+
+  static IconData? _mapLucideIcon(String key) {
+    final normalized = key.trim().toLowerCase().replaceAll(RegExp(r'[-_\s]'), '');
+    return switch (normalized) {
+      'book' || 'books' || 'bookopen' => LucideIcons.bookOpen,
+      'game' || 'games' || 'gamepad' || 'gamepad2' => LucideIcons.gamepad2,
+      'tv' || 'tvshow' || 'television' => LucideIcons.tv,
+      'film' || 'movie' || 'movies' || 'clapperboard' => LucideIcons.film,
+      'trophy' => LucideIcons.trophy,
+      'star' => LucideIcons.star,
+      'target' => LucideIcons.target,
+      'heart' => LucideIcons.heart,
+      'flame' || 'fire' => LucideIcons.flame,
+      'compass' => LucideIcons.compass,
+      'crown' => LucideIcons.crown,
+      'clock' => LucideIcons.clock,
+      'music' || 'headphones' => LucideIcons.music,
+      'bookmark' => LucideIcons.bookmark,
+      'library' => LucideIcons.library,
+      'check' || 'checkcircle' => LucideIcons.checkCircle,
+      'sparkles' => LucideIcons.sparkles,
+      _ => null,
+    };
   }
 }
 

@@ -198,11 +198,18 @@ void main() {
     await tester.pump();
     expect(score, '10');
 
-    // Даты: третье поле — «Начало» (title, score, started, finished).
-    final dateFields = find.byType(TextField);
-    expect(dateFields, findsNWidgets(4));
-    await tester.enterText(dateFields.at(2), '2024-01-01T00:00');
-    await tester.pump();
-    expect(started, '2024-01-01T00:00');
+    // Текстовых полей ровно 2: название и оценка (даты управляются нативным _DatePickerField).
+    final textFields = find.byType(TextField);
+    expect(textFields, findsNWidgets(2));
+
+    // Даты: открывается DatePickerDialog при тапе по календарю.
+    final datePickers = find.byIcon(LucideIcons.calendar);
+    expect(datePickers, findsNWidgets(2));
+    await tester.tap(datePickers.first);
+    await tester.pumpAndSettle();
+    expect(find.byType(DatePickerDialog), findsOneWidget);
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+    expect(started, isNotNull);
   });
 }

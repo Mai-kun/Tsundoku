@@ -2,8 +2,8 @@
 
 ## 📍 Текущий фокус / Next Step
 * **Фаза:** S3 (entities/media/ui/*, widgets/media-card/*, widgets/media-grid/*)
-* **Текущий файл:** `mediatracker-ui/src/entities/media/ui/MediaPoster.svelte` -> `tsundoku-flutter/lib/entities/media/ui/media_poster.dart`
-* **Цель:** Сверка MediaPoster: aspect ratio (2/3), object-cover, fallback placeholder, overlay badges 1-в-1.
+* **Текущий файл:** `mediatracker-ui/src/entities/media/ui/MediaScoreBadge.svelte` -> `tsundoku-flutter/lib/entities/media/ui/media_score_badge.dart`
+* **Цель:** Сверка MediaScoreBadge: star icon, score text, rounded-md, background, popover 1-в-1.
 
 ---
 
@@ -178,7 +178,7 @@
 | S2 | `mediatracker-ui/src/widgets/layout/ActivityDropdown.svelte` | `tsundoku-flutter/lib/widgets/layout/activity_dropdown.dart` | ✅ Сверен 1:1 | Trigger 36x36px, popover 320/384px, bg #181b24, p-3 (12px), бейджи active/pending, лимиты API 1-в-1 | 0 отличий |
 | S2 | `mediatracker-ui/src/widgets/layout/BackgroundJobsModal.svelte` | `tsundoku-flutter/lib/widgets/layout/background_jobs_modal.dart` | ✅ Сверен 1:1 | Размер jobs (88vh, 92vw, max 1600px), full-bleed шапка через contentPadding: zero, табы, master-detail 1-в-1 | Да |
 | S2 | `mediatracker-ui/src/widgets/layout/CloseAppModal.svelte` | `tsundoku-flutter/lib/widgets/layout/close_app_modal.dart` | ✅ Сверен 1:1 | Backdrop #090b10/80, max-w-md (448px), bg #151a26/95, p-5 (20px), опции p-3.5 (14px), кнопки px-4 py-2 1-в-1 | 0 отличий |
-| S3 | `mediatracker-ui/src/entities/media/ui/MediaPoster.svelte` | `tsundoku-flutter/lib/entities/media/ui/media_poster.dart` | В очереди |  |  |
+| S3 | `mediatracker-ui/src/entities/media/ui/MediaPoster.svelte` | `tsundoku-flutter/lib/entities/media/ui/media_poster.dart` | ✅ Сверен 1:1 | Object-cover, Placeholder404, syncing black/80 22px, needsReview amber-500/90 10px, badges/actions p-2.5 1-в-1 | 0 отличий |
 | S3 | `mediatracker-ui/src/entities/media/ui/MediaScoreBadge.svelte` | `tsundoku-flutter/lib/entities/media/ui/media_score_badge.dart` | В очереди |  |  |
 | S3 | `mediatracker-ui/src/entities/media/ui/MediaStatusBadge.svelte` | `tsundoku-flutter/lib/entities/media/ui/media_status_badge.dart` | В очереди |  |  |
 | S3 | `mediatracker-ui/src/entities/media/ui/Placeholder404.svelte` | `tsundoku-flutter/lib/entities/media/ui/placeholder404.dart` | В очереди |  |  |

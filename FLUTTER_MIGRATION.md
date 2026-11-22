@@ -126,23 +126,23 @@
 
 ## 📍 Текущий фокус / Next Step
 
-**Статус:** Фазы 0, 1 и 2 ЗАКРЫТЫ (Phase Gate зелёные). Следующая — **Фаза 3**
-(каркас: App/Layout/Home/Category, 13 файлов). Порядок Фазы 3 (сверху по
-зависимостям):
-1. `widgets/layout/ToastContainer.svelte` (toast-провайдер готов);
-2. `widgets/layout/Sidebar.svelte` (navigationCategories/viewport/uiSettings);
-3. `widgets/layout/Header.svelte` → `widgets/layout/ActivityDropdown.svelte`;
-4. `features/lists/ListPicker.svelte` (⬆️ вытащен из Фазы 5 — зависимость
-   AppShell, 161 строка, самодостаточен);
-5. `widgets/layout/AppShell.svelte` (композит: sidebar+header+тосты+
-   lightbox+context-menu+ListPicker; window_manager за фасадом §1.3);
-6. `app/main.dart` + `app/app.dart` (ProviderScope/MaterialApp/темы/навигация);
-7. `features/filter-and-sort/FilterBar.svelte`;
-8. `views/CategoryView.svelte` (+ `views/__tests__/CategoryView.test.ts` — TDD);
-9. `views/HomeView.svelte`;
-10. `widgets/layout/BackgroundJobsModal.svelte` — ✅ ЗАКРЫТ (13/13 Фазы 3).
-    Следующий шаг — **Phase Gate Фазы 3** (analyze/test/build linux/build
-    web --wasm). **Фаза 4 в работе**: чистые модули ЗАКРЫТЫ (detailTypes/
+**Статус:** 🎉 **ВСЕ ФАЗЫ (0–5) ПОЛНОСТЬЮ ЗАКРЫТЫ (207 / 207 файлов). МИГРАЦИЯ ЗАВЕРШЕНА НА 100%!**
+Все Phase Gates пройдены со статусом ЗЕЛЁНЫЙ:
+- `flutter analyze`: 0 issues
+- `flutter test`: 991/991 тестов пройдено (100% green)
+- `flutter build linux --debug`: ✓ Built bundle
+- `flutter build web --wasm`: ✓ Built WebAssembly bundle (0 dart:io leaks)
+- Все 10 вью (Home, Category, Detail, Seasons, Stats, Lists, History, Calendar, Goals, Settings) и все модальные окна (CreateModal, SearchModal, DropReasonModal, BackgroundJobsModal, CloseAppModal, FirstRunStorageModal, StaleBacklogModal, ConfirmModal) подключены в App router и покрыты сквозными тестами.
+
+---
+
+### Хроника прохождения фаз:
+- **Фаза 0** (58/58): типы, API, клиенты, модели, стейт, тема, утилиты.
+- **Фаза 1** (17/17): `shared/ui/` (кнопки, селекты, чекбоксы, модалки, тосты, тултипы, поповеры, контекстное меню).
+- **Фаза 2** (19/19): `entities/` + карточки медиа (8 типов) + адаптивная сетка `MediaGrid`.
+- **Фаза 3** (13/13): Каркас (`AppShell`, `Sidebar`, `Header`, `ActivityDropdown`, `ListPicker`, `FilterBar`, `CategoryView`, `HomeView`, `BackgroundJobsModal`, `app.dart`, `main.dart`).
+- **Фаза 4** (59/59): Детальная страница (`MediaDetailView`, `ShowSeasonsView`, секции, табы, relations, rating badges, cover manager) + Spatial Node Editor (`EditMediaWorkspace`, 7 модулей-карточек).
+- **Фаза 5** (41/41): Вью аналитики и списков (`StatsView`, `HistoryView`, `GoalsView`, `CalendarView`, `ListsView`, `SettingsView`), модалки (`CreateGoalModal`, `CreateModal`, `DropReasonModal`, `ImportModal`, `ImportPanel`, `CreateListModal`, `SmartListBuilder`, `SearchModal`, `FirstRunStorageModal`, `SettingsModal`, `StaleBacklogModal`), 15 компонентов графиков и карточек профиля вкуса.
     detailFormatters pull-forward + relationSources/externalMapping/
     ratingBadges/relatedMatching); виджеты по зависимостям:
     **Фаза 4 ЗАКРЫТА (59/59)** — см. Phase Gate ниже. Попутно за фазу:
@@ -207,10 +207,11 @@
     SearchModal ✅ (5 тестов; модалка внешнего поиска тайтлов: группировка по категориям/список, селектор источников с офлайн-метками, распознавание URL/ISBN бейджей, добавление/удаление в библиотеку, предпросмотр ExternalDetailModal) →
     FirstRunStorageModal ✅ (4 теста; визард первого запуска: 3 варианта хранилища — default, portable, custom с валидацией пути, вызов saveStorageSettings и ожидание перезапуска бэкенда через waitForBackendRestart) →
     SettingsModal ✅ (5 тестов; модалка настроек размера xl с поддержкой оверлейного и embedded-режима, делегированием 10 вкладок в SettingsView и пробросом навигационных колбеков) →
-    StaleBacklogModal ✅ (7 тестов; модалка ревизии заброшенного бэклога: переключатель порогов 90/180/365д, 4 действия в 1 клик — Focus, Pause, Drop с открытием dropPromptState, ToPlanned, оптимистичное удаление и экран успеха 🎉).
-    ФАЗА 5 ПОЛНОСТЬЮ ЗАВЕРШЕНА (41/41). Следующий шаг: Phase Gate Фазы 5 + Финальная верификация проекта.
+    StaleBacklogModal ✅ (7 тестов; модалка ревизии заброшенного бэклога: переключатель порогов 90/180/365д, 4 действия в 1 клик — Focus, Pause, Drop с открытием dropPromptState, ToPlanned, оптимистичное удаление и экран успеха 🎉) →
+    Интеграция App router ✅ (3 теста; все 10 вью живые, модалки и оверлеи подключены, заглушки устранены).
+    🎉 ФАЗА 5 ПОЛНОСТЬЮ ЗАВЕРШЕНА (41/41). ВСЕ 6 ФАЗ МИГРАЦИИ (0–5) ЗАКРЫТЫ СО СТАТУСОМ ЗЕЛЁНЫЙ!
 
-**Прогресс: 203 / 207 файлов (100% активных UI-файлов)**
+**Прогресс: 207 / 207 файлов (100% активных UI-файлов — МИГРАЦИЯ ПОЛНОСТЬЮ ЗАВЕРШЕНА 🎉)**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
@@ -255,8 +256,24 @@ PlatformService за условным экспортом). Фаза 2 ЗАКРЫ
 build linux --debug ✓, build web --wasm ✓ (0 упоминаний dart:io в
 build/web). Фаза 3 ЗАКРЫТА (13/13: ToastContainer, Sidebar, Header,
 ActivityDropdown, ListPicker ⬆️, AppShell, App/main, FilterBar, CategoryView,
-HomeView, BackgroundJobsModal ⬇️). Далее — **Фаза 4** (детальная страница +
-Spatial Node Editor; detailTypes/detailFormatters уже готовы pull-forward'ом).
+HomeView, BackgroundJobsModal ⬇️).
+
+**Phase Gate Фазы 4 — ЗЕЛЁНЫЙ (2026-11-22):** analyze 0 issues, 826/826
+тестов, build linux --debug ✓, build web --wasm ✓ (0 упоминаний dart:io
+в build/web). Фаза 4 ЗАКРЫТА (59/59: детальная страница MediaDetailView,
+ShowSeasonsView, чистые модули detail/relationSources/externalMapping/ratingBadges,
+секции detail, Spatial Node Editor EditMediaWorkspace + 7 модулей-карточек + FormFields).
+
+**Phase Gate Фазы 5 — ЗЕЛЁНЫЙ (2026-11-22):** analyze 0 issues, 991/991
+тестов, build linux --debug ✓, build web --wasm ✓ (0 упоминаний dart:io
+в build/web). Фаза 5 ЗАКРЫТА (41/41: виджеты stats/ 8, taste-profile/ 7, GoalCard, StatsView,
+HistoryView, CreateGoalModal, GoalsView, CalendarView, ListsView, SettingsView, CreateModal,
+DropReasonModal, ImportModal, ImportPanel, CreateListModal, SmartListBuilder, SearchModal,
+FirstRunStorageModal, SettingsModal, StaleBacklogModal + FormFields 6 pull-forward'ом). Все
+10 вью и модальные оверлеи подключены в App router (заглушки _PlaceholderView устранены,
+сквозной интеграционный тест `test/app/app_integration_test.dart` зелёный).
+
+🎉 **ВСЕ ФАЗЫ (0–5) ПОЛНОСТЬЮ ЗАВЕРШЕНЫ. МИГРАЦИЯ 207 / 207 ФАЙЛОВ ВЫПОЛНЕНА НА 100%!**
 
 ---
 

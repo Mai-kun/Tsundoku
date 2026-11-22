@@ -8,7 +8,6 @@ library;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
-import '../theme/tsundoku_theme.dart';
 import 'lightbox.dart';
 
 /// Показывает лайтбокс, если [lightboxProvider] открыт; монтируется в
@@ -22,13 +21,15 @@ class ImageLightbox extends ConsumerWidget {
     final url = state.url;
     if (url == null) return const SizedBox.shrink();
 
+    final vp = MediaQuery.sizeOf(context);
+
     return GestureDetector(
       onTap: () => _close(ref),
       behavior: HitTestBehavior.opaque,
       child: FadeTransition(
         opacity: const AlwaysStoppedAnimation(1.0),
         child: Container(
-          // bg-black/85 + backdrop-blur-md (blur даёт BackdropFilter ниже).
+          // bg-black/85 + backdrop-blur-md.
           color: const Color(0xD9000000),
           alignment: Alignment.center,
           padding: const EdgeInsets.all(16), // p-4
@@ -36,19 +37,37 @@ class ImageLightbox extends ConsumerWidget {
             children: [
               Center(
                 child: ConstrainedBox(
-                  constraints: const BoxConstraints(
-                    maxHeight: 900 * 0.85, // max-h-[85dvh] при 1440x900
+                  constraints: BoxConstraints(
+                    maxHeight: vp.height * 0.85, // max-h-[85dvh]
                     maxWidth: double.infinity,
                   ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Flexible(
-                        child: Image.network(
-                          url,
-                          fit: BoxFit.contain,
-                          errorBuilder: (_, _, _) =>
-                              const SizedBox(width: 200, height: 200),
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(8), // rounded-lg
+                            border: Border.all(
+                                color: Colors.white.withAlpha(51)), // border-white/20
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Color(0x66000000), // shadow-2xl
+                                blurRadius: 50,
+                                offset: Offset(0, 25),
+                                spreadRadius: -12,
+                              ),
+                            ],
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.network(
+                              url,
+                              fit: BoxFit.contain,
+                              errorBuilder: (_, _, _) =>
+                                  const SizedBox(width: 200, height: 200),
+                            ),
+                          ),
                         ),
                       ),
                       if (state.caption != null)
@@ -80,8 +99,7 @@ class ImageLightbox extends ConsumerWidget {
                   style: IconButton.styleFrom(
                     backgroundColor: const Color(0x1AFFFFFF), // bg-white/10
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(
-                          TsundokuPalette.radiusSelector),
+                      borderRadius: BorderRadius.circular(8), // rounded-lg = 8px
                     ),
                   ),
                   tooltip: 'Закрыть',

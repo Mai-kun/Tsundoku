@@ -2,8 +2,8 @@
 
 ## 📍 Текущий фокус / Next Step
 * **Фаза:** S1 (shared/ui/*.svelte)
-* **Текущий файл:** `mediatracker-ui/src/shared/ui/ImageLightbox.svelte` -> `tsundoku-flutter/lib/shared/ui/image_lightbox.dart`
-* **Цель:** Сверка ImageLightbox: backdrop #000/90, close button, image scaling, gestures 1-в-1.
+* **Текущий файл:** `mediatracker-ui/src/shared/ui/TotalBadge.svelte` -> `tsundoku-flutter/lib/shared/ui/total_badge.dart`
+* **Цель:** Сверка TotalBadge: pill styling, typography, padding, color tokens 1-в-1.
 
 ---
 
@@ -168,7 +168,7 @@
 | S1 | `mediatracker-ui/src/shared/ui/Select.svelte` | `tsundoku-flutter/lib/shared/ui/popover_menu.dart` | ✅ Сверен 1:1 | Исправлен border-radius на 8px (rounded-lg), цвет текста #f3f4f6 (text-ink); h-10 (40px), px-3 (12px), ChevronDown 14px text-muted 1-в-1 | Да |
 | S1 | `mediatracker-ui/src/shared/ui/ContextMenu.svelte` | `tsundoku-flutter/lib/shared/ui/context_menu.dart` | ✅ Сверен 1:1 | Фон #181b24, radius 12px, p-1.5 (6px), item padding 7x10px, font 13px, иконки 15px, цвета danger/hover совпадают 1-в-1 | 0 отличий |
 | S1 | `mediatracker-ui/src/widgets/layout/ToastContainer.svelte` | `tsundoku-flutter/lib/widgets/layout/toast_container.dart` | ✅ Сверен 1:1 | Позиция bottom-right, gap 10px, карточки p-3 (12px), rounded-xl (12px), цвета бейджей/полос, кнопки size-7 (28px) выверены 1-в-1 | 0 отличий |
-| S1 | `mediatracker-ui/src/shared/ui/ImageLightbox.svelte` | `tsundoku-flutter/lib/shared/ui/image_lightbox.dart` | В очереди |  |  |
+| S1 | `mediatracker-ui/src/shared/ui/ImageLightbox.svelte` | `tsundoku-flutter/lib/shared/ui/image_lightbox.dart` | ✅ Сверен 1:1 | Добавлены rounded-lg (8px), border-white/20, shadow-2xl на изображение, динамический max-h-[85dvh], rounded-lg на кнопку закрытия 1-в-1 | Да |
 | S1 | `mediatracker-ui/src/shared/ui/TotalBadge.svelte` | `tsundoku-flutter/lib/shared/ui/total_badge.dart` | В очереди |  |  |
 | S1 | `mediatracker-ui/src/shared/ui/MediaCoverPlaceholder.svelte` | `tsundoku-flutter/lib/shared/ui/media_cover_placeholder.dart` | В очереди |  |  |
 | S2 | `mediatracker-ui/src/widgets/layout/AppShell.svelte` | `tsundoku-flutter/lib/widgets/layout/app_shell.dart` | В очереди |  |  |

@@ -1,9 +1,9 @@
 # 🎯 Аудит и выравнивание стилей Flutter UI 1-в-1 со Svelte (Tailwind CSS / tokens.css)
 
 ## 📍 Текущий фокус / Next Step
-* **Фаза:** S0 (tokens.css, app.css)
-* **Текущий файл:** `mediatracker-ui/src/app/tokens.css` -> `tsundoku-flutter/lib/shared/theme/tsundoku_tokens.dart`
-* **Цель:** Полная верификация дизайн-токенов, фирменных цветов источников `--color-badge-*`, `--color-import-*`, цветов чартов и семантических поверхностей.
+* **Фаза:** S1 (shared/ui/*.svelte)
+* **Текущий файл:** `mediatracker-ui/src/shared/ui/Button.svelte` -> `tsundoku-flutter/lib/shared/ui/button.dart`
+* **Цель:** Сверка Button: variant, size, states, padding, border-radius, font-size, line-height 1-в-1.
 
 ---
 
@@ -157,8 +157,8 @@
 
 | Фаза | Svelte-файл | Dart-файл | Статус | Выявленные отличия CSS/Layout | Исправлено |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| S0 | `mediatracker-ui/src/app/tokens.css` | `tsundoku-flutter/lib/shared/theme/tsundoku_tokens.dart` | В очереди |  |  |
-| S0 | `mediatracker-ui/src/app/app.css` | `tsundoku-flutter/lib/shared/theme/tsundoku_theme.dart` | В очереди |  |  |
+| S0 | `mediatracker-ui/src/app/tokens.css` | `tsundoku-flutter/lib/shared/theme/tsundoku_tokens.dart` | ✅ Сверен 1:1 | Все семантические токены, бренды источников (--color-import-*), бейджи (--color-badge-*), чарты и поверхности идентичны 1-в-1 | 0 отличий |
+| S0 | `mediatracker-ui/src/app/app.css` | `tsundoku-flutter/lib/shared/theme/tsundoku_theme.dart` | ✅ Сверен 1:1 | Все статические переменные @theme static, радиусы, скроллбар, анимации и ThemeData соответствуют app.css 1-в-1 | 0 отличий |
 | S1 | `mediatracker-ui/src/shared/ui/Button.svelte` | `tsundoku-flutter/lib/shared/ui/button.dart` | В очереди |  |  |
 | S1 | `mediatracker-ui/src/shared/ui/Badge.svelte` | `tsundoku-flutter/lib/shared/ui/badge.dart` | В очереди |  |  |
 | S1 | `mediatracker-ui/src/shared/ui/Panel.svelte` | `tsundoku-flutter/lib/shared/ui/panel.dart` | В очереди |  |  |

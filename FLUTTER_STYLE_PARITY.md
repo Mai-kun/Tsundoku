@@ -2,8 +2,8 @@
 
 ## 📍 Текущий фокус / Next Step
 * **Фаза:** S6 (views/*.svelte: CategoryView, MediaDetailView, ShowSeasonsView, StatsView, ListsView, HistoryView, CalendarView, GoalsView, SettingsView)
-* **Текущий файл:** `mediatracker-ui/src/views/StatsView.svelte` -> `tsundoku-flutter/lib/views/stats_view.dart`
-* **Цель:** Сверка StatsView: герой-баннер, сетка карточек, отступы, отсутствие дублирующего паддинга.
+* **Текущий файл:** `mediatracker-ui/src/views/ListsView.svelte` -> `tsundoku-flutter/lib/views/lists_view.dart`
+* **Цель:** Сверка ListsView: сетка пользовательских списков, отступы, модалки создания/удаления.
 
 ---
 
@@ -277,7 +277,7 @@
 | S6 | `mediatracker-ui/src/views/CategoryView.svelte` | `tsundoku-flutter/lib/views/category_view.dart` | ✅ Сверен 1:1 | FilterBar с отступом space-y-4 (16px), добавлен разделитель space-y-8 (32px) между SectionRow (статус-группы и франшизы), одиночный внешний отступ AppShell 1-в-1 | Да |
 | S6 | `mediatracker-ui/src/views/MediaDetailView.svelte` | `tsundoku-flutter/lib/views/media_detail_view.dart` | ✅ Сверен 1:1 | Адаптивная раскладка sidebar + right column (Column на <1024px, Row на >=1024px lg gap-6 24px), скелетон 1-в-1 с lg:grid-cols, кнопки и табы space-y-5 (20px) 1-в-1 | Да |
 | S6 | `mediatracker-ui/src/views/ShowSeasonsView.svelte` | `tsundoku-flutter/lib/views/show_seasons_view.dart` | ✅ Сверен 1:1 | Контейнер max-w-4xl (896px) с выравниванием topCenter (mx-auto), space-y-6 (24px), карточка сериала p-5 (20px) с постером 80x112, цвет ошибки bg-rose-400/5 1-в-1 | Да |
-| S6 | `mediatracker-ui/src/views/StatsView.svelte` | `tsundoku-flutter/lib/views/stats_view.dart` | В очереди |  |  |
+| S6 | `mediatracker-ui/src/views/StatsView.svelte` | `tsundoku-flutter/lib/views/stats_view.dart` | ✅ Сверен 1:1 | Контейнер max-w-6xl (1152px) topCenter, space-y-6 (24px), брейкпоинты sm:640px для таб/радио баров и lg:1024px для сеток (Donut/Rating и Radar/Era), одиночный внешний отступ AppShell 1-в-1 | Да |
 | S6 | `mediatracker-ui/src/views/ListsView.svelte` | `tsundoku-flutter/lib/views/lists_view.dart` | В очереди |  |  |
 | S6 | `mediatracker-ui/src/views/HistoryView.svelte` | `tsundoku-flutter/lib/views/history_view.dart` | В очереди |  |  |
 | S6 | `mediatracker-ui/src/views/CalendarView.svelte` | `tsundoku-flutter/lib/views/calendar_view.dart` | В очереди |  |  |

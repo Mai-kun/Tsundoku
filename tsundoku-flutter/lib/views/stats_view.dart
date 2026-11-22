@@ -144,7 +144,8 @@ class _StatsViewState extends ConsumerState<StatsView> {
         Theme.of(context).extension<TsundokuTheme>() ?? TsundokuTheme.obsidian;
     final currentScope = ref.watch(uiSettingsProvider).statsScope;
 
-    return Center(
+    return Align(
+      alignment: Alignment.topCenter,
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 1152), // max-w-6xl
         child: Column(
@@ -153,7 +154,7 @@ class _StatsViewState extends ConsumerState<StatsView> {
               // Шапка с переключателями вкладок и области учета
               LayoutBuilder(
                 builder: (context, constraints) {
-                  final isSm = constraints.maxWidth >= 600;
+                  final isSm = constraints.maxWidth >= 640; // sm:flex-row
 
                   final tabList = Container(
                     decoration: BoxDecoration(
@@ -260,7 +261,7 @@ class _StatsViewState extends ConsumerState<StatsView> {
                   const SizedBox(height: 24),
                   LayoutBuilder(
                     builder: (context, constraints) {
-                      final isLg = constraints.maxWidth >= 960;
+                      final isLg = constraints.maxWidth >= 1024; // lg:grid-cols-12
                       if (isLg) {
                         return Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -364,7 +365,7 @@ class _StatsViewState extends ConsumerState<StatsView> {
                   const SizedBox(height: 24),
                   LayoutBuilder(
                     builder: (context, constraints) {
-                      final isLg = constraints.maxWidth >= 900;
+                      final isLg = constraints.maxWidth >= 1024; // lg:grid-cols-2
                       if (isLg) {
                         return Row(
                           crossAxisAlignment: CrossAxisAlignment.start,

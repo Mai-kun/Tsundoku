@@ -901,6 +901,23 @@ class _EditMediaWorkspaceState extends ConsumerState<EditMediaWorkspace>
                       ),
                     ),
                   ),
+                  if (!_isDesktop) ...[
+                    const SizedBox(width: 4),
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: widget.onClose,
+                      child: Container(
+                        width: 28,
+                        height: 28,
+                        alignment: Alignment.center,
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(LucideIcons.x,
+                            size: 15, color: th.textMuted),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -1068,17 +1085,22 @@ class _EditMediaWorkspaceState extends ConsumerState<EditMediaWorkspace>
     return [
       Positioned.fill(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.only(top: 64, bottom: 24),
+          padding: const EdgeInsets.fromLTRB(16, 64, 16, 24), // px-4 pt-16 pb-6
           child: Column(
             children: [
               // Обложка w-32 по центру.
               SizedBox(
                 width: 128, // w-32
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    height: 192, // aspect 2/3
+                child: Container(
+                  height: 192, // aspect 2/3
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                        color: Colors.white.withAlpha(26)), // white/[0.1]
                     color: const Color(0xFF12151C),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
                     child: _coverUrl.isEmpty
                         ? MediaCoverPlaceholder(
                             label: t.tr('activity.coverMissing'))

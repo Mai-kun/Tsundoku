@@ -2,8 +2,8 @@
 
 ## 📍 Текущий фокус / Next Step
 * **Фаза:** S4 (features/**)
-* **Текущий файл:** `mediatracker-ui/src/features/edit-media/EditMediaWorkspace.svelte` -> `tsundoku-flutter/lib/features/edit-media/edit_media_workspace.dart`
-* **Цель:** Сверка EditMediaWorkspace: layout рабочего стола редактирования, боковая панель с навигацией по модулям, полноэкранный/модальный режим, кнопки сохранения/отмены.
+* **Текущий файл:** `mediatracker-ui/src/features/edit-media/WorkspaceWindow.svelte` -> `tsundoku-flutter/lib/features/edit-media/workspace_window.dart`
+* **Цель:** Сверка WorkspaceWindow: окно модуля на холсте, драг за заголовок, коллапс, z-stacking, highlight border при ховере, паддинги шапки и контента.
 
 ---
 
@@ -198,7 +198,7 @@
 | S4 | `mediatracker-ui/src/features/import-media/ImportModal.svelte` | `tsundoku-flutter/lib/features/import-media/import_modal.dart` | ✅ Сверен 1:1 | ModalSize.xl, убран двойной padding через contentPadding: zero (p-6 24px), in-only fade, ImportPanel integration 1-в-1 | Да |
 | S4 | `mediatracker-ui/src/features/import-media/ImportPanel.svelte` | `tsundoku-flutter/lib/features/import-media/import_panel.dart` | ✅ Сверен 1:1 | Сетка провайдеров grid-cols-1 sm:2 lg:4 (gap-2.5 10px, mainAxisExtent 70px), p-3 rounded-xl border, icon 40x40 rounded-lg, 1:1 токены брендовых цветов sourceTheme, MangaLib сетки 5 сайтов (grid-cols-2 sm:3) и 6 папок (grid-cols-2 sm:3), space-y-6 (24px) вертикальный ритм, custom accordion (JSON/CSV snippet), убран лишний folderInput в шапке 1-в-1 | Да |
 | S4 | `mediatracker-ui/src/features/search-external/SearchModal.svelte` | `tsundoku-flutter/lib/features/search-external/search_modal.dart` | ✅ Сверен 1:1 | contentPadding: zero на TsundokuModal (ModalSize.search) для edge-to-edge border-y на поисковом баре, размеры постеров 1-в-1 (w-20/h-28 80x112 single, w-16/h-24 64x96 grouped), gap-4 (16px) отступ постера, exact hover prefetch, badges 1-в-1 | Да |
-| S4 | `mediatracker-ui/src/features/edit-media/EditMediaWorkspace.svelte` | `tsundoku-flutter/lib/features/edit-media/edit_media_workspace.dart` | В очереди |  |  |
+| S4 | `mediatracker-ui/src/features/edit-media/EditMediaWorkspace.svelte` | `tsundoku-flutter/lib/features/edit-media/edit_media_workspace.dart` | ✅ Сверен 1:1 | Мобильный layout SingleChildScrollView padding (px-4 pt-16 pb-6 16/64/16/24), рамка мобильной обложки border-white/[0.1], мобильная кнопка закрытия size-7 rounded-full в floating bar, desktop canvas 5 окон и нити 1-в-1 | Да |
 | S4 | `mediatracker-ui/src/features/edit-media/WorkspaceWindow.svelte` | `tsundoku-flutter/lib/features/edit-media/workspace_window.dart` | В очереди |  |  |
 | S4 | `mediatracker-ui/src/features/edit-media/modules/ModuleCard.svelte` | `tsundoku-flutter/lib/features/edit-media/module_card.dart` | В очереди |  |  |
 | S4 | `mediatracker-ui/src/features/edit-media/modules/BaseMediaModule.svelte` | `tsundoku-flutter/lib/features/edit-media/base_media_module.dart` | В очереди |  |  |

@@ -172,10 +172,11 @@
     иконка Sparkles, 7 кнопок категорий, 8-цветовой сегментированный бар с тултипами,
     сетка до 8 жанров со счётчиками и процентами, empty state) → TrackerBadges ✅ (4 теста;
     иконка Trophy, 6 бейджей достижений с проверкой таргетов, янтарные плашки разблокированных,
-    фиолетовые бары прогресса). Виджеты stats/ ЗАКРЫТЫ (8/8).
-    Следующий: widgets/stats/taste-profile/genreLabel.ts.
+    фиолетовые бары прогресса). Виджеты stats/ ЗАКРЫТЫ (8/8) →
+    genreLabel.ts ✅ (1 тест; реэкспорт genreLabel из entities/media/model).
+    Следующий: GenreRadarChart.svelte.
 
-**Прогресс: 177 / 207 файлов**
+**Прогресс: 178 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
@@ -184,8 +185,8 @@
 | 2 — `entities/` + карточки/сетка | 19 | 19 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 13 (ЗАКРЫТА, см. Phase Gate) |
 | 4 — Детальная страница + Spatial Node Editor | 59 | 59 |
-| 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 15 |
-| **Всего** | **207** | **177** |
+| 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 16 |
+| **Всего** | **207** | **178** |
 
 Долги Фаз 0–2 (не блокируют): —
 seriesProgressControllerProvider no-op-toast → инъекция в Фазе 3 (решение #35);
@@ -440,7 +441,7 @@ Spatial Node Editor; detailTypes/detailFormatters уже готовы pull-forwa
 | 5 | `widgets/stats/taste-profile` | `GenreRadarChart.svelte` | `lib/widgets/stats/taste-profile/genre_radar_chart.dart` | ⬜ Не начат | ⬜ | — |
 | 5 | `widgets/stats/taste-profile` | `SunkCostCard.svelte` | `lib/widgets/stats/taste-profile/sunk_cost_card.dart` | ⬜ Не начат | ⬜ | — |
 | 5 | `widgets/stats/taste-profile` | `TastePersonaCard.svelte` | `lib/widgets/stats/taste-profile/taste_persona_card.dart` | ⬜ Не начат | ⬜ | — |
-| 5 | `widgets/stats/taste-profile` | `genreLabel.ts` | `lib/widgets/stats/taste-profile/genre_label.dart` | ⬜ Не начат | ⬜ | — |
+| 5 | `widgets/stats/taste-profile` | `genreLabel.ts` | `lib/widgets/stats/taste-profile/genre_label.dart` | ✅ Готов | ✅ | Реэкспорт genreLabel из entities/media/model для паритета 1-в-1 со Svelte; 1 тест |
 
 ---
 

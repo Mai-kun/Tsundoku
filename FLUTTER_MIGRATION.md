@@ -154,11 +154,12 @@
 
     **Phase Gate Фазы 4 — ЗЕЛЁНЫЙ (2026-11-22):** analyze 0 issues, 826/826
     тестов, build linux --debug ✓, build web --wasm ✓ (0 упоминаний dart:io
-    в build/web). **Следующий шаг — Фаза 5** (вью Settings/Stats/Lists/
-    History/Goals/Calendar + модалки, 41 файл, 6 готовы pull-forward'ом;
-    порядок по зависимостям — сверху).
+    в build/web). **Фаза 5 в работе:** порядок — виджеты stats/ → taste-profile
+    → вью → модалки. Уже готово: StatsHeroBanner ✅ (4 теста; formatStatsNumber —
+    Intl-аналог группировки разрядов; AdvancedStats.fromJson в тестах требует
+    ВСЕ num-поля — casting-литералы полные, scoreDistribution Map<String,dynamic>).
 
-**Прогресс: 169 / 207 файлов**
+**Прогресс: 170 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
@@ -167,8 +168,8 @@
 | 2 — `entities/` + карточки/сетка | 19 | 19 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 13 (ЗАКРЫТА, см. Phase Gate) |
 | 4 — Детальная страница + Spatial Node Editor | 59 | 59 |
-| 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 7 |
-| **Всего** | **207** | **169** |
+| 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 8 |
+| **Всего** | **207** | **170** |
 
 Долги Фаз 0–2 (не блокируют): —
 seriesProgressControllerProvider no-op-toast → инъекция в Фазе 3 (решение #35);
@@ -412,7 +413,7 @@ Spatial Node Editor; detailTypes/detailFormatters уже готовы pull-forwa
 | 5 | `widgets/stats` | `BacklogHealth.svelte` | `lib/widgets/stats/backlog_health.dart` | ⬜ Не начат | ⬜ | — |
 | 5 | `widgets/stats` | `MonthlyActivityChart.svelte` | `lib/widgets/stats/monthly_activity_chart.dart` | ⬜ Не начат | ⬜ | — |
 | 5 | `widgets/stats` | `RatingPsychology.svelte` | `lib/widgets/stats/rating_psychology.dart` | ⬜ Не начат | ⬜ | — |
-| 5 | `widgets/stats` | `StatsHeroBanner.svelte` | `lib/widgets/stats/stats_hero_banner.dart` | ⬜ Не начат | ⬜ | — |
+| 5 | `widgets/stats` | `StatsHeroBanner.svelte` | `lib/widgets/stats/stats_hero_banner.dart` | ✅ Готов | ✅ | Hero: тайтл/подзаголовок (t.tf с formatStatsNumber — Intl-группировка: ru-пробелы, en-запятые), три метрики (стрик flame/amber, средний балл star/yellow, завершения checkCircle/emerald) — LayoutBuilder ≥640px → 3 колонки (Wrap), иначе 1; карточки bg-[#151a26] border-white/5; 4 теста |
 | 5 | `widgets/stats` | `TimeDistributionDonut.svelte` | `lib/widgets/stats/time_distribution_donut.dart` | ⬜ Не начат | ⬜ | — |
 | 5 | `widgets/stats` | `TopGenresBar.svelte` | `lib/widgets/stats/top_genres_bar.dart` | ⬜ Не начат | ⬜ | — |
 | 5 | `widgets/stats` | `TrackerBadges.svelte` | `lib/widgets/stats/tracker_badges.dart` | ⬜ Не начат | ⬜ | — |

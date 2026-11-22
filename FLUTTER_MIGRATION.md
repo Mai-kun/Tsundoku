@@ -198,10 +198,11 @@
     CalendarView ✅ (7 тестов; секция дедлайнов бэклога с 30-дневным горизонтом и темпом, панель навигации по месяцам, фильтры категорий/событий, экспорт ICS, лента карточек с автопроверкой онгоингов, сетка 7-колонок с панелью выбранного дня) →
     ListsView ✅ (8 тестов; галерея списков с 1-4 колонками, карточки с 0/1/2+ обложками, умные бейджи/чипы, детальный вид с MediaGrid, оптимистичное удаление тайтлов, ConfirmModal для удаления списка, модальные колбеки) →
     SettingsView ✅ (5 тестов; embedded-контейнер настроек с 10 секциями, глубокий диплинк через initialTab, мобильный горизонтальный rail табов, десктопный двухколоночный лейаут с w-64 сайдбаром, делегирование через panelBuilder) →
-    CreateModal ✅ (3 теста; legacy-обёртка над пространственным холстом EditMediaWorkspace с сохранением проп-контракта, сокрытие при isOpen=false, проброс editingItem).
-    Следующий: DropReasonModal.svelte.
+    CreateModal ✅ (3 теста; legacy-обёртка над пространственным холстом EditMediaWorkspace с сохранением проп-контракта, сокрытие при isOpen=false, проброс editingItem) →
+    DropReasonModal ✅ (6 тестов; выбор и переключение чипов причин с фильтрацией по типу медиа и аниме, заметка до 200 символов, сохранение через updateStatusWithDropInfo со статусом dropped, удаление причины, пропуск/закрытие, интеграция с dropPromptStateProvider).
+    Следующий: ImportModal.svelte.
 
-**Прогресс: 194 / 207 файлов**
+**Прогресс: 195 / 207 файлов**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
@@ -210,8 +211,8 @@
 | 2 — `entities/` + карточки/сетка | 19 | 19 |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 13 (ЗАКРЫТА, см. Phase Gate) |
 | 4 — Детальная страница + Spatial Node Editor | 59 | 59 |
-| 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 32 |
-| **Всего** | **207** | **194** |
+| 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 33 |
+| **Всего** | **207** | **195** |
 
 Долги Фаз 0–2 (не блокируют): —
 seriesProgressControllerProvider no-op-toast → инъекция в Фазе 3 (решение #35);
@@ -292,7 +293,7 @@ Spatial Node Editor; detailTypes/detailFormatters уже готовы pull-forwa
 | 5 | `features/create-media` | `MangaFormFields.svelte` | `lib/features/create-media/manga_form_fields.dart` | ✅ Готов | ✅ | ⬆️ Вытащен из Фазы 5 (зависимость CategoryFieldsModule, Фаза 4): author + totalChapters; currentVolume + totalVolumes (двойная роль, лейбл detail.tabVolumes, hint '1'); 1 тест |
 | 5 | `features/create-media` | `MovieFormFields.svelte` | `lib/features/create-media/movie_form_fields.dart` | ✅ Готов | ✅ | ⬆️ Вытащен из Фазы 5 (зависимость CategoryFieldsModule, Фаза 4): durationMinutes (number) + studio (hint); чекбокс «Это аниме?» — GestureDetector+Checkbox (accent, text-muted text-sm); 1 тест |
 | 5 | `features/create-media` | `TvShowFormFields.svelte` | `lib/features/create-media/tv_show_form_fields.dart` | ✅ Готов | ✅ | ⬆️ Вытащен из Фазы 5 (зависимость CategoryFieldsModule, Фаза 4): studio/network + чекбокс аниме; редактор сезонов (add/remove/строки [5rem_1fr_7rem_auto]); SeasonDraft — тип в module_types.dart; 1 тест полного цикла |
-| 5 | `features/drop-reason` | `DropReasonModal.svelte` | `lib/features/drop-reason/drop_reason_modal.dart` | ⬜ Не начат | ⬜ | — |
+| 5 | `features/drop-reason` | `DropReasonModal.svelte` | `lib/features/drop-reason/drop_reason_modal.dart` | ✅ Готов | ✅ | Модалка указания причины дропа медиа: выбор чипов причин с фильтрацией по mediaType/isAnime, поле заметки до 200 символов, сохранение через updateStatusWithDropInfo, кнопка удаления причины, интеграция с dropPromptStateProvider; 6 тестов |
 | 0 | `features/drop-reason` | `dropReasonPrompt.svelte.ts` | `lib/features/drop-reason/drop_reason_prompt.dart` | ✅ Готов | ✅ | DropPromptTarget + Riverpod Notifier (target state); history.pushState не нужен (решение #10); тест |
 | 4 | `features/edit-media` | `EditMediaWorkspace.svelte` | `lib/features/edit-media/edit_media_workspace.dart` | ✅ Готов | ✅ | Пространственный канвас: draft-стейт (все поля + CategoryDraft), applyEditableFields ($effect → initState+didUpdateWidget; loadMediaDetail async-догрузка), desktop ≥1024: Stack 5 WorkspaceWindow (keyed — z-стек порядком детей по zMap, bringToFront), cover-узел (pan+clamp), нити — Ticker+rAF-аналог (ThreadSpring.step → ThreadsNotifier → CustomPaint repaint, парсер `M x y C ...`), персистентная раскладка loadLayout/saveLayout/resetLayout; контрольная панель (uppercase title/Отмена/Добавить-Сохранить-Сохранение…, reset desktop), validation (titleRequired/coverUrlInvalid) + submitError-чип (errorMessage, clear по тапу); submit 1-в-1: buildPayload по 5 типам (Create*Payload), buildSeasons (title фолбэк, planned), UpdateMediaPayload (altTitles явный список, notes '' = очистка, quotesJson, ISO-даты через DateTime.tryParse→toUtc); mobile: скролл-стек секций; 5 тестов |
 | 4 | `features/edit-media` | `WorkspaceWindow.svelte` | `lib/features/edit-media/workspace_window.dart` | ✅ Готов | ✅ | Плавающее окно: Positioned по rect, драг шапки / ресайз grip'ом (GestureDetector pan — арена жестов вместо Svelte window-level listeners; live clamp в вьюпорт: SIDE_MARGIN/TOP_BAR/BOTTOM_MARGIN), AnimatedContainer высоты (collapsed → HEADER_H-2 из-за border-box, live resize — Duration.zero), MouseRegion hover, count-бейдж, collapse-кнопка (Semantics + GestureDetector 24×24 — IconButton'у не хватает 2px в h-10), grip — CustomPaint 3 диагонали (1-в-1 с svg), тело всегда смонтировано (AnimatedOpacity + IgnorePointer inert); 6 тестов |

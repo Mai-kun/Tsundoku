@@ -41,10 +41,14 @@ class GenreParadoxCard extends ConsumerWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           // Шапка: весы + заголовок слева, легенда справа
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8, // gap-2
+            runSpacing: 8,
             children: [
               Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   const Icon(
                     LucideIcons.scale,
@@ -57,15 +61,17 @@ class GenreParadoxCard extends ConsumerWidget {
                     style: const TextStyle(
                       fontSize: 16, // text-base
                       fontWeight: FontWeight.w600, // font-semibold
-                      letterSpacing: -0.2, // tracking-tight
+                      letterSpacing: -0.4, // tracking-tight
                       color: Colors.white,
                     ),
                   ),
                 ],
               ),
               Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Container(
                         width: 8, // size-2
@@ -87,6 +93,7 @@ class GenreParadoxCard extends ConsumerWidget {
                   ),
                   const SizedBox(width: 12), // gap-3
                   Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Container(
                         width: 8, // size-2
@@ -230,6 +237,7 @@ class _GenreParadoxRow extends StatelessWidget {
                 '${_formatNum(stat.completionRate)}%',
                 style: const TextStyle(
                   fontSize: 11, // text-[11px]
+                  height: 1.25, // leading-tight
                   color: Color(0xFF6EE7B7), // text-emerald-300
                   fontFeatures: [FontFeature.tabularFigures()],
                 ),
@@ -238,6 +246,7 @@ class _GenreParadoxRow extends StatelessWidget {
                 '${_formatNum(stat.dropRate)}%',
                 style: const TextStyle(
                   fontSize: 11, // text-[11px]
+                  height: 1.25, // leading-tight
                   color: Color(0xFFFDA4AF), // text-rose-300
                   fontFeatures: [FontFeature.tabularFigures()],
                 ),

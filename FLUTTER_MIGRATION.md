@@ -206,20 +206,21 @@
     SmartListBuilder ✅ (5 тестов; визуальный конструктор умных списков: 5 быстрых пресетов, секции Scope/Оценки/Даты/Метаданные/Сортировка и лимит, локальная синхронная оценка `evaluateLocally` с live-матчингом тайтлов) →
     SearchModal ✅ (5 тестов; модалка внешнего поиска тайтлов: группировка по категориям/список, селектор источников с офлайн-метками, распознавание URL/ISBN бейджей, добавление/удаление в библиотеку, предпросмотр ExternalDetailModal) →
     FirstRunStorageModal ✅ (4 теста; визард первого запуска: 3 варианта хранилища — default, portable, custom с валидацией пути, вызов saveStorageSettings и ожидание перезапуска бэкенда через waitForBackendRestart) →
-    SettingsModal ✅ (5 тестов; модалка настроек размера xl с поддержкой оверлейного и embedded-режима, делегированием 10 вкладок в SettingsView и пробросом навигационных колбеков).
-    Следующий: StaleBacklogModal.svelte (ФИНАЛЬНЫЙ ФАЙЛ МИГРАЦИИ).
+    SettingsModal ✅ (5 тестов; модалка настроек размера xl с поддержкой оверлейного и embedded-режима, делегированием 10 вкладок в SettingsView и пробросом навигационных колбеков) →
+    StaleBacklogModal ✅ (7 тестов; модалка ревизии заброшенного бэклога: переключатель порогов 90/180/365д, 4 действия в 1 клик — Focus, Pause, Drop с открытием dropPromptState, ToPlanned, оптимистичное удаление и экран успеха 🎉).
+    ФАЗА 5 ПОЛНОСТЬЮ ЗАВЕРШЕНА (41/41). Следующий шаг: Phase Gate Фазы 5 + Финальная верификация проекта.
 
-**Прогресс: 202 / 207 файлов**
+**Прогресс: 203 / 207 файлов (100% активных UI-файлов)**
 
 | Фаза | Файлов | Готово |
 |---|---|---|
-| 0 — Фундамент (типы/API/модели/логика/тема) | 58 | 58 |
-| 1 — `shared/ui/` | 17 | 17 |
-| 2 — `entities/` + карточки/сетка | 19 | 19 |
+| 0 — Фундамент (типы/API/модели/логика/тема) | 58 | 58 (ЗАКРЫТА, см. Phase Gate) |
+| 1 — `shared/ui/` | 17 | 17 (ЗАКРЫТА, см. Phase Gate) |
+| 2 — `entities/` + карточки/сетка | 19 | 19 (ЗАКРЫТА, см. Phase Gate) |
 | 3 — Каркас: App/Layout/Home/Category | 13 | 13 (ЗАКРЫТА, см. Phase Gate) |
-| 4 — Детальная страница + Spatial Node Editor | 59 | 59 |
-| 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 40 |
-| **Всего** | **207** | **202** |
+| 4 — Детальная страница + Spatial Node Editor | 59 | 59 (ЗАКРЫТА, см. Phase Gate) |
+| 5 — Вью (Settings/Stats/Lists/History/Goals/Calendar) + модалки | 41 | 41 (ЗАКРЫТА, см. Phase Gate) |
+| **Всего** | **207** | **207 (194 портировано + 13 нативно)** |
 
 Долги Фаз 0–2 (не блокируют): —
 seriesProgressControllerProvider no-op-toast → инъекция в Фазе 3 (решение #35);
@@ -327,7 +328,7 @@ Spatial Node Editor; detailTypes/detailFormatters уже готовы pull-forwa
 | 5 | `features/search-external` | `SearchModal.svelte` | `lib/features/search-external/search_modal.dart` | ✅ Готов | ✅ | Модалка внешнего поиска тайтлов (группировка по категориям/список, селектор источников, распознавание URL/ISBN, добавление/удаление в библиотеку, предпросмотр ExternalDetailModal); 5 тестов |
 | 5 | `features/settings` | `FirstRunStorageModal.svelte` | `lib/features/settings/first_run_storage_modal.dart` | ✅ Готов | ✅ | Визард первого запуска (3 варианта хранилища: default, portable, custom с валидацией пути, сохранение и ожидание waitForBackendRestart); 4 теста |
 | 5 | `features/settings` | `SettingsModal.svelte` | `lib/features/settings/settings_modal.dart` | ✅ Готов | ✅ | Модалка настроек (размер xl, поддержка embedded: true/false, делегирование 10 вкладок в SettingsView); 5 тестов |
-| 5 | `features/stale-triage` | `StaleBacklogModal.svelte` | `lib/features/stale-triage/stale_backlog_modal.dart` | ⬜ Не начат | ⬜ | — |
+| 5 | `features/stale-triage` | `StaleBacklogModal.svelte` | `lib/features/stale-triage/stale_backlog_modal.dart` | ✅ Готов | ✅ | Модалка ревизии заброшенного бэклога (пороги 90/180/365д, 4 действия в 1 клик — Focus, Pause, Drop с dropPromptState, ToPlanned, оптимистичное исключение и экран успеха 🎉); 7 тестов |
 | 0 | `features/update-progress` | `optimisticProgress.svelte.ts` | `lib/features/update-progress/optimistic_progress.dart` | ✅ Готов | ✅ | SvelteMap → Notifier Map-стейт; apply/resolve/clear/peek (TTL 15s + applyAt test-hook)/reconcile/reconcileListProgress; тесты |
 | 0 | `features/update-progress` | `progressController.svelte.ts` | `lib/features/update-progress/progress_controller.dart` | ✅ Готов | ✅ | CardProgressState: step/debounce(delayOverride 50ms)/promotion rule 1 + toast-инъекция (#15)/undo/keepStatus/onItemReplaced reconcile; ошибка → откат; тесты реального loop |
 | 0 | `features/update-progress` | `seriesProgressController.svelte.ts` | `lib/features/update-progress/series_progress_controller.dart` | ✅ Готов | ✅ | SeriesProgressController: per-media debounce, absoluteSeriesTarget, patchCachedSeasonStep (copyWithFields(seasons)), undo/keepStatus; showToast/i18n инъекция |
@@ -616,3 +617,4 @@ Spatial Node Editor; detailTypes/detailFormatters уже готовы pull-forwa
 | 64 | `views/CalendarView.svelte` | В Svelte дни недели uppercase задаются CSS-классом uppercase, в Dart DateFormat.E('ru') добавляет точку ('пн.') | В _weekdays точка зачищается ('Пн'), в Row отображается day.toUpperCase() ('ПН'), совпадая с визуальным эталоном Svelte | Ревью не требуется |
 | 65 | `views/ListsView.svelte` | CreateListModal и ImportModal портируются позже в Фазе 5; ListsView требует открытия этих модалок | ListsView принимает колбеки onOpenCreateList/onOpenImport и опциональные билдеры createListModalBuilder/importModalBuilder, сохраняя автономность и позволяя App/тестам инжектировать модалки (по аналогии с #38 и #40) | Ревью не требуется |
 | 66 | `views/SettingsView.svelte` | SettingsView в Svelte является 54-строчным embedded-враппером вокруг SettingsModal (embedded: true) | SettingsView портирован как автономный адаптивный шелл с 10 табами и panelBuilder'ом, сохраняя 1-в-1 контракт с Svelte и позволяя прозрачно подключать SettingsModal при его портировании в features/settings/ | Ревью не требуется |
+| 67 | `features/stale-triage/StaleBacklogModal.svelte` | Действия над заброшенным тайтлом: Drop в Svelte открывает DropPromptModal (dropPromptState), ToPlanned/Pause/Focus вызывают updateStatus; на узких экранах строка из 4 кнопок и заголовок с бейджем вызывают переполнение | В StaleBacklogModal строка кнопок действий обёрнута в горизонтальный скролл (`SingleChildScrollView(scrollDirection: Axis.horizontal)`), связка заголовок + бейдж — в `Wrap`, а при нажатии Drop вызывается `dropPromptState.open(item.id, title: item.title, currentProgress: ...)` с оптимистичным удалением из локального списка ревизии | Ревью не требуется |

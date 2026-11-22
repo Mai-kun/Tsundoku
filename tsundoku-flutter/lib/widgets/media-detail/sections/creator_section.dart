@@ -353,25 +353,25 @@ class _CreatorSectionState extends ConsumerState<CreatorSection> {
                     borderRadius: BorderRadius.circular(999),
                     child: Container(
                       height: 6, // h-1.5
+                      width: double.infinity,
                       decoration: BoxDecoration(
                         border: Border.all(
                             color:
                                 Colors.white.withAlpha(10)), // border-white/[0.04]
                         color: th.bgSurface, // color-field
                       ),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 300),
+                      child: FractionallySizedBox(
                         alignment: Alignment.centerLeft,
-                        width: MediaQuery.sizeOf(context).width *
-                            0.4 *
-                            (completionPercent.clamp(0, 100) / 100),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(999),
-                          gradient: LinearGradient(
-                            colors: [
-                              th.accentBright, // from-accent-bright
-                              const Color(0xFF818CF8), // to-[#818cf8]
-                            ],
+                        widthFactor: (completionPercent.clamp(0, 100) / 100),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(999),
+                            gradient: LinearGradient(
+                              colors: [
+                                th.accentBright, // from-accent-bright
+                                const Color(0xFF818CF8), // to-[#818cf8]
+                              ],
+                            ),
                           ),
                         ),
                       ),
@@ -403,7 +403,7 @@ class _CreatorSectionState extends ConsumerState<CreatorSection> {
                     children: [
                       Expanded(
                         child: Text(
-                          t.tr('creator.staffHeading'),
+                          t.tr('creator.staffHeading').toUpperCase(),
                           style: const TextStyle(
                             fontSize: 12, // text-xs
                             fontWeight: FontWeight.w700, // font-bold
@@ -417,17 +417,29 @@ class _CreatorSectionState extends ConsumerState<CreatorSection> {
                     ],
                   ),
                   const SizedBox(height: 10), // gap-2.5
-                  Wrap(
-                    spacing: 10, // gap-2.5
-                    runSpacing: 10,
-                    children: [
-                      for (var idx = 0; idx < widget.staff.length; idx++)
-                        _StaffCard(
-                          person: widget.staff[idx],
-                          large: largeStaff,
-                          th: th,
-                        ),
-                    ],
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      // grid grid-cols-1 sm:grid-cols-2 gap-2.5
+                      final isSm = constraints.maxWidth >= 500;
+                      final cardWidth = isSm
+                          ? (constraints.maxWidth - 10) / 2
+                          : constraints.maxWidth;
+                      return Wrap(
+                        spacing: 10, // gap-2.5
+                        runSpacing: 10,
+                        children: [
+                          for (var idx = 0; idx < widget.staff.length; idx++)
+                            SizedBox(
+                              width: cardWidth,
+                              child: _StaffCard(
+                                person: widget.staff[idx],
+                                large: largeStaff,
+                                th: th,
+                              ),
+                            ),
+                        ],
+                      );
+                    },
                   ),
                 ],
               ),
@@ -440,7 +452,7 @@ class _CreatorSectionState extends ConsumerState<CreatorSection> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  t.tr('creator.otherWorks'),
+                  t.tr('creator.otherWorks').toUpperCase(),
                   style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
@@ -505,7 +517,6 @@ class _StaffCard extends StatelessWidget {
         border: Border.all(color: Colors.white.withAlpha(13)), // white/5
         color: Colors.white.withAlpha(8), // bg-white/[0.03]
       ),
-      width: large ? 300 : 260,
       child: Row(
         crossAxisAlignment:
             large ? CrossAxisAlignment.start : CrossAxisAlignment.center,

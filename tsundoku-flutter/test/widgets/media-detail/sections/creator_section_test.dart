@@ -228,7 +228,7 @@ void main() {
     );
 
     expect(find.text('СТУДИЯ'), findsOneWidget);
-    expect(find.textContaining('Авторы и создатели'), findsOneWidget);
+    expect(find.textContaining(RegExp('Авторы и создатели', caseSensitive: false)), findsOneWidget);
     expect(find.text('Hayao Miyazaki'), findsOneWidget);
     expect(find.text('Director'), findsOneWidget);
     expect(find.text('Isao Takahata'), findsOneWidget);

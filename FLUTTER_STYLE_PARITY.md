@@ -2,8 +2,8 @@
 
 ## 📍 Текущий фокус / Next Step
 * **Фаза:** S5 (widgets/media-detail/**, widgets/stats/**, widgets/goals/*)
-* **Текущий файл:** `mediatracker-ui/src/widgets/media-detail/sections/CreatorSection.svelte` -> `tsundoku-flutter/lib/widgets/media-detail/sections/creator_section.dart`
-* **Цель:** Сверка CreatorSection: авторы, режиссеры, создатели, роли, аватары.
+* **Текущий файл:** `mediatracker-ui/src/widgets/media-detail/sections/GameDetailSection.svelte` -> `tsundoku-flutter/lib/widgets/media-detail/sections/game_detail_section.dart`
+* **Цель:** Сверка GameDetailSection: платформы, время прохождения (Main, Extra, Completionist), HLTB-данные.
 
 ---
 
@@ -240,7 +240,7 @@
 | S5 | `mediatracker-ui/src/widgets/media-detail/sections/BookProgressSection.svelte` | `tsundoku-flutter/lib/widgets/media-detail/sections/book_progress_section.dart` | ✅ Сверен 1:1 | 0 отличий (делегирует в ProgressCard с amber-акцентом: страницы/главы в зависимости от isNovel, темп [10,20,30,50] или [1,2,3,5], minsPerUnit: novel 6.0 / bookPageMinutes 1-в-1) | 0 отличий |
 | S5 | `mediatracker-ui/src/widgets/media-detail/sections/BookEditionSection.svelte` | `tsundoku-flutter/lib/widgets/media-detail/sections/book_edition_section.dart` | ✅ Сверен 1:1 | Сверен p-5, gap-2, bg-black/15, ISBN col-span-2, добавлен fontFamily monospace на ISBN для 1:1 со Svelte | 0 расхождений |
 | S5 | `mediatracker-ui/src/widgets/media-detail/sections/CastSection.svelte` | `tsundoku-flutter/lib/widgets/media-detail/sections/cast_section.dart` | ✅ Сверен 1:1 | Заголовок uppercase tracking-wider, адаптивная сетка portrait grid-cols-3 gap-3 через LayoutBuilder ((W-24)/3), адаптивная плоская сетка grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2, разделители divide-white/[0.05] в voice mode, цвета _RoleBadge на th.accent/30 и th.accent/15 для MAIN 1-в-1 | Да |
-| S5 | `mediatracker-ui/src/widgets/media-detail/sections/CreatorSection.svelte` | `tsundoku-flutter/lib/widgets/media-detail/sections/creator_section.dart` | В очереди |  |  |
+| S5 | `mediatracker-ui/src/widgets/media-detail/sections/CreatorSection.svelte` | `tsundoku-flutter/lib/widgets/media-detail/sections/creator_section.dart` | ✅ Сверен 1:1 | Прогресс-бар коллекции w-full с FractionallySizedBox (widthFactor: completionPercent), заголовки uppercase tracking-wider text-xs font-bold, адаптивная сетка staff grid-cols-1 sm:grid-cols-2 gap-2.5 через LayoutBuilder 1-в-1 | Да |
 | S5 | `mediatracker-ui/src/widgets/media-detail/sections/GameDetailSection.svelte` | `tsundoku-flutter/lib/widgets/media-detail/sections/game_detail_section.dart` | В очереди |  |  |
 | S5 | `mediatracker-ui/src/widgets/media-detail/sections/LinkedSourcesSection.svelte` | `tsundoku-flutter/lib/widgets/media-detail/sections/linked_sources_section.dart` | В очереди |  |  |
 | S5 | `mediatracker-ui/src/widgets/media-detail/sections/MangaProgressSection.svelte` | `tsundoku-flutter/lib/widgets/media-detail/sections/manga_progress_section.dart` | В очереди |  |  |

@@ -54,7 +54,7 @@ class CriticalDivergenceCard extends ConsumerWidget {
                 style: const TextStyle(
                   fontSize: 16, // text-base
                   fontWeight: FontWeight.w600, // font-semibold
-                  letterSpacing: -0.2, // tracking-tight
+                  letterSpacing: -0.4, // tracking-tight
                   color: Colors.white,
                 ),
               ),
@@ -78,7 +78,7 @@ class CriticalDivergenceCard extends ConsumerWidget {
             const SizedBox(height: 16), // mb-4
             LayoutBuilder(
               builder: (context, constraints) {
-                final isWide = constraints.maxWidth >= 540;
+                final isWide = constraints.maxWidth >= 640;
 
                 final cards = <Widget>[
                   if (hasGem)
@@ -103,13 +103,15 @@ class CriticalDivergenceCard extends ConsumerWidget {
 
                 if (isWide) {
                   if (cards.length == 2) {
-                    return Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(child: cards[0]),
-                        const SizedBox(width: 16), // gap-4
-                        Expanded(child: cards[1]),
-                      ],
+                    return IntrinsicHeight(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Expanded(child: cards[0]),
+                          const SizedBox(width: 16), // gap-4
+                          Expanded(child: cards[1]),
+                        ],
+                      ),
                     );
                   } else {
                     return Row(
@@ -221,153 +223,159 @@ class _DivergenceItemCard extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.all(16), // p-4
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Блок заголовка: иконка + ТАЙНЫЙ ШЕДЕВР / РАЗОЧАРОВАНИЕ
-                Row(
-                  children: [
-                    Text(
-                      isGem ? '💎' : '💔',
-                      style: const TextStyle(fontSize: 11),
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        headerText.toUpperCase(),
-                        style: TextStyle(
-                          fontSize: 11, // text-[11px]
-                          fontWeight: FontWeight.w600, // font-semibold
-                          letterSpacing: 0.5, // tracking-wide
-                          color: headerColor,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12), // gap-3
-
-                // Медиа-информация: постер + тайтл + тип + оценки
-                Row(
+                Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(6), // rounded-md
-                      child: item.coverUrl != null && item.coverUrl!.isNotEmpty
-                          ? Image.network(
-                              item.coverUrl!,
-                              width: 56, // w-14
-                              height: 80, // h-20
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) =>
-                                  Container(
-                                width: 56,
-                                height: 80,
-                                color: Colors.white.withAlpha(13), // bg-white/5
-                                alignment: Alignment.center,
-                                child: const Icon(
-                                  LucideIcons.image,
-                                  size: 20,
-                                  color: Color(0xFF64748B), // text-slate-500
+                    // Блок заголовка: иконка + ТАЙНЫЙ ШЕДЕВР / РАЗОЧАРОВАНИЕ
+                    Row(
+                      children: [
+                        Text(
+                          isGem ? '💎' : '💔',
+                          style: const TextStyle(fontSize: 11),
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            headerText.toUpperCase(),
+                            style: TextStyle(
+                              fontSize: 11, // text-[11px]
+                              fontWeight: FontWeight.w600, // font-semibold
+                              letterSpacing: 0.5, // tracking-wide
+                              color: headerColor,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12), // gap-3
+
+                    // Медиа-информация: постер + тайтл + тип + оценки
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(6), // rounded-md
+                          child: item.coverUrl != null && item.coverUrl!.isNotEmpty
+                              ? Image.network(
+                                  item.coverUrl!,
+                                  width: 56, // w-14
+                                  height: 80, // h-20
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) =>
+                                      Container(
+                                    width: 56,
+                                    height: 80,
+                                    color: Colors.white.withAlpha(13), // bg-white/5
+                                    alignment: Alignment.center,
+                                    child: const Icon(
+                                      LucideIcons.image,
+                                      size: 20,
+                                      color: Color(0xFF64748B), // text-slate-500
+                                    ),
+                                  ),
+                                )
+                              : Container(
+                                  width: 56,
+                                  height: 80,
+                                  color: Colors.white.withAlpha(13),
+                                  alignment: Alignment.center,
+                                  child: const Icon(
+                                    LucideIcons.image,
+                                    size: 20,
+                                    color: Color(0xFF64748B),
+                                  ),
+                                ),
+                        ),
+                        const SizedBox(width: 12), // gap-3
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                item.title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 14, // text-sm
+                                  fontWeight: FontWeight.w600, // font-semibold
+                                  color: Colors.white,
                                 ),
                               ),
-                            )
-                          : Container(
-                              width: 56,
-                              height: 80,
-                              color: Colors.white.withAlpha(13),
-                              alignment: Alignment.center,
-                              child: const Icon(
-                                LucideIcons.image,
-                                size: 20,
-                                color: Color(0xFF64748B),
+                              const SizedBox(height: 2), // mt-0.5
+                              Text(
+                                '${_typeLabel(t, item.type)} · $hintText',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 12, // text-xs
+                                  color: Color(0xFF94A3B8), // text-slate-400
+                                ),
                               ),
-                            ),
-                    ),
-                    const SizedBox(width: 12), // gap-3
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            item.title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 14, // text-sm
-                              fontWeight: FontWeight.w600, // font-semibold
-                              color: Colors.white,
-                            ),
+                              const SizedBox(height: 8), // mt-2
+                              Wrap(
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                spacing: 12, // gap-x-3
+                                runSpacing: 4, // gap-y-1
+                                children: isGem
+                                    ? [
+                                        Text(
+                                          '★ ${_formatScore(item.userScore)}',
+                                          style: const TextStyle(
+                                            fontSize: 12, // text-xs
+                                            fontWeight: FontWeight.bold,
+                                            color: Color(0xFFFCD34D), // text-amber-300
+                                          ),
+                                        ),
+                                        const Text(
+                                          'vs',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Color(0xFF64748B), // text-slate-500
+                                          ),
+                                        ),
+                                        Text(
+                                          '★ ${_formatScore(item.worldRating)}',
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w500,
+                                            color: Color(0xFFCBD5E1), // text-slate-300
+                                          ),
+                                        ),
+                                      ]
+                                    : [
+                                        Text(
+                                          '★ ${_formatScore(item.worldRating)}',
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                            color: Color(0xFFCBD5E1), // text-slate-300
+                                          ),
+                                        ),
+                                        const Text(
+                                          'vs',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Color(0xFF64748B), // text-slate-500
+                                          ),
+                                        ),
+                                        Text(
+                                          '★ ${_formatScore(item.userScore)}',
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w500,
+                                            color: Color(0xFFFDA4AF), // text-rose-300
+                                          ),
+                                        ),
+                                      ],
+                              ),
+                            ],
                           ),
-                          const SizedBox(height: 2), // mt-0.5
-                          Text(
-                            '${_typeLabel(t, item.type)} · $hintText',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 12, // text-xs
-                              color: Color(0xFF94A3B8), // text-slate-400
-                            ),
-                          ),
-                          const SizedBox(height: 8), // mt-2
-                          Wrap(
-                            crossAxisAlignment: WrapCrossAlignment.center,
-                            spacing: 12, // gap-x-3
-                            runSpacing: 4, // gap-y-1
-                            children: isGem
-                                ? [
-                                    Text(
-                                      '★ ${_formatScore(item.userScore)}',
-                                      style: const TextStyle(
-                                        fontSize: 12, // text-xs
-                                        fontWeight: FontWeight.bold,
-                                        color: Color(0xFFFCD34D), // text-amber-300
-                                      ),
-                                    ),
-                                    const Text(
-                                      'vs',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Color(0xFF64748B), // text-slate-500
-                                      ),
-                                    ),
-                                    Text(
-                                      '★ ${_formatScore(item.worldRating)}',
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w500,
-                                        color: Color(0xFFCBD5E1), // text-slate-300
-                                      ),
-                                    ),
-                                  ]
-                                : [
-                                    Text(
-                                      '★ ${_formatScore(item.worldRating)}',
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
-                                        color: Color(0xFFCBD5E1), // text-slate-300
-                                      ),
-                                    ),
-                                    const Text(
-                                      'vs',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Color(0xFF64748B), // text-slate-500
-                                      ),
-                                    ),
-                                    Text(
-                                      '★ ${_formatScore(item.userScore)}',
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w500,
-                                        color: Color(0xFFFDA4AF), // text-rose-300
-                                      ),
-                                    ),
-                                  ],
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ],
                 ),

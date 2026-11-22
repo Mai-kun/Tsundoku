@@ -2,8 +2,8 @@
 
 ## 📍 Текущий фокус / Next Step
 * **Фаза:** S4 (features/**)
-* **Текущий файл:** `mediatracker-ui/src/features/import-media/ImportPanel.svelte` -> `tsundoku-flutter/lib/features/import-media/import_panel.dart`
-* **Цель:** Сверка ImportPanel: 2-column grid карточек (grid-cols-1 md:grid-cols-2), брендовые цвета источников, брендовые CTA кнопки, auth секции.
+* **Текущий файл:** `mediatracker-ui/src/features/search-external/SearchModal.svelte` -> `tsundoku-flutter/lib/features/search-external/search_modal.dart`
+* **Цель:** Сверка SearchModal: поисковый инпут с иконкой, дебаунс, сетка карточек внешнего поиска, пагинация, модалка.
 
 ---
 
@@ -196,7 +196,7 @@
 | S4 | `mediatracker-ui/src/features/settings/SettingsModal.svelte` | `tsundoku-flutter/lib/features/settings/settings_modal.dart` | ✅ Сверен 1:1 | Full-bleed модалка (ModalSize.xl, contentPadding: zero), header px-6 py-4, TsundokuButton.ghost close button, 10 табов 1-в-1 | Да |
 | S4 | `mediatracker-ui/src/features/settings/FirstRunStorageModal.svelte` | `tsundoku-flutter/lib/features/settings/first_run_storage_modal.dart` | ✅ Сверен 1:1 | ModalSize.md, убран двойной padding через contentPadding: zero (p-6 24px), опции p-3.5, h-9 bg-indigo-600 px-5 button 1-в-1 | Да |
 | S4 | `mediatracker-ui/src/features/import-media/ImportModal.svelte` | `tsundoku-flutter/lib/features/import-media/import_modal.dart` | ✅ Сверен 1:1 | ModalSize.xl, убран двойной padding через contentPadding: zero (p-6 24px), in-only fade, ImportPanel integration 1-в-1 | Да |
-| S4 | `mediatracker-ui/src/features/import-media/ImportPanel.svelte` | `tsundoku-flutter/lib/features/import-media/import_panel.dart` | В очереди |  |  |
+| S4 | `mediatracker-ui/src/features/import-media/ImportPanel.svelte` | `tsundoku-flutter/lib/features/import-media/import_panel.dart` | ✅ Сверен 1:1 | Сетка провайдеров grid-cols-1 sm:2 lg:4 (gap-2.5 10px, mainAxisExtent 70px), p-3 rounded-xl border, icon 40x40 rounded-lg, 1:1 токены брендовых цветов sourceTheme, MangaLib сетки 5 сайтов (grid-cols-2 sm:3) и 6 папок (grid-cols-2 sm:3), space-y-6 (24px) вертикальный ритм, custom accordion (JSON/CSV snippet), убран лишний folderInput в шапке 1-в-1 | Да |
 | S4 | `mediatracker-ui/src/features/search-external/SearchModal.svelte` | `tsundoku-flutter/lib/features/search-external/search_modal.dart` | В очереди |  |  |
 | S4 | `mediatracker-ui/src/features/edit-media/EditMediaWorkspace.svelte` | `tsundoku-flutter/lib/features/edit-media/edit_media_workspace.dart` | В очереди |  |  |
 | S4 | `mediatracker-ui/src/features/edit-media/WorkspaceWindow.svelte` | `tsundoku-flutter/lib/features/edit-media/workspace_window.dart` | В очереди |  |  |

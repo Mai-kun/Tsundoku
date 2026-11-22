@@ -72,7 +72,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Импорт медиатеки'), findsOneWidget);
-    expect(find.byIcon(LucideIcons.folderInput), findsOneWidget);
     expect(find.byIcon(LucideIcons.x), findsOneWidget);
 
     await tester.tap(find.byIcon(LucideIcons.x));

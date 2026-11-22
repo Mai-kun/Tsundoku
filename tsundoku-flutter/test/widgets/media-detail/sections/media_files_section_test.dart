@@ -101,7 +101,7 @@ void main() {
     );
     expect(find.textContaining('Пока нет прикреплённых файлов'),
         findsOneWidget);
-    expect(find.text('Файлы и документы'), findsOneWidget);
+    expect(find.textContaining(RegExp('Файлы и документы', caseSensitive: false)), findsOneWidget);
   });
 
   testWidgets('вложения: имена, размеры (Б/МБ), иконки по расширению',

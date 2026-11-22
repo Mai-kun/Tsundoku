@@ -222,7 +222,7 @@ class _MediaFilesSectionState extends ConsumerState<MediaFilesSection> {
               const SizedBox(width: 8), // gap-2
               Expanded(
                 child: Text(
-                  t.tr('detail.filesTitle'),
+                  t.tr('detail.filesTitle').toUpperCase(),
                   style: const TextStyle(
                     fontSize: 12, // text-xs
                     fontWeight: FontWeight.w700, // font-bold

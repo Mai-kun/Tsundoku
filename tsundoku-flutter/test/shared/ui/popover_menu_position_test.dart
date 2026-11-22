@@ -66,8 +66,8 @@ void main() {
     expect(opt1GlobalPos.dx, greaterThanOrEqualTo(triggerOffset.dx - 10));
     expect(opt1GlobalPos.dy, greaterThan(triggerOffset.dy + triggerSize.height));
 
-    // Verify font size is 13px
+    // Verify font size is 14px (text-sm)
     final textWidget = tester.widget<Text>(opt1Finder);
-    expect(textWidget.style?.fontSize, 13);
+    expect(textWidget.style?.fontSize, 14);
   });
 }

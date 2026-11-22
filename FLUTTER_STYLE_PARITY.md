@@ -2,8 +2,8 @@
 
 ## 📍 Текущий фокус / Next Step
 * **Фаза:** S1 (shared/ui/*.svelte)
-* **Текущий файл:** `mediatracker-ui/src/shared/ui/PopoverMenu.svelte` -> `tsundoku-flutter/lib/shared/ui/popover_menu.dart`
-* **Цель:** Сверка PopoverMenu: placement, border-radius, background, shadow, padding, typography 1-в-1.
+* **Текущий файл:** `mediatracker-ui/src/shared/ui/ContextMenu.svelte` -> `tsundoku-flutter/lib/shared/ui/context_menu.dart`
+* **Цель:** Сверка ContextMenu: background, border, radius, shadow, padding, item layout, icons 1-в-1.
 
 ---
 
@@ -164,8 +164,8 @@
 | S1 | `mediatracker-ui/src/shared/ui/Panel.svelte` | `tsundoku-flutter/lib/shared/ui/panel.dart` | ✅ Сверен 1:1 | rounded-xl (12px), border-subtle, bg-surface, p-4 (16px), shadow-md совпадают 1-в-1 | 0 отличий |
 | S1 | `mediatracker-ui/src/shared/ui/Modal.svelte` | `tsundoku-flutter/lib/shared/ui/modal.dart` | ✅ Сверен 1:1 | Добавлена тень shadow-2xl shadow-black/60 (elevation+shadowColor), добавлен contentPadding; размеры md/lg/xl/search/jobs и backdrop #090b10/80 выверены 1-в-1 | Да |
 | S1 | `mediatracker-ui/src/shared/ui/ConfirmModal.svelte` | `tsundoku-flutter/lib/shared/ui/confirm_modal.dart` | ✅ Сверен 1:1 | Устранён двойной отступ через contentPadding: EdgeInsets.zero; p-6 (24px), цвета и размеры кнопок/чекбоксов 1-в-1 | Да |
-| S1 | `mediatracker-ui/src/shared/ui/PopoverMenu.svelte` | `tsundoku-flutter/lib/shared/ui/popover_menu.dart` | В очереди |  |  |
-| S1 | `mediatracker-ui/src/shared/ui/Select.svelte` | `tsundoku-flutter/lib/shared/ui/popover_menu.dart` | В очереди |  |  |
+| S1 | `mediatracker-ui/src/shared/ui/PopoverMenu.svelte` | `tsundoku-flutter/lib/shared/ui/popover_menu.dart` | ✅ Сверен 1:1 | Исправлен размер шрифта опций на 14px (text-sm), паддинг на py-2 (8px), rounded-sm (2px); фон #1c202b, border-white/10, shadow-2xl выверены 1-в-1 | Да |
+| S1 | `mediatracker-ui/src/shared/ui/Select.svelte` | `tsundoku-flutter/lib/shared/ui/popover_menu.dart` | ✅ Сверен 1:1 | Исправлен border-radius на 8px (rounded-lg), цвет текста #f3f4f6 (text-ink); h-10 (40px), px-3 (12px), ChevronDown 14px text-muted 1-в-1 | Да |
 | S1 | `mediatracker-ui/src/shared/ui/ContextMenu.svelte` | `tsundoku-flutter/lib/shared/ui/context_menu.dart` | В очереди |  |  |
 | S1 | `mediatracker-ui/src/widgets/layout/ToastContainer.svelte` | `tsundoku-flutter/lib/widgets/layout/toast_container.dart` | В очереди |  |  |
 | S1 | `mediatracker-ui/src/shared/ui/ImageLightbox.svelte` | `tsundoku-flutter/lib/shared/ui/image_lightbox.dart` | В очереди |  |  |

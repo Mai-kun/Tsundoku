@@ -373,10 +373,10 @@ class _MenuOptionButton<T> extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: () => onSelect(option.value),
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(2), // rounded-sm = 2px
         hoverColor: const Color(0x0DFFFFFF), // hover:bg-white/5
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6), // px-3 py-1.5
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8), // px-3 py-2
           child: Row(
             children: [
               if (option.leading != null) ...[
@@ -393,7 +393,7 @@ class _MenuOptionButton<T> extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 13, // text-sm (13px)
+                    fontSize: 14, // text-sm = 14px
                     fontWeight: selected ? FontWeight.w500 : FontWeight.w400,
                     color: selected ? th.accentSoft : th.textMuted,
                   ),
@@ -468,11 +468,11 @@ class TsundokuSelect<T> extends StatelessWidget {
           foregroundColor: Colors.transparent,
           backgroundColor: const Color(0xFF1C202B), // bg-[#1c202b]
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(TsundokuPalette.radiusSelector),
-            side: BorderSide(
-                color: const Color(0x1AFFFFFF)), // border-white/10
+            borderRadius: BorderRadius.circular(8), // rounded-lg = 8px
+            side: const BorderSide(
+                color: Color(0x1AFFFFFF)), // border-white/10
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 12), // px-3
           fixedSize: width != null
               ? Size(width!, height ?? 40)
               : Size.fromHeight(height ?? 40),
@@ -487,7 +487,7 @@ class TsundokuSelect<T> extends StatelessWidget {
                 selectedLabel,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 14),
+                style: const TextStyle(fontSize: 14, color: Color(0xFFF3F4F6)), // text-ink text-sm
               ),
             ),
             const Icon(Icons.expand_more,

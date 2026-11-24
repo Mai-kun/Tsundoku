@@ -1,0 +1,107 @@
+{
+  "version": "1.0",
+  "transport": "sse",
+  "url": "http://127.0.0.1:4747/sse",
+  "tools": [
+    {
+      "name": "agentation_get_all_pending",
+      "description": "Retrieves all pending annotations from the active Flutter application inspection canvas.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "format": {
+            "type": "string",
+            "enum": [
+              "json",
+              "markdown"
+            ],
+            "description": "Output format (json or markdown table). Defaults to json."
+          }
+        }
+      }
+    },
+    {
+      "name": "agentation_reply",
+      "description": "Appends an AI agent response into an existing annotation thread in the Flutter UI.",
+      "parameters": {
+        "type": "object",
+        "required": [
+          "id",
+          "message"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The annotation ID."
+          },
+          "message": {
+            "type": "string",
+            "description": "The reply message text."
+          }
+        }
+      }
+    },
+    {
+      "name": "agentation_resolve",
+      "description": "Resolves and clears an annotation once the requested code fix or inspection change has been completed.",
+      "parameters": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The annotation ID to resolve."
+          }
+        }
+      }
+    },
+    {
+      "name": "agentation_create_annotation",
+      "description": "Programmatically creates a new visual annotation card at specified screen coordinates in the Flutter app.",
+      "parameters": {
+        "type": "object",
+        "required": [
+          "comment",
+          "x",
+          "y"
+        ],
+        "properties": {
+          "comment": {
+            "type": "string",
+            "description": "Annotation comment text."
+          },
+          "x": {
+            "type": "number",
+            "description": "Global X coordinate."
+          },
+          "y": {
+            "type": "number",
+            "description": "Global Y coordinate."
+          },
+          "element": {
+            "type": "string",
+            "description": "Target widget description or name."
+          }
+        }
+      }
+    },
+    {
+      "name": "agentation_get_app_info",
+      "description": "Retrieves runtime application metadata (platform, screen size, active route, theme).",
+      "parameters": {
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "agentation_watch_annotations",
+      "description": "Subscribes to live visual inspection events via SSE stream.",
+      "parameters": {
+        "type": "object",
+        "properties": {}
+      }
+    }
+  ]
+}

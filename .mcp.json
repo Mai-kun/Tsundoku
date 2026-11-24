@@ -4,6 +4,12 @@
       "command": "dart",
       "args": ["mcp-server"]
     },
+    "marionette": {
+      "command": "/home/maikun/.pub-cache/bin/marionette_mcp"
+    },
+    "flutter-agentation": {
+      "url": "http://127.0.0.1:4747/mcp"
+    },
     "context7": {
       "command": "npx",
       "args": ["-y", "@upstash/context7-mcp"]

@@ -1,0 +1,13 @@
+{
+  "name": "flutter-agentation",
+  "version": "0.0.1",
+  "port": 4747,
+  "endpoints": {
+    "sse": "http://127.0.0.1:4747/sse",
+    "http": "http://127.0.0.1:4747/mcp",
+    "status": "http://127.0.0.1:4747/status",
+    "pending": "http://127.0.0.1:4747/pending",
+    "sessions": "http://127.0.0.1:4747/sessions"
+  },
+  "timestamp": "2026-11-24T20:49:32.426363"
+}

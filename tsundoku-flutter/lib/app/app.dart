@@ -73,7 +73,15 @@ class TsundokuApp extends StatelessWidget {
   /// Тестовые overrides внутреннего ProviderScope (стаб-адаптер dio и т.п.).
   final List<dynamic>? providerOverrides;
 
-  const TsundokuApp({super.key, this.providerOverrides});
+  /// Опциональный debug-only `MaterialApp.builder` (например, Flutter Agentation).
+  /// В тестах и release-сборке равен `null`.
+  final TransitionBuilder? debugOverlayBuilder;
+
+  const TsundokuApp({
+    super.key,
+    this.providerOverrides,
+    this.debugOverlayBuilder,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -81,6 +89,7 @@ class TsundokuApp extends StatelessWidget {
       title: 'Tsundoku',
       debugShowCheckedModeBanner: false,
       theme: buildTsundokuTheme(tokens: TsundokuTheme.obsidian),
+      builder: debugOverlayBuilder,
       home: ProviderScope(
         overrides: (providerOverrides ?? const <dynamic>[]).cast(),
         child: const _AppRouter(),

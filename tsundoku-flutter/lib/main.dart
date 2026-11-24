@@ -17,7 +17,9 @@ library;
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter_agentation/flutter_agentation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:marionette_flutter/marionette_flutter.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'app/app.dart';
@@ -56,7 +58,11 @@ String parseBaseUrl(List<String> args) {
 }
 
 Future<void> main(List<String> args) async {
-  WidgetsFlutterBinding.ensureInitialized();
+  if (kDebugMode) {
+    MarionetteBinding.ensureInitialized();
+  } else {
+    WidgetsFlutterBinding.ensureInitialized();
+  }
   await platformService.initWindow();
 
   final initialUrl = parseBaseUrl(args);
@@ -126,6 +132,15 @@ class _ApiBootstrapState extends ConsumerState<_ApiBootstrap> {
 
   @override
   Widget build(BuildContext context) {
-    return const TsundokuApp();
+    return TsundokuApp(
+      debugOverlayBuilder: kDebugMode
+          ? FlutterAgentation.builder(
+              appName: 'Tsundoku',
+              mcpEnabled: true,
+              mcpPort: 4747,
+              initialToolbarMinimized: true,
+            )
+          : null,
+    );
   }
 }

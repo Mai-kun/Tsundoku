@@ -77,7 +77,9 @@ class _SourcesTabState extends ConsumerState<SourcesTab> {
   @override
   void initState() {
     super.initState();
-    _loadAll();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _loadAll();
+    });
   }
 
   @override
@@ -239,7 +241,7 @@ class _SourcesTabState extends ConsumerState<SourcesTab> {
         _proxyEnabled = settings.enabled;
         _proxyUrlController.text = settings.proxyUrl;
         _proxyUsernameController.text = settings.username ?? '';
-        _proxyPasswordController.clear;
+        _proxyPasswordController.clear();
         _proxyPasswordDirty = false;
       });
     } catch (e) {

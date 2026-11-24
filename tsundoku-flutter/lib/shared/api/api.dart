@@ -8,6 +8,7 @@
 /// `errorMessage` принимает [Locale] явно.
 library;
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -1722,10 +1723,22 @@ final apiBaseUrlProvider =
 final apiClientProvider = Provider<TsundokuApi>((ref) {
   final api = TsundokuApi.create(baseUrl: ref.watch(apiBaseUrlProvider));
   final activity = ref.read(networkActivityProvider.notifier);
+  var disposed = false;
   api
-    ..onRequestStart = activity.begin
-    ..onRequestEnd = activity.end;
+    // Откладываем в microtask, чтобы сетевые вызовы из initState / didUpdateWidget
+    // не модифицировали networkActivityProvider синхронно во время build.
+    ..onRequestStart = () {
+      Future<void>.microtask(() {
+        if (!disposed) activity.begin();
+      });
+    }
+    ..onRequestEnd = () {
+      Future<void>.microtask(() {
+        if (!disposed) activity.end();
+      });
+    };
   ref.onDispose(() {
+    disposed = true;
     api
       ..onRequestStart = null
       ..onRequestEnd = null;

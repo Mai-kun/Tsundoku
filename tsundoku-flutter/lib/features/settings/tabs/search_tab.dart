@@ -72,7 +72,9 @@ class _SearchTabState extends ConsumerState<SearchTab> {
   @override
   void initState() {
     super.initState();
-    _loadAll();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _loadAll();
+    });
   }
 
   @override
